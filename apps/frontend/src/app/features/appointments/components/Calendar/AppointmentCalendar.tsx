@@ -210,9 +210,7 @@ const AppointmentCalendar = ({
     }
   }, [activeCalendar, primaryOrgId]);
 
-  const authUserId = useAuthStore(
-    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
-  );
+  const authUserId = useAuthStore((s) => s.attributes?.sub || s.attributes?.email || '');
   const normalizeId = useCallback(
     (value?: string) =>
       String(value ?? '')

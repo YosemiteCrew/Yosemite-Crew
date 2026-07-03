@@ -32,10 +32,8 @@ jest.mock('@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard', () => ({
 
 import DeveloperPortalHome from '@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome';
 
-const createSession = (payload: any) => ({
-  getIdToken: () => ({
-    decodePayload: () => payload,
-  }),
+const createState = (attributes: Record<string, string>) => ({
+  attributes,
 });
 
 describe('DeveloperPortalHome page', () => {
@@ -45,7 +43,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('renders developer home content when authenticated', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({
+      ...createState({
         given_name: 'Ada',
         family_name: 'Lovelace',
       }),
@@ -67,7 +65,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('shows fallback name when no user name is available', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({}),
+      ...createState({}),
     });
 
     render(<DeveloperPortalHome />);
@@ -77,7 +75,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('uses email as fallback when name is not provided', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({
+      ...createState({
         email: 'test@example.com',
       }),
     });
@@ -91,7 +89,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('has no axe violations', async () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     const { container } = render(<DeveloperPortalHome />);
     const results = await axe(container);
@@ -100,7 +98,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('Developer Home uses h1 and Welcome back uses h2', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     render(<DeveloperPortalHome />);
     expect(screen.getByRole('heading', { level: 1, name: /Developer Home/i })).toBeInTheDocument();

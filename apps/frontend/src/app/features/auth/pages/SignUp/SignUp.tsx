@@ -84,17 +84,12 @@ const validateSignUpInputs = (
 };
 
 type SignUpProps = {
-  postAuthRedirect?: string;
   signinHref?: string;
   allowNext?: boolean;
   isDeveloper?: boolean;
 };
 
-const SignUp = ({
-  postAuthRedirect,
-  signinHref = '/signin',
-  isDeveloper = false,
-}: Readonly<SignUpProps>) => {
+const SignUp = ({ signinHref = '/signin', isDeveloper = false }: Readonly<SignUpProps>) => {
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const { signUp } = useAuthStore();
 
@@ -139,7 +134,7 @@ const SignUp = ({
     if (typeof globalThis !== 'undefined') {
       globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    const status = error.code === 'UsernameExistsException' ? 409 : undefined;
+    const status = error.code === 'EMAIL_ALREADY_EXISTS' ? 409 : undefined;
     const message = error.message || 'Something went wrong.';
 
     showErrorTost({
@@ -400,12 +395,9 @@ const SignUp = ({
       </div>
       <OtpModal
         email={normalizeEmail(email)}
-        password={password}
         showErrorTost={showErrorTost}
         showVerifyModal={showVerifyModal}
         setShowVerifyModal={setShowVerifyModal}
-        redirectPath={postAuthRedirect}
-        isDeveloper={isDeveloper}
       />
       {ErrorTostPopup}
     </section>

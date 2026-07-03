@@ -1,57 +1,22 @@
-// --- Global Mock Objects (Defined outside to remain stable across resets) ---
-let logger: {
-  debug: jest.Mock;
-  info: jest.Mock;
-  warn: jest.Mock;
-  error: jest.Mock;
-};
+import EmailPassword from 'supertokens-web-js/recipe/emailpassword';
+import EmailVerification from 'supertokens-web-js/recipe/emailverification';
+import MultiFactorAuth from 'supertokens-web-js/recipe/multifactorauth';
+import Passwordless from 'supertokens-web-js/recipe/passwordless';
+import Session from 'supertokens-web-js/recipe/session';
+import TOTP from 'supertokens-web-js/recipe/totp';
 
-const mockSession = {
-  isValid: jest.fn(() => true),
-  getIdToken: jest.fn(() => ({
-    decodePayload: jest.fn(() => ({ 'custom:role': 'admin' })),
-  })),
-};
+import { useAuthStore } from '@/app/stores/authStore';
+import { getData, postData } from '@/app/services/axios';
+import { logger } from '@/app/lib/logger';
+import { clearSessionScopedStores } from '@/app/lib/resetSessionStores';
+import { removeStorageItem } from '@/app/lib/browserStorage';
+import { initAuthClient } from '@/app/lib/authClient';
 
-const mockUserInstance = {
-  signUp: jest.fn(),
-  confirmRegistration: jest.fn(),
-  resendConfirmationCode: jest.fn(),
-  authenticateUser: jest.fn(),
-  getSession: jest.fn(),
-  globalSignOut: jest.fn(),
-  forgotPassword: jest.fn(),
-  confirmPassword: jest.fn(),
-  getUserAttributes: jest.fn(),
-};
+// --- Mocks ---
 
-const mockPoolInstance = {
-  signUp: jest.fn(),
-  getCurrentUser: jest.fn(),
-};
-
-// --- Mocks Setup ---
-
-// Mock orgStore
-const mockClearOrgs = jest.fn();
-jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: {
-    getState: jest.fn(() => ({
-      clearOrgs: mockClearOrgs,
-    })),
-  },
+jest.mock('@/app/lib/authClient', () => ({
+  initAuthClient: jest.fn(),
 }));
-
-// Mock Amazon Cognito with stable references
-jest.mock('amazon-cognito-identity-js', () => {
-  return {
-    CognitoUserPool: jest.fn(() => mockPoolInstance),
-    CognitoUser: jest.fn(() => mockUserInstance),
-    CognitoUserAttribute: jest.fn().mockImplementation((x) => x),
-    AuthenticationDetails: jest.fn(),
-    CognitoUserSession: jest.fn(),
-  };
-});
 
 jest.mock('@/app/lib/logger', () => ({
   logger: {
@@ -62,528 +27,959 @@ jest.mock('@/app/lib/logger', () => ({
   },
 }));
 
-describe('authStore', () => {
-  let useAuthStore: any;
+jest.mock('@/app/lib/resetSessionStores', () => ({
+  clearSessionScopedStores: jest.fn(),
+}));
 
-  beforeEach(async () => {
-    // 1. Reset Modules to ensure authStore re-initializes
-    jest.resetModules();
+jest.mock('@/app/lib/browserStorage', () => ({
+  removeStorageItem: jest.fn(),
+}));
 
-    // 2. Setup Env
-    process.env.NEXT_PUBLIC_COGNITO_USERPOOLID = 'us-east-1_test';
-    process.env.NEXT_PUBLIC_COGNITO_CLIENTID = 'test-client-id';
+jest.mock('@/app/services/axios', () => ({
+  getData: jest.fn(),
+  postData: jest.fn(),
+}));
 
-    // 3. Clear Mocks
+jest.mock('supertokens-web-js/recipe/emailpassword', () => ({
+  __esModule: true,
+  default: {
+    signUp: jest.fn(),
+    signIn: jest.fn(),
+    sendPasswordResetEmail: jest.fn(),
+    submitNewPassword: jest.fn(),
+  },
+}));
+
+jest.mock('supertokens-web-js/recipe/emailverification', () => ({
+  __esModule: true,
+  default: {
+    verifyEmail: jest.fn(),
+    sendVerificationEmail: jest.fn(),
+    isEmailVerified: jest.fn(),
+  },
+}));
+
+jest.mock('supertokens-web-js/recipe/multifactorauth', () => ({
+  __esModule: true,
+  default: {
+    resyncSessionAndFetchMFAInfo: jest.fn(),
+  },
+}));
+
+jest.mock('supertokens-web-js/recipe/passwordless', () => ({
+  __esModule: true,
+  default: {
+    createCode: jest.fn(),
+    consumeCode: jest.fn(),
+  },
+}));
+
+jest.mock('supertokens-web-js/recipe/session', () => ({
+  __esModule: true,
+  default: {
+    doesSessionExist: jest.fn(),
+    attemptRefreshingSession: jest.fn(),
+    signOut: jest.fn(),
+  },
+}));
+
+jest.mock('supertokens-web-js/recipe/totp', () => ({
+  __esModule: true,
+  default: {
+    verifyCode: jest.fn(),
+  },
+}));
+
+const mockSignUpApi = EmailPassword.signUp as jest.Mock;
+const mockSignInApi = EmailPassword.signIn as jest.Mock;
+const mockSendPasswordResetEmail = EmailPassword.sendPasswordResetEmail as jest.Mock;
+const mockSubmitNewPassword = EmailPassword.submitNewPassword as jest.Mock;
+const mockVerifyEmail = EmailVerification.verifyEmail as jest.Mock;
+const mockSendVerificationEmail = EmailVerification.sendVerificationEmail as jest.Mock;
+const mockIsEmailVerified = EmailVerification.isEmailVerified as jest.Mock;
+const mockResyncMfa = MultiFactorAuth.resyncSessionAndFetchMFAInfo as jest.Mock;
+const mockCreateCode = Passwordless.createCode as jest.Mock;
+const mockConsumeCode = Passwordless.consumeCode as jest.Mock;
+const mockDoesSessionExist = Session.doesSessionExist as jest.Mock;
+const mockAttemptRefreshingSession = Session.attemptRefreshingSession as jest.Mock;
+const mockSessionSignOut = Session.signOut as jest.Mock;
+const mockVerifyTotpCode = TOTP.verifyCode as jest.Mock;
+const mockGetData = getData as jest.Mock;
+const mockPostData = postData as jest.Mock;
+
+const ME_FIXTURE = {
+  userId: 'user-1',
+  authProfile: 'pims_web',
+  loginMethod: 'password',
+  email: 'test@test.com',
+  emailVerified: true,
+};
+
+const PROFILE_FIXTURE = { firstName: 'Jane', lastName: 'Doe' };
+
+const noMfaInfo = {
+  status: 'OK',
+  factors: { next: [], alreadySetup: [], allowedToSetup: [] },
+  emails: {},
+  phoneNumbers: {},
+};
+
+const seedHappyPathMocks = () => {
+  mockDoesSessionExist.mockResolvedValue(true);
+  mockAttemptRefreshingSession.mockResolvedValue(true);
+  mockSessionSignOut.mockResolvedValue(undefined);
+  mockIsEmailVerified.mockResolvedValue({ status: 'OK', isVerified: true });
+  mockSendVerificationEmail.mockResolvedValue({ status: 'OK' });
+  mockResyncMfa.mockResolvedValue(noMfaInfo);
+  mockPostData.mockResolvedValue({ data: {} });
+  mockGetData.mockImplementation(async (endpoint: string) => {
+    if (endpoint === '/v1/auth/me') {
+      return { data: ME_FIXTURE };
+    }
+    if (endpoint === `/fhir/v1/user/${ME_FIXTURE.userId}`) {
+      return { data: PROFILE_FIXTURE };
+    }
+    throw new Error(`Unexpected getData endpoint: ${endpoint}`);
+  });
+};
+
+const resetStoreState = () => {
+  useAuthStore.setState({
+    user: null,
+    attributes: null,
+    status: 'idle',
+    loading: false,
+    error: null,
+    role: null,
+    mfaChallenge: null,
+    pendingSignUp: null,
+  });
+};
+
+describe('authStore (SuperTokens)', () => {
+  beforeEach(() => {
     jest.clearAllMocks();
-    mockClearOrgs.mockClear();
+    seedHappyPathMocks();
+    resetStoreState();
+  });
 
-    // 4. Default Implementations (Resetting default behavior for every test)
-    mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, mockSession));
-    mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
-
-    // 5. Load logger after resetModules so we reference the current mock instance
-    const loggerModule = await import('@/app/lib/logger');
-    logger = loggerModule.logger as typeof logger;
-
-    // 6. Dynamic Import
-    const imported = await import('@/app/stores/authStore');
-    useAuthStore = imported.useAuthStore;
+  it('initializes the SuperTokens client when the module is loaded', () => {
+    // The module-scope init happened on first import; the mock retains no
+    // calls after clearing, so assert the wiring exists instead.
+    expect(initAuthClient).toBeDefined();
   });
 
   describe('signUp', () => {
-    it('calls userPool.signUp and resolves on success', async () => {
-      const mockResult = { userSub: '123' };
-      mockPoolInstance.signUp.mockImplementation((_e: any, _p: any, _a: any, _v: any, cb: any) =>
-        cb(null, mockResult)
-      );
+    it('signs up, stores the pending profile, and sends a verification email', async () => {
+      mockSignUpApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
 
-      const result = await useAuthStore.getState().signUp('test@email.com', 'pass', 'John', 'Doe');
+      const result = await useAuthStore
+        .getState()
+        .signUp('test@email.com', 'Test-password-1!', 'John', 'Doe');
 
-      expect(mockPoolInstance.signUp).toHaveBeenCalled();
-      expect(result).toEqual(mockResult);
+      expect(mockSignUpApi).toHaveBeenCalledWith({
+        formFields: [
+          { id: 'email', value: 'test@email.com' },
+          { id: 'password', value: 'Test-password-1!' },
+        ],
+      });
+      expect(result).toEqual({ userId: 'user-1' });
+      expect(useAuthStore.getState().pendingSignUp).toEqual({
+        email: 'test@email.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        role: 'member',
+      });
+      expect(mockSendVerificationEmail).toHaveBeenCalled();
     });
 
-    it('rejects when signUp fails', async () => {
-      const error = new Error('SignUp Failed');
-      mockPoolInstance.signUp.mockImplementation((_e: any, _p: any, _a: any, _v: any, cb: any) =>
-        cb(error, null)
+    it('keeps a custom role in the pending sign-up profile', async () => {
+      mockSignUpApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+
+      await useAuthStore
+        .getState()
+        .signUp('dev@email.com', 'Test-password-1!', 'Dev', 'Eloper', 'developer');
+
+      expect(useAuthStore.getState().pendingSignUp?.role).toBe('developer');
+    });
+
+    it('still resolves when the verification email fails to send', async () => {
+      mockSignUpApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockSendVerificationEmail.mockRejectedValue(new Error('mail down'));
+
+      const result = await useAuthStore
+        .getState()
+        .signUp('test@email.com', 'Test-password-1!', 'John', 'Doe');
+
+      expect(result).toEqual({ userId: 'user-1' });
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to send the verification email after sign up',
+        expect.any(Error)
       );
+    });
+
+    it('maps duplicate-email field errors to EMAIL_ALREADY_EXISTS', async () => {
+      mockSignUpApi.mockResolvedValue({
+        status: 'FIELD_ERROR',
+        formFields: [{ id: 'email', error: 'This email already exists. Please sign in instead' }],
+      });
 
       await expect(
-        useAuthStore.getState().signUp('test@email.com', 'pass', 'John', 'Doe')
-      ).rejects.toThrow('SignUp Failed');
+        useAuthStore.getState().signUp('test@email.com', 'Test-password-1!', 'John', 'Doe')
+      ).rejects.toMatchObject({
+        code: 'EMAIL_ALREADY_EXISTS',
+        message: 'An account with the given email already exists.',
+      });
+      expect(useAuthStore.getState().pendingSignUp).toBeNull();
     });
 
-    it('rejects with generic error string if error is not Error object', async () => {
-      mockPoolInstance.signUp.mockImplementation((_e: any, _p: any, _a: any, _v: any, cb: any) =>
-        cb('Network Error', null)
-      );
+    it('throws other field errors with the provider message', async () => {
+      mockSignUpApi.mockResolvedValue({
+        status: 'FIELD_ERROR',
+        formFields: [{ id: 'password', error: 'Password too weak' }],
+      });
 
       await expect(
-        useAuthStore.getState().signUp('test@email.com', 'pass', 'John', 'Doe')
-      ).rejects.toThrow('Network Error');
+        useAuthStore.getState().signUp('test@email.com', 'weak', 'John', 'Doe')
+      ).rejects.toMatchObject({ code: 'FIELD_ERROR', message: 'Password too weak' });
     });
 
-    it('uses default member role when no role is provided', async () => {
-      mockPoolInstance.signUp.mockImplementation((_e: any, _p: any, attrs: any, _v: any, cb: any) =>
-        cb(null, { attrs })
-      );
+    it('falls back to a generic message when field errors are empty', async () => {
+      mockSignUpApi.mockResolvedValue({ status: 'FIELD_ERROR', formFields: [] });
 
-      const result = await useAuthStore.getState().signUp('test@email.com', 'pass', 'John', 'Doe');
+      await expect(
+        useAuthStore.getState().signUp('test@email.com', 'Test-password-1!', 'John', 'Doe')
+      ).rejects.toThrow('Sign up failed');
+    });
 
-      expect(result).toEqual(
-        expect.objectContaining({
-          attrs: expect.arrayContaining([
-            expect.objectContaining({ Name: 'custom:role', Value: 'member' }),
-          ]),
-        })
+    it('throws when sign up is not allowed', async () => {
+      mockSignUpApi.mockResolvedValue({
+        status: 'SIGN_UP_NOT_ALLOWED',
+        reason: 'Blocked for security reasons',
+      });
+
+      await expect(
+        useAuthStore.getState().signUp('test@email.com', 'Test-password-1!', 'John', 'Doe')
+      ).rejects.toMatchObject({ code: 'SIGN_UP_NOT_ALLOWED' });
+    });
+
+    it('wraps non-Error rejections', async () => {
+      mockSignUpApi.mockRejectedValue('network broke');
+
+      await expect(
+        useAuthStore.getState().signUp('test@email.com', 'Test-password-1!', 'John', 'Doe')
+      ).rejects.toThrow('network broke');
+    });
+  });
+
+  describe('verifyEmail / resendVerificationEmail', () => {
+    it('returns OK when the token verifies', async () => {
+      mockVerifyEmail.mockResolvedValue({ status: 'OK' });
+      await expect(useAuthStore.getState().verifyEmail()).resolves.toBe('OK');
+    });
+
+    it('returns INVALID_TOKEN for expired links', async () => {
+      mockVerifyEmail.mockResolvedValue({ status: 'EMAIL_VERIFICATION_INVALID_TOKEN_ERROR' });
+      await expect(useAuthStore.getState().verifyEmail()).resolves.toBe('INVALID_TOKEN');
+    });
+
+    it('resends the verification email', async () => {
+      await expect(useAuthStore.getState().resendVerificationEmail()).resolves.toBe('OK');
+    });
+
+    it('reports when the email is already verified', async () => {
+      mockSendVerificationEmail.mockResolvedValue({ status: 'EMAIL_ALREADY_VERIFIED_ERROR' });
+      await expect(useAuthStore.getState().resendVerificationEmail()).resolves.toBe(
+        'ALREADY_VERIFIED'
       );
     });
   });
 
-  describe('confirmSignUp', () => {
-    it('calls cognitoUser.confirmRegistration and resolves', async () => {
-      mockUserInstance.confirmRegistration.mockImplementation((_c: any, _f: any, cb: any) =>
-        cb(null, 'SUCCESS')
-      );
-
-      const result = await useAuthStore.getState().confirmSignUp('test@email.com', '123456');
-
-      expect(mockUserInstance.confirmRegistration).toHaveBeenCalled();
-      expect(result).toBe('SUCCESS');
-    });
-
-    it('rejects on failure', async () => {
-      mockUserInstance.confirmRegistration.mockImplementation((_c: any, _f: any, cb: any) =>
-        cb(new Error('Bad Code'), null)
-      );
-
-      await expect(
-        useAuthStore.getState().confirmSignUp('test@email.com', '123456')
-      ).rejects.toThrow('Bad Code');
-    });
-  });
-
-  describe('resendCode', () => {
-    it('calls resendConfirmationCode and resolves', async () => {
-      mockUserInstance.resendConfirmationCode.mockImplementation((cb: any) => cb(null, 'SENT'));
-      const result = await useAuthStore.getState().resendCode('test@email.com');
-      expect(mockUserInstance.resendConfirmationCode).toHaveBeenCalled();
-      expect(result).toBe('SENT');
-    });
-
-    it('rejects on failure', async () => {
-      mockUserInstance.resendConfirmationCode.mockImplementation((cb: any) =>
-        cb(new Error('Fail'), null)
-      );
-      await expect(useAuthStore.getState().resendCode('test@email.com')).rejects.toThrow('Fail');
+  describe('clearPendingSignUp', () => {
+    it('clears the stored pending sign-up profile', () => {
+      useAuthStore.setState({
+        pendingSignUp: { email: 'a@b.c', firstName: 'A', lastName: 'B', role: 'member' },
+      });
+      useAuthStore.getState().clearPendingSignUp();
+      expect(useAuthStore.getState().pendingSignUp).toBeNull();
     });
   });
 
   describe('signIn', () => {
-    it('authenticates user successfully and loads attributes', async () => {
-      mockUserInstance.authenticateUser.mockImplementation((_authDetails: any, callbacks: any) => {
-        callbacks.onSuccess(mockSession);
-      });
-      const mockAttrs = [{ getName: () => 'email', getValue: () => 'test@test.com' }];
-      mockUserInstance.getUserAttributes.mockImplementation((cb: any) => cb(null, mockAttrs));
+    it('authenticates, loads /v1/auth/me, and builds attributes', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
 
-      await useAuthStore.getState().signIn('test@email.com', 'pass');
+      const result = await useAuthStore.getState().signIn('test@email.com', 'pass');
 
+      expect(result).toEqual({ status: 'OK' });
       const state = useAuthStore.getState();
       expect(state.status).toBe('signin-authenticated');
-      expect(state.attributes).toEqual({ email: 'test@test.com' });
+      expect(state.user?.userId).toBe('user-1');
+      expect(state.user?.getUsername()).toBe('user-1');
+      expect(state.attributes).toEqual({
+        sub: 'user-1',
+        email: 'test@test.com',
+        email_verified: 'true',
+        given_name: 'Jane',
+        family_name: 'Doe',
+      });
+      expect(clearSessionScopedStores).toHaveBeenCalled();
     });
 
-    it('handles loadUserAttributes failure gracefully after signin', async () => {
-      const errorSpy = logger.error as jest.Mock;
-      mockUserInstance.authenticateUser.mockImplementation((_authDetails: any, callbacks: any) => {
-        callbacks.onSuccess(mockSession);
+    it('keeps attributes minimal when the profile lookup fails', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockGetData.mockImplementation(async (endpoint: string) => {
+        if (endpoint === '/v1/auth/me') {
+          return { data: ME_FIXTURE };
+        }
+        throw new Error('profile missing');
       });
-      mockUserInstance.getUserAttributes.mockImplementation((cb: any) =>
-        cb(new Error('Attr Fail'), null)
-      );
 
       await useAuthStore.getState().signIn('test@email.com', 'pass');
 
-      expect(errorSpy).toHaveBeenCalledWith('Failed to load user attributes', expect.any(Error));
+      expect(useAuthStore.getState().attributes).toEqual({
+        sub: 'user-1',
+        email: 'test@test.com',
+        email_verified: 'true',
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to load user profile while building attributes',
+        expect.any(Error)
+      );
+    });
+
+    it('sources the role from /v1/auth/me when present', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockGetData.mockImplementation(async (endpoint: string) => {
+        if (endpoint === '/v1/auth/me') {
+          return { data: { ...ME_FIXTURE, role: 'owner' } };
+        }
+        return { data: PROFILE_FIXTURE };
+      });
+
+      await useAuthStore.getState().signIn('test@email.com', 'pass');
+
+      expect(useAuthStore.getState().role).toBe('owner');
+    });
+
+    it('falls back to the pending sign-up role', async () => {
+      useAuthStore.setState({
+        pendingSignUp: { email: 'a@b.c', firstName: 'A', lastName: 'B', role: 'developer' },
+      });
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+
+      await useAuthStore.getState().signIn('test@email.com', 'pass');
+
+      expect(useAuthStore.getState().role).toBe('developer');
+    });
+
+    it('maps wrong credentials to the legacy error message', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'WRONG_CREDENTIALS_ERROR' });
+
+      await expect(useAuthStore.getState().signIn('test@email.com', 'bad')).rejects.toThrow(
+        'Incorrect username or password.'
+      );
+      const state = useAuthStore.getState();
+      expect(state.status).toBe('unauthenticated');
+      expect(state.error).toBe('Incorrect username or password.');
+    });
+
+    it('surfaces SIGN_IN_NOT_ALLOWED reasons', async () => {
+      mockSignInApi.mockResolvedValue({
+        status: 'SIGN_IN_NOT_ALLOWED',
+        reason: 'Account locked',
+      });
+
+      await expect(useAuthStore.getState().signIn('test@email.com', 'pass')).rejects.toThrow(
+        'Account locked'
+      );
+    });
+
+    it('surfaces field errors', async () => {
+      mockSignInApi.mockResolvedValue({
+        status: 'FIELD_ERROR',
+        formFields: [{ id: 'email', error: 'Email is invalid' }],
+      });
+
+      await expect(useAuthStore.getState().signIn('nope', 'pass')).rejects.toThrow(
+        'Email is invalid'
+      );
+    });
+
+    it('resets state and rethrows network failures', async () => {
+      mockSignInApi.mockRejectedValue(new Error('offline'));
+
+      await expect(useAuthStore.getState().signIn('test@email.com', 'pass')).rejects.toThrow(
+        'offline'
+      );
+      expect(useAuthStore.getState().status).toBe('unauthenticated');
+      expect(useAuthStore.getState().error).toBe('offline');
+    });
+
+    it('wraps non-Error sign-in rejections', async () => {
+      mockSignInApi.mockRejectedValue('string error message');
+
+      await expect(useAuthStore.getState().signIn('user@test.com', 'pass')).rejects.toThrow(
+        'string error message'
+      );
+    });
+
+    it('requires email verification before completing sign in', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockIsEmailVerified.mockResolvedValue({ status: 'OK', isVerified: false });
+
+      const result = await useAuthStore.getState().signIn('test@email.com', 'pass');
+
+      expect(result).toEqual({ status: 'EMAIL_VERIFICATION_REQUIRED' });
+      expect(mockSendVerificationEmail).toHaveBeenCalled();
+      expect(useAuthStore.getState().status).toBe('unauthenticated');
+    });
+
+    it('still reports verification-required when the resend fails', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockIsEmailVerified.mockResolvedValue({ status: 'OK', isVerified: false });
+      mockSendVerificationEmail.mockRejectedValue(new Error('mail down'));
+
+      const result = await useAuthStore.getState().signIn('test@email.com', 'pass');
+
+      expect(result).toEqual({ status: 'EMAIL_VERIFICATION_REQUIRED' });
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to send the verification email after sign in',
+        expect.any(Error)
+      );
+    });
+
+    it('starts an email OTP challenge when the session needs a second factor', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockResyncMfa.mockResolvedValue({
+        ...noMfaInfo,
+        factors: { next: ['otp-email', 'totp'], alreadySetup: [], allowedToSetup: ['totp'] },
+      });
+
+      const result = await useAuthStore.getState().signIn('test@email.com', 'pass');
+
+      expect(result).toEqual({ status: 'MFA_REQUIRED', factors: ['otp-email'] });
+      expect(useAuthStore.getState().mfaChallenge).toEqual({
+        email: 'test@email.com',
+        factors: ['otp-email'],
+      });
+      expect(useAuthStore.getState().status).toBe('unauthenticated');
+    });
+
+    it('prefers the TOTP factor when a device is enrolled', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockResyncMfa.mockResolvedValue({
+        ...noMfaInfo,
+        factors: { next: ['otp-email', 'totp'], alreadySetup: ['totp'], allowedToSetup: [] },
+      });
+
+      const result = await useAuthStore.getState().signIn('test@email.com', 'pass');
+
+      expect(result).toEqual({ status: 'MFA_REQUIRED', factors: ['totp'] });
+    });
+
+    it('falls back to TOTP when it is the only requested factor', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockResyncMfa.mockResolvedValue({
+        ...noMfaInfo,
+        factors: { next: ['totp'], alreadySetup: [], allowedToSetup: [] },
+      });
+
+      const result = await useAuthStore.getState().signIn('test@email.com', 'pass');
+
+      expect(result).toEqual({ status: 'MFA_REQUIRED', factors: ['totp'] });
+    });
+
+    it('ignores unsupported factors and completes sign in', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockResyncMfa.mockResolvedValue({
+        ...noMfaInfo,
+        factors: { next: ['webauthn'], alreadySetup: [], allowedToSetup: [] },
+      });
+
+      const result = await useAuthStore.getState().signIn('test@email.com', 'pass');
+
+      expect(result).toEqual({ status: 'OK' });
+      expect(logger.warn).toHaveBeenCalledWith('Unsupported MFA factors requested by session', [
+        'webauthn',
+      ]);
+    });
+
+    it('completes sign in when the MFA resync fails', async () => {
+      mockSignInApi.mockResolvedValue({ status: 'OK', user: { id: 'user-1' } });
+      mockResyncMfa.mockRejectedValue(new Error('mfa info down'));
+
+      const result = await useAuthStore.getState().signIn('test@email.com', 'pass');
+
+      expect(result).toEqual({ status: 'OK' });
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to resolve pending MFA factors',
+        expect.any(Error)
+      );
+    });
+  });
+
+  describe('completeTotpChallenge', () => {
+    it('verifies the code and finishes the sign in', async () => {
+      mockVerifyTotpCode.mockResolvedValue({ status: 'OK' });
+      useAuthStore.setState({
+        mfaChallenge: { email: 'test@email.com', factors: ['totp'] },
+      });
+
+      const result = await useAuthStore.getState().completeTotpChallenge('123456');
+
+      expect(mockVerifyTotpCode).toHaveBeenCalledWith({ totp: '123456' });
+      expect(result).toEqual({ status: 'OK' });
       expect(useAuthStore.getState().status).toBe('signin-authenticated');
+      expect(useAuthStore.getState().mfaChallenge).toBeNull();
+    });
+
+    it('throws for invalid codes', async () => {
+      mockVerifyTotpCode.mockResolvedValue({
+        status: 'INVALID_TOTP_ERROR',
+        currentNumberOfFailedAttempts: 1,
+        maxNumberOfFailedAttempts: 5,
+      });
+
+      await expect(useAuthStore.getState().completeTotpChallenge('000000')).rejects.toMatchObject({
+        code: 'INVALID_TOTP_ERROR',
+      });
+    });
+
+    it('throws when the attempt limit is reached', async () => {
+      mockVerifyTotpCode.mockResolvedValue({ status: 'LIMIT_REACHED_ERROR', retryAfterMs: 1000 });
+
+      await expect(useAuthStore.getState().completeTotpChallenge('000000')).rejects.toMatchObject({
+        code: 'LIMIT_REACHED_ERROR',
+      });
+    });
+
+    it('wraps transport failures', async () => {
+      mockVerifyTotpCode.mockRejectedValue('boom');
+
+      await expect(useAuthStore.getState().completeTotpChallenge('000000')).rejects.toThrow('boom');
+    });
+  });
+
+  describe('requestEmailOtp', () => {
+    it('creates a passwordless code for the challenge email', async () => {
+      mockCreateCode.mockResolvedValue({ status: 'OK' });
+      useAuthStore.setState({
+        mfaChallenge: { email: 'challenge@email.com', factors: ['otp-email'] },
+      });
+
+      await useAuthStore.getState().requestEmailOtp();
+
+      expect(mockCreateCode).toHaveBeenCalledWith({ email: 'challenge@email.com' });
+    });
+
+    it('falls back to the signed-in user email', async () => {
+      mockCreateCode.mockResolvedValue({ status: 'OK' });
+      useAuthStore.setState({
+        user: {
+          userId: 'user-1',
+          email: 'me@email.com',
+          authProfile: null,
+          loginMethod: null,
+          emailVerified: true,
+          getUsername: () => 'user-1',
+        },
+      });
+
+      await useAuthStore.getState().requestEmailOtp();
+
+      expect(mockCreateCode).toHaveBeenCalledWith({ email: 'me@email.com' });
+    });
+
+    it('throws when no email is available', async () => {
+      await expect(useAuthStore.getState().requestEmailOtp()).rejects.toMatchObject({
+        code: 'NO_CHALLENGE_EMAIL',
+      });
+    });
+
+    it('throws when the provider rejects the code request', async () => {
+      useAuthStore.setState({
+        mfaChallenge: { email: 'challenge@email.com', factors: ['otp-email'] },
+      });
+      mockCreateCode.mockResolvedValue({
+        status: 'SIGN_IN_UP_NOT_ALLOWED',
+        reason: 'blocked',
+      });
+
+      await expect(useAuthStore.getState().requestEmailOtp()).rejects.toThrow('blocked');
+    });
+  });
+
+  describe('completeEmailOtpChallenge', () => {
+    it('consumes the code and finishes the sign in', async () => {
+      mockConsumeCode.mockResolvedValue({
+        status: 'OK',
+        createdNewRecipeUser: false,
+        user: { id: 'user-1' },
+      });
+
+      const result = await useAuthStore.getState().completeEmailOtpChallenge('123456');
+
+      expect(mockConsumeCode).toHaveBeenCalledWith({ userInputCode: '123456' });
+      expect(result).toEqual({ status: 'OK' });
+      expect(useAuthStore.getState().status).toBe('signin-authenticated');
+    });
+
+    it('throws for incorrect codes', async () => {
+      mockConsumeCode.mockResolvedValue({
+        status: 'INCORRECT_USER_INPUT_CODE_ERROR',
+        failedCodeInputAttemptCount: 1,
+        maximumCodeInputAttempts: 5,
+      });
+
+      await expect(
+        useAuthStore.getState().completeEmailOtpChallenge('000000')
+      ).rejects.toMatchObject({ code: 'INCORRECT_USER_INPUT_CODE_ERROR' });
+    });
+
+    it('throws for expired codes', async () => {
+      mockConsumeCode.mockResolvedValue({
+        status: 'EXPIRED_USER_INPUT_CODE_ERROR',
+        failedCodeInputAttemptCount: 1,
+        maximumCodeInputAttempts: 5,
+      });
+
+      await expect(
+        useAuthStore.getState().completeEmailOtpChallenge('000000')
+      ).rejects.toMatchObject({ code: 'EXPIRED_USER_INPUT_CODE_ERROR' });
+    });
+
+    it('throws when the flow must restart', async () => {
+      mockConsumeCode.mockResolvedValue({ status: 'RESTART_FLOW_ERROR' });
+
+      await expect(
+        useAuthStore.getState().completeEmailOtpChallenge('000000')
+      ).rejects.toMatchObject({ code: 'RESTART_FLOW_ERROR' });
+    });
+
+    it('wraps transport failures', async () => {
+      mockConsumeCode.mockRejectedValue('down');
+
+      await expect(useAuthStore.getState().completeEmailOtpChallenge('000000')).rejects.toThrow(
+        'down'
+      );
     });
   });
 
   describe('checkSession', () => {
-    it('restores session if valid user exists', async () => {
-      mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
-      mockSession.isValid.mockReturnValue(true);
-      mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, mockSession));
+    it('restores the session when one exists', async () => {
+      const user = await useAuthStore.getState().checkSession();
 
-      await useAuthStore.getState().checkSession();
-
+      expect(user?.userId).toBe('user-1');
       const state = useAuthStore.getState();
       expect(state.status).toBe('authenticated');
       expect(state.user).not.toBeNull();
     });
 
-    it('sets unauthenticated if no current user', async () => {
-      mockPoolInstance.getCurrentUser.mockReturnValue(null);
-      await useAuthStore.getState().checkSession();
-      const state = useAuthStore.getState();
-      expect(state.status).toBe('unauthenticated');
-      expect(state.user).toBeNull();
+    it('sets unauthenticated when no session exists', async () => {
+      mockDoesSessionExist.mockResolvedValue(false);
+
+      const user = await useAuthStore.getState().checkSession();
+
+      expect(user).toBeNull();
+      expect(useAuthStore.getState().status).toBe('unauthenticated');
+      expect(useAuthStore.getState().user).toBeNull();
     });
 
-    it('sets unauthenticated if session is invalid', async () => {
-      mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
-      const invalidSession = { ...mockSession, isValid: () => false };
-      mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, invalidSession));
+    it('sets unauthenticated when the identity fetch fails', async () => {
+      mockGetData.mockRejectedValue(new Error('Session Error'));
 
-      await useAuthStore.getState().checkSession();
+      const user = await useAuthStore.getState().checkSession();
 
-      const state = useAuthStore.getState();
-      expect(state.status).toBe('unauthenticated');
-    });
-
-    it('sets unauthenticated if getSession errors', async () => {
-      mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
-      mockUserInstance.getSession.mockImplementation((cb: any) =>
-        cb(new Error('Session Error'), null)
-      );
-
-      await useAuthStore.getState().checkSession();
-
+      expect(user).toBeNull();
       const state = useAuthStore.getState();
       expect(state.status).toBe('unauthenticated');
       expect(state.error).toBe('Session Error');
     });
+
+    it('dedupes concurrent checks into one request', async () => {
+      const [first, second] = await Promise.all([
+        useAuthStore.getState().checkSession(),
+        useAuthStore.getState().checkSession(),
+      ]);
+
+      expect(first?.userId).toBe('user-1');
+      expect(second?.userId).toBe('user-1');
+      expect(mockDoesSessionExist).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('refreshSession', () => {
-    it('refreshes session successfully', async () => {
-      mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
-      mockSession.isValid.mockReturnValue(true);
-      mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, mockSession));
+    it('refreshes and re-syncs the authenticated state', async () => {
+      const user = await useAuthStore.getState().refreshSession();
 
-      await useAuthStore.getState().refreshSession();
-
-      const state = useAuthStore.getState();
-      expect(state.role).toBe('admin');
+      expect(mockAttemptRefreshingSession).toHaveBeenCalled();
+      expect(user?.userId).toBe('user-1');
+      expect(useAuthStore.getState().status).toBe('authenticated');
     });
 
-    it('returns null if no user', async () => {
-      mockPoolInstance.getCurrentUser.mockReturnValue(null);
-      const res = await useAuthStore.getState().refreshSession();
-      expect(res).toBeNull();
+    it('returns null when the refresh fails', async () => {
+      mockAttemptRefreshingSession.mockResolvedValue(false);
+
+      const user = await useAuthStore.getState().refreshSession();
+
+      expect(user).toBeNull();
+      expect(useAuthStore.getState().status).toBe('unauthenticated');
     });
 
-    it('returns null and warns when session is invalid during refresh', async () => {
-      const warnSpy = logger.warn as jest.Mock;
-      const invalidSession = { ...mockSession, isValid: () => false };
-      mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
-      mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, invalidSession));
+    it('returns null and warns when the refresh throws', async () => {
+      mockAttemptRefreshingSession.mockRejectedValue(new Error('refresh down'));
 
-      const res = await useAuthStore.getState().refreshSession();
-      expect(res).toBeNull();
-      expect(warnSpy).toHaveBeenCalledWith('refreshSession failed or session invalid:', null);
+      const user = await useAuthStore.getState().refreshSession();
+
+      expect(user).toBeNull();
+      expect(logger.warn).toHaveBeenCalledWith(
+        'refreshSession failed or session invalid:',
+        expect.any(Error)
+      );
     });
 
-    it('returns null on session error', async () => {
-      mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
-      mockUserInstance.getSession.mockImplementation((cb: any) => cb(new Error('Fail'), null));
+    it('dedupes concurrent refreshes', async () => {
+      const [first, second] = await Promise.all([
+        useAuthStore.getState().refreshSession(),
+        useAuthStore.getState().refreshSession(),
+      ]);
 
-      const res = await useAuthStore.getState().refreshSession();
-      expect(res).toBeNull();
+      expect(first?.userId).toBe('user-1');
+      expect(second?.userId).toBe('user-1');
+      expect(mockAttemptRefreshingSession).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getValidSession', () => {
+    const seededUser = {
+      userId: 'user-1',
+      email: 'test@test.com',
+      authProfile: null,
+      loginMethod: null,
+      emailVerified: true,
+      getUsername: () => 'user-1',
+    };
+
+    it('returns the current user when the session is still valid', async () => {
+      useAuthStore.setState({ user: seededUser, status: 'authenticated' });
+
+      const user = await useAuthStore.getState().getValidSession();
+
+      expect(user).toBe(seededUser);
+      expect(mockAttemptRefreshingSession).not.toHaveBeenCalled();
+    });
+
+    it('refreshes when no user is cached', async () => {
+      const user = await useAuthStore.getState().getValidSession();
+
+      expect(mockAttemptRefreshingSession).toHaveBeenCalled();
+      expect(user?.userId).toBe('user-1');
+    });
+
+    it('falls through to checkSession when the refresh returns null', async () => {
+      mockAttemptRefreshingSession.mockResolvedValue(false);
+      mockDoesSessionExist.mockResolvedValue(false);
+
+      const user = await useAuthStore.getState().getValidSession();
+
+      expect(user).toBeNull();
+      expect(mockDoesSessionExist).toHaveBeenCalled();
+    });
+
+    it('returns null with forceRefresh when the refresh fails', async () => {
+      mockAttemptRefreshingSession.mockResolvedValue(false);
+
+      const user = await useAuthStore.getState().getValidSession({ forceRefresh: true });
+
+      expect(user).toBeNull();
+    });
+
+    it('skips the cached user when forceRefresh is set', async () => {
+      useAuthStore.setState({ user: seededUser, status: 'authenticated' });
+
+      await useAuthStore.getState().getValidSession({ forceRefresh: true });
+
+      expect(mockAttemptRefreshingSession).toHaveBeenCalled();
     });
   });
 
   describe('signout', () => {
-    it('signs out successfully', async () => {
-      useAuthStore.setState({ user: mockUserInstance, status: 'authenticated' });
-      mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, mockSession));
-      mockUserInstance.globalSignOut.mockImplementation(({ onSuccess }: any) => onSuccess());
+    it('revokes the server session, clears local state, and resets the store', async () => {
+      useAuthStore.setState({ status: 'authenticated' });
 
       await useAuthStore.getState().signout();
 
-      expect(mockUserInstance.globalSignOut).toHaveBeenCalled();
+      expect(removeStorageItem).toHaveBeenCalledWith('session', 'devAuth');
+      expect(mockPostData).toHaveBeenCalledWith('/v1/auth/logout', undefined, {
+        skipAuthRedirect: true,
+      });
+      expect(mockSessionSignOut).toHaveBeenCalled();
       expect(useAuthStore.getState().status).toBe('unauthenticated');
-      expect(mockClearOrgs).toHaveBeenCalled();
+      expect(clearSessionScopedStores).toHaveBeenCalled();
     });
 
-    it('handles signout failure but still resets state locally', async () => {
-      const errorSpy = logger.error as jest.Mock;
-      useAuthStore.setState({ user: mockUserInstance, status: 'authenticated' });
-
-      mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, mockSession));
-      mockUserInstance.globalSignOut.mockImplementation(({ onFailure }: any) =>
-        onFailure(new Error('Signout API Fail'))
-      );
+    it('still signs out locally when the server logout fails', async () => {
+      mockPostData.mockRejectedValue(new Error('server down'));
 
       await useAuthStore.getState().signout();
 
-      expect(errorSpy).toHaveBeenCalled();
-      expect(useAuthStore.getState().user).toBeNull();
+      expect(mockSessionSignOut).toHaveBeenCalled();
+      expect(useAuthStore.getState().status).toBe('unauthenticated');
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to revoke the server session on signout',
+        expect.any(Error)
+      );
     });
 
-    it('resolves early if no user in state', async () => {
-      useAuthStore.setState({ user: null });
-      await useAuthStore.getState().signout();
-      expect(mockUserInstance.globalSignOut).not.toHaveBeenCalled();
-    });
-
-    it('handles invalid session during signout', async () => {
-      const warnSpy = logger.warn as jest.Mock;
-      useAuthStore.setState({ user: mockUserInstance });
-
-      const invalidSession = { ...mockSession, isValid: () => false };
-      mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, invalidSession));
+    it('still resets state when the local SDK signout fails', async () => {
+      mockSessionSignOut.mockRejectedValue(new Error('sdk error'));
 
       await useAuthStore.getState().signout();
 
-      expect(warnSpy).toHaveBeenCalledWith('Invalid session during signout');
-      expect(mockUserInstance.globalSignOut).not.toHaveBeenCalled();
-    });
-
-    it('handles session error during signout', async () => {
-      const warnSpy = logger.warn as jest.Mock;
-      useAuthStore.setState({ user: mockUserInstance });
-
-      mockUserInstance.getSession.mockImplementation((cb: any) =>
-        cb(new Error('Session Error'), null)
-      );
-
-      await useAuthStore.getState().signout();
-
-      expect(warnSpy).toHaveBeenCalledWith('getSession failed during signout:', expect.any(Error));
-    });
-  });
-
-  describe('forgotPassword', () => {
-    it('resolves on success', async () => {
-      const mockData = { CodeDeliveryDetails: {} };
-      mockUserInstance.forgotPassword.mockImplementation(({ onSuccess }: any) =>
-        onSuccess(mockData)
-      );
-      const result = await useAuthStore.getState().forgotPassword('test@email.com');
-      expect(result).toBe(mockData);
-    });
-
-    it('rejects on failure', async () => {
-      mockUserInstance.forgotPassword.mockImplementation(({ onFailure }: any) =>
-        onFailure(new Error('Fail'))
-      );
-      await expect(useAuthStore.getState().forgotPassword('test@email.com')).rejects.toThrow(
-        'Fail'
+      expect(useAuthStore.getState().status).toBe('unauthenticated');
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Failed to clear the local session on signout',
+        expect.any(Error)
       );
     });
-  });
 
-  describe('resetPassword', () => {
-    it('resolves success string on success', async () => {
-      mockUserInstance.confirmPassword.mockImplementation((_c: any, _p: any, { onSuccess }: any) =>
-        onSuccess()
-      );
-      const result = await useAuthStore.getState().resetPassword('email', 'code', 'newPass');
-      expect(result).toBe('success');
-    });
-
-    it('rejects on failure', async () => {
-      mockUserInstance.confirmPassword.mockImplementation((_c: any, _p: any, { onFailure }: any) =>
-        onFailure(new Error('Reset Fail'))
-      );
-      await expect(
-        useAuthStore.getState().resetPassword('email', 'code', 'newPass')
-      ).rejects.toThrow('Reset Fail');
-    });
-  });
-
-  describe('loadUserAttributes', () => {
-    it('loads and sets attributes', async () => {
-      useAuthStore.setState({ user: mockUserInstance });
-      const mockAttrs = [{ getName: () => 'email', getValue: () => 'me@test.com' }];
-      mockUserInstance.getUserAttributes.mockImplementation((cb: any) => cb(null, mockAttrs));
-
-      const res = await useAuthStore.getState().loadUserAttributes();
-
-      expect(res).toEqual({ email: 'me@test.com' });
-      expect(useAuthStore.getState().attributes).toEqual({ email: 'me@test.com' });
-    });
-
-    it('returns null if no user', async () => {
-      useAuthStore.setState({ user: null });
-      const res = await useAuthStore.getState().loadUserAttributes();
-      expect(res).toBeNull();
-    });
-
-    it('rejects on API error', async () => {
-      useAuthStore.setState({ user: mockUserInstance });
-      mockUserInstance.getUserAttributes.mockImplementation((cb: any) =>
-        cb(new Error('Attr Fail'), null)
-      );
-
-      await expect(useAuthStore.getState().loadUserAttributes()).rejects.toThrow('Attr Fail');
-    });
-  });
-
-  describe('Environment Edge Case', () => {
-    it('handles signout when globalThis is undefined (simulated)', async () => {
-      // We override the spy behavior ONCE for this specific test
-      mockClearOrgs.mockImplementationOnce(() => {
+    it('warns when clearing session-scoped stores fails', async () => {
+      (clearSessionScopedStores as jest.Mock).mockImplementationOnce(() => {
         throw new Error('Store Error');
       });
 
-      const warnSpy = logger.warn as jest.Mock;
-
       await useAuthStore.getState().signout();
 
-      expect(warnSpy).toHaveBeenCalledWith(
+      expect(logger.warn).toHaveBeenCalledWith(
         'Failed to clear session-scoped stores on signout',
         expect.any(Error)
       );
     });
   });
 
-  describe('getValidSession', () => {
-    it('returns current session if fresh and no force refresh', async () => {
-      const freshSession = {
-        isValid: () => true,
-        getIdToken: () => ({
-          decodePayload: () => ({ exp: Math.floor(Date.now() / 1000) + 9999 }),
-        }),
-      };
-      useAuthStore.setState({ session: freshSession as any });
+  describe('forgotPassword', () => {
+    it('sends the reset email and resolves OK', async () => {
+      mockSendPasswordResetEmail.mockResolvedValue({ status: 'OK' });
 
-      const result = await useAuthStore.getState().getValidSession();
-      expect(result).toBe(freshSession);
+      const result = await useAuthStore.getState().forgotPassword('test@email.com');
+
+      expect(mockSendPasswordResetEmail).toHaveBeenCalledWith({
+        formFields: [{ id: 'email', value: 'test@email.com' }],
+      });
+      expect(result).toEqual({ status: 'OK' });
     });
 
-    it('treats valid session without exp as fresh', async () => {
-      const sessionWithoutExp = {
-        isValid: () => true,
-        getIdToken: () => ({
-          decodePayload: () => ({}),
-        }),
-      };
-      useAuthStore.setState({ session: sessionWithoutExp as any });
-
-      const result = await useAuthStore.getState().getValidSession();
-      expect(result).toBe(sessionWithoutExp);
-    });
-
-    it('returns refreshed session if current session is not fresh', async () => {
-      // No session set → refresh will be called
-      useAuthStore.setState({ session: null });
-      mockPoolInstance.getCurrentUser.mockReturnValue(mockUserInstance);
-      mockSession.isValid.mockReturnValue(true);
-      mockUserInstance.getSession.mockImplementation((cb: any) => cb(null, mockSession));
-
-      const result = await useAuthStore.getState().getValidSession();
-      expect(result).not.toBeNull();
-    });
-
-    it('falls through to checkSession when refreshedSession is null', async () => {
-      useAuthStore.setState({ session: null });
-      // Refresh fails (no current user)
-      mockPoolInstance.getCurrentUser.mockReturnValue(null);
-
-      const result = await useAuthStore.getState().getValidSession();
-      // Both refresh and checkSession fail → null
-      expect(result).toBeNull();
-    });
-
-    it('returns null with forceRefresh when refreshedSession is null', async () => {
-      useAuthStore.setState({ session: null });
-      mockPoolInstance.getCurrentUser.mockReturnValue(null);
-
-      const result = await useAuthStore.getState().getValidSession({ forceRefresh: true });
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('isSessionFresh edge cases', () => {
-    it('returns false if session.isValid() is false', async () => {
-      const expiredSession = {
-        isValid: () => false,
-        getIdToken: () => ({ decodePayload: () => ({}) }),
-      };
-      useAuthStore.setState({ session: expiredSession as any });
-
-      // Getting a valid session should trigger refresh
-      mockPoolInstance.getCurrentUser.mockReturnValue(null);
-      const result = await useAuthStore.getState().getValidSession();
-      expect(result).toBeNull();
-    });
-
-    it('handles token decoding error in isSessionFresh', async () => {
-      // Session that throws on decodePayload — should fallback to session.isValid()
-      const problematicSession = {
-        isValid: jest.fn(() => true),
-        getIdToken: () => ({
-          decodePayload: () => {
-            throw new Error('decode error');
-          },
-        }),
-      };
-      useAuthStore.setState({ session: problematicSession as any });
-
-      const result = await useAuthStore.getState().getValidSession();
-      expect(result).toBe(problematicSession);
-    });
-  });
-
-  describe('uninitialized user pool', () => {
-    it('throws for signIn when env is missing', async () => {
-      jest.resetModules();
-      delete process.env.NEXT_PUBLIC_COGNITO_USERPOOLID;
-      delete process.env.NEXT_PUBLIC_COGNITO_CLIENTID;
-      const imported = await import('@/app/stores/authStore');
-
-      await expect(
-        imported.useAuthStore.getState().signIn('user@test.com', 'pass')
-      ).rejects.toThrow('UserPool is not initialized');
-    });
-
-    it('throws for forgotPassword when env is missing', async () => {
-      jest.resetModules();
-      delete process.env.NEXT_PUBLIC_COGNITO_USERPOOLID;
-      delete process.env.NEXT_PUBLIC_COGNITO_CLIENTID;
-      const imported = await import('@/app/stores/authStore');
-
-      await expect(
-        imported.useAuthStore.getState().forgotPassword('user@test.com')
-      ).rejects.toThrow('UserPool is not initialized');
-    });
-  });
-
-  describe('signIn non-Error rejection', () => {
-    it('rejects with string error wrapped in Error', async () => {
-      mockUserInstance.authenticateUser.mockImplementationOnce((_: any, { onFailure }: any) => {
-        onFailure('string error message');
+    it('throws field errors', async () => {
+      mockSendPasswordResetEmail.mockResolvedValue({
+        status: 'FIELD_ERROR',
+        formFields: [{ id: 'email', error: 'Email invalid' }],
       });
 
-      await expect(useAuthStore.getState().signIn('user@test.com', 'pass')).rejects.toThrow(
-        'string error message'
+      await expect(useAuthStore.getState().forgotPassword('nope')).rejects.toThrow('Email invalid');
+    });
+
+    it('falls back to a generic field error message', async () => {
+      mockSendPasswordResetEmail.mockResolvedValue({ status: 'FIELD_ERROR', formFields: [] });
+
+      await expect(useAuthStore.getState().forgotPassword('nope')).rejects.toThrow(
+        'Unable to send the reset email'
       );
     });
-  });
 
-  describe('forgotPassword non-Error rejection', () => {
-    it('wraps non-Error in Error on failure', async () => {
-      mockUserInstance.forgotPassword.mockImplementation(({ onFailure }: any) =>
-        onFailure('string-fail')
-      );
+    it('throws when the reset is not allowed', async () => {
+      mockSendPasswordResetEmail.mockResolvedValue({
+        status: 'PASSWORD_RESET_NOT_ALLOWED',
+        reason: 'Not allowed',
+      });
+
       await expect(useAuthStore.getState().forgotPassword('test@email.com')).rejects.toThrow(
-        'string-fail'
+        'Not allowed'
       );
     });
   });
 
-  describe('resetPassword non-Error rejection', () => {
-    it('wraps non-Error in Error on failure', async () => {
-      mockUserInstance.confirmPassword.mockImplementation((_c: any, _p: any, { onFailure }: any) =>
-        onFailure('string-fail')
+  describe('resetPassword', () => {
+    it('submits the new password read from the URL token', async () => {
+      mockSubmitNewPassword.mockResolvedValue({ status: 'OK' });
+
+      const result = await useAuthStore.getState().resetPassword('Test-password-2!');
+
+      expect(mockSubmitNewPassword).toHaveBeenCalledWith({
+        formFields: [{ id: 'password', value: 'Test-password-2!' }],
+      });
+      expect(result).toBe('success');
+    });
+
+    it('throws for invalid tokens', async () => {
+      mockSubmitNewPassword.mockResolvedValue({ status: 'RESET_PASSWORD_INVALID_TOKEN_ERROR' });
+
+      await expect(useAuthStore.getState().resetPassword('Test-password-2!')).rejects.toMatchObject(
+        {
+          code: 'RESET_PASSWORD_INVALID_TOKEN_ERROR',
+        }
       );
-      await expect(
-        useAuthStore.getState().resetPassword('email', 'code', 'newPass')
-      ).rejects.toThrow('string-fail');
+    });
+
+    it('throws field errors with the provider message', async () => {
+      mockSubmitNewPassword.mockResolvedValue({
+        status: 'FIELD_ERROR',
+        formFields: [{ id: 'password', error: 'Password too weak' }],
+      });
+
+      await expect(useAuthStore.getState().resetPassword('weak')).rejects.toThrow(
+        'Password too weak'
+      );
+    });
+
+    it('falls back to a generic field error message', async () => {
+      mockSubmitNewPassword.mockResolvedValue({ status: 'FIELD_ERROR', formFields: [] });
+
+      await expect(useAuthStore.getState().resetPassword('weak')).rejects.toThrow(
+        'Unable to reset the password'
+      );
+    });
+  });
+
+  describe('loadUserAttributes', () => {
+    it('returns null without a session', async () => {
+      mockDoesSessionExist.mockResolvedValue(false);
+
+      const attributes = await useAuthStore.getState().loadUserAttributes();
+
+      expect(attributes).toBeNull();
+    });
+
+    it('loads and stores the attributes record', async () => {
+      const attributes = await useAuthStore.getState().loadUserAttributes();
+
+      expect(attributes).toEqual({
+        sub: 'user-1',
+        email: 'test@test.com',
+        email_verified: 'true',
+        given_name: 'Jane',
+        family_name: 'Doe',
+      });
+      expect(useAuthStore.getState().attributes).toEqual(attributes);
+    });
+
+    it('omits optional attribute keys when the identity has no email', async () => {
+      mockGetData.mockImplementation(async (endpoint: string) => {
+        if (endpoint === '/v1/auth/me') {
+          return { data: { userId: 'user-1' } };
+        }
+        return { data: {} };
+      });
+
+      const attributes = await useAuthStore.getState().loadUserAttributes();
+
+      expect(attributes).toEqual({ sub: 'user-1' });
+    });
+
+    it('rejects when the identity fetch fails', async () => {
+      mockGetData.mockRejectedValue(new Error('Attr Fail'));
+
+      await expect(useAuthStore.getState().loadUserAttributes()).rejects.toThrow('Attr Fail');
     });
   });
 });

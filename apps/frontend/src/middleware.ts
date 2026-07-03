@@ -69,8 +69,9 @@ export function middleware(request: NextRequest) {
 
   // Security headers on every document response.
   // Auth is handled client-side by ProtectedRoute + SessionInitializer —
-  // amazon-cognito-identity-js stores tokens in localStorage which is not
-  // accessible at the edge, so route protection cannot be done here.
+  // sessions are httpOnly cookies scoped to the API domain (SuperTokens),
+  // which this middleware (running on the web origin) cannot read, so route
+  // protection cannot be done here.
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,

@@ -100,15 +100,21 @@
   flex-wrap: wrap;
 }
 
-.VerifyModalSec .VerifyModalBottomInner .VerifyResent a {
+.VerifyModalSec .VerifyModalBottomInner .VerifyResent a,
+.VerifyModalSec .VerifyModalBottomInner .VerifyResent button {
   font-family: var(--font-satoshi);
   font-weight: 500;
   font-size: 14px;
   line-height: 120%;
   color: var(--black-text);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
-.VerifyModalSec .VerifyModalBottomInner .VerifyResent a:first-child {
+.VerifyModalSec .VerifyModalBottomInner .VerifyResent a:first-child,
+.VerifyModalSec .VerifyModalBottomInner .VerifyResent button:first-child {
   color: var(--blue-text);
 }
 

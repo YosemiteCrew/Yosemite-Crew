@@ -232,7 +232,7 @@ describe('UserHeader Component', () => {
     await waitFor(() => {
       expect(mockSignOut).toHaveBeenCalled();
       // Should log error but not crash
-      expect(consoleSpy).toHaveBeenCalledWith('⚠️ Cognito signout error:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith('⚠️ Signout error:', expect.any(Error));
     });
 
     consoleSpy.mockRestore();

@@ -10,15 +10,14 @@ import './DeveloperPortalHome.css';
 import '@/app/features/organizations/styles/Organizations.css';
 
 const DeveloperPortalHome = () => {
-  const { session } = useAuthStore();
+  const { attributes } = useAuthStore();
 
-  const idTokenPayload = session?.getIdToken().decodePayload();
   const displayName = useMemo(() => {
-    const name = `${idTokenPayload?.given_name || ''} ${idTokenPayload?.family_name || ''}`.trim();
+    const name = `${attributes?.given_name || ''} ${attributes?.family_name || ''}`.trim();
     if (name) return name;
-    if (idTokenPayload?.email) return idTokenPayload.email;
+    if (attributes?.email) return attributes.email;
     return 'Developer';
-  }, [idTokenPayload?.email, idTokenPayload?.family_name, idTokenPayload?.given_name]);
+  }, [attributes?.email, attributes?.family_name, attributes?.given_name]);
 
   return (
     <DevRouteGuard>

@@ -25,20 +25,9 @@ jest.mock('@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard', () => ({
   default: ({ children }: any) => <div data-testid="dev-guard">{children}</div>,
 }));
 
+let mockAuthState: Record<string, unknown> = {};
 jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: () => ({
-    session: {
-      getIdToken: () => ({
-        decodePayload: () => ({
-          given_name: 'Grace',
-          family_name: 'Hopper',
-          email: 'grace@example.com',
-          'custom:role': 'developer',
-        }),
-      }),
-    },
-    user: { getUsername: () => 'graceh' },
-  }),
+  useAuthStore: () => mockAuthState,
 }));
 
 jest.mock('@/app/features/auth/pages/SignIn/SignIn', () => ({
@@ -60,6 +49,18 @@ import DevWebsiteBuilderRoute from '@/app/(routes)/(app)/developers/(portal)/web
 import DevApiKeysRoute from '@/app/(routes)/(app)/developers/(portal)/api-keys/page';
 
 describe('developer routes', () => {
+  beforeEach(() => {
+    mockAuthState = {
+      attributes: {
+        given_name: 'Grace',
+        family_name: 'Hopper',
+        email: 'grace@example.com',
+      },
+      role: 'developer',
+      user: { getUsername: () => 'graceh' },
+    };
+  });
+
   test('root developer route renders landing page', () => {
     render(<DevelopersRoute />);
     expect(screen.getByTestId('dev-landing')).toBeInTheDocument();
@@ -72,6 +73,29 @@ describe('developer routes', () => {
     expect(screen.getByText(/Grace Hopper/)).toBeInTheDocument();
     expect(screen.getByText(/grace@example.com/)).toBeInTheDocument();
     expect(screen.getAllByText(/developer/i)[0]).toBeInTheDocument();
+  });
+
+  test('settings route falls back to the username, then a generic label', () => {
+    mockAuthState = { attributes: null, role: null, user: { getUsername: () => 'graceh' } };
+    const { unmount } = render(<DevSettingsRoute />);
+    expect(screen.getByText(/graceh/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Developer/i).length).toBeGreaterThan(0);
+    unmount();
+
+    mockAuthState = { attributes: null, role: null, user: null };
+    render(<DevSettingsRoute />);
+    expect(screen.getByText('Developer Settings')).toBeInTheDocument();
+    expect(screen.getByText('-')).toBeInTheDocument();
+  });
+
+  test('settings route falls back to the email when no name is set', () => {
+    mockAuthState = {
+      attributes: { email: 'grace@example.com' },
+      role: null,
+      user: null,
+    };
+    render(<DevSettingsRoute />);
+    expect(screen.getAllByText(/grace@example.com/).length).toBeGreaterThan(0);
   });
 
   test('portal home route renders portal component', () => {

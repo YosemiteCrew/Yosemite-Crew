@@ -1,13 +1,9 @@
 'use client';
-import React, { useId, useState } from 'react';
-import { AxiosError } from 'axios';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { useAuthStore } from '@/app/stores/authStore';
-import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 
 import './ForgotPassword.css';
@@ -22,90 +18,14 @@ const scrollToTop = () => {
 };
 
 const ForgotPassword = () => {
-  const router = useRouter();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
-  const { forgotPassword, resetPassword } = useAuthStore();
+  const { forgotPassword } = useAuthStore();
 
-  const [showVerifyCode, setShowVerifyCode] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [inputErrors, setInputErrors] = useState<{
-    email?: string;
-    otp?: string;
-    password?: string;
-    confirmPassword?: string;
-  }>({});
-  const otpHintId = useId();
-  const otpErrorId = inputErrors.otp ? `${otpHintId}-error` : undefined;
-  const otpDescribedBy = [otpHintId, otpErrorId].filter(Boolean).join(' ');
+  const [inputErrors, setInputErrors] = useState<{ email?: string }>({});
 
-  const clearOtpError = () => {
-    setInputErrors((prev) => ({ ...prev, otp: undefined }));
-  };
-
-  const clearPasswordErrors = () => {
-    setInputErrors((prev) => ({ ...prev, password: undefined, confirmPassword: undefined }));
-  };
-
-  const resetPasswordFormState = () => {
-    setShowNewPassword(false);
-    setPassword('');
-    setConfirmPassword('');
-    setOtp(['', '', '', '', '', '']);
-    setInputErrors({});
-  };
-
-  const getPasswordValidationErrors = () => {
-    if (!password || !confirmPassword) {
-      return {
-        password: password ? undefined : 'Enter a new password',
-        confirmPassword: confirmPassword ? undefined : 'Confirm your new password',
-      };
-    }
-
-    if (password !== confirmPassword) {
-      return {
-        password: undefined,
-        confirmPassword: 'Passwords do not match',
-      };
-    }
-
-    return null;
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-    index: number
-  ) => {
-    const value = e.target.value;
-
-    if (value.length > 1) return;
-
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    clearOtpError();
-
-    if (value && index < otp.length - 1) {
-      const nextInput = document.getElementById(`otp-input-${index + 1}`);
-      if (nextInput) nextInput.focus();
-    }
-  };
-
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>,
-    index: number
-  ) => {
-    if (e.key === 'Backspace' && otp[index] === '') {
-      const prevInput = document.getElementById(`otp-input-${index - 1}`);
-      if (prevInput) prevInput.focus();
-    }
-  };
-
-  const handleOtp = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleSendResetLink = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     const normalizedEmail = normalizeEmail(email);
     const emailError = getEmailValidationError(
@@ -116,9 +36,7 @@ const ForgotPassword = () => {
 
     if (emailError) {
       setInputErrors((prev) => ({ ...prev, email: emailError }));
-      if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+      scrollToTop();
       showErrorTost({
         message: emailError,
         errortext: 'Error',
@@ -139,11 +57,9 @@ const ForgotPassword = () => {
       const data = await forgotPassword(normalizedEmail);
       if (data) {
         setInputErrors({});
-        if (globalThis.window) {
-          globalThis.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        scrollToTop();
         showErrorTost({
-          message: 'If an account with this email exists, a reset code has been sent',
+          message: 'If an account with this email exists, a reset link has been sent',
           errortext: 'Success',
           iconElement: (
             <Icon
@@ -155,70 +71,13 @@ const ForgotPassword = () => {
           ),
           className: 'CongratsBg',
         });
-        setShowVerifyCode(true);
+        setLinkSent(true);
       }
     } catch (error: unknown) {
-      if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      const axiosError = error as AxiosError<{ message: string }>;
-      showErrorTost({
-        message: `OTP failed: ${axiosError.response?.data?.message || 'Unable to connect to the server.'}`,
-        errortext: 'Error',
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="var(--color-danger-600)"
-          />
-        ),
-        className: 'errofoundbg',
-      });
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-
-    if (otp.includes('')) {
-      setInputErrors((prev) => ({ ...prev, otp: 'Enter the full 6-digit verification code' }));
-      if (globalThis.window) {
-        globalThis.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      showErrorTost({
-        message: 'Please enter the full OTP',
-        errortext: 'Error',
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="var(--color-danger-600)"
-          />
-        ),
-        className: 'errofoundbg',
-      });
-      return;
-    }
-
-    setShowNewPassword(true);
-    setShowVerifyCode(false);
-    clearOtpError();
-  };
-
-  const handlePasswordChange = async (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-
-    const passwordErrors = getPasswordValidationErrors();
-    if (passwordErrors) {
-      setInputErrors(passwordErrors);
       scrollToTop();
+      const message = error instanceof Error ? error.message : 'Unable to connect to the server.';
       showErrorTost({
-        message:
-          passwordErrors.confirmPassword === 'Passwords do not match'
-            ? 'Passwords do not match'
-            : 'Both Passwords are required',
+        message: `Reset link failed: ${message}`,
         errortext: 'Error',
         iconElement: (
           <Icon
@@ -230,68 +89,6 @@ const ForgotPassword = () => {
         ),
         className: 'errofoundbg',
       });
-      return;
-    }
-
-    try {
-      clearPasswordErrors();
-      const success = await resetPassword(email, otp.join(''), password);
-      if (success) {
-        showErrorTost({
-          message: 'Password Changed successfully',
-          errortext: 'Success',
-          iconElement: (
-            <Icon
-              icon="solar:danger-triangle-bold"
-              width="20"
-              height="20"
-              color="var(--color-success-bright)"
-            />
-          ),
-          className: 'CongratsBg',
-        });
-        setTimeout(() => {
-          router.push('/signin');
-        }, 3000);
-        setTimeout(() => {
-          setShowVerifyCode(false);
-          resetPasswordFormState();
-        }, 5000);
-      }
-    } catch (error: any) {
-      scrollToTop();
-      if (error?.code === 'CodeMismatchException') {
-        setShowVerifyCode(true);
-        showErrorTost({
-          message: 'Code Mismatch',
-          errortext: 'Error',
-          iconElement: (
-            <Icon
-              icon="solar:danger-triangle-bold"
-              width="20"
-              height="20"
-              color="var(--color-danger-600)"
-            />
-          ),
-          className: 'errofoundbg',
-        });
-      } else {
-        setShowVerifyCode(false);
-        showErrorTost({
-          message: 'Something went wrong',
-          errortext: 'Error',
-          iconElement: (
-            <Icon
-              icon="solar:danger-triangle-bold"
-              width="20"
-              height="20"
-              color="var(--color-danger-600)"
-            />
-          ),
-          className: 'errofoundbg',
-        });
-      }
-      resetPasswordFormState();
     }
   };
 
@@ -315,13 +112,33 @@ const ForgotPassword = () => {
           elevation-1
         `}
       >
-        {!showVerifyCode && !showNewPassword && (
+        {linkSent ? (
+          <div className="flex flex-col gap-6 w-full">
+            <div className="flex flex-col gap-2">
+              <h1 className="text-display-2 text-text-primary text-center">Check your email</h1>
+              <div className="text-body-4 text-text-primary text-center">
+                {' '}
+                We sent a password reset link to <strong>{normalizeEmail(email)}</strong>. Click the
+                link in the email to set a new password.
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 items-center w-full">
+              <Primary
+                href="#"
+                onClick={handleSendResetLink}
+                text="Resend link"
+                style={{ width: '100%' }}
+              />
+              <Secondary href="/signin" text="Back to sign in" style={{ width: '100%' }} />
+            </div>
+          </div>
+        ) : (
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <h1 className="text-display-2 text-text-primary text-center">Forgot password?</h1>
               <div className="text-body-4 text-text-primary text-center">
                 {' '}
-                Enter your registered email, and we’ll send you a code to reset it.
+                Enter your registered email, and we&rsquo;ll send you a link to reset it.
               </div>
             </div>
             <div className="flex flex-col gap-6">
@@ -337,114 +154,9 @@ const ForgotPassword = () => {
                 error={inputErrors.email}
               />
               <div className="flex flex-col gap-2">
-                <Primary href="#" onClick={handleOtp} text="Send code" />
+                <Primary href="#" onClick={handleSendResetLink} text="Send reset link" />
                 <Secondary href="/signin" text="Back" />
               </div>
-            </div>
-          </div>
-        )}
-
-        {showVerifyCode && (
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <h1 className="text-display-2 text-text-primary text-center">Verify code</h1>
-              <div className="text-body-4 text-text-primary text-center">
-                {' '}
-                Enter the code we just sent to your email to proceed with resetting your password.
-              </div>
-            </div>
-
-            <fieldset
-              className="verifyInput"
-              aria-label="Verification code"
-              aria-describedby={otpDescribedBy}
-            >
-              {otp.map((digit, index) => (
-                <input
-                  key={`${digit}-${index}`}
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={digit}
-                  id={`otp-input-${index}`}
-                  aria-label={`Digit ${index + 1} of 6`}
-                  onChange={(e) => handleChange(e, index)}
-                  onKeyDown={(e) => handleKeyDown(e, index)}
-                  maxLength={1}
-                  autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                />
-              ))}
-            </fieldset>
-            <p id={otpHintId} className="text-caption-1 text-text-secondary text-center">
-              Enter the 6-digit code from your email.
-            </p>
-            {inputErrors.otp ? (
-              <div
-                id={otpErrorId}
-                role="alert"
-                className="flex items-center justify-center gap-1 text-caption-2 text-text-error"
-              >
-                <Icon icon="solar:danger-circle-bold" width="16" height="16" aria-hidden="true" />
-                <span>{inputErrors.otp}</span>
-              </div>
-            ) : null}
-
-            <div className="flex flex-col gap-3 items-center w-full">
-              <Primary
-                href="#"
-                onClick={handleVerifyOtp}
-                text="Verify code"
-                style={{ width: '100%' }}
-              />
-              <Secondary
-                href="#"
-                text="Back"
-                onClick={() => setShowVerifyCode(false)}
-                style={{ width: '100%' }}
-              />
-              <div className="text-body-4 text-text-primary">
-                {' '}
-                Didn&apos;t receive the code?{' '}
-                <Link href="#" onClick={handleOtp} className="text-text-brand">
-                  Request New Code
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showNewPassword && (
-          <div className="flex flex-col gap-6 w-full">
-            <div className="flex flex-col gap-6 w-full">
-              <h1 className="text-display-2 text-text-primary text-center">Set new password</h1>
-              <div className="flex flex-col gap-3">
-                <FormInputPass
-                  intype="password"
-                  inname="password"
-                  value={password}
-                  inlabel="Enter New Password"
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    clearPasswordErrors();
-                  }}
-                  error={inputErrors.password}
-                />
-                <FormInputPass
-                  intype="password"
-                  inname="confirmPassword"
-                  value={confirmPassword}
-                  inlabel="Confirm Password"
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    clearPasswordErrors();
-                  }}
-                  error={inputErrors.confirmPassword}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-3 w-full">
-              <Primary href="#" onClick={handlePasswordChange} text="Reset password" />
-              <Secondary href="#" text="Back" onClick={() => setShowNewPassword(false)} />
             </div>
           </div>
         )}

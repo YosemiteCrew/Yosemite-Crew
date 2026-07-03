@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from 'axios';
+import Session from 'supertokens-web-js/recipe/session';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { hardSignOut } from '@/app/hooks/useAuth';
@@ -14,9 +15,15 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 // `timeout` in the per-request config.
 const DEFAULT_API_TIMEOUT_MS = 60_000;
 
+// Product API calls are authorized by httpOnly session cookies on the API
+// domain (SuperTokens) — no Authorization header. `withCredentials` sends the
+// cookies cross-origin; the supertokens-web-js SDK (initialized via
+// authClient) globally intercepts XHR/fetch and transparently refreshes an
+// expired session before retrying, so no manual refresh logic lives here.
 const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   timeout: DEFAULT_API_TIMEOUT_MS,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -28,11 +35,14 @@ type GetDataOptions = {
   dedupe?: boolean;
 };
 
-type RetriableAxiosRequestConfig = AxiosRequestConfig & {
-  _retry?: boolean;
+export type ApiRequestConfig = AxiosRequestConfig & {
+  /** Suppress the hard sign-out redirect when this request 401s. */
+  skipAuthRedirect?: boolean;
+};
+
+type RetriableAxiosRequestConfig = ApiRequestConfig & {
   /** Count of transient (429/5xx/timeout) retries already attempted. */
   _transientRetryCount?: number;
-  skipAuthRedirect?: boolean;
 };
 
 // The dev API can be slow and rate-limit (429) under load. Retry transient
@@ -80,7 +90,6 @@ const inFlightGetRequests = new Map<string, Promise<AxiosResponse<unknown>>>();
 let unauthorizedSessionPromise: Promise<void> | null = null;
 
 const AUTH_REDIRECT_ERROR_NAME = 'AuthRedirectError';
-const PUBLIC_API_PREFIXES = ['/v1/contact-us/contact-web'];
 const PUBLIC_PATHS = new Set([
   '/',
   '/about-us',
@@ -90,8 +99,10 @@ const PUBLIC_PATHS = new Set([
   '/pet-businesses',
   '/pet-parents',
   '/pricing',
+  '/reset-password',
   '/signin',
   '/signup',
+  '/verify-email',
 ]);
 
 const createAuthRedirectError = (): AuthRedirectError => {
@@ -134,21 +145,6 @@ const redirectToSignIn = () => {
   }
 };
 
-const normalizeRequestPath = (url?: string) => {
-  if (!url) return '';
-  try {
-    return new URL(url, BASE_URL || globalThis.window?.location?.origin || 'http://localhost')
-      .pathname;
-  } catch {
-    return url;
-  }
-};
-
-const isPublicApiRequest = (config: AxiosRequestConfig) => {
-  const path = normalizeRequestPath(config.url);
-  return PUBLIC_API_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
-};
-
 const handleUnauthorizedSession = async () => {
   unauthorizedSessionPromise ??= hardSignOut()
     .catch((error) => {
@@ -164,11 +160,6 @@ const handleUnauthorizedSession = async () => {
 const shouldSuppressApiError = (error: unknown): boolean => {
   if (isAuthRedirectError(error)) return true;
   return getResponseStatus(error) === 401 && useAuthStore.getState().status === 'unauthenticated';
-};
-
-const rejectForAuthRedirect = async () => {
-  await handleUnauthorizedSession();
-  throw createAuthRedirectError();
 };
 
 const stableSerialize = (value: unknown): string => {
@@ -220,37 +211,21 @@ const getResponseStatus = (error: unknown): number | undefined => {
   return typeof response?.status === 'number' ? response.status : undefined;
 };
 
-// Axios interceptor to set Authorization using token from your AuthStore session
+// Request interceptor: scope requests to the active organisation. Session
+// authentication is handled entirely by cookies + the SuperTokens SDK.
 api.interceptors.request.use(
-  async (config) => {
+  (config) => {
     try {
-      const authState = useAuthStore.getState();
-      const session = await authState.getValidSession();
       const primaryOrgId = useOrgStore.getState().primaryOrgId;
       if (config.headers) {
-        if (session) {
-          const token = session.getIdToken().getJwtToken();
-          config.headers.Authorization = `Bearer ${token}`;
-        } else {
-          delete config.headers.Authorization;
-        }
         if (primaryOrgId) {
           config.headers['x-org-id'] = primaryOrgId;
         } else {
           delete config.headers['x-org-id'];
         }
       }
-      if (!session && !isPublicApiRequest(config)) {
-        const status = useAuthStore.getState().status;
-        if (status === 'unauthenticated') {
-          await rejectForAuthRedirect();
-        }
-      }
     } catch (error) {
-      if (isAuthRedirectError(error)) {
-        throw error;
-      }
-      logger.warn('No valid Cognito session available from AuthStore', error);
+      logger.warn('Failed to attach the organisation header', error);
     }
     return config;
   },
@@ -288,35 +263,21 @@ api.interceptors.response.use(
       throw error;
     }
 
-    // Avoid infinite loop: only retry once
-    if (originalRequest._retry) {
-      await handleUnauthorizedSession();
-      throw createAuthRedirectError();
-    }
-
-    originalRequest._retry = true;
-
+    // The SuperTokens SDK already attempted a transparent session refresh and
+    // retry before this 401 surfaced. If no session remains, the user is
+    // signed out for good — clear local state and send them to sign in.
+    let sessionExists = false;
     try {
-      const session = await useAuthStore.getState().getValidSession({ forceRefresh: true });
-      if (!session) {
-        await handleUnauthorizedSession();
-        throw createAuthRedirectError();
-      }
-
-      // Update auth header and retry the original request
-      originalRequest.headers = {
-        ...originalRequest.headers,
-        Authorization: `Bearer ${session.getIdToken().getJwtToken()}`,
-      };
-
-      return api(originalRequest);
-    } catch (refreshError) {
-      if (!isAuthRedirectError(refreshError)) {
-        logger.warn('Session refresh failed after 401:', refreshError);
-      }
+      sessionExists = await Session.doesSessionExist();
+    } catch (sessionError) {
+      logger.warn('Failed to check the session after a 401 response', sessionError);
+    }
+    if (!sessionExists) {
       await handleUnauthorizedSession();
       throw createAuthRedirectError();
     }
+
+    throw error;
   }
 );
 
@@ -368,7 +329,7 @@ export const getData = async <T>(
 export const postData = async <T, D = unknown>(
   endpoint: string,
   data?: D,
-  config?: AxiosRequestConfig
+  config?: ApiRequestConfig
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.post<T>(endpoint, data, {
@@ -417,7 +378,7 @@ export const deleteData = async <T>(
 export const patchData = async <T, D = unknown>(
   endpoint: string,
   data?: D,
-  config?: AxiosRequestConfig
+  config?: ApiRequestConfig
 ): Promise<AxiosResponse<T>> => {
   try {
     return await api.patch<T>(endpoint, data, {

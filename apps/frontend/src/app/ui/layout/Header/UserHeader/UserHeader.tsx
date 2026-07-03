@@ -227,7 +227,7 @@ const UserHeader = () => {
       removeStorageItem('local', 'yc_dashboard_videos_hidden');
       router.replace(logoutRedirect);
     } catch (error) {
-      console.error('⚠️ Cognito signout error:', error);
+      console.error('⚠️ Signout error:', error);
       stopRouteLoader();
     }
   };

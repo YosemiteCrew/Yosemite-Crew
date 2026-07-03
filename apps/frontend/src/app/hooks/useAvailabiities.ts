@@ -31,9 +31,7 @@ export const useLoadAvailabilities = () => {
 export const usePrimaryAvailability = (): {
   availabilities: AvailabilityState | null;
 } => {
-  const authUserId = useAuthStore(
-    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
-  );
+  const authUserId = useAuthStore((s) => s.attributes?.sub || s.attributes?.email || '');
   const { membership } = usePrimaryOrgWithMembership();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const availabilityIdsByOrgId = useAvailabilityStore((s) => s.availabilityIdsByOrgId);

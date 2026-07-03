@@ -50,9 +50,9 @@ const ProtectedRoute = ({ children, skeleton = null }: ProtectedRouteProps) => {
     return <>{children}</>;
   }
 
-  // Do not mount protected children until Cognito confirms the session. Cached
-  // proof only avoids skeleton flicker; it must not allow stale org loaders to
-  // fire while a token is being refreshed.
+  // Do not mount protected children until the auth provider confirms the
+  // session. Cached proof only avoids skeleton flicker; it must not allow
+  // stale org loaders to fire while the session is being refreshed.
   if (isChecking) {
     return <>{skeleton}</>;
   }

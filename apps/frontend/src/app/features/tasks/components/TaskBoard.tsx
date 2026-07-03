@@ -273,9 +273,7 @@ const TaskBoard = ({
   const { notify } = useNotify();
   const team = useTeamForPrimaryOrg();
   const { resolveMemberName } = useMemberMap();
-  const authUserId = useAuthStore(
-    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
-  );
+  const authUserId = useAuthStore((s) => s.attributes?.sub || s.attributes?.email || '');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
   const [showMineOnly, setShowMineOnly] = useState(false);

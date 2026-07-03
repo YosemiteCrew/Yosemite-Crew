@@ -11,12 +11,7 @@ export const metadata: Metadata = {
 function Page() {
   return (
     <Suspense fallback={null}>
-      <SignUp
-        postAuthRedirect="/developers/home"
-        signinHref="/developers/signin"
-        allowNext={false}
-        isDeveloper
-      />
+      <SignUp signinHref="/developers/signin" allowNext={false} isDeveloper />
     </Suspense>
   );
 }
