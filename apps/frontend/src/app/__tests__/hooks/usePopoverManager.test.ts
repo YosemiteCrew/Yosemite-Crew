@@ -203,6 +203,51 @@ describe('usePopoverManager', () => {
     expect(screen.getByText('key-1')).toBeInTheDocument();
   });
 
+  it('stays open when a touch lands inside the popover dialog', () => {
+    jest.useFakeTimers();
+    const TestPopover = () => {
+      const manager = usePopoverManager();
+
+      return React.createElement(
+        React.Fragment,
+        null,
+        React.createElement(
+          'button',
+          {
+            type: 'button',
+            onClick: (event: React.MouseEvent<HTMLButtonElement>) =>
+              manager.openPopover('key-1', event.currentTarget),
+          },
+          'Open'
+        ),
+        React.createElement(
+          'dialog',
+          { ref: manager.popoverDialogRef, open: true },
+          React.createElement('div', { 'data-testid': 'inner-touch' })
+        ),
+        React.createElement('span', null, manager.activePopoverKey ?? 'closed')
+      );
+    };
+
+    render(React.createElement(TestPopover));
+    act(() => {
+      screen.getByRole('button', { name: 'Open' }).click();
+    });
+
+    expect(screen.getByText('key-1')).toBeInTheDocument();
+
+    act(() => {
+      const inner = screen.getByTestId('inner-touch');
+      inner.dispatchEvent(new Event('touchstart', { bubbles: true }));
+      inner.dispatchEvent(new Event('touchend', { bubbles: true }));
+      jest.advanceTimersByTime(300);
+    });
+
+    // Touching inside the popover must not schedule a close.
+    expect(screen.getByText('key-1')).toBeInTheDocument();
+    jest.useRealTimers();
+  });
+
   it('schedulePopoverClose closes popover after timeout', async () => {
     jest.useFakeTimers();
     const { result } = renderHook(() => usePopoverManager());
