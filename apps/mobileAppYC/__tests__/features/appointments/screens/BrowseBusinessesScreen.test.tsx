@@ -59,6 +59,15 @@ jest.mock(
   }),
 );
 
+jest.mock('react-native-gesture-handler', () => ({
+  GestureDetector: ({children}: any) => <>{children}</>,
+  Gesture: {Native: () => ({})},
+  NativeViewGestureHandler: ({children, ...props}: any) => {
+    const {View} = require('react-native');
+    return <View {...props}>{children}</View>;
+  },
+}));
+
 jest.mock('@gorhom/bottom-sheet', () => {
   const {View} = require('react-native');
   const {forwardRef, useImperativeHandle, createElement} = require('react');
@@ -320,7 +329,7 @@ describe('BrowseBusinessesScreen', () => {
 
   it('renders empty state when no businesses found', () => {
     const {getByText} = render(<BrowseBusinessesScreen />);
-    expect(getByText('No clinics in this area')).toBeTruthy();
+    expect(getByText('No veterinary businesses in this area')).toBeTruthy();
   });
 
   it('renders businesses when clinics are provided', () => {

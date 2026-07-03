@@ -13,7 +13,15 @@ describe('companionHistoryRoute', () => {
 
   it('builds companion overview links', () => {
     expect(buildCompanionOverviewHref('comp-9', '/companions?companionId=comp-9')).toBe(
-      '/companions/history?companionId=comp-9&source=companions&backTo=%2Fcompanions%3FcompanionId%3Dcomp-9'
+      '/companions/history?companionId=comp-9&source=companions&backTo=%2Fcompanions'
+    );
+  });
+
+  it('preserves non-modal companion list filters when building overview links', () => {
+    expect(
+      buildCompanionOverviewHref('comp-9', '/companions?status=active&companionId=comp-9')
+    ).toBe(
+      '/companions/history?companionId=comp-9&source=companions&backTo=%2Fcompanions%3Fstatus%3Dactive'
     );
   });
 

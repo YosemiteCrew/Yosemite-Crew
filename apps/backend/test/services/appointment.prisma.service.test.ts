@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, jest, it } from "@jest/globals";
 import { AppointmentPrismaService } from "../../src/services/appointment.prisma.service";
 import { prisma } from "../../src/config/prisma";
 import { InvoiceService } from "../../src/services/invoice.service";
+import { CompanionOrganisationService } from "../../src/services/companion-organisation.service";
 
 jest.mock("@yosemite-crew/types", () => ({
   ...(jest.requireActual("@yosemite-crew/types") as unknown as Record<
@@ -34,6 +35,12 @@ jest.mock("../../src/services/invoice.service", () => ({
     createCheckoutSessionAndEmailParent: jest.fn(),
     markAppointmentReadyForBilling: jest.fn(),
     setInvoiceDepositTarget: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/companion-organisation.service", () => ({
+  CompanionOrganisationService: {
+    linkByParent: jest.fn(),
   },
 }));
 
@@ -87,6 +94,13 @@ jest.mock("../../src/config/prisma", () => ({
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    organization: {
+      findUnique: jest.fn(),
+    },
+    patientOrganisation: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
   },
 }));
 
@@ -109,6 +123,9 @@ const mockedInvoiceService = InvoiceService as unknown as {
   createCheckoutSessionAndEmailParent: jest.Mock;
   markAppointmentReadyForBilling: jest.Mock;
   setInvoiceDepositTarget: jest.Mock;
+};
+const mockedCompanionOrgService = CompanionOrganisationService as unknown as {
+  linkByParent: jest.Mock;
 };
 
 const baseDomain = {
@@ -209,6 +226,9 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.occupancy.deleteMany.mockResolvedValue({ count: 1 } as any);
     mockedPrisma.roomUnit.findUnique.mockResolvedValue(null);
     mockedPrisma.roomUnitGroup.findUnique.mockResolvedValue(null);
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      type: "HOSPITAL",
+    });
     mockedPrisma.patient.findUnique.mockResolvedValue({
       id: "comp_1",
       type: "dog",
@@ -231,6 +251,7 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.admission.findUnique.mockResolvedValue(null);
     mockedPrisma.admission.upsert.mockResolvedValue({} as any);
     mockedPrisma.template.findFirst.mockResolvedValue(null);
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
   });
 
   it("creates a requested appointment with product validation", async () => {
@@ -295,6 +316,14 @@ describe("AppointmentPrismaService", () => {
     );
     expect((result as any).paymentStatus).toBe("UNPAID");
     expect(result.id).toBe("appt_1");
+    expect(mockedCompanionOrgService.linkByParent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: "parent_1",
+        patientId: "comp_1",
+        organisationId: "org_1",
+        organisationType: "HOSPITAL",
+      }),
+    );
     expect((result as any).templateDefaults).toEqual([
       expect.objectContaining({
         templateKind: "SOAP_NOTE",
@@ -455,6 +484,14 @@ describe("AppointmentPrismaService", () => {
       "appt_1",
       "PAYMENT_LINK",
     );
+    expect(mockedCompanionOrgService.linkByParent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: "parent_1",
+        patientId: "comp_1",
+        organisationId: "org_1",
+        organisationType: "HOSPITAL",
+      }),
+    );
     expect(
       mockedInvoiceService.createCheckoutSessionAndEmailParent,
     ).toHaveBeenCalledWith("inv_1");
@@ -508,6 +545,73 @@ describe("AppointmentPrismaService", () => {
     expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
       where: { id: "appt_1", organisationId: "org_2" },
     });
+  });
+
+  it("allows the linked parent to read the appointment", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
+      makeRow({
+        organisationId: "org_2",
+        patient: {
+          id: "comp_1",
+          name: "Buddy",
+          species: "Dog",
+          breed: "Labrador",
+          parent: { id: "parent_1", name: "Parent One" },
+        },
+      }),
+    );
+
+    const result = await AppointmentPrismaService.getById(
+      "appt_1",
+      "org_2",
+      undefined,
+      "parent_1",
+    );
+
+    expect(result).toMatchObject({ id: "appt_1" });
+  });
+
+  it("shows booking payment as paid while the final invoice remains unpaid", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
+      makeRow({
+        organisationId: "org_2",
+      }),
+    );
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      {
+        appointmentId: "appt_1",
+        status: "AWAITING_PAYMENT",
+        depositCollectedAmount: 25,
+        payments: [{ id: "pay_1" }],
+      },
+    ]);
+
+    const result = await AppointmentPrismaService.getById("appt_1", "org_2");
+
+    expect((result as any).paymentStatus).toBe("UNPAID");
+    expect((result as any).bookingPaymentStatus).toBe("PAID");
+  });
+
+  it("treats a succeeded payment attempt as a booking payment signal", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
+      makeRow({
+        organisationId: "org_2",
+      }),
+    );
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      {
+        appointmentId: "appt_1",
+        status: "AWAITING_PAYMENT",
+        depositCollectedAmount: 0,
+        paymentAttempts: [{ id: "attempt_1" }],
+        payments: [],
+      },
+    ]);
+
+    const result = await AppointmentPrismaService.getById("appt_1", "org_2");
+
+    expect((result as any).paymentStatus).toBe("UNPAID");
+    expect((result as any).bookingPaymentStatus).toBe("PAID");
   });
 
   it("reschedules and resets UPCOMING appointments back to requested", async () => {
@@ -615,17 +719,71 @@ describe("AppointmentPrismaService", () => {
         }),
       }),
     );
-    expect(mockedPrisma.admission.upsert).toHaveBeenCalledWith({
-      where: { encounterId: "enc_1" },
-      update: {},
-      create: {
-        encounterId: "enc_1",
+    expect(mockedPrisma.admission.upsert).not.toHaveBeenCalled();
+    expect(
+      mockedInvoiceService.markAppointmentReadyForBilling,
+    ).not.toHaveBeenCalled();
+    expect((result as any).encounterId).toBe("enc_1");
+  });
+
+  it("creates an outpatient case on check-in when one does not exist", async () => {
+    mockedPrisma.appointment.findUnique.mockResolvedValue(
+      makeRow({
+        status: "UPCOMING",
+        appointmentKind: "OUTPATIENT",
+        caseId: null,
+        encounterId: null,
+      }),
+    );
+    mockedPrisma.case.create.mockResolvedValue({ id: "case_out_1" } as any);
+    mockedPrisma.encounter.create.mockResolvedValue({ id: "enc_out_1" } as any);
+    mockedPrisma.appointment.update
+      .mockResolvedValueOnce({ id: "appt_1" } as any)
+      .mockResolvedValueOnce(
+        makeRow({
+          status: "CHECKED_IN",
+          appointmentKind: "OUTPATIENT",
+          caseId: "case_out_1",
+          encounterId: "enc_out_1",
+        }),
+      );
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+    const result = await AppointmentPrismaService.checkInAppointment("appt_1");
+
+    expect(mockedPrisma.case.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
         organisationId: "org_1",
         patientId: "comp_1",
-        admittedAt: baseDomain.startTime,
+        status: "active",
+        appointmentKind: "OUTPATIENT",
+        title: "Outpatient case",
+      }),
+      select: { id: true },
+    });
+    expect(mockedPrisma.encounter.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          caseId: "case_out_1",
+          organisationId: "org_1",
+          patientId: "comp_1",
+          status: "arrived",
+          encounterClass: "AMB",
+        }),
+      }),
+    );
+    expect(mockedPrisma.appointment.update).toHaveBeenNthCalledWith(1, {
+      where: { id: "appt_1" },
+      data: {
+        caseId: "case_out_1",
+        encounterId: "enc_out_1",
       },
     });
-    expect((result as any).encounterId).toBe("enc_1");
+    expect(
+      mockedInvoiceService.markAppointmentReadyForBilling,
+    ).not.toHaveBeenCalled();
+    expect((result as any).caseId).toBe("case_out_1");
+    expect((result as any).encounterId).toBe("enc_out_1");
   });
 
   it("admits a checked-in outpatient appointment into inpatient care", async () => {

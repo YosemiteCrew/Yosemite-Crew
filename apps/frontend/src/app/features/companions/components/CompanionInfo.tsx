@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
@@ -9,6 +9,7 @@ import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 type CompanionInfoProps = {
   showModal: boolean;
@@ -20,12 +21,12 @@ type CompanionInfoProps = {
 type LabelKey = 'info' | 'history';
 type SubLabelKey = 'companion-information' | 'parent-information' | 'history';
 
-const labels = [
+const getLabels = (terminologyText: (text: string) => string) => [
   {
     key: 'info',
     name: 'Info',
     labels: [
-      { key: 'companion-information', name: 'Patient information' },
+      { key: 'companion-information', name: terminologyText('Patient information') },
       { key: 'parent-information', name: 'Parent information' },
     ],
   },
@@ -53,6 +54,8 @@ const CompanionInfo = ({
   canEditCompanionStatus = false,
   initialLabel = 'info',
 }: CompanionInfoProps) => {
+  const terminologyText = useCompanionTerminologyText();
+  const labels = useMemo(() => getLabels(terminologyText), [terminologyText]);
   const router = useRouter();
   const [activeLabel, setActiveLabel] = useState<LabelKey>(labels[0].key as LabelKey);
   const [activeSubLabel, setActiveSubLabel] = useState<SubLabelKey>(
@@ -74,7 +77,7 @@ const CompanionInfo = ({
     if (current?.key) {
       setActiveSubLabel(current.key as SubLabelKey);
     }
-  }, [activeLabel]);
+  }, [activeLabel, labels]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
@@ -92,7 +95,7 @@ const CompanionInfo = ({
           <div className="flex justify-between items-center">
             <div className="flex justify-center items-center gap-2">
               <Image
-                alt="pet image"
+                alt={terminologyText('pet image')}
                 src={getSafeImageUrl(
                   activeCompanion?.companion.photoUrl,
                   activeCompanion?.companion.type.toLowerCase() as ImageType

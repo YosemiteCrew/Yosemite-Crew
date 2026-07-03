@@ -82,6 +82,12 @@ const readFirstString = (source: Record<string, unknown>, keys: string[]): strin
   return undefined;
 };
 
+const readNestedString = (source: Record<string, unknown>, parentKey: string, childKey: string) => {
+  const parent = source[parentKey];
+  if (!isRecord(parent)) return undefined;
+  return asString(parent[childKey]);
+};
+
 const readFirstIso = (source: Record<string, unknown>, keys: string[]): string | undefined => {
   for (const key of keys) {
     const value = asOptionalIso(source[key]);
@@ -175,8 +181,17 @@ const normalizeDocuments = (items: Record<string, unknown>[]): WorkspaceDocument
 // both the same.
 const MEDICATION_TREATMENT_KINDS = new Set(['MEDICATION', 'PRESCRIPTION']);
 
+// A treatment item belongs in the prescription section when its kind is a medicine
+// OR it links to a prescription artifact (`prescriptionId`). The link check matters
+// for BILLED/dispensed drugs: once billed, the backend can persist the drug as a
+// treatment-item row whose `servicePackageKind` is no longer MEDICATION/PRESCRIPTION,
+// which would otherwise misfile the paid prescription under Services & Packages (or
+// drop it from the prescription list entirely once the virtual artifact line is
+// deduped away). Keying off the prescription link keeps a paid prescription visible
+// and read-only in the prescription section.
 const isMedicationTreatmentItem = (item: Record<string, unknown>): boolean =>
-  MEDICATION_TREATMENT_KINDS.has(asString(item.servicePackageKind) ?? '');
+  MEDICATION_TREATMENT_KINDS.has(asString(item.servicePackageKind) ?? '') ||
+  Boolean(asString(item.prescriptionId));
 
 const normalizeTreatmentItems = (items: Record<string, unknown>[]): LineItem[] =>
   items
@@ -251,45 +266,72 @@ const prescriptionLinesFromEnvelope = (item: Record<string, unknown>): Prescript
 
   const lines = asArray(prescription.items);
   if (lines.length === 0) {
+    const metadata = isRecord(item.metadata) ? item.metadata : {};
     return [
       {
         id: baseId,
         medicineName: fallbackName,
+        strength: asString(item.strength) ?? asString(item.dosage),
+        dosageForm: asString(item.dosageForm) ?? asString(metadata.dosageForm),
         dosage: asString(item.dosage),
         route: asString(item.route),
         frequency: asString(item.frequency),
         durationDays: asString(item.durationDays) ?? asString(item.duration),
+        qty: asString(item.qty) ?? asString(item.quantity),
         refill: asString(item.refill),
         instructions: asString(item.instructions) ?? asString(productSnapshot.instructions),
         fulfillment,
         priceCents,
         inventoryItemId: asString(item.inventoryItemId) ?? asString(item.productId),
+        inventoryBatchId: asString(item.inventoryBatchId) ?? asString(item.batchId),
       },
     ];
   }
-  return lines.map((line, lineIndex) => ({
-    id: asString(line.id) ?? `${baseId}-${lineIndex + 1}`,
-    medicineName: asString(line.medication) ?? fallbackName,
-    dosage: asString(line.dosage),
-    route: asString(line.route),
-    frequency: asString(line.frequency),
-    durationDays: asString(line.durationDays) ?? asString(line.duration),
-    refill: asString(line.refill),
-    instructions: asString(line.instructions) ?? asString(productSnapshot.instructions),
-    fulfillment,
-    priceCents,
-    inventoryItemId:
-      asString(line.inventoryItemId) ?? asString(item.inventoryItemId) ?? asString(item.productId),
-  }));
-};
-
-// The id a prescription envelope is sourced from (artifact/prescription id),
-// used to suppress the medication-kind treatment item the backend expands from
-// the same record — its per-line ids differ, so we match on the source id.
-const prescriptionSourceId = (item: Record<string, unknown>): string | undefined => {
-  const artifact = isRecord(item.artifact) ? item.artifact : item;
-  const prescription = isRecord(item.prescription) ? item.prescription : item;
-  return asString(prescription.id) ?? asString(artifact.id) ?? asString(item.id);
+  return lines.map((line, lineIndex) => {
+    // Display/unit fields (brand, strength unit, form, controlled flag, schedule, price, stock) are
+    // stored in the per-line `metadata` JSON column — read them back so the workspace card shows
+    // the full prescription after refresh, not just the core dispensing fields.
+    const meta = isRecord(line.metadata) ? line.metadata : {};
+    const metaStr = (key: string) => asString(line[key]) ?? asString(meta[key]);
+    const metaBool = (key: string) => {
+      const value = line[key] ?? meta[key];
+      return typeof value === 'boolean' ? value : undefined;
+    };
+    return {
+      id: asString(line.id) ?? `${baseId}-${lineIndex + 1}`,
+      medicineName: asString(line.medication) ?? metaStr('medicineName') ?? fallbackName,
+      brand: metaStr('brand'),
+      genericName: metaStr('genericName'),
+      sku: metaStr('sku') ?? asString(line.inventoryItemSku),
+      strength: asString(line.strength),
+      strengthUnit: metaStr('strengthUnit'),
+      dosageForm: metaStr('dosageForm'),
+      dosage: asString(line.dosage) ?? asString(line.strength),
+      doseUnit: metaStr('doseUnit'),
+      route: asString(line.route) ?? metaStr('route'),
+      frequency: asString(line.frequency),
+      durationDays: asString(line.durationDays) ?? asString(line.duration),
+      durationUnit: metaStr('durationUnit'),
+      qty: asString(line.qty) ?? asString(line.quantity),
+      refill: asString(line.refill),
+      drugSchedule: metaStr('drugSchedule'),
+      prescriptionRequired: metaBool('prescriptionRequired'),
+      controlledSubstance: metaBool('controlledSubstance'),
+      instructions: asString(line.instructions) ?? asString(productSnapshot.instructions),
+      fulfillment,
+      priceCents: asNumber(meta.priceCents) ?? priceCents,
+      stockQty: asNumber(line.stockQty) ?? asNumber(meta.stockQty),
+      lowStock: metaBool('lowStock'),
+      inventoryItemId:
+        asString(line.inventoryItemId) ??
+        asString(item.inventoryItemId) ??
+        asString(item.productId),
+      inventoryBatchId:
+        asString(line.inventoryBatchId) ??
+        asString(line.batchId) ??
+        asString(meta.inventoryBatchId),
+    };
+  });
 };
 
 const normalizePrescriptions = (
@@ -298,17 +340,43 @@ const normalizePrescriptions = (
 ): PrescriptionItem[] => {
   const byId = new Map<string, PrescriptionItem>();
   const sourceIds = new Set<string>();
+
+  // Billed lookup: the medication TREATMENT-ITEM rows carry the `billingStatus`, but the matching
+  // prescription ARTIFACT line does not. Index only backend link ids (treatment-item id and
+  // prescriptionId) so a same-drug prescription does not become billed by inventory item alone.
+  const billedMedicationIds = new Set<string>();
+  treatmentItems.filter(isMedicationTreatmentItem).forEach((item) => {
+    if (asString(item.billingStatus) !== 'BILLED') return;
+    [asString(item.id), asString(item.prescriptionId)]
+      .filter((value): value is string => Boolean(value))
+      .forEach((value) => billedMedicationIds.add(value));
+  });
+  const isLineBilled = (line: PrescriptionItem, linkedIds: string[]): boolean =>
+    Boolean(line.billed) ||
+    billedMedicationIds.has(line.id) ||
+    linkedIds.some((id) => billedMedicationIds.has(id));
+
   prescriptions.forEach((item) => {
-    const sourceId = prescriptionSourceId(item);
-    if (sourceId) sourceIds.add(sourceId);
-    prescriptionLinesFromEnvelope(item).forEach((line) => byId.set(line.id, line));
+    // Collect backend ids that can link a medication treatment item back to this prescription.
+    // Do not use inventory item ids here: the same product can be prescribed more than once.
+    const artifact = isRecord(item.artifact) ? item.artifact : item;
+    const prescription = isRecord(item.prescription) ? item.prescription : item;
+    const linkedIds = [asString(prescription.id), asString(artifact.id), asString(item.id)].filter(
+      (value): value is string => Boolean(value)
+    );
+    linkedIds.forEach((value) => sourceIds.add(value));
+    prescriptionLinesFromEnvelope(item).forEach((line) => {
+      byId.set(line.id, { ...line, billed: isLineBilled(line, linkedIds) });
+    });
   });
   treatmentItems.filter(isMedicationTreatmentItem).forEach((item, index) => {
     const prescription = medicationTreatmentItemToPrescription(item, index);
-    // The medication-kind treatment item and its prescription artifact share the
-    // same backend id, so skip it when the artifact already produced lines.
-    const linkedId = asString(item.prescriptionId) ?? asString(item.id) ?? prescription.id;
-    if (byId.has(prescription.id) || sourceIds.has(linkedId)) return;
+    // The medication-kind treatment item and its prescription artifact share a backend link id, so
+    // skip it when the artifact already produced lines.
+    const linkedIds = [asString(item.prescriptionId), asString(item.id), prescription.id].filter(
+      (value): value is string => Boolean(value)
+    );
+    if (byId.has(prescription.id) || linkedIds.some((id) => sourceIds.has(id))) return;
     byId.set(prescription.id, prescription);
   });
   return Array.from(byId.values());
@@ -337,17 +405,43 @@ const applyEncounterReadiness = (
   encounter: Record<string, unknown>,
   invoice: Record<string, unknown>
 ) => {
+  // Ready-for-discharge is a monotonic milestone, like ready-for-billing: once the visit is
+  // actually discharged it was, by definition, ready for discharge. A full discharge advances the
+  // FHIR encounter status 'onleave' -> 'finished' and stamps admission.dischargedAt, so BOTH of
+  // those must also satisfy the flag — otherwise the box unticks on refresh after discharge.
+  const admission = isRecord(encounter.admission) ? encounter.admission : {};
+  const isDischarged =
+    asString(encounter.status) === 'finished' || Boolean(asOptionalIso(admission.dischargedAt));
   const readyForDischargeFlag =
     asString(encounter.status) === 'onleave' ||
+    isDischarged ||
     encounter.readyForDischarge === true ||
     (isRecord(encounter.readyForDischarge) &&
-      asBoolean(encounter.readyForDischarge.value) === true);
+      asBoolean(encounter.readyForDischarge.value) === true) ||
+    bootstrap.readyForDischarge === true ||
+    (isRecord(bootstrap.readyForDischarge) &&
+      asBoolean(bootstrap.readyForDischarge.value) === true);
   if (readyForDischargeFlag) {
+    // Actor name/id for these flags live at the bootstrap top level (readyForDischargeByName),
+    // NOT inside `encounter`, so include the bootstrap as a fallback source. When a discharge
+    // happened, the dischargedAt timestamp is the most accurate stamp time.
     patch.readyForDischarge = buildReadyState(
-      encounter,
-      encounter,
-      ['readyForDischargeAt', 'readyForDischargeOn', 'dischargeReadyAt', 'updatedAt'],
-      ['readyForDischargeByName', 'dischargeReadyByName', 'updatedByName', 'updatedBy'],
+      { ...bootstrap, ...encounter, ...admission },
+      { ...bootstrap, ...encounter },
+      [
+        'dischargedAt',
+        'readyForDischargeAt',
+        'readyForDischargeOn',
+        'dischargeReadyAt',
+        'updatedAt',
+      ],
+      [
+        'readyForDischargeByName',
+        'dischargeReadyByName',
+        'dischargedByName',
+        'updatedByName',
+        'updatedBy',
+      ],
       ['readyForDischargeByUserId', 'dischargeReadyByUserId', 'updatedById']
     );
   }
@@ -363,20 +457,33 @@ const applyEncounterReadiness = (
     asString(bootstrap.visitBillingStage) ??
     asString(invoice.visitBillingStage) ??
     asString(encounter.visitBillingStage);
+  // "Ready for billing" is a monotonic workflow milestone, not a consumable toggle: once a visit
+  // has been billed/paid it was, by definition, ready for billing, and the box must stay ticked and
+  // locked (the backend already 409s any revert once paid). So a SETTLED stage — or a PAID/settled
+  // invoice, which advances the single-slot billing stage PAST and thus overwrites READY_FOR_BILLING
+  // — still satisfies the flag. It must NOT be inferred from an unpaid/DRAFT invoice or from
+  // check-in alone (that conflated "exists" with "ready" and auto-ticked the box).
+  const invoiceStatus = asString(invoice.status)?.toUpperCase();
+  const invoiceSettled =
+    billingStage === 'SETTLED' ||
+    invoiceStatus === 'PAID' ||
+    (isRecord(invoice) && Boolean(invoice.paidAt));
   const readyForBillingFlag =
     billingStage === 'READY_FOR_BILLING' ||
-    billingStage === 'SETTLED' ||
+    invoiceSettled ||
     bootstrap.readyForBilling === true ||
     encounter.readyForBilling === true ||
     (isRecord(bootstrap.readyForBilling) && asBoolean(bootstrap.readyForBilling.value) === true) ||
     (isRecord(encounter.readyForBilling) && asBoolean(encounter.readyForBilling.value) === true);
   if (readyForBillingFlag) {
+    // The actor name (readyForBillingByName) lives at the bootstrap top level, so fall back to it —
+    // otherwise the stamp degrades to the generic "Clinical team" even when the server knows who.
     patch.readyForBilling = buildReadyState(
-      readyForBilling,
-      billingFallback,
+      { ...bootstrap, ...readyForBilling },
+      { ...bootstrap, ...billingFallback },
       ['readyForBillingAt', 'billingReadyAt', 'updatedAt', 'createdAt'],
       ['readyForBillingByName', 'billingReadyByName', 'updatedByName', 'updatedBy'],
-      ['readyForBillingByUserId', 'billingReadyByUserId', 'updatedById']
+      ['readyForBillingActorId', 'readyForBillingByUserId', 'billingReadyByUserId', 'updatedById']
     );
   }
 };
@@ -528,6 +635,10 @@ export const normalizeWorkspaceBootstrapForEncounter = (
 
   const encounter = isRecord(bootstrap.encounter) ? bootstrap.encounter : {};
   if (isRecord(encounter.admission)) {
+    patch.roomId =
+      readFirstString(encounter.admission, ['roomId', 'locationId']) ??
+      readNestedString(encounter.admission, 'room', 'id') ??
+      readNestedString(encounter.admission, 'location', 'id');
     patch.unitId = asString(encounter.admission.unitId);
     patch.admittedAt =
       asOptionalIso(encounter.admission.admittedAt) ??
@@ -653,6 +764,29 @@ export const signWorkspaceDocumentPacket = async (
 };
 
 /**
+ * Reconcile a packet's signing state on demand, bypassing the Documenso
+ * completion webhook. The webhook can't reach the backend in local/dev (and can
+ * lag in prod), so we call this when the signing overlay closes: the backend
+ * pulls the signed copy straight from Documenso and, if signed, finalizes the
+ * packet + marks every bundled document SIGNED, returning the updated packet.
+ *
+ * NOTE: the `.../document-packets/:packetId/reconcile` endpoint ships in a later
+ * backend release. Until it is deployed this call 404s; callers must treat a
+ * failure as "not reconciled yet" and fall back to the bootstrap refetch. Once
+ * the backend is live this starts working end-to-end with no frontend change.
+ */
+export const reconcileWorkspaceDocumentPacket = async (
+  organisationId: string,
+  packetId: string
+) => {
+  const res = await postData<WorkspaceDocumentPacketDTO>(
+    `/v1/workspace/organisations/${organisationId}/document-packets/${packetId}/reconcile`,
+    {}
+  );
+  return res.data;
+};
+
+/**
  * Fetch the merged clinical packet (SOAP + Prescription + Discharge, …) as a
  * single PDF and return a blob URL for preview/print. Caller is responsible for
  * revoking the URL when done.
@@ -703,6 +837,53 @@ export const deleteEncounterTreatmentItem = async (organisationId: string, itemI
   await deleteData(`/v1/workspace/organisations/${organisationId}/treatment-items/${itemId}`);
 };
 
+/** True when a treatment-item row is billed/paid and therefore must not be deleted. */
+const isBilledTreatmentRow = (row: Record<string, unknown>): boolean => {
+  const billed = row.billed ?? row.isBilled;
+  if (typeof billed === 'boolean') return billed;
+  const status = asString(row.status)?.toUpperCase();
+  return status === 'BILLED' || status === 'PAID' || status === 'INVOICED';
+};
+
+/**
+ * Delete the backend treatment-item that backs an UNBILLED prescription. There is no dedicated
+ * prescription-delete endpoint, so a saved (in-house) prescription is removed by deleting its
+ * linked treatment-item row — found by matching the prescription/artifact id or the inventory
+ * item id against the encounter's treatment items. Billed/paid rows are never deleted. Returns
+ * true when a backend row was deleted; false when there was nothing persisted to remove.
+ */
+export const deletePrescriptionTreatmentItem = async (
+  organisationId: string,
+  encounterId: string,
+  prescription: { id?: string; inventoryItemId?: string }
+): Promise<boolean> => {
+  const targetIds = new Set(
+    [prescription.id, prescription.inventoryItemId].filter((value): value is string =>
+      Boolean(value)
+    )
+  );
+  if (targetIds.size === 0) return false;
+
+  const rows = await listEncounterTreatmentItems(organisationId, encounterId);
+  const match = rows.find((rawRow) => {
+    const row = isRecord(rawRow) ? rawRow : {};
+    if (isBilledTreatmentRow(row)) return false;
+    const candidateIds = [
+      asString(row.id),
+      asString(row.prescriptionId),
+      asString(row.artifactId),
+      asString(row.inventoryItemId),
+      asString(row.productId),
+    ].filter((value): value is string => Boolean(value));
+    return candidateIds.some((id) => targetIds.has(id));
+  });
+
+  const matchId = match && isRecord(match) ? asString(match.id) : undefined;
+  if (!matchId) return false;
+  await deleteEncounterTreatmentItem(organisationId, matchId);
+  return true;
+};
+
 /** A service/package line item is backend-persisted unless it still carries a local- id. */
 const isPersistedTreatmentId = (id: string): boolean => Boolean(id) && !id.startsWith('local-');
 
@@ -732,6 +913,22 @@ const lineItemToTreatmentDTO = (item: LineItem): TreatmentItemDTO => ({
  */
 const lineItemToTreatmentUpdateDTO = (item: LineItem): Partial<TreatmentItemDTO> =>
   lineItemToTreatmentDTO(item);
+
+/**
+ * Persist a single service/package line item onto an encounter as a treatment item. Used when a
+ * line is added outside the Treatment step's batch save (e.g. services/packages chosen during
+ * hospitalization) so it survives a refresh instead of living only in local state.
+ */
+export const persistEncounterTreatmentLine = (
+  organisationId: string,
+  encounterId: string,
+  item: Omit<LineItem, 'id'> & { id?: string }
+) =>
+  createEncounterTreatmentItem(
+    organisationId,
+    encounterId,
+    lineItemToTreatmentDTO({ id: '', ...item } as LineItem)
+  );
 
 /** A backend treatment row that is an editable, unbilled service/package line. */
 const isEditableServiceRow = (row: Record<string, unknown>): boolean =>

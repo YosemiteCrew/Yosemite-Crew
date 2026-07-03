@@ -175,7 +175,7 @@ describe('TaskInfo', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('link', { name: 'Reuse task' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reuse task' }));
 
     expect(onReuseTask).toHaveBeenCalledWith(
       expect.objectContaining({

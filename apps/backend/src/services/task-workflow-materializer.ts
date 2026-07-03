@@ -138,7 +138,7 @@ const ensureHourMinute = (value: string) => {
 
 const parseTimeOfDay = (value: string) => {
   ensureHourMinute(value);
-  const [hours, minutes] = value.split(":").map((part) => Number(part));
+  const [hours, minutes] = value.split(":").map(Number);
   return { hours, minutes };
 };
 
@@ -304,7 +304,14 @@ const toTaskKind = (value: unknown): TaskKind | undefined =>
   value === "OBSERVATION_TOOL" ||
   value === "HYGIENE" ||
   value === "DIET" ||
-  value === "CUSTOM"
+  value === "CUSTOM" ||
+  value === "CARE" ||
+  value === "PROCEDURE" ||
+  value === "DIAGNOSTIC" ||
+  value === "COMMUNICATION" ||
+  value === "BILLING" ||
+  value === "RECORD" ||
+  value === "ADMIN"
     ? value
     : undefined;
 
@@ -319,7 +326,8 @@ const parseTaskTemplateInstanceData = (
   );
 
   const taskKind = toTaskKind(
-    getWorkflowValue(snapshot, "taskKind", ["definition"]),
+    getWorkflowValue(snapshot, "taskKind", ["definition"]) ??
+      getWorkflowValue(snapshot, "category", ["definition"]),
   );
 
   if (!taskKind) {
@@ -332,10 +340,13 @@ const parseTaskTemplateInstanceData = (
 
   return {
     taskKind,
-    category: asTrimmedString(
-      getWorkflowValue(snapshot, "category", ["definition"]),
-    ),
-    name: asTrimmedString(getWorkflowValue(snapshot, "name", ["definition"])),
+    category:
+      asTrimmedString(getWorkflowValue(snapshot, "category", ["definition"])) ||
+      taskKind ||
+      "CUSTOM",
+    name:
+      asTrimmedString(getWorkflowValue(snapshot, "name", ["definition"])) ||
+      "Task",
     description:
       (getWorkflowValue(snapshot, "description", ["definition"]) as
         | string

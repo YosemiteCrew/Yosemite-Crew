@@ -6,6 +6,58 @@ import type { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 import { resolveUserIdFromRequest } from "src/utils/request";
 
+const FORM_RESPONSE_PARENT_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-parent";
+const FORM_RESPONSE_SUBMITTED_BY_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-submitted-by";
+
+const hasExtension = (extensions: unknown[], url: string) =>
+  extensions.some(
+    (extension) =>
+      typeof extension === "object" &&
+      extension !== null &&
+      (extension as { url?: unknown }).url === url,
+  );
+
+const normalizeMobileSubmissionRequest = (
+  body: FormSubmissionRequestDTO,
+  formId: string | undefined,
+  parentId: string | undefined,
+): FormSubmissionRequestDTO => {
+  const normalized = {
+    ...(body as unknown as Record<string, unknown>),
+  } as Record<string, unknown>;
+
+  if (formId && !normalized.questionnaire) {
+    normalized.questionnaire = `Questionnaire/${formId}`;
+  }
+
+  const rawExtensions = normalized.extension;
+  const extensions: unknown[] = Array.isArray(rawExtensions)
+    ? rawExtensions.slice()
+    : [];
+
+  if (parentId && !hasExtension(extensions, FORM_RESPONSE_PARENT_URL)) {
+    extensions.push({
+      url: FORM_RESPONSE_PARENT_URL,
+      valueString: parentId,
+    });
+  }
+
+  if (parentId && !hasExtension(extensions, FORM_RESPONSE_SUBMITTED_BY_URL)) {
+    extensions.push({
+      url: FORM_RESPONSE_SUBMITTED_BY_URL,
+      valueString: parentId,
+    });
+  }
+
+  if (extensions.length) {
+    normalized.extension = extensions;
+  }
+
+  return normalized as unknown as FormSubmissionRequestDTO;
+};
+
 export const FormController = {
   createForm: async (req: Request, res: Response) => {
     try {
@@ -165,7 +217,6 @@ export const FormController = {
 
   submitForm: async (req: Request, res: Response) => {
     try {
-      const submissionRequest = req.body as FormSubmissionRequestDTO;
       const authUserId = resolveUserIdFromRequest(req);
       const authUser = await AuthUserMobileService.getByProviderUserId(
         authUserId!,
@@ -175,6 +226,12 @@ export const FormController = {
           .status(401)
           .json({ message: "Unauthorized: User not found" });
       }
+
+      const submissionRequest = normalizeMobileSubmissionRequest(
+        req.body as FormSubmissionRequestDTO,
+        req.params.formId,
+        authUser.parentId?.toString(),
+      );
 
       const submission = await FormService.submitFHIR(submissionRequest);
       return res.status(201).json(submission);

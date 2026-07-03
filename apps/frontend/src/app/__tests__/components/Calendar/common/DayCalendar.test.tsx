@@ -304,12 +304,12 @@ describe('DayCalendar (Appointments)', () => {
         content.includes('Labrador') &&
         content.includes('Canine') &&
         content.includes('Male') &&
-        content.includes('42 lbs')
+        content.includes('42 kg')
     );
     const metadataText = companionMetadata.textContent ?? '';
     expect(metadataText.indexOf('Labrador')).toBeLessThan(metadataText.indexOf('Canine'));
     expect(metadataText.indexOf('Canine')).toBeLessThan(metadataText.indexOf('Male'));
-    expect(metadataText.indexOf('Male')).toBeLessThan(metadataText.indexOf('42 lbs'));
+    expect(metadataText.indexOf('Male')).toBeLessThan(metadataText.indexOf('42 kg'));
     expect(screen.getByText('Lead')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Dr. Lee')).toBeInTheDocument();
 

@@ -8,6 +8,7 @@ import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
 import type { WorkspaceDocumentRow } from '@yosemite-crew/types';
 import {
+  extractFollowUpInDays,
   listDischargeSummaryTemplates,
   resolveDischargeTemplate,
 } from '@/app/features/appointments/services/workspaceTemplateService';
@@ -18,11 +19,13 @@ import {
 import {
   getAppointmentWorkspaceBootstrap,
   listEncounterWorkspaceDocuments,
+  reconcileWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 
 jest.mock('@/app/features/appointments/services/workspaceTemplateService', () => ({
   listDischargeSummaryTemplates: jest.fn(),
   resolveDischargeTemplate: jest.fn(),
+  extractFollowUpInDays: jest.fn(() => undefined),
 }));
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
@@ -44,6 +47,7 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
     signing: { status: 'IN_PROGRESS', signingUrl: 'https://sign.test/abc' },
   }),
   getEncounterDocumentPacketPdfUrl: jest.fn().mockResolvedValue('blob:packet-pdf'),
+  reconcileWorkspaceDocumentPacket: jest.fn().mockResolvedValue({ packetId: 'packet-1' }),
   listEncounterWorkspaceDocuments: jest.fn(),
   getAppointmentWorkspaceBootstrap: jest.fn().mockResolvedValue({}),
   normalizeWorkspaceBootstrapForEncounter: jest.fn(() => ({})),
@@ -130,6 +134,7 @@ const appointment = {
   id: APPT,
   organisationId: 'org-1',
   encounterId: 'enc-1',
+  status: 'IN_PROGRESS',
 } as any;
 
 const reset = () => {
@@ -146,7 +151,9 @@ const reset = () => {
   });
   (listDischargeSummaryTemplates as jest.Mock).mockResolvedValue([]);
   (resolveDischargeTemplate as jest.Mock).mockResolvedValue(null);
+  (extractFollowUpInDays as jest.Mock).mockReturnValue(undefined);
   (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([]);
+  (reconcileWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({ packetId: 'packet-1' });
   (getRenderedDocument as jest.Mock).mockResolvedValue({ pdfUrl: 'https://files.test/doc.pdf' });
 };
 
@@ -161,6 +168,9 @@ const renderSummary = (encounter: AppointmentEncounter) => {
 
 describe('SummaryStep', () => {
   beforeEach(reset);
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
   it('renders discharge summary, follow-up date field and backend documents', async () => {
     (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
@@ -221,6 +231,166 @@ describe('SummaryStep', () => {
     );
   });
 
+  it('fills rich discharge template defaults without duplicate field headings', async () => {
+    jest.useFakeTimers({ now: new Date('2026-06-25T00:00:00.000Z') });
+    (extractFollowUpInDays as jest.Mock).mockReturnValue(3);
+    (listDischargeSummaryTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-discharge-rich',
+        name: 'Sample discharge',
+        latestVersion: 1,
+        publishedVersion: 1,
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'summary',
+                  title: 'Discharge summary',
+                  fields: [
+                    {
+                      key: 'summaryText',
+                      type: 'richText',
+                      label: 'Discharge summary',
+                      defaultValue: '<p>Patient can rest at home.</p>',
+                    },
+                  ],
+                },
+                {
+                  id: 'follow_up',
+                  title: 'Follow up',
+                  fields: [
+                    {
+                      key: 'followUpInDays',
+                      type: 'number',
+                      label: 'Follow up in (days)',
+                      defaultValue: '3',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    fireEvent.change(screen.getByLabelText(/search discharge templates/i), {
+      target: { value: 'sample' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /sample discharge/i }));
+
+    const summary = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.dischargeSummary;
+    expect(summary).toBe('<p>Patient can rest at home.</p>');
+    expect(summary).not.toContain('Discharge summary</strong>');
+    expect(summary).not.toContain('Follow up in (days)');
+    const followUpAt = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.followUpAt;
+    const diffMs =
+      new Date(followUpAt ?? '').getTime() - new Date('2026-06-25T00:00:00.000Z').getTime();
+    expect(diffMs).toBe(3 * 24 * 60 * 60 * 1000);
+  });
+
+  it('renders the default discharge template without duplicate field labels', async () => {
+    (listDischargeSummaryTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: '11111111-1111-4111-8111-111111111113',
+        name: 'Default discharge summary',
+        latestVersion: 1,
+        publishedVersion: 1,
+        versions: [
+          {
+            version: 1,
+            schemaSnapshot: {
+              sections: [
+                {
+                  id: 'summary',
+                  title: 'Summary',
+                  fields: [
+                    {
+                      key: 'summaryText',
+                      type: 'richText',
+                      label: 'Summary text',
+                      required: true,
+                    },
+                  ],
+                },
+                {
+                  id: 'diagnoses',
+                  title: 'Diagnoses',
+                  fields: [
+                    {
+                      key: 'diagnosisItems',
+                      type: 'diagnosis',
+                      label: 'Diagnosis items',
+                      required: true,
+                      repeatable: true,
+                    },
+                  ],
+                },
+                {
+                  id: 'medications',
+                  title: 'Medications',
+                  fields: [
+                    {
+                      key: 'medicationLines',
+                      type: 'medicationLine',
+                      label: 'Medication lines',
+                      required: true,
+                      repeatable: true,
+                      rules: { columns: ['drug', 'dose', 'frequency', 'duration'] },
+                    },
+                  ],
+                },
+                {
+                  id: 'follow_up',
+                  title: 'Follow Up',
+                  fields: [{ key: 'followUpDate', type: 'datetime', label: 'Follow up date' }],
+                },
+                {
+                  id: 'instructions',
+                  title: 'Instructions',
+                  fields: [
+                    {
+                      key: 'dischargeInstructions',
+                      type: 'instructionBlock',
+                      label: 'Discharge instructions',
+                      required: true,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ]);
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    fireEvent.change(screen.getByLabelText(/search discharge templates/i), {
+      target: { value: 'default' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /default discharge summary/i }));
+
+    const summary = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.dischargeSummary;
+    expect(summary).toContain('<strong>Summary</strong>');
+    expect(summary).toContain('<strong>Diagnoses</strong>');
+    expect(summary).toContain('<strong>Medications</strong>');
+    expect(summary).toContain('<strong>Instructions</strong>');
+    expect(summary).not.toContain('Summary text');
+    expect(summary).not.toContain('Diagnosis items');
+    expect(summary).not.toContain('Medication lines');
+    expect(summary).not.toContain('Follow up date');
+    expect(summary).not.toContain('Discharge instructions');
+  });
+
   it('resolves a discharge template by context and saves with template provenance', async () => {
     (resolveDischargeTemplate as jest.Mock).mockResolvedValue({
       templateId: 'tpl-resolved-1',
@@ -273,6 +443,59 @@ describe('SummaryStep', () => {
     );
   });
 
+  it('prefills the follow-up date from resolved follow-up days', async () => {
+    jest.useFakeTimers({ now: new Date('2026-06-25T00:00:00.000Z') });
+    (extractFollowUpInDays as jest.Mock).mockReturnValue(3);
+    (resolveDischargeTemplate as jest.Mock).mockResolvedValue({
+      templateId: 'tpl-resolved-days',
+      templateVersion: 1,
+      schemaSnapshot: {
+        sections: [
+          {
+            id: 'summary',
+            title: 'Discharge summary',
+            fields: [
+              {
+                key: 'summaryText',
+                type: 'richText',
+                label: 'Discharge summary',
+                defaultValue: '<p>Rest at home.</p>',
+              },
+            ],
+          },
+          {
+            id: 'follow_up',
+            title: 'Follow up',
+            fields: [
+              {
+                key: 'followUpInDays',
+                type: 'number',
+                label: 'Follow up in (days)',
+                defaultValue: '3',
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    await waitFor(() =>
+      expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.followUpAt).toBeDefined()
+    );
+    const followUpAt = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.followUpAt;
+    const diffMs =
+      new Date(followUpAt ?? '').getTime() - new Date('2026-06-25T00:00:00.000Z').getTime();
+    expect(diffMs).toBe(3 * 24 * 60 * 60 * 1000);
+    expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.dischargeSummary).toBe(
+      '<p>Rest at home.</p>'
+    );
+    jest.useRealTimers();
+  });
+
   it('passes an existing follow-up date into the picker field', () => {
     const enc = { ...seedAndGet(), followUpAt: '2026-05-10T12:00:00Z' };
     renderSummary(enc);
@@ -304,19 +527,20 @@ describe('SummaryStep', () => {
 
   it('falls back to the browser print dialog without encounter context', () => {
     const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
-    renderSummary(seedAndGet());
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    renderSummary(enc);
 
-    fireEvent.click(screen.getByRole('button', { name: /^print$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^print all$/i }));
 
     expect(printSpy).toHaveBeenCalled();
     printSpy.mockRestore();
   });
 
   it('opens the merged packet PDF when printing with encounter context', async () => {
-    const enc = seedAndGet();
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
     render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
 
-    fireEvent.click(screen.getByRole('button', { name: /^print$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^print all$/i }));
 
     const preview = await screen.findByTestId('pdf-preview');
     expect(preview).toHaveTextContent('Clinical packet');
@@ -325,13 +549,14 @@ describe('SummaryStep', () => {
   });
 
   it('refreshes documents and encounter after the signing overlay closes', async () => {
-    const enc = seedAndGet();
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
     await act(async () => {
       render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
     });
 
-    // Start signing and wait until the signing URL is set (the point at which the
-    // post-sign refresh is armed), not merely until the overlay opens.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument()
+    );
     fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
     await waitFor(() =>
       expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
@@ -351,6 +576,40 @@ describe('SummaryStep', () => {
       expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith('org-1', APPT);
       expect(listEncounterWorkspaceDocuments).toHaveBeenCalledWith('org-1', 'enc-1');
     });
+  });
+
+  it('swaps Sign for Download Signed when reconcile reports the packet signed', async () => {
+    // Documents read-model still reports the packet unsigned, so the swap must be
+    // driven by the reconcile response (packet-level signing truth).
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ title: 'SOAP note', signingStatus: 'IN_PROGRESS' }),
+    ]);
+    (reconcileWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({
+      packetId: 'packet-1',
+      status: 'FINAL',
+      signing: { status: 'SIGNED' },
+    });
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+    await waitFor(() =>
+      expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
+    );
+
+    await act(async () => {
+      useSigningOverlayStore.getState().close();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Download Signed' })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /^sign$/i })).not.toBeInTheDocument();
   });
 
   it('opens an existing workspace document PDF', async () => {
@@ -476,7 +735,7 @@ describe('SummaryStep', () => {
     // The follow-up picker is wrapped in a non-interactive (aria-disabled) shell.
     const followUpButton = screen.getByRole('button', { name: /follow up date/i });
     expect(followUpButton.closest('[aria-disabled="true"]')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^sign$/i })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^sign$/i })).not.toBeInTheDocument();
   });
 
   it('has no axe accessibility violations', async () => {
@@ -510,12 +769,12 @@ describe('SummaryStep', () => {
   });
 
   it('does not render the terminal Complete button inside the summary body', () => {
-    const enc = seedAndGet();
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
     render(<SummaryStep appointmentId={APPT} encounter={enc} />);
 
-    expect(screen.queryByRole('button', { name: /discharge/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^edit discharge summary$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^complete$/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^print$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^print all$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument();
   });
 
@@ -533,8 +792,9 @@ describe('SummaryStep', () => {
     const appointmentWithoutEncounter = {
       id: APPT,
       organisationId: 'org-1',
+      status: 'IN_PROGRESS',
     } as any;
-    const enc = seedAndGet();
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
     await act(async () => {
       render(
         <SummaryStep

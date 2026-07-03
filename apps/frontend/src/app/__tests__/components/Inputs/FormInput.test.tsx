@@ -24,6 +24,20 @@ describe('FormInput', () => {
     expect(input).toHaveAttribute('name', 'firstName');
   });
 
+  test('floats label when value is provided programmatically', () => {
+    render(
+      <FormInput
+        intype="text"
+        inname="prefilled"
+        inlabel="Prefilled value"
+        value="Template value"
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('Prefilled value')).toHaveClass('-top-[11px]');
+  });
+
   test('shows validation error helper text', () => {
     render(
       <FormInput

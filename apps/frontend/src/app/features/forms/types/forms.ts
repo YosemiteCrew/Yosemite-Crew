@@ -215,9 +215,9 @@ const richTextField = (
  */
 const canonicalFieldToFormField = (field: TemplateFieldDefinition): FormField => {
   const unit = (field.rules as { unit?: string } | undefined)?.unit;
-  const extra: Partial<FormField> = { required: field.required };
+  const extra: Partial<FormField> = { required: field.required, meta: { templateDefault: true } };
   if (unit) {
-    (extra as { meta?: unknown }).meta = { unit };
+    (extra as { meta?: Record<string, unknown> }).meta = { templateDefault: true, unit };
   }
   switch (field.type) {
     case 'richText':
@@ -234,15 +234,19 @@ const canonicalFieldToFormField = (field: TemplateFieldDefinition): FormField =>
 };
 
 const canonicalToCategoryFields = (structure: TemplateSchemaSnapshot): FormField[] =>
-  structure.sections.map((section) =>
+  structure.sections.flatMap((section) => {
+    const fields = section.fields.map(canonicalFieldToFormField);
+    // A section with a single field whose label already matches its title (SOAP S/O/A/P, the
+    // discharge summary) renders the field directly — wrapping it in a same-named "Group" just
+    // produces redundant, nested-looking boilerplate. Multi-field sections (e.g. vitals) keep the
+    // group so their fields stay visually grouped.
+    if (fields.length === 1 && (fields[0].label ?? '') === section.title) {
+      return fields;
+    }
     // Suffix the builder group id so it never collides with a leaf field key that shares
     // the section id (e.g. the `subjective` section contains the `subjective` field).
-    groupField(
-      `${section.id}_section`,
-      section.title,
-      section.fields.map(canonicalFieldToFormField)
-    )
-  );
+    return [groupField(`${section.id}_section`, section.title, fields)];
+  });
 
 const dateField = (
   id: string,
@@ -304,6 +308,49 @@ export const medicationRouteOptions = [
   'SC',
 ].map((label) => makeOption(label));
 
+// Task taxonomy mirrored from the task module (TaskKindOptions / TaskRecurrenceOptions) so the
+// task-template builder stays aligned with the workspace schedule task definitions.
+export const TASK_CATEGORY_FIELD_OPTIONS: FieldOption[] = [
+  makeOption('Medication', 'MEDICATION'),
+  makeOption('Care', 'CARE'),
+  makeOption('Diet', 'DIET'),
+  makeOption('Procedure', 'PROCEDURE'),
+  makeOption('Diagnostic', 'DIAGNOSTIC'),
+  makeOption('Communication', 'COMMUNICATION'),
+  makeOption('Billing', 'BILLING'),
+  makeOption('Record', 'RECORD'),
+  makeOption('Admin', 'ADMIN'),
+  makeOption('Custom', 'CUSTOM'),
+];
+
+// Repeat options for task templates — mirrors the canonical task taxonomy
+// (taskTaxonomy.TASK_REPEAT_OPTIONS) so the template builder and the workspace
+// schedule agree on recurrence values.
+export const TASK_RECURRENCE_FIELD_OPTIONS: FieldOption[] = [
+  makeOption('Does not repeat', 'ONCE'),
+  makeOption('Every 6 hours', 'EVERY_6_HOURS'),
+  makeOption('Every 12 hours', 'EVERY_12_HOURS'),
+  makeOption('Daily', 'DAILY'),
+  makeOption('Every 2 days', 'EVERY_2_DAYS'),
+  makeOption('Weekly', 'WEEKLY'),
+  makeOption('Custom', 'CUSTOM'),
+];
+
+// Reminder options for task templates — mirrors taskTaxonomy.TASK_REMINDER_OPTIONS.
+export const TASK_REMINDER_FIELD_OPTIONS: FieldOption[] = [
+  makeOption('No reminder', 'NONE'),
+  makeOption('5 minutes before', '5'),
+  makeOption('15 minutes before', '15'),
+  makeOption('30 minutes before', '30'),
+  makeOption('1 hour before', '60'),
+  makeOption('1 day before', '1440'),
+];
+
+export const TASK_AUDIENCE_FIELD_OPTIONS: FieldOption[] = [
+  makeOption('Employee task', 'EMPLOYEE_TASK'),
+  makeOption('Parent task', 'PARENT_TASK'),
+];
+
 export const buildMedicationFields = (prefix: string, separator: '_' | '-' = '_'): FormField[] => {
   const join = (key: string) => `${prefix}${separator}${key}`;
   return [
@@ -316,8 +363,8 @@ export const buildMedicationFields = (prefix: string, separator: '_' | '-' = '_'
     {
       id: join('dosage'),
       type: 'input',
-      label: 'Dosage',
-      placeholder: 'Enter dosage',
+      label: 'Strength',
+      placeholder: 'Enter strength',
     },
     {
       id: join('route'),
@@ -338,6 +385,12 @@ export const buildMedicationFields = (prefix: string, separator: '_' | '-' = '_'
       placeholder: 'Enter duration',
     },
     {
+      id: join('qty'),
+      type: 'number',
+      label: 'Quantity',
+      placeholder: 'Units to dispense',
+    },
+    {
       id: join('price'),
       type: 'number',
       label: 'Price',
@@ -346,37 +399,24 @@ export const buildMedicationFields = (prefix: string, separator: '_' | '-' = '_'
     {
       id: join('remark'),
       type: 'textarea',
-      label: 'Remark',
-      placeholder: 'Add remark',
+      label: 'Instructions',
+      placeholder: 'Add instructions',
     },
   ];
 };
-
-const buildServicesGroup = (): FormField => ({
-  id: 'services_group',
-  type: 'group',
-  label: 'Services',
-  meta: { serviceGroup: true } as any,
-  fields: [
-    {
-      id: 'services_group_services',
-      type: 'checkbox' as const,
-      label: '', // Empty label to avoid duplicate "Services" text
-      options: [],
-      multiple: true,
-    },
-  ],
-});
 
 export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
   Custom: [],
   'Prescription Template': [],
   'Inpatient Schedule': [],
+  // A YC-default task template is a set of schedule task blocks. The structure is locked, but authors
+  // can add/remove task rows and fill the default task info that materializes in the inpatient
+  // workspace schedule.
   'Task Template': [
     {
-      id: 'tasks_group',
+      id: 'task_blocks',
       type: 'group',
-      label: 'Tasks',
+      label: 'Schedule tasks',
       meta: { taskGroup: true } as any,
       fields: [],
     },
@@ -397,20 +437,11 @@ export const CategoryTemplates: Record<FormsCategory, FormField[]> = {
     ]),
     signatureField('consent_signature', 'Pet parent signature', { required: true }),
   ],
+  // A YC-default prescription template is only the medications group — medicines are added from
+  // inventory with their default dose/route/freq/duration/qty and preload the workspace
+  // prescription section. No services/notes/signature on the prescription template.
   Prescription: [
     groupField('medications', 'Medications', [], { meta: { medicationGroup: true } as any }),
-    buildServicesGroup(),
-    textAreaField(
-      'additional_notes',
-      'Additional notes',
-      'Add observations and pet parent instructions'
-    ),
-    textAreaField(
-      'important_notes',
-      'Important notes',
-      'Highlight critical follow-up instructions'
-    ),
-    signatureField('signature', 'Signature'),
   ],
   // Single-sourced from the shared canonical clinical structures (rich-text S/O/A/P,
   // rich-text discharge body/home-care/medications, structured vitals) so the builder,

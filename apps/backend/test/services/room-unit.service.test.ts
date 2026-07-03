@@ -17,6 +17,9 @@ jest.mock("../../src/config/prisma", () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    admission: {
+      findMany: jest.fn(),
+    },
   },
 }));
 
@@ -30,6 +33,7 @@ describe("RoomUnitService", () => {
       organisationId: "org_1",
       type: "INPATIENT",
     });
+    mockedPrisma.admission.findMany.mockResolvedValue([]);
   });
 
   it("creates a room unit in a supported room", async () => {
@@ -151,11 +155,13 @@ describe("RoomUnitService", () => {
         updatedAt: new Date(),
       },
     ]);
+    mockedPrisma.admission.findMany.mockResolvedValue([{ unitId: "unit_1" }]);
 
     const results = await RoomUnitService.list({ organisationId: "org_1" });
 
     expect(results).toHaveLength(1);
     expect(results[0]?.displayName).toBe("Kennel 1");
+    expect(results[0]?.isOccupied).toBe(true);
   });
 
   it("lists room units with all filters", async () => {

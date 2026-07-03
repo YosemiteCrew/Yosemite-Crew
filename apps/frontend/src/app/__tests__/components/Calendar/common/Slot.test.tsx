@@ -40,6 +40,11 @@ jest.mock('@/app/lib/appointments', () => ({
   toStatusLabel: (status: string) => status,
 }));
 
+jest.mock('@/app/lib/appointmentWorkspace', () => ({
+  ...jest.requireActual('@/app/lib/appointmentWorkspace'),
+  canEnterAppointmentWorkspace: (status?: string) => status !== 'CANCELLED' && status !== 'NO_SHOW',
+}));
+
 jest.mock('@/app/features/appointments/components/Calendar/calendarDrop', () => ({
   calcNearestAvailableMinute: jest.fn((minute: number) => minute),
 }));
@@ -189,6 +194,39 @@ describe('Slot (Appointments)', () => {
 
     expect(handleOpenWorkspace).toHaveBeenCalledWith(event);
     expect(handleDetailAppointment).not.toHaveBeenCalled();
+  });
+
+  it('does not open the workspace for cancelled appointments from the popover or double click', () => {
+    const cancelledEvent = { ...event, status: 'CANCELLED' };
+
+    render(
+      <Slot
+        slotEvents={[cancelledEvent]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleOpenWorkspace={handleOpenWorkspace}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    const marker = screen.getByRole('button', { name: /Rex/i });
+    fireEvent.click(marker);
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+
+    expect(screen.queryByRole('button', { name: /view appointment/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /finance summary/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /lab tests/i })).not.toBeInTheDocument();
+
+    fireEvent.doubleClick(marker);
+
+    expect(handleOpenWorkspace).not.toHaveBeenCalled();
+    expect(handleDetailAppointment).toHaveBeenCalledWith(cancelledEvent);
   });
 
   it('shows only the service label for overlapping compact markers', () => {

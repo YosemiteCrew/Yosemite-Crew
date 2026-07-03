@@ -41,6 +41,19 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
         {
           kind: 'single',
           field: {
+            name: 'expiryWarningBefore',
+            component: 'dropdown',
+            placeholder: 'Expiring warning before',
+            options: ['30 days', '60 days'],
+          },
+        },
+        {
+          kind: 'single',
+          field: { name: 'barcode', component: 'text', placeholder: 'Barcode' },
+        },
+        {
+          kind: 'single',
+          field: {
             name: 'tracking',
             component: 'dropdown',
             options: ['Track A', 'Track B'],
@@ -97,11 +110,18 @@ jest.mock('@/app/ui/inputs/Datepicker', () => ({
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
-  default: ({ onSelect, defaultOption }: any) => (
-    <button data-testid="dropdown" onClick={() => onSelect({ value: 'Track A', label: 'Track A' })}>
-      Selected: {defaultOption}
-    </button>
-  ),
+  default: ({ onSelect, defaultOption, placeholder }: any) => {
+    const selectedValue = placeholder === 'Expiring warning before' ? '60 days' : 'Track A';
+    return (
+      <button
+        data-testid="dropdown"
+        onClick={() => onSelect({ value: selectedValue, label: selectedValue })}
+      >
+        {placeholder}
+        Selected: {defaultOption}
+      </button>
+    );
+  },
 }));
 
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
@@ -205,6 +225,7 @@ describe('InventoryInfo Component', () => {
   const mockOnHide = jest.fn();
   const mockOnUnhide = jest.fn();
   const mockOnAddBatch = jest.fn();
+  const mockOnUpdateBatch = jest.fn();
 
   // Cast as any to avoid strict union type errors in test setup
   const activeInventory = {
@@ -221,7 +242,16 @@ describe('InventoryInfo Component', () => {
     pricing: { purchaseCost: '10', selling: '15' },
     vendor: {},
     stock: { current: '100', reorderLevel: '10' },
-    batch: { batch: 'B1', quantity: '100' },
+    attributes: {
+      expiryWarningBefore: '30 days',
+      barcode: 'OLD-BAR',
+    },
+    batch: {
+      batch: 'B1',
+      quantity: '100',
+      expiryWarningBefore: '30 days',
+      barcode: 'OLD-BAR',
+    },
     batches: [
       {
         _id: 'b1',
@@ -229,6 +259,8 @@ describe('InventoryInfo Component', () => {
         quantity: '100',
         manufactureDate: '2023-01-01',
         expiryDate: '2024-01-01',
+        expiryWarningBefore: '30 days',
+        barcode: 'OLD-BAR',
         tracking: 'Track A',
         litterId: 'L1, L2',
       },
@@ -244,6 +276,7 @@ describe('InventoryInfo Component', () => {
     onHide: mockOnHide,
     onUnhide: mockOnUnhide,
     onAddBatch: mockOnAddBatch,
+    onUpdateBatch: mockOnUpdateBatch,
   };
 
   beforeEach(() => {
@@ -354,6 +387,35 @@ describe('InventoryInfo Component', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('primary-btn'));
     });
+  });
+
+  it('saves batch-section barcode and expiry warning per batch, without mirroring to item attributes', async () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    fireEvent.change(screen.getAllByTestId('input-barcode')[0], {
+      target: { value: 'NEW-BAR' },
+    });
+    fireEvent.click(screen.getAllByText(/Expiring warning before/i)[0]);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(mockOnUpdateBatch).toHaveBeenCalledWith(
+      'item-1',
+      expect.arrayContaining([
+        expect.objectContaining({
+          _id: 'b1',
+          expiryWarningBefore: '60 days',
+          barcode: 'NEW-BAR',
+        }),
+      ])
+    );
+    // These two fields are now stored per batch by the backend, so saving a
+    // batch no longer needs to mirror the value onto the item-level attributes.
+    expect(mockOnUpdate).not.toHaveBeenCalled();
   });
 
   it('validates empty batch list on save', async () => {

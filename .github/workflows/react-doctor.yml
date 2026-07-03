@@ -24,7 +24,7 @@ jobs:
 
       - name: Run React Doctor
         id: react-doctor
-        uses: millionco/react-doctor@v2.1.0
+        uses: millionco/react-doctor@547e1e4ecdb70315d81a91ec3605701d58616ee2 # v2.1.0
         with:
           directory: apps/frontend
           blocking: error
@@ -55,7 +55,7 @@ jobs:
 
       - name: Run React Doctor
         id: react-doctor
-        uses: millionco/react-doctor@v2.1.0
+        uses: millionco/react-doctor@547e1e4ecdb70315d81a91ec3605701d58616ee2 # v2.1.0
         with:
           directory: apps/mobileAppYC
           blocking: error

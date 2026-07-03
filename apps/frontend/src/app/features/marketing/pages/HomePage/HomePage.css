@@ -81,7 +81,13 @@
 }
 .HeroBtn {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+.HeroDownloadButtons {
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
 a.Fillbtn {

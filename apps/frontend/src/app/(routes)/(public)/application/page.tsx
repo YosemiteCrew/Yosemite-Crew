@@ -1,10 +1,5 @@
-import type { Metadata } from 'next';
-export const metadata: Metadata = { title: 'Application — Yosemite Crew' };
-import React from 'react';
-import PetOwner from '@/app/features/marketing/pages/PetOwner/PetOwner';
+import { redirect } from 'next/navigation';
 
-function page() {
-  return <PetOwner />;
+export default function page() {
+  redirect('/pet-parents');
 }
-
-export default page;

@@ -50,6 +50,7 @@ const RecordPanel = ({
             organisationId={organisationId}
             encounterId={encounterId}
             authorId={authorId}
+            authorName={authorName}
             vitals={encounter.vitals}
           />
         </div>

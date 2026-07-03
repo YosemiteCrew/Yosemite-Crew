@@ -598,6 +598,7 @@ const appendLabResultHistoryEntries = async (params: {
         patientName: result.patientName ?? undefined,
         status: result.status ?? undefined,
         accessionId: result.accessionId ?? undefined,
+        pdfUrl: order?.pdfUrl ?? undefined,
         pdfAvailable: Boolean(order?.pdfUrl ?? result.rawPayload),
       },
     });
@@ -663,7 +664,7 @@ export const CompanionHistoryService = {
     const cursor = parseCursor(params.cursor);
 
     const types = params.types?.length ? params.types : DEFAULT_HISTORY_TYPES;
-    const invalidType = types.find((type) => !ALL_HISTORY_TYPES.has(type));
+    const invalidType = types.some((type) => !ALL_HISTORY_TYPES.has(type));
     if (invalidType) {
       throw new CompanionHistoryServiceError("Invalid types filter", 400);
     }

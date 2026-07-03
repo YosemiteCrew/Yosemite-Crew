@@ -289,10 +289,7 @@ describe('Appointment Service', () => {
       expect(mockedToAppointmentDTO).toHaveBeenCalledWith(
         expect.objectContaining({ organisationId: 'org-123' })
       );
-      expect(mockedPostData).toHaveBeenCalledWith(
-        '/fhir/v1/appointment/pms?createPayment=true',
-        fhirPayload
-      );
+      expect(mockedPostData).toHaveBeenCalledWith('/fhir/v1/appointment/pms', fhirPayload);
       expect(mockedFromAppointmentDTO).toHaveBeenCalledWith(returnedDTO);
       expect(mockAppointmentStoreUpsertAppointment).toHaveBeenCalledWith(returnedAppointment);
     });
@@ -756,7 +753,9 @@ describe('Appointment Service', () => {
       (useTeamStore.getState as jest.Mock).mockReturnValue({
         getTeamsByOrgId: jest
           .fn()
-          .mockReturnValue([{ _id: 'team-1', practionerId: 'user-1', name: 'Dr Pat' }]),
+          .mockReturnValue([
+            { _id: 'team-1', practionerId: 'Practitioner/user-1', name: 'Dr Pat' },
+          ]),
       });
 
       mockedToAppointmentDTO.mockReturnValue({ fhir: 'accept-auto' });
@@ -1004,6 +1003,26 @@ describe('Appointment Service', () => {
       expect(mockedPatchData).toHaveBeenCalledWith(
         expect.stringContaining('/appt-upd'),
         expect.any(Object)
+      );
+    });
+
+    it('pins the requested status when the backend echoes a stale status', async () => {
+      const appointment = makeBaseAppointment({ id: 'appt-pin', status: 'CHECKED_IN' });
+      mockedToAppointmentDTO.mockReturnValue({});
+      mockedPatchData.mockResolvedValue({
+        data: { data: makeBaseAppointment({ id: 'appt-pin', status: 'CHECKED_IN' }) },
+      });
+      // Simulate the response mapping back to the OLD status (stale echo).
+      mockedFromAppointmentDTO.mockReturnValue(
+        makeBaseAppointment({ id: 'appt-pin', status: 'CHECKED_IN' })
+      );
+
+      const result = await changeAppointmentStatus(appointment, 'IN_PROGRESS');
+
+      expect(result?.status).toBe('IN_PROGRESS');
+      // The store is upserted twice: once by updateAppointment, once to pin.
+      expect(mockAppointmentStoreUpsertAppointment).toHaveBeenLastCalledWith(
+        expect.objectContaining({ id: 'appt-pin', status: 'IN_PROGRESS' })
       );
     });
   });

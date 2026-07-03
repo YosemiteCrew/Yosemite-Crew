@@ -68,6 +68,7 @@ const FinanceController = {
   getUsageSnapshots: jest.fn(),
   recordVisitMilestone: jest.fn(),
   markAppointmentReadyForBilling: jest.fn(),
+  reverseAppointmentReadyForBilling: jest.fn(),
 };
 
 const rateLimit = jest.fn(() => financeAppointmentLimiter);
@@ -278,6 +279,12 @@ describe("finance.router", () => {
         "post",
       )?.stack.map((layer) => layer.handle),
     ).toContain(FinanceController.markAppointmentReadyForBilling);
+    expect(
+      findRoute(
+        "/appointments/:appointmentId/ready-for-billing",
+        "delete",
+      )?.stack.map((layer) => layer.handle),
+    ).toContain(FinanceController.reverseAppointmentReadyForBilling);
     expect(
       findRoute("/invoices/:invoiceId/closeout", "post")?.stack.map(
         (layer) => layer.handle,

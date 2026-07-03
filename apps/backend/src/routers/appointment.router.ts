@@ -58,7 +58,7 @@ router.patch(
 router.get(
   "/mobile/:appointmentId",
   authorizeCognitoMobile,
-  AppointmentController.getById,
+  AppointmentController.getByIdMobile,
 );
 
 /* ======================================================
@@ -143,6 +143,14 @@ router.patch(
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.markReadyForBillingForPMS,
+);
+
+router.delete(
+  "/pms/:organisationId/:appointmentId/ready-for-billing",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("appointments:edit:any"),
+  AppointmentController.reverseReadyForBillingForPMS,
 );
 
 router.post(

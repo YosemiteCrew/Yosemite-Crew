@@ -116,11 +116,12 @@
     },
     "win": {
       "icon": "resources/icon.ico",
-      "azureSignOptions": {
+      "signtoolOptions": {
         "publisherName": "DuneXploration UG (haftungsbeschränkt)",
-        "endpoint": "https://swn.codesigning.azure.net/",
-        "codeSigningAccountName": "yc-signing",
-        "certificateProfileName": "yc-public-trust"
+        "sign": "./scripts/windows-trusted-sign.js",
+        "signingHashAlgorithms": [
+          "sha256"
+        ]
       },
       "target": [
         {

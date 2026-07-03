@@ -85,7 +85,7 @@ const PUBLIC_PATHS = new Set([
   '/',
   '/about-us',
   '/accessibility',
-  '/contact',
+  '/contact-us',
   '/forgot-password',
   '/pet-businesses',
   '/pet-parents',

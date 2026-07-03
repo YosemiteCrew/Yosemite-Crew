@@ -26,6 +26,7 @@ import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 const AddCompanion = dynamic(() => import('@/app/features/companions/components/AddCompanion'));
 const AddCompanionCentralModal = dynamic(
@@ -46,6 +47,7 @@ const ChangeCompanionStatus = dynamic(
 );
 
 const Companions = () => {
+  const terminologyText = useCompanionTerminologyText();
   const companions = useCompanionsParentsForPrimaryOrg();
   const permissions = usePermissions();
   const canEditCompanions = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
@@ -128,16 +130,18 @@ const Companions = () => {
         <div className="flex flex-col gap-1">
           <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
             <span>
-              {'Companions'}
+              {terminologyText('Companions')}
               <span className="text-body-2 text-text-tertiary">{` (${companions.length})`}</span>
             </span>
             <GlassTooltip
-              content="View companion and parent details, access their documents, and jump into related tasks or appointments without leaving the profile."
+              content={terminologyText(
+                'View companion and parent details, access their documents, and jump into related tasks or appointments without leaving the profile.'
+              )}
               side="bottom"
             >
               <button
                 type="button"
-                aria-label="Companions info"
+                aria-label={terminologyText('Companions info')}
                 className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
               >
                 <IoInformationCircleOutline size={20} />
@@ -146,7 +150,7 @@ const Companions = () => {
           </h1>
         </div>
       </div>
-      <MobileSearchBar placeholder="Search companions" />
+      <MobileSearchBar placeholder={terminologyText('Search companions')} />
       <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>
           <Filters
@@ -159,6 +163,7 @@ const Companions = () => {
             showAddButton={canEditCompanions}
             onAddButtonClick={() => setAddPopup((e) => !e)}
             addButtonText="Add"
+            compactFilterPills
           />
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
             <CompanionsTable

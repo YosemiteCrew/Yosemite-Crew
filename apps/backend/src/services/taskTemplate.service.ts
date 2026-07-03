@@ -16,7 +16,14 @@ export type TaskKind =
   | "OBSERVATION_TOOL"
   | "HYGIENE"
   | "DIET"
-  | "CUSTOM";
+  | "CUSTOM"
+  | "CARE"
+  | "PROCEDURE"
+  | "DIAGNOSTIC"
+  | "COMMUNICATION"
+  | "BILLING"
+  | "RECORD"
+  | "ADMIN";
 
 export type TaskTemplateDocument = Prisma.TaskTemplateGetPayload<
   Record<string, never>
@@ -28,12 +35,25 @@ const TASK_KINDS = new Set<TaskKind>([
   "HYGIENE",
   "DIET",
   "CUSTOM",
+  "CARE",
+  "PROCEDURE",
+  "DIAGNOSTIC",
+  "COMMUNICATION",
+  "BILLING",
+  "RECORD",
+  "ADMIN",
 ]);
 
 const sanitizeTaskKind = (value: unknown): TaskKind | undefined =>
   typeof value === "string" && TASK_KINDS.has(value as TaskKind)
     ? (value as TaskKind)
     : undefined;
+
+const resolveTaskKind = (input: {
+  kind?: unknown;
+  category?: unknown;
+}): TaskKind | undefined =>
+  sanitizeTaskKind(input.kind) ?? sanitizeTaskKind(input.category);
 
 const ensureId = (value: string, field: string) => {
   const trimmed = value.trim();
@@ -120,7 +140,7 @@ export const TaskTemplateService = {
         name: input.name,
         description: input.description ?? undefined,
         kind: (() => {
-          const kind = sanitizeTaskKind(input.kind);
+          const kind = resolveTaskKind(input);
           if (!kind) {
             throw new TaskTemplateServiceError("Invalid kind", 400);
           }
@@ -167,10 +187,7 @@ export const TaskTemplateService = {
           input.defaultRole === undefined
             ? existing.defaultRole
             : toDefaultRole(input.defaultRole),
-        inpatientOnly:
-          input.inpatientOnly === undefined
-            ? existing.inpatientOnly
-            : input.inpatientOnly,
+        inpatientOnly: input.inpatientOnly ?? existing.inpatientOnly,
         defaultMedication:
           input.defaultMedication === undefined
             ? (existing.defaultMedication ?? undefined)

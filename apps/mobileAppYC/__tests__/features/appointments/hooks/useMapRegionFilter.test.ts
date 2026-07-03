@@ -78,7 +78,10 @@ describe('useMapRegionFilter', () => {
       expect(result.current.map(c => c.id)).toContain('inside');
     });
 
-    it('excludes clinics outside the visible region', () => {
+    it('falls back to all clinics when none are inside the visible region', () => {
+      // The hook never returns empty from region filtering — if no clinics are
+      // inside the region it falls back to the full pre-region set so the map
+      // always shows something rather than a blank state.
       const outside = makeClinic({id: 'outside', lat: 34.05, lng: -118.24}); // LA
       const {result} = renderHook(() =>
         useMapRegionFilter({
@@ -88,7 +91,8 @@ describe('useMapRegionFilter', () => {
           category: undefined,
         }),
       );
-      expect(result.current).toHaveLength(0);
+      expect(result.current).toHaveLength(1);
+      expect(result.current[0].id).toBe('outside');
     });
 
     it('returns all coordinate-having clinics when region is null', () => {

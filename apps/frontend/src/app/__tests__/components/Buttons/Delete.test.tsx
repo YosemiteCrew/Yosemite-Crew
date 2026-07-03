@@ -1,9 +1,9 @@
-import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import Delete from "@/app/ui/primitives/Buttons/Delete";
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import Delete from '@/app/ui/primitives/Buttons/Delete';
 
-jest.mock("next/link", () => ({
+jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ href, onClick, children, className, ...rest }: any) => (
     <a href={href} onClick={onClick} className={className} {...rest}>
@@ -12,31 +12,29 @@ jest.mock("next/link", () => ({
   ),
 }));
 
-describe("Delete button", () => {
-  it("renders link text and href", () => {
+describe('Delete button', () => {
+  it('renders link text and href', () => {
     render(<Delete text="Remove" href="/remove" />);
 
-    const link = screen.getByRole("link", { name: "Remove" });
-    expect(link).toHaveAttribute("href", "/remove");
+    const link = screen.getByRole('link', { name: 'Remove' });
+    expect(link).toHaveAttribute('href', '/remove');
   });
 
-  it("calls onClick when enabled", () => {
+  it('calls onClick when enabled', () => {
     const onClick = jest.fn();
     render(<Delete text="Delete" href="#" onClick={onClick} />);
 
-    fireEvent.click(screen.getByRole("link", { name: "Delete" }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it("blocks click when disabled", () => {
+  it('blocks click when disabled', () => {
     const onClick = jest.fn();
-    render(
-      <Delete text="Delete" href="#" onClick={onClick} isDisabled />
-    );
+    render(<Delete text="Delete" href="#" onClick={onClick} isDisabled />);
 
-    const link = screen.getByRole("link", { name: "Delete" });
-    fireEvent.click(link);
+    const button = screen.getByRole('button', { name: 'Delete' });
+    fireEvent.click(button);
     expect(onClick).not.toHaveBeenCalled();
-    expect(link).toHaveAttribute("aria-disabled", "true");
+    expect(button).toHaveAttribute('aria-disabled', 'true');
   });
 });

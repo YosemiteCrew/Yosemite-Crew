@@ -139,6 +139,23 @@ const getUnitCount = (unit: Partial<RoomUnitDetails>) => {
 const sumUnitCounts = (units: Array<Partial<RoomUnitDetails>> | undefined) =>
   units?.reduce((total, unit) => total + getUnitCount(unit), 0) ?? 0;
 
+const distributeUnitCounts = (units: RoomUnitDetails[] | undefined, totalUnits: number) => {
+  if (!units?.length) return units ?? [];
+
+  const safeTotal = Math.max(0, Math.floor(totalUnits));
+  const baseCount = Math.floor(safeTotal / units.length);
+  let remainder = safeTotal % units.length;
+
+  return units.map((unit) => {
+    const nextCount = baseCount + (remainder > 0 ? 1 : 0);
+    remainder -= 1;
+    return {
+      ...unit,
+      count: nextCount,
+    };
+  });
+};
+
 const uniqueValues = (values: Array<string | undefined>) =>
   Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 
@@ -400,12 +417,23 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
   };
 
   const updateAvailability = (patch: Partial<NonNullable<ManagedRoom['availability']>>) => {
+    const nextTotalUnits = patch.totalUnits ?? formData.availability?.totalUnits ?? 0;
     setFormData((prev) => ({
       ...prev,
       availability: {
         ...(prev.availability ?? DEFAULT_AVAILABILITY),
         ...patch,
+        totalUnits:
+          patch.totalUnits === undefined
+            ? (prev.availability?.totalUnits ?? 0)
+            : Math.max(0, Math.floor(patch.totalUnits)),
       },
+      units:
+        patch.totalUnits === undefined
+          ? prev.units
+          : distributeUnitCounts(prev.units, nextTotalUnits),
+      unitCount:
+        patch.totalUnits === undefined ? prev.unitCount : Math.max(0, Math.floor(nextTotalUnits)),
     }));
   };
 
@@ -443,10 +471,22 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
   };
 
   const updateUnit = (id: string, patch: Partial<RoomUnitDetails>) => {
-    setFormData((prev) => ({
-      ...prev,
-      units: (prev.units ?? []).map((unit) => (unit.id === id ? { ...unit, ...patch } : unit)),
-    }));
+    setFormData((prev) => {
+      const nextUnits = (prev.units ?? []).map((unit) =>
+        unit.id === id ? { ...unit, ...patch } : unit
+      );
+      const nextTotalUnits = sumUnitCounts(nextUnits);
+
+      return {
+        ...prev,
+        units: nextUnits,
+        availability: {
+          ...(prev.availability ?? DEFAULT_AVAILABILITY),
+          totalUnits: nextTotalUnits,
+        },
+        unitCount: nextTotalUnits,
+      };
+    });
   };
 
   const addCustomEquipment = () => {
@@ -468,6 +508,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
       ...prev,
       type,
       units: nextSupportsUnits ? prev.units : [],
+      unitCount: nextSupportsUnits ? prev.unitCount : 0,
       availability: {
         ...(prev.availability ?? DEFAULT_AVAILABILITY),
         totalUnits: nextSupportsUnits ? (prev.availability?.totalUnits ?? 0) : 0,

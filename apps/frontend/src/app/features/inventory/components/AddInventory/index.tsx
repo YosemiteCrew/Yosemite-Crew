@@ -11,8 +11,8 @@ import Labels from '@/app/ui/widgets/Labels/Labels';
 const labels: { key: InventorySectionKey; name: string }[] = [
   { key: 'basicInfo', name: 'Basic Details' },
   { key: 'classification', name: 'Clinical Details' },
-  { key: 'stock', name: 'Stock Control' },
   { key: 'batch', name: 'Batch and expiry' },
+  { key: 'stock', name: 'Stock Control' },
   { key: 'pricing', name: 'Pricing' },
   { key: 'vendor', name: 'Vendor details' },
 ];
@@ -271,11 +271,6 @@ const AddInventory = ({
   const validateStock = (): Partial<Record<keyof typeof formData.stock, string>> => {
     const stock = formData.stock;
     const errors: Partial<Record<keyof typeof formData.stock, string>> = {};
-    if (!stock.current) {
-      errors.current = 'On hand quantity is required';
-    } else if (Number.isNaN(Number(stock.current))) {
-      errors.current = 'Enter a valid number';
-    }
     if (!stock.reorderLevel) {
       errors.reorderLevel = 'Reorder level is required';
     } else if (Number.isNaN(Number(stock.reorderLevel))) {
@@ -293,8 +288,19 @@ const AddInventory = ({
       businessType === 'HOSPITAL' &&
       String(classification.itemType ?? '').toLowerCase() !== 'non-drug';
 
-    if (isMedicalItem && !String(classification.genericName ?? '').trim()) {
-      nextErrors.genericName = 'Generic name is required';
+    if (isMedicalItem) {
+      if (!String(classification.genericName ?? '').trim()) {
+        nextErrors.genericName = 'Generic name is required';
+      }
+      if (!String(classification.strength ?? '').trim()) {
+        nextErrors.strength = 'Strength is required';
+      }
+      if (!String(classification.form ?? classification.dosageForm ?? '').trim()) {
+        nextErrors.form = 'Form is required';
+      }
+      if (!String(classification.administration ?? '').trim()) {
+        nextErrors.administration = 'Administration route is required';
+      }
     }
 
     return nextErrors;

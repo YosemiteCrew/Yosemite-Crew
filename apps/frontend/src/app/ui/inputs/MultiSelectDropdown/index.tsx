@@ -249,17 +249,19 @@ const MultiSelectPanel = ({
             type="button"
             id={`${listboxId}-option-${option.value}`}
             aria-pressed={isSelected}
-            className={`px-3 py-2 text-left text-body-4 hover:bg-card-hover rounded-lg text-text-primary w-full flex items-center justify-between gap-2 ${
-              activeOptionId === `${listboxId}-option-${option.value}` ? 'bg-card-hover' : ''
+            className={`flex items-center justify-between gap-2 px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
+              activeOptionId === `${listboxId}-option-${option.value}`
+                ? 'bg-card-hover text-text-primary!'
+                : ''
             }`}
             key={option.value}
             onMouseEnter={() => onActiveIndexChange(filteredOptions.indexOf(option))}
             onClick={() => onToggleOption(option)}
           >
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate">{option.label}</span>
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="min-w-0 truncate">{option.label}</span>
               {option.badge && (
-                <span className="shrink-0 rounded-full bg-card-hover px-2 py-0.5 text-caption-2 text-text-secondary">
+                <span className="shrink-0 rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-text-brand">
                   {option.badge}
                 </span>
               )}
@@ -280,9 +282,9 @@ const MultiSelectPanel = ({
 
 const getTriggerClassName = (open: boolean, hasSelection: boolean, error?: string): string => {
   const base =
-    'relative w-full flex min-h-12 items-center px-5 pr-11 py-2.75 min-w-30 border cursor-pointer bg-(--whitebg)';
+    'relative w-full flex min-h-12 items-center px-5 pr-11 py-2.75 min-w-30 border cursor-pointer bg-(--whitebg) focus-visible:outline-none!';
   const borderState = open
-    ? 'border-input-text-placeholder-active! rounded-t-2xl!'
+    ? 'border-input-text-placeholder-active! border-b-0! rounded-t-2xl! z-20'
     : 'border-input-border-default! rounded-2xl!';
   const errorState = !hasSelection && error ? 'border-input-border-error!' : '';
   return `${base} ${borderState} ${errorState}`;
@@ -340,7 +342,7 @@ const MultiSelectTriggerContent = ({
   }
   return (
     <span
-      className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap scrollbar-hidden text-left text-body-4 text-black-text"
+      className="min-w-0 flex-1 truncate text-left text-body-4 text-black-text"
       title={hasSelection ? selectedLabel : placeholder}
     >
       {hasSelection ? selectedLabel : ''}

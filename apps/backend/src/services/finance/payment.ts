@@ -25,17 +25,25 @@ type InvoiceFinancialSummary = {
   balance: number;
 };
 
+const EMPTY_METADATA = {} as Record<string, unknown>;
+
 type StripeCheckoutSessionClient = {
   checkout: {
     sessions: {
-      create: (input: Record<string, unknown>) => Promise<{
+      create: (
+        input: Record<string, unknown>,
+        options?: Record<string, unknown>,
+      ) => Promise<{
         id: string;
         url?: string | null;
       }>;
     };
   };
   paymentIntents: {
-    create: (input: Record<string, unknown>) => Promise<{
+    create: (
+      input: Record<string, unknown>,
+      options?: Record<string, unknown>,
+    ) => Promise<{
       id: string;
       client_secret?: string | null;
     }>;
@@ -119,6 +127,16 @@ export type RefundInvoiceResult = {
   };
 };
 
+export type RefundInvoicePaymentsResult = {
+  invoice: NonNullable<
+    Prisma.PaymentGetPayload<{
+      include: { invoice: true };
+    }>["invoice"]
+  >;
+  refunds: RefundInvoiceResult["refund"][];
+  totalRefunded: number;
+};
+
 export type RefundPaymentResult = {
   payment: Prisma.PaymentGetPayload<{
     include: { invoice: true };
@@ -135,13 +153,20 @@ export type RefundPaymentResult = {
 export type PaymentIntentResult = {
   paymentIntentId: string;
   clientSecret?: string | null;
+  connectedAccountId?: string | null;
   amount: number;
   currency: string;
+};
+
+type CreatePaymentIntentForInvoiceOptions = {
+  collectionMode?: PrismaBillingCollectionMode | null;
+  settlementChannel?: PrismaSettlementChannel | null;
 };
 
 export const getInvoiceFinancialSummary = async (
   invoiceId: string,
   totalAmount: number,
+  depositCollectedAmount = 0,
 ): Promise<InvoiceFinancialSummary> => {
   const [payments, creditNotes] = await Promise.all([
     prisma.payment.findMany({
@@ -160,19 +185,27 @@ export const getInvoiceFinancialSummary = async (
   const credited = roundMoney(
     creditNotes.reduce((sum, creditNote) => sum + creditNote.amount, 0),
   );
+  const effectivePaid = roundMoney(
+    Math.max(paid, roundMoney(depositCollectedAmount)),
+  );
 
   return {
-    paid,
+    paid: effectivePaid,
     credited,
-    balance: roundMoney(Math.max(0, totalAmount - paid - credited)),
+    balance: roundMoney(Math.max(0, totalAmount - effectivePaid - credited)),
   };
 };
 
 const getOutstandingBalance = async (
   invoiceId: string,
   totalAmount: number,
+  depositCollectedAmount = 0,
 ) => {
-  const summary = await getInvoiceFinancialSummary(invoiceId, totalAmount);
+  const summary = await getInvoiceFinancialSummary(
+    invoiceId,
+    totalAmount,
+    depositCollectedAmount,
+  );
   return {
     paid: summary.paid,
     balance: summary.balance,
@@ -336,7 +369,7 @@ const updateInvoiceAfterPayment = async (params: {
     : roundMoney(invoice.depositCollectedAmount ?? 0);
 
   if (appliedAmount >= balance) {
-    return prisma.invoice.update({
+    const settledInvoice = await prisma.invoice.update({
       where: { id: invoiceId },
       data: {
         status: "PAID",
@@ -350,6 +383,29 @@ const updateInvoiceAfterPayment = async (params: {
           : {}),
       },
     });
+    const invoiceRowIds = (Array.isArray(invoice.items) ? invoice.items : [])
+      .map((item) =>
+        typeof item === "object" &&
+        item !== null &&
+        "id" in item &&
+        typeof item.id === "string"
+          ? item.id
+          : null,
+      )
+      .filter((id): id is string => Boolean(id));
+    if (invoiceRowIds.length > 0) {
+      await prisma.workspaceTreatmentItem.updateMany({
+        where: {
+          appointmentId: invoice.appointmentId,
+          invoiceRowId: { in: invoiceRowIds },
+        },
+        data: {
+          settledInvoiceId: invoiceId,
+          settledAt: receivedAt,
+        },
+      });
+    }
+    return settledInvoice;
   }
 
   if (isDepositPayment) {
@@ -358,16 +414,6 @@ const updateInvoiceAfterPayment = async (params: {
       data: {
         depositCollectedAmount: nextDepositCollectedAmount,
         billingCollectionMode: "DEPOSIT_THEN_SETTLE",
-        visitBillingStage:
-          invoice.visitBillingStage === "SETTLED"
-            ? "SETTLED"
-            : "READY_FOR_BILLING",
-        ...(invoice.readyForBillingAt
-          ? {}
-          : {
-              readyForBillingAt: receivedAt,
-              readyForBillingActorId: "SYSTEM",
-            }),
       },
     });
   }
@@ -536,18 +582,11 @@ export const FinancePaymentService = {
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
+        amountRequested: true,
         providerCheckoutSessionId: true,
         rawProviderPayload: true,
       },
     });
-
-    if (existingCheckoutAttempt?.providerCheckoutSessionId) {
-      return {
-        sessionId: existingCheckoutAttempt.providerCheckoutSessionId,
-        url: getCheckoutSessionUrl(existingCheckoutAttempt),
-        paymentAttemptId: existingCheckoutAttempt.id,
-      };
-    }
 
     if (!invoice.organisationId) {
       throw new FinancePaymentError("Invoice missing organisation", 500);
@@ -556,9 +595,30 @@ export const FinancePaymentService = {
     const summary = await getInvoiceFinancialSummary(
       invoiceId,
       invoice.totalAmount,
+      invoice.depositCollectedAmount ?? 0,
     );
     if (summary.balance <= 0) {
       throw new FinancePaymentError("Invoice has no outstanding balance", 409);
+    }
+
+    if (existingCheckoutAttempt?.providerCheckoutSessionId) {
+      const requestedAmount = roundMoney(
+        existingCheckoutAttempt.amountRequested ?? 0,
+      );
+      if (requestedAmount === summary.balance) {
+        return {
+          sessionId: existingCheckoutAttempt.providerCheckoutSessionId,
+          url: getCheckoutSessionUrl(existingCheckoutAttempt),
+          paymentAttemptId: existingCheckoutAttempt.id,
+        };
+      }
+
+      await prisma.paymentAttempt.update({
+        where: { id: existingCheckoutAttempt.id },
+        data: {
+          status: "CANCELED",
+        },
+      });
     }
 
     const organisation = await prisma.organization.findUnique({
@@ -663,20 +723,13 @@ export const FinancePaymentService = {
     const stripe = getStripeClient();
     const expiresAt = Math.floor((Date.now() + 24 * 60 * 60 * 1000) / 1000);
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      automatic_tax: {
-        enabled: !useBalanceLine,
-      },
-      line_items: lineItems,
-      metadata: {
-        type: "INVOICE_PAYMENT",
-        invoiceId: invoice.id,
-        appointmentId: invoice.appointmentId ?? "",
-        organisationId: invoice.organisationId ?? "",
-        parentId: invoice.parentId ?? "",
-      },
-      payment_intent_data: {
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: "payment",
+        automatic_tax: {
+          enabled: !useBalanceLine,
+        },
+        line_items: lineItems,
         metadata: {
           type: "INVOICE_PAYMENT",
           invoiceId: invoice.id,
@@ -684,12 +737,23 @@ export const FinancePaymentService = {
           organisationId: invoice.organisationId ?? "",
           parentId: invoice.parentId ?? "",
         },
-        transfer_data: { destination: organisation.stripeAccountId },
+        payment_intent_data: {
+          metadata: {
+            type: "INVOICE_PAYMENT",
+            invoiceId: invoice.id,
+            appointmentId: invoice.appointmentId ?? "",
+            organisationId: invoice.organisationId ?? "",
+            parentId: invoice.parentId ?? "",
+          },
+        },
+        success_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+        expires_at: expiresAt,
       },
-      success_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`,
-      cancel_url: `${process.env.APP_URL}/success?session_id={CHECKOUT_SESSION_ID}"`,
-      expires_at: expiresAt,
-    });
+      {
+        stripeAccount: organisation.stripeAccountId,
+      },
+    );
 
     const paymentAttempt = await prisma.paymentAttempt.create({
       data: {
@@ -708,7 +772,7 @@ export const FinancePaymentService = {
         rawProviderPayload: {
           sessionId: session.id,
           url: session.url ?? null,
-          destinationAccountId: organisation.stripeAccountId,
+          connectedAccountId: organisation.stripeAccountId,
         } as Prisma.InputJsonValue,
       },
     });
@@ -729,6 +793,7 @@ export const FinancePaymentService = {
 
   async createPaymentIntentForInvoice(
     invoiceId: string,
+    options: CreatePaymentIntentForInvoiceOptions = {},
   ): Promise<PaymentIntentResult> {
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
@@ -767,28 +832,58 @@ export const FinancePaymentService = {
         invoiceId,
         provider: "STRIPE",
         providerPaymentIntentId: { not: null },
+        status: { notIn: ["SUCCEEDED", "CANCELED"] },
       },
       select: {
+        id: true,
+        amountRequested: true,
         providerPaymentIntentId: true,
+        rawProviderPayload: true,
       },
+      orderBy: { createdAt: "desc" },
     });
 
     if (existingPaymentIntentAttempt?.providerPaymentIntentId) {
       const summary = await getInvoiceFinancialSummary(
         invoiceId,
         invoice.totalAmount,
+        invoice.depositCollectedAmount ?? 0,
       );
-      return {
-        paymentIntentId: existingPaymentIntentAttempt.providerPaymentIntentId,
-        clientSecret: null,
-        amount: summary.balance,
-        currency: invoice.currency,
-      };
+      if (
+        roundMoney(existingPaymentIntentAttempt.amountRequested ?? 0) ===
+        summary.balance
+      ) {
+        const rawProviderPayload =
+          existingPaymentIntentAttempt.rawProviderPayload &&
+          typeof existingPaymentIntentAttempt.rawProviderPayload === "object" &&
+          !Array.isArray(existingPaymentIntentAttempt.rawProviderPayload)
+            ? existingPaymentIntentAttempt.rawProviderPayload
+            : {};
+        return {
+          paymentIntentId: existingPaymentIntentAttempt.providerPaymentIntentId,
+          clientSecret:
+            typeof rawProviderPayload.clientSecret === "string"
+              ? rawProviderPayload.clientSecret
+              : null,
+          connectedAccountId:
+            typeof rawProviderPayload.connectedAccountId === "string"
+              ? rawProviderPayload.connectedAccountId
+              : null,
+          amount: summary.balance,
+          currency: invoice.currency,
+        };
+      }
+
+      await prisma.paymentAttempt.update({
+        where: { id: existingPaymentIntentAttempt.id },
+        data: { status: "CANCELED" },
+      });
     }
 
     const summary = await getInvoiceFinancialSummary(
       invoiceId,
       invoice.totalAmount,
+      invoice.depositCollectedAmount ?? 0,
     );
     if (summary.balance <= 0) {
       throw new FinancePaymentError("Invoice has no outstanding balance", 409);
@@ -810,37 +905,45 @@ export const FinancePaymentService = {
     }
 
     const stripe = getStripeClient();
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(summary.balance * 100),
-      currency: invoice.currency || "usd",
-      metadata: {
-        type: "INVOICE_PAYMENT",
-        invoiceId,
-        appointmentId: invoice.appointmentId || "",
-        organisationId: invoice.organisationId ?? "",
-        parentId: invoice.parentId ?? "",
-        patientId: invoice.patientId ?? "",
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: Math.round(summary.balance * 100),
+        currency: invoice.currency || "usd",
+        metadata: {
+          type: "INVOICE_PAYMENT",
+          invoiceId,
+          appointmentId: invoice.appointmentId || "",
+          organisationId: invoice.organisationId ?? "",
+          parentId: invoice.parentId ?? "",
+          patientId: invoice.patientId ?? "",
+          collectionMode: options.collectionMode ?? "",
+          settlementChannel: options.settlementChannel ?? "",
+        },
+        description: `Payment for Invoice ${invoiceId}`,
       },
-      description: `Payment for Invoice ${invoiceId}`,
-      transfer_data: { destination: organisation.stripeAccountId },
-    });
+      {
+        stripeAccount: organisation.stripeAccountId,
+      },
+    );
 
     await createPaymentAttempt(invoiceId, {
       provider: "STRIPE",
       status: "REQUIRES_ACTION",
-      settlementChannel: "STRIPE",
+      settlementChannel: options.settlementChannel ?? "STRIPE",
       providerPaymentIntentId: paymentIntent.id,
       amountRequested: summary.balance,
       amountCaptured: 0,
       amountApplied: 0,
       currency: invoice.currency || "usd",
-      collectionMode: null,
+      collectionMode: options.collectionMode ?? null,
       isOffline: false,
       isPartial: false,
       rawProviderPayload: {
         paymentIntentId: paymentIntent.id,
         clientSecret: paymentIntent.client_secret ?? null,
-        destinationAccountId: organisation.stripeAccountId,
+        connectedAccountId: organisation.stripeAccountId,
+        collectionMode: options.collectionMode ?? null,
+        settlementChannel: options.settlementChannel ?? null,
       } as Prisma.InputJsonValue,
     });
 
@@ -854,6 +957,7 @@ export const FinancePaymentService = {
     return {
       paymentIntentId: paymentIntent.id,
       clientSecret: paymentIntent.client_secret,
+      connectedAccountId: organisation.stripeAccountId,
       amount: summary.balance,
       currency: invoice.currency || "usd",
     };
@@ -1015,7 +1119,8 @@ export const FinancePaymentService = {
       data: {
         status: "REFUNDED",
         metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ?? {}),
+          ...((invoice.metadata as Record<string, unknown> | null) ??
+            EMPTY_METADATA),
           cancellationReason: reason ?? undefined,
           refundId: providerRefundId ?? refund.id,
           amount: amountRefunded,
@@ -1034,6 +1139,48 @@ export const FinancePaymentService = {
         amountRefunded,
         paymentId: updatedPayment.id,
       },
+    };
+  },
+
+  async refundInvoicePayments(
+    invoiceId: string,
+    reason?: string,
+  ): Promise<RefundInvoicePaymentsResult> {
+    const payments = await prisma.payment.findMany({
+      where: {
+        invoiceId,
+        status: "SUCCEEDED",
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, amount: true },
+    });
+
+    if (!payments.length) {
+      throw new FinancePaymentError("Invoice has no refundable payment", 409);
+    }
+
+    const refunds: RefundInvoiceResult["refund"][] = [];
+    let invoice: RefundInvoicePaymentsResult["invoice"] | null = null;
+
+    for (const payment of payments) {
+      const result = await this.refundPaymentById(payment.id, {
+        reason,
+        amount: payment.amount,
+      });
+      refunds.push(result.refund);
+      invoice = result.payment.invoice;
+    }
+
+    if (!invoice) {
+      throw new FinancePaymentError("Invoice has no refundable payment", 409);
+    }
+
+    return {
+      invoice,
+      refunds,
+      totalRefunded: roundMoney(
+        refunds.reduce((sum, refund) => sum + refund.amountRefunded, 0),
+      ),
     };
   },
 
@@ -1184,6 +1331,7 @@ export const FinancePaymentService = {
     const { balance } = await getOutstandingBalance(
       invoiceId,
       invoice.totalAmount,
+      invoice.depositCollectedAmount ?? 0,
     );
     const amount = balance;
     return this.recordInvoicePayment(invoiceId, {
@@ -1210,9 +1358,22 @@ export const FinancePaymentService = {
       throw new FinancePaymentError("Invoice cannot accept payment", 409);
     }
 
+    const isDepositPayment =
+      input.collectionMode === "DEPOSIT_THEN_SETTLE" ||
+      input.settlementChannel === "DEPOSIT" ||
+      invoice.billingCollectionMode === "DEPOSIT_THEN_SETTLE";
+
+    if (isDepositPayment && invoice.visitBillingStage === "READY_FOR_BILLING") {
+      throw new FinancePaymentError(
+        "Deposit payments are not allowed after the invoice is ready for billing",
+        409,
+      );
+    }
+
     const { paid, balance } = await getOutstandingBalance(
       invoiceId,
       invoice.totalAmount,
+      invoice.depositCollectedAmount ?? 0,
     );
 
     if (balance <= 0) {
@@ -1318,6 +1479,7 @@ export const FinancePaymentService = {
     const summary = await getOutstandingBalance(
       invoiceId,
       updatedInvoice.totalAmount,
+      updatedInvoice.depositCollectedAmount ?? 0,
     );
 
     return {
@@ -1355,28 +1517,32 @@ export const FinancePaymentService = {
       return { action: "ALREADY_PAID" as const, invoice };
     }
 
-    if (invoice.paymentCollectionMethod === "PAYMENT_LINK") {
-      return { action: "IGNORED" as const, invoice };
-    }
-
-    if (invoice.paymentCollectionMethod !== "PAYMENT_INTENT") {
-      await this.refundPaymentIntent(input.paymentIntentId);
-      return { action: "REFUNDED" as const, invoice };
-    }
-
     const paymentAttempt = await prisma.paymentAttempt.findFirst({
       where: {
         invoiceId: invoice.id,
         providerPaymentIntentId: input.paymentIntentId,
       },
-      select: { id: true },
+      select: { id: true, collectionMode: true, settlementChannel: true },
     });
+
+    if (invoice.paymentCollectionMethod === "PAYMENT_LINK" && !paymentAttempt) {
+      return { action: "IGNORED" as const, invoice };
+    }
+
+    if (
+      invoice.paymentCollectionMethod !== "PAYMENT_INTENT" &&
+      !paymentAttempt
+    ) {
+      await this.refundPaymentIntent(input.paymentIntentId);
+      return { action: "REFUNDED" as const, invoice };
+    }
 
     const applied = await this.recordInvoicePayment(invoice.id, {
       provider: "STRIPE",
       amount: input.amount ?? invoice.totalAmount,
       currency: input.currency ?? invoice.currency,
-      settlementChannel: "STRIPE",
+      settlementChannel: paymentAttempt?.settlementChannel ?? "STRIPE",
+      collectionMode: paymentAttempt?.collectionMode ?? null,
       providerPaymentId: input.paymentIntentId,
       paymentAttemptId: paymentAttempt?.id ?? null,
       reference: input.receiptUrl ?? undefined,
@@ -1525,7 +1691,8 @@ export const FinancePaymentService = {
       data: {
         status: "REFUNDED",
         metadata: {
-          ...((invoice.metadata as Record<string, unknown> | null) ?? {}),
+          ...((invoice.metadata as Record<string, unknown> | null) ??
+            EMPTY_METADATA),
           refundId: input.chargeId ?? undefined,
           amount: input.amount,
           refundDate: new Date().toISOString(),

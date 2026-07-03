@@ -70,10 +70,7 @@ export const ProfileImagePicker = React.forwardRef<
       if (Platform.OS === 'ios') {
         return PERMISSIONS.IOS.PHOTO_LIBRARY;
       }
-      if (Number(Platform.Version) >= 33) {
-        return PERMISSIONS.ANDROID.READ_MEDIA_IMAGES;
-      }
-      return PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE;
+      return null;
     };
 
     const photoLibraryPermission = getPhotoLibraryPermission();
@@ -82,6 +79,10 @@ export const ProfileImagePicker = React.forwardRef<
       async (type: 'camera' | 'gallery') => {
         const permission =
           type === 'camera' ? cameraPermission : photoLibraryPermission;
+
+        if (!permission) {
+          return true;
+        }
 
         try {
           const checkResult = await check(permission);

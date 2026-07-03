@@ -19,12 +19,52 @@ jest.mock('@/app/hooks/useRooms', () => ({
   ]),
 }));
 
+jest.mock('@/app/features/organization/services/roomService', () => ({
+  loadRoomsForOrgPrimaryOrg: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('@/app/hooks/useInvoices', () => ({
   useInvoicesForPrimaryOrg: jest.fn(() => []),
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn((selector) => selector({ orgsById: { 'org-1': { type: 'HOSPITAL' } } })),
+}));
+
+jest.mock('@/app/stores/parentStore', () => ({
+  useParentStore: jest.fn((selector) =>
+    selector({
+      parentsById: {
+        'parent-1': {
+          id: 'parent-1',
+          firstName: 'John',
+          lastName: 'Doe',
+          profileImageUrl: 'https://cdn.example.com/client.jpg',
+        },
+      },
+    })
+  ),
+}));
+
+jest.mock('@/app/hooks/useTeam', () => ({
+  useTeamForPrimaryOrg: jest.fn(() => [
+    {
+      _id: 'team-1',
+      practionerId: 'lead-1',
+      name: 'Dr. Smith',
+      image: 'https://cdn.example.com/lead.jpg',
+      role: 'VETERINARIAN',
+      speciality: [],
+      status: 'Available',
+      revokedPermissions: [],
+      effectivePermissions: [],
+      extraPerissions: [],
+    },
+  ]),
 }));
 
 jest.mock('@/app/stores/serviceStore', () => ({
@@ -105,6 +145,7 @@ jest.mock('@/app/stores/appointmentWorkspaceStore', () => ({
 let mockRoomState = {
   roomUnitsById: {} as Record<string, any>,
   roomUnitIdsByRoomId: {} as Record<string, string[]>,
+  setRoomUnitOccupied: jest.fn(),
 };
 jest.mock('@/app/stores/roomStore', () => ({
   useOrganisationRoomStore: Object.assign((selector: any) => selector(mockRoomState), {
@@ -161,6 +202,7 @@ describe('ViewAppointmentOverviewModal', () => {
     mockRoomState = {
       roomUnitsById: {},
       roomUnitIdsByRoomId: {},
+      setRoomUnitOccupied: jest.fn(),
     };
   });
 
@@ -182,6 +224,19 @@ describe('ViewAppointmentOverviewModal', () => {
   it('renders lead name', () => {
     render(<ViewAppointmentOverviewModal {...defaultProps} />);
     expect(screen.getByText('Dr. Smith')).toBeInTheDocument();
+  });
+
+  it('renders client and lead profile photos from store records', () => {
+    render(<ViewAppointmentOverviewModal {...defaultProps} />);
+
+    expect(screen.getByRole('img', { name: 'John Doe' })).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/client.jpg'
+    );
+    expect(screen.getByRole('img', { name: 'Dr. Smith' })).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/lead.jpg'
+    );
   });
 
   it('renders speciality and service', () => {
@@ -262,6 +317,7 @@ describe('ViewAppointmentOverviewModal', () => {
         },
       },
       roomUnitIdsByRoomId: { 'room-1': ['unit-1a'] },
+      setRoomUnitOccupied: jest.fn(),
     };
 
     render(

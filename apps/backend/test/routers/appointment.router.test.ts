@@ -26,9 +26,11 @@ const AppointmentController = {
   checkInAppointmentForPMS: jest.fn(),
   admitFromPMS: jest.fn(),
   markReadyForBillingForPMS: jest.fn(),
+  reverseReadyForBillingForPMS: jest.fn(),
   updateFromPms: jest.fn(),
   attachFormsToAppointment: jest.fn(),
   getById: jest.fn(),
+  getByIdMobile: jest.fn(),
   listByCompanion: jest.fn(),
   listByCompanionForOrganisation: jest.fn(),
   listByParent: jest.fn(),
@@ -98,12 +100,45 @@ describe("appointment.router", () => {
     expect(requirePermission).toHaveBeenCalledWith("appointments:edit:any");
   });
 
+  it("registers the reverse PMS ready-for-billing route", () => {
+    const reverseRoute = findRoute(
+      "/pms/:organisationId/:appointmentId/ready-for-billing",
+      "delete",
+    );
+
+    expect(reverseRoute).toBeDefined();
+    expect(reverseRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognito,
+    );
+    expect(reverseRoute?.stack.map((layer) => layer.handle)).toContain(
+      orgPermissionsMiddleware,
+    );
+    expect(reverseRoute?.stack.map((layer) => layer.handle)).toContain(
+      permissionMiddleware,
+    );
+    expect(
+      AppointmentController.reverseReadyForBillingForPMS,
+    ).toHaveBeenCalledTimes(0);
+  });
+
   it("binds appointment detail reads through appointment org permissions", () => {
     const detailRoute = findRoute("/pms/:organisationId/:appointmentId", "get");
 
     expect(detailRoute).toBeDefined();
     expect(detailRoute?.stack.map((layer) => layer.handle)).toContain(
       appointmentOrgPermissionsMiddleware,
+    );
+  });
+
+  it("binds mobile appointment detail reads to the mobile controller", () => {
+    const mobileRoute = findRoute("/mobile/:appointmentId", "get");
+
+    expect(mobileRoute).toBeDefined();
+    expect(mobileRoute?.stack.map((layer) => layer.handle)).toContain(
+      authorizeCognitoMobile,
+    );
+    expect(mobileRoute?.stack.map((layer) => layer.handle)).toContain(
+      AppointmentController.getByIdMobile,
     );
   });
 });

@@ -5,8 +5,7 @@ import {
   TaxProvider as PrismaTaxProvider,
 } from "@prisma/client";
 
-import type { InvoiceDiscountInput } from "./pricing";
-import type { InvoicePricingBreakdown } from "./pricing";
+import type { InvoiceDiscountInput, InvoicePricingBreakdown } from "./pricing";
 import { roundMoney } from "./pricing";
 
 export type InvoiceTaxSnapshotInput = {
@@ -383,12 +382,8 @@ const createStripeAutomaticTaxProviderAdapter =
 export const getInvoiceTaxProviderAdapter = (
   provider?: string | null,
 ): InvoiceTaxProviderAdapter => {
-  const resolved = resolveConfiguredTaxProvider(provider);
-  switch (resolved) {
-    case PrismaTaxProvider.STRIPE:
-    default:
-      return createStripeAutomaticTaxProviderAdapter();
-  }
+  void provider;
+  return createStripeAutomaticTaxProviderAdapter();
 };
 
 export const previewInvoiceTaxSnapshot = async (

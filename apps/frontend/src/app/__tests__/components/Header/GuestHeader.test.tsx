@@ -46,6 +46,24 @@ describe('GuestHeader', () => {
     ).toBe(true);
   });
 
+  test('uses the canonical contact-us route in public navigation', () => {
+    mockPathname.mockReturnValue('/pricing');
+    mockUseAuthStore.mockReturnValue({ user: null });
+
+    render(<GuestHeader />);
+
+    expect(screen.getByRole('link', { name: 'Contact us' })).toHaveAttribute('href', '/contact-us');
+  });
+
+  test('uses the canonical about-us route in public navigation', () => {
+    mockPathname.mockReturnValue('/pricing');
+    mockUseAuthStore.mockReturnValue({ user: null });
+
+    render(<GuestHeader />);
+
+    expect(screen.getByRole('link', { name: 'About us' })).toHaveAttribute('href', '/about-us');
+  });
+
   test('shows Sign up CTA on signin page for unauthenticated users', () => {
     mockPathname.mockReturnValue('/signin');
     mockUseAuthStore.mockReturnValue({ user: null });

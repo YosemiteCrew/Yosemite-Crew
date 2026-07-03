@@ -3,6 +3,7 @@ import apiClient from '@/shared/services/apiClient';
 import {uploadFileToPresignedUrl} from '@/shared/services/uploadService';
 import {generateId} from '@/shared/utils/helpers';
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
+import RNFS from 'react-native-fs';
 
 // --- Mocks ---
 jest.mock('@/shared/services/apiClient', () => ({
@@ -27,6 +28,15 @@ jest.mock('@/shared/utils/helpers', () => ({
 
 jest.mock('@/shared/utils/cdnHelpers', () => ({
   buildCdnUrlFromKey: jest.fn(),
+}));
+
+jest.mock('react-native-fs', () => ({
+  TemporaryDirectoryPath: '/tmp',
+  CachesDirectoryPath: '/tmp',
+  mkdir: jest.fn().mockResolvedValue(undefined),
+  downloadFile: jest.fn(() => ({
+    promise: Promise.resolve({statusCode: 200}),
+  })),
 }));
 
 jest.mock('@/shared/utils/imageUri', () => ({
@@ -436,6 +446,46 @@ describe('documentService', () => {
       });
       list = await documentApi.list({companionId: 'c1', accessToken: 't'});
       expect(list).toHaveLength(1);
+    });
+
+    it('should map rendered PDF documents into previewable files', async () => {
+      (RNFS.downloadFile as jest.Mock).mockReturnValue({
+        promise: Promise.resolve({statusCode: 200}),
+      });
+
+      const list = await documentApi.listForAppointment({
+        appointmentId: 'apt-1',
+        companionId: 'comp-1',
+        encounterId: 'enc-1',
+        accessToken: mockToken,
+      });
+
+      expect(list).toHaveLength(1);
+      expect(RNFS.downloadFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fromUrl: '/v1/workspace/mobile/encounters/enc-1/document-packet/pdf',
+          toFile: '/tmp/clinical-packet-apt-1.pdf',
+        }),
+      );
+      expect(list[0].files[0]).toEqual(
+        expect.objectContaining({
+          viewUrl: 'file:///tmp/clinical-packet-apt-1.pdf',
+          downloadUrl: 'file:///tmp/clinical-packet-apt-1.pdf',
+          type: 'application/pdf',
+        }),
+      );
+    });
+
+    it('should return no appointment documents when encounter id is missing', async () => {
+      const list = await documentApi.listForAppointment({
+        appointmentId: 'apt-1',
+        companionId: 'comp-1',
+        encounterId: null,
+        accessToken: mockToken,
+      });
+
+      expect(list).toEqual([]);
+      expect(RNFS.downloadFile).not.toHaveBeenCalled();
     });
   });
 

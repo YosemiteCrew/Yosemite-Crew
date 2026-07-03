@@ -46,7 +46,7 @@ import {
 } from '@/app/features/inventory/services/dispensaryService';
 import { dispensePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
-import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
 import Modal from '@/app/ui/overlays/Modal';
 import Filters from '@/app/ui/filters/Filters';
 import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
@@ -82,9 +82,6 @@ const DispensaryTable = dynamic(() => import('@/app/ui/tables/DispensaryTable'),
   loading: () => <InventorySectionSkeleton />,
 });
 const AddInventory = dynamic(() => import('@/app/features/inventory/components/AddInventory'));
-const DispensaryDetailModal = dynamic(
-  () => import('@/app/features/inventory/components/DispensaryDetailModal')
-);
 const InventoryInfo = dynamic(() =>
   import('@/app/features/inventory/components').then((module) => ({
     default: module.InventoryInfo,
@@ -177,6 +174,10 @@ const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryRecord =
   const firstMed = req.medications[0];
   const requestType = getDispenseRequestType(firstMed?.fulfillment, req.patientName);
   const amountCents = req.medications.reduce((sum, m) => sum + (m.priceCents ?? 0), 0);
+  const parentName = typeof req.parentName === 'string' ? req.parentName : undefined;
+  const metadataPetParentName =
+    typeof req.metadata?.petParentName === 'string' ? req.metadata.petParentName : undefined;
+  const petParentName = parentName ?? metadataPetParentName;
 
   return {
     id: req.id,
@@ -193,40 +194,50 @@ const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryRecord =
     prescriptionCreated: req.requestedAt,
     amountCents,
     currency: req.currency ?? undefined,
-    lead: req.leadName ?? '—',
+    lead: typeof req.leadName === 'string' ? req.leadName : '—',
+    petParentName,
     location: req.location ?? '—',
     requestType,
     invoiceId: req.invoiceId ?? undefined,
     paymentStatus: req.paymentStatus ?? undefined,
     timeDispensed: req.reviewedAt ?? undefined,
-    items: req.medications.map((m) => ({
-      name:
-        m.inventoryItemName ??
-        m.medication ??
-        m.medicineName ??
-        req.prescription.artifact.summary ??
-        m.inventoryItemId,
-      quantity: m.quantity ?? 1,
-      priceCents: m.priceCents ?? 0,
-      isRx: m.isRx,
-      isControlled: m.isControlled,
-      doseQty: m.doseQty,
-      doseUnit: m.doseUnit,
-      frequency: m.frequency,
-      frequencyPerDay: m.frequencyPerDay,
-      durationDays: m.durationDays,
-      refillsRemaining: m.refillsRemaining,
-      stockUnitQty:
-        m.stockUnitQty ?? m.stockUnitQuantity ?? m.packageQuantity ?? m.unitQuantity ?? undefined,
-      stockUnitType: m.stockUnitType ?? undefined,
-      prescription: {
-        dose: m.dosage ?? '',
-        freq: m.frequency ?? '',
-        duration: m.durationDays == null ? '' : `${m.durationDays} days`,
-        refill: m.refillsRemaining == null ? '' : String(m.refillsRemaining),
-        route: m.route ?? '',
-      },
-    })),
+    items: req.medications.map((m) => {
+      const metadataDoseUnit =
+        typeof m.metadata?.doseUnit === 'string' ? m.metadata.doseUnit : undefined;
+      const medicationDoseUnit = typeof m.doseUnit === 'string' ? m.doseUnit : undefined;
+      const doseUnit = metadataDoseUnit ?? medicationDoseUnit;
+      const durationUnit =
+        typeof m.metadata?.durationUnit === 'string' ? m.metadata.durationUnit : undefined;
+      return {
+        name:
+          m.inventoryItemName ??
+          m.medication ??
+          m.medicineName ??
+          req.prescription.artifact.summary ??
+          m.inventoryItemId,
+        quantity: m.quantity ?? 1,
+        priceCents: m.priceCents ?? 0,
+        isRx: m.isRx,
+        isControlled: m.isControlled,
+        doseQty: m.doseQty,
+        doseUnit,
+        frequency: m.frequency,
+        frequencyPerDay: m.frequencyPerDay,
+        durationDays: m.durationDays,
+        durationUnit,
+        refillsRemaining: m.refillsRemaining,
+        stockUnitQty:
+          m.stockUnitQty ?? m.stockUnitQuantity ?? m.packageQuantity ?? m.unitQuantity ?? undefined,
+        stockUnitType: m.stockUnitType ?? undefined,
+        prescription: {
+          dose: m.dosage ?? '',
+          freq: m.frequency ?? '',
+          duration: m.durationDays == null ? '' : `${m.durationDays} ${durationUnit ?? 'days'}`,
+          refill: m.refillsRemaining == null ? '' : String(m.refillsRemaining),
+          route: m.route ?? '',
+        },
+      };
+    }),
   };
 };
 
@@ -308,7 +319,7 @@ const InventoryFilterBar = ({
   return (
     <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
       <div className="flex items-center gap-2">
-        {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((vis) => {
+        {(['ACTIVE', 'HIDDEN'] as const).map((vis) => {
           const label = getVisibilityLabel(vis);
           const active = filters.visibility === vis;
           return (
@@ -390,7 +401,7 @@ const InventoryFilterBar = ({
             aria-label="Search inventory"
             value={filters.search}
             onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
-            placeholder="Search by item name, category, batch..."
+            placeholder="Search inventory"
             className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
           />
         </div>
@@ -466,7 +477,7 @@ const DispensaryFilterBar = ({
         aria-label="Search dispensary"
         value={dispensarySearch}
         onChange={(event) => setDispensarySearch(event.target.value)}
-        placeholder="Search by patient, medication, lead..."
+        placeholder="Search dispensary"
         className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
       />
     </div>
@@ -671,8 +682,6 @@ const InventoryFilterModal = ({
   toggleExpandedCategory,
   supplierFilterOptions,
 }: InventoryFilterModalProps) => {
-  if (!filterOpen) return null;
-
   return (
     <Modal showModal={filterOpen} setShowModal={setFilterOpen}>
       <div className="flex h-full flex-col">
@@ -681,15 +690,25 @@ const InventoryFilterModal = ({
             <FiSliders size={18} aria-hidden="true" />
             <span>Filter</span>
           </div>
-          {selectedFilterChips.length > 0 && (
+          <div className="flex items-center gap-2">
+            {selectedFilterChips.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setFilters(defaultFilters)}
+                className="rounded-full border border-blue-text px-4 py-1.5 text-body-4 text-blue-text hover:bg-blue-light transition-colors"
+              >
+                Clear all
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setFilters(defaultFilters)}
-              className="rounded-full border border-blue-text px-4 py-1.5 text-body-4 text-blue-text hover:bg-blue-light transition-colors"
+              onClick={() => setFilterOpen(false)}
+              aria-label="Close"
+              className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors"
             >
-              Clear all
+              <FiX size={18} />
             </button>
-          )}
+          </div>
         </div>
         {selectedFilterChips.length > 0 && (
           <div className="flex flex-wrap gap-2 pb-4 shrink-0">
@@ -996,8 +1015,6 @@ const DispensaryFilterModal = ({
   filterOpenSections,
   toggleFilterSection,
 }: DispensaryFilterModalProps) => {
-  if (!dispensaryFilterOpen) return null;
-
   return (
     <Modal showModal={dispensaryFilterOpen} setShowModal={setDispensaryFilterOpen}>
       <div className="flex h-full flex-col">
@@ -1006,18 +1023,28 @@ const DispensaryFilterModal = ({
             <FiSliders size={18} aria-hidden="true" />
             <span>Filter</span>
           </div>
-          {(dispensaryStatusFilter !== 'ALL' || dispensaryRequestType !== 'ALL') && (
+          <div className="flex items-center gap-2">
+            {(dispensaryStatusFilter !== 'ALL' || dispensaryRequestType !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDispensaryStatusFilter('ALL');
+                  setDispensaryRequestType('ALL');
+                }}
+                className="rounded-full border border-blue-text px-4 py-1.5 text-body-4 text-blue-text hover:bg-blue-light transition-colors"
+              >
+                Clear all
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => {
-                setDispensaryStatusFilter('ALL');
-                setDispensaryRequestType('ALL');
-              }}
-              className="rounded-full border border-blue-text px-4 py-1.5 text-body-4 text-blue-text hover:bg-blue-light transition-colors"
+              onClick={() => setDispensaryFilterOpen(false)}
+              aria-label="Close"
+              className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors"
             >
-              Clear all
+              <FiX size={18} />
             </button>
-          )}
+          </div>
         </div>
         <div className="flex flex-1 flex-col overflow-y-auto pr-1 divide-y divide-card-border">
           <div>
@@ -1117,6 +1144,7 @@ const DispensaryFilterModal = ({
         <div className="grid grid-cols-2 gap-3 border-t border-card-border pt-5 mt-5 shrink-0">
           <button
             type="button"
+            aria-label="Apply dispensary filters"
             onClick={() => setDispensaryFilterOpen(false)}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-text-primary px-4 text-body-3-emphasis text-white hover:opacity-90 transition-opacity"
           >
@@ -1637,7 +1665,6 @@ const Inventory = () => {
         </div>
       </div>
 
-      <MobileSearchBar placeholder="Search inventory" />
       {error && <div className="text-red-500 text-sm font-satoshi font-semibold">{error}</div>}
 
       <PermissionGate allOf={[PERMISSIONS.INVENTORY_VIEW_ANY]} fallback={<Fallback />}>
@@ -1682,15 +1709,13 @@ const Inventory = () => {
           </div>
         </div>
 
-        {activeDispensaryRecord && (
-          <DispensaryDetailModal
-            record={activeDispensaryRecord}
-            showModal={dispensaryModalOpen}
-            setShowModal={setDispensaryModalOpen}
-            organisationId={primaryOrgId ?? ''}
-            onActionComplete={fetchDispensaryRecords}
-          />
-        )}
+        <DispensaryDetailModal
+          record={activeDispensaryRecord}
+          showModal={dispensaryModalOpen}
+          setShowModal={setDispensaryModalOpen}
+          organisationId={primaryOrgId ?? ''}
+          onActionComplete={fetchDispensaryRecords}
+        />
 
         <AddInventory
           showModal={addPopup}

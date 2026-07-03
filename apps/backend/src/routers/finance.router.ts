@@ -134,6 +134,14 @@ router.post(
   FinanceController.markAppointmentReadyForBilling,
 );
 
+router.delete(
+  "/appointments/:appointmentId/ready-for-billing",
+  authorizeCognito,
+  withAppointmentOrgPermissions(),
+  requirePermission("billing:edit:any"),
+  FinanceController.reverseAppointmentReadyForBilling,
+);
+
 router.get(
   "/invoices",
   authorizeCognito,

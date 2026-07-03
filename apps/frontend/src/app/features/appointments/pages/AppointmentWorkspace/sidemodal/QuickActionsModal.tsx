@@ -4,6 +4,7 @@ import Image from 'next/image';
 import type { IconType } from 'react-icons';
 import {
   LuActivity,
+  LuCalculator,
   LuClipboardList,
   LuFileText,
   LuMessageSquare,
@@ -19,6 +20,7 @@ import DocumentsPanel from '@/app/features/appointments/pages/AppointmentWorkspa
 import ChatPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/ChatPanel';
 import ActivityPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/ActivityPanel';
 import MsdPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/MsdPanel';
+import CalculatorsPanel from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/CalculatorsPanel';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
 
@@ -49,6 +51,13 @@ const NAV_ITEMS: NavItem[] = [
 
 /** MSD/Merck nav item — icon is the branded glyph, rendered separately. */
 const MSD_LABEL = 'MSD';
+
+/** Calculators nav item — rendered after MSD using the shared NavButton. */
+const CALCULATORS_ITEM: NavItem = {
+  key: 'CALCULATORS',
+  label: 'Calculators',
+  icon: LuCalculator,
+};
 
 const NavButton = ({
   item,
@@ -158,6 +167,11 @@ const QuickActionsModal = ({
               {MSD_LABEL}
             </span>
           </button>
+          <NavButton
+            item={CALCULATORS_ITEM}
+            active={activeAction === 'CALCULATORS'}
+            onClick={() => onChangeAction('CALCULATORS')}
+          />
         </nav>
 
         <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden pr-1">
@@ -174,6 +188,7 @@ const QuickActionsModal = ({
           {activeAction === 'TASKS' && (
             <TasksPanel
               appointmentId={appointmentId}
+              companionId={companion.id}
               parentOptions={
                 companion.parent?.id
                   ? [{ label: companion.parent.name || 'Pet parent', value: companion.parent.id }]
@@ -187,11 +202,13 @@ const QuickActionsModal = ({
               companionId={companion.id}
               organisationId={organisationId}
               encounterId={encounterId}
+              appointmentStatus={appointment.status}
             />
           )}
           {activeAction === 'CHAT' && <ChatPanel appointment={appointment} />}
           {activeAction === 'ACTIVITY' && <ActivityPanel appointment={appointment} />}
           {activeAction === 'MSD' && <MsdPanel appointment={appointment} />}
+          {activeAction === 'CALCULATORS' && <CalculatorsPanel appointment={appointment} />}
         </div>
       </div>
     </Modal>

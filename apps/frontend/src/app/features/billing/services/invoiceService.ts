@@ -7,7 +7,7 @@ import {
 } from '@yosemite-crew/types';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { getData, patchData, postData } from '@/app/services/axios';
+import { deleteData, getData, patchData, postData } from '@/app/services/axios';
 import type {
   InvoiceLineItem as WorkspaceInvoiceLine,
   InvoiceStatus as WorkspaceInvoiceStatus,
@@ -81,6 +81,23 @@ type PaymentSessionResponse = {
   providerCheckoutSessionId?: string;
 };
 
+type InvoiceCheckoutSessionResponse = {
+  checkout?: PaymentSessionResponse | null;
+  emailSent?: boolean;
+};
+
+type InvoiceBackendArtifacts = {
+  pdfUrl?: unknown;
+  invoicePdfUrl?: unknown;
+  renderedDocumentUrl?: unknown;
+  renderedPdfUrl?: unknown;
+  renderedDocumentId?: unknown;
+  invoiceDocumentId?: unknown;
+  payments?: unknown;
+};
+
+type NormalizedFinanceInvoice = Invoice & InvoiceBackendArtifacts;
+
 const FINANCE_BASE_PATH = '/v1/finance';
 
 const APPOINTMENT_ID_EXTENSION_URL =
@@ -107,6 +124,17 @@ const normalizeReferenceTail = (value: unknown): string | undefined => {
   const withoutQuery = normalizedRaw.split(/[?#]/)[0];
   const tail = withoutQuery.split('/').findLast(Boolean)?.trim();
   return tail || undefined;
+};
+
+const toSafeText = (value: unknown): string => {
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  return '';
+};
+
+const normalizePaidAt = (value: unknown): string | undefined => {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return undefined;
 };
 
 const unwrapFinanceData = <T>(value: T | FinanceEnvelope<T>): T => {
@@ -136,10 +164,10 @@ const isInvoiceMissingForReadyForBilling = (error: unknown): boolean => {
   const response = error as { response?: { data?: unknown } };
   const data = response.response?.data;
   if (!data || typeof data !== 'object') return false;
-  const toText = (value: unknown): string =>
-    typeof value === 'string' || typeof value === 'number' ? String(value).toLowerCase() : '';
-  const message = toText((data as { message?: unknown }).message);
-  const errorMessage = toText((data as { error?: { message?: unknown } }).error?.message);
+  const message = toSafeText((data as { message?: unknown }).message).toLowerCase();
+  const errorMessage = toSafeText(
+    (data as { error?: { message?: unknown } }).error?.message
+  ).toLowerCase();
   return [message, errorMessage].some((text) => text.includes('invoice'));
 };
 
@@ -155,7 +183,21 @@ const markAppointmentReadyForBillingViaAppointmentRoute = async (
   return unwrapFinanceData(res.data);
 };
 
-const normalizeFinanceInvoice = (invoice: any, fallbackOrganisationId?: string): Invoice => {
+const reverseAppointmentReadyForBillingViaAppointmentRoute = async (
+  appointmentId: string,
+  input: ReadyForBillingInput
+): Promise<unknown> => {
+  if (!input.organisationId) throw new Error('Organisation ID missing');
+  const res = await deleteData<FinanceResponse>(
+    `/fhir/v1/appointment/pms/${input.organisationId}/${appointmentId}/ready-for-billing`
+  );
+  return unwrapFinanceData(res.data);
+};
+
+const normalizeFinanceInvoice = (
+  invoice: any,
+  fallbackOrganisationId?: string
+): NormalizedFinanceInvoice => {
   if (invoice?.resourceType === 'Invoice') {
     return normalizeInvoiceForFrontend(invoice, fallbackOrganisationId);
   }
@@ -201,6 +243,13 @@ const normalizeFinanceInvoice = (invoice: any, fallbackOrganisationId?: string):
     visitBillingStage: invoice?.visitBillingStage,
     depositCollectedAmount: invoice?.depositCollectedAmount,
     depositTargetAmount: invoice?.depositTargetAmount,
+    pdfUrl: invoice?.pdfUrl,
+    invoicePdfUrl: invoice?.invoicePdfUrl,
+    renderedDocumentUrl: invoice?.renderedDocumentUrl,
+    renderedPdfUrl: invoice?.renderedPdfUrl,
+    renderedDocumentId: invoice?.renderedDocumentId,
+    invoiceDocumentId: invoice?.invoiceDocumentId,
+    payments: invoice?.payments,
     metadata: invoice?.metadata,
     paidAt: invoice?.paidAt ? new Date(invoice.paidAt) : undefined,
     createdAt,
@@ -319,27 +368,14 @@ const financeAmountToCents = (amount: number | undefined): number =>
 
 const FINANCE_OPEN_STATUSES = new Set(['PENDING', 'AWAITING_PAYMENT', 'REQUIRES_ACTION']);
 
-// Deposit collection modes, and the deposit-line name the workspace creates. A
-// deposit invoice is recognised by either signal so its paid total feeds the
-// deposit balance even when the backend leaves depositCollectedAmount at 0.
-const DEPOSIT_COLLECTION_MODES = new Set(['PREPAY_AT_BOOKING', 'DEPOSIT_THEN_SETTLE']);
-const isDepositInvoice = (invoice: Invoice): boolean => {
-  const mode = String(invoice.billingCollectionMode ?? '').toUpperCase();
-  if (DEPOSIT_COLLECTION_MODES.has(mode)) return true;
-  const items = Array.isArray(invoice.items) ? invoice.items : [];
-  return items.some((item) =>
-    String(item?.name ?? '')
-      .toLowerCase()
-      .includes('deposit')
-  );
-};
-
 /** Map a finance invoice status to the workspace's coarse paid/unpaid pill state. */
 const toWorkspaceInvoiceStatus = (
   status: string | undefined,
-  outstandingCents: number
+  outstandingCents: number,
+  totalCents: number
 ): WorkspaceInvoiceStatus => {
   if (status === 'PAID' || outstandingCents <= 0) return 'PAID_FULL';
+  if (outstandingCents < totalCents) return 'PARTIAL';
   if (status && FINANCE_OPEN_STATUSES.has(status)) return 'UNPAID';
   return outstandingCents > 0 ? 'PARTIAL' : 'PAID_FULL';
 };
@@ -359,6 +395,21 @@ const financeItemToWorkspaceLineItem = (item: InvoiceItem, index: number): Works
     amountCents,
   };
 };
+
+const readInvoiceString = (invoice: Invoice, key: string): string | undefined => {
+  const value = (invoice as unknown as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+};
+
+const invoiceRenderedPdfUrl = (invoice: Invoice): string | undefined =>
+  readInvoiceString(invoice, 'pdfUrl') ??
+  readInvoiceString(invoice, 'invoicePdfUrl') ??
+  readInvoiceString(invoice, 'renderedDocumentUrl') ??
+  readInvoiceString(invoice, 'renderedPdfUrl');
+
+const invoiceRenderedDocumentId = (invoice: Invoice): string | undefined =>
+  readInvoiceString(invoice, 'renderedDocumentId') ??
+  readInvoiceString(invoice, 'invoiceDocumentId');
 
 /**
  * Hydrate the appointment workspace's billing view from the finance service:
@@ -400,26 +451,46 @@ export const loadAppointmentBilling = async (
       financeAmountToCents(invoice.totalAmount) ||
       items.reduce((sum, item) => sum + item.amountCents, 0);
     const isPaid = invoice.status === 'PAID' || Boolean(invoice.paidAt);
-    // Deposit balance precedence: the explicit depositCollectedAmount when set;
-    // otherwise a paid deposit-style invoice contributes its full paid total
-    // (the backend records the deposit as a separate PAID invoice, not as a
-    // depositCollectedAmount on the main bill).
+    // Map the payment ledger (deposits + settlements with provider metadata and receipt URLs)
+    // when the backend includes it on the invoice (handoff §5). Absent until then.
+    const rawPayments = (invoice as { payments?: unknown }).payments;
+    const payments = Array.isArray(rawPayments)
+      ? rawPayments.map((payment, index) => {
+          const p = payment as Record<string, unknown>;
+          const paymentId = toSafeText(p.id);
+          return {
+            id: paymentId || `${String(invoice.id ?? appointmentId)}-pay-${index}`,
+            amountCents: financeAmountToCents(p.amount as number | undefined),
+            method: typeof p.settlementChannel === 'string' ? p.settlementChannel : undefined,
+            provider: typeof p.provider === 'string' ? p.provider : undefined,
+            status: typeof p.status === 'string' ? p.status : undefined,
+            paidAt: normalizePaidAt(p.paidAt),
+            receiptUrl: typeof p.receiptUrl === 'string' ? p.receiptUrl : undefined,
+          };
+        })
+      : undefined;
     const explicitDepositCents = financeAmountToCents(invoice.depositCollectedAmount);
-    if (explicitDepositCents > 0) {
-      depositCents += explicitDepositCents;
-    } else if (isPaid && isDepositInvoice(invoice)) {
-      depositCents += totalCents;
-    }
-    const outstandingCents = isPaid ? 0 : totalCents;
+    const ledgerDepositCents =
+      payments?.reduce((sum, payment) => {
+        const method = String(payment.method ?? '').toUpperCase();
+        return method === 'DEPOSIT' ? sum + payment.amountCents : sum;
+      }, 0) ?? 0;
+    const collectedCents = explicitDepositCents > 0 ? explicitDepositCents : ledgerDepositCents;
+    depositCents += collectedCents;
+    const paymentTotalCents = payments?.reduce((sum, payment) => sum + payment.amountCents, 0) ?? 0;
+    const outstandingCents = isPaid ? 0 : Math.max(0, totalCents - paymentTotalCents);
     return {
       id: String(invoice.id ?? appointmentId),
       createdAt: (invoice.createdAt ?? new Date()).toISOString(),
       totalCents,
       outstandingCents,
-      status: toWorkspaceInvoiceStatus(invoice.status, outstandingCents),
+      status: toWorkspaceInvoiceStatus(invoice.status, outstandingCents, totalCents),
       paidByName: undefined,
       paidAt: invoice.paidAt ? invoice.paidAt.toISOString() : undefined,
       items,
+      payments,
+      pdfUrl: invoiceRenderedPdfUrl(invoice),
+      renderedDocumentId: invoiceRenderedDocumentId(invoice),
     };
   });
 
@@ -443,16 +514,17 @@ const shouldFetchInvoices = (
   return status === 'idle' || status === 'error';
 };
 
-const normalizeInvoiceLineKey = (
-  item: Pick<InvoiceItem, 'name' | 'quantity' | 'unitPrice' | 'total'>
-) =>
+// Dedupe key for "is this line already on the invoice". Intentionally keyed on
+// name + quantity only — NOT price. The same booked service can reach the invoice
+// through two pipelines (the treatment/catalog seed and the FE bill re-seed) whose
+// prices differ by a sub-cent rounding delta (e.g. 257.127 vs 257.13), and keying
+// on price let that rounded copy slip past the guard and append a duplicate line.
+const normalizeInvoiceLineKey = (item: Pick<InvoiceItem, 'name' | 'quantity'>) =>
   [
     String(item.name ?? '')
       .trim()
       .toLowerCase(),
     Number(item.quantity),
-    Number(item.unitPrice),
-    Number(item.total),
   ].join('|');
 
 const filterNewInvoiceLineItems = (invoice: Invoice, lineItems: InvoiceItem[]): InvoiceItem[] => {
@@ -523,6 +595,28 @@ export const getPaymentLink = async (invoiceId: string): Promise<string | undefi
     return url;
   } catch (err) {
     console.error('Failed to load specialities:', err);
+    throw err;
+  }
+};
+
+export const sendInvoiceToClient = async (
+  invoiceId: string
+): Promise<InvoiceCheckoutSessionResponse> => {
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
+    console.warn('No primary organization selected. Cannot send invoice to client.');
+    return {};
+  }
+  try {
+    if (!invoiceId) {
+      throw new Error('Invoice ID missing');
+    }
+    const res = await postData<
+      FinanceEnvelope<InvoiceCheckoutSessionResponse> | InvoiceCheckoutSessionResponse
+    >(`/fhir/v1/invoice/${invoiceId}/checkout-session`);
+    return unwrapFinanceData(res.data);
+  } catch (err) {
+    console.error('Failed to send invoice to client:', err);
     throw err;
   }
 };
@@ -684,6 +778,25 @@ export const markAppointmentReadyForBilling = async (
       }
       throw retryError;
     }
+  }
+};
+
+export const reverseAppointmentReadyForBilling = async (
+  appointmentId: string,
+  input: ReadyForBillingInput
+): Promise<unknown> => {
+  if (!appointmentId) throw new Error('Appointment ID missing');
+  const endpoint = `${FINANCE_BASE_PATH}/appointments/${appointmentId}/ready-for-billing`;
+  try {
+    const res = await deleteData<FinanceResponse>(endpoint);
+    return unwrapFinanceData(res.data);
+  } catch (error) {
+    // The finance route isn't deployed on every backend fork — fall back to the
+    // appointment PMS route on a 404, mirroring the forward (mark) direction.
+    if (getErrorStatus(error) === 404) {
+      return reverseAppointmentReadyForBillingViaAppointmentRoute(appointmentId, input);
+    }
+    throw error;
   }
 };
 

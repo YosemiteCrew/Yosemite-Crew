@@ -28,7 +28,7 @@ const SpecialitiesTable = ({ filteredList, setActive, setView }: SpecialitiesTab
       render: (item: SpecialityWeb) => <ProfileTitle>{item.name}</ProfileTitle>,
     },
     {
-      label: 'Services',
+      label: 'Services / Packages',
       key: 'Services',
       width: '30%',
       render: (item: SpecialityWeb) => (

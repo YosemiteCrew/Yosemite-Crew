@@ -57,6 +57,15 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
     </button>
   ),
 }));
+jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
+  __esModule: true,
+  default: ({ content, children }: any) => (
+    <span>
+      {children}
+      <span role="tooltip">{content}</span>
+    </span>
+  ),
+}));
 jest.mock('@/app/ui/overlays/SigningOverlay', () => ({
   __esModule: true,
   default: () => <div data-testid="signing-overlay" />,
@@ -100,6 +109,7 @@ const encounter = {
   prescription: [],
   documents: [],
   dischargeSummary: '',
+  dischargeSavedAt: '2026-04-20T10:00:00Z',
   viewOnly: false,
   leadName: 'Dr Jane',
 } as unknown as Parameters<typeof SummaryStep>[0]['encounter'];
@@ -107,6 +117,7 @@ const encounter = {
 const appointment = {
   organisationId: 'org-1',
   encounterId: 'enc-1',
+  status: 'IN_PROGRESS',
 } as unknown as Parameters<typeof SummaryStep>[0]['appointment'];
 
 const renderStep = () =>
@@ -114,6 +125,11 @@ const renderStep = () =>
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(console, 'error').mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 describe('SummaryStep packet signing', () => {
@@ -125,7 +141,7 @@ describe('SummaryStep packet signing', () => {
     });
 
     renderStep();
-    fireEvent.click(screen.getByText('Sign'));
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
 
     await waitFor(() => expect(mockedSign).toHaveBeenCalled());
     expect(mockedCreate).toHaveBeenCalledWith('org-1', 'enc-1');
@@ -139,7 +155,7 @@ describe('SummaryStep packet signing', () => {
     mockedCreate.mockRejectedValue(new Error('packet boom'));
 
     renderStep();
-    fireEvent.click(screen.getByText('Sign'));
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     expect(screen.getByRole('alert')).toHaveTextContent('packet boom');
@@ -153,10 +169,73 @@ describe('SummaryStep packet signing', () => {
     mockedSign.mockResolvedValue({ packetId: 'pkt-1', signing: { status: 'IN_PROGRESS' } });
 
     renderStep();
-    fireEvent.click(screen.getByText('Sign'));
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
     expect(setUrl).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalled();
+  });
+
+  it('hides print and sign until the discharge summary is saved', async () => {
+    render(
+      <SummaryStep
+        appointmentId="appt-1"
+        appointment={appointment}
+        encounter={{ ...encounter, dischargeSavedAt: undefined }}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^print$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^sign$/i })).not.toBeInTheDocument();
+  });
+
+  it('shows Print All once the discharge summary is saved', async () => {
+    renderStep();
+
+    expect(screen.getByRole('button', { name: /^print all$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument();
+  });
+
+  it('disables Sign with a tooltip when the appointment is not in progress', async () => {
+    render(
+      <SummaryStep
+        appointmentId="appt-1"
+        appointment={{ ...appointment, status: 'CHECKED_IN' } as typeof appointment}
+        encounter={encounter}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /^sign$/i })).toBeDisabled();
+    expect(
+      screen.getByText(/signing is available only while the appointment is in progress/i)
+    ).toBeInTheDocument();
+  });
+
+  it('shows Download Signed instead of Sign once a document is signed', async () => {
+    const { listEncounterWorkspaceDocuments, getEncounterDocumentPacketPdfUrl } = jest.requireMock(
+      '@/app/features/appointments/services/workspaceAggregateService'
+    );
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      {
+        documentId: 'doc-1',
+        title: 'Discharge',
+        sourceKind: 'DISCHARGE_SUMMARY',
+        status: 'FINAL',
+        signingStatus: 'SIGNED',
+        createdAt: '2026-04-20T10:00:00Z',
+      },
+    ]);
+    (getEncounterDocumentPacketPdfUrl as jest.Mock).mockResolvedValue('blob:signed');
+
+    renderStep();
+
+    const downloadButton = await screen.findByRole('button', { name: /download signed/i });
+    expect(screen.queryByRole('button', { name: /^sign$/i })).not.toBeInTheDocument();
+
+    fireEvent.click(downloadButton);
+    await waitFor(() =>
+      expect(getEncounterDocumentPacketPdfUrl).toHaveBeenCalledWith('org-1', 'enc-1')
+    );
   });
 });

@@ -15,6 +15,7 @@ export interface ChatSessionMongo {
   channelId: string;
 
   organisationId: string;
+  counterpartOrganisationId?: string;
   patientId?: string;
   parentId?: string;
   vetId?: string | null;
@@ -78,6 +79,10 @@ const ChatSessionSchema = new Schema(
       type: String,
       required: true,
       index: true,
+      trim: true,
+    },
+    counterpartOrganisationId: {
+      type: String,
       trim: true,
     },
     patientId: {

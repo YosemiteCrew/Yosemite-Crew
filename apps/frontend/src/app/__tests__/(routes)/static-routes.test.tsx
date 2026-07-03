@@ -1,6 +1,14 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 
+jest.mock('next/navigation', () => ({
+  redirect: jest.fn(() => {
+    throw new Error('NEXT_REDIRECT');
+  }),
+  useRouter: () => ({ push: jest.fn() }),
+  useSearchParams: () => ({ get: () => null }),
+}));
+
 jest.mock('next/dynamic', () => ({
   __esModule: true,
   default: (loader: () => Promise<{ default: React.ComponentType }>) => {
@@ -32,7 +40,7 @@ jest.mock('@/app/features/marketing/pages/BookDemo/BookDemo', () => ({
 
 jest.mock('@/app/features/marketing/pages/ContactusPage/ContactusPage', () => ({
   __esModule: true,
-  default: () => <div data-testid="route-contact" />,
+  default: () => <div data-testid="route-contact-us" />,
 }));
 
 jest.mock('@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding', () => ({
@@ -90,15 +98,19 @@ jest.mock('@/app/features/onboarding/pages/TeamOnboarding/TeamOnboarding', () =>
   default: () => <div data-testid="route-team-onboarding" />,
 }));
 
-import AboutRoute, * as AboutModule from '@/app/(routes)/(public)/about/page';
-import ApplicationRoute, * as ApplicationModule from '@/app/(routes)/(public)/application/page';
+import AboutUsRoute, * as AboutUsModule from '@/app/(routes)/(public)/about-us/page';
+import AboutRedirectRoute from '@/app/(routes)/(public)/about/page';
+import PetParentsRoute, * as PetParentsModule from '@/app/(routes)/(public)/pet-parents/page';
+import ApplicationRedirectRoute from '@/app/(routes)/(public)/application/page';
 import BookDemoRoute, * as BookDemoModule from '@/app/(routes)/(public)/book-demo/page';
-import ContactRoute, * as ContactModule from '@/app/(routes)/(public)/contact/page';
+import ContactUsRoute, * as ContactUsModule from '@/app/(routes)/(public)/contact-us/page';
+import ContactRedirectRoute from '@/app/(routes)/(public)/contact/page';
 import DevelopersRoute, * as DevelopersModule from '@/app/(routes)/(public)/developers/page';
 import OrganizationsRoute, * as OrganizationsModule from '@/app/(routes)/(app)/organizations/page';
 import CreateOrgRoute, * as CreateOrgModule from '@/app/(routes)/(app)/create-org/page';
 import DashboardRoute, * as DashboardModule from '@/app/(routes)/(app)/dashboard/page';
-import PmsRoute, * as PmsModule from '@/app/(routes)/(public)/pms/page';
+import PetBusinessesRoute, * as PetBusinessesModule from '@/app/(routes)/(public)/pet-businesses/page';
+import PmsRedirectRoute from '@/app/(routes)/(public)/pms/page';
 import PricingRoute, * as PricingModule from '@/app/(routes)/(public)/pricing/page';
 import PrivacyPolicyRoute, * as PrivacyPolicyModule from '@/app/(routes)/(public)/privacy-policy/page';
 import TermsRoute, * as TermsModule from '@/app/(routes)/(public)/terms-and-conditions/page';
@@ -115,14 +127,14 @@ type RouteCase = {
 const routeCases: RouteCase[] = [
   {
     name: 'AboutUs',
-    RouteComponent: AboutRoute,
-    Module: AboutModule,
+    RouteComponent: AboutUsRoute,
+    Module: AboutUsModule,
     expectedTestIds: ['route-about'],
   },
   {
     name: 'Application',
-    RouteComponent: ApplicationRoute,
-    Module: ApplicationModule,
+    RouteComponent: PetParentsRoute,
+    Module: PetParentsModule,
     expectedTestIds: ['route-application'],
   },
   {
@@ -132,10 +144,10 @@ const routeCases: RouteCase[] = [
     expectedTestIds: ['route-book-demo'],
   },
   {
-    name: 'Contact',
-    RouteComponent: ContactRoute,
-    Module: ContactModule,
-    expectedTestIds: ['route-contact'],
+    name: 'Contact us',
+    RouteComponent: ContactUsRoute,
+    Module: ContactUsModule,
+    expectedTestIds: ['route-contact-us'],
   },
   {
     name: 'Developers',
@@ -162,9 +174,9 @@ const routeCases: RouteCase[] = [
     expectedTestIds: ['route-dashboard'],
   },
   {
-    name: 'PMS',
-    RouteComponent: PmsRoute,
-    Module: PmsModule,
+    name: 'Pet Businesses',
+    RouteComponent: PetBusinessesRoute,
+    Module: PetBusinessesModule,
     expectedTestIds: ['route-pms'],
   },
   {
@@ -207,5 +219,21 @@ describe('static route wrappers', () => {
     }
     expect(typeof RouteComponent).toBe('function');
     expect(typeof Module.default).toBe('function');
+  });
+
+  test('contact route redirects to contact-us', () => {
+    expect(() => ContactRedirectRoute()).toThrow('NEXT_REDIRECT');
+  });
+
+  test('pms route redirects to pet-businesses', () => {
+    expect(() => PmsRedirectRoute()).toThrow('NEXT_REDIRECT');
+  });
+
+  test('about route redirects to about-us', () => {
+    expect(() => AboutRedirectRoute()).toThrow('NEXT_REDIRECT');
+  });
+
+  test('application route redirects to pet-parents', () => {
+    expect(() => ApplicationRedirectRoute()).toThrow('NEXT_REDIRECT');
   });
 });

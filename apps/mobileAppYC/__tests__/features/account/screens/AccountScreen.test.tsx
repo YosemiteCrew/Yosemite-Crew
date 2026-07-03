@@ -111,7 +111,7 @@ jest.mock('react-native-device-info', () => ({
 // Mock Preferences
 jest.mock('../../../../src/features/preferences/PreferencesContext', () => ({
   usePreferences: jest.fn(() => ({
-    weightUnit: 'lbs',
+    weightUnit: 'kg',
     temperatureUnit: 'F',
   })),
 }));

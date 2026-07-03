@@ -39,6 +39,7 @@ describe('AppointmentCard', () => {
   const handleViewAppointment = jest.fn();
   const handleWorkspaceAppointment = jest.fn();
   const handleRescheduleAppointment = jest.fn();
+  const handleChangeStatusAppointment = jest.fn();
   const getSoapViewIntent: jest.MockedFunction<
     (appointment: Appointment) => AppointmentViewIntent
   > = jest.fn((appointment: Appointment): AppointmentViewIntent => {
@@ -153,11 +154,17 @@ describe('AppointmentCard', () => {
         handleWorkspaceAppointment={handleWorkspaceAppointment}
         getSoapViewIntent={getSoapViewIntent}
         handleRescheduleAppointment={handleRescheduleAppointment}
+        handleChangeStatusAppointment={handleChangeStatusAppointment}
         canEditAppointments
       />
     );
 
-    expect(screen.getAllByRole('button')).toHaveLength(2);
+    const actionButtons = screen.getAllByRole('button');
+    expect(actionButtons).toHaveLength(2);
+    fireEvent.click(actionButtons[0]);
+    expect(handleChangeStatusAppointment).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'NO_PAYMENT' })
+    );
     expect(screen.queryByTitle('View')).not.toBeInTheDocument();
   });
 });

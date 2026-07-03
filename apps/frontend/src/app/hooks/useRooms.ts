@@ -4,16 +4,21 @@ import { loadRoomsForOrgPrimaryOrg } from '@/app/features/organization/services/
 import { OrganisationRoom } from '@yosemite-crew/types';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 
-export const useLoadRoomsForPrimaryOrg = () => {
+type LoadRoomsHookOptions = {
+  force?: boolean;
+  silent?: boolean;
+};
+
+export const useLoadRoomsForPrimaryOrg = (opts?: LoadRoomsHookOptions) => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
 
   useEffect(() => {
     if (!primaryOrgId) return;
     const state = useOrganisationRoomStore.getState();
     if (state.status === 'loading') return;
-    if (Object.hasOwn(state.roomIdsByOrgId ?? {}, primaryOrgId)) return;
-    void loadRoomsForOrgPrimaryOrg();
-  }, [primaryOrgId]);
+    if (!opts?.force && Object.hasOwn(state.roomIdsByOrgId ?? {}, primaryOrgId)) return;
+    loadRoomsForOrgPrimaryOrg({ force: opts?.force, silent: opts?.silent }).catch(() => undefined);
+  }, [opts?.force, opts?.silent, primaryOrgId]);
 };
 
 export const useRoomsForPrimaryOrg = (): OrganisationRoom[] => {

@@ -14,7 +14,7 @@ import Cookies from '@/app/ui/widgets/Cookies/Cookies';
 
 export const metadata: Metadata = {
   title: 'Yosemite Crew',
-  description: 'Get Yosemite Crew PMS for your pet business',
+  description: 'Get Yosemite Crew for your pet business',
   icons: [
     { rel: 'icon', url: '/favicon.ico', type: 'image/x-icon' },
     {

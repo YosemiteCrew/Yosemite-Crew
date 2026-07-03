@@ -28,6 +28,7 @@ import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import {
   useLabTests,
   resolveOrderUiUrl,
@@ -176,6 +177,24 @@ const formatModality = (modality?: string | null): string | null => {
   return MODALITY_LABELS[modality.trim().toUpperCase()] ?? null;
 };
 
+const getOrderActionLabel = (order: { status?: string | null }): string => {
+  const statusKey = String(order.status ?? '')
+    .trim()
+    .toUpperCase()
+    .replaceAll(/\s+/g, '_');
+  if (statusKey === 'SUBMITTED') return 'Follow up';
+  if (statusKey === 'CREATED' || !statusKey) return 'Continue';
+  return 'Open IDEXX';
+};
+
+const getOrderActionSource = (order: { status?: string | null }): 'order' | 'followup' =>
+  String(order.status ?? '')
+    .trim()
+    .toUpperCase()
+    .replaceAll(/\s+/g, '_') === 'SUBMITTED'
+    ? 'followup'
+    : 'order';
+
 /** Small neutral/info origin badge (provider, modality, package origin, billing). */
 const MetaPill = ({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'info' }) => (
   <span
@@ -275,7 +294,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
   <div className="grid items-stretch gap-5 lg:grid-cols-[1fr_320px]">
     <div className="flex flex-col gap-4">
       <SearchDropdown
-        placeholder="Search for Lab tests"
+        placeholder="Search for lab tests"
         options={s.tests.map((test) => ({
           value: test.code,
           label: `${test.display} (${test.code})`,
@@ -349,47 +368,54 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
   </div>
 );
 
-const InhouseOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
-  <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-    <div className="flex flex-col gap-4">
-      <p className="max-w-2xl text-body-4 text-text-secondary">
-        In-house IDEXX workflow requires selecting an IVLS device, then adding the patient to census
-        here. Complete ordering on the IDEXX machine after census is confirmed.
-      </p>
-      <output
-        className={`block rounded-2xl border p-4 text-body-4 ${
-          s.companionInCensus
-            ? 'border-pill-success-border bg-pill-success-bg text-pill-success-text'
-            : 'border-card-border text-text-secondary'
-        }`}
-      >
-        <p>
-          {s.companionInCensus
-            ? 'Patient is present in IDEXX census for this appointment patient.'
-            : 'Patient is not yet in the IDEXX census.'}
+const InhouseOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => {
+  const terminologyText = useCompanionTerminologyText();
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+      <div className="flex flex-col gap-4">
+        <p className="max-w-2xl text-body-4 text-text-secondary">
+          {terminologyText(
+            'In-house IDEXX workflow requires selecting an IVLS device, then adding the patient to census here. Complete ordering on the IDEXX machine after census is confirmed.'
+          )}
         </p>
-        <p>
-          IVLS confirmation:{' '}
-          {s.selectedIvls === undefined || s.selectedIvls === ''
-            ? 'Select an IVLS device to check confirmation state'
-            : getIvlsConfirmationLabel(s.inHouseCensusConfirmed)}
-        </p>
-      </output>
+        <output
+          className={`block rounded-2xl border p-4 text-body-4 ${
+            s.companionInCensus
+              ? 'border-pill-success-border bg-pill-success-bg text-pill-success-text'
+              : 'border-card-border text-text-secondary'
+          }`}
+        >
+          <p>
+            {terminologyText(
+              s.companionInCensus
+                ? 'Patient is present in IDEXX census for this appointment patient.'
+                : 'Patient is not yet in the IDEXX census.'
+            )}
+          </p>
+          <p>
+            IVLS confirmation:{' '}
+            {s.selectedIvls === undefined || s.selectedIvls === ''
+              ? 'Select an IVLS device to check confirmation state'
+              : getIvlsConfirmationLabel(s.inHouseCensusConfirmed)}
+          </p>
+        </output>
+      </div>
+      <div className="flex flex-col gap-3">
+        <TestTypeSelect s={s} />
+        <LabelDropdown
+          placeholder="Select Device"
+          options={s.devices.map((device) => ({
+            label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
+            value: device.deviceSerialNumber,
+          }))}
+          defaultOption={s.selectedIvls}
+          onSelect={(option) => s.setSelectedIvls(option.value)}
+        />
+      </div>
     </div>
-    <div className="flex flex-col gap-3">
-      <TestTypeSelect s={s} />
-      <LabelDropdown
-        placeholder="Select Device"
-        options={s.devices.map((device) => ({
-          label: `${device.displayName || 'IVLS'} (${device.deviceSerialNumber})`,
-          value: device.deviceSerialNumber,
-        }))}
-        defaultOption={s.selectedIvls}
-        onSelect={(option) => s.setSelectedIvls(option.value)}
-      />
-    </div>
-  </div>
-);
+  );
+};
 
 const OrderBuilderSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: boolean }) => {
   const isInHouse = s.modality === 'INHOUSE';
@@ -506,13 +532,7 @@ const TestQueueSection = ({
   </SectionContainer>
 );
 
-const OrderStatusSection = ({
-  s,
-  orderButtonText,
-}: {
-  s: UseLabTestsReturn;
-  orderButtonText: string;
-}) => (
+const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
   <SectionContainer
     titleClassName="text-yc-20-b-primary"
     title="Order Status"
@@ -533,6 +553,7 @@ const OrderStatusSection = ({
         <ul className="flex flex-col gap-3">
           {s.appointmentOrders.map((order, index) => {
             const isComplete = s.getOrderDisplayStatus(order) === 'Complete';
+            const orderActionLabel = isComplete ? 'Result PDF' : getOrderActionLabel(order);
             return (
               <li
                 key={order._id ?? order.idexxOrderId ?? `order-${index}`}
@@ -557,16 +578,16 @@ const OrderStatusSection = ({
                 </div>
                 <div className="flex items-center justify-end gap-2">
                   <Secondary
-                    text={isComplete ? 'Result PDF' : orderButtonText}
+                    text={orderActionLabel}
                     icon={isComplete ? undefined : <LuExternalLink aria-hidden="true" />}
-                    ariaLabel={`${isComplete ? 'Open result PDF' : orderButtonText} for order ${order.idexxOrderId}`}
+                    ariaLabel={`${isComplete ? 'Open result PDF' : orderActionLabel} for order ${order.idexxOrderId}`}
                     onClick={() => {
                       s.setActiveOrderForActions(order);
                       if (isComplete) {
                         void s.openResultPdfForOrder(order);
                         return;
                       }
-                      s.openOrderIframe(s.canOpenFollowUpInCurrentOrder ? 'followup' : 'order');
+                      s.openOrderIframe(getOrderActionSource(order), order.status, order);
                     }}
                     isDisabled={!isComplete && !resolveOrderUiUrl(order)}
                   />
@@ -700,7 +721,15 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
     >
       <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-black/10 px-4 py-2">
-          <span className="text-body-2 text-text-primary">{title}</span>
+          <span className="flex flex-col">
+            <span className="text-body-2 text-text-primary">{title}</span>
+            {s.iframeOpenSource === 'followup' ? (
+              <span className="text-caption-1 text-text-secondary">
+                If IDEXX shows the order was submitted and this window stays open, close it with the
+                top-right cross arrow to refresh this appointment.
+              </span>
+            ) : null}
+          </span>
           <button
             type="button"
             onClick={s.closeOrderIframeManually}
@@ -818,10 +847,6 @@ const DiagnosticsStep = ({
     });
   }, []);
 
-  let orderButtonText = 'Open IDEXX';
-  if (s.needsInitialOrderPlacement) orderButtonText = 'Resume order placement';
-  else if (s.canOpenFollowUpInCurrentOrder) orderButtonText = 'Follow up';
-
   const renderIdexx = () => {
     if (s.loading) {
       return <p className="text-body-4 text-text-secondary">Loading IDEXX integration…</p>;
@@ -837,7 +862,7 @@ const DiagnosticsStep = ({
           readOnly={readOnly}
           onCreateOrder={() => void handleCreateOrder()}
         />
-        <OrderStatusSection s={s} orderButtonText={orderButtonText} />
+        <OrderStatusSection s={s} />
         <ResultsSection s={s} />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Secondary

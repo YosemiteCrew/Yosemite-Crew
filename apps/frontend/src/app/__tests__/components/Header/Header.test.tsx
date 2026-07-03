@@ -58,44 +58,33 @@ describe('Header', () => {
     expect(header).toHaveClass('sticky');
   });
 
-  it('floats through the first section, then docks into the full-width glass bar past it', async () => {
-    const main = document.createElement('main');
-    main.className = 'yc-public-page';
-    const SECTION_ABSOLUTE_BOTTOM = 600;
-    const firstSection = document.createElement('section');
-    // getBoundingClientRect is viewport-relative: bottom shrinks as the page scrolls.
-    firstSection.getBoundingClientRect = jest.fn(() => ({
-      bottom: SECTION_ABSOLUTE_BOTTOM - globalThis.window.scrollY,
-      height: 600,
-      left: 0,
-      right: 1200,
-      top: -globalThis.window.scrollY,
-      width: 1200,
-      x: 0,
-      y: -globalThis.window.scrollY,
-      toJSON: jest.fn(),
-    }));
-    main.appendChild(firstSection);
-    document.body.appendChild(main);
+  it('floats through the first section, then docks once scrolled past ~60% of the viewport', async () => {
+    Object.defineProperty(globalThis.window, 'innerHeight', {
+      value: 800,
+      configurable: true,
+    });
+    // threshold = round(800 * 0.6) = 480px
 
     const { container } = render(<Header />);
     const header = container.querySelector('header');
 
     // Scrolled, but still within the first section — stays a floating pill.
+    // This works regardless of page structure (no dependence on the first
+    // section's height), so every public page transforms consistently.
     setWindowScrollY(400);
     act(() => {
       fireEvent.scroll(globalThis.window);
     });
     expect(header).not.toHaveClass('yc-public-header-docked');
 
-    // Scrolled past the first section — docks into the full-width bar.
-    setWindowScrollY(620);
+    // Scrolled past the threshold — docks into the full-width bar.
+    setWindowScrollY(520);
     act(() => {
       fireEvent.scroll(globalThis.window);
     });
     await waitFor(() => expect(header).toHaveClass('yc-public-header-docked'));
 
-    // Back within the first section — reverts to the floating pill.
+    // Back above the threshold — reverts to the floating pill.
     setWindowScrollY(400);
     act(() => {
       fireEvent.scroll(globalThis.window);

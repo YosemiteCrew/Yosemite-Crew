@@ -50,6 +50,7 @@ type TemplateCreateBody = Omit<TemplateUpsertInput, 'createdBy'>;
 type TemplateUpdateBody = Partial<
   Pick<
     TemplateUpsertInput,
+    | 'ownership'
     | 'name'
     | 'description'
     | 'scope'
@@ -61,6 +62,7 @@ type TemplateUpdateBody = Partial<
 >;
 
 const toUpdateBody = (body: TemplateCreateBody): TemplateUpdateBody => ({
+  ownership: body.ownership,
   name: body.name,
   description: body.description,
   scope: body.scope,
@@ -69,6 +71,17 @@ const toUpdateBody = (body: TemplateCreateBody): TemplateUpdateBody => ({
   renderConfigSnapshot: body.renderConfigSnapshot,
   validationSnapshot: body.validationSnapshot,
 });
+
+const preserveSelectedOwnership = (form: FormsProps, template: FormsProps): FormsProps => {
+  if (form.templateSource === undefined) {
+    return template;
+  }
+
+  return {
+    ...template,
+    templateSource: form.templateSource,
+  };
+};
 
 export const saveTemplateFormDraft = async (form: FormsProps, organisationId: string) => {
   const { upsertForm, setError } = useFormsStore.getState();
@@ -81,8 +94,24 @@ export const saveTemplateFormDraft = async (form: FormsProps, organisationId: st
           toUpdateBody(body)
         )
       : await postData<TemplateLike, TemplateCreateBody>('/v1/templates/pms/templates', body);
-    const normalized = mapTemplateToUI(res.data);
+    const normalized = preserveSelectedOwnership(form, mapTemplateToUI(res.data));
     upsertForm(normalized);
+    // Persist the service/package links so the template resolves into the workspace for the
+    // selected catalog items. Until this was wired, the Details step validated a required
+    // service but the link was never written (catalog-links endpoint was never called).
+    const catalogItemIds = form.services ?? [];
+    if (
+      catalogItemIds.length > 0 &&
+      form.templateSource !== 'YC_LIBRARY' &&
+      (normalized.templateId ?? normalized._id)
+    ) {
+      try {
+        return await updateTemplateFormCatalogLinks(normalized, organisationId, catalogItemIds);
+      } catch (linkError) {
+        // The template itself saved; surface the link failure but don't lose the draft.
+        console.error('Failed to sync template catalog links', linkError);
+      }
+    }
     return normalized;
   } catch (error) {
     setError(toTemplateErrorMessage(error, 'Unable to save template'));
@@ -112,7 +141,7 @@ export const updateTemplateFormCatalogLinks = async (
       `/v1/templates/pms/templates/organisation/${organisationId}/${templateId}/catalog-links`,
       { catalogItemIds }
     );
-    const normalized = mapTemplateToUI(res.data);
+    const normalized = preserveSelectedOwnership(form, mapTemplateToUI(res.data));
     upsertForm(normalized);
     return normalized;
   } catch (error) {
@@ -131,7 +160,7 @@ export const publishTemplateForm = async (form: FormsProps, organisationId: stri
     const res = await postData<TemplateLike>(
       `/v1/templates/pms/templates/organisation/${organisationId}/${templateId}/publish`
     );
-    const normalized = mapTemplateToUI(res.data);
+    const normalized = preserveSelectedOwnership(form, mapTemplateToUI(res.data));
     upsertForm(normalized);
     return normalized;
   } catch (error) {
@@ -151,7 +180,7 @@ export const unpublishTemplateForm = async (form: FormsProps, organisationId: st
       `/v1/templates/pms/templates/organisation/${organisationId}/${templateId}`,
       { status: 'DRAFT' }
     );
-    const normalized = mapTemplateToUI(res.data);
+    const normalized = preserveSelectedOwnership(form, mapTemplateToUI(res.data));
     upsertForm(normalized);
     return normalized;
   } catch (error) {

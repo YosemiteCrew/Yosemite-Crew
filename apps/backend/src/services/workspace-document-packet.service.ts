@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import axios from "axios";
 import { prisma } from "src/config/prisma";
 import {
   WorkspaceService,
@@ -27,6 +28,14 @@ type SignPacketInput = {
   signerName?: string;
   /** Optional explicit signer email; resolved from the user record otherwise. */
   signerEmail?: string;
+};
+
+const ensureRequiredId = (value: string, fieldName: string): string => {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new WorkspaceServiceError(`${fieldName} is required`, 400);
+  }
+  return normalized;
 };
 
 type PacketRecord = {
@@ -536,6 +545,29 @@ export const WorkspaceDocumentPacketService = {
   },
 
   /**
+   * On-demand reconciliation of a packet's signing state, org-scoped for the API.
+   * The Documenso completion webhook can't reach the backend in local/dev (and can
+   * lag in prod), so the frontend calls this when the signing overlay closes: we
+   * pull the signed copy straight from Documenso and, if signed, finalize the
+   * packet + mark every bundled document SIGNED, returning the updated packet.
+   *
+   * When Documenso has no signed copy yet (the user closed the frame without
+   * completing), `completeSigning` throws 502 — callers treat that as "not
+   * reconciled yet" and leave the packet DRAFT.
+   */
+  async reconcile(
+    organisationId: string,
+    packetId: string,
+  ): Promise<WorkspaceDocumentPacketRow> {
+    const packet = await ensurePacket(organisationId, packetId);
+    if (packet.status === "FINAL") {
+      return mapPacket(packet);
+    }
+    const updated = await this.completeSigning(packetId);
+    return updated ?? mapPacket(packet);
+  },
+
+  /**
    * Reset signing if Documenso reports the packet document was deleted before
    * completion. Already-signed packets are left untouched.
    */
@@ -565,14 +597,74 @@ export const WorkspaceDocumentPacketService = {
   },
 
   /**
+   * When the encounter's packet has been signed, return the signed packet PDF
+   * bytes (the single Documenso-signed copy) so print/download serves the signed
+   * document rather than a freshly re-merged unsigned copy. Returns `null` when
+   * there is no signed packet so the caller falls back to the live merge.
+   */
+  async fetchSignedEncounterPacketPdf(
+    organisationId: string,
+    encounterId: string,
+  ): Promise<Buffer | null> {
+    const packet = (await prisma.workspaceDocumentPacket.findFirst({
+      where: { organisationId, encounterId, status: "FINAL" },
+      orderBy: { signedAt: "desc" },
+    })) as PacketRecord | null;
+    if (!packet) {
+      return null;
+    }
+
+    const signing = parseSigning(packet.signing);
+    if (signing?.status !== "SIGNED" || !signing.documentId) {
+      return null;
+    }
+
+    try {
+      // Re-resolve a fresh signed download URL — the persisted one is a
+      // short-lived presigned URL that may have expired since signing completed.
+      const apiKey =
+        await DocumensoService.resolveOrganisationApiKey(organisationId);
+      const signed = await DocumensoService.downloadSignedDocument({
+        documentId: Number.parseInt(signing.documentId, 10),
+        apiKey: apiKey ?? undefined,
+      });
+      const downloadUrl = signed?.downloadUrl ?? signing.pdf?.url ?? null;
+      if (!downloadUrl) {
+        return null;
+      }
+      const response = await axios.get<ArrayBuffer>(downloadUrl, {
+        responseType: "arraybuffer",
+      });
+      return Buffer.from(response.data);
+    } catch (error) {
+      logger.error(
+        `[WorkspaceDocumentPacket] Unable to fetch signed packet PDF for encounter ${encounterId}; falling back to live merge.`,
+        error,
+      );
+      return null;
+    }
+  },
+
+  /**
    * Build the merged clinical packet PDF for an encounter for print/download
-   * (SOAP + Prescription + Discharge, etc.). Unlike sign(), this does not create
-   * a packet record or involve Documenso — it just returns the combined bytes.
+   * (SOAP + Prescription + Discharge, etc.). Once the packet is signed this
+   * returns the signed Documenso copy; otherwise it returns a freshly combined
+   * (unsigned) merge. Unlike sign(), the unsigned path does not create a packet
+   * record or involve Documenso — it just returns the combined bytes.
    */
   async buildEncounterPacketPdf(
     organisationId: string,
     encounterId: string,
   ): Promise<Buffer> {
+    const signedPdf =
+      await WorkspaceDocumentPacketService.fetchSignedEncounterPacketPdf(
+        organisationId,
+        encounterId,
+      );
+    if (signedPdf) {
+      return signedPdf;
+    }
+
     const bootstrap = await WorkspaceService.getEncounterBootstrap(
       { organisationId, encounterId },
       [],
@@ -623,5 +715,32 @@ export const WorkspaceDocumentPacketService = {
     }
 
     return merged.pdf;
+  },
+
+  async buildEncounterPacketPdfForParent(
+    parentId: string,
+    encounterId: string,
+  ): Promise<Buffer> {
+    const normalizedParentId = ensureRequiredId(parentId, "parentId");
+    const normalizedEncounterId = ensureRequiredId(encounterId, "encounterId");
+
+    const encounter = await prisma.encounter.findFirst({
+      where: {
+        id: normalizedEncounterId,
+        parentId: normalizedParentId,
+      },
+      select: {
+        organisationId: true,
+      },
+    });
+
+    if (!encounter) {
+      throw new WorkspaceServiceError("Encounter not found", 404);
+    }
+
+    return WorkspaceDocumentPacketService.buildEncounterPacketPdf(
+      encounter.organisationId,
+      normalizedEncounterId,
+    );
   },
 };

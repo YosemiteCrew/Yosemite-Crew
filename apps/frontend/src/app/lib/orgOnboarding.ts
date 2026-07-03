@@ -1,15 +1,11 @@
-import type { Organisation, Speciality } from "@yosemite-crew/types";
+import type { Organisation } from '@yosemite-crew/types';
 
-export type OnboardingStep = 0 | 1 | 2 | 3;
+export type OnboardingStep = 0 | 1 | 2;
 
-export const computeOrgOnboardingStep = (
-  org: Organisation | null | undefined,
-  specialities: Speciality[]
-): OnboardingStep => {
+export const computeOrgOnboardingStep = (org: Organisation | null | undefined): OnboardingStep => {
   if (!org) return 0;
 
-  const hasStep1 =
-    !!org.name && !!org.taxId && !!org.phoneNo && !!org.address?.country;
+  const hasStep1 = !!org.name && !!org.taxId && !!org.phoneNo && !!org.address?.country;
 
   if (!hasStep1) return 0;
 
@@ -20,8 +16,5 @@ export const computeOrgOnboardingStep = (
     !!org.address?.state;
   if (!hasStep2) return 1;
 
-  const hasStep3 = specialities.length > 0;
-  if (!hasStep3) return 2;
-
-  return 3;
+  return 2;
 };

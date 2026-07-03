@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { FiX, FiPrinter } from 'react-icons/fi';
 import { FaCheckCircle } from 'react-icons/fa';
 import Modal from '@/app/ui/overlays/Modal';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { DispensaryRecord, DispensaryItem } from '@/app/features/inventory/pages/Inventory/types';
 import {
   dispensePrescription,
@@ -11,16 +12,39 @@ import {
 import { fetchPrescriptionLabelPdf } from '@/app/features/inventory/services/dispensaryService';
 
 type Props = {
-  record: DispensaryRecord;
+  record: DispensaryRecord | null;
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   organisationId: string;
   onActionComplete: () => void;
 };
 
-const calcTotalUnits = (item: DispensaryItem): number => {
-  if (item.doseQty != null && item.frequencyPerDay != null && item.durationDays != null) {
-    return item.doseQty * item.frequencyPerDay * item.durationDays;
+const parseFrequencyPerDay = (frequency?: string): number | null => {
+  if (!frequency) return null;
+  const f = frequency.toLowerCase();
+  if (f.includes('sid') || (f.includes('once') && !f.includes('weekly'))) return 1;
+  if (f.includes('bid') || f.includes('twice')) return 2;
+  if (f.includes('tid') || f.includes('three times') || f.includes('thrice')) return 3;
+  if (f.includes('qid') || f.includes('four times')) return 4;
+  if (f.includes('every 4 hour')) return 6;
+  if (f.includes('every 6 hour') || f.includes('q6h')) return 4;
+  if (f.includes('every 8 hour') || f.includes('q8h')) return 3;
+  if (f.includes('every 12 hour') || f.includes('q12h')) return 2;
+  if (f.includes('once weekly') || f.includes('weekly')) return 1 / 7;
+  if (f.includes('before meals') || f.includes('after meals')) return 3;
+  return null;
+};
+
+const toDays = (value: number, unit?: string): number => {
+  const u = (unit ?? 'days').toLowerCase();
+  if (u === 'weeks' || u === 'week') return value * 7;
+  if (u === 'months' || u === 'month') return value * 30;
+  return value;
+};
+
+const calcTotalUnits = (item: DispensaryItem, freqPerDay: number | null): number => {
+  if (freqPerDay != null && item.durationDays != null) {
+    return item.quantity * freqPerDay * toDays(item.durationDays, item.durationUnit);
   }
   return item.quantity;
 };
@@ -45,13 +69,15 @@ const DispensaryDetailModal = ({
   organisationId,
   onActionComplete,
 }: Props) => {
-  const isDispensed = record.status === 'DISPENSED';
-  const isPending = record.status === 'PENDING';
-  const items = record.items ?? [];
   const [actioning, setActioning] = useState(false);
   const [printing, setPrinting] = useState(false);
 
-  const ownerName = record.lead && record.lead !== '—' ? record.lead : null;
+  if (!record) return null;
+  const isDispensed = record.status === 'DISPENSED';
+  const isPending = record.status === 'PENDING';
+  const items = record.items ?? [];
+
+  const ownerName = record.petParentName || null;
   const ownerLastName = ownerName ? ownerName.trim().split(/\s+/).at(-1) : null;
   const patientLine1 = ownerLastName
     ? `${record.patient.name} • ${ownerLastName}`
@@ -112,7 +138,8 @@ const DispensaryDetailModal = ({
             type="button"
             onClick={() => setShowModal(false)}
             aria-label="Close"
-            className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors"
+            disabled={actioning}
+            className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors disabled:opacity-40"
           >
             <FiX size={18} />
           </button>
@@ -142,36 +169,39 @@ const DispensaryDetailModal = ({
           {items.length > 0 ? (
             <div className="flex flex-col gap-4">
               {items.map((item, idx) => {
-                const totalUnits = calcTotalUnits(item);
+                const effectiveFreqPerDay =
+                  item.frequencyPerDay ?? parseFrequencyPerDay(item.frequency);
+                const totalUnits = calcTotalUnits(item, effectiveFreqPerDay);
                 const packs = calcPacks(totalUnits, item.stockUnitQty);
                 const doseUnit = item.doseUnit ?? '';
                 const stockUnit = item.stockUnitType ?? '';
-                const hasCalc =
-                  item.doseQty != null && item.frequencyPerDay != null && item.durationDays != null;
+                const hasCalc = effectiveFreqPerDay != null && item.durationDays != null;
 
                 const dispenseSummary =
                   packs !== null && stockUnit
                     ? `${packs} ${pluralizeUnit(stockUnit, packs)}`
-                    : `${totalUnits} ${pluralizeUnit(doseUnit, totalUnits)}`;
+                    : `${totalUnits} ${pluralizeUnit(stockUnit || 'unit', totalUnits)}`;
 
                 return (
                   <div key={`${item.name}-${idx}`} className="flex flex-col gap-2">
                     {/* Item header row */}
                     <div className="flex items-center gap-2">
                       <span className="text-body-4 text-text-secondary shrink-0">{idx + 1}.</span>
-                      <span className="flex-1 text-body-4 font-semibold text-text-primary truncate">
-                        {item.name}
-                      </span>
-                      {item.isRx && (
-                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-blue-text text-white text-[10px] font-bold shrink-0">
-                          Rx
+                      <div className="flex flex-1 items-center gap-2 min-w-0">
+                        <span className="text-body-4 font-semibold text-text-primary truncate">
+                          {item.name}
                         </span>
-                      )}
-                      {item.isControlled && (
-                        <span className="inline-flex items-center rounded-full border border-card-border px-2 py-0.5 text-caption-1 text-text-secondary shrink-0">
-                          Controlled
-                        </span>
-                      )}
+                        {item.isRx && (
+                          <span className="inline-flex size-6 items-center justify-center rounded-full bg-blue-text text-white text-[10px] font-bold shrink-0">
+                            Rx
+                          </span>
+                        )}
+                        {item.isControlled && (
+                          <span className="inline-flex items-center rounded-full border border-card-border px-2 py-0.5 text-caption-1 text-text-secondary shrink-0">
+                            Controlled
+                          </span>
+                        )}
+                      </div>
                       <span className="text-body-4 font-semibold text-blue-text shrink-0">
                         {dispenseSummary}
                       </span>
@@ -185,14 +215,8 @@ const DispensaryDetailModal = ({
                           Prescription:
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption-1">
-                          {item.doseQty != null && (
-                            <>
-                              <span className="text-text-secondary">Qnt.</span>
-                              <span className="text-text-primary font-medium">
-                                {item.doseQty} {doseUnit}
-                              </span>
-                            </>
-                          )}
+                          <span className="text-text-secondary">Qnt.</span>
+                          <span className="text-text-primary font-medium">{item.quantity}</span>
                           {item.frequency && (
                             <>
                               <span className="text-text-secondary">Freq.</span>
@@ -205,7 +229,7 @@ const DispensaryDetailModal = ({
                             <>
                               <span className="text-text-secondary">Duration</span>
                               <span className="text-text-primary font-medium">
-                                {item.durationDays} days
+                                {item.durationDays} {item.durationUnit ?? 'days'}
                               </span>
                             </>
                           )}
@@ -220,24 +244,39 @@ const DispensaryDetailModal = ({
 
                       {/* Dispense calculation */}
                       {hasCalc && (
-                        <div className="flex items-end justify-between gap-4 pt-2 border-t border-card-border">
+                        <div className="flex items-end justify-between gap-4 pt-2">
                           <div className="min-w-0">
                             <div className="text-caption-1 text-text-secondary mb-1">
                               Dispense qnt. calculation:
                             </div>
                             <div className="text-caption-1 text-text-primary">
-                              {item.doseQty} {doseUnit} x {item.frequencyPerDay}/day x{' '}
-                              {item.durationDays} days ={' '}
-                              <span className="font-bold">
-                                {totalUnits} {pluralizeUnit(doseUnit, totalUnits)}
-                              </span>
+                              {effectiveFreqPerDay! < 1 ? (
+                                <>
+                                  {item.quantity} x {item.durationDays}{' '}
+                                  {item.durationUnit ?? 'days'} ({item.frequency}) ={' '}
+                                  <span className="font-bold">
+                                    {Math.ceil(totalUnits)}{' '}
+                                    {pluralizeUnit(doseUnit || 'unit', Math.ceil(totalUnits))}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  {item.quantity} x {Number(effectiveFreqPerDay!.toFixed(2))}/day x{' '}
+                                  {item.durationDays} {item.durationUnit ?? 'days'} ={' '}
+                                  <span className="font-bold">
+                                    {Number(totalUnits.toFixed(2))}{' '}
+                                    {pluralizeUnit(doseUnit || 'unit', totalUnits)}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </div>
                           {packs !== null && (
                             <div className="text-right shrink-0">
                               {stockUnit && item.stockUnitQty && (
                                 <div className="text-caption-1 text-text-secondary">
-                                  1 {stockUnit.toLowerCase()} of {item.stockUnitQty} {doseUnit}
+                                  1 {stockUnit.toLowerCase()} of {item.stockUnitQty}{' '}
+                                  {doseUnit || 'units'}
                                 </div>
                               )}
                               <div className="text-caption-1">
@@ -252,7 +291,7 @@ const DispensaryDetailModal = ({
                       )}
 
                       {/* Fallback for items without enriched fields */}
-                      {!hasCalc && item.prescription && (
+                      {!hasCalc && item.prescription && !item.frequency && !item.durationDays && (
                         <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1">
                           {item.prescription.freq && (
                             <>
@@ -305,23 +344,19 @@ const DispensaryDetailModal = ({
             </div>
           )}
           {isPending && (
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
+            <div className="grid grid-cols-2 gap-3">
+              <Primary
+                href="#"
+                text={actioning ? 'Dispensing…' : `Dispense all (${items.length})`}
                 onClick={handleDispense}
-                disabled={actioning}
-                className="inline-flex h-11 items-center justify-center rounded-full bg-text-primary px-6 text-body-4-emphasis text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                Dispense all ({items.length})
-              </button>
-              <button
-                type="button"
+                isDisabled={actioning}
+              />
+              <Secondary
+                href="#"
+                text="Not dispensed"
                 onClick={handleNotDispensed}
-                disabled={actioning}
-                className="inline-flex h-11 items-center justify-center rounded-full border border-[var(--color-danger-600)] px-6 text-body-4-emphasis text-[var(--color-danger-600)] hover:bg-[var(--color-danger-100)] transition-colors disabled:opacity-50"
-              >
-                Not dispensed
-              </button>
+                isDisabled={actioning}
+              />
             </div>
           )}
         </div>

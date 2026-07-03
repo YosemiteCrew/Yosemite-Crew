@@ -15,7 +15,9 @@ const isCancelledOrRejected = (normalizedStatus: string): boolean =>
 export const isAppointmentPaymentPending = (
   status?: string | null,
   paymentStatus?: string | null,
+  bookingPaymentStatus?: string | null,
 ): boolean => {
+  if (normalizeStatus(bookingPaymentStatus) === 'PAID') return false;
   const normalizedStatus = normalizeStatus(status);
   if (isCancelledOrRejected(normalizedStatus)) return false;
   const normalizedPaymentStatus = normalizeStatus(paymentStatus);
@@ -66,7 +68,12 @@ export const isActionableUpcomingStatus = (status?: string | null): boolean => {
 export const getAppointmentStatusLabel = (
   status?: string | null,
   paymentStatus?: string | null,
+  bookingPaymentStatus?: string | null,
 ): string => {
+  if (normalizeStatus(bookingPaymentStatus) === 'PAID') {
+    return 'Booking paid';
+  }
+
   if (isAppointmentPaymentFailed(status, paymentStatus)) {
     return 'Payment failed';
   }
@@ -129,9 +136,22 @@ export const getAppointmentStatusBadgePalette = (
   theme: AppointmentTheme,
   status?: string | null,
   paymentStatus?: string | null,
+  bookingPaymentStatus?: string | null,
 ): AppointmentStatusBadgePalette => {
-  const label = getAppointmentStatusLabel(status, paymentStatus);
+  const label = getAppointmentStatusLabel(
+    status,
+    paymentStatus,
+    bookingPaymentStatus,
+  );
   const normalizedStatus = normalizeStatus(status);
+
+  if (normalizeStatus(bookingPaymentStatus) === 'PAID') {
+    return {
+      text: label,
+      textColor: theme.colors.success,
+      backgroundColor: theme.colors.successSurface,
+    };
+  }
 
   if (isAppointmentPaymentFailed(status, paymentStatus)) {
     return {

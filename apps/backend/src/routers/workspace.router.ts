@@ -1,9 +1,16 @@
 import { Router } from "express";
 import { WorkspaceController } from "src/controllers/web/workspace.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { authorizeCognito, authorizeCognitoMobile } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
+
+router.get(
+  "/mobile/encounters/:encounterId/document-packet/pdf",
+  authorizeCognitoMobile,
+  (req, res) =>
+    WorkspaceController.getMobileEncounterDocumentPacketPdf(req, res),
+);
 
 router.get(
   "/organisations/:organisationId/appointments/:appointmentId",
@@ -123,6 +130,14 @@ router.post(
   withOrgPermissions(),
   requirePermission("document:edit:any"),
   (req, res) => WorkspaceController.signDocumentPacket(req, res),
+);
+
+router.post(
+  "/organisations/:organisationId/document-packets/:packetId/reconcile",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("document:edit:any"),
+  (req, res) => WorkspaceController.reconcileDocumentPacket(req, res),
 );
 
 export default router;

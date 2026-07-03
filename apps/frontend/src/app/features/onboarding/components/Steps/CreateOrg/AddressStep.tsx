@@ -19,11 +19,21 @@ type AddressStepProps = {
   };
   nextStep: () => void;
   prevStep: () => void;
+  submitText?: string;
+  onSubmit?: () => void;
   formData: Organisation;
   setFormData: React.Dispatch<React.SetStateAction<Organisation>>;
 };
 
-const AddressStep = ({ errors, nextStep, prevStep, formData, setFormData }: AddressStepProps) => {
+const AddressStep = ({
+  errors,
+  nextStep,
+  prevStep,
+  submitText = 'Next',
+  onSubmit,
+  formData,
+  setFormData,
+}: AddressStepProps) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     address?: string;
     appointmentCheckInBufferMinutes?: string;
@@ -48,6 +58,10 @@ const AddressStep = ({ errors, nextStep, prevStep, formData, setFormData }: Addr
       return;
     }
     setFormData(normalizedData);
+    if (onSubmit) {
+      onSubmit();
+      return;
+    }
     nextStep();
   };
 
@@ -168,7 +182,7 @@ const AddressStep = ({ errors, nextStep, prevStep, formData, setFormData }: Addr
 
       <div className="step-buttons">
         <Secondary href="#" text="Back" style={{ width: '160px' }} onClick={prevStep} />
-        <Primary href="#" text="Next" style={{ width: '160px' }} onClick={handleNext} />
+        <Primary href="#" text={submitText} style={{ width: '160px' }} onClick={handleNext} />
       </div>
     </div>
   );

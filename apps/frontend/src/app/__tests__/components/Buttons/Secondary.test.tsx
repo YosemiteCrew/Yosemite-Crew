@@ -29,6 +29,30 @@ describe('Secondary button', () => {
     expect(handleClick.mock.calls[0][0].defaultPrevented).toBe(true);
   });
 
+  test('treats placeholder href values as buttons', () => {
+    const handleClick = jest.fn();
+
+    render(<Secondary text="Reject" href="#" onClick={handleClick} />);
+
+    const button = screen.getByRole('button', { name: 'Reject' });
+    fireEvent.click(button);
+
+    expect(button).toBeInTheDocument();
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  test('treats blank href values as buttons', () => {
+    const handleClick = jest.fn();
+
+    render(<Secondary text="Reject" href="   " onClick={handleClick} />);
+
+    const button = screen.getByRole('button', { name: 'Reject' });
+    fireEvent.click(button);
+
+    expect(button).toBeInTheDocument();
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
   test('renders an icon alongside the button text', () => {
     render(<Secondary text="Back" icon={<span data-testid="secondary-icon" />} />);
 

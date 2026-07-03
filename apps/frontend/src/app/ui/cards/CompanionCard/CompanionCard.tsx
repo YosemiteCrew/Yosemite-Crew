@@ -10,6 +10,7 @@ import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { toTitleCase } from '@/app/lib/validators';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 const SPECIES_LABEL: Record<string, string> = {
   dog: 'Canine',
@@ -45,6 +46,7 @@ const CompanionCard = ({
   canEditTasks,
   canEditCompanions,
 }: CompanionCardProps) => {
+  const terminologyText = useCompanionTerminologyText();
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
@@ -99,7 +101,7 @@ const CompanionCard = ({
         {toTitleCase(companion.companion.status || 'inactive')}
       </div>
       <div className="flex gap-2 justify-center">
-        <GlassTooltip content="View" side="top">
+        <GlassTooltip content={terminologyText('View companion')} side="top">
           <button
             type="button"
             onClick={() => handleViewCompanion(companion)}

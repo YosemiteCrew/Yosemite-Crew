@@ -18,13 +18,63 @@ import {
   getInvalidAppointmentStatusTransitionMessage,
   normalizeAppointmentStatus,
 } from '@/app/lib/appointments';
+import { getMinutesSinceStartOfDayInPreferredTimeZone } from '@/app/lib/timezone';
 import ChangeStatusModal from '@/app/ui/overlays/Modal/ChangeStatusModal';
 
 const normalizeId = (value?: string | null) => {
-  const trimmed = String(value ?? '').trim();
+  const trimmed =
+    String(value ?? '')
+      .trim()
+      .split('/')
+      .pop()
+      ?.trim() ?? '';
   if (!trimmed) return '';
   const lowered = trimmed.toLowerCase();
   return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
+};
+
+const parseUtcClockParts = (value?: string) => {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(value ?? '').trim());
+  if (!match) return null;
+  return {
+    hours: Number(match[1]),
+    minutes: Number(match[2]),
+  };
+};
+
+const toClockMinutes = (clock: { hours: number; minutes: number }) =>
+  clock.hours * 60 + clock.minutes;
+
+const buildSlotDateOnAppointmentDay = (
+  appointmentStart: Date,
+  slotClock: { hours: number; minutes: number }
+) => {
+  return new Date(
+    Date.UTC(
+      appointmentStart.getUTCFullYear(),
+      appointmentStart.getUTCMonth(),
+      appointmentStart.getUTCDate(),
+      slotClock.hours,
+      slotClock.minutes,
+      0,
+      0
+    )
+  );
+};
+
+const doesSlotStartMatchAppointment = (slotStartTime: string, appointmentStart: Date) => {
+  const clockParts = parseUtcClockParts(slotStartTime);
+  if (clockParts !== null) {
+    const appointmentPreferredMinutes =
+      getMinutesSinceStartOfDayInPreferredTimeZone(appointmentStart);
+    if (toClockMinutes(clockParts) === appointmentPreferredMinutes) {
+      return true;
+    }
+    const slotStart = buildSlotDateOnAppointmentDay(appointmentStart, clockParts);
+    return getMinutesSinceStartOfDayInPreferredTimeZone(slotStart) === appointmentPreferredMinutes;
+  }
+  const slotStart = new Date(slotStartTime);
+  return !Number.isNaN(slotStart.getTime()) && slotStart.getTime() === appointmentStart.getTime();
 };
 
 const createNextLead = (
@@ -44,13 +94,11 @@ const getSelectedSupportIds = (supportStaff: Appointment['supportStaff']) =>
 
 const getAvailableLeadOptions = (
   availableVetIds: string[] | null,
-  leadOptions: Array<{ value: string; label: string }>,
-  currentLeadId: string | undefined
+  leadOptions: Array<{ value: string; label: string }>
 ) => {
   if (availableVetIds === null) return leadOptions;
   const allowed = new Set(availableVetIds);
-  const activeLeadId = normalizeId(currentLeadId);
-  return leadOptions.filter((option) => allowed.has(option.value) || option.value === activeLeadId);
+  return leadOptions.filter((option) => allowed.has(option.value));
 };
 
 const getNextAppointmentForStatus = (
@@ -129,14 +177,14 @@ const ChangeStatus = ({
       return;
     }
     let cancelled = false;
-    const appointmentStart = new Date(activeAppointment.startTime).getTime();
+    const appointmentStart = new Date(activeAppointment.startTime);
     setIsLoadingAvailability(true);
     setAvailableVetIds(null);
     getSlotsForServiceAndDateForPrimaryOrg(serviceId, new Date(activeAppointment.startTime))
       .then((slots: Slot[]) => {
         if (cancelled) return;
-        const matchingSlot = slots.find(
-          (slot) => new Date(slot.startTime).getTime() === appointmentStart
+        const matchingSlot = slots.find((slot) =>
+          doesSlotStartMatchAppointment(slot.startTime, appointmentStart)
         );
         const vetIds = (matchingSlot?.vetIds ?? [])
           .map((vetId) => normalizeId(vetId))
@@ -155,11 +203,11 @@ const ChangeStatus = ({
     };
   }, [showModal, currentStatus, serviceId, activeAppointment.startTime]);
 
-  // Leads to actually offer: filtered to the available set once resolved, but the
-  // currently-assigned lead is always kept so an existing assignment never disappears.
+  // Leads to actually offer: once slot availability resolves, show only leads
+  // reported available for that appointment slot.
   const availableLeadOptions = React.useMemo(
-    () => getAvailableLeadOptions(availableVetIds, leadOptions, activeAppointment.lead?.id),
-    [availableVetIds, leadOptions, activeAppointment.lead?.id]
+    () => getAvailableLeadOptions(availableVetIds, leadOptions),
+    [availableVetIds, leadOptions]
   );
   const [selectedLeadId, setSelectedLeadId] = React.useState<string>(() =>
     normalizeId(activeAppointment.lead?.id)
@@ -172,19 +220,24 @@ const ChangeStatus = ({
     if (!showModal) return;
     setSelectedSupportIds(getSelectedSupportIds(activeAppointment.supportStaff));
     const activeLeadId = normalizeId(activeAppointment.lead?.id);
-    if (activeLeadId) {
-      setSelectedLeadId(activeLeadId);
-      return;
-    }
-    if (leadOptions.length === 1) {
-      setSelectedLeadId(leadOptions[0].value);
-      return;
-    }
-    setSelectedLeadId('');
+    setSelectedLeadId((previousLeadId) => {
+      const canUsePreviousLead =
+        !previousLeadId || availableLeadOptions.some((option) => option.value === previousLeadId);
+      if (previousLeadId && canUsePreviousLead) return previousLeadId;
+      const canUseActiveLead =
+        activeLeadId &&
+        (availableVetIds === null ||
+          availableLeadOptions.some((option) => option.value === activeLeadId));
+      if (canUseActiveLead) return activeLeadId;
+      if (!activeLeadId && leadOptions.length === 1) return leadOptions[0].value;
+      return '';
+    });
   }, [
     activeAppointment.id,
     activeAppointment.lead?.id,
     activeAppointment.supportStaff,
+    availableLeadOptions,
+    availableVetIds,
     leadOptions,
     showModal,
   ]);

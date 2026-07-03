@@ -22,7 +22,13 @@ import {
 } from '@/app/lib/appointmentWorkspace';
 import { isRichTextEmpty } from '@/app/lib/richText';
 import { saveSoapNote } from '@/app/features/appointments/services/workspaceClinicalService';
+import {
+  getWorkspaceTemplateById,
+  resolveSoapTemplate,
+  templateToSoapTemplate,
+} from '@/app/features/appointments/services/workspaceTemplateService';
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { collectMissingRequiredFields } from '@/app/features/forms/pages/Forms/Sections/AddForm/validationUtils';
 
 type SoapStepProps = {
@@ -121,11 +127,13 @@ const SoapStep = ({
   onRecordVitals,
   onSaveAndNext,
 }: SoapStepProps) => {
+  const terminologyText = useCompanionTerminologyText();
   const upsertSoap = useAppointmentWorkspaceStore((s) => s.upsertSoap);
   const applySoapTemplate = useAppointmentWorkspaceStore((s) => s.applySoapTemplate);
   const signSoap = useAppointmentWorkspaceStore((s) => s.signSoap);
   const [templateQuery, setTemplateQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [persistedDraftId, setPersistedDraftId] = useState<string | undefined>(undefined);
 
@@ -142,12 +150,70 @@ const SoapStep = ({
     setPersistedDraftId(isPersistedSoapId(note.id) ? note.id : undefined);
   }, [note.id]);
 
+  // Auto-load the SOAP template linked to the encounter's service/package when the active draft
+  // is still empty, so the clinician lands on the preloaded content. Runs once per encounter and
+  // never overwrites typed content; the search box below still lets them override the default.
+  const autoResolvedSoapRef = useRef(false);
+  const encounterMode = encounter.mode;
+  const encounterServices = encounter.services;
+  useEffect(() => {
+    if (!organisationId || readOnly || autoResolvedSoapRef.current) return;
+    if (note.templateId || hasNativeSoapContent(note) || isCustomSoap(note)) return;
+    autoResolvedSoapRef.current = true;
+    let cancelled = false;
+    const serviceLine = encounterServices?.find((item) => item.kind === 'SERVICE');
+    const packageLine = encounterServices?.find((item) => item.kind === 'PACKAGE');
+    resolveSoapTemplate({
+      organisationId,
+      appointmentId,
+      encounterId,
+      serviceId: serviceLine?.refId,
+      packageId: packageLine?.refId,
+      mode: encounterMode,
+    })
+      .then((resolved) => {
+        if (cancelled || !resolved) return;
+        applySoapTemplate(appointmentId, resolved);
+      })
+      .catch((error) => console.error('Unable to resolve SOAP template:', error));
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    appointmentId,
+    applySoapTemplate,
+    encounterId,
+    encounterMode,
+    encounterServices,
+    note,
+    organisationId,
+    readOnly,
+  ]);
+
   const templateSearchRef = useRef<HTMLDivElement>(null);
   const templateMatches = useMemo(() => {
     const q = templateQuery.trim().toLowerCase();
     if (!q) return [];
     return encounter.soapTemplates.filter((t) => t.name.toLowerCase().includes(q));
   }, [templateQuery, encounter.soapTemplates]);
+
+  const applySelectedTemplate = async (templateId: string): Promise<void> => {
+    if (!organisationId || isApplyingTemplate) return;
+    setIsApplyingTemplate(true);
+    try {
+      const selectedTemplate = encounter.soapTemplates.find((tpl) => tpl.id === templateId);
+      const fullTemplate =
+        selectedTemplate && (selectedTemplate.content || selectedTemplate.customSchema)
+          ? selectedTemplate
+          : templateToSoapTemplate(await getWorkspaceTemplateById(organisationId, templateId));
+      applySoapTemplate(appointmentId, fullTemplate, { replaceContent: true });
+      setTemplateQuery('');
+    } catch (error) {
+      console.error('Unable to apply SOAP template:', error);
+    } finally {
+      setIsApplyingTemplate(false);
+    }
+  };
 
   const pastNotes: SoapNoteListItem[] = useMemo(
     () =>
@@ -224,6 +290,11 @@ const SoapStep = ({
           noteForSave
         );
         persistedId = (saved as { id?: string } | undefined)?.id;
+        const savedSignedByName = (saved as { signedByName?: string } | undefined)?.signedByName;
+        const signerName = savedSignedByName?.trim() || authorName?.trim() || encounter.leadName;
+        signSoap(appointmentId, signerName ?? 'Clinician', false, persistedId);
+      } else {
+        signSoap(appointmentId, authorName?.trim() || encounter.leadName || 'Clinician', false);
       }
     } catch (error) {
       // Do NOT advance or mark COMPLETED on a failed save — that would show an
@@ -236,7 +307,6 @@ const SoapStep = ({
       return;
     }
     // Only reached when the save succeeded (or there was nothing to persist).
-    signSoap(appointmentId, encounter.leadName ?? 'Clinician', false, persistedId);
     setIsSaving(false);
     onSaveAndNext();
   };
@@ -264,7 +334,7 @@ const SoapStep = ({
               <Search
                 value={templateQuery}
                 setSearch={setTemplateQuery}
-                placeholder="Search for SOAP Template"
+                placeholder="Search for SOAP template"
                 label="Search for SOAP template"
                 className="w-full!"
               />
@@ -280,8 +350,7 @@ const SoapStep = ({
                       name={tpl.name}
                       leadingIcon={null}
                       onSelect={() => {
-                        applySoapTemplate(appointmentId, tpl);
-                        setTemplateQuery('');
+                        void applySelectedTemplate(tpl.id);
                       }}
                     />
                   ))}
@@ -324,7 +393,7 @@ const SoapStep = ({
                   readOnly={false}
                   toolbarPlacement="inset"
                   onChange={(html) => upsertSoap(appointmentId, { subjective: html })}
-                  placeholder="Patient history and owner-reported information"
+                  placeholder={terminologyText('Patient history and owner-reported information')}
                 />
               </SectionContainer>
 

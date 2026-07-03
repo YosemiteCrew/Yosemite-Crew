@@ -1,31 +1,57 @@
-import FormDesc from "@/app/ui/inputs/FormDesc/FormDesc";
-import FormInput from "@/app/ui/inputs/FormInput/FormInput";
-import { FormField } from "@/app/features/forms/types/forms";
+import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
+import FormInput from '@/app/ui/inputs/FormInput/FormInput';
+import { FormField } from '@/app/features/forms/types/forms';
 
 const TextBuilder: React.FC<{
-  field: FormField & { type: "textarea" };
+  field: FormField & { type: 'textarea' };
   onChange: (f: FormField) => void;
-}> = ({ field, onChange }) => (
-  <div className="flex flex-col gap-3">
-    <FormInput
-      intype="text"
-      inname="Label"
-      value={field.label || ""}
-      inlabel="Label"
-      onChange={(e) => onChange({ ...field, label: e.target.value })}
-      className="min-h-12!"
-    />
-    <FormDesc
-      intype="text"
-      inname="placeholder"
-      value={field.placeholder || ""}
-      inlabel="Placeholder"
-      onChange={(e) =>
-        onChange({ ...field, placeholder: e.target.value })
-      }
-      className="min-h-[120px]! max-h-[120px]!"
-    />
-  </div>
-);
+}> = ({ field, onChange }) => {
+  const isTemplateValueField = Boolean(
+    (field as any).meta?.inventoryItemId ||
+    (field as any).meta?.taskBlockKey ||
+    (field as any).meta?.templateDefault
+  );
+  const defaultValueText =
+    typeof (field as any).defaultValue === 'string' ? (field as any).defaultValue : '';
+
+  return (
+    <div className="flex flex-col gap-3">
+      {isTemplateValueField ? (
+        <>
+          <div className="font-satoshi text-black-text text-[16px] font-medium">
+            {field.label || 'Field'}
+          </div>
+          <FormDesc
+            intype="text"
+            inname="defaultValue"
+            value={defaultValueText}
+            inlabel="Default value (prefilled in workspace)"
+            onChange={(e) => onChange({ ...field, defaultValue: e.target.value })}
+            className="min-h-[120px]! max-h-[120px]!"
+          />
+        </>
+      ) : (
+        <>
+          <FormInput
+            intype="text"
+            inname="Label"
+            value={field.label || ''}
+            inlabel="Label"
+            onChange={(e) => onChange({ ...field, label: e.target.value })}
+            className="min-h-12!"
+          />
+          <FormDesc
+            intype="text"
+            inname="placeholder"
+            value={field.placeholder || ''}
+            inlabel="Placeholder"
+            onChange={(e) => onChange({ ...field, placeholder: e.target.value })}
+            className="min-h-[120px]! max-h-[120px]!"
+          />
+        </>
+      )}
+    </div>
+  );
+};
 
 export default TextBuilder;

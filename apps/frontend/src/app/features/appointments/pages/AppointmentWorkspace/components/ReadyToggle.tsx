@@ -28,11 +28,10 @@ const ReadyToggle = ({ label, state, disabled = false, onToggle }: ReadyTogglePr
   const showStamp = checked && Boolean(state.byName || state.at);
 
   return (
-    // The toggle's own height is just the 32px pill so it can be vertically
-    // centred against an adjacent button. The stamp is absolutely positioned in
-    // a fixed reserved slot below the pill, so checking/unchecking never shifts
-    // the layout. `min-w-44` keeps room for the two-line stamp.
-    <div className="relative h-8 min-w-44">
+    // The stamp sits in normal flow below the pill (not absolutely positioned) so the toggle
+    // reserves its own height — at any screen width the two-line stamp can never overlap the
+    // adjacent row/button. `min-w-44` keeps room for the two-line stamp.
+    <div className="flex min-w-44 flex-col gap-1">
       <button
         type="button"
         aria-pressed={checked}
@@ -56,10 +55,9 @@ const ReadyToggle = ({ label, state, disabled = false, onToggle }: ReadyTogglePr
         </span>
         <span className="text-body-4 font-medium">{label}</span>
       </button>
-      {/* Reserved stamp slot below the pill — absolute so it does not change the
-          toggle's box height (and thus its vertical alignment with the button). */}
+      {/* Stamp below the pill (normal flow) — reserves height so it never overlaps the next row. */}
       {showStamp && (
-        <div className="absolute left-3 top-9 flex flex-col items-start leading-[120%]">
+        <div className="flex flex-col items-start px-3 leading-[120%]">
           <span className="text-[12px] font-bold text-neutral-900">
             By {state.byName ?? 'Clinical team'}
           </span>

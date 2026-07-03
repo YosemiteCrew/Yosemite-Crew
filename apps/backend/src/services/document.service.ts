@@ -811,11 +811,11 @@ export const DocumentService = {
       ? updates.category.toUpperCase()
       : doc.category;
     const subcategory =
-      updates.subcategory !== undefined
-        ? updates.subcategory
+      updates.subcategory === undefined
+        ? doc.subcategory
+        : updates.subcategory
           ? updates.subcategory.toUpperCase()
-          : null
-        : doc.subcategory;
+          : null;
 
     if (updates.category || updates.subcategory !== undefined) {
       validateCategoryAndSubcategory(category, subcategory);
@@ -827,20 +827,20 @@ export const DocumentService = {
         category,
         subcategory: subcategory ?? undefined,
         visitType:
-          updates.visitType !== undefined
-            ? (updates.visitType ?? null)
-            : undefined,
+          updates.visitType === undefined
+            ? undefined
+            : (updates.visitType ?? null),
         title: isNonEmptyString(updates.title)
           ? updates.title.trim()
           : undefined,
         issuingBusinessName:
-          updates.issuingBusinessName !== undefined
-            ? (updates.issuingBusinessName?.trim() ?? null)
-            : undefined,
+          updates.issuingBusinessName === undefined
+            ? undefined
+            : (updates.issuingBusinessName?.trim() ?? null),
         issueDate:
-          updates.issueDate !== undefined
-            ? parseIssueDate(updates.issueDate)
-            : undefined,
+          updates.issueDate === undefined
+            ? undefined
+            : parseIssueDate(updates.issueDate),
         pmsVisible: isPmsVisibleCategory(category),
       },
       include: { attachments: true },

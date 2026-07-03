@@ -98,7 +98,7 @@ describe("Inventory service", () => {
       businessType: "HOSPITAL",
       status: "ACTIVE",
       onHand: 2,
-      allocated: 0,
+      allocated: 6,
     });
     (prisma.inventoryBatch.createMany as jest.Mock).mockResolvedValue({
       count: 1,
@@ -107,7 +107,7 @@ describe("Inventory service", () => {
       id: "item-1",
       organisationId: "org-1",
       onHand: 3,
-      allocated: 0,
+      allocated: 6,
     });
     (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([
       {
@@ -125,7 +125,11 @@ describe("Inventory service", () => {
       category: "Consumables",
       businessType: "HOSPITAL",
       initialOnHand: 2,
+      allocated: 6,
+      initialAllocated: 2,
       stockUnitType: "bottle",
+      unitOfMeasure: "mg",
+      unitQuantity: 3,
       batches: [{ quantity: 3 }],
     });
 
@@ -133,12 +137,100 @@ describe("Inventory service", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           stockUnitType: "bottle",
-          unitOfMeasure: "bottle",
+          unitOfMeasure: "mg",
+          packageQuantity: 3,
         }),
       }),
     );
     expect(result.item.id).toBe("item-1");
+    expect(result.item.allocated).toBe(6);
     expect(result.batches).toHaveLength(1);
+    expect(prisma.inventoryItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { onHand: 3 },
+      }),
+    );
+  });
+
+  it("passes batch warning and barcode fields through createMany", async () => {
+    (prisma.inventoryItem.create as jest.Mock).mockResolvedValue({
+      id: "item-2",
+      organisationId: "org-1",
+      name: "Syringe",
+      category: "Consumables",
+      businessType: "HOSPITAL",
+      status: "ACTIVE",
+      onHand: 0,
+      allocated: 0,
+    });
+    (prisma.inventoryBatch.createMany as jest.Mock).mockResolvedValue({
+      count: 1,
+    });
+    (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
+      id: "item-2",
+      organisationId: "org-1",
+      onHand: 1,
+      allocated: 0,
+    });
+    (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([]);
+
+    await InventoryService.createItem({
+      organisationId: "org-1",
+      name: "Syringe",
+      category: "Consumables",
+      businessType: "HOSPITAL",
+      batches: [
+        {
+          quantity: 1,
+          expiryWarningBefore: "30 days",
+          barcode: "ABC-123",
+        },
+      ],
+    });
+
+    expect(prisma.inventoryBatch.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            expiryWarningBefore: "30 days",
+            barcode: "ABC-123",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("derives stock unit fields from legacy attributes when top-level fields are absent", async () => {
+    (prisma.inventoryItem.create as jest.Mock).mockResolvedValue({
+      id: "item-legacy",
+      organisationId: "org-1",
+      name: "Paracetamol",
+      category: "Medicine",
+      businessType: "HOSPITAL",
+      status: "ACTIVE",
+      onHand: 0,
+      allocated: 0,
+    });
+
+    await InventoryService.createItem({
+      organisationId: "org-1",
+      name: "Paracetamol",
+      category: "Medicine",
+      businessType: "HOSPITAL",
+      attributes: {
+        stockType: "strip",
+        unitQnt: "10",
+      },
+    });
+
+    expect(prisma.inventoryItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          stockUnitType: "strip",
+          packageQuantity: 10,
+        }),
+      }),
+    );
   });
 
   it("rejects duplicate sku", async () => {
@@ -164,6 +256,7 @@ describe("Inventory service", () => {
       category: "Consumables",
       businessType: "HOSPITAL",
       itemType: "NON_MEDICAL",
+      allocated: 2,
     });
     (prisma.inventoryItem.update as jest.Mock).mockResolvedValueOnce({
       id: "item-1",
@@ -171,11 +264,22 @@ describe("Inventory service", () => {
       name: "Updated",
       category: "Consumables",
       businessType: "HOSPITAL",
+      allocated: 7,
     });
 
     const result = await InventoryService.updateItem(
       "item-1",
-      { name: "Updated", stockUnitType: "bottle" },
+      {
+        name: "Updated",
+        genericName: "Paracetamol",
+        strength: "650 mg",
+        dosageForm: "Tablet",
+        routeOfAdministration: "Oral",
+        stockUnitType: "bottle",
+        unitOfMeasure: "mg",
+        allocated: 7,
+        unitQuantity: 12,
+      },
       "org-1",
     );
 
@@ -183,11 +287,92 @@ describe("Inventory service", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           stockUnitType: "bottle",
-          unitOfMeasure: "bottle",
+          unitOfMeasure: "mg",
+          packageQuantity: 12,
         }),
       }),
     );
     expect(result.item.name).toBe("Updated");
+    expect(result.item.allocated).toBe(7);
+  });
+
+  it("normalizes empty sku to null on update", async () => {
+    (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "item-3",
+      organisationId: "org-1",
+      category: "Consumables",
+      businessType: "HOSPITAL",
+      itemType: "NON_MEDICAL",
+      sku: "",
+    });
+    (prisma.inventoryItem.update as jest.Mock).mockResolvedValueOnce({
+      id: "item-3",
+      organisationId: "org-1",
+      category: "Consumables",
+      businessType: "HOSPITAL",
+      sku: null,
+    });
+
+    const result = await InventoryService.updateItem(
+      "item-3",
+      {
+        sku: "",
+      },
+      "org-1",
+    );
+
+    expect(prisma.inventoryItem.findFirst).toHaveBeenCalledTimes(1);
+    expect(prisma.inventoryItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sku: null,
+        }),
+      }),
+    );
+    expect(result.item.sku).toBeNull();
+  });
+
+  it("prefers legacy attribute stock fields during updates when top-level fields are absent", async () => {
+    (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValueOnce({
+      id: "item-2",
+      organisationId: "org-1",
+      category: "Medicine",
+      businessType: "HOSPITAL",
+      itemType: "MEDICAL",
+      genericName: "Paracetamol",
+      strength: "650 mg",
+      dosageForm: "Tablet",
+      routeOfAdministration: "Oral",
+      allocated: 0,
+    });
+    (prisma.inventoryItem.update as jest.Mock).mockResolvedValueOnce({
+      id: "item-2",
+      organisationId: "org-1",
+      name: "Updated",
+      category: "Medicine",
+      businessType: "HOSPITAL",
+      allocated: 0,
+    });
+
+    await InventoryService.updateItem(
+      "item-2",
+      {
+        attributes: {
+          stockType: "bottle",
+          unitQnt: "12",
+        },
+      },
+      "org-1",
+    );
+
+    expect(prisma.inventoryItem.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          stockUnitType: "bottle",
+          packageQuantity: 12,
+        }),
+      }),
+    );
   });
 
   it("hides, archives, and re-activates items", async () => {
@@ -234,15 +419,26 @@ describe("Inventory service", () => {
         allocated: 0,
       },
     ]);
-    (prisma.inventoryBatch.findMany as jest.Mock).mockResolvedValue([
-      {
-        id: "batch-1",
-        itemId: "item-1",
-        organisationId: "org-1",
-        quantity: 5,
-        allocated: 0,
-      },
-    ]);
+    (prisma.inventoryBatch.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          id: "batch-1",
+          itemId: "item-1",
+          organisationId: "org-1",
+          quantity: 5,
+          allocated: 0,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "batch-1",
+          itemId: "item-1",
+          organisationId: "org-1",
+          quantity: 4,
+          allocated: 0,
+        },
+      ])
+      .mockResolvedValueOnce([]);
 
     const result = await InventoryService.listItems({
       organisationId: "org-1",
@@ -311,7 +507,7 @@ describe("Inventory service", () => {
       id: "item-1",
       organisationId: "org-1",
       onHand: 2,
-      allocated: 0,
+      allocated: 5,
     });
     (prisma.inventoryBatch.create as jest.Mock).mockResolvedValue({
       id: "batch-1",
@@ -343,14 +539,65 @@ describe("Inventory service", () => {
       quantity: 4,
       allocated: 0,
     });
+    (prisma.inventoryBatch.create as jest.Mock).mockResolvedValue({
+      id: "batch-1",
+      itemId: "item-1",
+      organisationId: "org-1",
+      quantity: 3,
+      allocated: 0,
+      expiryWarningBefore: "30 days",
+      barcode: "BAR-123",
+    });
 
-    const created = await InventoryService.addBatch("item-1", { quantity: 3 });
+    const created = await InventoryService.addBatch("item-1", {
+      quantity: 3,
+      expiryWarningBefore: "30 days",
+      barcode: "BAR-123",
+    });
     expect(created.id).toBe("batch-1");
+    expect(
+      (prisma.inventoryBatch.create as jest.Mock).mock.calls[0][0].data,
+    ).toEqual(
+      expect.objectContaining({
+        expiryWarningBefore: "30 days",
+        barcode: "BAR-123",
+      }),
+    );
+    expect(
+      (prisma.inventoryItem.update as jest.Mock).mock.calls[0][0].data,
+    ).toEqual(
+      expect.objectContaining({
+        onHand: expect.any(Number),
+      }),
+    );
+    expect(
+      (prisma.inventoryItem.update as jest.Mock).mock.calls[0][0].data,
+    ).not.toHaveProperty("allocated");
 
     const updated = await InventoryService.updateBatch("batch-1", {
       quantity: 4,
+      expiryWarningBefore: "21 days",
+      barcode: "BAR-456",
     });
     expect(updated.quantity).toBe(4);
+    expect(
+      (prisma.inventoryBatch.update as jest.Mock).mock.calls[0][0].data,
+    ).toEqual(
+      expect.objectContaining({
+        expiryWarningBefore: "21 days",
+        barcode: "BAR-456",
+      }),
+    );
+    expect(
+      (prisma.inventoryItem.updateMany as jest.Mock).mock.calls[0][0].data,
+    ).toEqual(
+      expect.objectContaining({
+        onHand: expect.any(Number),
+      }),
+    );
+    expect(
+      (prisma.inventoryItem.updateMany as jest.Mock).mock.calls[0][0].data,
+    ).not.toHaveProperty("allocated");
 
     await InventoryService.deleteBatch("batch-1");
     expect(prisma.inventoryBatch.deleteMany).toHaveBeenCalled();

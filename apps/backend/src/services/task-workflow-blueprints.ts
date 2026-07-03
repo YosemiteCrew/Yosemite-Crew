@@ -56,26 +56,6 @@ type SnapshotSection = {
   fields?: SnapshotField[];
 };
 
-const taskKindOptions = [
-  { label: "Medication", value: "MEDICATION" },
-  { label: "Observation tool", value: "OBSERVATION_TOOL" },
-  { label: "Hygiene", value: "HYGIENE" },
-  { label: "Diet", value: "DIET" },
-  { label: "Custom", value: "CUSTOM" },
-];
-
-const audienceOptions = [
-  { label: "Employee task", value: "EMPLOYEE_TASK" },
-  { label: "Parent task", value: "PARENT_TASK" },
-];
-
-const recurrenceOptions = [
-  { label: "Once", value: "ONCE" },
-  { label: "Daily", value: "DAILY" },
-  { label: "Weekly", value: "WEEKLY" },
-  { label: "Custom", value: "CUSTOM" },
-];
-
 const workflowBlueprints: Record<
   TaskWorkflowTemplateKind,
   TaskWorkflowTemplateSchemaSnapshot
@@ -92,7 +72,13 @@ const workflowBlueprints: Record<
             label: "Task kind",
             type: "select",
             required: true,
-            options: taskKindOptions,
+            options: [
+              { label: "Medication", value: "MEDICATION" },
+              { label: "Observation tool", value: "OBSERVATION_TOOL" },
+              { label: "Hygiene", value: "HYGIENE" },
+              { label: "Diet", value: "DIET" },
+              { label: "Custom", value: "CUSTOM" },
+            ],
             rules: { allowCustom: false },
           },
           {
@@ -124,14 +110,20 @@ const workflowBlueprints: Record<
             label: "Audience",
             type: "select",
             required: true,
-            options: audienceOptions,
+            options: [
+              { label: "Employee task", value: "EMPLOYEE_TASK" },
+              { label: "Parent task", value: "PARENT_TASK" },
+            ],
             rules: { allowCustom: false },
           },
           {
             key: "defaultAssigneeRole",
             label: "Default assignee role",
             type: "select",
-            options: audienceOptions,
+            options: [
+              { label: "Employee task", value: "EMPLOYEE_TASK" },
+              { label: "Parent task", value: "PARENT_TASK" },
+            ],
             rules: { allowCustom: false },
           },
           {
@@ -161,7 +153,12 @@ const workflowBlueprints: Record<
             key: "recurrence",
             label: "Recurrence",
             type: "select",
-            options: recurrenceOptions,
+            options: [
+              { label: "Once", value: "ONCE" },
+              { label: "Daily", value: "DAILY" },
+              { label: "Weekly", value: "WEEKLY" },
+              { label: "Custom", value: "CUSTOM" },
+            ],
             rules: { allowCustom: false },
           },
         ],
@@ -284,7 +281,13 @@ const validateFieldType = (
   path: string,
   field: BlueprintField,
   snapshotField: SnapshotField,
-) => (snapshotField.type !== field.type ? [`${path}.type`] : []);
+) => {
+  if (snapshotField.type === field.type) {
+    return [];
+  }
+
+  return [`${path}.type`];
+};
 
 const validateFieldRepeatable = (
   path: string,
