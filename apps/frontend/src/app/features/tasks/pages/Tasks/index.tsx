@@ -224,6 +224,7 @@ const Tasks = () => {
                 showAddButton={canEditTasks}
                 onAddButtonClick={openAddTask}
                 addButtonText="Add"
+                compactFilterPills
               />
             )}
             <div ref={plannerSectionRef} className={plannerSectionClassName}>

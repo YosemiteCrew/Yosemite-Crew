@@ -6,12 +6,18 @@ import { usePermissions } from '@/app/hooks/usePermissions';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { changeTaskStatus, updateTask } from '@/app/features/tasks/services/taskService';
+import { Task, TaskKindOptions, TaskStatusOptions } from '@/app/features/tasks/types/task';
 import {
-  Task,
-  TaskKindOptions,
-  TaskRecurrenceOptions,
-  TaskStatusOptions,
-} from '@/app/features/tasks/types/task';
+  isSeriesTask,
+  offsetToReminderValue,
+  recurrenceToRepeatValue,
+  reminderValueToOffset,
+  repeatValueToRecurrence,
+  type RecurrenceScope,
+  TASK_REMINDER_OPTIONS,
+  TASK_REPEAT_OPTIONS,
+} from '@/app/features/tasks/constants/taskTaxonomy';
+import RecurrenceScopeModal from '@/app/features/tasks/components/RecurrenceScopeModal';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
@@ -117,6 +123,10 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
   const canEditDetails = canEditExceptStatus || canEditAllFields;
   const canEditStatus = canEditOnlyStatus || canEditAllFields;
   const [isReusing, setIsReusing] = useState(false);
+  // Recurring-series edit: hold the built payload while the user picks a scope.
+  const [scopeModalOpen, setScopeModalOpen] = useState(false);
+  const [pendingEditPayload, setPendingEditPayload] = useState<Task | null>(null);
+  const [scopeBusy, setScopeBusy] = useState(false);
   const isCompletedTask = activeTask.status === 'COMPLETED';
   const effectiveEditMode = isCompletedTask ? ('NONE' as const) : editMode;
   const resolveMemberDisplay = useCallback(
@@ -179,14 +189,6 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
     return [...TaskKindOptions, { label: activeTask.category, value: activeTask.category }];
   }, [activeTask.category]);
 
-  const reminderEnabledOptions = useMemo(
-    () => [
-      { label: 'Enabled', value: 'true' },
-      { label: 'Disabled', value: 'false' },
-    ],
-    []
-  );
-
   const syncOptions = useMemo(
     () => [
       { label: 'Yes', value: 'true' },
@@ -203,6 +205,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
   }, [activeTask.status]);
   const canChangeTaskStatus = canShowTaskStatusChangeAction(activeTask.status);
   const canRescheduleCurrentTask = canRescheduleTask(activeTask.status);
+  const isRecurringTask = (activeTask.recurrence?.type ?? 'ONCE') !== 'ONCE';
 
   const taskFields = useMemo(
     () => [
@@ -222,14 +225,8 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
         editable: canEditDetails,
       },
       {
-        label: 'Description',
+        label: 'Instructions (optional)',
         key: 'description',
-        type: 'text',
-        editable: canEditDetails,
-      },
-      {
-        label: 'Additional notes',
-        key: 'additionalNotes',
         type: 'text',
         editable: canEditDetails,
       },
@@ -255,24 +252,29 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
       },
       {
         label: 'Reminder',
-        key: 'reminderEnabled',
+        key: 'reminder',
         type: 'select',
-        options: reminderEnabledOptions,
+        options: TASK_REMINDER_OPTIONS,
         editable: canEditDetails,
       },
       {
-        label: 'Reminder offset (minutes)',
-        key: 'reminderOffsetMinutes',
-        type: 'number',
-        editable: canEditDetails,
-      },
-      {
-        label: 'Recurrence',
-        key: 'recurrenceType',
+        label: 'Repeat',
+        key: 'repeat',
         type: 'select',
-        options: TaskRecurrenceOptions,
+        options: TASK_REPEAT_OPTIONS,
         editable: canEditDetails,
       },
+      // End date only applies to a repeating task (one-off tasks have just a due date).
+      ...(isRecurringTask
+        ? [
+            {
+              label: 'End date',
+              key: 'endDate',
+              type: 'date',
+              editable: canEditDetails,
+            },
+          ]
+        : []),
       {
         label: 'Sync with calendar',
         key: 'syncWithCalendar',
@@ -286,7 +288,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
       canEditDetails,
       canRescheduleCurrentTask,
       categoryOptions,
-      reminderEnabledOptions,
+      isRecurringTask,
       syncOptions,
     ]
   );
@@ -320,12 +322,11 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
         2,
         '0'
       )}`,
-      reminderEnabled: activeTask.reminder?.enabled ? 'true' : 'false',
-      reminderOffsetMinutes:
-        typeof activeTask.reminder?.offsetMinutes === 'number'
-          ? String(activeTask.reminder.offsetMinutes)
-          : '',
-      recurrenceType: activeTask.recurrence?.type || 'ONCE',
+      reminder: offsetToReminderValue(activeTask.reminder?.offsetMinutes),
+      repeat: recurrenceToRepeatValue(activeTask.recurrence),
+      endDate: activeTask.recurrence?.endDate
+        ? new Date(activeTask.recurrence.endDate).toISOString().slice(0, 10)
+        : '',
       syncWithCalendar: activeTask.syncWithCalendar ? 'true' : 'false',
     };
   }, [activeTask, resolveMemberDisplay]);
@@ -379,19 +380,19 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
         return;
       }
 
-      const reminderEnabled = String(values.reminderEnabled ?? taskData.reminderEnabled) === 'true';
-      const reminderOffsetRaw = String(
-        values.reminderOffsetMinutes ?? taskData.reminderOffsetMinutes ?? ''
-      ).trim();
-      const reminderOffset = reminderOffsetRaw
-        ? Number.parseInt(reminderOffsetRaw, 10)
-        : Number.NaN;
-      const reminder =
-        reminderEnabled && Number.isFinite(reminderOffset) && reminderOffset > 0
-          ? {
-              enabled: true,
-              offsetMinutes: reminderOffset,
-            }
+      const reminderOffset = reminderValueToOffset(String(values.reminder ?? taskData.reminder));
+      const reminder = reminderOffset
+        ? {
+            enabled: true,
+            offsetMinutes: reminderOffset,
+          }
+        : undefined;
+      const nextRecurrence = repeatValueToRecurrence(String(values.repeat ?? taskData.repeat));
+      // End date only applies to a repeating task; parse the YYYY-MM-DD value.
+      const endDateRaw = String(values.endDate ?? taskData.endDate ?? '').trim();
+      const nextEndDate =
+        nextRecurrence.type !== 'ONCE' && /^\d{4}-\d{2}-\d{2}$/.test(endDateRaw)
+          ? new Date(`${endDateRaw}T23:59:59`)
           : undefined;
       const dueDateValue = values.dueAt || activeTask.dueAt;
       let dueDate = new Date(dueDateValue);
@@ -429,23 +430,47 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
         ...activeTask,
         name: values.name,
         description: values.description,
-        additionalNotes: values.additionalNotes,
         category: values.category,
         assignedTo: resolveAssigneeId(),
         dueAt: nextDueAt,
         timezone: activeTask.timezone || getPreferredTimeZone(),
         recurrence: {
           ...(activeTask.recurrence || { isMaster: false }),
-          type: values.recurrenceType || activeTask.recurrence?.type || 'ONCE',
+          type: nextRecurrence.type,
+          cronExpression: nextRecurrence.cronExpression,
+          isMaster: nextRecurrence.type !== 'ONCE',
+          endDate: nextEndDate,
         },
         reminder,
         syncWithCalendar: String(values.syncWithCalendar ?? taskData.syncWithCalendar) === 'true',
         status: activeTask.status,
       };
+      // A task in a recurring series asks which occurrences the edit applies to.
+      if (isSeriesTask(activeTask.recurrence)) {
+        setPendingEditPayload(payload);
+        setScopeModalOpen(true);
+        return;
+      }
       await updateTask(payload);
       setShowModal(false);
     } catch (error) {
       console.log(error);
+    }
+  };
+
+  // Commit the held edit against the chosen series scope.
+  const handleScopeConfirm = async (scope: RecurrenceScope) => {
+    if (!pendingEditPayload) return;
+    setScopeBusy(true);
+    try {
+      await updateTask(pendingEditPayload, scope);
+      setScopeModalOpen(false);
+      setPendingEditPayload(null);
+      setShowModal(false);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setScopeBusy(false);
     }
   };
 
@@ -480,51 +505,63 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
   }, [activeTask, isCompletedTask, isReusing, onReuseTask, setShowModal]);
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
+    <>
+      <Modal showModal={showModal} setShowModal={setShowModal}>
+        <div className="flex flex-col h-full gap-6">
+          <div className="flex justify-between items-center">
+            <div className="opacity-0">
+              <Close onClick={() => {}} />
+            </div>
+            <div className="flex justify-center items-center gap-2">
+              <div className="text-body-1 text-text-primary">View task</div>
+            </div>
+            <Close onClick={() => setShowModal(false)} />
           </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">View task</div>
+          <div className="flex overflow-y-auto flex-1 scrollbar-hidden">
+            <div className="flex w-full flex-col gap-3">
+              <EditableAccordion
+                key={`task-status-${activeTask._id}`}
+                title={'Status'}
+                fields={statusFields}
+                data={statusData}
+                defaultOpen={true}
+                onSave={(values) => handleStatusUpdate(values)}
+                showEditIcon={effectiveEditMode !== 'NONE' && canEditStatus && canChangeTaskStatus}
+              />
+              <EditableAccordion
+                key={`task-${activeTask._id}`}
+                title={'Task details'}
+                fields={taskFields}
+                data={taskData}
+                defaultOpen={true}
+                onSave={(values) => handleUpdate(values)}
+                showEditIcon={effectiveEditMode !== 'NONE' && hasEditableFields}
+              />
+            </div>
           </div>
-          <Close onClick={() => setShowModal(false)} />
+          {isCompletedTask && (
+            <div className="flex justify-end">
+              <Primary
+                href="#"
+                text={isReusing ? 'Reusing...' : 'Reuse task'}
+                className="w-auto min-w-35"
+                onClick={handleReuseTask}
+              />
+            </div>
+          )}
         </div>
-        <div className="flex overflow-y-auto flex-1 scrollbar-hidden">
-          <div className="flex w-full flex-col gap-3">
-            <EditableAccordion
-              key={`task-status-${activeTask._id}`}
-              title={'Status'}
-              fields={statusFields}
-              data={statusData}
-              defaultOpen={true}
-              onSave={(values) => handleStatusUpdate(values)}
-              showEditIcon={effectiveEditMode !== 'NONE' && canEditStatus && canChangeTaskStatus}
-            />
-            <EditableAccordion
-              key={`task-${activeTask._id}`}
-              title={'Task details'}
-              fields={taskFields}
-              data={taskData}
-              defaultOpen={true}
-              onSave={(values) => handleUpdate(values)}
-              showEditIcon={effectiveEditMode !== 'NONE' && hasEditableFields}
-            />
-          </div>
-        </div>
-        {isCompletedTask && (
-          <div className="flex justify-end">
-            <Primary
-              href="#"
-              text={isReusing ? 'Reusing...' : 'Reuse task'}
-              className="w-auto min-w-[140px]"
-              onClick={handleReuseTask}
-            />
-          </div>
-        )}
-      </div>
-    </Modal>
+      </Modal>
+      {scopeModalOpen && (
+        <RecurrenceScopeModal
+          showModal={scopeModalOpen}
+          setShowModal={setScopeModalOpen}
+          action="edit"
+          taskName={activeTask.name}
+          busy={scopeBusy}
+          onConfirm={handleScopeConfirm}
+        />
+      )}
+    </>
   );
 };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import AppointmentInfo from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/AppointmentInfo';
@@ -12,7 +12,16 @@ const updateAppointmentMock = jest.fn();
 const getSlotsMock = jest.fn();
 const changeAppointmentStatusMock = jest.fn();
 jest.mock('@/app/hooks/useRooms', () => ({
+  useLoadRoomsForPrimaryOrg: jest.fn(),
   useRoomsForPrimaryOrg: () => useRoomsMock(),
+}));
+
+let mockRoomState = {
+  roomUnitsById: {} as Record<string, any>,
+  roomUnitIdsByRoomId: {} as Record<string, string[]>,
+};
+jest.mock('@/app/stores/roomStore', () => ({
+  useOrganisationRoomStore: (selector: any) => selector(mockRoomState),
 }));
 
 jest.mock('@/app/hooks/useTeam', () => ({
@@ -104,6 +113,10 @@ describe('AppointmentInfo section', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRoomState = {
+      roomUnitsById: {},
+      roomUnitIdsByRoomId: {},
+    };
     useRoomsMock.mockReturnValue([{ id: 'room-1', name: 'Room A' }]);
     useTeamMock.mockReturnValue([
       {
@@ -165,11 +178,65 @@ describe('AppointmentInfo section', () => {
     expect(screen.getByTestId('concern')).toBeInTheDocument();
   });
 
+  it('filters fully occupied rooms from inpatient room edits', async () => {
+    useRoomsMock.mockReturnValue([
+      { id: 'room-2', name: 'Room B' },
+      { id: 'room-1', name: 'Room A' },
+    ]);
+    mockRoomState = {
+      roomUnitsById: {
+        'unit-1': {
+          id: 'unit-1',
+          roomId: 'room-1',
+          displayName: 'Ward 1',
+          code: 'W1',
+          isActive: true,
+          isOccupied: false,
+        },
+        'unit-2': {
+          id: 'unit-2',
+          roomId: 'room-2',
+          displayName: 'Ward 2',
+          code: 'W2',
+          isActive: true,
+          isOccupied: true,
+        },
+      },
+      roomUnitIdsByRoomId: {
+        'room-1': ['unit-1'],
+        'room-2': ['unit-2'],
+      },
+    };
+
+    render(
+      <AppointmentInfo
+        activeAppointment={{
+          ...activeAppointment,
+          appointmentKind: 'INPATIENT',
+          status: 'CHECKED_IN',
+          room: { id: 'room-0', name: 'Lobby' },
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('edit-Appointments details'));
+    fireEvent.click(screen.getByTestId('dropdown-Room'));
+    fireEvent.click(screen.getByTestId('save-appointment'));
+
+    await waitFor(() => {
+      expect(updateAppointmentMock).toHaveBeenCalledWith(
+        expect.objectContaining({ room: { id: 'room-1', name: 'Room A' } })
+      );
+    });
+  });
+
   it('keeps the assigned lead available when editing the appointment current slot', async () => {
     getSlotsMock.mockResolvedValue([{ startTime: '10:00', endTime: '10:30', vetIds: ['team-2'] }]);
     render(<AppointmentInfo activeAppointment={activeAppointment} />);
 
-    fireEvent.click(screen.getByTestId('edit-Appointments details'));
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('edit-Appointments details'));
+    });
 
     await waitFor(() => {
       expect(screen.getByTestId('date-time-lead-id')).toHaveTextContent('team-1');

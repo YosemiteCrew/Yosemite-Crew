@@ -236,11 +236,12 @@ export const removeGroupMembers = async (groupId: string, memberIds: string[]): 
 };
 
 /**
- * Update group metadata (title, privacy, description)
+ * Update group metadata (title, privacy). Note: the backend only persists title
+ * and isPrivate, so description is intentionally not part of this contract.
  */
 export const updateGroup = async (
   groupId: string,
-  payload: Partial<Pick<OrgGroupRequest, 'title' | 'isPrivate' | 'description'>>
+  payload: Partial<Pick<OrgGroupRequest, 'title' | 'isPrivate'>>
 ): Promise<OrgChatSession> => {
   const response = await patchData<OrgChatSession>(`/v1/chat/pms/groups/${groupId}`, payload);
   return response.data;
@@ -287,6 +288,110 @@ export const fetchOrgUsers = async (organisationId: string): Promise<OrgUser[]> 
   } catch (error) {
     const context = 'fetchOrgUsers - Failed to fetch org users for chat search';
     logError(context, error, { organisationId });
+    throw error;
+  }
+};
+
+export type SharedEntityType =
+  | 'COMPANION'
+  | 'APPOINTMENT'
+  | 'INVOICE'
+  | 'FORM'
+  | 'PRESCRIPTION'
+  | 'DOCUMENT';
+
+export type ShareEntityPayload = {
+  channelId: string;
+  entityType: SharedEntityType;
+  entityId: string;
+  title?: string;
+  snapshot?: Record<string, unknown>;
+};
+
+export type SharedChatEntity = {
+  id: string;
+  organisationId: string;
+  channelId: string;
+  entityType: SharedEntityType;
+  entityId: string;
+  title?: string | null;
+  snapshot?: Record<string, unknown> | null;
+  messageId?: string | null;
+  sharedById: string;
+  revokedAt?: string | null;
+  createdAt: string;
+};
+
+/**
+ * A colleague discoverable across the clinic network (i.e. at another
+ * organisation the current user is allowed to message).
+ */
+export type NetworkColleague = {
+  userId: string;
+  name: string;
+  role: string;
+  organisationId: string;
+  organisationName: string;
+};
+
+/**
+ * Search the cross-clinic ("network") colleague directory. Returns the
+ * colleagues the current user may start a direct chat with at other
+ * organisations, filtered by the optional free-text query.
+ */
+export const searchNetworkColleagues = async (
+  organisationId: string,
+  query: string
+): Promise<NetworkColleague[]> => {
+  try {
+    const response = await getData<{ colleagues?: NetworkColleague[] }>(
+      '/v1/chat/pms/network/colleagues',
+      { organisationId, q: query }
+    );
+    return response.data.colleagues ?? [];
+  } catch (error) {
+    logError('searchNetworkColleagues - Failed to search network colleagues', error, {
+      organisationId,
+      query,
+    });
+    throw error;
+  }
+};
+
+/**
+ * Start (or get) a direct chat with a colleague at another clinic. Returns the
+ * chat session, which includes the Stream `channelId` to open.
+ */
+export const createNetworkDirectChat = async (input: {
+  organisationId: string;
+  otherUserId: string;
+  otherOrganisationId: string;
+}): Promise<{ channelId: string } & Record<string, unknown>> => {
+  try {
+    const response = await postData<{ channelId: string } & Record<string, unknown>>(
+      '/v1/chat/pms/network/direct',
+      input
+    );
+    return response.data;
+  } catch (error) {
+    logError('createNetworkDirectChat - Failed to create network direct chat', error, { input });
+    throw error;
+  }
+};
+
+/**
+ * Share a PIMS record (companion, appointment, invoice, etc.) into a chat
+ * channel. The backend validates membership, records the share (audit), and
+ * posts the structured card message to Stream.
+ */
+export const shareEntityToChannel = async (
+  payload: ShareEntityPayload
+): Promise<SharedChatEntity> => {
+  try {
+    const response = await postData<SharedChatEntity>('/v1/chat/pms/share', payload);
+    return response.data;
+  } catch (error) {
+    logError('shareEntityToChannel - Failed to share entity into chat', error, { payload });
     throw error;
   }
 };

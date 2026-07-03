@@ -27,7 +27,7 @@ describe("task workflow blueprints", () => {
     expect(result.invalidFieldPaths).toHaveLength(0);
   });
 
-  it("uses fixed text fields for task template controls", () => {
+  it("matches the frontend task template control contract", () => {
     const snapshot = buildTaskWorkflowTemplateSchemaSnapshot("TASK_TEMPLATE");
     const assignmentSection = snapshot.sections.find(
       (section) => section.id === "assignment",
@@ -50,8 +50,19 @@ describe("task workflow blueprints", () => {
       snapshot,
     );
 
-    expect(audienceField.type).toBe("text");
-    expect(audienceField.options).toBeUndefined();
+    expect(snapshot.sections[0].fields[0].type).toBe("select");
+    expect(snapshot.sections[0].fields[0].options).toEqual([
+      { label: "Medication", value: "MEDICATION" },
+      { label: "Observation tool", value: "OBSERVATION_TOOL" },
+      { label: "Hygiene", value: "HYGIENE" },
+      { label: "Diet", value: "DIET" },
+      { label: "Custom", value: "CUSTOM" },
+    ]);
+    expect(audienceField.type).toBe("select");
+    expect(audienceField.options).toEqual([
+      { label: "Employee task", value: "EMPLOYEE_TASK" },
+      { label: "Parent task", value: "PARENT_TASK" },
+    ]);
     expect(result.invalidFieldPaths).toHaveLength(0);
   });
 

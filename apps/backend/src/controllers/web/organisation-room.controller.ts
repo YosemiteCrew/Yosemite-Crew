@@ -52,6 +52,12 @@ const isRoomPayload = (value: unknown): value is OrganisationRoomRequestDTO =>
     (value as { resourceType?: string }).resourceType === "Location",
   );
 
+const parseBooleanQuery = (value: unknown): boolean | undefined => {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+};
+
 export const OrganisationRoomController = {
   create: async (req: Request, res: Response) => {
     try {
@@ -128,6 +134,7 @@ export const OrganisationRoomController = {
   getAllByOrganizationId: async (req: Request, res: Response) => {
     try {
       const { organizationId } = req.params;
+      const vacantOnly = parseBooleanQuery(req.query.vacantOnly);
 
       if (
         !requireParam(
@@ -140,9 +147,14 @@ export const OrganisationRoomController = {
       }
 
       const rooms =
-        await OrganisationRoomService.getSummaryByOrganizationId(
-          organizationId,
-        );
+        vacantOnly === undefined
+          ? await OrganisationRoomService.getSummaryByOrganizationId(
+              organizationId,
+            )
+          : await OrganisationRoomService.getSummaryByOrganizationId(
+              organizationId,
+              { vacantOnly },
+            );
 
       return res.status(200).json(rooms.map(toFHIROrganisationRoom));
     } catch (error) {

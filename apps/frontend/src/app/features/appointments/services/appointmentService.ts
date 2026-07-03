@@ -29,8 +29,8 @@ type AppointmentPaymentStatus = 'PAID' | 'UNPAID' | 'PAID_CASH' | 'PAYMENT_AT_CL
 export type AdmitAppointmentInput = {
   admittedAt: string;
   expectedStayDays?: number;
-  lead?: { id?: string; name?: string };
-  supportStaff?: Array<{ id?: string; name?: string }>;
+  lead?: { id: string; name: string; profileUrl?: string };
+  supportStaff?: Array<{ id: string; name: string }>;
   room?: { id: string; name: string };
   roomUnitId?: string;
   assignedAt?: string;
@@ -71,7 +71,12 @@ type CalendarPrefillResolutionResponse = {
 };
 
 const normalizeLeadId = (value?: string | null) => {
-  const trimmed = String(value ?? '').trim();
+  const trimmed =
+    String(value ?? '')
+      .trim()
+      .split('/')
+      .pop()
+      ?.trim() ?? '';
   if (!trimmed) return '';
   const lowered = trimmed.toLowerCase();
   return lowered === 'undefined' || lowered === 'null' ? '' : trimmed;
@@ -184,7 +189,7 @@ export const createAppointment = async (appointment: Appointment) => {
     const fhirAppointment = toAppointmentResponseDTO(withCanonicalPatient(payload));
     const res = await postData<{
       data: { appointment: AppointmentResponseDTO };
-    }>('/fhir/v1/appointment/pms?createPayment=true', fhirAppointment);
+    }>('/fhir/v1/appointment/pms', fhirAppointment);
     return upsertFromResponse(res);
   } catch (err) {
     console.error('Failed to create appointment:', err);
@@ -450,10 +455,20 @@ export const rejectAppointment = (appointment: Appointment) =>
   performAppointmentAction(appointment, 'reject');
 
 const performStatusUpdate = async (appointment: Appointment, nextStatus: AppointmentStatus) => {
-  return updateAppointment({
+  const updated = await updateAppointment({
     ...appointment,
     status: nextStatus,
   });
+  // The PATCH succeeded, so the transition is authoritative. Guard against a
+  // backend response that echoes a stale status (or omits it) by pinning the
+  // stored appointment to the requested status — otherwise consumers that gate
+  // on `status` (e.g. the Summary step's Sign button) never see the change.
+  if (updated && updated.status !== nextStatus) {
+    const pinned = { ...updated, status: nextStatus };
+    useAppointmentStore.getState().upsertAppointment(pinned);
+    return pinned;
+  }
+  return updated;
 };
 
 export const changeAppointmentStatus = async (

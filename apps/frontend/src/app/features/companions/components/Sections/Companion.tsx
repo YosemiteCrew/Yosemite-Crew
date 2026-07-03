@@ -22,6 +22,7 @@ import {
 } from '@/app/features/companions/services/codeEntriesService';
 import { formatDisplayDate } from '@/app/lib/date';
 import { toTitleCase } from '@/app/lib/validators';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 type OptionProp = {
   label: string;
@@ -304,7 +305,7 @@ const CompanionReadOnlySection = ({
         value={String(companion.companion.ageWhenNeutered || '-')}
       />
     ) : null}
-    <CompanionRow label="Current weight (lbs)" value={companion.companion.currentWeight || '-'} />
+    <CompanionRow label="Current weight (kg)" value={companion.companion.currentWeight || '-'} />
     <CompanionRow label="Color" value={companion.companion.colour || '-'} />
     <CompanionRow label="Blood group" value={companion.companion.bloodGroup || '-'} />
     <CompanionRow label="Country of origin" value={companion.companion.countryOfOrigin || '-'} />
@@ -458,7 +459,7 @@ const CompanionEditSection = ({
       intype="number"
       inname="weight"
       value={formData.currentWeight + ''}
-      inlabel="Current weight (optional) (lbs)"
+      inlabel="Current weight (optional) (kg)"
       onChange={(e) =>
         setFormData((prev) => ({
           ...prev,
@@ -579,6 +580,7 @@ type CompanionTypeProps = {
 };
 
 const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeProps) => {
+  const terminologyText = useCompanionTerminologyText();
   const [isEditing, setIsEditing] = useState(false);
   const [isStatusEditing, setIsStatusEditing] = useState(false);
   const [statusValue, setStatusValue] = useState<RecordStatus>(
@@ -735,7 +737,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
   return (
     <div className="flex flex-col gap-6 w-full">
       <Accordion
-        title="Companion information"
+        title={terminologyText('Companion information')}
         defaultOpen={true}
         showEditIcon={true}
         isEditing={isEditing}
@@ -772,7 +774,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
         {isStatusEditing ? (
           <div className="flex flex-col gap-3 pt-2">
             <LabelDropdown
-              placeholder="Companion status"
+              placeholder={terminologyText('Companion status')}
               onSelect={(option) => setStatusValue(option.value as RecordStatus)}
               defaultOption={statusValue}
               options={COMPANION_STATUS_OPTIONS}

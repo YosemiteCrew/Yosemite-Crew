@@ -314,7 +314,7 @@ describe('Companion section', () => {
     });
 
     expect(screen.queryByText('Blood group (optional)')).not.toBeInTheDocument();
-    expect(screen.queryByText('Current weight (optional) (lbs)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Current weight (optional) (kg)')).not.toBeInTheDocument();
     expect(screen.queryByText('Microchip number (optional)')).not.toBeInTheDocument();
   });
 
@@ -324,7 +324,7 @@ describe('Companion section', () => {
     });
 
     expect(screen.getByText('Blood group (optional)')).toBeInTheDocument();
-    expect(screen.getByText('Current weight (optional) (lbs)')).toBeInTheDocument();
+    expect(screen.getByText('Current weight (optional) (kg)')).toBeInTheDocument();
   });
 
   // 2. Back button

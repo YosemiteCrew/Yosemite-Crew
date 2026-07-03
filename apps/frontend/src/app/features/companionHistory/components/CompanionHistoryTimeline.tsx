@@ -1893,7 +1893,7 @@ const CompanionHistoryTimeline = ({
                   }`}
                 >
                   {TAB_ICONS[filter.key]}
-                  {filter.key === 'MEDICAL_RECORDS' ? 'Medical Records' : filter.label}
+                  {filter.key === 'MEDICAL_RECORDS' ? 'Medical records' : filter.label}
                 </button>
               );
             })}

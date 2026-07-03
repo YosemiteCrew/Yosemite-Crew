@@ -17,6 +17,7 @@ import {
   LuSearch,
 } from 'react-icons/lu';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import Search from '@/app/ui/inputs/Search';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
@@ -45,6 +46,7 @@ import {
   getEncounterDocumentPacketPdfUrl,
   listEncounterWorkspaceDocuments,
   normalizeWorkspaceBootstrapForEncounter,
+  reconcileWorkspaceDocumentPacket,
   signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 
@@ -97,28 +99,11 @@ const getTemplateSchemaSnapshot = (template: TemplateLike): TemplateSchemaSnapsh
   return hasTemplateSchemaSnapshot(version?.schemaSnapshot) ? version.schemaSnapshot : undefined;
 };
 
-const schemaSnapshotToDischargeHtml = (snapshot?: TemplateSchemaSnapshot): string => {
-  const sections = snapshot?.sections ?? [];
-  if (sections.length === 0) return '';
-  return sections
-    .map((section) => {
-      const fields = section.fields
-        .map((field) => `<p><strong>${escapeHtml(field.label || field.key)}</strong>: </p>`)
-        .join('');
-      return `<h3>${escapeHtml(section.title)}</h3>${fields}`;
-    })
-    .join('');
-};
+const DISCHARGE_META_FIELD_KEYS = new Set(['followUpInDays', 'followUpDate']);
 
-const templateToDischargeHtml = (template: TemplateLike): string =>
-  schemaSnapshotToDischargeHtml(getTemplateSchemaSnapshot(template));
+const normalizeTemplateLabel = (value: string): string => value.trim().toLowerCase();
 
-/** ISO follow-up timestamp ⇄ the Datepicker's `Date | null` value. */
-const toFollowUpDate = (iso?: string): Date | null => {
-  if (!iso) return null;
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
+type TemplateField = TemplateSchemaSnapshot['sections'][number]['fields'][number];
 
 /** Humanise a backend enum token (e.g. "DISCHARGE_SUMMARY" → "Discharge summary",
  *  "NOT_REQUIRED" → "Not required") so raw enums never reach the table. */
@@ -132,6 +117,75 @@ const humanizeToken = (value?: string | null): string => {
   return words
     .map((word, index) => (index === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word))
     .join(' ');
+};
+
+const htmlFromDefaultValue = (value: unknown): string => {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+};
+
+const fieldDefaultToHtml = (field: TemplateField): string => {
+  if (DISCHARGE_META_FIELD_KEYS.has(field.key)) return '';
+  const defaultValue = htmlFromDefaultValue(field.defaultValue);
+  if (!defaultValue) return '';
+  if (field.type === 'richText') return sanitizeRichText(defaultValue);
+  return `<p><strong>${escapeHtml(field.label || field.key)}:</strong> ${escapeHtml(defaultValue)}</p>`;
+};
+
+const medicationColumnLabels = (field: TemplateField): string[] => {
+  const columns = field.rules?.columns;
+  if (!Array.isArray(columns)) return ['Drug', 'Dose', 'Frequency', 'Duration'];
+  return columns
+    .filter((column): column is string => typeof column === 'string' && column.trim().length > 0)
+    .map(humanizeToken);
+};
+
+const fieldOutlineToHtml = (field: TemplateField): string => {
+  if (DISCHARGE_META_FIELD_KEYS.has(field.key)) return '';
+  if (field.type === 'richText' || field.type === 'instructionBlock') return '<p><br></p>';
+  if (field.type === 'diagnosis') return '<ul><li>Diagnosis: </li></ul>';
+  if (field.type === 'medicationLine') {
+    const labels = medicationColumnLabels(field)
+      .map((label) => `${escapeHtml(label)}: `)
+      .join(' | ');
+    return `<ul><li>${labels}</li></ul>`;
+  }
+  return `<p><strong>${escapeHtml(field.label || field.key)}:</strong> </p>`;
+};
+
+const schemaSnapshotToDischargeHtml = (snapshot?: TemplateSchemaSnapshot): string => {
+  const sections = snapshot?.sections ?? [];
+  if (sections.length === 0) return '';
+  return sections
+    .map((section) => {
+      const defaultFields = section.fields.map(fieldDefaultToHtml).filter(Boolean);
+      if (defaultFields.length > 0) return defaultFields.join('');
+
+      const outlineFields = section.fields
+        .map((field) => ({
+          html: fieldOutlineToHtml(field),
+          label: field.label || field.key,
+        }))
+        .filter((field) => field.html);
+      if (outlineFields.length === 0) return '';
+
+      const duplicatesOnlyField =
+        outlineFields.length === 1 &&
+        normalizeTemplateLabel(outlineFields[0].label) === normalizeTemplateLabel(section.title);
+      const heading = duplicatesOnlyField
+        ? ''
+        : `<p><strong>${escapeHtml(section.title)}</strong></p>`;
+      return `${heading}${outlineFields.map((field) => field.html).join('')}`;
+    })
+    .join('');
+};
+
+/** ISO follow-up timestamp ⇄ the Datepicker's `Date | null` value. */
+const toFollowUpDate = (iso?: string): Date | null => {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
 };
 
 /** The documents read-model types timestamps as `Date` in the contract but they
@@ -332,6 +386,10 @@ const SummaryStep = ({
   // hydrated/admitted visits). Acts as the last-resort fallback so the document,
   // sign, and print logic still has encounter context.
   const [hydratedEncounterId, setHydratedEncounterId] = useState<string | undefined>();
+  // Packet-level signing truth captured from the reconcile response. Kept
+  // alongside the documents-derived signal so the Sign→Download Signed swap fires
+  // even before the per-document SIGNED status has propagated into the read-model.
+  const [packetSigned, setPacketSigned] = useState(false);
 
   const templateSearchRef = useRef<HTMLDivElement>(null);
   const templateMatches = useMemo(() => {
@@ -405,6 +463,23 @@ const SummaryStep = ({
   // ready-for-billing) reflect the completed Documenso signature.
   const refreshAfterSigning = useCallback(async () => {
     if (!organisationId || !appointmentId) return;
+    // The Documenso completion webhook can't reach the backend in local/dev and
+    // can lag in prod, so first ask the backend to reconcile the packet against
+    // Documenso directly (pull the signed copy, mark packet + documents SIGNED).
+    // Best-effort: if the reconcile endpoint isn't deployed yet (404) or signing
+    // is genuinely incomplete, we swallow the error and fall through to the
+    // bootstrap + documents refetch below, which still reflects webhook truth.
+    const packetId = signingPacketIdRef.current;
+    if (packetId) {
+      try {
+        const reconciled = await reconcileWorkspaceDocumentPacket(organisationId, packetId);
+        if (reconciled?.signing?.status?.toUpperCase() === 'SIGNED') {
+          setPacketSigned(true);
+        }
+      } catch (error) {
+        console.error('Unable to reconcile packet signing:', error);
+      }
+    }
     try {
       const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
       mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
@@ -418,6 +493,9 @@ const SummaryStep = ({
   // sign was started as the signal to refetch (the Documenso webhook has run
   // server-side by then).
   const signingInitiatedRef = useRef(false);
+  // The packet being signed, captured when signing starts so the post-close
+  // reconcile can pull server-side signing truth from Documenso directly.
+  const signingPacketIdRef = useRef<string | null>(null);
   const resolvedDischargeEncounterRef = useRef<string | null>(null);
   const dischargeResolveKey = encounterId ?? appointmentId;
   const companionId = appointment?.patient?.id;
@@ -425,6 +503,16 @@ const SummaryStep = ({
   const dischargeSummary = encounter.dischargeSummary;
   const encounterMode = encounter.mode;
   const encounterServices = encounter.services;
+  const applyTemplateFollowUpDays = useCallback(
+    (snapshot: TemplateSchemaSnapshot | undefined) => {
+      const followUpInDays = extractFollowUpInDays(snapshot);
+      if (!followUpInDays || encounter.followUpAt) return;
+      const next = new Date();
+      next.setDate(next.getDate() + followUpInDays);
+      setFollowUp(appointmentId, next.toISOString());
+    },
+    [appointmentId, encounter.followUpAt, setFollowUp]
+  );
   useEffect(() => {
     if (signingOverlayOpen || !signingInitiatedRef.current) return;
     signingInitiatedRef.current = false;
@@ -460,12 +548,7 @@ const SummaryStep = ({
         });
         // The discharge template defines "follow up in N days"; prefill the follow-up date as
         // (today + N days) when the clinician has not already set one. It stays editable below.
-        const followUpInDays = extractFollowUpInDays(resolved.schemaSnapshot);
-        if (followUpInDays && !encounter.followUpAt) {
-          const next = new Date();
-          next.setDate(next.getDate() + followUpInDays);
-          setFollowUp(appointmentId, next.toISOString());
-        }
+        applyTemplateFollowUpDays(resolved.schemaSnapshot);
       })
       .catch((error) => {
         console.error('Unable to resolve discharge template:', error);
@@ -485,17 +568,18 @@ const SummaryStep = ({
     encounterMode,
     encounterServices,
     organisationId,
+    applyTemplateFollowUpDays,
     setDischargeSummary,
-    setFollowUp,
-    encounter.followUpAt,
   ]);
 
   const handleTemplateSelect = (template: TemplateLike) => {
-    setDischargeSummary(appointmentId, templateToDischargeHtml(template));
+    const snapshot = getTemplateSchemaSnapshot(template);
+    setDischargeSummary(appointmentId, schemaSnapshotToDischargeHtml(snapshot));
     setDischargeTemplate({
       templateId: template.id,
       templateVersion: template.publishedVersion ?? template.latestVersion,
     });
+    applyTemplateFollowUpDays(snapshot);
     setTemplateQuery('');
   };
 
@@ -519,6 +603,9 @@ const SummaryStep = ({
       if (!packetId) {
         throw new Error('Document packet could not be created.');
       }
+      // Remember the packet so the post-close reconcile can resolve its signing
+      // state against Documenso directly.
+      signingPacketIdRef.current = packetId;
       const signed = await signWorkspaceDocumentPacket(organisationId, packetId, {
         signerName: encounter.leadName ?? undefined,
       });
@@ -601,6 +688,45 @@ const SummaryStep = ({
 
   const followUpDate = toFollowUpDate(encounter.followUpAt);
   const showDocumentActions = dischargeSaved;
+
+  // The packet is considered signed once any document in the encounter read-model
+  // reports a SIGNED signing status — Documenso marks the bundled documents signed
+  // against the one signed packet PDF. Drives the Sign→Download Signed swap and the
+  // "print the signed copy" behaviour.
+  const isPacketSigned = useMemo(
+    () =>
+      packetSigned ||
+      documents.some((document) => document.signingStatus?.toUpperCase() === 'SIGNED'),
+    [documents, packetSigned]
+  );
+
+  // Signing may only begin while the appointment is actively in progress; before
+  // that (e.g. checked-in/upcoming) or after completion the action is disabled and
+  // a tooltip explains why.
+  const appointmentInProgress = appointment?.status === 'IN_PROGRESS';
+  const signDisabled = encounter.viewOnly || isSigning || !appointmentInProgress;
+  const signDisabledReason = appointmentInProgress
+    ? undefined
+    : 'Signing is available only while the appointment is In progress.';
+
+  // Download the signed packet PDF (the packet endpoint returns the signed copy
+  // server-side once signing has completed).
+  const handleDownloadSigned = async () => {
+    if (isPrinting) return;
+    if (!organisationId || !encounterId) return;
+    setIsPrinting(true);
+    try {
+      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
+      downloadDocumentUrl(url);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setSignError(
+        error instanceof Error ? error.message : 'Unable to download the signed document.'
+      );
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -753,12 +879,30 @@ const SummaryStep = ({
               isDisabled={encounter.viewOnly || isSaving}
             />
           )}
-          {showDocumentActions && (
+          {showDocumentActions && isPacketSigned && (
+            <Secondary
+              text="Download Signed"
+              icon={<LuDownload aria-hidden="true" />}
+              onClick={handleDownloadSigned}
+              isDisabled={isPrinting}
+            />
+          )}
+          {showDocumentActions && !isPacketSigned && signDisabledReason && (
+            <GlassTooltip content={signDisabledReason} side="top">
+              <Secondary
+                text={isSigning ? 'Signing…' : 'Sign'}
+                icon={<LuFileSignature aria-hidden="true" />}
+                onClick={handleSign}
+                isDisabled={signDisabled}
+              />
+            </GlassTooltip>
+          )}
+          {showDocumentActions && !isPacketSigned && !signDisabledReason && (
             <Secondary
               text={isSigning ? 'Signing…' : 'Sign'}
               icon={<LuFileSignature aria-hidden="true" />}
               onClick={handleSign}
-              isDisabled={encounter.viewOnly || isSigning}
+              isDisabled={signDisabled}
             />
           )}
         </div>

@@ -205,6 +205,35 @@ export const CANONICAL_DISCHARGE_STRUCTURE: TemplateSchemaSnapshot = {
   ],
 };
 
+/** Ordered prescription medication row keys authored in the template. */
+export const CANONICAL_PRESCRIPTION_ROW_KEYS = [
+  'inventoryItemId',
+  'medicineId',
+  'medicineName',
+  'brand',
+  'genericName',
+  'sku',
+  'strength',
+  'strengthUnit',
+  'dosageForm',
+  'dosage',
+  'dose',
+  'doseUnit',
+  'route',
+  'frequency',
+  'durationDays',
+  'durationUnit',
+  'qty',
+  'refill',
+  'instructions',
+  'fulfillment',
+  'inventoryBatchId',
+  'priceCents',
+  'controlledSubstance',
+  'prescriptionRequired',
+  'drugSchedule',
+] as const;
+
 export const CANONICAL_PRESCRIPTION_STRUCTURE: TemplateSchemaSnapshot = {
   sections: [
     {
@@ -221,26 +250,33 @@ export const CANONICAL_PRESCRIPTION_STRUCTURE: TemplateSchemaSnapshot = {
           order: 1,
           rules: {
             inventoryItemKind: 'MEDICAL',
-            columns: [
-              'inventoryItemId',
-              'dosage',
+            columns: [...CANONICAL_PRESCRIPTION_ROW_KEYS],
+            rowKeys: [...CANONICAL_PRESCRIPTION_ROW_KEYS],
+            editableInWorkspace: [
+              'dosageForm',
+              'route',
+              'qty',
+              'refill',
               'frequency',
               'durationDays',
-              'instructions',
-              'qty',
-            ],
-            rowKeys: [
-              'inventoryItemId',
-              'dosage',
-              'frequency',
-              'durationDays',
-              'qty',
+              'durationUnit',
               'instructions',
             ],
-            editableInWorkspace: ['qty', 'frequency', 'durationDays', 'instructions'],
           },
         },
       ],
+    },
+    {
+      id: 'instructions',
+      title: 'Instructions',
+      order: 2,
+      fields: [{ key: 'instructions', label: 'Instructions', type: 'richText', order: 1 }],
+    },
+    {
+      id: 'notes',
+      title: 'Notes',
+      order: 3,
+      fields: [{ key: 'notes', label: 'Notes', type: 'richText', order: 1 }],
     },
   ],
 };
@@ -291,16 +327,6 @@ export const CANONICAL_VITALS_STRUCTURE: TemplateSchemaSnapshot = {
 
 /** Ordered workspace SOAP editor keys (the four S/O/A/P rich-text fields). */
 export const CANONICAL_SOAP_FIELD_KEYS = ['subjective', 'objective', 'assessment', 'plan'] as const;
-
-/** Ordered prescription medication row keys authored in the template. */
-export const CANONICAL_PRESCRIPTION_ROW_KEYS = [
-  'inventoryItemId',
-  'dosage',
-  'frequency',
-  'durationDays',
-  'qty',
-  'instructions',
-] as const;
 
 export interface TemplateVersionLike {
   id: string;
@@ -629,6 +655,31 @@ const medicationRowToFormField = (row: Record<string, unknown>, index: number): 
       ? row.medicineName
       : `Medication ${index + 1}`;
   const prefix = inventoryItemId ?? medicineId ?? `med_${index + 1}`;
+  const medicationField = (
+    suffix: string,
+    prescriptionField: string,
+    label: string,
+    type: 'input' | 'number' | 'textarea',
+    readonly: boolean,
+    defaultValue: unknown,
+    placeholder = ''
+  ) =>
+    ({
+      id: `${prefix}_${suffix}`,
+      type,
+      label,
+      placeholder:
+        typeof defaultValue === 'string' && defaultValue.trim().length > 0
+          ? defaultValue
+          : placeholder,
+      defaultValue,
+      meta: {
+        inventoryItemId,
+        prescriptionField,
+        ...(readonly ? { readonly: true } : { templateDefault: true }),
+      },
+    }) as unknown as FormField;
+
   return {
     id: `${prefix}_group`,
     type: 'group',
@@ -640,70 +691,83 @@ const medicationRowToFormField = (row: Record<string, unknown>, index: number): 
       medicineName,
     },
     fields: [
-      {
-        id: `${prefix}_name`,
-        type: 'input',
-        label: 'Name',
-        placeholder: medicineName,
-        defaultValue: typeof row.medicineName === 'string' ? row.medicineName : undefined,
-        meta: { readonly: true, inventoryItemId },
-      } as unknown as FormField,
-      {
-        id: `${prefix}_dosage`,
-        type: 'input',
-        label: 'Strength',
-        placeholder: typeof row.dosage === 'string' ? row.dosage : 'Strength from inventory',
-        defaultValue: row.dosage,
-        meta: { readonly: true, inventoryItemId },
-      } as unknown as FormField,
-      {
-        id: `${prefix}_route`,
-        type: 'input',
-        label: 'Route',
-        placeholder: typeof row.route === 'string' ? row.route : 'Route from inventory',
-        defaultValue: row.route,
-        meta: { readonly: true, inventoryItemId },
-      } as unknown as FormField,
-      {
-        id: `${prefix}_frequency`,
-        type: 'input',
-        label: 'Frequency',
-        placeholder: 'Enter frequency',
-        defaultValue: row.frequency,
-        meta: { inventoryItemId, templateDefault: true },
-      } as unknown as FormField,
-      {
-        id: `${prefix}_duration`,
-        type: 'input',
-        label: 'Duration',
-        placeholder: 'Enter duration',
-        defaultValue: row.durationDays,
-        meta: { inventoryItemId, templateDefault: true },
-      } as unknown as FormField,
-      {
-        id: `${prefix}_qty`,
-        type: 'number',
-        label: 'Quantity',
-        placeholder: 'Units to dispense',
-        defaultValue: row.qty,
-        meta: { inventoryItemId, templateDefault: true },
-      } as unknown as FormField,
-      {
-        id: `${prefix}_price`,
-        type: 'input',
-        label: 'Price',
-        placeholder: typeof row.price === 'string' ? row.price : '',
-        defaultValue: row.price,
-        meta: { readonly: true, inventoryItemId },
-      } as unknown as FormField,
-      {
-        id: `${prefix}_remark`,
-        type: 'textarea',
-        label: 'Instructions',
-        placeholder: 'Add instructions',
-        defaultValue: row.instructions,
-        meta: { inventoryItemId, templateDefault: true },
-      } as unknown as FormField,
+      medicationField(
+        'name',
+        'medicineName',
+        'Name',
+        'input',
+        true,
+        row.medicineName ?? medicineName
+      ),
+      medicationField('brand', 'brand', 'Brand', 'input', true, row.brand),
+      medicationField('genericName', 'genericName', 'Generic name', 'input', true, row.genericName),
+      medicationField('sku', 'sku', 'SKU', 'input', true, row.sku),
+      medicationField('strength', 'strength', 'Strength', 'input', true, row.strength),
+      medicationField(
+        'strengthUnit',
+        'strengthUnit',
+        'Strength unit',
+        'input',
+        true,
+        row.strengthUnit
+      ),
+      medicationField('form', 'dosageForm', 'Form', 'input', false, row.dosageForm),
+      medicationField('dosage', 'dosage', 'Dose label', 'input', true, row.dosage),
+      medicationField('route', 'route', 'Route', 'input', false, row.route),
+      medicationField('frequency', 'frequency', 'Frequency', 'input', false, row.frequency),
+      medicationField('duration', 'durationDays', 'Duration', 'input', false, row.durationDays),
+      medicationField(
+        'durationUnit',
+        'durationUnit',
+        'Duration unit',
+        'input',
+        false,
+        row.durationUnit ?? 'days'
+      ),
+      medicationField('qty', 'qty', 'Quantity', 'number', false, row.qty),
+      medicationField('refill', 'refill', 'Refills', 'number', false, row.refill),
+      medicationField(
+        'remark',
+        'instructions',
+        'Instructions',
+        'textarea',
+        false,
+        row.instructions
+      ),
+      medicationField('fulfillment', 'fulfillment', 'Fulfillment', 'input', true, row.fulfillment),
+      medicationField(
+        'inventoryBatchId',
+        'inventoryBatchId',
+        'Batch',
+        'input',
+        true,
+        row.inventoryBatchId
+      ),
+      medicationField('priceCents', 'priceCents', 'Price (cents)', 'number', true, row.priceCents),
+      medicationField(
+        'controlledSubstance',
+        'controlledSubstance',
+        'Controlled substance',
+        'input',
+        true,
+        row.controlledSubstance
+      ),
+      medicationField(
+        'prescriptionRequired',
+        'prescriptionRequired',
+        'Prescription required',
+        'input',
+        true,
+        row.prescriptionRequired
+      ),
+      medicationField(
+        'drugSchedule',
+        'drugSchedule',
+        'Drug schedule',
+        'input',
+        true,
+        row.drugSchedule
+      ),
     ],
   } as unknown as FormField;
 };
@@ -720,13 +784,25 @@ const medicationRowGroupToTemplateRow = (
   for (const field of group.fields ?? []) {
     const value = medicationFieldDefault(field);
     if (value === undefined || value === '') continue;
-    if (field.id.endsWith('_name')) row.medicineName = value;
+    const prescriptionField = (field.meta as { prescriptionField?: string } | undefined)
+      ?.prescriptionField;
+    if (prescriptionField) row[prescriptionField] = value;
+    else if (field.id.endsWith('_name')) row.medicineName = value;
+    else if (field.id.endsWith('_brand')) row.brand = value;
+    else if (field.id.endsWith('_genericName')) row.genericName = value;
+    else if (field.id.endsWith('_sku')) row.sku = value;
+    else if (field.id.endsWith('_strength')) row.strength = value;
+    else if (field.id.endsWith('_strengthUnit')) row.strengthUnit = value;
+    else if (field.id.endsWith('_form')) row.dosageForm = value;
     else if (field.id.endsWith('_dosage')) row.dosage = value;
     else if (field.id.endsWith('_route')) row.route = value;
     else if (field.id.endsWith('_frequency')) row.frequency = value;
     else if (field.id.endsWith('_duration')) row.durationDays = value;
+    else if (field.id.endsWith('_durationUnit')) row.durationUnit = value;
     else if (field.id.endsWith('_qty')) row.qty = value;
+    else if (field.id.endsWith('_refill')) row.refill = value;
     else if (field.id.endsWith('_price')) row.price = value;
+    else if (field.id.endsWith('_priceCents')) row.priceCents = value;
     else if (field.id.endsWith('_remark') || field.id.endsWith('_instructions')) {
       row.instructions = value;
     }

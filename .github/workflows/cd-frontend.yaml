@@ -23,7 +23,7 @@ jobs:
       should-deploy: ${{ steps.set.outputs.should_deploy }}
     steps:
       - name: Checkout (push-safe)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0

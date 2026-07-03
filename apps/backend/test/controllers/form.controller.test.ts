@@ -432,13 +432,33 @@ describe("FormController", () => {
     it("should return 201 on successful submission", async () => {
       (
         AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValue({ id: "u1" });
-      req.body = { answers: {} };
+      ).mockResolvedValue({ id: "u1", parentId: "parent-1" });
+      req.params.formId = "ced99b20-fde8-4122-bab9-a947ad562a36";
+      req.body = {
+        resourceType: "QuestionnaireResponse",
+        status: "completed",
+        item: [],
+      };
       (FormService.submitFHIR as jest.Mock).mockResolvedValue({ id: "sub1" });
 
       await FormController.submitForm(req, res);
 
-      expect(FormService.submitFHIR).toHaveBeenCalledWith(req.body);
+      expect(FormService.submitFHIR).toHaveBeenCalledWith({
+        resourceType: "QuestionnaireResponse",
+        status: "completed",
+        item: [],
+        questionnaire: "Questionnaire/ced99b20-fde8-4122-bab9-a947ad562a36",
+        extension: [
+          {
+            url: "https://yosemitecrew.com/fhir/StructureDefinition/form-response-parent",
+            valueString: "parent-1",
+          },
+          {
+            url: "https://yosemitecrew.com/fhir/StructureDefinition/form-response-submitted-by",
+            valueString: "parent-1",
+          },
+        ],
+      });
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({ id: "sub1" });
     });
@@ -446,7 +466,7 @@ describe("FormController", () => {
     it("should handle FormServiceError and generic errors", async () => {
       (
         AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValue({ id: "u1" });
+      ).mockResolvedValue({ id: "u1", parentId: "parent-1" });
 
       (FormService.submitFHIR as jest.Mock).mockRejectedValue(
         new FormServiceError("Error", 400),

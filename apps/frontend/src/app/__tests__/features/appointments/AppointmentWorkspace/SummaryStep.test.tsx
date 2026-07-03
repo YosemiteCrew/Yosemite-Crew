@@ -57,6 +57,15 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
     </button>
   ),
 }));
+jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
+  __esModule: true,
+  default: ({ content, children }: any) => (
+    <span>
+      {children}
+      <span role="tooltip">{content}</span>
+    </span>
+  ),
+}));
 jest.mock('@/app/ui/overlays/SigningOverlay', () => ({
   __esModule: true,
   default: () => <div data-testid="signing-overlay" />,
@@ -108,6 +117,7 @@ const encounter = {
 const appointment = {
   organisationId: 'org-1',
   encounterId: 'enc-1',
+  status: 'IN_PROGRESS',
 } as unknown as Parameters<typeof SummaryStep>[0]['appointment'];
 
 const renderStep = () =>
@@ -185,5 +195,47 @@ describe('SummaryStep packet signing', () => {
 
     expect(screen.getByRole('button', { name: /^print all$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument();
+  });
+
+  it('disables Sign with a tooltip when the appointment is not in progress', async () => {
+    render(
+      <SummaryStep
+        appointmentId="appt-1"
+        appointment={{ ...appointment, status: 'CHECKED_IN' } as typeof appointment}
+        encounter={encounter}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /^sign$/i })).toBeDisabled();
+    expect(
+      screen.getByText(/signing is available only while the appointment is in progress/i)
+    ).toBeInTheDocument();
+  });
+
+  it('shows Download Signed instead of Sign once a document is signed', async () => {
+    const { listEncounterWorkspaceDocuments, getEncounterDocumentPacketPdfUrl } = jest.requireMock(
+      '@/app/features/appointments/services/workspaceAggregateService'
+    );
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      {
+        documentId: 'doc-1',
+        title: 'Discharge',
+        sourceKind: 'DISCHARGE_SUMMARY',
+        status: 'FINAL',
+        signingStatus: 'SIGNED',
+        createdAt: '2026-04-20T10:00:00Z',
+      },
+    ]);
+    (getEncounterDocumentPacketPdfUrl as jest.Mock).mockResolvedValue('blob:signed');
+
+    renderStep();
+
+    const downloadButton = await screen.findByRole('button', { name: /download signed/i });
+    expect(screen.queryByRole('button', { name: /^sign$/i })).not.toBeInTheDocument();
+
+    fireEvent.click(downloadButton);
+    await waitFor(() =>
+      expect(getEncounterDocumentPacketPdfUrl).toHaveBeenCalledWith('org-1', 'enc-1')
+    );
   });
 });

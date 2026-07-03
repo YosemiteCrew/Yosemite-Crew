@@ -1,12 +1,15 @@
 // src/controllers/chat.controller.ts
 import { Request, Response } from "express";
 import { ChatService, ChatServiceError } from "src/services/chat.service";
+import { NetworkChatService } from "src/services/networkChat.service";
 import ChatSessionModel from "src/models/chatSession";
 import logger from "src/utils/logger";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
 import { resolveUserIdFromRequest } from "src/utils/request";
+import { SharedChatEntityService } from "src/services/sharedChatEntity.service";
+import { z } from "zod";
 
 const getObjectBody = (req: Request): Record<string, unknown> =>
   typeof req.body === "object" && req.body
@@ -18,6 +21,21 @@ const isStringArray = (value: unknown): value is string[] =>
 
 const getStringArray = (value: unknown): string[] | undefined =>
   isStringArray(value) ? value : undefined;
+
+const shareEntitySchema = z.object({
+  channelId: z.string().min(1),
+  entityType: z.enum([
+    "COMPANION",
+    "APPOINTMENT",
+    "INVOICE",
+    "FORM",
+    "PRESCRIPTION",
+    "DOCUMENT",
+  ]),
+  entityId: z.string().min(1),
+  title: z.string().trim().min(1).optional(),
+  snapshot: z.record(z.unknown()).optional(),
+});
 
 export const ChatController = {
   async generateToken(req: Request, res: Response) {
@@ -56,6 +74,87 @@ export const ChatController = {
     } catch (err) {
       logger.error("Generate PMS token failed", err);
       return res.status(500).json({ message: "Token generation failed" });
+    }
+  },
+
+  async shareEntityToChannel(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const parsed = shareEntitySchema.safeParse(getObjectBody(req));
+      if (!parsed.success) {
+        return res
+          .status(400)
+          .json({ message: "Invalid payload", errors: parsed.error.flatten() });
+      }
+
+      const record = await SharedChatEntityService.shareEntity({
+        userId,
+        ...parsed.data,
+      });
+      return res.status(201).json(record);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Share entity to chat failed", err);
+      return res.status(500).json({ message: "Failed to share entity" });
+    }
+  },
+
+  async listSharedEntities(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const channelId = req.params.channelId;
+      if (!channelId) {
+        return res.status(400).json({ message: "channelId is required" });
+      }
+
+      const items = await SharedChatEntityService.listForChannel(
+        channelId,
+        userId,
+      );
+      return res.status(200).json(items);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("List shared entities failed", err);
+      return res
+        .status(500)
+        .json({ message: "Failed to list shared entities" });
+    }
+  },
+
+  async revokeSharedEntity(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const id = req.params.id;
+      if (!id) {
+        return res.status(400).json({ message: "id is required" });
+      }
+
+      const record = await SharedChatEntityService.revoke(id, userId);
+      return res.status(200).json(record);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Revoke shared entity failed", err);
+      return res
+        .status(500)
+        .json({ message: "Failed to revoke shared entity" });
     }
   },
 
@@ -105,6 +204,78 @@ export const ChatController = {
         return res.status(err.statusCode).json({ message: err.message });
       }
       logger.error("Create org direct chat failed", err);
+      return res.status(500).json({ message: "Failed to create chat" });
+    }
+  },
+
+  async searchNetworkColleagues(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const query = req.query as Record<string, unknown>;
+      const organisationId =
+        typeof query.organisationId === "string"
+          ? query.organisationId
+          : undefined;
+      const q = typeof query.q === "string" ? query.q : undefined;
+
+      if (!organisationId) {
+        return res.status(400).json({ message: "organisationId is required" });
+      }
+
+      const result = await NetworkChatService.searchNetworkColleagues({
+        requesterUserId: userId,
+        requesterOrgId: organisationId,
+        query: q,
+      });
+
+      return res.status(200).json(result);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Search network colleagues failed", err);
+      return res
+        .status(500)
+        .json({ message: "Failed to search network colleagues" });
+    }
+  },
+
+  async createNetworkDirectChat(req: Request, res: Response) {
+    try {
+      const userId = resolveUserIdFromRequest(req);
+      const body = getObjectBody(req);
+      const organisationId =
+        typeof body.organisationId === "string"
+          ? body.organisationId
+          : undefined;
+      const otherUserId =
+        typeof body.otherUserId === "string" ? body.otherUserId : undefined;
+      const otherOrganisationId =
+        typeof body.otherOrganisationId === "string"
+          ? body.otherOrganisationId
+          : undefined;
+
+      if (!userId || !organisationId || !otherUserId || !otherOrganisationId) {
+        return res.status(400).json({ message: "Invalid payload" });
+      }
+
+      const session = await NetworkChatService.createNetworkDirectChat({
+        requesterUserId: userId,
+        requesterOrgId: organisationId,
+        otherUserId,
+        otherOrgId: otherOrganisationId,
+      });
+
+      return res.status(201).json(session);
+    } catch (err) {
+      if (err instanceof ChatServiceError) {
+        return res.status(err.statusCode).json({ message: err.message });
+      }
+      logger.error("Create network direct chat failed", err);
       return res.status(500).json({ message: "Failed to create chat" });
     }
   },
@@ -177,19 +348,21 @@ export const ChatController = {
         return res.status(400).json({ message: "organisationId required" });
       }
 
+      const includeClosed = req.query.includeClosed === "true";
+
       const sessions = isReadFromPostgres()
         ? await prisma.chatSession.findMany({
             where: {
               organisationId,
               members: { has: userId },
-              status: { not: "CLOSED" },
+              ...(includeClosed ? {} : { status: { not: "CLOSED" } }),
             },
             orderBy: { updatedAt: "desc" },
           })
         : await ChatSessionModel.find({
             organisationId,
             members: userId,
-            status: { $ne: "CLOSED" },
+            ...(includeClosed ? {} : { status: { $ne: "CLOSED" } }),
           })
             .sort({ updatedAt: -1 })
             .lean();
@@ -203,12 +376,13 @@ export const ChatController = {
 
   async closeSession(req: Request, res: Response) {
     try {
+      const userId = resolveUserIdFromRequest(req);
       const { sessionId } = req.params;
-      if (!sessionId) {
+      if (!userId || !sessionId) {
         return res.status(400).json({ message: "sessionId required" });
       }
 
-      await ChatService.closeSession(sessionId);
+      await ChatService.closeSession(sessionId, userId);
       return res.status(200).json({ message: "Chat closed successfully" });
     } catch (err) {
       if (err instanceof ChatServiceError) {

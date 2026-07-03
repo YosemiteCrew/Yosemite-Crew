@@ -20,7 +20,7 @@ import {
   formatAuthError,
   DEMO_LOGIN_EMAIL,
 } from '@/features/auth/services/passwordlessAuth';
-import {AUTH_FEATURE_FLAGS} from '@/config/variables';
+import {AUTH_FEATURE_FLAGS, MOBILE_CONFIG_BEHAVIOR} from '@/config/variables';
 import {Amplify} from 'aws-amplify';
 import devOutputs from '../../../../devamplify_outputs.json';
 import prodOutputs from '../../../../prodamplify_outputs.json';
@@ -164,7 +164,11 @@ const useOTPHandler = (
     const isDemoLogin =
       allowReviewLogin && normalizedEmail.toLowerCase() === DEMO_LOGIN_EMAIL;
     try {
-      Amplify.configure(isDemoLogin ? devOutputs : prodOutputs);
+      Amplify.configure(
+        MOBILE_CONFIG_BEHAVIOR.useDevApi || isDemoLogin
+          ? devOutputs
+          : prodOutputs,
+      );
       const result = await requestPasswordlessEmailCode(normalizedEmail);
 
       const message = isDemoLogin
@@ -179,7 +183,7 @@ const useOTPHandler = (
         challengeLength: isDemoLogin ? result.challengeLength : undefined,
       });
     } catch (error) {
-      if (isDemoLogin) {
+      if (isDemoLogin && !MOBILE_CONFIG_BEHAVIOR.useDevApi) {
         Amplify.configure(prodOutputs);
       }
       console.error('[Auth] Failed requesting passwordless code', error);

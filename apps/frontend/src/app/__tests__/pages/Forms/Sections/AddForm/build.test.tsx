@@ -42,21 +42,31 @@ jest.mock('@/app/ui/inputs/MultiSelectDropdown', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/inputs/Dropdown/Dropdown', () => ({
+// The builder now uses the reusable searchable LabelDropdown (defaultOption +
+// onSelect(option)) for the medicine picker and the task/medicine card option
+// dropdowns. The mock renders each option with role="option" (always visible) and
+// tags the medicine picker wrapper with a testid for the existing assertions.
+jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
-  default: ({ options, onChange }: any) => (
-    <select
-      data-testid="medicine-dropdown"
-      defaultValue=""
-      onChange={(e) => onChange(e.target.value)}
+  default: ({ options, onSelect, placeholder }: any) => (
+    <div
+      data-testid={
+        String(placeholder).toLowerCase().includes('medicine') ? 'medicine-dropdown' : undefined
+      }
     >
-      <option value="">Select</option>
+      <div>{placeholder}</div>
       {(options || []).map((opt: any) => (
-        <option key={opt.value} value={opt.value}>
+        <button
+          key={opt.value}
+          type="button"
+          role="option"
+          aria-selected={false}
+          onClick={() => onSelect(opt)}
+        >
           {opt.label}
-        </option>
+        </button>
       ))}
-    </select>
+    </div>
   ),
 }));
 
@@ -391,24 +401,25 @@ describe('Build form step', () => {
       expect(fetchInventoryItems).toHaveBeenCalledWith('org-1');
     });
 
-    await waitFor(() => {
-      expect(
-        screen.getByRole('option', { name: 'Amoxicillin (250 mg • Oral)' })
-      ).toBeInTheDocument();
+    const medicineOption = await screen.findByRole('option', {
+      name: 'Amoxicillin (250 mg • Oral)',
     });
-
-    fireEvent.change(screen.getByTestId('medicine-dropdown'), { target: { value: 'med-1' } });
+    fireEvent.click(medicineOption);
 
     await waitFor(() => {
       const schema = readSchema();
       const updated = schema[0] as any;
       expect(updated.fields).toHaveLength(1);
       expect(updated.fields[0].label).toBe('Amoxicillin');
-      // name, dosage, route, frequency, duration, qty, price, remark
-      expect(updated.fields[0].fields).toHaveLength(8);
+      // Full prescription row shape sourced from inventoryToPrescriptionItem:
+      // name, brand, genericName, sku, strength, strengthUnit, form, dosage,
+      // route, frequency, duration, durationUnit, qty, refill, remark,
+      // fulfillment, inventoryBatchId, priceCents, controlledSubstance,
+      // prescriptionRequired, drugSchedule
+      expect(updated.fields[0].fields).toHaveLength(21);
       expect(updated.fields[0].fields[0].defaultValue).toBe('Amoxicillin');
-      expect(updated.fields[0].fields[1].defaultValue).toBe('250 mg');
-      expect(updated.fields[0].fields[2].defaultValue).toBe('Oral');
+      expect(updated.fields[0].fields[4].defaultValue).toBe('250 mg');
+      expect(updated.fields[0].fields[8].defaultValue).toBe('Oral');
     });
   });
 
@@ -509,7 +520,7 @@ describe('Build form step', () => {
         })
       );
 
-      fireEvent.click(screen.getByRole('button', { name: 'Add task' }));
+      fireEvent.click(screen.getByRole('button', { name: /Add task block/i }));
 
       const schema = readSchema();
       const updatedTaskGroup = schema[0] as FormField & { fields?: FormField[] };
@@ -517,10 +528,11 @@ describe('Build form step', () => {
       expect(taskBlock.meta?.taskBlock).toBe(true);
       expect(taskBlock.fields?.map((field) => field.meta?.taskBlockKey)).toEqual([
         'name',
-        'dayOffset',
-        'timeOfDay',
-        'reminderOffsetMinutes',
+        'category',
         'additionalNotes',
+        'recurrence.type',
+        'reminderOffsetMinutes',
+        'durationDays',
       ]);
     });
   });

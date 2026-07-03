@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import { Prisma } from "@prisma/client";
 import {
   Appointment as AppointmentDomain,
+  AppointmentBookingPaymentStatus,
   AppointmentKind,
   AppointmentPaymentStatus,
   AppointmentRequestDTO,
@@ -18,6 +19,7 @@ import { CatalogService, CatalogServiceError } from "./catalog.service";
 import { InvoiceService } from "./invoice.service";
 import { FinancePaymentService } from "./finance/payment";
 import { resolvePaymentCollectionMethod } from "src/utils/payment";
+import { CompanionOrganisationService } from "./companion-organisation.service";
 
 type AppointmentStatus = AppointmentDomain["status"];
 
@@ -250,13 +252,12 @@ type AppointmentListFilters = {
 };
 
 const DEFAULT_KIND: AppointmentKind = "OUTPATIENT";
-const BOOKABLE_INVOICE_STATUSES = [
-  "PAID",
+const UNPAID_INVOICE_STATUSES = new Set([
   "PENDING",
   "AWAITING_PAYMENT",
   "FAILED",
   "REFUNDED",
-] as const;
+]);
 
 const toDate = (value: string | Date) =>
   value instanceof Date ? value : new Date(value);
@@ -795,9 +796,9 @@ const admitInpatientRoomUnit = async (params: {
     update: {
       unitId,
       admittedAt,
-      ...(input?.expectedStayDays !== undefined
-        ? { expectedStayDays: input.expectedStayDays }
-        : {}),
+      ...(input?.expectedStayDays == null
+        ? undefined
+        : { expectedStayDays: input.expectedStayDays }),
     },
     create: {
       encounterId,
@@ -1041,23 +1042,6 @@ const ensureEncounterOnCheckIn = async (args: {
     },
   });
 
-  if (normalizeAppointmentKind(args.current.appointmentKind) === "INPATIENT") {
-    const admissionDelegate = (
-      args.tx as unknown as { admission: AdmissionUpsertDelegate }
-    ).admission;
-
-    await admissionDelegate.upsert({
-      where: { encounterId: createdEncounter.id },
-      update: {},
-      create: {
-        encounterId: createdEncounter.id,
-        organisationId: args.current.organisationId,
-        patientId,
-        admittedAt: args.current.startTime,
-      },
-    });
-  }
-
   return createdEncounter.id;
 };
 
@@ -1190,40 +1174,77 @@ const buildWhereFromFilters = (
   return where;
 };
 
-const resolvePaymentStatusMap = async (
+type AppointmentPaymentStateMaps = {
+  paymentStatusMap: Map<string, AppointmentPaymentStatus>;
+  bookingPaymentStatusMap: Map<string, AppointmentBookingPaymentStatus>;
+};
+
+const resolveAppointmentPaymentStateMaps = async (
   appointmentIds: string[],
-): Promise<Map<string, AppointmentPaymentStatus>> => {
+): Promise<AppointmentPaymentStateMaps> => {
   const uniqueIds = [...new Set(appointmentIds.filter(Boolean))];
   const paymentStatusMap = new Map<string, AppointmentPaymentStatus>();
+  const bookingPaymentStatusMap = new Map<
+    string,
+    AppointmentBookingPaymentStatus
+  >();
 
   if (!uniqueIds.length) {
-    return paymentStatusMap;
+    return { paymentStatusMap, bookingPaymentStatusMap };
   }
 
   const invoices = await prisma.invoice.findMany({
     where: {
       appointmentId: { in: uniqueIds },
-      status: { in: [...BOOKABLE_INVOICE_STATUSES] },
     },
     select: {
       appointmentId: true,
       status: true,
+      depositCollectedAmount: true,
+      paymentAttempts: {
+        where: { status: "SUCCEEDED" },
+        select: { id: true },
+      },
+      payments: {
+        where: { status: "SUCCEEDED" },
+        select: { id: true },
+      },
     },
   });
 
-  const tracker = new Map<string, { hasPaid: boolean; hasUnpaid: boolean }>();
+  const tracker = new Map<
+    string,
+    {
+      hasPaid: boolean;
+      hasUnpaid: boolean;
+      hasBookingPayment: boolean;
+    }
+  >();
 
   for (const invoice of invoices) {
     if (!invoice.appointmentId) continue;
     const entry = tracker.get(invoice.appointmentId) ?? {
       hasPaid: false,
       hasUnpaid: false,
+      hasBookingPayment: false,
     };
 
-    if (invoice.status === "PAID") {
+    const hasSuccessfulPayment =
+      (invoice.payments?.length ?? 0) > 0 ||
+      (invoice.paymentAttempts?.length ?? 0) > 0;
+    const hasBookingPayment =
+      hasSuccessfulPayment || (invoice.depositCollectedAmount ?? 0) > 0;
+    const isPaid = invoice.status === "PAID";
+    const isUnpaid = UNPAID_INVOICE_STATUSES.has(invoice.status);
+
+    if (isPaid) {
       entry.hasPaid = true;
-    } else {
+    }
+    if (isUnpaid) {
       entry.hasUnpaid = true;
+    }
+    if (hasBookingPayment) {
+      entry.hasBookingPayment = true;
     }
 
     tracker.set(invoice.appointmentId, entry);
@@ -1234,14 +1255,19 @@ const resolvePaymentStatusMap = async (
       appointmentId,
       entry.hasPaid && !entry.hasUnpaid ? "PAID" : "UNPAID",
     );
+    bookingPaymentStatusMap.set(
+      appointmentId,
+      entry.hasBookingPayment ? "PAID" : "UNPAID",
+    );
   }
 
-  return paymentStatusMap;
+  return { paymentStatusMap, bookingPaymentStatusMap };
 };
 
 const toDomain = (
   row: AppointmentRow,
   paymentStatus?: AppointmentPaymentStatus,
+  bookingPaymentStatus?: AppointmentBookingPaymentStatus,
 ): AppointmentDomain => {
   const appointmentTypeWithTemplates = row.appointmentType as
     | (AppointmentDomain["appointmentType"] & {
@@ -1273,6 +1299,7 @@ const toDomain = (
     endTime: new Date(row.endTime),
     status: row.status,
     paymentStatus,
+    bookingPaymentStatus,
     isEmergency: row.isEmergency,
     concern: row.concern ?? undefined,
     createdAt: new Date(row.createdAt),
@@ -1288,9 +1315,14 @@ const toDomain = (
 const toResponse = async (
   row: AppointmentRow,
 ): Promise<AppointmentResponseDTO> => {
-  const paymentStatusMap = await resolvePaymentStatusMap([row.id]);
+  const { paymentStatusMap, bookingPaymentStatusMap } =
+    await resolveAppointmentPaymentStateMaps([row.id]);
   return toAppointmentResponseDTO(
-    toDomain(row, paymentStatusMap.get(row.id) ?? "UNPAID"),
+    toDomain(
+      row,
+      paymentStatusMap.get(row.id) ?? "UNPAID",
+      bookingPaymentStatusMap.get(row.id) ?? "UNPAID",
+    ),
   );
 };
 
@@ -1299,12 +1331,15 @@ const toResponseList = async (
 ): Promise<AppointmentResponseDTO[]> => {
   if (!rows.length) return [];
 
-  const paymentStatusMap = await resolvePaymentStatusMap(
-    rows.map((row) => row.id),
-  );
+  const { paymentStatusMap, bookingPaymentStatusMap } =
+    await resolveAppointmentPaymentStateMaps(rows.map((row) => row.id));
   return rows.map((row) =>
     toAppointmentResponseDTO(
-      toDomain(row, paymentStatusMap.get(row.id) ?? "UNPAID"),
+      toDomain(
+        row,
+        paymentStatusMap.get(row.id) ?? "UNPAID",
+        bookingPaymentStatusMap.get(row.id) ?? "UNPAID",
+      ),
     ),
   );
 };
@@ -1358,6 +1393,25 @@ const createAppointment = async (
     organisationId: input.organisationId,
   });
   assertSelectionSupportsAppointmentKind(selection, appointmentKind);
+
+  const organisation = await prisma.organization.findUnique({
+    where: { id: input.organisationId },
+    select: { type: true },
+  });
+
+  if (!organisation?.type) {
+    throw new AppointmentPrismaServiceError(
+      "Unable to resolve organisation type for appointment booking.",
+      404,
+    );
+  }
+
+  await CompanionOrganisationService.linkByParent({
+    parentId: input.patient.parent.id,
+    patientId: input.patient.id,
+    organisationId: input.organisationId,
+    organisationType: organisation.type,
+  });
 
   const created = await prisma.$transaction(async (tx) => {
     const patientId = getPatientId(input.patient);
@@ -1737,8 +1791,6 @@ export const AppointmentPrismaService = {
         },
       });
     });
-
-    await InvoiceService.markAppointmentReadyForBilling(appointmentId);
 
     return toResponse(updated as AppointmentRow);
   },
@@ -2159,6 +2211,7 @@ export const AppointmentPrismaService = {
     appointmentId: string,
     organisationId?: string,
     actorId?: string,
+    parentId?: string,
   ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError(
@@ -2178,7 +2231,12 @@ export const AppointmentPrismaService = {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);
     }
 
-    if (actorId && !canViewOwnAppointment(row as AppointmentRow, actorId)) {
+    const canViewAsActor =
+      actorId && canViewOwnAppointment(row as AppointmentRow, actorId);
+    const canViewAsParent =
+      parentId && getParentIdFromRow(row as AppointmentRow) === parentId;
+
+    if ((actorId || parentId) && !canViewAsActor && !canViewAsParent) {
       throw new AppointmentPrismaServiceError(
         "Forbidden – insufficient permissions",
         403,

@@ -264,7 +264,7 @@ const buildDomainAvailabilityFromPrisma = (row: {
   });
 
 const ensureOrganisationIds = (availability: BaseAvailabilityMongo[]) => {
-  const missing = availability.find((entry) => !entry.organisationId);
+  const missing = availability.some((entry) => !entry.organisationId);
   if (missing) {
     throw new BaseAvailabilityServiceError(
       "organisationId is required for each availability entry.",

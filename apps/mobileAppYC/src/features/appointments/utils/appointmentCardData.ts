@@ -116,6 +116,7 @@ export const transformAppointmentCardData = (
     isAppointmentPaymentPending(
       appointment.status,
       appointment.paymentStatus,
+      appointment.bookingPaymentStatus,
     ) ||
     isAppointmentPaymentFailed(appointment.status, appointment.paymentStatus);
   const isRequested = appointment.status === 'REQUESTED';

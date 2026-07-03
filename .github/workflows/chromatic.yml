@@ -69,6 +69,7 @@ jobs:
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           workingDir: apps/frontend
+          buildScriptName: 'storybook:build'
           onlyChanged: true
           externals: |
             packages/design-tokens/**

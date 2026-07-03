@@ -309,6 +309,25 @@ describe('Organisation Room Store', () => {
       expect(useOrganisationRoomStore.getState().roomUnitGroupsById['group-1']).toBeUndefined();
     });
 
+    it('updates room unit occupancy without changing room indexes', () => {
+      const store = useOrganisationRoomStore.getState();
+      store.setRoomUnitsForOrg('org-A', [mockUnit]);
+
+      store.setRoomUnitOccupied('unit-1', true);
+
+      let state = useOrganisationRoomStore.getState();
+      expect(state.roomUnitsById['unit-1']?.isOccupied).toBe(true);
+      expect(state.roomUnitIdsByRoomId['room-1']).toEqual(['unit-1']);
+
+      store.setRoomUnitOccupied('unit-1', false);
+      store.setRoomUnitOccupied(undefined, true);
+      store.setRoomUnitOccupied('missing-unit', true);
+
+      state = useOrganisationRoomStore.getState();
+      expect(state.roomUnitsById['unit-1']?.isOccupied).toBe(false);
+      expect(state.roomUnitIdsByRoomId['room-1']).toEqual(['unit-1']);
+    });
+
     it('clears room units and groups with the room', () => {
       const store = useOrganisationRoomStore.getState();
       store.setRooms([mockRoom1]);

@@ -447,6 +447,37 @@ export const AppointmentController = {
     }
   },
 
+  getByIdMobile: async (
+    req: Request<{ appointmentId: string }>,
+    res: Response,
+  ) => {
+    try {
+      const actorId = resolveUserIdFromRequest(req);
+      if (!actorId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const authUser = await AuthUserMobileService.getByProviderUserId(actorId);
+      if (!authUser?.parentId) {
+        return res
+          .status(400)
+          .json({ message: "Parent information missing for user" });
+      }
+
+      const data = await AppointmentPrismaService.getById(
+        req.params.appointmentId,
+        undefined,
+        undefined,
+        authUser.parentId.toString(),
+      );
+
+      return res.status(200).json({ data });
+    } catch (err: unknown) {
+      logger.error("Appointment fetch error", err);
+      return sendAppointmentError(res, err, "Failed to fetch appointment");
+    }
+  },
+
   listByCompanion: async (
     req: Request<{ patientId: string }>,
     res: Response,

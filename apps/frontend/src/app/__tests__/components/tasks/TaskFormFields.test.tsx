@@ -9,7 +9,12 @@ jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
     <div>
       <div>{placeholder}</div>
       {options.map((option: any) => (
-        <button key={option.value} type="button" onClick={() => onSelect(option)}>
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onSelect(option)}
+          aria-label={`${placeholder}:${option.label}`}
+        >
           {option.label}
         </button>
       ))}
@@ -49,15 +54,6 @@ jest.mock('@/app/ui/inputs/Timepicker', () => ({
   ),
 }));
 
-jest.mock('@/app/ui/inputs/SelectLabel', () => ({
-  __esModule: true,
-  default: ({ setOption }: any) => (
-    <button type="button" onClick={() => setOption('DAILY')}>
-      set-recurrence
-    </button>
-  ),
-}));
-
 describe('TaskFormFields', () => {
   const setFormData = jest.fn();
   const setDue = jest.fn();
@@ -66,9 +62,9 @@ describe('TaskFormFields', () => {
 
   const baseFormData: any = {
     source: 'CUSTOM',
-    audience: 'ALL',
+    audience: 'EMPLOYEE_TASK',
     assignedTo: '',
-    category: 'CUSTOM',
+    category: 'CARE',
     name: 'Task A',
     description: 'Desc',
     recurrence: { type: 'ONCE' },
@@ -87,7 +83,7 @@ describe('TaskFormFields', () => {
         setDueTimeValue={setDueTimeValue}
         onSelectTemplate={onSelectTemplate}
         showAudienceSelect={true}
-        audienceOptions={[{ value: 'ALL', label: 'All' } as any]}
+        audienceOptions={[{ value: 'EMPLOYEE_TASK', label: 'Employee task' } as any]}
         onAudienceSelect={jest.fn()}
         showAssigneeSelect={true}
         assigneeOptions={[{ value: 'user-1', label: 'User 1' } as any]}
@@ -99,38 +95,67 @@ describe('TaskFormFields', () => {
     jest.clearAllMocks();
   });
 
-  it('handles source/template/category/name/description/reminder updates', () => {
-    renderFields({ source: 'YC_LIBRARY' });
+  it('renders the canonical field set (no Source field) and updates title/description', () => {
+    renderFields();
 
-    fireEvent.click(screen.getByRole('button', { name: 'YC Library' }));
-    fireEvent.click(screen.getAllByRole('button', { name: 'Template 1' })[0]);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Custom' })[0]);
+    // The old "Source" dropdown is gone; the canonical fields are present.
+    expect(screen.queryByText('Source')).not.toBeInTheDocument();
+    expect(screen.getByText('Category')).toBeInTheDocument();
+    expect(screen.getByText('Reminder (optional)')).toBeInTheDocument();
+    expect(screen.getByText('Repeat')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Task'), { target: { value: 'Updated task' } });
+    fireEvent.change(screen.getByLabelText('Task title'), { target: { value: 'Updated task' } });
     fireEvent.change(screen.getByLabelText('description'), { target: { value: 'Updated desc' } });
-    fireEvent.change(screen.getByLabelText('Reminder (in minutes)'), { target: { value: '' } });
-    fireEvent.change(screen.getByLabelText('Reminder (in minutes)'), { target: { value: '15' } });
-
     fireEvent.click(screen.getByRole('button', { name: 'set-due' }));
     fireEvent.click(screen.getByRole('button', { name: 'set-time' }));
-    fireEvent.click(screen.getByRole('button', { name: 'set-recurrence' }));
 
     expect(setFormData).toHaveBeenCalled();
-    expect(onSelectTemplate).toHaveBeenCalledWith('tpl-1');
     expect(setDue).toHaveBeenCalled();
     expect(setDueTimeValue).toHaveBeenCalledWith('09:30');
   });
 
-  it('handles org template path and ignores zero reminder', () => {
-    renderFields({ source: 'ORG_TEMPLATE' });
+  it('loads from a template via the template picker', () => {
+    renderFields();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Template 1' })[0]);
-    fireEvent.change(screen.getByLabelText('Reminder (in minutes)'), { target: { value: '0' } });
-
-    const calls = (setFormData as jest.Mock).mock.calls.map((c) => c[0]);
-    expect(calls.some((arg) => typeof arg === 'object' && arg.templateId === 'tpl-1')).toBe(true);
-    expect(calls.some((arg) => typeof arg === 'object' && arg.reminder?.offsetMinutes === 0)).toBe(
-      false
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Load from template (optional):Template 1' })
     );
+
+    expect(onSelectTemplate).toHaveBeenCalledWith('tpl-1');
+  });
+
+  it('maps the reminder dropdown to an offset and clears it on "No reminder"', () => {
+    renderFields();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reminder (optional):15 minutes before' }));
+    expect(setFormData).toHaveBeenCalledWith(
+      expect.objectContaining({ reminder: { enabled: true, offsetMinutes: 15 } })
+    );
+
+    setFormData.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Reminder (optional):No reminder' }));
+    expect(setFormData).toHaveBeenCalledWith(expect.objectContaining({ reminder: undefined }));
+  });
+
+  it('maps the repeat dropdown to a recurrence (interval -> CUSTOM + cron)', () => {
+    renderFields();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Repeat:Every 6 hours' }));
+    expect(setFormData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recurrence: expect.objectContaining({
+          type: 'CUSTOM',
+          cronExpression: '0 */6 * * *',
+          isMaster: true,
+        }),
+      })
+    );
+  });
+
+  it('updates the category from the canonical list', () => {
+    renderFields();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Category:Billing' }));
+    expect(setFormData).toHaveBeenCalledWith(expect.objectContaining({ category: 'BILLING' }));
   });
 });

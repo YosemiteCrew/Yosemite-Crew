@@ -17,6 +17,7 @@ interface AccordionButtonProps {
   showButton?: boolean;
   finance?: boolean;
   keepMounted?: boolean;
+  actions?: React.ReactNode;
 }
 
 type PaddingArgs = {
@@ -56,6 +57,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
   showButton = true,
   finance = false,
   keepMounted = false,
+  actions,
 }) => {
   const subscription = useSubscriptionForPrimaryOrg();
   const { can } = usePermissions();
@@ -83,7 +85,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
       if (!safeUrl) {
         throw new Error('Received an unexpected billing portal URL.');
       }
-      globalThis.location.href = safeUrl;
+      globalThis.open(safeUrl, '_blank', 'noopener,noreferrer');
     } catch (e: any) {
       setError(e?.message || 'Failed to open billing portal');
     } finally {
@@ -128,6 +130,7 @@ const AccordionButton: React.FC<AccordionButtonProps> = ({
           {showButton && buttonTitle && (
             <Secondary href="#" onClick={() => buttonClick(true)} text={buttonTitle} />
           )}
+          {actions}
           {canEditSubscription && finance && (
             <div className="flex items-center gap-3 flex-wrap">
               {hasCustomerId && (

@@ -275,10 +275,15 @@ export type {
   CreditNoteStatus,
   Invoice,
   InvoiceItem,
+  InvoiceSettlementSummary,
   InvoiceStatus,
   PaymentCollectionMethod,
 } from './invoice';
-export type { Appointment, AppointmentPaymentStatus } from './appointment';
+export type {
+  Appointment,
+  AppointmentPaymentStatus,
+  AppointmentBookingPaymentStatus,
+} from './appointment';
 export { toFHIRInvoice, fromFHIRInvoice } from './invoice';
 export { toFHIRAppointment, fromFHIRAppointment } from './appointment';
 export {

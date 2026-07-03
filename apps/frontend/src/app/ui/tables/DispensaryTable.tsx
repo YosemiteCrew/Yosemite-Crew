@@ -68,8 +68,11 @@ const DispensaryTable = ({ filteredList, onView, onDispense }: DispensaryTablePr
       key: 'patient',
       width: '170px',
       render: (record) => {
-        const displayName = record.patient.petBreed
-          ? `${record.patient.name} · ${record.patient.petBreed}`
+        const ownerLastName = record.petParentName
+          ? record.petParentName.trim().split(/\s+/).at(-1)
+          : null;
+        const displayName = ownerLastName
+          ? `${record.patient.name} • ${ownerLastName}`
           : record.patient.name;
         return (
           <div className="appointment-profile">
@@ -210,7 +213,9 @@ const DispensaryTable = ({ filteredList, onView, onDispense }: DispensaryTablePr
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="text-body-3-emphasis text-text-primary truncate">
-                  {record.patient.name}
+                  {record.petParentName
+                    ? `${record.patient.name} • ${record.petParentName.trim().split(/\s+/).at(-1)}`
+                    : record.patient.name}
                 </div>
                 <div className="appointment-status shrink-0" style={STATUS_STYLES[record.status]}>
                   {STATUS_LABELS[record.status]}

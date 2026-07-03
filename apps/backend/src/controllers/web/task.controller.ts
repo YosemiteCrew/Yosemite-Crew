@@ -51,6 +51,8 @@ type ChangeStatusRequestBody = {
   completion?: CompleteTaskInput;
 };
 
+type RecurrenceScope = "THIS" | "THIS_AND_FOLLOWING" | "ALL";
+
 type CreateTaskTemplateRequestBody = Omit<CreateTaskTemplateInput, "createdBy">;
 type UpdateTaskTemplateRequestBody = UpdateTaskTemplateInput;
 
@@ -124,6 +126,16 @@ const parseTaskCategory = (
   if (!category) return undefined;
   const value = pickFirstQueryValue(category);
   return value && isTaskCategory(value) ? value : undefined;
+};
+
+const parseRecurrenceScope = (
+  scope?: string | string[],
+): RecurrenceScope | undefined => {
+  const value = pickFirstQueryValue(scope);
+  if (value === "THIS" || value === "THIS_AND_FOLLOWING" || value === "ALL") {
+    return value;
+  }
+  return undefined;
 };
 
 type TaskListQuery = {
@@ -326,8 +338,36 @@ export const TaskController = {
         return res.status(403).json({ message: "Account not found" });
       }
 
-      const task = await TaskService.updateTask(taskId, req.body, actorId);
+      const scope =
+        parseRecurrenceScope(req.query.scope as string | string[]) ?? "THIS";
+      const task = await TaskService.updateTask(
+        taskId,
+        req.body,
+        actorId,
+        scope,
+      );
       res.json(task);
+    } catch (error) {
+      handleError(error, res);
+    }
+  },
+
+  deleteTaskPMS: async (
+    req: Request<{ taskId: string }, unknown, unknown, { scope?: string }>,
+    res: Response,
+  ) => {
+    try {
+      const actorId = resolveUserId(req);
+      const taskId = req.params.taskId;
+
+      if (!actorId) {
+        return res.status(403).json({ message: "Account not found" });
+      }
+
+      const scope =
+        parseRecurrenceScope(req.query.scope as string | string[]) ?? "THIS";
+      await TaskService.deleteTask(taskId, actorId, scope);
+      res.status(204).json({});
     } catch (error) {
       handleError(error, res);
     }

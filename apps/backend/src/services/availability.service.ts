@@ -811,7 +811,7 @@ export const AvailabilityService = {
 
     if (occupied) return "Consulting";
 
-    const activeSlot = slots.find((s) => {
+    const activeSlot = slots.some((s) => {
       const slotStart = dayjs.utc(`${date}T${s.startTime}:00`);
       const slotEnd = dayjs.utc(`${date}T${s.endTime}:00`);
       const startsNowOrEarlier =

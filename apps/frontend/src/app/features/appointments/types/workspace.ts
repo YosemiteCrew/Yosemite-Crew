@@ -191,6 +191,10 @@ export type LineItemBreakdown = {
   name: string;
   qty: number;
   instructions?: string;
+  unitPriceCents?: number;
+  grossCents?: number;
+  discountPercent?: number;
+  discountCents?: number;
   amountCents: number;
 };
 
@@ -203,6 +207,10 @@ export type LineItem = {
   instructions?: string;
   unitPriceCents: number;
   amountCents: number;
+  defaultDiscountPercent?: number;
+  defaultDiscountCents?: number;
+  maxDiscountPercent?: number;
+  maxDiscountCents?: number;
   breakdown?: LineItemBreakdown[];
   /** True once the item is on a finalized/paid invoice — moves it to read-only "Past items". */
   billed?: boolean;
@@ -217,15 +225,41 @@ export type PrescriptionFulfillment = 'IN_HOUSE' | 'PRESCRIPTION_ONLY';
 export type PrescriptionItem = {
   id: string;
   medicineName: string;
+  /** Brand/trade name from inventory (e.g. "Calpol"), shown beside the generic. */
+  brand?: string;
+  /** Generic / composition name from inventory (e.g. "Paracetamol 650"). */
+  genericName?: string;
+  /** Inventory SKU, shown as a small reference chip. */
+  sku?: string;
+  /** Concentration value from inventory (e.g. "650"). */
+  strength?: string;
+  /** Strength unit from inventory (e.g. "mg", "mg/mL"). Paired with `strength` for display. */
+  strengthUnit?: string;
+  /** Dispensing form from inventory (Tablet, Capsule, …). Inventory-owned; shown read-only when set. */
+  dosageForm?: string;
+  /** Legacy combined dose label (strength + form). Retained for back-compat hydration. */
   dosage?: string;
+  /** Amount administered per dose (clinician-entered, e.g. "1" tablet, "5" mL). */
+  dose?: string;
+  /** Unit for the per-dose amount (e.g. "tablet", "mL"). Defaults from the inventory form. */
+  doseUnit?: string;
+  /** Route of administration from inventory (Oral, IV, …). Inventory-owned; shown read-only when set. */
   route?: string;
+  /** Dosing frequency, chosen from a controlled vocabulary (SID/BID/TID/…). */
   frequency?: string;
+  /** Treatment duration value (clinician-entered). */
   durationDays?: string;
+  /** Unit for the duration value (days / weeks / months). */
+  durationUnit?: string;
   /** Quantity to dispense from inventory (units). Definable in the template and editable in the
    * workspace; drives stock decrement and billing. */
   qty?: string;
   /** Number of refills allowed for this medication. */
   refill?: string;
+  /** Controlled-drug schedule from inventory (e.g. "Schedule III"), shown on the controlled pill. */
+  drugSchedule?: string;
+  /** True when the inventory item requires a prescription (drives the Rx-required pill). */
+  prescriptionRequired?: boolean;
   instructions?: string;
   fulfillment: PrescriptionFulfillment;
   /** Line price in cents, shown at the right end of the row. */
@@ -281,7 +315,10 @@ export type ScheduleTaskStatus = 'UPCOMING' | 'COMPLETED' | 'CANCELLED' | 'PENDI
 export type ScheduleTask = {
   id: string;
   time?: string;
+  /** Row title (the task name). */
   description: string;
+  /** Optional grey secondary line under the title (the task's instructions). */
+  subtext?: string;
   category: EmployeeTaskCategory;
   assignedToId?: string;
   assignedToName?: string;
@@ -304,8 +341,27 @@ export type InvoiceLineItem = {
   grossCents: number;
   discountCents: number;
   amountCents: number;
+  /** Package-level/default discount already included in the package line price. */
+  packageDefaultDiscountPercent?: number;
+  packageDefaultDiscountCents?: number;
+  /** Catalog max-discount percent; used as the canonical editable discount ceiling. */
+  maxDiscountPercent?: number;
   /** Per-line discount ceiling in cents (from the catalog max-discount %); caps manual edits. */
   maxDiscountCents?: number;
+  /** Component lines included in a package, shown as read-only package detail in the bill. */
+  breakdown?: LineItemBreakdown[];
+  /**
+   * Source in-house prescription this bill line was seeded from. When set, removing the line from
+   * the bill deletes the underlying (unbilled) prescription end-to-end so it does not re-seed.
+   */
+  sourcePrescriptionId?: string;
+  /** Inventory item of the source prescription, used to resolve the linked treatment-item delete. */
+  sourceInventoryItemId?: string;
+  /**
+   * False for lines that must not be removed from the bill — e.g. the appointment's booked
+   * service/consultation. Undefined/true means the line can be removed. Display-only.
+   */
+  removable?: boolean;
 };
 
 export type PastInvoice = {
