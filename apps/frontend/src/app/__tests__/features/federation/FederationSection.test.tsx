@@ -333,6 +333,43 @@ describe('FederationSection', () => {
     });
   });
 
+  describe('SendReferralCard', () => {
+    it('associates each field label with its control (accessible by label)', async () => {
+      render(<FederationSection />);
+      await waitFor(() => screen.getByLabelText('Recipient actor URI *'));
+
+      // Labels are wired via htmlFor/id, so getByLabelText resolves each control.
+      expect(screen.getByLabelText('Recipient actor URI *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Species *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Breed')).toBeInTheDocument();
+      expect(screen.getByLabelText('Age')).toBeInTheDocument();
+      expect(screen.getByLabelText('Urgency')).toBeInTheDocument();
+      expect(screen.getByLabelText('Chief complaint *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Clinical context')).toBeInTheDocument();
+    });
+
+    it('edits fields via their labels and enables Send referral', async () => {
+      render(<FederationSection />);
+      await waitFor(() => screen.getByLabelText('Recipient actor URI *'));
+
+      await act(async () => {
+        fireEvent.change(screen.getByLabelText('Recipient actor URI *'), {
+          target: { value: 'https://remote.example/ap/organizations/r1' },
+        });
+        fireEvent.change(screen.getByLabelText('Species *'), {
+          target: { value: 'Canine' },
+        });
+        fireEvent.change(screen.getByLabelText('Chief complaint *'), {
+          target: { value: 'Limping' },
+        });
+      });
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Send referral' })).not.toBeDisabled()
+      );
+    });
+  });
+
   describe('EmergencyCard', () => {
     it('broadcast button is disabled when content is empty', async () => {
       render(<FederationSection />);

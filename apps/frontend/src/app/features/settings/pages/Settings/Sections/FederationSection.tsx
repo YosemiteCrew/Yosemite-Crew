@@ -39,6 +39,26 @@ const URGENCY_COLORS: Record<APReferralUrgency, string> = {
   EMERGENCY: 'text-red-600',
 };
 
+const BADGE_SUCCESS = 'bg-green-100 text-green-800';
+const BADGE_DANGER = 'bg-red-100 text-red-800';
+const BADGE_NEUTRAL = 'bg-gray-200 text-gray-700';
+const BADGE_MUTED = 'bg-gray-100 text-gray-600';
+
+const BADGE_BASE = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium';
+const TEXT_MUTED = 'text-body-4 text-text-secondary';
+const FIELD_LABEL_CLS = `block ${TEXT_MUTED} mb-1`;
+const ROW_CLS =
+  'flex items-center justify-between gap-3 py-2 border-b border-b-card-border last:border-b-0';
+const ROW_META_CLS = 'flex flex-col gap-0.5 min-w-0';
+
+type ListRenderState = 'loading' | 'empty' | 'ready';
+
+const getListRenderState = (loading: boolean, isEmpty: boolean): ListRenderState => {
+  if (loading) return 'loading';
+  if (isEmpty) return 'empty';
+  return 'ready';
+};
+
 const SectionCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="border border-card-border rounded-2xl">
     <div className="px-6 py-3 border-b border-b-card-border">
@@ -51,17 +71,15 @@ const SectionCard = ({ title, children }: { title: string; children: React.React
 const StateBadge = ({ state }: { state: string }) => {
   const colors: Record<string, string> = {
     PENDING: 'bg-yellow-100 text-yellow-800',
-    APPROVED: 'bg-green-100 text-green-800',
-    ACCEPTED: 'bg-green-100 text-green-800',
-    REJECTED: 'bg-red-100 text-red-800',
-    DECLINED: 'bg-red-100 text-red-800',
-    BLOCKED: 'bg-gray-200 text-gray-700',
-    CANCELLED: 'bg-gray-200 text-gray-700',
+    APPROVED: BADGE_SUCCESS,
+    ACCEPTED: BADGE_SUCCESS,
+    REJECTED: BADGE_DANGER,
+    DECLINED: BADGE_DANGER,
+    BLOCKED: BADGE_NEUTRAL,
+    CANCELLED: BADGE_NEUTRAL,
   };
   return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[state] ?? 'bg-gray-100 text-gray-600'}`}
-    >
+    <span className={`${BADGE_BASE} ${colors[state] ?? BADGE_MUTED}`}>
       {state.charAt(0) + state.slice(1).toLowerCase()}
     </span>
   );
@@ -76,14 +94,14 @@ const CopyRow = ({ label, value }: { label: string; value: string }) => {
   };
   return (
     <div className="flex flex-col gap-1">
-      <div className="text-body-4 text-text-secondary">{label}</div>
+      <div className={TEXT_MUTED}>{label}</div>
       <div className="flex items-center gap-2">
         <code className="flex-1 text-body-4 text-text-primary bg-card-hover px-3 py-1.5 rounded-lg overflow-x-auto">
           {value}
         </code>
         <button
           onClick={copy}
-          className="text-body-4 text-text-secondary hover:text-text-primary transition-colors shrink-0"
+          className={`${TEXT_MUTED} hover:text-text-primary transition-colors shrink-0`}
           aria-label={`Copy ${label}`}
         >
           Copy
@@ -95,7 +113,7 @@ const CopyRow = ({ label, value }: { label: string; value: string }) => {
 
 const ActorInfoCard = ({ actor }: { actor: APActorSettings }) => (
   <SectionCard title="Federation identity">
-    <div className="text-body-4 text-text-secondary">
+    <div className={TEXT_MUTED}>
       This instance&apos;s ActivityPub actor. Share your actor URI with other clinics to enable
       federation.
     </div>
@@ -111,12 +129,12 @@ const LICENSE_STATUS_CONFIG: Record<
 > = {
   none: {
     label: 'Not set',
-    color: 'bg-gray-100 text-gray-600',
+    color: BADGE_MUTED,
     hint: 'Paste the license token issued by Yosemite Crew below to enable federation.',
   },
   valid: {
     label: 'Verified',
-    color: 'bg-green-100 text-green-800',
+    color: BADGE_SUCCESS,
     hint: 'This instance is verified and can federate with other Yosemite Crew instances.',
   },
   invalid: {
@@ -157,12 +175,8 @@ const LicenseTokenCard = ({
   return (
     <SectionCard title="Federation license">
       <div className="flex items-center gap-3">
-        <span
-          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${config.color}`}
-        >
-          {config.label}
-        </span>
-        <span className="text-body-4 text-text-secondary">{config.hint}</span>
+        <span className={`${BADGE_BASE} ${config.color}`}>{config.label}</span>
+        <span className={TEXT_MUTED}>{config.hint}</span>
       </div>
       {status !== 'valid' && (
         <div className="flex gap-2 pt-1">
@@ -212,20 +226,17 @@ const FollowersCard = () => {
     load();
   };
 
+  const renderState = getListRenderState(loading, followers.length === 0);
+
   return (
     <SectionCard title="Followers">
-      {loading ? (
-        <div className="text-body-4 text-text-secondary">Loading...</div>
-      ) : followers.length === 0 ? (
-        <div className="text-body-4 text-text-secondary">No followers yet.</div>
-      ) : (
+      {renderState === 'loading' && <div className={TEXT_MUTED}>Loading...</div>}
+      {renderState === 'empty' && <div className={TEXT_MUTED}>No followers yet.</div>}
+      {renderState === 'ready' && (
         <div className="flex flex-col gap-3">
           {followers.map((f) => (
-            <div
-              key={f.id}
-              className="flex items-center justify-between gap-3 py-2 border-b border-b-card-border last:border-b-0"
-            >
-              <div className="flex flex-col gap-0.5 min-w-0">
+            <div key={f.id} className={ROW_CLS}>
+              <div className={ROW_META_CLS}>
                 <div className="text-body-4 text-text-primary truncate">{f.remoteActorUri}</div>
                 <StateBadge state={f.state} />
               </div>
@@ -291,6 +302,8 @@ const FollowingCard = () => {
     load();
   };
 
+  const renderState = getListRenderState(loading, following.length === 0);
+
   return (
     <SectionCard title="Following">
       <div className="flex gap-2">
@@ -308,24 +321,21 @@ const FollowingCard = () => {
           isDisabled={submitting || !actorUri.trim()}
         />
       </div>
-      {loading ? (
-        <div className="text-body-4 text-text-secondary">Loading...</div>
-      ) : following.length === 0 ? (
-        <div className="text-body-4 text-text-secondary">Not following any instances yet.</div>
-      ) : (
+      {renderState === 'loading' && <div className={TEXT_MUTED}>Loading...</div>}
+      {renderState === 'empty' && (
+        <div className={TEXT_MUTED}>Not following any instances yet.</div>
+      )}
+      {renderState === 'ready' && (
         <div className="flex flex-col gap-3">
           {following.map((f) => (
-            <div
-              key={f.id}
-              className="flex items-center justify-between gap-3 py-2 border-b border-b-card-border last:border-b-0"
-            >
-              <div className="flex flex-col gap-0.5 min-w-0">
+            <div key={f.id} className={ROW_CLS}>
+              <div className={ROW_META_CLS}>
                 <div className="text-body-4 text-text-primary truncate">{f.remoteActorUri}</div>
                 <StateBadge state={f.state} />
               </div>
               <button
                 onClick={() => handleUnfollow(f.remoteActorUri)}
-                className="text-body-4 text-text-secondary hover:text-red-600 shrink-0"
+                className={`${TEXT_MUTED} hover:text-red-600 shrink-0`}
               >
                 Unfollow
               </button>
@@ -352,7 +362,7 @@ const ReferralRow = ({
       <span className={`text-body-4 font-medium ${URGENCY_COLORS[referral.urgency]}`}>
         {URGENCY_LABELS[referral.urgency]}
       </span>
-      <span className="text-body-4 text-text-secondary">
+      <span className={TEXT_MUTED}>
         {direction === 'in' ? `from ${referral.fromActorUri}` : `to ${referral.toActorUri}`}
       </span>
     </div>
@@ -361,7 +371,7 @@ const ReferralRow = ({
       {referral.patientSummary.breed ? ` - ${referral.patientSummary.breed}` : ''}
       {referral.patientSummary.age ? `, ${referral.patientSummary.age}` : ''}
     </div>
-    <div className="text-body-4 text-text-secondary">{referral.patientSummary.chiefComplaint}</div>
+    <div className={TEXT_MUTED}>{referral.patientSummary.chiefComplaint}</div>
     {referral.clinicalContext && (
       <div className="text-body-4 text-text-tertiary italic">{referral.clinicalContext}</div>
     )}
@@ -406,13 +416,13 @@ const ReferralInboxCard = () => {
     [notify, reload]
   );
 
+  const renderState = getListRenderState(loading, inbound.length === 0);
+
   return (
     <SectionCard title="Inbound referrals">
-      {loading ? (
-        <div className="text-body-4 text-text-secondary">Loading...</div>
-      ) : inbound.length === 0 ? (
-        <div className="text-body-4 text-text-secondary">No inbound referrals yet.</div>
-      ) : (
+      {renderState === 'loading' && <div className={TEXT_MUTED}>Loading...</div>}
+      {renderState === 'empty' && <div className={TEXT_MUTED}>No inbound referrals yet.</div>}
+      {renderState === 'ready' && (
         <div className="flex flex-col">
           {inbound.map((r) => (
             <ReferralRow
@@ -483,10 +493,11 @@ const SendReferralCard = () => {
     <SectionCard title="Send referral">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="md:col-span-2">
-          <label className="block text-body-4 text-text-secondary mb-1">
+          <label htmlFor="referral-to-actor-uri" className={FIELD_LABEL_CLS}>
             Recipient actor URI *
           </label>
           <input
+            id="referral-to-actor-uri"
             className={inputCls}
             placeholder="Recipient actor URI"
             value={form.toActorUri}
@@ -494,8 +505,11 @@ const SendReferralCard = () => {
           />
         </div>
         <div>
-          <label className="block text-body-4 text-text-secondary mb-1">Species *</label>
+          <label htmlFor="referral-species" className={FIELD_LABEL_CLS}>
+            Species *
+          </label>
           <input
+            id="referral-species"
             className={inputCls}
             placeholder="e.g. Canine"
             value={form.patientSummary.species}
@@ -503,8 +517,11 @@ const SendReferralCard = () => {
           />
         </div>
         <div>
-          <label className="block text-body-4 text-text-secondary mb-1">Breed</label>
+          <label htmlFor="referral-breed" className={FIELD_LABEL_CLS}>
+            Breed
+          </label>
           <input
+            id="referral-breed"
             className={inputCls}
             placeholder="e.g. Labrador"
             value={form.patientSummary.breed ?? ''}
@@ -512,8 +529,11 @@ const SendReferralCard = () => {
           />
         </div>
         <div>
-          <label className="block text-body-4 text-text-secondary mb-1">Age</label>
+          <label htmlFor="referral-age" className={FIELD_LABEL_CLS}>
+            Age
+          </label>
           <input
+            id="referral-age"
             className={inputCls}
             placeholder="e.g. 3 years"
             value={form.patientSummary.age ?? ''}
@@ -521,8 +541,11 @@ const SendReferralCard = () => {
           />
         </div>
         <div>
-          <label className="block text-body-4 text-text-secondary mb-1">Urgency</label>
+          <label htmlFor="referral-urgency" className={FIELD_LABEL_CLS}>
+            Urgency
+          </label>
           <select
+            id="referral-urgency"
             className={inputCls}
             value={form.urgency}
             onChange={(e) => update('urgency', e.target.value as APReferralUrgency)}
@@ -533,8 +556,11 @@ const SendReferralCard = () => {
           </select>
         </div>
         <div className="md:col-span-2">
-          <label className="block text-body-4 text-text-secondary mb-1">Chief complaint *</label>
+          <label htmlFor="referral-chief-complaint" className={FIELD_LABEL_CLS}>
+            Chief complaint *
+          </label>
           <input
+            id="referral-chief-complaint"
             className={inputCls}
             placeholder="Primary reason for referral"
             value={form.patientSummary.chiefComplaint}
@@ -542,8 +568,11 @@ const SendReferralCard = () => {
           />
         </div>
         <div className="md:col-span-2">
-          <label className="block text-body-4 text-text-secondary mb-1">Clinical context</label>
+          <label htmlFor="referral-clinical-context" className={FIELD_LABEL_CLS}>
+            Clinical context
+          </label>
           <textarea
+            id="referral-clinical-context"
             className={`${inputCls} resize-none`}
             rows={3}
             placeholder="History, diagnostics, current treatment..."
@@ -567,7 +596,7 @@ const SendReferralCard = () => {
       </div>
       {!loadingOutbound && outbound.length > 0 && (
         <div className="border-t border-card-border pt-4">
-          <div className="text-body-4 text-text-secondary mb-3">Sent referrals</div>
+          <div className={`${TEXT_MUTED} mb-3`}>Sent referrals</div>
           {outbound.map((r) => (
             <ReferralRow key={r.id} referral={r} direction="out" />
           ))}
@@ -601,7 +630,7 @@ const EmergencyCard = () => {
 
   return (
     <SectionCard title="Emergency broadcast">
-      <div className="text-body-4 text-text-secondary">
+      <div className={TEXT_MUTED}>
         Announces an emergency to all approved followers across the federation network.
       </div>
       <textarea
