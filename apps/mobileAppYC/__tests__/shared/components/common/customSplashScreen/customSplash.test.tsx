@@ -1,5 +1,5 @@
 import React from 'react';
-import {render, screen} from '@testing-library/react-native';
+import {act, cleanup, render, screen} from '@testing-library/react-native';
 import {Animated} from 'react-native';
 jest.unmock('@/shared/components/common/customSplashScreen/customSplash');
 import CustomSplashScreen from '@/shared/components/common/customSplashScreen/customSplash';
@@ -75,6 +75,10 @@ describe('CustomSplashScreen', () => {
   });
 
   afterEach(() => {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    cleanup();
     jest.useRealTimers();
     jest.restoreAllMocks();
   });
@@ -137,7 +141,9 @@ describe('CustomSplashScreen', () => {
       const onAnimationEnd = jest.fn();
       render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
 
-      jest.advanceTimersByTime(4000);
+      act(() => {
+        jest.advanceTimersByTime(4000);
+      });
 
       expect(onAnimationEnd).toHaveBeenCalledWith();
     });
@@ -146,7 +152,9 @@ describe('CustomSplashScreen', () => {
       const onAnimationEnd = jest.fn();
       render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
 
-      jest.advanceTimersByTime(4000);
+      act(() => {
+        jest.advanceTimersByTime(4000);
+      });
 
       expect(onAnimationEnd).toHaveBeenCalledTimes(1);
     });
