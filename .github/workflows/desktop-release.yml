@@ -5,9 +5,9 @@ name: Desktop Release
 #       1) bump "version" in apps/desktop/package.json
 #       2) git tag desktop-v<version> && git push origin desktop-v<version>
 #   • Run manually (Actions → "Desktop Release" → Run workflow / workflow_dispatch)
-#       → builds + signs, then uploads the signed installers as workflow ARTIFACTS
-#         (NO Release). Use this to collect signed mac/Windows builds for a
-#         coordinated joint release (alongside mobile + PIMS) later.
+#       → builds + signs, uploads workflow ARTIFACTS, then creates a draft
+#         GitHub Release with the same assets. Use this to share download links
+#         without requiring the Actions artifact UI.
 #
 # Windows is signed via Azure Artifact Signing (formerly Trusted Signing).
 #   AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
@@ -103,3 +103,40 @@ jobs:
             apps/desktop/dist/*.blockmap
             apps/desktop/dist/latest-mac.yml
           if-no-files-found: warn
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    needs:
+      - windows
+      - macos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Read desktop version
+        id: version
+        working-directory: apps/desktop
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          tag_name: desktop-v${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: Yosemite Crew PIMS Desktop v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            release-assets/*.exe
+            release-assets/*.dmg
+            release-assets/*.zip
+            release-assets/*.blockmap
+            release-assets/latest.yml
+            release-assets/latest-mac.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
