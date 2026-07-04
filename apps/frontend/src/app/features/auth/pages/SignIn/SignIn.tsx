@@ -3,13 +3,8 @@ import Link from 'next/link';
 import React, { useState } from 'react';
 import { Icon } from '@iconify/react/dist/iconify.js';
 import {
-  IoAlertCircleOutline,
-  IoArrowForwardOutline,
   IoCloudOfflineOutline,
-  IoEyeOffOutline,
-  IoEyeOutline,
   IoGitBranchOutline,
-  IoPhonePortraitOutline,
   IoShieldCheckmarkOutline,
 } from 'react-icons/io5';
 
@@ -24,6 +19,15 @@ import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
 import { GithubSignInButton } from '@/app/features/auth/pages/GithubSignInButton';
+import {
+  AuthForm,
+  AuthHeading,
+  AuthSubtitle,
+  AuthTextField,
+  AuthPasswordField,
+  AuthSubmitButton,
+  AuthAltNote,
+} from '@/app/features/auth/pages/authForm';
 
 type SignInProps = {
   redirectPath?: string;
@@ -200,17 +204,7 @@ const SignIn = ({
       ) : null}
       {ErrorTostPopup}
       <AuthShell brand={brand} topRight={topRight}>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-newsreader)',
-            fontSize: 'clamp(30px, 3.2vw, 39px)',
-            fontWeight: 400,
-            lineHeight: 1.06,
-            letterSpacing: '-0.03em',
-            color: '#1d1c1b',
-          }}
-        >
+        <AuthHeading>
           {isDeveloper ? (
             'Sign in to your developer account'
           ) : (
@@ -219,64 +213,40 @@ const SignIn = ({
               <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#1657c9' }}>back</em>
             </>
           )}
-        </h1>
-        <p
-          style={{
-            margin: '12px 0 26px',
-            fontSize: 15.5,
-            lineHeight: 1.55,
-            letterSpacing: '-0.01em',
-            color: '#5c5956',
-          }}
-        >
-          Sign in to your clinic or developer workspace.
-        </p>
-        <form
-          onSubmit={handleSignIn}
-          noValidate
-          style={{ display: 'flex', flexDirection: 'column', gap: 15 }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <label className="yc-lbl" htmlFor="signin-email">
-              Work email
-            </label>
-            <input
-              id="signin-email"
-              name="email"
-              className="yc-field"
-              type="email"
-              autoComplete="email"
-              placeholder="you@clinic.com"
-              aria-label="Work email"
-              aria-invalid={Boolean(inputErrors.email)}
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setInputErrors((prev) => ({ ...prev, email: undefined }));
-              }}
-            />
-            {inputErrors.email ? (
-              <div
-                role="alert"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 14,
-                  color: '#d53225',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                <IoAlertCircleOutline style={{ fontSize: 17, flex: 'none' }} aria-hidden="true" />
-                {inputErrors.email}
-              </div>
-            ) : null}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label className="yc-lbl" htmlFor="signin-password">
-                Password
-              </label>
+        </AuthHeading>
+        <AuthSubtitle>Sign in to your clinic or developer workspace.</AuthSubtitle>
+        <AuthForm onSubmit={handleSignIn}>
+          <AuthTextField
+            id="signin-email"
+            label="Work email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@clinic.com"
+            ariaLabel="Work email"
+            value={email}
+            error={inputErrors.email}
+            onChange={(value) => {
+              setEmail(value);
+              setInputErrors((prev) => ({ ...prev, email: undefined }));
+            }}
+          />
+          <AuthPasswordField
+            id="signin-password"
+            label="Password"
+            name="password"
+            autoComplete="current-password"
+            placeholder="Your password"
+            ariaLabel="Password"
+            value={password}
+            error={inputErrors.pError}
+            onChange={(value) => {
+              setPassword(value);
+              setInputErrors((prev) => ({ ...prev, pError: undefined }));
+            }}
+            showPassword={showPassword}
+            onToggleShowPassword={() => setShowPassword((prev) => !prev)}
+            labelAccessory={
               <Link
                 href="/forgot-password"
                 style={{
@@ -288,119 +258,21 @@ const SignIn = ({
               >
                 Forgot password?
               </Link>
-            </div>
-            <div style={{ position: 'relative' }}>
-              <input
-                id="signin-password"
-                name="password"
-                className="yc-field"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                placeholder="Your password"
-                aria-label="Password"
-                aria-invalid={Boolean(inputErrors.pError)}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setInputErrors((prev) => ({ ...prev, pError: undefined }));
-                }}
-                style={{ paddingRight: 46 }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                title={showPassword ? 'Hide password' : 'Show password'}
-                style={{
-                  position: 'absolute',
-                  right: 8,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: 32,
-                  height: 32,
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#8f8984',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {showPassword ? (
-                  <IoEyeOffOutline style={{ fontSize: 19 }} aria-hidden="true" />
-                ) : (
-                  <IoEyeOutline style={{ fontSize: 19 }} aria-hidden="true" />
-                )}
-              </button>
-            </div>
-            {inputErrors.pError ? (
-              <div
-                role="alert"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 14,
-                  color: '#d53225',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                <IoAlertCircleOutline style={{ fontSize: 17, flex: 'none' }} aria-hidden="true" />
-                {inputErrors.pError}
-              </div>
-            ) : null}
-          </div>
-          <button
-            type="submit"
-            className="yc-btn-primary"
-            disabled={isSubmitting}
-            style={{
-              marginTop: 4,
-              width: '100%',
-              boxSizing: 'border-box',
-              fontSize: 16,
-              padding: '16px 24px',
-              borderRadius: 13,
-              boxShadow: '0 14px 30px rgba(29,28,27,0.22)',
-            }}
-          >
-            {isSubmitting ? 'Signing in...' : 'Sign in'}
-            <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
-          </button>
-        </form>
-        <GithubSignInButton note="GitHub is available for developer accounts." />
-        <div
-          style={{
-            marginTop: 22,
-            paddingTop: 18,
-            borderTop: '1px solid #e5dccf',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            justifyContent: 'center',
-            textAlign: 'center',
-            fontSize: 13.5,
-            lineHeight: 1.5,
-            color: '#8f8984',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          <IoPhonePortraitOutline
-            style={{ fontSize: 17, flex: 'none', color: '#a9a39e' }}
-            aria-hidden="true"
+            }
           />
-          <span>
-            Pet parent? Sign in from the{' '}
-            <Link
-              href="/pet-parents"
-              style={{ color: '#1657c9', textDecoration: 'none', fontWeight: 600 }}
-            >
-              mobile app
-            </Link>
-            .
-          </span>
-        </div>
+          <AuthSubmitButton idle="Sign in" busy="Signing in..." isSubmitting={isSubmitting} />
+        </AuthForm>
+        <GithubSignInButton note="GitHub is available for developer accounts." />
+        <AuthAltNote>
+          Pet parent? Sign in from the{' '}
+          <Link
+            href="/pet-parents"
+            style={{ color: '#1657c9', textDecoration: 'none', fontWeight: 600 }}
+          >
+            mobile app
+          </Link>
+          .
+        </AuthAltNote>
       </AuthShell>
       <OtpModal
         email={normalizeEmail(email)}

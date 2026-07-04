@@ -1,18 +1,13 @@
 'use client';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '@iconify/react/dist/iconify.js';
 import {
-  IoAlertCircleOutline,
-  IoArrowForwardOutline,
   IoCalendarOutline,
   IoCheckmark,
   IoCodeSlashOutline,
   IoExtensionPuzzleOutline,
-  IoEyeOffOutline,
-  IoEyeOutline,
   IoGitBranchOutline,
-  IoPhonePortraitOutline,
   IoShieldCheckmarkOutline,
 } from 'react-icons/io5';
 
@@ -26,6 +21,16 @@ import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
 import { GithubSignInButton } from '@/app/features/auth/pages/GithubSignInButton';
+import {
+  AuthForm,
+  AuthHeading,
+  AuthSubtitle,
+  AuthTextField,
+  AuthPasswordField,
+  AuthSubmitButton,
+  AuthAltNote,
+  FieldError,
+} from '@/app/features/auth/pages/authForm';
 
 const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
 const DEVELOPER_ROLE = 'A developer';
@@ -59,15 +64,6 @@ const DEV_POINTS = [
     text: 'Ship plugins to the marketplace. Reach every clinic.',
   },
 ] as const;
-
-const errorTextStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  fontSize: 14,
-  color: '#d53225',
-  letterSpacing: '-0.01em',
-};
 
 const passwordErrors = (
   password: string,
@@ -137,16 +133,6 @@ type SignUpProps = {
   allowNext?: boolean;
   isDeveloper?: boolean;
 };
-
-type FieldErrorProps = { message?: string };
-
-const FieldError = ({ message }: Readonly<FieldErrorProps>) =>
-  message ? (
-    <div role="alert" style={errorTextStyle}>
-      <IoAlertCircleOutline style={{ fontSize: 17, flex: 'none' }} aria-hidden="true" />
-      {message}
-    </div>
-  ) : null;
 
 const SignUp = ({
   postAuthRedirect,
@@ -299,37 +285,14 @@ const SignUp = ({
         />
       ) : null}
       <AuthShell brand={brand} topRight={topRight}>
-        <h1
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-newsreader)',
-            fontSize: 'clamp(30px, 3.2vw, 39px)',
-            fontWeight: 400,
-            lineHeight: 1.06,
-            letterSpacing: '-0.03em',
-            color: '#1d1c1b',
-          }}
-        >
+        <AuthHeading>
           Create your{' '}
           <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#1657c9' }}>account</em>
-        </h1>
-        <p
-          style={{
-            margin: '12px 0 26px',
-            fontSize: 15.5,
-            lineHeight: 1.55,
-            letterSpacing: '-0.01em',
-            color: '#5c5956',
-          }}
-        >
+        </AuthHeading>
+        <AuthSubtitle>
           For clinics and developers. Free to self-host, no card required.
-        </p>
-        <form
-          onSubmit={handleSignUp}
-          method="post"
-          noValidate
-          style={{ display: 'flex', flexDirection: 'column', gap: 15 }}
-        >
+        </AuthSubtitle>
+        <AuthForm onSubmit={handleSignUp} method="post">
           {!isDeveloper ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               <label className="yc-lbl" htmlFor="signup-role">
@@ -347,141 +310,80 @@ const SignUp = ({
               </select>
             </div>
           ) : null}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <label className="yc-lbl" htmlFor="signup-firstname">
-              First name
-            </label>
-            <input
-              id="signup-firstname"
-              name="first name"
-              className="yc-field"
-              type="text"
-              autoComplete="given-name"
-              placeholder="Dr. Lena"
-              aria-label="First name"
-              aria-invalid={Boolean(inputErrors.firstName)}
-              value={firstName}
-              onChange={(e) => {
-                setFirstName(e.target.value);
-                setInputErrors((prev) => ({ ...prev, firstName: undefined }));
-              }}
-            />
-            <FieldError message={inputErrors.firstName} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <label className="yc-lbl" htmlFor="signup-lastname">
-              Last name
-            </label>
-            <input
-              id="signup-lastname"
-              name="last name"
-              className="yc-field"
-              type="text"
-              autoComplete="family-name"
-              placeholder="Weber"
-              aria-label="Last name"
-              aria-invalid={Boolean(inputErrors.lastName)}
-              value={lastName}
-              onChange={(e) => {
-                setLastName(e.target.value);
-                setInputErrors((prev) => ({ ...prev, lastName: undefined }));
-              }}
-            />
-            <FieldError message={inputErrors.lastName} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <label className="yc-lbl" htmlFor="signup-email">
-              Work email
-            </label>
-            <input
-              id="signup-email"
-              name="email"
-              className="yc-field"
-              type="email"
-              autoComplete="email"
-              placeholder="you@clinic.com"
-              aria-label="Enter email"
-              aria-invalid={Boolean(inputErrors.email)}
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setInputErrors((prev) => ({ ...prev, email: undefined }));
-              }}
-            />
-            <FieldError message={inputErrors.email} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <label className="yc-lbl" htmlFor="signup-password">
-              Password
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                id="signup-password"
-                name="password"
-                className="yc-field"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                placeholder="At least 8 characters"
-                aria-label="Set up password"
-                aria-invalid={Boolean(inputErrors.pError)}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setInputErrors((prev) => ({ ...prev, pError: undefined }));
-                }}
-                style={{ paddingRight: 46 }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                title={showPassword ? 'Hide password' : 'Show password'}
-                style={{
-                  position: 'absolute',
-                  right: 8,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: 32,
-                  height: 32,
-                  border: 'none',
-                  background: 'transparent',
-                  color: '#8f8984',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {showPassword ? (
-                  <IoEyeOffOutline style={{ fontSize: 19 }} aria-hidden="true" />
-                ) : (
-                  <IoEyeOutline style={{ fontSize: 19 }} aria-hidden="true" />
-                )}
-              </button>
-            </div>
-            <FieldError message={inputErrors.pError} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            <label className="yc-lbl" htmlFor="signup-confirm-password">
-              Confirm password
-            </label>
-            <input
-              id="signup-confirm-password"
-              name="confirm-password"
-              className="yc-field"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="new-password"
-              placeholder="Re-enter your password"
-              aria-label="Confirm password"
-              aria-invalid={Boolean(inputErrors.confirmPError)}
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                setInputErrors((prev) => ({ ...prev, confirmPError: undefined }));
-              }}
-            />
-            <FieldError message={inputErrors.confirmPError} />
-          </div>
+          <AuthTextField
+            id="signup-firstname"
+            label="First name"
+            name="first name"
+            autoComplete="given-name"
+            placeholder="Dr. Lena"
+            ariaLabel="First name"
+            value={firstName}
+            error={inputErrors.firstName}
+            onChange={(value) => {
+              setFirstName(value);
+              setInputErrors((prev) => ({ ...prev, firstName: undefined }));
+            }}
+          />
+          <AuthTextField
+            id="signup-lastname"
+            label="Last name"
+            name="last name"
+            autoComplete="family-name"
+            placeholder="Weber"
+            ariaLabel="Last name"
+            value={lastName}
+            error={inputErrors.lastName}
+            onChange={(value) => {
+              setLastName(value);
+              setInputErrors((prev) => ({ ...prev, lastName: undefined }));
+            }}
+          />
+          <AuthTextField
+            id="signup-email"
+            label="Work email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@clinic.com"
+            ariaLabel="Enter email"
+            value={email}
+            error={inputErrors.email}
+            onChange={(value) => {
+              setEmail(value);
+              setInputErrors((prev) => ({ ...prev, email: undefined }));
+            }}
+          />
+          <AuthPasswordField
+            id="signup-password"
+            label="Password"
+            name="password"
+            autoComplete="new-password"
+            placeholder="At least 8 characters"
+            ariaLabel="Set up password"
+            value={password}
+            error={inputErrors.pError}
+            onChange={(value) => {
+              setPassword(value);
+              setInputErrors((prev) => ({ ...prev, pError: undefined }));
+            }}
+            showPassword={showPassword}
+            onToggleShowPassword={() => setShowPassword((prev) => !prev)}
+          />
+          <AuthTextField
+            id="signup-confirm-password"
+            label="Confirm password"
+            name="confirm-password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="new-password"
+            placeholder="Re-enter your password"
+            ariaLabel="Confirm password"
+            value={confirmPassword}
+            error={inputErrors.confirmPError}
+            onChange={(value) => {
+              setConfirmPassword(value);
+              setInputErrors((prev) => ({ ...prev, confirmPError: undefined }));
+            }}
+          />
           <label
             style={{
               display: 'flex',
@@ -556,56 +458,23 @@ const SignUp = ({
             </span>
           </label>
           <FieldError message={inputErrors.agree} />
-          <button
-            type="submit"
-            className="yc-btn-primary"
-            disabled={isSubmitting}
-            style={{
-              marginTop: 4,
-              width: '100%',
-              boxSizing: 'border-box',
-              fontSize: 16,
-              padding: '16px 24px',
-              borderRadius: 13,
-              boxShadow: '0 14px 30px rgba(29,28,27,0.22)',
-            }}
-          >
-            {isSubmitting ? 'Creating account...' : 'Create account'}
-            <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
-          </button>
-        </form>
-        {effectiveDeveloper ? <GithubSignInButton /> : null}
-        <div
-          style={{
-            marginTop: 22,
-            paddingTop: 18,
-            borderTop: '1px solid #e5dccf',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            justifyContent: 'center',
-            textAlign: 'center',
-            fontSize: 13.5,
-            lineHeight: 1.5,
-            color: '#8f8984',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          <IoPhonePortraitOutline
-            style={{ fontSize: 17, flex: 'none', color: '#a9a39e' }}
-            aria-hidden="true"
+          <AuthSubmitButton
+            idle="Create account"
+            busy="Creating account..."
+            isSubmitting={isSubmitting}
           />
-          <span>
-            Pet parent? Your account lives in the{' '}
-            <Link
-              href="/pet-parents"
-              style={{ color: '#1657c9', textDecoration: 'none', fontWeight: 600 }}
-            >
-              mobile app
-            </Link>
-            .
-          </span>
-        </div>
+        </AuthForm>
+        {effectiveDeveloper ? <GithubSignInButton /> : null}
+        <AuthAltNote>
+          Pet parent? Your account lives in the{' '}
+          <Link
+            href="/pet-parents"
+            style={{ color: '#1657c9', textDecoration: 'none', fontWeight: 600 }}
+          >
+            mobile app
+          </Link>
+          .
+        </AuthAltNote>
       </AuthShell>
       <OtpModal
         email={normalizeEmail(email)}

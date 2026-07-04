@@ -34,6 +34,33 @@ const eyebrowStyle: CSSProperties = {
   textTransform: 'uppercase',
 };
 
+const sectionHeadingStyle: CSSProperties = {
+  margin: '22px 0 0',
+  fontFamily: SERIF,
+  fontSize: 'clamp(30px, 4vw, 50px)',
+  fontWeight: 500,
+  lineHeight: 1.1,
+  letterSpacing: '-0.05em',
+  color: '#1d1c1b',
+  textWrap: 'balance',
+};
+
+const communityPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '8px',
+  textDecoration: 'none',
+  padding: '9px 16px',
+  borderRadius: '9999px',
+  border: '1px solid #e5dccf',
+  background: '#f7f3ec',
+  color: '#302f2e',
+  fontSize: '14px',
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  transition: 'border-color 200ms',
+};
+
 /* ---------------------------------------------------------------- HERO */
 
 function Hero() {
@@ -458,20 +485,7 @@ function Beliefs() {
           }}
         >
           <span style={{ ...eyebrowStyle, color: '#257bed' }}>What we believe</span>
-          <h2
-            style={{
-              margin: '22px 0 0',
-              fontFamily: SERIF,
-              fontSize: 'clamp(30px, 4vw, 50px)',
-              fontWeight: 500,
-              lineHeight: 1.1,
-              letterSpacing: '-0.05em',
-              color: '#1d1c1b',
-              textWrap: 'balance',
-            }}
-          >
-            Six things we won&apos;t quietly walk back.
-          </h2>
+          <h2 style={sectionHeadingStyle}>Six things we won&apos;t quietly walk back.</h2>
         </Reveal>
         <div
           data-grid-2-m="true"
@@ -584,18 +598,7 @@ function BuildingInPublic() {
       >
         <Reveal delay={0} style={{ maxWidth: '720px' }}>
           <span style={{ ...eyebrowStyle, color: '#8f8984' }}>Building in public</span>
-          <h2
-            style={{
-              margin: '22px 0 0',
-              fontFamily: SERIF,
-              fontSize: 'clamp(30px, 4vw, 50px)',
-              fontWeight: 500,
-              lineHeight: 1.1,
-              letterSpacing: '-0.05em',
-              color: '#1d1c1b',
-              textWrap: 'balance',
-            }}
-          >
+          <h2 style={sectionHeadingStyle}>
             Most companies keep their numbers private. We don&apos;t.
           </h2>
           <p
@@ -772,20 +775,7 @@ function TheCrew() {
           }}
         >
           <span style={{ ...eyebrowStyle, color: '#257bed' }}>The crew</span>
-          <h2
-            style={{
-              margin: '22px 0 0',
-              fontFamily: SERIF,
-              fontSize: 'clamp(30px, 4vw, 50px)',
-              fontWeight: 500,
-              lineHeight: 1.1,
-              letterSpacing: '-0.05em',
-              color: '#1d1c1b',
-              textWrap: 'balance',
-            }}
-          >
-            A small crew, and everyone who shows up.
-          </h2>
+          <h2 style={sectionHeadingStyle}>A small crew, and everyone who shows up.</h2>
           <p
             style={{
               margin: '20px 0 0',
@@ -840,21 +830,7 @@ function TheCrew() {
               target="_blank"
               rel="noopener"
               className="yc-community-pill"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                textDecoration: 'none',
-                padding: '9px 16px',
-                borderRadius: '9999px',
-                border: '1px solid #e5dccf',
-                background: '#f7f3ec',
-                color: '#302f2e',
-                fontSize: '14px',
-                fontWeight: 500,
-                letterSpacing: '-0.01em',
-                transition: 'border-color 200ms',
-              }}
+              style={communityPillStyle}
             >
               <IoLogoGithub aria-hidden="true" style={{ fontSize: '16px' }} />
               Contributors on GitHub
@@ -864,21 +840,7 @@ function TheCrew() {
               target="_blank"
               rel="noopener"
               className="yc-community-pill"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                textDecoration: 'none',
-                padding: '9px 16px',
-                borderRadius: '9999px',
-                border: '1px solid #e5dccf',
-                background: '#f7f3ec',
-                color: '#302f2e',
-                fontSize: '14px',
-                fontWeight: 500,
-                letterSpacing: '-0.01em',
-                transition: 'border-color 200ms',
-              }}
+              style={communityPillStyle}
             >
               <IoLogoDiscord aria-hidden="true" style={{ fontSize: '16px' }} />
               Join the Discord
