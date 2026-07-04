@@ -4,6 +4,9 @@ import {
   CognitoUserAttribute,
   CognitoUserPool,
   CognitoUserSession,
+  CognitoIdToken,
+  CognitoAccessToken,
+  CognitoRefreshToken,
   ICognitoUserPoolData,
   ISignUpResult,
   AuthenticationDetails,
@@ -43,6 +46,11 @@ type AuthStore = {
   confirmSignUp: (email: string, code: string) => Promise<ISignUpResult | undefined>;
   resendCode: (email: string) => Promise<ISignUpResult | undefined>;
   signIn: (username: string, password: string) => Promise<CognitoUserSession | null>;
+  establishFederatedSession: (tokens: {
+    idToken: string;
+    accessToken: string;
+    refreshToken: string;
+  }) => Promise<CognitoUserSession>;
   checkSession: () => Promise<CognitoUserSession | null>;
   refreshSession: () => Promise<CognitoUserSession | null>;
   getValidSession: (opts?: { forceRefresh?: boolean }) => Promise<CognitoUserSession | null>;
@@ -218,6 +226,23 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         },
       });
     });
+  },
+  establishFederatedSession: async ({ idToken, accessToken, refreshToken }) => {
+    if (!userPool) {
+      throw new Error('UserPool is not initialized');
+    }
+    const session = new CognitoUserSession({
+      IdToken: new CognitoIdToken({ IdToken: idToken }),
+      AccessToken: new CognitoAccessToken({ AccessToken: accessToken }),
+      RefreshToken: new CognitoRefreshToken({ RefreshToken: refreshToken }),
+    });
+    const payload = session.getIdToken().decodePayload();
+    const username = String(payload['cognito:username'] ?? payload.sub ?? '');
+    const cognitoUser = new CognitoUser({ Username: username, Pool: userPool });
+    // Persist the tokens in the SDK's storage format so checkSession/refresh work.
+    cognitoUser.setSignInUserSession(session);
+    await syncAuthenticatedState(set, get, cognitoUser, session, 'signin-authenticated');
+    return session;
   },
   checkSession: async () => {
     if (!userPool) {

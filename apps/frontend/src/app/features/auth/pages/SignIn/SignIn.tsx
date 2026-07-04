@@ -23,6 +23,7 @@ import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
+import { GithubSignInButton } from '@/app/features/auth/pages/GithubSignInButton';
 
 type SignInProps = {
   redirectPath?: string;
@@ -368,6 +369,7 @@ const SignIn = ({
             <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
           </button>
         </form>
+        <GithubSignInButton note="GitHub is available for developer accounts." />
         <div
           style={{
             marginTop: 22,

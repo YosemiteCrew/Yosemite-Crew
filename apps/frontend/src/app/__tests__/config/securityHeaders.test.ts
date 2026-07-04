@@ -86,6 +86,7 @@ describe('security headers', () => {
     expect(directives.get('connect-src')).toContain('https://places.googleapis.com');
     expect(directives.get('connect-src')).toContain('https://raw.githubusercontent.com');
     expect(directives.get('connect-src')).toContain('https://discord.com');
+    expect(directives.get('connect-src')).toContain('https://*.amazoncognito.com');
     expect(directives.get('connect-src')).toContain('http:');
     expect(directives.get('connect-src')).toContain('ws:');
     expect(directives.get('media-src')).toContain("'self'");

@@ -116,6 +116,7 @@ export const buildContentSecurityPolicy = ({
       'https://api.yosemitecrew.com',
       'https://*.amazonaws.com',
       'https://cognito-idp.eu-central-1.amazonaws.com',
+      'https://*.amazoncognito.com',
       'https://chat.stream-io-api.com',
       'wss://chat.stream-io-api.com',
       'https://api.stripe.com',

@@ -9,7 +9,7 @@ let logger: {
 const mockSession = {
   isValid: jest.fn(() => true),
   getIdToken: jest.fn(() => ({
-    decodePayload: jest.fn(() => ({ 'custom:role': 'admin' })),
+    decodePayload: jest.fn((): Record<string, string> => ({ 'custom:role': 'admin' })),
   })),
 };
 
@@ -23,6 +23,7 @@ const mockUserInstance = {
   forgotPassword: jest.fn(),
   confirmPassword: jest.fn(),
   getUserAttributes: jest.fn(),
+  setSignInUserSession: jest.fn(),
 };
 
 const mockPoolInstance = {
@@ -49,7 +50,10 @@ jest.mock('amazon-cognito-identity-js', () => {
     CognitoUser: jest.fn(() => mockUserInstance),
     CognitoUserAttribute: jest.fn().mockImplementation((x) => x),
     AuthenticationDetails: jest.fn(),
-    CognitoUserSession: jest.fn(),
+    CognitoUserSession: jest.fn(() => mockSession),
+    CognitoIdToken: jest.fn().mockImplementation((x) => x),
+    CognitoAccessToken: jest.fn().mockImplementation((x) => x),
+    CognitoRefreshToken: jest.fn().mockImplementation((x) => x),
   };
 });
 
@@ -207,6 +211,45 @@ describe('authStore', () => {
       await useAuthStore.getState().signIn('test@email.com', 'pass');
 
       expect(errorSpy).toHaveBeenCalledWith('Failed to load user attributes', expect.any(Error));
+      expect(useAuthStore.getState().status).toBe('signin-authenticated');
+    });
+  });
+
+  describe('establishFederatedSession', () => {
+    it('builds a Cognito session from hosted-UI tokens and authenticates', async () => {
+      mockUserInstance.getUserAttributes.mockImplementation((cb: any) => cb(null, []));
+
+      const result = await useAuthStore.getState().establishFederatedSession({
+        idToken: 'id-token',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      });
+
+      expect(mockUserInstance.setSignInUserSession).toHaveBeenCalledWith(mockSession);
+      const state = useAuthStore.getState();
+      expect(state.status).toBe('signin-authenticated');
+      expect(state.role).toBe('admin');
+      expect(result).toBe(mockSession);
+    });
+
+    it('derives the Cognito username from the cognito:username claim', async () => {
+      mockUserInstance.getUserAttributes.mockImplementation((cb: any) => cb(null, []));
+      mockSession.getIdToken.mockReturnValueOnce({
+        decodePayload: jest.fn(
+          (): Record<string, string> => ({
+            'cognito:username': 'gh_octocat',
+            'custom:role': 'admin',
+          })
+        ),
+      });
+
+      await useAuthStore.getState().establishFederatedSession({
+        idToken: 'id-token',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      });
+
+      expect(mockUserInstance.setSignInUserSession).toHaveBeenCalledWith(mockSession);
       expect(useAuthStore.getState().status).toBe('signin-authenticated');
     });
   });

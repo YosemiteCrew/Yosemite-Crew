@@ -25,6 +25,7 @@ import { useSignUpDraft } from '@/app/hooks/useSignUpDraft';
 import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
+import { GithubSignInButton } from '@/app/features/auth/pages/GithubSignInButton';
 
 const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
 const DEVELOPER_ROLE = 'A developer';
@@ -573,6 +574,7 @@ const SignUp = ({
             <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
           </button>
         </form>
+        {effectiveDeveloper ? <GithubSignInButton /> : null}
         <div
           style={{
             marginTop: 22,
