@@ -364,7 +364,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
       showBottomFade={false}>
       {contentPaddingStyle => (
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardView}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
           <ScrollView
