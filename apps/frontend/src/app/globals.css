@@ -23,6 +23,50 @@
   font-style: italic;
 }
 
+/* Newsreader (OFL) — marketing display serif, variable weight + optical size */
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-Variable.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: normal;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-Variable-latin-ext.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: normal;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-VariableItalic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: italic;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-VariableItalic-latin-ext.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: italic;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
 html {
   scroll-behavior: auto;
 }
@@ -409,6 +453,28 @@ textarea:focus-visible {
   --color-category-info: #0b6f92;
   --color-category-attention: #7a6d00;
   --color-category-admin: #2e4d85;
+
+  /* Marketing site — warm-bone editorial palette.
+     Base rule: marketing pages sit on bone (#efe8dc); nothing renders pure white,
+     product-mockup "screens" use --color-screen. Accents are the logo's exact
+     colours: blue structural everywhere, pink = Pet Parents, cyan = Developers
+     (cyan drops to --color-cyan-text on cream for legibility). */
+  --color-bone: #efe8dc;
+  --color-band: #e8e0d2;
+  --color-inset: #eae2d5;
+  --color-screen: #f7f3ec;
+  --color-screen-2: #f1ebe1;
+  --color-hairline: #e5dccf;
+  --color-ink: #1d1c1b;
+  --color-ink-body: #302f2e;
+  --color-accent: #257bed;
+  --color-accent-deep: #1657c9;
+  --color-accent-dark: #8fb6f5;
+  --color-pink: #ff90d4;
+  --color-cyan: #5ce1e6;
+  --color-cyan-text: #38ccd8;
+
+  --font-newsreader: 'Newsreader', Georgia, 'Times New Roman', serif;
 }
 :root {
   --black-text: var(--color-black-text);

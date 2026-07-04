@@ -29,31 +29,17 @@ jest.mock('@/app/lib/postAuthRedirect', () => ({
   resolvePostAuthRedirect: jest.fn(),
 }));
 
-// Mock Components
-jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
+// Mock the shared marketing foundation (AuthShell / AuthBrandContent) so its
+// GitHub-stats hook and next/image assets don't hit the network in jsdom.
+jest.mock('@/app/features/marketing/site', () => ({
   __esModule: true,
-  default: ({ value, onChange, error, inlabel }: any) => (
-    <div data-testid="email-input-wrapper">
-      <label htmlFor="signin-email">{inlabel}</label>
-      <input id="signin-email" data-testid="email-input" value={value} onChange={onChange} />
-      {error && <span data-testid="email-error">{error}</span>}
-    </div>
-  ),
-}));
-
-jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
-  __esModule: true,
-  default: ({ value, onChange, error, inlabel }: any) => (
-    <div data-testid="password-input-wrapper">
-      <label htmlFor="signin-password">{inlabel}</label>
-      <input
-        id="signin-password"
-        data-testid="password-input"
-        value={value}
-        onChange={onChange}
-        type="password"
-      />
-      {error && <span data-testid="password-error">{error}</span>}
+  GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
+  AuthBrandContent: () => <div data-testid="auth-brand" />,
+  AuthShell: ({ brand, topRight, children }: any) => (
+    <div data-testid="auth-shell">
+      <div>{brand}</div>
+      <div>{topRight}</div>
+      <main>{children}</main>
     </div>
   ),
 }));
@@ -62,14 +48,6 @@ jest.mock('@/app/ui/overlays/OtpModal/OtpModal', () => ({
   __esModule: true,
   default: ({ showVerifyModal }: any) =>
     showVerifyModal ? <div data-testid="otp-modal">OTP Modal Open</div> : null,
-}));
-
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick, isDisabled }: any) => (
-    <button data-testid="signin-btn" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
 }));
 
 jest.mock('@/app/ui/overlays/Loader', () => ({
@@ -88,6 +66,10 @@ Object.defineProperty(globalThis, 'scrollTo', {
 });
 
 expect.extend(toHaveNoViolations);
+
+const getEmailInput = () => screen.getByRole('textbox', { name: /email/i });
+const getPasswordInput = () => screen.getByLabelText('Password');
+const getSubmitBtn = () => screen.getByRole('button', { name: /sign in/i });
 
 describe('SignIn Page', () => {
   const mockSignIn = jest.fn();
@@ -122,19 +104,30 @@ describe('SignIn Page', () => {
   it('renders the sign-in form correctly (default mode)', () => {
     render(<SignIn />);
 
-    expect(screen.getByTestId('email-input')).toBeInTheDocument();
-    expect(screen.getByTestId('password-input')).toBeInTheDocument();
+    expect(getEmailInput()).toBeInTheDocument();
+    expect(getPasswordInput()).toBeInTheDocument();
     expect(screen.getByText('Forgot password?')).toBeInTheDocument();
-    expect(screen.getByTestId('signin-btn')).toBeInTheDocument();
-    expect(screen.getByText('Sign up')).toHaveAttribute('href', '/signup');
+    expect(getSubmitBtn()).toBeInTheDocument();
+    // The show-password toggle must exist for e2e.
+    expect(screen.getByRole('button', { name: /show password/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/signup');
   });
 
   it('renders correctly in developer mode', () => {
     render(<SignIn isDeveloper={true} signupHref="/dev-signup" />);
 
     expect(screen.getByText('Sign in to your developer account')).toBeInTheDocument();
-    // Check background style application (indirectly via class or structure implies it handled props)
-    expect(screen.getByText('Sign up')).toHaveAttribute('href', '/dev-signup');
+    expect(screen.getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/dev-signup');
+  });
+
+  it('toggles password visibility with the show-password button', () => {
+    render(<SignIn />);
+
+    const passInput = getPasswordInput();
+    expect(passInput).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByRole('button', { name: /show password/i }));
+    expect(passInput).toHaveAttribute('type', 'text');
   });
 
   // --- 2. Input & Validation ---
@@ -142,8 +135,8 @@ describe('SignIn Page', () => {
   it('updates state on input change', () => {
     render(<SignIn />);
 
-    const emailInput = screen.getByTestId('email-input');
-    const passInput = screen.getByTestId('password-input');
+    const emailInput = getEmailInput();
+    const passInput = getPasswordInput();
 
     fireEvent.change(emailInput, { target: { value: 'test@example.com' } });
     fireEvent.change(passInput, { target: { value: 'password123' } });
@@ -155,38 +148,38 @@ describe('SignIn Page', () => {
   it('shows validation errors when fields are empty', () => {
     render(<SignIn />);
 
-    fireEvent.click(screen.getByTestId('signin-btn'));
+    fireEvent.click(getSubmitBtn());
 
-    expect(screen.getByTestId('email-error')).toHaveTextContent('Email is required');
-    expect(screen.getByTestId('password-error')).toHaveTextContent('Password is required');
+    expect(screen.getByText('Email is required')).toBeInTheDocument();
+    expect(screen.getByText('Password is required')).toBeInTheDocument();
     expect(mockSignIn).not.toHaveBeenCalled();
   });
 
   it('clears the password validation error when the user edits the password field', () => {
     render(<SignIn />);
 
-    fireEvent.click(screen.getByTestId('signin-btn'));
-    expect(screen.getByTestId('password-error')).toHaveTextContent('Password is required');
+    fireEvent.click(getSubmitBtn());
+    expect(screen.getByText('Password is required')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByTestId('password-input'), {
+    fireEvent.change(getPasswordInput(), {
       target: { value: 'updated-password' },
     });
 
-    expect(screen.queryByTestId('password-error')).not.toBeInTheDocument();
+    expect(screen.queryByText('Password is required')).not.toBeInTheDocument();
   });
 
   it('shows a validation error for an invalid email format', () => {
     render(<SignIn />);
 
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'not-an-email' },
     });
-    fireEvent.change(screen.getByTestId('password-input'), {
+    fireEvent.change(getPasswordInput(), {
       target: { value: 'password123' },
     });
-    fireEvent.click(screen.getByTestId('signin-btn'));
+    fireEvent.click(getSubmitBtn());
 
-    expect(screen.getByTestId('email-error')).toHaveTextContent('Enter a valid email');
+    expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
     expect(mockSignIn).not.toHaveBeenCalled();
   });
 
@@ -197,15 +190,15 @@ describe('SignIn Page', () => {
 
     render(<SignIn />);
 
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'test@example.com' },
     });
-    fireEvent.change(screen.getByTestId('password-input'), {
+    fireEvent.change(getPasswordInput(), {
       target: { value: 'pass123' },
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('signin-btn'));
+      fireEvent.click(getSubmitBtn());
     });
 
     expect(mockSignIn).toHaveBeenCalledWith('test@example.com', 'pass123');
@@ -223,15 +216,15 @@ describe('SignIn Page', () => {
 
     render(<SignIn isDeveloper={true} />);
 
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'dev@example.com' },
     });
-    fireEvent.change(screen.getByTestId('password-input'), {
+    fireEvent.change(getPasswordInput(), {
       target: { value: 'pass123' },
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('signin-btn'));
+      fireEvent.click(getSubmitBtn());
     });
 
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith('devAuth', 'true');
@@ -253,19 +246,22 @@ describe('SignIn Page', () => {
 
     render(<SignIn />);
 
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'test@example.com' },
     });
-    fireEvent.change(screen.getByTestId('password-input'), {
+    fireEvent.change(getPasswordInput(), {
       target: { value: 'pass123' },
     });
 
+    // Capture the button before submit: while pending its label becomes
+    // "Signing in..." so it no longer matches the /sign in/i accessible name.
+    const submitBtn = getSubmitBtn();
     await act(async () => {
-      fireEvent.click(screen.getByTestId('signin-btn'));
+      fireEvent.click(submitBtn);
     });
 
     expect(screen.getByTestId('signin-loader')).toHaveTextContent('Signing you in...');
-    expect(screen.getByTestId('signin-btn')).toBeDisabled();
+    expect(submitBtn).toBeDisabled();
 
     await act(async () => {
       resolveSignIn?.();
@@ -279,15 +275,15 @@ describe('SignIn Page', () => {
 
     render(<SignIn />);
 
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'test@example.com' },
     });
-    fireEvent.change(screen.getByTestId('password-input'), {
+    fireEvent.change(getPasswordInput(), {
       target: { value: 'pass123' },
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('signin-btn'));
+      fireEvent.click(getSubmitBtn());
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
@@ -305,15 +301,15 @@ describe('SignIn Page', () => {
 
     render(<SignIn />);
 
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'unconfirmed@test.com' },
     });
-    fireEvent.change(screen.getByTestId('password-input'), {
+    fireEvent.change(getPasswordInput(), {
       target: { value: 'pass123' },
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('signin-btn'));
+      fireEvent.click(getSubmitBtn());
     });
 
     expect(mockResendCode).toHaveBeenCalledWith('unconfirmed@test.com');
@@ -328,15 +324,15 @@ describe('SignIn Page', () => {
 
     render(<SignIn />);
 
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'unconfirmed@test.com' },
     });
-    fireEvent.change(screen.getByTestId('password-input'), {
+    fireEvent.change(getPasswordInput(), {
       target: { value: 'pass123' },
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('signin-btn'));
+      fireEvent.click(getSubmitBtn());
     });
 
     expect(mockResendCode).toHaveBeenCalled();
@@ -358,15 +354,15 @@ describe('SignIn Page', () => {
 
     render(<SignIn />);
 
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 't@t.com' },
     });
-    fireEvent.change(screen.getByTestId('password-input'), {
+    fireEvent.change(getPasswordInput(), {
       target: { value: 'p' },
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('signin-btn'));
+      fireEvent.click(getSubmitBtn());
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
@@ -381,15 +377,15 @@ describe('SignIn Page', () => {
 
     render(<SignIn />);
 
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 't@t.com' },
     });
-    fireEvent.change(screen.getByTestId('password-input'), {
+    fireEvent.change(getPasswordInput(), {
       target: { value: 'p' },
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('signin-btn'));
+      fireEvent.click(getSubmitBtn());
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(

@@ -2,22 +2,28 @@
 import Link from 'next/link';
 import React, { useState } from 'react';
 import { Icon } from '@iconify/react/dist/iconify.js';
+import {
+  IoAlertCircleOutline,
+  IoArrowForwardOutline,
+  IoCloudOfflineOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoGitBranchOutline,
+  IoLogoGithub,
+  IoPhonePortraitOutline,
+  IoShieldCheckmarkOutline,
+} from 'react-icons/io5';
 
-import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
-import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { useAuthStore } from '@/app/stores/authStore';
 import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
-import { Primary } from '@/app/ui/primitives/Buttons';
 import { useRouter } from 'next/navigation';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
-
-import '../AuthPages.css';
+import { AuthShell, AuthBrandContent, GITHUB_REPO_URL } from '@/app/features/marketing/site';
 
 type SignInProps = {
   redirectPath?: string;
@@ -25,6 +31,36 @@ type SignInProps = {
   allowNext?: boolean;
   isDeveloper?: boolean;
 };
+
+const CLINIC_POINTS = [
+  {
+    icon: <IoCloudOfflineOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Works on the worst afternoon. Even offline.',
+  },
+  {
+    icon: <IoGitBranchOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'A FHIR-native API and a codebase you can actually read.',
+  },
+  {
+    icon: <IoShieldCheckmarkOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Free to self-host. Your data never leaves your walls.',
+  },
+] as const;
+
+const DEV_POINTS = [
+  {
+    icon: <IoGitBranchOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Open source. Read it, run it locally, send a PR.',
+  },
+  {
+    icon: <IoShieldCheckmarkOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'A FHIR-native API and a codebase you can actually read.',
+  },
+  {
+    icon: <IoCloudOfflineOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Free to self-host. Your data never leaves your walls.',
+  },
+] as const;
 
 const SignIn = ({
   redirectPath,
@@ -36,6 +72,7 @@ const SignIn = ({
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [inputErrors, setInputErrors] = useState<{
     email?: string;
     pError?: string;
@@ -117,16 +154,43 @@ const SignIn = ({
     }
   };
 
+  const brand = (
+    <AuthBrandContent
+      eyebrow={
+        isDeveloper
+          ? 'Open-source developer platform'
+          : 'Open-source operating system for animal health'
+      }
+      title={
+        isDeveloper ? (
+          <>
+            Pick up where you{' '}
+            <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#5ce1e6' }}>left off.</em>
+          </>
+        ) : (
+          <>
+            Pick up where your{' '}
+            <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#8fb6f5' }}>clinic</em> left
+            off.
+          </>
+        )
+      }
+      subtitle="One login for the whole workspace, appointments, records, billing, and every plugin your team has installed."
+      points={isDeveloper ? DEV_POINTS : CLINIC_POINTS}
+    />
+  );
+
+  const topRight = (
+    <>
+      <span data-hide-s="true">New to Yosemite Crew?</span>
+      <Link href={signupHref} className="yc-switch">
+        Sign up
+      </Link>
+    </>
+  );
+
   return (
-    <section
-      className={`
-        relative flex w-full flex-1 items-center justify-center
-        bg-cover bg-center bg-no-repeat
-        min-h-[max(720px,100vh)]
-        pt-22
-      `}
-      style={{ backgroundImage: `url(${MEDIA_SOURCES.auth.background})` }}
-    >
+    <>
       {isSubmitting ? (
         <YosemiteLoader
           variant="fullscreen-translucent"
@@ -135,72 +199,239 @@ const SignIn = ({
         />
       ) : null}
       {ErrorTostPopup}
-      <div
-        className={`
-          flex h-fit w-[min(520px,90vw)] flex-col items-center justify-center gap-6
-          rounded-3xl border border-card-border
-          bg-(--whitebg)
-          p-[1.5rem]
-          sm:p-[1.75rem]
-          elevation-1
-        `}
-      >
-        <form onSubmit={handleSignIn} className="flex size-full flex-col gap-6">
-          <div className="flex w-full flex-col gap-6">
-            <h1 className="text-display-2 text-text-primary text-center auth-title">
-              {isDeveloper ? 'Sign in to your developer account' : 'Sign in'}
-            </h1>
-            <div className="flex w-full flex-col gap-3">
-              <FormInput
-                intype="email"
-                inname="email"
-                value={email}
-                inlabel="Email"
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setInputErrors((prev) => ({ ...prev, email: undefined }));
+      <AuthShell brand={brand} topRight={topRight}>
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-newsreader)',
+            fontSize: 'clamp(30px, 3.2vw, 39px)',
+            fontWeight: 400,
+            lineHeight: 1.06,
+            letterSpacing: '-0.03em',
+            color: '#1d1c1b',
+          }}
+        >
+          {isDeveloper ? (
+            'Sign in to your developer account'
+          ) : (
+            <>
+              Welcome{' '}
+              <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#1657c9' }}>back</em>
+            </>
+          )}
+        </h1>
+        <p
+          style={{
+            margin: '12px 0 26px',
+            fontSize: 15.5,
+            lineHeight: 1.55,
+            letterSpacing: '-0.01em',
+            color: '#5c5956',
+          }}
+        >
+          Sign in to your clinic or developer workspace.
+        </p>
+        <form
+          onSubmit={handleSignIn}
+          noValidate
+          style={{ display: 'flex', flexDirection: 'column', gap: 15 }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <label className="yc-lbl" htmlFor="signin-email">
+              Work email
+            </label>
+            <input
+              id="signin-email"
+              name="email"
+              className="yc-field"
+              type="email"
+              autoComplete="email"
+              placeholder="you@clinic.com"
+              aria-label="Work email"
+              aria-invalid={Boolean(inputErrors.email)}
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setInputErrors((prev) => ({ ...prev, email: undefined }));
+              }}
+            />
+            {inputErrors.email ? (
+              <div
+                role="alert"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 14,
+                  color: '#d53225',
+                  letterSpacing: '-0.01em',
                 }}
-                error={inputErrors.email}
-              />
-              <FormInputPass
-                intype="password"
-                inname="password"
-                value={password}
-                inlabel="Password"
+              >
+                <IoAlertCircleOutline style={{ fontSize: 17, flex: 'none' }} aria-hidden="true" />
+                {inputErrors.email}
+              </div>
+            ) : null}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label className="yc-lbl" htmlFor="signin-password">
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                style={{
+                  fontSize: 13,
+                  color: '#1657c9',
+                  textDecoration: 'none',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="signin-password"
+                name="password"
+                className="yc-field"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
+                placeholder="Your password"
+                aria-label="Password"
+                aria-invalid={Boolean(inputErrors.pError)}
+                value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
                   setInputErrors((prev) => ({ ...prev, pError: undefined }));
                 }}
-                error={inputErrors.pError}
+                style={{ paddingRight: 46 }}
               />
-              <div className="flex items-end justify-end">
-                <Link
-                  href="/forgot-password"
-                  className="text-body-4-emphasis text-text-primary! auth-link-text"
-                >
-                  Forgot password?
-                </Link>
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 32,
+                  height: 32,
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#8f8984',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {showPassword ? (
+                  <IoEyeOffOutline style={{ fontSize: 19 }} aria-hidden="true" />
+                ) : (
+                  <IoEyeOutline style={{ fontSize: 19 }} aria-hidden="true" />
+                )}
+              </button>
+            </div>
+            {inputErrors.pError ? (
+              <div
+                role="alert"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 14,
+                  color: '#d53225',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                <IoAlertCircleOutline style={{ fontSize: 17, flex: 'none' }} aria-hidden="true" />
+                {inputErrors.pError}
               </div>
-            </div>
+            ) : null}
           </div>
-          <div className="flex flex-col gap-3 items-center">
-            <Primary
-              text={isSubmitting ? 'Signing in...' : 'Sign in'}
-              onClick={handleSignIn}
-              isDisabled={isSubmitting}
-              style={{ width: '100%' }}
-            />
-            <div className="text-body-4 text-text-primary auth-inline-text">
-              {' '}
-              Don&apos;t have an account?{' '}
-              <Link href={signupHref} className="text-text-brand">
-                Sign up
-              </Link>
-            </div>
-          </div>
+          <button
+            type="submit"
+            className="yc-btn-primary"
+            disabled={isSubmitting}
+            style={{
+              marginTop: 4,
+              width: '100%',
+              boxSizing: 'border-box',
+              fontSize: 16,
+              padding: '16px 24px',
+              borderRadius: 13,
+              boxShadow: '0 14px 30px rgba(29,28,27,0.22)',
+            }}
+          >
+            {isSubmitting ? 'Signing in...' : 'Sign in'}
+            <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
+          </button>
         </form>
-      </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '20px 0' }}>
+          <span style={{ flex: 1, height: 1, background: '#e5dccf' }} />
+          <span style={{ fontSize: 13, color: '#a9a39e' }}>or</span>
+          <span style={{ flex: 1, height: 1, background: '#e5dccf' }} />
+        </div>
+        <a
+          href={GITHUB_REPO_URL}
+          target="_blank"
+          rel="noopener"
+          className="yc-btn-ghost"
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            fontSize: 15,
+            padding: '14px 20px',
+            borderRadius: 13,
+          }}
+        >
+          <IoLogoGithub style={{ fontSize: 19 }} aria-hidden="true" /> Continue with GitHub
+        </a>
+        <div
+          style={{
+            marginTop: 11,
+            textAlign: 'center',
+            fontSize: 12.5,
+            color: '#a9a39e',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          GitHub is available for developer accounts.
+        </div>
+        <div
+          style={{
+            marginTop: 22,
+            paddingTop: 18,
+            borderTop: '1px solid #e5dccf',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            justifyContent: 'center',
+            textAlign: 'center',
+            fontSize: 13.5,
+            lineHeight: 1.5,
+            color: '#8f8984',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          <IoPhonePortraitOutline
+            style={{ fontSize: 17, flex: 'none', color: '#a9a39e' }}
+            aria-hidden="true"
+          />
+          <span>
+            Pet parent? Sign in from the{' '}
+            <Link
+              href="/pet-parents"
+              style={{ color: '#1657c9', textDecoration: 'none', fontWeight: 600 }}
+            >
+              mobile app
+            </Link>
+            .
+          </span>
+        </div>
+      </AuthShell>
       <OtpModal
         email={normalizeEmail(email)}
         password={password}
@@ -210,7 +441,7 @@ const SignIn = ({
         redirectPath={redirectPath}
         isDeveloper={isDeveloper}
       />
-    </section>
+    </>
   );
 };
 

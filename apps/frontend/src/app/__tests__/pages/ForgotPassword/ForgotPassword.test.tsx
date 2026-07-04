@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import ForgotPassword from '@/app/features/auth/pages/ForgotPassword/ForgotPassword';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useRouter } from 'next/navigation';
@@ -22,33 +23,25 @@ jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: jest.fn(),
 }));
 
-// 4. Mock UI Components (Inputs & Buttons)
-jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
+// 4. Mock the shared marketing foundation (AuthShell / AuthBrandContent) so its
+// GitHub-stats hook and next/image assets don't hit the network in jsdom.
+jest.mock('@/app/features/marketing/site', () => ({
   __esModule: true,
-  default: ({ value, onChange, inlabel }: any) => (
-    <input data-testid="email-input" placeholder={inlabel} value={value} onChange={onChange} />
+  AuthBrandContent: () => <div data-testid="auth-brand" />,
+  AuthShell: ({ brand, topRight, children }: any) => (
+    <div data-testid="auth-shell">
+      <div>{brand}</div>
+      <div>{topRight}</div>
+      <main>{children}</main>
+    </div>
   ),
 }));
 
-jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
-  __esModule: true,
-  default: ({ value, onChange, inPlaceHolder }: any) => (
-    <input placeholder={inPlaceHolder} value={value} onChange={onChange} />
-  ),
-}));
-
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ onClick, text }: any) => (
-    <button type="button" data-testid="btn-primary" onClick={onClick}>
-      {text}
-    </button>
-  ),
-  Secondary: ({ onClick, text }: any) => (
-    <button type="button" data-testid="btn-secondary" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
+const getEmailInput = () => screen.getByRole('textbox', { name: /email address/i });
+const getSendCodeBtn = () => screen.getByRole('button', { name: /send code/i });
+const getVerifyCodeBtn = () => screen.getByRole('button', { name: /verify code/i });
+const getResetPasswordBtn = () => screen.getByRole('button', { name: /reset password/i });
+const getBackButtons = () => screen.getAllByRole('button', { name: /^back$/i });
 
 describe('ForgotPassword Page', () => {
   const mockPush = jest.fn();
@@ -80,14 +73,14 @@ describe('ForgotPassword Page', () => {
 
   it('renders the initial email form correctly', () => {
     render(<ForgotPassword />);
-    expect(screen.getByText('Forgot password?')).toBeInTheDocument();
-    expect(screen.getByTestId('email-input')).toBeInTheDocument();
-    expect(screen.getByTestId('btn-primary')).toHaveTextContent('Send code');
+    expect(screen.getByRole('heading', { name: 'Forgot password?' })).toBeInTheDocument();
+    expect(getEmailInput()).toBeInTheDocument();
+    expect(getSendCodeBtn()).toBeInTheDocument();
   });
 
   it('validates empty email submission', () => {
     render(<ForgotPassword />);
-    fireEvent.click(screen.getByTestId('btn-primary'));
+    fireEvent.click(getSendCodeBtn());
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Email is required' })
@@ -97,10 +90,10 @@ describe('ForgotPassword Page', () => {
 
   it('validates invalid email submission', () => {
     render(<ForgotPassword />);
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'not-an-email' },
     });
-    fireEvent.click(screen.getByTestId('btn-primary'));
+    fireEvent.click(getSendCodeBtn());
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Enter a valid email' })
@@ -112,12 +105,12 @@ describe('ForgotPassword Page', () => {
     mockForgotPassword.mockResolvedValue(true);
     render(<ForgotPassword />);
 
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'test@example.com' },
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
+      fireEvent.click(getSendCodeBtn());
     });
 
     expect(mockForgotPassword).toHaveBeenCalledWith('test@example.com');
@@ -133,12 +126,12 @@ describe('ForgotPassword Page', () => {
     mockForgotPassword.mockRejectedValue(errorResponse);
 
     render(<ForgotPassword />);
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'test@example.com' },
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
+      fireEvent.click(getSendCodeBtn());
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
@@ -150,12 +143,12 @@ describe('ForgotPassword Page', () => {
     mockForgotPassword.mockRejectedValue(new Error('Network Error'));
 
     render(<ForgotPassword />);
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'test@example.com' },
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
+      fireEvent.click(getSendCodeBtn());
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
@@ -170,11 +163,11 @@ describe('ForgotPassword Page', () => {
   const navigateToOtpScreen = async () => {
     mockForgotPassword.mockResolvedValue(true);
     render(<ForgotPassword />);
-    fireEvent.change(screen.getByTestId('email-input'), {
+    fireEvent.change(getEmailInput(), {
       target: { value: 'test@example.com' },
     });
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
+      fireEvent.click(getSendCodeBtn());
     });
   };
 
@@ -230,7 +223,7 @@ describe('ForgotPassword Page', () => {
     await navigateToOtpScreen();
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
+      fireEvent.click(getVerifyCodeBtn());
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
@@ -248,18 +241,20 @@ describe('ForgotPassword Page', () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
+      fireEvent.click(getVerifyCodeBtn());
     });
 
-    expect(screen.getByText('Set new password')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Set new password' })).toBeInTheDocument();
+    expect(getResetPasswordBtn()).toBeInTheDocument();
   });
 
   it('OTP Back button returns to Email view', async () => {
     await navigateToOtpScreen();
 
-    fireEvent.click(screen.getByTestId('btn-secondary'));
+    // On the verify step there is a single "Back" button.
+    fireEvent.click(getBackButtons()[0]);
 
-    expect(screen.getByText('Forgot password?')).toBeInTheDocument();
+    expect(getSendCodeBtn()).toBeInTheDocument();
   });
 
   // --- Section 3: Password View & Reset Logic ---
@@ -272,7 +267,7 @@ describe('ForgotPassword Page', () => {
       });
     });
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
+      fireEvent.click(getVerifyCodeBtn());
     });
   };
 
@@ -280,7 +275,7 @@ describe('ForgotPassword Page', () => {
     await navigateToPasswordScreen();
 
     await act(async () => {
-      fireEvent.click(screen.getByTestId('btn-primary'));
+      fireEvent.click(getResetPasswordBtn());
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
@@ -291,8 +286,8 @@ describe('ForgotPassword Page', () => {
   it('Password View Back button returns to Email view', async () => {
     await navigateToPasswordScreen();
 
-    fireEvent.click(screen.getByTestId('btn-secondary'));
+    fireEvent.click(getBackButtons()[0]);
 
-    expect(screen.getByText('Forgot password?')).toBeInTheDocument();
+    expect(getSendCodeBtn()).toBeInTheDocument();
   });
 });

@@ -1,15 +1,17 @@
-import React from 'react';
 import type { Metadata } from 'next';
-import PetOwner from '@/app/features/marketing/pages/PetOwner/PetOwner';
+import { MarketingShell } from '@/app/features/marketing/site';
+import { PetParents } from '@/app/features/marketing/pages/PetParents/PetParents';
 
 export const metadata: Metadata = {
-  title: 'Pet Parents — Yosemite Crew',
+  title: 'Pet Parents · Yosemite Crew',
   description:
-    'Designed for pet parents to manage companions, appointments, records, and wellness in one app.',
+    'Cats, dogs and horses, every visit and every dose on one timeline. The years of notes that keep a companion alive finally live somewhere you can reach.',
 };
 
-function page() {
-  return <PetOwner />;
+export default function Page() {
+  return (
+    <MarketingShell active="pet-parents">
+      <PetParents />
+    </MarketingShell>
+  );
 }
-
-export default page;

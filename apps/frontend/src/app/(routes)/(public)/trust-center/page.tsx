@@ -1,19 +1,18 @@
-import React from 'react';
 import type { Metadata } from 'next';
+import { MarketingShell } from '@/app/features/marketing/site';
+import TrustCenter from '@/app/features/legal/pages/TrustCenter';
 
 export const metadata: Metadata = {
-  title: 'Trust Center — Yosemite Crew',
-  description: 'Yosemite Crew security, compliance, and data protection information.',
+  title: 'Security, privacy and compliance · Yosemite Crew',
+  description:
+    'Protecting the data of pet businesses and pet parents is our foundation, not a feature. We use enterprise-grade security so your data stays safe, compliant and available.',
 };
-import { TrustCenter } from '@/app/features/legal';
-import Footer from '@/app/ui/widgets/Footer/Footer';
 
 const TrustCenterPage = () => {
   return (
-    <>
+    <MarketingShell>
       <TrustCenter />
-      <Footer />
-    </>
+    </MarketingShell>
   );
 };
 

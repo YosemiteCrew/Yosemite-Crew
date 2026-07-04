@@ -5,9 +5,16 @@ import '@testing-library/jest-dom';
 const signInMock = jest.fn(() => <div data-testid="dev-signin-page" />);
 const signUpMock = jest.fn(() => <div data-testid="dev-signup-page" />);
 
-jest.mock('@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding', () => ({
+jest.mock('@/app/features/marketing/site', () => ({
   __esModule: true,
-  default: () => <div data-testid="dev-landing" />,
+  MarketingShell: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="marketing-shell">{children}</div>
+  ),
+}));
+
+jest.mock('@/app/features/marketing/pages/DevelopersPage/DevelopersPage', () => ({
+  __esModule: true,
+  DevelopersPage: () => <div data-testid="dev-landing" />,
 }));
 
 jest.mock('@/app/features/developers/pages/DeveloperDocs/DeveloperDocs', () => ({

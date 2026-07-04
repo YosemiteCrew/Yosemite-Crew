@@ -1,15 +1,17 @@
-import React from 'react';
 import type { Metadata } from 'next';
+import { MarketingShell } from '@/app/features/marketing/site';
+import { DevelopersPage } from '@/app/features/marketing/pages/DevelopersPage/DevelopersPage';
 
 export const metadata: Metadata = {
-  title: 'Developers — Yosemite Crew',
+  title: 'Developers · Yosemite Crew',
   description:
-    'Build, customise, and launch powerful apps on the Yosemite Crew open-source platform.',
+    'A FHIR-native API, a plugin marketplace, and a codebase you can actually read. Build an AI scribe, a triage agent or a smarter reminder, and ship it to working clinics.',
 };
-import DeveloperLanding from '@/app/features/marketing/pages/DeveloperLanding/DeveloperLanding';
 
-function page() {
-  return <DeveloperLanding />;
+export default function Page() {
+  return (
+    <MarketingShell active="developers">
+      <DevelopersPage />
+    </MarketingShell>
+  );
 }
-
-export default page;

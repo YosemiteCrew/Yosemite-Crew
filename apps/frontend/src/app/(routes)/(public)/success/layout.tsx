@@ -7,5 +7,9 @@ type SuccessLayoutProps = Readonly<{
 }>;
 
 export default function SuccessLayout({ children }: SuccessLayoutProps) {
-  return <>{children}</>;
+  return (
+    <main id="main-content" tabIndex={-1}>
+      {children}
+    </main>
+  );
 }

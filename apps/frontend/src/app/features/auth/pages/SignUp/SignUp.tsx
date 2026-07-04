@@ -1,25 +1,73 @@
 'use client';
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { GoCheckCircleFill } from 'react-icons/go';
 import { Icon } from '@iconify/react/dist/iconify.js';
+import {
+  IoAlertCircleOutline,
+  IoArrowForwardOutline,
+  IoCalendarOutline,
+  IoCheckmark,
+  IoCodeSlashOutline,
+  IoExtensionPuzzleOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoGitBranchOutline,
+  IoLogoGithub,
+  IoPhonePortraitOutline,
+  IoShieldCheckmarkOutline,
+} from 'react-icons/io5';
 
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { useAuthStore } from '@/app/stores/authStore';
 import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
-
-import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
-import FormInput from '@/app/ui/inputs/FormInput/FormInput';
-import { Primary } from '@/app/ui/primitives/Buttons';
-import { IoIosWarning } from 'react-icons/io';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useSignUpDraft } from '@/app/hooks/useSignUpDraft';
 import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
+import { AuthShell, AuthBrandContent, GITHUB_REPO_URL } from '@/app/features/marketing/site';
 
-import '../AuthPages.css';
+const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
+const DEVELOPER_ROLE = 'A developer';
+
+const CLINIC_POINTS = [
+  {
+    icon: <IoCalendarOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Appointments, records, and billing on one screen.',
+  },
+  {
+    icon: <IoGitBranchOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'A FHIR-native API and a codebase you can actually read.',
+  },
+  {
+    icon: <IoShieldCheckmarkOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Free to self-host. Your data never leaves your walls.',
+  },
+] as const;
+
+const DEV_POINTS = [
+  {
+    icon: <IoCodeSlashOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'REST and FHIR APIs, typed SDKs, and webhooks.',
+  },
+  {
+    icon: <IoGitBranchOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Open source. Read it, run it locally, send a PR.',
+  },
+  {
+    icon: <IoExtensionPuzzleOutline style={{ fontSize: 19 }} aria-hidden="true" />,
+    text: 'Ship plugins to the marketplace. Reach every clinic.',
+  },
+] as const;
+
+const errorTextStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  fontSize: 14,
+  color: '#d53225',
+  letterSpacing: '-0.01em',
+};
 
 const passwordErrors = (
   password: string,
@@ -90,6 +138,16 @@ type SignUpProps = {
   isDeveloper?: boolean;
 };
 
+type FieldErrorProps = { message?: string };
+
+const FieldError = ({ message }: Readonly<FieldErrorProps>) =>
+  message ? (
+    <div role="alert" style={errorTextStyle}>
+      <IoAlertCircleOutline style={{ fontSize: 17, flex: 'none' }} aria-hidden="true" />
+      {message}
+    </div>
+  ) : null;
+
 const SignUp = ({
   postAuthRedirect,
   signinHref = '/signin',
@@ -103,7 +161,11 @@ const SignUp = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [agree, setAgree] = useState(false);
+  const [role, setRole] = useState(isDeveloper ? DEVELOPER_ROLE : CLINIC_ROLE);
+
+  const effectiveDeveloper = isDeveloper || role === DEVELOPER_ROLE;
 
   const { clearSignUpDraft } = useSignUpDraft({
     firstName,
@@ -130,7 +192,7 @@ const SignUp = ({
     defaultSidebarToCollapsed();
     clearSignUpDraft();
     globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
-    setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
+    setStorageItem('session', 'devAuth', effectiveDeveloper ? 'true' : 'false');
     setIsSubmitting(false);
     setShowVerifyModal(true);
   };
@@ -172,7 +234,7 @@ const SignUp = ({
 
     try {
       setIsSubmitting(true);
-      const args: Parameters<typeof signUp> = isDeveloper
+      const args: Parameters<typeof signUp> = effectiveDeveloper
         ? [normalizedEmail, password, firstName, lastName, 'developer']
         : [normalizedEmail, password, firstName, lastName];
 
@@ -186,14 +248,49 @@ const SignUp = ({
     }
   };
 
+  const brand = (
+    <AuthBrandContent
+      eyebrow={
+        effectiveDeveloper
+          ? 'Open-source developer platform'
+          : 'Open-source operating system for animal health'
+      }
+      title={
+        effectiveDeveloper ? (
+          <>
+            Build it in{' '}
+            <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#5ce1e6' }}>
+              an afternoon.
+            </em>
+          </>
+        ) : (
+          <>
+            See the{' '}
+            <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#8fb6f5' }}>whole</em>{' '}
+            animal.
+          </>
+        )
+      }
+      subtitle={
+        effectiveDeveloper
+          ? 'A FHIR-native API, a plugin system, and a codebase you can actually read. Publish once and reach every clinic running Yosemite Crew.'
+          : 'The operating system veterinary clinics run on, and the platform developers build on. Free to self-host, and yours to own.'
+      }
+      points={effectiveDeveloper ? DEV_POINTS : CLINIC_POINTS}
+    />
+  );
+
+  const topRight = (
+    <>
+      <span data-hide-s="true">Already have an account?</span>
+      <Link href={signinHref} className="yc-switch">
+        Sign in
+      </Link>
+    </>
+  );
+
   return (
-    <section
-      className={`
-        relative flex w-full flex-1 min-h-screen items-center justify-center
-        bg-cover bg-center bg-no-repeat
-      `}
-      style={{ backgroundImage: `url(${MEDIA_SOURCES.auth.background})` }}
-    >
+    <>
       {isSubmitting ? (
         <YosemiteLoader
           variant="fullscreen-translucent"
@@ -201,203 +298,349 @@ const SignUp = ({
           testId="signup-loader"
         />
       ) : null}
-      <div className="flex gap-10 xl:gap-20 w-full md:max-w-[900px] mx-3 py-3 sm:mx-12 md:flex-row flex-col items-center md:items-start">
-        <div className="flex align-center justify-center flex-col gap-8 w-[90%] sm:w-[70%] md:w-1/2 md:mt-16">
-          <div className="flex w-full items-center justify-center">
-            <p className="text-display-2 text-text-primary text-center max-w-87.5 auth-title">
-              {isDeveloper
-                ? 'Build, test, and ship apps on Yosemite Crew'
-                : 'Built for everyone, from day one'}
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-6">
-            <div className="flex gap-2">
-              <div className="w-[20px]">
-                <GoCheckCircleFill
-                  color="var(--color-primary-500)"
-                  size={20}
-                  className="mt-[3px]"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="text-body-3-emphasis text-text-primary auth-feature-title">
-                  {isDeveloper
-                    ? 'API-first, self-host or managed'
-                    : 'Enjoy smooth online solutions with us!'}
-                </div>
-                <p className="text-caption-1 text-text-primary auth-feature-desc">
-                  {isDeveloper
-                    ? 'Open source core with APIs built for integrations. Run it yourself or use our managed stack.'
-                    : 'Our services are built on a strong foundation for great performance and flexibility.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <div className="w-[20px]">
-                <GoCheckCircleFill
-                  color="var(--color-primary-500)"
-                  size={20}
-                  className="mt-[3px]"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="text-body-3-emphasis text-text-primary auth-feature-title">
-                  {isDeveloper
-                    ? 'Local dev + production ready'
-                    : 'Start free and upgrade as needed.'}
-                </div>
-                <p className="text-caption-1 text-text-primary auth-feature-desc">
-                  {isDeveloper
-                    ? 'Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted.'
-                    : 'Enjoy generous free usage. Upgrade only when you need.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <div className="w-[20px]">
-                <GoCheckCircleFill
-                  color="var(--color-primary-500)"
-                  size={20}
-                  className="mt-[3px]"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="text-body-3-emphasis text-text-primary auth-feature-title">
-                  {isDeveloper
-                    ? 'Secure by default'
-                    : 'Our servers are EU-based and GDPR compliant.'}
-                </div>
-                <p className="text-caption-1 text-text-primary auth-feature-desc">
-                  {isDeveloper
-                    ? 'Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed.'
-                    : 'All data is securely stored in the EU, fully GDPR compliant.'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="w-full sm:w-[70%] md:w-1/2 bg-white p-[20px] border border-card-border rounded-3xl elevation-1">
-          <form onSubmit={handleSignUp} method="post" className="flex flex-col gap-6">
-            <div className="flex flex-col gap-6">
-              <h1 className="text-display-2 text-text-primary text-center auth-title">
-                {isDeveloper ? 'Sign up for developer access' : 'Sign up'}
-              </h1>
-
-              <div className="flex flex-col gap-3">
-                <FormInput
-                  intype="text"
-                  inname="first name"
-                  value={firstName}
-                  inlabel="First name"
-                  onChange={(e) => {
-                    setFirstName(e.target.value);
-                    setInputErrors((prev) => ({ ...prev, firstName: undefined }));
-                  }}
-                  error={inputErrors.firstName}
-                />
-                <FormInput
-                  intype="text"
-                  inname="last name"
-                  value={lastName}
-                  inlabel="Last name"
-                  onChange={(e) => {
-                    setLastName(e.target.value);
-                    setInputErrors((prev) => ({ ...prev, lastName: undefined }));
-                  }}
-                  error={inputErrors.lastName}
-                />
-                <FormInput
-                  intype="email"
-                  inname="email"
-                  value={email}
-                  inlabel="Enter email"
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setInputErrors((prev) => ({ ...prev, email: undefined }));
-                  }}
-                  error={inputErrors.email}
-                />
-                <FormInputPass
-                  intype="password"
-                  inname="password"
-                  value={password}
-                  inlabel="Set up password"
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setInputErrors((prev) => ({ ...prev, pError: undefined }));
-                  }}
-                  error={inputErrors.pError}
-                />
-                <FormInputPass
-                  intype="password"
-                  inname="confirm-password"
-                  value={confirmPassword}
-                  inlabel="Confirm password"
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    setInputErrors((prev) => ({ ...prev, confirmPError: undefined }));
-                  }}
-                  error={inputErrors.confirmPError}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="flex! gap-2! items-start text-caption-1 text-text-primary cursor-pointer">
-                <input
-                  type="checkbox"
-                  aria-label="I agree to the terms and conditions and privacy policy"
-                  onChange={(e) => {
-                    setAgree(e.target.checked);
-                    setInputErrors((prev) => ({ ...prev, agree: undefined }));
-                  }}
-                />
-                <span>
-                  {"I agree to Yosemite Crew's "}
-                  <Link className="policylink" href="/terms-and-conditions?ref=signup">
-                    terms and conditions
-                  </Link>
-                  {' and '}
-                  <Link className="policylink" href="/privacy-policy?ref=signup">
-                    privacy policy
-                  </Link>
-                </span>
+      <AuthShell brand={brand} topRight={topRight}>
+        <h1
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-newsreader)',
+            fontSize: 'clamp(30px, 3.2vw, 39px)',
+            fontWeight: 400,
+            lineHeight: 1.06,
+            letterSpacing: '-0.03em',
+            color: '#1d1c1b',
+          }}
+        >
+          Create your{' '}
+          <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#1657c9' }}>account</em>
+        </h1>
+        <p
+          style={{
+            margin: '12px 0 26px',
+            fontSize: 15.5,
+            lineHeight: 1.55,
+            letterSpacing: '-0.01em',
+            color: '#5c5956',
+          }}
+        >
+          For clinics and developers. Free to self-host, no card required.
+        </p>
+        <form
+          onSubmit={handleSignUp}
+          method="post"
+          noValidate
+          style={{ display: 'flex', flexDirection: 'column', gap: 15 }}
+        >
+          {!isDeveloper ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <label className="yc-lbl" htmlFor="signup-role">
+                I am
               </label>
-              {inputErrors.agree && (
-                <div className="flex items-center gap-1 px-4 text-caption-2 text-text-error">
-                  <IoIosWarning className="text-text-error" size={14} />
-                  {inputErrors.agree}
-                </div>
-              )}
-              <label className="flex! gap-2! items-end! text-caption-1 text-text-primary cursor-pointer">
-                <input type="checkbox" aria-label="Sign up for newsletter and promotional emails" />
-                <span>Sign me up for newsletter and promotional emails</span>
-              </label>
+              <select
+                id="signup-role"
+                className="yc-field"
+                aria-label="I am"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
+                <option value={CLINIC_ROLE}>{CLINIC_ROLE}</option>
+                <option value={DEVELOPER_ROLE}>{DEVELOPER_ROLE}</option>
+              </select>
             </div>
-
-            <div className="flex flex-col items-center gap-3">
-              <Primary
-                text={isSubmitting ? 'Creating account...' : 'Sign up'}
-                onClick={handleSignUp}
-                href="#"
-                isDisabled={isSubmitting}
-                style={{ width: '100%' }}
+          ) : null}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <label className="yc-lbl" htmlFor="signup-firstname">
+              First name
+            </label>
+            <input
+              id="signup-firstname"
+              name="first name"
+              className="yc-field"
+              type="text"
+              autoComplete="given-name"
+              placeholder="Dr. Lena"
+              aria-label="First name"
+              aria-invalid={Boolean(inputErrors.firstName)}
+              value={firstName}
+              onChange={(e) => {
+                setFirstName(e.target.value);
+                setInputErrors((prev) => ({ ...prev, firstName: undefined }));
+              }}
+            />
+            <FieldError message={inputErrors.firstName} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <label className="yc-lbl" htmlFor="signup-lastname">
+              Last name
+            </label>
+            <input
+              id="signup-lastname"
+              name="last name"
+              className="yc-field"
+              type="text"
+              autoComplete="family-name"
+              placeholder="Weber"
+              aria-label="Last name"
+              aria-invalid={Boolean(inputErrors.lastName)}
+              value={lastName}
+              onChange={(e) => {
+                setLastName(e.target.value);
+                setInputErrors((prev) => ({ ...prev, lastName: undefined }));
+              }}
+            />
+            <FieldError message={inputErrors.lastName} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <label className="yc-lbl" htmlFor="signup-email">
+              Work email
+            </label>
+            <input
+              id="signup-email"
+              name="email"
+              className="yc-field"
+              type="email"
+              autoComplete="email"
+              placeholder="you@clinic.com"
+              aria-label="Enter email"
+              aria-invalid={Boolean(inputErrors.email)}
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setInputErrors((prev) => ({ ...prev, email: undefined }));
+              }}
+            />
+            <FieldError message={inputErrors.email} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <label className="yc-lbl" htmlFor="signup-password">
+              Password
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="signup-password"
+                name="password"
+                className="yc-field"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                aria-label="Set up password"
+                aria-invalid={Boolean(inputErrors.pError)}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setInputErrors((prev) => ({ ...prev, pError: undefined }));
+                }}
+                style={{ paddingRight: 46 }}
               />
-              <div className="text-body-4 text-text-primary auth-inline-text">
-                {' '}
-                Already have an account?{' '}
-                <Link href={signinHref} className="text-text-brand">
-                  Sign In
-                </Link>
-              </div>
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 32,
+                  height: 32,
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#8f8984',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {showPassword ? (
+                  <IoEyeOffOutline style={{ fontSize: 19 }} aria-hidden="true" />
+                ) : (
+                  <IoEyeOutline style={{ fontSize: 19 }} aria-hidden="true" />
+                )}
+              </button>
             </div>
-          </form>
+            <FieldError message={inputErrors.pError} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <label className="yc-lbl" htmlFor="signup-confirm-password">
+              Confirm password
+            </label>
+            <input
+              id="signup-confirm-password"
+              name="confirm-password"
+              className="yc-field"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              placeholder="Re-enter your password"
+              aria-label="Confirm password"
+              aria-invalid={Boolean(inputErrors.confirmPError)}
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setInputErrors((prev) => ({ ...prev, confirmPError: undefined }));
+              }}
+            />
+            <FieldError message={inputErrors.confirmPError} />
+          </div>
+          <label
+            style={{
+              display: 'flex',
+              gap: 11,
+              alignItems: 'flex-start',
+              cursor: 'pointer',
+              marginTop: 3,
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'relative',
+                flex: 'none',
+                width: 20,
+                height: 20,
+                marginTop: 1,
+                border: `1.5px solid ${agree ? '#257bed' : '#d6d1cd'}`,
+                borderRadius: 6,
+                background: agree ? '#257bed' : '#fdfbf6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 150ms, border-color 150ms',
+              }}
+            >
+              {agree ? <IoCheckmark style={{ fontSize: 14, color: '#fff' }} /> : null}
+            </span>
+            <input
+              type="checkbox"
+              checked={agree}
+              aria-label="I agree to the terms and conditions and privacy policy"
+              onChange={(e) => {
+                setAgree(e.target.checked);
+                setInputErrors((prev) => ({ ...prev, agree: undefined }));
+              }}
+              style={{
+                position: 'absolute',
+                width: 1,
+                height: 1,
+                padding: 0,
+                margin: -1,
+                overflow: 'hidden',
+                clip: 'rect(0 0 0 0)',
+                whiteSpace: 'nowrap',
+                border: 0,
+              }}
+            />
+            <span
+              style={{
+                fontSize: 13.5,
+                lineHeight: 1.5,
+                color: '#5c5956',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              I agree to the{' '}
+              <Link
+                href="/terms-and-conditions?ref=signup"
+                style={{ color: '#1657c9', textDecoration: 'none' }}
+              >
+                Terms
+              </Link>{' '}
+              and{' '}
+              <Link
+                href="/privacy-policy?ref=signup"
+                style={{ color: '#1657c9', textDecoration: 'none' }}
+              >
+                Privacy policy
+              </Link>
+              .
+            </span>
+          </label>
+          <FieldError message={inputErrors.agree} />
+          <button
+            type="submit"
+            className="yc-btn-primary"
+            disabled={isSubmitting}
+            style={{
+              marginTop: 4,
+              width: '100%',
+              boxSizing: 'border-box',
+              fontSize: 16,
+              padding: '16px 24px',
+              borderRadius: 13,
+              boxShadow: '0 14px 30px rgba(29,28,27,0.22)',
+            }}
+          >
+            {isSubmitting ? 'Creating account...' : 'Create account'}
+            <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
+          </button>
+        </form>
+        {effectiveDeveloper ? (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '20px 0' }}>
+              <span style={{ flex: 1, height: 1, background: '#e5dccf' }} />
+              <span style={{ fontSize: 13, color: '#a9a39e' }}>or</span>
+              <span style={{ flex: 1, height: 1, background: '#e5dccf' }} />
+            </div>
+            <a
+              href={GITHUB_REPO_URL}
+              target="_blank"
+              rel="noopener"
+              className="yc-btn-ghost"
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                fontSize: 15,
+                padding: '14px 20px',
+                borderRadius: 13,
+              }}
+            >
+              <IoLogoGithub style={{ fontSize: 19 }} aria-hidden="true" /> Continue with GitHub
+            </a>
+            <div
+              style={{
+                marginTop: 11,
+                textAlign: 'center',
+                fontSize: 12.5,
+                color: '#a9a39e',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              GitHub is available for developer accounts.
+            </div>
+          </div>
+        ) : null}
+        <div
+          style={{
+            marginTop: 22,
+            paddingTop: 18,
+            borderTop: '1px solid #e5dccf',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            justifyContent: 'center',
+            textAlign: 'center',
+            fontSize: 13.5,
+            lineHeight: 1.5,
+            color: '#8f8984',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          <IoPhonePortraitOutline
+            style={{ fontSize: 17, flex: 'none', color: '#a9a39e' }}
+            aria-hidden="true"
+          />
+          <span>
+            Pet parent? Your account lives in the{' '}
+            <Link
+              href="/pet-parents"
+              style={{ color: '#1657c9', textDecoration: 'none', fontWeight: 600 }}
+            >
+              mobile app
+            </Link>
+            .
+          </span>
         </div>
-      </div>
+      </AuthShell>
       <OtpModal
         email={normalizeEmail(email)}
         password={password}
@@ -405,10 +648,10 @@ const SignUp = ({
         showVerifyModal={showVerifyModal}
         setShowVerifyModal={setShowVerifyModal}
         redirectPath={postAuthRedirect}
-        isDeveloper={isDeveloper}
+        isDeveloper={effectiveDeveloper}
       />
       {ErrorTostPopup}
-    </section>
+    </>
   );
 };
 

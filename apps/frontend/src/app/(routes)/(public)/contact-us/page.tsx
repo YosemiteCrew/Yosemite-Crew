@@ -1,14 +1,18 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { MarketingShell } from '@/app/features/marketing/site';
 import ContactusPage from '@/app/features/marketing/pages/ContactusPage/ContactusPage';
 
 export const metadata: Metadata = {
-  title: 'Contact Us — Yosemite Crew',
-  description: 'Get in touch with the Yosemite Crew team. We are happy to assist you.',
+  title: 'Contact · Yosemite Crew',
+  description:
+    'Talk to a human. Run a clinic, live with a house full of animals, or want to build on the platform. Tell us which, and it reaches the right desk, not a queue.',
 };
 
-function page() {
-  return <ContactusPage />;
+export default function Page() {
+  return (
+    <MarketingShell active="contact">
+      <ContactusPage />
+    </MarketingShell>
+  );
 }
-
-export default page;

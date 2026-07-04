@@ -1,12 +1,17 @@
 import type { Metadata } from 'next';
-import LandingPage from '@/app/features/marketing/pages/LandingPage';
+import { MarketingShell } from '@/app/features/marketing/site';
+import { Home } from '@/app/features/marketing/pages/Home/Home';
 
 export const metadata: Metadata = {
-  title: 'Yosemite Crew — Open Source Operating System for Animal Health',
+  title: 'See the whole animal · Yosemite Crew',
   description:
-    'The open-source platform for pet businesses, pet parents, and developers to collaborate in improving animal care.',
+    'Yosemite Crew is the open-source operating system for animal health that puts the whole story on one screen: for the clinic, the pet parent, and whoever cares for them next.',
 };
 
-export default function Home() {
-  return <LandingPage />;
+export default function Page() {
+  return (
+    <MarketingShell>
+      <Home />
+    </MarketingShell>
+  );
 }

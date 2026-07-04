@@ -1,18 +1,23 @@
 'use client';
-import React, { useState } from 'react';
+
+import React, { useState, type CSSProperties } from 'react';
 import { TicketCategory } from '@yosemite-crew/types';
-import Link from 'next/link';
 import { isEmail } from 'validator';
 import axios from 'axios';
+import {
+  IoAtOutline,
+  IoCallOutline,
+  IoLogoDiscord,
+  IoBusinessOutline,
+  IoAlertCircleOutline,
+  IoArrowForwardOutline,
+} from 'react-icons/io5';
 
-import Footer from '@/app/ui/widgets/Footer/Footer';
-import FormInput from '@/app/ui/inputs/FormInput/FormInput';
-import DynamicSelect from '@/app/ui/widgets/DynamicSelect/DynamicSelect';
-import Image from 'next/image';
+import { useMagnet, DISCORD_INVITE_URL } from '@/app/features/marketing/site';
 import { postData } from '@/app/services/axios';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 
-import './ContactusPage.css';
+const NEWSREADER = 'var(--font-newsreader)';
+const EASE = 'cubic-bezier(0.16,1,0.3,1)';
 
 const CONTACT_TYPE_MAP: Record<TicketCategory, string> = {
   'General Enquiry': 'GENERAL_ENQUIRY',
@@ -187,7 +192,208 @@ const isValidEmail = (email: string): boolean => isEmail(email);
 const getDsarLawBasis = (selectedArea: string): DsraLawBasis =>
   (areaOptions.find((option) => option.value === selectedArea)?.value as DsraLawBasis) || 'OTHER';
 
+/* ---------- shared style bits ---------- */
+
+const fieldGroup: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 7 };
+
+const groupBlock: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 16 };
+
+const errorLine: CSSProperties = {
+  color: 'var(--color-danger-600, #d53225)',
+  fontSize: 14,
+  marginTop: 4,
+  letterSpacing: '-0.01em',
+};
+
+const optionRow: CSSProperties = {
+  display: 'flex',
+  gap: 11,
+  alignItems: 'flex-start',
+  cursor: 'pointer',
+  fontSize: 13.5,
+  lineHeight: 1.5,
+  color: '#5c5956',
+  letterSpacing: '-0.01em',
+};
+
+const controlStyle: CSSProperties = {
+  flex: 'none',
+  width: 18,
+  height: 18,
+  marginTop: 1,
+  accentColor: '#257bed',
+  cursor: 'pointer',
+};
+
+const groupHeading: CSSProperties = {
+  fontSize: 13,
+  fontWeight: 600,
+  letterSpacing: '-0.01em',
+  color: '#302f2e',
+};
+
+const requiredMark = (
+  <span aria-hidden="true" style={{ color: '#d53225' }}>
+    {' '}
+    *
+  </span>
+);
+
+/* ---------- contact channel card (left column) ---------- */
+
+interface ChannelProps {
+  href: string;
+  external?: boolean;
+  iconBg: string;
+  iconBorder: string;
+  iconColor: string;
+  icon: React.ReactNode;
+  kicker: string;
+  label: string;
+}
+
+function ChannelCard({
+  href,
+  external,
+  iconBg,
+  iconBorder,
+  iconColor,
+  icon,
+  kicker,
+  label,
+}: Readonly<ChannelProps>) {
+  const externalProps = external ? { target: '_blank', rel: 'noopener' } : {};
+  return (
+    <a
+      href={href}
+      {...externalProps}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        textDecoration: 'none',
+        padding: '15px 18px',
+        background: 'rgba(239,232,220,0.7)',
+        border: '1px solid #e5dccf',
+        borderRadius: 18,
+        transition: 'border-color 200ms, background 200ms, transform 200ms',
+      }}
+    >
+      <span
+        style={{
+          flex: 'none',
+          width: 42,
+          height: 42,
+          borderRadius: 12,
+          background: iconBg,
+          border: `1px solid ${iconBorder}`,
+          boxSizing: 'border-box',
+          color: iconColor,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {icon}
+      </span>
+      <div>
+        <div style={{ fontSize: 12.5, color: '#8f8984', letterSpacing: '-0.01em' }}>{kicker}</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#302f2e', letterSpacing: '-0.02em' }}>
+          {label}
+        </div>
+      </div>
+    </a>
+  );
+}
+
+/* ---------- native field helpers (keep accessible labels stable) ---------- */
+
+interface TextFieldProps {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+  required?: boolean;
+  error?: string;
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  type = 'text',
+  placeholder,
+  required,
+  error,
+}: Readonly<TextFieldProps>) {
+  return (
+    <div style={fieldGroup}>
+      <label className="yc-lbl">
+        {label}
+        {required ? requiredMark : null}
+      </label>
+      <input
+        className="yc-field"
+        type={type}
+        value={value}
+        aria-label={label}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {error ? <div style={errorLine}>{error}</div> : null}
+    </div>
+  );
+}
+
+interface TextAreaFieldProps {
+  label: string;
+  ariaLabel: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  minHeight?: number;
+  error?: string;
+}
+
+function TextAreaField({
+  label,
+  ariaLabel,
+  value,
+  onChange,
+  placeholder,
+  required,
+  minHeight,
+  error,
+}: Readonly<TextAreaFieldProps>) {
+  const style: CSSProperties = {
+    resize: 'vertical',
+    minHeight: minHeight ?? 116,
+    lineHeight: 1.5,
+  };
+  return (
+    <div style={fieldGroup}>
+      <label className="yc-lbl">
+        {label}
+        {required ? requiredMark : null}
+      </label>
+      <textarea
+        className="yc-field"
+        style={style}
+        value={value}
+        aria-label={ariaLabel}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {error ? <div style={errorLine}>{error}</div> : null}
+    </div>
+  );
+}
+
 const ContactusPage = () => {
+  const submitRef = useMagnet<HTMLButtonElement>();
+
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
@@ -210,7 +416,9 @@ const ContactusPage = () => {
   // Complaint specific fields
   const [complaintLink, setComplaintLink] = useState<string>('');
   const [complaintImage, setComplaintImage] = useState<File | null>(null);
-  console.log(complaintImage);
+
+  const hasComplaintImage = complaintImage !== null;
+
   const isComplaintValid =
     fullName &&
     email &&
@@ -315,62 +523,331 @@ const ContactusPage = () => {
     }
   };
 
+  const tabStyle = (t: TicketCategory): CSSProperties => {
+    const active = selectedQueryType === t;
+    return {
+      flex: '1 1 auto',
+      minWidth: 0,
+      textAlign: 'center',
+      cursor: 'pointer',
+      fontSize: 13.5,
+      fontWeight: 600,
+      letterSpacing: '-0.01em',
+      padding: '10px 10px',
+      borderRadius: 12,
+      whiteSpace: 'nowrap',
+      transition: 'background 200ms, color 200ms, box-shadow 200ms',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: active ? '#f7f3ec' : 'transparent',
+      color: active ? '#1d1c1b' : '#5c5956',
+      boxShadow: active ? '0 2px 8px rgba(29,28,27,0.1)' : 'none',
+    };
+  };
+
+  const submitDisabled =
+    submitting ||
+    (selectedQueryType === 'Complaint' && !isComplaintValid) ||
+    (selectedQueryType === 'Data Service Access Request' && !isDSARValid) ||
+    ((selectedQueryType === 'General Enquiry' || selectedQueryType === 'Feature Request') &&
+      !isGeneralValid);
+
+  const submitLabel = submitting ? 'submitting...' : 'Send message';
+
+  const renderSubmit = () => (
+    <button
+      ref={submitRef}
+      type="button"
+      onClick={handleContectSubmit}
+      disabled={submitDisabled}
+      className="yc-btn-primary"
+      style={{
+        marginTop: 2,
+        fontFamily: 'inherit',
+        cursor: submitDisabled ? 'not-allowed' : 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        background: '#302f2e',
+        color: '#ffffff',
+        fontSize: 16,
+        fontWeight: 500,
+        letterSpacing: '-0.02em',
+        padding: '15px 24px',
+        border: 'none',
+        borderRadius: 9999,
+        boxShadow: '0 12px 26px rgba(29,28,27,0.16)',
+        opacity: submitDisabled ? 0.5 : 1,
+        pointerEvents: submitDisabled ? 'none' : 'auto',
+      }}
+    >
+      {submitLabel}
+      <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: 17 }} />
+    </button>
+  );
+
+  const renderConfirmChecklist = (name: string) => (
+    <div style={groupBlock}>
+      <div style={groupHeading}>I confirm that</div>
+      {confirmOptions.map((option) => (
+        <label key={option} style={optionRow}>
+          <input
+            type="checkbox"
+            name={name}
+            style={{ ...controlStyle, borderRadius: 6 }}
+            aria-label={`Confirm ${option}`}
+            value={option}
+            checked={confirmSelections.includes(option)}
+            onChange={() => toggleConfirmOption(option)}
+          />
+          <span>{option}</span>
+        </label>
+      ))}
+    </div>
+  );
+
+  const renderSubmitAsGroup = (name: string, heading: string) => (
+    <div style={groupBlock}>
+      <div style={groupHeading}>{heading}</div>
+      {subrequestOptions.map((option) => (
+        <label key={option.value} style={optionRow}>
+          <input
+            type="radio"
+            name={name}
+            style={controlStyle}
+            aria-label={
+              name === 'complaintSubmitAs'
+                ? `Submit complaint as ${option.label}`
+                : `Submit data service access request as ${option.label}`
+            }
+            value={option.value}
+            checked={subselectedRequest === option.value}
+            onChange={() => setSubselectedRequest(option.value)}
+          />
+          <span>{option.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+
   return (
-    <>
-      <section className="ContactUsPageSec">
-        <div className="ContactWrapper">
-          <div className="ContactUsData">
-            <div className="LeftContactUs">
-              <div className="conttexted">
-                <div className="text-body-4-emphasis text-text-brand">Contact us</div>
-                <h1 className="text-display-2 text-text-primary">
-                  Need help? We&rsquo;re all ears!
-                </h1>
+    <section
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        background: 'linear-gradient(180deg, #efe8dc 0%, #efe8dc 72%, #eae2d5 100%)',
+        padding: '148px 24px 100px',
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: -160,
+          right: 'calc(50% - 560px)',
+          width: 820,
+          height: 560,
+          background: 'radial-gradient(closest-side, rgba(37,123,237,0.08), transparent 70%)',
+          pointerEvents: 'none',
+          animation: 'ycDrift 34s ease-in-out infinite alternate',
+        }}
+      />
+      <div
+        data-grid-1-m
+        style={{
+          position: 'relative',
+          zIndex: 2,
+          width: 'min(1140px, 100%)',
+          margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: '0.82fr 1.18fr',
+          gap: 'clamp(36px, 5vw, 72px)',
+          alignItems: 'start',
+        }}
+      >
+        {/* left: copy + details */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            paddingTop: 8,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              borderRadius: 9999,
+              border: '1px solid #e5dccf',
+              background: 'rgba(239,232,220,0.94)',
+              backdropFilter: 'blur(40px)',
+              fontSize: 13,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+              color: '#5c5956',
+              animation: `ycHeroUp 0.9s ${EASE} 0.05s both`,
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{ width: 7, height: 7, borderRadius: 9999, background: '#008f5d' }}
+            />
+            A person reads every message
+          </div>
+          <h1
+            style={{
+              margin: '24px 0 0',
+              fontFamily: NEWSREADER,
+              fontSize: 'clamp(40px, 5.2vw, 72px)',
+              fontWeight: 500,
+              lineHeight: 1.03,
+              letterSpacing: '-0.06em',
+              color: '#1d1c1b',
+              textWrap: 'balance',
+            }}
+          >
+            Talk to a{' '}
+            <em style={{ fontStyle: 'italic', fontWeight: 480, color: '#257bed' }}>human.</em>
+          </h1>
+          <p
+            style={{
+              margin: '22px 0 0',
+              maxWidth: 420,
+              fontSize: 18,
+              lineHeight: 1.6,
+              letterSpacing: '-0.02em',
+              color: '#5c5956',
+              animation: `ycHeroUp 1s ${EASE} 0.5s both`,
+              textWrap: 'pretty',
+            }}
+          >
+            Run a clinic, live with a house full of animals, or want to build on the platform. Tell
+            us which, and it reaches the right desk, not a queue.
+          </p>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              marginTop: 34,
+              width: '100%',
+              animation: `ycHeroUp 1s ${EASE} 0.62s both`,
+            }}
+          >
+            <ChannelCard
+              href="mailto:support@yosemitecrew.com"
+              iconBg="rgba(37,123,237,0.10)"
+              iconBorder="rgba(37,123,237,0.18)"
+              iconColor="#257bed"
+              icon={<IoAtOutline aria-hidden="true" style={{ fontSize: 22 }} />}
+              kicker="Email"
+              label="support@yosemitecrew.com"
+            />
+            <ChannelCard
+              href="tel:+4915227763275"
+              iconBg="rgba(0,143,93,0.10)"
+              iconBorder="rgba(0,143,93,0.18)"
+              iconColor="#008f5d"
+              icon={<IoCallOutline aria-hidden="true" style={{ fontSize: 20 }} />}
+              kicker="Phone"
+              label="+49 152 277 63275"
+            />
+            <ChannelCard
+              href={DISCORD_INVITE_URL}
+              external
+              iconBg="rgba(88,101,242,0.12)"
+              iconBorder="rgba(88,101,242,0.22)"
+              iconColor="#5865F2"
+              icon={<IoLogoDiscord aria-hidden="true" style={{ fontSize: 20 }} />}
+              kicker="Community"
+              label="Join the Discord"
+            />
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 14,
+                padding: '6px 18px 0',
+              }}
+            >
+              <span
+                style={{
+                  flex: 'none',
+                  width: 42,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  color: '#a9a39e',
+                  paddingTop: 2,
+                }}
+              >
+                <IoBusinessOutline aria-hidden="true" style={{ fontSize: 18 }} />
+              </span>
+              <div
+                style={{
+                  fontSize: 13.5,
+                  lineHeight: 1.5,
+                  color: '#8f8984',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                DuneXploration UG (haftungsbeschränkt)
+                <br />
+                Am Finther Weg 7, 55127 Mainz, Germany
               </div>
-              <Image
-                alt="Contact Image"
-                src={MEDIA_SOURCES.contactUs.heroImage}
-                height={586}
-                width={600}
-              />
             </div>
+          </div>
+        </div>
 
-            <div className="RightContactUs">
-              <div className="QueryText">
-                <h2 className="text-display-2 text-text-primary text-center">Submit your query</h2>
+        {/* right: form */}
+        <div style={{ animation: `ycHeroUp 1s ${EASE} 0.4s both` }}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleContectSubmit();
+            }}
+            style={{
+              background: '#f7f3ec',
+              border: '1px solid #e5dccf',
+              borderRadius: 28,
+              boxShadow: '0 30px 70px rgba(29,28,27,0.09)',
+              padding: 'clamp(26px, 3.2vw, 40px)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 22,
+            }}
+          >
+            {/* type selector */}
+            <div>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: '-0.01em',
+                  color: '#302f2e',
+                  marginBottom: 10,
+                }}
+              >
+                What brings you here?
               </div>
-
-              {/* Contact Form */}
-              <div className="ContactForm">
-                <FormInput
-                  intype="fullName"
-                  inname="fullName"
-                  value={fullName}
-                  inlabel="Full Name"
-                  onChange={(e) => setFullName(e.target.value)}
-                  error={errors?.fullName}
-                />
-                <FormInput
-                  intype="email"
-                  inname="email"
-                  value={email}
-                  inlabel="Enter Email Address"
-                  onChange={(e) => setEmail(e.target.value)}
-                  error={errors?.email}
-                />
-                <FormInput
-                  intype="phone"
-                  inname="phone"
-                  value={phone}
-                  inlabel="Phone number (optional)"
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-
-              {/* Radio Group */}
-              <div className="QueryTypeRadioGroup">
+              <div
+                role="radiogroup"
+                aria-label="What brings you here?"
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 6,
+                  background: '#eae2d5',
+                  padding: 5,
+                  borderRadius: 16,
+                }}
+              >
                 {queryTypes.map((type) => (
-                  <label key={type}>
+                  <label key={type} style={tabStyle(type)}>
                     <input
                       type="radio"
                       name="queryType"
@@ -378,331 +855,235 @@ const ContactusPage = () => {
                       value={type}
                       checked={selectedQueryType === type}
                       onChange={() => setSelectedQueryType(type)}
+                      style={{
+                        position: 'absolute',
+                        width: 1,
+                        height: 1,
+                        padding: 0,
+                        margin: -1,
+                        overflow: 'hidden',
+                        clip: 'rect(0,0,0,0)',
+                        border: 0,
+                      }}
                     />
                     {type}
                   </label>
                 ))}
               </div>
+            </div>
 
-              {/* One clear block per query type */}
-              {selectedQueryType === 'Data Service Access Request' && (
-                <div className="DataServiceAccessFields">
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">
-                      You are submitting this request as
-                    </div>
-                    {subrequestOptions.map((option) => (
-                      <label key={option.value}>
-                        <input
-                          type="radio"
-                          name="dsarSubmitAs"
-                          aria-label={`Submit data service access request as ${option.label}`}
-                          value={option.value}
-                          checked={subselectedRequest === option.value}
-                          onChange={() => setSubselectedRequest(option.value)}
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
+            {/* name + email */}
+            <div data-two style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <TextField
+                label="Full Name"
+                value={fullName}
+                onChange={setFullName}
+                placeholder="Lena Weber"
+                required
+                error={errors?.fullName}
+              />
+              <TextField
+                label="Enter Email Address"
+                type="email"
+                value={email}
+                onChange={setEmail}
+                placeholder="you@example.com"
+                required
+                error={errors?.email}
+              />
+            </div>
 
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">
-                      Under the rights of which law are you making this request?
-                    </div>
-                    <DynamicSelect
-                      options={areaOptions}
-                      value={area}
-                      onChange={setArea}
-                      inname="area"
-                      placeholder="Select one"
-                    />
-                  </div>
+            <TextField
+              label="Phone number (optional)"
+              type="tel"
+              value={phone}
+              onChange={setPhone}
+              placeholder="+49 …"
+            />
 
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">
-                      You are submitting this request to
-                    </div>
-                    {requestOptions.map((option) => (
-                      <label key={option.label}>
-                        <input
-                          type="radio"
-                          name="dsarRequestTo"
-                          aria-label={`Submit data service access request to ${option.label}`}
-                          value={option.value}
-                          checked={selectedRequest === option.label}
-                          onChange={() => setSelectedRequest(option.label)}
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
+            {/* GENERAL / FEATURE */}
+            {(selectedQueryType === 'General Enquiry' ||
+              selectedQueryType === 'Feature Request') && (
+              <div className="yc-group" style={groupBlock}>
+                <TextAreaField
+                  label="Please leave details regarding your request"
+                  ariaLabel="Request details"
+                  value={message}
+                  onChange={setMessage}
+                  placeholder="Your Message"
+                  required
+                  error={errors?.message}
+                />
+              </div>
+            )}
 
-                  <div className="QueryDetailsFields">
-                    <label htmlFor="dsar-message">
-                      Please leave details regarding your action request or question
-                    </label>
-                    <textarea
-                      rows={3}
-                      id="dsar-message"
-                      aria-label="Data service access request details"
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Your Message"
-                    ></textarea>
-                    {errors?.message && (
-                      <div
-                        style={{
-                          color: 'var(--color-danger-600)',
-                          fontSize: '14px',
-                          marginTop: '4px',
-                        }}
-                      >
-                        {errors?.message ?? ''}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">I confirm that</div>
-                    {confirmOptions.map((option) => (
-                      <label key={option}>
-                        <input
-                          type="checkbox"
-                          name="confirmDsar"
-                          aria-label={`Confirm ${option}`}
-                          value={option}
-                          checked={confirmSelections.includes(option)}
-                          onChange={() => toggleConfirmOption(option)}
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="SendBtn"
-                    onClick={handleContectSubmit}
-                    disabled={submitting || !isDSARValid}
-                    style={{
-                      opacity: isDSARValid ? 1 : 0.5,
-                      pointerEvents: isDSARValid ? 'auto' : 'none',
-                    }}
-                  >
-                    {submitting ? 'submitting...' : 'Send message'}
-                  </button>
+            {/* DSAR */}
+            {selectedQueryType === 'Data Service Access Request' && (
+              <div className="yc-group" style={groupBlock}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                    letterSpacing: '-0.01em',
+                    color: '#5c5956',
+                    background: '#eae2d5',
+                    borderRadius: 14,
+                    padding: '14px 16px',
+                  }}
+                >
+                  Under the GDPR you can access, correct, export, restrict or delete your personal
+                  data, or object to how it is used. We verify identity before acting and respond
+                  within one month.
                 </div>
-              )}
 
-              {selectedQueryType === 'Complaint' && (
-                <div className="DataServiceAccessFields">
-                  <div className="SetSubmitted" style={{ gap: '16px' }}>
-                    <div className="text-body-4-emphasis text-text-primary">
-                      You are submitting this complaint as
-                    </div>
-                    {subrequestOptions.map((option) => (
-                      <label key={option.value}>
-                        <input
-                          type="radio"
-                          name="complaintSubmitAs"
-                          aria-label={`Submit complaint as ${option.label}`}
-                          value={option.value}
-                          checked={subselectedRequest === option.value}
-                          onChange={() => setSubselectedRequest(option.value)}
-                        />
-                        {option.label}
-                      </label>
+                {renderSubmitAsGroup('dsarSubmitAs', 'You are submitting this request as')}
+
+                <div style={groupBlock}>
+                  <label className="yc-lbl" htmlFor="dsar-area">
+                    Under the rights of which law are you making this request?
+                    {requiredMark}
+                  </label>
+                  <select
+                    id="dsar-area"
+                    className="yc-field"
+                    data-testid="dynamic-select"
+                    aria-label="Under the rights of which law are you making this request?"
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                  >
+                    <option value="">Select one</option>
+                    {areaOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
                     ))}
-                  </div>
+                  </select>
+                </div>
 
-                  <div className="QueryDetailsFields">
-                    <label htmlFor="complaint-message">
-                      Please leave details regarding your complaint.
-                    </label>
-                    <textarea
-                      rows={3}
-                      id="complaint-message"
-                      aria-label="Complaint details"
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Your Message"
-                    ></textarea>
-                    {errors?.message && (
-                      <div
-                        style={{
-                          color: 'var(--color-danger-600)',
-                          fontSize: '14px',
-                          marginTop: '4px',
-                        }}
-                      >
-                        {errors?.message ?? ''}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">
-                      Please add link regarding your complaint (optional)
-                    </div>
-                    <FormInput
-                      intype="text"
-                      inname="complaintLink"
-                      value={complaintLink}
-                      inlabel="Paste link (optional)"
-                      onChange={(e) => setComplaintLink(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">
-                      Please add image regarding your complaint (optional)
-                    </div>
-                    <div className="UploadBox">
+                <div style={groupBlock}>
+                  <div style={groupHeading}>You are submitting this request to</div>
+                  {requestOptions.map((option) => (
+                    <label key={option.label} style={optionRow}>
                       <input
-                        id="complaintImage"
-                        type="file"
-                        accept="image/*"
-                        aria-label="Upload Image"
-                        onChange={(e) => setComplaintImage(e.target.files?.[0] || null)}
+                        type="radio"
+                        name="dsarRequestTo"
+                        style={controlStyle}
+                        aria-label={`Submit data service access request to ${option.label}`}
+                        value={option.value}
+                        checked={selectedRequest === option.label}
+                        onChange={() => setSelectedRequest(option.label)}
                       />
-                      <label htmlFor="complaintImage" className="UploadInner">
-                        <Image
-                          src={MEDIA_SOURCES.contactUs.uploadIcon}
-                          alt="Upload Icon"
-                          height={40}
-                          width={40}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">I confirm that</div>
-                    {confirmOptions.map((option) => (
-                      <label key={option}>
-                        <input
-                          type="checkbox"
-                          name="confirmComplaint"
-                          aria-label={`Confirm ${option}`}
-                          value={option}
-                          checked={confirmSelections.includes(option)}
-                          onChange={() => toggleConfirmOption(option)}
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="SendBtn"
-                    onClick={handleContectSubmit}
-                    disabled={submitting || !isComplaintValid}
-                    style={{
-                      opacity: isComplaintValid ? 1 : 0.5,
-                      pointerEvents: isComplaintValid ? 'auto' : 'none',
-                    }}
-                  >
-                    {submitting ? 'submitting...' : 'Send message'}
-                  </button>
-                </div>
-              )}
-
-              {(selectedQueryType === 'General Enquiry' ||
-                selectedQueryType === 'Feature Request') && (
-                <>
-                  <div className="QueryDetailsFields">
-                    <label htmlFor="general-message">
-                      Please leave details regarding your request
+                      <span>{option.label}</span>
                     </label>
-                    <textarea
-                      rows={3}
-                      aria-label="Request details"
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Your Message"
-                      id="general-message"
-                    ></textarea>
-                    {errors?.message && (
-                      <div
-                        style={{
-                          color: 'var(--color-danger-600)',
-                          fontSize: '14px',
-                          marginTop: '4px',
-                        }}
-                      >
-                        {errors?.message ?? ''}
-                      </div>
-                    )}
+                  ))}
+                </div>
+
+                <TextAreaField
+                  label="Please leave details regarding your action request or question"
+                  ariaLabel="Data service access request details"
+                  value={message}
+                  onChange={setMessage}
+                  placeholder="Your Message"
+                  minHeight={90}
+                  error={errors?.message}
+                />
+
+                {renderConfirmChecklist('confirmDsar')}
+
+                {renderSubmit()}
+              </div>
+            )}
+
+            {/* COMPLAINT */}
+            {selectedQueryType === 'Complaint' && (
+              <div className="yc-group" style={groupBlock}>
+                {renderSubmitAsGroup('complaintSubmitAs', 'You are submitting this complaint as')}
+
+                <TextAreaField
+                  label="Please leave details regarding your complaint."
+                  ariaLabel="Complaint details"
+                  value={message}
+                  onChange={setMessage}
+                  placeholder="Your Message"
+                  error={errors?.message}
+                />
+
+                <div style={groupBlock}>
+                  <div style={groupHeading}>
+                    Please add link regarding your complaint (optional)
                   </div>
-                  <button
-                    type="button"
-                    className="SendBtn"
-                    onClick={handleContectSubmit}
-                    disabled={submitting || !isGeneralValid}
+                  <TextField
+                    label="Paste link (optional)"
+                    value={complaintLink}
+                    onChange={setComplaintLink}
+                    placeholder="Paste link (optional)"
+                  />
+                </div>
+
+                <div style={groupBlock}>
+                  <div style={groupHeading}>
+                    Please add image regarding your complaint (optional)
+                  </div>
+                  <input
+                    id="complaintImage"
+                    type="file"
+                    accept="image/*"
+                    aria-label="Upload Image"
+                    onChange={(e) => setComplaintImage(e.target.files?.[0] || null)}
                     style={{
-                      opacity: isGeneralValid ? 1 : 0.5,
-                      pointerEvents: isGeneralValid ? 'auto' : 'none',
+                      fontSize: 13,
+                      color: '#5c5956',
                     }}
-                  >
-                    {submitting ? 'submitting...' : 'Send message'}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+                  />
+                  {hasComplaintImage ? (
+                    <div style={{ fontSize: 12.5, color: '#8f8984', letterSpacing: '-0.01em' }}>
+                      {complaintImage?.name}
+                    </div>
+                  ) : null}
+                </div>
 
-      <section className="ContactInfoSec">
-        <div className="ContactWrapper">
-          <div className="ContactInfoData">
-            <div className="LeftContInfo">
-              <div className="text-body-4-emphasis text-text-brand">Contact Info</div>
-              <h2 className="text-display-2 text-text-primary">We are happy to assist you</h2>
-            </div>
-            <div className="ContactInfoDetail">
-              <div className="LeftDetails">
-                <div className="detailitem">
-                  <div className="text-body-3-emphasis text-text-primary">Email Address</div>
-                </div>
-                <div className="detailTexed">
-                  <Link
-                    href="mailto:support@yosemitecrew.com"
-                    className="text-body-3-emphasis text-text-brand"
-                  >
-                    support@yosemitecrew.com
-                  </Link>
-                  <div className="text-body-3 text-text-primary">
-                    Assistance hours: Monday - Friday 9 am to 5 pm EST
-                  </div>
-                </div>
+                {renderConfirmChecklist('confirmComplaint')}
+
+                {renderSubmit()}
               </div>
+            )}
 
-              <div className="LeftDetails">
-                <div className="detailitem">
-                  <div className="text-body-3-emphasis text-text-primary">Phone</div>
-                </div>
-                <div className="detailTexed">
-                  <Link
-                    href="tel:+49 152 277 63275"
-                    className="text-body-3-emphasis text-text-brand"
-                  >
-                    +49 152 277 63275
-                  </Link>
-                  <div className="text-body-3 text-text-primary">
-                    Assistance hours: Monday - Friday 9 am to 5 pm EST
-                  </div>
-                </div>
+            {/* GENERAL / FEATURE submit lives outside the per-type block */}
+            {(selectedQueryType === 'General Enquiry' || selectedQueryType === 'Feature Request') &&
+              renderSubmit()}
+
+            {errors?.submit ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 14,
+                  color: '#d53225',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                <IoAlertCircleOutline aria-hidden="true" style={{ fontSize: 17, flex: 'none' }} />
+                {errors.submit}
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
+            ) : null}
 
-      <Footer />
-    </>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 12.5,
+                lineHeight: 1.5,
+                color: '#a9a39e',
+                textAlign: 'center',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              We use your details only to handle this request. No lists, no selling, no noise.
+            </p>
+          </form>
+        </div>
+      </div>
+    </section>
   );
 };
 

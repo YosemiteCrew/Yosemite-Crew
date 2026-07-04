@@ -1,22 +1,22 @@
-import React, { Suspense } from 'react';
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
-
-export const metadata: Metadata = {
-  title: 'Privacy Policy — Yosemite Crew',
-  description: 'Read how Yosemite Crew handles your personal data and privacy.',
-};
+import { MarketingShell } from '@/app/features/marketing/site';
 import PrivacyPolicy from '@/app/features/legal/pages/PrivacyPolicy';
 import BackToSignup from '@/app/features/legal/components/BackToSignup';
 
-function page() {
+export const metadata: Metadata = {
+  title: 'Privacy policy · Yosemite Crew',
+  description:
+    'How our open-source practice management software collects, processes and stores personal data, as a web app and a mobile app.',
+};
+
+export default function Page() {
   return (
-    <>
+    <MarketingShell>
       <Suspense fallback={null}>
         <BackToSignup />
       </Suspense>
       <PrivacyPolicy />
-    </>
+    </MarketingShell>
   );
 }
-
-export default page;

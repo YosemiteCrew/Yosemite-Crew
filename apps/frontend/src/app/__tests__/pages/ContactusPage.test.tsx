@@ -5,43 +5,10 @@ import '@testing-library/jest-dom';
 import ContactusPage from '@/app/features/marketing/pages/ContactusPage/ContactusPage';
 import { postData } from '@/app/services/axios';
 
-jest.mock('@/app/ui/widgets/Footer/Footer', () => {
-  return function MockFooter() {
-    return <div data-testid="mock-footer">Footer</div>;
-  };
-});
-
-jest.mock('@/app/features/auth/pages/SignUp/SignUp', () => ({
-  FormInput: jest.fn(({ inlabel, value, onChange, error, inname }) => (
-    <div>
-      <label htmlFor={inname}>{inlabel}</label>
-      <input id={inname} name={inname} value={value} onChange={onChange} />
-      {error && <div data-testid="error-message">{error}</div>}
-    </div>
-  )),
+jest.mock('@/app/features/marketing/site', () => ({
+  useMagnet: () => ({ current: null }),
+  DISCORD_INVITE_URL: 'https://discord.gg/yosemitecrew',
 }));
-
-jest.mock('@/app/ui/widgets/DynamicSelect/DynamicSelect', () => {
-  return jest.fn(({ options, value, onChange, inname }) => (
-    <select
-      id={inname}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      data-testid="dynamic-select"
-    >
-      <option value="">Select one</option>
-      {options.map((opt: { value: string; label: string }) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
-  ));
-});
-
-jest.mock('next/link', () => {
-  return ({ children }: { children: React.ReactNode }) => children;
-});
 
 jest.mock('@/app/services/axios', () => ({
   postData: jest.fn(),
@@ -53,14 +20,23 @@ describe('ContactusPage', () => {
     jest.clearAllMocks();
     mockedPostData.mockResolvedValue({ data: { id: 'contact-id' } });
   });
-  it('should render the initial form correctly with "General Enquiry" selected', () => {
+
+  it('should render the hero heading and channels with "General Enquiry" selected', () => {
     render(<ContactusPage />);
-    expect(
-      screen.getByRole('heading', { level: 1, name: /Need help\? We.?re all ears!/i })
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Need help\? We.?re all ears!/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /Talk to a/i })).toBeInTheDocument();
+    expect(screen.getByText('support@yosemitecrew.com')).toBeInTheDocument();
+    expect(screen.getByText('+49 152 277 63275')).toBeInTheDocument();
+    expect(screen.getByText('Join the Discord')).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'General Enquiry' })).toBeChecked();
     expect(screen.getByPlaceholderText('Your Message')).toBeInTheDocument();
+  });
+
+  it('should render the Discord channel as an external link', () => {
+    render(<ContactusPage />);
+    const discord = screen.getByText('Join the Discord').closest('a');
+    expect(discord).toHaveAttribute('target', '_blank');
+    expect(discord).toHaveAttribute('rel', 'noopener');
+    expect(discord).toHaveAttribute('href', 'https://discord.gg/yosemitecrew');
   });
 
   it('should switch to and render the "Complaint" form when selected', () => {
@@ -79,12 +55,13 @@ describe('ContactusPage', () => {
   });
 
   describe('Form Submission and Validation', () => {
-    it('should show validation errors if required fields are empty on general enquiry', async () => {
+    it('should not submit and should surface an email error when fields are empty', () => {
       render(<ContactusPage />);
       const submitButton = screen.getAllByRole('button', {
         name: 'Send message',
       })[0];
       fireEvent.click(submitButton);
+      expect(mockedPostData).not.toHaveBeenCalled();
     });
 
     it('should show invalid email error', async () => {
@@ -132,6 +109,36 @@ describe('ContactusPage', () => {
         fullName: 'John Doe',
         email: 'john.doe@example.com',
         source: 'PMS_WEB',
+      });
+    });
+
+    it('should include the phone number in the payload when provided', async () => {
+      render(<ContactusPage />);
+      const submitButton = screen.getAllByRole('button', { name: 'Send message' })[0];
+
+      fireEvent.change(screen.getByLabelText('Full Name'), {
+        target: { value: 'John Doe' },
+      });
+      fireEvent.change(screen.getByLabelText('Enter Email Address'), {
+        target: { value: 'john.doe@example.com' },
+      });
+      fireEvent.change(screen.getByLabelText('Phone number (optional)'), {
+        target: { value: '+49 152 000 000' },
+      });
+      fireEvent.change(screen.getByPlaceholderText('Your Message'), {
+        target: { value: 'With a phone number.' },
+      });
+
+      await waitFor(() => expect(submitButton).toBeEnabled());
+      fireEvent.click(submitButton);
+      await waitFor(() => expect(mockedPostData).toHaveBeenCalledTimes(1));
+      expect(mockedPostData).toHaveBeenCalledWith('/v1/contact-us/contact-web', {
+        type: 'GENERAL_ENQUIRY',
+        message: 'With a phone number.',
+        fullName: 'John Doe',
+        email: 'john.doe@example.com',
+        source: 'PMS_WEB',
+        phone: '+49 152 000 000',
       });
     });
 
@@ -186,7 +193,7 @@ describe('ContactusPage', () => {
       });
       fireEvent.click(
         screen.getByLabelText(
-          'An agent authorized by the consumer to make this request on their behalf'
+          'Submit complaint as An agent authorized by the consumer to make this request on their behalf'
         )
       );
 
@@ -214,7 +221,17 @@ describe('ContactusPage', () => {
       expect(screen.getByLabelText('Enter Email Address')).toHaveValue('');
     });
 
-    it('should show validation error on complaint form', async () => {
+    it('should show the uploaded image name on the complaint form', async () => {
+      render(<ContactusPage />);
+      fireEvent.click(screen.getByRole('radio', { name: 'Complaint' }));
+
+      const file = new File(['hello'], 'proof.png', { type: 'image/png' });
+      await userEvent.upload(screen.getByLabelText('Upload Image'), file);
+
+      expect(screen.getByText('proof.png')).toBeInTheDocument();
+    });
+
+    it('should keep the complaint submit button disabled until required fields are filled', () => {
       render(<ContactusPage />);
       fireEvent.click(screen.getByRole('radio', { name: 'Complaint' }));
 
@@ -238,11 +255,19 @@ describe('ContactusPage', () => {
       fireEvent.change(screen.getAllByPlaceholderText('Your Message')[0], {
         target: { value: 'DSAR request.' },
       });
-      fireEvent.click(screen.getByLabelText('The person whose name appears above'));
+      fireEvent.click(
+        screen.getByLabelText(
+          'Submit data service access request as The person whose name appears above'
+        )
+      );
       fireEvent.change(screen.getByTestId('dynamic-select'), {
         target: { value: 'UK_GDPR' },
       });
-      fireEvent.click(screen.getByLabelText('Access your personal information'));
+      fireEvent.click(
+        screen.getByLabelText(
+          'Submit data service access request to Access your personal information'
+        )
+      );
 
       const checkboxes = screen.getAllByRole('checkbox');
       for (const checkbox of checkboxes) {
@@ -271,7 +296,7 @@ describe('ContactusPage', () => {
       expect(screen.getByRole('radio', { name: 'General Enquiry' })).toBeChecked();
     });
 
-    it('should keep submit button disabled if DSAR form is almost valid', async () => {
+    it('should keep submit button disabled if DSAR form is almost valid', () => {
       render(<ContactusPage />);
       fireEvent.click(screen.getByRole('radio', { name: 'Data Service Access Request' }));
 
@@ -286,11 +311,17 @@ describe('ContactusPage', () => {
       fireEvent.change(screen.getAllByPlaceholderText('Your Message')[0], {
         target: { value: 'DSAR request.' },
       });
-      fireEvent.click(screen.getByLabelText('The person whose name appears above'));
-      fireEvent.change(screen.getByTestId('dynamic-select'), {
-        target: { value: 'west' },
-      });
-      fireEvent.click(screen.getByLabelText('Access your personal information'));
+      fireEvent.click(
+        screen.getByLabelText(
+          'Submit data service access request as The person whose name appears above'
+        )
+      );
+      // Leaving the law selection empty keeps the form invalid.
+      fireEvent.click(
+        screen.getByLabelText(
+          'Submit data service access request to Access your personal information'
+        )
+      );
 
       const checkboxes = screen.getAllByRole('checkbox');
       fireEvent.click(checkboxes[0]);

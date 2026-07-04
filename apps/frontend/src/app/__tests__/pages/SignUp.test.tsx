@@ -18,6 +18,21 @@ jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: () => authStoreMock,
 }));
 
+// Mock the shared marketing foundation so its GitHub-stats hook / next/image
+// assets don't run in jsdom, while still rendering the form children.
+jest.mock('@/app/features/marketing/site', () => ({
+  __esModule: true,
+  GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
+  AuthBrandContent: (props: any) => <div data-testid="auth-brand" data-eyebrow={props.eyebrow} />,
+  AuthShell: ({ brand, topRight, children }: any) => (
+    <div data-testid="auth-shell">
+      <div>{brand}</div>
+      <div>{topRight}</div>
+      <main>{children}</main>
+    </div>
+  ),
+}));
+
 let latestOtpModalProps: any;
 jest.mock('@/app/ui/overlays/OtpModal/OtpModal', () => ({
   __esModule: true,
@@ -26,103 +41,6 @@ jest.mock('@/app/ui/overlays/OtpModal/OtpModal', () => ({
     return <div data-testid="otp-modal" />;
   },
 }));
-
-jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
-  __esModule: true,
-  default: ({
-    inlabel,
-    value,
-    onChange,
-    error,
-  }: {
-    inlabel: string;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    error?: string;
-  }) => (
-    <label>
-      {inlabel}
-      <input aria-label={inlabel} value={value} onChange={onChange} />
-      {error && <span>{error}</span>}
-    </label>
-  ),
-}));
-
-jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
-  __esModule: true,
-  default: ({
-    inlabel,
-    value,
-    onChange,
-    error,
-  }: {
-    inlabel: string;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    error?: string;
-  }) => (
-    <label>
-      {inlabel}
-      <input type="password" aria-label={inlabel} value={value} onChange={onChange} />
-      {error && <span>{error}</span>}
-    </label>
-  ),
-}));
-
-jest.mock(
-  'react-bootstrap',
-  () => {
-    const MockContainer = ({ children, ...props }: any) => <div {...props}>{children}</div>;
-    const MockForm = ({
-      children,
-      onSubmit,
-    }: {
-      children: React.ReactNode;
-      onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void;
-    }) => <form onSubmit={onSubmit}>{children}</form>;
-    jest.mock('@/app/ui/primitives/Buttons', () => ({
-      Primary: ({
-        text,
-        onClick,
-        isDisabled,
-      }: {
-        text: string;
-        onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
-        isDisabled?: boolean;
-      }) => (
-        <button type="button" onClick={(e) => onClick?.(e)} disabled={isDisabled}>
-          {text}
-        </button>
-      ),
-    }));
-    (MockForm as any).Check = ({
-      label,
-      onChange,
-      ...rest
-    }: {
-      label: React.ReactNode;
-      onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    }) => (
-      <label>
-        <input
-          type="checkbox"
-          onChange={(e) => {
-            e.persist?.();
-            onChange?.(e);
-          }}
-          {...rest}
-        />
-        {label}
-      </label>
-    );
-    return {
-      Col: MockContainer,
-      Row: MockContainer,
-      Form: MockForm,
-    };
-  },
-  { virtual: true }
-);
 
 jest.mock('@/app/ui/overlays/Loader', () => ({
   YosemiteLoader: ({ label, testId }: any) => <div data-testid={testId}>{label}</div>,
@@ -154,9 +72,20 @@ describe('SignUp page', () => {
     }
   };
 
+  const getSubmitBtn = () => screen.getByRole('button', { name: /create account/i });
+
+  const fillValidForm = () => {
+    setFieldValue('First name', 'Jane');
+    setFieldValue('Last name', 'Doe');
+    setFieldValue('Enter email', 'jane@example.com');
+    setFieldValue('Set up password', 'Secret!23');
+    setFieldValue('Confirm password', 'Secret!23');
+    checkTermsBox();
+  };
+
   test('validates inputs before submitting', () => {
     render(<SignUp />);
-    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+    fireEvent.click(getSubmitBtn());
     expect(authStoreMock.signUp).not.toHaveBeenCalled();
     expect(screen.getByText('First name is required')).toBeInTheDocument();
     expect(screen.getByText('Last name is required')).toBeInTheDocument();
@@ -169,7 +98,7 @@ describe('SignUp page', () => {
   test('clears first and last name errors as the user updates those fields', () => {
     render(<SignUp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+    fireEvent.click(getSubmitBtn());
     expect(screen.getByText('First name is required')).toBeInTheDocument();
     expect(screen.getByText('Last name is required')).toBeInTheDocument();
 
@@ -189,7 +118,7 @@ describe('SignUp page', () => {
     setFieldValue('Set up password', 'Secret!23');
     setFieldValue('Confirm password', 'Secret!23');
     checkTermsBox();
-    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+    fireEvent.click(getSubmitBtn());
 
     expect(screen.getByText('Enter a valid email')).toBeInTheDocument();
     expect(authStoreMock.signUp).not.toHaveBeenCalled();
@@ -199,19 +128,67 @@ describe('SignUp page', () => {
     authStoreMock.signUp.mockResolvedValue(true);
     render(<SignUp />);
 
-    setFieldValue('First name', 'Jane');
-    setFieldValue('Last name', 'Doe');
-    setFieldValue('Enter email', 'jane@example.com');
-    setFieldValue('Set up password', 'Secret!23');
-    setFieldValue('Confirm password', 'Secret!23');
-    checkTermsBox();
-    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+    fillValidForm();
+    fireEvent.click(getSubmitBtn());
     await waitFor(() =>
       expect(authStoreMock.signUp).toHaveBeenCalledWith(
         'jane@example.com',
         'Secret!23',
         'Jane',
         'Doe'
+      )
+    );
+  });
+
+  test('passes the developer role when "A developer" is selected', async () => {
+    authStoreMock.signUp.mockResolvedValue(true);
+    render(<SignUp />);
+
+    fireEvent.change(screen.getByLabelText('I am'), {
+      target: { value: 'A developer' },
+    });
+    fillValidForm();
+    fireEvent.click(getSubmitBtn());
+
+    await waitFor(() =>
+      expect(authStoreMock.signUp).toHaveBeenCalledWith(
+        'jane@example.com',
+        'Secret!23',
+        'Jane',
+        'Doe',
+        'developer'
+      )
+    );
+  });
+
+  test('reveals the GitHub option only for the developer role', () => {
+    render(<SignUp />);
+
+    expect(screen.queryByRole('link', { name: /continue with github/i })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('I am'), {
+      target: { value: 'A developer' },
+    });
+
+    expect(screen.getByRole('link', { name: /continue with github/i })).toBeInTheDocument();
+  });
+
+  test('developer variant hides the role selector and passes the developer role', async () => {
+    authStoreMock.signUp.mockResolvedValue(true);
+    render(<SignUp isDeveloper />);
+
+    expect(screen.queryByLabelText('I am')).not.toBeInTheDocument();
+
+    fillValidForm();
+    fireEvent.click(getSubmitBtn());
+
+    await waitFor(() =>
+      expect(authStoreMock.signUp).toHaveBeenCalledWith(
+        'jane@example.com',
+        'Secret!23',
+        'Jane',
+        'Doe',
+        'developer'
       )
     );
   });
@@ -227,19 +204,11 @@ describe('SignUp page', () => {
 
     render(<SignUp />);
 
-    setFieldValue('First name', 'Jane');
-    setFieldValue('Last name', 'Doe');
-    setFieldValue('Enter email', 'jane@example.com');
-    setFieldValue('Set up password', 'Secret!23');
-    setFieldValue('Confirm password', 'Secret!23');
-    checkTermsBox();
-    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+    fillValidForm();
+    fireEvent.click(getSubmitBtn());
 
     expect(screen.getByTestId('signup-loader')).toHaveTextContent('Creating your account...');
-    expect(screen.getByRole('button', { name: 'Creating account...' })).toHaveAttribute(
-      'aria-disabled',
-      'true'
-    );
+    expect(screen.getByRole('button', { name: /creating account/i })).toBeDisabled();
 
     await waitFor(() => {
       resolveSignUp?.();
@@ -254,13 +223,8 @@ describe('SignUp page', () => {
     });
     render(<SignUp />);
 
-    setFieldValue('First name', 'Jane');
-    setFieldValue('Last name', 'Doe');
-    setFieldValue('Enter email', 'jane@example.com');
-    setFieldValue('Set up password', 'Secret!23');
-    setFieldValue('Confirm password', 'Secret!23');
-    checkTermsBox();
-    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+    fillValidForm();
+    fireEvent.click(getSubmitBtn());
     await waitFor(() => expect(showErrorTostMock).toHaveBeenCalled());
     expect(latestOtpModalProps?.showVerifyModal).toBeFalsy();
   });
