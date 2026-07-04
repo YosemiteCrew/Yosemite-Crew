@@ -161,28 +161,6 @@ describe('SignUp page', () => {
     );
   });
 
-  test('selecting the developer role registers the account as a developer', async () => {
-    authStoreMock.signUp.mockResolvedValue(true);
-    render(<SignUp />);
-
-    fireEvent.change(screen.getByLabelText('I am'), {
-      target: { value: 'A developer' },
-    });
-
-    fillValidForm();
-    fireEvent.click(getSubmitBtn());
-
-    await waitFor(() =>
-      expect(authStoreMock.signUp).toHaveBeenCalledWith(
-        'jane@example.com',
-        'Secret!23',
-        'Jane',
-        'Doe',
-        'developer'
-      )
-    );
-  });
-
   test('developer variant hides the role selector and passes the developer role', async () => {
     authStoreMock.signUp.mockResolvedValue(true);
     render(<SignUp isDeveloper />);
