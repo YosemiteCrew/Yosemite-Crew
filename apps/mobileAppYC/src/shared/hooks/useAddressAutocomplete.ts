@@ -3,7 +3,7 @@ import {
   fetchPlaceDetails,
   fetchPlaceSuggestions,
   MissingApiKeyError,
-  type FetchPlaceSuggestionsParams,
+  type PlaceLocation,
   type PlaceDetails,
   type PlaceSuggestion,
 } from '@/shared/services/maps/googlePlaces';
@@ -12,7 +12,7 @@ interface UseAddressAutocompleteOptions {
   initialQuery?: string;
   minQueryLength?: number;
   debounceMs?: number;
-  location?: FetchPlaceSuggestionsParams['location'];
+  location?: PlaceLocation | null;
 }
 
 interface SetQueryOptions {

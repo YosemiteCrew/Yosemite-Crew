@@ -9,7 +9,12 @@ import {
 } from 'react-native-reanimated';
 
 import {useTranslation} from 'react-i18next';
-import MapView, {Marker, PROVIDER_GOOGLE, type Region} from 'react-native-maps';
+import MapView, {
+  Marker,
+  PROVIDER_GOOGLE,
+  type Region,
+  type UserLocationChangeEvent,
+} from 'react-native-maps';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
@@ -55,6 +60,7 @@ export interface MapDiscoveryViewProps {
   onCategoryChange: (c: BusinessCategory | undefined) => void;
   onOpenNowChange: (v: boolean) => void;
   onBack: () => void;
+  onMapUserLocationChange?: (location: UserLocation | null) => void;
   searchResultsOverlay?: React.ReactNode;
   onSearchBarLayout?: (height: number) => void;
 }
@@ -90,6 +96,7 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
   onCategoryChange,
   onOpenNowChange,
   onBack,
+  onMapUserLocationChange,
   searchResultsOverlay,
   onSearchBarLayout,
 }) => {
@@ -193,6 +200,21 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
     bottomSheetRef.current?.show();
   }, [onSelectClinic]);
 
+  const handleUserLocationChange = useCallback(
+    (event: UserLocationChangeEvent) => {
+      const coordinate = event.nativeEvent.coordinate;
+      if (!coordinate) {
+        onMapUserLocationChange?.(null);
+        return;
+      }
+      onMapUserLocationChange?.({
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
+      });
+    },
+    [onMapUserLocationChange],
+  );
+
   const mapItems = useMemo(
     () => clusterClinics(clinics, mapRegion?.latitudeDelta ?? 0),
     [clinics, mapRegion],
@@ -226,6 +248,7 @@ const MapDiscoveryView: React.FC<MapDiscoveryViewProps> = ({
         showsMyLocationButton={false}
         showsCompass={false}
         showsScale={false}
+        onUserLocationChange={handleUserLocationChange}
         onRegionChangeComplete={onRegionChange}
         onPress={selectedClinic ? handleDeselectClinic : undefined}>
         {mapItems.map(item => {

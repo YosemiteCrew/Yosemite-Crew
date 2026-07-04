@@ -79,6 +79,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
     userCoords,
     hasPermission,
     isLoading: locationLoading,
+    handleMapUserLocationChange,
   } = useLocationPermission();
   const initialQuery = route.params?.serviceName ?? '';
   const initialBusinessId = route.params?.initialBusinessId;
@@ -191,6 +192,8 @@ export const BrowseBusinessesScreen: React.FC = () => {
     onSelectPms: handlePmsSelection,
     onSelectNonPms: handleNonPmsSelection,
     onError: handleSearchError,
+    location: userLocation,
+    useStoredLocation: false,
   });
   const {
     searchQuery,
@@ -203,6 +206,11 @@ export const BrowseBusinessesScreen: React.FC = () => {
   } = placesSearch;
   const performSearch = useCallback(
     (term?: string) => {
+      const waitingForGrantedLocation = hasPermission && userCoords == null;
+      if (waitingForGrantedLocation) {
+        return;
+      }
+
       const trimmed = (term ?? searchQuery).trim();
       const now = Date.now();
       if (
@@ -216,11 +224,19 @@ export const BrowseBusinessesScreen: React.FC = () => {
       const coords = userCoords
         ? {lat: userCoords.lat, lng: userCoords.lng}
         : undefined;
+      const shouldSkipLocationLookup = !coords;
+      const query = trimmed
+        ? {serviceName: trimmed, ...coords}
+        : (coords ?? {});
       dispatch(
-        fetchBusinesses(trimmed ? {serviceName: trimmed, ...coords} : coords),
+        fetchBusinesses(
+          shouldSkipLocationLookup
+            ? {...query, skipLocationLookup: true}
+            : query,
+        ),
       );
     },
-    [dispatch, searchQuery, userCoords],
+    [dispatch, hasPermission, searchQuery, userCoords],
   );
   const {
     visibleClinics,
@@ -253,9 +269,10 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   useEffect(() => {
     if (locationLoading || hasInitialSearched.current) return;
+    if (hasPermission && userCoords == null) return;
     hasInitialSearched.current = true;
     performSearch(initialQuery);
-  }, [locationLoading, initialQuery, performSearch]);
+  }, [hasPermission, locationLoading, initialQuery, performSearch, userCoords]);
 
   useEffect(() => {
     if (!userLocation || hasLocationSearched.current) return;
@@ -272,8 +289,9 @@ export const BrowseBusinessesScreen: React.FC = () => {
     prevPermissionRef.current = hasPermission;
     if (!changed) return;
     hasLocationSearched.current = false;
+    if (hasPermission && userCoords == null) return;
     performSearch(initialQuery);
-  }, [hasPermission, locationLoading, initialQuery, performSearch]);
+  }, [hasPermission, locationLoading, initialQuery, performSearch, userCoords]);
 
   const reduxBusinesses = useSelector(
     (state: RootState) => state.businesses?.businesses ?? [],
@@ -347,6 +365,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
         onCategoryChange={setCategory}
         onOpenNowChange={setOpenNow}
         onBack={() => navigation.goBack()}
+        onMapUserLocationChange={handleMapUserLocationChange}
         searchResultsOverlay={searchResultsOverlay}
         onSearchBarLayout={setHeaderHeight}
       />

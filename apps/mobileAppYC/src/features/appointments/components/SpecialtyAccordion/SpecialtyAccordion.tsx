@@ -42,7 +42,11 @@ interface SpecialtyAccordionProps {
   icon?: any;
   specialties: SpecialtyGroup[];
   onSelectService: (serviceId: string, specialtyName: string) => void;
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 // ─── Specialty Item ───────────────────────────────────────────────────────────
@@ -51,7 +55,11 @@ interface SpecialtyItemProps {
   specialty: SpecialtyGroup;
   defaultExpanded?: boolean;
   onSelectService: (serviceId: string, specialtyName: string) => void;
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
@@ -166,6 +174,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
                     key={pkg.id}
                     pkg={pkg}
                     compact
+                    specialtyName={specialty.name}
                     onSelectPackage={onSelectPackage}
                   />
                 ))}

@@ -1139,7 +1139,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       {contentPaddingStyle => (
         <>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.keyboardAvoidingView}>
             <ScrollView
               style={styles.scrollView}
