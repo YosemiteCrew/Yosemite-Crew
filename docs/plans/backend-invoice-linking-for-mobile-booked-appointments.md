@@ -1,5 +1,9 @@
 # Backend Handoff: Production-Grade Payment Contract For Mobile-Booked Appointments In PMS
 
+> Status: partially implemented as of this revision. `apps/backend/src/services/appointment.prisma.service.ts` calls `InvoiceService.bootstrapForAppointment(...)` inside `createRequestedFromMobile(...)`, so mobile-booked appointments do persist an invoice. However, the PMS-authorized recovery route `POST /pms/appointment/:appointmentId/bootstrap` described below is NOT reachable in the running app: it exists only in `apps/backend/src/routers/invoice.router.ts`, which is dead code (not imported or mounted anywhere in `apps/backend/src`). The router actually mounted at `/fhir/v1/invoice` is `apps/backend/src/routers/finance.router.ts`, and its only appointment bootstrap route is the mobile-authorized `POST /mobile/appointments/:appointmentId/seed` (auth `authorizeCognitoMobile`), not a PMS-authorized bootstrap. Before relying on the PMS recovery endpoint, either mount `invoice.router.ts` or add the PMS bootstrap route to `finance.router.ts`. Treat the sections below as the design contract to verify the existing code against, not greenfield work.
+
+This is a backend engineering handoff for making mobile-booked appointments produce the same billable invoice that web-booked appointments do. PMS = Practice Information Management System (the staff-facing veterinary clinic web app). It is aimed at a backend engineer touching the appointment and invoice services; no frontend or mobile changes are required.
+
 ## Goal
 
 Keep product behavior as-is:
@@ -10,6 +14,8 @@ Keep product behavior as-is:
 ## Current Flow Analysis (from code)
 
 ### Web booking (works today)
+
+The `/fhir/` route prefix reflects that these APIs are modelled on FHIR (Fast Healthcare Interoperability Resources), the health-data interoperability standard the platform maps to.
 
 - Frontend creates appointment via `POST /fhir/v1/appointment/pms?createPayment=true`.
 - Backend `createAppointmentFromPms(...)` creates:
@@ -68,6 +74,8 @@ Both web-created and mobile-created appointments must satisfy the same output co
 
 ### 1) Mobile appointment create path must persist invoice (not just PI)
 
+PI here means a Stripe payment intent (the Stripe object that represents an amount to be charged).
+
 In `createRequestedFromMobile(...)`:
 
 - Create or ensure draft invoice linked to appointment (same pattern used by PMS create flow).
@@ -97,7 +105,7 @@ Non-negotiable:
 Provide PMS-authorized endpoint:
 
 - `POST /fhir/v1/invoice/pms/appointment/:appointmentId/bootstrap`
-- auth: `authorizeCognito` + RBAC `billing:edit:any`
+- auth: `authorizeCognito` + RBAC (role-based access control) `billing:edit:any`
 
 Behavior (idempotent):
 

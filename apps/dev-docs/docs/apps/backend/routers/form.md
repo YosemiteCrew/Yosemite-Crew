@@ -4,9 +4,12 @@ title: Form API
 slug: /apps/backend/api/form
 ---
 
+Manages clinical and consent forms, form submissions, and signing, including SOAP notes (the Subjective, Objective, Assessment, Plan structure vets use to record a visit). Routes under `/admin` and the signing routes are called by the PMS (Practice Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions; routes under `/mobile` and `/public` are called by the mobile app (pet parents).
+
 **Endpoints**
 
 ### POST /admin/:orgId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
@@ -14,6 +17,7 @@ slug: /apps/backend/api/form
 - Response: `401`: keys `Unauthorized`, `message`, `201`: keys `message`, `500`: keys `message`
 
 ### GET /admin/:orgId/forms
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
@@ -21,6 +25,7 @@ slug: /apps/backend/api/form
 - Response: `200`: keys `message`, `500`: keys `message`
 
 ### GET /admin/:orgId/:formId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`, `formId`
@@ -28,6 +33,7 @@ slug: /apps/backend/api/form
 - Response: `200`: keys `message`, `500`: keys `message`
 
 ### PUT /admin/:orgId/:formId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`, `formId`
@@ -35,6 +41,7 @@ slug: /apps/backend/api/form
 - Response: `401`: keys `Unauthorized`, `message`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /admin/:formId/publish
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `formId`
@@ -42,6 +49,7 @@ slug: /apps/backend/api/form
 - Response: `401`: keys `Unauthorized`, `message`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /admin/:formId/unpublish
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `formId`
@@ -49,6 +57,7 @@ slug: /apps/backend/api/form
 - Response: `401`: keys `Unauthorized`, `message`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /admin/:formId/archive
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `formId`
@@ -56,6 +65,7 @@ slug: /apps/backend/api/form
 - Response: `401`: keys `Unauthorized`, `message`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /admin/:formId/submit
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `formId`
@@ -63,6 +73,7 @@ slug: /apps/backend/api/form
 - Response: `201`: keys `message`, `500`: keys `message`
 
 ### GET /appointments/:appointmentId/soap-notes
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `appointmentId`
@@ -71,6 +82,7 @@ slug: /apps/backend/api/form
 - Response: `200`: keys `message`, `500`: keys `message`
 
 ### GET /appointments/:appointmentId/forms
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `appointmentId`
@@ -79,6 +91,7 @@ slug: /apps/backend/api/form
 - Response: `400`: keys `isPMS`, `message`, `serviceId`, `species`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /form-submissions/:submissionId/sign
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `submissionId`
@@ -86,6 +99,7 @@ slug: /apps/backend/api/form
 - Response: `200`: keys `err`, `message`, `400`: JSON
 
 ### GET /form-submissions/:submissionId/signed-document
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `submissionId`
@@ -93,24 +107,28 @@ slug: /apps/backend/api/form
 - Response: `200`: keys `err`, `message`, `400`: JSON
 
 ### GET /public/:formId
+
 - Auth: `authorizeCognitoMobile`
 - Params: `formId`
 - Controller: `FormController.submitForm`
 - Response: `401`: keys `Unauthorized`, `message`, `201`: keys `message`, `500`: keys `message`
 
 ### GET /mobile/submissions/:formId
+
 - Auth: `authorizeCognitoMobile`
 - Params: `formId`
 - Controller: `FormController.getFormSubmissions`
 - Response: `200`: keys `message`, `500`: keys `message`
 
 ### GET /mobile/forms/:formId/submissions
+
 - Auth: `authorizeCognitoMobile`
 - Params: `formId`
 - Controller: `FormController.listFormSubmissions`
 - Response: `200`: keys `message`, `500`: keys `message`
 
 ### GET /mobile/forms/:organizationId/:serivceId/consent-form
+
 - Auth: `authorizeCognitoMobile`
 - Params: `organizationId`, `serivceId`
 - Query: `species`
@@ -118,6 +136,7 @@ slug: /apps/backend/api/form
 - Response: `200`: keys `message`, `500`: keys `message`
 
 ### GET /mobile/appointments/:appointmentId/soap-notes
+
 - Auth: `authorizeCognitoMobile`
 - Params: `appointmentId`
 - Query: `latestOnly`
@@ -125,6 +144,7 @@ slug: /apps/backend/api/form
 - Response: `200`: keys `message`, `500`: keys `message`
 
 ### GET /mobile/appointments/:appointmentId/forms
+
 - Auth: `authorizeCognitoMobile`
 - Params: `appointmentId`
 - Query: `isPMS`, `serviceId`, `species`
@@ -132,12 +152,14 @@ slug: /apps/backend/api/form
 - Response: `400`: keys `isPMS`, `message`, `serviceId`, `species`, `200`: keys `message`, `500`: keys `message`
 
 ### GET /mobile/form-submissions/:submissionId/pdf
+
 - Auth: `authorizeCognitoMobile`
 - Params: `submissionId`
 - Controller: `FormController.getFormSubmissionPDF`
 - Response: `500`: keys `message`
 
 ### POST /mobile/form-submissions/:submissionId/sign
+
 - Auth: `authorizeCognitoMobile`
 - Params: `submissionId`
 - Controller: `FormSigningController.startSigningMobile`

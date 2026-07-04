@@ -7,7 +7,9 @@ description: GxP-ready validation expectations for UI component classes.
 # Validation Matrix
 
 This document defines the engineering controls and evidence model for UI quality.
-The intent is GxP-**ready** (risk-based, traceable, reproducible) — not a blanket certification claim.
+It is for engineers and reviewers shipping UI: it tells you what proof each class of component needs before it merges, and which components carry extra scrutiny. It builds on the [Contribution Guide](./contribution-guide.md) and [Component Taxonomy](./component-taxonomy.md).
+
+The intent is GxP-**ready** (GxP is the umbrella for the "Good Practice" quality guidelines used in regulated industries such as pharma; here it means risk-based, traceable, reproducible) - not a blanket certification claim.
 
 ---
 
@@ -27,7 +29,7 @@ The intent is GxP-**ready** (risk-based, traceable, reproducible) — not a blan
 
 ## Component class risk matrix
 
-### 🔴 High risk — explicit validation checklist required
+### 🔴 High risk - explicit validation checklist required
 
 These component classes handle critical user actions. Each must have a manual validation checklist in the PR that ships or modifies them.
 
@@ -40,7 +42,7 @@ These component classes handle critical user actions. Each must have a manual va
 | Embedded iframe / PDF viewers           | Content integrity  | Loading states, error states, a11y labels                            |
 | Data-heavy tables with critical actions | Accuracy + actions | Sorting, filtering, empty states, bulk action confirmation           |
 
-### 🟡 Medium risk — story + a11y check required
+### 🟡 Medium risk - story + a11y check required
 
 | Component class            | Notes                                                |
 | -------------------------- | ---------------------------------------------------- |
@@ -50,7 +52,7 @@ These component classes handle critical user actions. Each must have a manual va
 | Search / filter components | Empty states, loading, no-results                    |
 | Notification / toast       | Dismissibility, screen-reader announcement           |
 
-### 🟢 Standard — story coverage sufficient
+### 🟢 Standard - story coverage sufficient
 
 | Component class       | Notes                                                   |
 | --------------------- | ------------------------------------------------------- |

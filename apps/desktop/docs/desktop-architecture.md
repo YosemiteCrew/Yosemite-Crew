@@ -1,5 +1,7 @@
 # Desktop Architecture
 
+This document is the trust-boundary and process-model reference for the Electron desktop shell that packages the Yosemite Crew (YC) PIMS (Practice Information Management System, the veterinary clinic web app). It is written for contributors working in `apps/desktop/` and explains where native capability lives, how the renderer reaches it, and which boundaries must not be weakened. Pair it with [`update-feed-threat-model.md`](update-feed-threat-model.md) for auto-update risks and the app's [`AGENTS.md`](../AGENTS.md) for the day-to-day rules.
+
 ## Process Model
 
 The desktop app is an Electron shell around the Yosemite Crew PIMS web app. The main process owns native app lifecycle, navigation policy, update checks, crash reporting, local status pages, window state, deep links, tray/idle-lock wiring, offline cache, sync status, and local desktop data controls. Renderer code should be treated as web content and should only reach native capabilities through the preload bridge and validated IPC channels.
@@ -10,7 +12,7 @@ PIMS pages should load only from configured Yosemite Crew origins. Developer por
 
 ## IPC Boundary
 
-IPC channels should be allowlisted in `src/ipc.ts` and exposed through `src/preload.ts`. Renderer input should be validated before it affects navigation, native dialogs, filesystem paths, update checks, or process lifecycle. No channel should accept unstructured objects that are later forwarded directly into Electron APIs.
+Inter-process communication (IPC) channels should be allowlisted in `src/core/ipc.ts` and exposed through `src/preload.ts`. Renderer input should be validated before it affects navigation, native dialogs, filesystem paths, update checks, or process lifecycle. No channel should accept unstructured objects that are later forwarded directly into Electron APIs.
 
 ## Runtime Hardening
 
@@ -18,7 +20,7 @@ Electron fuses should disable legacy or unused runtime features while preserving
 
 ## Updates
 
-`src/updater.ts` supports `latest` by default and `beta` when `YC_DESKTOP_UPDATE_CHANNEL=beta`. Production releases publish electron-updater feed files through GitHub Releases. Manual update checks should provide user-visible feedback; background checks should stay quiet except for download-ready prompts.
+`src/lifecycle/updater.ts` supports `latest` by default and `beta` when `YC_DESKTOP_UPDATE_CHANNEL=beta`. Production releases publish electron-updater feed files through GitHub Releases. Manual update checks should provide user-visible feedback; background checks should stay quiet except for download-ready prompts.
 
 ## Telehealth
 

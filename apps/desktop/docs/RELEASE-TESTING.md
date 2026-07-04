@@ -4,7 +4,7 @@ Current test version: **0.1.0-beta.1** (`apps/desktop/package.json`).
 
 This produces installable builds for testers on **macOS** and **Windows**.
 These test builds are **unsigned / not notarized** unless signing secrets are
-configured — testers must do a one-time "open anyway" (see below).
+configured - testers must do a one-time "open anyway" (see below).
 
 ---
 
@@ -40,7 +40,7 @@ are set (unset = unsigned build, still works for testers):
 
 ## Local: build the macOS installer now (for quick tester hand-off)
 
-Double-click **`build-release-mac.command`** (in `apps/desktop/`), or:
+From the monorepo root:
 
 ```sh
 pnpm --dir apps/desktop run desktop:dist:mac
@@ -51,7 +51,7 @@ Output in `apps/desktop/dist/`:
 - `Yosemite Crew PIMS-0.1.0-beta.1-mac-arm64.dmg` ← share this
 - `Yosemite Crew PIMS-0.1.0-beta.1-mac-arm64.zip`
 
-> Windows cannot be reliably cross-built from macOS — use the GitHub Actions
+> Windows cannot be reliably cross-built from macOS - use the GitHub Actions
 > path above for the Windows installer.
 
 ---
@@ -64,7 +64,7 @@ Output in `apps/desktop/dist/`:
 2. First launch: right-click the app → **Open** → **Open** (bypasses Gatekeeper
    for the unsigned beta). After that it opens normally.
 3. Approve the keychain prompt(s) on first launch (cookie + audit-log encryption)
-   — click **Always Allow**.
+   - click **Always Allow**.
 
 **Windows (unsigned beta):**
 

@@ -13,8 +13,8 @@ This file documents the backend-specific working patterns for agents and contrib
 ## Core Stack
 
 - Express 4 with TypeScript
-- MongoDB/Mongoose for application models
-- Prisma for schema and migration work
+- MongoDB/Mongoose for existing (legacy) application models
+- Prisma (Postgres/Supabase) for schema and migration work, and the source of truth for new persistence; do not add new Mongoose usage
 - Zod for request validation
 - BullMQ for background jobs
 - Winston for logging
@@ -39,7 +39,7 @@ Do not move business logic into routers or controllers.
 - Use Winston, not `console.log`.
 - Queue async/background work with BullMQ instead of processing it inline in request handlers.
 - Keep workers idempotent because retries can happen.
-- Use FHIR types from `@yosemite-crew/fhir` for healthcare data.
+- Use FHIR (Fast Healthcare Interoperability Resources) types from `@yosemite-crew/fhir` for healthcare data.
 - Extend external vendor behavior inside `src/integrations/`.
 - Treat Firebase Admin as a singleton.
 - Verify Stripe webhook signatures before processing them.

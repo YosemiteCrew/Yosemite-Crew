@@ -1,9 +1,9 @@
-# SuperTokens Migration Plan — mobileAppYC + Backend
+# SuperTokens Migration Plan - mobileAppYC + Backend
 
-**Goal:** Replace AWS Cognito (email/OTP auth) and Firebase Auth (social login) with SuperTokens self-hosted.  
+**Goal:** Replace AWS Cognito (email/OTP auth, where OTP is a one-time passcode) and Firebase Auth (social login) with SuperTokens self-hosted.  
 **Scope:** `apps/mobileAppYC` + `apps/backend`  
-**Estimated effort:** 3–5 days  
-**Risk level:** High — touches every authenticated API call. Must be done behind a feature flag with a dual-verify period.
+**Estimated effort:** 3-5 days  
+**Risk level:** High - touches every authenticated API call. Must be done behind a feature flag with a dual-verify period.
 
 ---
 
@@ -27,22 +27,22 @@ Backend
 
 ### Key files to change
 
-| File                                                              | What changes                                                                                                                   |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `apps/mobileAppYC/src/features/auth/services/passwordlessAuth.ts` | Full rewrite — remove all `aws-amplify/auth` calls                                                                             |
-| `apps/mobileAppYC/src/features/auth/services/socialAuth.ts`       | Remove `signInWithCredential(firebase)`. Keep native Google/Apple/Facebook token acquisition. Add SuperTokens `/signinup` call |
-| `apps/mobileAppYC/src/features/auth/services/accountDeletion.ts`  | Replace Amplify + Firebase delete with SuperTokens admin API call                                                              |
-| `apps/mobileAppYC/src/features/auth/sessionManager.ts`            | Replace `fetchAuthSession` (Amplify) and `getIdToken` (Firebase) with `supertokens-react-native` session                       |
-| `apps/mobileAppYC/src/features/auth/services/tokenStorage.ts`     | Add `'supertokens'` to `AuthProviderName` type, remove `'amplify'` \| `'firebase'`                                             |
-| `apps/mobileAppYC/src/features/auth/thunks.ts`                    | Update `logout` thunk — remove Amplify/Firebase sign-out calls                                                                 |
-| `apps/backend/src/middlewares/auth.ts`                            | Add `authorizeSupertokens` middleware. Keep old ones during transition                                                         |
-| `apps/backend/src/models/authUserMobile.ts`                       | Add `'supertokens'` to `authProvider` enum                                                                                     |
-| `apps/backend/prisma/schema.prisma`                               | Add `supertokens` to `AuthProvider` enum, migrate                                                                              |
-| `apps/backend/src/app.ts`                                         | Add SuperTokens middleware init                                                                                                |
+| File                                                              | What changes                                                                                                                                   |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/mobileAppYC/src/features/auth/services/passwordlessAuth.ts` | Full rewrite - remove all `aws-amplify/auth` calls                                                                                             |
+| `apps/mobileAppYC/src/features/auth/services/socialAuth.ts`       | Remove `signInWithCredential(firebase)`. Keep native Google/Apple/Facebook token acquisition. Add SuperTokens `/signinup` call                 |
+| `apps/mobileAppYC/src/features/auth/services/accountDeletion.ts`  | Replace Amplify + Firebase delete with SuperTokens admin API call                                                                              |
+| `apps/mobileAppYC/src/features/auth/sessionManager.ts`            | Replace `fetchAuthSession` (Amplify) and `getIdToken` (Firebase) with `supertokens-react-native` session                                       |
+| `apps/mobileAppYC/src/features/auth/services/tokenStorage.ts`     | Add `'supertokens'` to `AuthProviderName` type, remove `'amplify'` \| `'firebase'`                                                             |
+| `apps/mobileAppYC/src/features/auth/thunks.ts`                    | Update `logout` thunk - remove Amplify/Firebase sign-out calls                                                                                 |
+| `apps/backend/src/middlewares/auth.ts`                            | Add `authorizeSupertokens` middleware. Keep old ones during transition                                                                         |
+| `apps/backend/src/models/authUserMobile.ts`                       | Add `'supertokens'` to `authProvider` enum                                                                                                     |
+| `packages/database/prisma/schema.prisma`                          | Add `supertokens` to `AuthProvider` enum, migrate (the Prisma schema lives in the `@yosemite-crew/database` package, not under `apps/backend`) |
+| `apps/backend/src/app.ts`                                         | Add SuperTokens middleware init                                                                                                                |
 
 ---
 
-## Phase 0 — Infrastructure Setup (Day 0, ~2 hours)
+## Phase 0 - Infrastructure Setup (Day 0, ~2 hours)
 
 ### 0.1 Run SuperTokens Core via Docker
 
@@ -72,7 +72,7 @@ SUPERTOKENS_API_KEY=your-random-secret-here
 ### 0.2 Install backend dependencies
 
 ```bash
-pnpm --filter api add supertokens-node
+pnpm --filter backend add supertokens-node
 ```
 
 ### 0.3 Install mobile dependencies
@@ -83,7 +83,7 @@ pnpm --filter mobileAppYC add supertokens-react-native
 
 ---
 
-## Phase 1 — Backend: SuperTokens Init + New Middleware (Day 1, ~3 hours)
+## Phase 1 - Backend: SuperTokens Init + New Middleware (Day 1, ~3 hours)
 
 ### 1.1 Initialize SuperTokens in `app.ts`
 
@@ -191,12 +191,12 @@ export function createApp() {
     })
   );
 
-  // SuperTokens middleware — exposes /v1/auth/* routes automatically
+  // SuperTokens middleware - exposes /v1/auth/* routes automatically
   app.use(stMiddleware());
 
   // ... your existing routes ...
 
-  // SuperTokens error handler — must be after routes
+  // SuperTokens error handler - must be after routes
   app.use(stErrorHandler());
 
   return app;
@@ -231,7 +231,7 @@ export const authorizeSupertokens = [
       const emailEntry = userInfo?.emails?.[0];
       (req as AuthenticatedRequest).email = emailEntry;
     } catch {
-      // non-fatal — email enrichment only
+      // non-fatal - email enrichment only
     }
 
     next();
@@ -239,7 +239,7 @@ export const authorizeSupertokens = [
 ];
 ```
 
-### 1.3 Update `AuthUserMobile` model — add `supertokens` provider
+### 1.3 Update `AuthUserMobile` model - add `supertokens` provider
 
 In `apps/backend/src/models/authUserMobile.ts`:
 
@@ -254,7 +254,7 @@ authProvider: "cognito" | "firebase" | "supertokens"
 enum: ["cognito", "firebase", "supertokens"],
 ```
 
-In `apps/backend/prisma/schema.prisma`:
+In `packages/database/prisma/schema.prisma` (the shared Prisma schema, consumed by the backend through the `@yosemite-crew/database` package):
 
 ```prisma
 enum AuthProvider {
@@ -264,11 +264,13 @@ enum AuthProvider {
 }
 ```
 
-Run: `pnpm --filter api run prisma migrate dev --name add_supertokens_provider`
+Run: `pnpm --filter backend run prisma:migrate --name add_supertokens_provider`
+
+(The `backend` workspace delegates `prisma:migrate` to the `@yosemite-crew/database` package, where the Prisma schema actually lives. See the note under "Key files to change" above.)
 
 ### 1.4 Update `AuthUserMobileService.createOrGetAuthUser`
 
-The service already accepts a provider string — just ensure `'supertokens'` routes correctly:
+The service already accepts a provider string - just ensure `'supertokens'` routes correctly:
 
 ```ts
 // apps/backend/src/services/authUserMobile.service.ts
@@ -277,7 +279,7 @@ async createOrGetAuthUser(
   providerUserId: string,
   email: string,
 ): Promise<AuthUserMobile> {
-  // No other change needed — logic is provider-agnostic
+  // No other change needed - logic is provider-agnostic
 }
 ```
 
@@ -296,17 +298,17 @@ async deleteSupertokensUser(userId: string): Promise<void> {
 
 ---
 
-## Phase 2 — Mobile: Replace Passwordless / OTP Flow (Day 2, ~4 hours)
+## Phase 2 - Mobile: Replace Passwordless / OTP Flow (Day 2, ~4 hours)
 
-This replaces all of `passwordlessAuth.ts` — the most complex change.
+This replaces all of `passwordlessAuth.ts` - the most complex change.
 
 ### 2.1 How the new OTP flow maps to current UX
 
 | Current (Cognito/Amplify)                                               | New (SuperTokens)                                              |
 | ----------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `signUp({ username, password })`                                        | Not needed — SuperTokens creates user on first `createCode`    |
-| `signIn({ username, options: { authFlowType: 'CUSTOM_WITHOUT_SRP' } })` | `POST /v1/auth/signinup/code` — creates and sends OTP          |
-| `confirmSignIn({ challengeResponse: otp })`                             | `POST /v1/auth/signinup/code/consume` — verifies OTP           |
+| `signUp({ username, password })`                                        | Not needed - SuperTokens creates user on first `createCode`    |
+| `signIn({ username, options: { authFlowType: 'CUSTOM_WITHOUT_SRP' } })` | `POST /v1/auth/signinup/code` - creates and sends OTP          |
+| `confirmSignIn({ challengeResponse: otp })`                             | `POST /v1/auth/signinup/code/consume` - verifies OTP           |
 | `fetchAuthSession()`                                                    | `SuperTokens.getAccessToken()` from `supertokens-react-native` |
 | `signOut({ global: true })`                                             | `SuperTokens.signOut()`                                        |
 
@@ -365,7 +367,7 @@ export const requestPasswordlessEmailCode = async (
 
   return {
     destination: username,
-    isNewUser: false, // unknown until code consumed — SuperTokens returns it then
+    isNewUser: false, // unknown until code consumed - SuperTokens returns it then
     isDemoLogin,
   };
 };
@@ -458,14 +460,14 @@ export const formatAuthError = (error: unknown) => parsePasswordlessError(error)
 
 ---
 
-## Phase 3 — Mobile: Replace Social Auth (Day 2, ~3 hours)
+## Phase 3 - Mobile: Replace Social Auth (Day 2, ~3 hours)
 
 ### How the social flow changes
 
 The native SDKs (Google Sign-In, Apple Auth, Facebook SDK) stay exactly as they are.  
 Only the **final step** changes: instead of calling Firebase `signInWithCredential()`, you call the SuperTokens `/signinup` endpoint with the OAuth token.
 
-SuperTokens supports the **OAuth/Access Token flow** for mobile — you send the token you already have and SuperTokens fetches the user profile and creates the session.
+SuperTokens supports the **OAuth/Access Token flow** for mobile - you send the token you already have and SuperTokens fetches the user profile and creates the session.
 
 ### 3.1 Rewrite the token-exchange step in `socialAuth.ts`
 
@@ -485,7 +487,7 @@ const idToken = await getIdToken(firebaseUser);
 **New flow:**
 
 ```ts
-// Gets native token — UNCHANGED
+// Gets native token - UNCHANGED
 const nativeTokens = await resolveNativeToken(provider); // see below
 
 // Instead of Firebase: call SuperTokens signinup
@@ -536,7 +538,7 @@ const resolveNativeToken = async (provider: SocialProvider): Promise<NativeToken
     case 'facebook': {
       // iOS limited login gives authentication token, Android gives access token
       // Platform-specific logic stays identical to current socialAuth.ts
-      // — just return the token instead of passing to Firebase
+      // - just return the token instead of passing to Firebase
       if (Platform.OS === 'ios') {
         const rawNonce = uuid();
         const loginResult = await LoginManager.logInWithPermissions(
@@ -579,7 +581,7 @@ const resolveNativeToken = async (provider: SocialProvider): Promise<NativeToken
           lastName: result.fullName?.familyName,
         };
       }
-      // Android — appleAuthAndroid.signIn() stays the same
+      // Android - appleAuthAndroid.signIn() stays the same
       // return { idToken: response.id_token }
     }
   }
@@ -590,23 +592,23 @@ const resolveNativeToken = async (provider: SocialProvider): Promise<NativeToken
 
 ---
 
-## Phase 4 — Mobile: Update Session Manager (Day 3, ~3 hours)
+## Phase 4 - Mobile: Update Session Manager (Day 3, ~3 hours)
 
 ### 4.1 What changes in `sessionManager.ts`
 
 | Current                                                                  | New                                    |
 | ------------------------------------------------------------------------ | -------------------------------------- |
-| `attemptAmplifyRecovery()` — calls `fetchAuthSession()` from aws-amplify | Remove entirely                        |
-| `attemptFirebaseRecovery()` — calls `getIdToken(firebaseUser)`           | Remove entirely                        |
-| `getFreshStoredTokens()` — refreshes via Amplify or Firebase             | Replace with SuperTokens token refresh |
-| `scheduleSessionRefresh()`                                               | Keep as-is — still valid               |
+| `attemptAmplifyRecovery()` - calls `fetchAuthSession()` from aws-amplify | Remove entirely                        |
+| `attemptFirebaseRecovery()` - calls `getIdToken(firebaseUser)`           | Remove entirely                        |
+| `getFreshStoredTokens()` - refreshes via Amplify or Firebase             | Replace with SuperTokens token refresh |
+| `scheduleSessionRefresh()`                                               | Keep as-is - still valid               |
 | `registerAppStateListener()`                                             | Keep as-is                             |
-| `recoverFromStoredTokens()`                                              | Keep as-is — reads from Keychain       |
+| `recoverFromStoredTokens()`                                              | Keep as-is - reads from Keychain       |
 
 ### 4.2 New `getFreshStoredTokens` using SuperTokens
 
 ```ts
-// In sessionManager.ts — replace the Amplify/Firebase refresh blocks
+// In sessionManager.ts - replace the Amplify/Firebase refresh blocks
 import SuperTokens from 'supertokens-react-native';
 
 export const getFreshStoredTokens = async (): Promise<NormalizedAuthTokens | null> => {
@@ -683,7 +685,7 @@ Once all users have migrated, remove `'amplify'` and `'firebase'`.
 
 ---
 
-## Phase 5 — Mobile: Account Deletion + Logout (Day 3, ~1 hour)
+## Phase 5 - Mobile: Account Deletion + Logout (Day 3, ~1 hour)
 
 ### 5.1 Rewrite `accountDeletion.ts`
 
@@ -720,7 +722,7 @@ export const logout = createAsyncThunk('auth/logout', async (_, { dispatch, getS
     console.warn('[Auth] Sign out failed:', error);
   }
 
-  // All the dispatch(reset*) calls stay identical — no change needed
+  // All the dispatch(reset*) calls stay identical - no change needed
   await clearSessionData({ clearPendingProfile: true });
   resetAuthLifecycle({ clearPendingProfile: true });
   appStateListenerRegistered = false;
@@ -732,7 +734,7 @@ export const logout = createAsyncThunk('auth/logout', async (_, { dispatch, getS
 
 ---
 
-## Phase 6 — Backend: Switch Routes to `authorizeSupertokens` (Day 4, ~2 hours)
+## Phase 6 - Backend: Switch Routes to `authorizeSupertokens` (Day 4, ~2 hours)
 
 ### 6.1 Routing strategy during transition
 
@@ -753,7 +755,7 @@ export const authorizeAny = async (req: Request, res: Response, next: NextFuncti
   try {
     await verifySession()(req as any, res, () => {});
     if ((req as any).session) {
-      // SuperTokens verified — enrich req and continue
+      // SuperTokens verified - enrich req and continue
       const session = (req as any).session;
       (req as AuthenticatedRequest).userId = session.getUserId();
       (req as AuthenticatedRequest).provider = 'supertokens';
@@ -772,11 +774,11 @@ Apply `authorizeAny` to all mobile routes instead of `authorizeCognitoMobile` du
 
 ### 6.2 Web routes (`authorizeCognito`)
 
-Web routes currently use Cognito for the dashboard. These are **not** in scope for this migration — leave `authorizeCognito` on web routes until the web frontend migrates separately.
+Web routes currently use Cognito for the dashboard. These are **not** in scope for this migration - leave `authorizeCognito` on web routes until the web frontend migrates separately.
 
 ---
 
-## Phase 7 — Cleanup (After validation, Day 5)
+## Phase 7 - Cleanup (After validation, Day 5)
 
 Once SuperTokens is live and validated in production:
 
@@ -786,14 +788,14 @@ Once SuperTokens is live and validated in production:
 4. Uninstall packages:
    ```bash
    pnpm --filter mobileAppYC remove @aws-amplify/react-native aws-amplify @react-native-firebase/auth
-   pnpm --filter api remove firebase-admin @aws-sdk/client-cognito-identity-provider
+   pnpm --filter backend remove firebase-admin @aws-sdk/client-cognito-identity-provider
    ```
 5. Remove `amplify/` directory from `apps/mobileAppYC/`
 6. Remove `amplify_outputs.json` from `apps/mobileAppYC/`
 7. Remove `COGNITO_*` env vars from all `.env` files and CI secrets
 8. Remove `GOOGLE_APPLICATION_CREDENTIALS` (Firebase service account) env var
-9. Update `AuthProviderName` type — remove `'amplify'` and `'firebase'`
-10. Update `authProvider` enum in Mongoose model and Prisma schema — remove `cognito` and `firebase`
+9. Update `AuthProviderName` type - remove `'amplify'` and `'firebase'`
+10. Update `authProvider` enum in Mongoose model and Prisma schema - remove `cognito` and `firebase`
 11. Run Prisma migration for enum cleanup
 
 ---
@@ -810,19 +812,19 @@ Once SuperTokens is live and validated in production:
 | `COGNITO_AUDIENCE`               | `WEB_DOMAIN`                 |
 | `GOOGLE_APPLICATION_CREDENTIALS` | `GOOGLE_CLIENT_ID`           |
 | `AWS_REGION` (auth only)         | `GOOGLE_CLIENT_SECRET`       |
-| —                                | `APPLE_BUNDLE_ID`            |
-| —                                | `APPLE_KEY_ID`               |
-| —                                | `APPLE_PRIVATE_KEY`          |
-| —                                | `APPLE_TEAM_ID`              |
-| —                                | `FACEBOOK_APP_ID`            |
-| —                                | `FACEBOOK_APP_SECRET`        |
+| -                                | `APPLE_BUNDLE_ID`            |
+| -                                | `APPLE_KEY_ID`               |
+| -                                | `APPLE_PRIVATE_KEY`          |
+| -                                | `APPLE_TEAM_ID`              |
+| -                                | `FACEBOOK_APP_ID`            |
+| -                                | `FACEBOOK_APP_SECRET`        |
 
 ### Mobile
 
 | Remove                                   | Add                             |
 | ---------------------------------------- | ------------------------------- |
 | Amplify config in `amplify_outputs.json` | `API_BASE_URL` (already exists) |
-| All Cognito pool IDs in `variables.ts`   | —                               |
+| All Cognito pool IDs in `variables.ts`   | -                               |
 
 ---
 
@@ -833,13 +835,13 @@ Once SuperTokens is live and validated in production:
 | Remove                         | Add                        |
 | ------------------------------ | -------------------------- |
 | `@aws-amplify/react-native`    | `supertokens-react-native` |
-| `@aws-amplify/ui-react-native` | —                          |
-| `aws-amplify`                  | —                          |
-| `@react-native-firebase/auth`  | —                          |
-| `@react-native-firebase/app`   | —                          |
-| `amazon-cognito-identity-js`   | —                          |
+| `@aws-amplify/ui-react-native` | -                          |
+| `aws-amplify`                  | -                          |
+| `@react-native-firebase/auth`  | -                          |
+| `@react-native-firebase/app`   | -                          |
+| `amazon-cognito-identity-js`   | -                          |
 
-**Keep** (native social login SDKs — unchanged):
+**Keep** (native social login SDKs - unchanged):
 
 - `@react-native-google-signin/google-signin`
 - `@invertase/react-native-apple-authentication`
@@ -850,14 +852,14 @@ Once SuperTokens is live and validated in production:
 | Remove                                      | Add                |
 | ------------------------------------------- | ------------------ |
 | `firebase-admin`                            | `supertokens-node` |
-| `@aws-sdk/client-cognito-identity-provider` | —                  |
-| `amazon-cognito-identity-js` (if present)   | —                  |
+| `@aws-sdk/client-cognito-identity-provider` | -                  |
+| `amazon-cognito-identity-js` (if present)   | -                  |
 
 ---
 
 ## Testing Checklist
 
-### Mobile — manual smoke tests
+### Mobile - manual smoke tests
 
 - [ ] Email OTP: request code → receive email → enter code → authenticated
 - [ ] Email OTP: wrong code → correct error message shown
@@ -872,7 +874,7 @@ Once SuperTokens is live and validated in production:
 - [ ] New user first login → profile creation flow triggered
 - [ ] Existing user login → existing profile loaded
 
-### Backend — integration tests
+### Backend - integration tests
 
 - [ ] `POST /v1/auth/signinup` (ThirdParty) returns `status: OK` with valid tokens
 - [ ] `POST /v1/auth/signinup/code` (Passwordless) sends OTP
@@ -889,7 +891,7 @@ Once SuperTokens is live and validated in production:
 Because we're using `authorizeAny` middleware during the transition:
 
 1. If issues are found post-deploy, keep `authorizeAny` in place and revert the mobile app to the previous build via app store rollback
-2. The old Cognito/Firebase users in the DB remain valid — `authProvider: "cognito" | "firebase"` rows are untouched
+2. The old Cognito/Firebase users in the DB remain valid - `authProvider: "cognito" | "firebase"` rows are untouched
 3. Do **not** tear down the Cognito user pool until you have confirmed zero active Cognito-authenticated sessions (check CloudWatch → Cognito metrics for `TokenRefreshSuccesses` → 0 for 7 consecutive days)
 
 ---

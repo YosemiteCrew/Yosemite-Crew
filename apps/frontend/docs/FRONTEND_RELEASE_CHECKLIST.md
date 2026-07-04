@@ -1,6 +1,6 @@
 # Frontend Release Checklist
 
-Use this checklist before shipping meaningful frontend changes or cutting a release candidate.
+Use this checklist before shipping meaningful changes to `apps/frontend` (the Yosemite Crew web app) or cutting a release candidate. It is the pre-ship gate that complements the day-to-day bar in [`FRONTEND_QUALITY_GUIDE.md`](FRONTEND_QUALITY_GUIDE.md).
 
 ## Required Validation
 
@@ -11,7 +11,7 @@ Use this checklist before shipping meaningful frontend changes or cutting a rele
 
 ## Security and Policy
 
-- Confirm CSP and critical security-header regression tests pass.
+- Confirm CSP (Content Security Policy) and critical security-header regression tests pass.
 - Confirm `script-src`, `style-src`, and `style-src-elem` remain nonce-based and do not regain `unsafe-inline`.
 - Confirm `style-src-attr 'unsafe-inline'` remains the only inline CSP compatibility allowance.
 - Confirm no new iframe or external URL surface bypasses shared validation helpers.

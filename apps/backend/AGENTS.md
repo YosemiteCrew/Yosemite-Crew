@@ -1,4 +1,4 @@
-# Backend — Agent Rules
+# Backend - Agent Rules
 
 Inherits all root `AGENTS.md` rules. This file adds backend-specific rules.
 
@@ -39,7 +39,7 @@ const result = Schema.safeParse(req.body); // handle errors gracefully
 Use **Winston** only. No `console.log` in production code.
 
 ```ts
-import logger from "@/lib/logger";
+import logger from "../utils/logger"; // relative to your file, e.g. src/utils/logger.ts
 logger.info("message", { context });
 logger.error("message", { error });
 ```
@@ -55,13 +55,13 @@ await emailQueue.add("send-reminder", { appointmentId });
 // Worker in src/workers/ processes it asynchronously
 ```
 
-Make workers idempotent — jobs may be retried.
+Make workers idempotent - jobs may be retried.
 
 ---
 
 ## Healthcare Data
 
-- Use FHIR types from `@yosemite-crew/fhir` — never invent custom health data shapes.
+- Use FHIR (Fast Healthcare Interoperability Resources) types from `@yosemite-crew/fhir` - never invent custom health data shapes.
 - IDEXX and Merck integrations: extend `src/integrations/`, never inline in controllers.
 
 ---
@@ -76,8 +76,8 @@ AWS Cognito + `jsonwebtoken` + `jwks-rsa`. Never roll custom auth flows.
 
 - No raw MongoDB queries outside the model/service layer.
 - No business logic in controllers or routers.
-- No `console.log` — use Winston.
+- No `console.log` - use Winston.
 - No synchronous processing of work that should be queued.
-- Never re-initialize Firebase Admin SDK in a handler — it's a singleton.
+- Never re-initialize Firebase Admin SDK in a handler - it's a singleton.
 - Always verify Stripe webhook signatures before processing.
 - No more usage of Mongodb or Mongoose anymore for new code

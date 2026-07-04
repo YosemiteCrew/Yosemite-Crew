@@ -13,6 +13,7 @@ This document captures everything required to run the Yosemite Crew mobile push-
 ---
 
 ## Quick Reference
+
 - **Libraries**: `@react-native-firebase/app@23.5.0`, `@react-native-firebase/messaging@23.5.0`, `@notifee/react-native@9.1.8`
 - **Android channel id**: `yc_general_notifications`
 - **Deep-link scheme**: `yc://`
@@ -35,12 +36,14 @@ cd apps/mobileAppYC/ios && pod install && cd ..
 ## 1. Mobile App Configuration
 
 ### 1.1 Shared prerequisites
+
 - Firebase project must already contain the iOS and Android apps (this project already uses Firebase for OAuth).
 - Ensure **Cloud Messaging API (Legacy & HTTP v1)** is enabled in the Firebase console.
 - Confirm the existing `google-services.json` (Android) and `GoogleService-Info.plist` (iOS) files are up to date.
 - Collect the **FCM server key** (for legacy API) and create a **service account** with the `Firebase Admin` role for HTTP v1 calls.
 
 ### 1.2 JavaScript bootstrap
+
 - `initializeNotifications` handles:
   - Permission requests (API 33+ on Android + iOS alerts/badge/sound).
   - Channel creation (Android).
@@ -56,31 +59,33 @@ cd apps/mobileAppYC/ios && pod install && cd ..
   ```
 
 ### 1.3 Deep linking contract
+
 - New scheme `yc://` is registered for both Android and iOS so links such as `yc://notifications` or `yc://tasks/task123` can be opened directly.
 - `NotificationNavigationIntent` is derived from the message `data` payload. Supported keys:
 
-| Key | Type | Notes |
-| --- | --- | --- |
-| `deepLink` | string | Highest priority – opened via `Linking.openURL`. |
-| `navigationId` | enum | Maps to predefined destinations (see table below). |
-| `root` | `'Main' \| 'Auth' \| 'Onboarding'` | Optional override for the root navigator. Defaults to `Main`. |
-| `tab` | `'HomeStack' \| 'Appointments' \| 'Documents' \| 'Tasks'` | Explicit tab target. |
-| `screen` | string | Final stack screen (e.g. `Notifications`, `TaskView`). |
-| `params` | stringified JSON | Passed through to the target screen. |
-| `category`, `priority`, `icon`, `avatarUrl`, `relatedId`, `relatedType` | Drive in-app list rendering and navigation context. |
+| Key                                                                     | Type                                                      | Notes                                                         |
+| ----------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------- |
+| `deepLink`                                                              | string                                                    | Highest priority - opened via `Linking.openURL`.              |
+| `navigationId`                                                          | enum                                                      | Maps to predefined destinations (see table below).            |
+| `root`                                                                  | `'Main' \| 'Auth' \| 'Onboarding'`                        | Optional override for the root navigator. Defaults to `Main`. |
+| `tab`                                                                   | `'HomeStack' \| 'Appointments' \| 'Documents' \| 'Tasks'` | Explicit tab target.                                          |
+| `screen`                                                                | string                                                    | Final stack screen (e.g. `Notifications`, `TaskView`).        |
+| `params`                                                                | stringified JSON                                          | Passed through to the target screen.                          |
+| `category`, `priority`, `icon`, `avatarUrl`, `relatedId`, `relatedType` | Drive in-app list rendering and navigation context.       |
 
 Navigation helpers currently recognise these IDs:
 
-| `navigationId` | Navigates to |
-| --- | --- |
-| `notifications` | Home tab → Notifications screen |
-| `tasks` | Tasks tab → Tasks main dashboard |
-| `task_detail` | Tasks tab → TaskView |
-| `appointments` | Appointments tab → MyAppointments |
-| `documents` | Documents tab → DocumentsMain |
-| `home` | Home tab → Home screen |
+| `navigationId`  | Navigates to                      |
+| --------------- | --------------------------------- |
+| `notifications` | Home tab → Notifications screen   |
+| `tasks`         | Tasks tab → Tasks main dashboard  |
+| `task_detail`   | Tasks tab → TaskView              |
+| `appointments`  | Appointments tab → MyAppointments |
+| `documents`     | Documents tab → DocumentsMain     |
+| `home`          | Home tab → Home screen            |
 
 ### 1.4 Android specifics
+
 - Manifest includes notification permissions (`POST_NOTIFICATIONS`, `WAKE_LOCK`, `RECEIVE`) and deep-link intent filter on `MainActivity`.
 - Default channel + icon metadata configured inside `<application>`.
 - `firebase.json` in repo root points RNFirebase to the custom channel and iOS foreground presentation options.
@@ -88,6 +93,7 @@ Navigation helpers currently recognise these IDs:
 - Ensure `google-services.json` sits at `apps/mobileAppYC/android/app/google-services.json`.
 
 ### 1.5 iOS specifics
+
 - Capabilities enabled:
   - Push Notifications
   - Background Modes → `Remote notifications` & `Background fetch`
@@ -96,7 +102,7 @@ Navigation helpers currently recognise these IDs:
   - Sets `UNUserNotificationCenter.current().delegate`
   - Sets `Messaging.messaging().delegate`
   - Registers for remote notifications
-  - Maps APNs token → FCM token
+  - Maps APNs (Apple Push Notification service) token → FCM token
   - Presents foreground notifications (banner + list + sound + badge)
 - **APNS Key onboarding** (if not yet done):
   1. Apple Developer Console → Keys → create key with APNs enabled.
@@ -110,23 +116,22 @@ Navigation helpers currently recognise these IDs:
 ## 2. Frontend Testing & Verification
 
 ### 2.1 On-device smoke checklist
+
 1. Launch the app → system permission dialog should appear (iOS) or silent grant (Android < 13).
 2. Inspect logs to confirm `FCM token updated ...` message.
 3. Trigger a local reminder from any dev console (e.g. Reactotron) or a temporary button:
 
    ```ts
-   import {scheduleLocalReminder} from '@/shared/services/firebaseNotifications';
-   await scheduleLocalReminder(
-     'Test Reminder',
-     'This fired from Notifee after 1 minute',
-     1,
-     {navigationId: 'notifications'}
-   );
+   import { scheduleLocalReminder } from '@/shared/services/firebaseNotifications';
+   await scheduleLocalReminder('Test Reminder', 'This fired from Notifee after 1 minute', 1, {
+     navigationId: 'notifications',
+   });
    ```
 
 4. Verify tapping the notification navigates to the expected screen and the in-app notification list updates instantly.
 
 ### 2.2 Firebase Console
+
 1. Project → Cloud Messaging → Send your first message.
 2. Add Title/Body; under **Additional options** → **Custom data** add e.g.
    - `navigationId`: `notifications`
@@ -177,6 +182,7 @@ curl -X POST \
 ```
 
 ### 2.4 Debugging tips
+
 - **Android**: `adb logcat ReactNativeJS:I ReactNative:I NOTIFEE:D *:S`
 - **iOS**: Use Xcode → Devices & Simulators → view device logs filtered by `RNFB` or `NOTIFE`.
 - `notifee.getTriggerNotificationIds()` and `notifee.getDisplayedNotifications()` are useful in debug builds to inspect active entries.
@@ -186,6 +192,7 @@ curl -X POST \
 ## 3. Backend Developer Checklist
 
 ### 3.1 Token lifecycle
+
 - `initializeNotifications` calls `onTokenUpdate` for:
   - First-time registration.
   - Token refresh events.
@@ -195,22 +202,23 @@ curl -X POST \
   3. On logout, call `messaging().deleteToken()` from the mobile app and invoke `DELETE /v1/me/push-tokens/{token}`.
 
 ### 3.2 Message payload structure
+
 - All `data` values must be **strings** (FCM requirement).
 - Recommended minimum fields:
 
-| Field | Description |
-| --- | --- |
-| `navigationId` | Use table above to target in-app location. |
-| `params` | JSON string for screen params (e.g. `{"taskId":"task_42"}`). |
-| `category`, `priority` | Drive feed categorisation & styling. |
-| `companionId` | Required to associate with the active pet profile (defaults to `'default-companion'` if omitted). |
-| `relatedType`, `relatedId` | Helps analytics + navigation guardrails. |
-| `deepLink` (optional) | Overrides navigation with a direct URI. |
+| Field                      | Description                                                                                       |
+| -------------------------- | ------------------------------------------------------------------------------------------------- |
+| `navigationId`             | Use table above to target in-app location.                                                        |
+| `params`                   | JSON string for screen params (e.g. `{"taskId":"task_42"}`).                                      |
+| `category`, `priority`     | Drive feed categorisation & styling.                                                              |
+| `companionId`              | Required to associate with the active pet profile (defaults to `'default-companion'` if omitted). |
+| `relatedType`, `relatedId` | Helps analytics + navigation guardrails.                                                          |
+| `deepLink` (optional)      | Overrides navigation with a direct URI.                                                           |
 
 ### 3.3 Example Node.js sender
 
 ```ts
-import admin, {messaging} from 'firebase-admin';
+import admin, { messaging } from 'firebase-admin';
 
 admin.initializeApp({
   credential: admin.credential.cert(require('./serviceAccount.json')),
@@ -260,8 +268,9 @@ export async function sendYosemiteNotification(input: YosemiteNotification) {
 ```
 
 ### 3.4 Topic & segment messaging
+
 - Devices can subscribe to topics via `messaging().subscribeToTopic(topic)` on the app side.
-- Keep topics generic (no PII). Example: `all-pet-parents`, `premium-users`, `city-san-francisco`.
+- Keep topics generic (no PII, that is, no personally identifiable information). Example: `all-pet-parents`, `premium-users`, `city-san-francisco`.
 - Backend APIs:
 
 ```ts

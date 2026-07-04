@@ -2,6 +2,8 @@
 
 ## Objective
 
+This guide is for engineers adding a Support Chat experience to the Yosemite Crew client apps: the PMS (veterinary Practice Management System) web app and the React Native mobile app. It builds on the project's existing Stream Chat (the getstream.io realtime chat service) integration. The operator-side counterpart that receives these support conversations is covered in [`superadmin-support-chat-from-scratch-guide.md`](superadmin-support-chat-from-scratch-guide.md).
+
 Add a Support Chat experience in both:
 
 - PMS web chat module
@@ -30,7 +32,7 @@ The implementation must reuse existing Stream chat infrastructure and preserve d
 Support channels to implement:
 
 - `Company Support`: pet parent/service provider -> Yosemite Crew support.
-- `Org Support`: pet parent -> linked PIMS organization support team.
+- `Org Support`: pet parent -> linked PIMS (practice information management system, i.e. a veterinary clinic org on the platform) organization support team.
 
 Entry-point policy:
 

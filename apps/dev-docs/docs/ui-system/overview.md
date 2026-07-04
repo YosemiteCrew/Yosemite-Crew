@@ -6,7 +6,9 @@ description: How the Yosemite Crew UI platform is structured, what it owns, and 
 
 # UI System Overview
 
-The Yosemite Crew UI platform is a production-grade, agent-friendly design system covering the web app (`apps/frontend`) and mobile app (`apps/mobileAppYC`).
+The Yosemite Crew (YC) UI platform is a production-grade, agent-friendly design system covering the web app (`apps/frontend`) and mobile app (`apps/mobileAppYC`).
+
+This page is the entry point: it shows how the pieces fit together and where each thing lives. From here, see [Design Tokens](./design-tokens.md) for the shared visual values, the [Component Taxonomy](./component-taxonomy.md) for how components are classified, the [Contribution Guide](./contribution-guide.md) for how to add or change UI, and the [Validation Matrix](./validation-matrix.md) for the quality bar each component must clear.
 
 ---
 
@@ -51,13 +53,13 @@ pnpm --filter frontend run storybook
 
 ## Design decisions
 
-| Decision                                | Rationale                                                                                                  |
-| --------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Shared tokens, separate implementations | Web and mobile share semantic meaning but not rendering. Liquid-glass stays mobile-only.                   |
-| Storybook for web, Docusaurus for docs  | Storybook is the component workbench. Docusaurus is for architecture, governance, and contribution guides. |
-| Satoshi-only web typography             | `--font-grotesk` aliases are fully removed. `--font-satoshi` is the single web font family.                |
-| Bootstrap removal is phased             | Bootstrap CSS is loaded in `layout.tsx` until all 9 remaining `react-bootstrap` consumers are replaced.    |
-| No shadcn / Radix / MUI                 | The design system is custom-built on Tailwind CSS 4. Do not import new component libraries.                |
+| Decision                                | Rationale                                                                                                                              |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared tokens, separate implementations | Web and mobile share semantic meaning but not rendering. Liquid-glass (the translucent iOS-style surface treatment) stays mobile-only. |
+| Storybook for web, Docusaurus for docs  | Storybook is the component workbench. Docusaurus is for architecture, governance, and contribution guides.                             |
+| Satoshi-only web typography             | `--font-grotesk` aliases are fully removed. `--font-satoshi` is the single web font family.                                            |
+| Bootstrap removal is phased             | Bootstrap CSS is loaded in `layout.tsx` until all 9 remaining `react-bootstrap` consumers are replaced.                                |
+| No shadcn / Radix / MUI                 | The design system is custom-built on Tailwind CSS 4. Do not import new component libraries.                                            |
 
 ---
 

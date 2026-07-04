@@ -1,5 +1,9 @@
 # Companion History Frontend Guide
 
+> Status: implemented as of this revision. The `apps/frontend/src/app/features/companionHistory/` feature (timeline, service, types, and tests) exists in the tree. Read the sections below as the design record for verifying and extending that UI.
+
+This is the frontend counterpart to the companion (patient) history timeline; the API it consumes is described in [companion-history-backend-guide.md](companion-history-backend-guide.md). It is aimed at a frontend engineer working in `apps/frontend`. "Companion" is the project's term for a patient animal; "SOAP" refers to clinical notes structured as Subjective, Objective, Assessment, Plan.
+
 ## Objective
 
 Implement a new reusable `History` experience for companion medical history in two places:
@@ -37,16 +41,16 @@ The new history should present a unified clinical timeline and replace the curre
 
 ### Existing History implementation
 
-Both views just render [AppointmentHistoryList.tsx](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/src/app/features/appointments/components/AppointmentHistoryList.tsx).
+Both views just render `apps/frontend/src/app/features/appointments/components/AppointmentHistoryList.tsx`.
 
 Wrappers:
 
-1. [History.tsx](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/History.tsx)
-2. [History.tsx](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/src/app/features/companions/components/Sections/History.tsx)
+1. `apps/frontend/src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/History.tsx`
+2. `apps/frontend/src/app/features/companions/components/Sections/History.tsx`
 
 ### Existing companion documents tab
 
-Companion modal tabs are defined in [CompanionInfo.tsx](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/src/app/features/companions/components/CompanionInfo.tsx).
+Companion modal tabs are defined in `apps/frontend/src/app/features/companions/components/CompanionInfo.tsx`.
 
 Current `Records` sublabels:
 
@@ -61,7 +65,7 @@ Create a dedicated history feature rather than extending `AppointmentHistoryList
 
 Suggested new frontend area:
 
-1. `/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/src/app/features/companionHistory/`
+1. `apps/frontend/src/app/features/companionHistory/`
 
 Suggested files:
 
@@ -233,7 +237,7 @@ Primary action:
 
 Show:
 
-1. lab provider badge, e.g. `IDEXX`
+1. lab provider badge, e.g. `IDEXX` (the integrated third-party veterinary diagnostics lab)
 2. result status
 3. accession/order identifier if present
 4. short abnormality preview if available
@@ -262,7 +266,7 @@ Primary action:
 
 Replace current history wrapper in:
 
-1. [History.tsx](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/History.tsx)
+1. `apps/frontend/src/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/History.tsx`
 
 New wrapper should pass:
 
@@ -274,13 +278,13 @@ New wrapper should pass:
 
 Replace current history wrapper in:
 
-1. [History.tsx](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/src/app/features/companions/components/Sections/History.tsx)
+1. `apps/frontend/src/app/features/companions/components/Sections/History.tsx`
 
 ### 3. Companion modal tab structure
 
 Update:
 
-1. [CompanionInfo.tsx](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/src/app/features/companions/components/CompanionInfo.tsx)
+1. `apps/frontend/src/app/features/companions/components/CompanionInfo.tsx`
 
 Changes:
 
@@ -418,8 +422,8 @@ Cover:
 
 Update or add tests for:
 
-1. [index.test.tsx](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/src/app/__tests__/pages/Appointments/Sections/AppointmentInfo/index.test.tsx)
-2. [index.test.tsx](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/frontend/src/app/__tests__/components/CompanionInfo/index.test.tsx)
+1. `apps/frontend/src/app/__tests__/pages/Appointments/Sections/AppointmentInfo/index.test.tsx`
+2. `apps/frontend/src/app/__tests__/components/CompanionInfo/index.test.tsx`
 
 New expectations:
 

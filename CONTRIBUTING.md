@@ -10,7 +10,7 @@ Read and follow [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
 - Repository standards: [docs/engineering-standards.md](./docs/engineering-standards.md)
 - AI/automation contribution policy: [AGENTS.md](./AGENTS.md)
-- Architecture decisions: [docs/adr/](./docs/adr/README.md) — read this before proposing a change to a datastore, payment flow, auth model, or any other decision that would be expensive to reverse.
+- Architecture decisions (ADRs): [docs/adr/](./docs/adr/README.md) - Architecture Decision Records capture why a significant choice was made; read this before proposing a change to a datastore, payment flow, auth model, or any other decision that would be expensive to reverse.
 
 ## Found a Bug?
 

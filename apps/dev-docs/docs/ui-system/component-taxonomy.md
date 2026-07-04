@@ -6,6 +6,8 @@ description: How components are classified, what categories exist, and how to de
 
 # Component Taxonomy
 
+This page is the map of where UI code lives. It defines the categories every component falls into, the status labels that say whether a component is safe to use, and how to decide where a new piece of UI belongs. Read it before adding UI; the [Contribution Guide](./contribution-guide.md) covers the mechanics of actually landing a change.
+
 All frontend UI must belong to exactly one category. This prevents ambiguity about where code lives and whether it can be reused.
 
 ---
@@ -14,7 +16,7 @@ All frontend UI must belong to exactly one category. This prevents ambiguity abo
 
 ### Tokens
 
-Design variables — not components. CSS custom properties and Tailwind theme entries.
+Design variables - not components. CSS custom properties and Tailwind theme entries.
 
 - Location: `packages/design-tokens/` and `apps/frontend/src/app/globals.css`
 - Rule: No app-specific business logic here.
@@ -59,7 +61,7 @@ Card-shaped display units with varied content.
 Data table components and cell primitives.
 
 - Location: `apps/frontend/src/app/ui/tables/`
-- Base: `GenericTable` — use this before building domain-specific tables.
+- Base: `GenericTable` - use this before building domain-specific tables.
 
 ### Widgets
 
@@ -104,7 +106,7 @@ A component is only **Approved** when **all** of the following are true:
 
 - [ ] Uses design tokens (no hardcoded hex, px, or font values)
 - [ ] Stable, documented props API (TypeScript types exported)
-- [ ] Jest / RTL tests cover the main states
+- [ ] Jest / RTL (React Testing Library) tests cover the main states
 - [ ] Storybook story covers all visual states, variants, and sizes
 - [ ] Accessibility review: semantic HTML, keyboard navigability, ARIA attributes where needed
 - [ ] Usage documentation (inline JSDoc + story description)

@@ -4,31 +4,38 @@ title: Companion API
 slug: /apps/backend/api/companion
 ---
 
+Manages companion (pet) records: create, read, update, delete, profile image uploads, and search. Routes without a prefix are called by the mobile app (pet parents); routes under `/org` are called by the PMS (Practice Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions.
+
 **Endpoints**
 
 ### POST /
+
 - Auth: `authorizeCognitoMobile`
 - Controller: `CompanionController.createCompanionMobile`
 - Response: `401`: keys `message`, `201`: keys `message`, `500`: keys `message`
 
 ### GET /:id
+
 - Auth: `authorizeCognitoMobile`
 - Params: `id`
 - Controller: `CompanionController.getCompanionById`
 - Response: `400`: keys `message`, `404`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### PUT /:id
+
 - Auth: `authorizeCognitoMobile`
 - Params: `id`
 - Controller: `CompanionController.deleteCompanion`
 - Response: `400`: keys `message`, `204`: keys `message`, `500`: keys `message`
 
 ### POST /profile/presigned
+
 - Auth: `authorizeCognitoMobile`
 - Controller: `CompanionController.getProfileUploadUrl`
 - Response: `400`: keys `message`, `200`: JSON, `500`: keys `message`
 
 ### GET /org/search
+
 - Auth: `authorizeCognito`
 - RBAC: `requirePermission`
 - Query: `name`
@@ -36,6 +43,7 @@ slug: /apps/backend/api/companion
 - Response: `400`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### POST /org/:orgId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `orgId`
@@ -43,6 +51,7 @@ slug: /apps/backend/api/companion
 - Response: `400`: keys `message`, `401`: keys `message`, `404`: keys `message`, `201`: keys `message`, `500`: keys `message`
 
 ### GET /org/:id
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `id`
@@ -50,6 +59,7 @@ slug: /apps/backend/api/companion
 - Response: `400`: keys `message`, `404`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### PUT /org/:id
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `id`
@@ -57,6 +67,7 @@ slug: /apps/backend/api/companion
 - Response: `400`: keys `message`, `404`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### GET /pms/:parentId/:organisationId/list
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `parentId`, `organisationId`

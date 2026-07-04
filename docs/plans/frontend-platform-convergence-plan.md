@@ -6,7 +6,7 @@
 - Scope: `apps/frontend`, `apps/mobileAppYC`, `apps/dev-docs`, new shared workspace package(s)
 - Monorepo: `pnpm` workspace + `turbo`
 - Planning date: March 31, 2026
-- Intent: Build a production-grade, agent-friendly UI platform that standardizes the web design system, converges semantic tokens across web and mobile, introduces Storybook for the web app, and establishes accessibility and GxP-ready validation gates.
+- Intent: Build a production-grade, agent-friendly UI platform that standardizes the web design system, converges semantic tokens across web and mobile, introduces Storybook for the web app, and establishes accessibility and GxP-ready validation gates. (GxP is the umbrella term for the "Good x Practice" regulated-quality standards, such as Good Manufacturing/Clinical Practice, common in life-sciences software; here it is used as an engineering-controls target, not a certification claim.)
 
 ---
 
@@ -633,7 +633,7 @@ Use Storybook interaction coverage for:
 
 ### Testing role separation
 
-- Jest/RTL remains the canonical unit/integration test layer
+- Jest/RTL (React Testing Library) remains the canonical unit/integration test layer
 - Storybook is the discoverability and component workbench layer
 - Storybook interactions reinforce behavior and accessibility, not replace application tests
 

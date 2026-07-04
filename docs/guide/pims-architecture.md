@@ -1,47 +1,49 @@
-# Yosemite Crew — Veterinary PIMS: Complete Architecture & Implementation Guide
+# Yosemite Crew - Veterinary PIMS: Complete Architecture & Implementation Guide
 
-> **Status:** Living document — source of truth for all new module design  
+> **Status:** Living document - source of truth for all new module design  
 > **Last Updated:** 2026-05-18  
 > **Team:** 1 frontend engineer · 1 backend engineer · 1 designer  
 > **Stack:** Next.js · React Native · Node.js · PostgreSQL (Prisma) · pnpm workspaces · Turbo
+
+PIMS stands for Practice Information Management System: the software a veterinary clinic runs its day on (appointments, clinical records, billing, inventory). This document is the design blueprint for building out that system module by module; it describes the target design, so parts of it are forward-looking rather than a description of code that exists today. It is written for engineers picking up a module for the first time. For the real-time sync and notification pieces referenced throughout, see the related documents linked at the end. SOAP, used in Section 8 and after, is the standard clinical note format (Subjective, Objective, Assessment, Plan).
 
 ---
 
 ## Table of Contents
 
 1. [Vision & Core Principles](#1-vision--core-principles)
-2. [Database — PostgreSQL + Prisma](#2-database--postgresql--prisma)
+2. [Database - PostgreSQL + Prisma](#2-database--postgresql--prisma)
 3. [SuperTokens Auth Migration](#3-supertokens-auth-migration)
-4. [Quality Standards — SonarQube, CI, Accessibility](#4-quality-standards--sonarqube-ci-accessibility)
+4. [Quality Standards - SonarQube, CI, Accessibility](#4-quality-standards--sonarqube-ci-accessibility)
 5. [Species Model](#5-species-model)
 6. [Organization Model Redesign](#6-organization-model-redesign)
-7. [Appointment Module — Complete Redesign](#7-appointment-module--complete-redesign)
-8. [SOAP Module — New](#8-soap-module--new)
-9. [Vitals Module — New](#9-vitals-module--new)
-10. [Prescription & Drug Management — New](#10-prescription--drug-management--new)
-11. [Treatment Plan Module — New](#11-treatment-plan-module--new)
-12. [Services & Packages — Redesign](#12-services--packages--redesign)
-13. [Inventory Module — Deep Redesign](#13-inventory-module--deep-redesign)
-14. [Templates Module — New](#14-templates-module--new)
-15. [Finance / Billing — Agnostic Redesign](#15-finance--billing--agnostic-redesign)
-16. [Tasks Module — Improvements](#16-tasks-module--improvements)
-17. [In-Patient Module — New](#17-in-patient-module--new)
-18. [Discharge Module — New](#18-discharge-module--new)
-19. [Dental & Bone Charts — New](#19-dental--bone-charts--new)
-20. [Lab Integration — Agnostic Layer](#20-lab-integration--agnostic-layer)
-21. [Notification & Sync Bus — New](#21-notification--sync-bus--new)
+7. [Appointment Module - Complete Redesign](#7-appointment-module--complete-redesign)
+8. [SOAP Module - New](#8-soap-module--new)
+9. [Vitals Module - New](#9-vitals-module--new)
+10. [Prescription & Drug Management - New](#10-prescription--drug-management--new)
+11. [Treatment Plan Module - New](#11-treatment-plan-module--new)
+12. [Services & Packages - Redesign](#12-services--packages--redesign)
+13. [Inventory Module - Deep Redesign](#13-inventory-module--deep-redesign)
+14. [Templates Module - New](#14-templates-module--new)
+15. [Finance / Billing - Agnostic Redesign](#15-finance--billing--agnostic-redesign)
+16. [Tasks Module - Improvements](#16-tasks-module--improvements)
+17. [In-Patient Module - New](#17-in-patient-module--new)
+18. [Discharge Module - New](#18-discharge-module--new)
+19. [Dental & Bone Charts - New](#19-dental--bone-charts--new)
+20. [Lab Integration - Agnostic Layer](#20-lab-integration--agnostic-layer)
+21. [Notification & Sync Bus - New](#21-notification--sync-bus--new)
 22. [Documents Module Enhancement](#22-documents-module-enhancement)
 23. [Companion Profile Enhancement](#23-companion-profile-enhancement)
-24. [Triage System — New](#24-triage-system--new)
-25. [Refer Appointments — New](#25-refer-appointments--new)
-26. [Universal Search — New](#26-universal-search--new)
+24. [Triage System - New](#24-triage-system--new)
+25. [Refer Appointments - New](#25-refer-appointments--new)
+26. [Universal Search - New](#26-universal-search--new)
 27. [Audit Trail & Country Compliance](#27-audit-trail--country-compliance)
 28. [Reports & Data Export](#28-reports--data-export)
 29. [Developer Portal & Integration Marketplace](#29-developer-portal--integration-marketplace)
 30. [Payment Gateway Abstraction](#30-payment-gateway-abstraction)
 31. [AI Integration Framework](#31-ai-integration-framework)
-32. [Mobile App — New Screens & Offline-First](#32-mobile-app--new-screens--offline-first)
-33. [Frontend — New Screens & Components](#33-frontend--new-screens--components)
+32. [Mobile App - New Screens & Offline-First](#32-mobile-app--new-screens--offline-first)
+33. [Frontend - New Screens & Components](#33-frontend--new-screens--components)
 34. [Database Indexing Strategy (PostgreSQL)](#34-database-indexing-strategy-postgresql)
 35. [API Design Standards](#35-api-design-standards)
 36. [Security Checklist](#36-security-checklist)
@@ -53,9 +55,9 @@
 
 ### What We Are Building
 
-Yosemite Crew is the **world's first fully open-source, AI-native, multi-species veterinary PIMS** built as an infrastructure company. The developer portal is a first-class product — other companies build on our APIs.
+Yosemite Crew is the **world's first fully open-source, AI-native, multi-species veterinary PIMS** built as an infrastructure company. The developer portal is a first-class product - other companies build on our APIs.
 
-- **Open marketplace:** Developers plug in labs, payments, AI, telehealth via a standard interface. All integrations free — orgs supply their own API keys.
+- **Open marketplace:** Developers plug in labs, payments, AI, telehealth via a standard interface. All integrations free - orgs supply their own API keys.
 - **AI-native, not AI-bolted-on:** Ambient SOAP, decision support, and drug interaction checking wired into appointment flow from day one.
 - **Agnostic-everything:** Auth (SuperTokens), payments (IPaymentGateway), labs (ILabProvider), AI (IAIProvider), email (IMailer). No vendor lock-in.
 - **FHIR R4 + HL7 v2.5 compliant:** Every core entity maps to a FHIR resource. HL7 ADT/ORU/ORM messages exportable.
@@ -68,27 +70,27 @@ Yosemite Crew is the **world's first fully open-source, AI-native, multi-species
 | Principle         | Implementation                                                       |
 | ----------------- | -------------------------------------------------------------------- |
 | Agnostic auth     | SuperTokens (replaces Cognito + Firebase)                            |
-| Agnostic payments | `IPaymentGateway` interface — Stripe is one implementation           |
-| Agnostic labs     | `ILabProvider` interface — IDEXX, Antech, Zoetis are implementations |
-| Agnostic AI       | `IAIProvider` interface — Anthropic, OpenAI are implementations      |
-| Agnostic email    | `IMailer` interface — Plunk + nodemailer (replaces AWS SES)          |
+| Agnostic payments | `IPaymentGateway` interface - Stripe is one implementation           |
+| Agnostic labs     | `ILabProvider` interface - IDEXX, Antech, Zoetis are implementations |
+| Agnostic AI       | `IAIProvider` interface - Anthropic, OpenAI are implementations      |
+| Agnostic email    | `IMailer` interface - Plunk + nodemailer (replaces AWS SES)          |
 | FHIR-first        | All entities have FHIR converters in `/packages/fhir`                |
 | Data portability  | One-click full DB export, no fee, no notice period                   |
-| Open integrations | All integrations free — orgs supply their own API keys               |
+| Open integrations | All integrations free - orgs supply their own API keys               |
 | Accessibility     | WCAG 2.1 AA, jest-axe in CI, full ARIA patterns                      |
 | Code quality      | SonarQube highest gate on every PR, all three apps                   |
 
 ---
 
-## 2. Database — PostgreSQL + Prisma
+## 2. Database - PostgreSQL + Prisma
 
 ### Current Reality
 
 - **Primary database:** PostgreSQL via Prisma ORM (`@prisma/client@^5.22.0`)
-- **Schema file:** `apps/backend/prisma/schema.prisma` — 72 models, 50+ enums
+- **Schema file:** `apps/backend/prisma/schema.prisma` - 72 models, 50+ enums
 - **MongoDB:** Still present in codebase but bypassed with `READ_FROM_POSTGRES=true`. **Target: remove entirely after migration.**
 - **No Supabase:** PostgreSQL accessed directly. If hosting on Supabase, use the Supabase connection string in `DATABASE_URL`. No Supabase-specific SDK needed.
-- **BullMQ:** `bullmq@^5.65.1` — job queue for async processing (lab syncs, reminders, notifications)
+- **BullMQ:** `bullmq@^5.65.1` - job queue for async processing (lab syncs, reminders, notifications)
 
 ### Migration Plan (MongoDB → PostgreSQL)
 
@@ -120,15 +122,15 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 ### Existing Prisma Enums to Keep / Extend
 
 ```prisma
-// Species — KEEP as-is (matches companion.type in Mongoose)
+// Species - KEEP as-is (matches companion.type in Mongoose)
 enum CompanionType {
   dog
   cat
   horse
-  other   // covers ALL exotic/other — see Section 5
+  other   // covers ALL exotic/other - see Section 5
 }
 
-// Appointment status — REPLACE with expanded set (Section 7)
+// Appointment status - REPLACE with expanded set (Section 7)
 enum AppointmentStatus {
   REQUESTED
   UPCOMING        // → rename to CONFIRMED
@@ -140,7 +142,7 @@ enum AppointmentStatus {
   // ADD: TRIAGE_PENDING, ADMITTED, AWAITING_DISCHARGE, DISCHARGED, REFERRED
 }
 
-// Task kind — KEEP existing, ADD new
+// Task kind - KEEP existing, ADD new
 enum TaskKind {
   MEDICATION
   OBSERVATION_TOOL
@@ -150,14 +152,14 @@ enum TaskKind {
   // ADD: PROCEDURE, FOLLOW_UP, CONSENT, LAB_ORDER, VACCINATION, EXERCISE
 }
 
-// Task library species — KEEP
+// Task library species - KEEP
 enum TaskLibrarySpecies {
   dog
   cat
   horse
 }
 
-// Inventory business type — KEEP
+// Inventory business type - KEEP
 enum InventoryBusinessType {
   HOSPITAL
   GROOMING
@@ -179,11 +181,11 @@ AWS Cognito (web) and Firebase (mobile) are vendor lock-in. SuperTokens is open-
 
 - Web: `@aws-sdk/client-cognito-identity-provider@3.772.0` + JWT + JWKS
 - Mobile: `firebase-admin@^13.6.0` + custom mobile auth (`AuthUserMobile` model)
-- Permissions: `RolePermission` model with 7 roles (OWNER, ADMIN, SUPERVISOR, VETERINARIAN, TECHNICIAN, ASSISTANT, RECEPTIONIST) — **keep this structure**
+- Permissions: `RolePermission` model with 7 roles (OWNER, ADMIN, SUPERVISOR, VETERINARIAN, TECHNICIAN, ASSISTANT, RECEPTIONIST) - **keep this structure**
 
 ### Migration Steps
 
-**Step 1 — Parallel run middleware**
+**Step 1 - Parallel run middleware**
 
 ```typescript
 // apps/backend/src/middleware/authorize.ts
@@ -195,7 +197,7 @@ export function authorize() {
 }
 ```
 
-**Step 2 — User schema addition (Prisma migration)**
+**Step 2 - User schema addition (Prisma migration)**
 
 ```prisma
 model User {
@@ -206,7 +208,7 @@ model User {
 }
 ```
 
-**Step 3 — Session Claim: OrgContext**
+**Step 3 - Session Claim: OrgContext**
 
 ```typescript
 interface OrgSessionClaim {
@@ -223,10 +225,10 @@ interface OrgSessionClaim {
 }
 ```
 
-### RBAC — Existing 7 Roles (Keep, Map to SuperTokens)
+### RBAC - Existing 7 Roles (Keep, Map to SuperTokens)
 
 ```typescript
-// Existing permissions from role-permission.ts (sample — keep all)
+// Existing permissions from role-permission.ts (sample - keep all)
 export const ROLE_PERMISSIONS = {
   VETERINARIAN: [
     'appointments:view:any',
@@ -272,15 +274,15 @@ export const ROLE_PERMISSIONS = {
 
 ---
 
-## 4. Quality Standards — SonarQube, CI, Accessibility
+## 4. Quality Standards - SonarQube, CI, Accessibility
 
-### SonarQube (Already Configured — Maintain & Enforce)
+### SonarQube (Already Configured - Maintain & Enforce)
 
 Three projects configured:
 
-- `yosemitecrew_Yosemite-Crew_Backend` — `apps/backend/sonar-project.properties`
-- Frontend — `apps/frontend/sonar-project.properties`
-- Mobile — `apps/mobileAppYC/sonar-project.properties`
+- `yosemitecrew_Yosemite-Crew_Backend` - `apps/backend/sonar-project.properties`
+- Frontend - `apps/frontend/sonar-project.properties`
+- Mobile - `apps/mobileAppYC/sonar-project.properties`
 
 **Rules for all new code:**
 
@@ -297,13 +299,13 @@ Three projects configured:
 
 **Key patterns to follow (from existing `frontend-sonar` skill):**
 
-- No nested ternaries — use early returns or named variables
+- No nested ternaries - use early returns or named variables
 - No unused variables or imports
 - No `any` type in TypeScript
-- No `console.log` in production code — use logger
+- No `console.log` in production code - use logger
 - Extract magic numbers into named constants
 
-### CI/CD (13 Workflows — All Must Stay Green)
+### CI/CD (13 Workflows - All Must Stay Green)
 
 | Workflow                   | Purpose                           | Must pass on              |
 | -------------------------- | --------------------------------- | ------------------------- |
@@ -318,7 +320,7 @@ Three projects configured:
 | `secret-scan.yml`          | Secret detection                  | All PRs                   |
 | `pr-governance.yml`        | PR rules                          | All PRs                   |
 
-### Accessibility Standards (WCAG 2.1 AA — Non-Negotiable)
+### Accessibility Standards (WCAG 2.1 AA - Non-Negotiable)
 
 Every new component and page **must**:
 
@@ -364,7 +366,7 @@ Every new component and page **must**:
 
 // Pattern: data tables
 <table>
-  <caption>Appointment Queue — 18 May 2026</caption>
+  <caption>Appointment Queue - 18 May 2026</caption>
   <thead>
     <tr><th scope="col">Patient</th><th scope="col">Status</th></tr>
   </thead>
@@ -373,9 +375,9 @@ Every new component and page **must**:
   </tbody>
 </table>
 
-// Pattern: color — never use color alone to convey meaning
+// Pattern: color - never use color alone to convey meaning
 // Always pair color with text/icon
-<span className="text-red-600" aria-label="Emergency — P1">
+<span className="text-red-600" aria-label="Emergency - P1">
   <AlertIcon aria-hidden="true" /> P1 Emergency
 </span>
 ```
@@ -404,9 +406,9 @@ Based on the existing Prisma enum and companion model:
 
 ```prisma
 enum CompanionType {
-  dog     // Canine — all breeds
-  cat     // Feline — all breeds
-  horse   // Equine — horses, ponies, donkeys
+  dog     // Canine - all breeds
+  cat     // Feline - all breeds
+  horse   // Equine - horses, ponies, donkeys
   other   // Everything else: rabbit, bird, reptile, small mammals, etc.
 }
 ```
@@ -417,7 +419,7 @@ enum CompanionType {
 | -------------- | ------------------------ | ------------------------ | ------------------------ | ------------------------ |
 | Vital ranges   | ✓ Specific               | ✓ Specific               | ✓ Specific               | Generic defaults         |
 | Dental formula | ✓ (42 teeth)             | ✓ (30 teeth)             | ✓ (40-44 teeth)          | Free-text notes field    |
-| BCS scale      | 1–9 (WSAVA)              | 1–9 (WSAVA)              | 1–9 (Henneke)            | 1–9 generic              |
+| BCS scale      | 1-9 (WSAVA)              | 1-9 (WSAVA)              | 1-9 (Henneke)            | 1-9 generic              |
 | Drug dosing    | Weight-based per species | Weight-based per species | Weight-based per species | Weight-based generic     |
 | Task library   | ✓ Species-filtered       | ✓ Species-filtered       | ✓ Species-filtered       | Generic tasks            |
 | Code reference | IDEXX/SNOMED codes       | IDEXX/SNOMED codes       | IDEXX/SNOMED codes       | Free-text or custom code |
@@ -461,7 +463,7 @@ export const VITAL_RANGES = {
     gutSounds: { required: true }, // horses only
   },
   other: {
-    // Generic — show ranges as guidance only, vet must assess
+    // Generic - show ranges as guidance only, vet must assess
     temperatureCelsius: { min: 37.0, max: 41.0 },
     heartRateBpm: { min: 40, max: 300 },
     respRatePerMin: { min: 5, max: 60 },
@@ -475,16 +477,16 @@ export const VITAL_RANGES = {
 
 ### Current Issues
 
-- `stripeAccountId` embedded directly — breaks payment agnosticism
+- `stripeAccountId` embedded directly - breaks payment agnosticism
 - No currency lock enforcement (currency must be immutable after onboarding)
 - No country/regulatory configuration
-- `documensoApiKey` stored on org — should be in `IntegrationAccount` model
+- `documensoApiKey` stored on org - should be in `IntegrationAccount` model
 - No subscription tier, feature flags, or appointment config
 
 ### New Prisma Schema Addition
 
 ```prisma
-// ADD to schema.prisma — extends existing Organization model
+// ADD to schema.prisma - extends existing Organization model
 
 model Organization {
   // KEEP existing fields
@@ -570,7 +572,7 @@ enum MeasurementSystem {
 
 ---
 
-## 7. Appointment Module — Complete Redesign
+## 7. Appointment Module - Complete Redesign
 
 ### Current Status
 
@@ -776,7 +778,7 @@ model Appointment {
 
 ---
 
-## 8. SOAP Module — New
+## 8. SOAP Module - New
 
 SOAP lives in its own table linked to the appointment. **Structured by body system** (not free text) to enable AI pre-filling, inter-appointment comparison, and audit.
 
@@ -808,7 +810,7 @@ model AppointmentSOAP {
   //   aiConfidence?: number
   // }
 
-  // OBJECTIVE — structured by body system
+  // OBJECTIVE - structured by body system
   objective     Json
   // {
   //   vitalsId?: string,  // ref to AppointmentVitals
@@ -886,7 +888,7 @@ model AppointmentSOAP {
 
 ---
 
-## 9. Vitals Module — New
+## 9. Vitals Module - New
 
 ### Prisma Schema
 
@@ -916,7 +918,7 @@ model AppointmentVitals {
   muscleConditionScore Int?   // 1-4 (WSAVA)
 
   // Species-specific grimace / pain scales
-  // Canine Grimace Scale (CGS) — dog only: 0-2 per action unit, total 0-10
+  // Canine Grimace Scale (CGS) - dog only: 0-2 per action unit, total 0-10
   cgsOrbitalTightening  Int?   // 0=absent 1=moderate 2=obvious
   cgsCheekTightening    Int?
   cgsEarPosition        Int?   // 0=relaxed 1=partially 2=fully back/rotated
@@ -924,7 +926,7 @@ model AppointmentVitals {
   cgsHeadPosition       Int?   // 0=above withers 1=level 2=below withers
   cgsTotal              Int?   // computed: sum of 5 AUs (0-10)
 
-  // Feline Grimace Scale (FGS) — cat only: 0-2 per action unit, total 0-10
+  // Feline Grimace Scale (FGS) - cat only: 0-2 per action unit, total 0-10
   fgsOrbitalTightening  Int?
   fgsMuzzleContraction  Int?
   fgsWhiskerChange      Int?   // 0=relaxed/forward 1=slightly back 2=fully back/straightened
@@ -932,7 +934,7 @@ model AppointmentVitals {
   fgsHeadPosition       Int?   // 0=above shoulders 1=level 2=below shoulders or tilted
   fgsTotal              Int?   // computed: sum of 5 AUs (0-10)
 
-  // Equine Grimace Scale (EGS) — horse only: 0-2 per action unit, total 0-10
+  // Equine Grimace Scale (EGS) - horse only: 0-2 per action unit, total 0-10
   egsOrbitalTightening  Int?
   egsLoweredHeadPos     Int?
   egsEarPosition        Int?   // 0=forward/neutral 1=unilateral back 2=bilateral back/pinned
@@ -969,22 +971,22 @@ model AppointmentVitals {
 }
 ```
 
-### Grimace Scale — UI Behaviour
+### Grimace Scale - UI Behaviour
 
 The `painScaleUsed` field drives which input widget renders in the vitals form:
 
 | Value      | Species          | Widget                                                                                                               |
 | ---------- | ---------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `NRS`      | all              | Numeric slider 0–10 (general numeric rating scale)                                                                   |
+| `NRS`      | all              | Numeric slider 0-10 (general numeric rating scale)                                                                   |
 | `VAS`      | all              | Visual analogue scale bar                                                                                            |
-| `CMPS-SF`  | dog, cat         | Colorado/Glasgow Composite Pain Scale — Short Form; `painScore` stores the composite total                           |
-| `FLACC`    | all (non-verbal) | Face/Legs/Activity/Cry/Consolability; `painScore` stores total 0–10                                                  |
+| `CMPS-SF`  | dog, cat         | Colorado/Glasgow Composite Pain Scale - Short Form; `painScore` stores the composite total                           |
+| `FLACC`    | all (non-verbal) | Face/Legs/Activity/Cry/Consolability; `painScore` stores total 0-10                                                  |
 | `UNESP-II` | cat              | UNESP-Botucatu Multidimensional Composite Pain Scale                                                                 |
-| `CGS`      | dog              | Canine Grimace Scale — renders 5 AU sliders (0/1/2); stores per-AU scores in `cgs*` fields; `cgsTotal` auto-computed |
-| `FGS`      | cat              | Feline Grimace Scale — renders 5 AU sliders; stores per-AU scores in `fgs*` fields; `fgsTotal` auto-computed         |
-| `EGS`      | horse            | Equine Grimace Scale — renders 5 AU sliders; stores per-AU scores in `egs*` fields; `egsTotal` auto-computed         |
+| `CGS`      | dog              | Canine Grimace Scale - renders 5 AU sliders (0/1/2); stores per-AU scores in `cgs*` fields; `cgsTotal` auto-computed |
+| `FGS`      | cat              | Feline Grimace Scale - renders 5 AU sliders; stores per-AU scores in `fgs*` fields; `fgsTotal` auto-computed         |
+| `EGS`      | horse            | Equine Grimace Scale - renders 5 AU sliders; stores per-AU scores in `egs*` fields; `egsTotal` auto-computed         |
 
-**Frontend rule:** show only the grimace scale appropriate for the appointment companion's species. The per-AU fields for the other two scales are left null. `painScore` (0–10 normalised) is always populated regardless of scale used — it is the canonical field used for alerts, trends, and AI flags.
+**Frontend rule:** show only the grimace scale appropriate for the appointment companion's species. The per-AU fields for the other two scales are left null. `painScore` (0-10 normalised) is always populated regardless of scale used - it is the canonical field used for alerts, trends, and AI flags.
 
 **Reference photo sets:** YC ships a static asset pack of CGS/FGS/EGS reference photos (Creative Commons licensed from published studies) shown alongside each AU slider so staff can calibrate scores without leaving the form.
 
@@ -996,7 +998,7 @@ Vital recording during in-patient care is a billable nursing service in many pra
 // Example service record for vital monitoring
 // type = INPATIENT_SERVICE, linked to OBSERVATION_TOOL task kind
 {
-  name: "Vital Signs Monitoring — per shift",
+  name: "Vital Signs Monitoring - per shift",
   type: INPATIENT_SERVICE,
   aahaCode: "3200",          // AAHA: Nursing Care
   basePriceCents: 1500,      // practice-configurable
@@ -1027,7 +1029,7 @@ Vital recording during in-patient care is a billable nursing service in many pra
 
 ---
 
-## 10. Prescription & Drug Management — New
+## 10. Prescription & Drug Management - New
 
 ### Inventory vs Prescription Relationship
 
@@ -1070,7 +1072,7 @@ model Prescription {
   // {
   //   // Drug identification
   //   inventoryItemId?: string,   // links to InventoryItem if dispensed from stock
-  //   genericName: string,        // mandatory — e.g. "Amoxicillin"
+  //   genericName: string,        // mandatory - e.g. "Amoxicillin"
   //   brandName?: string,         // e.g. "Clavamox"
   //   manufacturer?: string,
   //   formulation: string,        // "Tablet" | "Capsule" | "Liquid" | "Injectable" | "Topical" | "Ear Drops" | "Eye Drops"
@@ -1186,7 +1188,7 @@ model ControlledSubstanceLog {
 
 ```typescript
 // apps/backend/src/services/drug-interaction.service.ts
-// openFDA API + RxNorm API — both free, no API key needed
+// openFDA API + RxNorm API - both free, no API key needed
 
 interface IDrugInteractionProvider {
   checkInteractions(genericNames: string[]): Promise<{
@@ -1226,7 +1228,7 @@ interface IDrugInteractionProvider {
 
 ---
 
-## 11. Treatment Plan Module — New
+## 11. Treatment Plan Module - New
 
 ### Schema
 
@@ -1303,7 +1305,7 @@ model TreatmentPlan {
 
 ---
 
-## 12. Services & Packages — Redesign
+## 12. Services & Packages - Redesign
 
 ### Current Model Problems
 
@@ -1409,7 +1411,7 @@ model Service {
 
 ---
 
-## 13. Inventory Module — Deep Redesign
+## 13. Inventory Module - Deep Redesign
 
 ### Current Model Assessment
 
@@ -1428,14 +1430,14 @@ The `category` field on `InventoryItem` drives the form and schema shown to user
 | `Food / Diet` | Prescription Diet, Regular, Supplement                                                                       | Species, life stage                                                                                                                                 |
 | `Retail`      | Flea/Tick Prevention, Shampoo, Toys, Collars, Other                                                          | Barcode, supplier product code                                                                                                                      |
 
-### Medicine Category — Deep Schema
+### Medicine Category - Deep Schema
 
 This is the most important for a PIMS. The `attributes` JSON for `category = 'Medicine'`:
 
 ```typescript
 interface MedicineAttributes {
   // Drug identity
-  genericName: string; // MANDATORY — e.g. "Amoxicillin Trihydrate"
+  genericName: string; // MANDATORY - e.g. "Amoxicillin Trihydrate"
   brandName?: string; // e.g. "Clavamox", "Synulox"
   manufacturer?: string; // e.g. "Zoetis", "Elanco"
   distributor?: string;
@@ -1489,9 +1491,9 @@ interface MedicineAttributes {
 
   // Species restrictions
   speciesContraindicated?: ('dog' | 'cat' | 'horse' | 'other')[];
-  speciesNotes?: string; // e.g. "Do not use in cats — hepatotoxic"
+  speciesNotes?: string; // e.g. "Do not use in cats - hepatotoxic"
 
-  // Standard dosing guidance (not a prescription — just reference)
+  // Standard dosing guidance (not a prescription - just reference)
   dosageGuidance?: string; // e.g. "5-20 mg/kg BID PO"
 
   // Dispensing unit
@@ -1502,7 +1504,7 @@ interface MedicineAttributes {
 
 ### Updated Prisma InventoryItem (with category-driven attributes)
 
-The existing Prisma model is correct — `attributes Json @default("{}")` stores the above. What changes:
+The existing Prisma model is correct - `attributes Json @default("{}")` stores the above. What changes:
 
 1. **Add `category` as an enum** (not free text) for type safety
 2. **Add medicine-specific indexed fields** for querying controlled substances
@@ -1530,7 +1532,7 @@ model InventoryItem {
 }
 ```
 
-### Stock Movement — Enhanced Reasons
+### Stock Movement - Enhanced Reasons
 
 ```prisma
 enum StockMovementReason {
@@ -1568,7 +1570,7 @@ model InventoryStockMovement {
 }
 ```
 
-### Inventory API — Separation
+### Inventory API - Separation
 
 | Method | Path                                  | Description                                        |
 | ------ | ------------------------------------- | -------------------------------------------------- |
@@ -1589,7 +1591,7 @@ model InventoryStockMovement {
 
 ---
 
-## 14. Templates Module — New
+## 14. Templates Module - New
 
 ### Template Types
 
@@ -1665,11 +1667,11 @@ model Template {
 
 ---
 
-## 15. Finance / Billing — Agnostic Redesign
+## 15. Finance / Billing - Agnostic Redesign
 
 ### Core Changes from Current Implementation
 
-1. Remove all `stripe*` fields from Invoice — move to `payments[]` array
+1. Remove all `stripe*` fields from Invoice - move to `payments[]` array
 2. Combined invoice: one invoice per appointment (not multiple)
 3. Partial payments, cash, offline supported
 4. Security deposit as first-class workflow
@@ -1860,7 +1862,7 @@ export const AAHA_COA = {
 
 ---
 
-## 16. Tasks Module — Improvements
+## 16. Tasks Module - Improvements
 
 ### Current State
 
@@ -1871,14 +1873,14 @@ Existing `Task` model is good. The `TaskKind` enum has: `MEDICATION | OBSERVATIO
 ```prisma
 // Extend TaskKind enum
 enum TaskKind {
-  // — existing —
+  // - existing -
   MEDICATION        // administer a drug (links to Prescription or TreatmentPlanItem)
   OBSERVATION_TOOL  // use a clinical OT: grimace scale (CGS/FGS/EGS), dental index, BCS wheel
   HYGIENE           // wound care, ear clean, anal gland expression, bandage change
   DIET              // feeding instruction (type, amount, frequency)
   CUSTOM            // free-text task, no structured linkage
 
-  // — ADD —
+  // - ADD -
   VITALS_RECORDING  // opens AppointmentVitals form on completion; links to vital recording service
   PROCEDURE         // surgical or diagnostic procedure (links to TreatmentPlanItem.serviceId)
   FOLLOW_UP         // re-evaluation by vet; can auto-create a child appointment
@@ -1906,15 +1908,15 @@ enum TaskKind {
 | `EXERCISE`         | Session complete   | Duration + type logged                                                                        |
 | `CUSTOM`           | Staff marks done   | No auto side-effects                                                                          |
 
-### Observation Tool (OT) — Grimace Scale Detail
+### Observation Tool (OT) - Grimace Scale Detail
 
 OTs of `OBSERVATION_TOOL` kind are pre-configured tools that map to structured assessment widgets. The three grimace scales are first-class OTs:
 
 | OT Slug  | Species | Scale                              | Fields Populated                                                                                                      |
 | -------- | ------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `ot-cgs` | dog     | Canine Grimace Scale (5 AUs × 0–2) | `cgsOrbitalTightening`, `cgsCheekTightening`, `cgsEarPosition`, `cgsMuzzleContraction`, `cgsHeadPosition`, `cgsTotal` |
-| `ot-fgs` | cat     | Feline Grimace Scale (5 AUs × 0–2) | `fgsOrbitalTightening`, `fgsMuzzleContraction`, `fgsWhiskerChange`, `fgsEarPosition`, `fgsHeadPosition`, `fgsTotal`   |
-| `ot-egs` | horse   | Equine Grimace Scale (5 AUs × 0–2) | `egsOrbitalTightening`, `egsLoweredHeadPos`, `egsEarPosition`, `egsAnkleMuscle`, `egsNostrilMouth`, `egsTotal`        |
+| `ot-cgs` | dog     | Canine Grimace Scale (5 AUs × 0-2) | `cgsOrbitalTightening`, `cgsCheekTightening`, `cgsEarPosition`, `cgsMuzzleContraction`, `cgsHeadPosition`, `cgsTotal` |
+| `ot-fgs` | cat     | Feline Grimace Scale (5 AUs × 0-2) | `fgsOrbitalTightening`, `fgsMuzzleContraction`, `fgsWhiskerChange`, `fgsEarPosition`, `fgsHeadPosition`, `fgsTotal`   |
+| `ot-egs` | horse   | Equine Grimace Scale (5 AUs × 0-2) | `egsOrbitalTightening`, `egsLoweredHeadPos`, `egsEarPosition`, `egsAnkleMuscle`, `egsNostrilMouth`, `egsTotal`        |
 
 When a task with `kind=OBSERVATION_TOOL` is linked to one of these OT slugs, completing the task:
 
@@ -1927,7 +1929,7 @@ When a task with `kind=OBSERVATION_TOOL` is linked to one of these OT slugs, com
 
 ```prisma
 model Task {
-  // existing fields — keep all
+  // existing fields - keep all
   // ADD:
   priority      TaskPriority  @default(MEDIUM)
   dueAt         DateTime      // already exists, confirm
@@ -1951,7 +1953,7 @@ enum TaskPriority {
 
 ---
 
-## 17. In-Patient Module — New
+## 17. In-Patient Module - New
 
 ### Ward Management
 
@@ -2012,7 +2014,7 @@ model DailyRound {
 
 ---
 
-## 18. Discharge Module — New
+## 18. Discharge Module - New
 
 ```prisma
 enum DischargeStatus {
@@ -2078,7 +2080,7 @@ model Discharge {
 
 ---
 
-## 19. Dental & Bone Charts — New
+## 19. Dental & Bone Charts - New
 
 ### Species → Dental Formula
 
@@ -2086,16 +2088,16 @@ model Discharge {
 | ------- | ------------------------- | ----------- |
 | dog     | 2×(I3/3 C1/1 P4/4 M2/3)   | 42          |
 | cat     | 2×(I3/3 C1/1 P3/2 M1/1)   | 30          |
-| horse   | 2×(I3/3 C1/1 P3-4/3 M3/3) | 40–44       |
+| horse   | 2×(I3/3 C1/1 P3-4/3 M3/3) | 40-44       |
 | other   | Free-text notes           | N/A         |
 
 ### Triadan Notation (Animals)
 
 ```
-Quadrant 1 = Upper Right (101–111)
-Quadrant 2 = Upper Left  (201–211)
-Quadrant 3 = Lower Left  (301–311)
-Quadrant 4 = Lower Right (401–411)
+Quadrant 1 = Upper Right (101-111)
+Quadrant 2 = Upper Left  (201-211)
+Quadrant 3 = Lower Left  (301-311)
+Quadrant 4 = Lower Right (401-411)
 ```
 
 ### Prisma Schema
@@ -2177,12 +2179,12 @@ Bone Chart   : status IN [IN_PROGRESS, AWAITING_DISCHARGE]
 Vitals       : status IN [CHECKED_IN, TRIAGE_PENDING, IN_PROGRESS, ADMITTED]
 Chat         : always
 Activity     : always
-MSD (Medical Side Drawer) : always — shows: latest vitals, allergies, active meds, diagnoses
+MSD (Medical Side Drawer) : always - shows: latest vitals, allergies, active meds, diagnoses
 ```
 
 ---
 
-## 20. Lab Integration — Agnostic Layer
+## 20. Lab Integration - Agnostic Layer
 
 ### ILabProvider Interface
 
@@ -2230,16 +2232,16 @@ No separate invoice for labs. The lab service has a `serviceId` on the `LabOrder
 
 ---
 
-## 21. Notification & Sync Bus — New
+## 21. Notification & Sync Bus - New
 
 ### Architecture
 
 ```
-Event Bus (BullMQ — already installed)
+Event Bus (BullMQ - already installed)
     ↓
 NotificationRouter
     ├── In-app WebSocket (Socket.IO)
-    ├── Push (FCM — existing)
+    ├── Push (FCM - existing)
     ├── Email (Plunk / SMTP via IMailer)
     └── SMS (future)
 ```
@@ -2327,12 +2329,12 @@ org/{orgId}/general/{subcategory}/{filename}
 
 ```prisma
 model Companion {
-  // existing fields — keep all
+  // existing fields - keep all
   // ADD:
   speciesLabel      String?    // free text for type='other' e.g. "Holland Lop Rabbit"
   insuranceProvider String?    // denormalized from insurance JSON for quick display
   emergencyContact  String?    // owner's emergency contact (or vet on call)
-  bloodGroup        String?    // already exists in Mongoose — add to Prisma
+  bloodGroup        String?    // already exists in Mongoose - add to Prisma
 
   // QR / ID card
   qrCodeUrl         String?    // generated QR code image URL
@@ -2366,8 +2368,8 @@ Front:
   DOB: 14 Mar 2020 | Sex: Male
   Microchip: 981000012345678
   Vaccinations:
-    Rabies — due Jan 2027
-    DA2PP — due Mar 2027
+    Rabies - due Jan 2027
+    DA2PP - due Mar 2027
   Blood Group: DEA 1.1+
   Allergies: Penicillin
 
@@ -2383,7 +2385,7 @@ Back:
 
 ---
 
-## 24. Triage System — New
+## 24. Triage System - New
 
 ### Levels (Manchester Triage adapted for Veterinary)
 
@@ -2421,7 +2423,7 @@ GET /fhir/v1/appointments/triage-queue
 
 ---
 
-## 25. Refer Appointments — New
+## 25. Refer Appointments - New
 
 ```prisma
 enum ReferralStatus {
@@ -2478,7 +2480,7 @@ model Referral {
 
 ---
 
-## 26. Universal Search — New
+## 26. Universal Search - New
 
 ```typescript
 // PostgreSQL full-text search via Prisma raw queries + tsvector
@@ -2524,12 +2526,12 @@ CREATE INDEX parent_search_idx ON "Parent" USING GIN(search_vector);
 
 ## 27. Audit Trail & Country Compliance
 
-### Enhanced AuditTrail (existing model — extend)
+### Enhanced AuditTrail (existing model - extend)
 
 ```prisma
-// Existing model — add fields:
+// Existing model - add fields:
 model AuditTrail {
-  // existing fields — keep
+  // existing fields - keep
   // ADD:
   ipAddress      String?
   userAgent      String?
@@ -2698,7 +2700,7 @@ Already defined in Section 15. Summary:
 ```typescript
 // Stripe: apps/backend/src/payment-gateways/stripe.gateway.ts
 class StripeGateway implements IPaymentGateway {
-  // wraps existing stripe.service.ts — remove direct Stripe calls from invoice service
+  // wraps existing stripe.service.ts - remove direct Stripe calls from invoice service
 }
 
 // Gateway selected via:
@@ -2781,7 +2783,7 @@ model AIAuditLog {
 
 ---
 
-## 32. Mobile App — New Screens & Offline-First
+## 32. Mobile App - New Screens & Offline-First
 
 ### Offline-First Architecture
 
@@ -2814,13 +2816,13 @@ Backend API
 
 ---
 
-## 33. Frontend — New Screens & Components
+## 33. Frontend - New Screens & Components
 
 ### New Pages
 
 | Route                              | Component                | Description                             |
 | ---------------------------------- | ------------------------ | --------------------------------------- |
-| `/appointments/board`              | `AppointmentBoard`       | Kanban — hide/show columns, bulk status |
+| `/appointments/board`              | `AppointmentBoard`       | Kanban - hide/show columns, bulk status |
 | `/appointments/triage`             | `TriageQueue`            | Real-time triage queue, colour-coded    |
 | `/appointments/inpatient`          | `InPatientCalendar`      | Separate calendar for admitted patients |
 | `/appointments/:id/soap`           | `SOAPEntry`              | Structured SOAP form                    |
@@ -2995,24 +2997,24 @@ interface APIResponse<T> {
 
 ## 37. Phased Implementation Roadmap
 
-### Phase 1 — Core Clinical PIMS (Weeks 1–8)
+### Phase 1 - Core Clinical PIMS (Weeks 1-8)
 
 | Week | Backend                                                                        | Frontend                                            | Mobile                  |
 | ---- | ------------------------------------------------------------------------------ | --------------------------------------------------- | ----------------------- |
-| 1–2  | SuperTokens migration + Org model redesign                                     | Auth migration UI                                   | Auth migration          |
-| 3–4  | Appointment model rewrite + status machine                                     | Appointment board, status transitions, triage queue | Appointment status sync |
-| 5–6  | SOAP + Vitals + AppointmentClinicalFlags Prisma migrations + APIs              | SOAP entry, Vitals form (species-aware)             | Vitals entry (vet)      |
-| 7–8  | In-Patient (Ward, DailyRound), Discharge, DentalChart, BoneChart Prisma + APIs | In-patient calendar, discharge form, dental chart   | Triage queue view       |
+| 1-2  | SuperTokens migration + Org model redesign                                     | Auth migration UI                                   | Auth migration          |
+| 3-4  | Appointment model rewrite + status machine                                     | Appointment board, status transitions, triage queue | Appointment status sync |
+| 5-6  | SOAP + Vitals + AppointmentClinicalFlags Prisma migrations + APIs              | SOAP entry, Vitals form (species-aware)             | Vitals entry (vet)      |
+| 7-8  | In-Patient (Ward, DailyRound), Discharge, DentalChart, BoneChart Prisma + APIs | In-patient calendar, discharge form, dental chart   | Triage queue view       |
 
-### Phase 2 — Prescription, Finance & Templates (Weeks 9–14)
+### Phase 2 - Prescription, Finance & Templates (Weeks 9-14)
 
 | Week  | Backend                                                                            | Frontend                                                   |
 | ----- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 9–10  | Prescription + ControlledSubstanceLog Prisma + APIs; drug interaction service      | Prescription builder, controlled substance log             |
-| 11–12 | IPaymentGateway layer, Invoice redesign (agnostic)                                 | Invoice builder, payment collection, deposit workflow      |
-| 13–14 | Templates module (SOAP, Discharge, Task), Services package redesign, TreatmentPlan | Template library, treatment plan builder, service packages |
+| 9-10  | Prescription + ControlledSubstanceLog Prisma + APIs; drug interaction service      | Prescription builder, controlled substance log             |
+| 11-12 | IPaymentGateway layer, Invoice redesign (agnostic)                                 | Invoice builder, payment collection, deposit workflow      |
+| 13-14 | Templates module (SOAP, Discharge, Task), Services package redesign, TreatmentPlan | Template library, treatment plan builder, service packages |
 
-### Phase 3 — Inventory Deep, Labs & Notifications (Weeks 15–18)
+### Phase 3 - Inventory Deep, Labs & Notifications (Weeks 15-18)
 
 | Week | Backend                                                                          | Frontend                                           |
 | ---- | -------------------------------------------------------------------------------- | -------------------------------------------------- |
@@ -3021,15 +3023,15 @@ interface APIResponse<T> {
 | 17   | Lab agnostic layer (ILabProvider refactor), DICOM stub                           | Lab orders page, results viewer                    |
 | 18   | WebSocket sync bus (Socket.IO + BullMQ), Plunk email migration                   | Real-time status board, notification centre        |
 
-### Phase 4 — Developer Portal & AI (Weeks 19–24)
+### Phase 4 - Developer Portal & AI (Weeks 19-24)
 
 | Week  | Backend                                                                                  | Frontend                                         |
 | ----- | ---------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| 19–20 | API key management, webhook subscriptions, rate limiting per key                         | Developer portal, API key management             |
-| 21–22 | IntegrationDefinition registry, IntegrationAccount encrypted credentials                 | Marketplace UI, integration activation           |
-| 23–24 | IAIProvider framework, Anthropic Claude integration, AIAuditLog, drug interaction widget | AI scribe button on SOAP, drug interaction panel |
+| 19-20 | API key management, webhook subscriptions, rate limiting per key                         | Developer portal, API key management             |
+| 21-22 | IntegrationDefinition registry, IntegrationAccount encrypted credentials                 | Marketplace UI, integration activation           |
+| 23-24 | IAIProvider framework, Anthropic Claude integration, AIAuditLog, drug interaction widget | AI scribe button on SOAP, drug interaction panel |
 
-### Phase 5 — Mobile Enhancement & QR/Wallet (Weeks 25–28)
+### Phase 5 - Mobile Enhancement & QR/Wallet (Weeks 25-28)
 
 - Offline-first sync manager (MMKV + SyncQueue)
 - Dental chart view (read-only, mobile)
@@ -3044,6 +3046,6 @@ _This document is the single source of truth for all new module design. All Pris
 
 _Related documents:_
 
-- _[realtime-backend.md](realtime-backend.md) — WebSocket implementation detail_
-- _[NOTIFICATION_SETUP_GUIDE.md](NOTIFICATION_SETUP_GUIDE.md) — Push notification setup_
-- _[POSTHOG_ANALYTICS_MIGRATION.md](POSTHOG_ANALYTICS_MIGRATION.md) — Analytics migration_
+- _[realtime-backend.md](realtime-backend.md) - WebSocket implementation detail_
+- _[NOTIFICATION_SETUP_GUIDE.md](NOTIFICATION_SETUP_GUIDE.md) - Push notification setup_
+- _[POSTHOG_ANALYTICS_MIGRATION.md](POSTHOG_ANALYTICS_MIGRATION.md) - Analytics migration_

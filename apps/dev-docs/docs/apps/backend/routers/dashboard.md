@@ -4,9 +4,12 @@ title: Dashboard API
 slug: /apps/backend/api/dashboard
 ---
 
+Read-only analytics endpoints (summary, appointment and revenue trends, leaderboards, inventory turnover) for an organisation's dashboard. Called by the PMS (Practice Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
+
 **Endpoints**
 
 ### GET /summary/:organisationId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
@@ -15,6 +18,7 @@ slug: /apps/backend/api/dashboard
 - Response: `500`: keys `message`
 
 ### GET /appointments/:organisationId/trend
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
@@ -23,6 +27,7 @@ slug: /apps/backend/api/dashboard
 - Response: `500`: keys `message`
 
 ### GET /revenue/:organisationId/trend
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
@@ -31,6 +36,7 @@ slug: /apps/backend/api/dashboard
 - Response: `500`: keys `message`
 
 ### GET /appointment-leaders/:organisationId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
@@ -39,6 +45,7 @@ slug: /apps/backend/api/dashboard
 - Response: `500`: keys `message`
 
 ### GET /revenue-leaders/:organisationId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
@@ -47,6 +54,7 @@ slug: /apps/backend/api/dashboard
 - Response: `500`: keys `message`
 
 ### GET /inventory/:organisationId/turnover
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
@@ -55,6 +63,7 @@ slug: /apps/backend/api/dashboard
 - Response: `500`: keys `message`
 
 ### GET /inventory/:organisationId/products
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`

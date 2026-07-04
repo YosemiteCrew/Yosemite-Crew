@@ -287,7 +287,7 @@ export const getAppointmentChannel = async (
 
 ### 3. End/Close Chat Channel
 
-**Purpose**: Manually close a chat channel (called by PMS when appointment ends)
+**Purpose**: Manually close a chat channel (called by the practice management system, or PMS, when an appointment ends)
 
 **Endpoint**:
 

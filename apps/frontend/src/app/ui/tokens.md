@@ -2,6 +2,7 @@
 
 Primary source of tokens is `src/app/globals.css` under the `@theme` block.
 Shared semantic token definitions live in `packages/design-tokens/src/`.
+For the shared UI overview see [`README.md`](./README.md); for the full component list and status labels see [`INVENTORY.md`](./INVENTORY.md).
 
 ## Typography
 

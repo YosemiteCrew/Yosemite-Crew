@@ -4,15 +4,19 @@ title: Organisation Room API
 slug: /apps/backend/api/organisation-room
 ---
 
+CRUD endpoints for an organisation's rooms (for example consultation or treatment rooms). Called by the PMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
+
 **Endpoints**
 
 ### POST /
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Controller: `OrganisationRoomController.create`
 - Response: `400`: keys `message`, `500`: keys `message`
 
 ### PUT /:id
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `id`
@@ -20,6 +24,7 @@ slug: /apps/backend/api/organisation-room
 - Response: `400`: keys `message`, `404`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### GET /organization/:organizationId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organizationId`
@@ -27,6 +32,7 @@ slug: /apps/backend/api/organisation-room
 - Response: `400`: keys `message`, `200`: keys `message`, `500`: keys `message`
 
 ### DELETE /:id
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `id`

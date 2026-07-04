@@ -186,6 +186,7 @@ If the commit reverts a previous commit, it should begin with `revert: `, follow
 
 Must be one of the following:
 
+- **build**: Changes that affect the build system or external dependencies
 - **chore**: Changes to the build process or auxiliary tools and libraries such as documentation generation
 - **ci**: Changes to our CI configuration files and scripts (example scopes: Travis, SauceLabs)
 - **docs**: Documentation only changes
@@ -193,6 +194,7 @@ Must be one of the following:
 - **fix**: A bug fix
 - **perf**: A code change that improves performance
 - **refactor**: A code change that neither fixes a bug nor adds a feature
+- **revert**: Reverts a previous commit (see the Revert section above)
 - **style**: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
 - **test**: Adding missing tests or correcting existing tests
 
@@ -200,10 +202,21 @@ Must be one of the following:
 
 The scope should be the name of the project or workspace package affected (as perceived by person reading changelog generated from commit messages.
 
-The following is the list of supported scopes:
+The following is the list of supported scopes (enforced by `commitlint.config.cjs`):
 
-- **website**
-- **api**
+- **backend**
+- **frontend**
+- **mobile**
+- **desktop**
+- **dev-docs**
+- **types**
+- **fhir**
+- **repo**
+- **ci**
+- **docs**
+- **lib**
+- **auth**
+- **database**
 
 ### Subject
 

@@ -1,5 +1,9 @@
 # Mobile Currency Modernization Guide
 
+> Status: not started as of this revision. The "Current Mobile State" section below still matches the tree: `apps/mobileAppYC/src/shared/utils/currency.ts` still defines `CurrencyCode = 'EUR' | 'USD'` with an "Only supports EUR and USD" comment and no `GBP`. Read this as the target design for the `apps/mobileAppYC` currency work, not shipped work.
+
+This guide is for a mobile engineer working in `apps/mobileAppYC`. It depends on the backend currency contract in [currency-backend-stripe-implementation-guide.md](currency-backend-stripe-implementation-guide.md); the web equivalent is [currency-frontend-web-implementation-guide.md](currency-frontend-web-implementation-guide.md).
+
 ## Objective
 
 Upgrade `apps/mobileAppYC` from its current partial `EUR/USD` support to a production-grade `EUR/USD/GBP` currency system aligned with backend truth and web behavior.

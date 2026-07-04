@@ -4,9 +4,9 @@ Last updated: 2026-05-06
 
 ## Purpose
 
-This document is the working handoff for bringing `apps/frontend` to production-grade accessibility for Germany and the EU market.
+This document is the working handoff for bringing `apps/frontend` to production-grade accessibility for Germany and the EU market. BFSG (Barrierefreiheitsstaerkungsgesetz) is Germany's accessibility act; WCAG (Web Content Accessibility Guidelines) is the W3C standard it points to.
 
-It is written for future agents and engineers who will implement the work in batches without losing legal context, technical rigor, or audit traceability.
+It is written for future agents and engineers who will implement the work in batches without losing legal context, technical rigor, or audit traceability. The batch-by-batch progress log lives in [frontend-bfsg-execution-checklist.md](./frontend-bfsg-execution-checklist.md).
 
 This is not legal advice. It is an engineering compliance plan based on:
 

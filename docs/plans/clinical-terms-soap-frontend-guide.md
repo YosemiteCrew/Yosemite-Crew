@@ -1,5 +1,9 @@
 # Clinical Terms SOAP Frontend Guide
 
+> Status: backend done, frontend not started as of this revision. The suggestion endpoints exist (`GET /v1/codes/terms/suggest` for PMS and `/v1/codes/mobile/terms/suggest` for mobile, in `apps/backend/src/routers/code.router.ts`), but the frontend pieces this guide asks for (`TerminologyTextarea`, `clinicalTermsService`, and `terminology` field metadata in `forms.ts`) do not yet exist in `apps/frontend/src`.
+
+SOAP stands for Subjective, Objective, Assessment, Plan: the standard structure clinicians use to record a patient encounter. This guide is for a frontend engineer working in `apps/frontend`; the companion backend work is already in place.
+
 ## Objective
 
 Integrate backend clinical-term suggestions into the existing SOAP form experience so vets get inline autocomplete while typing, without replacing free-text SOAP note entry.
@@ -66,12 +70,12 @@ GET /v1/codes/terms/suggest?q=xray&domain=DiagnosticTest&species=SA
 
 SOAP textareas are currently rendered through:
 
-1. [TextRenderer.tsx](/Users/harshvardhan/github/Yosemite-Crew/apps/frontend/src/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer.tsx)
-2. [FormDesc.tsx](/Users/harshvardhan/github/Yosemite-Crew/apps/frontend/src/app/ui/inputs/FormDesc/FormDesc.tsx)
+1. `apps/frontend/src/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer.tsx`
+2. `apps/frontend/src/app/ui/inputs/FormDesc/FormDesc.tsx`
 
 SOAP form templates currently live in:
 
-1. [forms.ts](/Users/harshvardhan/github/Yosemite-Crew/apps/frontend/src/app/features/forms/types/forms.ts)
+1. `apps/frontend/src/app/features/forms/types/forms.ts`
 
 This is the correct integration point. Do not build a second SOAP UI outside the form engine.
 
@@ -83,7 +87,7 @@ Create a dedicated wrapper around the existing textarea instead of modifying eve
 
 Suggested file:
 
-1. `/Users/harshvardhan/github/Yosemite-Crew/apps/frontend/src/app/features/forms/components/TerminologyTextarea.tsx`
+1. `apps/frontend/src/app/features/forms/components/TerminologyTextarea.tsx`
 
 Responsibilities:
 
@@ -98,7 +102,7 @@ Responsibilities:
 
 Suggested file:
 
-1. `/Users/harshvardhan/github/Yosemite-Crew/apps/frontend/src/app/features/forms/services/clinicalTermsService.ts`
+1. `apps/frontend/src/app/features/forms/services/clinicalTermsService.ts`
 
 Suggested API:
 
@@ -139,7 +143,7 @@ meta: {
 }
 ```
 
-Example fields in [forms.ts](/Users/harshvardhan/github/Yosemite-Crew/apps/frontend/src/app/features/forms/types/forms.ts):
+Example fields in `apps/frontend/src/app/features/forms/types/forms.ts`:
 
 ```ts
 {
@@ -170,7 +174,7 @@ Suggested first-pass mapping:
 
 ## Rendering strategy
 
-Update [TextRenderer.tsx](/Users/harshvardhan/github/Yosemite-Crew/apps/frontend/src/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer.tsx) to switch on field metadata:
+Update `apps/frontend/src/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer.tsx` to switch on field metadata:
 
 1. if `field.meta?.terminology?.enabled !== true`, keep current `FormDesc`
 2. if enabled, render `TerminologyTextarea`
@@ -246,8 +250,8 @@ If the appointment has no companion species context, call the endpoint without `
 
 1. Create `clinicalTermsService.ts`
 2. Create `TerminologyTextarea.tsx`
-3. Add `terminology` metadata to targeted SOAP fields in [forms.ts](/Users/harshvardhan/github/Yosemite-Crew/apps/frontend/src/app/features/forms/types/forms.ts)
-4. Update [TextRenderer.tsx](/Users/harshvardhan/github/Yosemite-Crew/apps/frontend/src/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer.tsx) to route enabled fields through the new component
+3. Add `terminology` metadata to targeted SOAP fields in `apps/frontend/src/app/features/forms/types/forms.ts`
+4. Update `apps/frontend/src/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextRenderer.tsx` to route enabled fields through the new component
 5. Add targeted tests for:
    1. request debouncing
    2. dropdown rendering

@@ -4,9 +4,12 @@ title: Inventory API
 slug: /apps/backend/api/inventory
 ---
 
+Manages clinic inventory: items and batches, stock consumption and adjustments, vendors, custom meta-fields, and low-stock/expiry alerts. Called by the PMS (Practice Management System, the clinic-facing web app); most routes require organisation RBAC (role-based access control) permissions.
+
 **Endpoints**
 
 ### POST /items
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Body: `CreateInventoryItemInput`
@@ -14,6 +17,7 @@ slug: /apps/backend/api/inventory
 - Response: `201`: JSON
 
 ### PATCH /items/:itemId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `itemId`
@@ -21,30 +25,35 @@ slug: /apps/backend/api/inventory
 - Controller: `InventoryController.updateItem`
 
 ### POST /items/:itemId/hide
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `itemId`
 - Controller: `InventoryController.hideItem`
 
 ### POST /items/:itemId/archive
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `itemId`
 - Controller: `InventoryController.archiveItem`
 
 ### POST /items/:itemId/active
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `itemId`
 - Controller: `InventoryController.activeItem`
 
 ### GET /organisation/:organisationId/items
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `InventoryController.listItems`
 
 ### GET /organisation/:organisationId/turnover
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
@@ -53,12 +62,14 @@ slug: /apps/backend/api/inventory
 - Response: `200`: keys `from`, `items`, `to`, `500`: keys `message`
 
 ### GET /items/:itemId
+
 - Auth: `none`
 - RBAC: `requirePermission`
 - Params: `itemId`
 - Controller: `InventoryController.getItemWithBatches`
 
 ### POST /items/:itemId/batches
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `itemId`
@@ -66,6 +77,7 @@ slug: /apps/backend/api/inventory
 - Controller: `InventoryController.addBatch`
 
 ### PATCH /batches/:batchId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `batchId`
@@ -73,24 +85,28 @@ slug: /apps/backend/api/inventory
 - Controller: `InventoryController.updateBatch`
 
 ### DELETE /batches/:batchId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `batchId`
 - Controller: `InventoryController.deleteBatch`
 
 ### POST /stock/consume
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Body: `ConsumeStockInput`
 - Controller: `InventoryController.consumeStock`
 
 ### POST /stock/consume/bulk
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Body: `BulkConsumeStockInput`
 - Controller: `InventoryController.bulkConsumeStock`
 
 ### POST /items/:itemId/adjust
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `itemId`
@@ -98,6 +114,7 @@ slug: /apps/backend/api/inventory
 - Controller: `InventoryController.adjustStock`
 
 ### POST /items/:itemId/allocate
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `itemId`
@@ -105,6 +122,7 @@ slug: /apps/backend/api/inventory
 - Controller: `InventoryController.allocateStock`
 
 ### POST /items/:itemId/release
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `itemId`
@@ -112,63 +130,74 @@ slug: /apps/backend/api/inventory
 - Controller: `InventoryController.releaseAllocatedStock`
 
 ### POST /vendors
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Controller: `InventoryVendorController.createVendor`
 
 ### GET /organisation/:organisationId/vendors
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `InventoryVendorController.listVendors`
 
 ### GET /vendors/:vendorId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `vendorId`
 - Controller: `InventoryVendorController.getVendor`
 
 ### PATCH /vendors/:vendorId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `vendorId`
 - Controller: `InventoryVendorController.updateVendor`
 
 ### DELETE /vendors/:vendorId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `vendorId`
 - Controller: `InventoryVendorController.deleteVendor`
 
 ### POST /meta-fields
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Controller: `InventoryMetaFieldController.createField`
 
 ### GET /meta-fields
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Controller: `InventoryMetaFieldController.listFields`
 
 ### PATCH /meta-fields/:fieldId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `fieldId`
 - Controller: `InventoryMetaFieldController.updateField`
 
 ### DELETE /meta-fields/:fieldId
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `fieldId`
 - Controller: `InventoryMetaFieldController.deleteField`
 
 ### GET /organisation/:organisationId/alerts/low-stock
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`
 - Controller: `InventoryAlertController.getLowStockItems`
 
 ### GET /organisation/:organisationId/alerts/expiring
+
 - Auth: `authorizeCognito`
 - RBAC: `withOrgPermissions, requirePermission`
 - Params: `organisationId`

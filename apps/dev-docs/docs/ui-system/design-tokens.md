@@ -8,6 +8,8 @@ description: How to read, use, and extend the shared semantic token package.
 
 All design decisions live in `packages/design-tokens`. This package is the single source of truth for color, typography, spacing, radius, shadow, motion, and z-index.
 
+This page is for anyone styling UI: it explains what a token is, the categories that exist, how web and mobile each consume them, and how to add a new one. Components that use these tokens are catalogued in the [Component Taxonomy](./component-taxonomy.md), and the rules for using tokens in component code are in the [Contribution Guide](./contribution-guide.md).
+
 ---
 
 ## Token philosophy
@@ -15,10 +17,10 @@ All design decisions live in `packages/design-tokens`. This package is the singl
 Tokens describe **intent**, not raw values.
 
 ```ts
-// ❌ Wrong — raw value, no semantic meaning
+// ❌ Wrong - raw value, no semantic meaning
 color: '#302f2e';
 
-// ✅ Correct — semantic intent
+// ✅ Correct - semantic intent
 color: token.color.text.primary;
 ```
 
@@ -37,21 +39,21 @@ Token names should be readable as sentences:
 ```ts
 import { color } from '@yosemite-crew/design-tokens';
 
-color.text.primary; // #302f2e — primary text
+color.text.primary; // #302f2e - primary text
 color.text.secondary; // #595958
-color.text.brand; // #247aed — brand blue text
+color.text.brand; // #247aed - brand blue text
 color.text.error; // #ea3729
 
-color.surface.card; // #ffffff — card background
-color.surface.subtle; // #eaeaea — subtle surface
-color.surface.brandLight; // #f2f8ff — light brand tint
+color.surface.card; // #ffffff - card background
+color.surface.subtle; // #eaeaea - subtle surface
+color.surface.brandLight; // #f2f8ff - light brand tint
 
 color.border.default; // #eaeaea
-color.border.active; // #247aed — focused input border
+color.border.active; // #247aed - focused input border
 
-color.action.primary.bg; // #302f2e — primary button background
-color.action.brand.bg; // #247aed — brand button background
-color.action.danger.bg; // #ea3729 — danger button background
+color.action.primary.bg; // #302f2e - primary button background
+color.action.brand.bg; // #247aed - brand button background
+color.action.danger.bg; // #ea3729 - danger button background
 
 color.status.success.text; // #008f5d
 color.status.warning.bg; // #fef3e9
@@ -62,7 +64,7 @@ color.status.warning.bg; // #fef3e9
 ```ts
 import { typographyRole, fontSize, fontWeight } from '@yosemite-crew/design-tokens';
 
-// Semantic role — describes where to use the type style
+// Semantic role - describes where to use the type style
 typographyRole['heading-1']; // 28px / medium / -0.035em letterSpacing
 typographyRole['body-4']; // 16px / normal / relaxed line-height
 typographyRole['label-1']; // 16px / medium / -0.02em / line-height: 1
@@ -100,7 +102,7 @@ On web use Tailwind spacing utilities directly: `p-4`, `gap-6`, `px-8`.
 ```ts
 import { radius, radiusRole } from '@yosemite-crew/design-tokens';
 
-radiusRole.button; // 1.5rem (rounded-2xl — matches current primitives)
+radiusRole.button; // 1.5rem (rounded-2xl - matches current primitives)
 radiusRole.badge; // 9999px (pill shape)
 radiusRole.card; // 1.5rem
 ```
