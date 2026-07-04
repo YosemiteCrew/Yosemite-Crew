@@ -47,6 +47,7 @@ type FetchBusinessesArgs = {
   page?: number;
   limit?: number;
   serviceName?: string;
+  skipLocationLookup?: boolean;
 };
 
 export const fetchBusinesses = createAsyncThunk<
@@ -64,7 +65,10 @@ export const fetchBusinesses = createAsyncThunk<
     // Resolve lat/lng: caller-supplied → live GPS → omit (backend returns all PIMS businesses)
     let resolvedLat = params?.lat;
     let resolvedLng = params?.lng;
-    if (resolvedLat == null || resolvedLng == null) {
+    if (
+      !params?.skipLocationLookup &&
+      (resolvedLat == null || resolvedLng == null)
+    ) {
       try {
         const coords = await LocationService.getCurrentPosition();
         resolvedLat = coords.latitude;
