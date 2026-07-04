@@ -18,10 +18,7 @@ jest.mock('next/link', () => {
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ src, alt, fill: _fill, ...rest }: any) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={typeof src === 'string' ? src : ''} alt={alt} {...rest} />
-  ),
+  default: jest.requireActual('@/app/__tests__/support/marketingTestMocks').NextImageMock,
 }));
 
 const mockStats = {

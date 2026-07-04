@@ -9,29 +9,11 @@ jest.mock('@/app/features/marketing/site/useGithubStats', () => ({
 }));
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt, ...props }: Record<string, unknown>) => {
-    const rest: Record<string, unknown> = { ...props };
-    [
-      'fill',
-      'priority',
-      'sizes',
-      'quality',
-      'placeholder',
-      'blurDataURL',
-      'loader',
-      'unoptimized',
-    ].forEach((k) => delete rest[k]);
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img alt={typeof alt === 'string' ? alt : ''} {...rest} />;
-  },
+  default: jest.requireActual('@/app/__tests__/support/marketingTestMocks').NextImageMock,
 }));
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ href, children, ...rest }: Record<string, unknown>) => (
-    <a href={typeof href === 'string' ? href : '#'} {...rest}>
-      {children as React.ReactNode}
-    </a>
-  ),
+  default: jest.requireActual('@/app/__tests__/support/marketingTestMocks').NextLinkMock,
 }));
 
 import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site/AuthShell';

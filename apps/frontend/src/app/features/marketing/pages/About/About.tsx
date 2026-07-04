@@ -228,6 +228,7 @@ function Origin() {
               src={ABOUT_ORIGIN_PHOTO}
               alt="A clinic team caring for a companion"
               fill
+              sizes="(max-width: 900px) 100vw, 520px"
               style={{
                 objectFit: 'cover',
                 filter: 'sepia(0.13) saturate(1.14) brightness(1.02) contrast(1.02)',

@@ -12,7 +12,6 @@ import {
   IoEyeOffOutline,
   IoEyeOutline,
   IoGitBranchOutline,
-  IoLogoGithub,
   IoPhonePortraitOutline,
   IoShieldCheckmarkOutline,
 } from 'react-icons/io5';
@@ -25,7 +24,7 @@ import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useSignUpDraft } from '@/app/hooks/useSignUpDraft';
 import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
-import { AuthShell, AuthBrandContent, GITHUB_REPO_URL } from '@/app/features/marketing/site';
+import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
 
 const CLINIC_ROLE = 'A veterinary clinic, practice, or hospital';
 const DEVELOPER_ROLE = 'A developer';
@@ -574,41 +573,6 @@ const SignUp = ({
             <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
           </button>
         </form>
-        {effectiveDeveloper ? (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '20px 0' }}>
-              <span style={{ flex: 1, height: 1, background: '#e5dccf' }} />
-              <span style={{ fontSize: 13, color: '#a9a39e' }}>or</span>
-              <span style={{ flex: 1, height: 1, background: '#e5dccf' }} />
-            </div>
-            <a
-              href={GITHUB_REPO_URL}
-              target="_blank"
-              rel="noopener"
-              className="yc-btn-ghost"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                fontSize: 15,
-                padding: '14px 20px',
-                borderRadius: 13,
-              }}
-            >
-              <IoLogoGithub style={{ fontSize: 19 }} aria-hidden="true" /> Continue with GitHub
-            </a>
-            <div
-              style={{
-                marginTop: 11,
-                textAlign: 'center',
-                fontSize: 12.5,
-                color: '#a9a39e',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              GitHub is available for developer accounts.
-            </div>
-          </div>
-        ) : null}
         <div
           style={{
             marginTop: 22,

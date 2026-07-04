@@ -212,6 +212,10 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
       <div
         ref={panelRef}
         className="yc-nav-panel"
+        // Kept mounted for the slide transition; while closed it is removed from
+        // the tab order and the accessibility tree so hidden links are not focusable.
+        inert={!menuOpen}
+        aria-hidden={!menuOpen}
         style={{
           position: 'fixed',
           left: 12,

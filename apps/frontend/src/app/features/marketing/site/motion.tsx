@@ -47,13 +47,12 @@ export function Reveal({
 }: Readonly<RevealProps>) {
   const ref = useRef<HTMLElement | null>(null);
   const reduced = useReducedMotion();
-  const [shown, setShown] = useState(false);
+  // Without IntersectionObserver (SSR / older browsers) content is visible from
+  // the first paint; the observer below only drives the reveal when it exists.
+  const [shown, setShown] = useState(() => typeof IntersectionObserver === 'undefined');
 
   useEffect(() => {
-    if (reduced || typeof IntersectionObserver === 'undefined') {
-      setShown(true);
-      return undefined;
-    }
+    if (reduced || typeof IntersectionObserver === 'undefined') return undefined;
     const node = ref.current;
     if (!node) return undefined;
     const reveal = () => setShown(true);

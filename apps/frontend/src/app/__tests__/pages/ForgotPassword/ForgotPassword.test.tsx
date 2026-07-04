@@ -290,4 +290,74 @@ describe('ForgotPassword Page', () => {
 
     expect(getSendCodeBtn()).toBeInTheDocument();
   });
+
+  const fillNewPassword = (value = 'Secret!23', confirm = 'Secret!23') => {
+    fireEvent.change(screen.getByLabelText('Enter New Password'), { target: { value } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: confirm } });
+  };
+
+  it('resets the password on success and shows the confirmation', async () => {
+    mockResetPassword.mockResolvedValue(true);
+    await navigateToPasswordScreen();
+    fillNewPassword();
+
+    await act(async () => {
+      fireEvent.click(getResetPasswordBtn());
+    });
+
+    expect(mockResetPassword).toHaveBeenCalledWith('test@example.com', '111111', 'Secret!23');
+    expect(mockShowErrorTost).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Password Changed successfully' })
+    );
+  });
+
+  it('shows an error when the two passwords do not match', async () => {
+    await navigateToPasswordScreen();
+    fillNewPassword('Secret!23', 'Different!9');
+
+    await act(async () => {
+      fireEvent.click(getResetPasswordBtn());
+    });
+
+    expect(mockShowErrorTost).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Passwords do not match' })
+    );
+    expect(mockResetPassword).not.toHaveBeenCalled();
+  });
+
+  it('returns to the verify step on a code mismatch', async () => {
+    mockResetPassword.mockRejectedValue({ code: 'CodeMismatchException' });
+    await navigateToPasswordScreen();
+    fillNewPassword();
+
+    await act(async () => {
+      fireEvent.click(getResetPasswordBtn());
+    });
+
+    expect(mockShowErrorTost).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Code Mismatch' })
+    );
+  });
+
+  it('surfaces a generic failure when the reset request errors', async () => {
+    mockResetPassword.mockRejectedValue(new Error('boom'));
+    await navigateToPasswordScreen();
+    fillNewPassword();
+
+    await act(async () => {
+      fireEvent.click(getResetPasswordBtn());
+    });
+
+    expect(mockShowErrorTost).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Something went wrong' })
+    );
+  });
+
+  it('toggles new-password visibility on the reset step', async () => {
+    await navigateToPasswordScreen();
+    const passwordInput = screen.getByLabelText('Enter New Password');
+    expect(passwordInput).toHaveAttribute('type', 'password');
+    fireEvent.click(screen.getAllByRole('button', { name: /show password/i })[0]);
+    expect(passwordInput).toHaveAttribute('type', 'text');
+  });
 });

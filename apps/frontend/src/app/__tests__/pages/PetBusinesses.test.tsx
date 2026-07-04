@@ -8,11 +8,7 @@ jest.mock('next/link', () => {
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt = '', ...props }: any) => {
-    const { width: _w, height: _h, ...rest } = props;
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img alt={alt} {...rest} />;
-  },
+  default: jest.requireActual('@/app/__tests__/support/marketingTestMocks').NextImageMock,
 }));
 
 jest.mock('@/app/features/marketing/site', () => ({

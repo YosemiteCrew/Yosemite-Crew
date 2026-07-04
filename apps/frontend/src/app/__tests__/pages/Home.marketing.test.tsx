@@ -5,24 +5,7 @@ import { Home } from '@/app/features/marketing/pages/Home/Home';
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: Record<string, unknown>) => {
-    const rest: Record<string, unknown> = { ...props };
-    // Drop next/image-only props that are not valid DOM attributes.
-    [
-      'fill',
-      'priority',
-      'sizes',
-      'quality',
-      'placeholder',
-      'blurDataURL',
-      'loader',
-      'unoptimized',
-    ].forEach((key) => delete rest[key]);
-    const alt = typeof rest.alt === 'string' ? rest.alt : '';
-    delete rest.alt;
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img alt={alt} {...rest} />;
-  },
+  default: jest.requireActual('@/app/__tests__/support/marketingTestMocks').NextImageMock,
 }));
 
 jest.mock('@/app/features/marketing/site', () => {

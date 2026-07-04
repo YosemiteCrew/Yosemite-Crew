@@ -78,6 +78,20 @@ describe('motion primitives', () => {
     }
   });
 
+  it('Reveal and CountUp render visible when IntersectionObserver is unavailable', () => {
+    const io = globalThis.IntersectionObserver;
+    (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
+      undefined as unknown as typeof IntersectionObserver;
+    try {
+      render(<Reveal>no-observer content</Reveal>);
+      render(<CountUp value="128" />);
+      expect(screen.getByText('no-observer content')).toBeInTheDocument();
+      expect(screen.getByText('128')).toBeInTheDocument();
+    } finally {
+      (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver = io;
+    }
+  });
+
   it('Reveal renders visible immediately under reduced motion and forwards data attrs', () => {
     setReducedMotion(true);
     render(

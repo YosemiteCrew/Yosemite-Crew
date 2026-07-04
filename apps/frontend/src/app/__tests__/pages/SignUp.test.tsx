@@ -161,16 +161,26 @@ describe('SignUp page', () => {
     );
   });
 
-  test('reveals the GitHub option only for the developer role', () => {
+  test('selecting the developer role registers the account as a developer', async () => {
+    authStoreMock.signUp.mockResolvedValue(true);
     render(<SignUp />);
-
-    expect(screen.queryByRole('link', { name: /continue with github/i })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('I am'), {
       target: { value: 'A developer' },
     });
 
-    expect(screen.getByRole('link', { name: /continue with github/i })).toBeInTheDocument();
+    fillValidForm();
+    fireEvent.click(getSubmitBtn());
+
+    await waitFor(() =>
+      expect(authStoreMock.signUp).toHaveBeenCalledWith(
+        'jane@example.com',
+        'Secret!23',
+        'Jane',
+        'Doe',
+        'developer'
+      )
+    );
   });
 
   test('developer variant hides the role selector and passes the developer role', async () => {
