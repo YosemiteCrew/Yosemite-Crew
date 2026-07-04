@@ -1,6 +1,9 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { axe, toHaveNoViolations } from 'jest-axe';
+
+expect.extend(toHaveNoViolations);
 
 const completeGithubSignIn = jest.fn();
 jest.mock('@/app/features/auth/lib/githubOAuth', () => ({
@@ -95,5 +98,12 @@ describe('AuthCallback', () => {
     await waitFor(() =>
       expect(screen.getByText(/could not complete github sign in/i)).toBeInTheDocument()
     );
+  });
+
+  it('has no accessibility violations on the error screen', async () => {
+    params = { error: 'access_denied' };
+    const { container } = render(<AuthCallback />);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

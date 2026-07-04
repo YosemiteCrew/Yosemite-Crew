@@ -34,7 +34,7 @@ describe('useGithubStats hooks', () => {
         return Promise.resolve(makeRes({ clones: { total: 67134 } }));
       if (url.includes('contributors'))
         return Promise.resolve(makeRes([], '<u&page=58>; rel="last"'));
-      if (url.includes('discord.com'))
+      if (url.includes('/invites/'))
         return Promise.resolve(makeRes({ approximate_member_count: 3210 }));
       if (url.endsWith('/Yosemite-Crew'))
         return Promise.resolve(makeRes({ stargazers_count: 2431 }));
