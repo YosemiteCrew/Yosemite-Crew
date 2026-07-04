@@ -287,7 +287,7 @@ export const getAppointmentChannel = async (
 
 ### 3. End/Close Chat Channel
 
-**Purpose**: Manually close a chat channel (called by the practice management system, or PMS, when an appointment ends)
+**Purpose**: Manually close a chat channel (called by the practice information management system, or PIMS, when an appointment ends)
 
 **Endpoint**:
 
@@ -357,7 +357,7 @@ app.post('/api/chat/channels/:channelId/end', async (req, res) => {
 
 ### 4. Get Active Channels for User
 
-**Purpose**: Fetch all active chat channels for a user (used by web PMS to show chat list)
+**Purpose**: Fetch all active chat channels for a user (used by web PIMS to show chat list)
 
 **Endpoint**:
 

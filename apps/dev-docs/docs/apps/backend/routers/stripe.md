@@ -4,7 +4,7 @@ title: Stripe API
 slug: /apps/backend/api/stripe
 ---
 
-Wraps the Stripe payment integration: the incoming Stripe webhook, payment intents and checkout sessions, and Stripe Connect account onboarding plus subscription billing for organisations. The webhook is called by Stripe; the payment-intent routes are called by the mobile app; the `/pms` and `/organisation` routes are called by the PMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions. See the [Invoice API](./invoice.md) for the invoices these payments settle.
+Wraps the Stripe payment integration: the incoming Stripe webhook, payment intents and checkout sessions, and Stripe Connect account onboarding plus subscription billing for organisations. The webhook is called by Stripe; the payment-intent routes are called by the mobile app; the `/pms` and `/organisation` routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions. See the [Invoice API](./invoice.md) for the invoices these payments settle.
 
 **Endpoints**
 

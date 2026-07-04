@@ -4,7 +4,7 @@ title: Speciality API
 slug: /apps/backend/api/speciality
 ---
 
-CRUD endpoints for an organisation's specialities (the areas of veterinary practice it offers). Called by the PMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
+CRUD endpoints for an organisation's specialities (the areas of veterinary practice it offers). Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
 
 **Endpoints**
 

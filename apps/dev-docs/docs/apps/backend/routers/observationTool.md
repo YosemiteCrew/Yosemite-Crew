@@ -4,7 +4,7 @@ title: Observationtool API
 slug: /apps/backend/api/observationTool
 ---
 
-Manages observation tools: reusable structured questionnaires (a definition plus its typed fields) that a pet parent fills in, producing a submission that can be linked to an appointment or task. Routes under `/mobile` are called by the mobile app on behalf of a pet parent; routes under `/pms` are called by the PMS (Practice Information Management System, the clinic-facing web app), which additionally authors and manages the tool definitions.
+Manages observation tools: reusable structured questionnaires (a definition plus its typed fields) that a pet parent fills in, producing a submission that can be linked to an appointment or task. Routes under `/mobile` are called by the mobile app on behalf of a pet parent; routes under `/pms` are called by the PIMS (Practice Information Management System, the clinic-facing web app), which additionally authors and manages the tool definitions.
 
 **Endpoints**
 

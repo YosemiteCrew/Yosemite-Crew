@@ -4,7 +4,7 @@ title: Organisation Document API
 slug: /apps/backend/api/organisation-document
 ---
 
-Manages an organisation's documents and policies (upload, create, update, delete, list) plus policy upsert. The `/pms` routes are called by the PMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions; the `/mobile` route lets the mobile app list the documents an organisation has published publicly.
+Manages an organisation's documents and policies (upload, create, update, delete, list) plus policy upsert. The `/pms` routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions; the `/mobile` route lets the mobile app list the documents an organisation has published publicly.
 
 **Endpoints**
 

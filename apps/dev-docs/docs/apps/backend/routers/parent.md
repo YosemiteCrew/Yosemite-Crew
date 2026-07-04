@@ -4,7 +4,7 @@ title: Parent API
 slug: /apps/backend/api/parent
 ---
 
-Manages parent (pet owner) records and profile-picture uploads, and lists a parent's companions (their pets). The mobile-app routes are authenticated with the mobile Cognito user pool; the `/pms` routes are called by the PMS (Practice Information Management System, the clinic-facing web app). See the [Parent Companion API](./parent-companion.md) for links between co-parents.
+Manages parent (pet owner) records and profile-picture uploads, and lists a parent's companions (their pets). The mobile-app routes are authenticated with the mobile Cognito user pool; the `/pms` routes are called by the PIMS (Practice Information Management System, the clinic-facing web app). See the [Parent Companion API](./parent-companion.md) for links between co-parents.
 
 **Endpoints**
 

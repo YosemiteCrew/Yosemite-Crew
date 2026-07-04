@@ -4,7 +4,7 @@ title: Companion API
 slug: /apps/backend/api/companion
 ---
 
-Manages companion (pet) records: create, read, update, delete, profile image uploads, and search. Routes without a prefix are called by the mobile app (pet parents); routes under `/org` are called by the PMS (Practice Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions.
+Manages companion (pet) records: create, read, update, delete, profile image uploads, and search. Routes without a prefix are called by the mobile app (pet parents); routes under `/org` are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions.
 
 **Endpoints**
 

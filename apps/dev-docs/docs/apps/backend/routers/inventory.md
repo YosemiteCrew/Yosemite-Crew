@@ -4,7 +4,7 @@ title: Inventory API
 slug: /apps/backend/api/inventory
 ---
 
-Manages clinic inventory: items and batches, stock consumption and adjustments, vendors, custom meta-fields, and low-stock/expiry alerts. Called by the PMS (Practice Management System, the clinic-facing web app); most routes require organisation RBAC (role-based access control) permissions.
+Manages clinic inventory: items and batches, stock consumption and adjustments, vendors, custom meta-fields, and low-stock/expiry alerts. Called by the PIMS (Practice Information Management System, the clinic-facing web app); most routes require organisation RBAC (role-based access control) permissions.
 
 **Endpoints**
 

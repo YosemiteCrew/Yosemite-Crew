@@ -4,7 +4,7 @@ title: Organization API
 slug: /apps/backend/api/organization
 ---
 
-Manages organisations (also referred to as businesses): nearby search, logo uploads, CRUD, and the creation and listing of organisation invites. The nearby-search routes are open or called by the mobile app; the CRUD and invite routes are called by the PMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions. Invitees act on invites through the [Organisation Invite API](./organisation-invite.md), and specialities are managed through the [Speciality API](./speciality.md).
+Manages organisations (also referred to as businesses): nearby search, logo uploads, CRUD, and the creation and listing of organisation invites. The nearby-search routes are open or called by the mobile app; the CRUD and invite routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions. Invitees act on invites through the [Organisation Invite API](./organisation-invite.md), and specialities are managed through the [Speciality API](./speciality.md).
 
 **Endpoints**
 

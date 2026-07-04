@@ -4,7 +4,7 @@ title: Dashboard API
 slug: /apps/backend/api/dashboard
 ---
 
-Read-only analytics endpoints (summary, appointment and revenue trends, leaderboards, inventory turnover) for an organisation's dashboard. Called by the PMS (Practice Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
+Read-only analytics endpoints (summary, appointment and revenue trends, leaderboards, inventory turnover) for an organisation's dashboard. Called by the PIMS (Practice Information Management System, the clinic-facing web app); every route requires organisation RBAC (role-based access control) permissions.
 
 **Endpoints**
 

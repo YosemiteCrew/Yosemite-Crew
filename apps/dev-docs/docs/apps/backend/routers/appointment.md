@@ -4,7 +4,7 @@ title: Appointment API
 slug: /apps/backend/api/appointment
 ---
 
-Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/reject). Routes under `/mobile` are called by the mobile app on behalf of a pet parent; routes under `/pms` are called by the PMS (Practice Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions.
+Covers the appointment lifecycle (request, reschedule, cancel, check-in, accept/reject). Routes under `/mobile` are called by the mobile app on behalf of a pet parent; routes under `/pms` are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions.
 
 **Endpoints**
 

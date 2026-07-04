@@ -4,7 +4,7 @@ title: Availability API
 slug: /apps/backend/api/availability
 ---
 
-Manages an organisation's scheduling availability: base (default) hours, weekly overrides, occupancy, and the computed final availability used when booking appointments. Called by the PMS (Practice Management System, the clinic-facing web app); routes are scoped to an organisation by `orgId`.
+Manages an organisation's scheduling availability: base (default) hours, weekly overrides, occupancy, and the computed final availability used when booking appointments. Called by the PIMS (Practice Information Management System, the clinic-facing web app); routes are scoped to an organisation by `orgId`.
 
 **Endpoints**
 

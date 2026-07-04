@@ -4,7 +4,7 @@ title: Form API
 slug: /apps/backend/api/form
 ---
 
-Manages clinical and consent forms, form submissions, and signing, including SOAP notes (the Subjective, Objective, Assessment, Plan structure vets use to record a visit). Routes under `/admin` and the signing routes are called by the PMS (Practice Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions; routes under `/mobile` and `/public` are called by the mobile app (pet parents).
+Manages clinical and consent forms, form submissions, and signing, including SOAP notes (the Subjective, Objective, Assessment, Plan structure vets use to record a visit). Routes under `/admin` and the signing routes are called by the PIMS (Practice Information Management System, the clinic-facing web app) and require organisation RBAC (role-based access control) permissions; routes under `/mobile` and `/public` are called by the mobile app (pet parents).
 
 **Endpoints**
 

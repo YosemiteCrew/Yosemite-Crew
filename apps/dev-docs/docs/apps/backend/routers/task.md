@@ -4,7 +4,7 @@ title: Task API
 slug: /apps/backend/api/task
 ---
 
-Manages tasks and the libraries and templates they are created from: creating, listing, updating, and changing the status of tasks. Routes under `/mobile` are called by the mobile app on behalf of a pet parent; routes under `/pms` are called by the PMS (Practice Information Management System, the clinic-facing web app). See the [Observation Tool API](./observationTool.md) for submissions that can be linked to a task.
+Manages tasks and the libraries and templates they are created from: creating, listing, updating, and changing the status of tasks. Routes under `/mobile` are called by the mobile app on behalf of a pet parent; routes under `/pms` are called by the PIMS (Practice Information Management System, the clinic-facing web app). See the [Observation Tool API](./observationTool.md) for submissions that can be linked to a task.
 
 **Endpoints**
 
