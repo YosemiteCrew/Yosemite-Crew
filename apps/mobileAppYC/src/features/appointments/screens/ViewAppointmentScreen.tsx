@@ -947,6 +947,7 @@ export const ViewAppointmentScreen: React.FC = () => {
   const route = useRoute<any>();
   const dispatch = useDispatch<AppDispatch>();
   const {appointmentId} = route.params as {appointmentId: string};
+  const [isPdfInteracting, setIsPdfInteracting] = React.useState(false);
   const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
   const {openPaymentScreen, processingPayment} = useExpensePayment();
   const {
@@ -1398,6 +1399,8 @@ export const ViewAppointmentScreen: React.FC = () => {
         {contentPaddingStyle => (
           <ScrollView
             contentContainerStyle={[styles.container, contentPaddingStyle]}
+            nestedScrollEnabled
+            scrollEnabled={!isPdfInteracting}
             showsVerticalScrollIndicator={false}>
             <StatusCard
               styles={styles}
@@ -1437,6 +1440,8 @@ export const ViewAppointmentScreen: React.FC = () => {
                     })) as any
                   }
                   documentTitle="Appointment attachments"
+                  onPdfTouchStart={() => setIsPdfInteracting(true)}
+                  onPdfTouchEnd={() => setIsPdfInteracting(false)}
                 />
               </View>
             ) : null}
