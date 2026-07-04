@@ -121,7 +121,7 @@ jobs:
       - name: Read desktop version
         id: version
         working-directory: apps/desktop
-        run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(node -p 'require(\"./package.json\").version')" >> "$GITHUB_OUTPUT"
 
       - name: Create draft GitHub Release
         uses: softprops/action-gh-release@v2
