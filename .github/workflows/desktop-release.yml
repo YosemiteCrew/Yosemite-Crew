@@ -121,7 +121,10 @@ jobs:
       - name: Read desktop version
         id: version
         working-directory: apps/desktop
-        run: node -e "const fs = require('node:fs'); const version = JSON.parse(fs.readFileSync('package.json', 'utf8')).version; fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\n`);"
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create draft GitHub Release
         uses: softprops/action-gh-release@v2
