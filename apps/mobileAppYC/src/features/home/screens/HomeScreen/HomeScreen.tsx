@@ -450,6 +450,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     onSelectPms: handlePmsSelection,
     onSelectNonPms: handleNonPmsSelection,
     onError: handleSearchError,
+    useStoredLocation: false,
   });
 
   useFocusEffect(

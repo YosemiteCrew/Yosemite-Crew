@@ -499,7 +499,11 @@ describe('SpecialtyAccordion', () => {
       );
       fireEvent.press(getByText('Canine Bundle'));
       fireEvent.press(getAllByText('Select package')[0]);
-      expect(onSelectPackage).toHaveBeenCalledWith('pkg-1', 'Canine Bundle');
+      expect(onSelectPackage).toHaveBeenCalledWith(
+        'pkg-1',
+        'Canine Bundle',
+        'Canine',
+      );
     });
 
     it('uses USD symbol fallback when package has no currency', () => {

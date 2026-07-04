@@ -364,7 +364,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
       showBottomFade={false}>
       {contentPaddingStyle => (
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardView}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
           <ScrollView
@@ -382,9 +382,8 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
               {isDemoLogin ? (
                 <>
                   <Text style={styles.description}>
-                    This is the App Review login. No email was sent—use the
-                    provided review password to sign in and continue to account
-                    creation.
+                    This is the App Review login. Use the provided review
+                    password to sign in and continue to account creation.
                   </Text>
                   <Input
                     label="Review password"

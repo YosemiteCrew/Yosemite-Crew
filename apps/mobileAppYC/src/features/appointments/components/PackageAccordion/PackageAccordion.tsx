@@ -23,14 +23,23 @@ interface PackageAccordionProps {
   title: string;
   icon?: any;
   packages: VetPackage[];
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 interface PackageItemProps {
   pkg: VetPackage;
   defaultExpanded?: boolean;
   compact?: boolean;
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  specialtyName?: string;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 export const PackageItem: React.FC<PackageItemProps> = ({
@@ -38,6 +47,7 @@ export const PackageItem: React.FC<PackageItemProps> = ({
   onSelectPackage,
   defaultExpanded,
   compact = false,
+  specialtyName,
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(
@@ -144,7 +154,9 @@ export const PackageItem: React.FC<PackageItemProps> = ({
 
           <LiquidGlassButton
             title="Select package"
-            onPress={() => onSelectPackage(pkg.id, pkg.name)}
+            onPress={() =>
+              onSelectPackage(pkg.id, pkg.name, specialtyName ?? pkg.specialty)
+            }
             height={theme.spacing['12']}
             borderRadius={theme.borderRadius.md}
             style={styles.selectButton}

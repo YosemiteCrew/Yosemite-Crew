@@ -196,7 +196,7 @@ export const MyAppointmentsScreen: React.FC = () => {
       petName,
     }: {
       appointment: AppointmentItem;
-      employee?: EmployeeRecord;
+      employee: EmployeeRecord;
       doctorName: string;
       petName?: string;
     }) => {
@@ -334,7 +334,7 @@ export const MyAppointmentsScreen: React.FC = () => {
     assignmentNote?: string;
     businessAddress: string;
     petName?: string;
-    emp?: EmployeeRecord;
+    emp: EmployeeRecord;
     needsPayment: boolean;
     isRequested: boolean;
     statusAllowsActions: boolean;

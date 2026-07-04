@@ -60,6 +60,7 @@ export const TaskViewScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const iconStyles = useMemo(() => createIconStyles(theme), [theme]);
+  const [isPdfInteracting, setIsPdfInteracting] = React.useState(false);
 
   const {taskId, source = 'tasks'} = route.params;
   const task = useSelector((state: RootState) => selectTaskById(taskId)(state));
@@ -432,6 +433,8 @@ export const TaskViewScreen: React.FC = () => {
       {contentPaddingStyle => (
         <ScrollView
           style={styles.container}
+          nestedScrollEnabled
+          scrollEnabled={!isPdfInteracting}
           contentContainerStyle={[
             styles.contentContainer,
             contentPaddingStyle,
@@ -887,6 +890,8 @@ export const TaskViewScreen: React.FC = () => {
                 attachments={preparedAttachments as any}
                 documentTitle={task.title}
                 companionName={companion?.name}
+                onPdfTouchStart={() => setIsPdfInteracting(true)}
+                onPdfTouchEnd={() => setIsPdfInteracting(false)}
               />
             </View>
           )}

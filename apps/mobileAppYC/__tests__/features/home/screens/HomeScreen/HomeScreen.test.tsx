@@ -566,6 +566,23 @@ describe('HomeScreen', () => {
       expect(getByText('Spend: 500')).toBeTruthy();
     });
 
+    it('does not start stored location lookup for home business search', () => {
+      const usePlacesBusinessSearchMock = require('@/features/linkedBusinesses/hooks/usePlacesBusinessSearch');
+      const store = createStore();
+
+      renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(
+        usePlacesBusinessSearchMock.usePlacesBusinessSearch,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({useStoredLocation: false}),
+      );
+    });
+
     it('renders empty state when no companions', () => {
       const store = createStore({companion: {list: [], selectedId: null}});
       const {getByText, getAllByText} = renderAndWait(

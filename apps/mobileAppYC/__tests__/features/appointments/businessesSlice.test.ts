@@ -11,6 +11,7 @@ import {
   fetchGooglePlacesImage,
 } from '../../../src/features/linkedBusinesses';
 import * as photoUtils from '../../../src/features/appointments/utils/photoUtils';
+import LocationService from '../../../src/shared/services/LocationService';
 
 // --- Mocks ---
 jest.mock(
@@ -40,6 +41,16 @@ jest.mock('../../../src/features/linkedBusinesses', () => ({
 
 jest.mock('../../../src/features/appointments/utils/photoUtils', () => ({
   isDummyPhoto: jest.fn(),
+}));
+
+jest.mock('../../../src/shared/services/LocationService', () => ({
+  __esModule: true,
+  default: {
+    getCurrentPosition: jest.fn().mockResolvedValue({
+      latitude: 10,
+      longitude: 20,
+    }),
+  },
 }));
 
 describe('businessesSlice', () => {
@@ -151,6 +162,27 @@ describe('businessesSlice', () => {
       expect(state.businesses[0].name).toBe('Search Vet');
       expect(appointmentApi.searchBusinessesByService).toHaveBeenCalledWith(
         expect.objectContaining({serviceName: 'Grooming'}),
+      );
+    });
+
+    it('skips live location lookup when requested by caller', async () => {
+      (sessionManager.getFreshStoredTokens as jest.Mock).mockResolvedValue(
+        null,
+      );
+      (appointmentApi.fetchNearbyBusinesses as jest.Mock).mockResolvedValue(
+        mockNearbyResponse,
+      );
+
+      await store.dispatch(fetchBusinesses({skipLocationLookup: true}));
+
+      expect(LocationService.getCurrentPosition).not.toHaveBeenCalled();
+      expect(appointmentApi.fetchNearbyBusinesses).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lat: undefined,
+          lng: undefined,
+          page: 1,
+          limit: 10,
+        }),
       );
     });
 

@@ -1,5 +1,5 @@
 import {renderHook, waitFor, act} from '@testing-library/react-native';
-import {Platform, PermissionsAndroid} from 'react-native';
+import {Platform, PermissionsAndroid, AppState} from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import {useLocationPermission} from '../../../../src/features/appointments/hooks/useLocationPermission';
 
@@ -44,7 +44,7 @@ describe('useLocationPermission', () => {
       const {result} = renderHook(() => useLocationPermission());
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      expect(result.current.hasPermission).toBe(false);
+      expect(result.current.hasPermission).toBe(true);
       expect(result.current.userLocation).toBeNull();
     });
 
@@ -57,6 +57,7 @@ describe('useLocationPermission', () => {
       const {result} = renderHook(() => useLocationPermission());
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
+      expect(result.current.hasPermission).toBe(true);
       expect(result.current.mapCenter).toBeNull();
       expect(result.current.userCoords).toBeNull();
     });
@@ -99,6 +100,15 @@ describe('useLocationPermission', () => {
         latitude: 40.7128,
         longitude: -74.006,
       });
+      expect(mockGetCurrentPosition).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.any(Function),
+        expect.objectContaining({
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 60000,
+        }),
+      );
     });
 
     it('dispatches DENIED when permission is denied', async () => {
@@ -124,7 +134,7 @@ describe('useLocationPermission', () => {
       expect(result.current.hasPermission).toBe(false);
     });
 
-    it('dispatches ERROR when getCurrentPosition fails', async () => {
+    it('keeps permission enabled when the position request fails', async () => {
       jest
         .spyOn(PermissionsAndroid, 'request')
         .mockResolvedValue(PermissionsAndroid.RESULTS.GRANTED);
@@ -135,7 +145,8 @@ describe('useLocationPermission', () => {
       const {result} = renderHook(() => useLocationPermission());
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-      expect(result.current.hasPermission).toBe(false);
+      expect(result.current.hasPermission).toBe(true);
+      expect(result.current.userLocation).toBeNull();
     });
 
     it('dispatches ERROR when PermissionsAndroid.request throws', async () => {
@@ -156,6 +167,79 @@ describe('useLocationPermission', () => {
 
     const {unmount} = renderHook(() => useLocationPermission());
     expect(() => unmount()).not.toThrow();
+  });
+
+  it('refreshes location when the app becomes active', async () => {
+    let handleAppStateChange: ((state: string) => void) | undefined;
+    const remove = jest.fn();
+    (AppState.addEventListener as jest.Mock).mockImplementationOnce(
+      (_event: string, handler: (state: string) => void) => {
+        handleAppStateChange = handler;
+        return {remove};
+      },
+    );
+    mockRequestAuthorization.mockImplementation(() => {});
+    mockGetCurrentPosition.mockImplementation((success: any) =>
+      success({coords: {latitude: 51.5, longitude: -0.1}}),
+    );
+
+    const {result, unmount} = renderHook(() => useLocationPermission());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(mockGetCurrentPosition).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      handleAppStateChange?.('active');
+    });
+
+    expect(mockGetCurrentPosition).toHaveBeenCalledTimes(2);
+    unmount();
+    expect(remove).toHaveBeenCalled();
+  });
+
+  it('accepts user location emitted by the native map', async () => {
+    mockRequestAuthorization.mockImplementation(() => {});
+    mockGetCurrentPosition.mockImplementation((_s: any, error: any) =>
+      error(new Error('position error')),
+    );
+
+    const {result} = renderHook(() => useLocationPermission());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.handleMapUserLocationChange({
+        latitude: 39.7392,
+        longitude: -104.9903,
+      });
+    });
+
+    expect(result.current.hasPermission).toBe(true);
+    expect(result.current.userLocation).toEqual({
+      latitude: 39.7392,
+      longitude: -104.9903,
+    });
+    expect(result.current.userCoords).toEqual({
+      lat: 39.7392,
+      lng: -104.9903,
+    });
+  });
+
+  it('ignores invalid native map user locations', async () => {
+    mockRequestAuthorization.mockImplementation(() => {});
+    mockGetCurrentPosition.mockImplementation((_s: any, error: any) =>
+      error(new Error('position error')),
+    );
+
+    const {result} = renderHook(() => useLocationPermission());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.handleMapUserLocationChange({
+        latitude: Number.NaN,
+        longitude: -104.9903,
+      });
+    });
+
+    expect(result.current.userLocation).toBeNull();
   });
 
   describe('cancellation (component unmounts before async completes)', () => {
