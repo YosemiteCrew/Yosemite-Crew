@@ -127,9 +127,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          tag_name: desktop-v${{ steps.version.outputs.version }}
+          tag_name: desktop-manual-v${{ steps.version.outputs.version }}-${{ github.run_id }}
           target_commitish: ${{ github.sha }}
-          name: Yosemite Crew PIMS Desktop v${{ steps.version.outputs.version }}
+          name: Yosemite Crew PIMS Desktop manual v${{ steps.version.outputs.version }}-${{ github.run_id }}
           generate_release_notes: true
           files: |
             release-assets/*.exe
