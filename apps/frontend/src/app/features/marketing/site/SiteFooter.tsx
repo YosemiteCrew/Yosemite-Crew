@@ -521,9 +521,9 @@ function AppColumn({
 function BackToTop() {
   const toTop = () => {
     try {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      globalThis.window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
-      window.scrollTo(0, 0);
+      globalThis.window.scrollTo(0, 0);
     }
   };
   return (

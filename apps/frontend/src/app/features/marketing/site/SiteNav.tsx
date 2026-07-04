@@ -57,8 +57,8 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setMenuOpen(false);
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    globalThis.window.addEventListener('keydown', onKey);
+    return () => globalThis.window.removeEventListener('keydown', onKey);
   }, [menuOpen]);
 
   const navBackground = scrolled ? 'rgba(241,235,225,0.58)' : 'transparent';

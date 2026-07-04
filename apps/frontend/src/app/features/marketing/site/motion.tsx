@@ -17,8 +17,8 @@ export function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (globalThis.window === undefined || !globalThis.window.matchMedia) return undefined;
+    const mq = globalThis.window.matchMedia('(prefers-reduced-motion: reduce)');
     const sync = () => setReduced(mq.matches);
     sync();
     mq.addEventListener('change', sync);
@@ -59,7 +59,7 @@ export function Reveal({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            window.setTimeout(() => setShown(true), delay);
+            globalThis.window.setTimeout(() => setShown(true), delay);
             io.unobserve(entry.target);
           }
         });
@@ -273,15 +273,15 @@ export function ScrollProgress() {
 
   useEffect(() => {
     const update = () => {
-      const height = document.documentElement.scrollHeight - window.innerHeight;
-      setPct(height > 0 ? (window.scrollY / height) * 100 : 0);
+      const height = document.documentElement.scrollHeight - globalThis.window.innerHeight;
+      setPct(height > 0 ? (globalThis.window.scrollY / height) * 100 : 0);
     };
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
+    globalThis.window.addEventListener('scroll', update, { passive: true });
+    globalThis.window.addEventListener('resize', update);
     update();
     return () => {
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
+      globalThis.window.removeEventListener('scroll', update);
+      globalThis.window.removeEventListener('resize', update);
     };
   }, []);
 
@@ -380,12 +380,15 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
 /** Tracks whether the page has scrolled past the top, for nav glass elevation. */
 export function useScrolled(threshold = 8): boolean {
   const [scrolled, setScrolled] = useState(false);
-  const onScroll = useCallback(() => setScrolled(window.scrollY > threshold), [threshold]);
+  const onScroll = useCallback(
+    () => setScrolled(globalThis.window.scrollY > threshold),
+    [threshold]
+  );
 
   useEffect(() => {
-    window.addEventListener('scroll', onScroll, { passive: true });
+    globalThis.window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
-    return () => window.removeEventListener('scroll', onScroll);
+    return () => globalThis.window.removeEventListener('scroll', onScroll);
   }, [onScroll]);
 
   return scrolled;
