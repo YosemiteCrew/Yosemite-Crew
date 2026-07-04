@@ -108,8 +108,9 @@ const TermsAndConditions = () => {
             services offered, location (where relevant), service hours, user ratings and business
             name
           </strong>
-          . Ranking cannot be influenced by payments to us. After termination, we retain no
-          identifiable Customer Data, though we may keep aggregated, anonymised data.
+          {
+            '. Ranking cannot be influenced by payments to us. After termination, we retain no identifiable Customer Data, though we may keep aggregated, anonymised data.'
+          }
         </p>
       </section>
 

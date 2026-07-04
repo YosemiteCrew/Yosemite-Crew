@@ -296,7 +296,7 @@ const TrustCenter = () => {
           <a href="https://yosemite-crew.openstatus.dev/" target="_blank" rel="noopener">
             our status page
           </a>
-          .
+          {'.'}
         </p>
       </section>
     </LegalDoc>

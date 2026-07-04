@@ -73,8 +73,9 @@ const Impressum = () => {
           <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener">
             https://ec.europa.eu/consumers/odr/
           </a>
-          . We are neither obliged nor willing to participate in dispute-resolution proceedings
-          before a consumer arbitration board.
+          {
+            '. We are neither obliged nor willing to participate in dispute-resolution proceedings before a consumer arbitration board.'
+          }
         </p>
       </section>
 

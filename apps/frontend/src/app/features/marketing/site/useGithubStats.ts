@@ -57,14 +57,17 @@ const readSelfHostersTotal = (summary: unknown): number | null => {
  * fetchMetrics. Reads a session cache first, then refreshes each source independently.
  */
 export function useGithubStats(): GithubStats {
-  const [stats, setStats] = useState<GithubStats>(() => ({
-    stars: null,
-    starsFull: null,
-    selfHosters: null,
-    contributors: null,
-    discord: null,
-    ...(getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY) ?? {}),
-  }));
+  const [stats, setStats] = useState<GithubStats>(() => {
+    const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
+    return {
+      stars: null,
+      starsFull: null,
+      selfHosters: null,
+      contributors: null,
+      discord: null,
+      ...cached,
+    };
+  });
 
   useEffect(() => {
     let active = true;
@@ -99,7 +102,7 @@ export function useGithubStats(): GithubStats {
         if (!res.ok) return;
         const link = res.headers.get('Link') ?? '';
         const match = /[?&]page=(\d+)>; rel="last"/.exec(link);
-        if (match) merge({ contributors: parseInt(match[1], 10).toLocaleString('en-US') });
+        if (match) merge({ contributors: Number.parseInt(match[1], 10).toLocaleString('en-US') });
       } catch {
         /* offline: leave contributors unresolved */
       }

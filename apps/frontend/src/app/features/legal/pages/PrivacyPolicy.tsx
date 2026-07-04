@@ -164,7 +164,7 @@ const PrivacyPolicy = () => {
           >
             Standard Contractual Clauses
           </a>
-          , to ensure an adequate level of protection.
+          {', to ensure an adequate level of protection.'}
         </p>
       </section>
 

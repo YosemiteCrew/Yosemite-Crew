@@ -11,13 +11,14 @@ import React, {
 } from 'react';
 
 const EASE = 'cubic-bezier(0.16,1,0.3,1)';
+const NUMERIC_CHAR = /[\d,]/;
 
 /** True when the user asked the OS to reduce motion. Recomputed on preference change. */
 export function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
-    if (globalThis.window === undefined || !globalThis.window.matchMedia) return undefined;
+    if (!globalThis.window?.matchMedia) return undefined;
     const mq = globalThis.window.matchMedia('(prefers-reduced-motion: reduce)');
     const sync = () => setReduced(mq.matches);
     sync();
@@ -55,14 +56,14 @@ export function Reveal({
     }
     const node = ref.current;
     if (!node) return undefined;
+    const reveal = () => setShown(true);
     const io = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            globalThis.window.setTimeout(() => setShown(true), delay);
-            io.unobserve(entry.target);
-          }
-        });
+        const entry = entries.find((e) => e.isIntersecting);
+        if (entry) {
+          globalThis.window.setTimeout(reveal, delay);
+          io.unobserve(entry.target);
+        }
       },
       { threshold: 0.12 }
     );
@@ -223,15 +224,16 @@ export function HeroVideo({ src, position = 'center 42%' }: Readonly<HeroVideoPr
   const [failed, setFailed] = useState(false);
   if (reduced || failed) return null;
 
+  // The whole decorative layer is hidden from assistive tech via this wrapper,
+  // so aria-hidden stays off the (Sonar-focusable) <video> itself.
   return (
-    <>
+    <div aria-hidden="true">
       <video
         data-hero-video=""
         muted
         autoPlay
         loop
         playsInline
-        aria-hidden="true"
         onError={() => setFailed(true)}
         style={{
           position: 'absolute',
@@ -250,7 +252,6 @@ export function HeroVideo({ src, position = 'center 42%' }: Readonly<HeroVideoPr
         <source src={src} type="video/mp4" />
       </video>
       <div
-        aria-hidden="true"
         style={{
           position: 'absolute',
           top: 0,
@@ -263,7 +264,7 @@ export function HeroVideo({ src, position = 'center 42%' }: Readonly<HeroVideoPr
             'linear-gradient(180deg, rgba(239,232,220,0.66) 0%, rgba(239,232,220,0.54) 40%, rgba(239,232,220,0.22) 64%, rgba(239,232,220,0) 86%)',
         }}
       />
-    </>
+    </div>
   );
 }
 
@@ -318,12 +319,18 @@ export function CountUp({ value, className, style }: Readonly<CountUpProps>) {
   const [inView, setInView] = useState(false);
 
   const target = useMemo(() => {
-    const raw = value.replace(/,/g, '');
-    const parsed = parseInt(raw, 10);
+    const raw = value.replaceAll(',', '');
+    const parsed = Number.parseInt(raw, 10);
     return Number.isFinite(parsed) ? parsed : null;
   }, [value]);
 
-  const suffix = useMemo(() => (value.match(/[^\d,]+$/) ?? [''])[0], [value]);
+  // Trailing run of non-numeric characters (e.g. a unit suffix). Scanned from the
+  // end in linear time to avoid the super-linear backtracking of /[^\d,]+$/.
+  const suffix = useMemo(() => {
+    let end = value.length;
+    while (end > 0 && !NUMERIC_CHAR.test(value.charAt(end - 1))) end--;
+    return value.slice(end);
+  }, [value]);
 
   useEffect(() => {
     if (typeof IntersectionObserver === 'undefined') {

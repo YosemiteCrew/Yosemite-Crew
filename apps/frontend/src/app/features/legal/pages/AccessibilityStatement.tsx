@@ -85,7 +85,7 @@ const AccessibilityStatement = () => {
           </li>
           <li>
             Email <a href="mailto:accessibility@yosemitecrew.com">accessibility@yosemitecrew.com</a>
-            .
+            {'.'}
           </li>
           <li>
             Support: <a href="mailto:support@yosemitecrew.com">support@yosemitecrew.com</a>.
