@@ -297,32 +297,34 @@ describe('BrowseBusinessesScreen', () => {
 
   it('debounces search calls (skips duplicate within interval)', () => {
     let now = 1000;
-    jest.spyOn(Date, 'now').mockImplementation(() => now);
+    const dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
 
-    const {getByTestId} = render(<BrowseBusinessesScreen />);
+    try {
+      const {getByTestId} = render(<BrowseBusinessesScreen />);
 
-    // Clear the initial mount dispatch (performSearch(''))
-    dispatchMock.mockClear();
+      // Clear the initial mount dispatch (performSearch(''))
+      dispatchMock.mockClear();
 
-    const searchBar = getByTestId('searchBar');
+      const searchBar = getByTestId('searchBar');
 
-    // 1. First user search
-    fireEvent(searchBar, 'changeText', 'vet');
-    fireEvent(searchBar, 'submitEditing');
+      // 1. First user search
+      fireEvent(searchBar, 'changeText', 'vet');
+      fireEvent(searchBar, 'submitEditing');
 
-    // Should trigger search because 'vet' != '' (last term)
-    expect(dispatchMock).toHaveBeenCalledTimes(1);
+      // Should trigger search because 'vet' != '' (last term)
+      expect(dispatchMock).toHaveBeenCalledTimes(1);
 
-    // 2. Advance time slightly (500ms), still within 1000ms threshold
-    now += 500;
+      // 2. Advance time slightly (500ms), still within 1000ms threshold
+      now += 500;
 
-    // 3. Second user search with SAME term
-    fireEvent(searchBar, 'submitEditing');
+      // 3. Second user search with SAME term
+      fireEvent(searchBar, 'submitEditing');
 
-    // Should NOT trigger search because term is same ('vet' == 'vet') AND time diff (500) < 1000
-    expect(dispatchMock).toHaveBeenCalledTimes(1); // Still 1
-
-    jest.restoreAllMocks();
+      // Should NOT trigger search because term is same ('vet' == 'vet') AND time diff (500) < 1000
+      expect(dispatchMock).toHaveBeenCalledTimes(1); // Still 1
+    } finally {
+      dateNowSpy.mockRestore();
+    }
   });
 
   // --- Category Filtering & Rendering ---
