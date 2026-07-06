@@ -1,16 +1,10 @@
 // src/components/common/TouchableInput/TouchableInput.tsx
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, {useCallback, useEffect} from 'react';
+import {View, Text, TouchableOpacity, ViewStyle, TextStyle} from 'react-native';
+import Animated, {useSharedValue, withTiming} from 'react-native-reanimated';
+import {useTheme} from '@/hooks';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ViewStyle,
-  TextStyle,
-  Animated,
-} from 'react-native';
-import { useTheme } from '@/hooks';
-import {
-  getFloatingLabelAnimatedStyle,
+  useFloatingLabelAnimatedStyle,
   getInputContainerBaseStyle,
   getValueTextStyle,
 } from '../shared/floatingLabelStyles';
@@ -44,17 +38,16 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
   errorStyle,
   disabled = false,
 }) => {
-  const { theme } = useTheme();
-  const animatedValue = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const {theme} = useTheme();
+  const animatedValue = useSharedValue(value ? 1 : 0);
   const hasValue = !!value;
 
-  const animateLabel = useCallback((toValue: number) => {
-    Animated.timing(animatedValue, {
-      toValue,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
-  }, [animatedValue]);
+  const animateLabel = useCallback(
+    (toValue: number) => {
+      animatedValue.value = withTiming(toValue, {duration: 200});
+    },
+    [animatedValue],
+  );
 
   useEffect(() => {
     if (hasValue) {
@@ -72,7 +65,10 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
   };
 
   const valueStyle = getValueTextStyle(theme, hasValue);
-  const floatingLabelStyle = getFloatingLabelAnimatedStyle({animatedValue, theme});
+  const floatingLabelStyle = useFloatingLabelAnimatedStyle({
+    animatedValue,
+    theme,
+  });
 
   const getErrorStyle = (): TextStyle => ({
     ...theme.typography.labelXxsBold,
@@ -95,8 +91,7 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.7}
-        disabled={disabled}
-      >
+        disabled={disabled}>
         <View style={[inputContainerStyle, inputStyle]}>
           {/* Only show the floating label when there's a value */}
           {label && hasValue && (
@@ -106,26 +101,18 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
           )}
 
           {leftComponent && (
-            <View style={leftComponentWrapperStyle}>
-              {leftComponent}
-            </View>
+            <View style={leftComponentWrapperStyle}>{leftComponent}</View>
           )}
 
-          <Text style={valueStyle}>
-            {value || placeholder}
-          </Text>
+          <Text style={valueStyle}>{value || placeholder}</Text>
 
           {rightComponent && (
-            <View style={rightComponentWrapperStyle}>
-              {rightComponent}
-            </View>
+            <View style={rightComponentWrapperStyle}>{rightComponent}</View>
           )}
         </View>
       </TouchableOpacity>
 
-      {error && (
-        <Text style={[getErrorStyle(), errorStyle]}>{error}</Text>
-      )}
+      {error && <Text style={[getErrorStyle(), errorStyle]}>{error}</Text>}
     </View>
   );
 };

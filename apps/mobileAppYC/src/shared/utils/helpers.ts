@@ -2,16 +2,13 @@ import 'react-native-get-random-values';
 import {Dimensions, Platform} from 'react-native';
 
 /**
- * Device dimensions
- */
-export const screenWidth = Dimensions.get('window').width;
-export const screenHeight = Dimensions.get('window').height;
-
-/**
  * Platform checks
  */
 export const isIOS = Platform.OS === 'ios';
 export const isAndroid = Platform.OS === 'android';
+const screenDimensions = Dimensions.get('window');
+export const screenWidth = screenDimensions.width;
+export const screenHeight = screenDimensions.height;
 
 /**
  * Format date to readable string
@@ -30,7 +27,9 @@ export const formatDate = (date: string | Date): string => {
  * @param dateOfBirth The Date object or a date string representing the birth date.
  * @returns The age in full years (number).
  */
-export const calculateAgeFromDateOfBirth = (dateOfBirth: Date | string): number => {
+export const calculateAgeFromDateOfBirth = (
+  dateOfBirth: Date | string,
+): number => {
   // Ensure we are working with a Date object
   const dob = new Date(dateOfBirth);
   const today = new Date();
@@ -40,7 +39,7 @@ export const calculateAgeFromDateOfBirth = (dateOfBirth: Date | string): number 
 
   // Adjust age if the birthday hasn't occurred yet this year
   const monthDifference = today.getMonth() - dob.getMonth();
-  
+
   if (
     monthDifference < 0 ||
     (monthDifference === 0 && today.getDate() < dob.getDate())
@@ -72,11 +71,11 @@ export const calculateAge = (birthDate: string | Date): number => {
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const monthDiff = today.getMonth() - birth.getMonth();
-  
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
     age--;
   }
-  
+
   return age;
 };
 
@@ -90,7 +89,10 @@ export const capitalize = (str: string): string => {
 /**
  * Format weight with unit
  */
-export const formatWeight = (weight: number, unit: 'kg' | 'lbs' = 'kg'): string => {
+export const formatWeight = (
+  weight: number,
+  unit: 'kg' | 'lbs' = 'kg',
+): string => {
   return `${weight} ${unit}`;
 };
 
@@ -149,10 +151,10 @@ export const isValidEmail = (email: string): boolean => {
  */
 export const debounce = <T extends (...args: any[]) => any>(
   func: T,
-  wait: number
+  wait: number,
 ): ((...args: Parameters<T>) => void) => {
   let timeout: number;
-  
+
   return (...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait) as unknown as number;
@@ -164,10 +166,10 @@ export const debounce = <T extends (...args: any[]) => any>(
  */
 export const throttle = <T extends (...args: any[]) => any>(
   func: T,
-  limit: number
+  limit: number,
 ): ((...args: Parameters<T>) => void) => {
   let inThrottle: boolean;
-  
+
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
       func(...args);
@@ -190,7 +192,9 @@ export const generateId = (): string => {
   }
   const buffer = new Uint8Array(16);
   cryptoObj.getRandomValues(buffer);
-  const hex = Array.from(buffer, byte => byte.toString(16).padStart(2, '0')).join('');
+  const hex = Array.from(buffer, byte =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
   return [
     hex.slice(0, 8),
     hex.slice(8, 12),
@@ -271,7 +275,10 @@ export const getInitials = (name: string): string => {
 /**
  * Format a label by capitalizing first letter and replacing hyphens with spaces
  */
-export const formatLabel = (str: string | null, fallback: string = ''): string => {
+export const formatLabel = (
+  str: string | null,
+  fallback: string = '',
+): string => {
   if (!str) return fallback;
   return str.charAt(0).toUpperCase() + str.slice(1).replaceAll('-', ' ');
 };

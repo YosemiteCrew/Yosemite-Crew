@@ -2,7 +2,7 @@ import React from 'react';
 import type {ConfirmActionBottomSheetRef} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 
 export const useConfirmActionSheetRef = (
-  ref: React.ForwardedRef<{open: () => void; close: () => void}>,
+  ref?: React.Ref<{open: () => void; close: () => void}>,
   onConfirm?: () => void,
 ) => {
   const sheetRef = React.useRef<ConfirmActionBottomSheetRef>(null);
@@ -21,4 +21,3 @@ export const useConfirmActionSheetRef = (
 };
 
 export default useConfirmActionSheetRef;
-

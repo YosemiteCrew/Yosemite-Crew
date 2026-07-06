@@ -5,9 +5,9 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
-import { useTheme } from '@/hooks';
+import {useTheme} from '@/hooks';
 
 interface ModalProps {
   visible: boolean;
@@ -17,8 +17,6 @@ interface ModalProps {
   transparent?: boolean;
 }
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 export const Modal: React.FC<ModalProps> = ({
   visible,
   onClose,
@@ -26,23 +24,27 @@ export const Modal: React.FC<ModalProps> = ({
   animationType = 'fade',
   transparent = true,
 }) => {
-  const { theme } = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const {theme} = useTheme();
+  const {width: screenWidth, height: screenHeight} = useWindowDimensions();
+  const styles = React.useMemo(
+    () => createStyles(theme, screenWidth, screenHeight),
+    [theme, screenWidth, screenHeight],
+  );
 
   return (
     <RNModal
       visible={visible}
       animationType={animationType}
       transparent={transparent}
-      onRequestClose={onClose}
-    >
+      onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity
           style={styles.backdrop}
           activeOpacity={1}
           onPress={onClose}
         />
-        <View style={[styles.content, { backgroundColor: theme.colors.background }]}>
+        <View
+          style={[styles.content, {backgroundColor: theme.colors.background}]}>
           {children}
         </View>
       </View>
@@ -50,25 +52,26 @@ export const Modal: React.FC<ModalProps> = ({
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.overlay,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  content: {
-    width: screenWidth * 0.9,
-    maxHeight: screenHeight * 0.8,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing['6'],
-    alignItems: 'center',
-  },
-});
+const createStyles = (theme: any, screenWidth: number, screenHeight: number) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: theme.colors.overlay,
+    },
+    backdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    content: {
+      width: screenWidth * 0.9,
+      maxHeight: screenHeight * 0.8,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing['6'],
+      alignItems: 'center',
+    },
+  });

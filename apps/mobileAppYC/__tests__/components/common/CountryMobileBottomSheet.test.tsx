@@ -36,23 +36,25 @@ jest.mock(
     const {View: RNView} = jest.requireActual('react-native');
 
     return {
-      GenericSelectBottomSheet: ReactActual.forwardRef((props: any, ref: any) => {
-        ReactActual.useImperativeHandle(ref, () => ({
-          open: mockOpen,
-          close: mockClose,
-        }));
-        // Store callbacks to be triggered later
-        mockSheetOnSave = props.onSave;
-        mockSheetOnItemSelect = props.onItemSelect;
-        mockGenericSheet(props); // Spy on props
+      GenericSelectBottomSheet: ReactActual.forwardRef(
+        (props: any, ref: any) => {
+          ReactActual.useImperativeHandle(ref, () => ({
+            open: mockOpen,
+            close: mockClose,
+          }));
+          // Store callbacks to be triggered later
+          mockSheetOnSave = props.onSave;
+          mockSheetOnItemSelect = props.onItemSelect;
+          mockGenericSheet(props); // Spy on props
 
-        // Render customContent so we can find the Inputs
-        return (
-          <RNView testID="mock-generic-bottom-sheet">
-            {props.customContent}
-          </RNView>
-        );
-      }),
+          // Render customContent so we can find the Inputs
+          return (
+            <RNView testID="mock-generic-bottom-sheet">
+              {props.customContent}
+            </RNView>
+          );
+        },
+      ),
     };
   },
 );
@@ -276,6 +278,36 @@ describe('CountryMobileBottomSheet', () => {
 
     // match will be undefined, so it falls back to selectedCountry
     expect(mockOnSave).toHaveBeenCalledWith(mockCountries[0], '12345');
+  });
+
+  it('resets draft country and mobile when props change', () => {
+    const {getByTestId, rerender} = render(
+      <CountryMobileBottomSheet
+        countries={mockCountries}
+        selectedCountry={mockCountries[0]}
+        mobileNumber="12345"
+        onSave={mockOnSave}
+      />,
+    );
+
+    act(() => {
+      fireEvent.changeText(getByTestId('mock-input-Phone number'), '99999');
+    });
+    act(() => {
+      mockSheetOnItemSelect(expectedCountryItems[1]);
+    });
+
+    rerender(
+      <CountryMobileBottomSheet
+        countries={mockCountries}
+        selectedCountry={mockCountries[1]}
+        mobileNumber="55555"
+        onSave={mockOnSave}
+      />,
+    );
+
+    expect(getByTestId('mock-input-Country').props.value).toBe('🇮🇳 +91');
+    expect(getByTestId('mock-input-Phone number').props.value).toBe('55555');
   });
 
   it('ref.open() resets state and opens sheet', () => {

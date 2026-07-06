@@ -1,8 +1,33 @@
 import React from 'react';
-import {Animated, PanResponder, Text, Image} from 'react-native';
-import {render, fireEvent} from '@testing-library/react-native';
-import SwipeableGlassCard from '../../../src/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
+import {Text, Image} from 'react-native';
+import {render, fireEvent, act} from '@testing-library/react-native';
 import {mockTheme} from '../../setup/mockTheme';
+
+const mockPanGestures: any[] = [];
+const mockWithSpring = jest.fn((value: any, _config?: any, callback?: any) => {
+  callback?.(true);
+  return value;
+});
+
+const mockCreatePanGesture = () => {
+  const handlers: Record<string, any> = {};
+  const gesture: Record<string, any> = {handlers};
+  [
+    'activeOffsetX',
+    'failOffsetY',
+    'onBegin',
+    'onUpdate',
+    'onEnd',
+    'onFinalize',
+  ].forEach(method => {
+    gesture[method] = jest.fn((value: any) => {
+      handlers[method] = value;
+      return gesture;
+    });
+  });
+  mockPanGestures.push(handlers);
+  return gesture;
+};
 
 // --- Mocks ---
 
@@ -23,22 +48,49 @@ jest.mock(
   },
 );
 
-// 3. Mock Animated Spring
-const mockStart = jest.fn(cb => cb && cb()); // Immediately invoke callback
-const mockSpring = jest.spyOn(Animated, 'spring').mockReturnValue({
-  start: mockStart,
-} as any);
+jest.mock('react-native-gesture-handler', () => {
+  const {View} = require('react-native');
+  return {
+    GestureDetector: ({children, gesture}: any) => (
+      <View testID="gesture-detector" gesture={gesture}>
+        {children}
+      </View>
+    ),
+    Gesture: {
+      Pan: jest.fn(() => mockCreatePanGesture()),
+    },
+  };
+});
+
+jest.mock('react-native-reanimated', () => {
+  const {View} = require('react-native');
+  return {
+    __esModule: true,
+    default: {View},
+    runOnJS: (fn: any) => fn,
+    useAnimatedStyle: (factory: any) => factory(),
+    useSharedValue: (value: any) => ({value}),
+    withSpring: mockWithSpring,
+  };
+});
+
+const SwipeableGlassCard =
+  require('../../../src/shared/components/common/SwipeableGlassCard/SwipeableGlassCard').default;
 
 describe('SwipeableGlassCard', () => {
   const mockActionIcon = {uri: 'test-icon'};
   const mockOnAction = jest.fn();
   const mockOnPress = jest.fn();
-  // Mock event to satisfy TS types for PanResponder handlers
-  const mockEvent = {} as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPanGestures.length = 0;
   });
+
+  const getPanGesture = () => mockPanGestures[mockPanGestures.length - 1];
+  const runGesture = (callback: () => void) => {
+    act(callback);
+  };
 
   // ===========================================================================
   // 1. Rendering
@@ -88,10 +140,7 @@ describe('SwipeableGlassCard', () => {
     fireEvent.press(button!);
 
     // Should animate to close (0) and call onAction
-    expect(mockSpring).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.objectContaining({toValue: 0}),
-    );
+    expect(mockWithSpring).toHaveBeenCalledWith(0, {}, expect.any(Function));
     expect(mockOnAction).toHaveBeenCalled();
   });
 
@@ -134,80 +183,56 @@ describe('SwipeableGlassCard', () => {
     );
 
     fireEvent.press(getByText('Close Me'));
-    expect(mockSpring).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.objectContaining({toValue: 0}), // animateTo(0)
-    );
+    expect(mockWithSpring).toHaveBeenCalledWith(0, {}, expect.any(Function));
   });
 
   // ===========================================================================
-  // 3. PanResponder Logic
+  // 3. Gesture Logic
   // ===========================================================================
 
   it('handles standard horizontal swipe gestures', () => {
-    // Spy on PanResponder.create to capture the config
-    const panCreateSpy = jest.spyOn(PanResponder, 'create');
-
     render(
       <SwipeableGlassCard actionIcon={mockActionIcon}>
         <Text>Content</Text>
       </SwipeableGlassCard>,
     );
 
-    const config = panCreateSpy.mock.calls[0][0];
+    const gesture = getPanGesture();
 
-    // 1. Should Set Responder
-    expect(config.onStartShouldSetPanResponder!(mockEvent, {} as any)).toBe(
-      false,
-    );
-    expect(
-      config.onMoveShouldSetPanResponder!(mockEvent, {dx: 10, dy: 0} as any),
-    ).toBe(true); // Horizontal
-    expect(
-      config.onMoveShouldSetPanResponder!(mockEvent, {dx: 0, dy: 10} as any),
-    ).toBe(true); // Vertical allowed by default
+    expect(gesture.activeOffsetX).toEqual([-6, 6]);
 
-    // 2. Handle Move (Clamping logic)
-    // actionWidth=70, overlap=12 -> swipeableWidth = 58
-    // Clamps between -58 and 0
-    config.onPanResponderMove!(mockEvent, {dx: -100, dy: 0} as any); // Should clamp to -58
-    config.onPanResponderMove!(mockEvent, {dx: 50, dy: 0} as any); // Should clamp to 0
+    runGesture(() => {
+      gesture.onBegin();
+      gesture.onUpdate({translationX: -100, translationY: 0});
+      gesture.onUpdate({translationX: 50, translationY: 0});
+    });
 
-    // 3. Handle Release (Open)
-    // Threshold is -58 / 2 = -29.
-    // dx < -29 -> open (-58)
-    config.onPanResponderRelease!(mockEvent, {dx: -30, dy: 0} as any);
-    expect(mockSpring).toHaveBeenCalled();
+    // actionWidth=70, overlap=0 -> threshold is -35.
+    runGesture(() => {
+      gesture.onEnd({translationX: -40, translationY: 0});
+    });
+    expect(mockWithSpring).toHaveBeenCalledWith(-70, {});
 
-    // 4. Handle Release (Close)
-    // The previous step left the card OPEN (currentOffset = -58).
-    // To close it, we must swipe RIGHT (positive dx).
-    // Final Offset = -58 + 30 = -28.
-    // -28 > -29 (threshold) -> should close (0).
-    config.onPanResponderRelease!(mockEvent, {dx: 30, dy: 0} as any);
-    expect(mockSpring).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.objectContaining({toValue: 0}),
-    );
+    runGesture(() => {
+      gesture.onEnd({translationX: 40, translationY: 0});
+    });
+    expect(mockWithSpring).toHaveBeenCalledWith(0, {});
   });
 
-  it('handles tap gesture within PanResponder (dx/dy small)', () => {
-    const panCreateSpy = jest.spyOn(PanResponder, 'create');
+  it('handles tap gesture within pan gesture (dx/dy small)', () => {
     render(
       <SwipeableGlassCard actionIcon={mockActionIcon} onPress={mockOnPress}>
         <Text>Content</Text>
       </SwipeableGlassCard>,
     );
-    const config = panCreateSpy.mock.calls[0][0];
+    const gesture = getPanGesture();
 
-    // Tap detected (dx < 8 && dy < 8)
-    config.onPanResponderRelease!(mockEvent, {dx: 2, dy: 2} as any);
+    runGesture(() => {
+      gesture.onEnd({translationX: 2, translationY: 2});
+    });
 
     // Should animate to 0 and call onPress
-    expect(mockSpring).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.objectContaining({toValue: 0}),
-    );
+    expect(mockWithSpring).toHaveBeenCalledWith(0, {}, expect.any(Function));
     expect(mockOnPress).toHaveBeenCalled();
   });
 
@@ -216,7 +241,6 @@ describe('SwipeableGlassCard', () => {
   // ===========================================================================
 
   it('respects enableHorizontalSwipeOnly constraints', () => {
-    const panCreateSpy = jest.spyOn(PanResponder, 'create');
     render(
       <SwipeableGlassCard
         actionIcon={mockActionIcon}
@@ -225,47 +249,41 @@ describe('SwipeableGlassCard', () => {
         <Text>Content</Text>
       </SwipeableGlassCard>,
     );
-    const config = panCreateSpy.mock.calls[0][0];
+    const gesture = getPanGesture();
 
-    // 1. Should Set Responder
-    // Requires dx > 10 AND dy < 10 (strict horizontal)
-    expect(
-      config.onMoveShouldSetPanResponder!(mockEvent, {dx: 11, dy: 5} as any),
-    ).toBe(true);
-    expect(
-      config.onMoveShouldSetPanResponder!(mockEvent, {dx: 5, dy: 5} as any),
-    ).toBe(false); // dx too small
-    expect(
-      config.onMoveShouldSetPanResponder!(mockEvent, {dx: 11, dy: 11} as any),
-    ).toBe(false); // dy too big
+    expect(gesture.activeOffsetX).toEqual([-10, 10]);
+    expect(gesture.failOffsetY).toEqual([-10, 10]);
 
-    // 2. Handle Move
     // Case A: Vertical > Horizontal -> return early (no value set)
-    config.onPanResponderMove!(mockEvent, {dx: 10, dy: 20} as any);
+    runGesture(() => {
+      gesture.onUpdate({translationX: 10, translationY: 20});
+    });
 
     // Case B: Horizontal > Vertical -> allow
-    config.onPanResponderMove!(mockEvent, {dx: 20, dy: 10} as any);
+    runGesture(() => {
+      gesture.onUpdate({translationX: 20, translationY: 10});
+    });
 
-    // 3. Handle Release Logic
-
-    // Scenario: Mostly vertical, but small (Tap-like)
-    config.onPanResponderRelease!(mockEvent, {dx: 2, dy: 7} as any); // dy > dx, but small (<8)
+    runGesture(() => {
+      gesture.onEnd({translationX: 2, translationY: 7});
+    });
     expect(mockOnPress).toHaveBeenCalled();
 
-    // Scenario: Mostly vertical, large swipe (Scroll) -> Should NOT trigger action or animation open
     mockOnPress.mockClear();
-    mockSpring.mockClear();
-    config.onPanResponderRelease!(mockEvent, {dx: 10, dy: 50} as any);
+    mockWithSpring.mockClear();
+    runGesture(() => {
+      gesture.onEnd({translationX: 10, translationY: 50});
+    });
 
     expect(mockOnPress).not.toHaveBeenCalled();
 
-    // Scenario: Mostly horizontal swipe -> Should animate open
-    config.onPanResponderRelease!(mockEvent, {dx: -50, dy: 10} as any);
-    expect(mockSpring).toHaveBeenCalled();
+    runGesture(() => {
+      gesture.onEnd({translationX: -50, translationY: 10});
+    });
+    expect(mockWithSpring).toHaveBeenCalled();
   });
 
   it('applies spring config overrides', () => {
-    const panCreateSpy = jest.spyOn(PanResponder, 'create');
     render(
       <SwipeableGlassCard
         actionIcon={mockActionIcon}
@@ -273,13 +291,15 @@ describe('SwipeableGlassCard', () => {
         <Text>Content</Text>
       </SwipeableGlassCard>,
     );
-    const config = panCreateSpy.mock.calls[0][0];
+    const gesture = getPanGesture();
 
     // Trigger animation
-    config.onPanResponderRelease!(mockEvent, {dx: -100, dy: 0} as any);
+    runGesture(() => {
+      gesture.onEnd({translationX: -100, translationY: 0});
+    });
 
-    expect(mockSpring).toHaveBeenCalledWith(
-      expect.any(Object),
+    expect(mockWithSpring).toHaveBeenCalledWith(
+      -70,
       expect.objectContaining({stiffness: 1000}),
     );
   });

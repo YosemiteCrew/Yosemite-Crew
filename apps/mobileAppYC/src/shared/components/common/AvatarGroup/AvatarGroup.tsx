@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, {useMemo} from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -8,15 +8,15 @@ import {
   ViewStyle,
   StyleProp,
 } from 'react-native';
-import { useTheme } from '@/hooks';
+import {useTheme} from '@/hooks';
 
 export interface AvatarItemConfig {
-  source?: ImageSourcePropType | { uri: string };
+  source?: ImageSourcePropType | {uri: string};
   placeholder?: string; // Initial/letter for placeholder
 }
 
 export interface AvatarGroupProps {
-  avatars: Array<ImageSourcePropType | { uri: string } | AvatarItemConfig>;
+  avatars: Array<ImageSourcePropType | {uri: string} | AvatarItemConfig>;
   size?: number;
   overlap?: number;
   borderWidth?: number;
@@ -24,6 +24,57 @@ export interface AvatarGroupProps {
   containerStyle?: StyleProp<ViewStyle>;
   direction?: 'row' | 'column';
 }
+
+const isAvatarConfig = (avatar: any): avatar is AvatarItemConfig => {
+  return (
+    avatar &&
+    typeof avatar === 'object' &&
+    ('source' in avatar || 'placeholder' in avatar)
+  );
+};
+
+const getAvatarSource = (avatar: any) => {
+  if (isAvatarConfig(avatar)) {
+    return avatar.source;
+  }
+  return avatar;
+};
+
+const getPlaceholder = (avatar: any) => {
+  if (isAvatarConfig(avatar)) {
+    return avatar.placeholder;
+  }
+  return undefined;
+};
+
+const getUniqueKey = (avatar: any, index: number) => {
+  if (isAvatarConfig(avatar)) {
+    if (
+      avatar.source &&
+      typeof avatar.source === 'object' &&
+      'uri' in avatar.source &&
+      typeof avatar.source.uri === 'string'
+    ) {
+      return `${avatar.source.uri}-${index}`;
+    }
+    if (avatar.placeholder) {
+      return `${avatar.placeholder}-${index}`;
+    }
+    return `config-${index}`;
+  }
+  if (
+    typeof avatar === 'object' &&
+    avatar &&
+    'uri' in avatar &&
+    typeof avatar.uri === 'string'
+  ) {
+    return `${avatar.uri}-${index}`;
+  }
+  if (typeof avatar === 'number') {
+    return `require-${avatar}-${index}`;
+  }
+  return `avatar-${index}`;
+};
 
 /**
  * Reusable component for displaying a group of overlapping avatars.
@@ -38,47 +89,13 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
   containerStyle,
   direction = 'row',
 }) => {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme, size, borderWidth, direction), [theme, size, borderWidth, direction]);
+  const {theme} = useTheme();
+  const styles = useMemo(
+    () => createStyles(theme, size, borderWidth, direction),
+    [theme, size, borderWidth, direction],
+  );
 
   const displayedAvatars = maxCount ? avatars.slice(0, maxCount) : avatars;
-
-  const isAvatarConfig = (avatar: any): avatar is AvatarItemConfig => {
-    return avatar && typeof avatar === 'object' && ('source' in avatar || 'placeholder' in avatar);
-  };
-
-  const getAvatarSource = (avatar: any) => {
-    if (isAvatarConfig(avatar)) {
-      return avatar.source;
-    }
-    return avatar;
-  };
-
-  const getPlaceholder = (avatar: any) => {
-    if (isAvatarConfig(avatar)) {
-      return avatar.placeholder;
-    }
-    return undefined;
-  };
-
-  const getUniqueKey = (avatar: any, index: number) => {
-    if (isAvatarConfig(avatar)) {
-      if (avatar.source && typeof avatar.source === 'object' && 'uri' in avatar.source && typeof avatar.source.uri === 'string') {
-        return `${avatar.source.uri}-${index}`;
-      }
-      if (avatar.placeholder) {
-        return `${avatar.placeholder}-${index}`;
-      }
-      return `config-${index}`;
-    }
-    if (typeof avatar === 'object' && avatar && 'uri' in avatar && typeof avatar.uri === 'string') {
-      return `${avatar.uri}-${index}`;
-    }
-    if (typeof avatar === 'number') {
-      return `require-${avatar}-${index}`;
-    }
-    return `avatar-${index}`;
-  };
 
   return (
     <View style={[styles.avatarGroup, containerStyle]}>
@@ -91,9 +108,9 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
         if (index === 0) {
           marginStyle = styles.avatarFirst;
         } else if (direction === 'column') {
-          marginStyle = { marginTop: overlap };
+          marginStyle = {marginTop: overlap};
         } else {
-          marginStyle = { marginLeft: overlap };
+          marginStyle = {marginLeft: overlap};
         }
 
         if (source) {
@@ -102,10 +119,7 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
             <Image
               key={uniqueKey}
               source={source}
-              style={[
-                styles.avatar,
-                marginStyle,
-              ]}
+              style={[styles.avatar, marginStyle]}
             />
           );
         } else if (placeholder) {
@@ -113,11 +127,7 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
           return (
             <View
               key={uniqueKey}
-              style={[
-                styles.avatarPlaceholder,
-                marginStyle,
-              ]}
-            >
+              style={[styles.avatarPlaceholder, marginStyle]}>
               <Text style={styles.avatarInitial}>{placeholder}</Text>
             </View>
           );
@@ -128,7 +138,12 @@ export const AvatarGroup: React.FC<AvatarGroupProps> = ({
   );
 };
 
-const createStyles = (theme: any, size: number, borderWidth: number, direction: 'row' | 'column') =>
+const createStyles = (
+  theme: any,
+  size: number,
+  borderWidth: number,
+  direction: 'row' | 'column',
+) =>
   StyleSheet.create({
     avatarGroup: {
       flexDirection: direction,

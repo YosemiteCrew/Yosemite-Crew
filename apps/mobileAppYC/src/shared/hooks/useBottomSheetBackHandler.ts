@@ -1,5 +1,5 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { BackHandler } from 'react-native';
+import {useEffect, useRef, useCallback, useState} from 'react';
+import {BackHandler} from 'react-native';
 
 interface BottomSheetRef {
   close: () => void;
@@ -33,23 +33,28 @@ interface BottomSheetRef {
  */
 export function useBottomSheetBackHandler() {
   const [openSheetKey, setOpenSheetKey] = useState<string | null>(null);
-  const sheetsRef = useRef<Map<string, React.RefObject<BottomSheetRef>>>(new Map());
+  const sheetsRef = useRef<Map<string, React.RefObject<BottomSheetRef | null>>>(
+    new Map(),
+  );
 
   // Handle Android back button
   useEffect(() => {
     if (!openSheetKey) return;
 
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (openSheetKey) {
-        const sheetRef = sheetsRef.current.get(openSheetKey);
-        if (sheetRef?.current) {
-          sheetRef.current.close();
-          setOpenSheetKey(null);
-          return true; // Prevent default back action
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (openSheetKey) {
+          const sheetRef = sheetsRef.current.get(openSheetKey);
+          if (sheetRef?.current) {
+            sheetRef.current.close();
+            setOpenSheetKey(null);
+            return true; // Prevent default back action
+          }
         }
-      }
-      return false;
-    });
+        return false;
+      },
+    );
 
     return () => backHandler.remove();
   }, [openSheetKey]);
@@ -57,9 +62,12 @@ export function useBottomSheetBackHandler() {
   /**
    * Register a bottom sheet ref with a unique key
    */
-  const registerSheet = useCallback((key: string, ref: React.RefObject<BottomSheetRef | null>) => {
-    sheetsRef.current.set(key, ref as React.RefObject<BottomSheetRef>);
-  }, []);
+  const registerSheet = useCallback(
+    (key: string, ref: React.RefObject<BottomSheetRef | null>) => {
+      sheetsRef.current.set(key, ref);
+    },
+    [],
+  );
 
   /**
    * Mark a bottom sheet as open

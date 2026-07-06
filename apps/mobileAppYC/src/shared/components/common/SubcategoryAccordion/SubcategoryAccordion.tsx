@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -30,13 +30,13 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const expandedRef = React.useRef(defaultExpanded);
   const animatedHeight = useSharedValue(defaultExpanded ? 1 : 0);
   const chevronRotation = useSharedValue(defaultExpanded ? 1 : 0);
 
   const toggleExpanded = () => {
-    const newExpanded = !expanded;
-    setExpanded(newExpanded);
+    const newExpanded = !expandedRef.current;
+    expandedRef.current = newExpanded;
     animatedHeight.value = withTiming(newExpanded ? 1 : 0, {duration: 300});
     chevronRotation.value = withTiming(newExpanded ? 1 : 0, {duration: 300});
   };

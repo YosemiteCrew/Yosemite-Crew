@@ -13,6 +13,17 @@ import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
 
+export type CardActionVisibility = 'visible' | 'hidden';
+export type CardSwipeMode = 'enabled' | 'hidden';
+export type BaseCardPrimaryActionState = 'available' | 'active';
+
+export interface BaseCardPrimaryAction {
+  onPress: () => void;
+  label?: string;
+  icon?: ImageSourcePropType;
+  state?: BaseCardPrimaryActionState;
+}
+
 export interface BaseCardProps {
   title: string;
   primaryMeta?: string;
@@ -20,14 +31,9 @@ export interface BaseCardProps {
   thumbnail?: ImageSourcePropType;
   onPressView?: () => void;
   onPressEdit?: () => void;
-  onPressPrimary?: () => void;
-  showEditAction?: boolean;
-  showPrimaryButton?: boolean;
-  isPrimaryActive?: boolean;
-  primaryButtonLabel?: string;
-  primaryIcon?: ImageSourcePropType;
-  hideSwipeActions?: boolean;
-  _onTogglePrimaryStatus?: () => void;
+  editAction?: CardActionVisibility;
+  primaryAction?: BaseCardPrimaryAction;
+  swipeActions?: CardSwipeMode;
   amountDisplay?: string;
   rightContent?: React.ReactNode;
   bottomContent?: React.ReactNode;
@@ -41,14 +47,9 @@ export const BaseCard: React.FC<BaseCardProps> = ({
   thumbnail,
   onPressView,
   onPressEdit,
-  onPressPrimary,
-  showEditAction = true,
-  showPrimaryButton = false,
-  isPrimaryActive = false,
-  primaryButtonLabel = 'Action',
-  primaryIcon = Images.currencyIcon,
-  hideSwipeActions = false,
-  _onTogglePrimaryStatus,
+  editAction = 'visible',
+  primaryAction,
+  swipeActions = 'enabled',
   amountDisplay,
   rightContent,
   bottomContent,
@@ -64,9 +65,8 @@ export const BaseCard: React.FC<BaseCardProps> = ({
       fallbackStyle={cardStyles.fallback}
       onPressView={onPressView}
       onPressEdit={onPressEdit}
-      showEditAction={showEditAction}
-      hideSwipeActions={hideSwipeActions}
-    >
+      showEditAction={editAction === 'visible'}
+      hideSwipeActions={swipeActions === 'hidden'}>
       <TouchableOpacity
         activeOpacity={onPressView ? 0.85 : 1}
         onPress={onPressView}
@@ -74,10 +74,7 @@ export const BaseCard: React.FC<BaseCardProps> = ({
         <View style={styles.infoRow}>
           {thumbnail && (
             <View style={styles.thumbnailContainer}>
-              <Image
-                source={thumbnail}
-                style={styles.thumbnail}
-              />
+              <Image source={thumbnail} style={styles.thumbnail} />
             </View>
           )}
           <View style={styles.textContent}>
@@ -99,7 +96,9 @@ export const BaseCard: React.FC<BaseCardProps> = ({
 
           {(amountDisplay || rightContent) && (
             <View style={styles.rightColumn}>
-              {amountDisplay && <Text style={styles.amount}>{amountDisplay}</Text>}
+              {amountDisplay && (
+                <Text style={styles.amount}>{amountDisplay}</Text>
+              )}
               {rightContent}
             </View>
           )}
@@ -107,11 +106,11 @@ export const BaseCard: React.FC<BaseCardProps> = ({
 
         {bottomContent}
 
-        {showPrimaryButton && !isPrimaryActive && (
+        {primaryAction && primaryAction.state !== 'active' && (
           <CardActionButton
-            label={primaryButtonLabel}
-            icon={primaryIcon}
-            onPress={onPressPrimary!}
+            label={primaryAction.label ?? 'Action'}
+            icon={primaryAction.icon ?? Images.currencyIcon}
+            onPress={primaryAction.onPress}
             variant="primary"
           />
         )}

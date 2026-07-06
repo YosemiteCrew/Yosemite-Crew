@@ -9,23 +9,23 @@ interface BottomFadeOverlayProps {
   bottomOffset?: number;
 }
 
+// Convert hex to rgba if needed
+const parseColor = (color: string): string => {
+  if (color.startsWith('#')) {
+    const r = Number.parseInt(color.slice(1, 3), 16);
+    const g = Number.parseInt(color.slice(3, 5), 16);
+    const b = Number.parseInt(color.slice(5, 7), 16);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+  return color;
+};
+
 export const BottomFadeOverlay: React.FC<BottomFadeOverlayProps> = ({
   height = 80,
   intensity = 'medium',
   bottomOffset = 0,
 }) => {
   const {theme} = useTheme();
-
-  // Convert hex to rgba if needed
-  const parseColor = (color: string): string => {
-    if (color.startsWith('#')) {
-      const r = Number.parseInt(color.slice(1, 3), 16);
-      const g = Number.parseInt(color.slice(3, 5), 16);
-      const b = Number.parseInt(color.slice(5, 7), 16);
-      return `rgb(${r}, ${g}, ${b})`;
-    }
-    return color;
-  };
 
   const baseColorRgb = parseColor(theme.colors.background);
   let midOpacity = 0.65;
@@ -43,7 +43,9 @@ export const BottomFadeOverlay: React.FC<BottomFadeOverlayProps> = ({
   ];
 
   return (
-    <View style={[styles.container, {height, bottom: bottomOffset}]} pointerEvents="none">
+    <View
+      style={[styles.container, {height, bottom: bottomOffset}]}
+      pointerEvents="none">
       <LinearGradient
         colors={gradientColors}
         style={styles.gradient}
