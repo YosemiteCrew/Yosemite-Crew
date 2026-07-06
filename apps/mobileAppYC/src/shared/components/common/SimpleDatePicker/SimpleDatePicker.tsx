@@ -159,6 +159,7 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
   mode = 'date',
 }) => {
   const isIOS = Platform.OS === 'ios';
+  const fallbackDate = useMemo(() => new Date(), []);
 
   if (!show) {
     return null;
@@ -170,7 +171,7 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
     return (
       <IOSPickerModal
         key={pickerKey}
-        value={value ?? new Date()}
+        value={value ?? fallbackDate}
         onDateChange={onDateChange}
         onDismiss={onDismiss}
         minimumDate={minimumDate}
@@ -196,7 +197,7 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
 
   return (
     <DateTimePicker
-      value={value || new Date()}
+      value={value || fallbackDate}
       mode={mode}
       display="default"
       onChange={handleAndroidDateChange}

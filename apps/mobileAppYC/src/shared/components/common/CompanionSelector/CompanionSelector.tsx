@@ -14,6 +14,7 @@ import {useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
+import {useLazyRef} from '@/shared/hooks/useLazyRef';
 import type {RootState} from '@/app/store';
 import type {CoParentPermissions} from '@/features/coParent';
 
@@ -70,7 +71,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
   const globalPermissions = useSelector(
     (state: RootState) => state.coParent?.lastFetchedPermissions,
   );
-  const originalOrderRef = React.useRef<Map<string, number>>(new Map());
+  const originalOrderRef = useLazyRef(() => new Map<string, number>());
   React.useEffect(() => {
     const map = new Map<string, number>();
     companions.forEach((companion, index) => {
@@ -83,7 +84,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
       }
     });
     originalOrderRef.current = map;
-  }, [companions]);
+  }, [companions, originalOrderRef]);
 
   const resolveRolePriority = React.useCallback(
     (companion: T) => {
@@ -122,7 +123,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
       const indexB = originalOrderRef.current.get(idB) ?? 0;
       return indexA - indexB;
     });
-  }, [companions, resolveRolePriority]);
+  }, [companions, originalOrderRef, resolveRolePriority]);
 
   const handleImageError = React.useCallback((id: string) => {
     setFailedImages(prev => {

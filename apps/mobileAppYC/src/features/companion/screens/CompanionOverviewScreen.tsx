@@ -104,6 +104,7 @@ export const CompanionOverviewScreen: React.FC<
 > = ({navigation, route}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const today = useMemo(() => new Date(), []);
   const dispatch = useDispatch<AppDispatch>();
   const {weightUnit} = usePreferences();
 
@@ -632,7 +633,7 @@ export const CompanionOverviewScreen: React.FC<
               }}
               show={showDobPicker}
               onDismiss={() => setShowDobPicker(false)}
-              maximumDate={new Date()}
+              maximumDate={today}
               mode="date"
             />
           </>

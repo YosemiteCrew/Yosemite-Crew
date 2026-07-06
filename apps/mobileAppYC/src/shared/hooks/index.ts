@@ -6,3 +6,4 @@ export * from './useDocumentFileHandlers';
 export * from './useFileOperations';
 export * from './useFormBottomSheets';
 export * from './useKeyboardVisible';
+export * from './useLazyRef';

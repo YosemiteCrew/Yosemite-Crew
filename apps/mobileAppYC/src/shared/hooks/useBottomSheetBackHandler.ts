@@ -1,5 +1,6 @@
-import {useEffect, useRef, useCallback, useState} from 'react';
+import {useEffect, useCallback, useState} from 'react';
 import {BackHandler} from 'react-native';
+import {useLazyRef} from '@/shared/hooks/useLazyRef';
 
 interface BottomSheetRef {
   close: () => void;
@@ -33,9 +34,9 @@ interface BottomSheetRef {
  */
 export function useBottomSheetBackHandler() {
   const [openSheetKey, setOpenSheetKey] = useState<string | null>(null);
-  const sheetsRef = useRef<Map<string, React.RefObject<BottomSheetRef | null>>>(
-    new Map(),
-  );
+  const sheetsRef = useLazyRef<
+    Map<string, React.RefObject<BottomSheetRef | null>>
+  >(() => new Map());
 
   // Handle Android back button
   useEffect(() => {
@@ -57,7 +58,7 @@ export function useBottomSheetBackHandler() {
     );
 
     return () => backHandler.remove();
-  }, [openSheetKey]);
+  }, [openSheetKey, sheetsRef]);
 
   /**
    * Register a bottom sheet ref with a unique key
@@ -66,7 +67,7 @@ export function useBottomSheetBackHandler() {
     (key: string, ref: React.RefObject<BottomSheetRef | null>) => {
       sheetsRef.current.set(key, ref);
     },
-    [],
+    [sheetsRef],
   );
 
   /**

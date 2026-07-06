@@ -94,6 +94,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const common = useMemo(() => createCommonFormStyles(theme), [theme]);
+  const today = useMemo(() => new Date(), []);
   const {draft, setProductInfo} = useAdverseEventReport();
 
   const [formData, setFormData] = useState<AdverseEventProductInfo>(() => {
@@ -458,7 +459,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
         }}
         show={showDatePicker}
         onDismiss={() => setShowDatePicker(false)}
-        maximumDate={new Date()}
+        maximumDate={today}
         mode="date"
       />
 

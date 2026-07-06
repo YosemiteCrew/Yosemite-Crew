@@ -108,6 +108,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const common = useMemo(() => createCommonFormStyles(theme), [theme]);
+  const today = useMemo(() => new Date(), []);
 
   const [showDatePicker, setShowDatePicker] = React.useState(false);
 
@@ -363,7 +364,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         }}
         show={showDatePicker}
         onDismiss={() => setShowDatePicker(false)}
-        maximumDate={new Date()}
+        maximumDate={today}
         mode="date"
       />
 

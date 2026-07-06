@@ -29,6 +29,7 @@ export const TaskDatePickers: React.FC<TaskDatePickersProps> = ({
   updateField,
 }) => {
   const {date, time, startDate, endDate} = pickerControls;
+  const fallbackDate = React.useMemo(() => new Date(), []);
 
   return (
     <>
@@ -48,7 +49,7 @@ export const TaskDatePickers: React.FC<TaskDatePickersProps> = ({
       <SimpleDatePicker
         show={time.visible}
         onDismiss={() => time.setVisible(false)}
-        value={formData.time || new Date()}
+        value={formData.time || fallbackDate}
         onDateChange={(selectedDate: Date) => {
           updateField('time', selectedDate);
           time.setVisible(false);
@@ -72,7 +73,7 @@ export const TaskDatePickers: React.FC<TaskDatePickersProps> = ({
       <SimpleDatePicker
         show={endDate.visible}
         onDismiss={() => endDate.setVisible(false)}
-        value={formData.endDate || new Date()}
+        value={formData.endDate || fallbackDate}
         onDateChange={(selectedDate: Date) => {
           updateField('endDate', selectedDate);
           endDate.setVisible(false);

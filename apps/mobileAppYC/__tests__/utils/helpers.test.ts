@@ -1,6 +1,4 @@
 import {
-  screenWidth,
-  screenHeight,
   // isIOS and isAndroid are imported inside tests
   formatDate,
   calculateAgeFromDateOfBirth,
@@ -26,7 +24,7 @@ import {
 // Set the DEFAULT mock for react-native
 jest.mock('react-native', () => ({
   Dimensions: {
-    get: jest.fn(() => ({ width: 400, height: 800 })),
+    get: jest.fn(() => ({width: 400, height: 800})),
   },
   Platform: {
     OS: 'ios',
@@ -79,22 +77,16 @@ describe('helpers', () => {
       jest.resetModules(); // This is key. It clears the module cache.
     });
 
-    it('should get correct screen dimensions', () => {
-      // This test uses the default mock (ios)
-      expect(screenWidth).toBe(400);
-      expect(screenHeight).toBe(800);
-    });
-
     it('should correctly identify iOS', () => {
       // Set up the mock for 'ios'
       jest.mock('react-native', () => ({
-        Dimensions: { get: jest.fn(() => ({ width: 400, height: 800 })) },
-        Platform: { OS: 'ios' },
-        NativeModules: { RNGetRandomValues: { getRandomBase64: jest.fn() } },
+        Dimensions: {get: jest.fn(() => ({width: 400, height: 800}))},
+        Platform: {OS: 'ios'},
+        NativeModules: {RNGetRandomValues: {getRandomBase64: jest.fn()}},
       }));
 
       // Use require() to get the re-evaluated module
-      const { isIOS, isAndroid } = require('@/shared/utils/helpers');
+      const {isIOS, isAndroid} = require('@/shared/utils/helpers');
       expect(isIOS).toBe(true);
       expect(isAndroid).toBe(false);
     });
@@ -102,13 +94,13 @@ describe('helpers', () => {
     it('should correctly identify Android', () => {
       // Set up the mock for 'android'
       jest.mock('react-native', () => ({
-        Dimensions: { get: jest.fn(() => ({ width: 400, height: 800 })) },
-        Platform: { OS: 'android' },
-        NativeModules: { RNGetRandomValues: { getRandomBase64: jest.fn() } },
+        Dimensions: {get: jest.fn(() => ({width: 400, height: 800}))},
+        Platform: {OS: 'android'},
+        NativeModules: {RNGetRandomValues: {getRandomBase64: jest.fn()}},
       }));
 
       // Use require() to get the re-evaluated module
-      const { isIOS, isAndroid } = require('@/shared/utils/helpers');
+      const {isIOS, isAndroid} = require('@/shared/utils/helpers');
 
       expect(isIOS).toBe(false);
       expect(isAndroid).toBe(true);
@@ -214,7 +206,9 @@ describe('helpers', () => {
     });
 
     it('truncateText: should truncate and add ellipsis', () => {
-      expect(truncateText('Hello world, this is long', 10)).toBe('Hello worl...');
+      expect(truncateText('Hello world, this is long', 10)).toBe(
+        'Hello worl...',
+      );
     });
 
     it('truncateText: should trim trailing whitespace before ellipsis', () => {

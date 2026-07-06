@@ -1,14 +1,11 @@
 import 'react-native-get-random-values';
-import {Dimensions, Platform} from 'react-native';
+import {Platform} from 'react-native';
 
 /**
  * Platform checks
  */
 export const isIOS = Platform.OS === 'ios';
 export const isAndroid = Platform.OS === 'android';
-const screenDimensions = Dimensions.get('window');
-export const screenWidth = screenDimensions.width;
-export const screenHeight = screenDimensions.height;
 
 /**
  * Format date to readable string

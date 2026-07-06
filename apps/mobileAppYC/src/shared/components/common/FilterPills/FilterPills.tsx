@@ -1,6 +1,13 @@
 import React, {useRef, useEffect} from 'react';
-import {ScrollView, TouchableOpacity, Text, View, StyleSheet} from 'react-native';
+import {
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  View,
+  StyleSheet,
+} from 'react-native';
 import {useTheme} from '@/hooks';
+import {useLazyRef} from '@/shared/hooks/useLazyRef';
 
 export interface FilterOption<T> {
   readonly id: T;
@@ -23,7 +30,7 @@ export function FilterPills<T>({
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const scrollRef = useRef<ScrollView | null>(null);
-  const pillRefs = useRef<Map<string, View>>(new Map());
+  const pillRefs = useLazyRef(() => new Map<string, View>());
 
   useEffect(() => {
     const selectedKey = String(selected ?? 'default');
@@ -31,13 +38,13 @@ export function FilterPills<T>({
     if (pillView && scrollRef.current) {
       pillView.measureLayout(
         scrollRef.current as any,
-        (x) => {
+        x => {
           scrollRef.current?.scrollTo({x: x - 20, animated: true});
         },
         () => {},
       );
     }
-  }, [selected]);
+  }, [pillRefs, selected]);
 
   return (
     <ScrollView

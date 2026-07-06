@@ -85,6 +85,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const today = useMemo(() => new Date(), []);
   const dispatch = useDispatch<AppDispatch>();
 
   const user = useSelector(selectAuthUser);
@@ -541,7 +542,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
               }}
               show={showDobPicker}
               onDismiss={() => setShowDobPicker(false)}
-              maximumDate={new Date()}
+              maximumDate={today}
               mode="date"
             />
           </ScrollView>
