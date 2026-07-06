@@ -1,5 +1,5 @@
-import React, {useEffect, useMemo} from 'react';
-import {View, StyleSheet, ScrollView, Image, Text, Alert} from 'react-native';
+import React, {useCallback, useEffect, useMemo} from 'react';
+import {View, StyleSheet, FlatList, Image, Text, Alert} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useFocusEffect} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
@@ -58,7 +58,7 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   }, [companions, dispatch, selectedCompanionId]);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       if (!selectedCompanion?.id) {
         return;
       }
@@ -96,13 +96,50 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
     navigation.navigate('AddCoParent');
   };
 
-  const handleViewCoParent = (coParentId: string) => {
-    navigation.navigate('EditCoParent', {coParentId});
-  };
+  const handleViewCoParent = useCallback(
+    (coParentId: string) => {
+      navigation.navigate('EditCoParent', {coParentId});
+    },
+    [navigation],
+  );
 
-  const handleEditCoParent = (coParentId: string) => {
-    navigation.navigate('EditCoParent', {coParentId});
-  };
+  const handleEditCoParent = useCallback(
+    (coParentId: string) => {
+      navigation.navigate('EditCoParent', {coParentId});
+    },
+    [navigation],
+  );
+
+  const renderCoParent = useCallback(
+    ({
+      item: coParent,
+      index,
+    }: {
+      item: (typeof visibleCoParents)[number];
+      index: number;
+    }) => {
+      const isPrimaryEntry = (coParent.role ?? '')
+        .toUpperCase()
+        .includes('PRIMARY');
+      const targetId = coParent.parentId || coParent.id;
+
+      return (
+        <CoParentCard
+          coParent={coParent}
+          onPressView={
+            isPrimaryEntry ? undefined : () => handleViewCoParent(targetId)
+          }
+          onPressEdit={
+            isPrimaryEntry ? undefined : () => handleEditCoParent(targetId)
+          }
+          hideSwipeActions={isPrimaryEntry}
+          showEditAction={!isPrimaryEntry}
+          divider={index < visibleCoParents.length - 1}
+        />
+      );
+    },
+    [handleEditCoParent, handleViewCoParent, visibleCoParents.length],
+  );
 
   // Show empty state when no co-parents
   if (!loading && visibleCoParents.length === 0) {
@@ -162,36 +199,14 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
               <GifLoader />
             </View>
           ) : (
-            <ScrollView
+            <FlatList
+              data={visibleCoParents}
+              keyExtractor={coParent => coParent.parentId || coParent.id}
+              renderItem={renderCoParent}
               style={styles.scrollView}
               contentContainerStyle={[styles.content, contentPaddingStyle]}
-              showsVerticalScrollIndicator={false}>
-              {visibleCoParents.map((coParent, index) => {
-                const isPrimaryEntry = (coParent.role ?? '')
-                  .toUpperCase()
-                  .includes('PRIMARY');
-                const targetId = coParent.parentId || coParent.id;
-                return (
-                  <CoParentCard
-                    key={targetId}
-                    coParent={coParent}
-                    onPressView={
-                      isPrimaryEntry
-                        ? undefined
-                        : () => handleViewCoParent(targetId)
-                    }
-                    onPressEdit={
-                      isPrimaryEntry
-                        ? undefined
-                        : () => handleEditCoParent(targetId)
-                    }
-                    hideSwipeActions={isPrimaryEntry}
-                    showEditAction={!isPrimaryEntry}
-                    divider={index < visibleCoParents.length - 1}
-                  />
-                );
-              })}
-            </ScrollView>
+              showsVerticalScrollIndicator={false}
+            />
           )}
         </>
       )}

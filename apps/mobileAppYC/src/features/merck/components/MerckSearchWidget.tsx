@@ -1,11 +1,11 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Keyboard,
   Linking,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -249,6 +249,20 @@ const MerckResultsSection: React.FC<MerckResultsSectionProps> = ({
   onOpenInReader,
   onOpenFullSearch,
 }) => {
+  const renderPanelEntry = React.useCallback(
+    ({item: entry}: {item: MerckEntry}) => (
+      <MerckEntryCard
+        entry={entry}
+        styles={styles}
+        theme={theme}
+        summaryLines={4}
+        subLinkLimit={6}
+        onOpenInReader={onOpenInReader}
+      />
+    ),
+    [onOpenInReader, styles, theme],
+  );
+
   if (compact) {
     return (
       <View style={styles.resultsWrap}>
@@ -287,24 +301,16 @@ const MerckResultsSection: React.FC<MerckResultsSectionProps> = ({
 
   return (
     <View style={styles.resultsPanel}>
-      <ScrollView
+      <FlatList
+        data={visibleEntries}
+        keyExtractor={entry => entry.id}
+        renderItem={renderPanelEntry}
         style={styles.resultsScroll}
         contentContainerStyle={styles.resultsScrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled>
-        {visibleEntries.map(entry => (
-          <MerckEntryCard
-            key={entry.id}
-            entry={entry}
-            styles={styles}
-            theme={theme}
-            summaryLines={4}
-            subLinkLimit={6}
-            onOpenInReader={onOpenInReader}
-          />
-        ))}
-      </ScrollView>
+        nestedScrollEnabled
+      />
 
       <Text style={styles.copyrightText}>{MERCK_COPYRIGHT_NOTICE}</Text>
     </View>
@@ -823,6 +829,20 @@ const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
   const handleToggleRefine = React.useCallback(() => {
     setRefineOpen(prev => !prev);
   }, [setRefineOpen]);
+  const renderFullEntry = React.useCallback(
+    ({item: entry}: {item: MerckEntry}) => (
+      <MerckEntryCard
+        entry={entry}
+        styles={styles}
+        theme={theme}
+        summaryLines={4}
+        subLinkLimit={6}
+        onOpenInReader={openInReader}
+        glass
+      />
+    ),
+    [openInReader, styles, theme],
+  );
 
   const compactContent = (
     <View testID={testID} style={styles.content}>
@@ -894,46 +914,41 @@ const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
         />
       </View>
 
-      <ScrollView
+      <FlatList
+        data={visibleEntries}
+        keyExtractor={entry => entry.id}
+        renderItem={renderFullEntry}
         style={styles.resultsScroll}
         contentContainerStyle={styles.resultsScrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled>
-        <MerckHeaderSection
-          title={title}
-          description={description}
-          compact={compact}
-          showLogo={!showIdleState}
-          styles={styles}
-          theme={theme}
-          hasFullSearch={hasFullSearch}
-          onOpenFullSearch={handleOpenFullSearchPress}
-        />
+        nestedScrollEnabled
+        ListHeaderComponent={
+          <>
+            <MerckHeaderSection
+              title={title}
+              description={description}
+              compact={compact}
+              showLogo={!showIdleState}
+              styles={styles}
+              theme={theme}
+              hasFullSearch={hasFullSearch}
+              onOpenFullSearch={handleOpenFullSearchPress}
+            />
 
-        <MerckStateMessages
-          compact={compact}
-          error={error}
-          showIdleState={showIdleState}
-          showNoResultsState={showNoResultsState}
-          styles={styles}
-        />
-
-        {visibleEntries.map(entry => (
-          <MerckEntryCard
-            key={entry.id}
-            entry={entry}
-            styles={styles}
-            theme={theme}
-            summaryLines={4}
-            subLinkLimit={6}
-            onOpenInReader={openInReader}
-            glass
-          />
-        ))}
-
-        <Text style={styles.copyrightText}>{MERCK_COPYRIGHT_NOTICE}</Text>
-      </ScrollView>
+            <MerckStateMessages
+              compact={compact}
+              error={error}
+              showIdleState={showIdleState}
+              showNoResultsState={showNoResultsState}
+              styles={styles}
+            />
+          </>
+        }
+        ListFooterComponent={
+          <Text style={styles.copyrightText}>{MERCK_COPYRIGHT_NOTICE}</Text>
+        }
+      />
     </View>
   );
 

@@ -1,7 +1,7 @@
 import React, {useState, useCallback, useMemo, useRef, useEffect} from 'react';
 import {
   View,
-  ScrollView,
+  FlatList,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -159,6 +159,20 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
     );
     return filtered;
   }, [allLinkedBusinesses, companionId, category]);
+  const pendingInvite = useMemo(
+    () =>
+      linkedBusinesses.find(
+        b => b.inviteStatus === 'pending' && b.state === 'pending',
+      ),
+    [linkedBusinesses],
+  );
+  const acceptedLinkedBusinesses = useMemo(
+    () =>
+      linkedBusinesses.filter(
+        b => b.inviteStatus === 'accepted' || b.state === 'active',
+      ),
+    [linkedBusinesses],
+  );
 
   // Use a ref to manage debounce timer
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -432,6 +446,16 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
     deleteBottomSheetRef.current?.open(business.businessName);
   }, []);
 
+  const renderLinkedBusiness = useCallback(
+    ({item: business}: {item: LinkedBusiness}) => (
+      <LinkedBusinessCard
+        business={business}
+        onDeletePress={handleDeletePressFromCard}
+      />
+    ),
+    [handleDeletePressFromCard],
+  );
+
   const handleConfirmDelete = useCallback(async () => {
     if (!selectedBusinessForDeleteRef.current) return;
 
@@ -578,7 +602,10 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.container}>
             <View style={styles.mainContent}>
-              <ScrollView
+              <FlatList
+                data={acceptedLinkedBusinesses}
+                keyExtractor={business => business.linkId || business.id}
+                renderItem={renderLinkedBusiness}
                 contentContainerStyle={[
                   styles.scrollContent,
                   contentPaddingStyle,
@@ -587,68 +614,56 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
                 keyboardShouldPersistTaps="handled"
                 onScrollBeginDrag={
                   showSearchResults ? handleCloseDropdown : undefined
-                }>
-                {/* Companion Profile Header - Always visible */}
-                <View key="profile">
-                  <CompanionProfileImage
-                    name={companionName}
-                    breedName={companionBreed}
-                    profileImage={companionImage}
-                  />
-                </View>
+                }
+                ListHeaderComponent={
+                  <>
+                    <View>
+                      <CompanionProfileImage
+                        name={companionName}
+                        breedName={companionBreed}
+                        profileImage={companionImage}
+                      />
+                    </View>
 
-                {/* Pending Invite Sections - Show only the first pending invite */}
-                {linkedBusinesses
-                  .filter(
-                    b => b.inviteStatus === 'pending' && b.state === 'pending',
-                  )
-                  .slice(0, 1)
-                  .map(business => (
-                    <InviteCard
-                      key={business.linkId || business.id}
-                      businessName={business.businessName}
-                      parentName={business.parentName || 'Unknown'}
-                      companionName={companionName}
-                      email={business.email || business.parentEmail || ''}
-                      phone={business.phone || ''}
-                      onAccept={() =>
-                        handleAcceptInvite(business.linkId || business.id)
-                      }
-                      onDecline={() =>
-                        handleDeclineInvite(business.linkId || business.id)
-                      }
-                    />
-                  ))}
+                    {pendingInvite ? (
+                      <InviteCard
+                        businessName={pendingInvite.businessName}
+                        parentName={pendingInvite.parentName || 'Unknown'}
+                        companionName={companionName}
+                        email={
+                          pendingInvite.email || pendingInvite.parentEmail || ''
+                        }
+                        phone={pendingInvite.phone || ''}
+                        onAccept={() =>
+                          handleAcceptInvite(
+                            pendingInvite.linkId || pendingInvite.id,
+                          )
+                        }
+                        onDecline={() =>
+                          handleDeclineInvite(
+                            pendingInvite.linkId || pendingInvite.id,
+                          )
+                        }
+                      />
+                    ) : null}
 
-                {/* Linked Businesses Section - Only show accepted ones */}
-                {linkedBusinesses.some(
-                  b => b.inviteStatus === 'accepted' || b.state === 'active',
-                ) ? (
-                  <View key="linked" style={styles.linkedSection}>
-                    <Text style={styles.sectionTitle}>
-                      Linked {categoryTitle.toLowerCase()}s
-                    </Text>
-                    {linkedBusinesses.flatMap(business =>
-                      business.inviteStatus === 'accepted' ||
-                      business.state === 'active'
-                        ? [
-                            <LinkedBusinessCard
-                              key={business.linkId || business.id}
-                              business={business}
-                              onDeletePress={handleDeletePressFromCard}
-                            />,
-                          ]
-                        : [],
-                    )}
-                  </View>
-                ) : (
-                  <View key="empty" style={styles.emptyContainer}>
+                    {acceptedLinkedBusinesses.length > 0 ? (
+                      <View style={styles.linkedSection}>
+                        <Text style={styles.sectionTitle}>
+                          Linked {categoryTitle.toLowerCase()}s
+                        </Text>
+                      </View>
+                    ) : null}
+                  </>
+                }
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
                     <Text style={styles.emptyText}>
                       No linked {categoryTitle.toLowerCase()}s yet
                     </Text>
                   </View>
-                )}
-              </ScrollView>
+                }
+              />
             </View>
           </KeyboardAvoidingView>
         )}

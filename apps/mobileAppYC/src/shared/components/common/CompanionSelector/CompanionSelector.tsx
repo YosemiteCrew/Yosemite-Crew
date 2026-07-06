@@ -240,9 +240,11 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[styles.companionRow, containerStyle]}>
-      {sortedCompanions.map(renderCompanionBadge)}
-      {showAddButton && onAddCompanion && renderAddCompanionBadge()}
+      contentContainerStyle={containerStyle}>
+      <View style={styles.companionRow}>
+        {sortedCompanions.map(renderCompanionBadge)}
+        {showAddButton && onAddCompanion && renderAddCompanionBadge()}
+      </View>
     </ScrollView>
   );
 };

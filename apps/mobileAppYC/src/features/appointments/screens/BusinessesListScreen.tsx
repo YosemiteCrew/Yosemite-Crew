@@ -1,5 +1,5 @@
-import React, {useMemo, useEffect} from 'react';
-import {ScrollView, StyleSheet} from 'react-native';
+import React, {useCallback, useMemo, useEffect} from 'react';
+import {FlatList, StyleSheet} from 'react-native';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import BusinessCard from '@/features/appointments/components/BusinessCard/BusinessCard';
@@ -61,6 +61,23 @@ export const BusinessesListScreen: React.FC = () => {
     }
   }, [businesses.length, dispatch]);
 
+  const renderBusiness = useCallback(
+    ({item: business}: {item: VetBusiness}) => (
+      <BusinessCard
+        name={business.name}
+        openText={business.openHours}
+        description={resolveDescription(business)}
+        distanceText={getDistanceText(business)}
+        ratingText={business.rating ? `${business.rating}` : undefined}
+        photo={business.photo}
+        onBook={() =>
+          navigation.navigate('BusinessDetails', {businessId: business.id})
+        }
+      />
+    ),
+    [navigation],
+  );
+
   return (
     <LiquidGlassHeaderScreen
       header={
@@ -74,24 +91,13 @@ export const BusinessesListScreen: React.FC = () => {
       cardGap={theme.spacing['3']}
       contentPadding={theme.spacing['4']}>
       {contentPaddingStyle => (
-        <ScrollView
+        <FlatList
+          data={businesses}
+          keyExtractor={business => business.id}
+          renderItem={renderBusiness}
           contentContainerStyle={[styles.container, contentPaddingStyle]}
-          showsVerticalScrollIndicator={false}>
-          {businesses.map(b => (
-            <BusinessCard
-              key={b.id}
-              name={b.name}
-              openText={b.openHours}
-              description={resolveDescription(b)}
-              distanceText={getDistanceText(b)}
-              ratingText={b.rating ? `${b.rating}` : undefined}
-              photo={b.photo}
-              onBook={() =>
-                navigation.navigate('BusinessDetails', {businessId: b.id})
-              }
-            />
-          ))}
-        </ScrollView>
+          showsVerticalScrollIndicator={false}
+        />
       )}
     </LiquidGlassHeaderScreen>
   );

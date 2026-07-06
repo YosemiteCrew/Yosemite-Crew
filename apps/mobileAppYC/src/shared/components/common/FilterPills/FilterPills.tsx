@@ -52,26 +52,29 @@ export function FilterPills<T>({
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={[styles.pillsContent, containerStyle]}>
-      {options.map(option => {
-        const isActive = option.id === selected;
-        const key = String(option.id ?? 'default');
-        return (
-          <TouchableOpacity
-            key={key}
-            ref={node => {
-              if (node) {
-                pillRefs.current.set(key, node);
-              }
-            }}
-            style={[styles.pill, isActive && styles.pillActive]}
-            activeOpacity={0.8}
-            onPress={() => onSelect(option.id)}>
-            <Text style={[styles.pillText, isActive && styles.pillTextActive]}>
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+      <View style={styles.pillsRow}>
+        {options.map(option => {
+          const isActive = option.id === selected;
+          const key = String(option.id ?? 'default');
+          return (
+            <TouchableOpacity
+              key={key}
+              ref={node => {
+                if (node) {
+                  pillRefs.current.set(key, node);
+                }
+              }}
+              style={[styles.pill, isActive && styles.pillActive]}
+              activeOpacity={0.8}
+              onPress={() => onSelect(option.id)}>
+              <Text
+                style={[styles.pillText, isActive && styles.pillTextActive]}>
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </ScrollView>
   );
 }
@@ -79,9 +82,12 @@ export function FilterPills<T>({
 const createStyles = (theme: any) =>
   StyleSheet.create({
     pillsContent: {
-      gap: theme.spacing['2'],
       paddingRight: theme.spacing['2'],
       paddingHorizontal: theme.spacing['6'],
+    },
+    pillsRow: {
+      flexDirection: 'row',
+      gap: theme.spacing['2'],
     },
     pill: {
       minWidth: 80,

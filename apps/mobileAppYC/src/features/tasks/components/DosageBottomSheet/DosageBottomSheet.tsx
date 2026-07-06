@@ -1,9 +1,15 @@
-import {useImperativeHandle, useRef, useState, useMemo} from 'react';
 import {
+  useCallback,
+  useImperativeHandle,
+  useRef,
+  useState,
+  useMemo,
+} from 'react';
+import {
+  FlatList,
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Image,
 } from 'react-native';
@@ -137,17 +143,15 @@ const DosageBottomSheetDraft = ({
     setTempDosages([...tempDosages, newDosage]);
   };
 
-  const handleRemoveDosage = (id: string) => {
-    const filtered = tempDosages.filter(d => d.id !== id);
-    setTempDosages(filtered);
-  };
+  const handleRemoveDosage = useCallback((id: string) => {
+    setTempDosages(current => current.filter(d => d.id !== id));
+  }, []);
 
-  const handleLabelChange = (id: string, newLabel: string) => {
-    const updated = tempDosages.map(d =>
-      d.id === id ? {...d, label: newLabel} : d,
+  const handleLabelChange = useCallback((id: string, newLabel: string) => {
+    setTempDosages(current =>
+      current.map(d => (d.id === id ? {...d, label: newLabel} : d)),
     );
-    setTempDosages(updated);
-  };
+  }, []);
 
   const handleTimeChange = (selectedTime: Date) => {
     if (editingDosageId) {
@@ -163,10 +167,10 @@ const DosageBottomSheetDraft = ({
     setEditingDosageId(null);
   };
 
-  const handleEditTime = (dosageId: string) => {
+  const handleEditTime = useCallback((dosageId: string) => {
     setEditingDosageId(dosageId);
     setShowTimePicker(true);
-  };
+  }, []);
 
   const handleSave = async () => {
     if (saving) {
@@ -185,6 +189,54 @@ const DosageBottomSheetDraft = ({
   };
 
   const currentEditingDosage = tempDosages.find(d => d.id === editingDosageId);
+  const renderDosage = useCallback(
+    ({item: dosage}: {item: DosageSchedule}) => (
+      <View style={styles.dosageRow}>
+        <View style={styles.inputField}>
+          <Input
+            label="Dosage"
+            value={dosage.label}
+            onChangeText={text => handleLabelChange(dosage.id, text)}
+            placeholder="Enter dose name"
+            containerStyle={styles.inputContainer}
+          />
+        </View>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => handleEditTime(dosage.id)}
+          style={styles.inputField}>
+          <Input
+            label="Time"
+            value={formatTime(dosage.time)}
+            placeholder="Select time"
+            editable={false}
+            pointerEvents="none"
+            icon={
+              <Image source={Images.clockIcon} style={styles.clockIconInput} />
+            }
+            containerStyle={styles.inputContainer}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={styles.removeButton}
+          onPress={() => handleRemoveDosage(dosage.id)}>
+          <Image source={Images.deleteIcon} style={styles.deleteIcon} />
+        </TouchableOpacity>
+      </View>
+    ),
+    [
+      handleEditTime,
+      handleLabelChange,
+      handleRemoveDosage,
+      styles.clockIconInput,
+      styles.deleteIcon,
+      styles.dosageRow,
+      styles.inputContainer,
+      styles.inputField,
+      styles.removeButton,
+    ],
+  );
 
   return (
     <ConfirmActionBottomSheet
@@ -203,57 +255,24 @@ const DosageBottomSheetDraft = ({
         shadowIntensity: 'none',
       }}>
       <View style={styles.container}>
-        <ScrollView
+        <FlatList
+          data={tempDosages}
+          keyExtractor={dosage => dosage.id}
+          renderItem={renderDosage}
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}>
-          {tempDosages.map((dosage, _index) => (
-            <View key={dosage.id} style={styles.dosageRow}>
-              <View style={styles.inputField}>
-                <Input
-                  label="Dosage"
-                  value={dosage.label}
-                  onChangeText={text => handleLabelChange(dosage.id, text)}
-                  placeholder="Enter dose name"
-                  containerStyle={styles.inputContainer}
-                />
-              </View>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => handleEditTime(dosage.id)}
-                style={styles.inputField}>
-                <Input
-                  label="Time"
-                  value={formatTime(dosage.time)}
-                  placeholder="Select time"
-                  editable={false}
-                  pointerEvents="none"
-                  icon={
-                    <Image
-                      source={Images.clockIcon}
-                      style={styles.clockIconInput}
-                    />
-                  }
-                  containerStyle={styles.inputContainer}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={styles.removeButton}
-                onPress={() => handleRemoveDosage(dosage.id)}>
-                <Image source={Images.deleteIcon} style={styles.deleteIcon} />
-              </TouchableOpacity>
-            </View>
-          ))}
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.addButton}
-            onPress={handleAddDosage}>
-            <Image source={Images.addIcon} style={styles.addIcon} />
-            <Text style={styles.addText}>Add</Text>
-          </TouchableOpacity>
-        </ScrollView>
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+          ListFooterComponent={
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.addButton}
+              onPress={handleAddDosage}>
+              <Image source={Images.addIcon} style={styles.addIcon} />
+              <Text style={styles.addText}>Add</Text>
+            </TouchableOpacity>
+          }
+        />
 
         {showTimePicker && currentEditingDosage && (
           <SimpleDatePicker
