@@ -5,10 +5,16 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
-  Animated,
-  PanResponder,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
+import {Gesture, GestureDetector} from 'react-native-gesture-handler';
+import {scheduleOnRN} from 'react-native-worklets';
+import Reanimated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -25,9 +31,6 @@ interface NotificationCardProps {
   swipeEnabled?: boolean;
 }
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
-
 export const NotificationCard: React.FC<NotificationCardProps> = ({
   notification,
   companion,
@@ -37,60 +40,67 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
   swipeEnabled = true,
 }) => {
   const {theme} = useTheme();
+  const {width: screenWidth} = useWindowDimensions();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const companionAvatarUri = useMemo(
     () => normalizeImageUri(companion?.profileImage ?? null),
     [companion?.profileImage],
   );
 
-  const pan = React.useRef(new Animated.ValueXY()).current;
+  const translateX = useSharedValue(0);
   const [isDragging, setIsDragging] = React.useState(false);
 
-  const panResponder = React.useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => !!swipeEnabled,
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        if (!swipeEnabled) return false;
-        const {dx} = gestureState;
-        return Math.abs(dx) > 5;
-      },
-      onPanResponderGrant: () => {
-        if (swipeEnabled) setIsDragging(true);
-      },
-      onPanResponderMove: Animated.event([null, {dx: pan.x}], {useNativeDriver: false}),
-      onPanResponderRelease: (evt, gestureState) => {
-        if (!swipeEnabled) return;
-        const {dx} = gestureState;
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{translateX: translateX.value}],
+  }));
 
-        if (dx < -SWIPE_THRESHOLD) {
-          // Swipe left - archive
-          Animated.timing(pan.x, {
-            toValue: -SCREEN_WIDTH,
-            duration: 300,
-            useNativeDriver: false,
-          }).start(() => {
-            onArchive?.();
-          });
-        } else if (dx > SWIPE_THRESHOLD) {
-          // Swipe right - dismiss
-          Animated.timing(pan.x, {
-            toValue: SCREEN_WIDTH,
-            duration: 300,
-            useNativeDriver: false,
-          }).start(() => {
-            onDismiss?.();
-          });
-        } else {
-          // Snap back
-          Animated.spring(pan, {
-            toValue: {x: 0, y: 0},
-            useNativeDriver: false,
-          }).start();
-        }
-        setIsDragging(false);
-      },
-    }),
-  ).current;
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .enabled(swipeEnabled)
+        .activeOffsetX([-5, 5])
+        .onStart(() => {
+          scheduleOnRN(setIsDragging, true);
+        })
+        .onUpdate(event => {
+          translateX.value = event.translationX;
+        })
+        .onEnd(event => {
+          const swipeThreshold = screenWidth * 0.25;
+
+          if (event.translationX < -swipeThreshold) {
+            translateX.value = withTiming(
+              -screenWidth,
+              {duration: 300},
+              finished => {
+                if (finished && onArchive) {
+                  scheduleOnRN(onArchive);
+                }
+              },
+            );
+            return;
+          }
+
+          if (event.translationX > swipeThreshold) {
+            translateX.value = withTiming(
+              screenWidth,
+              {duration: 300},
+              finished => {
+                if (finished && onDismiss) {
+                  scheduleOnRN(onDismiss);
+                }
+              },
+            );
+            return;
+          }
+
+          translateX.value = withSpring(0);
+        })
+        .onFinalize(() => {
+          scheduleOnRN(setIsDragging, false);
+        }),
+    [onArchive, onDismiss, screenWidth, swipeEnabled, translateX],
+  );
 
   const formatTime = useCallback((timestamp: string) => {
     const date = new Date(timestamp);
@@ -122,62 +132,69 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
 
   const avatarInitial = companion?.name?.charAt(0).toUpperCase() || 'P';
 
-  const animatedStyle = {
-    transform: [{translateX: pan.x}],
-  };
-
   return (
-    <Animated.View style={[styles.container, animatedStyle]} {...panResponder.panHandlers}>
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={onPress}
-        disabled={isDragging}
-        style={styles.pressable}>
-        <LiquidGlassCard
-          glassEffect="none"
-          interactive={false}
-          shadow="none"
-          style={styles.card}
-          fallbackStyle={styles.cardFallback}>
-          <View style={styles.content}>
-            {/* Icon */}
-            <View style={[styles.iconContainer, isDragging && styles.iconContainerDragging]}> 
-              <Image
-                source={getIconFromImages(notification.icon)}
-                style={styles.icon}
-                resizeMode="contain"
-              />
-            </View>
+    <GestureDetector gesture={panGesture}>
+      <Reanimated.View style={[styles.container, animatedStyle]}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={onPress}
+          disabled={isDragging}
+          style={styles.pressable}>
+          <LiquidGlassCard
+            glassEffect="none"
+            interactive={false}
+            shadow="none"
+            style={styles.card}
+            fallbackStyle={styles.cardFallback}>
+            <View style={styles.content}>
+              {/* Icon */}
+              <View
+                style={[
+                  styles.iconContainer,
+                  isDragging && styles.iconContainerDragging,
+                ]}>
+                <Image
+                  source={getIconFromImages(notification.icon)}
+                  style={styles.icon}
+                  resizeMode="contain"
+                />
+              </View>
 
-            {/* Main content */}
-            <View style={styles.mainContent}>
-              <Text style={styles.title} numberOfLines={2}>
-                {notification.title}
-              </Text>
-              {!!notification.description && (
-                <Text style={styles.description} numberOfLines={2}>
-                  {notification.description}
+              {/* Main content */}
+              <View style={styles.mainContent}>
+                <Text style={styles.title} numberOfLines={2}>
+                  {notification.title}
                 </Text>
-              )}
-              <View style={styles.footer}>
-                <Text style={styles.time}>{formatTime(notification.timestamp)}</Text>
+                {!!notification.description && (
+                  <Text style={styles.description} numberOfLines={2}>
+                    {notification.description}
+                  </Text>
+                )}
+                <View style={styles.footer}>
+                  <Text style={styles.time}>
+                    {formatTime(notification.timestamp)}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Avatar */}
+              <View style={styles.avatarContainer}>
+                {notification.avatarUrl && companionAvatarUri ? (
+                  <Image
+                    source={{uri: companionAvatarUri}}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarFallback]}>
+                    <Text style={styles.avatarText}>{avatarInitial}</Text>
+                  </View>
+                )}
               </View>
             </View>
-
-            {/* Avatar */}
-            <View style={styles.avatarContainer}>
-              {notification.avatarUrl && companionAvatarUri ? (
-                <Image source={{uri: companionAvatarUri}} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarText}>{avatarInitial}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </LiquidGlassCard>
-      </TouchableOpacity>
-    </Animated.View>
+          </LiquidGlassCard>
+        </TouchableOpacity>
+      </Reanimated.View>
+    </GestureDetector>
   );
 };
 

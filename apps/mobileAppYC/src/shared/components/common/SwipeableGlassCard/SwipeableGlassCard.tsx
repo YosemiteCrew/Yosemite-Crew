@@ -1,24 +1,35 @@
 import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {
-  Animated,
   Image,
   ImageSourcePropType,
   ImageStyle,
   Platform,
-  PanResponder,
   StyleProp,
   StyleSheet,
   TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
+import {Gesture, GestureDetector} from 'react-native-gesture-handler';
+import {scheduleOnRN} from 'react-native-worklets';
+import Reanimated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  type WithSpringConfig,
+} from 'react-native-reanimated';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 
 type LiquidGlassCardProps = React.ComponentProps<typeof LiquidGlassCard>;
 
-type SpringConfig = Partial<Animated.SpringAnimationConfig> & {
-  useNativeDriver: true;
+type SpringConfig = {
+  damping?: number;
+  mass?: number;
+  overshootClamping?: boolean;
+  stiffness?: number;
+  velocity?: number;
+  useNativeDriver?: true;
 };
 
 export interface SwipeableGlassCardProps {
@@ -39,7 +50,7 @@ export interface SwipeableGlassCardProps {
 }
 
 const DEFAULT_ACTION_WIDTH = 70;
-const DEFAULT_SPRING: SpringConfig = {useNativeDriver: true};
+const DEFAULT_SPRING: SpringConfig = {};
 const DEFAULT_OVERLAP = 0;
 
 export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
@@ -61,128 +72,146 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const hasCustomActionContent = Boolean(renderActionContent);
-  const translateX = useRef(new Animated.Value(0)).current;
-  const currentOffset = useRef(0);
+  const translateX = useSharedValue(0);
+  const currentOffset = useSharedValue(0);
   const [isRevealed, setIsRevealed] = useState(false);
+  const isRevealedRef = useRef(false);
 
   const effectiveActionColor = actionBackgroundColor ?? theme.colors.success;
   const effectiveSpringConfig = useMemo<SpringConfig>(
     () => ({...DEFAULT_SPRING, ...springConfig}),
     [springConfig],
   );
+  const reanimatedSpringConfig = useMemo<WithSpringConfig>(() => {
+    const config = {...effectiveSpringConfig};
+    delete config.useNativeDriver;
+    return config as WithSpringConfig;
+  }, [effectiveSpringConfig]);
 
   const swipeableWidth = actionWidth - actionOverlap;
-  const actionContentOpacity = useMemo(() => {
-    if (swipeableWidth <= 0) {
-      return 0;
+
+  const updateRevealedState = useCallback((revealed: boolean) => {
+    if (isRevealedRef.current === revealed) {
+      return;
     }
-
-    return translateX.interpolate({
-      inputRange: [-swipeableWidth, 0],
-      outputRange: [1, 0],
-      extrapolate: 'clamp',
-    });
-  }, [swipeableWidth, translateX]);
-
-  const clamp = useCallback(
-    (dx: number) => Math.max(-swipeableWidth, Math.min(0, dx)),
-    [swipeableWidth],
-  );
+    isRevealedRef.current = revealed;
+    setIsRevealed(revealed);
+  }, []);
 
   const animateTo = useCallback(
     (toValue: number, callback?: () => void) => {
-      setIsRevealed(toValue < 0);
-      currentOffset.current = toValue;
-      Animated.spring(translateX, {
-        ...effectiveSpringConfig,
+      updateRevealedState(toValue < 0);
+      currentOffset.value = toValue;
+      translateX.value = withSpring(
         toValue,
-      }).start(() => {
-        callback?.();
+        reanimatedSpringConfig,
+        finished => {
+          if (finished && callback) {
+            scheduleOnRN(callback);
+          }
+        },
+      );
+    },
+    [currentOffset, reanimatedSpringConfig, translateX, updateRevealedState],
+  );
+
+  const gesture = useMemo(() => {
+    const pan = Gesture.Pan()
+      .activeOffsetX(enableHorizontalSwipeOnly ? [-10, 10] : [-6, 6])
+      .onBegin(() => {
+        currentOffset.value = translateX.value;
+        scheduleOnRN(updateRevealedState, translateX.value < 0);
+      })
+      .onUpdate(event => {
+        if (
+          enableHorizontalSwipeOnly &&
+          Math.abs(event.translationY) > Math.abs(event.translationX)
+        ) {
+          return;
+        }
+
+        const nextOffset = Math.max(
+          -swipeableWidth,
+          Math.min(0, currentOffset.value + event.translationX),
+        );
+        translateX.value = nextOffset;
+        scheduleOnRN(updateRevealedState, nextOffset < 0);
+      })
+      .onEnd(event => {
+        const isMostlyVertical =
+          Math.abs(event.translationY) > Math.abs(event.translationX);
+        const isTap =
+          Math.abs(event.translationX) < 8 && Math.abs(event.translationY) < 8;
+
+        if (enableHorizontalSwipeOnly && isMostlyVertical) {
+          if (isTap && onPress) {
+            scheduleOnRN(onPress);
+          } else {
+            const finalOffset = Math.max(
+              -swipeableWidth,
+              Math.min(0, currentOffset.value + event.translationX),
+            );
+            const shouldOpen = finalOffset < -swipeableWidth / 2;
+            const nextOffset = shouldOpen ? -swipeableWidth : 0;
+            currentOffset.value = nextOffset;
+            scheduleOnRN(updateRevealedState, nextOffset < 0);
+            translateX.value = withSpring(nextOffset, reanimatedSpringConfig);
+          }
+          return;
+        }
+
+        if (isTap) {
+          currentOffset.value = 0;
+          scheduleOnRN(updateRevealedState, false);
+          translateX.value = withSpring(0, reanimatedSpringConfig, finished => {
+            if (finished && onPress) {
+              scheduleOnRN(onPress);
+            }
+          });
+          return;
+        }
+
+        const finalOffset = Math.max(
+          -swipeableWidth,
+          Math.min(0, currentOffset.value + event.translationX),
+        );
+        const shouldOpen = finalOffset < -swipeableWidth / 2;
+        const nextOffset = shouldOpen ? -swipeableWidth : 0;
+        currentOffset.value = nextOffset;
+        scheduleOnRN(updateRevealedState, nextOffset < 0);
+        translateX.value = withSpring(nextOffset, reanimatedSpringConfig);
+      })
+      .onFinalize(() => {
+        currentOffset.value = translateX.value;
       });
-    },
-    [effectiveSpringConfig, translateX],
-  );
 
-  const settleToNearest = useCallback(
-    (dx = 0) => {
-      const finalOffset = clamp(currentOffset.current + dx);
-      const shouldOpen = finalOffset < -swipeableWidth / 2;
-      animateTo(shouldOpen ? -swipeableWidth : 0);
-    },
-    [animateTo, clamp, swipeableWidth],
-  );
+    if (enableHorizontalSwipeOnly) {
+      pan.failOffsetY([-10, 10]);
+    }
 
-  const panResponder = useMemo(() => {
-    const handleMove = (_: any, gestureState: any) => {
-      if (enableHorizontalSwipeOnly) {
-        // Only allow horizontal movement if vertical movement is detected, prevent swipe
-        if (Math.abs(gestureState.dy) > Math.abs(gestureState.dx)) {
-          return;
-        }
-      }
-      const nextOffset = clamp(currentOffset.current + gestureState.dx);
-      setIsRevealed(nextOffset < 0);
-      translateX.setValue(nextOffset);
-    };
-    const handleRelease = (_: any, gestureState: any) => {
-      const isMostlyVertical =
-        Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-
-      if (enableHorizontalSwipeOnly && isMostlyVertical) {
-        if (Math.abs(gestureState.dx) < 8 && Math.abs(gestureState.dy) < 8) {
-          onPress?.();
-          return;
-        }
-        settleToNearest(gestureState.dx);
-        return;
-      }
-
-      const isTap =
-        Math.abs(gestureState.dx) < 8 && Math.abs(gestureState.dy) < 8;
-      if (isTap) {
-        animateTo(0, () => onPress?.());
-        return;
-      }
-
-      settleToNearest(gestureState.dx);
-    };
-
-    return PanResponder.create({
-      onPanResponderGrant: () => {
-        // Stop any running animation and sync the offset so a new gesture does not jump
-        translateX.stopAnimation(value => {
-          currentOffset.current = value;
-          setIsRevealed(value < 0);
-          translateX.setValue(value);
-        });
-      },
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        if (enableHorizontalSwipeOnly) {
-          return (
-            Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 10
-          );
-        }
-        return Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6;
-      },
-      onPanResponderMove: handleMove,
-      onPanResponderRelease: handleRelease,
-      onPanResponderTerminationRequest: () => true,
-      onPanResponderTerminate: () => {
-        translateX.stopAnimation(value => {
-          currentOffset.current = value;
-          settleToNearest(0);
-        });
-      },
-    });
+    return pan;
   }, [
-    animateTo,
-    clamp,
-    translateX,
+    currentOffset,
     enableHorizontalSwipeOnly,
     onPress,
-    settleToNearest,
+    reanimatedSpringConfig,
+    swipeableWidth,
+    translateX,
+    updateRevealedState,
   ]);
+
+  const animatedWrapperStyle = useAnimatedStyle(() => ({
+    transform: [{translateX: translateX.value}],
+  }));
+
+  const actionOpacityStyle = useAnimatedStyle(() => {
+    const opacity =
+      swipeableWidth <= 0
+        ? 0
+        : Math.min(1, Math.max(0, Math.abs(translateX.value) / swipeableWidth));
+
+    return {opacity};
+  });
 
   const handleActionPress = () => {
     animateTo(0, () => {
@@ -270,7 +299,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
         containerRevealStyle,
         containerStyle,
       ]}>
-      <Animated.View
+      <Reanimated.View
         style={[
           styles.actionContainer,
           hasCustomActionContent && styles.customActionContainer,
@@ -278,23 +307,22 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
             width: actionWidth + actionOverlap,
             right: -actionOverlap,
             backgroundColor: effectiveActionColor,
-            opacity: actionContentOpacity,
           },
+          actionOpacityStyle,
           actionContainerStyle,
         ]}>
-        <Animated.View
-          style={[styles.actionContent, {opacity: actionContentOpacity}]}>
+        <Reanimated.View style={[styles.actionContent, actionOpacityStyle]}>
           {actionContent}
-        </Animated.View>
-      </Animated.View>
+        </Reanimated.View>
+      </Reanimated.View>
 
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={[styles.animatedWrapper, {transform: [{translateX}]}]}>
-        <LiquidGlassCard {...(cardPropsWithReveal ?? {})}>
-          {children}
-        </LiquidGlassCard>
-      </Animated.View>
+      <GestureDetector gesture={gesture}>
+        <Reanimated.View style={[styles.animatedWrapper, animatedWrapperStyle]}>
+          <LiquidGlassCard {...(cardPropsWithReveal ?? {})}>
+            {children}
+          </LiquidGlassCard>
+        </Reanimated.View>
+      </GestureDetector>
     </View>
   );
 };
