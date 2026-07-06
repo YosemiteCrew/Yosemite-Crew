@@ -1,6 +1,8 @@
-import React, {forwardRef, useMemo, useRef} from 'react';
+import React, {useMemo, useRef} from 'react';
 import {View, StyleSheet, Text, Image} from 'react-native';
-import CustomBottomSheet, {type BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
+import CustomBottomSheet, {
+  type BottomSheetRef,
+} from '@/shared/components/common/BottomSheet/BottomSheet';
 import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -14,10 +16,12 @@ interface NetworkStatusBottomSheetProps {
   bottomInset?: number;
 }
 
-export const NetworkStatusBottomSheet = forwardRef<
-  NetworkStatusBottomSheetRef,
-  NetworkStatusBottomSheetProps
->(({bottomInset}, ref) => {
+export const NetworkStatusBottomSheet = ({
+  bottomInset,
+  ref,
+}: NetworkStatusBottomSheetProps & {
+  ref?: React.Ref<NetworkStatusBottomSheetRef>;
+}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<BottomSheetRef>(null);
@@ -73,9 +77,7 @@ export const NetworkStatusBottomSheet = forwardRef<
 
         {/* Message Section */}
         <View style={styles.messageContainer}>
-          <Text style={styles.messageTitle}>
-            Looks like you're offline...
-          </Text>
+          <Text style={styles.messageTitle}>Looks like you're offline...</Text>
           <Text style={styles.messageSubtitle}>
             Supercharge your internet to elevate your buddy's well-being!
           </Text>
@@ -83,7 +85,7 @@ export const NetworkStatusBottomSheet = forwardRef<
       </View>
     </CustomBottomSheet>
   );
-});
+};
 
 const createStyles = (theme: any) =>
   StyleSheet.create({

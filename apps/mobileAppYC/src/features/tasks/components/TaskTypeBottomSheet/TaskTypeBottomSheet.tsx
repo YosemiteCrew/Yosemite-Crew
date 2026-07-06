@@ -1,5 +1,4 @@
 import React, {
-  forwardRef,
   useRef,
   useMemo,
   useImperativeHandle,
@@ -27,10 +26,11 @@ import {
 } from './helpers';
 import {taskTypeOptions} from './taskOptions';
 
-export const TaskTypeBottomSheet = forwardRef<
-  TaskTypeBottomSheetRef,
-  TaskTypeBottomSheetProps
->(({onSelect, onSheetChange}, ref) => {
+export const TaskTypeBottomSheet = ({
+  onSelect,
+  onSheetChange,
+  ref,
+}: TaskTypeBottomSheetProps & {ref?: React.Ref<TaskTypeBottomSheetRef>}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<BottomSheetRef>(null);
@@ -237,7 +237,7 @@ export const TaskTypeBottomSheet = forwardRef<
       </View>
     </CustomBottomSheet>
   );
-});
+};
 
 TaskTypeBottomSheet.displayName = 'TaskTypeBottomSheet';
 

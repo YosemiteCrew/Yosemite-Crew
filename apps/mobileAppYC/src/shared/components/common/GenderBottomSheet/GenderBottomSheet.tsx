@@ -1,5 +1,8 @@
-import React, {forwardRef, useImperativeHandle, useRef} from 'react';
-import {GenericSelectBottomSheet, type SelectItem} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import React, {useImperativeHandle, useRef} from 'react';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
 import type {CompanionGender} from '@/features/companion/types';
 
 export interface GenderBottomSheetRef {
@@ -7,24 +10,26 @@ export interface GenderBottomSheetRef {
   close: () => void;
 }
 
-export const GenderBottomSheet = forwardRef<
-  GenderBottomSheetRef,
-  {
-    selected?: CompanionGender | null;
-    selectedGender?: CompanionGender | null;
-    onSave: (g: CompanionGender) => void;
-  }
->(({selected, selectedGender, onSave}, ref) => {
-  const bottomSheetRef = useRef<any>(null);
+const GENDER_ITEMS: SelectItem[] = [
+  {id: 'male', label: 'Male'},
+  {id: 'female', label: 'Female'},
+];
 
-  const genderItems: SelectItem[] = [
-    {id: 'male', label: 'Male'},
-    {id: 'female', label: 'Female'},
-  ];
+export const GenderBottomSheet = ({
+  selected,
+  selectedGender,
+  onSave,
+  ref,
+}: {
+  selected?: CompanionGender | null;
+  selectedGender?: CompanionGender | null;
+  onSave: (g: CompanionGender) => void;
+} & {ref?: React.Ref<GenderBottomSheetRef>}) => {
+  const bottomSheetRef = useRef<any>(null);
 
   const effectiveSelection = selected ?? selectedGender ?? null;
   const selectedItem = effectiveSelection
-    ? genderItems.find(item => item.id === effectiveSelection) || null
+    ? GENDER_ITEMS.find(item => item.id === effectiveSelection) || null
     : null;
 
   useImperativeHandle(ref, () => ({
@@ -46,7 +51,7 @@ export const GenderBottomSheet = forwardRef<
     <GenericSelectBottomSheet
       ref={bottomSheetRef}
       title="Select Gender"
-      items={genderItems}
+      items={GENDER_ITEMS}
       selectedItem={selectedItem}
       onSave={handleSave}
       hasSearch={false}
@@ -56,7 +61,7 @@ export const GenderBottomSheet = forwardRef<
       maxListHeight={300}
     />
   );
-});
+};
 
 GenderBottomSheet.displayName = 'GenderBottomSheet';
 

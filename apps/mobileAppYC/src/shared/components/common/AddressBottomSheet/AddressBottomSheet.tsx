@@ -1,10 +1,4 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
 import {
   Image,
   ScrollView,
@@ -43,10 +37,11 @@ export interface AddressBottomSheetProps {
   onSave: (address: Address) => void;
 }
 
-export const AddressBottomSheet = forwardRef<
-  AddressBottomSheetRef,
-  AddressBottomSheetProps
->(({selectedAddress, onSave}, ref) => {
+export const AddressBottomSheet = ({
+  selectedAddress,
+  onSave,
+  ref,
+}: AddressBottomSheetProps & {ref?: React.Ref<AddressBottomSheetRef>}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const closeButtonSize = theme.spacing['9'];
@@ -199,7 +194,7 @@ export const AddressBottomSheet = forwardRef<
       </TouchableWithoutFeedback>
     </CustomBottomSheet>
   );
-});
+};
 
 AddressBottomSheet.displayName = 'AddressBottomSheet';
 

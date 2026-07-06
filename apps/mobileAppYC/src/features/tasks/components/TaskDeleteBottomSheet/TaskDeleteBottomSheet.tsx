@@ -1,4 +1,4 @@
-import React, {forwardRef} from 'react';
+import React from 'react';
 import {
   TaskRecurringActionSheet,
   type TaskRecurringActionSheetRef,
@@ -13,10 +13,15 @@ interface TaskDeleteBottomSheetProps {
   onCancel?: () => void;
 }
 
-export const TaskDeleteBottomSheet = forwardRef<
-  TaskDeleteBottomSheetRef,
-  TaskDeleteBottomSheetProps
->(({taskTitle, onDeleteAll, onDeleteForDay, onCancel}, ref) => (
+export const TaskDeleteBottomSheet = ({
+  taskTitle,
+  onDeleteAll,
+  onDeleteForDay,
+  onCancel,
+  ref,
+}: TaskDeleteBottomSheetProps & {
+  ref?: React.Ref<TaskDeleteBottomSheetRef>;
+}) => (
   <TaskRecurringActionSheet
     ref={ref}
     title="Delete task"
@@ -31,7 +36,7 @@ export const TaskDeleteBottomSheet = forwardRef<
     onSecondary={onDeleteForDay}
     onCancel={onCancel}
   />
-));
+);
 
 TaskDeleteBottomSheet.displayName = 'TaskDeleteBottomSheet';
 

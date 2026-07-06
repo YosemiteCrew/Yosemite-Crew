@@ -20,7 +20,8 @@ jest.mock(
     const {View, Text, TouchableOpacity} = require('react-native');
 
     return {
-      ConfirmActionBottomSheet: React.forwardRef((props: any, ref: any) => {
+      ConfirmActionBottomSheet: (props: any) => {
+        const {ref} = props;
         React.useImperativeHandle(ref, () => ({
           open: jest.fn(),
           close: jest.fn(),
@@ -38,7 +39,7 @@ jest.mock(
             )}
           </View>
         );
-      }),
+      },
     };
   },
 );

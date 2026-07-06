@@ -1,10 +1,4 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import CustomBottomSheet, {
   type BottomSheetRef,
@@ -30,147 +24,139 @@ interface TaskRecurringActionSheetProps {
   onCancel?: () => void;
 }
 
-export const TaskRecurringActionSheet = forwardRef<
-  TaskRecurringActionSheetRef,
-  TaskRecurringActionSheetProps
->(
-  (
-    {
-      title,
-      message,
-      primaryLabel,
-      primaryLoadingLabel,
-      onPrimary,
-      secondaryLabel,
-      secondaryLoadingLabel,
-      onSecondary,
-      onCancel,
-    },
-    ref,
-  ) => {
-    const {theme} = useTheme();
-    const styles = useMemo(() => createStyles(theme), [theme]);
-    const sheetRef = useRef<BottomSheetRef>(null);
-    const [primaryBusy, setPrimaryBusy] = useState(false);
-    const [secondaryBusy, setSecondaryBusy] = useState(false);
+export const TaskRecurringActionSheet = ({
+  title,
+  message,
+  primaryLabel,
+  primaryLoadingLabel,
+  onPrimary,
+  secondaryLabel,
+  secondaryLoadingLabel,
+  onSecondary,
+  onCancel,
+  ref,
+}: TaskRecurringActionSheetProps & {
+  ref?: React.Ref<TaskRecurringActionSheetRef>;
+}) => {
+  const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const sheetRef = useRef<BottomSheetRef>(null);
+  const [primaryBusy, setPrimaryBusy] = useState(false);
+  const [secondaryBusy, setSecondaryBusy] = useState(false);
 
-    const isBusy = primaryBusy || secondaryBusy;
+  const isBusy = primaryBusy || secondaryBusy;
 
-    useImperativeHandle(ref, () => ({
-      open: () => sheetRef.current?.snapToIndex(0),
-      close: () => sheetRef.current?.close(),
-    }));
+  useImperativeHandle(ref, () => ({
+    open: () => sheetRef.current?.snapToIndex(0),
+    close: () => sheetRef.current?.close(),
+  }));
 
-    const handleClose = () => {
+  const handleClose = () => {
+    sheetRef.current?.close();
+    onCancel?.();
+  };
+
+  const handlePrimary = async () => {
+    setPrimaryBusy(true);
+    try {
+      await onPrimary();
       sheetRef.current?.close();
-      onCancel?.();
-    };
+    } catch (error) {
+      console.error('[TaskRecurringActionSheet] Primary action error:', error);
+    } finally {
+      setPrimaryBusy(false);
+    }
+  };
 
-    const handlePrimary = async () => {
-      setPrimaryBusy(true);
-      try {
-        await onPrimary();
-        sheetRef.current?.close();
-      } catch (error) {
-        console.error(
-          '[TaskRecurringActionSheet] Primary action error:',
-          error,
-        );
-      } finally {
-        setPrimaryBusy(false);
-      }
-    };
+  const handleSecondary = async () => {
+    setSecondaryBusy(true);
+    try {
+      await onSecondary();
+      sheetRef.current?.close();
+    } catch (error) {
+      console.error(
+        '[TaskRecurringActionSheet] Secondary action error:',
+        error,
+      );
+    } finally {
+      setSecondaryBusy(false);
+    }
+  };
 
-    const handleSecondary = async () => {
-      setSecondaryBusy(true);
-      try {
-        await onSecondary();
-        sheetRef.current?.close();
-      } catch (error) {
-        console.error(
-          '[TaskRecurringActionSheet] Secondary action error:',
-          error,
-        );
-      } finally {
-        setSecondaryBusy(false);
-      }
-    };
+  return (
+    <CustomBottomSheet
+      ref={sheetRef}
+      snapPoints={['42%', '42%']}
+      initialIndex={-1}
+      zIndex={100}
+      enablePanDownToClose={true}
+      enableBackdrop={true}
+      enableHandlePanningGesture={true}
+      enableContentPanningGesture={false}
+      backdropOpacity={0.5}
+      backdropAppearsOnIndex={0}
+      backdropDisappearsOnIndex={-1}
+      backdropPressBehavior="close"
+      backgroundStyle={styles.background}
+      handleIndicatorStyle={styles.handle}
+      contentType="view">
+      <View style={styles.container}>
+        <BottomSheetHeader
+          title={title}
+          onClose={handleClose}
+          theme={theme}
+          showCloseButton={true}
+        />
 
-    return (
-      <CustomBottomSheet
-        ref={sheetRef}
-        snapPoints={['42%', '42%']}
-        initialIndex={-1}
-        zIndex={100}
-        enablePanDownToClose={true}
-        enableBackdrop={true}
-        enableHandlePanningGesture={true}
-        enableContentPanningGesture={false}
-        backdropOpacity={0.5}
-        backdropAppearsOnIndex={0}
-        backdropDisappearsOnIndex={-1}
-        backdropPressBehavior="close"
-        backgroundStyle={styles.background}
-        handleIndicatorStyle={styles.handle}
-        contentType="view">
-        <View style={styles.container}>
-          <BottomSheetHeader
-            title={title}
-            onClose={handleClose}
-            theme={theme}
-            showCloseButton={true}
+        {message ? <Text style={styles.message}>{message}</Text> : null}
+
+        <View style={styles.buttonStack}>
+          <LiquidGlassButton
+            title={primaryBusy ? primaryLoadingLabel : primaryLabel}
+            onPress={handlePrimary}
+            glassEffect="clear"
+            tintColor={theme.colors.secondary}
+            borderRadius="lg"
+            textStyle={styles.primaryButtonText}
+            style={styles.button}
+            disabled={isBusy}
+            loading={primaryBusy}
+            shadowIntensity="light"
           />
 
-          {message ? <Text style={styles.message}>{message}</Text> : null}
+          <LiquidGlassButton
+            title={secondaryBusy ? secondaryLoadingLabel : secondaryLabel}
+            onPress={handleSecondary}
+            glassEffect="clear"
+            tintColor={theme.colors.surface}
+            borderRadius="lg"
+            textStyle={styles.secondaryButtonText}
+            style={styles.button}
+            disabled={isBusy}
+            loading={secondaryBusy}
+            forceBorder={true}
+            borderColor={theme.colors.secondary}
+            shadowIntensity="light"
+          />
 
-          <View style={styles.buttonStack}>
-            <LiquidGlassButton
-              title={primaryBusy ? primaryLoadingLabel : primaryLabel}
-              onPress={handlePrimary}
-              glassEffect="clear"
-              tintColor={theme.colors.secondary}
-              borderRadius="lg"
-              textStyle={styles.primaryButtonText}
-              style={styles.button}
-              disabled={isBusy}
-              loading={primaryBusy}
-              shadowIntensity="light"
-            />
-
-            <LiquidGlassButton
-              title={secondaryBusy ? secondaryLoadingLabel : secondaryLabel}
-              onPress={handleSecondary}
-              glassEffect="clear"
-              tintColor={theme.colors.surface}
-              borderRadius="lg"
-              textStyle={styles.secondaryButtonText}
-              style={styles.button}
-              disabled={isBusy}
-              loading={secondaryBusy}
-              forceBorder={true}
-              borderColor={theme.colors.secondary}
-              shadowIntensity="light"
-            />
-
-            <LiquidGlassButton
-              title="Cancel"
-              onPress={handleClose}
-              glassEffect="clear"
-              tintColor={theme.colors.surface}
-              borderRadius="lg"
-              textStyle={styles.cancelButtonText}
-              style={styles.button}
-              disabled={isBusy}
-              forceBorder={true}
-              borderColor={theme.colors.borderMuted}
-              shadowIntensity="light"
-            />
-          </View>
+          <LiquidGlassButton
+            title="Cancel"
+            onPress={handleClose}
+            glassEffect="clear"
+            tintColor={theme.colors.surface}
+            borderRadius="lg"
+            textStyle={styles.cancelButtonText}
+            style={styles.button}
+            disabled={isBusy}
+            forceBorder={true}
+            borderColor={theme.colors.borderMuted}
+            shadowIntensity="light"
+          />
         </View>
-      </CustomBottomSheet>
-    );
-  },
-);
+      </View>
+    </CustomBottomSheet>
+  );
+};
 
 TaskRecurringActionSheet.displayName = 'TaskRecurringActionSheet';
 

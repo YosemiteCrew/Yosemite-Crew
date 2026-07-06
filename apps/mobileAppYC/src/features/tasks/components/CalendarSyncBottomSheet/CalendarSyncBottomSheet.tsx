@@ -1,7 +1,16 @@
-import React, {forwardRef, useImperativeHandle, useRef, useMemo, useState, useEffect} from 'react';
+import React, {
+  useImperativeHandle,
+  useRef,
+  useMemo,
+  useState,
+  useEffect,
+} from 'react';
 import {View, Image, Text, StyleSheet, Platform} from 'react-native';
 import RNCalendarEvents from 'react-native-calendar-events';
-import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 
@@ -32,7 +41,11 @@ const determineCalendarIcon = (source: string, title: string) => {
   if (sourceLower.includes('google') || titleLower.includes('google')) {
     return Images.googleCalendarIcon || Images.calendarIcon;
   }
-  if (sourceLower.includes('icloud') || sourceLower.includes('apple') || titleLower.includes('icloud')) {
+  if (
+    sourceLower.includes('icloud') ||
+    sourceLower.includes('apple') ||
+    titleLower.includes('icloud')
+  ) {
     return Images.iCloudCalendarIcon || Images.calendarIcon;
   }
   return Images.calendarIcon;
@@ -48,14 +61,22 @@ const isProviderSupportedOnPlatform = (source: string) => {
   return !sourceLower.includes('icloud') && !sourceLower.includes('apple'); // Hide iCloud/Apple calendars on Android
 };
 
-export const CalendarSyncBottomSheet = forwardRef<
-  CalendarSyncBottomSheetRef,
-  CalendarSyncBottomSheetProps
->(({selectedProvider, onSelect, onSheetChange, onCalendarsLoaded}, ref) => {
+export const CalendarSyncBottomSheet = ({
+  selectedProvider,
+  onSelect,
+  onSheetChange,
+  onCalendarsLoaded,
+  ref,
+}: CalendarSyncBottomSheetProps & {
+  ref?: React.Ref<CalendarSyncBottomSheetRef>;
+}) => {
   const {theme} = useTheme();
   const bottomSheetRef = useRef<any>(null);
-  const [availableCalendars, setAvailableCalendars] = useState<CalendarProvider[]>([]);
-  const [permissionStatus, setPermissionStatus] = useState<string>('undetermined');
+  const [availableCalendars, setAvailableCalendars] = useState<
+    CalendarProvider[]
+  >([]);
+  const [permissionStatus, setPermissionStatus] =
+    useState<string>('undetermined');
   const [loading, setLoading] = useState(true);
   const permissionGranted = permissionStatus === 'authorized';
 
@@ -79,9 +100,11 @@ export const CalendarSyncBottomSheet = forwardRef<
         }
 
         const calendars = await RNCalendarEvents.findCalendars();
-        const writableCalendars = calendars
-          .filter(cal => cal.allowsModifications)
-          .filter(cal => isProviderSupportedOnPlatform(cal.source || ''));
+        const writableCalendars = calendars.filter(
+          cal =>
+            cal.allowsModifications &&
+            isProviderSupportedOnPlatform(cal.source || ''),
+        );
 
         const providers: CalendarProvider[] = writableCalendars.map(cal => ({
           id: cal.id,
@@ -109,12 +132,14 @@ export const CalendarSyncBottomSheet = forwardRef<
 
   const providerItems: SelectItem[] = useMemo(() => {
     if (loading) {
-      return [{
-        id: 'loading',
-        label: 'Loading calendars...',
-        icon: Images.calendarIcon,
-        status: 'connecting',
-      }];
+      return [
+        {
+          id: 'loading',
+          label: 'Loading calendars...',
+          icon: Images.calendarIcon,
+          status: 'connecting',
+        },
+      ];
     }
 
     return availableCalendars.map(provider => ({
@@ -125,11 +150,15 @@ export const CalendarSyncBottomSheet = forwardRef<
     }));
   }, [availableCalendars, loading]);
 
-  const selectedItem = selectedProvider ? {
-    id: selectedProvider,
-    label: availableCalendars.find(p => p.id === selectedProvider)?.name || 'Unknown',
-    icon: availableCalendars.find(p => p.id === selectedProvider)?.icon,
-  } : null;
+  const selectedItem = selectedProvider
+    ? {
+        id: selectedProvider,
+        label:
+          availableCalendars.find(p => p.id === selectedProvider)?.name ||
+          'Unknown',
+        icon: availableCalendars.find(p => p.id === selectedProvider)?.icon,
+      }
+    : null;
 
   useImperativeHandle(ref, () => ({
     open: () => {
@@ -155,7 +184,9 @@ export const CalendarSyncBottomSheet = forwardRef<
       flex: 1,
       paddingVertical: theme.spacing['3'],
       paddingHorizontal: theme.spacing['4'],
-      backgroundColor: isSelected ? theme.colors.lightBlueBackground : 'transparent',
+      backgroundColor: isSelected
+        ? theme.colors.lightBlueBackground
+        : 'transparent',
       borderRadius: theme.borderRadius.sm,
     };
 
@@ -163,7 +194,7 @@ export const CalendarSyncBottomSheet = forwardRef<
     const nameTextStyle = {
       ...theme.typography.bodyMedium,
       color: isSelected ? theme.colors.primary : theme.colors.secondary,
-      fontWeight: isSelected ? '600' as const : '500' as const,
+      fontWeight: isSelected ? ('600' as const) : ('500' as const),
     };
     const statusTextStyle = {
       ...theme.typography.labelSmall,
@@ -179,7 +210,11 @@ export const CalendarSyncBottomSheet = forwardRef<
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     };
-    const checkmarkTextStyle = {...theme.typography.labelSmall, color: theme.colors.white, fontWeight: '700' as const};
+    const checkmarkTextStyle = {
+      ...theme.typography.labelSmall,
+      color: theme.colors.white,
+      fontWeight: '700' as const,
+    };
 
     return (
       <View style={containerStyle}>
@@ -191,13 +226,9 @@ export const CalendarSyncBottomSheet = forwardRef<
           />
         )}
         <View style={styles.flexOne}>
-          <Text style={nameTextStyle}>
-            {item.label}
-          </Text>
+          <Text style={nameTextStyle}>{item.label}</Text>
           {item.status === 'connecting' && (
-            <Text style={statusTextStyle}>
-              Connecting...
-            </Text>
+            <Text style={statusTextStyle}>Connecting...</Text>
           )}
         </View>
         {isSelected && (
@@ -234,7 +265,7 @@ export const CalendarSyncBottomSheet = forwardRef<
       onSheetChange={onSheetChange}
     />
   );
-});
+};
 
 CalendarSyncBottomSheet.displayName = 'CalendarSyncBottomSheet';
 

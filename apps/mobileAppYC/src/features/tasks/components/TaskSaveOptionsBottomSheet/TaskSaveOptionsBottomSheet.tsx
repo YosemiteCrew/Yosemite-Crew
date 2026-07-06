@@ -1,4 +1,4 @@
-import React, {forwardRef} from 'react';
+import React from 'react';
 import {
   TaskRecurringActionSheet,
   type TaskRecurringActionSheetRef,
@@ -12,10 +12,14 @@ interface TaskSaveOptionsBottomSheetProps {
   onCancel?: () => void;
 }
 
-export const TaskSaveOptionsBottomSheet = forwardRef<
-  TaskSaveOptionsBottomSheetRef,
-  TaskSaveOptionsBottomSheetProps
->(({onSaveAll, onSaveForDay, onCancel}, ref) => (
+export const TaskSaveOptionsBottomSheet = ({
+  onSaveAll,
+  onSaveForDay,
+  onCancel,
+  ref,
+}: TaskSaveOptionsBottomSheetProps & {
+  ref?: React.Ref<TaskSaveOptionsBottomSheetRef>;
+}) => (
   <TaskRecurringActionSheet
     ref={ref}
     title="Save changes"
@@ -28,7 +32,7 @@ export const TaskSaveOptionsBottomSheet = forwardRef<
     onSecondary={onSaveForDay}
     onCancel={onCancel}
   />
-));
+);
 
 TaskSaveOptionsBottomSheet.displayName = 'TaskSaveOptionsBottomSheet';
 

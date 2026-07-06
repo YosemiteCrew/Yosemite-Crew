@@ -1,11 +1,5 @@
 // src/components/common/CountryMobileBottomSheet/CountryMobileBottomSheet.tsx
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
 import {View, StyleSheet} from 'react-native';
 import {
   GenericSelectBottomSheet,
@@ -34,15 +28,45 @@ interface CountryMobileBottomSheetProps {
   onSave: (country: Country, mobile: string) => void;
 }
 
-export const CountryMobileBottomSheet = forwardRef<
-  CountryMobileBottomSheetRef,
-  CountryMobileBottomSheetProps
->(({countries, selectedCountry, mobileNumber, onSave}, ref) => {
+export const CountryMobileBottomSheet = ({
+  countries,
+  selectedCountry,
+  mobileNumber,
+  onSave,
+  ref,
+}: CountryMobileBottomSheetProps & {
+  ref?: React.Ref<CountryMobileBottomSheetRef>;
+}) => {
+  const draftKey = `${selectedCountry.code}:${selectedCountry.dial_code}:${mobileNumber}`;
+
+  return (
+    <CountryMobileBottomSheetDraft
+      key={draftKey}
+      ref={ref}
+      countries={countries}
+      selectedCountry={selectedCountry}
+      mobileNumber={mobileNumber}
+      onSave={onSave}
+    />
+  );
+};
+
+const CountryMobileBottomSheetDraft = ({
+  countries,
+  selectedCountry,
+  mobileNumber,
+  onSave,
+  ref,
+}: CountryMobileBottomSheetProps & {
+  ref?: React.Ref<CountryMobileBottomSheetRef>;
+}) => {
   const {theme} = useTheme();
   const bottomSheetRef = useRef<GenericSelectBottomSheetRef>(null);
 
-  const [tempCountry, setTempCountry] = useState<Country>(selectedCountry);
-  const [tempMobile, setTempMobile] = useState<string>(mobileNumber);
+  const [tempCountry, setTempCountry] = useState<Country>(
+    () => selectedCountry,
+  );
+  const [tempMobile, setTempMobile] = useState<string>(() => mobileNumber);
 
   const styles = useMemo(
     () =>
@@ -79,16 +103,20 @@ export const CountryMobileBottomSheet = forwardRef<
     [tempCountry],
   );
 
-  useImperativeHandle(ref, () => ({
-    open: () => {
-      setTempCountry(selectedCountry);
-      setTempMobile(mobileNumber);
-      bottomSheetRef.current?.open();
-    },
-    close: () => {
-      bottomSheetRef.current?.close();
-    },
-  }));
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: () => {
+        setTempCountry(selectedCountry);
+        setTempMobile(mobileNumber);
+        bottomSheetRef.current?.open();
+      },
+      close: () => {
+        bottomSheetRef.current?.close();
+      },
+    }),
+    [mobileNumber, selectedCountry],
+  );
 
   const handleCountrySelect = (item: SelectItem | null) => {
     const match = item ? countries.find(c => c.code === item.id) : undefined;
@@ -141,6 +169,7 @@ export const CountryMobileBottomSheet = forwardRef<
       maxListHeight={380}
     />
   );
-});
+};
 
 CountryMobileBottomSheet.displayName = 'CountryMobileBottomSheet';
+CountryMobileBottomSheetDraft.displayName = 'CountryMobileBottomSheetDraft';

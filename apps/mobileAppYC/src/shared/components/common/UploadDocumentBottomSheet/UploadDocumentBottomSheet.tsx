@@ -1,10 +1,4 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
 import {Text, View, StyleSheet, TouchableOpacity, Image} from 'react-native';
 import CustomBottomSheet, {
   type BottomSheetRef,
@@ -24,10 +18,14 @@ interface UploadDocumentBottomSheetProps {
   onUploadDrive: () => void;
 }
 
-export const UploadDocumentBottomSheet = forwardRef<
-  UploadDocumentBottomSheetRef,
-  UploadDocumentBottomSheetProps
->(({onTakePhoto, onChooseGallery, onUploadDrive}, ref) => {
+export const UploadDocumentBottomSheet = ({
+  onTakePhoto,
+  onChooseGallery,
+  onUploadDrive,
+  ref,
+}: UploadDocumentBottomSheetProps & {
+  ref?: React.Ref<UploadDocumentBottomSheetRef>;
+}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const closeButtonSize = theme.spacing['9'];
@@ -128,7 +126,7 @@ export const UploadDocumentBottomSheet = forwardRef<
       </View>
     </CustomBottomSheet>
   );
-});
+};
 
 UploadDocumentBottomSheet.displayName = 'UploadDocumentBottomSheet';
 

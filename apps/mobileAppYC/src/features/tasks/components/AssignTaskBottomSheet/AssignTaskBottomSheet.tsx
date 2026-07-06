@@ -1,6 +1,9 @@
-import React, {forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
+import React, {useImperativeHandle, useRef, useMemo} from 'react';
 import {View, Image, Text, StyleSheet} from 'react-native';
-import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import {useSelector} from 'react-redux';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {useTheme} from '@/hooks';
@@ -19,15 +22,21 @@ interface AssignTaskBottomSheetProps {
   onSheetChange?: (index: number) => void;
 }
 
-export const AssignTaskBottomSheet = forwardRef<
-  AssignTaskBottomSheetRef,
-  AssignTaskBottomSheetProps
->(({selectedUserId, onSelect, onSheetChange}, ref) => {
+export const AssignTaskBottomSheet = ({
+  selectedUserId,
+  onSelect,
+  onSheetChange,
+  ref,
+}: AssignTaskBottomSheetProps & {
+  ref?: React.Ref<AssignTaskBottomSheetRef>;
+}) => {
   const {theme} = useTheme();
   const bottomSheetRef = useRef<any>(null);
   const currentUser = useSelector(selectAuthUser);
   const coParents = useSelector(selectAcceptedCoParents);
-  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
+  const selectedCompanionId = useSelector(
+    (state: RootState) => state.companion.selectedCompanionId,
+  );
 
   const normalizedCurrentUser = useMemo(() => {
     if (!currentUser) {
@@ -82,12 +91,14 @@ export const AssignTaskBottomSheet = forwardRef<
     });
   }, [coParentUsers, normalizedCurrentUser]);
 
-  const userItems: SelectItem[] = useMemo(() =>
-    users.map(user => ({
-      id: user.id!,
-      label: user.name,
-      avatar: user.avatar,
-    })), [users]
+  const userItems: SelectItem[] = useMemo(
+    () =>
+      users.map(user => ({
+        id: user.id!,
+        label: user.name,
+        avatar: user.avatar,
+      })),
+    [users],
   );
 
   const selectedItem = selectedUserId
@@ -129,7 +140,12 @@ export const AssignTaskBottomSheet = forwardRef<
       borderColor: theme.colors.borderMuted,
     };
 
-    const avatarStyle = {width: 40, height: 40, borderRadius: theme.borderRadius.full, resizeMode: 'cover' as const};
+    const avatarStyle = {
+      width: 40,
+      height: 40,
+      borderRadius: theme.borderRadius.full,
+      resizeMode: 'cover' as const,
+    };
     const avatarPlaceholderStyle = {
       width: 40,
       height: 40,
@@ -138,10 +154,14 @@ export const AssignTaskBottomSheet = forwardRef<
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     };
-    const avatarTextStyle = {...theme.typography.bodyLarge, fontWeight: '700' as const, color: theme.colors.primary};
+    const avatarTextStyle = {
+      ...theme.typography.bodyLarge,
+      fontWeight: '700' as const,
+      color: theme.colors.primary,
+    };
     const nameTextStyle = {
       ...theme.typography.bodyMedium,
-      fontWeight: isSelected ? '600' as const : '500' as const,
+      fontWeight: isSelected ? ('600' as const) : ('500' as const),
     };
     const checkmarkContainerStyle = {
       width: 20,
@@ -151,7 +171,11 @@ export const AssignTaskBottomSheet = forwardRef<
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
     };
-    const checkmarkTextStyle = {...theme.typography.labelSmall, color: theme.colors.white, fontWeight: '700' as const};
+    const checkmarkTextStyle = {
+      ...theme.typography.labelSmall,
+      color: theme.colors.white,
+      fontWeight: '700' as const,
+    };
 
     return (
       <View style={containerStyle}>
@@ -165,9 +189,7 @@ export const AssignTaskBottomSheet = forwardRef<
           </View>
         )}
         <View style={styles.flexOne}>
-          <Text style={nameTextStyle}>
-            {item.label}
-          </Text>
+          <Text style={nameTextStyle}>{item.label}</Text>
         </View>
         {isSelected && (
           <View style={checkmarkContainerStyle}>
@@ -193,7 +215,7 @@ export const AssignTaskBottomSheet = forwardRef<
       onSheetChange={onSheetChange}
     />
   );
-});
+};
 
 AssignTaskBottomSheet.displayName = 'AssignTaskBottomSheet';
 

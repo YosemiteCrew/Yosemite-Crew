@@ -1,10 +1,4 @@
-import {
-  forwardRef,
-  useImperativeHandle,
-  useRef,
-  useState,
-  useMemo,
-} from 'react';
+import {useImperativeHandle, useRef, useState, useMemo} from 'react';
 import {
   View,
   Text,
@@ -34,14 +28,90 @@ interface DosageBottomSheetProps {
   onSheetChange?: (index: number) => void;
 }
 
-export const DosageBottomSheet = forwardRef<
-  DosageBottomSheetRef,
-  DosageBottomSheetProps
->(({dosages, onSave, onSheetChange}, ref) => {
+export const DosageBottomSheet = ({
+  dosages,
+  onSave,
+  onSheetChange,
+  ref,
+}: DosageBottomSheetProps & {ref?: React.Ref<DosageBottomSheetRef>}) => {
+  const draftKey = useMemo(
+    () =>
+      dosages
+        .map(dosage => `${dosage.id}:${dosage.label}:${dosage.time}`)
+        .join('|'),
+    [dosages],
+  );
+
+  return (
+    <DosageBottomSheetDraft
+      key={draftKey}
+      ref={ref}
+      dosages={dosages}
+      onSave={onSave}
+      onSheetChange={onSheetChange}
+    />
+  );
+};
+
+const formatTime = (isoTime: string) => {
+  try {
+    // Handle both ISO string and regular date formats
+    let date: Date;
+    if (isoTime.includes('T')) {
+      // ISO format: use as-is
+      date = new Date(isoTime);
+    } else if (isoTime.includes(':')) {
+      // Time-only format (HH:mm:ss), create date with today's date
+      const [hours, minutes, seconds] = isoTime.split(':').map(Number);
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return 'Invalid time';
+      date = new Date();
+      date.setHours(hours, minutes, seconds || 0, 0);
+    } else {
+      return 'Invalid time';
+    }
+
+    if (Number.isNaN(date.getTime())) return 'Invalid time';
+
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return 'Invalid time';
+  }
+};
+
+const getDateFromDosageTime = (dosageTime: string): Date => {
+  try {
+    if (dosageTime.includes('T')) {
+      // ISO format
+      return new Date(dosageTime);
+    } else if (dosageTime.includes(':')) {
+      // Time-only format
+      const [hours, minutes, seconds] = dosageTime.split(':').map(Number);
+      const date = new Date();
+      date.setHours(hours, minutes, seconds || 0, 0);
+      return date;
+    }
+    return new Date();
+  } catch {
+    return new Date();
+  }
+};
+
+const DosageBottomSheetDraft = ({
+  dosages,
+  onSave,
+  onSheetChange,
+  ref,
+}: DosageBottomSheetProps & {ref?: React.Ref<DosageBottomSheetRef>}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
-  const [tempDosages, setTempDosages] = useState<DosageSchedule[]>(dosages);
+  const [tempDosages, setTempDosages] = useState<DosageSchedule[]>(
+    () => dosages,
+  );
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [editingDosageId, setEditingDosageId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -98,35 +168,6 @@ export const DosageBottomSheet = forwardRef<
     setShowTimePicker(true);
   };
 
-  const formatTime = (isoTime: string) => {
-    try {
-      // Handle both ISO string and regular date formats
-      let date: Date;
-      if (isoTime.includes('T')) {
-        // ISO format: use as-is
-        date = new Date(isoTime);
-      } else if (isoTime.includes(':')) {
-        // Time-only format (HH:mm:ss), create date with today's date
-        const [hours, minutes, seconds] = isoTime.split(':').map(Number);
-        if (Number.isNaN(hours) || Number.isNaN(minutes)) return 'Invalid time';
-        date = new Date();
-        date.setHours(hours, minutes, seconds || 0, 0);
-      } else {
-        return 'Invalid time';
-      }
-
-      if (Number.isNaN(date.getTime())) return 'Invalid time';
-
-      return date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-    } catch {
-      return 'Invalid time';
-    }
-  };
-
   const handleSave = async () => {
     if (saving) {
       return;
@@ -144,24 +185,6 @@ export const DosageBottomSheet = forwardRef<
   };
 
   const currentEditingDosage = tempDosages.find(d => d.id === editingDosageId);
-
-  const getDateFromDosageTime = (dosageTime: string): Date => {
-    try {
-      if (dosageTime.includes('T')) {
-        // ISO format
-        return new Date(dosageTime);
-      } else if (dosageTime.includes(':')) {
-        // Time-only format
-        const [hours, minutes, seconds] = dosageTime.split(':').map(Number);
-        const date = new Date();
-        date.setHours(hours, minutes, seconds || 0, 0);
-        return date;
-      }
-      return new Date();
-    } catch {
-      return new Date();
-    }
-  };
 
   return (
     <ConfirmActionBottomSheet
@@ -244,7 +267,7 @@ export const DosageBottomSheet = forwardRef<
       </View>
     </ConfirmActionBottomSheet>
   );
-});
+};
 
 const createStyles = (theme: any) =>
   StyleSheet.create({

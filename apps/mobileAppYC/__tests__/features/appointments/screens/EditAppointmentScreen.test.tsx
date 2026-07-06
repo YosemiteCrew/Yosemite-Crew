@@ -90,22 +90,20 @@ jest.mock(
     const React = require('react');
     const {View, Button} = require('react-native');
     return {
-      CancelAppointmentBottomSheet: React.forwardRef(
-        ({onConfirm}: any, ref: any) => {
-          React.useImperativeHandle(ref, () => ({
-            open: jest.fn(),
-          }));
-          return (
-            <View testID="CancelSheet">
-              <Button
-                title="Confirm Cancel"
-                onPress={onConfirm}
-                testID="ConfirmCancelBtn"
-              />
-            </View>
-          );
-        },
-      ),
+      CancelAppointmentBottomSheet: ({onConfirm, ref}: any) => {
+        React.useImperativeHandle(ref, () => ({
+          open: jest.fn(),
+        }));
+        return (
+          <View testID="CancelSheet">
+            <Button
+              title="Confirm Cancel"
+              onPress={onConfirm}
+              testID="ConfirmCancelBtn"
+            />
+          </View>
+        );
+      },
     };
   },
 );
@@ -316,9 +314,7 @@ describe('EditAppointmentScreen', () => {
 
   it('renders correctly with all data populated', () => {
     const {getByTestId, getByText} = setup();
-    expect(getByTestId('HeaderTitle')).toHaveTextContent(
-      'Reschedule',
-    );
+    expect(getByTestId('HeaderTitle')).toHaveTextContent('Reschedule');
     expect(getByTestId('FormContent')).toBeTruthy();
     expect(getByText(/Submit reschedule request/i)).toBeTruthy();
   });

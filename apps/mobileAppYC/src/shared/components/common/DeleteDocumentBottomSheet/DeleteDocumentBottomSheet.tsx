@@ -1,10 +1,4 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
 import {StyleSheet} from 'react-native';
 import ConfirmActionBottomSheet, {
   type ConfirmActionBottomSheetRef,
@@ -26,10 +20,18 @@ interface DeleteDocumentBottomSheetProps {
   secondaryLabel?: string;
 }
 
-export const DeleteDocumentBottomSheet = forwardRef<
-  DeleteDocumentBottomSheetRef,
-  DeleteDocumentBottomSheetProps
->(({documentTitle = 'this document', onCancel, onDelete, title, message, primaryLabel, secondaryLabel}, ref) => {
+export const DeleteDocumentBottomSheet = ({
+  documentTitle = 'this document',
+  onCancel,
+  onDelete,
+  title,
+  message,
+  primaryLabel,
+  secondaryLabel,
+  ref,
+}: DeleteDocumentBottomSheetProps & {
+  ref?: React.Ref<DeleteDocumentBottomSheetRef>;
+}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const sheetRef = useRef<ConfirmActionBottomSheetRef>(null);
@@ -74,7 +76,7 @@ export const DeleteDocumentBottomSheet = forwardRef<
         message ?? `Are you sure you want to delete the file ${documentTitle}?`
       }
       primaryButton={{
-        label: isDeleting ? 'Deleting...' : primaryLabel ?? 'Delete',
+        label: isDeleting ? 'Deleting...' : (primaryLabel ?? 'Delete'),
         onPress: handleDelete,
         tintColor: theme.colors.secondary,
         textStyle: styles.deleteText,
@@ -94,7 +96,7 @@ export const DeleteDocumentBottomSheet = forwardRef<
       }}
     />
   );
-});
+};
 
 DeleteDocumentBottomSheet.displayName = 'DeleteDocumentBottomSheet';
 

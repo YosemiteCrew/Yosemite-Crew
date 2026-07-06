@@ -72,7 +72,7 @@ jest.mock(
     const React = require('react');
     const {TouchableOpacity, Text} = require('react-native');
     return {
-      CountryBottomSheet: React.forwardRef(({onSave}: any, ref: any) => {
+      CountryBottomSheet: ({onSave, ref}: any) => {
         React.useImperativeHandle(ref, () => ({
           open: () => {},
           close: () => {},
@@ -84,7 +84,7 @@ jest.mock(
             <Text>Save Country</Text>
           </TouchableOpacity>
         );
-      }),
+      },
     };
   },
 );
@@ -96,22 +96,20 @@ jest.mock(
     const React = require('react');
     const {TouchableOpacity, Text} = require('react-native');
     return {
-      AdministrationMethodBottomSheet: React.forwardRef(
-        ({onSave}: any, ref: any) => {
-          React.useImperativeHandle(ref, () => ({
-            open: () => {},
-            close: () => {},
-          }));
-          return (
-            // FIX: Passing a string 'Oral' instead of object prevents crash in TouchableInput
-            <TouchableOpacity
-              testID="admin-sheet-save"
-              onPress={() => onSave('Oral')}>
-              <Text>Save Admin</Text>
-            </TouchableOpacity>
-          );
-        },
-      ),
+      AdministrationMethodBottomSheet: ({onSave, ref}: any) => {
+        React.useImperativeHandle(ref, () => ({
+          open: () => {},
+          close: () => {},
+        }));
+        return (
+          // FIX: Passing a string 'Oral' instead of object prevents crash in TouchableInput
+          <TouchableOpacity
+            testID="admin-sheet-save"
+            onPress={() => onSave('Oral')}>
+            <Text>Save Admin</Text>
+          </TouchableOpacity>
+        );
+      },
     };
   },
 );

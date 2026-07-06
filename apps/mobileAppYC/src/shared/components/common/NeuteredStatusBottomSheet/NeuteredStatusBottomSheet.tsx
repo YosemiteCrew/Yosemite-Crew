@@ -1,4 +1,4 @@
-import React, {forwardRef, useImperativeHandle, useRef} from 'react';
+import React, {useImperativeHandle, useRef} from 'react';
 import {
   GenericSelectBottomSheet,
   type SelectItem,
@@ -10,14 +10,16 @@ export interface NeuteredStatusBottomSheetRef {
   close: () => void;
 }
 
-export const NeuteredStatusBottomSheet = forwardRef<
-  NeuteredStatusBottomSheetRef,
-  {
-    selected: NeuteredStatus | null;
-    onSave: (v: NeuteredStatus) => void;
-    gender?: string | null;
-  }
->(({selected, onSave, gender}, ref) => {
+export const NeuteredStatusBottomSheet = ({
+  selected,
+  onSave,
+  gender,
+  ref,
+}: {
+  selected: NeuteredStatus | null;
+  onSave: (v: NeuteredStatus) => void;
+  gender?: string | null;
+} & {ref?: React.Ref<NeuteredStatusBottomSheetRef>}) => {
   const bottomSheetRef = useRef<any>(null);
   const term = gender === 'female' ? 'Spayed' : 'Neutered';
 
@@ -59,7 +61,7 @@ export const NeuteredStatusBottomSheet = forwardRef<
       maxListHeight={300}
     />
   );
-});
+};
 
 NeuteredStatusBottomSheet.displayName = 'NeuteredStatusBottomSheet';
 

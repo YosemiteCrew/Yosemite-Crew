@@ -1,6 +1,5 @@
 import React, {
   useState,
-  forwardRef,
   useImperativeHandle,
   useRef,
   useMemo,
@@ -30,6 +29,10 @@ type SelectDefaultItemProps = {
   isSelected: boolean;
   onPress: (item: SelectItem) => void;
   styles: ReturnType<typeof createStyles>;
+};
+
+const handleBackdropPress = () => {
+  Keyboard.dismiss();
 };
 
 const SelectDefaultItem = React.memo(
@@ -101,248 +104,239 @@ interface GenericSelectBottomSheetProps {
   onSheetChange?: (index: number) => void;
 }
 
-export const GenericSelectBottomSheet = forwardRef<
-  GenericSelectBottomSheetRef,
-  GenericSelectBottomSheetProps
->(
-  (
-    {
-      title,
-      items,
-      selectedItem,
-      onSave,
-      onItemSelect,
-      renderItem,
-      searchPlaceholder = 'Search',
-      snapPoints = ['90%', '95%'],
-      hasSearch = true,
-      emptyMessage = 'No items available',
-      customContent,
-      mode = 'confirm',
-      maxListHeight = 400,
-      onSheetChange,
-    },
-    ref,
-  ) => {
-    const {theme} = useTheme();
-    const bottomSheetRef = useRef<BottomSheetRef>(null);
-    const isKeyboardVisible = useKeyboardVisible();
+export const GenericSelectBottomSheet = ({
+  title,
+  items,
+  selectedItem,
+  onSave,
+  onItemSelect,
+  renderItem,
+  searchPlaceholder = 'Search',
+  snapPoints = ['90%', '95%'],
+  hasSearch = true,
+  emptyMessage = 'No items available',
+  customContent,
+  mode = 'confirm',
+  maxListHeight = 400,
+  onSheetChange,
+  ref,
+}: GenericSelectBottomSheetProps & {
+  ref?: React.Ref<GenericSelectBottomSheetRef>;
+}) => {
+  const {theme} = useTheme();
+  const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const isKeyboardVisible = useKeyboardVisible();
 
-    // Track whether the sheet is open so we only render the backdrop when visible.
-    const [isSheetVisible, setIsSheetVisible] = useState(false);
+  // Track whether the sheet is open so we only render the backdrop when visible.
+  const [isSheetVisible, setIsSheetVisible] = useState(false);
 
-    const [tempItem, setTempItem] = useState<SelectItem | null>(selectedItem);
-    const [searchQuery, setSearchQuery] = useState('');
+  const [tempItem, setTempItem] = useState<SelectItem | null>(selectedItem);
+  const [searchQuery, setSearchQuery] = useState('');
 
-    const styles = createStyles(theme, maxListHeight);
-    const searchIconSource = Images?.searchIcon ?? null;
+  const styles = createStyles(theme, maxListHeight);
+  const searchIconSource = Images?.searchIcon ?? null;
 
-    // Dynamic snap points based on keyboard visibility
-    const dynamicSnapPoints = useMemo(() => {
-      if (isKeyboardVisible) {
-        // When keyboard is open, expand to accommodate it
-        return ['95%', '95%'];
-      }
-      return snapPoints;
-    }, [isKeyboardVisible, snapPoints]);
+  // Dynamic snap points based on keyboard visibility
+  const dynamicSnapPoints = useMemo(() => {
+    if (isKeyboardVisible) {
+      // When keyboard is open, expand to accommodate it
+      return ['95%', '95%'];
+    }
+    return snapPoints;
+  }, [isKeyboardVisible, snapPoints]);
 
-    const filteredItems = useMemo(() => {
-      if (!hasSearch || !searchQuery.trim()) return items;
+  const filteredItems = useMemo(() => {
+    if (!hasSearch || !searchQuery.trim()) return items;
 
-      const query = searchQuery.toLowerCase();
-      return items.filter(item => item.label.toLowerCase().includes(query));
-    }, [items, searchQuery, hasSearch]);
+    const query = searchQuery.toLowerCase();
+    return items.filter(item => item.label.toLowerCase().includes(query));
+  }, [items, searchQuery, hasSearch]);
 
-    const renderEmptyList = () => (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>{emptyMessage}</Text>
-      </View>
-    );
+  const renderEmptyList = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyText}>{emptyMessage}</Text>
+    </View>
+  );
 
-    const handleItemPress = useCallback(
-      (item: SelectItem) => {
-        Keyboard.dismiss();
-        if (mode === 'select') {
-          onSave(item);
-          bottomSheetRef.current?.close();
-        } else {
-          setTempItem(item);
-          onItemSelect?.(item);
-        }
-      },
-      [mode, onSave, onItemSelect],
-    );
-
-    useImperativeHandle(ref, () => ({
-      open: () => {
-        setTempItem(selectedItem);
-        setSearchQuery('');
-        // mark visible before snapping so backdrop mounts correctly
-        setIsSheetVisible(true);
-        bottomSheetRef.current?.snapToIndex(0);
-      },
-      close: () => {
-        Keyboard.dismiss();
+  const handleItemPress = useCallback(
+    (item: SelectItem) => {
+      Keyboard.dismiss();
+      if (mode === 'select') {
+        onSave(item);
         bottomSheetRef.current?.close();
-      },
-    }));
+      } else {
+        setTempItem(item);
+        onItemSelect?.(item);
+      }
+    },
+    [mode, onSave, onItemSelect],
+  );
 
-    const handleSave = () => {
-      Keyboard.dismiss();
-      onSave(tempItem);
-      bottomSheetRef.current?.close();
-    };
-
-    const handleCancel = () => {
-      Keyboard.dismiss();
+  useImperativeHandle(ref, () => ({
+    open: () => {
       setTempItem(selectedItem);
       setSearchQuery('');
-      bottomSheetRef.current?.close();
-    };
-
-    const handleBackdropPress = () => {
+      // mark visible before snapping so backdrop mounts correctly
+      setIsSheetVisible(true);
+      bottomSheetRef.current?.snapToIndex(0);
+    },
+    close: () => {
       Keyboard.dismiss();
-    };
+      bottomSheetRef.current?.close();
+    },
+  }));
 
-    const handleSheetAnimate = () => {
-      // Only dismiss keyboard when closing, not when animating between snap points
-      if (!isKeyboardVisible) {
-        Keyboard.dismiss();
-      }
-    };
+  const handleSave = () => {
+    Keyboard.dismiss();
+    onSave(tempItem);
+    bottomSheetRef.current?.close();
+  };
 
-    return (
-      <CustomBottomSheet
-        ref={bottomSheetRef}
-        snapPoints={dynamicSnapPoints}
-        initialIndex={-1}
-        zIndex={100}
-        onChange={index => {
-          // Gorhom BottomSheet returns -1 when fully closed
-          setIsSheetVisible(index !== -1);
-          if (index === -1) {
-            Keyboard.dismiss();
-          }
-          onSheetChange?.(index);
-        }}
-        onAnimate={handleSheetAnimate}
-        enablePanDownToClose
-        enableDynamicSizing={false}
-        enableContentPanningGesture={false}
-        enableHandlePanningGesture
-        enableOverDrag={false}
-        // Only show the backdrop when the sheet is actually visible
-        enableBackdrop={isSheetVisible}
-        backdropOpacity={0.5}
-        backdropAppearsOnIndex={0}
-        backdropDisappearsOnIndex={-1}
-        backdropPressBehavior="close"
-        onBackdropPress={handleBackdropPress}
-        contentType="view"
-        backgroundStyle={styles.bottomSheetBackground}
-        handleIndicatorStyle={styles.bottomSheetHandle}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize">
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={styles.container}>
-            {/* Header */}
-            <BottomSheetHeader
-              title={title}
-              onClose={handleCancel}
-              theme={theme}
-            />
+  const handleCancel = () => {
+    Keyboard.dismiss();
+    setTempItem(selectedItem);
+    setSearchQuery('');
+    bottomSheetRef.current?.close();
+  };
 
-            {/* Custom Content */}
-            {customContent}
+  const handleSheetAnimate = () => {
+    // Only dismiss keyboard when closing, not when animating between snap points
+    if (!isKeyboardVisible) {
+      Keyboard.dismiss();
+    }
+  };
 
-            {/* Search */}
-            {hasSearch && (
-              <View style={styles.searchContainer}>
-                <Input
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder={searchPlaceholder}
-                  icon={
-                    searchIconSource ? (
-                      <Image
-                        source={searchIconSource}
-                        style={styles.searchIconImage}
-                      />
-                    ) : undefined
-                  }
-                  containerStyle={styles.searchInputContainer}
-                />
-              </View>
-            )}
+  return (
+    <CustomBottomSheet
+      ref={bottomSheetRef}
+      snapPoints={dynamicSnapPoints}
+      initialIndex={-1}
+      zIndex={100}
+      onChange={index => {
+        // Gorhom BottomSheet returns -1 when fully closed
+        setIsSheetVisible(index !== -1);
+        if (index === -1) {
+          Keyboard.dismiss();
+        }
+        onSheetChange?.(index);
+      }}
+      onAnimate={handleSheetAnimate}
+      enablePanDownToClose
+      enableDynamicSizing={false}
+      enableContentPanningGesture={false}
+      enableHandlePanningGesture
+      enableOverDrag={false}
+      // Only show the backdrop when the sheet is actually visible
+      enableBackdrop={isSheetVisible}
+      backdropOpacity={0.5}
+      backdropAppearsOnIndex={0}
+      backdropDisappearsOnIndex={-1}
+      backdropPressBehavior="close"
+      onBackdropPress={handleBackdropPress}
+      contentType="view"
+      backgroundStyle={styles.bottomSheetBackground}
+      handleIndicatorStyle={styles.bottomSheetHandle}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+      android_keyboardInputMode="adjustResize">
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.container}>
+          {/* Header */}
+          <BottomSheetHeader
+            title={title}
+            onClose={handleCancel}
+            theme={theme}
+          />
 
-            {/* List */}
-            <View style={styles.listWrapper}>
-              <FlatList
-                data={filteredItems}
-                keyExtractor={item => item.id}
-                renderItem={useCallback(
-                  ({item}: ListRenderItemInfo<SelectItem>) => {
-                    const isSelected =
-                      mode === 'select'
-                        ? selectedItem?.id === item.id
-                        : tempItem?.id === item.id;
+          {/* Custom Content */}
+          {customContent}
 
-                    if (renderItem) {
-                      return (
-                        <SelectCustomItem
-                          item={item}
-                          isSelected={isSelected}
-                          onPress={handleItemPress}
-                          renderContent={renderItem}
-                          styles={styles}
-                        />
-                      );
-                    }
+          {/* Search */}
+          {hasSearch && (
+            <View style={styles.searchContainer}>
+              <Input
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder={searchPlaceholder}
+                icon={
+                  searchIconSource ? (
+                    <Image
+                      source={searchIconSource}
+                      style={styles.searchIconImage}
+                    />
+                  ) : undefined
+                }
+                containerStyle={styles.searchInputContainer}
+              />
+            </View>
+          )}
 
+          {/* List */}
+          <View style={styles.listWrapper}>
+            <FlatList
+              data={filteredItems}
+              keyExtractor={item => item.id}
+              renderItem={useCallback(
+                ({item}: ListRenderItemInfo<SelectItem>) => {
+                  const isSelected =
+                    mode === 'select'
+                      ? selectedItem?.id === item.id
+                      : tempItem?.id === item.id;
+
+                  if (renderItem) {
                     return (
-                      <SelectDefaultItem
+                      <SelectCustomItem
                         item={item}
                         isSelected={isSelected}
                         onPress={handleItemPress}
+                        renderContent={renderItem}
                         styles={styles}
                       />
                     );
-                  },
-                  [
-                    mode,
-                    selectedItem,
-                    tempItem,
-                    renderItem,
-                    handleItemPress,
-                    styles,
-                  ],
-                )}
-                showsVerticalScrollIndicator
-                contentContainerStyle={styles.listContent}
-                nestedScrollEnabled
-                keyboardShouldPersistTaps="handled"
-                onScrollBeginDrag={Keyboard.dismiss}
-                ListEmptyComponent={renderEmptyList}
-              />
-            </View>
+                  }
 
-            {/* Buttons - Only shown in confirm mode */}
-            {mode === 'confirm' && (
-              <BottomSheetActions
-                onCancel={handleCancel}
-                onSave={handleSave}
-                theme={theme}
-                cancelTintColor={theme.colors.white}
-                cancelTextColor={theme.colors.text}
-              />
-            )}
+                  return (
+                    <SelectDefaultItem
+                      item={item}
+                      isSelected={isSelected}
+                      onPress={handleItemPress}
+                      styles={styles}
+                    />
+                  );
+                },
+                [
+                  mode,
+                  selectedItem,
+                  tempItem,
+                  renderItem,
+                  handleItemPress,
+                  styles,
+                ],
+              )}
+              showsVerticalScrollIndicator
+              contentContainerStyle={styles.listContent}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+              onScrollBeginDrag={Keyboard.dismiss}
+              ListEmptyComponent={renderEmptyList}
+            />
           </View>
-        </TouchableWithoutFeedback>
-      </CustomBottomSheet>
-    );
-  },
-);
+
+          {/* Buttons - Only shown in confirm mode */}
+          {mode === 'confirm' && (
+            <BottomSheetActions
+              onCancel={handleCancel}
+              onSave={handleSave}
+              theme={theme}
+              cancelTintColor={theme.colors.white}
+              cancelTextColor={theme.colors.text}
+            />
+          )}
+        </View>
+      </TouchableWithoutFeedback>
+    </CustomBottomSheet>
+  );
+};
 
 GenericSelectBottomSheet.displayName = 'GenericSelectBottomSheet';
 

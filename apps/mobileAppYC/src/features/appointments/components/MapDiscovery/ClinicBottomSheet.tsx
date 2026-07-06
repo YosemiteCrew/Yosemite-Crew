@@ -1,10 +1,4 @@
-import React, {
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-} from 'react';
+import React, {useCallback, useImperativeHandle, useMemo, useRef} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {useTranslation} from 'react-i18next';
 import BottomSheet, {
@@ -62,146 +56,139 @@ const resolveDistanceText = (
 const resolveRatingText = (business: VetBusiness): string | undefined =>
   business.rating == null ? undefined : `${business.rating}`;
 
-const ClinicBottomSheet = forwardRef<
-  ClinicBottomSheetRef,
-  ClinicBottomSheetProps
->(
-  (
-    {
-      clinics,
-      selectedId,
-      navigation,
-      fallbacks,
-      distanceUnit,
-      filterHeader,
-      animatedIndex,
-    },
-    ref,
-  ) => {
-    const {t} = useTranslation();
-    const {theme} = useTheme();
-    const styles = useMemo(() => createStyles(theme), [theme]);
-    const bottomSheetRef = useRef<BottomSheet>(null);
-    const flatListRef = useRef<BottomSheetFlatListMethods>(null);
+const ClinicBottomSheet = ({
+  clinics,
+  selectedId,
+  navigation,
+  fallbacks,
+  distanceUnit,
+  filterHeader,
+  animatedIndex,
+  ref,
+}: ClinicBottomSheetProps & {ref?: React.Ref<ClinicBottomSheetRef>}) => {
+  const {t} = useTranslation();
+  const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const bottomSheetRef = useRef<BottomSheet>(null);
+  const flatListRef = useRef<BottomSheetFlatListMethods>(null);
 
-    useImperativeHandle(ref, () => ({
-      scrollToClinic: (id: string) => {
-        const index = clinics.findIndex(c => c.id === id);
-        bottomSheetRef.current?.snapToIndex(1);
-        if (index < 0 || !flatListRef.current) return;
-        setTimeout(() => {
-          flatListRef.current?.scrollToIndex({
-            index,
-            animated: true,
-            viewPosition: 0.1,
-          });
-        }, 300);
-      },
-      snapToExpanded: () => bottomSheetRef.current?.snapToIndex(1),
-      snapToCollapsed: () => bottomSheetRef.current?.snapToIndex(0),
-      hide: () => bottomSheetRef.current?.close(),
-      show: () => bottomSheetRef.current?.snapToIndex(0),
-    }));
-
-    const handleScrollToIndexFailed = useCallback((info: {index: number}) => {
+  useImperativeHandle(ref, () => ({
+    scrollToClinic: (id: string) => {
+      const index = clinics.findIndex(c => c.id === id);
+      bottomSheetRef.current?.snapToIndex(1);
+      if (index < 0 || !flatListRef.current) return;
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({
-          index: info.index,
+          index,
           animated: true,
           viewPosition: 0.1,
         });
-      }, 200);
-    }, []);
+      }, 300);
+    },
+    snapToExpanded: () => bottomSheetRef.current?.snapToIndex(1),
+    snapToCollapsed: () => bottomSheetRef.current?.snapToIndex(0),
+    hide: () => bottomSheetRef.current?.close(),
+    show: () => bottomSheetRef.current?.snapToIndex(0),
+  }));
 
-    const renderItem = useCallback(
-      (renderItemInfo: {item: VetBusiness}) => {
-        const {item} = renderItemInfo;
-        const isSelected = item.id === selectedId;
-        return (
-          <View
-            style={[
-              styles.cardWrapper,
-              isSelected && styles.cardWrapperSelected,
-            ]}>
-            <BusinessCard
-              name={item.name}
-              openText={item.openHours}
-              description={item.address}
-              distanceText={resolveDistanceText(item, distanceUnit)}
-              ratingText={resolveRatingText(item)}
-              photo={item.photo}
-              fallbackPhoto={fallbacks[item.id]?.photo ?? null}
-              onBook={() =>
-                navigation.navigate('BusinessDetails', {
-                  businessId: item.id,
-                  distanceMi: item.distanceMi,
-                })
-              }
-            />
-          </View>
-        );
-      },
-      [selectedId, distanceUnit, fallbacks, navigation, styles],
-    );
+  const handleScrollToIndexFailed = useCallback((info: {index: number}) => {
+    setTimeout(() => {
+      flatListRef.current?.scrollToIndex({
+        index: info.index,
+        animated: true,
+        viewPosition: 0.1,
+      });
+    }, 200);
+  }, []);
 
-    const keyExtractor = useCallback((item: VetBusiness) => item.id, []);
-
-    const nativeGesture = useMemo(() => Gesture.Native(), []);
-
-    const emptyComponent = useMemo(
-      () => (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>
-            {t('mapDiscovery.emptyClinicsTitle')}
-          </Text>
-          <Text style={styles.emptySubtitle}>
-            {t('mapDiscovery.emptyClinicsSubtitle')}
-          </Text>
+  const renderItem = useCallback(
+    (renderItemInfo: {item: VetBusiness}) => {
+      const {item} = renderItemInfo;
+      const isSelected = item.id === selectedId;
+      return (
+        <View
+          style={[
+            styles.cardWrapper,
+            isSelected && styles.cardWrapperSelected,
+          ]}>
+          <BusinessCard
+            name={item.name}
+            openText={item.openHours}
+            description={item.address}
+            distanceText={resolveDistanceText(item, distanceUnit)}
+            ratingText={resolveRatingText(item)}
+            photo={item.photo}
+            fallbackPhoto={fallbacks[item.id]?.photo ?? null}
+            onBook={() =>
+              navigation.navigate('BusinessDetails', {
+                businessId: item.id,
+                distanceMi: item.distanceMi,
+              })
+            }
+          />
         </View>
-      ),
-      [styles, t],
-    );
+      );
+    },
+    [selectedId, distanceUnit, fallbacks, navigation, styles],
+  );
 
-    return (
-      <BottomSheet
-        ref={bottomSheetRef}
-        snapPoints={SNAP_POINTS}
-        index={0}
-        enablePanDownToClose={false}
-        handleIndicatorStyle={styles.handle}
-        backgroundStyle={styles.background}
-        animatedIndex={animatedIndex}>
-        <BottomSheetFlatList<VetBusiness>
-          ref={flatListRef}
-          data={clinics}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            filterHeader ? (
-              <GestureDetector gesture={nativeGesture}>
-                <View testID="filter-header-gesture" style={styles.filterRow}>
-                  {filterHeader}
-                </View>
-              </GestureDetector>
-            ) : null
-          }
-          ListEmptyComponent={emptyComponent}
-          getItemLayout={(
-            _data: VetBusiness[] | null | undefined,
-            index: number,
-          ) => ({
-            length: ITEM_ESTIMATED_HEIGHT,
-            offset: ITEM_ESTIMATED_HEIGHT * index,
-            index,
-          })}
-          onScrollToIndexFailed={handleScrollToIndexFailed}
-        />
-      </BottomSheet>
-    );
-  },
-);
+  const keyExtractor = useCallback((item: VetBusiness) => item.id, []);
+
+  const nativeGesture = useMemo(() => Gesture.Native(), []);
+
+  const emptyComponent = useMemo(
+    () => (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyTitle}>
+          {t('mapDiscovery.emptyClinicsTitle')}
+        </Text>
+        <Text style={styles.emptySubtitle}>
+          {t('mapDiscovery.emptyClinicsSubtitle')}
+        </Text>
+      </View>
+    ),
+    [styles, t],
+  );
+
+  return (
+    <BottomSheet
+      ref={bottomSheetRef}
+      snapPoints={SNAP_POINTS}
+      index={0}
+      enablePanDownToClose={false}
+      handleIndicatorStyle={styles.handle}
+      backgroundStyle={styles.background}
+      animatedIndex={animatedIndex}>
+      <BottomSheetFlatList<VetBusiness>
+        ref={flatListRef}
+        data={clinics}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          filterHeader ? (
+            <GestureDetector gesture={nativeGesture}>
+              <View testID="filter-header-gesture" style={styles.filterRow}>
+                {filterHeader}
+              </View>
+            </GestureDetector>
+          ) : null
+        }
+        ListEmptyComponent={emptyComponent}
+        getItemLayout={(
+          _data: VetBusiness[] | null | undefined,
+          index: number,
+        ) => ({
+          length: ITEM_ESTIMATED_HEIGHT,
+          offset: ITEM_ESTIMATED_HEIGHT * index,
+          index,
+        })}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
+      />
+    </BottomSheet>
+  );
+};
 
 ClinicBottomSheet.displayName = 'ClinicBottomSheet';
 

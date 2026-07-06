@@ -1,4 +1,4 @@
-import React, {forwardRef, useImperativeHandle, useRef} from 'react';
+import React, {useImperativeHandle, useRef} from 'react';
 import {Alert, Linking} from 'react-native';
 import {useTranslation} from 'react-i18next';
 import ConfirmActionBottomSheet, {
@@ -17,10 +17,12 @@ type AppUpdateBottomSheetProps = {
   initialOpen?: boolean;
 };
 
-const AppUpdateBottomSheet = forwardRef<
-  AppUpdateBottomSheetRef,
-  AppUpdateBottomSheetProps
->(({prompt, onDeferred, initialOpen = false}, ref) => {
+const AppUpdateBottomSheet = ({
+  prompt,
+  onDeferred,
+  initialOpen = false,
+  ref,
+}: AppUpdateBottomSheetProps & {ref?: React.Ref<AppUpdateBottomSheetRef>}) => {
   const {t} = useTranslation();
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
   const deferredHandledRef = useRef(false);
@@ -106,7 +108,7 @@ const AppUpdateBottomSheet = forwardRef<
       }
     />
   );
-});
+};
 
 AppUpdateBottomSheet.displayName = 'AppUpdateBottomSheet';
 

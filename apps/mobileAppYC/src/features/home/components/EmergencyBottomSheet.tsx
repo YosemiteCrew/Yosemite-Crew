@@ -1,21 +1,15 @@
-import React, { forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-} from 'react-native';
-import { useTheme } from '@/hooks';
-import { Images } from '@/assets/images';
-import CustomBottomSheet, { type BottomSheetRef } from '@/shared/components/common/BottomSheet/BottomSheet';
-import { LiquidGlassCard } from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
+import React, {useImperativeHandle, useRef, useMemo} from 'react';
+import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
+import {useTheme} from '@/hooks';
+import {Images} from '@/assets/images';
+import CustomBottomSheet, {
+  type BottomSheetRef,
+} from '@/shared/components/common/BottomSheet/BottomSheet';
+import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
-import {
-  selectLinkedHospitalsForCompanion,
-} from '@/features/linkedBusinesses';
+import {useSelector} from 'react-redux';
+import type {RootState} from '@/app/store';
+import {selectLinkedHospitalsForCompanion} from '@/features/linkedBusinesses';
 
 export interface EmergencyBottomSheetRef {
   open: () => void;
@@ -37,155 +31,164 @@ interface EmergencyBottomSheetProps {
   onAdverseEvent?: () => void | Promise<void>;
 }
 
-export const EmergencyBottomSheet = forwardRef<EmergencyBottomSheetRef, EmergencyBottomSheetProps>(
-  ({ companionId, onCallVet, onAdverseEvent }, ref) => {
-    const { theme } = useTheme();
-    const bottomSheetRef = useRef<BottomSheetRef>(null);
-    const [isSheetVisible, setIsSheetVisible] = React.useState(false);
+export const EmergencyBottomSheet = ({
+  companionId,
+  onCallVet,
+  onAdverseEvent,
+  ref,
+}: EmergencyBottomSheetProps & {ref?: React.Ref<EmergencyBottomSheetRef>}) => {
+  const {theme} = useTheme();
+  const bottomSheetRef = useRef<BottomSheetRef>(null);
+  const [isSheetVisible, setIsSheetVisible] = React.useState(false);
 
-    const styles = useMemo(() => createStyles(theme), [theme]);
-    const closeButtonSize = theme.spacing['9'];
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const closeButtonSize = theme.spacing['9'];
 
-    // Get linked hospitals for the selected companion
-    const linkedHospitals = useSelector((state: RootState) =>
-      selectLinkedHospitalsForCompanion(state, companionId ?? null),
-    );
+  // Get linked hospitals for the selected companion
+  const linkedHospitals = useSelector((state: RootState) =>
+    selectLinkedHospitalsForCompanion(state, companionId ?? null),
+  );
 
-    const hasLinkedHospital = linkedHospitals && linkedHospitals.length > 0;
-    const canShowOptions = hasLinkedHospital;
+  const hasLinkedHospital = linkedHospitals && linkedHospitals.length > 0;
+  const canShowOptions = hasLinkedHospital;
 
-    const emergencyOptions: EmergencyOption[] = [
-      {
-        id: 'call-vet',
-        title: 'Call vet/ Practice',
-        subtitle: 'Quickly reach your veterinarian or practice for urgent support and guidance via phone.',
-        icon: Images.medicalCap,
-        iconBackgroundColor: theme.colors.errorSurface,
-        note: 'Note: To use this feature, your hospital contact details should be added already.',
-      },
-      {
-        id: 'adverse-event',
-        title: 'Adverse event\nreporting',
-        subtitle: 'Notify the vet, manufacturer and regulatory authority about issues or concerns with a pharmaceutical product.',
-        icon: Images.pill,
-        iconBackgroundColor: theme.colors.lightBlueBackground,
-      },
-    ];
+  const emergencyOptions: EmergencyOption[] = [
+    {
+      id: 'call-vet',
+      title: 'Call vet/ Practice',
+      subtitle:
+        'Quickly reach your veterinarian or practice for urgent support and guidance via phone.',
+      icon: Images.medicalCap,
+      iconBackgroundColor: theme.colors.errorSurface,
+      note: 'Note: To use this feature, your hospital contact details should be added already.',
+    },
+    {
+      id: 'adverse-event',
+      title: 'Adverse event\nreporting',
+      subtitle:
+        'Notify the vet, manufacturer and regulatory authority about issues or concerns with a pharmaceutical product.',
+      icon: Images.pill,
+      iconBackgroundColor: theme.colors.lightBlueBackground,
+    },
+  ];
 
-    useImperativeHandle(ref, () => ({
-      open: () => {
-        setIsSheetVisible(true);
-        bottomSheetRef.current?.snapToIndex(0);
-      },
-      close: () => {
-        setIsSheetVisible(false);
-        bottomSheetRef.current?.close();
-      },
-    }));
-
-    const handleClose = () => {
+  useImperativeHandle(ref, () => ({
+    open: () => {
+      setIsSheetVisible(true);
+      bottomSheetRef.current?.snapToIndex(0);
+    },
+    close: () => {
       setIsSheetVisible(false);
       bottomSheetRef.current?.close();
-    };
+    },
+  }));
 
-    const handleOptionPress = async (optionId: 'call-vet' | 'adverse-event') => {
-      try {
-        if (optionId === 'call-vet' && onCallVet) {
-          await onCallVet();
-        } else if (optionId === 'adverse-event' && onAdverseEvent) {
-          await onAdverseEvent();
-        }
-      } finally {
-        bottomSheetRef.current?.close();
+  const handleClose = () => {
+    setIsSheetVisible(false);
+    bottomSheetRef.current?.close();
+  };
+
+  const handleOptionPress = async (optionId: 'call-vet' | 'adverse-event') => {
+    try {
+      if (optionId === 'call-vet' && onCallVet) {
+        await onCallVet();
+      } else if (optionId === 'adverse-event' && onAdverseEvent) {
+        await onAdverseEvent();
       }
-    };
+    } finally {
+      bottomSheetRef.current?.close();
+    }
+  };
 
-    const renderEmptyState = () => {
-      const message = 'Please link a hospital to use this feature.';
-
-      return (
-        <View style={styles.emptyStateContainer}>
-          <Image source={Images.catEmergency} style={styles.catImage} />
-          <Text style={styles.emptyStateText}>{message}</Text>
-        </View>
-      );
-    };
-
-    const renderOptions = () => (
-      <View style={styles.optionsContainer}>
-        <Image source={Images.catEmergency} style={styles.catImage} />
-        <Text style={styles.titleText}>Is this an emergency?</Text>
-        <Text style={styles.subtitleText}>
-          Choose an option, and we'll help you take the next steps for your pet.
-        </Text>
-
-        <View style={styles.optionsGrid}>
-          {emergencyOptions.map(option => (
-            <TouchableOpacity
-              key={option.id}
-              onPress={() => handleOptionPress(option.id)}
-              activeOpacity={0.85}>
-              <LiquidGlassCard
-                glassEffect="clear"
-                interactive
-                style={styles.optionCard}
-                fallbackStyle={styles.optionCardFallback}>
-                <View style={styles.optionContent}>
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      { backgroundColor: option.iconBackgroundColor },
-                    ]}>
-                    <Image source={option.icon} style={styles.optionIcon} />
-                  </View>
-                  <View style={styles.optionTextContainer}>
-                    <Text style={styles.optionTitle}>{option.title}</Text>
-                    <Text style={styles.optionSubtitle}>{option.subtitle}</Text>
-                    {option.note && (
-                      <Text style={styles.optionNote}>{option.note}</Text>
-                    )}
-                  </View>
-                </View>
-              </LiquidGlassCard>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    );
+  const renderEmptyState = () => {
+    const message = 'Please link a hospital to use this feature.';
 
     return (
-      <CustomBottomSheet
-        ref={bottomSheetRef}
-        snapPoints={['90%','95%']}
-        initialIndex={-1}
-        onChange={index => {
-          setIsSheetVisible(index !== -1);
-        }}
-        enablePanDownToClose
-        enableBackdrop={isSheetVisible}
-        backdropOpacity={0.5}
-        backdropAppearsOnIndex={0}
-        backdropDisappearsOnIndex={-1}
-        backdropPressBehavior="close"
-        enableHandlePanningGesture
-        enableContentPanningGesture={false}
-        contentType="view"
-        zIndex={99999}
-        backgroundStyle={styles.bottomSheetBackground}
-        handleIndicatorStyle={styles.bottomSheetHandle}>
-        <View style={styles.container}>
-          <LiquidGlassIconButton
-            onPress={handleClose}
-            size={closeButtonSize}
-            style={styles.closeButton}>
-            <Image source={Images.crossIcon} style={styles.closeIcon} resizeMode="contain" />
-          </LiquidGlassIconButton>
-          {canShowOptions ? renderOptions() : renderEmptyState()}
-        </View>
-      </CustomBottomSheet>
+      <View style={styles.emptyStateContainer}>
+        <Image source={Images.catEmergency} style={styles.catImage} />
+        <Text style={styles.emptyStateText}>{message}</Text>
+      </View>
     );
-  },
-);
+  };
+
+  const renderOptions = () => (
+    <View style={styles.optionsContainer}>
+      <Image source={Images.catEmergency} style={styles.catImage} />
+      <Text style={styles.titleText}>Is this an emergency?</Text>
+      <Text style={styles.subtitleText}>
+        Choose an option, and we'll help you take the next steps for your pet.
+      </Text>
+
+      <View style={styles.optionsGrid}>
+        {emergencyOptions.map(option => (
+          <TouchableOpacity
+            key={option.id}
+            onPress={() => handleOptionPress(option.id)}
+            activeOpacity={0.85}>
+            <LiquidGlassCard
+              glassEffect="clear"
+              interactive
+              style={styles.optionCard}
+              fallbackStyle={styles.optionCardFallback}>
+              <View style={styles.optionContent}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    {backgroundColor: option.iconBackgroundColor},
+                  ]}>
+                  <Image source={option.icon} style={styles.optionIcon} />
+                </View>
+                <View style={styles.optionTextContainer}>
+                  <Text style={styles.optionTitle}>{option.title}</Text>
+                  <Text style={styles.optionSubtitle}>{option.subtitle}</Text>
+                  {option.note && (
+                    <Text style={styles.optionNote}>{option.note}</Text>
+                  )}
+                </View>
+              </View>
+            </LiquidGlassCard>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  return (
+    <CustomBottomSheet
+      ref={bottomSheetRef}
+      snapPoints={['90%', '95%']}
+      initialIndex={-1}
+      onChange={index => {
+        setIsSheetVisible(index !== -1);
+      }}
+      enablePanDownToClose
+      enableBackdrop={isSheetVisible}
+      backdropOpacity={0.5}
+      backdropAppearsOnIndex={0}
+      backdropDisappearsOnIndex={-1}
+      backdropPressBehavior="close"
+      enableHandlePanningGesture
+      enableContentPanningGesture={false}
+      contentType="view"
+      zIndex={99999}
+      backgroundStyle={styles.bottomSheetBackground}
+      handleIndicatorStyle={styles.bottomSheetHandle}>
+      <View style={styles.container}>
+        <LiquidGlassIconButton
+          onPress={handleClose}
+          size={closeButtonSize}
+          style={styles.closeButton}>
+          <Image
+            source={Images.crossIcon}
+            style={styles.closeIcon}
+            resizeMode="contain"
+          />
+        </LiquidGlassIconButton>
+        {canShowOptions ? renderOptions() : renderEmptyState()}
+      </View>
+    </CustomBottomSheet>
+  );
+};
 
 EmergencyBottomSheet.displayName = 'EmergencyBottomSheet';
 
