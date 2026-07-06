@@ -258,13 +258,17 @@ export const BookingFormScreen: React.FC = () => {
     const uploaded = await dispatch(
       uploadDocumentFiles({files, companionId}),
     ).unwrap();
-    return uploaded
-      .filter(f => f.key)
-      .map(f => ({
-        key: f.key as string,
-        name: resolveAttachmentName(f),
-        contentType: f.type ?? null,
-      }));
+    return uploaded.flatMap(f =>
+      f.key
+        ? [
+            {
+              key: f.key as string,
+              name: resolveAttachmentName(f),
+              contentType: f.type ?? null,
+            },
+          ]
+        : [],
+    );
   };
 
   const handleBook = async () => {

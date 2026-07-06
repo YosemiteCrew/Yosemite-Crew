@@ -616,13 +616,13 @@ const BreakdownCard = ({
         ))}
         {Array.isArray(effectiveInvoice?.totalPriceComponent) &&
         effectiveInvoice.totalPriceComponent.length > 0 ? (
-          effectiveInvoice.totalPriceComponent
-            .filter((pc: any) => {
+          effectiveInvoice.totalPriceComponent.flatMap(
+            (pc: InvoicePriceComponent, idx: number) => {
               const codeText = (pc?.code?.text ?? '').toLowerCase();
               const typeText = (pc?.type ?? '').toString().toLowerCase();
-              return codeText !== 'grand-total' && typeText !== 'informational';
-            })
-            .map((pc: InvoicePriceComponent, idx: number) => {
+              if (codeText === 'grand-total' || typeText === 'informational') {
+                return [];
+              }
               const rawLabel =
                 pc.code?.text ??
                 pc.type?.toString().replaceAll('_', ' ').replaceAll('-', ' ') ??
@@ -635,15 +635,16 @@ const BreakdownCard = ({
                 typeof pc.amount?.value === 'number'
                   ? `${resolveCurrencySymbol(pc.amount?.currency ?? currency ?? 'USD')}${pc.amount.value.toFixed(2)}`
                   : '—';
-              return (
+              return [
                 <BreakdownRow
                   key={buildPriceComponentKey(pc)}
                   label={label}
                   value={value}
                   subtle={label.toLowerCase().includes('discount')}
-                />
-              );
-            })
+                />,
+              ];
+            },
+          )
         ) : (
           <>
             <BreakdownRow

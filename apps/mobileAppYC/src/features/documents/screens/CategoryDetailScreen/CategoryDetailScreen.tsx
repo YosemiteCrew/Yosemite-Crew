@@ -9,7 +9,10 @@ import {SubcategoryAccordion} from '@/shared/components/common/SubcategoryAccord
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
-import {DOCUMENT_CATEGORIES, SUBCATEGORY_ICONS} from '@/features/documents/constants';
+import {
+  DOCUMENT_CATEGORIES,
+  SUBCATEGORY_ICONS,
+} from '@/features/documents/constants';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
 import {formatLabel} from '@/shared/utils/helpers';
@@ -21,11 +24,16 @@ import {useDocumentCompanionSync} from '@/features/documents/hooks/useDocumentCo
 import {useDocumentNavigation} from '@/features/documents/hooks/useDocumentNavigation';
 import {DocumentCompanionSelector} from '@/features/documents/components/DocumentCompanionSelector';
 
-type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
-type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail'>;
+type CategoryDetailNavigationProp =
+  NativeStackNavigationProp<DocumentStackParamList>;
+type CategoryDetailRouteProp = RouteProp<
+  DocumentStackParamList,
+  'CategoryDetail'
+>;
 
 export const CategoryDetailScreen: React.FC = () => {
-  const {theme, dispatch, companions, selectedCompanionId} = useCompanionFormScreen();
+  const {theme, dispatch, companions, selectedCompanionId} =
+    useCompanionFormScreen();
   const styles = useCommonScreenStyles(theme, themeArg => ({
     contentContainer: {
       paddingHorizontal: themeArg.spacing['6'],
@@ -40,14 +48,17 @@ export const CategoryDetailScreen: React.FC = () => {
   const {categoryId} = route.params;
   const category = DOCUMENT_CATEGORIES.find(c => c.id === categoryId);
 
-  const documents = useSelector((state: RootState) => state.documents.documents);
+  const documents = useSelector(
+    (state: RootState) => state.documents.documents,
+  );
 
   // Filter documents by category and companion
   const categoryDocuments = useMemo(() => {
     return documents.filter(
       doc =>
         doc.category === categoryId &&
-        (selectedCompanionId === null || doc.companionId === selectedCompanionId),
+        (selectedCompanionId === null ||
+          doc.companionId === selectedCompanionId),
     );
   }, [documents, categoryId, selectedCompanionId]);
 
@@ -76,20 +87,28 @@ export const CategoryDetailScreen: React.FC = () => {
 
   const subcategoriesToRender = useMemo(() => {
     const existing = category?.subcategories ?? [];
-    const extras = Object.keys(documentsBySubcategory)
-      .filter(id => !existing.some(sub => sub.id === id))
-      .map(id => ({
-        id,
-        label: formatLabel(id, 'Other'),
-        fileCount: 0,
-      }));
+    const extras = Object.keys(documentsBySubcategory).flatMap(id =>
+      !existing.some(sub => sub.id === id)
+        ? [
+            {
+              id,
+              label: formatLabel(id, 'Other'),
+              fileCount: 0,
+            },
+          ]
+        : [],
+    );
     return [...existing, ...extras];
   }, [category?.subcategories, documentsBySubcategory]);
 
   if (!category) {
     return (
       <SafeArea>
-        <Header title="Category" showBackButton={true} onBack={() => navigation.goBack()} />
+        <Header
+          title="Category"
+          showBackButton={true}
+          onBack={() => navigation.goBack()}
+        />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Category not found</Text>
         </View>
@@ -125,8 +144,10 @@ export const CategoryDetailScreen: React.FC = () => {
             containerStyle={styles.companionSelector}
           />
           {subcategoriesToRender.map(subcategory => {
-            const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
-            const subcategoryIcon = SUBCATEGORY_ICONS[subcategory.id] || category.icon;
+            const subcategoryDocs =
+              documentsBySubcategory[subcategory.id] || [];
+            const subcategoryIcon =
+              SUBCATEGORY_ICONS[subcategory.id] || category.icon;
             const subcategorySuffix = subcategoryDocs.length === 1 ? '' : 's';
 
             return (

@@ -287,15 +287,16 @@ const parseAttachments = (extensions: any[] | undefined) => {
     });
   });
 
-  return grouped
-    .map((item, index) => ({
+  return grouped.flatMap((item, index) => {
+    const attachment = {
       id: item.key || `attachment-${index}`,
       name: item.name || `Attachment ${index + 1}`,
       key: item.key,
       url: item.url || item.valueUrl || buildCdnUrlFromKey(item.key) || null,
       type: item.contentType ?? null,
-    }))
-    .filter(att => att.name || att.key);
+    };
+    return attachment.name || attachment.key ? [attachment] : [];
+  });
 };
 
 const parseDateParts = (

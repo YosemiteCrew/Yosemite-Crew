@@ -116,61 +116,55 @@ export const LegalContentRenderer: React.FC<LegalContentRendererProps> = ({
   return (
     <View style={styles.container}>
       {safeSections.length > 0 &&
-        safeSections
-          // filter out empty sections (no title and no non-empty blocks)
-          .filter(section => {
-            const hasTitle =
-              typeof section.title === 'string' &&
-              section.title.trim().length > 0;
-            const hasBlocks =
-              Array.isArray(section.blocks) &&
-              section.blocks.some(b => {
-                if (b.type === 'paragraph')
-                  return (
-                    Array.isArray(b.segments) &&
-                    b.segments.some(
-                      s =>
-                        typeof s.text === 'string' && s.text.trim().length > 0,
-                    )
-                  );
-                if (b.type === 'ordered-list')
-                  return Array.isArray(b.items) && b.items.length > 0;
-                return false;
-              });
-            return hasTitle || hasBlocks;
-          })
-          .map(section => {
-            const isCenter = section.align === 'center';
-            return (
-              <LiquidGlassCard
-                key={section.id}
-                glassEffect="regular"
-                interactive
-                style={[
-                  styles.sectionCard,
-                  isCenter && styles.sectionCardCenter,
-                ]}
-                fallbackStyle={styles.cardFallback}>
-                {section.title ? (
-                  <Text
-                    style={[
-                      styles.sectionTitle,
-                      isCenter && styles.sectionTitleCenter,
-                    ]}>
-                    {section.title}
-                  </Text>
-                ) : null}
-                <View style={styles.sectionContent}>
-                  {Array.isArray(section.blocks)
-                    ? section.blocks.flatMap(block => {
-                        const r = renderBlock(block, styles, isCenter);
-                        return r ? [r] : [];
-                      })
-                    : null}
-                </View>
-              </LiquidGlassCard>
-            );
-          })}
+        safeSections.flatMap(section => {
+          const hasTitle =
+            typeof section.title === 'string' &&
+            section.title.trim().length > 0;
+          const hasBlocks =
+            Array.isArray(section.blocks) &&
+            section.blocks.some(b => {
+              if (b.type === 'paragraph')
+                return (
+                  Array.isArray(b.segments) &&
+                  b.segments.some(
+                    s => typeof s.text === 'string' && s.text.trim().length > 0,
+                  )
+                );
+              if (b.type === 'ordered-list')
+                return Array.isArray(b.items) && b.items.length > 0;
+              return false;
+            });
+          if (!hasTitle && !hasBlocks) {
+            return [];
+          }
+          const isCenter = section.align === 'center';
+          return [
+            <LiquidGlassCard
+              key={section.id}
+              glassEffect="regular"
+              interactive
+              style={[styles.sectionCard, isCenter && styles.sectionCardCenter]}
+              fallbackStyle={styles.cardFallback}>
+              {section.title ? (
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    isCenter && styles.sectionTitleCenter,
+                  ]}>
+                  {section.title}
+                </Text>
+              ) : null}
+              <View style={styles.sectionContent}>
+                {Array.isArray(section.blocks)
+                  ? section.blocks.flatMap(block => {
+                      const r = renderBlock(block, styles, isCenter);
+                      return r ? [r] : [];
+                    })
+                  : null}
+              </View>
+            </LiquidGlassCard>,
+          ];
+        })}
     </View>
   );
 };

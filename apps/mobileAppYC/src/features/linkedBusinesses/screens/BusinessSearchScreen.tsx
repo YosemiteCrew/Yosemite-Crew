@@ -54,8 +54,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
-  const [selectedBusinessForDelete, setSelectedBusinessForDelete] =
-    useState<LinkedBusiness | null>(null);
+  const selectedBusinessForDeleteRef = useRef<LinkedBusiness | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const userLocation = useLocationStore();
   const [searchBarBottom, setSearchBarBottom] = useState<number | null>(null);
@@ -107,7 +106,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
       );
       setSearchQuery('');
       setSearchResults([]);
-      setSelectedBusinessForDelete(null);
+      selectedBusinessForDeleteRef.current = null;
 
       // Refresh linked businesses list after returning from BusinessAdd
       (async () => {
@@ -429,25 +428,26 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
       business.id,
       business.businessName,
     );
-    setSelectedBusinessForDelete(business);
+    selectedBusinessForDeleteRef.current = business;
     deleteBottomSheetRef.current?.open(business.businessName);
   }, []);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!selectedBusinessForDelete) return;
+    if (!selectedBusinessForDeleteRef.current) return;
 
     try {
       setDeleteLoading(true);
       console.log('[BusinessSearch] ===== DELETE START =====');
       console.log(
         '[BusinessSearch] Business to delete:',
-        selectedBusinessForDelete.id,
-        selectedBusinessForDelete.linkId,
+        selectedBusinessForDeleteRef.current.id,
+        selectedBusinessForDeleteRef.current.linkId,
       );
 
       // Use linkId if available, otherwise use id
       const idToDelete =
-        selectedBusinessForDelete.linkId || selectedBusinessForDelete.id;
+        selectedBusinessForDeleteRef.current.linkId ||
+        selectedBusinessForDeleteRef.current.id;
 
       console.log('[BusinessSearch] Dispatching delete for ID:', idToDelete);
       const result = await dispatch(deleteLinkedBusiness(idToDelete)).unwrap();
@@ -455,7 +455,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
       console.log('[BusinessSearch] Successfully deleted business');
       console.log('[BusinessSearch] ===== DELETE END =====');
 
-      setSelectedBusinessForDelete(null);
+      selectedBusinessForDeleteRef.current = null;
       Alert.alert('Success', 'Business connection has been removed.');
     } catch (error) {
       console.error('[BusinessSearch] Failed to delete business:', error);
@@ -463,11 +463,11 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
     } finally {
       setDeleteLoading(false);
     }
-  }, [dispatch, selectedBusinessForDelete]);
+  }, [dispatch]);
 
   const handleCancelDelete = useCallback(() => {
     console.log('[BusinessSearch] Delete cancelled');
-    setSelectedBusinessForDelete(null);
+    selectedBusinessForDeleteRef.current = null;
   }, []);
 
   const handleAcceptInvite = useCallback(
@@ -628,18 +628,18 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
                     <Text style={styles.sectionTitle}>
                       Linked {categoryTitle.toLowerCase()}s
                     </Text>
-                    {linkedBusinesses
-                      .filter(
-                        b =>
-                          b.inviteStatus === 'accepted' || b.state === 'active',
-                      )
-                      .map(business => (
-                        <LinkedBusinessCard
-                          key={business.linkId || business.id}
-                          business={business}
-                          onDeletePress={handleDeletePressFromCard}
-                        />
-                      ))}
+                    {linkedBusinesses.flatMap(business =>
+                      business.inviteStatus === 'accepted' ||
+                      business.state === 'active'
+                        ? [
+                            <LinkedBusinessCard
+                              key={business.linkId || business.id}
+                              business={business}
+                              onDeletePress={handleDeletePressFromCard}
+                            />,
+                          ]
+                        : [],
+                    )}
                   </View>
                 ) : (
                   <View key="empty" style={styles.emptyContainer}>
