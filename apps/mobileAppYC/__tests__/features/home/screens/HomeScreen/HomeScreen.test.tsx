@@ -3,10 +3,8 @@ import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent, act} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {
-  HomeScreen,
-  deriveHomeGreetingName,
-} from '@/features/home/screens/HomeScreen/HomeScreen';
+import {HomeScreen} from '@/features/home/screens/HomeScreen/HomeScreen';
+import {deriveHomeGreetingName} from '@/features/home/screens/HomeScreen/HomeScreen.helpers';
 import {useNavigation} from '@react-navigation/native';
 import {Alert, ToastAndroid, Platform} from 'react-native';
 

@@ -11,9 +11,25 @@ import {SwipeableActionCard} from '@/shared/components/common/SwipeableActionCar
 import {CardActionButton} from '@/shared/components/common/CardActionButton/CardActionButton';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {formatCurrency, resolveCurrencySymbol} from '@/shared/utils/currency';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
+
+export type ExpenseCardActionVisibility = 'visible' | 'hidden';
+export type ExpenseCardSwipeMode = 'enabled' | 'hidden';
+
+export type ExpenseCardPayment =
+  | {
+      status: 'paid';
+      onToggleStatus?: () => void;
+    }
+  | {
+      status: 'unpaid';
+      cta?: {
+        onPress: () => void;
+        label?: string;
+      };
+    };
 
 export interface ExpenseCardProps {
   title: string;
@@ -26,13 +42,9 @@ export interface ExpenseCardProps {
   thumbnail?: ImageSourcePropType;
   onPressView?: () => void;
   onPressEdit?: () => void;
-  onPressPay?: () => void;
-  showEditAction?: boolean;
-  showPayButton?: boolean;
-  isPaid?: boolean;
-  payButtonLabel?: string;
-  hideSwipeActions?: boolean;
-  onTogglePaidStatus?: () => void;
+  editAction?: ExpenseCardActionVisibility;
+  payment?: ExpenseCardPayment;
+  swipeActions?: ExpenseCardSwipeMode;
 }
 
 export const ExpenseCard: React.FC<ExpenseCardProps> = ({
@@ -46,33 +58,32 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
   thumbnail,
   onPressView,
   onPressEdit,
-  onPressPay,
-  showEditAction = true,
-  showPayButton = false,
-  isPaid = false,
-  payButtonLabel,
-  hideSwipeActions = false,
-  onTogglePaidStatus,
+  editAction = 'visible',
+  payment,
+  swipeActions = 'enabled',
 }) => {
   const {theme} = useTheme();
   const baseStyles = useMemo(() => createCardStyles(theme), [theme]);
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const paidToggle =
+    payment?.status === 'paid' ? payment.onToggleStatus : undefined;
+  const paymentCta = payment?.status === 'unpaid' ? payment.cta : undefined;
 
   const formattedAmount = useMemo(() => {
     const formatted = formatCurrency(amount, {
       currencyCode,
       minimumFractionDigits: 0,
     });
-  return formatted.replaceAll('\u00A0', ' ');
+    return formatted.replaceAll('\u00A0', ' ');
   }, [amount, currencyCode]);
 
   const payCtaLabel = useMemo(() => {
-    if (payButtonLabel) {
-      return payButtonLabel;
+    if (paymentCta?.label) {
+      return paymentCta.label;
     }
     const symbol = resolveCurrencySymbol(currencyCode, '$');
     return `${symbol}${amount.toFixed(2)}`;
-  }, [amount, currencyCode, payButtonLabel]);
+  }, [amount, currencyCode, paymentCta?.label]);
 
   return (
     <SwipeableActionCard
@@ -80,9 +91,8 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
       fallbackStyle={baseStyles.fallback}
       onPressView={onPressView}
       onPressEdit={onPressEdit}
-      showEditAction={showEditAction}
-      hideSwipeActions={hideSwipeActions}
-    >
+      showEditAction={editAction === 'visible'}
+      hideSwipeActions={swipeActions === 'hidden'}>
       <TouchableOpacity
         activeOpacity={onPressView ? 0.85 : 1}
         onPress={onPressView}
@@ -95,29 +105,35 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
             />
           </View>
           <View style={baseStyles.textContent}>
-            <Text style={baseStyles.title} numberOfLines={1} ellipsizeMode="tail">
+            <Text
+              style={baseStyles.title}
+              numberOfLines={1}
+              ellipsizeMode="tail">
               {title}
             </Text>
             <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
               Category: <Text style={styles.metaValue}>{categoryLabel}</Text>
             </Text>
             <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
-              Sub category: <Text style={styles.metaValue}>{subcategoryLabel}</Text>
+              Sub category:{' '}
+              <Text style={styles.metaValue}>{subcategoryLabel}</Text>
             </Text>
             <Text style={styles.meta} numberOfLines={1} ellipsizeMode="tail">
               Visit type: <Text style={styles.metaValue}>{visitTypeLabel}</Text>
             </Text>
-            <Text style={styles.date}>{formatDateForDisplay(new Date(date))}</Text>
+            <Text style={styles.date}>
+              {formatDateForDisplay(new Date(date))}
+            </Text>
           </View>
 
           <View style={baseStyles.rightColumn}>
             <Text style={baseStyles.amount}>{formattedAmount}</Text>
-            {isPaid &&
-              (onTogglePaidStatus ? (
+            {payment?.status === 'paid' &&
+              (paidToggle ? (
                 <TouchableOpacity
                   style={[styles.paidBadge, styles.paidBadgeInteractive]}
                   activeOpacity={0.8}
-                  onPress={onTogglePaidStatus}>
+                  onPress={paidToggle}>
                   <Text style={styles.paidText}>Paid</Text>
                 </TouchableOpacity>
               ) : (
@@ -128,11 +144,11 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
           </View>
         </View>
 
-        {showPayButton && !isPaid && (
+        {paymentCta && (
           <CardActionButton
             label={`Pay ${payCtaLabel}`}
             icon={Images.currencyIcon}
-            onPress={onPressPay!}
+            onPress={paymentCta.onPress}
             variant="primary"
           />
         )}

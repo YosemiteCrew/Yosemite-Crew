@@ -22,10 +22,8 @@ import {
 import {useForm, Controller} from 'react-hook-form';
 import {Input, Header} from '@/shared/components/common';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {ProfileImagePicker} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 import {
   CountryMobileBottomSheet,

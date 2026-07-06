@@ -22,12 +22,12 @@ import {CompanionSelector} from '@/shared/components/common/CompanionSelector/Co
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {
   updateCoParentPermissions,
-  selectCoParentLoading,
   deleteCoParent,
   fetchCoParents,
   promoteCoParentToPrimary,
   fetchParentAccess,
-} from '../../index';
+} from '../../thunks';
+import {selectCoParentLoading} from '../../selectors';
 import {
   selectCompanions,
   selectSelectedCompanionId,
@@ -43,6 +43,17 @@ import DeleteCoParentBottomSheet, {
 import {createCommonCoParentStyles} from '../../styles/commonStyles';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'EditCoParent'>;
+
+const defaultPermissions: CoParentPermissions = {
+  assignAsPrimaryParent: false,
+  emergencyBasedPermissions: false,
+  appointments: false,
+  companionProfile: false,
+  documents: false,
+  expenses: false,
+  tasks: false,
+  chatWithVet: false,
+};
 
 export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const {coParentId} = route.params;
@@ -78,16 +89,6 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(
     globalSelectedCompanionId ?? coParent?.companionId ?? null,
   );
-  const defaultPermissions: CoParentPermissions = {
-    assignAsPrimaryParent: false,
-    emergencyBasedPermissions: false,
-    appointments: false,
-    companionProfile: false,
-    documents: false,
-    expenses: false,
-    tasks: false,
-    chatWithVet: false,
-  };
   const [permissions, setPermissions] = useState<CoParentPermissions>(
     coParent?.permissions ?? defaultPermissions,
   );

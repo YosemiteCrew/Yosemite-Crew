@@ -3,7 +3,8 @@ import {View, Text, TouchableOpacity, Image, StyleSheet} from 'react-native';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import {RowButton, Separator} from '@/shared/components/common/FormRowComponents';
+import {RowButton} from '@/shared/components/common/RowButton';
+import {Separator} from '@/shared/components/common/Separator';
 
 export interface AERInfoRow {
   label: string;
@@ -40,7 +41,11 @@ export const AERInfoSection: React.FC<Props> = ({title, rows, onEdit}) => {
         <View style={styles.cardContent}>
           {rows.map((row, idx) => (
             <View key={`${row.label}-${idx}`}>
-              <RowButton label={row.label} value={row.value} onPress={row.onPress || (() => {})} />
+              <RowButton
+                label={row.label}
+                value={row.value}
+                onPress={row.onPress || (() => {})}
+              />
               {idx < rows.length - 1 ? <Separator /> : null}
             </View>
           ))}

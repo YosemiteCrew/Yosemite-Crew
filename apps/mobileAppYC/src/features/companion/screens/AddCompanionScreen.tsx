@@ -20,10 +20,8 @@ import {SafeArea, Input, Header} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {ProfileImagePicker} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 import {TileSelector} from '@/shared/components/common/TileSelector/TileSelector';
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {
@@ -161,16 +159,16 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [speciesByCategory, setSpeciesByCategory] = useState<
+  const hasUnsavedChangesRef = useRef(false);
+  const speciesByCategoryRef = useRef<
     Partial<Record<CompanionCategory, SpeciesCodeEntry>>
   >({});
   const [breedOptions, setBreedOptions] = useState<Breed[]>([]);
 
   // Track which bottom sheet is currently open
-  const [openBottomSheet, setOpenBottomSheet] = useState<
-    'breed' | 'bloodGroup' | 'country' | null
-  >(null);
+  const openBottomSheetRef = useRef<'breed' | 'bloodGroup' | 'country' | null>(
+    null,
+  );
 
   const {
     control,
@@ -178,6 +176,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     formState: {errors},
     trigger,
     setValue,
+    getValues,
     watch,
     setError,
     clearErrors,
@@ -261,7 +260,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
             value={textValue}
             onChangeText={text => {
               onChange(text);
-              setHasUnsavedChanges(true);
+              hasUnsavedChangesRef.current = true;
             }}
             placeholder={placeholder}
             keyboardType={keyboardType}
@@ -317,7 +316,14 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
             byCategory.horse = entry;
           }
         }
-        setSpeciesByCategory(byCategory);
+        speciesByCategoryRef.current = byCategory;
+
+        const selectedCategory = getValues('category');
+        if (selectedCategory) {
+          setValue('speciesCode', byCategory[selectedCategory]?.code ?? null, {
+            shouldValidate: false,
+          });
+        }
       } catch (error) {
         console.warn('[Companion] Unable to load species code entries', error);
       }
@@ -326,7 +332,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [getValues, setValue]);
 
   useEffect(() => {
     let mounted = true;
@@ -339,9 +345,13 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         return;
       }
 
-      setValue('speciesCode', speciesByCategory[category]?.code ?? null, {
-        shouldValidate: false,
-      });
+      setValue(
+        'speciesCode',
+        speciesByCategoryRef.current[category]?.code ?? null,
+        {
+          shouldValidate: false,
+        },
+      );
       setValue('breed', null, {shouldValidate: false});
       setValue('breedCode', null, {shouldValidate: false});
 
@@ -365,7 +375,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
             breedId: index + 1,
             breedName: entry.display,
             speciesCode:
-              entry.meta?.speciesCode ?? speciesByCategory[category]?.code,
+              entry.meta?.speciesCode ??
+              speciesByCategoryRef.current[category]?.code,
             breedCode: entry.code,
           }),
         );
@@ -379,7 +390,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     return () => {
       mounted = false;
     };
-  }, [category, setValue, speciesByCategory]);
+  }, [category, setValue]);
 
   // Handle Android back button
   useEffect(() => {
@@ -393,8 +404,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         }
 
         // If any bottom sheet is open, close it first
-        if (openBottomSheet) {
-          switch (openBottomSheet) {
+        if (openBottomSheetRef.current) {
+          switch (openBottomSheetRef.current) {
             case 'breed':
               breedSheetRef.current?.close();
               break;
@@ -405,7 +416,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
               countrySheetRef.current?.close();
               break;
           }
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
           return true; // Prevent default back action
         }
 
@@ -415,28 +426,28 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     );
 
     return () => backHandler.remove();
-  }, [showDatePicker, openBottomSheet]);
+  }, [showDatePicker]);
 
   const handleGoBack = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep(prev => prev - 1);
-    } else if (hasUnsavedChanges) {
+    } else if (hasUnsavedChangesRef.current) {
       discardSheetRef.current?.open();
     } else {
       navigation.goBack();
     }
-  }, [currentStep, navigation, hasUnsavedChanges]);
+  }, [currentStep, navigation]);
 
   const handleProfileImageChange = useCallback(
     (imageUri: string | null) => {
       setValue('profileImage', imageUri, {shouldValidate: true});
-      setHasUnsavedChanges(true);
+      hasUnsavedChangesRef.current = true;
     },
     [setValue],
   );
 
   const handleBreedPress = useCallback(() => {
-    setOpenBottomSheet('breed');
+    openBottomSheetRef.current = 'breed';
     breedSheetRef.current?.open();
   }, []);
 
@@ -449,34 +460,34 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       setValue(
         'speciesCode',
         selectedBreed?.speciesCode ??
-          speciesByCategory[category ?? 'dog']?.code ??
+          speciesByCategoryRef.current[category ?? 'dog']?.code ??
           null,
         {
           shouldValidate: false,
         },
       );
-      setOpenBottomSheet(null);
-      setHasUnsavedChanges(true);
+      openBottomSheetRef.current = null;
+      hasUnsavedChangesRef.current = true;
     },
-    [category, setValue, speciesByCategory],
+    [category, setValue],
   );
 
   const handleBloodGroupPress = useCallback(() => {
-    setOpenBottomSheet('bloodGroup');
+    openBottomSheetRef.current = 'bloodGroup';
     bloodGroupSheetRef.current?.open();
   }, []);
 
   const handleBloodGroupSave = useCallback(
     (selectedBloodGroup: string | null) => {
       setValue('bloodGroup', selectedBloodGroup, {shouldValidate: true});
-      setOpenBottomSheet(null);
-      setHasUnsavedChanges(true);
+      openBottomSheetRef.current = null;
+      hasUnsavedChangesRef.current = true;
     },
     [setValue],
   );
 
   const handleCountryPress = useCallback(() => {
-    setOpenBottomSheet('country');
+    openBottomSheetRef.current = 'country';
     countrySheetRef.current?.open();
   }, []);
 
@@ -485,8 +496,8 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       setValue('countryOfOrigin', country?.name || null, {
         shouldValidate: true,
       });
-      setOpenBottomSheet(null);
-      setHasUnsavedChanges(true);
+      openBottomSheetRef.current = null;
+      hasUnsavedChangesRef.current = true;
     },
     [setValue],
   );
@@ -499,7 +510,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     (date: Date) => {
       setValue('dateOfBirth', date, {shouldValidate: true});
       setShowDatePicker(false);
-      setHasUnsavedChanges(true);
+      hasUnsavedChangesRef.current = true;
     },
     [setValue],
   );
@@ -692,7 +703,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                   shouldValidate: true,
                 });
                 clearErrors('category');
-                setHasUnsavedChanges(true);
+                hasUnsavedChangesRef.current = true;
               }}
               activeOpacity={0.8}>
               <Image
@@ -795,7 +806,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                   setValue('gender', value as CompanionGender, {
                     shouldValidate: true,
                   });
-                  setHasUnsavedChanges(true);
+                  hasUnsavedChangesRef.current = true;
                 }}
               />
             )}
@@ -841,7 +852,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                   setValue('neuteredStatus', value as NeuteredStatus, {
                     shouldValidate: true,
                   });
-                  setHasUnsavedChanges(true);
+                  hasUnsavedChangesRef.current = true;
                 }}
               />
             )}
@@ -934,7 +945,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                   setValue('insuredStatus', value as InsuredStatus, {
                     shouldValidate: true,
                   });
-                  setHasUnsavedChanges(true);
+                  hasUnsavedChangesRef.current = true;
                 }}
               />
             )}
@@ -994,7 +1005,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                   setValue('origin', value as CompanionOrigin, {
                     shouldValidate: true,
                   });
-                  setHasUnsavedChanges(true);
+                  hasUnsavedChangesRef.current = true;
                 }}
               />
             )}

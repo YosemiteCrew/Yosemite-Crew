@@ -1,7 +1,7 @@
 import React from 'react';
 import {View, StyleSheet, Image, TouchableOpacity} from 'react-native';
 import {Input, TouchableInput} from '@/shared/components/common';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
 import {createTaskFormSectionStyles} from '@/features/tasks/components/shared/taskFormStyles';
@@ -10,7 +10,10 @@ import type {TaskFormData, TaskFormErrors} from '@/features/tasks/types';
 interface MedicationFormSectionProps {
   formData: TaskFormData;
   errors: TaskFormErrors;
-  updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
+  updateField: <K extends keyof TaskFormData>(
+    field: K,
+    value: TaskFormData[K],
+  ) => void;
   onOpenMedicationTypeSheet: () => void;
   onOpenDosageSheet: () => void;
   onOpenMedicationFrequencySheet: () => void;
@@ -68,9 +71,18 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
   theme,
   showDosageDisplay = true,
 }) => {
-  const baseStyles = React.useMemo(() => createTaskFormSectionStyles(theme), [theme]);
-  const customStyles = React.useMemo(() => createMedicationStyles(theme), [theme]);
-  const styles = React.useMemo(() => ({...baseStyles, ...customStyles}), [baseStyles, customStyles]);
+  const baseStyles = React.useMemo(
+    () => createTaskFormSectionStyles(theme),
+    [theme],
+  );
+  const customStyles = React.useMemo(
+    () => createMedicationStyles(theme),
+    [theme],
+  );
+  const styles = React.useMemo(
+    () => ({...baseStyles, ...customStyles}),
+    [baseStyles, customStyles],
+  );
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
 
   return (
@@ -113,7 +125,10 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
           placeholder="Medication type"
           onPress={onOpenMedicationTypeSheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
+            <Image
+              source={Images.dropdownIcon}
+              style={iconStyles.dropdownIcon}
+            />
           }
           error={errors.medicineType}
         />
@@ -126,7 +141,10 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
           placeholder="Dosage"
           onPress={onOpenDosageSheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
+            <Image
+              source={Images.dropdownIcon}
+              style={iconStyles.dropdownIcon}
+            />
           }
           error={errors.dosages}
         />
@@ -135,7 +153,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
       {/* Display Dosage Details */}
       {showDosageDisplay && formData.dosages.length > 0 && (
         <View style={styles.dosageDisplayContainer}>
-          {formData.dosages.map((dosage) => (
+          {formData.dosages.map(dosage => (
             <TouchableOpacity
               key={dosage.id}
               style={styles.dosageDisplayRow}
@@ -155,7 +173,12 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
                   value={formatDosageTime(dosage.time)}
                   editable={false}
                   pointerEvents="none"
-                  icon={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
+                  icon={
+                    <Image
+                      source={Images.clockIcon}
+                      style={styles.calendarIcon}
+                    />
+                  }
                 />
               </View>
             </TouchableOpacity>
@@ -165,12 +188,17 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
 
       <View style={styles.fieldGroup}>
         <TouchableInput
-          label={formData.medicationFrequency ? 'Medication frequency' : undefined}
+          label={
+            formData.medicationFrequency ? 'Medication frequency' : undefined
+          }
           value={formData.medicationFrequency || undefined}
           placeholder="Medication frequency"
           onPress={onOpenMedicationFrequencySheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
+            <Image
+              source={Images.dropdownIcon}
+              style={iconStyles.dropdownIcon}
+            />
           }
           error={errors.medicationFrequency}
         />
@@ -180,10 +208,16 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
         <View style={styles.dateTimeField}>
           <TouchableInput
             label={formData.startDate ? 'Start Date' : undefined}
-            value={formData.startDate ? formatDateForDisplay(formData.startDate) : undefined}
+            value={
+              formData.startDate
+                ? formatDateForDisplay(formData.startDate)
+                : undefined
+            }
             placeholder="Start Date"
             onPress={onOpenStartDatePicker}
-            rightComponent={<Image source={Images.calendarIcon} style={styles.calendarIcon} />}
+            rightComponent={
+              <Image source={Images.calendarIcon} style={styles.calendarIcon} />
+            }
             error={errors.startDate}
           />
         </View>
@@ -192,10 +226,19 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
           <View style={styles.dateTimeField}>
             <TouchableInput
               label={formData.endDate ? 'End Date' : undefined}
-              value={formData.endDate ? formatDateForDisplay(formData.endDate) : undefined}
+              value={
+                formData.endDate
+                  ? formatDateForDisplay(formData.endDate)
+                  : undefined
+              }
               placeholder="End Date"
               onPress={onOpenEndDatePicker}
-              rightComponent={<Image source={Images.calendarIcon} style={styles.calendarIcon} />}
+              rightComponent={
+                <Image
+                  source={Images.calendarIcon}
+                  style={styles.calendarIcon}
+                />
+              }
               error={errors.endDate}
             />
           </View>

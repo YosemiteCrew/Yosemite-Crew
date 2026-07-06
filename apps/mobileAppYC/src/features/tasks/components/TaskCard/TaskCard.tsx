@@ -5,7 +5,7 @@ import {CardActionButton} from '@/shared/components/common/CardActionButton/Card
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {AvatarGroup} from '@/shared/components/common/AvatarGroup/AvatarGroup';
 import {useTheme} from '@/hooks';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
 import type {TaskCategory, TaskStatus} from '@/features/tasks/types';
 import {normalizeImageUri} from '@/shared/utils/imageUri';

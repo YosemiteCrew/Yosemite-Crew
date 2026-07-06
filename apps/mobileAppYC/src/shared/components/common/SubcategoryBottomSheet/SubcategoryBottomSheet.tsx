@@ -1,15 +1,10 @@
-import React, {
-  forwardRef,
-  useState,
-  useImperativeHandle,
-  useRef,
-  useMemo,
-} from 'react';
+import React, {useState, useImperativeHandle, useRef, useMemo} from 'react';
 import {GenericSelectBottomSheet} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
 import type {
   GenericSelectBottomSheetRef,
   SelectItem,
 } from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import {SHARED_ENTRIES} from './subcategoryData';
 
 export interface SubcategoryBottomSheetRef {
   open: () => void;
@@ -22,24 +17,6 @@ interface SubcategoryBottomSheetProps {
   onSave: (subcategory: string | null) => void;
   subcategoryMap?: Record<string, SelectItem[]>;
 }
-
-const SHARED_ENTRIES: Record<string, SelectItem[]> = {
-  admin: [
-    {id: 'passport', label: 'Passport'},
-    {
-      id: 'certificates',
-      label: 'Certificates (incl. pedigree, microchip, awards, breeder papers)',
-    },
-    {id: 'insurance', label: 'Insurance'},
-  ],
-  'dietary-plans': [{id: 'nutrition-plans', label: 'Nutrition plans'}],
-  others: [
-    {
-      id: 'weight-logs',
-      label: 'Weight logs, behaviour notes, photos of wounds, etc.',
-    },
-  ],
-};
 
 const SUBCATEGORIES: Record<string, SelectItem[]> = {
   ...SHARED_ENTRIES,
@@ -66,29 +43,20 @@ const SUBCATEGORIES: Record<string, SelectItem[]> = {
   ],
 };
 
-export const EXPENSE_SUBCATEGORIES: Record<string, SelectItem[]> = {
-  ...SHARED_ENTRIES,
-  health: [
-    {id: 'hospital-visits', label: 'Hospital visits'},
-    {id: 'prescriptions-treatments', label: 'Prescriptions & treatments'},
-    {
-      id: 'vaccination-parasite',
-      label: 'Vaccination, parasite prevention & chronic condition',
-    },
-    {id: 'lab-tests', label: 'Lab tests'},
-  ],
-  'hygiene-maintenance': [
-    {id: 'grooming-visits', label: 'Grooming visits'},
-    {id: 'boarding-records', label: 'Boarding records'},
-    {id: 'training-behaviour', label: 'Training & behaviour reports'},
-    {id: 'breeder-interactions', label: 'Breeder interactions'},
-  ],
+const formatCategoryName = (cat: string | null) => {
+  if (!cat) return '';
+  return cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ');
 };
 
-export const SubcategoryBottomSheet = forwardRef<
-  SubcategoryBottomSheetRef,
-  SubcategoryBottomSheetProps
->(({category, selectedSubcategory, onSave, subcategoryMap}, ref) => {
+export const SubcategoryBottomSheet = ({
+  category,
+  selectedSubcategory,
+  onSave,
+  subcategoryMap,
+  ref,
+}: SubcategoryBottomSheetProps & {
+  ref?: React.Ref<SubcategoryBottomSheetRef>;
+}) => {
   const bottomSheetRef = useRef<GenericSelectBottomSheetRef>(null);
   const activeMap = subcategoryMap ?? SUBCATEGORIES;
 
@@ -122,12 +90,6 @@ export const SubcategoryBottomSheet = forwardRef<
     onSave(item?.id || null);
   };
 
-  // Format category name and title to handle long text better
-  const formatCategoryName = (cat: string | null) => {
-    if (!cat) return '';
-    return cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ');
-  };
-
   const title = category
     ? `${formatCategoryName(category)}\nsub category`
     : 'Sub category';
@@ -146,6 +108,6 @@ export const SubcategoryBottomSheet = forwardRef<
       maxListHeight={300}
     />
   );
-});
+};
 
 SubcategoryBottomSheet.displayName = 'SubcategoryBottomSheet';

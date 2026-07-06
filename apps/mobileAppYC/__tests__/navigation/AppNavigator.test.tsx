@@ -3,10 +3,8 @@ import {NavigationContainer} from '@react-navigation/native';
 import {render, waitFor, fireEvent} from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Alert, Linking} from 'react-native';
-import {
-  AppNavigator,
-  _resetOnboardingStoreForTesting,
-} from '../../src/navigation/AppNavigator';
+import {AppNavigator} from '../../src/navigation/AppNavigator';
+import {_resetOnboardingStoreForTesting} from '../../src/navigation/onboardingStore';
 import {GlobalLoaderProvider} from '../../src/context/GlobalLoaderContext';
 import {useAuth} from '../../src/features/auth/context/AuthContext';
 import {useEmergency} from '../../src/features/home/context/EmergencyContext';
@@ -156,7 +154,8 @@ jest.mock('../../src/features/home/components/EmergencyBottomSheet', () => {
   const React = require('react');
   const {View, Text} = require('react-native');
   return {
-    EmergencyBottomSheet: React.forwardRef((props: any, ref: any) => {
+    EmergencyBottomSheet: (props: any) => {
+      const {ref} = props;
       React.useImperativeHandle(ref, () => ({
         open: mockEmergencySheetOpen,
         close: mockEmergencySheetClose,
@@ -167,7 +166,7 @@ jest.mock('../../src/features/home/components/EmergencyBottomSheet', () => {
           <Text onPress={props.onAdverseEvent}>Report Adverse Event</Text>
         </View>
       );
-    }),
+    },
   };
 });
 
@@ -177,7 +176,8 @@ jest.mock(
     // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {View, Text} = require('react-native');
-    return React.forwardRef((props: any, ref: any) => {
+    return (props: any) => {
+      const {ref} = props;
       React.useImperativeHandle(ref, () => ({
         open: mockCoParentSheetOpen,
         close: mockCoParentSheetClose,
@@ -190,7 +190,7 @@ jest.mock(
           <Text onPress={props.onDecline}>Decline Invite</Text>
         </View>
       );
-    });
+    };
   },
 );
 
@@ -218,7 +218,7 @@ jest.mock(
     // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
     const {View} = require('react-native');
-    return React.forwardRef((_props: any, ref: any) => {
+    return ({ref}: any) => {
       React.useImperativeHandle(ref, () =>
         mockRenderNetworkSheetWithRef
           ? {
@@ -228,7 +228,7 @@ jest.mock(
           : null,
       );
       return <View testID="NetworkStatusBottomSheet" />;
-    });
+    };
   },
 );
 

@@ -38,7 +38,7 @@ import {
   resolveObservationalToolLabel,
   buildTaskTypeBreadcrumb,
 } from '@/features/tasks/utils/taskLabels';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import type {
   MedicationTaskDetails,
   ObservationalToolTaskDetails,
@@ -52,6 +52,46 @@ import type {VetService} from '@/features/appointments/types';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TaskView'>;
 type Route = RouteProp<TaskStackParamList, 'TaskView'>;
+
+const formatTime = (timeStr?: string) => {
+  if (!timeStr) return '';
+  try {
+    // Handle HH:mm:ss format (time string)
+    if (timeStr.includes(':')) {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return '';
+
+      const date = new Date();
+      date.setHours(hours, minutes, 0, 0);
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    }
+
+    // Fallback for ISO date strings
+    const date = new Date(timeStr);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return '';
+  }
+};
+
+const getReminderLabel = (reminderOption: string | null | undefined) => {
+  if (!reminderOption) return '';
+  return reminderOption;
+};
+
+const getCalendarProviderLabel = (provider: string | null | undefined) => {
+  if (!provider) return '';
+  return provider === 'google' ? 'Google Calendar' : 'iCloud Calendar';
+};
 
 export const TaskViewScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
@@ -342,36 +382,6 @@ export const TaskViewScreen: React.FC = () => {
     tabNav?.navigate('Tasks', {screen: 'TasksMain'});
   };
 
-  const formatTime = (timeStr?: string) => {
-    if (!timeStr) return '';
-    try {
-      // Handle HH:mm:ss format (time string)
-      if (timeStr.includes(':')) {
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        if (Number.isNaN(hours) || Number.isNaN(minutes)) return '';
-
-        const date = new Date();
-        date.setHours(hours, minutes, 0, 0);
-        return date.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-        });
-      }
-
-      // Fallback for ISO date strings
-      const date = new Date(timeStr);
-      if (Number.isNaN(date.getTime())) return '';
-      return date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-    } catch {
-      return '';
-    }
-  };
-
   // Get task type breadcrumb
   const getTaskTypeBreadcrumb = () => {
     if (isMedication) {
@@ -395,16 +405,6 @@ export const TaskViewScreen: React.FC = () => {
       // For simple tasks, just show category
       return resolveCategoryLabel(task.category);
     }
-  };
-
-  const getReminderLabel = (reminderOption: string | null | undefined) => {
-    if (!reminderOption) return '';
-    return reminderOption;
-  };
-
-  const getCalendarProviderLabel = (provider: string | null | undefined) => {
-    if (!provider) return '';
-    return provider === 'google' ? 'Google Calendar' : 'iCloud Calendar';
   };
 
   const getAssignedToName = () => {

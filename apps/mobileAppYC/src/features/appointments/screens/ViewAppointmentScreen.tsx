@@ -46,7 +46,10 @@ import {
 } from '@/features/linkedBusinesses';
 import LocationService from '@/shared/services/LocationService';
 import {distanceBetweenCoordsMeters} from '@/shared/utils/geoDistance';
-import {ExpenseCard} from '@/features/expenses/components';
+import {
+  ExpenseCard,
+  type ExpenseCardPayment,
+} from '@/features/expenses/components';
 import {
   fetchExpensesForCompanion,
   selectExpensesByCompanion,
@@ -79,7 +82,6 @@ import {
   type AppointmentFormEntry,
 } from '@/features/forms';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import type {FormField} from '@yosemite-crew/types';
 import {MerckSearchWidget} from '@/features/merck/components/MerckSearchWidget';
 import {
   getAppointmentStatusBadgePalette,
@@ -93,83 +95,15 @@ import {
   getCheckInConstants,
   isWithinCheckInWindow as isWithinCheckInWindowUtil,
 } from '@/features/appointments/utils/checkInUtils';
+import {
+  getCancellationNote,
+  buildEmployeeDisplay,
+  formatAppointmentDateTime,
+  getAppointmentFormAction,
+  getAppointmentFormAnswerRows,
+} from './ViewAppointmentScreen.helpers';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
-
-export const normalizeAvatarUrl = (value: unknown): string | null => {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  const lower = trimmed.toLowerCase();
-  if (lower === 'null' || lower === 'undefined') {
-    return null;
-  }
-  return trimmed;
-};
-
-export const toImageSource = (value: unknown): {uri: string} | undefined => {
-  if (!value) {
-    return undefined;
-  }
-  if (typeof value === 'object' && value !== null && 'uri' in value) {
-    const uri = normalizeAvatarUrl((value as {uri?: unknown}).uri);
-    return uri ? {uri} : undefined;
-  }
-  const uri = normalizeAvatarUrl(value);
-  return uri ? {uri} : undefined;
-};
-
-export const getCancellationNote = (
-  isCancelledOrNoShow: boolean,
-  isCashPaid: boolean,
-): string | null => {
-  if (!isCancelledOrNoShow) {
-    return null;
-  }
-  if (isCashPaid) {
-    return 'This appointment was paid in cash. If a refund is needed after cancellation, please contact the service provider directly because cash refunds are handled by the provider organization.';
-  }
-  return "This appointment was cancelled. Refunds, if applicable, are processed per the provider organization's policy and card network timelines.";
-};
-
-export const resolveEmployeeAvatar = (
-  employee: any,
-  apt: any,
-  displayName?: string | null,
-) => {
-  const directSources = [
-    employee?.avatar,
-    employee?.profileUrl,
-    employee?.profileImage,
-    employee?.profileImageUrl,
-    employee?.profilePicture,
-    employee?.profilePictureUrl,
-    employee?.imageUrl,
-    employee?.imageURL,
-    employee?.photo,
-    apt?.employeeAvatar,
-  ];
-
-  for (const source of directSources) {
-    const resolved = toImageSource(source);
-    if (resolved) {
-      return resolved;
-    }
-  }
-
-  const safeName = String(displayName ?? '').trim();
-  if (!safeName) {
-    return undefined;
-  }
-
-  return {
-    uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(safeName)}`,
-  };
-};
 
 const useAppointmentInvoicesData = ({
   appointmentId,
@@ -199,163 +133,6 @@ const useAppointmentInvoicesData = ({
   const hasMultipleInvoices =
     (appointmentInvoices.length || (aptInvoiceId ? 1 : 0)) > 1;
   return {appointmentInvoices, hasMultipleInvoices};
-};
-
-export const buildEmployeeDisplay = ({
-  employee,
-  apt,
-  department,
-  statusFlags,
-}: {
-  employee: any;
-  apt: any;
-  department: string | null;
-  statusFlags: any;
-}) => {
-  const resolvedEmployeeName =
-    employee?.name ?? apt.employeeName ?? 'Assigned provider';
-  const resolvedEmployeeAvatar = resolveEmployeeAvatar(
-    employee,
-    apt,
-    resolvedEmployeeName,
-  );
-  const employeeFallback =
-    !employee && (apt.employeeName || apt.employeeTitle)
-      ? {
-          id: apt.employeeId ?? 'provider',
-          businessId: apt.businessId,
-          name: resolvedEmployeeName,
-          title: apt.employeeTitle ?? '',
-          specialization: apt.employeeTitle ?? department ?? '',
-          avatar: resolvedEmployeeAvatar,
-        }
-      : null;
-  const employeeWithAvatar = employee
-    ? {
-        ...employee,
-        specialization: apt.employeeTitle ?? employee.specialization,
-        avatar: resolvedEmployeeAvatar,
-      }
-    : null;
-  const shouldShowEmployee = statusFlags.isUpcoming;
-  return shouldShowEmployee
-    ? (employeeWithAvatar ?? employeeFallback ?? null)
-    : null;
-};
-
-export const formatAppointmentDateTime = (apt: any) => {
-  const resolvedTime = apt.time ?? '00:00';
-  const formattedTime =
-    apt.time?.length === 5 ? `${resolvedTime}:00` : resolvedTime;
-  const fallbackIso = `${apt.date}T${formattedTime}`;
-  const localStartDate = apt?.start
-    ? new Date(apt.start)
-    : new Date(fallbackIso);
-  const dateLabel = Number.isNaN(localStartDate.getTime())
-    ? apt.date
-    : localStartDate.toLocaleDateString('en-US', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
-  const timeLabel =
-    apt.time && !Number.isNaN(localStartDate.getTime())
-      ? localStartDate.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-        })
-      : (apt.time ?? '');
-  const dateTimeLabel = timeLabel ? `${dateLabel} • ${timeLabel}` : dateLabel;
-  return {dateTimeLabel};
-};
-
-export const formatAppointmentFormValue = (
-  field: FormField,
-  value: any,
-): string => {
-  if (value === undefined || value === null) {
-    return '—';
-  }
-  if (field.type === 'date') {
-    const dateObj = value instanceof Date ? value : new Date(value);
-    return Number.isNaN(dateObj.getTime()) ? '—' : dateObj.toLocaleDateString();
-  }
-  if (field.type === 'boolean') {
-    return value ? 'Yes' : 'No';
-  }
-  if (Array.isArray(value)) {
-    return value.map(v => `${v}`).join(', ') || '—';
-  }
-  if (typeof value === 'object') {
-    if ('url' in value && value.url) {
-      return String(value.url);
-    }
-    return JSON.stringify(value);
-  }
-  return `${value}`;
-};
-
-export const getAppointmentFormAction = (
-  entry: AppointmentFormEntry,
-): {label: string; mode: 'view' | 'fill'; allowSign: boolean} => {
-  const isSigned = entry.status === 'signed';
-  if (isSigned) {
-    return {label: 'View form', mode: 'view', allowSign: false};
-  }
-  if (entry.submission && entry.signingRequired) {
-    return {label: 'View & Sign', mode: 'view', allowSign: true};
-  }
-  if (entry.submission) {
-    return {label: 'View form', mode: 'view', allowSign: false};
-  }
-  return {
-    label: entry.signingRequired ? 'Fill & Sign' : 'Fill form',
-    mode: 'fill',
-    allowSign: entry.signingRequired,
-  };
-};
-
-export const getAppointmentFormAnswerRows = (
-  entry: AppointmentFormEntry,
-): Array<{id: string; label: string; value: string}> => {
-  if (!entry.submission) {
-    return [];
-  }
-  const rows: Array<{id: string; label: string; value: string}> = [];
-  const collect = (fields: FormField[]) => {
-    fields.forEach(f => {
-      if (f.type === 'group') {
-        collect(f.fields);
-        return;
-      }
-      rows.push({
-        id: f.id,
-        label: f.label ?? f.id,
-        value: formatAppointmentFormValue(f, entry.submission?.answers?.[f.id]),
-      });
-    });
-  };
-  if (entry.form.schema?.length) {
-    collect(entry.form.schema);
-  }
-  const filtered = rows.filter(r => r.value !== '—' && r.value !== '');
-  if (filtered.length) {
-    return filtered;
-  }
-  const rawAnswers = entry.submission.answers ?? {};
-  const capitalize = (text: string) => {
-    if (!text.length) return text;
-    return text.charAt(0).toUpperCase() + text.slice(1);
-  };
-  return Object.entries(rawAnswers)
-    .filter(
-      ([, val]) => val !== undefined && val !== null && `${val}`.trim() !== '',
-    )
-    .map(([key, val]) => ({
-      id: key,
-      label: capitalize(key.replaceAll('_', ' ')),
-      value: `${val}`,
-    }));
 };
 
 const useAppointmentRelations = (
@@ -829,113 +606,103 @@ const StatusCard = ({
   </View>
 );
 
+type AppointmentAction =
+  | {
+      kind: 'checkIn';
+      status: 'available' | 'checkedIn' | 'inProgress';
+      loading: boolean;
+      onPress: () => void;
+    }
+  | {
+      kind: 'payNow' | 'invoice' | 'edit' | 'cancel';
+      onPress: () => void;
+    };
+
 const ActionButtons = ({
   styles,
-  showCheckInButton,
-  isCheckedIn,
-  isInProgress,
-  checkingIn,
-  handleCheckIn,
-  showPayNow,
-  handlePayNow,
-  showInvoice,
-  handleInvoice,
-  showEdit,
-  handleEdit,
-  showCancel,
-  handleCancel,
+  actions,
   theme,
 }: {
   styles: any;
-  showCheckInButton: boolean;
-  isCheckedIn: boolean;
-  isInProgress: boolean;
-  checkingIn: boolean;
-  handleCheckIn: () => void;
-  showPayNow: boolean;
-  handlePayNow: () => void;
-  showInvoice: boolean;
-  handleInvoice: () => void;
-  showEdit: boolean;
-  handleEdit: () => void;
-  showCancel: boolean;
-  handleCancel: () => void;
+  actions: AppointmentAction[];
   theme: any;
 }) => {
-  let checkInTitle = 'Check in';
-  if (isInProgress) {
-    checkInTitle = 'In progress';
-  } else if (isCheckedIn) {
-    checkInTitle = 'Checked in';
-  }
-  const checkInDisabled = checkingIn || isCheckedIn || isInProgress;
   return (
     <View style={styles.actionsContainer}>
-      {showCheckInButton && (
-        <LiquidGlassButton
-          title={checkInTitle}
-          onPress={handleCheckIn}
-          height={56}
-          borderRadius={16}
-          tintColor={theme.colors.secondary}
-          shadowIntensity="medium"
-          textStyle={styles.confirmPrimaryButtonText}
-          disabled={checkInDisabled}
-        />
-      )}
+      {actions.map(action => {
+        if (action.kind === 'checkIn') {
+          let checkInTitle = 'Check in';
+          if (action.status === 'inProgress') {
+            checkInTitle = 'In progress';
+          } else if (action.status === 'checkedIn') {
+            checkInTitle = 'Checked in';
+          }
+          const checkInDisabled =
+            action.loading || action.status !== 'available';
 
-      {showPayNow && (
-        <LiquidGlassButton
-          title="Pay Now"
-          onPress={handlePayNow}
-          height={56}
-          borderRadius={16}
-          tintColor={theme.colors.secondary}
-          shadowIntensity="medium"
-          textStyle={styles.confirmPrimaryButtonText}
-        />
-      )}
+          return (
+            <LiquidGlassButton
+              key={action.kind}
+              title={checkInTitle}
+              onPress={action.onPress}
+              height={56}
+              borderRadius={16}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
+              disabled={checkInDisabled}
+            />
+          );
+        }
 
-      {showInvoice && (
-        <LiquidGlassButton
-          title="View Invoice"
-          onPress={handleInvoice}
-          height={56}
-          borderRadius={16}
-          tintColor={theme.colors.secondary}
-          shadowIntensity="medium"
-          textStyle={styles.confirmPrimaryButtonText}
-        />
-      )}
+        if (action.kind === 'payNow' || action.kind === 'invoice') {
+          return (
+            <LiquidGlassButton
+              key={action.kind}
+              title={action.kind === 'payNow' ? 'Pay Now' : 'View Invoice'}
+              onPress={action.onPress}
+              height={56}
+              borderRadius={16}
+              tintColor={theme.colors.secondary}
+              shadowIntensity="medium"
+              textStyle={styles.confirmPrimaryButtonText}
+            />
+          );
+        }
 
-      {showEdit && (
-        <LiquidGlassButton
-          title="Edit Appointment"
-          onPress={handleEdit}
-          height={theme.spacing['14']}
-          borderRadius={theme.borderRadius.lg}
-          glassEffect="clear"
-          forceBorder
-          borderColor={theme.colors.secondary}
-          textStyle={styles.secondaryButtonText}
-          shadowIntensity="medium"
-          interactive
-        />
-      )}
+        if (action.kind === 'edit') {
+          return (
+            <LiquidGlassButton
+              key={action.kind}
+              title="Edit Appointment"
+              onPress={action.onPress}
+              height={theme.spacing['14']}
+              borderRadius={theme.borderRadius.lg}
+              glassEffect="clear"
+              forceBorder
+              borderColor={theme.colors.secondary}
+              textStyle={styles.secondaryButtonText}
+              shadowIntensity="medium"
+              interactive
+            />
+          );
+        }
 
-      {showCancel && (
-        <LiquidGlassButton
-          title="Cancel Appointment"
-          onPress={handleCancel}
-          height={theme.spacing['14']}
-          borderRadius={theme.borderRadius.lg}
-          tintColor={theme.colors.errorSurface}
-          forceBorder
-          borderColor={theme.colors.error}
-          textStyle={styles.alertButtonText}
-          shadowIntensity="none"
-        />
-      )}
+        return (
+          <LiquidGlassButton
+            key={action.kind}
+            title="Cancel Appointment"
+            onPress={action.onPress}
+            height={theme.spacing['14']}
+            borderRadius={theme.borderRadius.lg}
+            tintColor={theme.colors.errorSurface}
+            forceBorder
+            borderColor={theme.colors.error}
+            textStyle={styles.alertButtonText}
+            shadowIntensity="none"
+          />
+        );
+      })}
     </View>
   );
 };
@@ -1166,6 +933,33 @@ export const ViewAppointmentScreen: React.FC = () => {
     businessCoords,
     dispatch,
   });
+  const getInvoicePayment = React.useCallback(
+    (expense: any): ExpenseCardPayment | undefined => {
+      if (isExpensePaid(expense)) {
+        return {status: 'paid'};
+      }
+
+      if (
+        expense.source !== 'inApp' ||
+        !isExpensePaymentPending(expense) ||
+        !hasInvoice(expense)
+      ) {
+        return undefined;
+      }
+
+      return {
+        status: 'unpaid',
+        cta: {
+          onPress: () => {
+            if (!processingPayment) {
+              openPaymentScreen(expense);
+            }
+          },
+        },
+      };
+    },
+    [openPaymentScreen, processingPayment],
+  );
   const handleViewTask = React.useCallback(
     (taskId: string) => {
       const params = {screen: 'TaskView', params: {taskId}};
@@ -1335,6 +1129,76 @@ export const ViewAppointmentScreen: React.FC = () => {
     [getFormStatusDisplay, handleOpenForm, renderAnswerSummary, styles, theme],
   );
 
+  const showCheckInButton =
+    (status === 'UPCOMING' ||
+      status === 'CONFIRMED' ||
+      status === 'SCHEDULED' ||
+      status === 'RESCHEDULED') &&
+    !isTerminal;
+  const appointmentActions = React.useMemo(() => {
+    const actions: AppointmentAction[] = [];
+
+    if (showCheckInButton) {
+      let checkInStatus: Extract<
+        AppointmentAction,
+        {kind: 'checkIn'}
+      >['status'] = 'available';
+      if (isInProgress) {
+        checkInStatus = 'inProgress';
+      } else if (isCheckedIn) {
+        checkInStatus = 'checkedIn';
+      }
+
+      actions.push({
+        kind: 'checkIn',
+        status: checkInStatus,
+        loading: checkingIn,
+        onPress: handleCheckIn,
+      });
+    }
+
+    if (!hasMultipleInvoices && showPayNow) {
+      actions.push({kind: 'payNow', onPress: handlePayNow});
+    }
+
+    if (!hasMultipleInvoices && showInvoice) {
+      actions.push({kind: 'invoice', onPress: handleInvoice});
+    }
+
+    if ((isRequested || statusFlags.isPaymentPending) && !isTerminal) {
+      actions.push({
+        kind: 'edit',
+        onPress: () => navigation.navigate('EditAppointment', {appointmentId}),
+      });
+    }
+
+    if (showCancel) {
+      actions.push({
+        kind: 'cancel',
+        onPress: () => cancelSheetRef.current?.open?.(),
+      });
+    }
+
+    return actions;
+  }, [
+    appointmentId,
+    checkingIn,
+    handleCheckIn,
+    handleInvoice,
+    handlePayNow,
+    hasMultipleInvoices,
+    isCheckedIn,
+    isInProgress,
+    isRequested,
+    isTerminal,
+    navigation,
+    showCancel,
+    showCheckInButton,
+    showInvoice,
+    showPayNow,
+    statusFlags.isPaymentPending,
+  ]);
+
   if (!apt) {
     return (
       <SafeAreaView style={styles.root} edges={[]}>
@@ -1362,12 +1226,6 @@ export const ViewAppointmentScreen: React.FC = () => {
     department,
     statusFlags,
   });
-  const showCheckInButton =
-    (status === 'UPCOMING' ||
-      status === 'CONFIRMED' ||
-      status === 'SCHEDULED' ||
-      status === 'RESCHEDULED') &&
-    !isTerminal;
   const {dateTimeLabel} = formatAppointmentDateTime(apt);
   const merckOrganisationId = apt.businessId ?? null;
 
@@ -1559,23 +1417,9 @@ export const ViewAppointmentScreen: React.FC = () => {
                             }
                           : undefined
                       }
-                      showEditAction={false}
-                      showPayButton={
-                        expense.source === 'inApp' &&
-                        isExpensePaymentPending(expense) &&
-                        hasInvoice(expense)
-                      }
-                      onPressPay={
-                        expense.source === 'inApp' && hasInvoice(expense)
-                          ? () => {
-                              if (!processingPayment) {
-                                openPaymentScreen(expense);
-                              }
-                            }
-                          : undefined
-                      }
-                      isPaid={isExpensePaid(expense)}
-                      hideSwipeActions
+                      editAction="hidden"
+                      payment={getInvoicePayment(expense)}
+                      swipeActions="hidden"
                     />
                   ))
                 ) : (
@@ -1588,23 +1432,7 @@ export const ViewAppointmentScreen: React.FC = () => {
 
             <ActionButtons
               styles={styles}
-              showCheckInButton={showCheckInButton}
-              isCheckedIn={isCheckedIn}
-              isInProgress={isInProgress}
-              checkingIn={checkingIn}
-              handleCheckIn={handleCheckIn}
-              showPayNow={!hasMultipleInvoices && showPayNow}
-              handlePayNow={handlePayNow}
-              showInvoice={!hasMultipleInvoices && showInvoice}
-              handleInvoice={handleInvoice}
-              showEdit={
-                (isRequested || statusFlags.isPaymentPending) && !isTerminal
-              }
-              handleEdit={() =>
-                navigation.navigate('EditAppointment', {appointmentId})
-              }
-              showCancel={showCancel}
-              handleCancel={() => cancelSheetRef.current?.open?.()}
+              actions={appointmentActions}
               theme={theme}
             />
           </ScrollView>

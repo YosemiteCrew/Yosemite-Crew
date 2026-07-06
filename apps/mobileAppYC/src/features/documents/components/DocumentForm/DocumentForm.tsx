@@ -14,10 +14,8 @@ import {
 } from 'react-native';
 import {Input} from '@/shared/components/common';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {CategoryBottomSheet} from '@/shared/components/common/CategoryBottomSheet/CategoryBottomSheet';
 import {SubcategoryBottomSheet} from '@/shared/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
 import {VisitTypeBottomSheet} from '@/shared/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
@@ -155,18 +153,24 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
     uploadSheetRef.current?.open();
   };
 
-  const getCategoryLabel = () => formatLabel(formData.category, 'Select category');
+  const getCategoryLabel = () =>
+    formatLabel(formData.category, 'Select category');
   const getSubcategoryLabel = () => {
     if (!formData.subcategory) {
       return 'Select subcategory';
     }
-    const category = DOCUMENT_CATEGORIES.find(cat => cat.id === formData.category);
+    const category = DOCUMENT_CATEGORIES.find(
+      cat => cat.id === formData.category,
+    );
     const matchedLabel = category?.subcategories?.find(
       sub => sub.id === formData.subcategory,
     )?.label;
-    return matchedLabel ?? formatLabel(formData.subcategory, 'Select subcategory');
+    return (
+      matchedLabel ?? formatLabel(formData.subcategory, 'Select subcategory')
+    );
   };
-  const getVisitTypeLabel = () => formatLabel(formData.visitType, 'Select visit type');
+  const getVisitTypeLabel = () =>
+    formatLabel(formData.visitType, 'Select visit type');
 
   return (
     <>
@@ -189,24 +193,31 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             <Text style={styles.noteText}>
               <Text style={styles.noteLabel}>Note: </Text>
               <Text style={styles.noteMessage}>
-                Health and Hygiene are synced with the PMS and cannot be modified after saving
+                Health and Hygiene are synced with the PMS and cannot be
+                modified after saving
               </Text>
             </Text>
           </View>
         )}
 
         <View>
-          <TouchableOpacity onPress={() => {
-            resolvedOpenSheet('category');
-            categorySheetRef.current?.open();
-          }}>
+          <TouchableOpacity
+            onPress={() => {
+              resolvedOpenSheet('category');
+              categorySheetRef.current?.open();
+            }}>
             <Input
               label="Category"
               value={getCategoryLabel()}
               editable={false}
               pointerEvents="none"
               containerStyle={styles.input}
-              icon={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
+              icon={
+                <Image
+                  source={Images.dropdownIcon}
+                  style={common.dropdownIcon}
+                />
+              }
             />
           </TouchableOpacity>
           {errors.category ? (
@@ -229,7 +240,12 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               editable={false}
               pointerEvents="none"
               containerStyle={styles.input}
-              icon={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
+              icon={
+                <Image
+                  source={Images.dropdownIcon}
+                  style={common.dropdownIcon}
+                />
+              }
             />
           </TouchableOpacity>
           {errors.subcategory ? (
@@ -237,17 +253,20 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
           ) : null}
         </View>
 
-        <TouchableOpacity onPress={() => {
-          resolvedOpenSheet('visitType');
-          visitTypeSheetRef.current?.open();
-        }}>
+        <TouchableOpacity
+          onPress={() => {
+            resolvedOpenSheet('visitType');
+            visitTypeSheetRef.current?.open();
+          }}>
           <Input
             label="Visit type"
             value={getVisitTypeLabel()}
             editable={false}
             pointerEvents="none"
             containerStyle={styles.input}
-            icon={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
+            icon={
+              <Image source={Images.dropdownIcon} style={common.dropdownIcon} />
+            }
           />
         </TouchableOpacity>
 
@@ -255,20 +274,22 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
           <Input
             label="Title"
             value={formData.title}
-            onChangeText={(text) => {
+            onChangeText={text => {
               onFormChange('title', text);
               onErrorClear('title');
             }}
             containerStyle={styles.input}
           />
-          {errors.title ? <Text style={styles.errorText}>{errors.title}</Text> : null}
+          {errors.title ? (
+            <Text style={styles.errorText}>{errors.title}</Text>
+          ) : null}
         </View>
 
         <View>
           <Input
             label="Issuing business name"
             value={formData.businessName}
-            onChangeText={(text) => {
+            onChangeText={text => {
               onFormChange('businessName', text);
               onErrorClear('businessName');
             }}
@@ -285,7 +306,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             <Switch
               value={formData.hasIssueDate}
               onValueChange={value => onFormChange('hasIssueDate', value)}
-              trackColor={{false: theme.colors.borderMuted, true: theme.colors.primary}}
+              trackColor={{
+                false: theme.colors.borderMuted,
+                true: theme.colors.primary,
+              }}
               thumbColor={theme.colors.white}
             />
           </View>
@@ -297,7 +321,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               placeholder="Select issue date"
               onPress={() => setShowDatePicker(true)}
               rightComponent={
-                <Image source={Images.calendarIcon} style={common.calendarIcon} />
+                <Image
+                  source={Images.calendarIcon}
+                  style={common.calendarIcon}
+                />
               }
               containerStyle={styles.inputContainer}
             />
@@ -399,7 +426,7 @@ export const DocumentFormSheets: React.FC<{
         ref={subcategorySheetRef}
         category={formData.category}
         selectedSubcategory={formData.subcategory}
-        onSave={(value) => {
+        onSave={value => {
           onFormChange('subcategory', value);
           closeSheet();
         }}
@@ -408,7 +435,7 @@ export const DocumentFormSheets: React.FC<{
       <VisitTypeBottomSheet
         ref={visitTypeSheetRef}
         selectedVisitType={formData.visitType}
-        onSave={(value) => {
+        onSave={value => {
           onFormChange('visitType', value);
           closeSheet();
         }}

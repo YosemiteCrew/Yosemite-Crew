@@ -24,12 +24,10 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {useTheme} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
 import {createGlassCardStyles} from '@/shared/utils/screenStyles';
-import {Separator, RowButton} from '@/shared/components/common/FormRowComponents';
+import {Separator} from '@/shared/components/common/Separator';
+import {RowButton} from '@/shared/components/common/RowButton';
 
-import {
-  selectAuthUser,
-  selectAuthIsLoading,
-} from '@/features/auth/selectors';
+import {selectAuthUser, selectAuthIsLoading} from '@/features/auth/selectors';
 
 import type {HomeStackParamList} from '@/navigation/types';
 
@@ -52,10 +50,8 @@ import {
 } from '@/shared/components/common/CountryMobileBottomSheet/CountryMobileBottomSheet';
 
 // Date picker (reuse same component & formatter)
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 
 // Profile Image Picker Header
 import {UserProfileHeader} from '@/features/account/components/UserProfileHeader';
@@ -64,7 +60,10 @@ import type {ProfileImagePickerRef} from '@/shared/components/common/ProfileImag
 // Types
 import type {User} from '@/features/auth/types';
 import {updateUserProfile} from '@/features/auth';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
 import {
   updateParentProfile,
   type ParentProfileUpsertPayload,
@@ -93,7 +92,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   // Local UI state
   const [showDobPicker, setShowDobPicker] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const accessTokenRef = useRef<string | null>(null);
 
   // Bottom sheet refs
   const currencySheetRef = useRef<CurrencyBottomSheetRef>(null);
@@ -104,7 +103,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   const profileImagePickerRef = useRef<ProfileImagePickerRef | null>(null);
 
   // Track which bottom sheet is open
-  const [openBottomSheet, setOpenBottomSheet] = useState<'currency' | 'address' | 'phone' | null>(null);
+  const openBottomSheetRef = useRef<'currency' | 'address' | 'phone' | null>(
+    null,
+  );
 
   // Helpers
   const goBack = useCallback(() => {
@@ -120,9 +121,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         if (mounted) {
           const nextToken =
             tokens && !isTokenExpired(tokens.expiresAt ?? undefined)
-              ? tokens.accessToken ?? null
+              ? (tokens.accessToken ?? null)
               : null;
-          setAccessToken(nextToken);
+          accessTokenRef.current = nextToken;
         }
       })
       .catch(error => {
@@ -136,13 +137,17 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   const syncParentProfile = useCallback(
     async (nextUser: User) => {
-      if (!accessToken) {
-        console.warn('[EditParent] No access token available; skipping remote sync.');
+      if (!accessTokenRef.current) {
+        console.warn(
+          '[EditParent] No access token available; skipping remote sync.',
+        );
         return;
       }
 
       if (!nextUser.parentId) {
-        console.warn('[EditParent] Missing parent identifier; skipping remote sync.');
+        console.warn(
+          '[EditParent] Missing parent identifier; skipping remote sync.',
+        );
         return;
       }
 
@@ -157,7 +162,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
         if (photoPayload.localFile) {
           const presigned = await requestParentProfileUploadUrl({
-            accessToken,
+            accessToken: accessTokenRef.current,
             mimeType: photoPayload.localFile.mimeType,
           });
 
@@ -199,7 +204,10 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
           existingPhotoUrl,
         };
 
-        const summary = await updateParentProfile(payload, accessToken);
+        const summary = await updateParentProfile(
+          payload,
+          accessTokenRef.current,
+        );
 
         const remotePatch: Partial<User> = {};
         if (summary.profileImageUrl) {
@@ -232,7 +240,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         console.error('[EditParent] Failed to sync parent profile', error);
       }
     },
-    [accessToken, dispatch],
+    [dispatch],
   );
 
   const applyPatch = useCallback(
@@ -260,10 +268,11 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   // Parse phone number to separate dial code and local number
   const parsedPhone = useMemo(() => {
-    if (!safeUser.phone) return { dialCode: '+1', localNumber: '' };
+    if (!safeUser.phone) return {dialCode: '+1', localNumber: ''};
     const rawPhone = safeUser.phone.replaceAll(/[^0-9+]/g, '');
     const normalizedPhoneDigits = rawPhone.replaceAll(/\D/g, '');
-    let resolvedCountry = COUNTRIES.find(country => country.code === 'US') ?? COUNTRIES[0];
+    let resolvedCountry =
+      COUNTRIES.find(country => country.code === 'US') ?? COUNTRIES[0];
     if (normalizedPhoneDigits) {
       const match = COUNTRIES.find(country => {
         const dialCodeDigits = country.dial_code.replaceAll('+', '');
@@ -279,47 +288,50 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         )
       : normalizedPhoneDigits;
     const localPhoneNumber = localPhoneRaw.slice(-12); // Support up to 12-digit phone numbers
-    return { dialCode: resolvedCountry.dial_code, localNumber: localPhoneNumber };
+    return {dialCode: resolvedCountry.dial_code, localNumber: localPhoneNumber};
   }, [safeUser.phone]);
 
   const handleProfileImageChange = useCallback(
     (imageUri: string | null) => {
-      applyPatch({ profilePicture: imageUri || undefined });
+      applyPatch({profilePicture: imageUri || undefined});
     },
     [applyPatch],
   );
 
   // Handle Android back button for bottom sheets and date picker
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      // Close date picker first if open
-      if (showDobPicker) {
-        setShowDobPicker(false);
-        return true;
-      }
-
-      // Close bottom sheet first if open
-      if (openBottomSheet) {
-        switch (openBottomSheet) {
-          case 'currency':
-            currencySheetRef.current?.close();
-            break;
-          case 'address':
-            addressSheetRef.current?.close();
-            break;
-          case 'phone':
-            phoneSheetRef.current?.close();
-            break;
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        // Close date picker first if open
+        if (showDobPicker) {
+          setShowDobPicker(false);
+          return true;
         }
-        setOpenBottomSheet(null);
-        return true;
-      }
 
-      return false;
-    });
+        // Close bottom sheet first if open
+        if (openBottomSheetRef.current) {
+          switch (openBottomSheetRef.current) {
+            case 'currency':
+              currencySheetRef.current?.close();
+              break;
+            case 'address':
+              addressSheetRef.current?.close();
+              break;
+            case 'phone':
+              phoneSheetRef.current?.close();
+              break;
+          }
+          openBottomSheetRef.current = null;
+          return true;
+        }
+
+        return false;
+      },
+    );
 
     return () => backHandler.remove();
-  }, [showDobPicker, openBottomSheet]);
+  }, [showDobPicker]);
 
   if (!safeUser) {
     return (
@@ -339,7 +351,9 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
   return (
     <>
       <LiquidGlassHeaderScreen
-        header={<Header title="Parent" showBackButton onBack={goBack} glass={false} />}
+        header={
+          <Header title="Parent" showBackButton onBack={goBack} glass={false} />
+        }
         cardGap={theme.spacing['3']}
         contentPadding={theme.spacing['1']}>
         {contentPaddingStyle => (
@@ -366,145 +380,149 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                 style={styles.glassContainer}
                 fallbackStyle={styles.glassFallback}>
                 <View style={styles.listContainer}>
-                {/* First Name – Inline */}
-                <InlineEditRow
-                  label="First name"
-                  value={safeUser.firstName ?? ''}
-                  onSave={val => applyPatch({firstName: val})}
-                />
+                  {/* First Name – Inline */}
+                  <InlineEditRow
+                    label="First name"
+                    value={safeUser.firstName ?? ''}
+                    onSave={val => applyPatch({firstName: val})}
+                  />
 
-                <Separator />
+                  <Separator />
 
-                {/* Last Name – Inline */}
-                <InlineEditRow
-                  label="Last name"
-                  value={safeUser.lastName ?? ''}
-                  onSave={val => applyPatch({lastName: val})}
-                />
+                  {/* Last Name – Inline */}
+                  <InlineEditRow
+                    label="Last name"
+                    value={safeUser.lastName ?? ''}
+                    onSave={val => applyPatch({lastName: val})}
+                  />
 
-                <Separator />
+                  <Separator />
 
-                {/* Phone – Bottom sheet */}
-                <RowButton
-                  label="Phone"
-                  value={safeUser.phone ? `${parsedPhone.dialCode} ${parsedPhone.localNumber}` : ''}
-                  onPress={() => {
-                    setOpenBottomSheet('phone');
-                    phoneSheetRef.current?.open();
-                  }}
-                />
-
-                <Separator />
-
-                {/* Email – Read only */}
-                <View style={styles.readOnlyEmailRow}>
-                  <Text style={styles.rowButtonLabel}>Email</Text>
-                  <Text
-                    style={styles.rowButtonValue}
-                    numberOfLines={1}
-                    ellipsizeMode="tail">
-                    {safeUser.email ?? '—'}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.copyIconButton}
-                    activeOpacity={0.7}
+                  {/* Phone – Bottom sheet */}
+                  <RowButton
+                    label="Phone"
+                    value={
+                      safeUser.phone
+                        ? `${parsedPhone.dialCode} ${parsedPhone.localNumber}`
+                        : ''
+                    }
                     onPress={() => {
-                      const email = safeUser.email?.trim();
-                      if (!email) {
-                        return;
-                      }
-                      Clipboard.setString(email);
-                      Alert.alert('Copied', 'Email Id copied to clipboard');
-                    }}>
-                    <Image source={Images.copyIcon} style={styles.copyIcon} />
-                  </TouchableOpacity>
-                </View>
+                      openBottomSheetRef.current = 'phone';
+                      phoneSheetRef.current?.open();
+                    }}
+                  />
 
-                <Separator />
+                  <Separator />
 
-                {/* Date of birth – Date picker */}
-                <RowButton
-                  label="Date of birth"
-                  value={
-                    safeUser.dateOfBirth
-                      ? formatDateForDisplay(new Date(safeUser.dateOfBirth))
-                      : ''
-                  }
-                  onPress={() => setShowDobPicker(true)}
-                />
+                  {/* Email – Read only */}
+                  <View style={styles.readOnlyEmailRow}>
+                    <Text style={styles.rowButtonLabel}>Email</Text>
+                    <Text
+                      style={styles.rowButtonValue}
+                      numberOfLines={1}
+                      ellipsizeMode="tail">
+                      {safeUser.email ?? '—'}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.copyIconButton}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        const email = safeUser.email?.trim();
+                        if (!email) {
+                          return;
+                        }
+                        Clipboard.setString(email);
+                        Alert.alert('Copied', 'Email Id copied to clipboard');
+                      }}>
+                      <Image source={Images.copyIcon} style={styles.copyIcon} />
+                    </TouchableOpacity>
+                  </View>
 
-                <Separator />
+                  <Separator />
 
-                {/* Currency – Bottom sheet */}
-                <RowButton
-                  label="Currency"
-                  value={safeUser.currency ?? 'USD'}
-                  onPress={() => {
-                    setOpenBottomSheet('currency');
-                    currencySheetRef.current?.open();
-                  }}
-                />
+                  {/* Date of birth – Date picker */}
+                  <RowButton
+                    label="Date of birth"
+                    value={
+                      safeUser.dateOfBirth
+                        ? formatDateForDisplay(new Date(safeUser.dateOfBirth))
+                        : ''
+                    }
+                    onPress={() => setShowDobPicker(true)}
+                  />
 
-                <Separator />
+                  <Separator />
 
-                {/* Address – Multiple rows, all opening AddressBottomSheet */}
-                <RowButton
-                  label="Address"
-                  value={safeUser.address?.addressLine ?? ''}
-                  onPress={() => {
-                    setOpenBottomSheet('address');
-                    addressSheetRef.current?.open();
-                  }}
-                  key="address"
-                />
+                  {/* Currency – Bottom sheet */}
+                  <RowButton
+                    label="Currency"
+                    value={safeUser.currency ?? 'USD'}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'currency';
+                      currencySheetRef.current?.open();
+                    }}
+                  />
 
-                <Separator />
+                  <Separator />
 
-                <RowButton
-                  label="State/Province"
-                  value={safeUser.address?.stateProvince ?? ''}
-                  onPress={() => {
-                    setOpenBottomSheet('address');
-                    addressSheetRef.current?.open();
-                  }}
-                  key="stateProvince"
-                />
+                  {/* Address – Multiple rows, all opening AddressBottomSheet */}
+                  <RowButton
+                    label="Address"
+                    value={safeUser.address?.addressLine ?? ''}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'address';
+                      addressSheetRef.current?.open();
+                    }}
+                    key="address"
+                  />
 
-                <Separator />
+                  <Separator />
 
-                <RowButton
-                  label="City"
-                  value={safeUser.address?.city ?? ''}
-                  onPress={() => {
-                    setOpenBottomSheet('address');
-                    addressSheetRef.current?.open();
-                  }}
-                  key="city"
-                />
+                  <RowButton
+                    label="State/Province"
+                    value={safeUser.address?.stateProvince ?? ''}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'address';
+                      addressSheetRef.current?.open();
+                    }}
+                    key="stateProvince"
+                  />
 
-                <Separator />
+                  <Separator />
 
-                <RowButton
-                  label="Postal Code"
-                  value={safeUser.address?.postalCode ?? ''}
-                  onPress={() => {
-                    setOpenBottomSheet('address');
-                    addressSheetRef.current?.open();
-                  }}
-                  key="postalCode"
-                />
+                  <RowButton
+                    label="City"
+                    value={safeUser.address?.city ?? ''}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'address';
+                      addressSheetRef.current?.open();
+                    }}
+                    key="city"
+                  />
 
-                <Separator />
+                  <Separator />
 
-                <RowButton
-                  label="Country"
-                  value={safeUser.address?.country ?? ''}
-                  onPress={() => {
-                    setOpenBottomSheet('address');
-                    addressSheetRef.current?.open();
-                  }}
-                  key="country"
-                />
+                  <RowButton
+                    label="Postal Code"
+                    value={safeUser.address?.postalCode ?? ''}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'address';
+                      addressSheetRef.current?.open();
+                    }}
+                    key="postalCode"
+                  />
+
+                  <Separator />
+
+                  <RowButton
+                    label="Country"
+                    value={safeUser.address?.country ?? ''}
+                    onPress={() => {
+                      openBottomSheetRef.current = 'address';
+                      addressSheetRef.current?.open();
+                    }}
+                    key="country"
+                  />
                 </View>
               </LiquidGlassCard>
             </View>
@@ -514,7 +532,11 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                 safeUser.dateOfBirth ? new Date(safeUser.dateOfBirth) : null
               }
               onDateChange={date => {
-                applyPatch({dateOfBirth: date ? date.toISOString().split('T')[0] : undefined});
+                applyPatch({
+                  dateOfBirth: date
+                    ? date.toISOString().split('T')[0]
+                    : undefined,
+                });
                 setShowDobPicker(false);
               }}
               show={showDobPicker}
@@ -532,27 +554,33 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
         selectedCurrency={safeUser.currency ?? 'USD'}
         onSave={(currency: string) => {
           applyPatch({currency});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
       <AddressBottomSheet
         ref={addressSheetRef}
         selectedAddress={safeUser.address ?? {}}
-        onSave={(address) => {
+        onSave={address => {
           applyPatch({address});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
       <CountryMobileBottomSheet
         ref={phoneSheetRef}
         countries={COUNTRIES}
-        selectedCountry={COUNTRIES.find(country => country.dial_code === parsedPhone.dialCode) ?? COUNTRIES.find((c: any) => c.code === 'US') ?? COUNTRIES[0]}
+        selectedCountry={
+          COUNTRIES.find(
+            country => country.dial_code === parsedPhone.dialCode,
+          ) ??
+          COUNTRIES.find((c: any) => c.code === 'US') ??
+          COUNTRIES[0]
+        }
         mobileNumber={parsedPhone.localNumber}
         onSave={(country, phone) => {
           applyPatch({phone: `${country.dial_code}${phone}`});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
     </>

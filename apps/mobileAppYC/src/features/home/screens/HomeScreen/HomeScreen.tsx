@@ -93,6 +93,7 @@ import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
 import {useLiquidGlassHeaderLayout} from '@/shared/hooks/useLiquidGlassHeaderLayout';
 import {upsertBusiness} from '@/features/appointments/businessesSlice';
 import {BusinessSearchDropdown} from '@/features/linkedBusinesses/components/BusinessSearchDropdown';
+import {deriveHomeGreetingName} from './HomeScreen.helpers';
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
@@ -116,14 +117,6 @@ const QUICK_ACTIONS: Array<{
     iconIsBrand: true,
   },
 ];
-
-export const deriveHomeGreetingName = (rawFirstName?: string | null) => {
-  const trimmed = rawFirstName?.trim() ?? '';
-  const resolvedName = trimmed.length > 0 ? trimmed : 'Sky';
-  const displayName =
-    resolvedName.length > 13 ? `${resolvedName.slice(0, 13)}...` : resolvedName;
-  return {resolvedName, displayName};
-};
 
 export const HomeScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();

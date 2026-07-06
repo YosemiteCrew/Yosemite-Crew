@@ -4,31 +4,29 @@ import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme, useFormBottomSheets} from '@/hooks';
 import {Input} from '@/shared/components/common';
 import AERLayout from '@/features/adverseEventReporting/components/AERLayout';
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import {Images} from '@/assets/images';
 import type {AdverseEventStackParamList} from '@/navigation/types';
 import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
-import {
-  type UploadDocumentBottomSheetRef,
-} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
-import {
-  type DeleteDocumentBottomSheetRef,
-} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
+import {type UploadDocumentBottomSheetRef} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
+import {type DeleteDocumentBottomSheetRef} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import UploadDeleteSheets from '@/shared/components/common/UploadDeleteSheets/UploadDeleteSheets';
 import {useFileOperations} from '@/shared/hooks/useFileOperations';
-import {CountryBottomSheet, type CountryBottomSheetRef} from '@/shared/components/common/CountryBottomSheet/CountryBottomSheet';
-import {AdministrationMethodBottomSheet, type AdministrationMethodBottomSheetRef} from '@/shared/components/common/AdministrationMethodBottomSheet/AdministrationMethodBottomSheet';
+import {
+  CountryBottomSheet,
+  type CountryBottomSheetRef,
+} from '@/shared/components/common/CountryBottomSheet/CountryBottomSheet';
+import {
+  AdministrationMethodBottomSheet,
+  type AdministrationMethodBottomSheetRef,
+} from '@/shared/components/common/AdministrationMethodBottomSheet/AdministrationMethodBottomSheet';
 import type {DocumentFile} from '@/features/documents/types';
 import {createCommonFormStyles} from '@/shared/styles/commonFormStyles';
 import {useAdverseEventReport} from '@/features/adverseEventReporting/state/AdverseEventReportContext';
-import type {
-  AdverseEventProductInfo,
-} from '@/features/adverseEventReporting/types';
+import type {AdverseEventProductInfo} from '@/features/adverseEventReporting/types';
 import {SUPPORTED_ADVERSE_EVENT_COUNTRIES} from '@/features/adverseEventReporting/content/supportedCountries';
 
 const createInitialFormData = (): AdverseEventProductInfo => ({
@@ -87,9 +85,7 @@ const findSupportedCountry = (
   const code = country.code;
   return (
     SUPPORTED_ADVERSE_EVENT_COUNTRIES.find(
-      c =>
-        (code && c.code === code) ||
-        (name && c.name.toLowerCase() === name),
+      c => (code && c.code === code) || (name && c.name.toLowerCase() === name),
     ) ?? null
   );
 };
@@ -197,11 +193,7 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
       }
     };
 
-    ensureText(
-      formData.productName,
-      'productName',
-      'Product name is required',
-    );
+    ensureText(formData.productName, 'productName', 'Product name is required');
     ensureText(formData.brandName, 'brandName', 'Brand name is required');
 
     if (!formData.manufacturingCountry) {
@@ -222,7 +214,8 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
     );
 
     if (!formData.administrationMethod) {
-      nextErrors.administrationMethod = 'Select how the product was administered';
+      nextErrors.administrationMethod =
+        'Select how the product was administered';
       hasError = true;
     }
 
@@ -280,12 +273,11 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
 
   return (
     <>
-    <AERLayout
-      stepLabel="Step 5 of 5"
-      onBack={() => navigation.goBack()}
-      bottomButton={{ title: 'Next', onPress: handleSubmit }}
-    >
-      <Text style={styles.sectionTitle}>Product Information</Text>
+      <AERLayout
+        stepLabel="Step 5 of 5"
+        onBack={() => navigation.goBack()}
+        bottomButton={{title: 'Next', onPress: handleSubmit}}>
+        <Text style={styles.sectionTitle}>Product Information</Text>
 
         <Input
           label="Product name"
@@ -317,7 +309,9 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
             openSheet('country');
             countrySheetRef.current?.open();
           }}
-          rightComponent={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
+          rightComponent={
+            <Image source={Images.dropdownIcon} style={common.dropdownIcon} />
+          }
           containerStyle={styles.input}
           error={formErrors.manufacturingCountry}
         />
@@ -384,7 +378,9 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
             openSheet('admin');
             adminSheetRef.current?.open();
           }}
-          rightComponent={<Image source={Images.dropdownIcon} style={common.dropdownIcon} />}
+          rightComponent={
+            <Image source={Images.dropdownIcon} style={common.dropdownIcon} />
+          }
           containerStyle={styles.input}
           error={formErrors.administrationMethod}
         />
@@ -447,11 +443,12 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
           label="Event date"
           value={formatDateForDisplay(formData.eventDate)}
           onPress={() => setShowDatePicker(true)}
-          rightComponent={<Image source={Images.calendarIcon} style={common.calendarIcon} />}
+          rightComponent={
+            <Image source={Images.calendarIcon} style={common.calendarIcon} />
+          }
           containerStyle={styles.input}
         />
-
-    </AERLayout>
+      </AERLayout>
 
       <SimpleDatePicker
         value={formData.eventDate}

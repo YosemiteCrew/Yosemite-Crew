@@ -5,7 +5,7 @@ import {render, screen, fireEvent, within} from '@testing-library/react-native';
 // FIX 1: Update component import path
 import {ObservationalToolFormSection} from '@/features/tasks/components/ObservationalToolFormSection/ObservationalToolFormSection';
 // FIX 2: Update helper import path
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker'; // Mocked
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat'; // Mocked
 import {formatTimeForDisplay} from '@/shared/utils/timeHelpers'; // Mocked
 import {Images} from '@/assets/images'; // Mocked
 import type {
@@ -19,7 +19,10 @@ import {mockTheme} from '../../setup/mockTheme';
 // --- Mocks ---
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useTheme: () => ({
+    theme: require('../../setup/mockTheme').mockTheme,
+    isDark: false,
+  }),
   useAppDispatch: () => jest.fn(),
   useAppSelector: jest.fn(),
 }));
@@ -92,18 +95,15 @@ jest.mock('@/shared/components/common', () => {
 
 // Mock utilities
 // FIX 4: Update mocked component path
-jest.mock(
-  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
-  () => ({
-    formatDateForDisplay: jest.fn((date: Date | null): string => {
-      if (!date) return '';
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `FormattedDate: ${year}-${month}-${day}`;
-    }),
+jest.mock('@/shared/components/common/SimpleDatePicker/dateTimeFormat', () => ({
+  formatDateForDisplay: jest.fn((date: Date | null): string => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `FormattedDate: ${year}-${month}-${day}`;
   }),
-);
+}));
 const mockFormatDateForDisplay = formatDateForDisplay as jest.Mock;
 
 // FIX 5: Update mocked util path
@@ -154,7 +154,6 @@ jest.mock('react-native/Libraries/Image/Image', () => {
 });
 
 // --- Mock Data ---
-
 
 const baseFormData: TaskFormData = {
   title: 'Take Observational Tool',

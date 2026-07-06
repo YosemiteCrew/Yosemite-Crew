@@ -2,11 +2,9 @@ import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {View} from 'react-native';
 import {render, screen, fireEvent} from '@testing-library/react-native';
-import {
-  Separator,
-  RowButton,
-  ReadOnlyRow,
-} from '@/shared/components/common/FormRowComponents';
+import {Separator} from '@/shared/components/common/Separator';
+import {RowButton} from '@/shared/components/common/RowButton';
+import {ReadOnlyRow} from '@/shared/components/common/ReadOnlyRow';
 
 // --- Mocks ---
 
@@ -44,7 +42,6 @@ jest.mock('react-native', () => {
 });
 
 // 3. Mock useTheme
-
 
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),

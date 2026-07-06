@@ -7,10 +7,8 @@ import {
   waitFor,
 } from '@testing-library/react-native';
 // FIX 1: Update component import path
-import {
-  ObservationalToolBottomSheet,
-  _resetToolsStoreForTesting,
-} from '@/features/tasks/components/ObservationalToolBottomSheet/ObservationalToolBottomSheet';
+import {ObservationalToolBottomSheet} from '@/features/tasks/components/ObservationalToolBottomSheet/ObservationalToolBottomSheet';
+import {_resetToolsStoreForTesting} from '@/features/tasks/components/ObservationalToolBottomSheet/observationalToolsStore';
 // FIX 2: Update helper import path
 // FIX 3: Update type import path
 import type {ObservationalToolBottomSheetRef} from '@/features/tasks/components/ObservationalToolBottomSheet/ObservationalToolBottomSheet';

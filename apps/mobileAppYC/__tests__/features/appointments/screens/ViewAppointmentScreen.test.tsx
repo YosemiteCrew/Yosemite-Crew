@@ -11,7 +11,8 @@ import {configureStore} from '@reduxjs/toolkit';
 import {Alert, ActivityIndicator} from 'react-native';
 
 // --- Relative Imports ---
-import ViewAppointmentScreen, {
+import ViewAppointmentScreen from '../../../../src/features/appointments/screens/ViewAppointmentScreen';
+import {
   buildEmployeeDisplay,
   formatAppointmentDateTime,
   formatAppointmentFormValue,
@@ -21,7 +22,7 @@ import ViewAppointmentScreen, {
   normalizeAvatarUrl,
   resolveEmployeeAvatar,
   toImageSource,
-} from '../../../../src/features/appointments/screens/ViewAppointmentScreen';
+} from '../../../../src/features/appointments/screens/ViewAppointmentScreen.helpers';
 import * as AppointmentSlice from '../../../../src/features/appointments/appointmentsSlice';
 import * as LinkedBusinessSlice from '../../../../src/features/linkedBusinesses';
 import LocationService from '../../../../src/shared/services/LocationService';
@@ -172,7 +173,8 @@ jest.mock(
     const React = require('react');
     const {View, TouchableOpacity, Text} = require('react-native');
     return {
-      CancelAppointmentBottomSheet: React.forwardRef((props: any, ref: any) => {
+      CancelAppointmentBottomSheet: (props: any) => {
+        const {ref} = props;
         React.useImperativeHandle(ref, () => ({
           open: jest.fn(),
           close: jest.fn(),
@@ -184,7 +186,7 @@ jest.mock(
             </TouchableOpacity>
           </View>
         );
-      }),
+      },
     };
   },
 );
@@ -196,13 +198,13 @@ jest.mock(
     const React = require('react');
     const {View} = require('react-native');
     // @ts-ignore
-    return React.forwardRef((_props: any, ref: any) => {
+    return ({ref}: any) => {
       React.useImperativeHandle(ref, () => ({
         open: jest.fn(),
         close: jest.fn(),
       }));
       return <View testID="rescheduled-sheet" />;
-    });
+    };
   },
 );
 
@@ -240,7 +242,7 @@ jest.mock(
 jest.mock('../../../../src/features/expenses/components', () => {
   const {View, Text, TouchableOpacity} = require('react-native');
   return {
-    ExpenseCard: ({title, onPressView, onPressPay, showPayButton}: any) => {
+    ExpenseCard: ({title, onPressView, payment}: any) => {
       return (
         <View testID={`expense-${title}`}>
           <Text>{title}</Text>
@@ -249,9 +251,9 @@ jest.mock('../../../../src/features/expenses/components', () => {
             testID={`view-invoice-${title}`}>
             <Text>View</Text>
           </TouchableOpacity>
-          {showPayButton && (
+          {payment?.status === 'unpaid' && payment.cta && (
             <TouchableOpacity
-              onPress={onPressPay}
+              onPress={payment.cta.onPress}
               testID={`pay-invoice-${title}`}>
               <Text>Pay</Text>
             </TouchableOpacity>

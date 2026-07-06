@@ -1,11 +1,11 @@
 import React from 'react';
 import {Platform, useColorScheme} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
+import {SimpleDatePicker} from '../../../src/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 import {
-  SimpleDatePicker,
   formatDateForDisplay,
   formatTimeForDisplay,
-} from '../../../src/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+} from '../../../src/shared/components/common/SimpleDatePicker/dateTimeFormat';
 
 // --- Mocks ---
 
@@ -154,6 +154,39 @@ describe('SimpleDatePicker Component', () => {
       fireEvent.press(getByTestId('ios-datetime-picker-done'));
       expect(mockOnDateChange).toHaveBeenCalledWith(newDate);
       expect(mockOnDismiss).toHaveBeenCalledTimes(1);
+    });
+
+    it('resets iOS draft date when value prop changes while visible', () => {
+      const updatedDate = new Date('2023-01-03T10:00:00');
+      const {getByTestId, rerender} = render(
+        <SimpleDatePicker
+          value={defaultDate}
+          show={true}
+          onDateChange={mockOnDateChange}
+          onDismiss={mockOnDismiss}
+        />,
+      );
+
+      fireEvent(
+        getByTestId('mock-datetime-picker'),
+        'onChange',
+        {
+          type: 'set',
+        },
+        new Date('2023-01-02T10:00:00'),
+      );
+
+      rerender(
+        <SimpleDatePicker
+          value={updatedDate}
+          show={true}
+          onDateChange={mockOnDateChange}
+          onDismiss={mockOnDismiss}
+        />,
+      );
+
+      fireEvent.press(getByTestId('ios-datetime-picker-done'));
+      expect(mockOnDateChange).toHaveBeenCalledWith(updatedDate);
     });
 
     it('dismisses without saving when iOS cancel action is pressed', () => {

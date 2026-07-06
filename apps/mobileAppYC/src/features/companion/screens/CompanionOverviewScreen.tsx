@@ -25,10 +25,8 @@ import {
   displayOrigin,
 } from '@/shared/utils/commonHelpers';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
-import {
-  Separator,
-  RowButton,
-} from '@/shared/components/common/FormRowComponents';
+import {Separator} from '@/shared/components/common/Separator';
+import {RowButton} from '@/shared/components/common/RowButton';
 
 import {
   selectCompanionLoading,
@@ -72,10 +70,8 @@ import {
 } from '@/shared/components/common/OriginBottomSheet/OriginBottomSheet';
 
 // Date picker (reuse same component & formatter)
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 
 // Profile Image Picker
 import {CompanionProfileHeader} from '@/features/companion/components/CompanionProfileHeader';
@@ -166,7 +162,7 @@ export const CompanionOverviewScreen: React.FC<
   const profileImagePickerRef = useRef<ProfileImagePickerRef | null>(null);
 
   // Track which bottom sheet is open
-  const [openBottomSheet, setOpenBottomSheet] = useState<
+  const openBottomSheetRef = useRef<
     | 'breed'
     | 'blood'
     | 'country'
@@ -248,8 +244,8 @@ export const CompanionOverviewScreen: React.FC<
         }
 
         // Close bottom sheet first if open
-        if (openBottomSheet) {
-          switch (openBottomSheet) {
+        if (openBottomSheetRef.current) {
+          switch (openBottomSheetRef.current) {
             case 'breed':
               breedSheetRef.current?.close();
               break;
@@ -272,7 +268,7 @@ export const CompanionOverviewScreen: React.FC<
               originSheetRef.current?.close();
               break;
           }
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
           return true;
         }
 
@@ -281,7 +277,7 @@ export const CompanionOverviewScreen: React.FC<
     );
 
     return () => backHandler.remove();
-  }, [showDobPicker, openBottomSheet]);
+  }, [showDobPicker]);
 
   const currentWeightDisplay = useMemo(() => {
     if (!safeCompanion?.currentWeight) {
@@ -417,7 +413,7 @@ export const CompanionOverviewScreen: React.FC<
                       label="Breed"
                       value={safeCompanion.breed?.breedName ?? ''}
                       onPress={() => {
-                        setOpenBottomSheet('breed');
+                        openBottomSheetRef.current = 'breed';
                         breedSheetRef.current?.open();
                       }}
                     />
@@ -448,7 +444,7 @@ export const CompanionOverviewScreen: React.FC<
                           : ''
                       }
                       onPress={() => {
-                        setOpenBottomSheet('gender');
+                        openBottomSheetRef.current = 'gender';
                         genderSheetRef.current?.open();
                       }}
                     />
@@ -506,7 +502,7 @@ export const CompanionOverviewScreen: React.FC<
                         safeCompanion.gender,
                       )}
                       onPress={() => {
-                        setOpenBottomSheet('neutered');
+                        openBottomSheetRef.current = 'neutered';
                         neuteredSheetRef.current?.open();
                       }}
                     />
@@ -540,7 +536,7 @@ export const CompanionOverviewScreen: React.FC<
                       label="Blood group"
                       value={safeCompanion.bloodGroup ?? ''}
                       onPress={() => {
-                        setOpenBottomSheet('blood');
+                        openBottomSheetRef.current = 'blood';
                         bloodSheetRef.current?.open();
                       }}
                     />
@@ -570,7 +566,7 @@ export const CompanionOverviewScreen: React.FC<
                       label="Insurance status"
                       value={displayInsured(safeCompanion.insuredStatus)}
                       onPress={() => {
-                        setOpenBottomSheet('insured');
+                        openBottomSheetRef.current = 'insured';
                         insuredSheetRef.current?.open();
                       }}
                     />
@@ -603,7 +599,7 @@ export const CompanionOverviewScreen: React.FC<
                       label="Country of origin"
                       value={safeCompanion.countryOfOrigin ?? ''}
                       onPress={() => {
-                        setOpenBottomSheet('country');
+                        openBottomSheetRef.current = 'country';
                         countrySheetRef.current?.open();
                       }}
                     />
@@ -615,7 +611,7 @@ export const CompanionOverviewScreen: React.FC<
                       label="My pet comes from"
                       value={displayOrigin(safeCompanion.origin)}
                       onPress={() => {
-                        setOpenBottomSheet('origin');
+                        openBottomSheetRef.current = 'origin';
                         originSheetRef.current?.open();
                       }}
                     />
@@ -654,7 +650,7 @@ export const CompanionOverviewScreen: React.FC<
             speciesCode: b?.speciesCode ?? safeCompanion.speciesCode ?? null,
             breedCode: b?.breedCode ?? null,
           });
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -664,7 +660,7 @@ export const CompanionOverviewScreen: React.FC<
         category={safeCompanion.category}
         onSave={(bg: string | null) => {
           applyPatch({bloodGroup: bg});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -676,7 +672,7 @@ export const CompanionOverviewScreen: React.FC<
         )}
         onSave={country => {
           applyPatch({countryOfOrigin: country ? country.name : null});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -685,7 +681,7 @@ export const CompanionOverviewScreen: React.FC<
         selected={safeCompanion.gender}
         onSave={g => {
           applyPatch({gender: g});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -697,7 +693,7 @@ export const CompanionOverviewScreen: React.FC<
           const patch: Partial<Companion> = {neuteredStatus: n};
           if (n !== 'neutered') patch.ageWhenNeutered = null; // reset dependent
           applyPatch(patch);
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -711,7 +707,7 @@ export const CompanionOverviewScreen: React.FC<
             patch.insurancePolicyNumber = null;
           }
           applyPatch(patch);
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
 
@@ -720,7 +716,7 @@ export const CompanionOverviewScreen: React.FC<
         selected={safeCompanion.origin}
         onSave={o => {
           applyPatch({origin: o});
-          setOpenBottomSheet(null);
+          openBottomSheetRef.current = null;
         }}
       />
     </>

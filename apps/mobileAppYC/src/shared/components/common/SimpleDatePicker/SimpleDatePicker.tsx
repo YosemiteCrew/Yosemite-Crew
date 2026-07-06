@@ -32,7 +32,7 @@ interface IOSPickerModalProps {
   mode: 'date' | 'time' | 'datetime';
 }
 
-// Extracted so useState(value) reinitializes naturally each time this mounts (when show becomes true)
+// Extracted so the draft date reinitializes naturally each time this mounts.
 const IOSPickerModal: React.FC<IOSPickerModalProps> = ({
   value,
   onDateChange,
@@ -41,7 +41,7 @@ const IOSPickerModal: React.FC<IOSPickerModalProps> = ({
   maximumDate,
   mode,
 }) => {
-  const [iosDraftDate, setIosDraftDate] = useState(value);
+  const [iosDraftDate, setIosDraftDate] = useState(() => value);
   const {t} = useTranslation();
   const {theme} = useTheme();
   const isTimeMode = mode === 'time';
@@ -165,8 +165,11 @@ export const SimpleDatePicker: React.FC<SimpleDatePickerProps> = ({
   }
 
   if (isIOS) {
+    const pickerKey = value?.getTime() ?? 'empty';
+
     return (
       <IOSPickerModal
+        key={pickerKey}
         value={value ?? new Date()}
         onDateChange={onDateChange}
         onDismiss={onDismiss}
@@ -252,58 +255,3 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
 });
-
-// Utility function for date formatting
-export const formatDateForDisplay = (date: Date | null): string => {
-  if (!date) return '';
-
-  try {
-    const dateObj = date instanceof Date ? date : new Date(date);
-    if (Number.isNaN(dateObj.getTime())) return '';
-
-    const months = [
-      'JAN',
-      'FEB',
-      'MAR',
-      'APR',
-      'MAY',
-      'JUN',
-      'JUL',
-      'AUG',
-      'SEP',
-      'OCT',
-      'NOV',
-      'DEC',
-    ];
-
-    const day = dateObj.getDate().toString().padStart(2, '0');
-    const month = months[dateObj.getMonth()];
-    const year = dateObj.getFullYear();
-
-    return `${day}-${month}-${year}`;
-  } catch (error) {
-    console.error('Date formatting error:', error);
-    return '';
-  }
-};
-
-// Utility function for time formatting
-export const formatTimeForDisplay = (time: Date | null): string => {
-  if (!time) return '';
-
-  try {
-    const timeObj = time instanceof Date ? time : new Date(time);
-    if (Number.isNaN(timeObj.getTime())) return '';
-
-    const minutes = timeObj.getMinutes().toString().padStart(2, '0');
-    const ampm = timeObj.getHours() >= 12 ? 'PM' : 'AM';
-    const displayHours = (timeObj.getHours() % 12 || 12)
-      .toString()
-      .padStart(2, '0');
-
-    return `${displayHours}:${minutes} ${ampm}`;
-  } catch (error) {
-    console.error('Time formatting error:', error);
-    return '';
-  }
-};
