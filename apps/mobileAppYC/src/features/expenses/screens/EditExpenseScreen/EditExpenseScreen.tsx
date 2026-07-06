@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef} from 'react';
 import {Alert, BackHandler} from 'react-native';
 import {useRoute, CommonActions} from '@react-navigation/native';
 import type {RouteProp} from '@react-navigation/native';
@@ -62,7 +62,7 @@ export const EditExpenseScreen: React.FC = () => {
     validate,
   } = useExpenseForm(null);
   const deleteSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
-  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const isDeleteSheetOpenRef = useRef(false);
 
   useEffect(() => {
     if (!expense) {
@@ -100,9 +100,9 @@ export const EditExpenseScreen: React.FC = () => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-        if (isDeleteSheetOpen) {
+        if (isDeleteSheetOpenRef.current) {
           deleteSheetRef.current?.close();
-          setIsDeleteSheetOpen(false);
+          isDeleteSheetOpenRef.current = false;
           return true;
         }
         return false;
@@ -110,7 +110,7 @@ export const EditExpenseScreen: React.FC = () => {
     );
 
     return () => backHandler.remove();
-  }, [isDeleteSheetOpen]);
+  }, []);
 
   const handleSave = async () => {
     if (!formData || !expense) {
@@ -151,7 +151,7 @@ export const EditExpenseScreen: React.FC = () => {
   };
 
   const handleDelete = () => {
-    setIsDeleteSheetOpen(true);
+    isDeleteSheetOpenRef.current = true;
     deleteSheetRef.current?.open();
   };
 
@@ -166,7 +166,7 @@ export const EditExpenseScreen: React.FC = () => {
           companionId: expense.companionId,
         }),
       ).unwrap();
-      setIsDeleteSheetOpen(false);
+      isDeleteSheetOpenRef.current = false;
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
@@ -174,7 +174,7 @@ export const EditExpenseScreen: React.FC = () => {
         }),
       );
     } catch (error) {
-      setIsDeleteSheetOpen(false);
+      isDeleteSheetOpenRef.current = false;
       Alert.alert(
         'Unable to delete expense',
         error instanceof Error ? error.message : 'Please try again.',

@@ -1,13 +1,20 @@
 import React, {useMemo, useCallback, useEffect} from 'react';
 import {FlatList, StyleSheet, Text, View} from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
-import {useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
 import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
-import {ExpenseCard} from '@/features/expenses/components';
+import {
+  ExpenseCard,
+  type ExpenseCardPayment,
+} from '@/features/expenses/components';
 import {useTheme} from '@/hooks';
 import {setSelectedCompanion} from '@/features/companion';
 import {
@@ -27,11 +34,18 @@ import {
 import type {Expense} from '@/features/expenses';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
-import {hasInvoice, isExpensePaid, isExpensePaymentPending} from '@/features/expenses/utils/status';
+import {
+  hasInvoice,
+  isExpensePaid,
+  isExpensePaymentPending,
+} from '@/features/expenses/utils/status';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
-type Navigation = NativeStackNavigationProp<ExpenseStackParamList, 'ExpensesList'>;
+type Navigation = NativeStackNavigationProp<
+  ExpenseStackParamList,
+  'ExpensesList'
+>;
 type Route = RouteProp<ExpenseStackParamList, 'ExpensesList'>;
 
 export const ExpensesListScreen: React.FC = () => {
@@ -42,7 +56,9 @@ export const ExpensesListScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const companions = useSelector((state: RootState) => state.companion.companions);
+  const companions = useSelector(
+    (state: RootState) => state.companion.companions,
+  );
   const selectedCompanionId = useSelector(
     (state: RootState) => state.companion.selectedCompanionId,
   );
@@ -96,6 +112,34 @@ export const ExpensesListScreen: React.FC = () => {
     }
   };
 
+  const getExpensePayment = useCallback(
+    (item: Expense): ExpenseCardPayment | undefined => {
+      if (isExpensePaid(item)) {
+        return {status: 'paid'};
+      }
+
+      if (
+        mode !== 'inApp' ||
+        !isExpensePaymentPending(item) ||
+        !hasInvoice(item)
+      ) {
+        return undefined;
+      }
+
+      return {
+        status: 'unpaid',
+        cta: {
+          onPress: () => {
+            if (!processingPayment) {
+              openPaymentScreen(item);
+            }
+          },
+        },
+      };
+    },
+    [mode, openPaymentScreen, processingPayment],
+  );
+
   const renderSeparator = useCallback(
     () => <View style={styles.separator} />,
     [styles.separator],
@@ -106,7 +150,10 @@ export const ExpensesListScreen: React.FC = () => {
       key={item.id}
       title={item.title}
       categoryLabel={resolveCategoryLabel(item.category)}
-      subcategoryLabel={resolveSubcategoryLabel(item.category, item.subcategory)}
+      subcategoryLabel={resolveSubcategoryLabel(
+        item.category,
+        item.subcategory,
+      )}
       visitTypeLabel={resolveVisitTypeLabel(item.visitType)}
       date={item.date}
       amount={item.amount}
@@ -115,18 +162,8 @@ export const ExpensesListScreen: React.FC = () => {
       onPressEdit={
         mode === 'external' ? () => handleEditExpense(item.id) : undefined
       }
-      showEditAction={mode === 'external'}
-      showPayButton={mode === 'inApp' && isExpensePaymentPending(item) && hasInvoice(item)}
-      isPaid={isExpensePaid(item)}
-      onPressPay={
-        mode === 'inApp' && isExpensePaymentPending(item) && hasInvoice(item)
-          ? () => {
-              if (!processingPayment) {
-                openPaymentScreen(item);
-              }
-            }
-          : undefined
-      }
+      editAction={mode === 'external' ? 'visible' : 'hidden'}
+      payment={getExpensePayment(item)}
     />
   );
 
@@ -159,7 +196,14 @@ export const ExpensesListScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <LiquidGlassHeaderScreen
-        header={<Header title="Expenses" showBackButton onBack={handleBack} glass={false} />}
+        header={
+          <Header
+            title="Expenses"
+            showBackButton
+            onBack={handleBack}
+            glass={false}
+          />
+        }
         contentPadding={theme.spacing['3']}>
         {contentPaddingStyle => (
           <FlatList<Expense>

@@ -72,15 +72,18 @@ jest.mock('@/shared/components/common/Header/Header', () => {
     Header: MockHeader,
   };
 });
-jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () => {
-  const RN = jest.requireActual('react-native');
-  const MockCompanionSelector = (props: any) => (
-    <RN.View testID="mock-CompanionSelector" {...props} />
-  );
-  return {
-    CompanionSelector: MockCompanionSelector,
-  };
-});
+jest.mock(
+  '@/shared/components/common/CompanionSelector/CompanionSelector',
+  () => {
+    const RN = jest.requireActual('react-native');
+    const MockCompanionSelector = (props: any) => (
+      <RN.View testID="mock-CompanionSelector" {...props} />
+    );
+    return {
+      CompanionSelector: MockCompanionSelector,
+    };
+  },
+);
 jest.mock('@/features/expenses/components', () => {
   const RN = jest.requireActual('react-native');
   const MockExpenseCard = (props: any) => (
@@ -328,7 +331,7 @@ describe('ExpensesListScreen', () => {
       expect(getByText('External expenses')).toBeTruthy();
       const cards = getAllByTestId('mock-ExpenseCard');
       const externalCards = cards.filter(
-        card => card.props.showEditAction === true,
+        card => card.props.editAction === 'visible',
       );
       expect(externalCards.length).toBe(1);
       expect(externalCards[0].props.title).toBe('External Vet Visit');
@@ -340,25 +343,22 @@ describe('ExpensesListScreen', () => {
     it('passes correct props to ExpenseCard for external items', () => {
       const {getAllByTestId} = renderComponent('external', baseState);
       const externalCards = getAllByTestId('mock-ExpenseCard').filter(
-        card => card.props.showEditAction === true,
+        card => card.props.editAction === 'visible',
       );
       expect(externalCards.length).toBe(1);
       const card = externalCards[0];
 
       expect(card.props.title).toBe('External Vet Visit');
       expect(card.props.amount).toBe(150);
-      expect(card.props.showEditAction).toBe(true);
+      expect(card.props.editAction).toBe('visible');
       expect(card.props.onPressEdit).toBeDefined();
-      expect(card.props.showPayButton).toBe(false);
-      expect(card.props.isPaid).toBe(true);
-      expect(card.props.onPressPay).toBeUndefined();
-      expect(card.props.onTogglePaidStatus).toBeUndefined();
+      expect(card.props.payment).toEqual({status: 'paid'});
     });
 
     it('navigates to EditExpense when edit is pressed', () => {
       const {getAllByTestId} = renderComponent('external', baseState);
       const externalCards = getAllByTestId('mock-ExpenseCard').filter(
-        card => card.props.showEditAction === true,
+        card => card.props.editAction === 'visible',
       );
       expect(externalCards.length).toBe(1);
       const card = externalCards[0];
@@ -390,7 +390,7 @@ describe('ExpensesListScreen', () => {
       expect(getByText('In-app expenses')).toBeTruthy();
       const cards = getAllByTestId('mock-ExpenseCard');
       const inAppCards = cards.filter(
-        card => card.props.showEditAction === false,
+        card => card.props.editAction === 'hidden',
       );
       expect(inAppCards.length).toBe(2);
       expect(inAppCards[0].props.title).toBe('In-App Booking');
@@ -402,7 +402,7 @@ describe('ExpensesListScreen', () => {
     it('passes correct props to ExpenseCard for an unpaid in-app item', () => {
       const {getAllByTestId} = renderComponent('inApp', baseState);
       const inAppCards = getAllByTestId('mock-ExpenseCard').filter(
-        card => card.props.showEditAction === false,
+        card => card.props.editAction === 'hidden',
       );
       const unpaidCard = inAppCards.find(
         card => card.props.title === 'In-App Booking',
@@ -412,18 +412,15 @@ describe('ExpensesListScreen', () => {
       if (!unpaidCard) return;
 
       expect(unpaidCard.props.amount).toBe(75);
-      expect(unpaidCard.props.showEditAction).toBe(false);
+      expect(unpaidCard.props.editAction).toBe('hidden');
       expect(unpaidCard.props.onPressEdit).toBeUndefined();
-      expect(unpaidCard.props.showPayButton).toBe(false);
-      expect(unpaidCard.props.isPaid).toBe(false);
-      expect(unpaidCard.props.onPressPay).toBeUndefined();
-      expect(unpaidCard.props.onTogglePaidStatus).toBeUndefined();
+      expect(unpaidCard.props.payment).toBeUndefined();
     });
 
     it('passes correct props to ExpenseCard for a paid in-app item', () => {
       const {getAllByTestId} = renderComponent('inApp', baseState);
       const inAppCards = getAllByTestId('mock-ExpenseCard').filter(
-        card => card.props.showEditAction === false,
+        card => card.props.editAction === 'hidden',
       );
       const paidCard = inAppCards.find(
         card => card.props.title === 'Paid Booking',
@@ -433,12 +430,9 @@ describe('ExpensesListScreen', () => {
       if (!paidCard) return;
 
       expect(paidCard.props.amount).toBe(50);
-      expect(paidCard.props.showEditAction).toBe(false);
+      expect(paidCard.props.editAction).toBe('hidden');
       expect(paidCard.props.onPressEdit).toBeUndefined();
-      expect(paidCard.props.showPayButton).toBe(false);
-      expect(paidCard.props.isPaid).toBe(true);
-      expect(paidCard.props.onPressPay).toBeUndefined();
-      expect(paidCard.props.onTogglePaidStatus).toBeUndefined();
+      expect(paidCard.props.payment).toEqual({status: 'paid'});
     });
   });
 
@@ -475,7 +469,7 @@ describe('ExpensesListScreen', () => {
     it('navigates to ExpensePreview when view is pressed', () => {
       const {getAllByTestId} = renderComponent('external', baseState);
       const externalCards = getAllByTestId('mock-ExpenseCard').filter(
-        card => card.props.showEditAction === true,
+        card => card.props.editAction === 'visible',
       );
       expect(externalCards.length).toBe(1);
       const card = externalCards[0];

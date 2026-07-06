@@ -140,14 +140,12 @@ describe('ExpenseCard', () => {
 
   // --- 3. Payment Status & Buttons ---
 
-  it('shows Pay button when showPayButton is true and isPaid is false', () => {
-    const onPressPay = jest.fn();
+  it('shows Pay button when an unpaid payment CTA is provided', () => {
+    const onPay = jest.fn();
     const {getByTestId, getByText} = render(
       <ExpenseCard
         {...defaultProps}
-        showPayButton={true}
-        isPaid={false}
-        onPressPay={onPressPay}
+        payment={{status: 'unpaid', cta: {onPress: onPay}}}
       />,
     );
 
@@ -157,12 +155,12 @@ describe('ExpenseCard', () => {
     expect(getByText('Pay $100.00')).toBeTruthy();
 
     fireEvent.press(btn);
-    expect(onPressPay).toHaveBeenCalled();
+    expect(onPay).toHaveBeenCalled();
   });
 
-  it('shows "Paid" badge instead of button when isPaid is true', () => {
+  it('shows "Paid" badge instead of button when payment is paid', () => {
     const {getByText, queryByTestId} = render(
-      <ExpenseCard {...defaultProps} showPayButton={true} isPaid={true} />,
+      <ExpenseCard {...defaultProps} payment={{status: 'paid'}} />,
     );
 
     // Pay button should be gone
@@ -173,13 +171,12 @@ describe('ExpenseCard', () => {
 
   // --- 4. Interactive Paid Badge (Toggle Status) ---
 
-  it('makes the Paid badge interactive if onTogglePaidStatus is provided', () => {
+  it('makes the Paid badge interactive if an onToggleStatus handler is provided', () => {
     const onToggle = jest.fn();
     const {getByText} = render(
       <ExpenseCard
         {...defaultProps}
-        isPaid={true}
-        onTogglePaidStatus={onToggle}
+        payment={{status: 'paid', onToggleStatus: onToggle}}
       />,
     );
 
@@ -193,8 +190,10 @@ describe('ExpenseCard', () => {
     expect(onToggle).toHaveBeenCalled();
   });
 
-  it('renders non-interactive Paid badge if onTogglePaidStatus is missing', () => {
-    const {getByText} = render(<ExpenseCard {...defaultProps} isPaid={true} />);
+  it('renders non-interactive Paid badge if onToggleStatus is missing', () => {
+    const {getByText} = render(
+      <ExpenseCard {...defaultProps} payment={{status: 'paid'}} />,
+    );
 
     const paidText = getByText('Paid');
     // Ensure firing press doesn't crash or do anything unexpected

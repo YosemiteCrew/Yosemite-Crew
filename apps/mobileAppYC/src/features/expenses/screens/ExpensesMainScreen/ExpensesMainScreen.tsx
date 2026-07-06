@@ -14,12 +14,16 @@ import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {ViewMoreButton} from '@/shared/components/common/ViewMoreButton/ViewMoreButton';
-import {ExpenseCard} from '@/features/expenses/components';
+import {
+  ExpenseCard,
+  type ExpenseCardPayment,
+} from '@/features/expenses/components';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {setSelectedCompanion} from '@/features/companion';
 import {fetchExpensesForCompanion} from '@/features/expenses';
+import type {Expense} from '@/features/expenses';
 import {
   selectExpenseSummaryByCompanion,
   selectExpensesLoading,
@@ -112,6 +116,30 @@ export const ExpensesMainScreen: React.FC = () => {
         : totalExpenses === 0 && hasHydrated,
     );
   }, [externalCount, inAppCount, hasHydrated]);
+
+  const getInAppExpensePayment = React.useCallback(
+    (expense: Expense): ExpenseCardPayment | undefined => {
+      if (isExpensePaid(expense)) {
+        return {status: 'paid'};
+      }
+
+      if (!isExpensePaymentPending(expense) || !hasInvoice(expense)) {
+        return undefined;
+      }
+
+      return {
+        status: 'unpaid',
+        cta: {
+          onPress: () => {
+            if (!processingPayment) {
+              openPaymentScreen(expense);
+            }
+          },
+        },
+      };
+    },
+    [openPaymentScreen, processingPayment],
+  );
 
   if (companions.length === 0) {
     return null;
@@ -227,20 +255,8 @@ export const ExpensesMainScreen: React.FC = () => {
                       amount={expense.amount}
                       currencyCode={expense.currencyCode}
                       onPressView={() => handleViewExpense(expense.id)}
-                      showEditAction={false}
-                      showPayButton={
-                        isExpensePaymentPending(expense) && hasInvoice(expense)
-                      }
-                      isPaid={isExpensePaid(expense)}
-                      onPressPay={
-                        isExpensePaymentPending(expense) && hasInvoice(expense)
-                          ? () => {
-                              if (!processingPayment) {
-                                openPaymentScreen(expense);
-                              }
-                            }
-                          : undefined
-                      }
+                      editAction="hidden"
+                      payment={getInAppExpensePayment(expense)}
                     />
                   ))}
                 </View>
@@ -277,9 +293,8 @@ export const ExpensesMainScreen: React.FC = () => {
                       currencyCode={expense.currencyCode}
                       onPressView={() => handleViewExpense(expense.id)}
                       onPressEdit={() => handleEditExpense(expense.id)}
-                      showEditAction
-                      showPayButton={false}
-                      isPaid
+                      editAction="visible"
+                      payment={{status: 'paid'}}
                     />
                   ))}
                 </View>
