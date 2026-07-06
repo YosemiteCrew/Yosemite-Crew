@@ -51,20 +51,39 @@ const buildShareLabel = (
   return companionName ? `${baseTitle} for ${companionName}` : baseTitle;
 };
 
-const PdfViewer: React.FC<{uri: string; fallback: React.ReactNode}> = ({
-  uri,
-  fallback,
-}) => {
+const PdfViewer: React.FC<{
+  uri: string;
+  fallback: React.ReactNode;
+  onTouchStart?: () => void;
+  onTouchEnd?: () => void;
+}> = ({uri, fallback, onTouchStart, onTouchEnd}) => {
   const {theme} = useTheme();
   const height = Math.max(Dimensions.get('window').height * 0.6, 400);
   const [shouldFallback, setShouldFallback] = React.useState(false);
+  const [pageInfo, setPageInfo] = React.useState({page: 1, numberOfPages: 1});
 
   if (shouldFallback) {
     return <>{fallback}</>;
   }
 
+  // android-pdf-viewer has no native scrollbar (unlike iOS's UIScrollView),
+  // so render a lightweight thumb driven by the page-change callbacks.
+  const trackHeight = height - 24;
+  const thumbHeight = Math.max(trackHeight / pageInfo.numberOfPages, 28);
+  const thumbTop =
+    pageInfo.numberOfPages > 1
+      ? ((pageInfo.page - 1) / (pageInfo.numberOfPages - 1)) *
+        (trackHeight - thumbHeight)
+      : 0;
+  const showScrollIndicator =
+    Platform.OS === 'android' && pageInfo.numberOfPages > 1;
+
   return (
-    <View style={[viewerStyles.pdfContainer(theme.borderRadius.lg), {height}]}>
+    <View
+      style={[viewerStyles.pdfContainer(theme.borderRadius.lg), {height}]}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}>
       <Pdf
         source={{uri, cache: true}}
         style={viewerStyles.pdf}
@@ -72,16 +91,36 @@ const PdfViewer: React.FC<{uri: string; fallback: React.ReactNode}> = ({
         enablePaging
         enableAntialiasing
         spacing={4}
+        showsVerticalScrollIndicator
+        showsHorizontalScrollIndicator
         renderActivityIndicator={() => (
           <View style={viewerStyles.loader}>
             <ActivityIndicator />
           </View>
         )}
+        onLoadComplete={numberOfPages =>
+          setPageInfo(prev => ({...prev, numberOfPages}))
+        }
+        onPageChanged={(page, numberOfPages) =>
+          setPageInfo({page, numberOfPages})
+        }
         onError={error => {
           console.warn('[DocumentAttachmentViewer] PDF error', error);
           setShouldFallback(true);
         }}
       />
+      {showScrollIndicator && (
+        <View
+          style={viewerStyles.scrollTrack(trackHeight)}
+          pointerEvents="none">
+          <View
+            style={[
+              viewerStyles.scrollThumb(theme.colors.primary),
+              {height: thumbHeight, top: thumbTop},
+            ]}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -113,11 +152,19 @@ export interface DocumentAttachmentViewerProps {
   attachments: DocumentFile[];
   documentTitle?: string;
   companionName?: string | null;
+  onPdfTouchStart?: () => void;
+  onPdfTouchEnd?: () => void;
 }
 
 export const DocumentAttachmentViewer: React.FC<
   DocumentAttachmentViewerProps
-> = ({attachments, documentTitle, companionName}) => {
+> = ({
+  attachments,
+  documentTitle,
+  companionName,
+  onPdfTouchStart,
+  onPdfTouchEnd,
+}) => {
   const {theme} = useTheme();
   const styles = createAttachmentStyles(theme);
 
@@ -254,7 +301,14 @@ export const DocumentAttachmentViewer: React.FC<
                   );
                 }
                 if (isPdf && sourceUri) {
-                  return <PdfViewer uri={sourceUri} fallback={placeholder} />;
+                  return (
+                    <PdfViewer
+                      uri={sourceUri}
+                      fallback={placeholder}
+                      onTouchStart={onPdfTouchStart}
+                      onTouchEnd={onPdfTouchEnd}
+                    />
+                  );
                 }
                 if (isDoc && sourceUri) {
                   return (
@@ -327,5 +381,21 @@ const viewerStyles = {
     color,
     textAlign: 'center' as const,
     paddingHorizontal: 16,
+  }),
+  scrollTrack: (trackHeight: number) => ({
+    position: 'absolute' as const,
+    right: 4,
+    top: 12,
+    width: 4,
+    height: trackHeight,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+  }),
+  scrollThumb: (color: string) => ({
+    position: 'absolute' as const,
+    right: 0,
+    width: 4,
+    borderRadius: 2,
+    backgroundColor: color,
   }),
 };

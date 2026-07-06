@@ -209,6 +209,7 @@ export const ExpensePreviewScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const {openPaymentScreen, processingPayment} = useExpensePayment();
+  const [isPdfInteracting, setIsPdfInteracting] = React.useState(false);
 
   const expenseId = (route.params as any)?.expenseId ?? '';
   const expense = useSelector(selectExpenseById(expenseId));
@@ -401,6 +402,8 @@ export const ExpensePreviewScreen: React.FC = () => {
       {contentPaddingStyle => (
         <ScrollView
           contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          nestedScrollEnabled
+          scrollEnabled={!isPdfInteracting}
           showsVerticalScrollIndicator={false}>
           {/* Business Info Card using SummaryCards */}
           {isInAppExpense && invoiceData && (
@@ -430,7 +433,11 @@ export const ExpensePreviewScreen: React.FC = () => {
 
           <View style={styles.previewContainer}>
             {expense.attachments && expense.attachments.length > 0 ? (
-              <DocumentAttachmentViewer attachments={expense.attachments} />
+              <DocumentAttachmentViewer
+                attachments={expense.attachments}
+                onPdfTouchStart={() => setIsPdfInteracting(true)}
+                onPdfTouchEnd={() => setIsPdfInteracting(false)}
+              />
             ) : (
               <View style={styles.fallbackCard}>
                 <Image

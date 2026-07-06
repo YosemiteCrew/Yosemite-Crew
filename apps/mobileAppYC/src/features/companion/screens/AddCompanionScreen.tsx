@@ -238,7 +238,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       keyboardType?: KeyboardTypeOptions;
       maxLength?: number;
       multiline?: boolean;
-      rules?: ControllerProps<FormData, Field>['rules'];
+      rules?: NonNullable<ControllerProps<FormData, Field>['rules']>;
       suffix?: string;
       dynamicSuffix?: (value: string) => string;
     },

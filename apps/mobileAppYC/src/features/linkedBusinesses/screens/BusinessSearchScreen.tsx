@@ -261,7 +261,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         });
 
         // Check if business is already linked
-        const alreadyLinked = linkedBusinesses.find(
+        const alreadyLinked = linkedBusinesses.some(
           b => b.businessName?.toLowerCase() === business.name.toLowerCase(),
         );
         if (alreadyLinked) {
