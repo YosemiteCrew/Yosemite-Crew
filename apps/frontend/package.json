@@ -70,7 +70,7 @@
     "@iconify/react": "^6.0.0",
     "@playwright/test": "^1.55.0",
     "@storybook/addon-a11y": "^9.1.20",
-    "@storybook/addon-docs": "^9.1.20",
+    "@storybook/addon-docs": "^10.4.6",
     "@storybook/nextjs-vite": "^9.1.20",
     "@storybook/react": "^9.1.20",
     "@tailwindcss/postcss": "^4.1.17",
