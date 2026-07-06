@@ -72,7 +72,10 @@ const requestCameraAccess = async () => {
       return false;
     }
     if (status === RESULTS.UNAVAILABLE) {
-      Alert.alert('Camera unavailable', 'Camera is not available on this device.');
+      Alert.alert(
+        'Camera unavailable',
+        'Camera is not available on this device.',
+      );
       return false;
     }
     const nextStatus = await request(permission);
@@ -100,16 +103,21 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   '.webp': 'image/webp',
   '.pdf': 'application/pdf',
   '.doc': 'application/msword',
-  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.docx':
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   '.xls': 'application/vnd.ms-excel',
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   '.ppt': 'application/vnd.ms-powerpoint',
-  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.pptx':
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   '.txt': 'text/plain',
 };
 
 // Correct MIME types when document picker returns generic type
-const correctMimeType = (mimeType: string, fileName?: string | null): string => {
+const correctMimeType = (
+  mimeType: string,
+  fileName?: string | null,
+): string => {
   // If MIME type is too generic, try to infer from file extension
   if (mimeType === 'application/octet-stream' && fileName) {
     const match = /\.[^.]+$/.exec(fileName.toLowerCase());
@@ -158,9 +166,7 @@ const sanitizeFileName = (name?: string | null, fallbackExtension?: string) => {
   if (safeName) {
     return safeName;
   }
-  const extension = fallbackExtension?.startsWith('.')
-    ? fallbackExtension
-    : '';
+  const extension = fallbackExtension?.startsWith('.') ? fallbackExtension : '';
   return `document-${Date.now()}${extension}`;
 };
 
@@ -183,7 +189,9 @@ const isImageMimeType = (mime?: string | null) => {
 
 const isDocumentMimeType = (mime?: string | null) => {
   const normalized = normalizeMimeType(mime);
-  return Boolean(normalized && ALLOWED_DOCUMENT_MIME_TYPES.includes(normalized));
+  return Boolean(
+    normalized && ALLOWED_DOCUMENT_MIME_TYPES.includes(normalized),
+  );
 };
 
 const formatLimitLabel = (bytes: number) =>
@@ -211,7 +219,9 @@ const filterValidPickerResults = (pickerResults: DocumentPickerResponse[]) => {
   });
 };
 
-const createPendingEntry = <T extends DocumentFile>(file: DocumentPickerResponse): T => {
+const createPendingEntry = <T extends DocumentFile>(
+  file: DocumentPickerResponse,
+): T => {
   const placeholderId = generateId();
   const mimeType = getEffectiveMimeType(file);
   const fallbackExtension = getFallbackExtension(file, mimeType);
@@ -314,7 +324,10 @@ const readContentUriSize = async (uri: string): Promise<number | null> => {
     const size = Number(stat.size);
     return isValidFileSize(size) ? size : null;
   } catch (error) {
-    console.warn('[useDocumentFileHandlers] Unable to read content URI size', error);
+    console.warn(
+      '[useDocumentFileHandlers] Unable to read content URI size',
+      error,
+    );
     return null;
   }
 };
@@ -330,7 +343,9 @@ const readLocalFileSize = async (uri: string): Promise<number | null> => {
   }
 };
 
-const readFileSizeFromUri = async (candidate: string): Promise<number | null> => {
+const readFileSizeFromUri = async (
+  candidate: string,
+): Promise<number | null> => {
   if (candidate.startsWith('content://')) {
     return readContentUriSize(candidate);
   }
@@ -395,15 +410,14 @@ const showFileTooLargeAlert = (maxBytes: number) => {
 const getEffectiveMimeType = (file: DocumentPickerResponse) =>
   resolveVirtualMime(file) ?? inferMimeType(file.type, file.name);
 
-const getFallbackExtension = (
-  file: DocumentPickerResponse,
-  mime: string,
-) => {
+const getFallbackExtension = (file: DocumentPickerResponse, mime: string) => {
   const extension = getFileExtension(file.name);
   if (extension) {
     return extension;
   }
-  const match = Object.entries(MIME_BY_EXTENSION).find(([, value]) => value === mime);
+  const match = Object.entries(MIME_BY_EXTENSION).find(
+    ([, value]) => value === mime,
+  );
   if (match) {
     return match[0];
   }
@@ -463,28 +477,21 @@ const buildDocumentFileFromPicker = async <T extends DocumentFile>(
   } as T;
 };
 
-const validateAssetExtension = (
-  extension: string | null,
-): boolean => {
+const validateAssetExtension = (extension: string | null): boolean => {
   if (!extension) {
     return true;
   }
   return ALLOWED_FILE_EXTENSIONS.includes(extension.toLowerCase());
 };
 
-const validateAssetType = (
-  mode: FileUploadMode,
-  isImage: boolean,
-): boolean => {
+const validateAssetType = (mode: FileUploadMode, isImage: boolean): boolean => {
   if (mode === 'documents-only') {
     return false;
   }
   return isImage;
 };
 
-const getAssetFileSize = async (
-  asset: Asset,
-): Promise<number | null> => {
+const getAssetFileSize = async (asset: Asset): Promise<number | null> => {
   if (typeof asset.fileSize === 'number') {
     return asset.fileSize;
   }
@@ -547,7 +554,10 @@ const handlePickerException = (error: unknown) => {
       case errorCodes.OPERATION_CANCELED:
         return;
       case errorCodes.UNABLE_TO_OPEN_FILE_TYPE:
-        Alert.alert('Unsupported file', 'Unable to open this file on your device.');
+        Alert.alert(
+          'Unsupported file',
+          'Unable to open this file on your device.',
+        );
         return;
       case errorCodes.IN_PROGRESS:
         Alert.alert('Please wait', 'File selection is already in progress.');
@@ -618,27 +628,26 @@ export const useDocumentFileHandlers = <T extends DocumentFile>({
   );
 
   const processPendingFiles = useCallback(
-    async (
-      validResults: DocumentPickerResponse[],
-      pendingEntries: T[],
-    ) => {
+    async (validResults: DocumentPickerResponse[], pendingEntries: T[]) => {
       const filesToCopy = prepareFilesForCopy(validResults);
       const copyResults = await keepLocalCopy({
         files: filesToCopy as any,
         destination: 'documentDirectory',
       });
 
-      for (let index = 0; index < validResults.length; index += 1) {
-        await processCopyResult<T>(
-          validResults[index],
-          copyResults[index],
-          pendingEntries[index]?.id,
-          maxFileSizeInBytes,
-          selectedMode,
-          replaceFileById,
-          showUnreadableFileAlert,
-        );
-      }
+      await Promise.all(
+        validResults.map((result, index) =>
+          processCopyResult<T>(
+            result,
+            copyResults[index],
+            pendingEntries[index]?.id,
+            maxFileSizeInBytes,
+            selectedMode,
+            replaceFileById,
+            showUnreadableFileAlert,
+          ),
+        ),
+      );
     },
     [maxFileSizeInBytes, replaceFileById, selectedMode],
   );
@@ -654,7 +663,9 @@ export const useDocumentFileHandlers = <T extends DocumentFile>({
         return null;
       }
 
-      const pendingEntries = validResults.map(file => createPendingEntry<T>(file));
+      const pendingEntries = validResults.map(file =>
+        createPendingEntry<T>(file),
+      );
       if (pendingEntries.length) {
         const next = [...filesRef.current, ...pendingEntries];
         commitFiles(next);

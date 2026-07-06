@@ -166,13 +166,16 @@ export const EnhancedMessageInput: React.FC = () => {
       if (result.assets && result.assets.length > 0 && channel) {
         ReactNativeHapticFeedback.trigger('impactMedium');
 
-        for (const asset of result.assets) {
-          if (asset.uri) {
-            // Upload and send each image
-            await channel.sendImage(asset.uri);
-            ReactNativeHapticFeedback.trigger('notificationSuccess');
-          }
+        const imageUris = result.assets
+          .map(asset => asset.uri)
+          .filter((uri): uri is string => Boolean(uri));
+
+        if (imageUris.length === 0) {
+          return;
         }
+
+        await Promise.all(imageUris.map(uri => channel.sendImage(uri)));
+        ReactNativeHapticFeedback.trigger('notificationSuccess');
       }
     } catch (error) {
       console.error('Failed to pick image:', error);
@@ -215,31 +218,40 @@ export const EnhancedMessageInput: React.FC = () => {
       if (result && result.length > 0 && channel) {
         ReactNativeHapticFeedback.trigger('impactMedium');
 
-        for (const file of result) {
-          if (!file.uri) {
-            continue;
-          }
+        await Promise.all(
+          result.flatMap(file => {
+            if (!file.uri) {
+              return [];
+            }
 
-          const fileName = file.name ?? 'Document';
-          const mimeType = file.type ?? 'application/octet-stream';
+            const fileUri = file.uri;
+            return [
+              (async () => {
+                const fileName = file.name ?? 'Document';
+                const mimeType = file.type ?? 'application/octet-stream';
 
-          // Upload file to Stream
-          const response = await channel.sendFile(file.uri, fileName, mimeType);
+                const response = await channel.sendFile(
+                  fileUri,
+                  fileName,
+                  mimeType,
+                );
 
-          // Send message with file attachment
-          await channel.sendMessage({
-            text: `📎 ${fileName}`,
-            attachments: [
-              {
-                type: 'file',
-                asset_url: response.file,
-                title: fileName,
-                mime_type: mimeType,
-                file_size: file.size ?? undefined,
-              },
-            ],
-          });
-        }
+                await channel.sendMessage({
+                  text: `📎 ${fileName}`,
+                  attachments: [
+                    {
+                      type: 'file',
+                      asset_url: response.file,
+                      title: fileName,
+                      mime_type: mimeType,
+                      file_size: file.size ?? undefined,
+                    },
+                  ],
+                });
+              })(),
+            ];
+          }),
+        );
 
         ReactNativeHapticFeedback.trigger('notificationSuccess');
       }
