@@ -4,7 +4,29 @@ import {render, fireEvent, act, screen} from '@testing-library/react-native';
 import {NotificationCard} from '../../../../src/features/notifications/components/NotificationCard/NotificationCard';
 // FIX 1 & 2: Removed the unused 'Images' import which was causing the module error.
 // FIX 3: Added 'Image' to imports so we can use it in getAllByType
-import {PanResponder, Animated, Image} from 'react-native';
+import {Image, TouchableOpacity} from 'react-native';
+
+const mockPanGestures: any[] = [];
+
+const mockCreatePanGesture = () => {
+  const handlers: Record<string, any> = {};
+  const gesture: Record<string, any> = {handlers};
+  [
+    'enabled',
+    'activeOffsetX',
+    'onStart',
+    'onUpdate',
+    'onEnd',
+    'onFinalize',
+  ].forEach(method => {
+    gesture[method] = jest.fn((value: any) => {
+      handlers[method] = value;
+      return gesture;
+    });
+  });
+  mockPanGestures.push(handlers);
+  return gesture;
+};
 
 // --- Mocks ---
 
@@ -56,55 +78,34 @@ jest.mock('@/assets/images', () => {
   };
 });
 
-// 6. Setup PanResponder and Animated Spies
-beforeAll(() => {
-  jest.spyOn(PanResponder, 'create').mockImplementation((config: any) => ({
-    panHandlers: {
-      onStartShouldSetResponder: config.onStartShouldSetPanResponder,
-      onMoveShouldSetResponder: config.onMoveShouldSetPanResponder,
-      onResponderGrant: config.onPanResponderGrant,
-      onResponderMove: config.onPanResponderMove,
-      onResponderRelease: config.onPanResponderRelease,
-      testID: 'SWIPE_ANIMATED_VIEW',
+jest.mock('react-native-gesture-handler', () => {
+  const {View} = require('react-native');
+  return {
+    GestureDetector: ({children, gesture}: any) => (
+      <View testID="SWIPE_GESTURE_DETECTOR" gesture={gesture}>
+        {children}
+      </View>
+    ),
+    Gesture: {
+      Pan: jest.fn(() => mockCreatePanGesture()),
     },
-  }));
-
-  // @ts-ignore
-  jest.spyOn(Animated, 'event').mockImplementation(() => jest.fn());
-
-  jest
-    .spyOn(Animated, 'timing')
-    .mockImplementation((value: any, config: any) => {
-      return {
-        start: (callback?: any) => {
-          if (typeof config.toValue === 'number') {
-            value.setValue(config.toValue);
-          }
-          if (callback) callback({finished: true});
-        },
-        stop: jest.fn(),
-        reset: jest.fn(),
-      };
-    });
-
-  jest
-    .spyOn(Animated, 'spring')
-    .mockImplementation((value: any, config: any) => {
-      return {
-        start: (callback?: any) => {
-          if (config.toValue && typeof config.toValue === 'object') {
-            value.setValue(config.toValue);
-          }
-          if (callback) callback({finished: true});
-        },
-        stop: jest.fn(),
-        reset: jest.fn(),
-      };
-    });
+  };
 });
 
-afterAll(() => {
-  jest.restoreAllMocks();
+jest.mock('react-native-reanimated', () => {
+  const {View} = require('react-native');
+  return {
+    __esModule: true,
+    default: {View},
+    runOnJS: (fn: any) => fn,
+    useAnimatedStyle: (factory: any) => factory(),
+    useSharedValue: (value: any) => ({value}),
+    withSpring: (value: any) => value,
+    withTiming: (value: any, _config: any, callback?: any) => {
+      callback?.(true);
+      return value;
+    },
+  };
 });
 
 // --- Test Data ---
@@ -133,17 +134,13 @@ describe('NotificationCard', () => {
     jest.clearAllMocks();
   });
 
-  const getSwipeableView = () => screen.getByTestId('SWIPE_ANIMATED_VIEW');
+  const getPanGesture = () => mockPanGestures[mockPanGestures.length - 1];
 
-  const triggerPanHandler = (
-    handlerName: string,
-    evt = {},
-    gestureState = {},
-  ) => {
-    const view = getSwipeableView();
+  const triggerGestureHandler = (handlerName: string, event = {}) => {
+    const gesture = getPanGesture();
     act(() => {
-      if (view.props[handlerName]) {
-        view.props[handlerName](evt, gestureState);
+      if (gesture[handlerName]) {
+        gesture[handlerName](event);
       }
     });
   };
@@ -256,63 +253,46 @@ describe('NotificationCard', () => {
 
     it('swipeEnabled prop defaults to true if not provided', () => {
       render(<NotificationCard notification={baseNotification as any} />);
-      const view = getSwipeableView();
-      expect(view.props.onStartShouldSetResponder()).toBe(true);
+      expect(getPanGesture().enabled).toBe(true);
+      expect(getPanGesture().activeOffsetX).toEqual([-5, 5]);
     });
 
-    it('disables pan responder when swipeEnabled is false', () => {
+    it('disables pan gesture when swipeEnabled is false', () => {
       render(
         <NotificationCard
           notification={baseNotification as any}
           swipeEnabled={false}
         />,
       );
-      const view = getSwipeableView();
-      expect(view.props.onStartShouldSetResponder()).toBe(false);
+      expect(getPanGesture().enabled).toBe(false);
     });
 
-    it('returns false for onMoveShouldSetPanResponder if swipeEnabled is false', () => {
-      render(
-        <NotificationCard
-          notification={baseNotification as any}
-          swipeEnabled={false}
-        />,
-      );
-      const view = getSwipeableView();
-      expect(view.props.onMoveShouldSetResponder({}, {dx: 10})).toBe(false);
-    });
-
-    it('determines move responder based on DX threshold', () => {
-      render(<NotificationCard notification={baseNotification as any} />);
-      const view = getSwipeableView();
-
-      expect(view.props.onMoveShouldSetResponder({}, {dx: 2})).toBe(false);
-      expect(view.props.onMoveShouldSetResponder({}, {dx: 6})).toBe(true);
-    });
-
-    it('sets dragging state on Grant (disabling the Touchable)', () => {
+    it('sets dragging state on gesture start', () => {
       render(
         <NotificationCard
           notification={baseNotification as any}
           onPress={jest.fn()}
         />,
       );
-      triggerPanHandler('onResponderGrant');
+      triggerGestureHandler('onStart');
+
+      const [touchable] = screen.UNSAFE_getAllByType(TouchableOpacity);
+      expect(touchable.props.disabled).toBe(true);
     });
 
-    it('does NOT set dragging state on Grant if swipeEnabled is false', () => {
+    it('clears dragging state on gesture finalize', () => {
       render(
         <NotificationCard
           notification={baseNotification as any}
           onPress={jest.fn()}
-          swipeEnabled={false}
         />,
       );
 
-      triggerPanHandler('onResponderGrant');
+      triggerGestureHandler('onStart');
+      triggerGestureHandler('onFinalize');
 
-      const card = screen.getByTestId('liquid-glass-card');
-      const disabledState = card.parent!.props.accessibilityState?.disabled;
+      const [touchable] = screen.UNSAFE_getAllByType(TouchableOpacity);
+      const disabledState = touchable.props.disabled;
       expect(!!disabledState).toBe(false);
     });
 
@@ -325,7 +305,7 @@ describe('NotificationCard', () => {
         />,
       );
 
-      triggerPanHandler('onResponderRelease', {}, {dx: SWIPE_THRESHOLD + 10});
+      triggerGestureHandler('onEnd', {translationX: SWIPE_THRESHOLD + 10});
       expect(onDismiss).toHaveBeenCalled();
     });
 
@@ -338,11 +318,9 @@ describe('NotificationCard', () => {
         />,
       );
 
-      triggerPanHandler(
-        'onResponderRelease',
-        {},
-        {dx: -(SWIPE_THRESHOLD + 10)},
-      );
+      triggerGestureHandler('onEnd', {
+        translationX: -(SWIPE_THRESHOLD + 10),
+      });
 
       expect(onArchive).toHaveBeenCalled();
     });
@@ -358,8 +336,9 @@ describe('NotificationCard', () => {
         />,
       );
 
-      triggerPanHandler('onResponderGrant');
-      triggerPanHandler('onResponderRelease', {}, {dx: 10});
+      triggerGestureHandler('onStart');
+      triggerGestureHandler('onUpdate', {translationX: 10});
+      triggerGestureHandler('onEnd', {translationX: 10});
 
       expect(onDismiss).not.toHaveBeenCalled();
       expect(onArchive).not.toHaveBeenCalled();
@@ -375,8 +354,7 @@ describe('NotificationCard', () => {
         />,
       );
 
-      triggerPanHandler('onResponderRelease', {}, {dx: 500});
-      expect(onDismiss).not.toHaveBeenCalled();
+      expect(getPanGesture().enabled).toBe(false);
     });
   });
 });

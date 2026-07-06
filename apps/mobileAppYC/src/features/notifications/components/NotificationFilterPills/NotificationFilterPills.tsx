@@ -1,4 +1,4 @@
-import React, {useMemo, useRef, useEffect, useState} from 'react';
+import React, {useCallback, useMemo, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -33,17 +33,18 @@ export const NotificationFilterPills: React.FC<
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const scrollRef = useRef<ScrollView>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const containerWidthRef = useRef(0);
   const itemLayouts = useRef<
     Record<NotificationCategory, {x: number; width: number}>
   >({} as any);
   const currentScrollX = useRef(0);
-  const mounted = useRef(false);
 
-  // Center the selected pill whenever selection or layout changes
-  useEffect(() => {
-    const layout = itemLayouts.current[selectedFilter];
-    if (!layout || containerWidth === 0) return;
+  const centerSelectedPill = useCallback((filter: NotificationCategory) => {
+    const layout = itemLayouts.current[filter];
+    const containerWidth = containerWidthRef.current;
+    if (!layout || containerWidth === 0) {
+      return;
+    }
 
     const targetX = Math.max(
       0,
@@ -60,16 +61,22 @@ export const NotificationFilterPills: React.FC<
         }
       });
     });
+  }, []);
 
-    mounted.current = true;
-  }, [selectedFilter, containerWidth]);
+  // Center the selected pill whenever selection changes after layout is known.
+  useEffect(() => {
+    centerSelectedPill(selectedFilter);
+  }, [centerSelectedPill, selectedFilter]);
 
   return (
     <View
       style={styles.container}
       onLayout={e => {
         const w = e.nativeEvent.layout.width;
-        if (w > 0 && containerWidth === 0) setContainerWidth(w);
+        if (w > 0 && containerWidthRef.current !== w) {
+          containerWidthRef.current = w;
+          centerSelectedPill(selectedFilter);
+        }
       }}>
       <ScrollView
         horizontal
@@ -94,6 +101,9 @@ export const NotificationFilterPills: React.FC<
                 x: e.nativeEvent.layout.x,
                 width: e.nativeEvent.layout.width,
               };
+              if (option.id === selectedFilter) {
+                centerSelectedPill(option.id);
+              }
             }}>
             <Text
               style={[
