@@ -1,6 +1,9 @@
 import React from 'react';
 import {render, act} from '@testing-library/react-native';
-import {TaskDatePickers} from '@/features/tasks/components/form/TaskDatePickers';
+import {
+  TaskDatePickers,
+  type TaskDatePickerControls,
+} from '@/features/tasks/components/form/TaskDatePickers';
 import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 import type {TaskFormData} from '@/features/tasks/types';
 
@@ -70,24 +73,50 @@ const mockFormDataWithNulls: TaskFormData = {
   endDate: null,
 };
 
+const createPickerControls = (
+  overrides: Partial<TaskDatePickerControls> = {},
+): TaskDatePickerControls => ({
+  date: {
+    visible: false,
+    setVisible: mockSetShowDatePicker,
+    ...overrides.date,
+  },
+  time: {
+    visible: false,
+    setVisible: mockSetShowTimePicker,
+    ...overrides.time,
+  },
+  startDate: {
+    visible: false,
+    setVisible: mockSetShowStartDatePicker,
+    ...overrides.startDate,
+  },
+  endDate: {
+    visible: false,
+    setVisible: mockSetShowEndDatePicker,
+    ...overrides.endDate,
+  },
+});
+
 // Helper to render the component
 const renderComponent = (
-  props: Partial<React.ComponentProps<typeof TaskDatePickers>>,
+  props: Partial<React.ComponentProps<typeof TaskDatePickers>> & {
+    pickerControls?: Partial<TaskDatePickerControls>;
+  },
 ) => {
   const defaultProps: React.ComponentProps<typeof TaskDatePickers> = {
-    showDatePicker: false,
-    setShowDatePicker: mockSetShowDatePicker,
-    showTimePicker: false,
-    setShowTimePicker: mockSetShowTimePicker,
-    showStartDatePicker: false,
-    setShowStartDatePicker: mockSetShowStartDatePicker,
-    showEndDatePicker: false,
-    setShowEndDatePicker: mockSetShowEndDatePicker,
+    pickerControls: createPickerControls(props.pickerControls),
     formData: mockFormData,
     updateField: mockUpdateField,
   };
 
-  render(<TaskDatePickers {...defaultProps} {...props} />);
+  render(
+    <TaskDatePickers
+      {...defaultProps}
+      {...props}
+      pickerControls={defaultProps.pickerControls}
+    />,
+  );
 };
 
 // Fake timers to control `new Date()`
@@ -122,7 +151,12 @@ describe('TaskDatePickers', () => {
   });
 
   it('passes show=true to the correct picker', () => {
-    renderComponent({showDatePicker: true, showStartDatePicker: true});
+    renderComponent({
+      pickerControls: {
+        date: {visible: true, setVisible: mockSetShowDatePicker},
+        startDate: {visible: true, setVisible: mockSetShowStartDatePicker},
+      },
+    });
 
     expect(MockSimpleDatePicker.mock.calls[0][0].show).toBe(true); // DatePicker
     expect(MockSimpleDatePicker.mock.calls[1][0].show).toBe(false); // TimePicker
@@ -131,7 +165,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('passes correct props to the main DatePicker', () => {
-    renderComponent({showDatePicker: true});
+    renderComponent({
+      pickerControls: {
+        date: {visible: true, setVisible: mockSetShowDatePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[0][0];
 
     expect(props.show).toBe(true);
@@ -140,7 +178,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('passes correct props to the main TimePicker (with value)', () => {
-    renderComponent({showTimePicker: true});
+    renderComponent({
+      pickerControls: {
+        time: {visible: true, setVisible: mockSetShowTimePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[1][0];
 
     expect(props.show).toBe(true);
@@ -149,7 +191,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('passes correct props to the StartDatePicker (with value)', () => {
-    renderComponent({showStartDatePicker: true});
+    renderComponent({
+      pickerControls: {
+        startDate: {visible: true, setVisible: mockSetShowStartDatePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[2][0];
 
     expect(props.show).toBe(true);
@@ -158,7 +204,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('passes correct props to the EndDatePicker (with value)', () => {
-    renderComponent({showEndDatePicker: true});
+    renderComponent({
+      pickerControls: {
+        endDate: {visible: true, setVisible: mockSetShowEndDatePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[3][0];
 
     expect(props.show).toBe(true);
@@ -169,8 +219,10 @@ describe('TaskDatePickers', () => {
   it('uses fallback new Date() for null time and end date values', () => {
     renderComponent({
       formData: mockFormDataWithNulls,
-      showTimePicker: true,
-      showEndDatePicker: true,
+      pickerControls: {
+        time: {visible: true, setVisible: mockSetShowTimePicker},
+        endDate: {visible: true, setVisible: mockSetShowEndDatePicker},
+      },
     });
 
     const timePickerProps = MockSimpleDatePicker.mock.calls[1][0];
@@ -187,7 +239,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('handles onDismiss for DatePicker', () => {
-    renderComponent({showDatePicker: true});
+    renderComponent({
+      pickerControls: {
+        date: {visible: true, setVisible: mockSetShowDatePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[0][0];
 
     act(() => props.onDismiss());
@@ -195,7 +251,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('handles onDateChange for DatePicker', () => {
-    renderComponent({showDatePicker: true});
+    renderComponent({
+      pickerControls: {
+        date: {visible: true, setVisible: mockSetShowDatePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[0][0];
     const newDate = new Date('2026-01-01T00:00:00.000Z');
 
@@ -205,7 +265,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('handles onDismiss for TimePicker', () => {
-    renderComponent({showTimePicker: true});
+    renderComponent({
+      pickerControls: {
+        time: {visible: true, setVisible: mockSetShowTimePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[1][0];
 
     act(() => props.onDismiss());
@@ -213,7 +277,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('handles onDateChange for TimePicker', () => {
-    renderComponent({showTimePicker: true});
+    renderComponent({
+      pickerControls: {
+        time: {visible: true, setVisible: mockSetShowTimePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[1][0];
     const newTime = new Date('2026-01-01T14:00:00.000Z');
 
@@ -223,7 +291,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('handles onDismiss for StartDatePicker', () => {
-    renderComponent({showStartDatePicker: true});
+    renderComponent({
+      pickerControls: {
+        startDate: {visible: true, setVisible: mockSetShowStartDatePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[2][0];
 
     act(() => props.onDismiss());
@@ -231,7 +303,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('handles onDateChange for StartDatePicker', () => {
-    renderComponent({showStartDatePicker: true});
+    renderComponent({
+      pickerControls: {
+        startDate: {visible: true, setVisible: mockSetShowStartDatePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[2][0];
     const newDate = new Date('2026-02-01T00:00:00.000Z');
 
@@ -241,7 +317,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('handles onDismiss for EndDatePicker', () => {
-    renderComponent({showEndDatePicker: true});
+    renderComponent({
+      pickerControls: {
+        endDate: {visible: true, setVisible: mockSetShowEndDatePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[3][0];
 
     act(() => props.onDismiss());
@@ -249,7 +329,11 @@ describe('TaskDatePickers', () => {
   });
 
   it('handles onDateChange for EndDatePicker', () => {
-    renderComponent({showEndDatePicker: true});
+    renderComponent({
+      pickerControls: {
+        endDate: {visible: true, setVisible: mockSetShowEndDatePicker},
+      },
+    });
     const props = MockSimpleDatePicker.mock.calls[3][0];
     const newDate = new Date('2026-03-01T00:00:00.000Z');
 

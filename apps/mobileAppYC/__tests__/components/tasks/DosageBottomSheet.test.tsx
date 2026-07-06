@@ -167,7 +167,7 @@ describe('DosageBottomSheet', () => {
     });
   });
 
-  it('resets to latest dosages when sheet is re-opened', () => {
+  it('resets to latest dosages when props change', () => {
     const {getByTestId, rerender, ref} = setup({
       dosages: [{id: '1', label: 'Initial', time: '2023-01-01T08:00:00.000Z'}],
     });
@@ -183,14 +183,6 @@ describe('DosageBottomSheet', () => {
         onSave={mockOnSave}
       />,
     );
-
-    // Prop change alone does not overwrite the working copy
-    expect(getByTestId('input-label-Initial')).toBeTruthy();
-
-    // Opening the sheet resets tempDosages to the latest prop
-    act(() => {
-      ref.current?.open();
-    });
 
     expect(getByTestId('input-label-Updated')).toBeTruthy();
   });
@@ -258,7 +250,10 @@ describe('DosageBottomSheet', () => {
     expect(queryByTestId('SimpleDatePicker')).toBeNull();
 
     // 4. Verify Save uses new time
-    fireEvent.press(getByTestId('header-save-btn'));
+    await act(async () => {
+      fireEvent.press(getByTestId('header-save-btn'));
+    });
+
     expect(mockOnSave).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({

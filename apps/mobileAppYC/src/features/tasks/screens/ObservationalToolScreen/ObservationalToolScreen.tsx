@@ -85,6 +85,19 @@ const findMatchingField = (
   return fuzzyMatch ?? null;
 };
 
+const getFieldOptions = (field: ObservationToolField) => {
+  if (Array.isArray(field.options) && field.options.length > 0) {
+    return field.options.map(option => ({id: option, title: option}));
+  }
+  if (field.type === 'BOOLEAN') {
+    return [
+      {id: 'Yes', title: 'Yes'},
+      {id: 'No', title: 'No'},
+    ];
+  }
+  return [];
+};
+
 type Navigation = NativeStackNavigationProp<
   TaskStackParamList,
   'ObservationalTool'
@@ -280,19 +293,6 @@ export const ObservationalToolScreen: React.FC = () => {
     staticDefinition,
     toolLabel,
   ]);
-
-  const getFieldOptions = (field: ObservationToolField) => {
-    if (Array.isArray(field.options) && field.options.length > 0) {
-      return field.options.map(option => ({id: option, title: option}));
-    }
-    if (field.type === 'BOOLEAN') {
-      return [
-        {id: 'Yes', title: 'Yes'},
-        {id: 'No', title: 'No'},
-      ];
-    }
-    return [];
-  };
 
   const steps = useMemo<ObservationalToolStep[]>(() => {
     if (staticDefinition) {

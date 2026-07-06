@@ -3,14 +3,24 @@
  * in AddTaskScreen and EditTaskScreen
  */
 export const getTaskFormSheetProps = (hookData: any) => ({
-  showDatePicker: hookData.showDatePicker,
-  setShowDatePicker: hookData.setShowDatePicker,
-  showTimePicker: hookData.showTimePicker,
-  setShowTimePicker: hookData.setShowTimePicker,
-  showStartDatePicker: hookData.showStartDatePicker,
-  setShowStartDatePicker: hookData.setShowStartDatePicker,
-  showEndDatePicker: hookData.showEndDatePicker,
-  setShowEndDatePicker: hookData.setShowEndDatePicker,
+  pickerControls: {
+    date: {
+      visible: hookData.showDatePicker,
+      setVisible: hookData.setShowDatePicker,
+    },
+    time: {
+      visible: hookData.showTimePicker,
+      setVisible: hookData.setShowTimePicker,
+    },
+    startDate: {
+      visible: hookData.showStartDatePicker,
+      setVisible: hookData.setShowStartDatePicker,
+    },
+    endDate: {
+      visible: hookData.showEndDatePicker,
+      setVisible: hookData.setShowEndDatePicker,
+    },
+  },
   fileToDelete: hookData.fileToDelete,
   handleTakePhoto: hookData.handleTakePhoto,
   handleChooseFromGallery: hookData.handleChooseFromGallery,

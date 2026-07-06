@@ -1,19 +1,12 @@
 import React from 'react';
-import {TaskDatePickers} from './TaskDatePickers';
+import {TaskDatePickers, type TaskDatePickerControls} from './TaskDatePickers';
 import {TaskBottomSheets} from './TaskBottomSheets';
 import type {TaskFormData} from '@/features/tasks/types';
 import type {TaskSheetRefs, TaskTypeSheetProps} from './taskSheetTypes';
 
 interface TaskFormSheetsProps extends TaskSheetRefs {
   // Date pickers
-  showDatePicker: boolean;
-  setShowDatePicker: (show: boolean) => void;
-  showTimePicker: boolean;
-  setShowTimePicker: (show: boolean) => void;
-  showStartDatePicker: boolean;
-  setShowStartDatePicker: (show: boolean) => void;
-  showEndDatePicker: boolean;
-  setShowEndDatePicker: (show: boolean) => void;
+  pickerControls: TaskDatePickerControls;
 
   // Form data
   formData: TaskFormData;
@@ -44,14 +37,7 @@ interface TaskFormSheetsProps extends TaskSheetRefs {
  */
 export const TaskFormSheets: React.FC<TaskFormSheetsProps> = props => {
   const {
-    showDatePicker,
-    setShowDatePicker,
-    showTimePicker,
-    setShowTimePicker,
-    showStartDatePicker,
-    setShowStartDatePicker,
-    showEndDatePicker,
-    setShowEndDatePicker,
+    pickerControls,
     formData,
     updateField,
     companionType,
@@ -71,14 +57,7 @@ export const TaskFormSheets: React.FC<TaskFormSheetsProps> = props => {
     <>
       {/* Date & Time Pickers */}
       <TaskDatePickers
-        showDatePicker={showDatePicker}
-        setShowDatePicker={setShowDatePicker}
-        showTimePicker={showTimePicker}
-        setShowTimePicker={setShowTimePicker}
-        showStartDatePicker={showStartDatePicker}
-        setShowStartDatePicker={setShowStartDatePicker}
-        showEndDatePicker={showEndDatePicker}
-        setShowEndDatePicker={setShowEndDatePicker}
+        pickerControls={pickerControls}
         formData={formData}
         updateField={updateField}
       />

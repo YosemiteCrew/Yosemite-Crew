@@ -190,11 +190,11 @@ jest.mock(
 jest.mock('../../../../../src/features/tasks/components/form', () => {
   const {View, Text, TouchableOpacity} = require('react-native');
   return {
-    TaskFormContent: ({taskTypeSelectorProps}: any) => (
+    TaskFormContent: ({taskTypeSelector}: any) => (
       <View testID="task-form-content">
-        <Text>{taskTypeSelectorProps?.value}</Text>
+        <Text>{taskTypeSelector?.value}</Text>
         <TouchableOpacity
-          onPress={taskTypeSelectorProps?.onPress}
+          onPress={taskTypeSelector?.onPress}
           testID="selector-trigger">
           <Text>Open Selector</Text>
         </TouchableOpacity>

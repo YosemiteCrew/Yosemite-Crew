@@ -37,14 +37,24 @@ describe('getTaskFormSheetProps', () => {
     // Verify that the result object exactly matches the expected structure
     // and contains the correct values from the source object.
     expect(result).toEqual({
-      showDatePicker: 'mock_showDatePicker',
-      setShowDatePicker: 'mock_setShowDatePicker',
-      showTimePicker: 'mock_showTimePicker',
-      setShowTimePicker: 'mock_setShowTimePicker',
-      showStartDatePicker: 'mock_showStartDatePicker',
-      setShowStartDatePicker: 'mock_setShowStartDatePicker',
-      showEndDatePicker: 'mock_showEndDatePicker',
-      setShowEndDatePicker: 'mock_setShowEndDatePicker',
+      pickerControls: {
+        date: {
+          visible: 'mock_showDatePicker',
+          setVisible: 'mock_setShowDatePicker',
+        },
+        time: {
+          visible: 'mock_showTimePicker',
+          setVisible: 'mock_setShowTimePicker',
+        },
+        startDate: {
+          visible: 'mock_showStartDatePicker',
+          setVisible: 'mock_setShowStartDatePicker',
+        },
+        endDate: {
+          visible: 'mock_showEndDatePicker',
+          setVisible: 'mock_setShowEndDatePicker',
+        },
+      },
       fileToDelete: 'mock_fileToDelete',
       handleTakePhoto: 'mock_handleTakePhoto',
       handleChooseFromGallery: 'mock_handleChooseFromGallery',

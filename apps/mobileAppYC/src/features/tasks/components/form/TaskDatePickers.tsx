@@ -2,77 +2,80 @@ import React from 'react';
 import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 import type {TaskFormData} from '@/features/tasks/types';
 
+export interface TaskDatePickerControl {
+  visible: boolean;
+  setVisible: (value: boolean) => void;
+}
+
+export interface TaskDatePickerControls {
+  date: TaskDatePickerControl;
+  time: TaskDatePickerControl;
+  startDate: TaskDatePickerControl;
+  endDate: TaskDatePickerControl;
+}
+
 interface TaskDatePickersProps {
-  showDatePicker: boolean;
-  setShowDatePicker: (value: boolean) => void;
-  showTimePicker: boolean;
-  setShowTimePicker: (value: boolean) => void;
-  showStartDatePicker: boolean;
-  setShowStartDatePicker: (value: boolean) => void;
-  showEndDatePicker: boolean;
-  setShowEndDatePicker: (value: boolean) => void;
+  pickerControls: TaskDatePickerControls;
   formData: TaskFormData;
-  updateField: <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => void;
+  updateField: <K extends keyof TaskFormData>(
+    field: K,
+    value: TaskFormData[K],
+  ) => void;
 }
 
 export const TaskDatePickers: React.FC<TaskDatePickersProps> = ({
-  showDatePicker,
-  setShowDatePicker,
-  showTimePicker,
-  setShowTimePicker,
-  showStartDatePicker,
-  setShowStartDatePicker,
-  showEndDatePicker,
-  setShowEndDatePicker,
+  pickerControls,
   formData,
   updateField,
 }) => {
+  const {date, time, startDate, endDate} = pickerControls;
+
   return (
     <>
       {/* Main task date picker */}
       <SimpleDatePicker
-        show={showDatePicker}
-        onDismiss={() => setShowDatePicker(false)}
+        show={date.visible}
+        onDismiss={() => date.setVisible(false)}
         value={formData.date}
-        onDateChange={(date: Date) => {
-          updateField('date', date);
-          setShowDatePicker(false);
+        onDateChange={(selectedDate: Date) => {
+          updateField('date', selectedDate);
+          date.setVisible(false);
         }}
         mode="date"
       />
 
       {/* Main task time picker */}
       <SimpleDatePicker
-        show={showTimePicker}
-        onDismiss={() => setShowTimePicker(false)}
+        show={time.visible}
+        onDismiss={() => time.setVisible(false)}
         value={formData.time || new Date()}
-        onDateChange={(date: Date) => {
-          updateField('time', date);
-          setShowTimePicker(false);
+        onDateChange={(selectedDate: Date) => {
+          updateField('time', selectedDate);
+          time.setVisible(false);
         }}
         mode="time"
       />
 
       {/* Medication start date picker */}
       <SimpleDatePicker
-        show={showStartDatePicker}
-        onDismiss={() => setShowStartDatePicker(false)}
+        show={startDate.visible}
+        onDismiss={() => startDate.setVisible(false)}
         value={formData.startDate}
-        onDateChange={(date: Date) => {
-          updateField('startDate', date);
-          setShowStartDatePicker(false);
+        onDateChange={(selectedDate: Date) => {
+          updateField('startDate', selectedDate);
+          startDate.setVisible(false);
         }}
         mode="date"
       />
 
       {/* Medication end date picker */}
       <SimpleDatePicker
-        show={showEndDatePicker}
-        onDismiss={() => setShowEndDatePicker(false)}
+        show={endDate.visible}
+        onDismiss={() => endDate.setVisible(false)}
         value={formData.endDate || new Date()}
-        onDateChange={(date: Date) => {
-          updateField('endDate', date);
-          setShowEndDatePicker(false);
+        onDateChange={(selectedDate: Date) => {
+          updateField('endDate', selectedDate);
+          endDate.setVisible(false);
         }}
         mode="date"
       />
