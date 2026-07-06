@@ -1,7 +1,7 @@
 import React, {
   createContext,
   useCallback,
-  useContext,
+  use,
   useEffect,
   useMemo,
 } from 'react';
@@ -19,7 +19,11 @@ import {
 } from '@/features/auth';
 import {useAppDispatch, useAppSelector} from '@/app/hooks';
 
-export type {AuthProvider as AuthProviderType, AuthTokens, User} from '@/features/auth';
+export type {
+  AuthProvider as AuthProviderType,
+  AuthTokens,
+  User,
+} from '@/features/auth';
 
 interface AuthContextValue {
   isLoggedIn: boolean;
@@ -34,7 +38,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
+export const AuthProvider: React.FC<{children: React.ReactNode}> = ({
+  children,
+}) => {
   const dispatch = useAppDispatch();
   const authState = useAppSelector(selectAuthState);
 
@@ -66,7 +72,9 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
 
   const contextValue = useMemo<AuthContextValue>(() => {
     const isLoggedIn = authState.status === 'authenticated' && !!authState.user;
-    const isLoading = authState.status === 'initializing' || (!authState.initialized && authState.status === 'idle');
+    const isLoading =
+      authState.status === 'initializing' ||
+      (!authState.initialized && authState.status === 'idle');
 
     console.log('[AuthContext] State update:', {
       isLoggedIn,
@@ -91,11 +99,13 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) 
     };
   }, [authState, login, logout, refreshSession, updateUser]);
 
-  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  const context = use(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }

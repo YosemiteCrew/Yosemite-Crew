@@ -1,4 +1,4 @@
-import React, {createContext, useContext, useMemo} from 'react';
+import React, {createContext, use, useMemo} from 'react';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
 import {
@@ -48,7 +48,7 @@ export const PreferencesProvider: React.FC<{children: React.ReactNode}> = ({
 };
 
 export const usePreferences = () => {
-  const context = useContext(PreferencesContext);
+  const context = use(PreferencesContext);
   if (!context) {
     throw new Error('usePreferences must be used within PreferencesProvider');
   }
