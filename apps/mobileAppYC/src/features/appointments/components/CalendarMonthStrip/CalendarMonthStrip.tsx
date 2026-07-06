@@ -24,6 +24,13 @@ export interface CalendarMonthStripProps {
   markerColor?: string;
 }
 
+const iso = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+};
+
 export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
   selectedDate,
   onChange,
@@ -94,13 +101,6 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
     const gap = 8;
     return {length: itemLength, offset: index * (itemLength + gap), index};
   }, []);
-
-  const iso = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${dd}`;
-  };
 
   const renderDateItem = ({
     item,

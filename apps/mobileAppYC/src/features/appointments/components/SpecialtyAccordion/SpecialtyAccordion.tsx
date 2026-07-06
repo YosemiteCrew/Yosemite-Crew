@@ -5,9 +5,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Animated,
   Platform,
 } from 'react-native';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -71,22 +76,21 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [animation] = useState(new Animated.Value(defaultExpanded ? 1 : 0));
+  const animation = useSharedValue(defaultExpanded ? 1 : 0);
 
   const toggleExpanded = () => {
     const toValue = expanded ? 0 : 1;
-    Animated.timing(animation, {
-      toValue,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+    animation.value = withTiming(toValue, {duration: 300});
     setExpanded(!expanded);
   };
 
-  const rotateInterpolate = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
+  const chevronAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotate: `${interpolate(animation.value, [0, 1], [0, 180])}deg`,
+      },
+    ],
+  }));
 
   return (
     <View style={styles.specialtyItem}>
@@ -102,10 +106,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
         </View>
         <Animated.Image
           source={Images.downArrow}
-          style={[
-            styles.chevronIcon,
-            {transform: [{rotate: rotateInterpolate}]},
-          ]}
+          style={[styles.chevronIcon, chevronAnimatedStyle]}
         />
       </TouchableOpacity>
 

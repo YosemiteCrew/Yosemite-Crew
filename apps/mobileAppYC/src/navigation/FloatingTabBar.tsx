@@ -3,7 +3,6 @@ import {useDispatch, useSelector} from 'react-redux';
 import {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 import {
-  Animated,
   Image,
   LayoutChangeEvent,
   Platform,
@@ -12,6 +11,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated';
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -73,13 +78,12 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     [companionId, dispatch],
   );
 
-  // Animated values for sliding pill - using JS driver for both since we need width
-  const pillLeft = useRef(new Animated.Value(0)).current;
-  const pillWidth = useRef(new Animated.Value(0)).current;
-  const pillScale = useRef(new Animated.Value(1)).current;
+  const pillTranslateX = useSharedValue(0);
+  const pillScale = useSharedValue(1);
   const [tabLayouts, setTabLayouts] = useState<TabLayout[]>([]);
   const isReady =
     tabLayouts.length > 0 && tabLayouts.length === state.routes.length;
+  const activePillWidth = isReady ? (tabLayouts[state.index]?.width ?? 0) : 0;
   const hasInitializedRef = useRef(false);
 
   // Calculate if tab bar should be hidden based on nested navigation
@@ -129,53 +133,30 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
 
     if (hasInitializedRef.current) {
       // Bouncy spring animation with scale wiggle effect
-      Animated.parallel([
-        // Position and width with extra bounce
-        Animated.spring(pillLeft, {
-          toValue: activeTabLayout.x,
-          useNativeDriver: false,
-          tension: 40,
-          friction: 6,
-          velocity: 3,
-        }),
-        Animated.spring(pillWidth, {
-          toValue: activeTabLayout.width,
-          useNativeDriver: false,
-          tension: 40,
-          friction: 6,
-          velocity: 3,
-        }),
-        // Scale up then down for wiggle effect
-        Animated.sequence([
-          Animated.spring(pillScale, {
-            toValue: 1.15,
-            useNativeDriver: false,
-            tension: 300,
-            friction: 10,
-          }),
-          Animated.spring(pillScale, {
-            toValue: 1,
-            useNativeDriver: false,
-            tension: 80,
-            friction: 8,
-          }),
-        ]),
-      ]).start();
+      pillTranslateX.value = withSpring(activeTabLayout.x, {
+        damping: 12,
+        stiffness: 180,
+        velocity: 3,
+      });
+      pillScale.value = withSequence(
+        withSpring(1.15, {damping: 16, stiffness: 320}),
+        withSpring(1, {damping: 12, stiffness: 180}),
+      );
     } else {
       // Initial position - no animation
-      pillLeft.setValue(activeTabLayout.x);
-      pillWidth.setValue(activeTabLayout.width);
-      pillScale.setValue(1);
+      pillTranslateX.value = activeTabLayout.x;
+      pillScale.value = 1;
       hasInitializedRef.current = true;
     }
-  }, [
-    state.index,
-    tabLayouts,
-    pillLeft,
-    pillWidth,
-    pillScale,
-    state.routes.length,
-  ]);
+  }, [state.index, tabLayouts, pillTranslateX, pillScale, state.routes.length]);
+
+  const pillAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {translateX: pillTranslateX.value},
+      {scaleX: pillScale.value},
+      {scaleY: pillScale.value},
+    ],
+  }));
 
   useEffect(() => {
     const activeRoute = state.routes[state.index];
@@ -197,11 +178,8 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
       <Animated.View
         style={[
           styles.pillContainer,
-          {
-            left: pillLeft,
-            width: pillWidth,
-            transform: [{scaleX: pillScale}, {scaleY: pillScale}],
-          },
+          {width: activePillWidth},
+          pillAnimatedStyle,
         ]}>
         {useGlass ? (
           <LiquidGlassView

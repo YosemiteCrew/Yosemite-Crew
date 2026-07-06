@@ -1,4 +1,4 @@
-import {useState, useMemo, useCallback, useEffect, useRef} from 'react';
+import {useState, useMemo, useCallback} from 'react';
 import {useSelector} from 'react-redux';
 import type {Region} from 'react-native-maps';
 import type {RootState} from '@/app/store';
@@ -43,7 +43,9 @@ export const useClinicMapDiscovery = (
   );
 
   const [selectedClinicId, setSelectedClinicId] = useState<string | null>(null);
-  const lastAppliedTokenRef = useRef<number | undefined>(undefined);
+  const [appliedSelectionToken, setAppliedSelectionToken] = useState<
+    number | undefined
+  >(undefined);
   const [pinnedClinic, setPinnedClinic] = useState<VetBusiness | null>(null);
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [category, setCategory] = useState<BusinessCategory | undefined>(
@@ -53,17 +55,18 @@ export const useClinicMapDiscovery = (
 
   const allClinics = useMemo(() => reduxBusinesses, [reduxBusinesses]);
 
-  useEffect(() => {
-    if (!initialSelectedId || !selectionToken) return;
-    if (lastAppliedTokenRef.current === selectionToken) return;
-
+  if (
+    initialSelectedId &&
+    selectionToken &&
+    appliedSelectionToken !== selectionToken
+  ) {
     const found = allClinics.find(c => c.id === initialSelectedId);
     if (found) {
-      lastAppliedTokenRef.current = selectionToken;
+      setAppliedSelectionToken(selectionToken);
       setPinnedClinic(found);
       setSelectedClinicId(initialSelectedId);
     }
-  }, [initialSelectedId, selectionToken, allClinics]);
+  }
 
   const allClinicsWithPinned = useMemo(() => {
     if (!pinnedClinic) return allClinics;
