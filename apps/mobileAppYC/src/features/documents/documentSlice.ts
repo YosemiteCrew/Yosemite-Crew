@@ -157,32 +157,33 @@ export const uploadDocumentFiles = createAsyncThunk<
       }
 
       const accessToken = await ensureAccessToken();
-      const uploaded: DocumentFile[] = [];
       let processed = 0;
 
-      for (const file of files) {
-        try {
-          const uploadedFile = await documentApi.uploadAttachment({
-            file,
-            companionId,
-            accessToken,
-          });
-          uploaded.push(uploadedFile);
-        } catch (error) {
-          // Log individual file upload errors but provide context
-          console.error('[uploadDocumentFiles] Error uploading file', {
-            fileName: file.name,
-            fileUri: file.uri,
-            fileSize: file.size,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          throw error; // Re-throw to fail the entire batch
-        }
-        processed += 1;
-        dispatch(
-          setUploadProgress(Math.round((processed / files.length) * 100)),
-        );
-      }
+      const uploaded = await Promise.all(
+        files.map(async file => {
+          try {
+            const uploadedFile = await documentApi.uploadAttachment({
+              file,
+              companionId,
+              accessToken,
+            });
+            processed += 1;
+            dispatch(
+              setUploadProgress(Math.round((processed / files.length) * 100)),
+            );
+            return uploadedFile;
+          } catch (error) {
+            // Log individual file upload errors but provide context
+            console.error('[uploadDocumentFiles] Error uploading file', {
+              fileName: file.name,
+              fileUri: file.uri,
+              fileSize: file.size,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            throw error; // Re-throw to fail the entire batch
+          }
+        }),
+      );
 
       dispatch(setUploadProgress(0));
       return uploaded;

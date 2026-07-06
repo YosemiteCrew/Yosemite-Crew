@@ -52,6 +52,16 @@ const parseIssueDateValue = (value?: string | null): Date => {
   return parsed;
 };
 
+const resolveErrorMessage = (error: unknown, fallback: string) => {
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return fallback;
+};
+
 export const EditDocumentScreen: React.FC = () => {
   const {
     theme,
@@ -90,7 +100,7 @@ export const EditDocumentScreen: React.FC = () => {
     useDocumentFormValidation();
 
   const deleteDocumentSheetRef = useRef<DeleteDocumentBottomSheetRef>(null);
-  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const isDeleteSheetOpenRef = useRef(false);
 
   useEffect(() => {
     if (document) {
@@ -114,9 +124,9 @@ export const EditDocumentScreen: React.FC = () => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-        if (isDeleteSheetOpen) {
+        if (isDeleteSheetOpenRef.current) {
           deleteDocumentSheetRef.current?.close();
-          setIsDeleteSheetOpen(false);
+          isDeleteSheetOpenRef.current = false;
           return true;
         }
         return false;
@@ -124,22 +134,12 @@ export const EditDocumentScreen: React.FC = () => {
     );
 
     return () => backHandler.remove();
-  }, [isDeleteSheetOpen]);
+  }, []);
 
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const resolveErrorMessage = (error: unknown, fallback: string) => {
-    if (typeof error === 'string') {
-      return error;
-    }
-    if (error instanceof Error) {
-      return error.message;
-    }
-    return fallback;
-  };
-
   const handleDelete = () => {
-    setIsDeleteSheetOpen(true);
+    isDeleteSheetOpenRef.current = true;
     deleteDocumentSheetRef.current?.open();
   };
 
@@ -148,7 +148,7 @@ export const EditDocumentScreen: React.FC = () => {
       console.log('[EditDocument] Deleting document:', documentId);
       await dispatch(deleteDocument({documentId})).unwrap();
       console.log('[EditDocument] Document deleted successfully');
-      setIsDeleteSheetOpen(false);
+      isDeleteSheetOpenRef.current = false;
       navigation.dispatch(
         CommonActions.reset({
           index: 0,
@@ -157,7 +157,7 @@ export const EditDocumentScreen: React.FC = () => {
       );
     } catch (error) {
       console.error('[EditDocument] Failed to delete document:', error);
-      setIsDeleteSheetOpen(false);
+      isDeleteSheetOpenRef.current = false;
       const message = resolveErrorMessage(
         error,
         'Failed to delete document. Please try again.',

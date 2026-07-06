@@ -309,7 +309,7 @@ describe('FAQScreen', () => {
     expect(screen.getByText('Question 3')).toBeTruthy();
   });
 
-  it('Android LayoutAnimation: executes top-level conditional logic', () => {
+  it('Android LayoutAnimation: does not configure JS-thread layout animation', () => {
     // Use isolateModules to force re-evaluation of the module code
     jest.isolateModules(() => {
       // Mock Platform
@@ -327,7 +327,7 @@ describe('FAQScreen', () => {
 
       expect(
         UIManager.setLayoutAnimationEnabledExperimental,
-      ).toHaveBeenCalledWith(true);
+      ).not.toHaveBeenCalled();
     });
 
     // Restore Platform to avoid side effects

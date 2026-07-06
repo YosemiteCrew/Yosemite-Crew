@@ -10,11 +10,24 @@
  */
 
 import React, {useState, useEffect} from 'react';
-import {View, TouchableOpacity, StyleSheet, Text, ActivityIndicator} from 'react-native';
+import {
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  Text,
+  ActivityIndicator,
+} from 'react-native';
 import Sound from 'react-native-nitro-sound';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {useTheme} from '@/hooks';
+
+const formatTime = (milliseconds: number) => {
+  const seconds = Math.floor(milliseconds / 1000);
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 interface VoiceMessagePlayerProps {
   audioUrl: string;
@@ -44,13 +57,6 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
     };
   }, [isPlaying]);
 
-  const formatTime = (milliseconds: number) => {
-    const seconds = Math.floor(milliseconds / 1000);
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const handlePlayPause = async () => {
     ReactNativeHapticFeedback.trigger('impactLight');
     setIsLoading(true);
@@ -64,7 +70,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
         // Play
         if (currentPosition === 0) {
           // Start from beginning
-          Sound.addPlayBackListener((e) => {
+          Sound.addPlayBackListener(e => {
             setCurrentPosition(e.currentPosition);
             setDuration(e.duration);
           });
@@ -115,7 +121,11 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
         {isLoading ? (
           <ActivityIndicator color={theme.colors.white} size="small" />
         ) : (
-          <Icon name={isPlaying ? 'pause' : 'play-arrow'} size={24} color={theme.colors.white} />
+          <Icon
+            name={isPlaying ? 'pause' : 'play-arrow'}
+            size={24}
+            color={theme.colors.white}
+          />
         )}
       </TouchableOpacity>
 

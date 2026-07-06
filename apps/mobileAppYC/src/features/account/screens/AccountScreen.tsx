@@ -72,6 +72,36 @@ type MenuItem = {
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
+const getInitial = (name: string, fallback: string) => {
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  return trimmed.charAt(0).toUpperCase();
+};
+
+const deriveDeletionErrorMessage = (error: unknown): string => {
+  let baseMessage: string;
+  if (error instanceof Error) {
+    baseMessage = error.message;
+  } else if (typeof error === 'string') {
+    baseMessage = error;
+  } else {
+    baseMessage = 'Failed to delete your account. Please try again.';
+  }
+
+  const normalized = baseMessage.toLowerCase();
+  if (
+    normalized.includes('recent login') ||
+    normalized.includes('requires-recent-login') ||
+    normalized.includes('reauthenticate')
+  ) {
+    return 'For security reasons, please sign out, sign back in, and then try deleting your account again.';
+  }
+
+  return baseMessage || 'Failed to delete your account. Please try again.';
+};
+
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const {logout, provider} = useAuth();
@@ -80,7 +110,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {weightUnit} = usePreferences();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
-  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const isDeleteSheetOpenRef = React.useRef(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [failedProfileImages, setFailedProfileImages] = useState<
     Record<string, boolean>
@@ -190,14 +220,6 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     weightUnit,
   ]); // Re-run when companions or weightUnit change
 
-  const getInitial = (name: string, fallback: string) => {
-    const trimmed = name?.trim();
-    if (!trimmed) {
-      return fallback;
-    }
-    return trimmed.charAt(0).toUpperCase();
-  };
-
   const renderProfileAvatar = (profile: CompanionProfile, index: number) => {
     const isUserProfile = index === 0;
     const hasRemoteImage = Boolean(profile.remoteUri && profile.avatar);
@@ -249,9 +271,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-        if (isDeleteSheetOpen) {
+        if (isDeleteSheetOpenRef.current) {
           deleteSheetRef.current?.close();
-          setIsDeleteSheetOpen(false);
+          isDeleteSheetOpenRef.current = false;
           return true;
         }
         return false;
@@ -259,34 +281,12 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     );
 
     return () => backHandler.remove();
-  }, [isDeleteSheetOpen]);
-
-  const handleDeletePress = React.useCallback(() => {
-    setIsDeleteSheetOpen(true);
-    deleteSheetRef.current?.open();
   }, []);
 
-  const deriveDeletionErrorMessage = (error: unknown): string => {
-    let baseMessage: string;
-    if (error instanceof Error) {
-      baseMessage = error.message;
-    } else if (typeof error === 'string') {
-      baseMessage = error;
-    } else {
-      baseMessage = 'Failed to delete your account. Please try again.';
-    }
-
-    const normalized = baseMessage.toLowerCase();
-    if (
-      normalized.includes('recent login') ||
-      normalized.includes('requires-recent-login') ||
-      normalized.includes('reauthenticate')
-    ) {
-      return 'For security reasons, please sign out, sign back in, and then try deleting your account again.';
-    }
-
-    return baseMessage || 'Failed to delete your account. Please try again.';
-  };
+  const handleDeletePress = React.useCallback(() => {
+    isDeleteSheetOpenRef.current = true;
+    deleteSheetRef.current?.open();
+  }, []);
 
   const handleDeleteAccount = React.useCallback(async () => {
     if (!authUser?.parentId) {
@@ -310,7 +310,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         await deleteFirebaseAccount();
       }
 
-      setIsDeleteSheetOpen(false);
+      isDeleteSheetOpenRef.current = false;
       await logout();
     } catch (error) {
       const message = deriveDeletionErrorMessage(error);

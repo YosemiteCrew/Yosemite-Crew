@@ -1,20 +1,16 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, { useState, useRef } from 'react';
+import React, {useState, useRef} from 'react';
 import {
   View,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
   FlatList,
   Image,
   ViewToken,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '@/hooks';
-import {
-  LiquidGlassButton,
-} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-
-const { width, height } = Dimensions.get('window');
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {useTheme} from '@/hooks';
+import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 
 interface OnboardingItem {
   id: string;
@@ -62,12 +58,13 @@ const onboardingData: OnboardingItem[] = [
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
   onComplete,
 }) => {
-  const { theme } = useTheme();
+  const {theme} = useTheme();
+  const {width, height} = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
   const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    ({viewableItems}: {viewableItems: ViewToken[]}) => {
       if (viewableItems.length > 0) {
         setCurrentIndex(viewableItems[0].index || 0);
       }
@@ -115,7 +112,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
         <View style={styles.textImageContainer}>
           <Image
             source={item.textImage}
-            style={[styles.textImage, { width: width * item.textImageWidth }]}
+            style={[styles.textImage, {width: width * item.textImageWidth}]}
             resizeMode="contain"
           />
         </View>
@@ -127,9 +124,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
         <View
           style={[
             styles.bottomImageContainer,
-            { height: height * item.bottomImageHeight },
-          ]}
-        >
+            {height: height * item.bottomImageHeight},
+          ]}>
           <Image
             source={item.bottomImage}
             style={styles.bottomImage}
@@ -140,7 +136,6 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
         {/* Get Started Button (only on last slide) */}
         {isLastSlide && (
           <View style={styles.getStartedContainer}>
-
             <LiquidGlassButton
               title="Get Started"
               glassEffect="clear"

@@ -5,11 +5,13 @@ import {
   Text,
   TouchableOpacity,
   View,
-  LayoutAnimation,
-  Platform,
-  UIManager,
   Image,
 } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from 'react-native-reanimated';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header} from '@/shared/components/common';
 import {PillSelector} from '@/shared/components/common/PillSelector/PillSelector';
@@ -21,21 +23,6 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {FAQ_CATEGORIES, FAQ_ENTRIES, type FAQEntry} from '../data/faqData';
 import {Images} from '@/assets/images';
 import type {HomeStackParamList} from '@/navigation/types';
-
-const isFabricEnabled =
-  typeof globalThis !== 'undefined' &&
-  Boolean(
-    // nativeFabricUIManager is present when the New Architecture is active
-    (globalThis as {nativeFabricUIManager?: object}).nativeFabricUIManager,
-  );
-
-if (
-  Platform.OS === 'android' &&
-  !isFabricEnabled &&
-  typeof UIManager.setLayoutAnimationEnabledExperimental === 'function'
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 type FAQScreenProps = NativeStackScreenProps<HomeStackParamList, 'FAQ'>;
 
@@ -73,7 +60,9 @@ const FAQCard: React.FC<{
       shadow="base"
       style={styles.faqCard}
       fallbackStyle={styles.cardFallback}>
-      <View style={styles.faqCardContent}>
+      <Animated.View
+        layout={LinearTransition.duration(200)}
+        style={styles.faqCardContent}>
         <TouchableOpacity
           style={styles.questionRow}
           onPress={() => onToggle(faq.id)}
@@ -86,7 +75,11 @@ const FAQCard: React.FC<{
         </TouchableOpacity>
 
         {isExpanded && (
-          <View style={styles.answerSection}>
+          <Animated.View
+            entering={FadeIn.duration(160)}
+            exiting={FadeOut.duration(120)}
+            layout={LinearTransition.duration(200)}
+            style={styles.answerSection}>
             <Text style={styles.answerText}>{faq.answer}</Text>
 
             <View style={styles.helpfulSection}>
@@ -140,9 +133,9 @@ const FAQCard: React.FC<{
                 ))}
               </View>
             )}
-          </View>
+          </Animated.View>
         )}
-      </View>
+      </Animated.View>
     </LiquidGlassCard>
   </View>
 );
@@ -199,7 +192,6 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   }, []);
 
   const handleToggle = React.useCallback((faqId: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedFaqId(prev => (prev === faqId ? null : faqId));
   }, []);
 

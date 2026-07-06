@@ -33,6 +33,30 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {useTheme} from '@/hooks';
 
+// Request audio recording permission (Android)
+const requestAudioPermission = async () => {
+  if (Platform.OS === 'android') {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        {
+          title: 'Audio Recording Permission',
+          message:
+            'This app needs access to your microphone to record voice messages.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn(err);
+      return false;
+    }
+  }
+  return true;
+};
+
 export const EnhancedMessageInput: React.FC = () => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
@@ -42,34 +66,14 @@ export const EnhancedMessageInput: React.FC = () => {
   const [isRecordingLoading, setIsRecordingLoading] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
 
-  // Request audio recording permission (Android)
-  const requestAudioPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-          {
-            title: 'Audio Recording Permission',
-            message: 'This app needs access to your microphone to record voice messages.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
-
   // Start voice recording
   const startVoiceRecording = async () => {
     const hasPermission = await requestAudioPermission();
     if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Please grant microphone permission to record voice messages.');
+      Alert.alert(
+        'Permission Denied',
+        'Please grant microphone permission to record voice messages.',
+      );
       return;
     }
 
@@ -78,7 +82,7 @@ export const EnhancedMessageInput: React.FC = () => {
 
     try {
       // Set up recording progress listener
-      Sound.addRecordBackListener((e) => {
+      Sound.addRecordBackListener(e => {
         setRecordingDuration(Math.floor(e.currentPosition / 1000));
       });
 
@@ -106,7 +110,11 @@ export const EnhancedMessageInput: React.FC = () => {
 
       if (audioPath && channel) {
         // Upload audio file to Stream
-        const response = await channel.sendFile(audioPath, 'voice-message.m4a', 'audio/m4a');
+        const response = await channel.sendFile(
+          audioPath,
+          'voice-message.m4a',
+          'audio/m4a',
+        );
 
         // Send message with audio attachment
         await channel.sendMessage({
@@ -290,7 +298,8 @@ export const EnhancedMessageInput: React.FC = () => {
         <View style={styles.recordingInfo}>
           <View style={styles.recordingDot} />
           <Text style={styles.recordingText}>
-            Recording... {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+            Recording... {Math.floor(recordingDuration / 60)}:
+            {(recordingDuration % 60).toString().padStart(2, '0')}
           </Text>
         </View>
         <View style={styles.recordingActions}>
@@ -337,7 +346,9 @@ export const EnhancedMessageInput: React.FC = () => {
         </TouchableOpacity>
 
         {/* Attachment Button */}
-        <TouchableOpacity onPress={showAttachmentOptions} style={styles.actionButton}>
+        <TouchableOpacity
+          onPress={showAttachmentOptions}
+          style={styles.actionButton}>
           <Icon name="attach-file" size={24} color={theme.colors.primary} />
         </TouchableOpacity>
       </View>

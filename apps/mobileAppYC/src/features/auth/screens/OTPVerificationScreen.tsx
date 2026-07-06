@@ -52,6 +52,25 @@ const resolveOtpError = (formatted: string): string =>
     ? 'The code you entered is incorrect. Please try again.'
     : formatted;
 
+const buildUserPayload = (
+  completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
+): User => {
+  const baseUser: User = {
+    id: completion.user.userId,
+    parentId: completion.profile.parent?.id ?? undefined,
+    email: completion.attributes.email ?? completion.user.username,
+    firstName: completion.attributes.given_name,
+    lastName: completion.attributes.family_name,
+    phone: completion.attributes.phone_number,
+    dateOfBirth: completion.attributes.birthdate,
+    profilePicture: completion.attributes.picture,
+    profileToken: completion.profile.profileToken,
+    profileCompleted: completion.profile.isComplete,
+  };
+
+  return mergeUserWithParentProfile(baseUser, completion.profile.parent);
+};
+
 type OTPVerificationScreenProps = NativeStackScreenProps<
   AuthStackParamList,
   'OTPVerification'
@@ -130,25 +149,6 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     if (otpError) {
       setOtpError('');
     }
-  };
-
-  const buildUserPayload = (
-    completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
-  ): User => {
-    const baseUser: User = {
-      id: completion.user.userId,
-      parentId: completion.profile.parent?.id ?? undefined,
-      email: completion.attributes.email ?? completion.user.username,
-      firstName: completion.attributes.given_name,
-      lastName: completion.attributes.family_name,
-      phone: completion.attributes.phone_number,
-      dateOfBirth: completion.attributes.birthdate,
-      profilePicture: completion.attributes.picture,
-      profileToken: completion.profile.profileToken,
-      profileCompleted: completion.profile.isComplete,
-    };
-
-    return mergeUserWithParentProfile(baseUser, completion.profile.parent);
   };
 
   const validateCode = (code: string): boolean => {

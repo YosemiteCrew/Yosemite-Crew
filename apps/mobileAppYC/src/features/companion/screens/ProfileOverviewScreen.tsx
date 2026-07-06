@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect} from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,11 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {NavigationProp, useFocusEffect, CommonActions} from '@react-navigation/native';
+import {
+  NavigationProp,
+  useFocusEffect,
+  CommonActions,
+} from '@react-navigation/native';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {GifLoader} from '@/shared/components/common';
@@ -41,7 +45,10 @@ import {
   selectCompanions,
   selectCompanionLoading,
 } from '@/features/companion/selectors';
-import {deleteCompanion, updateCompanionProfile} from '@/features/companion/thunks';
+import {
+  deleteCompanion,
+  updateCompanionProfile,
+} from '@/features/companion/thunks';
 import {setSelectedCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import type {Companion} from '@/features/companion/types';
@@ -84,17 +91,27 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
-  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
-  const accessMap = useSelector((state: RootState) => state.coParent?.accessByCompanionId ?? {});
-  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
-  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const isDeleteSheetOpenRef = React.useRef(false);
+  const accessMap = useSelector(
+    (state: RootState) => state.coParent?.accessByCompanionId ?? {},
+  );
+  const defaultAccess = useSelector(
+    (state: RootState) => state.coParent?.defaultAccess ?? null,
+  );
+  const globalRole = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedRole,
+  );
   const accessForCompanion = companionId
-    ? accessMap[companionId] ?? defaultAccess
+    ? (accessMap[companionId] ?? defaultAccess)
     : defaultAccess;
-  const isPrimaryParent = (accessForCompanion?.role ?? globalRole ?? '').toUpperCase().includes('PRIMARY');
+  const isPrimaryParent = (accessForCompanion?.role ?? globalRole ?? '')
+    .toUpperCase()
+    .includes('PRIMARY');
 
   // Profile image picker ref
-  const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(null);
+  const profileImagePickerRef = React.useRef<ProfileImagePickerRef | null>(
+    null,
+  );
 
   const dispatch = useDispatch<AppDispatch>();
   const {user} = useAuth();
@@ -111,8 +128,13 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   // Get data for status calculations
   const authUser = useSelector(selectAuthUser);
   const linkedBusinesses = useSelector(selectLinkedBusinesses);
-  const documents = useSelector((state: RootState) => state.documents?.documents ?? []);
-  const tasksSelector = React.useMemo(() => selectTasksByCompanion(companionId), [companionId]);
+  const documents = useSelector(
+    (state: RootState) => state.documents?.documents ?? [],
+  );
+  const tasksSelector = React.useMemo(
+    () => selectTasksByCompanion(companionId),
+    [companionId],
+  );
   const tasks = useSelector(tasksSelector);
   const expenseSummarySelector = React.useMemo(
     () => selectExpenseSummaryByCompanion(companionId),
@@ -122,34 +144,50 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const coParents = useSelector(selectCoParents);
 
   // Helper functions to calculate individual section statuses
-  const isParentComplete = React.useCallback((parentUser: typeof authUser): boolean => {
-    if (!parentUser) return false;
-    const hasBasicInfo = !!(parentUser.firstName && parentUser.email);
-    const hasAddress = !!(
-      parentUser.address?.addressLine ||
-      parentUser.address?.city ||
-      parentUser.address?.stateProvince ||
-      parentUser.address?.postalCode ||
-      parentUser.address?.country
-    );
-    const filledFields = [hasAddress, !!parentUser.phone, !!parentUser.dateOfBirth, !!parentUser.currency].filter(Boolean).length;
-    return hasBasicInfo && filledFields >= 2;
-  }, []);
+  const isParentComplete = React.useCallback(
+    (parentUser: typeof authUser): boolean => {
+      if (!parentUser) return false;
+      const hasBasicInfo = !!(parentUser.firstName && parentUser.email);
+      const hasAddress = !!(
+        parentUser.address?.addressLine ||
+        parentUser.address?.city ||
+        parentUser.address?.stateProvince ||
+        parentUser.address?.postalCode ||
+        parentUser.address?.country
+      );
+      const filledFields = [
+        hasAddress,
+        !!parentUser.phone,
+        !!parentUser.dateOfBirth,
+        !!parentUser.currency,
+      ].filter(Boolean).length;
+      return hasBasicInfo && filledFields >= 2;
+    },
+    [],
+  );
 
-  const isBusinessCategoryComplete = React.useCallback((category: string): boolean => {
-    return linkedBusinesses.some(b => b.companionId === companionId && b.category === category);
-  }, [linkedBusinesses, companionId]);
+  const isBusinessCategoryComplete = React.useCallback(
+    (category: string): boolean => {
+      return linkedBusinesses.some(
+        b => b.companionId === companionId && b.category === category,
+      );
+    },
+    [linkedBusinesses, companionId],
+  );
 
-  const isTaskCategoryComplete = React.useCallback((sectionId: string): boolean => {
-    const categoryMap: Record<string, string> = {
-      health_tasks: 'health',
-      hygiene_tasks: 'hygiene',
-      dietary_plan: 'dietary',
-      custom_tasks: 'custom',
-    };
-    const category = categoryMap[sectionId];
-    return tasks.some(task => task.category === category);
-  }, [tasks]);
+  const isTaskCategoryComplete = React.useCallback(
+    (sectionId: string): boolean => {
+      const categoryMap: Record<string, string> = {
+        health_tasks: 'health',
+        hygiene_tasks: 'hygiene',
+        dietary_plan: 'dietary',
+        custom_tasks: 'custom',
+      };
+      const category = categoryMap[sectionId];
+      return tasks.some(task => task.category === category);
+    },
+    [tasks],
+  );
 
   const isCoParentComplete = React.useCallback((): boolean => {
     const userEmail = authUser?.email?.toLowerCase().trim();
@@ -170,7 +208,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           return isParentComplete(authUser) ? 'Complete' : 'Pending';
 
         case 'documents':
-          return documents.some(doc => doc.companionId === companionId) ? 'Complete' : 'Pending';
+          return documents.some(doc => doc.companionId === companionId)
+            ? 'Complete'
+            : 'Pending';
 
         case 'hospital':
         case 'boarder':
@@ -179,7 +219,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           return isBusinessCategoryComplete(sectionId) ? 'Complete' : 'Pending';
 
         case 'expense':
-          return expenseSummary && expenseSummary.total > 0 ? 'Complete' : 'Pending';
+          return expenseSummary && expenseSummary.total > 0
+            ? 'Complete'
+            : 'Pending';
 
         case 'health_tasks':
         case 'hygiene_tasks':
@@ -199,7 +241,16 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
       ...template,
       status: calculateStatus(template.id),
     }));
-  }, [authUser, documents, companionId, expenseSummary, isParentComplete, isBusinessCategoryComplete, isTaskCategoryComplete, isCoParentComplete]);
+  }, [
+    authUser,
+    documents,
+    companionId,
+    expenseSummary,
+    isParentComplete,
+    isBusinessCategoryComplete,
+    isTaskCategoryComplete,
+    isCoParentComplete,
+  ]);
 
   const showPermissionToast = React.useCallback((label: string) => {
     const message = `You don't have access to ${label}. Ask the primary parent to enable it.`;
@@ -211,7 +262,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   }, []);
 
   const canAccessFeature = React.useCallback(
-    (permission: keyof NonNullable<typeof accessForCompanion>['permissions']) => {
+    (
+      permission: keyof NonNullable<typeof accessForCompanion>['permissions'],
+    ) => {
       if (isPrimaryParent) {
         return true;
       }
@@ -224,7 +277,10 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   );
 
   const guardFeature = React.useCallback(
-    (permission: keyof NonNullable<typeof accessForCompanion>['permissions'], label: string) => {
+    (
+      permission: keyof NonNullable<typeof accessForCompanion>['permissions'],
+      label: string,
+    ) => {
       if (!canAccessFeature(permission)) {
         showPermissionToast(label);
         return false;
@@ -243,7 +299,8 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   // When returning to this screen, reset the Tasks tab stack to its root
   useFocusEffect(
     React.useCallback(() => {
-      const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
+      const tabNavigation =
+        navigation.getParent<NavigationProp<TabParamList>>();
       try {
         const tabState = tabNavigation?.getState();
         const tasksRoute: any = tabState?.routes?.find(r => r.name === 'Tasks');
@@ -263,7 +320,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
         // no-op: if state isn't available yet, nothing to reset
       }
       return undefined;
-    }, [navigation])
+    }, [navigation]),
   );
 
   // Helper to show error alerts
@@ -296,10 +353,13 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
         console.log('[ProfileOverview] Profile image updated successfully');
       } catch (error) {
-        console.error('[ProfileOverview] Failed to update profile image:', error);
+        console.error(
+          '[ProfileOverview] Failed to update profile image:',
+          error,
+        );
         showErrorAlert(
           'Image Update Failed',
-          'Failed to update profile image. Please try again.'
+          'Failed to update profile image. Please try again.',
         );
       }
     },
@@ -311,8 +371,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     category: TaskStackParamList['TasksList']['category'],
   ) => {
     dispatch(setSelectedCompanion(companionId));
-    const tabNavigation =
-      navigation.getParent<NavigationProp<TabParamList>>();
+    const tabNavigation = navigation.getParent<NavigationProp<TabParamList>>();
     tabNavigation?.navigate('Tasks', {
       screen: 'TasksList',
       params: {category},
@@ -346,7 +405,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           return;
         }
         dispatch(setSelectedCompanion(companionId));
-        navigation.getParent()?.navigate('Documents', {screen: 'DocumentsMain'});
+        navigation
+          .getParent()
+          ?.navigate('Documents', {screen: 'DocumentsMain'});
         break;
       }
       case 'hospital':
@@ -411,20 +472,23 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
   // Handle Android back button for delete bottom sheet
   useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isDeleteSheetOpen) {
-        deleteSheetRef.current?.close();
-        setIsDeleteSheetOpen(false);
-        return true;
-      }
-      return false;
-    });
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (isDeleteSheetOpenRef.current) {
+          deleteSheetRef.current?.close();
+          isDeleteSheetOpenRef.current = false;
+          return true;
+        }
+        return false;
+      },
+    );
 
     return () => backHandler.remove();
-  }, [isDeleteSheetOpen]);
+  }, []);
 
   const handleDeletePress = React.useCallback(() => {
-    setIsDeleteSheetOpen(true);
+    isDeleteSheetOpenRef.current = true;
     deleteSheetRef.current?.open();
   }, []);
 
@@ -439,26 +503,29 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
       if (deleteCompanion.fulfilled.match(resultAction)) {
         console.log('[ProfileOverview] Companion deleted successfully');
-        setIsDeleteSheetOpen(false);
+        isDeleteSheetOpenRef.current = false;
         navigation.goBack();
       } else {
-        console.error('[ProfileOverview] Failed to delete companion:', resultAction.payload);
+        console.error(
+          '[ProfileOverview] Failed to delete companion:',
+          resultAction.payload,
+        );
         showErrorAlert(
           'Delete Failed',
-          'Failed to delete companion profile. Please try again.'
+          'Failed to delete companion profile. Please try again.',
         );
       }
     } catch (error) {
       console.error('[ProfileOverview] Error deleting companion:', error);
       showErrorAlert(
         'Delete Failed',
-        'An error occurred while deleting the companion profile.'
+        'An error occurred while deleting the companion profile.',
       );
     }
   }, [companion?.id, dispatch, navigation, parentId, showErrorAlert]);
 
   const handleDeleteCancel = React.useCallback(() => {
-    setIsDeleteSheetOpen(false);
+    isDeleteSheetOpenRef.current = false;
   }, []);
 
   if (!companion) {
@@ -495,55 +562,62 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
           <ScrollView
             contentContainerStyle={[styles.content, contentPaddingStyle]}
             showsVerticalScrollIndicator={false}>
-        <CompanionProfileHeader
-          name={companion.name}
-          breedName={companion.breed?.breedName}
-          profileImage={companion.profileImage ?? undefined}
-          pickerRef={profileImagePickerRef}
-          onImageSelected={handleProfileImageChange}
-        />
+            <CompanionProfileHeader
+              name={companion.name}
+              breedName={companion.breed?.breedName}
+              profileImage={companion.profileImage ?? undefined}
+              pickerRef={profileImagePickerRef}
+              onImageSelected={handleProfileImageChange}
+            />
 
-        {/* Only menu list inside glass card */}
-      <View style={styles.glassShadowWrapper}>
-        <LiquidGlassCard
-          glassEffect="clear"
-          interactive
-          tintColor={theme.colors.white}
-          style={styles.glassContainer}
-          fallbackStyle={styles.glassFallback}>
-          <View style={styles.listContainer}>
-            {sections.map((item, index) => (
-              <TouchableOpacity key={item.id} style={styles.row} activeOpacity={0.7}    onPress={() => handleSectionPress(item.id)}>
-                <Text style={styles.rowTitle}>{item.title}</Text>
-                <View style={styles.rowRight}>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      item.status === 'Complete'
-                        ? styles.completeBadge
-                        : styles.pendingBadge,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.statusText,
-                        item.status === 'Complete'
-                          ? styles.completeText
-                          : styles.pendingText,
-                      ]}>
-                      {item.status}
-                    </Text>
-                  </View>
-                  <Image source={Images.rightArrow} style={styles.rightArrow} />
+            {/* Only menu list inside glass card */}
+            <View style={styles.glassShadowWrapper}>
+              <LiquidGlassCard
+                glassEffect="clear"
+                interactive
+                tintColor={theme.colors.white}
+                style={styles.glassContainer}
+                fallbackStyle={styles.glassFallback}>
+                <View style={styles.listContainer}>
+                  {sections.map((item, index) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.row}
+                      activeOpacity={0.7}
+                      onPress={() => handleSectionPress(item.id)}>
+                      <Text style={styles.rowTitle}>{item.title}</Text>
+                      <View style={styles.rowRight}>
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            item.status === 'Complete'
+                              ? styles.completeBadge
+                              : styles.pendingBadge,
+                          ]}>
+                          <Text
+                            style={[
+                              styles.statusText,
+                              item.status === 'Complete'
+                                ? styles.completeText
+                                : styles.pendingText,
+                            ]}>
+                            {item.status}
+                          </Text>
+                        </View>
+                        <Image
+                          source={Images.rightArrow}
+                          style={styles.rightArrow}
+                        />
+                      </View>
+                      {/* Add separator except for last item */}
+                      {index !== sections.length - 1 && (
+                        <View style={styles.separator} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
                 </View>
-                {/* Add separator except for last item */}
-                {index !== sections.length - 1 && (
-                  <View style={styles.separator} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-          </LiquidGlassCard>
-        </View>
+              </LiquidGlassCard>
+            </View>
           </ScrollView>
         )}
       </LiquidGlassHeaderScreen>
@@ -614,7 +688,8 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.success50 ?? theme.colors.successSurface,
     },
     pendingBadge: {
-      backgroundColor: theme.colors.warningSurface ?? theme.colors.warning + '20',
+      backgroundColor:
+        theme.colors.warningSurface ?? theme.colors.warning + '20',
     },
     completeBadge: {
       backgroundColor: theme.colors.success50 ?? theme.colors.successSurface,
