@@ -593,40 +593,59 @@ export const buildBillableItems = (
   const existingNames = new Set(
     encounter.invoiceLineItems.map((item) => item.name.trim().toLowerCase())
   );
-  const serviceItems = encounter.services
-    .filter((item) => !item.billed && item.amountCents > 0)
-    .filter((item) => !existingNames.has(item.name.trim().toLowerCase()))
-    .map((item) => toInvoiceCandidate(item.name, item.amountCents, 'EXISTING_TREATMENT'));
+  const serviceItems: BillableCandidate[] = [];
+  for (const item of encounter.services) {
+    if (
+      !item.billed &&
+      item.amountCents > 0 &&
+      !existingNames.has(item.name.trim().toLowerCase())
+    ) {
+      serviceItems.push(toInvoiceCandidate(item.name, item.amountCents, 'EXISTING_TREATMENT'));
+    }
+  }
   // In-house medications prescribed this visit. Their price comes from the linked
   // inventory item; when it is missing we still surface them at 0 so they can be
   // added and priced inline rather than silently dropped from the bill.
-  const prescriptionItems = encounter.prescription
-    .filter((item) => !item.billed && item.fulfillment === 'IN_HOUSE')
-    .filter((item) => !existingNames.has(item.medicineName.trim().toLowerCase()))
-    .map((item) =>
-      toInvoiceCandidate(
-        item.medicineName,
-        Math.max(0, item.priceCents ?? 0),
-        'IN_HOUSE_PRESCRIPTION'
-      )
-    );
-  const catalogItems = organisationId
-    ? [
-        ...catalogServices
-          .filter(
-            (service) => service.organisationId === organisationId && service.status === 'ACTIVE'
-          )
-          .map(serviceToInvoiceCandidate),
-        ...catalogPackages
-          .filter((pkg) => pkg.organisationId === organisationId && pkg.status === 'ACTIVE')
-          .map(packageToInvoiceCandidate),
-      ]
-    : [];
+  const prescriptionItems: BillableCandidate[] = [];
+  for (const item of encounter.prescription) {
+    if (
+      !item.billed &&
+      item.fulfillment === 'IN_HOUSE' &&
+      !existingNames.has(item.medicineName.trim().toLowerCase())
+    ) {
+      prescriptionItems.push(
+        toInvoiceCandidate(
+          item.medicineName,
+          Math.max(0, item.priceCents ?? 0),
+          'IN_HOUSE_PRESCRIPTION'
+        )
+      );
+    }
+  }
+  const catalogItems: BillableCandidate[] = [];
+  if (organisationId) {
+    for (const service of catalogServices) {
+      if (service.organisationId === organisationId && service.status === 'ACTIVE') {
+        catalogItems.push(serviceToInvoiceCandidate(service));
+      }
+    }
+    for (const pkg of catalogPackages) {
+      if (pkg.organisationId === organisationId && pkg.status === 'ACTIVE') {
+        catalogItems.push(packageToInvoiceCandidate(pkg));
+      }
+    }
+  }
   // Inventory/stock items (drugs, consumables) so they can be charged directly.
-  const inventoryCandidates = inventoryItems
-    .filter((item) => item.basicInfo?.name && item.status !== 'HIDDEN')
-    .filter((item) => !existingNames.has(item.basicInfo.name.trim().toLowerCase()))
-    .map(inventoryToInvoiceCandidate);
+  const inventoryCandidates: BillableCandidate[] = [];
+  for (const item of inventoryItems) {
+    if (
+      item.basicInfo?.name &&
+      item.status !== 'HIDDEN' &&
+      !existingNames.has(item.basicInfo.name.trim().toLowerCase())
+    ) {
+      inventoryCandidates.push(inventoryToInvoiceCandidate(item));
+    }
+  }
   const visitItems = uniqueByName(
     [...serviceItems, ...prescriptionItems, ...inventoryCandidates],
     new Set()
@@ -1289,7 +1308,7 @@ const InvoiceStep = ({
     [itemIdsByOrgId, organisationId]
   );
   const inventoryItems = useMemo(
-    () => inventoryIds.map((id) => inventoryById[id]).filter(Boolean),
+    () => inventoryIds.flatMap((id) => (inventoryById[id] ? [inventoryById[id]] : [])),
     [inventoryById, inventoryIds]
   );
   const billableItems = useMemo(
@@ -1376,21 +1395,35 @@ const InvoiceStep = ({
   // the bill (below) so a clinician doesn't have to re-add each saved item by search.
   // Catalog/inventory candidates stay opt-in (search only). Lines already settled on
   // a paid invoice are excluded so they can't be re-billed.
-  const autoSeedCandidates = useMemo<Omit<InvoiceLineItem, 'id'>[]>(
-    () => [
-      ...encounter.services
-        .filter((item) => !item.billed && item.amountCents > 0)
-        .filter((item) => !settledLineNames.has(normalizeLineName(item.name)))
-        .map((item) => serviceLineItemToInvoiceLine(item, catalogServices, catalogPackages)),
-      ...encounter.prescription
-        .filter(
-          (item) => !item.billed && item.fulfillment === 'IN_HOUSE' && (item.priceCents ?? 0) > 0
-        )
-        .filter((item) => !settledLineNames.has(normalizeLineName(item.medicineName)))
-        .map(prescriptionToInvoiceLine),
-    ],
-    [catalogPackages, catalogServices, encounter.services, encounter.prescription, settledLineNames]
-  );
+  const autoSeedCandidates = useMemo<Omit<InvoiceLineItem, 'id'>[]>(() => {
+    const candidates: Omit<InvoiceLineItem, 'id'>[] = [];
+    for (const item of encounter.services) {
+      if (
+        !item.billed &&
+        item.amountCents > 0 &&
+        !settledLineNames.has(normalizeLineName(item.name))
+      ) {
+        candidates.push(serviceLineItemToInvoiceLine(item, catalogServices, catalogPackages));
+      }
+    }
+    for (const item of encounter.prescription) {
+      if (
+        !item.billed &&
+        item.fulfillment === 'IN_HOUSE' &&
+        (item.priceCents ?? 0) > 0 &&
+        !settledLineNames.has(normalizeLineName(item.medicineName))
+      ) {
+        candidates.push(prescriptionToInvoiceLine(item));
+      }
+    }
+    return candidates;
+  }, [
+    catalogPackages,
+    catalogServices,
+    encounter.services,
+    encounter.prescription,
+    settledLineNames,
+  ]);
 
   // Load the org catalog so saved service/package lines can recover their max-discount ceiling
   // (and unit price) when the user lands on Invoice directly without passing through Treatment.
@@ -1512,11 +1545,14 @@ const InvoiceStep = ({
   useEffect(() => {
     if (!organisationId) return;
     const invoiceHistoryItems = encounter.pastInvoices.flatMap((invoice) => invoice.items);
-    const packageIdsNeedingDetail = [...encounter.invoiceLineItems, ...invoiceHistoryItems]
-      .filter((line) => !line.breakdown?.length)
-      .map((line) => findCatalogPackageForLine(line, catalogPackages, organisationId))
-      .filter((pkg): pkg is PackageRevamp => pkg?.breakdown.length === 0)
-      .map((pkg) => pkg.id);
+    const packageIdsNeedingDetail: string[] = [];
+    for (const line of [...encounter.invoiceLineItems, ...invoiceHistoryItems]) {
+      if (line.breakdown?.length) continue;
+      const pkg = findCatalogPackageForLine(line, catalogPackages, organisationId);
+      if (pkg?.breakdown.length === 0) {
+        packageIdsNeedingDetail.push(pkg.id);
+      }
+    }
     if (packageIdsNeedingDetail.length === 0) return;
     Promise.all([...new Set(packageIdsNeedingDetail)].map((id) => hydratePackageDetail(id))).catch(
       (error) => {

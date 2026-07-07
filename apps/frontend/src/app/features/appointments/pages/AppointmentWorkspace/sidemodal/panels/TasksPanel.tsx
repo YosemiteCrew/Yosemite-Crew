@@ -34,6 +34,8 @@ import {
 import RecurrenceScopeModal from '@/app/features/tasks/components/RecurrenceScopeModal';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
 
+const EMPTY_PARENT_OPTIONS: AssigneeOption[] = [];
+
 type TasksPanelProps = {
   appointmentId: string;
   /** The appointment's companion id — required to create parent (companion) tasks. */
@@ -392,7 +394,11 @@ const PanelTaskForm = ({
 };
 
 /** Tasks panel: Employee (workspace schedule) + Parent task sub-tabs with a New/Edit form. */
-const TasksPanel = ({ appointmentId, companionId, parentOptions = [] }: TasksPanelProps) => {
+const TasksPanel = ({
+  appointmentId,
+  companionId,
+  parentOptions = EMPTY_PARENT_OPTIONS,
+}: TasksPanelProps) => {
   const [tab, setTab] = useState<TaskTab>('EMPLOYEE');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -401,16 +407,19 @@ const TasksPanel = ({ appointmentId, companionId, parentOptions = [] }: TasksPan
 
   useLoadTeam();
   const team = useTeamForPrimaryOrg();
-  const employeeOptions = useMemo<AssigneeOption[]>(
-    () =>
-      team
-        .map((member) => ({
-          label: member.name?.trim() || member.practionerId,
-          value: member.practionerId,
-        }))
-        .filter((option) => option.value),
-    [team]
-  );
+  const employeeOptions = useMemo<AssigneeOption[]>(() => {
+    const options: AssigneeOption[] = [];
+    for (const member of team) {
+      const option = {
+        label: member.name?.trim() || member.practionerId,
+        value: member.practionerId,
+      };
+      if (option.value) {
+        options.push(option);
+      }
+    }
+    return options;
+  }, [team]);
 
   const encounter = useAppointmentWorkspaceStore((s) => s.encountersById[appointmentId]);
   const focusTaskId = useAppointmentWorkspaceStore((s) => s.focusTaskId);
@@ -444,21 +453,27 @@ const TasksPanel = ({ appointmentId, companionId, parentOptions = [] }: TasksPan
     () => allTasks.filter((task) => task.appointmentId === appointmentId),
     [allTasks, appointmentId]
   );
-  const parentTasks = useMemo(
-    () =>
-      appointmentTasks.filter((task) => task.audience === 'PARENT_TASK').map(scheduleTaskFromTask),
-    [appointmentTasks]
-  );
+  const parentTasks = useMemo(() => {
+    const tasks: ScheduleTask[] = [];
+    for (const task of appointmentTasks) {
+      if (task.audience === 'PARENT_TASK') {
+        tasks.push(scheduleTaskFromTask(task));
+      }
+    }
+    return tasks;
+  }, [appointmentTasks]);
   // Employee schedule tasks come solely from the task store (the single source of
   // truth shared with the Schedule timeline) so both surfaces render the same rows
   // and stay in sync — no local-only duplicates.
-  const employeeTasks = useMemo(
-    () =>
-      appointmentTasks
-        .filter((task) => task.audience === 'EMPLOYEE_TASK')
-        .map(scheduleTaskFromTask),
-    [appointmentTasks]
-  );
+  const employeeTasks = useMemo(() => {
+    const tasks: ScheduleTask[] = [];
+    for (const task of appointmentTasks) {
+      if (task.audience === 'EMPLOYEE_TASK') {
+        tasks.push(scheduleTaskFromTask(task));
+      }
+    }
+    return tasks;
+  }, [appointmentTasks]);
 
   if (!encounter) return null;
 

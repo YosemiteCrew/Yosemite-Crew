@@ -188,6 +188,16 @@ const resolveSignLabel = ({
   return 'Sign';
 };
 
+const downloadPacket = (url: string) => {
+  const link = globalThis.document.createElement('a');
+  link.href = url;
+  link.download = '';
+  link.rel = 'noopener noreferrer';
+  globalThis.document.body.append(link);
+  link.click();
+  link.remove();
+};
+
 const ClinicalPacketSection = ({
   organisationId,
   encounterId,
@@ -366,16 +376,6 @@ const ClinicalPacketSection = ({
     });
   };
 
-  const downloadPacket = (url: string) => {
-    const link = globalThis.document.createElement('a');
-    link.href = url;
-    link.download = '';
-    link.rel = 'noopener noreferrer';
-    globalThis.document.body.append(link);
-    link.click();
-    link.remove();
-  };
-
   const signLabel = resolveSignLabel({ isSigned, isInProgress, isSigning });
 
   return (
@@ -456,10 +456,13 @@ const ClinicalPacketSection = ({
   );
 };
 
-const renderFormsPanelContent = (
-  status: 'loading' | 'loaded' | 'error',
-  filteredForms: SubmittedForm[]
-) => {
+const FormsPanelContent = ({
+  status,
+  forms,
+}: {
+  status: 'loading' | 'loaded' | 'error';
+  forms: SubmittedForm[];
+}) => {
   if (status === 'loading') {
     return <p className="py-6 text-center text-body-4 text-text-secondary">Loading forms...</p>;
   }
@@ -470,7 +473,7 @@ const renderFormsPanelContent = (
       </p>
     );
   }
-  if (filteredForms.length === 0) {
+  if (forms.length === 0) {
     return (
       <p className="py-6 text-center text-body-4 text-text-secondary">
         No forms assigned yet. Use the search above to add a consent or custom form.
@@ -479,7 +482,7 @@ const renderFormsPanelContent = (
   }
   return (
     <ul className="rounded-2xl border border-card-border px-4">
-      {filteredForms.map((form) => (
+      {forms.map((form) => (
         <FormRow key={form.id} form={form} />
       ))}
     </ul>
@@ -738,7 +741,7 @@ const AppointmentFormsPanel = ({
           {assignError}
         </p>
       )}
-      {renderFormsPanelContent(status, forms)}
+      <FormsPanelContent status={status} forms={forms} />
     </div>
   );
 };

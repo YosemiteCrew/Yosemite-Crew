@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import type { Appointment } from '@yosemite-crew/types';
@@ -709,9 +709,23 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
   const url = s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder);
   const safeUrl = getSafeIdexxIframeUrl(url);
   const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
+  const [prevIframeDeps, setPrevIframeDeps] = useState({
+    safeUrl,
+    iframeOpenSource: s.iframeOpenSource,
+    showOrderIframe: s.showOrderIframe,
+  });
+  if (
+    safeUrl !== prevIframeDeps.safeUrl ||
+    s.iframeOpenSource !== prevIframeDeps.iframeOpenSource ||
+    s.showOrderIframe !== prevIframeDeps.showOrderIframe
+  ) {
+    setPrevIframeDeps({
+      safeUrl,
+      iframeOpenSource: s.iframeOpenSource,
+      showOrderIframe: s.showOrderIframe,
+    });
     if (s.showOrderIframe) setLoaded(false);
-  }, [safeUrl, s.iframeOpenSource, s.showOrderIframe]);
+  }
   if (!s.showOrderIframe || !safeUrl || typeof document === 'undefined') return null;
   const title = s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
   return createPortal(
@@ -753,6 +767,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
             loading="lazy"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
+            sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
             onLoad={() => setLoaded(true)}
           />
         </div>
@@ -823,7 +838,7 @@ const DiagnosticsStep = ({
   const handlePrintAllResults = useCallback(async () => {
     if (printingAll) return;
     const organisationId = appointment.organisationId;
-    const resultIds = s.results.map((result) => result.resultId).filter(Boolean);
+    const resultIds = s.results.flatMap((result) => (result.resultId ? [result.resultId] : []));
     if (!organisationId || resultIds.length === 0) {
       globalThis.window.print();
       return;

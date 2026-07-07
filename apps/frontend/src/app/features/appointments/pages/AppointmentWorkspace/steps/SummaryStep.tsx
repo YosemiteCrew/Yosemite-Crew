@@ -159,15 +159,19 @@ const schemaSnapshotToDischargeHtml = (snapshot?: TemplateSchemaSnapshot): strin
   if (sections.length === 0) return '';
   return sections
     .map((section) => {
-      const defaultFields = section.fields.map(fieldDefaultToHtml).filter(Boolean);
+      const defaultFields = section.fields.flatMap((field) => {
+        const html = fieldDefaultToHtml(field);
+        return html ? [html] : [];
+      });
       if (defaultFields.length > 0) return defaultFields.join('');
 
-      const outlineFields = section.fields
-        .map((field) => ({
-          html: fieldOutlineToHtml(field),
-          label: field.label || field.key,
-        }))
-        .filter((field) => field.html);
+      const outlineFields: Array<{ html: string; label: string }> = [];
+      for (const field of section.fields) {
+        const html = fieldOutlineToHtml(field);
+        if (html) {
+          outlineFields.push({ html, label: field.label || field.key });
+        }
+      }
       if (outlineFields.length === 0) return '';
 
       const duplicatesOnlyField =

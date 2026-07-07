@@ -259,23 +259,26 @@ const TreatmentStep = ({
     () => (organisationId ? (itemIdsByOrgId[organisationId] ?? []) : []),
     [itemIdsByOrgId, organisationId]
   );
-  const catalogSpecialityIds = useMemo(
-    () =>
-      organisationId
-        ? catalogSpecialities
-            .filter((speciality) => speciality.organisationId === organisationId)
-            .map((speciality) => speciality.id)
-        : [],
-    [catalogSpecialities, organisationId]
-  );
+  const catalogSpecialityIds = useMemo(() => {
+    if (!organisationId) return [];
+    const ids: string[] = [];
+    for (const speciality of catalogSpecialities) {
+      if (speciality.organisationId === organisationId) {
+        ids.push(speciality.id);
+      }
+    }
+    return ids;
+  }, [catalogSpecialities, organisationId]);
   const catalogSpecialityKey = catalogSpecialityIds.join('|');
-  const appointmentEmployeeTasks = useMemo(
-    () =>
-      Object.values(tasksById)
-        .filter((task) => task.appointmentId === appointmentId && task.audience === 'EMPLOYEE_TASK')
-        .map(taskToScheduleTask),
-    [appointmentId, tasksById]
-  );
+  const appointmentEmployeeTasks = useMemo(() => {
+    const tasks = [];
+    for (const task of Object.values(tasksById)) {
+      if (task.appointmentId === appointmentId && task.audience === 'EMPLOYEE_TASK') {
+        tasks.push(taskToScheduleTask(task));
+      }
+    }
+    return tasks;
+  }, [appointmentId, tasksById]);
   // The task store is the single source of truth for schedule tasks: every row is
   // a real backend employee task, so the Schedule timeline and the Quick Actions
   // Tasks panel always stay in sync and no local-only duplicates can appear.
@@ -294,9 +297,11 @@ const TreatmentStep = ({
       seen.add(id);
       options.push({ value: id, label: name });
     };
-    teamMembers
-      .filter((member) => member.status !== 'Off-Duty')
-      .forEach((member) => add(member.practionerId || member._id, member.name));
+    for (const member of teamMembers) {
+      if (member.status !== 'Off-Duty') {
+        add(member.practionerId || member._id, member.name);
+      }
+    }
     add(encounter.leadId, encounter.leadName);
     add(encounter.nurseId, encounter.nurseName);
     return options;
@@ -321,14 +326,16 @@ const TreatmentStep = ({
   }, [catalogSpecialityIds, catalogSpecialityKey, loadSpecialityCatalog, organisationId]);
 
   useEffect(() => {
-    const packageIdsNeedingDetail = catalogPackages
-      .filter(
-        (pkg) =>
-          pkg.organisationId === organisationId &&
-          pkg.status === 'ACTIVE' &&
-          pkg.breakdown.length === 0
-      )
-      .map((pkg) => pkg.id);
+    const packageIdsNeedingDetail: string[] = [];
+    for (const pkg of catalogPackages) {
+      if (
+        pkg.organisationId === organisationId &&
+        pkg.status === 'ACTIVE' &&
+        pkg.breakdown.length === 0
+      ) {
+        packageIdsNeedingDetail.push(pkg.id);
+      }
+    }
     if (packageIdsNeedingDetail.length === 0) return;
     Promise.all(packageIdsNeedingDetail.map((id) => hydratePackageDetail(id))).catch((error) => {
       console.error('Failed to hydrate treatment package details:', error);
@@ -473,11 +480,14 @@ const TreatmentStep = ({
       const existingRows =
         useAppointmentWorkspaceStore.getState().getEncounter(appointmentId)?.prescription ?? [];
       const seenInventoryIds = new Set(
-        existingRows
-          .map((item) => item.inventoryItemId)
-          .filter((value): value is string => Boolean(value))
+        existingRows.flatMap((item) => (item.inventoryItemId ? [item.inventoryItemId] : []))
       );
-      const seenClinicalKeys = new Set(existingRows.map(clinicalKey).filter(Boolean));
+      const seenClinicalKeys = new Set(
+        existingRows.flatMap((item) => {
+          const key = clinicalKey(item);
+          return key ? [key] : [];
+        })
+      );
       rows.forEach((row) => {
         const inventoryKey = row.inventoryItemId?.trim();
         const rowClinicalKey = clinicalKey(row);
@@ -540,12 +550,18 @@ const TreatmentStep = ({
 
   const servicePackageCatalogItems = useMemo(() => {
     if (!organisationId) return [];
-    const serviceItems = catalogServices
-      .filter((service) => service.organisationId === organisationId && service.status === 'ACTIVE')
-      .map(serviceToLineItem);
-    const packageItems = catalogPackages
-      .filter((pkg) => pkg.organisationId === organisationId && pkg.status === 'ACTIVE')
-      .map(packageToLineItem);
+    const serviceItems = [];
+    for (const service of catalogServices) {
+      if (service.organisationId === organisationId && service.status === 'ACTIVE') {
+        serviceItems.push(serviceToLineItem(service));
+      }
+    }
+    const packageItems = [];
+    for (const pkg of catalogPackages) {
+      if (pkg.organisationId === organisationId && pkg.status === 'ACTIVE') {
+        packageItems.push(packageToLineItem(pkg));
+      }
+    }
     return [...serviceItems, ...packageItems];
   }, [catalogPackages, catalogServices, organisationId]);
 

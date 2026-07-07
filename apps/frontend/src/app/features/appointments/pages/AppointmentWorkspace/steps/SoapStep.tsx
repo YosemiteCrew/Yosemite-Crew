@@ -133,7 +133,7 @@ const SoapStep = ({
   const signSoap = useAppointmentWorkspaceStore((s) => s.signSoap);
   const [templateQuery, setTemplateQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
+  const isApplyingTemplateRef = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [persistedDraftId, setPersistedDraftId] = useState<string | undefined>(undefined);
 
@@ -198,8 +198,8 @@ const SoapStep = ({
   }, [templateQuery, encounter.soapTemplates]);
 
   const applySelectedTemplate = async (templateId: string): Promise<void> => {
-    if (!organisationId || isApplyingTemplate) return;
-    setIsApplyingTemplate(true);
+    if (!organisationId || isApplyingTemplateRef.current) return;
+    isApplyingTemplateRef.current = true;
     try {
       const selectedTemplate = encounter.soapTemplates.find((tpl) => tpl.id === templateId);
       const fullTemplate =
@@ -211,7 +211,7 @@ const SoapStep = ({
     } catch (error) {
       console.error('Unable to apply SOAP template:', error);
     } finally {
-      setIsApplyingTemplate(false);
+      isApplyingTemplateRef.current = false;
     }
   };
 
