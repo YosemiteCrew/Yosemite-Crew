@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo} from 'react';
+import React, {useEffect as useReactEffect, useMemo} from 'react';
 import {
   ScrollView,
   View,
@@ -364,7 +364,7 @@ const useEnsureAppointmentLoaded = ({
   appointmentId: string;
   dispatch: AppDispatch;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (!apt) {
       dispatch(fetchAppointmentById({appointmentId}));
     }
@@ -384,7 +384,7 @@ const useAppointmentDocumentsEffect = ({
   markFetched: () => void;
   dispatch: AppDispatch;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (!appointmentId) {
       return;
     }
@@ -410,7 +410,7 @@ const useBusinessPhotoEffect = ({
   setFallbackPhoto: (val: string | null) => void;
   dispatch: AppDispatch;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     const shouldFetch =
       !!googlePlacesId &&
       (!businessPhoto || isDummyPhoto(businessPhoto)) &&
@@ -777,24 +777,24 @@ export const ViewAppointmentScreen: React.FC = () => {
     markFetched: markDocumentsFetched,
     dispatch,
   });
-  useEffect(() => {
+  useReactEffect(() => {
     if (companionId && !hasHydratedExpenses) {
       dispatch(fetchExpensesForCompanion({companionId}));
     }
   }, [companionId, dispatch, hasHydratedExpenses]);
-  useEffect(() => {
+  useReactEffect(() => {
     if (companionId && !tasksHydrated) {
       dispatch(fetchTasksForCompanion({companionId}));
     }
   }, [companionId, dispatch, tasksHydrated]);
-  useEffect(() => {
+  useReactEffect(() => {
     formsFetchedRef.current = false;
     lastFormsFetchTsRef.current = 0;
     lastTasksFetchTsRef.current = 0;
     lastDocumentsFetchTsRef.current = 0;
   }, [appointmentId]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (apt && !formsFetchedRef.current) {
       formsFetchedRef.current = true;
       lastFormsFetchTsRef.current = Date.now();
@@ -1038,7 +1038,7 @@ export const ViewAppointmentScreen: React.FC = () => {
     [],
   );
 
-  const renderAnswerSummary = React.useCallback(
+  const buildAnswerSummary = React.useCallback(
     (entry: AppointmentFormEntry) => {
       const filtered = getAnswerRows(entry);
       if (!filtered.length) {
@@ -1107,7 +1107,7 @@ export const ViewAppointmentScreen: React.FC = () => {
               ) : null}
               {showAnswers ? (
                 <View style={styles.formAnswers}>
-                  {renderAnswerSummary(entry)}
+                  {buildAnswerSummary(entry)}
                 </View>
               ) : null}
               <LiquidGlassButton
@@ -1126,7 +1126,7 @@ export const ViewAppointmentScreen: React.FC = () => {
         </View>
       );
     },
-    [getFormStatusDisplay, handleOpenForm, renderAnswerSummary, styles, theme],
+    [getFormStatusDisplay, handleOpenForm, buildAnswerSummary, styles, theme],
   );
 
   const showCheckInButton =

@@ -13,7 +13,7 @@ interface LegalContentRendererProps {
   sections: LegalSection[];
 }
 
-const renderSegments = (
+const buildSegments = (
   segments: TextSegment[] | undefined,
   styles: ReturnType<typeof createStyles>,
   isCenter = false,
@@ -40,7 +40,7 @@ const renderSegments = (
   );
 };
 
-const renderOrderedListItems = (
+const buildOrderedListItems = (
   items: OrderedListItem[] | undefined,
   styles: ReturnType<typeof createStyles>,
   isCenter = false,
@@ -57,7 +57,7 @@ const renderOrderedListItems = (
             {item.marker}
           </Text>
           <View style={styles.listContent}>
-            {renderSegments(item.segments, styles, isCenter)}
+            {buildSegments(item.segments, styles, isCenter)}
           </View>
         </View>
       ))}
@@ -76,7 +76,7 @@ const renderBlock = (
       : 'paragraph';
     return (
       <View key={key} style={styles.paragraph}>
-        {renderSegments(block.segments, styles, isCenter)}
+        {buildSegments(block.segments, styles, isCenter)}
       </View>
     );
   }
@@ -87,7 +87,7 @@ const renderBlock = (
       : 'ordered-list';
     return (
       <View key={key} style={styles.paragraph}>
-        {renderOrderedListItems(block.items, styles, isCenter)}
+        {buildOrderedListItems(block.items, styles, isCenter)}
       </View>
     );
   }

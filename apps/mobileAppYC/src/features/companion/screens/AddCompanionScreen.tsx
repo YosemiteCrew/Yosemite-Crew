@@ -9,10 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  TouchableOpacity,
   BackHandler,
   type KeyboardTypeOptions,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {DiscardChangesBottomSheet} from '@/shared/components/common/DiscardChangesBottomSheet/DiscardChangesBottomSheet';
 import {useForm, Controller, type ControllerProps} from 'react-hook-form';
@@ -220,7 +220,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
     | 'insuranceCompany'
     | 'insurancePolicyNumber';
 
-  const renderTextField = <Field extends TextFieldKey>(
+  const buildTextField = <Field extends TextFieldKey>(
     field: Field,
     {
       label,
@@ -692,7 +692,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
           };
 
           return (
-            <TouchableOpacity
+            <PressableOpacity
               key={cat.value}
               style={[
                 styles.categoryCard,
@@ -718,7 +718,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                 {cat.label}
               </Text>
               {isSelected && <View style={styles.categoryUnderline} />}
-            </TouchableOpacity>
+            </PressableOpacity>
           );
         })}
       </View>
@@ -737,7 +737,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
       />
 
       <View style={styles.formSection}>
-        {renderTextField('name', {
+        {buildTextField('name', {
           label: 'Name',
           maxLength: 50,
           rules: {
@@ -816,19 +816,19 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
           )}
         </View>
 
-        {renderTextField('currentWeight', {
+        {buildTextField('currentWeight', {
           label: 'Current weight (optional)',
           placeholder: weightUnit,
           keyboardType: 'decimal-pad',
           suffix: weightUnit,
         })}
 
-        {renderTextField('color', {
+        {buildTextField('color', {
           label: 'Colour (optional)',
           maxLength: 50,
         })}
 
-        {renderTextField('allergies', {
+        {buildTextField('allergies', {
           label: 'Allergies (optional)',
           maxLength: 200,
           multiline: true,
@@ -865,7 +865,7 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
         </View>
 
         {neuteredStatus === 'neutered' &&
-          renderTextField('ageWhenNeutered', {
+          buildTextField('ageWhenNeutered', {
             label: `Age when ${gender === 'female' ? 'spayed' : 'neutered'} (optional)`,
             placeholder: 'e.g., 1 Year',
             maxLength: 20,
@@ -922,12 +922,12 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
           )}
         />
 
-        {renderTextField('microchipNumber', {
+        {buildTextField('microchipNumber', {
           label: 'Microchip number (optional)',
           maxLength: 50,
         })}
 
-        {renderTextField('passportNumber', {
+        {buildTextField('passportNumber', {
           label: 'Passport number (optional)',
           maxLength: 50,
         })}
@@ -957,12 +957,12 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
         {insuredStatus === 'insured' && (
           <React.Fragment key="insurance-fields">
-            {renderTextField('insuranceCompany', {
+            {buildTextField('insuranceCompany', {
               label: 'Insurance company (optional)',
               maxLength: 100,
             })}
 
-            {renderTextField('insurancePolicyNumber', {
+            {buildTextField('insurancePolicyNumber', {
               label: 'Insurance policy number',
               placeholder: 'Insurance policy number',
               maxLength: 50,

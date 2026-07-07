@@ -13,8 +13,8 @@ import {
   View,
   ViewStyle,
   Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet, {
   type BottomSheetRef,
 } from '@/shared/components/common/BottomSheet/BottomSheet';
@@ -143,7 +143,7 @@ export const ConfirmActionBottomSheet = ({
     bottomSheetRef.current?.close();
   };
 
-  const renderButton = (
+  const buildButton = (
     config: ConfirmButtonConfig,
     defaults: {tintColor: string; textColor: string},
   ) => {
@@ -216,7 +216,10 @@ export const ConfirmActionBottomSheet = ({
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize"
       contentType="view">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <PressableOpacity
+        activeOpacity={1}
+        onPress={Keyboard.dismiss}
+        accessible={false}>
         <View style={[styles.container, containerStyle]}>
           <BottomSheetHeader
             title={title}
@@ -235,18 +238,18 @@ export const ConfirmActionBottomSheet = ({
 
           <View style={[styles.buttonRow, buttonContainerStyle]}>
             {secondaryButton
-              ? renderButton(secondaryButton, {
+              ? buildButton(secondaryButton, {
                   tintColor: theme.colors.surface,
                   textColor: theme.colors.secondary,
                 })
               : null}
-            {renderButton(primaryButton, {
+            {buildButton(primaryButton, {
               tintColor: theme.colors.secondary,
               textColor: theme.colors.white,
             })}
           </View>
         </View>
-      </TouchableWithoutFeedback>
+      </PressableOpacity>
     </CustomBottomSheet>
   );
 };

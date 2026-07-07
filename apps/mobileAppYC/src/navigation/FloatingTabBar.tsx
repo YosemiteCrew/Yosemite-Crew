@@ -1,6 +1,5 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect as useReactEffect, useRef, useState} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
-import {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {getFocusedRouteNameFromRoute} from '@react-navigation/native';
 import {
   Image,
@@ -8,9 +7,9 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -23,6 +22,9 @@ import {Images} from '@/assets/images';
 import type {RootState, AppDispatch} from '@/app/store';
 import {fetchDocuments} from '@/features/documents/documentSlice';
 import {fetchTasksForCompanion} from '@/features/tasks';
+
+type BottomTabBarProps =
+  import('@react-navigation/bottom-tabs').BottomTabBarProps;
 
 const ICON_MAP: Record<
   string,
@@ -125,7 +127,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   };
 
   // Animate pill to active tab
-  useEffect(() => {
+  useReactEffect(() => {
     const activeTabLayout = tabLayouts[state.index];
     if (!activeTabLayout || tabLayouts.length !== state.routes.length) {
       return;
@@ -158,7 +160,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     ],
   }));
 
-  useEffect(() => {
+  useReactEffect(() => {
     const activeRoute = state.routes[state.index];
     if (activeRoute) {
       refreshTabData(activeRoute.name);
@@ -169,7 +171,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     return null;
   }
 
-  const renderSlidingPill = () => {
+  const buildSlidingPill = () => {
     if (!isReady) {
       return null;
     }
@@ -196,7 +198,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     );
   };
 
-  const renderTabs = () =>
+  const buildTabs = () =>
     state.routes.map((route, index) => {
       const config = ICON_MAP[route.name] ?? {
         label: route.name,
@@ -223,7 +225,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
       };
 
       return (
-        <TouchableOpacity
+        <PressableOpacity
           key={route.key}
           accessibilityRole="button"
           accessibilityState={isFocused ? {selected: true} : {}}
@@ -251,7 +253,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
             ]}>
             {config.label}
           </Text>
-        </TouchableOpacity>
+        </PressableOpacity>
       );
     });
 
@@ -275,8 +277,8 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
                   interactive: false,
                 }
               : {})}>
-            {renderSlidingPill()}
-            {renderTabs()}
+            {buildSlidingPill()}
+            {buildTabs()}
           </BarComponent>
         </View>
       </View>

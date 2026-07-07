@@ -7,9 +7,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header, Input, TouchableInput} from '@/shared/components/common';
@@ -213,7 +213,7 @@ const SelectionList: React.FC<{
       {options.map(option => {
         const isSelected = selectedId === option.id;
         return (
-          <TouchableOpacity
+          <PressableOpacity
             key={option.id}
             style={styles.optionRow}
             onPress={() => onSelect(option.id)}
@@ -224,7 +224,7 @@ const SelectionList: React.FC<{
               }>
               {option.label}
             </Text>
-          </TouchableOpacity>
+          </PressableOpacity>
         );
       })}
     </View>
@@ -1062,7 +1062,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
     </View>
   );
 
-  const renderActiveTabContent = () => {
+  const buildActiveTabContent = () => {
     switch (activeTab) {
       case 'general':
         return renderSimpleForm('general');
@@ -1121,7 +1121,7 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
                 allowScroll={false}
               />
 
-              {renderActiveTabContent()}
+              {buildActiveTabContent()}
             </ScrollView>
           </KeyboardAvoidingView>
         )}

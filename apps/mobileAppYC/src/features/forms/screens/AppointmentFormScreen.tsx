@@ -3,16 +3,15 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Alert,
   ActivityIndicator,
   StyleSheet,
   KeyboardAvoidingView,
-  TouchableWithoutFeedback,
   Keyboard,
   Platform,
   Linking,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -368,7 +367,7 @@ export const AppointmentFormScreen: React.FC = () => {
     });
   }, [signedPdfUrl]);
 
-  const renderChoiceOptions = (
+  const buildChoiceOptions = (
     field: FormField & {options?: any[]},
     multiple: boolean,
   ) => {
@@ -405,7 +404,7 @@ export const AppointmentFormScreen: React.FC = () => {
           }
 
           return (
-            <TouchableOpacity
+            <PressableOpacity
               key={`${field.id}-${value}`}
               style={[
                 styles.optionItem,
@@ -428,7 +427,7 @@ export const AppointmentFormScreen: React.FC = () => {
                 ]}>
                 {option.label ?? option.display ?? value}
               </Text>
-            </TouchableOpacity>
+            </PressableOpacity>
           );
         })}
       </View>
@@ -530,7 +529,7 @@ export const AppointmentFormScreen: React.FC = () => {
         return (
           <View key={field.id} style={styles.fieldContainer}>
             <Text style={styles.label}>{labelText}</Text>
-            {renderChoiceOptions(field as any, false)}
+            {buildChoiceOptions(field as any, false)}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         );
@@ -538,7 +537,7 @@ export const AppointmentFormScreen: React.FC = () => {
         return (
           <View key={field.id} style={styles.fieldContainer}>
             <Text style={styles.label}>{labelText}</Text>
-            {renderChoiceOptions(field as any, true)}
+            {buildChoiceOptions(field as any, true)}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         );
@@ -650,7 +649,10 @@ export const AppointmentFormScreen: React.FC = () => {
       style={styles.keyboardAvoidingView}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <PressableOpacity
+        activeOpacity={1}
+        onPress={Keyboard.dismiss}
+        accessible={false}>
         <LiquidGlassHeaderScreen
           header={
             <Header
@@ -731,7 +733,7 @@ export const AppointmentFormScreen: React.FC = () => {
             </ScrollView>
           )}
         </LiquidGlassHeaderScreen>
-      </TouchableWithoutFeedback>
+      </PressableOpacity>
     </KeyboardAvoidingView>
   );
 };

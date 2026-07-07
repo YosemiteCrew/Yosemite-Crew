@@ -17,6 +17,15 @@ import type {WithSpringConfig, WithTimingConfig} from 'react-native-reanimated';
 // Types
 export type BottomSheetRef = BottomSheetMethods;
 
+export interface BottomSheetBehaviorOptions {
+  panDownToClose?: boolean;
+  dynamicSizing?: boolean;
+  overDrag?: boolean;
+  contentPanningGesture?: boolean;
+  handlePanningGesture?: boolean;
+  backdrop?: boolean;
+}
+
 export interface CustomBottomSheetProps {
   // Required props
   children: React.ReactNode;
@@ -26,10 +35,16 @@ export interface CustomBottomSheetProps {
   initialIndex?: number;
 
   // Behavior
+  behavior?: BottomSheetBehaviorOptions;
+  /** @deprecated Use behavior.panDownToClose instead. */
   enablePanDownToClose?: boolean;
+  /** @deprecated Use behavior.dynamicSizing instead. */
   enableDynamicSizing?: boolean;
+  /** @deprecated Use behavior.overDrag instead. */
   enableOverDrag?: boolean;
+  /** @deprecated Use behavior.contentPanningGesture instead. */
   enableContentPanningGesture?: boolean;
+  /** @deprecated Use behavior.handlePanningGesture instead. */
   enableHandlePanningGesture?: boolean;
 
   // Styling
@@ -40,6 +55,7 @@ export interface CustomBottomSheetProps {
   zIndex?: number;
 
   // Backdrop
+  /** @deprecated Use behavior.backdrop instead. */
   enableBackdrop?: boolean;
   backdropOpacity?: number;
   backdropAppearsOnIndex?: number;
@@ -84,43 +100,69 @@ export interface CustomBottomSheetProps {
 
 const EMPTY_FLAT_LIST_DATA: readonly any[] = [];
 
-const CustomBottomSheet = ({
-  children,
-  snapPoints = ['25%', '50%', '90%'],
-  initialIndex = 0,
-  enablePanDownToClose = false,
-  enableDynamicSizing = true,
-  enableOverDrag = true,
-  enableContentPanningGesture = true,
-  enableHandlePanningGesture = true,
-  style,
-  backgroundStyle,
-  handleStyle,
-  handleIndicatorStyle,
-  zIndex,
-  enableBackdrop = false,
-  backdropOpacity = 0.5,
-  backdropAppearsOnIndex = 1,
-  backdropDisappearsOnIndex = -1,
-  backdropPressBehavior = 'close',
-  footerComponent,
-  handleComponent,
-  customHandle = false,
-  keyboardBehavior = 'interactive',
-  keyboardBlurBehavior = 'none',
-  android_keyboardInputMode = 'adjustPan',
-  topInset = 0,
-  bottomInset = 0,
-  contentType = 'view',
-  flatListData = EMPTY_FLAT_LIST_DATA,
-  flatListRenderItem,
-  flatListKeyExtractor,
-  onChange,
-  onAnimate,
-  onBackdropPress,
-  ref,
-}: CustomBottomSheetProps & {ref?: React.Ref<BottomSheetRef>}) => {
+const getBottomSheetBehavior = ({
+  behavior,
+  enablePanDownToClose,
+  enableDynamicSizing,
+  enableOverDrag,
+  enableContentPanningGesture,
+  enableHandlePanningGesture,
+  enableBackdrop,
+}: Pick<
+  CustomBottomSheetProps,
+  | 'behavior'
+  | 'enablePanDownToClose'
+  | 'enableDynamicSizing'
+  | 'enableOverDrag'
+  | 'enableContentPanningGesture'
+  | 'enableHandlePanningGesture'
+  | 'enableBackdrop'
+>) => ({
+  panDownToClose: behavior?.panDownToClose ?? enablePanDownToClose ?? false,
+  dynamicSizing: behavior?.dynamicSizing ?? enableDynamicSizing ?? true,
+  overDrag: behavior?.overDrag ?? enableOverDrag ?? true,
+  contentPanningGesture:
+    behavior?.contentPanningGesture ?? enableContentPanningGesture ?? true,
+  handlePanningGesture:
+    behavior?.handlePanningGesture ?? enableHandlePanningGesture ?? true,
+  backdrop: behavior?.backdrop ?? enableBackdrop ?? false,
+});
+
+const CustomBottomSheet = (
+  props: CustomBottomSheetProps & {ref?: React.Ref<BottomSheetRef>},
+) => {
+  const {
+    children,
+    snapPoints = ['25%', '50%', '90%'],
+    initialIndex = 0,
+    style,
+    backgroundStyle,
+    handleStyle,
+    handleIndicatorStyle,
+    zIndex,
+    backdropOpacity = 0.5,
+    backdropAppearsOnIndex = 1,
+    backdropDisappearsOnIndex = -1,
+    backdropPressBehavior = 'close',
+    footerComponent,
+    handleComponent,
+    customHandle = false,
+    keyboardBehavior = 'interactive',
+    keyboardBlurBehavior = 'none',
+    android_keyboardInputMode = 'adjustPan',
+    topInset = 0,
+    bottomInset = 0,
+    contentType = 'view',
+    flatListData = EMPTY_FLAT_LIST_DATA,
+    flatListRenderItem,
+    flatListKeyExtractor,
+    onChange,
+    onAnimate,
+    onBackdropPress,
+    ref,
+  } = props;
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const sheetBehavior = getBottomSheetBehavior(props);
 
   // Expose methods through ref
   useImperativeHandle(ref, () => ({
@@ -155,9 +197,9 @@ const CustomBottomSheet = ({
 
   // Backdrop component
   const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
+    (backdropProps: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
-        {...props}
+        {...backdropProps}
         opacity={backdropOpacity}
         appearsOnIndex={backdropAppearsOnIndex}
         disappearsOnIndex={backdropDisappearsOnIndex}
@@ -176,13 +218,13 @@ const CustomBottomSheet = ({
 
   // Handle component
   const renderHandle = useCallback(
-    (props: BottomSheetHandleProps) => {
+    (handleProps: BottomSheetHandleProps) => {
       if (customHandle && handleComponent) {
-        return handleComponent(props);
+        return handleComponent(handleProps);
       }
       return (
         <BottomSheetHandle
-          {...props}
+          {...handleProps}
           style={handleStyle}
           indicatorStyle={handleIndicatorStyle}
         />
@@ -192,14 +234,14 @@ const CustomBottomSheet = ({
   );
 
   const renderBackground = useCallback(
-    (props: BottomSheetBackgroundProps) => (
-      <View style={[props.style, backgroundStyle]} />
+    (backgroundProps: BottomSheetBackgroundProps) => (
+      <View style={[backgroundProps.style, backgroundStyle]} />
     ),
     [backgroundStyle],
   );
 
   // Content renderer based on type
-  const renderContent = () => {
+  const buildContent = () => {
     switch (contentType) {
       case 'scrollView':
         return (
@@ -235,14 +277,14 @@ const CustomBottomSheet = ({
       ref={bottomSheetRef}
       index={initialIndex}
       snapPoints={memoizedSnapPoints}
-      enablePanDownToClose={enablePanDownToClose}
-      enableDynamicSizing={enableDynamicSizing}
-      enableOverDrag={enableOverDrag}
-      enableContentPanningGesture={enableContentPanningGesture}
-      enableHandlePanningGesture={enableHandlePanningGesture}
+      enablePanDownToClose={sheetBehavior.panDownToClose}
+      enableDynamicSizing={sheetBehavior.dynamicSizing}
+      enableOverDrag={sheetBehavior.overDrag}
+      enableContentPanningGesture={sheetBehavior.contentPanningGesture}
+      enableHandlePanningGesture={sheetBehavior.handlePanningGesture}
       style={[style, {zIndex: zIndex ?? 1}]}
       backgroundComponent={renderBackground}
-      backdropComponent={enableBackdrop ? renderBackdrop : undefined}
+      backdropComponent={sheetBehavior.backdrop ? renderBackdrop : undefined}
       handleComponent={renderHandle}
       footerComponent={footerComponent}
       keyboardBehavior={keyboardBehavior}
@@ -252,7 +294,7 @@ const CustomBottomSheet = ({
       bottomInset={bottomInset}
       onChange={onChange}
       onAnimate={onAnimate}>
-      {renderContent()}
+      {buildContent()}
     </BottomSheet>
   );
 };

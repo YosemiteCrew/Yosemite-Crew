@@ -840,10 +840,10 @@ export const ObservationalToolScreen: React.FC = () => {
       },
     );
 
-  const renderOptions = () =>
+  const buildOptions = () =>
     isImageOptionLayout ? renderImageOptions() : renderTextOptions();
 
-  const renderFormActions = () => {
+  const buildFormActions = () => {
     const isLastStep = effectiveStepIndex === totalSteps - 1;
     if (isLastStep) {
       return (
@@ -942,7 +942,7 @@ export const ObservationalToolScreen: React.FC = () => {
           shadow="sm"
           style={[styles.glassCard, styles.stepOptionsCard]}
           fallbackStyle={styles.glassCardFallback}>
-          <View style={styles.optionsContainer}>{renderOptions()}</View>
+          <View style={styles.optionsContainer}>{buildOptions()}</View>
           {showValidationMessage ? (
             <Text style={styles.validationText}>
               Please select an option to continue.
@@ -952,7 +952,7 @@ export const ObservationalToolScreen: React.FC = () => {
             <Text style={styles.stepFooterNote}>{currentStep.footerNote}</Text>
           ) : null}
         </LiquidGlassCard>
-        {renderFormActions()}
+        {buildFormActions()}
       </>
     );
   };
@@ -1080,7 +1080,7 @@ export const ObservationalToolScreen: React.FC = () => {
     </LiquidGlassCard>
   );
 
-  const renderProvidersSection = () =>
+  const buildProvidersSection = () =>
     providerEntries.length > 0
       ? renderProvidersCard()
       : renderProvidersEmptyState();
@@ -1122,7 +1122,7 @@ export const ObservationalToolScreen: React.FC = () => {
         </View>
       )}
 
-      {renderProvidersSection()}
+      {buildProvidersSection()}
 
       <View style={styles.actions}>
         <LiquidGlassButton
@@ -1139,7 +1139,7 @@ export const ObservationalToolScreen: React.FC = () => {
     </>
   );
 
-  const renderStage = () =>
+  const buildStage = () =>
     stage === 'form' ? renderFormStage() : renderLandingStage();
 
   return (
@@ -1162,7 +1162,7 @@ export const ObservationalToolScreen: React.FC = () => {
             contentContainerStyle={[styles.container, contentPaddingStyle]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
-            {renderStage()}
+            {buildStage()}
           </ScrollView>
         )}
       </LiquidGlassHeaderScreen>

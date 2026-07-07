@@ -6,13 +6,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   BackHandler,
   Alert,
   Platform,
   ToastAndroid,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux'; // Import useSelector
@@ -220,7 +220,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     weightUnit,
   ]); // Re-run when companions or weightUnit change
 
-  const renderProfileAvatar = (profile: CompanionProfile, index: number) => {
+  const buildProfileAvatar = (profile: CompanionProfile, index: number) => {
     const isUserProfile = index === 0;
     const hasRemoteImage = Boolean(profile.remoteUri && profile.avatar);
     const shouldShowImage =
@@ -420,7 +420,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                           styles.companionRowDivider,
                       ]}>
                       <View style={styles.companionInfo}>
-                        {renderProfileAvatar(profile, index)}
+                        {buildProfileAvatar(profile, index)}
                         <View>
                           <Text
                             style={styles.companionName}
@@ -439,7 +439,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                         </View>
                       </View>
                       {/* Edit Button with conditional navigation */}
-                      <TouchableOpacity
+                      <PressableOpacity
                         activeOpacity={0.7}
                         style={styles.editButton}
                         onPress={() => {
@@ -484,7 +484,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                           source={Images.blackEdit}
                           style={styles.editIcon}
                         />
-                      </TouchableOpacity>
+                      </PressableOpacity>
                     </View>
                   ))}
                 </LiquidGlassCard>

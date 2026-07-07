@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Image,
   Alert,
   Platform,
   ToastAndroid,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {NavigationProp, useFocusEffect} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -725,12 +725,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       return content;
     }
     return (
-      <TouchableOpacity
+      <PressableOpacity
         activeOpacity={0.85}
         onPress={onPress}
         testID={`${key}-empty-tile`}>
         {content}
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   };
 
@@ -1133,7 +1133,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
-  const renderUpcomingTasks = () => {
+  const buildUpcomingTasks = () => {
     if (!hasCompanions) {
       return renderEmptyStateTile(
         'No companions yet',
@@ -1206,7 +1206,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
-  const renderUpcomingAppointments = () => {
+  const buildUpcomingAppointments = () => {
     if (!hasCompanions) {
       return renderEmptyStateTile(
         'No companions yet',
@@ -1241,7 +1241,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
-  const renderExpensesSection = () => {
+  const buildExpensesSection = () => {
     if (!hasCompanions) {
       return renderEmptyStateTile(
         'No companions yet',
@@ -1304,7 +1304,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         insetsTop={headerInsetsTop}
         cardStyle={[headerProps.cardStyle, styles.headerCard]}>
         <View style={styles.headerRow}>
-          <TouchableOpacity
+          <PressableOpacity
             style={styles.profileButton}
             onPress={() => navigation.navigate('Account')}
             activeOpacity={0.85}>
@@ -1324,7 +1324,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             <View>
               <Text style={styles.greetingName}>Hello, {displayName}</Text>
             </View>
-          </TouchableOpacity>
+          </PressableOpacity>
 
           <View style={styles.headerActions}>
             <View style={styles.actionIconShadowWrapper}>
@@ -1391,14 +1391,14 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               tintColor={theme.colors.primary}
               style={styles.heroCard}
               fallbackStyle={styles.heroFallback}>
-              <TouchableOpacity
+              <PressableOpacity
                 activeOpacity={0.9}
                 onPress={handleAddCompanion}
                 style={styles.heroContent}>
                 <Image source={Images.paw} style={styles.heroPaw} />
                 <Image source={Images.plusIcon} style={styles.heroIconImage} />
                 <Text style={styles.heroTitle}>Add your first companion</Text>
-              </TouchableOpacity>
+              </PressableOpacity>
             </LiquidGlassCard>
           </View>
         ) : (
@@ -1414,13 +1414,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upcoming</Text>
 
-          {renderUpcomingTasks()}
-          {renderUpcomingAppointments()}
+          {buildUpcomingTasks()}
+          {buildUpcomingAppointments()}
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Expenses</Text>
-          {renderExpensesSection()}
+          {buildExpensesSection()}
         </View>
 
         <View style={styles.section}>
@@ -1474,7 +1474,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               fallbackStyle={styles.tileFallback}>
               <View style={styles.quickActionsRow}>
                 {QUICK_ACTIONS.map(action => (
-                  <TouchableOpacity
+                  <PressableOpacity
                     key={action.id}
                     style={styles.quickAction}
                     activeOpacity={0.88}
@@ -1505,7 +1505,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                       />
                     </View>
                     <Text style={styles.quickActionLabel}>{action.label}</Text>
-                  </TouchableOpacity>
+                  </PressableOpacity>
                 ))}
               </View>
             </LiquidGlassCard>

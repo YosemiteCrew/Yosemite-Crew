@@ -72,7 +72,7 @@ const IOSPickerModal: React.FC<IOSPickerModalProps> = ({
     }
   };
 
-  const renderActionButton = (
+  const buildActionButton = (
     testID: string,
     labelKey: 'common.cancel' | 'common.done',
     onPress: () => void,
@@ -132,12 +132,12 @@ const IOSPickerModal: React.FC<IOSPickerModalProps> = ({
             style={styles.iosPicker}
           />
           <View style={styles.actionFloatingRow}>
-            {renderActionButton(
+            {buildActionButton(
               'ios-datetime-picker-cancel',
               'common.cancel',
               onDismiss,
             )}
-            {renderActionButton(
+            {buildActionButton(
               'ios-datetime-picker-done',
               'common.done',
               confirmValue,

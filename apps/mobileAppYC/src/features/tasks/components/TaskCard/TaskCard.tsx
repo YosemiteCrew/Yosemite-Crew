@@ -1,5 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SwipeableActionCard} from '@/shared/components/common/SwipeableActionCard/SwipeableActionCard';
 import {CardActionButton} from '@/shared/components/common/CardActionButton/CardActionButton';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -223,7 +224,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       ? onPressTakeObservationalTool
       : onPressComplete;
 
-  const renderTaskDetails = () => {
+  const buildTaskDetails = () => {
     if (!details) return null;
 
     if (category === 'health' && details.taskType === 'give-medication') {
@@ -296,7 +297,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       onPressEdit={onPressEdit}
       showEditAction={showEditAction && !isCompleted}
       hideSwipeActions={hideSwipeActions}>
-      <TouchableOpacity
+      <PressableOpacity
         activeOpacity={onPressView ? 0.85 : 1}
         onPress={onPressView}
         style={styles.innerContent}>
@@ -322,7 +323,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 ` - ${formattedNearestDosage}`}
               {!isMedicationTask && formattedTime && ` - ${formattedTime}`}
             </Text>
-            {renderTaskDetails()}
+            {buildTaskDetails()}
           </View>
 
           <View style={styles.statusColumn}>
@@ -366,7 +367,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             )}
           </>
         )}
-      </TouchableOpacity>
+      </PressableOpacity>
     </SwipeableActionCard>
   );
 };

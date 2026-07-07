@@ -75,7 +75,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
     itemVisiblePercentThreshold: 50,
   }).current;
 
-  const renderDots = () => {
+  const buildDots = () => {
     return (
       <View style={styles.dotsContainer}>
         {onboardingData.map((item, index) => (
@@ -118,7 +118,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
         </View>
 
         {/* Dots Indicator */}
-        {renderDots()}
+        {buildDots()}
 
         {/* Bottom Image */}
         <View
