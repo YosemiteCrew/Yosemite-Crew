@@ -62,10 +62,9 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['10'],
     },
     title: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
+      ...theme.typography.paragraph18Bold,
+      color: theme.colors.ink,
       textAlign: 'center',
-      lineHeight: theme.typography.h3.fontSize * 1.3,
       maxWidth: '100%',
     },
     closeButton: {
