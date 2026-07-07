@@ -1,18 +1,19 @@
 'use client';
 import React, { useState, useRef, useId, useLayoutEffect } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import { Icon } from '@iconify/react/dist/iconify.js';
 import { useAuthStore } from '@/app/stores/authStore';
 import { postData } from '@/app/services/axios';
 import { useSignOut } from '@/app/hooks/useAuth';
-import { Button } from '@/app/ui';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
+import OtpDigitFieldset from '@/app/ui/overlays/OtpModal/OtpDigitFieldset';
+import OtpModalHeader from '@/app/ui/overlays/OtpModal/OtpModalHeader';
+import OtpModalFooter from '@/app/ui/overlays/OtpModal/OtpModalFooter';
 
 import './OtpModal.css';
 
@@ -255,84 +256,29 @@ const OtpModal = ({
           </button>
         </div>
         <div className="VerifyModalTopInner">
-          <div className="VerifyTexted">
-            <h2 id={dialogTitleId} className="text-display-2 text-text-primary">
-              Verify Email Address
-            </h2>
-            <div className="text-body-3-emphasis text-text-primary">
-              A Verification code has been sent to <br /> <span>{email}</span>
-            </div>
-            <p id={dialogDescriptionId}>
-              Please check your inbox and enter the verification code below to verify your email
-              address. The Code will expire soon.
-            </p>
-          </div>
-          <div className="verifyInputDiv">
-            <fieldset
-              className="verifyInput"
-              style={{ marginBottom: 24 }}
-              aria-label="Email verification code"
-              aria-describedby={`${otpHintId} ${invalidOtp ? otpStatusId : ''}`.trim()}
-            >
-              {code.map((digit, idx) => (
-                <input
-                  key={`${digit}-${idx}`}
-                  ref={(el) => setOtpRef(el, idx)}
-                  type="text"
-                  maxLength={1}
-                  value={digit}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  autoComplete={idx === 0 ? 'one-time-code' : 'off'}
-                  aria-label={`Digit ${idx + 1} of 6`}
-                  onChange={(e) => handleCodeChange(e, idx)}
-                  onKeyDown={(e) => handleCodeKeyDown(e, idx)}
-                />
-              ))}
-            </fieldset>
-            <p id={otpHintId} className="text-caption-1 text-text-secondary">
-              Enter the 6-digit code from your email.
-            </p>
-            {invalidOtp ? (
-              <p id={otpStatusId} role="alert">
-                <Icon icon="solar:danger-circle-bold" width="18" height="18" /> Invalid OTP
-              </p>
-            ) : (
-              ''
-            )}{' '}
-          </div>
+          <OtpModalHeader
+            dialogTitleId={dialogTitleId}
+            dialogDescriptionId={dialogDescriptionId}
+            email={email}
+          />
+          <OtpDigitFieldset
+            code={code}
+            otpHintId={otpHintId}
+            otpStatusId={otpStatusId}
+            invalidOtp={invalidOtp}
+            setOtpRef={setOtpRef}
+            onCodeChange={handleCodeChange}
+            onCodeKeyDown={handleCodeKeyDown}
+          />
         </div>
-        <div className="VerifyModalBottomInner">
-          <div className="VerifyBtnDiv">
-            <Button
-              variant="primary"
-              text={isVerifying ? 'Verifying...' : 'Verify Code'}
-              type="button"
-              onClick={handleVerify}
-              isDisabled={isVerifying || timer === 0 || code.includes('')}
-              className="w-full"
-            />
-            <output aria-live="polite">
-              {timer > 0
-                ? `${String(Math.floor(timer / 60)).padStart(2, '0')}:${String(timer % 60).padStart(2, '0')} sec`
-                : 'Code expired'}
-            </output>
-          </div>
-          <div className="VerifyResent">
-            <Link
-              href=""
-              onClick={(e) => {
-                e.preventDefault();
-                handleResend();
-              }}
-            >
-              <span>Request New Code</span>
-            </Link>
-            <Link href="#" onClick={() => setShowVerifyModal(false)}>
-              . Change Email
-            </Link>
-          </div>
-        </div>
+        <OtpModalFooter
+          isVerifying={isVerifying}
+          timer={timer}
+          code={code}
+          onVerify={handleVerify}
+          onResend={handleResend}
+          onChangeEmail={() => setShowVerifyModal(false)}
+        />
       </div>
     </ModalBase>
   );

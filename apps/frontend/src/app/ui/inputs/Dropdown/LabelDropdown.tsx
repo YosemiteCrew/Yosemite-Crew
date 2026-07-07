@@ -59,6 +59,71 @@ const getFloatingLabelStyle = (isFloated: boolean): React.CSSProperties => {
   };
 };
 
+type LabelDropdownPanelProps = {
+  listboxId: string;
+  placeholder: string;
+  isTerminologyLocked: boolean;
+  shouldPortal: boolean;
+  portalStyle: React.CSSProperties | null;
+  filteredOptions: DropdownOption[];
+  activeOptionId: string | undefined;
+  setActiveIndex: (index: number) => void;
+  selectOption: (option: DropdownOption) => void;
+  searchQuery: string;
+  noOptionsMessage?: string;
+};
+
+const LabelDropdownPanel = ({
+  listboxId,
+  placeholder,
+  isTerminologyLocked,
+  shouldPortal,
+  portalStyle,
+  filteredOptions,
+  activeOptionId,
+  setActiveIndex,
+  selectOption,
+  searchQuery,
+  noOptionsMessage,
+}: LabelDropdownPanelProps) => (
+  <div
+    id={listboxId}
+    aria-label={placeholder}
+    data-portal-dropdown
+    data-terminology-lock={isTerminologyLocked ? 'true' : undefined}
+    className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-2xl border border-t bg-white flex flex-col items-stretch w-full px-3 py-2.5"
+    style={shouldPortal ? (portalStyle ?? undefined) : undefined}
+  >
+    {filteredOptions.length > 0 &&
+      filteredOptions.map((option) => (
+        <button
+          key={option.value}
+          id={`${listboxId}-option-${option.value}`}
+          type="button"
+          className={`flex items-center justify-between gap-2 px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
+            activeOptionId === `${listboxId}-option-${option.value}`
+              ? 'bg-card-hover text-text-primary!'
+              : ''
+          }`}
+          onMouseEnter={() => setActiveIndex(filteredOptions.indexOf(option))}
+          onClick={() => selectOption(option)}
+        >
+          <span className="min-w-0 truncate">{option.label}</span>
+          {option.badge && (
+            <span className="shrink-0 rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-text-brand">
+              {option.badge}
+            </span>
+          )}
+        </button>
+      ))}
+    {filteredOptions.length === 0 && (
+      <div className="text-caption-1 py-3 text-text-primary text-center">
+        {searchQuery ? 'No matches found' : (noOptionsMessage ?? 'No options')}
+      </div>
+    )}
+  </div>
+);
+
 const LabelDropdown = ({
   placeholder,
   options,
@@ -239,42 +304,19 @@ const LabelDropdown = ({
 
   // Same visual style for both portal and inline — connected panel below trigger
   const panel = (
-    <div
-      id={listboxId}
-      aria-label={placeholder}
-      data-portal-dropdown
-      data-terminology-lock={isTerminologyLocked ? 'true' : undefined}
-      className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-2xl border border-t bg-white flex flex-col items-stretch w-full px-3 py-2.5"
-      style={shouldPortal ? (portalStyle ?? undefined) : undefined}
-    >
-      {filteredOptions.length > 0 &&
-        filteredOptions.map((option) => (
-          <button
-            key={option.value}
-            id={`${listboxId}-option-${option.value}`}
-            type="button"
-            className={`flex items-center justify-between gap-2 px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
-              activeOptionId === `${listboxId}-option-${option.value}`
-                ? 'bg-card-hover text-text-primary!'
-                : ''
-            }`}
-            onMouseEnter={() => setActiveIndex(filteredOptions.indexOf(option))}
-            onClick={() => selectOption(option)}
-          >
-            <span className="min-w-0 truncate">{option.label}</span>
-            {option.badge && (
-              <span className="shrink-0 rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-text-brand">
-                {option.badge}
-              </span>
-            )}
-          </button>
-        ))}
-      {filteredOptions.length === 0 && (
-        <div className="text-caption-1 py-3 text-text-primary text-center">
-          {searchQuery ? 'No matches found' : (noOptionsMessage ?? 'No options')}
-        </div>
-      )}
-    </div>
+    <LabelDropdownPanel
+      listboxId={listboxId}
+      placeholder={placeholder}
+      isTerminologyLocked={isTerminologyLocked}
+      shouldPortal={shouldPortal}
+      portalStyle={portalStyle}
+      filteredOptions={filteredOptions}
+      activeOptionId={activeOptionId}
+      setActiveIndex={setActiveIndex}
+      selectOption={selectOption}
+      searchQuery={searchQuery}
+      noOptionsMessage={noOptionsMessage}
+    />
   );
 
   return (

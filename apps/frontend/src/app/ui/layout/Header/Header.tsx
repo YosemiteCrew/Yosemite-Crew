@@ -13,13 +13,13 @@ import './Header.css';
 const getHeaderDockThreshold = () => Math.round(globalThis.window.innerHeight * 0.6);
 
 const Header = ({ user = false }: { user?: boolean }) => {
-  const [dockPublicHeader, setDockPublicHeader] = useState(false);
-  const [hasMounted, setHasMounted] = useState(false);
+  const [dockPublicHeader, setDockPublicHeader] = useState(() =>
+    typeof globalThis.window === 'undefined'
+      ? false
+      : Math.max(globalThis.window.scrollY, 0) >= getHeaderDockThreshold()
+  );
+  const [hasMounted] = useState(true);
   const tickingRef = useRef(false);
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
 
   useEffect(() => {
     if (user) return;
@@ -36,7 +36,6 @@ const Header = ({ user = false }: { user?: boolean }) => {
       globalThis.window.requestAnimationFrame(updateHeaderState);
     };
 
-    updateHeaderState();
     globalThis.window.addEventListener('scroll', handleScroll, { passive: true });
     globalThis.window.addEventListener('resize', handleScroll);
 
