@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ChatAvatar, accentFor, initialsOf } from '@/app/features/chat/components/ChatAvatar';
+import { ChatAvatar } from '@/app/features/chat/components/ChatAvatar';
+import { accentFor, initialsOf } from '@/app/features/chat/components/chatAvatarUtils';
 
 describe('ChatAvatar helpers', () => {
   describe('initialsOf', () => {

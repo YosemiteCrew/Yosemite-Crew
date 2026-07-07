@@ -52,9 +52,13 @@ function getReactionChips(message: ReactionSource): ReactionChip[] {
     groups && Object.keys(groups).length > 0
       ? Object.entries(groups).map(([emoji, g]) => [emoji, g.count ?? 0])
       : Object.entries(counts);
-  return entries
-    .filter(([, count]) => count > 0)
-    .map(([emoji, count]) => ({ emoji, count, mine: ownTypes.has(emoji) }));
+  const chips: ReactionChip[] = [];
+  for (const [emoji, count] of entries) {
+    if (count > 0) {
+      chips.push({ emoji, count, mine: ownTypes.has(emoji) });
+    }
+  }
+  return chips;
 }
 
 const renderText = (body: string, mine: boolean) =>

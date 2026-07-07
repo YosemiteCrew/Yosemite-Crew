@@ -108,6 +108,21 @@ describe('ChatMessage', () => {
     expect(screen.queryByLabelText('99 👍 reaction')).not.toBeInTheDocument();
   });
 
+  it('defaults a missing reaction_groups count to zero (chip is hidden)', () => {
+    setup({
+      message: {
+        reaction_groups: { '🎉': {} },
+        own_reactions: [],
+      },
+    });
+    expect(screen.queryByLabelText(/🎉 reaction/)).not.toBeInTheDocument();
+  });
+
+  it('handles a message with no reaction fields at all', () => {
+    setup({ message: {} });
+    expect(screen.queryByLabelText(/reaction/)).not.toBeInTheDocument();
+  });
+
   it('opens the reaction picker and adds a reaction', () => {
     const { handleReaction } = setup();
     fireEvent.click(screen.getByLabelText('React'));
@@ -166,6 +181,18 @@ describe('ChatMessage', () => {
   it('renders attachments', () => {
     setup({ message: { text: '', attachments: [{ type: 'image', image_url: 'x' }] } });
     expect(screen.getByTestId('attachment')).toBeInTheDocument();
+  });
+
+  it('defaults to an empty editor value when the message has no text', () => {
+    setup({ isMyMessage: true, message: { text: undefined } });
+    fireEvent.click(screen.getByLabelText('More'));
+    fireEvent.click(screen.getByText('Edit'));
+    expect(screen.getByLabelText('Edit message')).toHaveValue('');
+  });
+
+  it('renders a bubble with no attachments field at all', () => {
+    setup({ message: { text: 'Plain text', attachments: undefined } });
+    expect(screen.getByText('Plain text')).toBeInTheDocument();
   });
 
   it('highlights an @mention', () => {
