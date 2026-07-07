@@ -2,6 +2,10 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import ProtectedChatContainer, {
   ChatContainer,
+  ChannelPreviewWrapper,
+  ChatClosedFooter,
+} from '@/app/features/chat/components/ChatContainer';
+import {
   normalizeName,
   getSessionIdFromChannel,
   findSessionByStoredId,
@@ -13,9 +17,7 @@ import ProtectedChatContainer, {
   formatRowTime,
   isCounterpartOnline,
   formatClosedTime,
-  ChannelPreviewWrapper,
-  ChatClosedFooter,
-} from '@/app/features/chat/components/ChatContainer';
+} from '@/app/features/chat/components/chatContainerUtils';
 import type { Channel as StreamChannel } from 'stream-chat';
 import * as streamChatService from '@/app/features/chat/services/streamChatService';
 import * as chatService from '@/app/features/chat/services/chatService';
@@ -1335,8 +1337,9 @@ describe('ChannelPreviewWrapper + ChatClosedFooter', () => {
     expect(screen.getByText('Hello there')).toBeInTheDocument();
   });
 
-  it('notifies selection when it becomes active', () => {
+  it('notifies selection when the preview row is clicked', () => {
     const props = renderPreview({ active: true });
+    fireEvent.click(screen.getByText('Preview Chat'));
     expect(props.onPreviewSelect).toHaveBeenCalledWith(previewChannel);
   });
 

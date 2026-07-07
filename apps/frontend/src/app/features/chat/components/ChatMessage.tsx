@@ -61,19 +61,27 @@ function getReactionChips(message: ReactionSource): ReactionChip[] {
   return chips;
 }
 
-const renderText = (body: string, mine: boolean) =>
-  body.split(/(@\w[\w-]*)/g).map((part, i) =>
-    part.startsWith('@') ? (
-      <span
-        key={`${part}-${i}`}
-        className={clsx('font-semibold', mine ? 'text-neutral-0 underline' : 'text-primary-700')}
-      >
-        {part}
-      </span>
-    ) : (
-      part
-    )
+function MentionAwareText({ body, mine }: Readonly<{ body: string; mine: boolean }>) {
+  return (
+    <>
+      {body.split(/(@\w[\w-]*)/g).map((part, i) =>
+        part.startsWith('@') ? (
+          <span
+            key={`${part}-${i}`}
+            className={clsx(
+              'font-semibold',
+              mine ? 'text-neutral-0 underline' : 'text-primary-700'
+            )}
+          >
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      )}
+    </>
   );
+}
 
 function MsgIconButton({
   label,
@@ -283,7 +291,7 @@ function MessageBubble({
           )}
         >
           <Text as="p" variant="body-4" className={mine ? 'text-neutral-0' : 'text-neutral-900'}>
-            {renderText(text, mine)}
+            <MentionAwareText body={text} mine={mine} />
           </Text>
         </div>
       )}

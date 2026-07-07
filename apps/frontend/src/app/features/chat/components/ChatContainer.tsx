@@ -47,6 +47,20 @@ import { GroupModal, type OrgUserOption } from './GroupModal';
 import { useChatNotifications } from '../hooks/useChatNotifications';
 import { ChatShareContext } from './chatShareContext';
 import clsx from 'clsx';
+import {
+  findSessionByStoredId,
+  formatClosedTime,
+  formatRowTime,
+  getChannelDisplayInfo,
+  getSessionIdFromChannel,
+  isCounterpartOnline,
+  matchesChannelId,
+  matchesDirectSession,
+  matchesGroupSession,
+  normalizeName,
+  resolveChannelScope,
+  type ChatScope,
+} from './chatContainerUtils';
 
 import 'stream-chat-react/dist/css/v2/index.css';
 import './ChatContainer.css';
@@ -57,7 +71,6 @@ import {
   endChatChannel,
   getAppointmentChannel,
 } from '@/app/features/chat/services/streamChatService';
-import { formatDisplayDate } from '@/app/lib/date';
 import { buildWorkspaceHref } from '@/app/lib/appointmentWorkspace';
 import {
   createOrgDirectChat,
@@ -136,10 +149,6 @@ function ChatScopeSwitcher({
     0,
     SCOPE_TABS.findIndex((t) => t.key === scope)
   );
-  const [index, setIndex] = useState(activeIndex);
-  useEffect(() => {
-    setIndex(activeIndex);
-  }, [activeIndex]);
 
   return (
     <fieldset
@@ -151,20 +160,17 @@ function ChatScopeSwitcher({
         aria-hidden
         className={clsx(
           'absolute top-0 bottom-0 w-1/3 rounded-[999px]! transition-all duration-300 ease-in-out',
-          SCOPE_TABS[index].slider
+          SCOPE_TABS[activeIndex].slider
         )}
-        style={{ transform: `translateX(${index * 100}%)` }}
+        style={{ transform: `translateX(${activeIndex * 100}%)` }}
       />
       {SCOPE_TABS.map((t, i) => {
-        const isActive = index === i;
+        const isActive = activeIndex === i;
         return (
           <button
             key={t.key}
             type="button"
-            onClick={() => {
-              setIndex(i);
-              setTimeout(() => onScopeChange?.(t.key), 0);
-            }}
+            onClick={() => onScopeChange?.(t.key)}
             aria-pressed={isActive}
             className={clsx(
               'relative z-10 flex w-1/3 items-center justify-center gap-1.5 text-body-4 transition-colors',
@@ -202,12 +208,35 @@ interface ChatLayoutProps {
 }
 
 interface ChatMainPanelProps {
-  isMobile: boolean;
-  isChannelSelected: boolean;
-  showBackButton: boolean;
+  mode: 'desktop' | 'mobile-list' | 'mobile-chat';
   onBack: () => void;
   currentUserId?: string | null;
   showEmpty?: boolean;
+}
+
+interface ChatSidebarHeaderProps {
+  showArchived: boolean;
+  onToggleArchived: () => void;
+  scope: ChatScope;
+  onScopeChange?: (scope: ChatScope) => void;
+  searchTerm: string;
+  onSearchTermChange: (value: string) => void;
+  crossOrgEnabled: boolean;
+  onOpenNetworkDirectory: () => void;
+  directSearch: string;
+  onDirectSearchChange: (value: string) => void;
+  onDirectSearchFocus: () => void;
+  onDirectSearchBlur: () => void;
+  onDirectListMouseEnter: () => void;
+  onDirectListMouseLeave: () => void;
+  searchFocused: boolean;
+  directListHover: boolean;
+  orgUsersLoading: boolean;
+  orgUsers: OrgUserOption[];
+  currentUserId?: string | null;
+  creatingChat: boolean;
+  onStartDirectChat: (user: OrgUserOption) => void;
+  onOpenCreateGroupModal: () => void;
 }
 
 interface ChatWindowProps {
@@ -216,186 +245,13 @@ interface ChatWindowProps {
   currentUserId?: string | null;
 }
 
-interface ChannelDisplayInfo {
-  title: string;
-  image?: string;
-}
-
 interface ChannelState {
   frozen: boolean;
   updatedAt?: string;
   closedAt?: string;
 }
 
-export type ChatScope = 'clients' | 'colleagues' | 'groups';
-
-const normalizeName = (value?: string) => {
-  if (!value) return '';
-  // Remove templated space markers like {' '} using iterative approach
-  let result = '';
-  let i = 0;
-  while (i < value.length) {
-    if (value[i] === '{') {
-      const closeIdx = value.indexOf('}', i + 1);
-      if (closeIdx !== -1) {
-        result += ' ';
-        i = closeIdx + 1;
-        continue;
-      }
-    }
-    result += value[i];
-    i++;
-  }
-  // collapse whitespace
-  return result.replaceAll(/\s+/g, ' ').trim();
-};
-
-const getSessionIdFromChannel = (chan: StreamChannel): string | undefined => {
-  const data = (chan.data as any) || {};
-  return data.groupId || data.directId || data._id || undefined;
-};
-
-const findSessionByStoredId = (sessions: Array<{ _id: string }>, storedId?: string) => {
-  if (!storedId) return undefined;
-  return sessions.find((s) => s._id === storedId);
-};
-
-const matchesDirectSession = (session: any, channelMemberIds: string[]) => {
-  if (session.type !== 'ORG_DIRECT' || channelMemberIds.length !== 2) {
-    return false;
-  }
-  const sessionMembers = session.members || [];
-  const allMembersMatch = sessionMembers.every((sm: string) => channelMemberIds.includes(sm));
-  return allMembersMatch && sessionMembers.length === channelMemberIds.length;
-};
-
-const matchesGroupSession = (session: any, channelMemberIds: string[], channelTitle?: string) => {
-  if (session.type !== 'ORG_GROUP' || channelMemberIds.length <= 2) {
-    return false;
-  }
-  const sessionMembers = session.members || [];
-  const matchingMembers = sessionMembers.filter((sm: string) => channelMemberIds.includes(sm));
-  if (matchingMembers.length < Math.min(sessionMembers.length, channelMemberIds.length) - 1) {
-    return false;
-  }
-  if (session.title && channelTitle && session.title === channelTitle) return true;
-  return (
-    matchingMembers.length === sessionMembers.length &&
-    matchingMembers.length === channelMemberIds.length
-  );
-};
-
-const matchesChannelId = (session: any, chan: StreamChannel) => {
-  if (session.channelId === chan.id) return true;
-  if (chan.cid && session.channelId === chan.cid) return true;
-  if (chan.id && session.channelId && chan.id.includes(session.channelId)) return true;
-  if (session.channelId?.includes?.(chan.id)) return true;
-  return false;
-};
-
-const getChannelDisplayInfo = (
-  channel: StreamChannel | null | undefined,
-  currentUserId?: string | null
-): ChannelDisplayInfo => {
-  if (!channel) {
-    return { title: 'Chat' };
-  }
-
-  const channelData = (channel.data || {}) as Record<string, unknown>;
-  const explicitTitle =
-    normalizeName(typeof channelData.title === 'string' ? channelData.title : undefined) ||
-    normalizeName(typeof channelData.name === 'string' ? channelData.name : undefined);
-  const membersArray = channel.state?.members ? Object.values(channel.state.members) : [];
-  const counterpart =
-    membersArray.find((member) => member.user?.id !== currentUserId) ?? membersArray[0];
-
-  const petOwnerName =
-    typeof channelData.petOwnerName === 'string' ? channelData.petOwnerName : undefined;
-  const petName = typeof channelData.petName === 'string' ? channelData.petName : undefined;
-
-  const counterpartName = normalizeName(counterpart?.user?.name || counterpart?.user_id);
-  const counterpartImage = counterpart?.user?.image;
-
-  const title =
-    explicitTitle ||
-    (petName && petOwnerName ? `${petName}{' '}(${petOwnerName})` : undefined) ||
-    petOwnerName ||
-    petName ||
-    counterpartName ||
-    explicitTitle ||
-    channel.id ||
-    'Chat';
-
-  const image =
-    (typeof channelData.image === 'string' ? channelData.image : undefined) || counterpartImage;
-
-  return { title, image };
-};
-
-const resolveChannelScope = (channel: StreamChannel): ChatScope => {
-  const data = (channel.data || {}) as Record<string, unknown>;
-  const rawCategory = [
-    data.chatCategory,
-    data.channelCategory,
-    data.category,
-    data.chat_type as string | undefined,
-    data.channelType as string | undefined,
-  ].find((value): value is string => typeof value === 'string');
-
-  const normalizedCategory = rawCategory?.toLowerCase();
-
-  if (
-    normalizedCategory === 'client' ||
-    normalizedCategory === 'clients' ||
-    normalizedCategory === 'pet-parent' ||
-    normalizedCategory === 'pet_parent'
-  ) {
-    return 'clients';
-  }
-
-  if (
-    normalizedCategory === 'colleague' ||
-    normalizedCategory === 'colleagues' ||
-    normalizedCategory === 'team' ||
-    normalizedCategory === 'staff' ||
-    normalizedCategory === 'internal'
-  ) {
-    return 'colleagues';
-  }
-
-  if (
-    normalizedCategory === 'group' ||
-    normalizedCategory === 'groups' ||
-    normalizedCategory === 'common' ||
-    normalizedCategory === 'broadcast'
-  ) {
-    return 'groups';
-  }
-
-  const memberCount = (() => {
-    const members = channel.state?.members;
-    if (members && Object.keys(members).length > 0) {
-      return Object.keys(members).length;
-    }
-    const count = (data as any)?.member_count;
-    return typeof count === 'number' ? Number(count) : 0;
-  })();
-
-  const hasAppointmentDetails = Boolean(
-    (data as any)?.appointmentId || (data as any)?.petOwnerId || (data as any)?.petOwnerName
-  );
-
-  if (hasAppointmentDetails) {
-    return 'clients';
-  }
-
-  if ((data as any)?.isGroup === true || (data as any)?.group === true || memberCount > 2) {
-    return 'groups';
-  }
-
-  // Default to colleagues for internal PMS chats when no metadata is present
-  return 'colleagues';
-};
+export type { ChatScope };
 
 // Custom hook for channel state management
 const useChannelState = () => {
@@ -666,29 +522,6 @@ const ChannelHeaderWithCounterpart: FC<{
   );
 };
 
-const formatRowTime = (value?: Date | string | null): string => {
-  if (!value) return '';
-  const date = typeof value === 'string' ? new Date(value) : value;
-  const diffMins = Math.floor((Date.now() - date.getTime()) / 60000);
-  if (diffMins < 1) return 'now';
-  if (diffMins < 60) return `${diffMins}m`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return date.toLocaleDateString(undefined, { weekday: 'short' });
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-};
-
-const isCounterpartOnline = (
-  channel: StreamChannel | null | undefined,
-  currentUserId?: string | null
-): boolean => {
-  const members = channel?.state?.members ? Object.values(channel.state.members) : [];
-  const counterpart = members.find((member) => member.user?.id !== currentUserId);
-  return Boolean(counterpart?.user?.online);
-};
-
 const isChannelMuted = (channel: StreamChannel | null | undefined): boolean => {
   try {
     return Boolean(channel?.muteStatus?.().muted);
@@ -725,16 +558,7 @@ const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
   archived,
   ...previewProps
 }) => {
-  const wasActiveRef = useRef(false);
   const channel = previewProps.channel;
-
-  useEffect(() => {
-    const isActive = Boolean(previewProps.active);
-    if (isActive && !wasActiveRef.current) {
-      onPreviewSelect?.(channel ?? null);
-    }
-    wasActiveRef.current = isActive;
-  }, [previewProps.active, channel, onPreviewSelect]);
 
   const { title } = getChannelDisplayInfo(channel ?? null, currentUserId);
   const scope = channel ? resolveChannelScope(channel) : 'colleagues';
@@ -756,6 +580,7 @@ const ChannelPreviewWrapper: FC<ChannelPreviewWrapperProps> = ({
       muted={muted}
       active={previewProps.active}
       onClick={(event) => {
+        onPreviewSelect?.(channel ?? null);
         if (previewProps.onSelect) previewProps.onSelect(event);
         else previewProps.setActiveChannel?.(channel, previewProps.watchers);
       }}
@@ -803,24 +628,6 @@ const ChatChannelListPaginator: FC<
 
 const CHAT_SORT = [{ last_message_at: -1 as const }];
 const CHAT_OPTIONS = { state: true, watch: true, presence: true };
-
-const formatClosedTime = (timestamp?: string) => {
-  if (!timestamp) return '';
-
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-
-  return formatDisplayDate(date);
-};
 
 const ChatClosedFooter: FC<{ closedAt?: string }> = ({ closedAt }) => {
   const formattedClosedTime = formatClosedTime(closedAt);
@@ -916,15 +723,9 @@ const ChatWindow: FC<ChatWindowProps> = ({ showBackButton, onBack, currentUserId
   );
 };
 
-const ChatMainPanel: FC<ChatMainPanelProps> = ({
-  isMobile,
-  isChannelSelected,
-  showBackButton,
-  onBack,
-  currentUserId,
-  showEmpty,
-}) => {
-  const shouldShowChat = isMobile ? isChannelSelected : true;
+const ChatMainPanel: FC<ChatMainPanelProps> = ({ mode, onBack, currentUserId, showEmpty }) => {
+  const shouldShowChat = mode !== 'mobile-list';
+  const showBackButton = mode === 'mobile-chat';
 
   return (
     <div
@@ -959,11 +760,7 @@ const ChatMainPanel: FC<ChatMainPanelProps> = ({
           </Text>
         </div>
       ) : (
-        <ChatWindow
-          showBackButton={showBackButton && isMobile && isChannelSelected}
-          onBack={onBack}
-          currentUserId={currentUserId}
-        />
+        <ChatWindow showBackButton={showBackButton} onBack={onBack} currentUserId={currentUserId} />
       )}
     </div>
   );
@@ -983,6 +780,11 @@ const ChatLayout: FC<ChatLayoutProps> = ({
   channelListHeader,
 }) => {
   const shouldShowChannelList = !isMobile || !isChannelSelected;
+  const panelMode: ChatMainPanelProps['mode'] = !isMobile
+    ? 'desktop'
+    : isChannelSelected
+      ? 'mobile-chat'
+      : 'mobile-list';
 
   return (
     <div className="str-chat__container">
@@ -1009,14 +811,183 @@ const ChatLayout: FC<ChatLayoutProps> = ({
       </div>
 
       <ChatMainPanel
-        isMobile={isMobile}
-        isChannelSelected={isChannelSelected}
-        showBackButton
+        mode={panelMode}
         onBack={onBack}
         currentUserId={currentUserId}
         showEmpty={showEmpty}
       />
     </div>
+  );
+};
+
+const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
+  showArchived,
+  onToggleArchived,
+  scope,
+  onScopeChange,
+  searchTerm,
+  onSearchTermChange,
+  crossOrgEnabled,
+  onOpenNetworkDirectory,
+  directSearch,
+  onDirectSearchChange,
+  onDirectSearchFocus,
+  onDirectSearchBlur,
+  onDirectListMouseEnter,
+  onDirectListMouseLeave,
+  searchFocused,
+  directListHover,
+  orgUsersLoading,
+  orgUsers,
+  currentUserId,
+  creatingChat,
+  onStartDirectChat,
+  onOpenCreateGroupModal,
+}) => {
+  const normalizedDirectSearch = directSearch.toLowerCase();
+  const directSearchResults = orgUsers
+    .reduce<Array<OrgUserOption & { keyId: string | undefined }>>((results, user) => {
+      if (
+        normalizedDirectSearch &&
+        !(user.name + (user.email ?? '') + (user.role ?? ''))
+          .toLowerCase()
+          .includes(normalizedDirectSearch)
+      ) {
+        return results;
+      }
+      const keyId = user.userId ?? user.id;
+      if (keyId === currentUserId) return results;
+      results.push({ ...user, keyId });
+      return results.length === 8 ? results : results;
+    }, [])
+    .slice(0, 8);
+  const hasNoDirectMatches =
+    !orgUsersLoading &&
+    searchFocused &&
+    directSearch.trim().length > 0 &&
+    directSearchResults.length === 0;
+
+  return (
+    <>
+      <div className="flex items-center justify-between px-3 pt-3">
+        <Text as="h2" variant="heading-3" className="text-neutral-900">
+          Messages
+        </Text>
+        <button
+          type="button"
+          onClick={onToggleArchived}
+          aria-pressed={showArchived}
+          className={clsx(
+            'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+            showArchived
+              ? 'border-primary-500 bg-chat-panel text-primary-700'
+              : 'border-chat-divider text-neutral-500 hover:bg-chat-surface-soft hover:text-neutral-900'
+          )}
+        >
+          <LuArchive className="h-3.5 w-3.5" />
+          Archived
+        </button>
+      </div>
+      <div className="px-3 pt-2">
+        <ChatScopeSwitcher scope={scope} onScopeChange={onScopeChange} />
+      </div>
+      <div className="border-b border-chat-divider p-3">
+        <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) px-4 py-2.5 transition-colors focus-within:border-input-border-active">
+          <LuSearch className="h-4 w-4 shrink-0 text-input-text-placeholder" />
+          <input
+            value={searchTerm}
+            onChange={(e) => onSearchTermChange(e.target.value)}
+            placeholder="Search conversations…"
+            aria-label="Search conversations"
+            className="w-full bg-transparent font-satoshi text-body-4 text-text-primary outline-none placeholder:text-input-text-placeholder"
+          />
+          <span className="hidden shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-neutral-400 sm:flex">
+            <LuCommand className="h-3 w-3" />K
+          </span>
+        </div>
+      </div>
+      {(scope === 'colleagues' || scope === 'groups') && (
+        <div className="flex flex-col gap-3 border-b border-chat-divider p-3">
+          {scope === 'colleagues' && (
+            <div className="flex flex-col gap-2">
+              {crossOrgEnabled && (
+                <button
+                  type="button"
+                  onClick={onOpenNetworkDirectory}
+                  className="flex cursor-pointer items-center gap-2 rounded-2xl border border-chat-divider bg-neutral-0 px-3 py-2.5 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft"
+                >
+                  <LuGlobe className="size-4 shrink-0 text-primary-600" />
+                  <Text as="span" variant="body-4" className="text-neutral-900">
+                    Message a colleague at another clinic
+                  </Text>
+                </button>
+              )}
+              <FormInput
+                intype="text"
+                inname="colleagueSearch"
+                inlabel="Search teammate to chat"
+                value={directSearch}
+                onFocus={onDirectSearchFocus}
+                onBlur={onDirectSearchBlur}
+                onChange={(e) => onDirectSearchChange(e.target.value)}
+              />
+              <ul
+                className="m-0 flex max-h-40 list-none flex-col gap-2 overflow-y-auto p-0"
+                onMouseEnter={onDirectListMouseEnter}
+                onMouseLeave={onDirectListMouseLeave}
+              >
+                {orgUsersLoading && (
+                  <span className="text-caption-1 text-text-secondary">Loading teammates…</span>
+                )}
+                {!orgUsersLoading &&
+                  (searchFocused || directListHover) &&
+                  directSearchResults.map((user) => (
+                    <button
+                      key={user.keyId}
+                      type="button"
+                      onClick={() =>
+                        onStartDirectChat({
+                          ...user,
+                          id: user.id,
+                          userId: user.userId,
+                          practitionerId: user.practitionerId,
+                        })
+                      }
+                      disabled={creatingChat}
+                      className="flex min-h-14 cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 px-3 py-3 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <ChatAvatar name={user.name || user.email || '?'} />
+                      <span className="flex min-w-0 flex-col gap-0.5">
+                        <Text
+                          as="span"
+                          variant="body-4-emphasis"
+                          className="truncate text-neutral-900"
+                        >
+                          {user.name}
+                        </Text>
+                        {user.email && (
+                          <Text as="span" variant="caption-2" className="truncate text-neutral-500">
+                            {user.email}
+                          </Text>
+                        )}
+                      </span>
+                    </button>
+                  ))}
+                {hasNoDirectMatches && (
+                  <span className="text-caption-1 text-text-secondary">
+                    No teammates found. Adjust your search.
+                  </span>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {scope === 'groups' && (
+            <Primary text="Create Group" onClick={onOpenCreateGroupModal} className="w-fit" />
+          )}
+        </div>
+      )}
+    </>
   );
 };
 
@@ -1112,8 +1083,8 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   const [isMobile, setIsMobile] = useState(false);
   const [showEmptyPlaceholder, setShowEmptyPlaceholder] = useState(false);
   const [orgUsers, setOrgUsers] = useState<OrgUserOption[]>([]);
-  const [orgUsersLoaded, setOrgUsersLoaded] = useState(false);
-  const [orgUsersLoading, setOrgUsersLoading] = useState(false);
+  const [orgUsersStatus, setOrgUsersStatus] = useState<'idle' | 'loading' | 'loaded'>('idle');
+  const orgUsersLoading = orgUsersStatus === 'loading';
   const [statusByAppointmentId, setStatusByAppointmentId] = useState<
     Record<string, 'active' | 'ended'>
   >({});
@@ -1134,6 +1105,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   const [groupModalSearch, setGroupModalSearch] = useState('');
   const [groupModalBusy, setGroupModalBusy] = useState(false);
   const groupModalOwnerRef = useRef<string | undefined>(undefined);
+  const orgUsersRequestKeyRef = useRef<string | null>(null);
 
   const { notify } = useNotify();
 
@@ -1176,8 +1148,9 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   }, [refreshStatuses]);
 
   useEffect(() => {
-    setOrgUsersLoaded(false);
+    setOrgUsersStatus('idle');
     setOrgUsers([]);
+    orgUsersRequestKeyRef.current = null;
   }, [primaryOrgId]);
 
   useLayoutEffect(() => {
@@ -1322,9 +1295,11 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   useLayoutEffect(() => {
     const shouldLoadUsers = (scope === 'colleagues' || scope === 'groups') && primaryOrgId;
     if (!shouldLoadUsers) return;
-    if (orgUsersLoaded || orgUsersLoading) return;
+    const requestKey = `${primaryOrgId}:${scope}`;
+    if (orgUsersRequestKeyRef.current === requestKey) return;
 
-    setOrgUsersLoading(true);
+    orgUsersRequestKeyRef.current = requestKey;
+    setOrgUsersStatus('loading');
     if (!primaryOrgId) return;
     fetchOrgUsers(primaryOrgId)
       .then((users) => {
@@ -1345,13 +1320,14 @@ export const ChatContainer: FC<ChatContainerProps> = ({
               : []
           )
         );
-        setOrgUsersLoaded(true);
+        setOrgUsersStatus('loaded');
       })
       .catch((err) => {
         console.error('Failed to load org users for chat:', err);
-      })
-      .finally(() => setOrgUsersLoading(false));
-  }, [scope, primaryOrgId, orgUsersLoaded, orgUsersLoading]);
+        orgUsersRequestKeyRef.current = null;
+        setOrgUsersStatus('idle');
+      });
+  }, [scope, primaryOrgId]);
 
   const openCreateGroupModal = useCallback(() => {
     setGroupModalMode('create');
@@ -1926,170 +1902,45 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         channelFilter={channelFilter}
         showEmpty={showEmptyPlaceholder}
         channelListHeader={
-          <>
-            <div className="flex items-center justify-between px-3 pt-3">
-              <Text as="h2" variant="heading-3" className="text-neutral-900">
-                Messages
-              </Text>
-              <button
-                type="button"
-                onClick={() => setShowArchived((v) => !v)}
-                aria-pressed={showArchived}
-                className={clsx(
-                  'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
-                  showArchived
-                    ? 'border-primary-500 bg-chat-panel text-primary-700'
-                    : 'border-chat-divider text-neutral-500 hover:bg-chat-surface-soft hover:text-neutral-900'
-                )}
-              >
-                <LuArchive className="h-3.5 w-3.5" />
-                Archived
-              </button>
-            </div>
-            <div className="px-3 pt-2">
-              <ChatScopeSwitcher scope={scope} onScopeChange={onScopeChange} />
-            </div>
-            <div className="border-b border-chat-divider p-3">
-              <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) px-4 py-2.5 transition-colors focus-within:border-input-border-active">
-                <LuSearch className="h-4 w-4 shrink-0 text-input-text-placeholder" />
-                <input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search conversations…"
-                  aria-label="Search conversations"
-                  className="w-full bg-transparent font-satoshi text-body-4 text-text-primary outline-none placeholder:text-input-text-placeholder"
-                />
-                <span className="hidden shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-neutral-400 sm:flex">
-                  <LuCommand className="h-3 w-3" />K
-                </span>
-              </div>
-            </div>
-            {(scope === 'colleagues' || scope === 'groups') && (
-              <div className="flex flex-col gap-3 border-b border-chat-divider p-3">
-                {scope === 'colleagues' && (
-                  <div className="flex flex-col gap-2">
-                    {crossOrgEnabled && (
-                      <button
-                        type="button"
-                        onClick={() => setNetworkModalOpen(true)}
-                        className="flex cursor-pointer items-center gap-2 rounded-2xl border border-chat-divider bg-neutral-0 px-3 py-2.5 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft"
-                      >
-                        <LuGlobe className="size-4 shrink-0 text-primary-600" />
-                        <Text as="span" variant="body-4" className="text-neutral-900">
-                          Message a colleague at another clinic
-                        </Text>
-                      </button>
-                    )}
-                    <FormInput
-                      intype="text"
-                      inname="colleagueSearch"
-                      inlabel="Search teammate to chat"
-                      value={directSearch}
-                      onFocus={() => {
-                        if (directBlurTimeout.current) {
-                          clearTimeout(directBlurTimeout.current);
-                          directBlurTimeout.current = null;
-                        }
-                        setSearchFocused(true);
-                      }}
-                      onBlur={() => {
-                        directBlurTimeout.current = setTimeout(() => {
-                          if (!directListHover) {
-                            setSearchFocused(false);
-                          }
-                        }, 120);
-                      }}
-                      onChange={(e) => setDirectSearch(e.target.value)}
-                    />
-                    <ul
-                      className="max-h-40 overflow-y-auto flex flex-col gap-2 list-none p-0 m-0"
-                      onMouseEnter={() => setDirectListHover(true)}
-                      onMouseLeave={() => {
-                        setDirectListHover(false);
-                        if (!searchFocused) setSearchFocused(false);
-                      }}
-                    >
-                      {orgUsersLoading && (
-                        <span className="text-caption-1 text-text-secondary">
-                          Loading teammates…
-                        </span>
-                      )}
-                      {!orgUsersLoading &&
-                        (searchFocused || directListHover) &&
-                        (() => {
-                          const dlower = directSearch.toLowerCase();
-                          const results: (OrgUserOption & { keyId: string | undefined })[] = [];
-                          for (const u of orgUsers) {
-                            if (
-                              !(u.name + (u.email ?? '') + (u.role ?? ''))
-                                .toLowerCase()
-                                .includes(dlower)
-                            )
-                              continue;
-                            const keyId = u.userId ?? u.id;
-                            if (keyId === client.userID) continue;
-                            results.push({ ...u, keyId });
-                            if (results.length === 8) break;
-                          }
-                          return results;
-                        })().map((u) => (
-                          <button
-                            key={u.keyId}
-                            type="button"
-                            onClick={() =>
-                              handleStartDirectChat({
-                                ...u,
-                                id: u.id,
-                                userId: u.userId,
-                                practitionerId: u.practitionerId,
-                              })
-                            }
-                            disabled={creatingChat}
-                            className="flex min-h-14 cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 px-3 py-3 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <ChatAvatar name={u.name || u.email || '?'} />
-                            <span className="flex min-w-0 flex-col gap-0.5">
-                              <Text
-                                as="span"
-                                variant="body-4-emphasis"
-                                className="truncate text-neutral-900"
-                              >
-                                {u.name}
-                              </Text>
-                              {u.email && (
-                                <Text
-                                  as="span"
-                                  variant="caption-2"
-                                  className="truncate text-neutral-500"
-                                >
-                                  {u.email}
-                                </Text>
-                              )}
-                            </span>
-                          </button>
-                        ))}
-                      {!orgUsersLoading &&
-                        searchFocused &&
-                        directSearch.trim().length > 0 &&
-                        !orgUsers.some((u) =>
-                          (u.name + (u.email ?? '') + (u.role ?? ''))
-                            .toLowerCase()
-                            .includes(directSearch.toLowerCase())
-                        ) && (
-                          <span className="text-caption-1 text-text-secondary">
-                            No teammates found. Adjust your search.
-                          </span>
-                        )}
-                    </ul>
-                  </div>
-                )}
-
-                {scope === 'groups' && (
-                  <Primary text="Create Group" onClick={openCreateGroupModal} className="w-fit" />
-                )}
-              </div>
-            )}
-          </>
+          <ChatSidebarHeader
+            showArchived={showArchived}
+            onToggleArchived={() => setShowArchived((value) => !value)}
+            scope={scope}
+            onScopeChange={onScopeChange}
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            crossOrgEnabled={crossOrgEnabled}
+            onOpenNetworkDirectory={() => setNetworkModalOpen(true)}
+            directSearch={directSearch}
+            onDirectSearchChange={setDirectSearch}
+            onDirectSearchFocus={() => {
+              if (directBlurTimeout.current) {
+                clearTimeout(directBlurTimeout.current);
+                directBlurTimeout.current = null;
+              }
+              setSearchFocused(true);
+            }}
+            onDirectSearchBlur={() => {
+              directBlurTimeout.current = setTimeout(() => {
+                if (!directListHover) {
+                  setSearchFocused(false);
+                }
+              }, 120);
+            }}
+            onDirectListMouseEnter={() => setDirectListHover(true)}
+            onDirectListMouseLeave={() => {
+              setDirectListHover(false);
+              if (!searchFocused) setSearchFocused(false);
+            }}
+            searchFocused={searchFocused}
+            directListHover={directListHover}
+            orgUsersLoading={orgUsersLoading}
+            orgUsers={orgUsers}
+            currentUserId={client.userID}
+            creatingChat={creatingChat}
+            onStartDirectChat={handleStartDirectChat}
+            onOpenCreateGroupModal={openCreateGroupModal}
+          />
         }
       />
       <ChatCommandPalette client={client} filters={filters} onJump={activateChannelById} />
@@ -2175,20 +2026,6 @@ const ProtectedChatContainer = () => {
   );
 };
 
-export {
-  normalizeName,
-  getSessionIdFromChannel,
-  findSessionByStoredId,
-  matchesDirectSession,
-  matchesGroupSession,
-  matchesChannelId,
-  getChannelDisplayInfo,
-  resolveChannelScope,
-  formatRowTime,
-  isCounterpartOnline,
-  formatClosedTime,
-  ChannelPreviewWrapper,
-  ChatClosedFooter,
-};
+export { ChannelPreviewWrapper, ChatClosedFooter };
 
 export default ProtectedChatContainer;
