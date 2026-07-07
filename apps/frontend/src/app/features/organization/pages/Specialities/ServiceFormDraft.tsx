@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useState } from 'react';
+import React, { useCallback, useId, useState } from 'react';
 import { MdDeleteForever } from 'react-icons/md';
 import { FiCheck } from 'react-icons/fi';
 import { LuBedSingle, LuCheck } from 'react-icons/lu';
@@ -72,14 +72,10 @@ const ServiceFormDraft = ({
   const [errors, setErrors] = useState<FormErrors>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const [previewCode, setPreviewCode] = useState<string>(editService?.code ?? '');
+  const [previewCode, setPreviewCode] = useState<string>(() =>
+    editService?.code ? editService.code : generateCode(type)
+  );
   const descId = useId();
-
-  useEffect(() => {
-    if (!isEditing) {
-      setPreviewCode(generateCode(type));
-    }
-  }, [type, isEditing, generateCode]);
 
   const gross = Number.parseFloat(grossAmount) || 0;
   const disc = Number.parseFloat(defaultDiscount) || 0;
@@ -249,7 +245,10 @@ const ServiceFormDraft = ({
             onSelect={(o) => {
               const next = o.value as CatalogItemType;
               setType(next);
-              if (!isEditing) setIsBookable(next === 'CONSULTATION');
+              if (!isEditing) {
+                setIsBookable(next === 'CONSULTATION');
+                setPreviewCode(generateCode(next));
+              }
             }}
             portal
           />

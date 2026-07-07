@@ -19,7 +19,7 @@ import {
 } from '@/app/features/tasks/constants/taskTaxonomy';
 import RecurrenceScopeModal from '@/app/features/tasks/components/RecurrenceScopeModal';
 import { PERMISSIONS } from '@/app/lib/permissions';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
 import { useAuthStore } from '@/app/stores/authStore';
 import {
@@ -125,7 +125,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
   const [isReusing, setIsReusing] = useState(false);
   // Recurring-series edit: hold the built payload while the user picks a scope.
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
-  const [pendingEditPayload, setPendingEditPayload] = useState<Task | null>(null);
+  const pendingEditPayloadRef = useRef<Task | null>(null);
   const [scopeBusy, setScopeBusy] = useState(false);
   const isCompletedTask = activeTask.status === 'COMPLETED';
   const effectiveEditMode = isCompletedTask ? ('NONE' as const) : editMode;
@@ -447,7 +447,7 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
       };
       // A task in a recurring series asks which occurrences the edit applies to.
       if (isSeriesTask(activeTask.recurrence)) {
-        setPendingEditPayload(payload);
+        pendingEditPayloadRef.current = payload;
         setScopeModalOpen(true);
         return;
       }
@@ -460,12 +460,12 @@ const TaskInfo = ({ showModal, setShowModal, activeTask, onReuseTask }: TaskInfo
 
   // Commit the held edit against the chosen series scope.
   const handleScopeConfirm = async (scope: RecurrenceScope) => {
-    if (!pendingEditPayload) return;
+    if (!pendingEditPayloadRef.current) return;
     setScopeBusy(true);
     try {
-      await updateTask(pendingEditPayload, scope);
+      await updateTask(pendingEditPayloadRef.current, scope);
       setScopeModalOpen(false);
-      setPendingEditPayload(null);
+      pendingEditPayloadRef.current = null;
       setShowModal(false);
     } catch (error) {
       console.log(error);
