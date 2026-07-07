@@ -42,6 +42,120 @@ type SearchResult = {
   meta: string;
 };
 
+type SpecialitySearchBarProps = {
+  searchRef: React.RefObject<HTMLDivElement | null>;
+  specialityName: string;
+  searchQuery: string;
+  searchOpen: boolean;
+  searchResults: SearchResult[];
+  onQueryChange: (value: string) => void;
+  onFocus: () => void;
+  onBlur: () => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onClear: () => void;
+  onSelectResult: (result: SearchResult) => void;
+};
+
+const SpecialitySearchBar = ({
+  searchRef,
+  specialityName,
+  searchQuery,
+  searchOpen,
+  searchResults,
+  onQueryChange,
+  onFocus,
+  onBlur,
+  onKeyDown,
+  onClear,
+  onSelectResult,
+}: SpecialitySearchBarProps) => (
+  <div ref={searchRef} className="relative w-full sm:w-64 sm:ml-auto shrink-0">
+    <div className="flex items-center gap-2 border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-white w-full">
+      <input
+        type="text"
+        placeholder="Search services & packages..."
+        value={searchQuery}
+        onChange={(e) => onQueryChange(e.target.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
+        className="flex-1 min-w-0 bg-transparent font-satoshi text-[13px] font-medium text-text-primary focus-visible:outline-none placeholder:text-text-secondary"
+        aria-label={`Search within ${specialityName}`}
+      />
+      {searchQuery && (
+        <button
+          type="button"
+          aria-label="Clear search"
+          onClick={onClear}
+          className="shrink-0 focus-visible:outline-none"
+        >
+          <FiX size={12} color="var(--color-text-secondary)" />
+        </button>
+      )}
+      <IoIosSearch
+        size={20}
+        color="var(--color-neutral-900)"
+        aria-hidden="true"
+        className="shrink-0"
+      />
+    </div>
+
+    {searchOpen && searchQuery.trim() && (
+      <div className="absolute top-full left-0 sm:left-auto sm:right-0 z-50 mt-1 w-full sm:w-96 bg-white border border-card-border rounded-2xl shadow-lg overflow-hidden">
+        {searchResults.length > 0 ? (
+          searchResults.map((result) => (
+            <button
+              key={result.id}
+              type="button"
+              onMouseDown={() => onSelectResult(result)}
+              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-card-hover transition-colors"
+            >
+              <span className="text-body-4 text-text-primary truncate">{result.name}</span>
+              <span className="text-caption-1 text-text-secondary shrink-0">{result.meta}</span>
+            </button>
+          ))
+        ) : (
+          <div className="px-4 py-3 text-body-4 text-text-secondary">No results found.</div>
+        )}
+      </div>
+    )}
+  </div>
+);
+
+type SpecialityDeleteModalProps = {
+  specialityName: string;
+  deleting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+const SpecialityDeleteModal = ({
+  specialityName,
+  deleting,
+  onCancel,
+  onConfirm,
+}: SpecialityDeleteModalProps) => (
+  <CenterModal showModal setShowModal={onCancel}>
+    <ModalHeader title="Delete speciality" onClose={onCancel} />
+    <p className="text-body-4 text-text-primary">
+      Are you sure you want to delete <strong>{specialityName}</strong>? This will remove the
+      speciality and is only possible if it has no services, packages, or historical usage. This
+      action cannot be undone.
+    </p>
+    <div className="grid grid-cols-2 gap-3">
+      <Secondary href="#" text="Cancel" onClick={onCancel} />
+      <Delete
+        href="#"
+        text={deleting ? 'Deleting...' : 'Delete'}
+        onClick={() => {
+          if (deleting) return;
+          onConfirm();
+        }}
+      />
+    </div>
+  </CenterModal>
+);
+
 const SpecialityAccordionRevamp = ({
   speciality,
   defaultOpen = false,
@@ -347,69 +461,25 @@ const SpecialityAccordionRevamp = ({
               </div>
             )}
             {/* Search bar — full width on mobile, fixed 256px + pushed right on sm+ */}
-            <div ref={searchRef} className="relative w-full sm:w-64 sm:ml-auto shrink-0">
-              <div className="flex items-center gap-2 border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-white w-full">
-                <input
-                  type="text"
-                  placeholder="Search services & packages..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setSearchOpen(true);
-                  }}
-                  onFocus={() => setSearchOpen(true)}
-                  onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-                  onKeyDown={handleSearchKeyDown}
-                  className="flex-1 min-w-0 bg-transparent font-satoshi text-[13px] font-medium text-text-primary focus-visible:outline-none placeholder:text-text-secondary"
-                  aria-label={`Search within ${speciality.name}`}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    aria-label="Clear search"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSearchOpen(false);
-                    }}
-                    className="shrink-0 focus-visible:outline-none"
-                  >
-                    <FiX size={12} color="var(--color-text-secondary)" />
-                  </button>
-                )}
-                <IoIosSearch
-                  size={20}
-                  color="var(--color-neutral-900)"
-                  aria-hidden="true"
-                  className="shrink-0"
-                />
-              </div>
-
-              {searchOpen && searchQuery.trim() && (
-                <div className="absolute top-full left-0 sm:left-auto sm:right-0 z-50 mt-1 w-full sm:w-96 bg-white border border-card-border rounded-2xl shadow-lg overflow-hidden">
-                  {searchResults.length > 0 ? (
-                    searchResults.map((result) => (
-                      <button
-                        key={result.id}
-                        type="button"
-                        onMouseDown={() => handleSearchSelect(result)}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-card-hover transition-colors"
-                      >
-                        <span className="text-body-4 text-text-primary truncate">
-                          {result.name}
-                        </span>
-                        <span className="text-caption-1 text-text-secondary shrink-0">
-                          {result.meta}
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-4 py-3 text-body-4 text-text-secondary">
-                      No results found.
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <SpecialitySearchBar
+              searchRef={searchRef}
+              specialityName={speciality.name}
+              searchQuery={searchQuery}
+              searchOpen={searchOpen}
+              searchResults={searchResults}
+              onQueryChange={(value) => {
+                setSearchQuery(value);
+                setSearchOpen(true);
+              }}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+              onKeyDown={handleSearchKeyDown}
+              onClear={() => {
+                setSearchQuery('');
+                setSearchOpen(false);
+              }}
+              onSelectResult={handleSearchSelect}
+            />
           </div>
         )}
       </div>
@@ -456,25 +526,14 @@ const SpecialityAccordionRevamp = ({
       )}
 
       {confirmDelete && (
-        <CenterModal showModal setShowModal={() => setConfirmDelete(false)}>
-          <ModalHeader title="Delete speciality" onClose={() => setConfirmDelete(false)} />
-          <p className="text-body-4 text-text-primary">
-            Are you sure you want to delete <strong>{speciality.name}</strong>? This will remove the
-            speciality and is only possible if it has no services, packages, or historical usage.
-            This action cannot be undone.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Secondary href="#" text="Cancel" onClick={() => setConfirmDelete(false)} />
-            <Delete
-              href="#"
-              text={deleting ? 'Deleting...' : 'Delete'}
-              onClick={() => {
-                if (deleting) return;
-                Promise.resolve(handleDeleteConfirm()).catch(() => undefined);
-              }}
-            />
-          </div>
-        </CenterModal>
+        <SpecialityDeleteModal
+          specialityName={speciality.name}
+          deleting={deleting}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            Promise.resolve(handleDeleteConfirm()).catch(() => undefined);
+          }}
+        />
       )}
     </div>
   );

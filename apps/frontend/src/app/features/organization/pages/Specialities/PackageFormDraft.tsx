@@ -101,6 +101,211 @@ const TYPE_LABELS: Record<string, string> = {
   PACKAGE: 'Package',
 };
 
+type PackageTopFieldsProps = {
+  name: string;
+  onNameChange: (value: string) => void;
+  nameError?: string;
+  description: string;
+  onDescriptionChange: (value: string) => void;
+  descId: string;
+  durationText: string;
+  onDurationTextChange: (value: string) => void;
+  durationTextError?: string;
+  leadCount: string;
+  onLeadCountSelect: (value: string) => void;
+  supportCount: string;
+  onSupportCountSelect: (value: string) => void;
+  effectiveBookable: boolean;
+  requiredBookable: boolean;
+  onIsBookableChange: (value: boolean) => void;
+  effectiveInpatientPreferred: boolean;
+  requiredInpatient: boolean;
+  onIsInpatientPreferredChange: (value: boolean) => void;
+};
+
+const PackageTopFields = ({
+  name,
+  onNameChange,
+  nameError,
+  description,
+  onDescriptionChange,
+  descId,
+  durationText,
+  onDurationTextChange,
+  durationTextError,
+  leadCount,
+  onLeadCountSelect,
+  supportCount,
+  onSupportCountSelect,
+  effectiveBookable,
+  requiredBookable,
+  onIsBookableChange,
+  effectiveInpatientPreferred,
+  requiredInpatient,
+  onIsInpatientPreferredChange,
+}: PackageTopFieldsProps) => (
+  <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-x-6 gap-y-4 items-start">
+    {/* Left col: Name + Description */}
+    <div className="flex flex-col gap-4">
+      <FormInput
+        intype="text"
+        inlabel="Name"
+        value={name}
+        onChange={(e) => onNameChange(e.target.value)}
+        error={nameError}
+      />
+      <div className="relative w-full">
+        <textarea
+          id={descId}
+          aria-label="Description"
+          value={description}
+          onChange={(e) => onDescriptionChange(e.target.value)}
+          placeholder=" "
+          className="peer w-full rounded-2xl bg-transparent px-6 pt-4 pb-3 text-body-4 text-text-primary outline-none border border-input-border-default focus:border-input-border-active resize-none min-h-28"
+        />
+        <label
+          htmlFor={descId}
+          className="pointer-events-none absolute left-4 top-4 max-w-[calc(100%-2rem)] truncate text-body-4 text-input-text-placeholder transition-all duration-200 peer-focus:-top-2.5 peer-focus:left-4 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:text-input-text-placeholder-active peer-focus:bg-(--whitebg) peer-focus:px-1.5 peer-focus:max-w-none peer-not-placeholder-shown:px-1.5 peer-not-placeholder-shown:-top-2.5 peer-not-placeholder-shown:left-4 peer-not-placeholder-shown:translate-y-0 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:bg-(--whitebg) peer-not-placeholder-shown:max-w-none"
+        >
+          Description
+        </label>
+      </div>
+    </div>
+
+    {/* Right col: Duration / Lead+Support row / scheduling checkboxes */}
+    <div className="flex flex-col gap-4">
+      <FormInput
+        intype="text"
+        inlabel="Approx. duration"
+        value={durationText}
+        onChange={(e) => onDurationTextChange(e.target.value)}
+        error={durationTextError}
+      />
+      <div className="grid grid-cols-2 gap-4">
+        <LabelDropdown
+          placeholder="Lead"
+          options={LEAD_OPTIONS}
+          defaultOption={leadCount}
+          onSelect={(o) => onLeadCountSelect(o.value)}
+          portal
+        />
+        <LabelDropdown
+          placeholder="Support"
+          options={STAFF_COUNT_OPTIONS}
+          defaultOption={supportCount}
+          onSelect={(o) => onSupportCountSelect(o.value)}
+          portal
+        />
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-2">
+        <label className="flex items-center gap-2 cursor-pointer select-none text-body-4 text-text-secondary whitespace-nowrap">
+          <input
+            type="checkbox"
+            aria-label="Package bookable"
+            checked={effectiveBookable}
+            disabled={requiredBookable}
+            onChange={(e) => onIsBookableChange(e.target.checked)}
+            className="size-4 shrink-0 accent-(--color-input-border-active) disabled:cursor-not-allowed"
+          />
+          {'Is this package bookable?'}
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer select-none text-body-4 text-text-secondary whitespace-nowrap">
+          <input
+            type="checkbox"
+            aria-label="Package in-patient"
+            checked={effectiveInpatientPreferred}
+            disabled={requiredInpatient}
+            onChange={(e) => onIsInpatientPreferredChange(e.target.checked)}
+            className="size-4 shrink-0 accent-(--color-input-border-active) disabled:cursor-not-allowed"
+          />
+          {'In-patient preferred'}
+        </label>
+      </div>
+    </div>
+  </div>
+);
+
+type PackageBreakdownSearchProps = {
+  searchQuery: string;
+  onQueryChange: (value: string) => void;
+  filteredSearch: CatalogEntry[];
+  searchLoading: boolean;
+  orgCurrency: string;
+  onSelectItem: (item: CatalogEntry) => void;
+};
+
+const PackageBreakdownSearch = ({
+  searchQuery,
+  onQueryChange,
+  filteredSearch,
+  searchLoading,
+  orgCurrency,
+  onSelectItem,
+}: PackageBreakdownSearchProps) => (
+  <div className="relative">
+    <div className="flex items-center gap-2 w-full border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-white">
+      <input
+        type="text"
+        placeholder="Search services, inventory, lab tests, packages..."
+        value={searchQuery}
+        onChange={(e) => onQueryChange(e.target.value)}
+        className="flex-1 min-w-0 bg-transparent font-satoshi text-[13px] font-medium text-text-primary focus-visible:outline-none placeholder:text-text-secondary"
+        aria-label="Search catalog items"
+      />
+      <IoIosSearch
+        size={20}
+        color="var(--color-neutral-900)"
+        aria-hidden="true"
+        className="shrink-0"
+      />
+    </div>
+    {filteredSearch.length > 0 && (
+      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-card-border rounded-2xl shadow-lg overflow-hidden">
+        {filteredSearch.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onSelectItem(item)}
+            className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-card-hover text-body-4 text-text-primary"
+          >
+            <span>{item.name}</span>
+            <span className="text-caption-1 text-text-secondary">
+              {TYPE_LABELS[item.type] ?? item.type} ·{' '}
+              {formatMoney(item.unitPrice, item.currency ?? orgCurrency)}
+            </span>
+          </button>
+        ))}
+      </div>
+    )}
+    {searchQuery.trim() && filteredSearch.length === 0 && !searchLoading && (
+      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-card-border rounded-2xl shadow-lg px-4 py-3 text-body-4 text-text-secondary">
+        No items found.
+      </div>
+    )}
+  </div>
+);
+
+type PackageDeleteModalProps = {
+  packageName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+const PackageDeleteModal = ({ packageName, onCancel, onConfirm }: PackageDeleteModalProps) => (
+  <CenterModal showModal setShowModal={onCancel}>
+    <ModalHeader title="Delete package" onClose={onCancel} />
+    <p className="text-body-4 text-text-primary">
+      Are you sure you want to delete <strong>{packageName}</strong>? This permanently removes the
+      package and cannot be undone. If it is used elsewhere or has historical usage, consider
+      archiving instead.
+    </p>
+    <div className="grid grid-cols-2 gap-3">
+      <Secondary href="#" text="Cancel" onClick={onCancel} />
+      <Delete href="#" text="Delete" onClick={onConfirm} />
+    </div>
+  </CenterModal>
+);
+
 const PackageFormDraft = ({
   specialityId,
   organisationId,
@@ -439,135 +644,44 @@ const PackageFormDraft = ({
       className="@container flex flex-col gap-5"
     >
       {/* Two-column top section — collapses to one column in narrow containers */}
-      <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-x-6 gap-y-4 items-start">
-        {/* Left col: Name + Description */}
-        <div className="flex flex-col gap-4">
-          <FormInput
-            intype="text"
-            inlabel="Name"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setErrors((p) => ({ ...p, name: undefined }));
-            }}
-            error={errors.name}
-          />
-          <div className="relative w-full">
-            <textarea
-              id={descId}
-              aria-label="Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder=" "
-              className="peer w-full rounded-2xl bg-transparent px-6 pt-4 pb-3 text-body-4 text-text-primary outline-none border border-input-border-default focus:border-input-border-active resize-none min-h-28"
-            />
-            <label
-              htmlFor={descId}
-              className="pointer-events-none absolute left-4 top-4 max-w-[calc(100%-2rem)] truncate text-body-4 text-input-text-placeholder transition-all duration-200 peer-focus:-top-2.5 peer-focus:left-4 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:text-input-text-placeholder-active peer-focus:bg-(--whitebg) peer-focus:px-1.5 peer-focus:max-w-none peer-not-placeholder-shown:px-1.5 peer-not-placeholder-shown:-top-2.5 peer-not-placeholder-shown:left-4 peer-not-placeholder-shown:translate-y-0 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:bg-(--whitebg) peer-not-placeholder-shown:max-w-none"
-            >
-              Description
-            </label>
-          </div>
-        </div>
-
-        {/* Right col: Duration / Lead+Support row / scheduling checkboxes */}
-        <div className="flex flex-col gap-4">
-          <FormInput
-            intype="text"
-            inlabel="Approx. duration"
-            value={durationText}
-            onChange={(e) => {
-              setDurationText(e.target.value);
-              setErrors((p) => ({ ...p, durationText: undefined }));
-            }}
-            error={errors.durationText}
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <LabelDropdown
-              placeholder="Lead"
-              options={LEAD_OPTIONS}
-              defaultOption={leadCount}
-              onSelect={(o) => setLeadCount(o.value)}
-              portal
-            />
-            <LabelDropdown
-              placeholder="Support"
-              options={STAFF_COUNT_OPTIONS}
-              defaultOption={supportCount}
-              onSelect={(o) => setSupportCount(o.value)}
-              portal
-            />
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-2">
-            <label className="flex items-center gap-2 cursor-pointer select-none text-body-4 text-text-secondary whitespace-nowrap">
-              <input
-                type="checkbox"
-                aria-label="Package bookable"
-                checked={effectiveBookable}
-                disabled={requiredBookable}
-                onChange={(e) => setIsBookable(e.target.checked)}
-                className="size-4 shrink-0 accent-(--color-input-border-active) disabled:cursor-not-allowed"
-              />
-              {'Is this package bookable?'}
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer select-none text-body-4 text-text-secondary whitespace-nowrap">
-              <input
-                type="checkbox"
-                aria-label="Package in-patient"
-                checked={effectiveInpatientPreferred}
-                disabled={requiredInpatient}
-                onChange={(e) => setIsInpatientPreferred(e.target.checked)}
-                className="size-4 shrink-0 accent-(--color-input-border-active) disabled:cursor-not-allowed"
-              />
-              {'In-patient preferred'}
-            </label>
-          </div>
-        </div>
-      </div>
+      <PackageTopFields
+        name={name}
+        onNameChange={(value) => {
+          setName(value);
+          setErrors((p) => ({ ...p, name: undefined }));
+        }}
+        nameError={errors.name}
+        description={description}
+        onDescriptionChange={setDescription}
+        descId={descId}
+        durationText={durationText}
+        onDurationTextChange={(value) => {
+          setDurationText(value);
+          setErrors((p) => ({ ...p, durationText: undefined }));
+        }}
+        durationTextError={errors.durationText}
+        leadCount={leadCount}
+        onLeadCountSelect={setLeadCount}
+        supportCount={supportCount}
+        onSupportCountSelect={setSupportCount}
+        effectiveBookable={effectiveBookable}
+        requiredBookable={requiredBookable}
+        onIsBookableChange={setIsBookable}
+        effectiveInpatientPreferred={effectiveInpatientPreferred}
+        requiredInpatient={requiredInpatient}
+        onIsInpatientPreferredChange={setIsInpatientPreferred}
+      />
 
       <SectionContainer title="Breakdown" nested titleColor="var(--color-neutral-900)">
         <div className="flex flex-col gap-4">
-          <div className="relative">
-            <div className="flex items-center gap-2 w-full border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-white">
-              <input
-                type="text"
-                placeholder="Search services, inventory, lab tests, packages..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 min-w-0 bg-transparent font-satoshi text-[13px] font-medium text-text-primary focus-visible:outline-none placeholder:text-text-secondary"
-                aria-label="Search catalog items"
-              />
-              <IoIosSearch
-                size={20}
-                color="var(--color-neutral-900)"
-                aria-hidden="true"
-                className="shrink-0"
-              />
-            </div>
-            {filteredSearch.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-card-border rounded-2xl shadow-lg overflow-hidden">
-                {filteredSearch.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => addBreakdownItem(item)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-card-hover text-body-4 text-text-primary"
-                  >
-                    <span>{item.name}</span>
-                    <span className="text-caption-1 text-text-secondary">
-                      {TYPE_LABELS[item.type] ?? item.type} ·{' '}
-                      {formatMoney(item.unitPrice, item.currency ?? orgCurrency)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {searchQuery.trim() && filteredSearch.length === 0 && !searchLoading && (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-card-border rounded-2xl shadow-lg px-4 py-3 text-body-4 text-text-secondary">
-                No items found.
-              </div>
-            )}
-          </div>
+          <PackageBreakdownSearch
+            searchQuery={searchQuery}
+            onQueryChange={setSearchQuery}
+            filteredSearch={filteredSearch}
+            searchLoading={searchLoading}
+            orgCurrency={orgCurrency}
+            onSelectItem={addBreakdownItem}
+          />
 
           {breakdown.length > 0 ? (
             <PackageBreakdownTable
@@ -631,24 +745,13 @@ const PackageFormDraft = ({
       </div>
 
       {confirmDelete && editPackage && (
-        <CenterModal showModal setShowModal={() => setConfirmDelete(false)}>
-          <ModalHeader title="Delete package" onClose={() => setConfirmDelete(false)} />
-          <p className="text-body-4 text-text-primary">
-            Are you sure you want to delete <strong>{editPackage.name}</strong>? This permanently
-            removes the package and cannot be undone. If it is used elsewhere or has historical
-            usage, consider archiving instead.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Secondary href="#" text="Cancel" onClick={() => setConfirmDelete(false)} />
-            <Delete
-              href="#"
-              text="Delete"
-              onClick={() => {
-                Promise.resolve(handleDelete()).catch(() => undefined);
-              }}
-            />
-          </div>
-        </CenterModal>
+        <PackageDeleteModal
+          packageName={editPackage.name}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            Promise.resolve(handleDelete()).catch(() => undefined);
+          }}
+        />
       )}
     </SectionContainer>
   );
