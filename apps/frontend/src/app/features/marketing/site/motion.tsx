@@ -424,7 +424,7 @@ export function useParallax<T extends HTMLElement = HTMLDivElement>() {
       const x = (event.clientX - rect.left) / rect.width - 0.5;
       const y = (event.clientY - rect.top) / rect.height - 0.5;
       for (const layer of layers) {
-        const depth = Number.parseFloat(layer.getAttribute('data-depth') ?? '0');
+        const depth = Number.parseFloat(layer.dataset.depth ?? '0');
         layer.style.transform = `translate3d(${(-x * depth * 220).toFixed(1)}px, ${(
           -y *
           depth *
@@ -555,6 +555,11 @@ interface InkAnnotateProps {
   style?: CSSProperties;
 }
 
+/** Run a callback after two animation frames, letting a style reset paint first. */
+const afterTwoFrames = (cb: () => void): void => {
+  requestAnimationFrame(() => requestAnimationFrame(cb));
+};
+
 /**
  * Hand-drawn "ink" annotation that draws an encircle or swoosh underline onto an
  * accent word with a luxe pen-on-paper easing, replaying whenever the word
@@ -587,7 +592,7 @@ export function InkAnnotate({
       const padX = Math.max(14, w * 0.09);
       const padY = Math.max(11, h * 0.26);
       const svg = globalThis.document.createElementNS(NS, 'svg');
-      svg.setAttribute('data-ink', '');
+      svg.dataset.ink = '';
       svg.setAttribute('viewBox', `0 0 ${w + padX * 2} ${h + padY * 2}`);
       svg.setAttribute('fill', 'none');
       svg.setAttribute('aria-hidden', 'true');
@@ -612,16 +617,14 @@ export function InkAnnotate({
       const play = () => {
         path.style.transition = `stroke-dashoffset ${dur}ms cubic-bezier(0.6,0.04,0.28,1) ${first ? delay : 220}ms`;
         first = false;
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            path.style.strokeDashoffset = '0';
-          })
-        );
+        afterTwoFrames(() => {
+          path.style.strokeDashoffset = '0';
+        });
       };
       const rewind = () => {
         path.style.transition = 'none';
         path.style.strokeDashoffset = String(len);
-        void path.getBoundingClientRect();
+        path.getBoundingClientRect();
       };
       path.style.strokeDasharray = String(len);
       path.style.strokeDashoffset = String(len);
