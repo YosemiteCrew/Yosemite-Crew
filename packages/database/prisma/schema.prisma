@@ -1261,6 +1261,13 @@ model DeveloperApiKey {
   expiresAt      DateTime?
   revokedAt      DateTime?
   createdBy      String
+  /// Enterprise control: when non-empty, only these client IPs may use the key.
+  ipAllowlist    String[]                  @default([])
+  /// Set on a replacement key: the id of the key it was rotated from.
+  rotatedFromId  String?
+  /// Set on a rotated-out key: it keeps verifying until this instant, then
+  /// behaves as revoked (24h overlap so integrators can swap secrets).
+  rotationGraceUntil DateTime?
   createdAt      DateTime                  @default(now())
   updatedAt      DateTime                  @updatedAt
 
@@ -1327,6 +1334,40 @@ model DeveloperApiUsage {
   @@unique([organisationId, billingPeriod])
   @@index([billingPeriod])
   @@map("DeveloperApiUsage")
+}
+
+/// One row per developer data-plane request, written fire-and-forget by the
+/// capture middleware. path stores the matched route pattern (never raw query
+/// strings). Rows older than 30 days are pruned by the developer-maintenance job.
+model DeveloperApiRequestLog {
+  id             String                     @id @default(uuid())
+  organisationId String
+  apiKeyId       String
+  method         String
+  path           String
+  statusCode     Int
+  durationMs     Int
+  errorCode      String?
+  environment    DeveloperApiKeyEnvironment
+  createdAt      DateTime                   @default(now())
+
+  @@index([organisationId, createdAt])
+  @@index([apiKeyId, createdAt])
+  @@map("DeveloperApiRequestLogs")
+}
+
+/// Dedupe ledger for free-tier usage alert emails: one row per org, billing
+/// period, and threshold (80 / 100). The unique constraint IS the
+/// send-once-per-threshold-per-month guarantee.
+model DeveloperUsageAlert {
+  id             String   @id @default(uuid())
+  organisationId String
+  billingPeriod  String
+  threshold      Int
+  sentAt         DateTime @default(now())
+
+  @@unique([organisationId, billingPeriod, threshold])
+  @@map("DeveloperUsageAlerts")
 }
 
 enum DevicePlatform {

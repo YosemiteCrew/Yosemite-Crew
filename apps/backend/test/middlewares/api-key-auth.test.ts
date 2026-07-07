@@ -32,9 +32,10 @@ const buildRes = (): Response => {
   return res as Response;
 };
 
-const buildReq = (headers: Record<string, string> = {}): Request =>
+const buildReq = (headers: Record<string, string> = {}, ip?: string): Request =>
   ({
     header: (name: string) => headers[name.toLowerCase()],
+    ip,
   }) as unknown as Request;
 
 const verifiedKey = {
@@ -42,6 +43,7 @@ const verifiedKey = {
   organisationId: "org-9",
   scopes: ["x"],
   environment: "live",
+  ipAllowlist: [],
 };
 
 describe("authorizeApiKey", () => {
@@ -155,6 +157,73 @@ describe("authorizeApiKey", () => {
       expect.stringMatching(/^\d+$/),
     );
     expect(next).not.toHaveBeenCalled();
+  });
+
+  describe("IP allowlist enforcement", () => {
+    const withAllowlist = (allowlist: string[]) => ({
+      ...verifiedKey,
+      ipAllowlist: allowlist,
+    });
+
+    it("passes when the client IP is in the allowlist", async () => {
+      verifyMock.mockResolvedValue(withAllowlist(["203.0.113.9"]));
+      const req = buildReq(
+        { authorization: "Bearer yc_live_good" },
+        "203.0.113.9",
+      );
+      await authorizeApiKey(req, buildRes(), next);
+      expect(next).toHaveBeenCalled();
+    });
+
+    it("401s with the invalid_api_key envelope (no allowlist leak) for a disallowed IP", async () => {
+      verifyMock.mockResolvedValue(withAllowlist(["203.0.113.9"]));
+      const res = buildRes();
+      await authorizeApiKey(
+        buildReq({ authorization: "Bearer yc_live_good" }, "198.51.100.7"),
+        res,
+        next,
+      );
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invalid or expired API key",
+        code: "invalid_api_key",
+      });
+      expect(rateLimitMock).not.toHaveBeenCalled();
+      expect(incrementMock).not.toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("matches an IPv4-mapped IPv6 client address against a plain IPv4 entry", async () => {
+      verifyMock.mockResolvedValue(withAllowlist(["203.0.113.9"]));
+      const req = buildReq(
+        { authorization: "Bearer yc_live_good" },
+        "::ffff:203.0.113.9",
+      );
+      await authorizeApiKey(req, buildRes(), next);
+      expect(next).toHaveBeenCalled();
+    });
+
+    it("401s when the allowlist is non-empty but the client IP is unresolvable", async () => {
+      verifyMock.mockResolvedValue(withAllowlist(["203.0.113.9"]));
+      const res = buildRes();
+      await authorizeApiKey(
+        buildReq({ authorization: "Bearer yc_live_good" }),
+        res,
+        next,
+      );
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it("ignores the client IP entirely when the allowlist is empty", async () => {
+      verifyMock.mockResolvedValue(withAllowlist([]));
+      const req = buildReq(
+        { authorization: "Bearer yc_live_good" },
+        "198.51.100.7",
+      );
+      await authorizeApiKey(req, buildRes(), next);
+      expect(next).toHaveBeenCalled();
+    });
   });
 
   it("calls incrementAndCheck with the organisationId and key environment", async () => {

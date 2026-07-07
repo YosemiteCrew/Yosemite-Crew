@@ -19,6 +19,7 @@ jest.mock("../../../src/services/developer-api-key.service", () => {
       issue: jest.fn(),
       list: jest.fn(),
       revoke: jest.fn(),
+      rotate: jest.fn(),
     },
     DeveloperApiKeyServiceError: Err,
   };
@@ -33,6 +34,7 @@ const svc = DeveloperApiKeyService as unknown as {
   issue: jest.Mock;
   list: jest.Mock;
   revoke: jest.Mock;
+  rotate: jest.Mock;
 };
 
 const buildRes = (): Response => {
@@ -171,6 +173,68 @@ describe("DeveloperApiKeyController.listApiKeys", () => {
     const res = buildRes();
     await DeveloperApiKeyController.listApiKeys(
       buildReq({ organisationId: "o" }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+describe("DeveloperApiKeyController.rotateApiKey", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("400 without an org", async () => {
+    const res = buildRes();
+    await DeveloperApiKeyController.rotateApiKey(
+      buildReq({ userId: "u", params: { keyId: "k" } }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(svc.rotate).not.toHaveBeenCalled();
+  });
+
+  it("401 without a user", async () => {
+    const res = buildRes();
+    await DeveloperApiKeyController.rotateApiKey(
+      buildReq({ organisationId: "o", params: { keyId: "k" } }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(svc.rotate).not.toHaveBeenCalled();
+  });
+
+  it("201 with the replacement key (plaintext returned once)", async () => {
+    svc.rotate.mockResolvedValue({ id: "k2", apiKey: "yc_live_new" });
+    const res = buildRes();
+    await DeveloperApiKeyController.rotateApiKey(
+      buildReq({ organisationId: "o", userId: "u", params: { keyId: "k" } }),
+      res,
+    );
+    expect(svc.rotate).toHaveBeenCalledWith({
+      organisationId: "o",
+      keyId: "k",
+      createdBy: "u",
+    });
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({ id: "k2", apiKey: "yc_live_new" });
+  });
+
+  it("maps a 409 already-rotated service error", async () => {
+    svc.rotate.mockRejectedValue(
+      new DeveloperApiKeyServiceError("already rotated", 409),
+    );
+    const res = buildRes();
+    await DeveloperApiKeyController.rotateApiKey(
+      buildReq({ organisationId: "o", userId: "u", params: { keyId: "k" } }),
+      res,
+    );
+    expect(res.status).toHaveBeenCalledWith(409);
+  });
+
+  it("500 on an unexpected error", async () => {
+    svc.rotate.mockRejectedValue(new Error("boom"));
+    const res = buildRes();
+    await DeveloperApiKeyController.rotateApiKey(
+      buildReq({ organisationId: "o", userId: "u", params: { keyId: "k" } }),
       res,
     );
     expect(res.status).toHaveBeenCalledWith(500);

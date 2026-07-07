@@ -19,6 +19,28 @@ const extractApiKey = (req: Request): string | undefined => {
   return req.header("x-api-key")?.trim() || undefined;
 };
 
+// Express is configured with app.set("trust proxy", 1) (app.ts), so req.ip is
+// the client address from X-Forwarded-For as resolved by Express. Node reports
+// IPv4 clients on dual-stack sockets as IPv4-mapped IPv6 ("::ffff:203.0.113.9");
+// normalize both sides so allowlist entries can be written as plain IPv4.
+// v1 matches exact addresses only - no CIDR ranges.
+const normalizeIp = (ip: string): string =>
+  ip.toLowerCase().startsWith("::ffff:") ? ip.slice("::ffff:".length) : ip;
+
+const isIpAllowed = (
+  clientIp: string | undefined,
+  allowlist: string[],
+): boolean => {
+  if (allowlist.length === 0) {
+    return true;
+  }
+  if (!clientIp) {
+    return false;
+  }
+  const normalized = normalizeIp(clientIp);
+  return allowlist.some((entry) => normalizeIp(entry.trim()) === normalized);
+};
+
 // Quota 429s advertise when the UTC billing month rolls over via Retry-After.
 const secondsUntilNextUtcMonth = (): number => {
   const now = new Date();
@@ -49,12 +71,19 @@ const createApiKeyAuthorizer =
 
     const verified = await DeveloperApiKeyService.verify(presented);
     if (!verified) {
-      return res
-        .status(401)
-        .json({
-          message: "Invalid or expired API key",
-          code: "invalid_api_key",
-        });
+      return res.status(401).json({
+        message: "Invalid or expired API key",
+        code: "invalid_api_key",
+      });
+    }
+
+    // Enterprise IP allowlist: a disallowed client IP gets the same envelope
+    // as an invalid key so the response never leaks that an allowlist exists.
+    if (!isIpAllowed(req.ip, verified.ipAllowlist ?? [])) {
+      return res.status(401).json({
+        message: "Invalid or expired API key",
+        code: "invalid_api_key",
+      });
     }
 
     (req as ApiKeyRequest).apiKey = verified;

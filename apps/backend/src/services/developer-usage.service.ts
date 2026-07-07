@@ -1,5 +1,6 @@
 import { prisma } from "src/config/prisma";
 import { DeveloperBillingService } from "./developer-billing.service";
+import { DeveloperUsageAlertService } from "./developer-usage-alert.service";
 import logger from "../utils/logger";
 
 const FREE_TIER_LIMIT = 1_000;
@@ -36,8 +37,18 @@ export const DeveloperUsageService = {
 
     const plan = sub?.plan ?? "free";
 
-    if (plan === "free" && record.callCount > FREE_TIER_LIMIT) {
-      return { allowed: false, callCount: record.callCount };
+    if (plan === "free") {
+      // Fire-and-forget (same contract as reportToStripe below): threshold
+      // alert emails never add latency or a failure mode to the hot path.
+      DeveloperUsageAlertService.notifyThresholds(
+        organisationId,
+        period,
+        record.callCount,
+        FREE_TIER_LIMIT,
+      );
+      if (record.callCount > FREE_TIER_LIMIT) {
+        return { allowed: false, callCount: record.callCount };
+      }
     }
 
     if (plan === "pro" && sub?.stripeCustomerId && environment !== "test") {

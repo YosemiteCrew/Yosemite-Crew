@@ -1,5 +1,6 @@
 import { DeveloperUsageService } from "../../src/services/developer-usage.service";
 import { DeveloperBillingService } from "../../src/services/developer-billing.service";
+import { DeveloperUsageAlertService } from "../../src/services/developer-usage-alert.service";
 import { prisma } from "../../src/config/prisma";
 import logger from "../../src/utils/logger";
 
@@ -22,6 +23,12 @@ jest.mock("../../src/services/developer-billing.service", () => ({
   },
 }));
 
+jest.mock("../../src/services/developer-usage-alert.service", () => ({
+  DeveloperUsageAlertService: {
+    notifyThresholds: jest.fn(),
+  },
+}));
+
 jest.mock("../../src/utils/logger", () => ({
   __esModule: true,
   default: { error: jest.fn(), info: jest.fn() },
@@ -39,6 +46,8 @@ const mockPrisma = prisma as unknown as {
 };
 
 const mockReportUsage = DeveloperBillingService.reportUsage as jest.Mock;
+const mockNotifyThresholds =
+  DeveloperUsageAlertService.notifyThresholds as jest.Mock;
 const mockLoggerError = logger.error as jest.Mock;
 
 describe("DeveloperUsageService", () => {
@@ -232,6 +241,80 @@ describe("DeveloperUsageService", () => {
 
       expect(mockReportUsage).toHaveBeenCalledTimes(1);
       expect(mockReportUsage).toHaveBeenCalledWith("cus_x", 1);
+    });
+
+    describe("usage alert thresholds (free tier)", () => {
+      it("hands every free-tier increment to the alert threshold check", async () => {
+        mockPrisma.developerApiUsage.upsert.mockResolvedValue({
+          callCount: 800,
+        });
+        mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+          plan: "free",
+          stripeCustomerId: null,
+        });
+
+        await DeveloperUsageService.incrementAndCheck("org-1");
+
+        expect(mockNotifyThresholds).toHaveBeenCalledTimes(1);
+        expect(mockNotifyThresholds).toHaveBeenCalledWith(
+          "org-1",
+          expect.stringMatching(/^\d{4}-\d{2}$/),
+          800,
+          1000,
+        );
+      });
+
+      it("still runs the threshold check on the blocked 1001st call", async () => {
+        mockPrisma.developerApiUsage.upsert.mockResolvedValue({
+          callCount: 1001,
+        });
+        mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+          plan: "free",
+          stripeCustomerId: null,
+        });
+
+        const result = await DeveloperUsageService.incrementAndCheck("org-1");
+
+        expect(result.allowed).toBe(false);
+        expect(mockNotifyThresholds).toHaveBeenCalledWith(
+          "org-1",
+          expect.any(String),
+          1001,
+          1000,
+        );
+      });
+
+      it("never runs the threshold check for a pro plan", async () => {
+        mockPrisma.developerApiUsage.upsert.mockResolvedValue({
+          callCount: 800,
+        });
+        mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+          plan: "pro",
+          stripeCustomerId: "cus_x",
+        });
+        mockReportUsage.mockResolvedValue(undefined);
+        mockPrisma.developerApiUsage.update.mockResolvedValue({});
+
+        await DeveloperUsageService.incrementAndCheck("org-1");
+
+        expect(mockNotifyThresholds).not.toHaveBeenCalled();
+      });
+
+      it("runs the threshold check when no subscription record exists (defaults to free)", async () => {
+        mockPrisma.developerApiUsage.upsert.mockResolvedValue({
+          callCount: 5,
+        });
+        mockPrisma.developerSubscription.findUnique.mockResolvedValue(null);
+
+        await DeveloperUsageService.incrementAndCheck("org-1");
+
+        expect(mockNotifyThresholds).toHaveBeenCalledWith(
+          "org-1",
+          expect.any(String),
+          5,
+          1000,
+        );
+      });
     });
 
     it("pro plan with null stripeCustomerId — does NOT call reportUsage", async () => {

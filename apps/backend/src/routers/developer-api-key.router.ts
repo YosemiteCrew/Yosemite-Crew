@@ -26,5 +26,12 @@ router.delete(
   requirePermission("integrations:edit:any"),
   DeveloperApiKeyController.revokeApiKey,
 );
+router.post(
+  "/:keyId/rotate",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("integrations:edit:any"),
+  DeveloperApiKeyController.rotateApiKey,
+);
 
 export default router;

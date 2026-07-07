@@ -78,6 +78,30 @@ export const DeveloperApiKeyController = {
     }
   },
 
+  // Issues a replacement key (same scopes / environment / controls) and gives
+  // the old key a 24h grace window. The response carries the new plaintext
+  // secret exactly once, like createApiKey.
+  rotateApiKey: async (req: Request, res: Response): Promise<Response> => {
+    try {
+      const organisationId = getOrgId(req);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
+      const createdBy = resolveUserIdFromRequest(req);
+      if (!createdBy) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const issued = await DeveloperApiKeyService.rotate({
+        organisationId,
+        keyId: req.params.keyId,
+        createdBy,
+      });
+      return res.status(201).json(issued);
+    } catch (error) {
+      return handleError(res, error, "rotate");
+    }
+  },
+
   revokeApiKey: async (req: Request, res: Response): Promise<Response> => {
     try {
       const organisationId = getOrgId(req);

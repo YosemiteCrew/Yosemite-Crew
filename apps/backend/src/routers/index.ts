@@ -62,6 +62,8 @@ import developerApiKeyRouter from "./developer-api-key.router";
 import developerDataRouter from "./developer-data.router";
 import developerBillingRouter from "./developer-billing.router";
 import developerUsageRouter from "./developer-usage.router";
+import developerRequestLogRouter from "./developer-request-log.router";
+import { captureApiKeyRequestLog } from "src/middlewares/api-key-request-log";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -120,10 +122,12 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/developers/api-keys`, developerApiKeyRouter);
   // Data plane (API-key auth) - singular "developer", distinct from the
-  // session-authenticated management plane under /v1/developers.
-  app.use(`/v1/developer`, developerDataRouter);
+  // session-authenticated management plane under /v1/developers. The request
+  // log capture middleware is mounted once, here, in front of the whole chain.
+  app.use(`/v1/developer`, captureApiKeyRequestLog, developerDataRouter);
   app.use(`/v1/developers/billing`, developerBillingRouter);
   app.use(`/v1/developers/usage`, developerUsageRouter);
+  app.use(`/v1/developers/request-logs`, developerRequestLogRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
   app.use(`/v1/labs`, labOrderRouter);

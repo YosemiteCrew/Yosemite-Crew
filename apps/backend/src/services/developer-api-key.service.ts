@@ -17,6 +17,9 @@ export class DeveloperApiKeyServiceError extends Error {
 
 const KEY_SECRET_BYTES = 24;
 const LAST_USED_THROTTLE_MS = 60_000;
+// Rotation overlap: the rotated-out key keeps verifying for 24h so integrators
+// can swap secrets without downtime, then behaves as revoked.
+const ROTATION_GRACE_MS = 24 * 60 * 60 * 1000;
 
 // Canonical v1 scope taxonomy (data-plane contract, section 4).
 export const CANONICAL_V1_READ_SCOPES = [
@@ -85,6 +88,8 @@ export type VerifiedApiKey = {
   organisationId: string;
   scopes: string[];
   environment: DeveloperApiKeyEnvironment;
+  // Non-empty means the auth middleware must reject client IPs not in the list.
+  ipAllowlist: string[];
 };
 
 const hashApiKey = (plaintext: string) =>
@@ -203,8 +208,75 @@ export const DeveloperApiKeyService = {
     }
   },
 
+  // Rotates a key: issues a replacement with the same scopes / environment /
+  // controls and gives the old key a 24h grace window, after which verify()
+  // treats it as revoked. The new key records the linkage via rotatedFromId.
+  // A key can be rotated once; rotating an already-rotated key is a 409.
+  async rotate(input: {
+    organisationId: string;
+    keyId: string;
+    createdBy: string;
+  }): Promise<IssuedApiKey> {
+    const organisationId = requireNonEmpty(
+      input.organisationId,
+      "organisationId",
+    );
+    const keyId = requireNonEmpty(input.keyId, "keyId");
+    const createdBy = requireNonEmpty(input.createdBy, "createdBy");
+
+    const existing = await prisma.developerApiKey.findFirst({
+      where: {
+        id: keyId,
+        organisationId,
+        status: DeveloperApiKeyStatus.active,
+      },
+    });
+    if (!existing) {
+      throw new DeveloperApiKeyServiceError("API key not found", 404);
+    }
+    if (existing.rotationGraceUntil) {
+      throw new DeveloperApiKeyServiceError("API key already rotated", 409);
+    }
+
+    const generated = generateApiKey(existing.environment);
+    const graceUntil = new Date(Date.now() + ROTATION_GRACE_MS);
+    const [record] = await prisma.$transaction([
+      prisma.developerApiKey.create({
+        data: {
+          organisationId,
+          name: existing.name,
+          createdBy,
+          scopes: existing.scopes,
+          environment: existing.environment,
+          ipAllowlist: existing.ipAllowlist,
+          expiresAt: existing.expiresAt,
+          rotatedFromId: existing.id,
+          prefix: generated.prefix,
+          hashedKey: generated.hashedKey,
+          last4: generated.last4,
+        },
+      }),
+      prisma.developerApiKey.update({
+        where: { id: existing.id },
+        data: { rotationGraceUntil: graceUntil },
+      }),
+    ]);
+
+    return {
+      id: record.id,
+      name: record.name,
+      prefix: record.prefix,
+      last4: record.last4,
+      scopes: record.scopes,
+      environment: record.environment,
+      apiKey: generated.plaintext,
+    };
+  },
+
   // Authenticates a presented secret. Returns the org + scopes context, or null
   // for any unknown / revoked / expired key (callers translate null to 401).
+  // A rotated-out key stays valid until its rotationGraceUntil instant, then
+  // is treated exactly like a revoked key.
   async verify(plaintextKey: string): Promise<VerifiedApiKey | null> {
     if (typeof plaintextKey !== "string" || !plaintextKey.startsWith("yc_")) {
       return null;
@@ -216,6 +288,12 @@ export const DeveloperApiKeyService = {
       return null;
     }
     if (record.expiresAt && record.expiresAt.getTime() <= Date.now()) {
+      return null;
+    }
+    if (
+      record.rotationGraceUntil &&
+      record.rotationGraceUntil.getTime() <= Date.now()
+    ) {
       return null;
     }
 
@@ -234,6 +312,7 @@ export const DeveloperApiKeyService = {
       organisationId: record.organisationId,
       scopes: expandApiKeyScopes(record.scopes),
       environment: record.environment,
+      ipAllowlist: record.ipAllowlist,
     };
   },
 };
