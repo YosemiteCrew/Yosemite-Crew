@@ -96,3 +96,8 @@
 Implement `AuthProvider` under `packages/auth/src/providers/<name>/`, add a
 case to `createAuthProvider`, map identities into `auth_identities` with the
 same app user id, and select it via `AUTH_PROVIDER`. No product-code change.
+
+## 6. Product handover docs
+
+- [Frontend handover](./supertokens-frontend-handover.md)
+- [Mobile handover](./supertokens-mobile-handover.md)
