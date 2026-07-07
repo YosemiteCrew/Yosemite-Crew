@@ -402,3 +402,208 @@ export function useScrolled(threshold = 8): boolean {
 
   return scrolled;
 }
+
+/**
+ * Mouse-driven depth parallax. Attach the returned ref to a scope element; any
+ * descendant carrying `data-depth` (e.g. "0.05") drifts toward the cursor by that
+ * factor while the pointer is over the scope. No-op under reduced motion.
+ */
+export function useParallax<T extends HTMLElement = HTMLDivElement>() {
+  const ref = useRef<T | null>(null);
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    const zone = ref.current;
+    if (reduced || !zone || !globalThis.window) return undefined;
+    const layers = Array.from(zone.querySelectorAll<HTMLElement>('[data-depth]'));
+    if (layers.length === 0) return undefined;
+
+    const onMove = (event: MouseEvent) => {
+      const rect = zone.getBoundingClientRect();
+      if (event.clientY < rect.top - 40 || event.clientY > rect.bottom + 40) return;
+      const x = (event.clientX - rect.left) / rect.width - 0.5;
+      const y = (event.clientY - rect.top) / rect.height - 0.5;
+      for (const layer of layers) {
+        const depth = Number.parseFloat(layer.getAttribute('data-depth') ?? '0');
+        layer.style.transform = `translate3d(${(-x * depth * 220).toFixed(1)}px, ${(
+          -y *
+          depth *
+          220
+        ).toFixed(1)}px, 0)`;
+      }
+    };
+
+    globalThis.window.addEventListener('mousemove', onMove, { passive: true });
+    return () => globalThis.window.removeEventListener('mousemove', onMove);
+  }, [reduced]);
+
+  return ref;
+}
+
+function underlinePath(padX: number, padY: number, w: number, h: number): string {
+  const y = padY + h * 0.99;
+  const x0 = padX - w * 0.02;
+  const x1 = padX + w * 1.02;
+  const s = x1 - x0;
+  return (
+    `M ${x0.toFixed(1)} ${(y - 1).toFixed(1)} C ${(x0 + s * 0.26).toFixed(1)} ${(y + 4.5).toFixed(1)}, ` +
+    `${(x0 + s * 0.5).toFixed(1)} ${(y + 5).toFixed(1)}, ${(x0 + s * 0.68).toFixed(1)} ${(y + 1.5).toFixed(1)} ` +
+    `S ${(x1 - s * 0.05).toFixed(1)} ${(y - 4.5).toFixed(1)}, ${x1.toFixed(1)} ${(y - 3).toFixed(1)}`
+  );
+}
+
+function smoothPath(points: readonly (readonly [number, number])[]): string {
+  if (points.length < 2) return '';
+  let d = `M ${points[0][0].toFixed(1)} ${points[0][1].toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i - 1] ?? points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2] ?? p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+function circlePath(padX: number, padY: number, w: number, h: number): string {
+  const cx = padX + w / 2;
+  const cy = padY + h / 2;
+  const rx = w / 2 + Math.max(9, w * 0.06);
+  const ry = h / 2 + Math.max(6, h * 0.14);
+  const startAngle = -Math.PI * 0.6;
+  const endAngle = startAngle + Math.PI * 2 * 1.09;
+  const segments = 46;
+  const points: [number, number][] = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const a = startAngle + (endAngle - startAngle) * t;
+    const drift = 1 + Math.sin(a * 3 + 1.2) * 0.014;
+    points.push([
+      cx + Math.cos(a) * rx * drift + Math.sin(t * 7) * 0.7,
+      cy + Math.sin(a) * ry * drift,
+    ]);
+  }
+  return smoothPath(points);
+}
+
+interface InkAnnotateProps {
+  children: ReactNode;
+  /** 'circle' encircles the word; 'underline' draws a swoosh beneath it. */
+  type?: 'circle' | 'underline';
+  /** Draw delay in ms, to sync with a headline settling in. */
+  delay?: number;
+  /** Stroke colour; defaults to the word's own colour so it follows the theme. */
+  color?: string;
+  style?: CSSProperties;
+}
+
+/**
+ * Hand-drawn "ink" annotation that draws an encircle or swoosh underline onto an
+ * accent word with a luxe pen-on-paper easing, replaying whenever the word
+ * re-enters view. Renders the mark already-drawn (no animation) under reduced motion.
+ */
+export function InkAnnotate({
+  children,
+  type = 'underline',
+  delay = 0,
+  color = 'currentColor',
+  style,
+}: Readonly<InkAnnotateProps>) {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    const host = ref.current;
+    if (!host || !globalThis.document) return undefined;
+    let io: IntersectionObserver | null = null;
+    let raf = 0;
+    const NS = 'http://www.w3.org/2000/svg';
+
+    const draw = () => {
+      const w = host.offsetWidth;
+      const h = host.offsetHeight;
+      if (!w || !h) {
+        raf = requestAnimationFrame(draw);
+        return;
+      }
+      const padX = Math.max(14, w * 0.09);
+      const padY = Math.max(11, h * 0.26);
+      const svg = globalThis.document.createElementNS(NS, 'svg');
+      svg.setAttribute('data-ink', '');
+      svg.setAttribute('viewBox', `0 0 ${w + padX * 2} ${h + padY * 2}`);
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.style.cssText = `position:absolute;left:${-padX}px;top:${-padY}px;width:${w + padX * 2}px;height:${h + padY * 2}px;overflow:visible;pointer-events:none;z-index:-1;`;
+      const path = globalThis.document.createElementNS(NS, 'path');
+      path.setAttribute(
+        'd',
+        type === 'circle' ? circlePath(padX, padY, w, h) : underlinePath(padX, padY, w, h)
+      );
+      path.setAttribute('stroke', color);
+      path.setAttribute('stroke-width', String(type === 'circle' ? 2.4 : 3.4));
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+      path.setAttribute('opacity', '0.9');
+      svg.appendChild(path);
+      host.appendChild(svg);
+      if (reduced) return;
+
+      const len = path.getTotalLength();
+      const dur = type === 'circle' ? 1550 : 1150;
+      let first = true;
+      const play = () => {
+        path.style.transition = `stroke-dashoffset ${dur}ms cubic-bezier(0.6,0.04,0.28,1) ${first ? delay : 220}ms`;
+        first = false;
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            path.style.strokeDashoffset = '0';
+          })
+        );
+      };
+      const rewind = () => {
+        path.style.transition = 'none';
+        path.style.strokeDashoffset = String(len);
+        void path.getBoundingClientRect();
+      };
+      path.style.strokeDasharray = String(len);
+      path.style.strokeDashoffset = String(len);
+      if (typeof IntersectionObserver === 'undefined') {
+        play();
+        return;
+      }
+      io = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.intersectionRatio >= 0.55) play();
+            else if (!entry.isIntersecting && !first) rewind();
+          }
+        },
+        { threshold: [0, 0.55] }
+      );
+      io.observe(host);
+    };
+
+    const fonts = globalThis.document.fonts;
+    if (fonts?.ready)
+      fonts.ready.then(() => {
+        raf = requestAnimationFrame(draw);
+      });
+    else raf = requestAnimationFrame(draw);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io?.disconnect();
+      host.querySelectorAll('[data-ink]').forEach((node) => node.remove());
+    };
+  }, [type, delay, color, reduced]);
+
+  return (
+    <span ref={ref} style={{ position: 'relative', ...style }}>
+      {children}
+    </span>
+  );
+}

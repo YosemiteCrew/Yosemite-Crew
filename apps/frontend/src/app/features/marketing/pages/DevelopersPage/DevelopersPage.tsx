@@ -18,7 +18,14 @@ import {
   IoPeopleOutline,
 } from 'react-icons/io5';
 
-import { Reveal, Spotlight, Tilt, useMagnet, GITHUB_REPO_URL } from '@/app/features/marketing/site';
+import {
+  Reveal,
+  Spotlight,
+  Tilt,
+  useMagnet,
+  useParallax,
+  GITHUB_REPO_URL,
+} from '@/app/features/marketing/site';
 
 const NEWSREADER = 'var(--font-newsreader)';
 const MONO = "ui-monospace, 'SF Mono', Menlo, monospace";
@@ -28,8 +35,11 @@ function Hero() {
   const primaryRef = useMagnet<HTMLAnchorElement>();
   const ghostRef = useMagnet<HTMLAnchorElement>();
 
+  const parallaxRef = useParallax<HTMLElement>();
+
   return (
     <section
+      ref={parallaxRef}
       data-hero
       style={{
         position: 'relative',
@@ -38,32 +48,36 @@ function Hero() {
         padding: '148px 24px 90px',
       }}
     >
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: '-160px',
-          left: 'calc(50% - 620px)',
-          width: '860px',
-          height: '600px',
-          background: 'radial-gradient(closest-side, var(--glow-b10), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 30s ease-in-out infinite alternate',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          bottom: '-220px',
-          right: '-140px',
-          width: '720px',
-          height: '540px',
-          background: 'radial-gradient(closest-side, var(--glow-c09), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 38s ease-in-out 3s infinite alternate-reverse',
-        }}
-      />
+      <div data-depth="0.05" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: '-160px',
+            left: 'calc(50% - 620px)',
+            width: '860px',
+            height: '600px',
+            background: 'radial-gradient(closest-side, var(--glow-b10), transparent 70%)',
+            pointerEvents: 'none',
+            animation: 'ycDrift 30s ease-in-out infinite alternate',
+          }}
+        />
+      </div>
+      <div data-depth="0.06" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            bottom: '-220px',
+            right: '-140px',
+            width: '720px',
+            height: '540px',
+            background: 'radial-gradient(closest-side, var(--glow-c09), transparent 70%)',
+            pointerEvents: 'none',
+            animation: 'ycDrift 38s ease-in-out 3s infinite alternate-reverse',
+          }}
+        />
+      </div>
       <div
         data-grid-1-m="true"
         style={{

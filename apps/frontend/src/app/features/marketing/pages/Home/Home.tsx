@@ -24,7 +24,9 @@ import {
   Spotlight,
   HeroVideo,
   CountUp,
+  InkAnnotate,
   useMagnet,
+  useParallax,
   useGithubStats,
   HERO_AVATARS,
   COMPANION_PHOTOS,
@@ -263,11 +265,13 @@ function HeroFloatingCards() {
 }
 
 function Hero() {
+  const parallaxRef = useParallax<HTMLElement>();
   const primaryRef = useMagnet<HTMLAnchorElement>();
   const starRef = useMagnet<HTMLAnchorElement>();
 
   return (
     <section
+      ref={parallaxRef}
       id="top"
       data-hero
       style={{
@@ -283,46 +287,52 @@ function Hero() {
     >
       <HeroVideo src={HERO_VIDEOS.home} poster={HERO_POSTERS.home} position="center 50%" />
 
-      {/* ambient glows */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: -180,
-          left: 'calc(50% - 630px)',
-          width: 900,
-          height: 620,
-          background: 'radial-gradient(closest-side, var(--glow-b09), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 26s ease-in-out infinite alternate',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          bottom: -220,
-          right: -120,
-          width: 760,
-          height: 560,
-          background: 'radial-gradient(closest-side, var(--glow-c10), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 34s ease-in-out 4s infinite alternate-reverse',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          bottom: -160,
-          left: -140,
-          width: 620,
-          height: 480,
-          background: 'radial-gradient(closest-side, var(--glow-p07), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 40s ease-in-out 2s infinite alternate',
-        }}
-      />
+      {/* ambient glows — each on a parallax-depth layer so it drifts toward the cursor */}
+      <div data-depth="0.05" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: -180,
+            left: 'calc(50% - 630px)',
+            width: 900,
+            height: 620,
+            background: 'radial-gradient(closest-side, var(--glow-b09), transparent 70%)',
+            pointerEvents: 'none',
+            animation: 'ycDrift 26s ease-in-out infinite alternate',
+          }}
+        />
+      </div>
+      <div data-depth="0.06" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            bottom: -220,
+            right: -120,
+            width: 760,
+            height: 560,
+            background: 'radial-gradient(closest-side, var(--glow-c10), transparent 70%)',
+            pointerEvents: 'none',
+            animation: 'ycDrift 34s ease-in-out 4s infinite alternate-reverse',
+          }}
+        />
+      </div>
+      <div data-depth="0.04" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            bottom: -160,
+            left: -140,
+            width: 620,
+            height: 480,
+            background: 'radial-gradient(closest-side, var(--glow-p07), transparent 70%)',
+            pointerEvents: 'none',
+            animation: 'ycDrift 40s ease-in-out 2s infinite alternate',
+          }}
+        />
+      </div>
 
       <HeroFloatingCards />
 
@@ -391,7 +401,9 @@ function Hero() {
               animation: 'ycWord 1.15s cubic-bezier(0.16,1,0.3,1) 0.38s both',
             }}
           >
-            whole
+            <InkAnnotate type="circle" delay={1300}>
+              whole
+            </InkAnnotate>
           </em>
           <span
             style={{

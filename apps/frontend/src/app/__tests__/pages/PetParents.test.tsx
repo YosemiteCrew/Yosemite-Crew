@@ -16,6 +16,7 @@ jest.mock('@/app/features/marketing/site', () => ({
     </div>
   ),
   useMagnet: () => ({ current: null }),
+  useParallax: () => ({ current: null }),
   HERO_VIDEOS: { petParents: 'petParents.mp4' },
   HERO_POSTERS: { petParents: 'petParents.jpg' },
   APP_STORE_URL: 'https://apps.apple.com/app',

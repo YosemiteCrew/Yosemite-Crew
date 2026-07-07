@@ -30,6 +30,7 @@ import {
   Spotlight,
   ReleasePill,
   useMagnet,
+  useParallax,
   HERO_VIDEOS,
   HERO_POSTERS,
   APP_STORE_URL,
@@ -460,9 +461,11 @@ const HERO_WORDS: ReadonlyArray<{ text: string; em?: boolean; delay: string }> =
 function Hero() {
   const appleRef = useMagnet<HTMLAnchorElement>();
   const playRef = useMagnet<HTMLAnchorElement>();
+  const parallaxRef = useParallax<HTMLElement>();
 
   return (
     <section
+      ref={parallaxRef}
       data-hero
       style={{
         position: 'relative',
@@ -473,6 +476,7 @@ function Hero() {
     >
       <HeroVideo src={HERO_VIDEOS.petParents} poster={HERO_POSTERS.petParents} />
       <div
+        data-hero-scrim
         aria-hidden="true"
         style={{
           position: 'absolute',
@@ -483,32 +487,36 @@ function Hero() {
             'radial-gradient(74% 72% at 32% 50%, rgba(239,232,220,0.95) 0%, rgba(239,232,220,0.66) 38%, rgba(239,232,220,0.12) 72%, rgba(239,232,220,0) 86%), linear-gradient(180deg, rgba(239,232,220,0.6) 0%, rgba(239,232,220,0.3) 46%, rgba(239,232,220,0.06) 74%, rgba(239,232,220,0) 92%)',
         }}
       />
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: -140,
-          right: 'calc(50% - 640px)',
-          width: 820,
-          height: 580,
-          background: 'radial-gradient(closest-side, var(--glow-p10), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 32s ease-in-out infinite alternate',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          bottom: -200,
-          left: -120,
-          width: 720,
-          height: 540,
-          background: 'radial-gradient(closest-side, var(--glow-b08), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 40s ease-in-out 3s infinite alternate-reverse',
-        }}
-      />
+      <div data-depth="0.05" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: -140,
+            right: 'calc(50% - 640px)',
+            width: 820,
+            height: 580,
+            background: 'radial-gradient(closest-side, var(--glow-p10), transparent 70%)',
+            pointerEvents: 'none',
+            animation: 'ycDrift 32s ease-in-out infinite alternate',
+          }}
+        />
+      </div>
+      <div data-depth="0.06" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            bottom: -200,
+            left: -120,
+            width: 720,
+            height: 540,
+            background: 'radial-gradient(closest-side, var(--glow-b08), transparent 70%)',
+            pointerEvents: 'none',
+            animation: 'ycDrift 40s ease-in-out 3s infinite alternate-reverse',
+          }}
+        />
+      </div>
       <div
         data-grid-1-m="true"
         style={{

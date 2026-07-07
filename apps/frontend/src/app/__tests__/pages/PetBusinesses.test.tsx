@@ -21,6 +21,7 @@ jest.mock('@/app/features/marketing/site', () => ({
     </div>
   ),
   useMagnet: () => ({ current: null }),
+  useParallax: () => ({ current: null }),
   HERO_VIDEOS: { petBusinesses: 'petBusinesses.mp4' },
   HERO_POSTERS: { petBusinesses: 'petBusinesses.jpg' },
   RELEASES_LATEST_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew/releases/latest',

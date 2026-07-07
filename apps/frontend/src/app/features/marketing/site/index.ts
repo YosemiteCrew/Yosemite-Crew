@@ -13,7 +13,9 @@ export {
   HeroVideo,
   ScrollProgress,
   CountUp,
+  InkAnnotate,
   useMagnet,
+  useParallax,
   useReducedMotion,
   useScrolled,
 } from './motion';

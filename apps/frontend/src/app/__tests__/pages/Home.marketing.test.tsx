@@ -20,6 +20,8 @@ jest.mock('@/app/features/marketing/site', () => {
     ReleasePill: () => React_.createElement('span', null, 'Latest release'),
     CountUp: ({ value }: { value: string }) => React_.createElement('span', null, value),
     useMagnet: () => React_.createRef(),
+    useParallax: () => React_.createRef(),
+    InkAnnotate: ({ children }: { children: React.ReactNode }) => children,
     useGithubStats: () => ({
       stars: '2.4k',
       starsFull: '2,400',

@@ -35,6 +35,7 @@ import {
   Spotlight,
   ReleasePill,
   useMagnet,
+  useParallax,
   HERO_VIDEOS,
   HERO_POSTERS,
   RELEASES_LATEST_URL,
@@ -116,6 +117,7 @@ function Hero() {
   const ctaSecondaryRef = useMagnet<HTMLAnchorElement>();
   const macRef = useMagnet<HTMLAnchorElement>();
   const winRef = useMagnet<HTMLAnchorElement>();
+  const parallaxRef = useParallax<HTMLElement>();
 
   const heroWord = (text: string, delay: string, extra?: CSSProperties): ReactNode => (
     <span
@@ -132,6 +134,7 @@ function Hero() {
 
   return (
     <section
+      ref={parallaxRef}
       data-screen-label="Hero"
       data-hero
       style={{
@@ -147,33 +150,41 @@ function Hero() {
         position="center 40%"
       />
       <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: -160,
-          left: 'calc(50% - 620px)',
-          width: 860,
-          height: 600,
-          background: 'radial-gradient(closest-side, var(--glow-b09), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 30s ease-in-out infinite alternate',
-          zIndex: 1,
-        }}
-      />
+        data-depth="0.05"
+        style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: -160,
+            left: 'calc(50% - 620px)',
+            width: 860,
+            height: 600,
+            background: 'radial-gradient(closest-side, var(--glow-b09), transparent 70%)',
+            pointerEvents: 'none',
+            animation: 'ycDrift 30s ease-in-out infinite alternate',
+          }}
+        />
+      </div>
       <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          bottom: -220,
-          right: -140,
-          width: 720,
-          height: 540,
-          background: 'radial-gradient(closest-side, var(--glow-c09), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 38s ease-in-out 3s infinite alternate-reverse',
-          zIndex: 1,
-        }}
-      />
+        data-depth="0.06"
+        style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            bottom: -220,
+            right: -140,
+            width: 720,
+            height: 540,
+            background: 'radial-gradient(closest-side, var(--glow-c09), transparent 70%)',
+            pointerEvents: 'none',
+            animation: 'ycDrift 38s ease-in-out 3s infinite alternate-reverse',
+          }}
+        />
+      </div>
 
       <div
         style={{
