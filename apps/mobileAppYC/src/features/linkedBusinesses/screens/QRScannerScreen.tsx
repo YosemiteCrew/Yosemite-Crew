@@ -81,8 +81,8 @@ const createStyles = (theme: any, width: number) => {
       ...theme.typography.h1,
     },
     placeholderTitle: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
     },
     placeholderMessage: {
       ...theme.typography.bodySmall,

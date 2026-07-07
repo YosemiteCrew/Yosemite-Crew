@@ -213,8 +213,8 @@ const createStyles = (theme: any) => {
       gap: theme.spacing['2'],
     },
     emptyTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
     },
     emptySubtitle: {
       ...theme.typography.bodySmall,
