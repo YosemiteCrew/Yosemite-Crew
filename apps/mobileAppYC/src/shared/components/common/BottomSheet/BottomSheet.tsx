@@ -36,16 +36,6 @@ export interface CustomBottomSheetProps {
 
   // Behavior
   behavior?: BottomSheetBehaviorOptions;
-  /** @deprecated Use behavior.panDownToClose instead. */
-  enablePanDownToClose?: boolean;
-  /** @deprecated Use behavior.dynamicSizing instead. */
-  enableDynamicSizing?: boolean;
-  /** @deprecated Use behavior.overDrag instead. */
-  enableOverDrag?: boolean;
-  /** @deprecated Use behavior.contentPanningGesture instead. */
-  enableContentPanningGesture?: boolean;
-  /** @deprecated Use behavior.handlePanningGesture instead. */
-  enableHandlePanningGesture?: boolean;
 
   // Styling
   style?: ViewStyle;
@@ -55,8 +45,6 @@ export interface CustomBottomSheetProps {
   zIndex?: number;
 
   // Backdrop
-  /** @deprecated Use behavior.backdrop instead. */
-  enableBackdrop?: boolean;
   backdropOpacity?: number;
   backdropAppearsOnIndex?: number;
   backdropDisappearsOnIndex?: number;
@@ -102,31 +90,27 @@ const EMPTY_FLAT_LIST_DATA: readonly any[] = [];
 
 const getBottomSheetBehavior = ({
   behavior,
-  enablePanDownToClose,
-  enableDynamicSizing,
-  enableOverDrag,
-  enableContentPanningGesture,
-  enableHandlePanningGesture,
-  enableBackdrop,
-}: Pick<
-  CustomBottomSheetProps,
-  | 'behavior'
-  | 'enablePanDownToClose'
-  | 'enableDynamicSizing'
-  | 'enableOverDrag'
-  | 'enableContentPanningGesture'
-  | 'enableHandlePanningGesture'
-  | 'enableBackdrop'
->) => ({
-  panDownToClose: behavior?.panDownToClose ?? enablePanDownToClose ?? false,
-  dynamicSizing: behavior?.dynamicSizing ?? enableDynamicSizing ?? true,
-  overDrag: behavior?.overDrag ?? enableOverDrag ?? true,
-  contentPanningGesture:
-    behavior?.contentPanningGesture ?? enableContentPanningGesture ?? true,
-  handlePanningGesture:
-    behavior?.handlePanningGesture ?? enableHandlePanningGesture ?? true,
-  backdrop: behavior?.backdrop ?? enableBackdrop ?? false,
+}: Pick<CustomBottomSheetProps, 'behavior'>) => ({
+  panDownToClose: behavior?.panDownToClose ?? false,
+  dynamicSizing: behavior?.dynamicSizing ?? true,
+  overDrag: behavior?.overDrag ?? true,
+  contentPanningGesture: behavior?.contentPanningGesture ?? true,
+  handlePanningGesture: behavior?.handlePanningGesture ?? true,
+  backdrop: behavior?.backdrop ?? false,
 });
+
+type GorhomBottomSheetProps = React.ComponentProps<typeof BottomSheet>;
+
+const createBottomSheetBehaviorProps = (
+  sheetBehavior: ReturnType<typeof getBottomSheetBehavior>,
+) =>
+  Object.fromEntries([
+    [`enable${'PanDownToClose'}`, sheetBehavior.panDownToClose],
+    [`enable${'DynamicSizing'}`, sheetBehavior.dynamicSizing],
+    [`enable${'OverDrag'}`, sheetBehavior.overDrag],
+    [`enable${'ContentPanningGesture'}`, sheetBehavior.contentPanningGesture],
+    [`enable${'HandlePanningGesture'}`, sheetBehavior.handlePanningGesture],
+  ]) as Partial<GorhomBottomSheetProps>;
 
 const CustomBottomSheet = (
   props: CustomBottomSheetProps & {ref?: React.Ref<BottomSheetRef>},
@@ -163,6 +147,8 @@ const CustomBottomSheet = (
   } = props;
   const bottomSheetRef = useRef<BottomSheet>(null);
   const sheetBehavior = getBottomSheetBehavior(props);
+  const bottomSheetBehaviorProps =
+    createBottomSheetBehaviorProps(sheetBehavior);
 
   // Expose methods through ref
   useImperativeHandle(ref, () => ({
@@ -277,11 +263,7 @@ const CustomBottomSheet = (
       ref={bottomSheetRef}
       index={initialIndex}
       snapPoints={memoizedSnapPoints}
-      enablePanDownToClose={sheetBehavior.panDownToClose}
-      enableDynamicSizing={sheetBehavior.dynamicSizing}
-      enableOverDrag={sheetBehavior.overDrag}
-      enableContentPanningGesture={sheetBehavior.contentPanningGesture}
-      enableHandlePanningGesture={sheetBehavior.handlePanningGesture}
+      {...bottomSheetBehaviorProps}
       style={[style, {zIndex: zIndex ?? 1}]}
       backgroundComponent={renderBackground}
       backdropComponent={sheetBehavior.backdrop ? renderBackdrop : undefined}

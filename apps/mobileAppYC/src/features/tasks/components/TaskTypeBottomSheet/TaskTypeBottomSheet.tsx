@@ -206,12 +206,14 @@ export const TaskTypeBottomSheet = ({
       ref={bottomSheetRef}
       snapPoints={['75%', '85%']}
       initialIndex={-1}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      enableContentPanningGesture={false}
-      enableHandlePanningGesture
-      enableOverDrag={false}
-      enableBackdrop={isSheetVisible}
+      behavior={{
+        panDownToClose: true,
+        dynamicSizing: false,
+        contentPanningGesture: false,
+        handlePanningGesture: true,
+        overDrag: false,
+        backdrop: isSheetVisible,
+      }}
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       contentType="view"

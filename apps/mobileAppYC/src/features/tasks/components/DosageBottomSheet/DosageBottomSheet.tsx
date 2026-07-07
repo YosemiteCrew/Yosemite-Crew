@@ -184,41 +184,48 @@ const DosageBottomSheetDraft = ({
 
   const currentEditingDosage = tempDosages.find(d => d.id === editingDosageId);
   const renderDosage = useCallback(
-    ({item: dosage}: {item: DosageSchedule}) => (
-      <View style={styles.dosageRow}>
-        <View style={styles.inputField}>
-          <Input
-            label="Dosage"
-            value={dosage.label}
-            onChangeText={text => handleLabelChange(dosage.id, text)}
-            placeholder="Enter dose name"
-            containerStyle={styles.inputContainer}
-          />
+    (renderItemInfo: {item: DosageSchedule}) => {
+      const dosage = renderItemInfo.item;
+
+      return (
+        <View style={styles.dosageRow}>
+          <View style={styles.inputField}>
+            <Input
+              label="Dosage"
+              value={dosage.label}
+              onChangeText={text => handleLabelChange(dosage.id, text)}
+              placeholder="Enter dose name"
+              containerStyle={styles.inputContainer}
+            />
+          </View>
+          <PressableOpacity
+            activeOpacity={0.7}
+            onPress={() => handleEditTime(dosage.id)}
+            style={styles.inputField}>
+            <Input
+              label="Time"
+              value={formatTime(dosage.time)}
+              placeholder="Select time"
+              editable={false}
+              pointerEvents="none"
+              icon={
+                <Image
+                  source={Images.clockIcon}
+                  style={styles.clockIconInput}
+                />
+              }
+              containerStyle={styles.inputContainer}
+            />
+          </PressableOpacity>
+          <PressableOpacity
+            activeOpacity={0.7}
+            style={styles.removeButton}
+            onPress={() => handleRemoveDosage(dosage.id)}>
+            <Image source={Images.deleteIcon} style={styles.deleteIcon} />
+          </PressableOpacity>
         </View>
-        <PressableOpacity
-          activeOpacity={0.7}
-          onPress={() => handleEditTime(dosage.id)}
-          style={styles.inputField}>
-          <Input
-            label="Time"
-            value={formatTime(dosage.time)}
-            placeholder="Select time"
-            editable={false}
-            pointerEvents="none"
-            icon={
-              <Image source={Images.clockIcon} style={styles.clockIconInput} />
-            }
-            containerStyle={styles.inputContainer}
-          />
-        </PressableOpacity>
-        <PressableOpacity
-          activeOpacity={0.7}
-          style={styles.removeButton}
-          onPress={() => handleRemoveDosage(dosage.id)}>
-          <Image source={Images.deleteIcon} style={styles.deleteIcon} />
-        </PressableOpacity>
-      </View>
-    ),
+      );
+    },
     [
       handleEditTime,
       handleLabelChange,

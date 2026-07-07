@@ -89,10 +89,12 @@ export const TaskRecurringActionSheet = ({
       snapPoints={['42%', '42%']}
       initialIndex={-1}
       zIndex={100}
-      enablePanDownToClose={true}
-      enableBackdrop={true}
-      enableHandlePanningGesture={true}
-      enableContentPanningGesture={false}
+      behavior={{
+        panDownToClose: true,
+        backdrop: true,
+        handlePanningGesture: true,
+        contentPanningGesture: false,
+      }}
       backdropOpacity={0.5}
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}

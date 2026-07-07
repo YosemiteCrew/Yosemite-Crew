@@ -2,8 +2,8 @@ import type {PressableProps, PressableStateCallbackType} from 'react-native';
 
 type PressableOpacityStyleOptions = {
   activeOpacity: number;
-  disabled?: boolean | null;
-  style?: PressableProps['style'];
+  disabled?: boolean;
+  style?: NonNullable<PressableProps['style']>;
 };
 
 export const getPressableOpacityStyle =

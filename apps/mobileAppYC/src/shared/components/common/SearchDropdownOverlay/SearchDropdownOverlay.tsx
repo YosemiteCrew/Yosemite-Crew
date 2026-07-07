@@ -56,17 +56,27 @@ export function SearchDropdownOverlay<T = unknown>({
     ? styles.glassScrollContainer
     : styles.dropdownContainer;
   const renderItem = useCallback(
-    ({item}: {item: T}) => (
-      <PressableOpacity style={styles.item} onPress={() => onPress(item)}>
+    (renderItemInfo: {item: T}) => (
+      <PressableOpacity
+        style={styles.item}
+        onPress={() => onPress(renderItemInfo.item)}>
         <View style={styles.itemAvatar}>
           <Text style={styles.itemAvatarText}>
-            {(initials?.(item) || title(item) || ' ')?.charAt(0)?.toUpperCase()}
+            {(
+              initials?.(renderItemInfo.item) ||
+              title(renderItemInfo.item) ||
+              ' '
+            )
+              ?.charAt(0)
+              ?.toUpperCase()}
           </Text>
         </View>
         <View style={styles.itemInfo}>
-          <Text style={styles.itemTitle}>{title(item)}</Text>
+          <Text style={styles.itemTitle}>{title(renderItemInfo.item)}</Text>
           {subtitle ? (
-            <Text style={styles.itemSubtitle}>{subtitle(item)}</Text>
+            <Text style={styles.itemSubtitle}>
+              {subtitle(renderItemInfo.item)}
+            </Text>
           ) : null}
         </View>
       </PressableOpacity>

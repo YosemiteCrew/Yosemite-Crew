@@ -111,13 +111,11 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
   );
 
   const renderCoParent = useCallback(
-    ({
-      item: coParent,
-      index,
-    }: {
+    (renderItemInfo: {
       item: (typeof visibleCoParents)[number];
       index: number;
     }) => {
+      const {item: coParent, index} = renderItemInfo;
       const isPrimaryEntry = (coParent.role ?? '')
         .toUpperCase()
         .includes('PRIMARY');

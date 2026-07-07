@@ -5,8 +5,8 @@ import {getPressableOpacityStyle} from './pressableOpacityStyles';
 
 type PressableOpacityProps = Omit<PressableProps, 'style'> & {
   activeOpacity?: number;
-  ref?: React.Ref<React.ElementRef<typeof Pressable>>;
-  style?: PressableProps['style'];
+  ref?: React.Ref<React.ComponentRef<typeof Pressable>>;
+  style?: NonNullable<PressableProps['style']>;
 };
 
 export function PressableOpacity({
@@ -18,7 +18,7 @@ export function PressableOpacity({
 }: PressableOpacityProps) {
   const pressableStyle = getPressableOpacityStyle({
     activeOpacity,
-    disabled,
+    disabled: Boolean(disabled),
     style,
   });
 

@@ -102,7 +102,8 @@ export const CategoryDetailScreen: React.FC = () => {
   }, [category?.subcategories, documentsBySubcategory]);
 
   const renderSubcategory = useCallback(
-    ({item: subcategory}: {item: (typeof subcategoriesToRender)[number]}) => {
+    (renderItemInfo: {item: (typeof subcategoriesToRender)[number]}) => {
+      const {item: subcategory} = renderItemInfo;
       const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
       const subcategoryIcon =
         SUBCATEGORY_ICONS[subcategory.id] || category?.icon;

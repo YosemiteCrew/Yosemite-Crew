@@ -453,9 +453,9 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   }, []);
 
   const renderLinkedBusiness = useCallback(
-    ({item: business}: {item: LinkedBusiness}) => (
+    (renderItemInfo: {item: LinkedBusiness}) => (
       <LinkedBusinessCard
-        business={business}
+        business={renderItemInfo.item}
         onDeletePress={handleDeletePressFromCard}
       />
     ),

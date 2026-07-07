@@ -122,11 +122,13 @@ describe('CustomBottomSheet', () => {
       <CustomBottomSheet
         snapPoints={snapPoints}
         initialIndex={-1}
-        enablePanDownToClose={true}
-        enableDynamicSizing={false}
-        enableOverDrag={false}
-        enableContentPanningGesture={false}
-        enableHandlePanningGesture={false}
+        behavior={{
+          panDownToClose: true,
+          dynamicSizing: false,
+          overDrag: false,
+          contentPanningGesture: false,
+          handlePanningGesture: false,
+        }}
         style={style}
         keyboardBehavior="extend"
         keyboardBlurBehavior="restore"
@@ -285,7 +287,7 @@ describe('CustomBottomSheet', () => {
     const mockOnBackdropPress = jest.fn();
     const {getByTestId} = render(
       <CustomBottomSheet
-        enableBackdrop={true}
+        behavior={{backdrop: true}}
         backdropOpacity={0.7}
         backdropAppearsOnIndex={0}
         backdropDisappearsOnIndex={-1}
@@ -309,7 +311,7 @@ describe('CustomBottomSheet', () => {
 
   it('does not render backdrop when disabled', () => {
     const {queryByTestId} = render(
-      <CustomBottomSheet enableBackdrop={false}>
+      <CustomBottomSheet behavior={{backdrop: false}}>
         <Text>Test</Text>
       </CustomBottomSheet>,
     );

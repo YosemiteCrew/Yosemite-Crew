@@ -47,10 +47,12 @@ export const NetworkStatusBottomSheet = ({
       onChange={index => {
         setIsSheetVisible(index !== -1);
       }}
-      enablePanDownToClose={false}
-      enableBackdrop={isSheetVisible}
-      enableHandlePanningGesture={false}
-      enableContentPanningGesture={false}
+      behavior={{
+        panDownToClose: false,
+        backdrop: isSheetVisible,
+        handlePanningGesture: false,
+        contentPanningGesture: false,
+      }}
       backdropOpacity={0.5}
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}

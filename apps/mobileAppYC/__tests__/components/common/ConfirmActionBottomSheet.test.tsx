@@ -263,7 +263,7 @@ describe('ConfirmActionBottomSheet', () => {
     // Backdrop is always enabled; visibility is controlled by backdropAppearsOnIndex/backdropDisappearsOnIndex
     expect(mockBottomSheet).toHaveBeenCalledWith(
       expect.objectContaining({
-        enableBackdrop: true,
+        behavior: expect.objectContaining({backdrop: true}),
         initialIndex: 0,
         backdropAppearsOnIndex: 0,
         backdropDisappearsOnIndex: -1,
@@ -281,7 +281,7 @@ describe('ConfirmActionBottomSheet', () => {
     // Backdrop always enabled; sheet starts closed via initialIndex=-1
     expect(mockBottomSheet).toHaveBeenCalledWith(
       expect.objectContaining({
-        enableBackdrop: true,
+        behavior: expect.objectContaining({backdrop: true}),
         initialIndex: -1,
         backdropAppearsOnIndex: 0,
         backdropDisappearsOnIndex: -1,

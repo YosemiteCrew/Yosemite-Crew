@@ -200,10 +200,12 @@ export const ConfirmActionBottomSheet = ({
         }
         onSheetChange?.(index);
       }}
-      enablePanDownToClose={enablePanDown}
-      enableBackdrop={true}
-      enableHandlePanningGesture={enableHandlePanning}
-      enableContentPanningGesture={false}
+      behavior={{
+        panDownToClose: enablePanDown,
+        backdrop: true,
+        handlePanningGesture: enableHandlePanning,
+        contentPanningGesture: false,
+      }}
       backdropOpacity={0.5}
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}

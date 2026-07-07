@@ -62,16 +62,22 @@ export const BusinessesListScreen: React.FC = () => {
   }, [businesses.length, dispatch]);
 
   const renderBusiness = useCallback(
-    ({item: business}: {item: VetBusiness}) => (
+    (renderItemInfo: {item: VetBusiness}) => (
       <BusinessCard
-        name={business.name}
-        openText={business.openHours}
-        description={resolveDescription(business)}
-        distanceText={getDistanceText(business)}
-        ratingText={business.rating ? `${business.rating}` : undefined}
-        photo={business.photo}
+        name={renderItemInfo.item.name}
+        openText={renderItemInfo.item.openHours}
+        description={resolveDescription(renderItemInfo.item)}
+        distanceText={getDistanceText(renderItemInfo.item)}
+        ratingText={
+          renderItemInfo.item.rating
+            ? `${renderItemInfo.item.rating}`
+            : undefined
+        }
+        photo={renderItemInfo.item.photo}
         onBook={() =>
-          navigation.navigate('BusinessDetails', {businessId: business.id})
+          navigation.navigate('BusinessDetails', {
+            businessId: renderItemInfo.item.id,
+          })
         }
       />
     ),

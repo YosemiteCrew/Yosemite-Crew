@@ -136,12 +136,14 @@ export const AddressBottomSheet = ({
       onAnimate={() => {
         Keyboard.dismiss();
       }}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      enableContentPanningGesture={false}
-      enableHandlePanningGesture
-      enableOverDrag
-      enableBackdrop={isSheetVisible}
+      behavior={{
+        panDownToClose: true,
+        dynamicSizing: false,
+        contentPanningGesture: false,
+        handlePanningGesture: true,
+        overDrag: true,
+        backdrop: isSheetVisible,
+      }}
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"

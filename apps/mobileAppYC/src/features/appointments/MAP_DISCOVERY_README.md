@@ -238,7 +238,7 @@ From the Appointments tab → **Find a Clinic** — this opens `BrowseBusinesses
 
 ### Draggable bottom sheet
 
-`ClinicBottomSheet` uses `@gorhom/bottom-sheet` with snap points `['22%', '88%']`. Collapsed state (22%) shows roughly one card as a peek. Expanded state (88%) shows a full scrollable list. `enablePanDownToClose={false}` keeps the sheet always visible.
+`ClinicBottomSheet` uses `@gorhom/bottom-sheet` with snap points `['22%', '88%']`. Collapsed state (22%) shows roughly one card as a peek. Expanded state (88%) shows a full scrollable list. Pan-down closing is disabled to keep the sheet always visible.
 
 ### Pan → card sync
 

@@ -78,15 +78,17 @@ export const UploadDocumentBottomSheet = ({
       ref={bottomSheetRef}
       snapPoints={['35%']}
       initialIndex={-1}
-      enableDynamicSizing={false}
       onChange={index => {
         setIsSheetVisible(index !== -1);
       }}
       style={styles.bottomSheet}
-      enablePanDownToClose
-      enableBackdrop={isSheetVisible}
-      enableHandlePanningGesture
-      enableContentPanningGesture={false}
+      behavior={{
+        dynamicSizing: false,
+        panDownToClose: true,
+        backdrop: isSheetVisible,
+        handlePanningGesture: true,
+        contentPanningGesture: false,
+      }}
       backdropOpacity={0.5}
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}

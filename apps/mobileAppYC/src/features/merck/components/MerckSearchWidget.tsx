@@ -250,9 +250,9 @@ const MerckResultsSection: React.FC<MerckResultsSectionProps> = ({
   onOpenFullSearch,
 }) => {
   const renderPanelEntry = React.useCallback(
-    ({item: entry}: {item: MerckEntry}) => (
+    (renderItemInfo: {item: MerckEntry}) => (
       <MerckEntryCard
-        entry={entry}
+        entry={renderItemInfo.item}
         styles={styles}
         theme={theme}
         summaryLines={4}
@@ -830,9 +830,9 @@ const MerckSearchWidgetView: React.FC<MerckSearchWidgetViewProps> = ({
     setRefineOpen(prev => !prev);
   }, [setRefineOpen]);
   const renderFullEntry = React.useCallback(
-    ({item: entry}: {item: MerckEntry}) => (
+    (renderItemInfo: {item: MerckEntry}) => (
       <MerckEntryCard
-        entry={entry}
+        entry={renderItemInfo.item}
         styles={styles}
         theme={theme}
         summaryLines={4}

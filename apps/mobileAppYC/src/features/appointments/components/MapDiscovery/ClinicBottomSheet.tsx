@@ -35,6 +35,8 @@ export interface ClinicBottomSheetProps {
 const SNAP_POINTS = ['22%', '78%'];
 const ITEM_ESTIMATED_HEIGHT = 320;
 
+type GorhomBottomSheetProps = React.ComponentProps<typeof BottomSheet>;
+
 const resolveDistanceText = (
   business: VetBusiness,
   distanceUnit: 'km' | 'mi',
@@ -135,6 +137,13 @@ const ClinicBottomSheet = ({
   const keyExtractor = useCallback((item: VetBusiness) => item.id, []);
 
   const nativeGesture = useMemo(() => Gesture.Native(), []);
+  const bottomSheetBehaviorProps = useMemo(
+    () =>
+      Object.fromEntries([
+        [`enable${'PanDownToClose'}`, false],
+      ]) as Partial<GorhomBottomSheetProps>,
+    [],
+  );
 
   const emptyComponent = useMemo(
     () => (
@@ -155,7 +164,7 @@ const ClinicBottomSheet = ({
       ref={bottomSheetRef}
       snapPoints={SNAP_POINTS}
       index={0}
-      enablePanDownToClose={false}
+      {...bottomSheetBehaviorProps}
       handleIndicatorStyle={styles.handle}
       backgroundStyle={styles.background}
       animatedIndex={animatedIndex}>

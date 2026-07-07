@@ -162,14 +162,16 @@ export const EmergencyBottomSheet = ({
       onChange={index => {
         setIsSheetVisible(index !== -1);
       }}
-      enablePanDownToClose
-      enableBackdrop={isSheetVisible}
+      behavior={{
+        panDownToClose: true,
+        backdrop: isSheetVisible,
+        handlePanningGesture: true,
+        contentPanningGesture: false,
+      }}
       backdropOpacity={0.5}
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
-      enableHandlePanningGesture
-      enableContentPanningGesture={false}
       contentType="view"
       zIndex={99999}
       backgroundStyle={styles.bottomSheetBackground}

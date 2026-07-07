@@ -213,13 +213,14 @@ export const GenericSelectBottomSheet = ({
         onSheetChange?.(index);
       }}
       onAnimate={handleSheetAnimate}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      enableContentPanningGesture={false}
-      enableHandlePanningGesture
-      enableOverDrag={false}
-      // Only show the backdrop when the sheet is actually visible
-      enableBackdrop={isSheetVisible}
+      behavior={{
+        panDownToClose: true,
+        dynamicSizing: false,
+        contentPanningGesture: false,
+        handlePanningGesture: true,
+        overDrag: false,
+        backdrop: isSheetVisible,
+      }}
       backdropOpacity={0.5}
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}

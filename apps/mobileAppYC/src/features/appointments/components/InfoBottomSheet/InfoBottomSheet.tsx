@@ -31,9 +31,11 @@ export const InfoBottomSheet = ({
       ref={ref}
       initialIndex={-1}
       snapPoints={['40%', '60%']}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      enableBackdrop={isSheetVisible}
+      behavior={{
+        panDownToClose: true,
+        dynamicSizing: false,
+        backdrop: isSheetVisible,
+      }}
       backdropOpacity={0.5}
       backdropAppearsOnIndex={0}
       backdropDisappearsOnIndex={-1}

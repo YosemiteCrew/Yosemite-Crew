@@ -1193,15 +1193,17 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                 ref={successBottomSheetRef}
                 snapPoints={['50%', '75%']}
                 initialIndex={1}
-                enablePanDownToClose
-                enableBackdrop
+                behavior={{
+                  panDownToClose: true,
+                  backdrop: true,
+                  handlePanningGesture: true,
+                  contentPanningGesture: false,
+                  overDrag: true,
+                }}
                 backdropOpacity={0.5}
                 backdropAppearsOnIndex={0}
                 backdropDisappearsOnIndex={-1}
                 backdropPressBehavior="close"
-                enableHandlePanningGesture
-                enableContentPanningGesture={false}
-                enableOverDrag
                 backgroundStyle={styles.bottomSheetBackground}
                 handleIndicatorStyle={styles.bottomSheetHandle}
                 onChange={index => {
@@ -1242,15 +1244,17 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
               ref={ageVerificationInfoBottomSheetRef}
               snapPoints={['85%', '95%']}
               initialIndex={-1}
-              enablePanDownToClose
-              enableBackdrop
+              behavior={{
+                panDownToClose: true,
+                backdrop: true,
+                handlePanningGesture: true,
+                contentPanningGesture: true,
+                overDrag: true,
+              }}
               backdropOpacity={0.5}
               backdropAppearsOnIndex={0}
               backdropDisappearsOnIndex={-1}
               backdropPressBehavior="close"
-              enableHandlePanningGesture
-              enableContentPanningGesture
-              enableOverDrag
               contentType="view"
               backgroundStyle={styles.bottomSheetBackground}
               handleIndicatorStyle={styles.bottomSheetHandle}
