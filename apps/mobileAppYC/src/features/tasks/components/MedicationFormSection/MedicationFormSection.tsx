@@ -1,5 +1,6 @@
 import React from 'react';
-import {View, StyleSheet, Image, TouchableOpacity} from 'react-native';
+import {View, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Input, TouchableInput} from '@/shared/components/common';
 import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {Images} from '@/assets/images';
@@ -154,7 +155,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
       {showDosageDisplay && formData.dosages.length > 0 && (
         <View style={styles.dosageDisplayContainer}>
           {formData.dosages.map(dosage => (
-            <TouchableOpacity
+            <PressableOpacity
               key={dosage.id}
               style={styles.dosageDisplayRow}
               activeOpacity={0.6}
@@ -181,7 +182,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
                   }
                 />
               </View>
-            </TouchableOpacity>
+            </PressableOpacity>
           ))}
         </View>
       )}

@@ -5,16 +5,8 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  Image,
-  Keyboard,
-  TouchableWithoutFeedback,
-} from 'react-native';
+import {View, Text, StyleSheet, FlatList, Image, Keyboard} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import type {ListRenderItemInfo} from 'react-native';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
@@ -37,7 +29,7 @@ const handleBackdropPress = () => {
 
 const SelectDefaultItem = React.memo(
   ({item, isSelected, onPress, styles}: SelectDefaultItemProps) => (
-    <TouchableOpacity
+    <PressableOpacity
       style={[styles.item, isSelected && styles.itemSelected]}
       onPress={() => onPress(item)}
       activeOpacity={0.7}>
@@ -47,7 +39,7 @@ const SelectDefaultItem = React.memo(
           <Text style={styles.checkmarkText}>✓</Text>
         </View>
       )}
-    </TouchableOpacity>
+    </PressableOpacity>
   ),
 );
 
@@ -67,12 +59,12 @@ const SelectCustomItem = React.memo(
     renderContent,
     styles,
   }: SelectCustomItemProps) => (
-    <TouchableOpacity
+    <PressableOpacity
       style={styles.touchableItem}
       onPress={() => onPress(item)}
       activeOpacity={0.7}>
       {renderContent(item, isSelected)}
-    </TouchableOpacity>
+    </PressableOpacity>
   ),
 );
 
@@ -239,7 +231,10 @@ export const GenericSelectBottomSheet = ({
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <PressableOpacity
+        activeOpacity={1}
+        onPress={Keyboard.dismiss}
+        accessible={false}>
         <View style={styles.container}>
           {/* Header */}
           <BottomSheetHeader
@@ -333,7 +328,7 @@ export const GenericSelectBottomSheet = ({
             />
           )}
         </View>
-      </TouchableWithoutFeedback>
+      </PressableOpacity>
     </CustomBottomSheet>
   );
 };

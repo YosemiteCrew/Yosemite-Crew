@@ -2,12 +2,12 @@ import React from 'react';
 import {
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
   ViewStyle,
   Text,
   View,
   FlatList,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 
 export interface PillOption {
@@ -94,7 +94,7 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
     (option: PillOption) => {
       const isSelected = selectedId === option.id;
       return (
-        <TouchableOpacity
+        <PressableOpacity
           key={option.id}
           style={[styles.pill, isSelected && styles.pillActive]}
           onPress={() => onSelect(option.id)}
@@ -107,7 +107,7 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
               <Text style={styles.badgeText}>{option.badgeCount}</Text>
             </View>
           )}
-        </TouchableOpacity>
+        </PressableOpacity>
       );
     },
     [

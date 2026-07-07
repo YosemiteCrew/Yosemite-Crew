@@ -1,5 +1,6 @@
 import React, {useMemo} from 'react';
-import {View, Text, StyleSheet, Image, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SwipeableActionCard} from '@/shared/components/common/SwipeableActionCard/SwipeableActionCard';
 import {useTheme} from '@/hooks';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
@@ -30,7 +31,8 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
   const fallbackName = isPrimary ? 'Primary Parent' : 'Co-parent';
   const roleLabel = isPrimary ? 'Primary Parent' : 'Co-parent';
   const displayName =
-    `${coParent.firstName ?? ''} ${coParent.lastName ?? ''}`.trim() || fallbackName;
+    `${coParent.firstName ?? ''} ${coParent.lastName ?? ''}`.trim() ||
+    fallbackName;
 
   const avatarInitial = coParent.firstName?.charAt(0).toUpperCase() || 'C';
 
@@ -42,13 +44,11 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
         onPressView={onPressView}
         onPressEdit={onPressEdit}
         showEditAction={showEditAction}
-        hideSwipeActions={hideSwipeActions}
-      >
-        <TouchableOpacity
+        hideSwipeActions={hideSwipeActions}>
+        <PressableOpacity
           activeOpacity={onPressView ? 0.85 : 1}
           onPress={onPressView}
-          style={styles.innerContent}
-        >
+          style={styles.innerContent}>
           <View style={styles.infoRow}>
             <View style={styles.avatarContainer}>
               {coParent.profilePicture ? (
@@ -72,7 +72,7 @@ export const CoParentCard: React.FC<CoParentCardProps> = ({
               </Text>
             </View>
           </View>
-        </TouchableOpacity>
+        </PressableOpacity>
       </SwipeableActionCard>
 
       {divider && <View style={styles.divider} />}
@@ -104,7 +104,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.full,
     },
     avatarInitials: {
-       width: 60,
+      width: 60,
       height: 60,
       borderRadius: theme.borderRadius.full,
       backgroundColor: theme.colors.lightBlueBackground,

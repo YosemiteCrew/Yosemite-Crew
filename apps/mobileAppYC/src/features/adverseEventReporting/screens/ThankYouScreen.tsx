@@ -1,13 +1,6 @@
 import React, {useMemo, useState} from 'react';
-import {
-  View,
-  ScrollView,
-  StyleSheet,
-  Text,
-  Image,
-  TouchableOpacity,
-  Linking,
-} from 'react-native';
+import {View, ScrollView, StyleSheet, Text, Image, Linking} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -25,18 +18,29 @@ import {SUPPORTED_ADVERSE_EVENT_COUNTRIES} from '@/features/adverseEventReportin
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'ThankYou'>;
 
-export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
-  const { theme } = useTheme();
+export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
+  const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const {draft, setConsentToContact, setProductInfo, resetDraft} = useAdverseEventReport();
-  const companions = useSelector((state: RootState) => state.companion.companions);
-  const selectedCompanionId = useSelector((state: RootState) => state.companion.selectedCompanionId);
-  const linkedBusinesses = useSelector((state: RootState) => state.linkedBusinesses.linkedBusinesses);
+  const {draft, setConsentToContact, setProductInfo, resetDraft} =
+    useAdverseEventReport();
+  const companions = useSelector(
+    (state: RootState) => state.companion.companions,
+  );
+  const selectedCompanionId = useSelector(
+    (state: RootState) => state.companion.selectedCompanionId,
+  );
+  const linkedBusinesses = useSelector(
+    (state: RootState) => state.linkedBusinesses.linkedBusinesses,
+  );
   const authUser = useSelector((state: RootState) => state.auth.user);
 
-  const [agreeToBeContacted, setAgreeToBeContacted] = useState(draft.consentToContact);
+  const [agreeToBeContacted, setAgreeToBeContacted] = useState(
+    draft.consentToContact,
+  );
   const [contactError, setContactError] = useState('');
-  const [submitLoading, setSubmitLoading] = useState<'manufacturer' | 'hospital' | null>(null);
+  const [submitLoading, setSubmitLoading] = useState<
+    'manufacturer' | 'hospital' | null
+  >(null);
   const [regulatoryLoading, setRegulatoryLoading] = useState(false);
   const [regulatoryContact, setRegulatoryContact] = useState<{
     authorityName?: string | null;
@@ -115,7 +119,12 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
     await requireContactConsent(async () => {
       try {
         ensureSubmissionInputs();
-        if (!authUser || !resolvedCompanion || !draft.productInfo || !resolvedOrganisationId) {
+        if (
+          !authUser ||
+          !resolvedCompanion ||
+          !draft.productInfo ||
+          !resolvedOrganisationId
+        ) {
           return;
         }
 
@@ -186,7 +195,10 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
           const telUrl = `tel:${normalizedPhone}`;
           const opened = await Linking.openURL(telUrl).catch(() => false);
           if (!opened) {
-            showErrorAlert('Dialer unavailable', `Please call this number manually: ${normalizedPhone}`);
+            showErrorAlert(
+              'Dialer unavailable',
+              `Please call this number manually: ${normalizedPhone}`,
+            );
           }
         } else {
           showErrorAlert(
@@ -213,14 +225,13 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
       />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+        showsVerticalScrollIndicator={false}>
         <Image source={Images.adverse3} style={styles.heroImage} />
 
         <Text style={styles.title}>Thank you for reaching out to us</Text>
         <Text style={styles.subtitle}>
-          By submitting a report, you agree to be contacted by the company if needed to obtain
-          further details regarding your report.
+          By submitting a report, you agree to be contacted by the company if
+          needed to obtain further details regarding your report.
         </Text>
 
         <View style={styles.checkboxSection}>
@@ -236,7 +247,9 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
             label="I agree to be contacted by Drug Manufacturer, Hospital, or Regulatory Authority if needed."
             labelStyle={styles.checkboxLabel}
           />
-          {contactError ? <Text style={styles.errorText}>{contactError}</Text> : null}
+          {contactError ? (
+            <Text style={styles.errorText}>{contactError}</Text>
+          ) : null}
         </View>
 
         <View style={styles.actionsContainer}>
@@ -244,14 +257,14 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
             title="Send report to drug manufacturer"
             onPress={handleSendToManufacturer}
             glassEffect="clear"
-          interactive
-          borderRadius="lg"
-          forceBorder
-          borderColor={theme.colors.borderMuted}
-          height={theme.spacing['14']}
-          style={styles.button}
-          textStyle={styles.buttonText}
-          tintColor={theme.colors.secondary}
+            interactive
+            borderRadius="lg"
+            forceBorder
+            borderColor={theme.colors.borderMuted}
+            height={theme.spacing['14']}
+            style={styles.button}
+            textStyle={styles.buttonText}
+            tintColor={theme.colors.secondary}
             shadowIntensity="medium"
             loading={submitLoading === 'manufacturer'}
             disabled={submitLoading !== null}
@@ -261,41 +274,50 @@ export const ThankYouScreen: React.FC<Props> = ({ navigation }) => {
             title="Send report to hospital"
             onPress={handleSendToHospital}
             glassEffect="clear"
-          interactive
-          borderRadius="lg"
-          forceBorder
-          borderColor={theme.colors.borderMuted}
-          height={theme.spacing['14']}
-          style={[styles.button, styles.lightButton]}
-          textStyle={styles.lightButtonText}
-          tintColor={theme.colors.white}
+            interactive
+            borderRadius="lg"
+            forceBorder
+            borderColor={theme.colors.borderMuted}
+            height={theme.spacing['14']}
+            style={[styles.button, styles.lightButton]}
+            textStyle={styles.lightButtonText}
+            tintColor={theme.colors.white}
             shadowIntensity="light"
             loading={submitLoading === 'hospital'}
             disabled={submitLoading !== null}
           />
 
-          <TouchableOpacity
+          <PressableOpacity
             style={styles.phoneAction}
             onPress={regulatoryLoading ? undefined : handleCallAuthority}
-            disabled={regulatoryLoading}
-          >
+            disabled={regulatoryLoading}>
             <Image source={Images.phone} style={styles.phoneIcon} />
             <Text style={styles.phoneText}>
-              {regulatoryLoading ? 'Fetching authority contact...' : 'Call regulatory authority'}
+              {regulatoryLoading
+                ? 'Fetching authority contact...'
+                : 'Call regulatory authority'}
             </Text>
-          </TouchableOpacity>
+          </PressableOpacity>
 
           {regulatoryContact?.authorityName ? (
             <View style={styles.authorityDetails}>
-              <Text style={styles.authorityName}>{regulatoryContact.authorityName}</Text>
+              <Text style={styles.authorityName}>
+                {regulatoryContact.authorityName}
+              </Text>
               {regulatoryContact.phone ? (
-                <Text style={styles.authorityMeta}>Phone: {regulatoryContact.phone}</Text>
+                <Text style={styles.authorityMeta}>
+                  Phone: {regulatoryContact.phone}
+                </Text>
               ) : null}
               {regulatoryContact.email ? (
-                <Text style={styles.authorityMeta}>Email: {regulatoryContact.email}</Text>
+                <Text style={styles.authorityMeta}>
+                  Email: {regulatoryContact.email}
+                </Text>
               ) : null}
               {regulatoryContact.website ? (
-                <Text style={styles.authorityMeta}>Website: {regulatoryContact.website}</Text>
+                <Text style={styles.authorityMeta}>
+                  Website: {regulatoryContact.website}
+                </Text>
               ) : null}
             </View>
           ) : null}

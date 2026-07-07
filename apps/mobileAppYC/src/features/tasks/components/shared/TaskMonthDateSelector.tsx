@@ -1,5 +1,6 @@
 import React, {useMemo, useCallback, useRef} from 'react';
-import {FlatList, StyleSheet, Text, TouchableOpacity, View, Image} from 'react-native';
+import {FlatList, StyleSheet, Text, View, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Images} from '@/assets/images';
 import {
   formatDateToISODate,
@@ -37,7 +38,8 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
     return allMonthDates.map(dateInfo => {
       const dateStr = formatDateToISODate(dateInfo.date);
       const hasTask = datesWithTasks.has(dateStr);
-      const isCurrentMonth = dateInfo.date.getMonth() === currentMonth.getMonth();
+      const isCurrentMonth =
+        dateInfo.date.getMonth() === currentMonth.getMonth();
       return {...dateInfo, hasTask, isCurrentMonth};
     });
   }, [currentMonth, selectedDate, datesWithTasks]);
@@ -54,7 +56,12 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
   );
 
   const scrollToSelected = useCallback(() => {
-    if (!autoScroll || !dateListRef.current || weekDates.length === 0 || selectedDateIndex === -1) {
+    if (
+      !autoScroll ||
+      !dateListRef.current ||
+      weekDates.length === 0 ||
+      selectedDateIndex === -1
+    ) {
       return;
     }
     setTimeout(() => {
@@ -98,10 +105,12 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
   }, []);
 
   const renderDateItem = useCallback(
-    (props: {item: DateInfo & {isCurrentMonth?: boolean; hasTask?: boolean}}) => {
+    (props: {
+      item: DateInfo & {isCurrentMonth?: boolean; hasTask?: boolean};
+    }) => {
       const dateInfo = props.item;
       return (
-        <TouchableOpacity
+        <PressableOpacity
           activeOpacity={0.7}
           style={[
             styles.dateItem,
@@ -129,8 +138,10 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
             ]}>
             {dateInfo.dayNumber.toString().padStart(2, '0')}
           </Text>
-          {dateInfo.hasTask && !dateInfo.isSelected && <View style={styles.taskIndicator} />}
-        </TouchableOpacity>
+          {dateInfo.hasTask && !dateInfo.isSelected && (
+            <View style={styles.taskIndicator} />
+          )}
+        </PressableOpacity>
       );
     },
     [styles, onDateSelect],
@@ -139,23 +150,23 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
   return (
     <>
       <View style={styles.monthNavigation}>
-        <TouchableOpacity
+        <PressableOpacity
           activeOpacity={0.7}
           onPress={handlePreviousMonth}
           style={styles.monthArrow}>
           <Image source={Images.leftArrowIcon} style={styles.arrowIcon} />
-        </TouchableOpacity>
+        </PressableOpacity>
 
         <View style={styles.monthTextContainer}>
           <Text style={styles.monthText}>{formatMonthYear(currentMonth)}</Text>
         </View>
 
-        <TouchableOpacity
+        <PressableOpacity
           activeOpacity={0.7}
           onPress={handleNextMonth}
           style={styles.monthArrow}>
           <Image source={Images.rightArrowIcon} style={styles.arrowIcon} />
-        </TouchableOpacity>
+        </PressableOpacity>
       </View>
 
       <FlatList
@@ -164,7 +175,9 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
         data={weekDates}
         renderItem={renderDateItem}
         keyExtractor={item => item.date.toISOString()}
-        initialScrollIndex={selectedDateIndex === -1 ? undefined : selectedDateIndex}
+        initialScrollIndex={
+          selectedDateIndex === -1 ? undefined : selectedDateIndex
+        }
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.dateScroller}
         style={styles.dateList}

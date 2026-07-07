@@ -4,9 +4,9 @@ import {
   Modal as RNModal,
   View,
   StyleSheet,
-  TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 
 interface ModalProps {
@@ -38,7 +38,7 @@ export const Modal: React.FC<ModalProps> = ({
       transparent={transparent}
       onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <TouchableOpacity
+        <PressableOpacity
           style={styles.backdrop}
           activeOpacity={1}
           onPress={onClose}

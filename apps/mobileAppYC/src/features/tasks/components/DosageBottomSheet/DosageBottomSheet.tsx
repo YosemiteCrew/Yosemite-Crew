@@ -5,14 +5,8 @@ import {
   useState,
   useMemo,
 } from 'react';
-import {
-  FlatList,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-} from 'react-native';
+import {FlatList, View, Text, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {
   ConfirmActionBottomSheet,
   ConfirmActionBottomSheetRef,
@@ -201,7 +195,7 @@ const DosageBottomSheetDraft = ({
             containerStyle={styles.inputContainer}
           />
         </View>
-        <TouchableOpacity
+        <PressableOpacity
           activeOpacity={0.7}
           onPress={() => handleEditTime(dosage.id)}
           style={styles.inputField}>
@@ -216,13 +210,13 @@ const DosageBottomSheetDraft = ({
             }
             containerStyle={styles.inputContainer}
           />
-        </TouchableOpacity>
-        <TouchableOpacity
+        </PressableOpacity>
+        <PressableOpacity
           activeOpacity={0.7}
           style={styles.removeButton}
           onPress={() => handleRemoveDosage(dosage.id)}>
           <Image source={Images.deleteIcon} style={styles.deleteIcon} />
-        </TouchableOpacity>
+        </PressableOpacity>
       </View>
     ),
     [
@@ -264,13 +258,13 @@ const DosageBottomSheetDraft = ({
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.scrollContent}
           ListFooterComponent={
-            <TouchableOpacity
+            <PressableOpacity
               activeOpacity={0.7}
               style={styles.addButton}
               onPress={handleAddDosage}>
               <Image source={Images.addIcon} style={styles.addIcon} />
               <Text style={styles.addText}>Add</Text>
-            </TouchableOpacity>
+            </PressableOpacity>
           }
         />
 

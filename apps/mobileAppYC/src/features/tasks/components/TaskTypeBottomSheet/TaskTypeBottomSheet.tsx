@@ -5,7 +5,8 @@ import React, {
   useCallback,
   useState,
 } from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, FlatList} from 'react-native';
+import {View, Text, StyleSheet, FlatList} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
 import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
@@ -76,12 +77,12 @@ export const TaskTypeBottomSheet = ({
   // Render a single pill button
   const renderPillButton = useCallback(
     (child: {option: TaskTypeOption; ancestors: TaskTypeOption[]}) => (
-      <TouchableOpacity
+      <PressableOpacity
         key={child.option.id}
         style={styles.pillButton}
         onPress={() => handleTaskSelect(child.option, child.ancestors)}>
         <Text style={styles.pillButtonText}>{child.option.label}</Text>
-      </TouchableOpacity>
+      </PressableOpacity>
     ),
     [handleTaskSelect, styles.pillButton, styles.pillButtonText],
   );
@@ -149,13 +150,13 @@ export const TaskTypeBottomSheet = ({
       if (section.type === 'single') {
         return (
           <View key={section.category.id} style={styles.customPillWrapper}>
-            <TouchableOpacity
+            <PressableOpacity
               style={styles.pillButton}
               onPress={() => handleTaskSelect(section.category, [])}>
               <Text style={styles.pillButtonText}>
                 {section.category.label}
               </Text>
-            </TouchableOpacity>
+            </PressableOpacity>
           </View>
         );
       }

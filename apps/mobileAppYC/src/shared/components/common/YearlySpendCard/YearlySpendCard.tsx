@@ -1,17 +1,15 @@
 import React, {useMemo} from 'react';
-import {
-  View,
-  Text,
-  Image,
-  ImageSourcePropType,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import {View, Text, Image, ImageSourcePropType, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
-import {createGlassCardStyles, createCardContentStyles, createTextContainerStyles} from '@/shared/utils/cardStyles';
+import {
+  createGlassCardStyles,
+  createCardContentStyles,
+  createTextContainerStyles,
+} from '@/shared/utils/cardStyles';
 import {formatCurrency, resolveCurrencySymbol} from '@/shared/utils/currency';
 
 export interface YearlySpendCardProps {
@@ -57,11 +55,10 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
   };
 
   const cardContent = (
-    <TouchableOpacity
+    <PressableOpacity
       activeOpacity={0.85}
       onPress={handleViewPress}
-      style={styles.content}
-    >
+      style={styles.content}>
       <View style={styles.iconCircle}>
         <Image source={Images.walletIcon} style={styles.icon} />
       </View>
@@ -80,7 +77,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
           <Image source={companionAvatar} style={styles.companionAvatar} />
         </View>
       )}
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 
   if (disableSwipe) {
@@ -89,8 +86,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
         interactive
         glassEffect="clear"
         style={styles.card}
-        fallbackStyle={styles.fallback}
-      >
+        fallbackStyle={styles.fallback}>
         {cardContent}
       </LiquidGlassCard>
     );
@@ -109,8 +105,12 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
         style: styles.card,
         fallbackStyle: styles.fallback,
       }}
-      springConfig={{useNativeDriver: true, damping: 18, stiffness: 180, mass: 0.8}}
-    >
+      springConfig={{
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 180,
+        mass: 0.8,
+      }}>
       {cardContent}
     </SwipeableGlassCard>
   );

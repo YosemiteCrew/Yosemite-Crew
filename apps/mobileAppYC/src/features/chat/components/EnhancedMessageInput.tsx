@@ -12,7 +12,6 @@
 import React, {useState} from 'react';
 import {
   View,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   Platform,
@@ -20,6 +19,7 @@ import {
   ActivityIndicator,
   Text,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {MessageInput, useChannelContext} from 'stream-chat-react-native';
 import Sound from 'react-native-nitro-sound';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
@@ -315,15 +315,15 @@ export const EnhancedMessageInput: React.FC = () => {
           </Text>
         </View>
         <View style={styles.recordingActions}>
-          <TouchableOpacity
+          <PressableOpacity
             onPress={() => {
               cancelVoiceRecording();
             }}
             style={[styles.recordButton, styles.cancelButton]}
             disabled={isRecordingLoading}>
             <Icon name="close" size={24} color={theme.colors.white} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PressableOpacity>
+          <PressableOpacity
             onPress={() => {
               stopVoiceRecording();
             }}
@@ -334,7 +334,7 @@ export const EnhancedMessageInput: React.FC = () => {
             ) : (
               <Icon name="send" size={24} color={theme.colors.white} />
             )}
-          </TouchableOpacity>
+          </PressableOpacity>
         </View>
       </View>
     );
@@ -344,7 +344,7 @@ export const EnhancedMessageInput: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.actionsRow}>
         {/* Voice Message Button */}
-        <TouchableOpacity
+        <PressableOpacity
           onPress={() => {
             startVoiceRecording();
           }}
@@ -355,14 +355,14 @@ export const EnhancedMessageInput: React.FC = () => {
           ) : (
             <Icon name="mic" size={24} color={theme.colors.primary} />
           )}
-        </TouchableOpacity>
+        </PressableOpacity>
 
         {/* Attachment Button */}
-        <TouchableOpacity
+        <PressableOpacity
           onPress={showAttachmentOptions}
           style={styles.actionButton}>
           <Icon name="attach-file" size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
+        </PressableOpacity>
       </View>
 
       {/* Default Stream Message Input */}

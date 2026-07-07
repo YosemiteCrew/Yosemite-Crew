@@ -1,5 +1,6 @@
 import React from 'react';
-import {View, Image, Text, TouchableOpacity, Alert, Share} from 'react-native';
+import {View, Image, Text, Alert, Share} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import createAttachmentStyles from '@/shared/utils/attachmentStyles';
@@ -57,11 +58,11 @@ export const AttachmentPreview: React.FC<Props> = ({attachments}) => {
             <Text style={styles.pageIndicator}>
               Page {index + 1} of {attachments.length}
             </Text>
-            <TouchableOpacity
+            <PressableOpacity
               style={styles.shareButton}
               onPress={() => handleShare(sourceUri)}>
               <Image source={Images.shareIcon} style={styles.shareIcon} />
-            </TouchableOpacity>
+            </PressableOpacity>
           </View>
         );
       })}

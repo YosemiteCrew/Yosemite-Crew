@@ -6,10 +6,10 @@ import {
   Platform,
   StyleProp,
   StyleSheet,
-  TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import {scheduleOnRN} from 'react-native-worklets';
 import Reanimated, {
@@ -227,7 +227,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
   const actionContent = renderActionContent ? (
     renderActionContent(() => animateTo(0))
   ) : (
-    <TouchableOpacity
+    <PressableOpacity
       activeOpacity={0.85}
       style={styles.actionButton}
       onPress={handleActionPress}>
@@ -238,7 +238,7 @@ export const SwipeableGlassCard: React.FC<SwipeableGlassCardProps> = ({
           resizeMode="contain"
         />
       </View>
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 
   const cardPropsWithReveal = useMemo(() => {

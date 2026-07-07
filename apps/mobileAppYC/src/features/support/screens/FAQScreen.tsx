@@ -1,12 +1,6 @@
 import React from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  Image,
-} from 'react-native';
+import {ScrollView, StyleSheet, Text, View, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -63,7 +57,7 @@ const FAQCard: React.FC<{
       <Animated.View
         layout={LinearTransition.duration(200)}
         style={styles.faqCardContent}>
-        <TouchableOpacity
+        <PressableOpacity
           style={styles.questionRow}
           onPress={() => onToggle(faq.id)}
           activeOpacity={0.8}>
@@ -72,7 +66,7 @@ const FAQCard: React.FC<{
             source={Images.downArrow}
             style={[styles.toggleIcon, isExpanded && styles.toggleIconExpanded]}
           />
-        </TouchableOpacity>
+        </PressableOpacity>
 
         {isExpanded && (
           <Animated.View
@@ -119,7 +113,7 @@ const FAQCard: React.FC<{
               <View style={styles.relatedSection}>
                 <Text style={styles.relatedTitle}>Related Questions</Text>
                 {relatedEntries.map(related => (
-                  <TouchableOpacity
+                  <PressableOpacity
                     key={related.id}
                     style={styles.relatedRow}
                     onPress={() => onRelatedPress(related.id, false)}
@@ -129,7 +123,7 @@ const FAQCard: React.FC<{
                       source={Images.rightArrow}
                       style={styles.relatedArrow}
                     />
-                  </TouchableOpacity>
+                  </PressableOpacity>
                 ))}
               </View>
             )}

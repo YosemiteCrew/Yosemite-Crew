@@ -6,9 +6,9 @@ import {
   ScrollView,
   StyleSheet,
   BackHandler,
-  TouchableOpacity,
   Image,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Clipboard from '@react-native-clipboard/clipboard';
 import {Images} from '@/assets/images';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -424,7 +424,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                       ellipsizeMode="tail">
                       {safeUser.email ?? '—'}
                     </Text>
-                    <TouchableOpacity
+                    <PressableOpacity
                       style={styles.copyIconButton}
                       activeOpacity={0.7}
                       onPress={() => {
@@ -436,7 +436,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                         Alert.alert('Copied', 'Email Id copied to clipboard');
                       }}>
                       <Image source={Images.copyIcon} style={styles.copyIcon} />
-                    </TouchableOpacity>
+                    </PressableOpacity>
                   </View>
 
                   <Separator />

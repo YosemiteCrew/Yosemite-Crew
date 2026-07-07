@@ -9,13 +9,8 @@
  */
 
 import React from 'react';
-import {
-  View,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-} from 'react-native';
+import {View, StyleSheet, Text, useWindowDimensions} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Attachment, useMessageContext} from 'stream-chat-react-native';
 import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -60,7 +55,7 @@ export const CustomAttachment: React.FC = () => {
   // Handle video attachments
   if (attachmentType === 'video' && attachment.asset_url) {
     return (
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.videoContainer}
         onPress={() => {
           ReactNativeHapticFeedback.trigger('impactLight');
@@ -86,7 +81,7 @@ export const CustomAttachment: React.FC = () => {
           <Icon name="videocam" size={16} color={theme.colors.white} />
           <Text style={styles.videoText}>{attachment.title || 'Video'}</Text>
         </View>
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   }
 
@@ -99,7 +94,7 @@ export const CustomAttachment: React.FC = () => {
         : undefined;
 
     return (
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.fileContainer}
         onPress={() => {
           ReactNativeHapticFeedback.trigger('impactLight');
@@ -119,7 +114,7 @@ export const CustomAttachment: React.FC = () => {
           {fileSize ? <Text style={styles.fileSize}>{fileSize}</Text> : null}
         </View>
         <Icon name="download" size={24} color={theme.colors.primary} />
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   }
 

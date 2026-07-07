@@ -1,5 +1,6 @@
 import React, {useCallback, useMemo} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, FlatList} from 'react-native';
+import {View, Text, StyleSheet, FlatList} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import type {ListRenderItemInfo} from 'react-native';
 import {useTheme} from '@/hooks';
 
@@ -18,14 +19,14 @@ const TimeSlotColumn = React.memo(
       {items.map(slot => {
         const isSelected = selected === slot;
         return (
-          <TouchableOpacity
+          <PressableOpacity
             key={slot}
             style={[styles.pill, isSelected && styles.active]}
             onPress={() => onSelect(slot)}>
             <Text style={[styles.text, isSelected && styles.activeText]}>
               {slot}
             </Text>
-          </TouchableOpacity>
+          </PressableOpacity>
         );
       })}
     </View>

@@ -1,12 +1,6 @@
 import React, {useMemo, useState} from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Text,
-  TouchableOpacity,
-  View,
-  StyleSheet,
-} from 'react-native';
+import {ActivityIndicator, Image, Text, View, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {DocumentFile} from '@/features/documents/types';
@@ -59,7 +53,9 @@ const FilePreviewTile: React.FC<FilePreviewTileProps> = ({
   const sourceUri = resolvePreviewSource(file);
   const isImage = isImageFile(file.type);
   const isPending = file.status === 'pending';
-  const [isImageLoading, setIsImageLoading] = useState(Boolean(isImage && sourceUri));
+  const [isImageLoading, setIsImageLoading] = useState(
+    Boolean(isImage && sourceUri),
+  );
 
   const showLoader = (isImage && isImageLoading) || isPending;
 
@@ -87,7 +83,10 @@ const FilePreviewTile: React.FC<FilePreviewTileProps> = ({
         </>
       ) : (
         <View style={styles.filePlaceholder}>
-          <Image source={Images.documentIcon} style={styles.filePlaceholderIcon} />
+          <Image
+            source={Images.documentIcon}
+            style={styles.filePlaceholderIcon}
+          />
           <Text style={styles.filePlaceholderText} numberOfLines={1}>
             {file.name}
           </Text>
@@ -100,12 +99,12 @@ const FilePreviewTile: React.FC<FilePreviewTileProps> = ({
           )}
         </View>
       )}
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.removeButton}
         onPress={() => onRequestRemove(file)}
         activeOpacity={0.7}>
         <Image source={Images.closeIcon} style={styles.removeIcon} />
-      </TouchableOpacity>
+      </PressableOpacity>
     </View>
   );
 };
@@ -127,14 +126,14 @@ export const DocumentAttachmentsSection: React.FC<
   return (
     <View>
       {files.length === 0 ? (
-        <TouchableOpacity
+        <PressableOpacity
           style={styles.emptyStateContainer}
           onPress={onAddPress}
           activeOpacity={0.7}>
           <Image source={Images.uploadIcon} style={styles.emptyStateIcon} />
           <Text style={styles.emptyStateTitle}>{emptyTitle}</Text>
           <Text style={styles.emptyStateSubtitle}>{emptySubtitle}</Text>
-        </TouchableOpacity>
+        </PressableOpacity>
       ) : (
         <View style={styles.filesPreviewContainer}>
           <View style={styles.multipleFilesGrid}>
@@ -148,12 +147,15 @@ export const DocumentAttachmentsSection: React.FC<
               />
             ))}
             {!hideAddButton && (
-              <TouchableOpacity
+              <PressableOpacity
                 style={styles.addMoreBox}
                 onPress={onAddPress}
                 activeOpacity={0.7}>
-                <Image source={Images.addIconWhite} style={styles.addMoreIcon} />
-              </TouchableOpacity>
+                <Image
+                  source={Images.addIconWhite}
+                  style={styles.addMoreIcon}
+                />
+              </PressableOpacity>
             )}
           </View>
         </View>

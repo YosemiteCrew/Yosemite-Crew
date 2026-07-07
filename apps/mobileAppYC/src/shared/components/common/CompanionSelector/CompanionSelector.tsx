@@ -2,7 +2,6 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Image,
   StyleSheet,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   Platform,
   ToastAndroid,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -159,7 +159,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
     const avatarUri = normalizeImageUri(companion.profileImage ?? null);
 
     return (
-      <TouchableOpacity
+      <PressableOpacity
         key={companionKey}
         style={styles.companionTouchable}
         activeOpacity={0.88}
@@ -217,12 +217,12 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
           </Text>
           {badgeText && <Text style={styles.companionMeta}>{badgeText}</Text>}
         </View>
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   };
 
   const renderAddCompanionBadge = () => (
-    <TouchableOpacity
+    <PressableOpacity
       key="add-companion"
       style={styles.companionTouchable}
       activeOpacity={0.85}
@@ -233,7 +233,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
         </View>
         <Text style={styles.addCompanionLabel}>Add companion</Text>
       </View>
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 
   return (

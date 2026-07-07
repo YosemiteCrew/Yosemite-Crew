@@ -1,7 +1,6 @@
 import React, {useCallback, useState} from 'react';
 import {
   View,
-  TouchableOpacity,
   Image,
   Text,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   Platform,
   Linking,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {
   launchCamera,
   launchImageLibrary,
@@ -284,7 +284,7 @@ export const ProfileImagePicker = ({
   }));
 
   return (
-    <TouchableOpacity
+    <PressableOpacity
       style={[
         styles.container,
         {
@@ -335,7 +335,7 @@ export const ProfileImagePicker = ({
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 };
 

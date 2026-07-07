@@ -6,10 +6,10 @@ import {
   StyleProp,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Input} from '@/shared/components/common/Input/Input';
 import {useTheme} from '@/hooks';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
@@ -67,7 +67,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
     isFetchingSuggestions || addressSuggestions.length > 0 || !!error;
   const renderSuggestion = useCallback(
     ({item, index}: {item: PlaceSuggestion; index: number}) => (
-      <TouchableOpacity
+      <PressableOpacity
         style={[
           styles.suggestionItem,
           index === addressSuggestions.length - 1 && styles.suggestionItemLast,
@@ -77,7 +77,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
         {item.secondaryText ? (
           <Text style={styles.suggestionSecondary}>{item.secondaryText}</Text>
         ) : null}
-      </TouchableOpacity>
+      </PressableOpacity>
     ),
     [
       addressSuggestions.length,

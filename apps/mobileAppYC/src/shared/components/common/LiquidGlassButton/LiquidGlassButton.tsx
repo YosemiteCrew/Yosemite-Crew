@@ -1,7 +1,6 @@
 /* eslint-disable react-native/no-inline-styles */
 import React from 'react';
 import {
-  TouchableOpacity,
   Text,
   ViewStyle,
   TextStyle,
@@ -13,6 +12,7 @@ import {
   View,
   StyleSheet,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
 import {useTheme} from '@/hooks';
 import {UI_FEATURE_FLAGS} from '@/config/variables';
@@ -584,26 +584,26 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
         effect={glassEffect}
         tintColor={resolvedTintColor}
         colorScheme={resolvedColorScheme}>
-        <TouchableOpacity
+        <PressableOpacity
           style={pressableStyle}
           onPress={onPress}
           disabled={disabled || loading}
           activeOpacity={1}>
           {buttonContent}
-        </TouchableOpacity>
+        </PressableOpacity>
       </LiquidGlassView>
     );
   }
 
   // Fallback for when liquid glass is not supported
   return (
-    <TouchableOpacity
+    <PressableOpacity
       style={[buttonStyle, style]}
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.7}>
       {buttonContent}
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 };
 

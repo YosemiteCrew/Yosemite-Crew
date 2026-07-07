@@ -10,13 +10,8 @@
  */
 
 import React, {useState, useEffect} from 'react';
-import {
-  View,
-  TouchableOpacity,
-  StyleSheet,
-  Text,
-  ActivityIndicator,
-} from 'react-native';
+import {View, StyleSheet, Text, ActivityIndicator} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Sound from 'react-native-nitro-sound';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -114,7 +109,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
+      <PressableOpacity
         onPress={handlePlayPause}
         style={styles.playButton}
         disabled={isLoading}>
@@ -127,7 +122,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
             color={theme.colors.white}
           />
         )}
-      </TouchableOpacity>
+      </PressableOpacity>
 
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
@@ -139,9 +134,9 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
       </View>
 
       {isPlaying && (
-        <TouchableOpacity onPress={handleStop} style={styles.stopButton}>
+        <PressableOpacity onPress={handleStop} style={styles.stopButton}>
           <Icon name="stop" size={20} color={theme.colors.error} />
-        </TouchableOpacity>
+        </PressableOpacity>
       )}
     </View>
   );

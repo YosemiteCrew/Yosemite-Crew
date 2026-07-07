@@ -1,12 +1,6 @@
 import React, {useMemo} from 'react';
-import {
-  Image,
-  ImageSourcePropType,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {Image, ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SwipeableActionCard} from '@/shared/components/common/SwipeableActionCard/SwipeableActionCard';
 import {CardActionButton} from '@/shared/components/common/CardActionButton/CardActionButton';
 import {useTheme} from '@/hooks';
@@ -93,7 +87,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
       onPressEdit={onPressEdit}
       showEditAction={editAction === 'visible'}
       hideSwipeActions={swipeActions === 'hidden'}>
-      <TouchableOpacity
+      <PressableOpacity
         activeOpacity={onPressView ? 0.85 : 1}
         onPress={onPressView}
         style={baseStyles.innerContent}>
@@ -130,12 +124,12 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
             <Text style={baseStyles.amount}>{formattedAmount}</Text>
             {payment?.status === 'paid' &&
               (paidToggle ? (
-                <TouchableOpacity
+                <PressableOpacity
                   style={[styles.paidBadge, styles.paidBadgeInteractive]}
                   activeOpacity={0.8}
                   onPress={paidToggle}>
                   <Text style={styles.paidText}>Paid</Text>
-                </TouchableOpacity>
+                </PressableOpacity>
               ) : (
                 <View style={styles.paidBadge}>
                   <Text style={styles.paidText}>Paid</Text>
@@ -152,7 +146,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
             variant="primary"
           />
         )}
-      </TouchableOpacity>
+      </PressableOpacity>
     </SwipeableActionCard>
   );
 };

@@ -1,11 +1,6 @@
 import React, {useCallback, useMemo, useRef, useEffect} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+import {View, Text, ScrollView, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import type {NotificationCategory} from '../../types';
 
@@ -89,7 +84,7 @@ export const NotificationFilterPills: React.FC<
         scrollEventThrottle={16}>
         <View style={styles.contentRow}>
           {FILTER_OPTIONS.map(option => (
-            <TouchableOpacity
+            <PressableOpacity
               key={option.id}
               onPress={() => onFilterChange(option.id)}
               activeOpacity={0.8}
@@ -126,7 +121,7 @@ export const NotificationFilterPills: React.FC<
                   </Text>
                 </View>
               ) : null}
-            </TouchableOpacity>
+            </PressableOpacity>
           ))}
         </View>
       </ScrollView>

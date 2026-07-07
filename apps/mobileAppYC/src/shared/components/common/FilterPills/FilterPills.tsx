@@ -1,11 +1,6 @@
 import React, {useRef, useEffect} from 'react';
-import {
-  ScrollView,
-  TouchableOpacity,
-  Text,
-  View,
-  StyleSheet,
-} from 'react-native';
+import {ScrollView, Text, View, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {useLazyRef} from '@/shared/hooks/useLazyRef';
 
@@ -57,7 +52,7 @@ export function FilterPills<T>({
           const isActive = option.id === selected;
           const key = String(option.id ?? 'default');
           return (
-            <TouchableOpacity
+            <PressableOpacity
               key={key}
               ref={node => {
                 if (node) {
@@ -71,7 +66,7 @@ export function FilterPills<T>({
                 style={[styles.pillText, isActive && styles.pillTextActive]}>
                 {option.label}
               </Text>
-            </TouchableOpacity>
+            </PressableOpacity>
           );
         })}
       </View>

@@ -13,9 +13,9 @@ import {
   TextStyle,
   TextInputProps,
   Platform,
-  TouchableOpacity,
   useColorScheme,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Animated, {useSharedValue, withTiming} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {
@@ -177,7 +177,7 @@ export const Input: React.FC<InputProps> = ({
 
   let IconWrapper = null;
   if (icon) {
-    IconWrapper = onIconPress ? TouchableOpacity : View;
+    IconWrapper = onIconPress ? PressableOpacity : View;
   }
 
   return (

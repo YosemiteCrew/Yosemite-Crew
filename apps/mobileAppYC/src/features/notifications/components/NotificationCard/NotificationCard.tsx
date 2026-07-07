@@ -1,12 +1,6 @@
 import React, {useMemo, useCallback} from 'react';
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  useWindowDimensions,
-} from 'react-native';
+import {View, Text, Image, StyleSheet, useWindowDimensions} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import {scheduleOnRN} from 'react-native-worklets';
 import Reanimated, {
@@ -135,7 +129,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
   return (
     <GestureDetector gesture={panGesture}>
       <Reanimated.View style={[styles.container, animatedStyle]}>
-        <TouchableOpacity
+        <PressableOpacity
           activeOpacity={0.85}
           onPress={onPress}
           disabled={isDragging}
@@ -192,7 +186,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
               </View>
             </View>
           </LiquidGlassCard>
-        </TouchableOpacity>
+        </PressableOpacity>
       </Reanimated.View>
     </GestureDetector>
   );

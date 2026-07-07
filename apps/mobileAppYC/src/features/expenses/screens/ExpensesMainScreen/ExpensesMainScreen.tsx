@@ -1,12 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {Image, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
@@ -198,11 +192,11 @@ export const ExpensesMainScreen: React.FC = () => {
               <Text style={styles.emptySubtitle}>
                 It seems like you and your buddy are in saving mode!
               </Text>
-              <TouchableOpacity
+              <PressableOpacity
                 style={styles.emptyButton}
                 onPress={handleAddExpense}>
                 <Text style={styles.emptyButtonText}>Add expense</Text>
-              </TouchableOpacity>
+              </PressableOpacity>
             </ScrollView>
           ) : (
             <ScrollView
@@ -221,7 +215,7 @@ export const ExpensesMainScreen: React.FC = () => {
                 permissionLabel="expenses"
               />
 
-              <TouchableOpacity
+              <PressableOpacity
                 onPress={() => handleViewMore('inApp')}
                 activeOpacity={0.85}>
                 <YearlySpendCard
@@ -231,7 +225,7 @@ export const ExpensesMainScreen: React.FC = () => {
                   label="Yearly spend summary"
                   disableSwipe={true}
                 />
-              </TouchableOpacity>
+              </PressableOpacity>
 
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Recent in-app expenses</Text>

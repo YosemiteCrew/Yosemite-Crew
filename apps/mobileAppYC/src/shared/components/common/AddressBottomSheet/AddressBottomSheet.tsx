@@ -6,8 +6,8 @@ import {
   Text,
   View,
   Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
 import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
@@ -152,7 +152,10 @@ export const AddressBottomSheet = ({
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <PressableOpacity
+        activeOpacity={1}
+        onPress={Keyboard.dismiss}
+        accessible={false}>
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.title}>Address</Text>
@@ -191,7 +194,7 @@ export const AddressBottomSheet = ({
             cancelTintColor={theme.colors.surface}
           />
         </View>
-      </TouchableWithoutFeedback>
+      </PressableOpacity>
     </CustomBottomSheet>
   );
 };

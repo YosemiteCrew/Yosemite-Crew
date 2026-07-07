@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
   Image,
   RefreshControl,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useNavigation} from '@react-navigation/native';
 import {useDispatch, useSelector} from 'react-redux';
@@ -306,7 +306,7 @@ export const NotificationsScreen: React.FC = () => {
             <View style={styles.segmentContainer}>
               <View style={styles.segmentInner}>
                 {(['new', 'seen'] as const).map(option => (
-                  <TouchableOpacity
+                  <PressableOpacity
                     key={option}
                     onPress={() => handleSortChange(option)}
                     activeOpacity={0.9}
@@ -321,7 +321,7 @@ export const NotificationsScreen: React.FC = () => {
                       ]}>
                       {option === 'new' ? 'New' : 'Seen'}
                     </Text>
-                  </TouchableOpacity>
+                  </PressableOpacity>
                 ))}
               </View>
             </View>

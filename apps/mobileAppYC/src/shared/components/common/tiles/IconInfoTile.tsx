@@ -4,13 +4,18 @@ import {
   ImageSourcePropType,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
-import {createGlassCardStyles, createCardContentStyles, createIconContainerStyles, createTextContainerStyles} from '@/shared/utils/cardStyles';
+import {
+  createGlassCardStyles,
+  createCardContentStyles,
+  createIconContainerStyles,
+  createTextContainerStyles,
+} from '@/shared/utils/cardStyles';
 
 export interface IconInfoTileProps {
   icon: ImageSourcePropType;
@@ -38,7 +43,7 @@ export const IconInfoTile: React.FC<IconInfoTileProps> = ({
   const syncedLabel = syncLabel ?? 'Synced';
 
   return (
-    <TouchableOpacity
+    <PressableOpacity
       activeOpacity={0.85}
       onPress={onPress}
       style={[styles.container, containerStyle]}>
@@ -74,7 +79,7 @@ export const IconInfoTile: React.FC<IconInfoTileProps> = ({
           </View>
         </LiquidGlassCard>
       </View>
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 };
 

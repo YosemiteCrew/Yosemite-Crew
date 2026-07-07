@@ -1,6 +1,7 @@
 // src/components/common/TouchableInput/TouchableInput.tsx
 import React, {useCallback, useEffect} from 'react';
-import {View, Text, TouchableOpacity, ViewStyle, TextStyle} from 'react-native';
+import {View, Text, ViewStyle, TextStyle} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Animated, {useSharedValue, withTiming} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {
@@ -88,7 +89,7 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
 
   return (
     <View style={containerStyle}>
-      <TouchableOpacity
+      <PressableOpacity
         onPress={onPress}
         activeOpacity={0.7}
         disabled={disabled}>
@@ -110,7 +111,7 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
             <View style={rightComponentWrapperStyle}>{rightComponent}</View>
           )}
         </View>
-      </TouchableOpacity>
+      </PressableOpacity>
 
       {error && <Text style={[getErrorStyle(), errorStyle]}>{error}</Text>}
     </View>

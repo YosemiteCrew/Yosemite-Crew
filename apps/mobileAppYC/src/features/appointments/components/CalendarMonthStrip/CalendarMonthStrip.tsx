@@ -1,12 +1,6 @@
 import React, {useEffect, useMemo, useRef, useCallback, useState} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  Image,
-} from 'react-native';
+import {View, Text, FlatList, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {
@@ -109,7 +103,7 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
   }) => {
     const showMarker = markerSet.has(iso(item.date));
     return (
-      <TouchableOpacity
+      <PressableOpacity
         activeOpacity={0.7}
         style={[
           styles.dateItem,
@@ -137,26 +131,26 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
             ]}
           />
         )}
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   };
 
   return (
     <View style={styles.calendarContainer}>
       <View style={styles.calendarHeader}>
-        <TouchableOpacity
+        <PressableOpacity
           onPress={() => setCurrentMonth(getPreviousMonth(currentMonth))}
           style={styles.navButton}
           activeOpacity={0.7}>
           <Image source={Images.leftArrowIcon} style={styles.arrowIcon} />
-        </TouchableOpacity>
+        </PressableOpacity>
         <Text style={styles.monthTitle}>{formatMonthYear(currentMonth)}</Text>
-        <TouchableOpacity
+        <PressableOpacity
           onPress={() => setCurrentMonth(getNextMonth(currentMonth))}
           style={styles.navButton}
           activeOpacity={0.7}>
           <Image source={Images.rightArrowIcon} style={styles.arrowIcon} />
-        </TouchableOpacity>
+        </PressableOpacity>
       </View>
 
       <FlatList

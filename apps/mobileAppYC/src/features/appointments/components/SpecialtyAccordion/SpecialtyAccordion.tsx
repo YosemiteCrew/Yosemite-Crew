@@ -1,12 +1,6 @@
 import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Platform,
-} from 'react-native';
+import {View, Text, StyleSheet, Image, Platform} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -94,7 +88,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
 
   return (
     <View style={styles.specialtyItem}>
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.specialtyHeader}
         onPress={toggleExpanded}
         activeOpacity={0.7}>
@@ -108,7 +102,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
           source={Images.downArrow}
           style={[styles.chevronIcon, chevronAnimatedStyle]}
         />
-      </TouchableOpacity>
+      </PressableOpacity>
 
       {expanded && (
         <View style={styles.servicesList}>

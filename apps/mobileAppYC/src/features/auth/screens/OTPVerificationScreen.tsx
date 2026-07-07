@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Image,
-  TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   BackHandler,
@@ -12,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {OTPInput, Header, Input} from '@/shared/components/common';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useTheme} from '@/hooks';
@@ -397,13 +397,13 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
                     containerStyle={styles.demoInputContainer}
                     error={otpError}
                   />
-                  <TouchableOpacity
+                  <PressableOpacity
                     onPress={() => setOtpCode(DEMO_LOGIN_PASSWORD)}
                     style={styles.prefillButton}>
                     <Text style={styles.prefillText}>
                       Use provided password
                     </Text>
-                  </TouchableOpacity>
+                  </PressableOpacity>
                 </>
               ) : (
                 <>
@@ -447,7 +447,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
               <View style={styles.resendContainer}>
                 <Text style={styles.resendText}>Didn't receive the code? </Text>
                 {canResend ? (
-                  <TouchableOpacity
+                  <PressableOpacity
                     onPress={handleResendOTP}
                     disabled={isResending}
                     style={styles.resendButton}>
@@ -459,7 +459,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
                     ) : (
                       <Text style={styles.resendLink}>Resend</Text>
                     )}
-                  </TouchableOpacity>
+                  </PressableOpacity>
                 ) : (
                   <Text style={styles.countdownText}>
                     00:{countdown.toString().padStart(2, '0')} sec

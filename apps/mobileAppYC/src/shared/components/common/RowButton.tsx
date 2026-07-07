@@ -1,5 +1,6 @@
 import React, {useMemo} from 'react';
-import {TouchableOpacity, Text, Image, StyleSheet} from 'react-native';
+import {Text, Image, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 
@@ -12,7 +13,7 @@ export const RowButton: React.FC<{
   const styles = useMemo(() => createStyles(theme), [theme]);
   const displayValue = value && value.trim().length > 0 ? value : '—';
   return (
-    <TouchableOpacity
+    <PressableOpacity
       style={styles.rowButtonTouchable}
       activeOpacity={0.8}
       onPress={onPress}>
@@ -24,7 +25,7 @@ export const RowButton: React.FC<{
         {displayValue}
       </Text>
       <Image source={Images.rightArrow} style={styles.rowButtonArrow} />
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 };
 

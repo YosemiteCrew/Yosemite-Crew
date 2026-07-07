@@ -1,15 +1,9 @@
-import React, { useMemo } from 'react';
-import {
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-  StyleProp,
-} from 'react-native';
-import { SwipeableGlassCard } from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
-import { useTheme } from '@/hooks';
-import { Images } from '@/assets/images';
+import React, {useMemo} from 'react';
+import {Image, StyleSheet, View, ViewStyle, StyleProp} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
+import {useTheme} from '@/hooks';
+import {Images} from '@/assets/images';
 import {
   ACTION_WIDTH,
   getActionWrapperStyle,
@@ -40,7 +34,7 @@ export const SwipeableActionCard: React.FC<SwipeableActionCardProps> = ({
   hideSwipeActions = false,
   actionBackgroundColor = 'transparent',
 }) => {
-  const { theme } = useTheme();
+  const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const totalActionWidth = showEditAction ? ACTION_WIDTH * 2 : ACTION_WIDTH;
@@ -66,51 +60,46 @@ export const SwipeableActionCard: React.FC<SwipeableActionCardProps> = ({
       renderActionContent={
         hideSwipeActions
           ? undefined
-          : (close) => (
-              <View
-                style={getActionWrapperStyle(showEditAction, theme)}
-              >
+          : close => (
+              <View style={getActionWrapperStyle(showEditAction, theme)}>
                 {showEditAction && (
-                  <TouchableOpacity
+                  <PressableOpacity
                     activeOpacity={0.85}
                     style={[
                       styles.actionButton,
                       getEditActionButtonStyle(theme),
-                      { width: ACTION_WIDTH },
+                      {width: ACTION_WIDTH},
                     ]}
                     onPress={() => {
                       close();
                       onPressEdit?.();
-                    }}
-                  >
+                    }}>
                     <Image
                       source={Images.editIconSlide}
                       style={styles.actionIcon}
                     />
-                  </TouchableOpacity>
+                  </PressableOpacity>
                 )}
 
-                <TouchableOpacity
+                <PressableOpacity
                   activeOpacity={0.85}
                   style={[
                     styles.actionButton,
                     getViewActionButtonStyle(theme),
-                    { width: ACTION_WIDTH },
+                    {width: ACTION_WIDTH},
                   ]}
                   onPress={() => {
                     close();
                     onPressView?.();
-                  }}
-                >
+                  }}>
                   <Image
                     source={Images.viewIconSlide}
                     style={styles.actionIcon}
                   />
-                </TouchableOpacity>
+                </PressableOpacity>
               </View>
             )
-      }
-    >
+      }>
       {children}
     </SwipeableGlassCard>
   );

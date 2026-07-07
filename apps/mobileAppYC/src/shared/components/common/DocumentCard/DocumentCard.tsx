@@ -1,12 +1,6 @@
 import React, {useMemo} from 'react';
-import {
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  ImageSourcePropType,
-} from 'react-native';
+import {Image, StyleSheet, Text, View, ImageSourcePropType} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SwipeableActionCard} from '@/shared/components/common/SwipeableActionCard/SwipeableActionCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -72,7 +66,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
         onPressView={onPressView}
         onPressEdit={onPressEdit}
         showEditAction={showEditAction}>
-        <TouchableOpacity
+        <PressableOpacity
           activeOpacity={onPress ? 0.8 : 1}
           onPress={handleCardPress}
           disabled={!onPress}>
@@ -116,7 +110,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
               </Text>
             </View>
           </View>
-        </TouchableOpacity>
+        </PressableOpacity>
       </SwipeableActionCard>
     </View>
   );

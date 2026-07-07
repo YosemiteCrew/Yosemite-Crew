@@ -4,10 +4,10 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
@@ -57,7 +57,7 @@ export function SearchDropdownOverlay<T = unknown>({
     : styles.dropdownContainer;
   const renderItem = useCallback(
     ({item}: {item: T}) => (
-      <TouchableOpacity style={styles.item} onPress={() => onPress(item)}>
+      <PressableOpacity style={styles.item} onPress={() => onPress(item)}>
         <View style={styles.itemAvatar}>
           <Text style={styles.itemAvatarText}>
             {(initials?.(item) || title(item) || ' ')?.charAt(0)?.toUpperCase()}
@@ -69,7 +69,7 @@ export function SearchDropdownOverlay<T = unknown>({
             <Text style={styles.itemSubtitle}>{subtitle(item)}</Text>
           ) : null}
         </View>
-      </TouchableOpacity>
+      </PressableOpacity>
     ),
     [
       initials,

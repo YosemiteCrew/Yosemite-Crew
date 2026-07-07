@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect as useReactEffect} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
 import {selectTaskById} from '@/features/tasks/selectors';
@@ -23,7 +23,7 @@ export const useEditTaskScreen = (taskId: string, navigation: any) => {
   const {isMedicationForm, isObservationalToolForm, isSimpleForm} =
     useTaskFormHelpers(formData);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (task) {
       const initialFormData = initializeFormDataFromTask(task);
       setFormData(initialFormData);
@@ -31,7 +31,7 @@ export const useEditTaskScreen = (taskId: string, navigation: any) => {
     }
   }, [task, setFormData, setErrors]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (task?.companionId) {
       const companion = companions?.find(
         (c: {id: string}) => c.id === task.companionId,

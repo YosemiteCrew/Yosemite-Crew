@@ -5,13 +5,13 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
   Image,
   Switch,
   Alert,
   StyleProp,
   ViewStyle,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Input} from '@/shared/components/common';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
@@ -202,7 +202,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         )}
 
         <View>
-          <TouchableOpacity
+          <PressableOpacity
             onPress={() => {
               resolvedOpenSheet('category');
               categorySheetRef.current?.open();
@@ -220,14 +220,14 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 />
               }
             />
-          </TouchableOpacity>
+          </PressableOpacity>
           {errors.category ? (
             <Text style={styles.errorText}>{errors.category}</Text>
           ) : null}
         </View>
 
         <View>
-          <TouchableOpacity
+          <PressableOpacity
             onPress={() => {
               if (formData.category) {
                 resolvedOpenSheet('subcategory');
@@ -248,13 +248,13 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 />
               }
             />
-          </TouchableOpacity>
+          </PressableOpacity>
           {errors.subcategory ? (
             <Text style={styles.errorText}>{errors.subcategory}</Text>
           ) : null}
         </View>
 
-        <TouchableOpacity
+        <PressableOpacity
           onPress={() => {
             resolvedOpenSheet('visitType');
             visitTypeSheetRef.current?.open();
@@ -269,7 +269,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
               <Image source={Images.dropdownIcon} style={common.dropdownIcon} />
             }
           />
-        </TouchableOpacity>
+        </PressableOpacity>
 
         <View>
           <Input

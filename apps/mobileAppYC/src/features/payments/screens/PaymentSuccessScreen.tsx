@@ -1,13 +1,6 @@
 import React, {useMemo, useCallback, useEffect} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  Linking,
-  ScrollView,
-} from 'react-native';
+import {View, Text, StyleSheet, Image, Linking, ScrollView} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useDispatch, useSelector} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -173,7 +166,7 @@ export const PaymentSuccessScreen: React.FC = () => {
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Invoice</Text>
-              <TouchableOpacity
+              <PressableOpacity
                 style={styles.downloadInvoiceTouchable}
                 disabled={!receiptUrl}
                 onPress={handleViewInvoice}>
@@ -188,7 +181,7 @@ export const PaymentSuccessScreen: React.FC = () => {
                     style={styles.downloadInvoiceIcon}
                   />
                 ) : null}
-              </TouchableOpacity>
+              </PressableOpacity>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Appointment date</Text>

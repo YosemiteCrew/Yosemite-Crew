@@ -1,5 +1,6 @@
 import React from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
+import {View, Text, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -73,7 +74,7 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
         colorScheme="light"
         style={styles.container}
         fallbackStyle={styles.fallback}>
-        <TouchableOpacity
+        <PressableOpacity
           style={styles.header}
           onPress={toggleExpanded}
           activeOpacity={0.7}>
@@ -96,7 +97,7 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
             source={Images.downArrow}
             style={[styles.chevron, chevronAnimatedStyle]}
           />
-        </TouchableOpacity>
+        </PressableOpacity>
 
         <Animated.View style={contentAnimatedStyle}>
           <View style={styles.content}>{children}</View>

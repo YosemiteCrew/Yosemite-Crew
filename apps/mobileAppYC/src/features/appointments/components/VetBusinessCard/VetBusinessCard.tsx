@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   Image,
-  TouchableOpacity,
   ViewStyle,
   ImageSourcePropType,
   Platform,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {resolveImageSource} from '@/shared/utils/resolveImageSource';
@@ -130,12 +130,12 @@ export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
           {!!meta && !address && <Text style={styles.meta}>{meta}</Text>}
 
           {Boolean(cta?.length) && (
-            <TouchableOpacity
+            <PressableOpacity
               style={styles.cta}
               onPress={onPress}
               activeOpacity={0.7}>
               <Text style={styles.ctaText}>{cta}</Text>
-            </TouchableOpacity>
+            </PressableOpacity>
           )}
         </View>
       </View>

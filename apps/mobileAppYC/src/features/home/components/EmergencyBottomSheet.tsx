@@ -1,5 +1,6 @@
 import React, {useImperativeHandle, useRef, useMemo} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
+import {View, Text, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import CustomBottomSheet, {
@@ -121,7 +122,7 @@ export const EmergencyBottomSheet = ({
 
       <View style={styles.optionsGrid}>
         {emergencyOptions.map(option => (
-          <TouchableOpacity
+          <PressableOpacity
             key={option.id}
             onPress={() => handleOptionPress(option.id)}
             activeOpacity={0.85}>
@@ -147,7 +148,7 @@ export const EmergencyBottomSheet = ({
                 </View>
               </View>
             </LiquidGlassCard>
-          </TouchableOpacity>
+          </PressableOpacity>
         ))}
       </View>
     </View>

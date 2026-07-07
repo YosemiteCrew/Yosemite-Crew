@@ -1,7 +1,5 @@
 import React from 'react';
 import {Alert, Platform, ToastAndroid, View, StyleSheet} from 'react-native';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import type {BottomTabBarProps} from '@react-navigation/bottom-tabs';
 import {TabParamList} from './types';
 import AppointmentStackNavigator from './AppointmentStackNavigator';
 import {HomeStackNavigator} from './HomeStackNavigator';
@@ -17,6 +15,16 @@ import {
   type CoParentPermissions,
   type ParentCompanionAccess,
 } from '@/features/coParent';
+
+declare const require: <T>(moduleName: string) => T;
+
+const {createBottomTabNavigator} = require<
+  typeof import('@react-navigation/bottom-tabs')
+>('@react-navigation/bottom-tabs');
+
+type BottomTabBarProps =
+  import('@react-navigation/bottom-tabs').BottomTabBarProps;
+
 type NestedNavState = {
   key?: string;
   index?: number;

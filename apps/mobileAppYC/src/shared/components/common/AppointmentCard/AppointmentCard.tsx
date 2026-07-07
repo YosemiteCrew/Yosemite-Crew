@@ -1,12 +1,6 @@
 import React, {useMemo} from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  ImageSourcePropType,
-} from 'react-native';
+import {View, Text, Image, StyleSheet, ImageSourcePropType} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {useTheme} from '@/hooks';
@@ -127,7 +121,7 @@ export const AppointmentCard = ({
         mass: 0.8,
       }}
       enableHorizontalSwipeOnly={true}>
-      <TouchableOpacity
+      <PressableOpacity
         activeOpacity={onPress ? 0.85 : 1}
         onPress={handlePress}
         disabled={!onPress}
@@ -212,7 +206,7 @@ export const AppointmentCard = ({
           </View>
         )}
         {footer ? <View style={styles.footer}>{footer}</View> : null}
-      </TouchableOpacity>
+      </PressableOpacity>
     </SwipeableGlassCard>
   );
 };

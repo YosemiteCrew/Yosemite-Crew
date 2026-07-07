@@ -1,12 +1,12 @@
 import React from 'react';
 import {
-  TouchableOpacity,
   Text,
   ViewStyle,
   TextStyle,
   ActivityIndicator,
   StyleProp,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 
 interface ButtonProps {
@@ -74,7 +74,9 @@ export const Button: React.FC<ButtonProps> = ({
       outline: {
         backgroundColor: theme.colors.transparent,
         borderWidth: 1,
-        borderColor: disabled ? theme.colors.textSecondary : theme.colors.primary,
+        borderColor: disabled
+          ? theme.colors.textSecondary
+          : theme.colors.primary,
       },
       ghost: {
         backgroundColor: theme.colors.transparent,
@@ -90,7 +92,9 @@ export const Button: React.FC<ButtonProps> = ({
 
   const getTextStyle = (): TextStyle => {
     const baseStyle: TextStyle = {
-      ...(size === 'small' ? theme.typography.buttonSmall : theme.typography.button),
+      ...(size === 'small'
+        ? theme.typography.buttonSmall
+        : theme.typography.button),
     };
 
     const variantStyles: Record<string, TextStyle> = {
@@ -115,7 +119,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <TouchableOpacity
+    <PressableOpacity
       style={[getButtonStyle(), style]}
       onPress={onPress}
       disabled={disabled || loading}
@@ -123,11 +127,15 @@ export const Button: React.FC<ButtonProps> = ({
       {loading && (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' || variant === 'secondary' ? theme.colors.surface : theme.colors.primary}
+          color={
+            variant === 'primary' || variant === 'secondary'
+              ? theme.colors.surface
+              : theme.colors.primary
+          }
           style={{marginRight: theme.spacing['2']}}
         />
       )}
       <Text style={[getTextStyle(), textStyle]}>{title}</Text>
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 };

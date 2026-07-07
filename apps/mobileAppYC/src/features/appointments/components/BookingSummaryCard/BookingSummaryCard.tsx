@@ -6,8 +6,8 @@ import {
   Text,
   View,
   ViewStyle,
-  TouchableOpacity,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SwipeableGlassCard} from '@/shared/components/common/SwipeableGlassCard/SwipeableGlassCard';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
@@ -59,7 +59,7 @@ export const BookingSummaryCard: React.FC<Props> = ({
   }, [navigation, onEdit]);
 
   const content = (
-    <TouchableOpacity
+    <PressableOpacity
       activeOpacity={onPress ? 0.85 : 1}
       onPress={onPress}
       style={styles.inner}>
@@ -107,7 +107,7 @@ export const BookingSummaryCard: React.FC<Props> = ({
           </Text>
         )}
       </View>
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 
   if (!interactive) {

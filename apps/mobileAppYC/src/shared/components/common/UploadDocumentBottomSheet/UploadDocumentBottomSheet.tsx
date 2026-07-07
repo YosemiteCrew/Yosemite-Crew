@@ -1,5 +1,6 @@
 import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
-import {Text, View, StyleSheet, TouchableOpacity, Image} from 'react-native';
+import {Text, View, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet, {
   type BottomSheetRef,
 } from '@/shared/components/common/BottomSheet/BottomSheet';
@@ -110,7 +111,7 @@ export const UploadDocumentBottomSheet = ({
 
         <View style={styles.optionsList}>
           {uploadOptions.map((option, index) => (
-            <TouchableOpacity
+            <PressableOpacity
               key={option.label}
               style={[
                 styles.optionItem,
@@ -120,7 +121,7 @@ export const UploadDocumentBottomSheet = ({
               activeOpacity={0.7}>
               <Text style={styles.optionText}>{option.label}</Text>
               <Image source={option.icon} style={styles.optionIcon} />
-            </TouchableOpacity>
+            </PressableOpacity>
           ))}
         </View>
       </View>

@@ -1,5 +1,6 @@
 import React, {useState, useMemo, useEffect} from 'react';
-import {View, StyleSheet, Image, TouchableOpacity, Text} from 'react-native';
+import {View, StyleSheet, Image, Text} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
 import {useDispatch, useSelector} from 'react-redux';
@@ -131,28 +132,28 @@ export const Step1Screen: React.FC<Props> = ({navigation}) => {
       <View style={styles.radioSection}>
         <Text style={styles.sectionTitle}>Who is reporting the concern?</Text>
 
-        <TouchableOpacity
+        <PressableOpacity
           style={styles.radioOption}
           onPress={() => handleReporterTypeSelect('parent')}>
           <View style={styles.radioOuter}>
             {reporterType === 'parent' && <View style={styles.radioInner} />}
           </View>
           <Text style={styles.radioLabel}>The parent</Text>
-        </TouchableOpacity>
+        </PressableOpacity>
 
-        <TouchableOpacity
+        <PressableOpacity
           style={styles.radioOption}
           onPress={() => handleReporterTypeSelect('guardian')}>
           <View style={styles.radioOuter}>
             {reporterType === 'guardian' && <View style={styles.radioInner} />}
           </View>
           <Text style={styles.radioLabel}>The guardian (Co-Parent)</Text>
-        </TouchableOpacity>
+        </PressableOpacity>
       </View>
 
       <View style={styles.checkboxSection}>
         <Text style={styles.beforeProceed}>Before you proceed</Text>
-        <TouchableOpacity
+        <PressableOpacity
           style={styles.consentRow}
           activeOpacity={0.9}
           onPress={handleToggleTerms}
@@ -178,7 +179,7 @@ export const Step1Screen: React.FC<Props> = ({navigation}) => {
               privacy policy
             </Text>
           </Text>
-        </TouchableOpacity>
+        </PressableOpacity>
         {termsError ? <Text style={styles.errorText}>{termsError}</Text> : null}
       </View>
     </AERLayout>

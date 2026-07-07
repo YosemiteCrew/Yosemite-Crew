@@ -1,5 +1,6 @@
 import React, {useMemo} from 'react';
-import {View, Text, TouchableOpacity, Image, StyleSheet} from 'react-native';
+import {View, Text, Image, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -27,9 +28,9 @@ export const AERInfoSection: React.FC<Props> = ({title, rows, onEdit}) => {
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {onEdit ? (
-          <TouchableOpacity onPress={onEdit}>
+          <PressableOpacity onPress={onEdit}>
             <Image source={Images.blackEdit} style={styles.editIcon} />
-          </TouchableOpacity>
+          </PressableOpacity>
         ) : null}
       </View>
 
