@@ -106,6 +106,33 @@ describe("DeveloperMaintenanceService", () => {
       );
     });
 
+    it("escapes user-controlled key and org names in the HTML body", async () => {
+      mockPrisma.developerApiKey.findMany.mockResolvedValue([
+        {
+          ...expiringKey("k1"),
+          name: '<script>alert("k")</script>',
+        },
+      ]);
+      resolveOwnerMock.mockResolvedValue({
+        email: "owner@example.com",
+        name: "<a>Ada</a>",
+        organisationName: "Sunny <Paws>",
+      });
+
+      await DeveloperMaintenanceService.sendKeyExpiryReminders();
+
+      const email = sendEmailMock.mock.calls[0][0];
+      expect(email.htmlBody).not.toContain("<script>");
+      expect(email.htmlBody).not.toContain("<a>Ada</a>");
+      expect(email.htmlBody).toContain(
+        "&lt;script&gt;alert(&quot;k&quot;)&lt;/script&gt;",
+      );
+      expect(email.htmlBody).toContain("Sunny &lt;Paws&gt;");
+      expect(email.htmlBody).toContain("&lt;a&gt;Ada&lt;/a&gt;");
+      // Plaintext stays raw - it is never rendered as markup.
+      expect(email.textBody).toContain('<script>alert("k")</script>');
+    });
+
     it("skips (and logs) keys whose org has no resolvable owner", async () => {
       mockPrisma.developerApiKey.findMany.mockResolvedValue([
         expiringKey("k1"),

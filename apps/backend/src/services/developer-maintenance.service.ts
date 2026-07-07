@@ -6,6 +6,7 @@ import {
 } from "src/services/developer-request-log.service";
 import { resolveOrgOwnerContact } from "src/services/developer-usage-alert.service";
 import { sendEmail } from "src/utils/email";
+import { escapeHtml } from "src/utils/escape-html";
 import logger from "src/utils/logger";
 
 // Daily developer-platform maintenance, run by the developer-maintenance
@@ -40,9 +41,11 @@ const buildExpiryReminderEmail = (
       `The API key ${keyLabel} for ${organisationName} expires on ${expiresOn}.`,
       "Rotate or reissue it before then to avoid interruptions to your integration.",
     ].join("\n"),
+    // Owner name, key name, and organisation name are user-controlled -
+    // escaped so they cannot inject markup into the email.
     htmlBody: `
-      <p>Hi ${greeting},</p>
-      <p>The API key <strong>${keyLabel}</strong> for <strong>${organisationName}</strong> expires on <strong>${expiresOn}</strong>.</p>
+      <p>Hi ${escapeHtml(greeting)},</p>
+      <p>The API key <strong>${escapeHtml(keyLabel)}</strong> for <strong>${escapeHtml(organisationName)}</strong> expires on <strong>${expiresOn}</strong>.</p>
       <p>Rotate or reissue it before then to avoid interruptions to your integration.</p>
     `,
   };

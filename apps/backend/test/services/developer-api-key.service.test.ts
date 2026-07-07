@@ -4,8 +4,8 @@ import {
 } from "../../src/services/developer-api-key.service";
 import { prisma } from "../../src/config/prisma";
 
-jest.mock("../../src/config/prisma", () => ({
-  prisma: {
+jest.mock("../../src/config/prisma", () => {
+  const prismaMock: Record<string, unknown> = {
     developerApiKey: {
       create: jest.fn(),
       findFirst: jest.fn(),
@@ -17,11 +17,14 @@ jest.mock("../../src/config/prisma", () => ({
     developerSandbox: {
       findUnique: jest.fn(),
     },
-    $transaction: jest.fn(async (operations: Promise<unknown>[]) =>
-      Promise.all(operations),
-    ),
-  },
-}));
+  };
+  prismaMock.$transaction = jest.fn(async (arg: unknown) =>
+    typeof arg === "function"
+      ? (arg as (tx: unknown) => Promise<unknown>)(prismaMock)
+      : Promise.all(arg as Promise<unknown>[]),
+  );
+  return { prisma: prismaMock };
+});
 
 const mockPrisma = prisma as unknown as {
   developerApiKey: {
@@ -375,7 +378,7 @@ describe("DeveloperApiKeyService", () => {
           environment: data.environment,
         }),
       );
-      mockPrisma.developerApiKey.update.mockResolvedValue({});
+      mockPrisma.developerApiKey.updateMany.mockResolvedValue({ count: 1 });
 
       const before = Date.now();
       const issued = await DeveloperApiKeyService.rotate({
@@ -401,12 +404,55 @@ describe("DeveloperApiKeyService", () => {
       });
       expect(createData.hashedKey).toHaveLength(64);
 
-      const updateArg = mockPrisma.developerApiKey.update.mock.calls[0][0];
-      expect(updateArg.where).toEqual({ id: "key-old" });
-      const grace = updateArg.data.rotationGraceUntil as Date;
+      // The grace-set is a conditional claim: only an active key that has
+      // never been rotated matches.
+      const gateArg = mockPrisma.developerApiKey.updateMany.mock.calls[0][0];
+      expect(gateArg.where).toEqual({
+        id: "key-old",
+        organisationId: "org-1",
+        status: "active",
+        rotationGraceUntil: null,
+      });
+      const grace = gateArg.data.rotationGraceUntil as Date;
       const dayMs = 24 * 60 * 60 * 1000;
       expect(grace.getTime()).toBeGreaterThanOrEqual(before + dayMs - 1000);
       expect(grace.getTime()).toBeLessThanOrEqual(Date.now() + dayMs + 1000);
+    });
+
+    it("409s the loser of a concurrent rotate race (conditional claim misses)", async () => {
+      mockPrisma.developerApiKey.findFirst.mockResolvedValue(oldKey);
+      mockPrisma.developerApiKey.create.mockImplementation(
+        async ({ data }: { data: Record<string, unknown> }) => ({
+          id: "key-new",
+          name: data.name,
+          prefix: data.prefix,
+          last4: data.last4,
+          scopes: data.scopes,
+          environment: data.environment,
+        }),
+      );
+      // Both rotates pass the findFirst pre-check (grace still null), but
+      // only the first claim matches; the second sees count 0.
+      mockPrisma.developerApiKey.updateMany
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 0 });
+
+      const first = await DeveloperApiKeyService.rotate({
+        organisationId: "org-1",
+        keyId: "key-old",
+        createdBy: "user-1",
+      });
+      expect(first.id).toBe("key-new");
+
+      await expect(
+        DeveloperApiKeyService.rotate({
+          organisationId: "org-1",
+          keyId: "key-old",
+          createdBy: "user-2",
+        }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      // Only the winner minted a key.
+      expect(mockPrisma.developerApiKey.create).toHaveBeenCalledTimes(1);
     });
 
     it("rotates a test-environment key with a test-prefixed secret", async () => {
@@ -424,7 +470,7 @@ describe("DeveloperApiKeyService", () => {
           environment: data.environment,
         }),
       );
-      mockPrisma.developerApiKey.update.mockResolvedValue({});
+      mockPrisma.developerApiKey.updateMany.mockResolvedValue({ count: 1 });
 
       const issued = await DeveloperApiKeyService.rotate({
         organisationId: "org-1",

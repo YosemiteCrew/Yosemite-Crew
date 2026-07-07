@@ -10,6 +10,7 @@ jest.mock("src/services/developer-sandbox.service", () => {
     constructor(
       message: string,
       public readonly statusCode: number,
+      public readonly code?: string,
     ) {
       super(message);
       this.name = "DeveloperSandboxServiceError";
@@ -110,6 +111,28 @@ describe("DeveloperSandboxController.createSandbox", () => {
     expect(res.json).toHaveBeenCalledWith({
       message: "Developer organisation not found",
       code: "not_found",
+    });
+  });
+
+  it("passes a service error's machine code through to the envelope", async () => {
+    mockService.create.mockRejectedValue(
+      new DeveloperSandboxServiceError(
+        "A sandbox organisation cannot create its own sandbox",
+        409,
+        "sandbox_org_not_eligible",
+      ),
+    );
+    const res = buildRes();
+
+    await DeveloperSandboxController.createSandbox(
+      buildReq("sandbox-org"),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "A sandbox organisation cannot create its own sandbox",
+      code: "sandbox_org_not_eligible",
     });
   });
 

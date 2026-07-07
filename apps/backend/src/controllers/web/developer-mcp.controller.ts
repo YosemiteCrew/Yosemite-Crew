@@ -22,6 +22,21 @@ export const DeveloperMcpController = {
       return;
     }
 
+    // One HTTP POST is metered as one quota unit, so a JSON-RPC batch array
+    // would run N tool calls for the price of one. Rejected before the
+    // transport ever sees it.
+    if (Array.isArray(req.body)) {
+      res.status(400).json({
+        jsonrpc: "2.0",
+        error: {
+          code: -32600,
+          message: "JSON-RPC batch requests are not supported.",
+        },
+        id: null,
+      });
+      return;
+    }
+
     const server = DeveloperMcpService.buildServer({
       organisationId: apiKey.organisationId,
       scopes: apiKey.scopes,

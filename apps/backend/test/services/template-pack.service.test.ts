@@ -355,6 +355,33 @@ describe("TemplatePackService.install", () => {
     ).rejects.toMatchObject({ statusCode: 409, code: "already_installed" });
   });
 
+  it("maps a racing install's unique violation to the same 409 already_installed", async () => {
+    // Both installs pass the findUnique pre-check; the loser's install row
+    // insert hits the unique (packId, organisationId) constraint.
+    tx.templatePackInstall.create.mockRejectedValue(
+      Object.assign(new Error("unique"), { code: "P2002" }),
+    );
+    await expect(
+      TemplatePackService.install({
+        packId: "pack-1",
+        organisationId: "clinic-org",
+        installedBy: "user-1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 409, code: "already_installed" });
+    expect(mockEmit).not.toHaveBeenCalled();
+  });
+
+  it("rethrows non-unique transaction failures from install", async () => {
+    tx.templatePackInstall.create.mockRejectedValue(new Error("db down"));
+    await expect(
+      TemplatePackService.install({
+        packId: "pack-1",
+        organisationId: "clinic-org",
+        installedBy: "user-1",
+      }),
+    ).rejects.toThrow("db down");
+  });
+
   it("409s when a pinned snapshot version is missing", async () => {
     mockPrisma.templateVersion.findMany.mockResolvedValue([]);
     await expect(

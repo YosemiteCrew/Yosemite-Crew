@@ -3,6 +3,7 @@ import {
   DeveloperSandboxServiceError,
 } from "../../src/services/developer-sandbox.service";
 import { prisma } from "../../src/config/prisma";
+import logger from "../../src/utils/logger";
 
 type DelegateMocks = Record<string, jest.Mock>;
 
@@ -32,7 +33,7 @@ jest.mock("../../src/config/prisma", () => {
   };
   return {
     prisma: {
-      developerSandbox: { findUnique: jest.fn() },
+      developerSandbox: { findUnique: jest.fn(), findFirst: jest.fn() },
       organization: { findUnique: jest.fn() },
       patientOrganisation: { count: jest.fn() },
       appointment: { count: jest.fn() },
@@ -46,6 +47,14 @@ jest.mock("../../src/config/prisma", () => {
     },
   };
 });
+
+jest.mock("src/utils/logger", () => ({
+  error: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
+}));
+
+const mockLogger = logger as unknown as { warn: jest.Mock };
 
 const mockPrisma = prisma as unknown as {
   developerSandbox: DelegateMocks;
@@ -97,6 +106,25 @@ describe("DeveloperSandboxService.create", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     primeCounts();
+    // Default: the caller org is not itself a sandbox org.
+    mockPrisma.developerSandbox.findFirst.mockResolvedValue(null);
+  });
+
+  it("rejects creation when the caller org is itself a sandbox org (no nesting)", async () => {
+    mockPrisma.developerSandbox.findFirst.mockResolvedValue({ id: "sbx-0" });
+
+    await expect(
+      DeveloperSandboxService.create({ organisationId: "sandbox-org" }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: "sandbox_org_not_eligible",
+    });
+    expect(mockPrisma.developerSandbox.findFirst).toHaveBeenCalledWith({
+      where: { sandboxOrganisationId: "sandbox-org" },
+      select: { id: true },
+    });
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.organization.create).not.toHaveBeenCalled();
   });
 
   it("is idempotent: an existing sandbox is returned untouched", async () => {
@@ -150,14 +178,55 @@ describe("DeveloperSandboxService.create", () => {
     expect(tx.organizationUsageCounter.create).toHaveBeenCalledWith({
       data: { orgId: "sandbox-org" },
     });
-    // The linkage row is created last, inside the transaction.
+    // The linkage row is created last, inside the transaction, and records
+    // the seeded patient ids so teardown deletes exactly those.
     expect(tx.developerSandbox.create).toHaveBeenCalledWith({
       data: {
         organisationId: "dev-org",
         sandboxOrganisationId: "sandbox-org",
+        seededPatientIds: [
+          "patient-0",
+          "patient-1",
+          "patient-2",
+          "patient-3",
+          "patient-4",
+        ],
       },
     });
     expect(result.sandbox.testKeyHint).toContain("/v1/developers/api-keys");
+  });
+
+  it("answers idempotently when a concurrent POST wins the unique-org race", async () => {
+    mockPrisma.developerSandbox.findUnique
+      .mockResolvedValueOnce(null) // pre-transaction existence check
+      .mockResolvedValueOnce({
+        id: "sbx-raced",
+        organisationId: "dev-org",
+        sandboxOrganisationId: "sandbox-org-raced",
+        createdAt: new Date("2026-07-07T00:00:00.000Z"),
+      }); // re-read after the unique violation
+    mockPrisma.organization.findUnique.mockResolvedValue({ name: "Acme Dev" });
+    primeSeedCreates();
+    mockPrisma.$transaction.mockRejectedValueOnce(
+      Object.assign(new Error("unique"), { code: "P2002" }),
+    );
+
+    const result = await DeveloperSandboxService.create({
+      organisationId: "dev-org",
+    });
+
+    expect(result.created).toBe(false);
+    expect(result.sandbox.sandboxOrganisationId).toBe("sandbox-org-raced");
+  });
+
+  it("rethrows non-unique transaction failures", async () => {
+    mockPrisma.developerSandbox.findUnique.mockResolvedValue(null);
+    mockPrisma.organization.findUnique.mockResolvedValue({ name: "Acme Dev" });
+    mockPrisma.$transaction.mockRejectedValueOnce(new Error("db down"));
+
+    await expect(
+      DeveloperSandboxService.create({ organisationId: "dev-org" }),
+    ).rejects.toThrow("db down");
   });
 
   it("creates the demo clinic org with the deterministic identity fields", async () => {
@@ -274,11 +343,18 @@ describe("DeveloperSandboxService.get", () => {
 describe("DeveloperSandboxService.teardown", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    tx.patientOrganisation.findMany.mockResolvedValue([
-      { patientId: "patient-0" },
-      { patientId: "patient-1" },
-    ]);
+    // Remaining-links check after the sandbox org's links are deleted:
+    // default is "no seeded patient is linked anywhere else".
+    tx.patientOrganisation.findMany.mockResolvedValue([]);
   });
+
+  const sandboxRecord = {
+    id: "sbx-1",
+    organisationId: "dev-org",
+    sandboxOrganisationId: "sandbox-org",
+    seededPatientIds: ["patient-0", "patient-1"],
+    createdAt: new Date(),
+  };
 
   it("404s when there is nothing to tear down", async () => {
     mockPrisma.developerSandbox.findUnique.mockResolvedValue(null);
@@ -288,12 +364,7 @@ describe("DeveloperSandboxService.teardown", () => {
   });
 
   it("deletes seeded rows children-first and the DeveloperSandbox row last", async () => {
-    mockPrisma.developerSandbox.findUnique.mockResolvedValue({
-      id: "sbx-1",
-      organisationId: "dev-org",
-      sandboxOrganisationId: "sandbox-org",
-      createdAt: new Date(),
-    });
+    mockPrisma.developerSandbox.findUnique.mockResolvedValue(sandboxRecord);
     const order: string[] = [];
     const track = (name: string, mock: jest.Mock) =>
       mock.mockImplementation(async () => {
@@ -334,6 +405,11 @@ describe("DeveloperSandboxService.teardown", () => {
     expect(tx.patient.deleteMany).toHaveBeenCalledWith({
       where: { id: { in: ["patient-0", "patient-1"] } },
     });
+    // Only the recorded seeded patients are candidates for deletion.
+    expect(tx.patientOrganisation.findMany).toHaveBeenCalledWith({
+      where: { patientId: { in: ["patient-0", "patient-1"] } },
+      select: { patientId: true },
+    });
     expect(tx.developerApiKey.updateMany).toHaveBeenCalledWith({
       where: { organisationId: "sandbox-org", status: "active" },
       data: { status: "revoked", revokedAt: expect.any(Date) },
@@ -343,17 +419,54 @@ describe("DeveloperSandboxService.teardown", () => {
     });
   });
 
-  it("skips the patient delete when the sandbox has no linked patients", async () => {
+  it("skips the patient delete when no seeded patient ids were recorded", async () => {
     mockPrisma.developerSandbox.findUnique.mockResolvedValue({
-      id: "sbx-1",
-      organisationId: "dev-org",
-      sandboxOrganisationId: "sandbox-org",
-      createdAt: new Date(),
+      ...sandboxRecord,
+      seededPatientIds: [],
     });
-    tx.patientOrganisation.findMany.mockResolvedValue([]);
+
+    await DeveloperSandboxService.teardown("dev-org");
+
+    expect(tx.patientOrganisation.findMany).not.toHaveBeenCalled();
+    expect(tx.patient.deleteMany).not.toHaveBeenCalled();
+    expect(tx.developerSandbox.delete).toHaveBeenCalled();
+  });
+
+  it("leaves a seeded patient still linked to another org and logs it instead of failing", async () => {
+    mockPrisma.developerSandbox.findUnique.mockResolvedValue(sandboxRecord);
+    // patient-1 gained a PatientOrganisation link outside the sandbox org.
+    tx.patientOrganisation.findMany.mockResolvedValue([
+      { patientId: "patient-1" },
+    ]);
+
+    await DeveloperSandboxService.teardown("dev-org");
+
+    expect(tx.patient.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["patient-0"] } },
+    });
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      "Sandbox teardown skipped seeded patients still linked elsewhere",
+      expect.objectContaining({ skippedPatientIds: ["patient-1"] }),
+    );
+    // The rest of the teardown still completes, sandbox row last.
+    expect(tx.organization.delete).toHaveBeenCalledWith({
+      where: { id: "sandbox-org" },
+    });
+    expect(tx.developerSandbox.delete).toHaveBeenCalledWith({
+      where: { id: "sbx-1" },
+    });
+  });
+
+  it("skips the patient delete entirely when every seeded patient is still linked elsewhere", async () => {
+    mockPrisma.developerSandbox.findUnique.mockResolvedValue(sandboxRecord);
+    tx.patientOrganisation.findMany.mockResolvedValue([
+      { patientId: "patient-0" },
+      { patientId: "patient-1" },
+    ]);
 
     await DeveloperSandboxService.teardown("dev-org");
 
     expect(tx.patient.deleteMany).not.toHaveBeenCalled();
+    expect(tx.developerSandbox.delete).toHaveBeenCalled();
   });
 });

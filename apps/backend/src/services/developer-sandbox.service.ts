@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import { emitDeveloperEvent } from "src/utils/developer-events";
+import logger from "src/utils/logger";
 
 // Developer sandbox: one seeded demo clinic per developer organisation
 // (POST/GET/DELETE /v1/developers/sandbox, management plane). The sandbox is a
@@ -15,11 +16,17 @@ export class DeveloperSandboxServiceError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "DeveloperSandboxServiceError";
   }
 }
+
+const isUniqueViolation = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  (error as { code?: unknown }).code === "P2002";
 
 // The interactive-transaction client: everything seeding/teardown touches.
 type Tx = Omit<
@@ -201,10 +208,17 @@ const seedCounts = async (tx: Tx, sandboxOrganisationId: string) => {
   return { patients, appointments, cases, encounters, invoices };
 };
 
+type SeedResult = {
+  sandboxOrganisationId: string;
+  // Recorded on the DeveloperSandbox row so teardown deletes exactly the
+  // patients this seed created - never "whatever is linked to the org".
+  seededPatientIds: string[];
+};
+
 const seedSandboxData = async (
   tx: Tx,
   input: { developerOrgName: string; userId?: string },
-): Promise<string> => {
+): Promise<SeedResult> => {
   // The minimal org set the real signup flow creates (OrganizationService
   // .upsert): Organization + address + billing + usage counter, plus the
   // caller's OWNER mapping and DRAFT profile so the clinic is visible in the
@@ -366,7 +380,10 @@ const seedSandboxData = async (
     });
   }
 
-  return organisation.id;
+  return {
+    sandboxOrganisationId: organisation.id,
+    seededPatientIds: patients.map((patient) => patient.id),
+  };
 };
 
 export const DeveloperSandboxService = {
@@ -375,6 +392,22 @@ export const DeveloperSandboxService = {
     organisationId: string;
     userId?: string;
   }): Promise<{ sandbox: SandboxStatus; created: boolean }> {
+    // A sandbox org can never be the parent of another sandbox. The seed
+    // grants the caller OWNER on the sandbox org, so without this check the
+    // caller could re-enter with organisationId=<sandboxOrgId> and nest
+    // sandboxes unboundedly (and teardown would orphan the nested orgs).
+    const parentSandbox = await prisma.developerSandbox.findFirst({
+      where: { sandboxOrganisationId: input.organisationId },
+      select: { id: true },
+    });
+    if (parentSandbox) {
+      throw new DeveloperSandboxServiceError(
+        "A sandbox organisation cannot create its own sandbox",
+        409,
+        "sandbox_org_not_eligible",
+      );
+    }
+
     const existing = await prisma.developerSandbox.findUnique({
       where: { organisationId: input.organisationId },
     });
@@ -401,21 +434,45 @@ export const DeveloperSandboxService = {
       );
     }
 
-    const record = await prisma.$transaction(async (tx) => {
-      const sandboxOrganisationId = await seedSandboxData(tx, {
-        developerOrgName: developerOrg.name,
-        userId: input.userId,
+    let record;
+    try {
+      record = await prisma.$transaction(async (tx) => {
+        const seeded = await seedSandboxData(tx, {
+          developerOrgName: developerOrg.name,
+          userId: input.userId,
+        });
+        // Created last inside the transaction: the linkage row only exists
+        // once the whole seed committed. The unique organisationId makes a
+        // concurrent second POST fail its insert instead of double-seeding.
+        return tx.developerSandbox.create({
+          data: {
+            organisationId: input.organisationId,
+            sandboxOrganisationId: seeded.sandboxOrganisationId,
+            seededPatientIds: seeded.seededPatientIds,
+          },
+        });
       });
-      // Created last inside the transaction: the linkage row only exists once
-      // the whole seed committed. The unique organisationId makes a concurrent
-      // second POST fail its insert instead of double-seeding.
-      return tx.developerSandbox.create({
-        data: {
-          organisationId: input.organisationId,
-          sandboxOrganisationId,
-        },
-      });
-    });
+    } catch (error) {
+      // A concurrent POST won the unique-organisationId race: its seed is the
+      // sandbox now, so answer idempotently instead of surfacing a 500.
+      if (isUniqueViolation(error)) {
+        const raced = await prisma.developerSandbox.findUnique({
+          where: { organisationId: input.organisationId },
+        });
+        if (raced) {
+          return {
+            created: false,
+            sandbox: {
+              sandboxOrganisationId: raced.sandboxOrganisationId,
+              createdAt: raced.createdAt,
+              counts: await seedCounts(prisma, raced.sandboxOrganisationId),
+              testKeyHint: TEST_KEY_HINT,
+            },
+          };
+        }
+      }
+      throw error;
+    }
 
     emitDeveloperEvent("sandbox.created", input.organisationId, {
       sandboxOrganisationId: record.sandboxOrganisationId,
@@ -449,7 +506,10 @@ export const DeveloperSandboxService = {
 
   // Tears the sandbox down in FK-safe order: children first (invoices,
   // appointments, encounters, cases, patient links, patients), then the org
-  // satellites, the org itself, and the DeveloperSandbox row last.
+  // satellites, the org itself, and the DeveloperSandbox row last. Only the
+  // patients recorded at seed time are deleted, and a seeded patient that
+  // still has PatientOrganisation links elsewhere is skipped (logged, not
+  // deleted) so an extra link can never wedge the teardown on an FK error.
   async teardown(organisationId: string): Promise<void> {
     const record = await prisma.developerSandbox.findUnique({
       where: { organisationId },
@@ -458,14 +518,9 @@ export const DeveloperSandboxService = {
       throw new DeveloperSandboxServiceError("Sandbox not found", 404);
     }
     const sandboxOrgId = record.sandboxOrganisationId;
+    const seededPatientIds = record.seededPatientIds;
 
     await prisma.$transaction(async (tx) => {
-      const links = await tx.patientOrganisation.findMany({
-        where: { organisationId: sandboxOrgId },
-        select: { patientId: true },
-      });
-      const patientIds = links.map((link) => link.patientId);
-
       await tx.invoice.deleteMany({
         where: { organisationId: sandboxOrgId },
       });
@@ -476,13 +531,33 @@ export const DeveloperSandboxService = {
         where: { organisationId: sandboxOrgId },
       });
       await tx.case.deleteMany({ where: { organisationId: sandboxOrgId } });
+      // Every link to the sandbox org goes (seeded or not - the org itself
+      // is about to be deleted), but only seeded patients are candidates for
+      // deletion below.
       await tx.patientOrganisation.deleteMany({
         where: { organisationId: sandboxOrgId },
       });
-      if (patientIds.length > 0) {
-        // Seeded patients are linked only to the sandbox org, so removing
-        // them here cannot orphan another org's link.
-        await tx.patient.deleteMany({ where: { id: { in: patientIds } } });
+      if (seededPatientIds.length > 0) {
+        const remainingLinks = await tx.patientOrganisation.findMany({
+          where: { patientId: { in: seededPatientIds } },
+          select: { patientId: true },
+        });
+        const stillLinked = new Set(
+          remainingLinks.map((link) => link.patientId),
+        );
+        const deletable = seededPatientIds.filter((id) => !stillLinked.has(id));
+        const skipped = seededPatientIds.filter((id) => stillLinked.has(id));
+        if (skipped.length > 0) {
+          // Partial cleanup, by design: deleting a patient another org still
+          // links to would violate the FK and wedge every future teardown.
+          logger.warn(
+            "Sandbox teardown skipped seeded patients still linked elsewhere",
+            { organisationId, sandboxOrgId, skippedPatientIds: skipped },
+          );
+        }
+        if (deletable.length > 0) {
+          await tx.patient.deleteMany({ where: { id: { in: deletable } } });
+        }
       }
       await tx.userProfile.deleteMany({
         where: { organizationId: sandboxOrgId },

@@ -110,6 +110,36 @@ describe("DeveloperMcpController.handlePost", () => {
     expect(builtServer.close).toHaveBeenCalled();
   });
 
+  it("rejects a JSON-RPC batch array before it reaches the transport (quota bypass)", async () => {
+    const req = {
+      body: [
+        { jsonrpc: "2.0", method: "tools/call", id: 1 },
+        { jsonrpc: "2.0", method: "tools/call", id: 2 },
+      ],
+      apiKey: {
+        id: "key-1",
+        organisationId: "org-1",
+        scopes: ["appointments:read"],
+        environment: "live",
+      },
+    } as unknown as Request;
+    const { res } = buildRes();
+
+    await DeveloperMcpController.handlePost(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      jsonrpc: "2.0",
+      error: {
+        code: -32600,
+        message: "JSON-RPC batch requests are not supported.",
+      },
+      id: null,
+    });
+    expect(mockBuildServer).not.toHaveBeenCalled();
+    expect(transportInstances).toHaveLength(0);
+  });
+
   it("500s without touching MCP when the auth middleware did not run", async () => {
     const req = buildReq(undefined);
     const { res } = buildRes();

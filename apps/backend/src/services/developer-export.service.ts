@@ -8,8 +8,9 @@ import { DeveloperUsageService } from "src/services/developer-usage.service";
 import { buildListPage, keysetWhere } from "src/utils/cursor-pagination";
 import { emitDeveloperEvent } from "src/utils/developer-events";
 import {
-  generatePresignedDownloadUrl,
-  uploadToS3,
+  createMultipartNdjsonUpload,
+  generatePresignedGetUrl,
+  type MultipartNdjsonUpload,
 } from "src/middlewares/upload";
 import logger from "src/utils/logger";
 
@@ -49,6 +50,12 @@ export type ExportResource = (typeof EXPORTABLE_RESOURCES)[number];
 
 const BATCH_SIZE = 500;
 const MAX_ERROR_LENGTH = 500;
+// Signed download URLs are minted fresh on every GET and expire after this.
+const DOWNLOAD_URL_TTL_SECONDS = 900;
+// Runtime/size ceiling per resource. Exports that hit it are completed with
+// rowCounts.truncated = true (and a warn log naming what was dropped) - the
+// cap is never silent.
+const MAX_ROWS_PER_RESOURCE = 1_000_000;
 // A pending row older than this is unrecoverable state (Redis lost the job or
 // the worker died and BullMQ's stalled-job retry gave up), not a slow export.
 const STALE_JOB_MS = 24 * 60 * 60 * 1000;
@@ -71,7 +78,11 @@ const toErrorText = (error: unknown): string => {
   return text.slice(0, MAX_ERROR_LENGTH);
 };
 
-// Drains one list endpoint org-scoped in keyset batches, invoking sink per row.
+type ResourceExportResult = { count: number; truncated: boolean };
+
+// Drains one list endpoint org-scoped in keyset batches, awaiting sink per
+// row (the sink streams to S3). Stops at MAX_ROWS_PER_RESOURCE and reports
+// the truncation instead of buffering an unbounded org in worker memory.
 const drainPagedResource = async (
   list: (input: {
     organisationId: string;
@@ -82,28 +93,31 @@ const drainPagedResource = async (
     pagination: { nextCursor: string | null; hasMore: boolean };
   }>,
   organisationId: string,
-  sink: (row: unknown) => void,
-): Promise<number> => {
+  sink: (row: unknown) => Promise<void>,
+): Promise<ResourceExportResult> => {
   let cursor: string | undefined;
   let count = 0;
   let hasMore = true;
   while (hasMore) {
     const page = await list({ organisationId, limit: BATCH_SIZE, cursor });
     for (const row of page.items) {
-      sink(row);
+      if (count >= MAX_ROWS_PER_RESOURCE) {
+        return { count, truncated: true };
+      }
+      await sink(row);
       count += 1;
     }
     hasMore = page.pagination.hasMore && page.pagination.nextCursor !== null;
     cursor = page.pagination.nextCursor ?? undefined;
   }
-  return count;
+  return { count, truncated: false };
 };
 
 const exportResource = async (
   resource: ExportResource,
   organisationId: string,
-  sink: (row: unknown) => void,
-): Promise<number> => {
+  sink: (row: unknown) => Promise<void>,
+): Promise<ResourceExportResult> => {
   switch (resource) {
     case "appointments":
       return drainPagedResource(
@@ -132,14 +146,14 @@ const exportResource = async (
     case "organization": {
       const org = await DeveloperDataService.getOrganization(organisationId);
       if (!org) {
-        return 0;
+        return { count: 0, truncated: false };
       }
-      sink(org);
-      return 1;
+      await sink(org);
+      return { count: 1, truncated: false };
     }
     case "usage": {
-      sink(await DeveloperUsageService.getUsage(organisationId));
-      return 1;
+      await sink(await DeveloperUsageService.getUsage(organisationId));
+      return { count: 1, truncated: false };
     }
   }
 };
@@ -147,7 +161,11 @@ const exportResource = async (
 export const DeveloperExportService = {
   // Creates the job row and enqueues the worker run. At most one QUEUED or
   // RUNNING job per organisation (checked, not constrained: a lost race
-  // produces one redundant export, never corruption).
+  // produces one redundant export, never corruption - and the worker streams
+  // in bounded memory, so a redundant run is cheap). A partial unique index
+  // on (organisationId) WHERE status IN ('QUEUED','RUNNING') would close the
+  // TOCTOU window outright but adds migration risk for little gain; revisit
+  // if redundant exports ever show up in practice.
   async create(input: {
     organisationId: string;
     resources: ExportResource[];
@@ -202,7 +220,9 @@ export const DeveloperExportService = {
   },
 
   // Detail view: null when absent or owned by another org (callers 404).
-  // COMPLETED jobs carry the CloudFront download URL for their S3 key.
+  // COMPLETED jobs carry a time-limited signed S3 URL for their key, minted
+  // fresh on every call and never stored - exports contain PHI, so the
+  // download link must expire.
   async get(organisationId: string, id: string) {
     const job = await prisma.developerExportJob.findFirst({
       where: { id, organisationId },
@@ -213,7 +233,7 @@ export const DeveloperExportService = {
     }
     const downloadUrl =
       job.status === "COMPLETED" && job.s3Key
-        ? await generatePresignedDownloadUrl(job.s3Key)
+        ? await generatePresignedGetUrl(job.s3Key, DOWNLOAD_URL_TTL_SECONDS)
         : null;
     return { ...job, downloadUrl };
   },
@@ -232,23 +252,36 @@ export const DeveloperExportService = {
       data: { status: "RUNNING" },
     });
 
+    const s3Key = `developer-exports/${job.organisationId}/${job.id}.ndjson`;
+    let upload: MultipartNdjsonUpload | null = null;
     try {
-      const lines: string[] = [];
-      const rowCounts: Record<string, number> = {};
+      // Rows stream straight into ~5MB multipart parts - the worker never
+      // holds more than one part of the export in memory.
+      upload = await createMultipartNdjsonUpload(s3Key);
+      const stream = upload;
+      const rowCounts: Record<string, number | boolean> = {};
+      const truncatedResources: string[] = [];
       for (const resource of job.resources as ExportResource[]) {
-        rowCounts[resource] = await exportResource(
+        const result = await exportResource(
           resource,
           job.organisationId,
-          (row) => lines.push(JSON.stringify({ resource, data: row })),
+          (row) => stream.writeLine(JSON.stringify({ resource, data: row })),
         );
+        rowCounts[resource] = result.count;
+        if (result.truncated) {
+          truncatedResources.push(resource);
+        }
       }
-
-      const s3Key = `developer-exports/${job.organisationId}/${job.id}.ndjson`;
-      await uploadToS3(
-        s3Key,
-        Buffer.from(`${lines.join("\n")}\n`, "utf8"),
-        "application/x-ndjson",
-      );
+      if (truncatedResources.length > 0) {
+        rowCounts.truncated = true;
+        logger.warn("Developer export truncated at the per-resource cap", {
+          exportJobId,
+          organisationId: job.organisationId,
+          truncatedResources,
+          maxRowsPerResource: MAX_ROWS_PER_RESOURCE,
+        });
+      }
+      await stream.complete();
 
       await prisma.developerExportJob.update({
         where: { id: job.id },
@@ -260,6 +293,9 @@ export const DeveloperExportService = {
       });
     } catch (error) {
       logger.error("Developer export failed", { exportJobId, error });
+      if (upload) {
+        await upload.abort();
+      }
       await prisma.developerExportJob.update({
         where: { id: job.id },
         data: { status: "FAILED", error: toErrorText(error) },

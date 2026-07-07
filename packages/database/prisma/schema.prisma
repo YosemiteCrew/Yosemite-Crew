@@ -1377,6 +1377,9 @@ model DeveloperSandbox {
   id                    String   @id @default(uuid())
   organisationId        String   @unique
   sandboxOrganisationId String
+  /// Patients created by the seed, recorded so teardown deletes exactly
+  /// these and never "whatever is linked to the sandbox org".
+  seededPatientIds      String[] @default([])
   createdAt             DateTime @default(now())
 
   @@index([sandboxOrganisationId])

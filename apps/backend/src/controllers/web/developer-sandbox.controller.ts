@@ -28,7 +28,9 @@ const respondError = (
   if (error instanceof DeveloperSandboxServiceError) {
     return res.status(error.statusCode).json({
       message: error.message,
-      code: error.statusCode === 404 ? "not_found" : "invalid_request",
+      code:
+        error.code ??
+        (error.statusCode === 404 ? "not_found" : "invalid_request"),
     });
   }
   logger.error(`DeveloperSandbox ${action} failed`, { error });

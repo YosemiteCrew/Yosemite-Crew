@@ -8,9 +8,13 @@ import {
   DeveloperExportJobs,
   DeveloperExportQueue,
 } from "../../src/queues/developer-export.queue";
-import { uploadToS3 } from "../../src/middlewares/upload";
+import {
+  createMultipartNdjsonUpload,
+  generatePresignedGetUrl,
+} from "../../src/middlewares/upload";
 import { prisma } from "../../src/config/prisma";
 import { encodeCursor } from "../../src/utils/cursor-pagination";
+import logger from "../../src/utils/logger";
 
 jest.mock("../../src/config/prisma", () => ({
   prisma: {
@@ -45,13 +49,18 @@ jest.mock("src/services/developer-usage.service", () => ({
 }));
 
 jest.mock("src/middlewares/upload", () => ({
-  uploadToS3: jest.fn().mockResolvedValue({ location: "loc", key: "key" }),
-  generatePresignedDownloadUrl: jest.fn(
-    async (key: string) => `https://cdn.example/${key}`,
+  createMultipartNdjsonUpload: jest.fn(),
+  generatePresignedGetUrl: jest.fn(
+    async (key: string, expires: number) =>
+      `https://signed.example/${key}?expires=${expires}`,
   ),
 }));
 
-jest.mock("src/utils/logger", () => ({ error: jest.fn(), info: jest.fn() }));
+jest.mock("src/utils/logger", () => ({
+  error: jest.fn(),
+  warn: jest.fn(),
+  info: jest.fn(),
+}));
 
 const mockPrisma = prisma as unknown as {
   developerExportJob: Record<string, jest.Mock>;
@@ -59,7 +68,9 @@ const mockPrisma = prisma as unknown as {
 const mockQueue = DeveloperExportQueue as unknown as { add: jest.Mock };
 const mockData = DeveloperDataService as unknown as Record<string, jest.Mock>;
 const mockUsage = DeveloperUsageService as unknown as { getUsage: jest.Mock };
-const mockUpload = uploadToS3 as jest.Mock;
+const mockMultipart = createMultipartNdjsonUpload as jest.Mock;
+const mockSignedGetUrl = generatePresignedGetUrl as jest.Mock;
+const mockLogger = logger as unknown as { warn: jest.Mock; error: jest.Mock };
 
 const lastPage = (items: unknown[]) => ({
   items,
@@ -174,7 +185,7 @@ describe("DeveloperExportService.list / get", () => {
     );
   });
 
-  it("get attaches the CloudFront download URL only when COMPLETED", async () => {
+  it("get mints a fresh 15-minute signed URL only when COMPLETED", async () => {
     mockPrisma.developerExportJob.findFirst.mockResolvedValueOnce({
       id: "job-1",
       status: "COMPLETED",
@@ -182,7 +193,11 @@ describe("DeveloperExportService.list / get", () => {
     });
     const done = await DeveloperExportService.get("org-1", "job-1");
     expect(done?.downloadUrl).toBe(
-      "https://cdn.example/developer-exports/org-1/job-1.ndjson",
+      "https://signed.example/developer-exports/org-1/job-1.ndjson?expires=900",
+    );
+    expect(mockSignedGetUrl).toHaveBeenCalledWith(
+      "developer-exports/org-1/job-1.ndjson",
+      900,
     );
 
     mockPrisma.developerExportJob.findFirst.mockResolvedValueOnce({
@@ -193,12 +208,37 @@ describe("DeveloperExportService.list / get", () => {
     const running = await DeveloperExportService.get("org-1", "job-2");
     expect(running?.downloadUrl).toBeNull();
   });
+
+  it("get signs anew on every call - the URL is never stored", async () => {
+    const row = {
+      id: "job-1",
+      status: "COMPLETED",
+      s3Key: "developer-exports/org-1/job-1.ndjson",
+    };
+    mockPrisma.developerExportJob.findFirst.mockResolvedValue(row);
+    await DeveloperExportService.get("org-1", "job-1");
+    await DeveloperExportService.get("org-1", "job-1");
+    expect(mockSignedGetUrl).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("DeveloperExportService.run", () => {
+  let writtenLines: string[];
+  let completeMock: jest.Mock;
+  let abortMock: jest.Mock;
+
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUpload.mockResolvedValue({ location: "loc", key: "key" });
+    writtenLines = [];
+    completeMock = jest.fn(async () => ({ key: "key" }));
+    abortMock = jest.fn(async () => undefined);
+    mockMultipart.mockResolvedValue({
+      writeLine: jest.fn(async (line: string) => {
+        writtenLines.push(line);
+      }),
+      complete: completeMock,
+      abort: abortMock,
+    });
   });
 
   const primeJob = (resources: string[]) => {
@@ -221,7 +261,7 @@ describe("DeveloperExportService.run", () => {
     await DeveloperExportService.run("job-1");
 
     expect(mockPrisma.developerExportJob.update).not.toHaveBeenCalled();
-    expect(mockUpload).not.toHaveBeenCalled();
+    expect(mockMultipart).not.toHaveBeenCalled();
   });
 
   it("drains a paged resource in keyset batches of 500 until exhausted", async () => {
@@ -253,7 +293,7 @@ describe("DeveloperExportService.run", () => {
     });
   });
 
-  it("writes resource-tagged NDJSON lines to the job's S3 key", async () => {
+  it("streams resource-tagged NDJSON lines to the job's multipart upload", async () => {
     primeJob(["patients", "organization", "usage"]);
     mockData.listPatients.mockResolvedValue(lastPage([{ id: "p1" }]));
     mockData.getOrganization.mockResolvedValue({ id: "org-1", name: "Vet" });
@@ -265,11 +305,10 @@ describe("DeveloperExportService.run", () => {
 
     await DeveloperExportService.run("job-1");
 
-    const [key, body, mime] = mockUpload.mock.calls[0];
-    expect(key).toBe("developer-exports/org-1/job-1.ndjson");
-    expect(mime).toBe("application/x-ndjson");
-    const lines = body.toString("utf8").trim().split("\n").map(JSON.parse);
-    expect(lines).toEqual([
+    expect(mockMultipart).toHaveBeenCalledWith(
+      "developer-exports/org-1/job-1.ndjson",
+    );
+    expect(writtenLines.map((line) => JSON.parse(line))).toEqual([
       { resource: "patients", data: { id: "p1" } },
       { resource: "organization", data: { id: "org-1", name: "Vet" } },
       {
@@ -277,6 +316,8 @@ describe("DeveloperExportService.run", () => {
         data: { billingPeriod: "2026-07", callCount: 12, limit: 1000 },
       },
     ]);
+    expect(completeMock).toHaveBeenCalled();
+    expect(abortMock).not.toHaveBeenCalled();
     const complete = mockPrisma.developerExportJob.update.mock.calls.at(-1)[0];
     expect(complete.data.rowCounts).toEqual({
       patients: 1,
@@ -297,7 +338,41 @@ describe("DeveloperExportService.run", () => {
     });
   });
 
-  it("marks the row FAILED with a truncated error when streaming blows up", async () => {
+  it("caps a runaway resource at 1,000,000 rows and records the truncation", async () => {
+    primeJob(["patients"]);
+    const page = {
+      items: Array.from({ length: 500 }, (_, index) => ({ id: index })),
+      pagination: { nextCursor: "next", hasMore: true, limit: 500 },
+    };
+    mockData.listPatients.mockImplementation(async () => page);
+    // Plain counters instead of jest.fn: recording 1M mock calls is too slow.
+    let written = 0;
+    mockMultipart.mockResolvedValue({
+      writeLine: async () => {
+        written += 1;
+      },
+      complete: completeMock,
+      abort: abortMock,
+    });
+
+    await DeveloperExportService.run("job-1");
+
+    expect(written).toBe(1_000_000);
+    expect(completeMock).toHaveBeenCalled();
+    const complete = mockPrisma.developerExportJob.update.mock.calls.at(-1)[0];
+    expect(complete.data).toEqual({
+      status: "COMPLETED",
+      s3Key: "developer-exports/org-1/job-1.ndjson",
+      rowCounts: { patients: 1_000_000, truncated: true },
+    });
+    // Never a silent cap: what was dropped is logged.
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      "Developer export truncated at the per-resource cap",
+      expect.objectContaining({ truncatedResources: ["patients"] }),
+    );
+  });
+
+  it("marks the row FAILED and aborts the upload when streaming blows up", async () => {
     primeJob(["invoices"]);
     mockData.listInvoices.mockRejectedValue(new Error("x".repeat(1000)));
 
@@ -306,7 +381,19 @@ describe("DeveloperExportService.run", () => {
     const failed = mockPrisma.developerExportJob.update.mock.calls.at(-1)[0];
     expect(failed.data.status).toBe("FAILED");
     expect(failed.data.error).toHaveLength(500);
-    expect(mockUpload).not.toHaveBeenCalled();
+    expect(abortMock).toHaveBeenCalled();
+    expect(completeMock).not.toHaveBeenCalled();
+  });
+
+  it("marks the row FAILED when the multipart upload cannot even start", async () => {
+    primeJob(["usage"]);
+    mockMultipart.mockRejectedValue(new Error("no bucket"));
+
+    await DeveloperExportService.run("job-1");
+
+    const failed = mockPrisma.developerExportJob.update.mock.calls.at(-1)[0];
+    expect(failed.data.status).toBe("FAILED");
+    expect(abortMock).not.toHaveBeenCalled();
   });
 });
 

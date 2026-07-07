@@ -193,6 +193,33 @@ describe("DeveloperUsageAlertService.sendThresholdAlert", () => {
       }),
     );
   });
+
+  it("escapes user-controlled names in the HTML body (never the plaintext)", async () => {
+    mockPrisma.organization.findFirst.mockResolvedValue({
+      id: "org-1",
+      name: 'Sunny <script>alert("x")</script> Paws',
+      fhirId: null,
+    });
+    mockPrisma.user.findFirst.mockResolvedValue({
+      email: "owner@example.com",
+      firstName: '<a href="https://evil.example">Ada</a>',
+      lastName: null,
+    });
+
+    await DeveloperUsageAlertService.sendThresholdAlert(input);
+
+    const email = sendEmailMock.mock.calls[0][0];
+    expect(email.htmlBody).not.toContain("<script>");
+    expect(email.htmlBody).not.toContain('<a href="https://evil.example">');
+    expect(email.htmlBody).toContain(
+      "Sunny &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; Paws",
+    );
+    expect(email.htmlBody).toContain(
+      "&lt;a href=&quot;https://evil.example&quot;&gt;Ada&lt;/a&gt;",
+    );
+    // Plaintext stays raw - it is never rendered as markup.
+    expect(email.textBody).toContain('Sunny <script>alert("x")</script> Paws');
+  });
 });
 
 describe("DeveloperUsageAlertService.notifyThresholds", () => {

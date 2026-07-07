@@ -305,6 +305,120 @@ async function generatePresignedDownloadUrl(key: string) {
   return `https://${CF_BASE}/${key}`;
 }
 
+// Genuinely time-limited signed GET URL, for objects that must never be
+// publicly reachable (e.g. developer bulk exports containing PHI). Unlike
+// generatePresignedDownloadUrl above - which returns a plain, non-expiring
+// CloudFront URL - this signs against S3 directly and expires.
+async function generatePresignedGetUrl(key: string, expiresSeconds = 900) {
+  const bucket = getBucketName();
+  try {
+    return await s3.getSignedUrlPromise("getObject", {
+      Bucket: bucket,
+      Key: key,
+      Expires: expiresSeconds,
+    });
+  } catch (err: unknown) {
+    console.error("Error generating presigned GET URL:", err);
+    throw new Error(
+      `Failed to generate presigned GET URL: ${getErrorMessage(err)}`,
+    );
+  }
+}
+
+// Streaming NDJSON upload via S3 multipart. Lines are buffered into ~5MB
+// parts (the S3 multipart minimum for every part but the last) and each part
+// is uploaded as soon as it fills, so callers never hold the whole payload in
+// memory. Callers must call complete() on success or abort() on failure.
+const MULTIPART_MIN_PART_BYTES = 5 * 1024 * 1024;
+
+type MultipartNdjsonUpload = {
+  writeLine: (line: string) => Promise<void>;
+  complete: () => Promise<{ key: string }>;
+  abort: () => Promise<void>;
+};
+
+async function createMultipartNdjsonUpload(
+  key: string,
+): Promise<MultipartNdjsonUpload> {
+  const bucket = getBucketName();
+  const created = await s3
+    .createMultipartUpload({
+      Bucket: bucket,
+      Key: key,
+      ContentType: "application/x-ndjson",
+    })
+    .promise();
+  const uploadId = created.UploadId;
+  if (!uploadId) {
+    throw new Error("S3 did not return a multipart UploadId");
+  }
+
+  const parts: AWS.S3.CompletedPart[] = [];
+  let chunks: Buffer[] = [];
+  let bufferedBytes = 0;
+  let partNumber = 0;
+
+  const flushPart = async (force = false) => {
+    if (bufferedBytes === 0 && !force) {
+      return;
+    }
+    partNumber += 1;
+    const body = Buffer.concat(chunks);
+    chunks = [];
+    bufferedBytes = 0;
+    const uploaded = await s3
+      .uploadPart({
+        Bucket: bucket,
+        Key: key,
+        UploadId: uploadId,
+        PartNumber: partNumber,
+        Body: body,
+      })
+      .promise();
+    parts.push({ ETag: uploaded.ETag, PartNumber: partNumber });
+  };
+
+  return {
+    async writeLine(line: string) {
+      const chunk = Buffer.from(`${line}\n`, "utf8");
+      chunks.push(chunk);
+      bufferedBytes += chunk.length;
+      if (bufferedBytes >= MULTIPART_MIN_PART_BYTES) {
+        await flushPart();
+      }
+    },
+    async complete() {
+      // A zero-part complete is rejected by S3, so an empty NDJSON stream
+      // still uploads one (empty) final part.
+      await flushPart(parts.length === 0);
+      await s3
+        .completeMultipartUpload({
+          Bucket: bucket,
+          Key: key,
+          UploadId: uploadId,
+          MultipartUpload: { Parts: parts },
+        })
+        .promise();
+      return { key };
+    },
+    async abort() {
+      try {
+        await s3
+          .abortMultipartUpload({
+            Bucket: bucket,
+            Key: key,
+            UploadId: uploadId,
+          })
+          .promise();
+      } catch (err: unknown) {
+        // Never mask the original failure; orphaned parts are reclaimed by
+        // the bucket's abort-incomplete-multipart lifecycle rule.
+        console.error("Error aborting multipart upload:", err);
+      }
+    },
+  };
+}
+
 // Lifecycle
 async function setupLifecyclePolicy(daysToKeep = 2) {
   const ruleName = "AutoDeleteTempUploads";
@@ -386,6 +500,8 @@ export {
   mimeTypeToExtension,
   setupLifecyclePolicy,
   generatePresignedDownloadUrl,
+  generatePresignedGetUrl,
+  createMultipartNdjsonUpload,
   getURLForKey,
 };
-export type { FileUploadResult, UploadedFile };
+export type { FileUploadResult, UploadedFile, MultipartNdjsonUpload };

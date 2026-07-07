@@ -135,6 +135,9 @@ export const DeveloperApiKeyService = {
       input.targetOrganisationId &&
       input.targetOrganisationId !== organisationId
     ) {
+      // Keyed by the CALLER org: a sandbox org never has a DeveloperSandbox
+      // row of its own (DeveloperSandboxService.create rejects sandbox orgs
+      // as parents), so this lookup cannot chain sandbox-of-sandbox targets.
       const sandbox = await prisma.developerSandbox.findUnique({
         where: { organisationId },
         select: { sandboxOrganisationId: true },
@@ -267,8 +270,25 @@ export const DeveloperApiKeyService = {
 
     const generated = generateApiKey(existing.environment);
     const graceUntil = new Date(Date.now() + ROTATION_GRACE_MS);
-    const [record] = await prisma.$transaction([
-      prisma.developerApiKey.create({
+    // The grace-set is the rotation lock, claimed with a conditional
+    // updateMany (mirroring revoke): of two concurrent rotates, exactly one
+    // matches rotationGraceUntil: null and mints the replacement - the loser
+    // gets the same 409 as the findFirst pre-check above. Both writes share
+    // a transaction so a failed create rolls the claim back.
+    const record = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.developerApiKey.updateMany({
+        where: {
+          id: existing.id,
+          organisationId,
+          status: DeveloperApiKeyStatus.active,
+          rotationGraceUntil: null,
+        },
+        data: { rotationGraceUntil: graceUntil },
+      });
+      if (claimed.count !== 1) {
+        throw new DeveloperApiKeyServiceError("API key already rotated", 409);
+      }
+      return tx.developerApiKey.create({
         data: {
           organisationId,
           name: existing.name,
@@ -282,12 +302,8 @@ export const DeveloperApiKeyService = {
           hashedKey: generated.hashedKey,
           last4: generated.last4,
         },
-      }),
-      prisma.developerApiKey.update({
-        where: { id: existing.id },
-        data: { rotationGraceUntil: graceUntil },
-      }),
-    ]);
+      });
+    });
     emitDeveloperEvent("api_key.rotated", organisationId, {
       keyId: existing.id,
       newKeyId: record.id,

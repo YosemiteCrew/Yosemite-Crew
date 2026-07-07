@@ -1,6 +1,7 @@
 import { prisma } from "src/config/prisma";
 import { emitDeveloperEvent } from "src/utils/developer-events";
 import { sendEmail } from "src/utils/email";
+import { escapeHtml } from "src/utils/escape-html";
 import logger from "src/utils/logger";
 
 // Free-tier usage alert emails (80% / 100% of the monthly cap), plus the
@@ -122,9 +123,11 @@ const buildAlertEmail = (
       "",
       `Support: ${SUPPORT_EMAIL_ADDRESS}`,
     ].join("\n"),
+    // Owner and organisation names are user-controlled - escaped so a name
+    // like <script>... cannot inject markup into the email.
     htmlBody: `
-      <p>Hi ${ownerName},</p>
-      <p>Your organisation <strong>${owner.organisationName}</strong> ${statusLine}</p>
+      <p>Hi ${escapeHtml(ownerName)},</p>
+      <p>Your organisation <strong>${escapeHtml(owner.organisationName)}</strong> ${statusLine}</p>
       <p>Usage: <strong>${callCount}</strong> of <strong>${limit}</strong> calls.</p>
       <p><a href="${BILLING_SETTINGS_URL}">Upgrade or review usage</a></p>
       <p>Support: <a href="mailto:${SUPPORT_EMAIL_ADDRESS}">${SUPPORT_EMAIL_ADDRESS}</a></p>

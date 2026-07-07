@@ -10,6 +10,8 @@ import {
   mimeTypeToExtension,
   setupLifecyclePolicy,
   generatePresignedDownloadUrl,
+  generatePresignedGetUrl,
+  createMultipartNdjsonUpload,
 } from "../../src/middlewares/upload";
 
 // --- 1. Mocks ---
@@ -20,6 +22,10 @@ const mockCopyObject = jest.fn();
 const mockDeleteObject = jest.fn();
 const mockGetBucketLifecycleConfiguration = jest.fn();
 const mockPutBucketLifecycleConfiguration = jest.fn();
+const mockCreateMultipartUpload = jest.fn();
+const mockUploadPart = jest.fn();
+const mockCompleteMultipartUpload = jest.fn();
+const mockAbortMultipartUpload = jest.fn();
 
 jest.mock("aws-sdk", () => {
   return {
@@ -35,6 +41,16 @@ jest.mock("aws-sdk", () => {
       }),
       putBucketLifecycleConfiguration: (params: any) => ({
         promise: () => mockPutBucketLifecycleConfiguration(params),
+      }),
+      createMultipartUpload: (params: any) => ({
+        promise: () => mockCreateMultipartUpload(params),
+      }),
+      uploadPart: (params: any) => ({ promise: () => mockUploadPart(params) }),
+      completeMultipartUpload: (params: any) => ({
+        promise: () => mockCompleteMultipartUpload(params),
+      }),
+      abortMultipartUpload: (params: any) => ({
+        promise: () => mockAbortMultipartUpload(params),
       }),
     })),
   };
@@ -295,6 +311,135 @@ describe("Upload Middleware", () => {
     it("generates correctly", async () => {
       const url = await generatePresignedDownloadUrl("test.pdf");
       expect(url).toBe("https://test-cf.cloudfront.net/test.pdf");
+    });
+  });
+
+  describe("generatePresignedGetUrl", () => {
+    it("signs a getObject URL with the default 15 minute expiry", async () => {
+      mockGetSignedUrlPromise.mockResolvedValueOnce("https://signed-get");
+      const url = await generatePresignedGetUrl("exports/file.ndjson");
+      expect(url).toBe("https://signed-get");
+      expect(mockGetSignedUrlPromise).toHaveBeenCalledWith("getObject", {
+        Bucket: "test-bucket",
+        Key: "exports/file.ndjson",
+        Expires: 900,
+      });
+    });
+
+    it("honors a custom expiry", async () => {
+      mockGetSignedUrlPromise.mockResolvedValueOnce("https://signed-get");
+      await generatePresignedGetUrl("k", 60);
+      expect(mockGetSignedUrlPromise).toHaveBeenCalledWith(
+        "getObject",
+        expect.objectContaining({ Expires: 60 }),
+      );
+    });
+
+    it("wraps signing errors", async () => {
+      mockGetSignedUrlPromise.mockRejectedValueOnce(new Error("Sign Error"));
+      await expect(generatePresignedGetUrl("k")).rejects.toThrow(
+        "Failed to generate presigned GET URL: Sign Error",
+      );
+    });
+  });
+
+  describe("createMultipartNdjsonUpload", () => {
+    beforeEach(() => {
+      mockCreateMultipartUpload.mockResolvedValue({ UploadId: "upload-1" });
+      mockUploadPart.mockImplementation(async (params: any) => ({
+        ETag: `etag-${params.PartNumber}`,
+      }));
+      mockCompleteMultipartUpload.mockResolvedValue({});
+      mockAbortMultipartUpload.mockResolvedValue({});
+    });
+
+    it("starts the multipart upload with the NDJSON content type", async () => {
+      await createMultipartNdjsonUpload("exports/a.ndjson");
+      expect(mockCreateMultipartUpload).toHaveBeenCalledWith({
+        Bucket: "test-bucket",
+        Key: "exports/a.ndjson",
+        ContentType: "application/x-ndjson",
+      });
+    });
+
+    it("throws when S3 returns no UploadId", async () => {
+      mockCreateMultipartUpload.mockResolvedValueOnce({});
+      await expect(createMultipartNdjsonUpload("k")).rejects.toThrow(
+        "S3 did not return a multipart UploadId",
+      );
+    });
+
+    it("buffers small lines into a single part uploaded at complete()", async () => {
+      const upload = await createMultipartNdjsonUpload("k");
+      await upload.writeLine('{"a":1}');
+      await upload.writeLine('{"b":2}');
+      await upload.complete();
+
+      expect(mockUploadPart).toHaveBeenCalledTimes(1);
+      const part = mockUploadPart.mock.calls[0][0];
+      expect(part).toMatchObject({
+        Bucket: "test-bucket",
+        Key: "k",
+        UploadId: "upload-1",
+        PartNumber: 1,
+      });
+      expect(part.Body.toString("utf8")).toBe('{"a":1}\n{"b":2}\n');
+      expect(mockCompleteMultipartUpload).toHaveBeenCalledWith({
+        Bucket: "test-bucket",
+        Key: "k",
+        UploadId: "upload-1",
+        MultipartUpload: {
+          Parts: [{ ETag: "etag-1", PartNumber: 1 }],
+        },
+      });
+    });
+
+    it("flushes a part as soon as the 5MB buffer fills, then the remainder", async () => {
+      const upload = await createMultipartNdjsonUpload("k");
+      const threeMb = "x".repeat(3 * 1024 * 1024);
+      await upload.writeLine(threeMb);
+      expect(mockUploadPart).not.toHaveBeenCalled();
+      await upload.writeLine(threeMb); // 6MB buffered >= 5MB -> part 1
+      expect(mockUploadPart).toHaveBeenCalledTimes(1);
+      await upload.writeLine('{"tail":true}');
+      await upload.complete(); // remainder -> part 2
+
+      expect(mockUploadPart).toHaveBeenCalledTimes(2);
+      expect(mockUploadPart.mock.calls[1][0].PartNumber).toBe(2);
+      expect(
+        mockCompleteMultipartUpload.mock.calls[0][0].MultipartUpload,
+      ).toEqual({
+        Parts: [
+          { ETag: "etag-1", PartNumber: 1 },
+          { ETag: "etag-2", PartNumber: 2 },
+        ],
+      });
+    });
+
+    it("uploads one empty part when nothing was written (S3 rejects zero-part completes)", async () => {
+      const upload = await createMultipartNdjsonUpload("k");
+      await upload.complete();
+      expect(mockUploadPart).toHaveBeenCalledTimes(1);
+      expect(mockUploadPart.mock.calls[0][0].Body.length).toBe(0);
+      expect(mockCompleteMultipartUpload).toHaveBeenCalled();
+    });
+
+    it("abort() aborts the multipart upload", async () => {
+      const upload = await createMultipartNdjsonUpload("k");
+      await upload.writeLine('{"a":1}');
+      await upload.abort();
+      expect(mockAbortMultipartUpload).toHaveBeenCalledWith({
+        Bucket: "test-bucket",
+        Key: "k",
+        UploadId: "upload-1",
+      });
+      expect(mockCompleteMultipartUpload).not.toHaveBeenCalled();
+    });
+
+    it("abort() swallows its own failure so the original error survives", async () => {
+      mockAbortMultipartUpload.mockRejectedValueOnce(new Error("abort down"));
+      const upload = await createMultipartNdjsonUpload("k");
+      await expect(upload.abort()).resolves.toBeUndefined();
     });
   });
 

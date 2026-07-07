@@ -278,58 +278,72 @@ export const TemplatePackService = {
       versions.map((row) => [`${row.templateId}:${row.version}`, row]),
     );
 
-    const install = await prisma.$transaction(async (tx) => {
-      const materializedTemplateIds: string[] = [];
-      for (const item of pack.items) {
-        const source = versionByKey.get(
-          `${item.templateId}:${item.snapshotVersion}`,
-        );
-        if (!source) {
-          throw new TemplatePackServiceError(
-            "Template pack snapshot is missing a pinned version",
-            409,
-            "snapshot_missing",
+    let install;
+    try {
+      install = await prisma.$transaction(async (tx) => {
+        const materializedTemplateIds: string[] = [];
+        for (const item of pack.items) {
+          const source = versionByKey.get(
+            `${item.templateId}:${item.snapshotVersion}`,
           );
+          if (!source) {
+            throw new TemplatePackServiceError(
+              "Template pack snapshot is missing a pinned version",
+              409,
+              "snapshot_missing",
+            );
+          }
+          const created = await tx.template.create({
+            data: {
+              organisationId: input.organisationId,
+              ownership: "ORG_TEMPLATE",
+              kind: source.template.kind,
+              name: source.template.name,
+              description: source.template.description,
+              status: "DRAFT",
+              scope: source.template.scope,
+              rules: source.template.rules ?? undefined,
+              latestVersion: 1,
+              publishedVersion: null,
+              createdBy: input.installedBy,
+              updatedBy: input.installedBy,
+            },
+          });
+          await tx.templateVersion.create({
+            data: {
+              templateId: created.id,
+              version: 1,
+              schemaSnapshot: source.schemaSnapshot ?? {},
+              renderConfigSnapshot: source.renderConfigSnapshot ?? undefined,
+              validationSnapshot: source.validationSnapshot ?? undefined,
+              createdBy: input.installedBy,
+            },
+          });
+          materializedTemplateIds.push(created.id);
         }
-        const created = await tx.template.create({
+        // Created last: the install row exists only once every draft
+        // committed. The unique (packId, organisationId) makes a racing
+        // second install fail its insert instead of double-materializing.
+        return tx.templatePackInstall.create({
           data: {
+            packId: pack.id,
             organisationId: input.organisationId,
-            ownership: "ORG_TEMPLATE",
-            kind: source.template.kind,
-            name: source.template.name,
-            description: source.template.description,
-            status: "DRAFT",
-            scope: source.template.scope,
-            rules: source.template.rules ?? undefined,
-            latestVersion: 1,
-            publishedVersion: null,
-            createdBy: input.installedBy,
-            updatedBy: input.installedBy,
+            materializedTemplateIds,
           },
         });
-        await tx.templateVersion.create({
-          data: {
-            templateId: created.id,
-            version: 1,
-            schemaSnapshot: source.schemaSnapshot ?? {},
-            renderConfigSnapshot: source.renderConfigSnapshot ?? undefined,
-            validationSnapshot: source.validationSnapshot ?? undefined,
-            createdBy: input.installedBy,
-          },
-        });
-        materializedTemplateIds.push(created.id);
-      }
-      // Created last: the install row exists only once every draft committed.
-      // The unique (packId, organisationId) makes a racing second install
-      // fail its insert instead of double-materializing.
-      return tx.templatePackInstall.create({
-        data: {
-          packId: pack.id,
-          organisationId: input.organisationId,
-          materializedTemplateIds,
-        },
       });
-    });
+    } catch (error) {
+      // The racing loser above: its transaction rolled back (no duplicate
+      // drafts), so answer with the same 409 the pre-check produces.
+      if (isUniqueViolation(error)) {
+        throw new TemplatePackServiceError(
+          "Template pack is already installed",
+          409,
+          "already_installed",
+        );
+      }
+      throw error;
+    }
 
     // Emitted to the PUBLISHER org's stream. Aggregate-only boundary: the
     // installing org's identity never crosses to the publisher.
