@@ -64,6 +64,23 @@ export interface SendEmailOptions {
   configurationSetName?: string;
 }
 
+const isSuccessfulSesResponseParseError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as {
+    message?: unknown;
+    $metadata?: { httpStatusCode?: unknown };
+  };
+
+  return (
+    typeof maybeError.message === "string" &&
+    maybeError.message.includes("[EntityReplacer]") &&
+    maybeError.$metadata?.httpStatusCode === 200
+  );
+};
+
 export interface SendEmailTemplateOptions<K extends EmailTemplateId> {
   to: string | string[];
   templateId: K;
@@ -150,6 +167,14 @@ export const sendEmail = async (options: SendEmailOptions) => {
     return result;
   } catch (error) {
     logger.error("Failed to send email via SES.", error);
+
+    if (isSuccessfulSesResponseParseError(error)) {
+      logger.warn(
+        "SES returned a successful response that could not be parsed.",
+      );
+      return {};
+    }
+
     throw error;
   }
 };
