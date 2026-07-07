@@ -1,10 +1,6 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
-import { getStatusStyle } from '@/app/config/statusConfig';
-import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
-import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
-import { getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import {
   autoScrollCalendarHorizontally,
@@ -16,9 +12,10 @@ import AppointmentPopover from '@/app/features/appointments/components/Calendar/
 import AppointmentContextMenu from '@/app/features/appointments/components/Calendar/common/AppointmentContextMenu';
 import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
-import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { useNotify } from '@/app/hooks/useNotify';
 import { canEnterAppointmentWorkspace } from '@/app/lib/appointmentWorkspace';
+import ZoomOutMarker from '@/app/features/appointments/components/Calendar/common/ZoomOutMarker';
+import ZoomInMarker from '@/app/features/appointments/components/Calendar/common/ZoomInMarker';
 
 type SlotProps = {
   slotEvents: Appointment[];
@@ -52,35 +49,6 @@ type SlotProps = {
 
 const MARKER_CLICK_DELAY_MS = 180;
 
-const getCompanionDisplayName = (appointment: Appointment) =>
-  formatCompanionNameWithOwnerLastName(
-    (appointment.companion ?? appointment.patient).name,
-    (appointment.companion ?? appointment.patient).parent
-  );
-
-const setCustomDragGhost = (
-  event: React.DragEvent<HTMLButtonElement>,
-  appointment: Appointment
-) => {
-  const ghost = document.createElement('img');
-  ghost.src = getSafeImageUrl(
-    getAppointmentCompanionPhotoUrl(appointment.companion ?? appointment.patient),
-    (appointment.companion ?? appointment.patient).species.toLowerCase() as ImageType
-  );
-  ghost.width = 24;
-  ghost.height = 24;
-  ghost.style.position = 'fixed';
-  ghost.style.top = '-9999px';
-  ghost.style.left = '-9999px';
-  ghost.style.width = '24px';
-  ghost.style.height = '24px';
-  ghost.style.borderRadius = '999px';
-  document.body.appendChild(ghost);
-  event.dataTransfer.setDragImage(ghost, 12, 12);
-  globalThis.setTimeout(() => {
-    ghost.remove();
-  }, 0);
-};
 const DEFAULT_DROP_AVAILABILITY_INTERVALS: Array<{ startMinute: number; endMinute: number }> = [];
 const DEFAULT_UNAVAILABLE_SEGMENTS: Array<{ startMinute: number; endMinute: number }> = [];
 const DEFAULT_INVOICES_BY_APPOINTMENT_ID: Record<string, Invoice> = {};
@@ -89,59 +57,6 @@ type ContextMenuState = {
   appointment: Appointment;
   x: number;
   y: number;
-};
-
-type MarkerSizing = {
-  multiLane: boolean;
-  tall: boolean;
-  medium: boolean;
-  showImage: boolean;
-  imgSize: number;
-  verticalPadding: string;
-  horizontalPadding: string;
-  buttonGap: string;
-};
-
-// Derive the responsive display tier for a zoom-in appointment marker from its lane count
-// and rendered height. Extracted to keep the marker map callback under the complexity limit.
-const getMarkerSizing = (laneCount: number, blockHeightPx: number): MarkerSizing => {
-  const multiLane = laneCount > 1;
-  // tall: ≥72px single-lane — big pic, service + reason on separate lines with •
-  const tall = !multiLane && blockHeightPx >= 72;
-  // medium: ≥44px single-lane — smaller pic, one subtitle line
-  const medium = !multiLane && blockHeightPx >= 44;
-  // small: short single-lane slots (e.g. 5-min) — compact avatar, name only
-  const small = !multiLane && !medium && !tall;
-  const showImage = small || medium || tall;
-  // tall: scales 48px (30-min/90px) → 60px (60-min/180px); medium: 34px; small: 24px
-  let imgSize: number;
-  if (tall) {
-    imgSize = Math.min(60, Math.round(blockHeightPx * 0.52));
-  } else if (medium) {
-    imgSize = 34;
-  } else {
-    imgSize = 24;
-  }
-  let verticalPadding: string;
-  if (tall) {
-    verticalPadding = 'py-2.5';
-  } else if (medium) {
-    verticalPadding = 'py-2';
-  } else {
-    verticalPadding = 'py-0.5';
-  }
-  const horizontalPadding = small ? 'pl-1.5 pr-2' : 'pl-3 pr-3';
-  const buttonGap = small ? 'gap-1.5' : 'gap-2.5';
-  return {
-    multiLane,
-    tall,
-    medium,
-    showImage,
-    imgSize,
-    verticalPadding,
-    horizontalPadding,
-    buttonGap,
-  };
 };
 
 const SlotComponent: React.FC<SlotProps> = ({
@@ -585,69 +500,26 @@ const SlotComponent: React.FC<SlotProps> = ({
                 );
                 const gapMinutes = Math.max(0, startMinute - cursorMinute);
                 const marginTopPx = (gapMinutes / 60) * height;
-                const statusStyle = getStatusStyle(ev.status);
                 const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 3);
-                const serviceName = ev.appointmentType?.name?.trim() ?? '';
-                const concern = ev.concern?.trim() ?? '';
-                const subtitle = [serviceName, concern].filter(Boolean).join(' • ');
-                const companionDisplayName = getCompanionDisplayName(ev);
-                const markerTitle = subtitle
-                  ? `${companionDisplayName} • ${subtitle}`
-                  : companionDisplayName;
-                const draggable = !!canDragAppointment?.(ev);
                 cursorMinute = Math.max(cursorMinute, startMinute + visibleDurationMinutes);
                 return (
-                  <div
+                  <ZoomOutMarker
                     key={itemKey}
-                    className="relative z-20 rounded-md p-0 border-0 bg-transparent"
-                    style={{
-                      marginTop: marginTopPx,
-                      minHeight: blockHeightPx,
-                      height: blockHeightPx,
-                    }}
-                  >
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute inset-y-0 left-0.5 right-0.5 rounded-sm z-30"
-                      style={{
-                        backgroundColor: statusStyle.backgroundColor,
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: statusStyle.borderColor,
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className={`min-w-0 absolute inset-x-0 -inset-y-2 z-20 ${
-                        draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-                      }`}
-                      aria-haspopup="dialog"
-                      aria-expanded={activePopoverKey === itemKey}
-                      aria-controls={appointmentPopoverId}
-                      onClick={(event) => handleMarkerClick(event, itemKey)}
-                      onDoubleClick={() => handleMarkerDoubleClick(ev)}
-                      onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
-                      draggable={draggable}
-                      title={markerTitle}
-                      onDragStart={(event) => {
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
-                        setCustomDragGhost(event, ev);
-                        document.body.style.cursor = 'grabbing';
-                        onAppointmentDragStart?.(ev);
-                      }}
-                      onDragEnd={() => {
-                        setDropPreviewMinute(null);
-                        document.body.style.cursor = '';
-                        onAppointmentDragEnd?.();
-                      }}
-                      style={{
-                        opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
-                      }}
-                    >
-                      <span className="sr-only">{markerTitle}</span>
-                    </button>
-                  </div>
+                    ev={ev}
+                    itemKey={itemKey}
+                    marginTopPx={marginTopPx}
+                    blockHeightPx={blockHeightPx}
+                    activePopoverKey={activePopoverKey}
+                    appointmentPopoverId={appointmentPopoverId}
+                    draggedAppointmentId={draggedAppointmentId}
+                    canDragAppointment={canDragAppointment}
+                    onMarkerClick={handleMarkerClick}
+                    onMarkerDoubleClick={handleMarkerDoubleClick}
+                    onMarkerContextMenu={handleMarkerContextMenu}
+                    onAppointmentDragStart={onAppointmentDragStart}
+                    onAppointmentDragEnd={onAppointmentDragEnd}
+                    onDropPreviewClear={() => setDropPreviewMinute(null)}
+                  />
                 );
               });
             })()}
@@ -664,137 +536,29 @@ const SlotComponent: React.FC<SlotProps> = ({
                 laneCount,
               }) => {
                 const itemKey = `${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}-${originalIndex}`;
-                const statusStyle = getStatusStyle(ev.status);
-                const serviceName = ev.appointmentType?.name?.trim() ?? '';
-                const concern = ev.concern?.trim() ?? '';
-                const companionDisplayName = getCompanionDisplayName(ev);
-                const markerTitle = [companionDisplayName, serviceName, concern]
-                  .filter(Boolean)
-                  .join(' • ');
-                const draggable = !!canDragAppointment?.(ev);
-                const laneGapPx = 3;
-                const widthPercent = 100 / laneCount;
-                const leftPercent = widthPercent * laneIndex;
                 const topPx = (startMinute / 60) * height;
                 const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 40);
 
-                // Responsive display tier derived from lane count + rendered height.
-                const {
-                  multiLane,
-                  tall,
-                  medium,
-                  showImage,
-                  imgSize,
-                  verticalPadding,
-                  horizontalPadding,
-                  buttonGap,
-                } = getMarkerSizing(laneCount, blockHeightPx);
-                const cursorClass = draggable
-                  ? 'cursor-grab active:cursor-grabbing'
-                  : 'cursor-pointer';
-
-                const subtitleClass =
-                  'truncate font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px]';
-                let subtitleNode: React.ReactNode = null;
-                if (tall) {
-                  subtitleNode = (
-                    <>
-                      {serviceName && (
-                        <div className={`${subtitleClass} mt-1.5`}>
-                          {'• '}
-                          {serviceName}
-                        </div>
-                      )}
-                      {concern && (
-                        <div className={`${subtitleClass} mt-1`}>
-                          {'• '}
-                          {concern}
-                        </div>
-                      )}
-                    </>
-                  );
-                } else if (medium && (serviceName || concern)) {
-                  subtitleNode = (
-                    <div className={`${subtitleClass} mt-1.5`}>
-                      {[serviceName, concern].filter(Boolean).join(' • ')}
-                    </div>
-                  );
-                } else if (multiLane && serviceName) {
-                  subtitleNode = <div className={`${subtitleClass} mt-1`}>{serviceName}</div>;
-                }
-
-                const handleDragStart = (event: React.DragEvent<HTMLButtonElement>) => {
-                  event.dataTransfer.effectAllowed = 'move';
-                  event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
-                  setCustomDragGhost(event, ev);
-                  document.body.style.cursor = 'grabbing';
-                  onAppointmentDragStart?.(ev);
-                };
-
-                const handleDragEnd = () => {
-                  setDropPreviewMinute(null);
-                  document.body.style.cursor = '';
-                  onAppointmentDragEnd?.();
-                };
-
-                const appointmentBlockStyle: React.CSSProperties = {
-                  ...statusStyle,
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: statusStyle.borderColor,
-                  top: topPx,
-                  left: `calc(${leftPercent}% + ${laneGapPx}px)`,
-                  width: `calc(${widthPercent}% - ${laneGapPx * 2}px)`,
-                  minHeight: blockHeightPx,
-                  height: blockHeightPx,
-                };
-
                 return (
-                  <div
+                  <ZoomInMarker
                     key={itemKey}
-                    className="absolute z-20 overflow-hidden rounded-2xl!"
-                    style={appointmentBlockStyle}
-                  >
-                    <button
-                      type="button"
-                      className={`size-full flex items-center justify-between ${buttonGap} ${horizontalPadding} text-left ${verticalPadding} ${cursorClass}`}
-                      aria-haspopup="dialog"
-                      aria-expanded={activePopoverKey === itemKey}
-                      aria-controls={appointmentPopoverId}
-                      onClick={(event) => handleMarkerClick(event, itemKey)}
-                      onDoubleClick={() => handleMarkerDoubleClick(ev)}
-                      onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
-                      draggable={draggable}
-                      title={markerTitle}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                      style={{
-                        opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
-                      }}
-                    >
-                      {showImage && (
-                        <div className="flex-none">
-                          <Image
-                            src={getSafeImageUrl(
-                              getAppointmentCompanionPhotoUrl(ev.companion),
-                              (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
-                            )}
-                            height={imgSize}
-                            width={imgSize}
-                            className="rounded-full border border-white/60 object-cover"
-                            style={{ width: imgSize, height: imgSize }}
-                            alt=""
-                          />
-                        </div>
-                      )}
-                      <div className="min-w-0 flex-1 overflow-hidden">
-                        <div className="truncate text-caption-1 font-bold leading-[1.2]">
-                          {companionDisplayName}
-                        </div>
-                        {subtitleNode}
-                      </div>
-                    </button>
-                  </div>
+                    ev={ev}
+                    itemKey={itemKey}
+                    laneIndex={laneIndex}
+                    laneCount={laneCount}
+                    topPx={topPx}
+                    blockHeightPx={blockHeightPx}
+                    activePopoverKey={activePopoverKey}
+                    appointmentPopoverId={appointmentPopoverId}
+                    draggedAppointmentId={draggedAppointmentId}
+                    canDragAppointment={canDragAppointment}
+                    onMarkerClick={handleMarkerClick}
+                    onMarkerDoubleClick={handleMarkerDoubleClick}
+                    onMarkerContextMenu={handleMarkerContextMenu}
+                    onAppointmentDragStart={onAppointmentDragStart}
+                    onAppointmentDragEnd={onAppointmentDragEnd}
+                    onDropPreviewClear={() => setDropPreviewMinute(null)}
+                  />
                 );
               }
             )}

@@ -8,7 +8,6 @@ import {
   getClinicalNotesIntent,
   getClinicalNotesLabel,
   isRequestedLikeStatus,
-  toStatusLabel,
 } from '@/app/lib/appointments';
 import {
   assignEncounterUnit,
@@ -27,11 +26,24 @@ import {
 import { useLoadRoomsForPrimaryOrg, useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
-import { IoChevronForward } from 'react-icons/io5';
 import {
   getFirstAssignableRoomUnitId,
   toAssignableRoomOptions,
 } from '@/app/features/appointments/lib/roomUnitAvailability';
+import MenuActionsList from '@/app/features/appointments/components/Calendar/common/MenuActionsList';
+import StatusSubmenu from '@/app/features/appointments/components/Calendar/common/StatusSubmenu';
+import RoomSubmenu from '@/app/features/appointments/components/Calendar/common/RoomSubmenu';
+import {
+  MENU_ESTIMATED_WIDTH,
+  resolveMenuError,
+  SUBMENU_ESTIMATED_WIDTH,
+  SUBMENU_HORIZONTAL_GAP,
+  SUBMENU_ROW_OFFSET,
+  VIEWPORT_MARGIN,
+  type MenuAction,
+  type MenuSubmenu,
+  type SubmenuPosition,
+} from '@/app/features/appointments/components/Calendar/common/appointmentContextMenuHelpers';
 
 type AppointmentContextMenuProps = {
   appointment: Appointment;
@@ -41,50 +53,6 @@ type AppointmentContextMenuProps = {
   handleViewAppointment: (appt: Appointment, intent?: AppointmentViewIntent) => void;
   handleRescheduleAppointment: (appt: Appointment) => void;
   onClose: () => void;
-};
-
-type MenuAction = {
-  key: string;
-  label: string;
-  destructive?: boolean;
-  submenu?: 'status' | 'room';
-  onSelect?: () => void | Promise<void>;
-};
-
-type MenuSubmenu = 'status' | 'room' | null;
-
-const MENU_ESTIMATED_WIDTH = 220;
-const SUBMENU_ESTIMATED_WIDTH = 200;
-const VIEWPORT_MARGIN = 12;
-const SUBMENU_HORIZONTAL_GAP = 10;
-const SUBMENU_ROW_OFFSET = 4;
-
-type SubmenuPosition = {
-  left: number;
-  openToLeft: boolean;
-  top: number;
-};
-
-const getMenuItemClassName = (destructive = false, active = false) =>
-  [
-    'flex w-full items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5 text-left font-satoshi text-[16px] font-normal leading-5 tracking-[-0.32px] transition-colors',
-    destructive ? 'text-text-error hover:bg-danger-100/72' : 'text-text-primary hover:bg-white/50',
-    active ? 'bg-white/58' : 'bg-transparent',
-  ].join(' ');
-
-const resolveMenuError = (error: unknown, fallback: string) => {
-  const message =
-    (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-    (error as Error)?.message;
-  return String(message || fallback);
-};
-
-const getRoomSavingKey = (roomKey: string) => `room-${roomKey === 'clear-room' ? 'none' : roomKey}`;
-
-const getRoomStatusLabel = (selected: boolean, saving: boolean) => {
-  if (selected) return 'Current';
-  if (saving) return 'Saving';
-  return null;
 };
 
 const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = ({
@@ -397,47 +365,25 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
         className="fixed z-[1001] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
         style={menuPositionStyle}
       >
-        <div className="flex flex-col gap-0.5">
-          {actions.map((action, index) => (
-            <React.Fragment key={action.key}>
-              {index > 0 ? (
-                <div className="mx-1 border-t border-white/30" aria-hidden="true" />
-              ) : null}
-              <button
-                ref={(element) => {
-                  itemRefs.current[action.key] = element;
-                }}
-                type="button"
-                role="menuitem"
-                aria-haspopup={action.submenu ? 'menu' : undefined}
-                aria-expanded={action.submenu ? activeSubmenu === action.submenu : undefined}
-                className={getMenuItemClassName(
-                  action.destructive,
-                  activeSubmenu === action.submenu
-                )}
-                onMouseEnter={() => {
-                  if (action.submenu) {
-                    showSubmenu(action.submenu, action.key);
-                  } else {
-                    setActiveSubmenu(null);
-                  }
-                }}
-                onClick={() => {
-                  if (action.submenu) {
-                    showSubmenu(action.submenu, action.key);
-                    return;
-                  }
-                  void action.onSelect?.();
-                }}
-              >
-                <span className="truncate">{action.label}</span>
-                {action.submenu ? (
-                  <IoChevronForward size={10} className="shrink-0 opacity-55" />
-                ) : null}
-              </button>
-            </React.Fragment>
-          ))}
-        </div>
+        <MenuActionsList
+          actions={actions}
+          activeSubmenu={activeSubmenu}
+          itemRefs={itemRefs}
+          onHover={(action) => {
+            if (action.submenu) {
+              showSubmenu(action.submenu, action.key);
+            } else {
+              setActiveSubmenu(null);
+            }
+          }}
+          onActivate={(action) => {
+            if (action.submenu) {
+              showSubmenu(action.submenu, action.key);
+              return;
+            }
+            void action.onSelect?.();
+          }}
+        />
         {menuError ? (
           <div className="mt-0.5 border-t border-white/30 px-1.5 py-1 text-[9px] leading-3.5 text-text-error">
             {menuError}
@@ -446,85 +392,24 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
       </div>
 
       {activeSubmenu === 'status' && (
-        <div
-          ref={submenuRef}
-          role="menu"
-          aria-label="Change appointment status"
-          data-context-menu="true"
-          className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
-          style={submenuStyle}
-        >
-          <div className="flex flex-col gap-0.5">
-            {statusOptions.map((status, index) => (
-              <React.Fragment key={status}>
-                {index > 0 ? (
-                  <div className="mx-1 border-t border-white/30" aria-hidden="true" />
-                ) : null}
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={getMenuItemClassName(false)}
-                  onClick={() => {
-                    void handleStatusChange(status);
-                  }}
-                  disabled={savingKey === `status-${status}`}
-                >
-                  <span className="truncate">{toStatusLabel(status)}</span>
-                  {savingKey === `status-${status}` ? (
-                    <span className="shrink-0 text-[8px] opacity-60">Saving</span>
-                  ) : null}
-                </button>
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
+        <StatusSubmenu
+          submenuRef={submenuRef}
+          submenuStyle={submenuStyle}
+          statusOptions={statusOptions}
+          savingKey={savingKey}
+          onSelectStatus={(status) => {
+            void handleStatusChange(status);
+          }}
+        />
       )}
 
       {activeSubmenu === 'room' && (
-        <div
-          ref={submenuRef}
-          role="menu"
-          aria-label="Assign appointment room"
-          data-context-menu="true"
-          className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
-          style={submenuStyle}
-        >
-          <div className="flex max-h-[260px] flex-col gap-0.5 overflow-y-auto">
-            {roomOptions.length > 0 ? (
-              roomOptions.map((room, index) => {
-                const isSaving = savingKey === getRoomSavingKey(room.key);
-                const roomStatusLabel = getRoomStatusLabel(room.selected, isSaving);
-
-                return (
-                  <React.Fragment key={room.key}>
-                    {index > 0 ? (
-                      <div className="mx-1 border-t border-white/30" aria-hidden="true" />
-                    ) : null}
-                    <button
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={room.selected}
-                      className={getMenuItemClassName(false, room.selected)}
-                      onClick={() => {
-                        void room.onSelect();
-                      }}
-                      disabled={isSaving}
-                    >
-                      <span className="truncate">{room.label}</span>
-                      {roomStatusLabel ? (
-                        <span className="shrink-0 text-[8px] opacity-60">{roomStatusLabel}</span>
-                      ) : null}
-                    </button>
-                  </React.Fragment>
-                );
-              })
-            ) : (
-              <div className="px-1.5 py-1 text-[9px] leading-3.5 text-text-secondary">
-                No rooms available
-              </div>
-            )}
-          </div>
-        </div>
+        <RoomSubmenu
+          submenuRef={submenuRef}
+          submenuStyle={submenuStyle}
+          roomOptions={roomOptions}
+          savingKey={savingKey}
+        />
       )}
     </>
   );

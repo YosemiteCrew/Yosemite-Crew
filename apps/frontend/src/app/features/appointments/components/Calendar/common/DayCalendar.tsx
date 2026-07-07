@@ -12,7 +12,6 @@ import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { calcNearestAvailableMinute } from '@/app/features/appointments/components/Calendar/calendarDrop';
 import {
   DEFAULT_CALENDAR_FOCUS_MINUTES,
-  EVENT_HORIZONTAL_GAP_PX,
   getFirstRelevantTimedEventStart,
   getNowTopPxForWindow,
   MINUTES_PER_STEP,
@@ -27,13 +26,7 @@ import {
 import { AppointmentViewIntent, LaidOutEvent } from '@/app/features/appointments/types/calendar';
 import TimeLabels from '@/app/features/appointments/components/Calendar/common/TimeLabels';
 import HorizontalLines from '@/app/features/appointments/components/Calendar/common/HorizontalLines';
-import { getStatusStyle } from '@/app/config/statusConfig';
-import Image from 'next/image';
 import { Appointment } from '@yosemite-crew/types';
-import Next from '@/app/ui/primitives/Icons/Next';
-import Back from '@/app/ui/primitives/Icons/Back';
-import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
-import { getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { useCalendarNavigation, getDateDisplay } from '@/app/hooks/useCalendarNavigation';
 import { createPortal } from 'react-dom';
 import {
@@ -47,10 +40,13 @@ import {
 import { useCalendarNow } from '@/app/features/appointments/components/Calendar/useCalendarNow';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
 import { createInvoiceByAppointmentId } from '@/app/lib/paymentStatus';
-import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import AppointmentPopover from '@/app/features/appointments/components/Calendar/common/AppointmentPopover';
 import AppointmentContextMenu from '@/app/features/appointments/components/Calendar/common/AppointmentContextMenu';
 import { useNotify } from '@/app/hooks/useNotify';
+import DayCalendarHeader from '@/app/features/appointments/components/Calendar/common/DayCalendarHeader';
+import AllDayEventsRow from '@/app/features/appointments/components/Calendar/common/AllDayEventsRow';
+import TimedEventMarker from '@/app/features/appointments/components/Calendar/common/TimedEventMarker';
+import { getEventKey } from '@/app/features/appointments/components/Calendar/common/dayCalendarHelpers';
 
 type DayCalendarProps = {
   events: Appointment[];
@@ -86,45 +82,7 @@ type DayCalendarProps = {
   skipAutoScroll?: boolean;
 };
 
-const getCompanionDisplayName = (appointment: Appointment) =>
-  formatCompanionNameWithOwnerLastName(
-    (appointment.companion ?? appointment.patient).name,
-    (appointment.companion ?? appointment.patient).parent
-  );
-
-const getAllDayAppointmentAriaLabel = (appointment: Appointment) => {
-  const concernSuffix = appointment.concern ? `. ${appointment.concern}` : '';
-  return `All-day appointment for ${getCompanionDisplayName(appointment)}${concernSuffix}`;
-};
-
 const MARKER_CLICK_DELAY_MS = 180;
-
-const getEventKey = (event: Appointment, index: number, source: 'all-day' | 'timed') =>
-  `${source}-${(event.companion ?? event.patient).name}-${event.startTime.toISOString()}-${index}`;
-
-const setCustomDragGhost = (
-  event: React.DragEvent<HTMLButtonElement>,
-  appointment: Appointment
-) => {
-  const ghost = document.createElement('img');
-  ghost.src = getSafeImageUrl(
-    getAppointmentCompanionPhotoUrl(appointment.companion ?? appointment.patient),
-    (appointment.companion ?? appointment.patient).species.toLowerCase() as ImageType
-  );
-  ghost.width = 24;
-  ghost.height = 24;
-  ghost.style.position = 'fixed';
-  ghost.style.top = '-9999px';
-  ghost.style.left = '-9999px';
-  ghost.style.width = '24px';
-  ghost.style.height = '24px';
-  ghost.style.borderRadius = '999px';
-  document.body.appendChild(ghost);
-  event.dataTransfer.setDragImage(ghost, 12, 12);
-  globalThis.setTimeout(() => {
-    ghost.remove();
-  }, 0);
-};
 
 const shouldIgnoreTimelineCreate = (target: EventTarget | null) => {
   if (!(target instanceof HTMLElement)) return false;
@@ -534,56 +492,21 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between p-2 border-b border-grey-light shrink-0">
-        <Back onClick={handlePrevDay} />
-        <div className="flex items-center gap-2 text-center">
-          <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
-          <div className="text-body-4-emphasis text-white size-10 flex items-center justify-center rounded-full bg-text-brand">
-            {dateNumber}
-          </div>
-        </div>
-        <Next onClick={handleNextDay} />
-      </div>
+      <DayCalendarHeader
+        weekday={weekday}
+        dateNumber={dateNumber}
+        onPrevDay={handlePrevDay}
+        onNextDay={handleNextDay}
+      />
       {allDayEvents.length > 0 && (
-        <div className="p-2 border-b border-grey-light bg-slate-50 shrink-0">
-          <div className="text-xs font-satoshi text-grey-text mb-1">All-day</div>
-          <div className="flex flex-wrap gap-2">
-            {allDayEvents.map((ev, idx) => {
-              const itemKey = getEventKey(ev, idx, 'all-day');
-              return (
-                <button
-                  key={itemKey}
-                  type="button"
-                  aria-haspopup="dialog"
-                  aria-expanded={activePopoverKey === itemKey}
-                  aria-controls={appointmentPopoverId}
-                  aria-label={getAllDayAppointmentAriaLabel(ev)}
-                  onClick={(event) => handleMarkerClick(event, itemKey)}
-                  onDoubleClick={() => handleMarkerDoubleClick(ev)}
-                  onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
-                  className="flex items-center gap-2 rounded-full! px-3 py-1 text-xs font-satoshi"
-                  style={getStatusStyle(ev.status)}
-                >
-                  <Image
-                    src={getSafeImageUrl(
-                      getAppointmentCompanionPhotoUrl(ev.companion),
-                      (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
-                    )}
-                    height={20}
-                    width={20}
-                    priority
-                    className="size-5 rounded-full object-cover"
-                    alt={''}
-                  />
-                  <span className="font-medium truncate max-w-40">
-                    {getCompanionDisplayName(ev)}
-                  </span>
-                  <span className="opacity-70 truncate max-w-30">{ev.concern || ''}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <AllDayEventsRow
+          allDayEvents={allDayEvents}
+          activePopoverKey={activePopoverKey}
+          appointmentPopoverId={appointmentPopoverId}
+          onMarkerClick={handleMarkerClick}
+          onMarkerDoubleClick={handleMarkerDoubleClick}
+          onMarkerContextMenu={handleMarkerContextMenu}
+        />
       )}
       <section
         aria-label="Appointment timeline"
@@ -700,118 +623,25 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
                 </div>
               </div>
             )}
-            {laidOut.map((ev, i) => {
-              const itemKey = getEventKey(ev, i, 'timed');
-              const widthPercent = 100 / ev.columnsCount;
-              const leftPercent = widthPercent * ev.columnIndex;
-              const horizontalGapPx = EVENT_HORIZONTAL_GAP_PX;
-              const verticalGapPx = 0;
-              const isZoomOut = zoomMode === 'out';
-              const statusStyle = getStatusStyle(ev.status);
-              const serviceName = ev.appointmentType?.name?.trim() ?? '';
-              const concern = ev.concern?.trim() ?? '';
-              const subtitle = [serviceName, concern].filter(Boolean).join(' • ');
-              const companionDisplayName = getCompanionDisplayName(ev);
-              const markerTitle = subtitle
-                ? `${companionDisplayName} • ${subtitle}`
-                : companionDisplayName;
-              const draggable = !!canDragAppointment?.(ev);
-              return (
-                <div
-                  key={(ev.companion ?? ev.patient).name + i}
-                  className={`absolute scrollbar-hidden ${isZoomOut ? 'rounded-md! p-0 bg-transparent' : 'rounded-xl! px-2 py-1.5 overflow-hidden'}`}
-                  style={{
-                    top: ev.topPx * yScale,
-                    height: Math.max(
-                      ev.heightPx * yScale - (isZoomOut ? 0 : verticalGapPx),
-                      isZoomOut ? 3 : 40
-                    ),
-                    left: `calc(${leftPercent}% + ${horizontalGapPx}px)`,
-                    width: `calc(${widthPercent}% - ${horizontalGapPx * 2}px)`,
-                    ...(isZoomOut
-                      ? {}
-                      : {
-                          backgroundColor: statusStyle.backgroundColor,
-                          color: statusStyle.color,
-                          borderWidth: '1px',
-                          borderStyle: 'solid',
-                          borderColor: statusStyle.borderColor,
-                        }),
-                  }}
-                >
-                  {isZoomOut && (
-                    <span
-                      aria-hidden
-                      className="pointer-events-none absolute inset-y-0 left-0.5 right-0.5 rounded-sm"
-                      style={{
-                        backgroundColor: statusStyle.backgroundColor,
-                      }}
-                    />
-                  )}
-                  <button
-                    type="button"
-                    className={`min-w-0 ${
-                      draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-                    } ${isZoomOut ? 'absolute inset-x-0 -inset-y-2 z-20' : 'size-full flex items-center gap-2'}`}
-                    aria-haspopup="dialog"
-                    aria-expanded={activePopoverKey === itemKey}
-                    aria-controls={appointmentPopoverId}
-                    onClick={(event) => handleMarkerClick(event, itemKey)}
-                    onDoubleClick={() => handleMarkerDoubleClick(ev)}
-                    onContextMenu={(event) => handleMarkerContextMenu(event, ev)}
-                    draggable={draggable}
-                    title={markerTitle}
-                    onDragStart={(event) => {
-                      event.dataTransfer.effectAllowed = 'move';
-                      event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
-                      setCustomDragGhost(event, ev);
-                      document.body.style.cursor = 'grabbing';
-                      onAppointmentDragStart?.(ev);
-                    }}
-                    onDragEnd={() => {
-                      setDropPreviewMinute(null);
-                      document.body.style.cursor = '';
-                      onAppointmentDragEnd?.();
-                    }}
-                    style={{
-                      opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
-                    }}
-                  >
-                    {!isZoomOut && (
-                      <>
-                        <div className="min-w-0 flex-1 self-center">
-                          <div className="w-full flex flex-col items-center justify-center text-center gap-0.5">
-                            <div className="truncate w-full text-caption-1 font-bold leading-[1.2]">
-                              {companionDisplayName}
-                            </div>
-                            {subtitle && (
-                              <div className="font-satoshi text-[11px] font-normal leading-[1.2] tracking-[-0.22px] w-full truncate">
-                                {subtitle}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex-none self-center">
-                          <Image
-                            src={getSafeImageUrl(
-                              getAppointmentCompanionPhotoUrl(ev.companion),
-                              (ev.companion ?? ev.patient).species.toLowerCase() as ImageType
-                            )}
-                            height={26}
-                            width={26}
-                            priority
-                            className="rounded-full border border-white/60 object-cover"
-                            style={{ width: 26, height: 26 }}
-                            alt=""
-                          />
-                        </div>
-                      </>
-                    )}
-                    {isZoomOut && <span className="sr-only">{markerTitle}</span>}
-                  </button>
-                </div>
-              );
-            })}
+            {laidOut.map((ev, i) => (
+              <TimedEventMarker
+                key={(ev.companion ?? ev.patient).name + i}
+                ev={ev}
+                itemKey={getEventKey(ev, i, 'timed')}
+                yScale={yScale}
+                zoomMode={zoomMode}
+                activePopoverKey={activePopoverKey}
+                appointmentPopoverId={appointmentPopoverId}
+                draggedAppointmentId={draggedAppointmentId}
+                canDragAppointment={canDragAppointment}
+                onMarkerClick={handleMarkerClick}
+                onMarkerDoubleClick={handleMarkerDoubleClick}
+                onMarkerContextMenu={handleMarkerContextMenu}
+                onAppointmentDragStart={onAppointmentDragStart}
+                onAppointmentDragEnd={onAppointmentDragEnd}
+                onDropPreviewClear={() => setDropPreviewMinute(null)}
+              />
+            ))}
           </div>
         </div>
         <div style={{ height: zoomMode === 'out' ? 72 : 12 }} />
