@@ -547,6 +547,11 @@ const EMPTY_SNAPSHOT: EditSnapshot = {
   phone: '',
 };
 
+type ModalSyncState = {
+  initialMode: ModalMode;
+  showModal: boolean;
+};
+
 const computeHasUnsavedChanges = (
   snap: EditSnapshot,
   companionFormData: ExtCompanionForValidation,
@@ -582,10 +587,11 @@ const createCompanionFlow = async (
     // Persist parent-level edits (e.g. client alerts) for the existing parent;
     // createCompanion/linkCompanion only upsert the parent into the local store,
     // so without this the alerts would disappear after a refresh.
-    await updateParent(normalizedParent);
     if (companionFormData.id) {
+      await updateParent(normalizedParent);
       return (await linkCompanion(payload, normalizedParent)) ?? undefined;
     }
+    await updateParent(normalizedParent);
     return (await createCompanion(payload, normalizedParent)) ?? undefined;
   }
   const parentId = await createParent(normalizedParent);
@@ -714,8 +720,8 @@ const AddCompanionCentralModal = ({
   const [parentFormData, setParentFormData] = useState<StoredParent>(EMPTY_STORED_PARENT);
   const [parentErrors, setParentErrors] = useState<Partial<Record<string, string>>>({});
   const [parentDOB, setParentDOB] = useState<Date | null>(null);
-  // parentSearchQuery drives the API; suppress flag prevents re-fetching after user selects a result
-  const [parentSearchQuery, setParentSearchQuery] = useState('');
+  const parentSearchQueryRef = useRef('');
+  const parentSearchTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const parentSelectionRef = useRef(false);
   const [parentResults, setParentResults] = useState<StoredParent[]>([]);
   const defaultPhoneData = useMemo(() => findPhoneData('', ''), []);
@@ -739,7 +745,7 @@ const AddCompanionCentralModal = ({
     useState<ExtCompanionForValidation>(EMPTY_STORED_COMPANION);
   const [companionErrors, setCompanionErrors] = useState<Partial<Record<string, string>>>({});
   const [companionDOB, setCompanionDOB] = useState<Date | null>(null);
-  const [companionResults, setCompanionResults] = useState<StoredCompanion[]>([]);
+  const companionResultsRef = useRef<StoredCompanion[]>([]);
 
   // ── Species / breed ──
   const [speciesOptions, setSpeciesOptions] = useState<SpeciesOption[]>(DEFAULT_SPECIES_OPTIONS);
@@ -754,37 +760,70 @@ const AddCompanionCentralModal = ({
   const [clientAlertPriority, setClientAlertPriority] = useState<AlertPriority>('medium');
   const [clientAlerts, setClientAlerts] = useState<CompanionAlert[]>([]);
 
-  useLayoutEffect(() => {
-    setMode(initialMode);
-    setPendingStatus(null);
-  }, [initialMode, showModal]);
+  const clearParentSearchTimeout = useCallback(() => {
+    if (parentSearchTimeoutRef.current !== null) {
+      globalThis.clearTimeout(parentSearchTimeoutRef.current);
+      parentSearchTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleParentSearch = useCallback(
+    (query: string) => {
+      const trimmed = query.trim();
+      parentSearchQueryRef.current = query;
+      clearParentSearchTimeout();
+      if (!trimmed) {
+        setParentResults([]);
+        return;
+      }
+      if (parentSelectionRef.current) {
+        parentSelectionRef.current = false;
+        return;
+      }
+      parentSearchTimeoutRef.current = globalThis.setTimeout(() => {
+        fetchParentResults(trimmed).then(setParentResults);
+      }, 300);
+    },
+    [clearParentSearchTimeout]
+  );
 
   // ── Reset on close ──
   const resetAll = useCallback(() => {
     setParentFormData(EMPTY_STORED_PARENT);
     setParentErrors({});
     setParentDOB(null);
-    setParentSearchQuery('');
+    parentSearchQueryRef.current = '';
+    clearParentSearchTimeout();
     setParentResults([]);
     setSelectedCountryCode(defaultPhoneData.selectedCode);
     setLocalPhoneNumber('');
     setCompanionFormData(EMPTY_STORED_COMPANION);
     setCompanionErrors({});
     setCompanionDOB(null);
-    setCompanionResults([]);
+    companionResultsRef.current = [];
     setAlertInput('');
     setAlertPriority('medium');
     setClientAlertInput('');
     setClientAlertPriority('medium');
     setClientAlerts([]);
-  }, [defaultPhoneData.selectedCode]);
+  }, [clearParentSearchTimeout, defaultPhoneData.selectedCode]);
 
-  useLayoutEffect(() => {
+  const modalSyncRef = useRef<ModalSyncState>({ initialMode, showModal });
+  if (
+    modalSyncRef.current.initialMode !== initialMode ||
+    modalSyncRef.current.showModal !== showModal
+  ) {
+    modalSyncRef.current = { initialMode, showModal };
     if (!showModal) {
       resetAll();
+    }
+    if (mode !== initialMode) {
       setMode(initialMode);
     }
-  }, [showModal, resetAll, initialMode]);
+    if (pendingStatus !== null) {
+      setPendingStatus(null);
+    }
+  }
 
   // ── Populate edit form from viewCompanion ──
   const prevEditSyncRef = useRef({ mode, viewCompanion });
@@ -818,51 +857,38 @@ const AddCompanionCentralModal = ({
     }
   }
 
-  // ── Parent search — debounced API call; skipped once after a selection ──
-  useEffect(() => {
-    const q = parentSearchQuery.trim();
-    if (!q) {
-      setParentResults([]);
-      return;
-    }
-    if (parentSelectionRef.current) {
-      parentSelectionRef.current = false;
-      return;
-    }
-    const t = globalThis.setTimeout(() => {
-      fetchParentResults(q).then(setParentResults);
-    }, 300);
-    return () => globalThis.clearTimeout(t);
-  }, [parentSearchQuery]);
-
   // ── Companion search — load all companions when a parent is selected ──
   useEffect(() => {
     const pid = parentFormData.id;
     if (!pid) {
-      setCompanionResults([]);
+      companionResultsRef.current = [];
       return;
     }
     let mounted = true;
     getCompanionForParent(pid)
       .then((c) => {
-        if (mounted) setCompanionResults(c);
+        if (mounted) companionResultsRef.current = c;
       })
       .catch(() => {
-        if (mounted) setCompanionResults([]);
+        if (mounted) companionResultsRef.current = [];
       });
     return () => {
       mounted = false;
     };
   }, [parentFormData.id]);
 
-  // ── Sync DOBs ──
-  useEffect(() => {
-    setParentFormData((prev) => ({ ...prev, birthDate: parentDOB ?? undefined }));
-  }, [parentDOB]);
+  // ── DOB picker handlers — update the picker's own Date state and mirror the
+  // value into the persisted form object in the same event, instead of a
+  // useEffect watching the picker state (avoids an extra render per change). ──
+  const handleParentDOBChange = useCallback((date: Date | null) => {
+    setParentDOB(date);
+    setParentFormData((prev) => ({ ...prev, birthDate: date ?? undefined }));
+  }, []);
 
-  useEffect(() => {
-    setCompanionFormData((prev) => ({ ...prev, dateOfBirth: companionDOB ?? new Date() }));
-  }, [companionDOB]);
+  const handleCompanionDOBChange = useCallback((date: Date | null) => {
+    setCompanionDOB(date);
+    setCompanionFormData((prev) => ({ ...prev, dateOfBirth: date ?? new Date() }));
+  }, []);
 
   // ── Species codes ──
   useEffect(() => {
@@ -907,7 +933,7 @@ const AddCompanionCentralModal = ({
     setLocalPhoneNumber(pd.localNumber);
     setParentDOB(sel.birthDate ? new Date(sel.birthDate) : null);
     setParentResults([]); // clear results so dropdown closes
-    setParentSearchQuery(buildFullName(sel.firstName, sel.lastName));
+    parentSearchQueryRef.current = buildFullName(sel.firstName, sel.lastName);
   };
 
   const handlePhoneChange = (value: string) => {
@@ -964,7 +990,7 @@ const AddCompanionCentralModal = ({
     // Look in store first (name search), fall back to parent-scoped results
     const cp = allCompanionParents.find((x) => x.companion.id === id);
     const sel: StoredCompanion | undefined =
-      cp?.companion ?? companionResults.find((c) => c.id === id);
+      cp?.companion ?? companionResultsRef.current.find((c) => c.id === id);
     if (!sel) return;
     setCompanionFormData({
       ...sel,
@@ -981,9 +1007,9 @@ const AddCompanionCentralModal = ({
       setLocalPhoneNumber(pd.localNumber);
       setParentDOB(p.birthDate ? new Date(p.birthDate) : null);
       parentSelectionRef.current = true;
-      setParentSearchQuery(buildFullName(p.firstName, p.lastName));
+      parentSearchQueryRef.current = buildFullName(p.firstName, p.lastName);
     }
-    setCompanionResults([]); // clear so dropdown closes
+    companionResultsRef.current = []; // clear so dropdown closes
   };
 
   // ── Handlers: alerts ──
@@ -1456,7 +1482,11 @@ const AddCompanionCentralModal = ({
                   <div className="grid grid-cols-2 gap-3">
                     <Datepicker
                       currentDate={companionDOB}
-                      setCurrentDate={setCompanionDOB}
+                      setCurrentDate={
+                        handleCompanionDOBChange as React.Dispatch<
+                          React.SetStateAction<Date | null>
+                        >
+                      }
                       type="input"
                       className="min-h-12!"
                       containerClassName="w-full"
@@ -1710,7 +1740,7 @@ const AddCompanionCentralModal = ({
                       onChange={(v) => {
                         setParentFormData((prev) => ({ ...prev, firstName: v }));
                         setParentErrors((prev) => ({ ...prev, firstName: undefined }));
-                        setParentSearchQuery(
+                        scheduleParentSearch(
                           [v, parentFormData.lastName].filter(Boolean).join(' ')
                         );
                       }}
@@ -1724,8 +1754,12 @@ const AddCompanionCentralModal = ({
                       value={parentFormData.lastName ?? ''}
                       inlabel="Last name"
                       onChange={(e) => {
-                        setParentFormData((prev) => ({ ...prev, lastName: e.target.value }));
+                        const nextLastName = e.target.value;
+                        setParentFormData((prev) => ({ ...prev, lastName: nextLastName }));
                         setParentErrors((prev) => ({ ...prev, lastName: undefined }));
+                        scheduleParentSearch(
+                          [parentFormData.firstName, nextLastName].filter(Boolean).join(' ')
+                        );
                       }}
                       error={parentErrors.lastName}
                       className="min-h-12!"
@@ -1748,7 +1782,9 @@ const AddCompanionCentralModal = ({
                     <div className="flex items-start gap-1.5">
                       <Datepicker
                         currentDate={parentDOB}
-                        setCurrentDate={setParentDOB}
+                        setCurrentDate={
+                          handleParentDOBChange as React.Dispatch<React.SetStateAction<Date | null>>
+                        }
                         type="input"
                         className="min-h-12!"
                         containerClassName="w-full"

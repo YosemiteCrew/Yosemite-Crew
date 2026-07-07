@@ -542,15 +542,16 @@ const LinkedName = ({ children }: { children: React.ReactNode }) => (
   <span className="font-medium text-text-brand">{children}</span>
 );
 
-const MoneyText = ({ value, tone }: { value: string; tone: MoneyTone }) => {
-  const classNameByTone: Record<MoneyTone, string> = {
-    neutral: 'text-neutral-900',
-    success: 'text-pill-success-text',
-    danger: 'text-danger-700',
-    warning: 'text-pill-warning-text',
-  };
-  return <span className={`font-bold ${classNameByTone[tone]}`}>{value}</span>;
+const MONEY_CLASS_NAME_BY_TONE: Record<MoneyTone, string> = {
+  neutral: 'text-neutral-900',
+  success: 'text-pill-success-text',
+  danger: 'text-danger-700',
+  warning: 'text-pill-warning-text',
 };
+
+const MoneyText = ({ value, tone }: { value: string; tone: MoneyTone }) => (
+  <span className={`font-bold ${MONEY_CLASS_NAME_BY_TONE[tone]}`}>{value}</span>
+);
 
 const LoadingIcon = () => <LuLoader className="animate-spin" aria-hidden="true" />;
 
