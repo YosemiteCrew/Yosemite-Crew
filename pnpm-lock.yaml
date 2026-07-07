@@ -652,15 +652,6 @@ importers:
 
   apps/mobileAppYC:
     dependencies:
-      '@aws-amplify/react-native':
-        specifier: ^1.1.10
-        version: 1.3.2(react-native-get-random-values@1.11.0)(react-native@0.81.4)
-      '@aws-amplify/ui-react-native':
-        specifier: ^2.6.2
-        version: 2.6.4(@aws-amplify/core@6.16.3)(@types/react@19.2.11)(aws-amplify@6.16.0)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0)
-      '@bottom-tabs/react-navigation':
-        specifier: ^1.1.0
-        version: 1.1.0(@react-navigation/native@7.1.28)(react-native-bottom-tabs@1.1.0)(react-native@0.81.4)(react@19.1.0)
       '@callstack/liquid-glass':
         specifier: ^0.7.0
         version: 0.7.0(react-native@0.81.4)(react@19.1.0)
@@ -670,9 +661,6 @@ importers:
       '@gorhom/bottom-sheet':
         specifier: ^5
         version: 5.2.8(@types/react@19.2.11)(react-native-gesture-handler@2.30.0)(react-native-reanimated@4.2.1)(react-native@0.81.4)(react@19.1.0)
-      '@hookform/resolvers':
-        specifier: ^5.2.2
-        version: 5.2.2(react-hook-form@7.71.1)
       '@invertase/react-native-apple-authentication':
         specifier: ^2.4.1
         version: 2.5.1
@@ -697,9 +685,6 @@ importers:
       '@react-native-documents/picker':
         specifier: ^11.0.0
         version: 11.0.4(react-native@0.81.4)(react@19.1.0)
-      '@react-native-documents/viewer':
-        specifier: ^2.0.2
-        version: 2.0.3(react-native@0.81.4)(react@19.1.0)
       '@react-native-firebase/app':
         specifier: ^23.5.0
         version: 23.8.6(@react-native-async-storage/async-storage@2.2.0)(react-native@0.81.4)(react@19.1.0)
@@ -712,9 +697,6 @@ importers:
       '@react-native-google-signin/google-signin':
         specifier: ^15.0.0
         version: 15.0.0(react-native@0.81.4)(react@19.1.0)
-      '@react-native-masked-view/masked-view':
-        specifier: ^0.3.2
-        version: 0.3.2(react-native@0.81.4)(react@19.1.0)
       '@react-native/codegen':
         specifier: 0.81.4
         version: 0.81.4(@babel/core@7.29.7)
@@ -726,16 +708,16 @@ importers:
         version: 0.81.4(@types/react@19.2.11)(react-native@0.81.4)(react@19.1.0)
       '@react-navigation/bottom-tabs':
         specifier: ^7.4.7
-        version: 7.12.0(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0)
+        version: 7.12.0(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0)
       '@react-navigation/drawer':
         specifier: ^7.5.8
-        version: 7.8.0(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.1.28)(react-native-gesture-handler@2.30.0)(react-native-reanimated@4.2.1)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0)
+        version: 7.8.0(@react-navigation/native@7.1.28)(react-native-gesture-handler@2.30.0)(react-native-reanimated@4.2.1)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0)
       '@react-navigation/native':
         specifier: ^7.1.17
         version: 7.1.28(react-native@0.81.4)(react@19.1.0)
       '@react-navigation/native-stack':
         specifier: ^7.3.26
-        version: 7.12.0(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0)
+        version: 7.12.0(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0)
       '@reduxjs/toolkit':
         specifier: ^2.6.1
         version: 2.11.2(react-redux@9.2.0)(react@19.1.0)
@@ -750,22 +732,13 @@ importers:
         version: link:../../packages/types
       aws-amplify:
         specifier: ^6.15.6
-        version: 6.16.0(@aws-amplify/react-native@1.3.2)
+        version: 6.16.0
       axios:
         specifier: 1.16.0
         version: 1.16.0(debug@4.4.3)
-      date-fns:
-        specifier: ^4.1.0
-        version: 4.1.0
-      date-fns-tz:
-        specifier: ^3.2.0
-        version: 3.2.0(date-fns@4.1.0)
       i18next:
         specifier: ^25.4.1
         version: 25.8.1(typescript@5.9.3)
-      i18next-resources-to-backend:
-        specifier: ^1.2.1
-        version: 1.2.1
       js-sha256:
         specifier: ^0.11.1
         version: 0.11.1
@@ -889,18 +862,9 @@ importers:
       toastify-react-native:
         specifier: ^7.2.3
         version: 7.2.3(react-native@0.81.4)(react@19.1.0)
-      ui-react-native:
-        specifier: 'link: @aws-amplify/ui-react-native'
-        version: 'link: @aws-amplify/ui-react-native'
-      use-sync-external-store:
-        specifier: ^1.6.0
-        version: 1.6.0(react@19.1.0)
       uuid:
         specifier: 11.1.1
         version: 11.1.1
-      yup:
-        specifier: ^1.7.0
-        version: 1.7.1
     devDependencies:
       '@aws-amplify/backend':
         specifier: ^1.16.1
@@ -986,12 +950,6 @@ importers:
       react-test-renderer:
         specifier: 19.1.0
         version: 19.1.0(react@19.1.0)
-      reactotron-react-native:
-        specifier: ^5.1.17
-        version: 5.1.18(react-native@0.81.4)
-      reactotron-redux:
-        specifier: ^3.2.1
-        version: 3.2.1(reactotron-core-client@2.9.9)(redux@5.0.1)
       redux-mock-store:
         specifier: ^1.5.5
         version: 1.5.5(redux@5.0.1)
@@ -1433,7 +1391,7 @@ packages:
       - zod
     dev: true
 
-  /@aws-amplify/auth@6.18.0(@aws-amplify/core@6.16.0)(@aws-amplify/react-native@1.3.2):
+  /@aws-amplify/auth@6.18.0(@aws-amplify/core@6.16.0):
     resolution: {integrity: sha512-m2ZHfEyN6xDEP5yC0KAYDS0CxtA9eaTpNm5LWPd1GbN/Qqwnzld7tagdc9HZViCkPkZy8Bnwlm9cw24wqQz8pQ==}
     peerDependencies:
       '@aws-amplify/core': ^6.1.0
@@ -1443,7 +1401,6 @@ packages:
         optional: true
     dependencies:
       '@aws-amplify/core': 6.16.0
-      '@aws-amplify/react-native': 1.3.2(react-native-get-random-values@1.11.0)(react-native@0.81.4)
       '@aws-crypto/sha256-js': 5.2.0
       '@smithy/types': 3.7.2
       tslib: 2.8.1
@@ -1903,19 +1860,6 @@ packages:
     dependencies:
       '@aws-crypto/sha256-js': 5.2.0
       '@aws-sdk/types': 3.723.0
-      '@smithy/util-hex-encoding': 2.0.0
-      '@types/uuid': 9.0.8
-      js-cookie: 3.0.7
-      rxjs: 7.8.2
-      tslib: 2.8.1
-      uuid: 11.1.1
-    dev: false
-
-  /@aws-amplify/core@6.16.3:
-    resolution: {integrity: sha512-wfB9lLEoLiyUEZAYgy1pOoqJqvkBTPMsx/F406HQNTg7b8+fHi7j5GVapJAg7JhmbJbjfmGtTg6EKY/DqF19kw==}
-    dependencies:
-      '@aws-crypto/sha256-js': 5.2.0
-      '@aws-sdk/types': 3.973.8
       '@smithy/util-hex-encoding': 2.0.0
       '@types/uuid': 9.0.8
       js-cookie: 3.0.7
@@ -2637,23 +2581,6 @@ packages:
       - react-native-b4a
     dev: true
 
-  /@aws-amplify/react-native@1.3.2(react-native-get-random-values@1.11.0)(react-native@0.81.4):
-    resolution: {integrity: sha512-U1yb57B21jFTt6xzwO6Q3DvBMEFcSKYQyW07rpuej8huAi/2L2ya16Uz+R8QauZuhOspHxnYeibKcP4wx1ym0Q==}
-    peerDependencies:
-      '@aws-amplify/rtn-passkeys': ^1.0.0
-      react-native: '>=0.70'
-      react-native-get-random-values: '>=1.8.0'
-    peerDependenciesMeta:
-      '@aws-amplify/rtn-passkeys':
-        optional: true
-    dependencies:
-      base-64: 1.0.0
-      buffer: 6.0.3
-      react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-      react-native-get-random-values: 1.11.0(react-native@0.81.4)
-      react-native-url-polyfill: 3.0.0(react-native@0.81.4)
-    dev: false
-
   /@aws-amplify/sandbox@2.1.4(@aws-cdk/cli-plugin-contract@2.182.2)(@aws-sdk/client-amplify@3.982.0)(@aws-sdk/client-cloudformation@3.982.0)(@aws-sdk/client-s3@3.982.0)(@types/node@22.19.8)(aws-cdk-lib@2.246.0)(constructs@10.6.0)(typescript@5.9.3):
     resolution: {integrity: sha512-taDtO6wDVHqya7m33T0awy+rvwQC01aS5bq5L1vXXZqxoAZBigNs7LrnP+lRSGo00nQwBeqcYJ0Li0gXfYU/Xg==}
     dependencies:
@@ -2724,82 +2651,6 @@ packages:
       crc-32: 1.2.2
       fast-xml-parser: 5.7.0
       tslib: 2.8.1
-    dev: false
-
-  /@aws-amplify/ui-react-core-notifications@2.2.13(@aws-amplify/core@6.16.3)(@types/react@19.2.11)(aws-amplify@6.16.0)(react@19.1.0):
-    resolution: {integrity: sha512-KG1t6VNpGdnDfwUfKL2/k+hZbGaAf82Cku0qHAhMGzsyT5KUyvk0tZ2VmI3shHT2AC0O+b+aVkqYCSH7NcB7yQ==}
-    peerDependencies:
-      aws-amplify: ^6.14.3
-      react: ^16.14 || ^17 || ^18 || ^19
-    dependencies:
-      '@aws-amplify/ui': 6.13.0(@aws-amplify/core@6.16.3)(aws-amplify@6.16.0)(xstate@4.38.3)
-      '@aws-amplify/ui-react-core': 3.4.7(@aws-amplify/core@6.16.3)(@types/react@19.2.11)(aws-amplify@6.16.0)(react@19.1.0)
-      aws-amplify: 6.16.0(@aws-amplify/react-native@1.3.2)
-      react: 19.1.0
-    transitivePeerDependencies:
-      - '@aws-amplify/core'
-      - '@types/react'
-      - '@xstate/fsm'
-      - xstate
-    dev: false
-
-  /@aws-amplify/ui-react-core@3.4.7(@aws-amplify/core@6.16.3)(@types/react@19.2.11)(aws-amplify@6.16.0)(react@19.1.0):
-    resolution: {integrity: sha512-gMf5TleB9dYj9EyOE/ov81dfI2mc9VQMjIFHVC/+HKHr+vI8TD299BWQ5mEUrQ8m7WuQOWboyLMqeBjK9ri5QQ==}
-    peerDependencies:
-      aws-amplify: ^6.14.3
-      react: ^16.14 || ^17 || ^18 || ^19
-    dependencies:
-      '@aws-amplify/ui': 6.13.0(@aws-amplify/core@6.16.3)(aws-amplify@6.16.0)(xstate@4.38.3)
-      '@xstate/react': 3.2.2(@types/react@19.2.11)(react@19.1.0)(xstate@4.38.3)
-      aws-amplify: 6.16.0(@aws-amplify/react-native@1.3.2)
-      lodash: 4.18.0
-      react: 19.1.0
-      react-hook-form: 7.53.2(react@19.1.0)
-      xstate: 4.38.3
-    transitivePeerDependencies:
-      - '@aws-amplify/core'
-      - '@types/react'
-      - '@xstate/fsm'
-    dev: false
-
-  /@aws-amplify/ui-react-native@2.6.4(@aws-amplify/core@6.16.3)(@types/react@19.2.11)(aws-amplify@6.16.0)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0):
-    resolution: {integrity: sha512-4TOw6uiUMmVtYTaVOUPdSs4jvl3T9dtFDC/PHdF7177RPtCJjabmrKIT7MWTmBxukP2NaYChCUWZaleryC7ZEg==}
-    peerDependencies:
-      aws-amplify: ^6.14.3
-      react: '*'
-      react-native: '>=0.70'
-      react-native-safe-area-context: '*'
-    dependencies:
-      '@aws-amplify/ui': 6.13.0(@aws-amplify/core@6.16.3)(aws-amplify@6.16.0)(xstate@4.38.3)
-      '@aws-amplify/ui-react-core': 3.4.7(@aws-amplify/core@6.16.3)(@types/react@19.2.11)(aws-amplify@6.16.0)(react@19.1.0)
-      '@aws-amplify/ui-react-core-notifications': 2.2.13(@aws-amplify/core@6.16.3)(@types/react@19.2.11)(aws-amplify@6.16.0)(react@19.1.0)
-      aws-amplify: 6.16.0(@aws-amplify/react-native@1.3.2)
-      react: 19.1.0
-      react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-      react-native-safe-area-context: 5.6.2(react-native@0.81.4)(react@19.1.0)
-    transitivePeerDependencies:
-      - '@aws-amplify/core'
-      - '@types/react'
-      - '@xstate/fsm'
-      - xstate
-    dev: false
-
-  /@aws-amplify/ui@6.13.0(@aws-amplify/core@6.16.3)(aws-amplify@6.16.0)(xstate@4.38.3):
-    resolution: {integrity: sha512-8lN/ZrbtCls2Q6wcWnhUgLX141HOU6bRml0hcCSyuJSP6cl//MJZ1FaSc/3nYr76UTisWbYX3tEOVgKxzhfS9g==}
-    peerDependencies:
-      '@aws-amplify/core': '*'
-      aws-amplify: ^6.14.3
-      xstate: ^4.33.6
-    peerDependenciesMeta:
-      xstate:
-        optional: true
-    dependencies:
-      '@aws-amplify/core': 6.16.3
-      aws-amplify: 6.16.0(@aws-amplify/react-native@1.3.2)
-      csstype: 3.2.3
-      lodash: 4.18.0
-      tslib: 2.8.1
-      xstate: 4.38.3
     dev: false
 
   /@aws-cdk/asset-awscli-v1@2.2.263:
@@ -6587,6 +6438,7 @@ packages:
     dependencies:
       '@smithy/types': 4.14.1
       tslib: 2.8.1
+    dev: true
 
   /@aws-sdk/util-arn-parser@3.972.2:
     resolution: {integrity: sha512-VkykWbqMjlSgBFDyrY3nOSqupMc6ivXuGmvci6Q3NnLq5kC+mKQe2QBZ4nrWRE/jqOxeFP2uYzLtwncYYcvQDg==}
@@ -9579,21 +9431,6 @@ packages:
   /@bcoe/v8-coverage@0.2.3:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: true
-
-  /@bottom-tabs/react-navigation@1.1.0(@react-navigation/native@7.1.28)(react-native-bottom-tabs@1.1.0)(react-native@0.81.4)(react@19.1.0):
-    resolution: {integrity: sha512-+4YppCodABcSNIgJiq95QUQ+3ClVBG+rLG3WmYI0+/nbxqKbCz6luFBep4KFOj98Iplj1JY2Ki6ix8CcOZVQ/Q==}
-    peerDependencies:
-      '@react-navigation/native': '>=7'
-      react: '*'
-      react-native: '*'
-      react-native-bottom-tabs: '*'
-    dependencies:
-      '@react-navigation/native': 7.1.28(react-native@0.81.4)(react@19.1.0)
-      color: 5.0.3
-      react: 19.1.0
-      react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-      react-native-bottom-tabs: 1.1.0(react-native@0.81.4)(react@19.1.0)
-    dev: false
 
   /@braintree/sanitize-url@6.0.4:
     resolution: {integrity: sha512-s3jaWicZd0pkP0jf5ysyHUI/RE7MHos6qlToFcGWXVp+ykHOy77OUMrfbgJ9it2C5bow7OIQwYYaHjk9XlBQ2A==}
@@ -13224,15 +13061,6 @@ packages:
       hono: 4.12.25
     dev: true
 
-  /@hookform/resolvers@5.2.2(react-hook-form@7.71.1):
-    resolution: {integrity: sha512-A/IxlMLShx3KjV/HeTcTfaMxdwy690+L/ZADoeaTltLx+CVuzkeVIPuybK3jrRfw7YZnmdKsVVHAlEPIAEUNlA==}
-    peerDependencies:
-      react-hook-form: ^7.55.0
-    dependencies:
-      '@standard-schema/utils': 0.3.0
-      react-hook-form: 7.71.1(react@19.1.0)
-    dev: false
-
   /@humanfs/core@0.19.1:
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
     engines: {node: '>=18.18.0'}
@@ -16233,16 +16061,6 @@ packages:
       react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
     dev: false
 
-  /@react-native-documents/viewer@2.0.3(react-native@0.81.4)(react@19.1.0):
-    resolution: {integrity: sha512-70Y1FNGJRm7Et+OnJ/00uAO9XsDFzZF2IZFi/uORclzaTnqLN8zv1rdxAh1F4mMiyEnP3AycjnJPhMzPTPZBNg==}
-    peerDependencies:
-      react: '*'
-      react-native: '>=0.79.0'
-    dependencies:
-      react: 19.1.0
-      react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-    dev: false
-
   /@react-native-firebase/app@23.8.6(@react-native-async-storage/async-storage@2.2.0)(react-native@0.81.4)(react@19.1.0):
     resolution: {integrity: sha512-oHM/0c5CbMSDLzIAjdQTH2im7Lr1AoajDYyehye9ge6zH/tuhCtwXtkf19zE0MyFsSqd06IoYRfZP7W05D4m+w==}
     peerDependencies:
@@ -16294,16 +16112,6 @@ packages:
     peerDependenciesMeta:
       expo:
         optional: true
-    dependencies:
-      react: 19.1.0
-      react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-    dev: false
-
-  /@react-native-masked-view/masked-view@0.3.2(react-native@0.81.4)(react@19.1.0):
-    resolution: {integrity: sha512-XwuQoW7/GEgWRMovOQtX3A4PrXhyaZm0lVUiY8qJDvdngjLms9Cpdck6SmGAUNqQwcj2EadHC1HwL0bEyoa/SQ==}
-    peerDependencies:
-      react: '>=16'
-      react-native: '>=0.57'
     dependencies:
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
@@ -16557,7 +16365,7 @@ packages:
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
 
-  /@react-navigation/bottom-tabs@7.12.0(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0):
+  /@react-navigation/bottom-tabs@7.12.0(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0):
     resolution: {integrity: sha512-/GtOfVWRligHG0mvX39I1FGdUWeWl0GVF2okEziQSQj0bOTrLIt7y44C3r/aCLkEpTVltCPGM3swqGTH3UfRCw==}
     peerDependencies:
       '@react-navigation/native': ^7.1.28
@@ -16566,7 +16374,7 @@ packages:
       react-native-safe-area-context: '>= 4.0.0'
       react-native-screens: '>= 4.0.0'
     dependencies:
-      '@react-navigation/elements': 2.9.5(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0)
+      '@react-navigation/elements': 2.9.5(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0)
       '@react-navigation/native': 7.1.28(react-native@0.81.4)(react@19.1.0)
       color: 4.2.3
       react: 19.1.0
@@ -16594,7 +16402,7 @@ packages:
       use-sync-external-store: 1.6.0(react@19.1.0)
     dev: false
 
-  /@react-navigation/drawer@7.8.0(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.1.28)(react-native-gesture-handler@2.30.0)(react-native-reanimated@4.2.1)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0):
+  /@react-navigation/drawer@7.8.0(@react-navigation/native@7.1.28)(react-native-gesture-handler@2.30.0)(react-native-reanimated@4.2.1)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0):
     resolution: {integrity: sha512-1pIVYS1OScjroWYBx5/xdfvR9VGWGXphh4Uk7PsLcrxUjywalYixkXAKdVMRa3u5O0WYewX2wpzqr6oAKhxd9Q==}
     peerDependencies:
       '@react-navigation/native': ^7.1.28
@@ -16605,7 +16413,7 @@ packages:
       react-native-safe-area-context: '>= 4.0.0'
       react-native-screens: '>= 4.0.0'
     dependencies:
-      '@react-navigation/elements': 2.9.5(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0)
+      '@react-navigation/elements': 2.9.5(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0)
       '@react-navigation/native': 7.1.28(react-native@0.81.4)(react@19.1.0)
       color: 4.2.3
       react: 19.1.0
@@ -16620,7 +16428,7 @@ packages:
       - '@react-native-masked-view/masked-view'
     dev: false
 
-  /@react-navigation/elements@2.9.5(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0):
+  /@react-navigation/elements@2.9.5(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0):
     resolution: {integrity: sha512-iHZU8rRN1014Upz73AqNVXDvSMZDh5/ktQ1CMe21rdgnOY79RWtHHBp9qOS3VtqlUVYGkuX5GEw5mDt4tKdl0g==}
     peerDependencies:
       '@react-native-masked-view/masked-view': '>= 0.2.0'
@@ -16632,7 +16440,6 @@ packages:
       '@react-native-masked-view/masked-view':
         optional: true
     dependencies:
-      '@react-native-masked-view/masked-view': 0.3.2(react-native@0.81.4)(react@19.1.0)
       '@react-navigation/native': 7.1.28(react-native@0.81.4)(react@19.1.0)
       color: 4.2.3
       react: 19.1.0
@@ -16642,7 +16449,7 @@ packages:
       use-sync-external-store: 1.6.0(react@19.1.0)
     dev: false
 
-  /@react-navigation/native-stack@7.12.0(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0):
+  /@react-navigation/native-stack@7.12.0(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native-screens@4.22.0)(react-native@0.81.4)(react@19.1.0):
     resolution: {integrity: sha512-XmNJsPshjkNsahgbxNgGWQUq4s1l6HqH/Fei4QsjBNn/0mTvVrRVZwJ1XrY9YhWYvyiYkAN6/OmarWQaQJ0otQ==}
     peerDependencies:
       '@react-navigation/native': ^7.1.28
@@ -16651,7 +16458,7 @@ packages:
       react-native-safe-area-context: '>= 4.0.0'
       react-native-screens: '>= 4.0.0'
     dependencies:
-      '@react-navigation/elements': 2.9.5(@react-native-masked-view/masked-view@0.3.2)(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0)
+      '@react-navigation/elements': 2.9.5(@react-navigation/native@7.1.28)(react-native-safe-area-context@5.6.2)(react-native@0.81.4)(react@19.1.0)
       '@react-navigation/native': 7.1.28(react-native@0.81.4)(react@19.1.0)
       color: 4.2.3
       react: 19.1.0
@@ -18055,6 +17862,7 @@ packages:
     engines: {node: '>=18.0.0'}
     dependencies:
       tslib: 2.8.1
+    dev: true
 
   /@smithy/url-parser@3.0.11:
     resolution: {integrity: sha512-TmlqXkSk8ZPhfc+SQutjmFr5FjC0av3GZP4B/10caK1SbRwe/v+Wzu/R6xEKxoNqL+8nY18s1byiy6HqPG37Aw==}
@@ -21316,26 +21124,6 @@ packages:
     resolution: {integrity: sha512-KRYzxepc14G/CEpEGc3Yn+JKaAeT63smlDr+vjB8jRfgTBBI9wRj/nkQEO+ucV8p8I9bfKLWp37uHgFrbntPvw==}
     engines: {node: '>=10.0.0'}
 
-  /@xstate/react@3.2.2(@types/react@19.2.11)(react@19.1.0)(xstate@4.38.3):
-    resolution: {integrity: sha512-feghXWLedyq8JeL13yda3XnHPZKwYDN5HPBLykpLeuNpr9178tQd2/3d0NrH6gSd0sG5mLuLeuD+ck830fgzLQ==}
-    peerDependencies:
-      '@xstate/fsm': ^2.0.0
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0
-      xstate: ^4.37.2
-    peerDependenciesMeta:
-      '@xstate/fsm':
-        optional: true
-      xstate:
-        optional: true
-    dependencies:
-      react: 19.1.0
-      use-isomorphic-layout-effect: 1.2.1(@types/react@19.2.11)(react@19.1.0)
-      use-sync-external-store: 1.6.0(react@19.1.0)
-      xstate: 4.38.3
-    transitivePeerDependencies:
-      - '@types/react'
-    dev: false
-
   /@xtuc/ieee754@1.2.0:
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
     dev: false
@@ -21998,12 +21786,12 @@ packages:
     dependencies:
       possible-typed-array-names: 1.1.0
 
-  /aws-amplify@6.16.0(@aws-amplify/react-native@1.3.2):
+  /aws-amplify@6.16.0:
     resolution: {integrity: sha512-4DIUtlgLJ7PIZZI30rNdd8EIuvMLbvCrT2Td4WaidsCekgZhJbekR10onnDKFmbDSw4Q8O4yoy2bRP4Qb1hRnQ==}
     dependencies:
       '@aws-amplify/analytics': 7.0.92(@aws-amplify/core@6.16.0)
       '@aws-amplify/api': 6.3.23(@aws-amplify/core@6.16.0)
-      '@aws-amplify/auth': 6.18.0(@aws-amplify/core@6.16.0)(@aws-amplify/react-native@1.3.2)
+      '@aws-amplify/auth': 6.18.0(@aws-amplify/core@6.16.0)
       '@aws-amplify/core': 6.16.0
       '@aws-amplify/datastore': 5.1.4(@aws-amplify/core@6.16.0)
       '@aws-amplify/notifications': 2.0.92(@aws-amplify/core@6.16.0)
@@ -22519,10 +22307,6 @@ packages:
 
   /base-64@0.1.0:
     resolution: {integrity: sha512-Y5gU45svrR5tI2Vt/X9GPd3L0HNIKzGu202EjxrXMpuc2V2CiKgemAbUUsqYmZJvPtCXoUKjNZwBJzsNScUbXA==}
-    dev: false
-
-  /base-64@1.0.0:
-    resolution: {integrity: sha512-kwDPIFCGx0NZHog36dj+tHiwP4QMzsZ3AgMViUBKI0+V5n4U0ufTCUMhnQ04diaRI8EX/QcPfql7zlhZ7j4zgg==}
     dev: false
 
   /base64-js@0.0.8:
@@ -24498,14 +24282,6 @@ packages:
       es-errors: 1.3.0
       is-data-view: 1.0.2
     dev: true
-
-  /date-fns-tz@3.2.0(date-fns@4.1.0):
-    resolution: {integrity: sha512-sg8HqoTEulcbbbVXeg84u5UnlsQa8GS5QXMqjjYIhS4abEVVKIUwe0/l/UhrZdKaL/W5eWZNlbTeEIiOXTcsBQ==}
-    peerDependencies:
-      date-fns: ^3.0.0 || ^4.0.0
-    dependencies:
-      date-fns: 4.1.0
-    dev: false
 
   /date-fns@4.1.0:
     resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
@@ -28332,12 +28108,6 @@ packages:
     engines: {node: '>=10.18'}
     dev: false
 
-  /i18next-resources-to-backend@1.2.1:
-    resolution: {integrity: sha512-okHbVA+HZ7n1/76MsfhPqDou0fptl2dAlhRDu2ideXloRRduzHsqDOznJBef+R3DFZnbvWoBW+KxJ7fnFjd6Yw==}
-    dependencies:
-      '@babel/runtime': 7.28.6
-    dev: false
-
   /i18next@25.8.1(typescript@5.9.3):
     resolution: {integrity: sha512-nFFxhwcRNggIrkv2hx/xMYVMG7Z8iMUA4ZuH4tgcbZiI0bK1jn3kSDIXNWuQDt1xVAu7mb7Qn82TpH7ZAk/okA==}
     peerDependencies:
@@ -31505,10 +31275,6 @@ packages:
       - supports-color
       - utf-8-validate
 
-  /microdiff@1.5.0:
-    resolution: {integrity: sha512-Drq+/THMvDdzRYrK0oxJmOKiC24ayUV8ahrt8l3oRK51PWt6gdtrIGrlIH3pT/lFh1z93FbAcidtsHcWbnRz8Q==}
-    dev: true
-
   /micromark-core-commonmark@2.0.3:
     resolution: {integrity: sha512-RDBrHEMSxVFLg6xvnXmb1Ayr2WzLAWjeSATAoxwKYJV94TeNavgoIdA0a9ytzDSVzBy2YKFK+emCPOEibLeCrg==}
     dependencies:
@@ -34615,6 +34381,7 @@ packages:
 
   /property-expr@2.0.6:
     resolution: {integrity: sha512-SVtmxhRE/CGkn3eZY1T6pC8Nln6Fr/lu1mKSgRud0eC73whjGfoAogbn78LkD8aFL0zz3bAFerKSnOl7NlErBA==}
+    dev: true
 
   /property-information@7.1.0:
     resolution: {integrity: sha512-TwEZ+X+yCJmYfL7TPUOcvBZ4QfoT5YenQiJuX//0th53DE6w0xxLEtfK3iyryQFddXuvkIk51EEgrJQ0WJkOmQ==}
@@ -35042,15 +34809,6 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       react: '>=17.0.0'
-    dependencies:
-      react: 19.1.0
-    dev: false
-
-  /react-hook-form@7.53.2(react@19.1.0):
-    resolution: {integrity: sha512-YVel6fW5sOeedd1524pltpHX+jgU2u3DSDtXEaBORNdqiNrsX/nUI/iGXONegttg0mJVnfrIkiV0cmTU6Oo2xw==}
-    engines: {node: '>=18.0.0'}
-    peerDependencies:
-      react: ^16.8.0 || ^17 || ^18 || ^19
     dependencies:
       react: 19.1.0
     dev: false
@@ -35826,37 +35584,6 @@ packages:
   /react@19.2.4:
     resolution: {integrity: sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==}
     engines: {node: '>=0.10.0'}
-
-  /reactotron-core-client@2.9.9:
-    resolution: {integrity: sha512-caI6ZWpfV/gNeCBhm6alxuCpOxYEFxg9FsgVaOXJWZeKjK2egjxkXcUEFWeS3b9mC6Kwi7Wuu79zfeGtkbdAYw==}
-    dependencies:
-      reactotron-core-contract: 0.3.2
-    dev: true
-
-  /reactotron-core-contract@0.3.2:
-    resolution: {integrity: sha512-39ZNLfxxV7WEOszekIRg56F6VFZrQk7+Lei+8MccNESX3VbQzs1uex/GNesxk6CMTS6ytwqYIBAgLyc9WX/PaA==}
-    dev: true
-
-  /reactotron-react-native@5.1.18(react-native@0.81.4):
-    resolution: {integrity: sha512-Nyb/w7tRQICtfvjAJSN6Q/3aRO8L6eTfEcWpDR/atUyoINkyzducMx6yXA+sz1mazxivY16N3VPkmQ1XohQAcg==}
-    peerDependencies:
-      react-native: '>=0.40.0'
-    dependencies:
-      mitt: 3.0.1
-      react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-      reactotron-core-client: 2.9.9
-    dev: true
-
-  /reactotron-redux@3.2.1(reactotron-core-client@2.9.9)(redux@5.0.1):
-    resolution: {integrity: sha512-WxMVz1zBlzWplS3HJU1kDH1LBaTE71i/mMdyRTZZrAQq33+SKd7hva03pMbd6UJFaQeSCvey26a2SSWp5CLsWg==}
-    peerDependencies:
-      reactotron-core-client: '*'
-      redux: '>=4.0.0'
-    dependencies:
-      microdiff: 1.5.0
-      reactotron-core-client: 2.9.9
-      redux: 5.0.1
-    dev: true
 
   /read-binary-file-arch@1.0.6:
     resolution: {integrity: sha512-BNg9EN3DD3GsDXX7Aa8O4p92sryjkmzYYgmgTAc6CA4uGLEDzFfxOxugu21akOxpcXHiEgsYkC6nPsQvLLLmEg==}
@@ -38428,10 +38155,6 @@ packages:
       semver: 5.7.2
     dev: true
 
-  /tiny-case@1.0.3:
-    resolution: {integrity: sha512-Eet/eeMhkO6TX8mnUteS9zgPbUMQa4I6Kkp5ORiBD5476/m+PIRiumP5tmh5ioJpH7k51Kehawy2UDfsnxxY8Q==}
-    dev: false
-
   /tiny-inflate@1.0.3:
     resolution: {integrity: sha512-pkY1fj1cKHb2seWDy0B16HeWyczlJA9/WW3u3c4z/NiWDsO3DOU5D7nhTLE9CF0yXv/QZFY7sEJmj24dK+Rrqw==}
     dev: false
@@ -38550,6 +38273,7 @@ packages:
 
   /toposort@2.0.2:
     resolution: {integrity: sha512-0a5EOkAUp8D4moMi2W8ZF8jcga7BgZd91O/yabJCFY8az+XSzeGyTKs0Aoo897iV1Nj6guFq8orWDS96z91oGg==}
+    dev: true
 
   /totalist@3.0.1:
     resolution: {integrity: sha512-sf4i37nQ2LBx4m3wB74y+ubopq6W/dIzXg0FDGjsYnZHVa1Da8FH853wlL2gtUhg+xJXjfk3kUZS3BRoQeoQBQ==}
@@ -39512,19 +39236,6 @@ packages:
     dependencies:
       '@types/react': 19.2.11
       react: 19.2.4
-    dev: false
-
-  /use-isomorphic-layout-effect@1.2.1(@types/react@19.2.11)(react@19.1.0):
-    resolution: {integrity: sha512-tpZZ+EX0gaghDAiFR37hj5MgY6ZN55kLiPkJsKxBMZ6GZdOSPJXiOzPM984oPYZ5AnehYx5WQp1+ME8I/P/pRA==}
-    peerDependencies:
-      '@types/react': '*'
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-    dependencies:
-      '@types/react': 19.2.11
-      react: 19.1.0
     dev: false
 
   /use-isomorphic-layout-effect@1.2.1(@types/react@19.2.11)(react@19.2.4):
@@ -40491,10 +40202,6 @@ packages:
     resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
     dev: true
 
-  /xstate@4.38.3:
-    resolution: {integrity: sha512-SH7nAaaPQx57dx6qvfcIgqKRXIh4L0A1iYEqim4s1u7c9VoCgzZc+63FY90AKU4ZzOC2cfJzTnpO4zK7fCUzzw==}
-    dev: false
-
   /xtend@4.0.2:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
@@ -40637,15 +40344,6 @@ packages:
       property-expr: 2.0.6
       toposort: 2.0.2
     dev: true
-
-  /yup@1.7.1:
-    resolution: {integrity: sha512-GKHFX2nXul2/4Dtfxhozv701jLQHdf6J34YDh2cEkpqoo8le5Mg6/LrdseVLrFarmFygZTlfIhHx/QKfb/QWXw==}
-    dependencies:
-      property-expr: 2.0.6
-      tiny-case: 1.0.3
-      toposort: 2.0.2
-      type-fest: 2.19.0
-    dev: false
 
   /zip-stream@6.0.1:
     resolution: {integrity: sha512-zK7YHHz4ZXpW89AHXUPbQVGKI7uvkd3hzusTdotCg1UxyaVtg0zFJSTfW/Dq5f7OBBVnq6cZIaC8Ti4hb6dtCA==}
