@@ -30,6 +30,7 @@ jest.mock('@/app/features/marketing/site', () => {
     HERO_AVATARS: ['/a.png', '/b.png', '/c.png'],
     COMPANION_PHOTOS: { dog: '/dog.webp', horse: '/horse.webp', cat: '/cat.webp' },
     HERO_VIDEOS: { home: 'https://cdn.example/hero.mp4' },
+    HERO_POSTERS: { home: 'https://cdn.example/hero.jpg' },
     GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
   };
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LegalDoc, type TocEntry } from '@/app/features/marketing/site';
+import { LegalDoc, DocSection, type TocEntry } from '@/app/features/marketing/site';
 
 const TOC: readonly TocEntry[] = [
   { id: 'controller', label: '1. Controller and Data Protection Officer' },
@@ -26,10 +26,12 @@ const PrivacyPolicy = () => {
       meta="Updated March 2026 · Controller: DuneXploration UG (haftungsbeschränkt), Mainz"
       toc={TOC}
     >
-      <section id="controller">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>
+      <DocSection
+        id="controller"
+        title="
           1. Controller and Data Protection Officer
-        </h2>
+        "
+      >
         <p>
           <strong>The controller is:</strong>
           <br />
@@ -41,10 +43,9 @@ const PrivacyPolicy = () => {
           <strong>Our data protection officer</strong> can be reached at the same address, by email
           to <a href="mailto:security@yosemitecrew.com">security@yosemitecrew.com</a>.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="roles">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>2. Our role regarding your data</h2>
+      <DocSection id="roles" title="2. Our role regarding your data">
         <p>
           Under the GDPR, the controller determines the purposes and means of processing, and a
           processor processes data on the controller&apos;s behalf. Depending on the activity,
@@ -65,10 +66,9 @@ const PrivacyPolicy = () => {
           Either way, we take appropriate measures to protect the confidentiality of the data we
           process, in line with the GDPR and German law.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="processing">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>3. What we process, and why</h2>
+      <DocSection id="processing" title="3. What we process, and why">
         <h3>Hosting and provision</h3>
         <p>
           The software can be self-hosted or run in our cloud. If you use our cloud, we temporarily
@@ -115,10 +115,9 @@ const PrivacyPolicy = () => {
           Clinics use their own preferred payment providers, and payment happens directly through
           them. <strong>DuneXploration does not process any payment data.</strong>
         </p>
-      </section>
+      </DocSection>
 
-      <section id="analytics">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>4. Analytics (PostHog)</h2>
+      <DocSection id="analytics" title="4. Analytics (PostHog)">
         <p>
           To understand how the product is used and improve it, we use <strong>PostHog</strong> for
           privacy-friendly product analytics on our hosted service. We keep this to aggregate,
@@ -129,10 +128,9 @@ const PrivacyPolicy = () => {
           the cookie notice and which you can withdraw at any time with future effect. If you reject
           non-essential cookies, analytics is not loaded.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="recipients">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>5. Recipients and subprocessors</h2>
+      <DocSection id="recipients" title="5. Recipients and subprocessors">
         <p>
           Where necessary, your data may be shared with the following processors, bound by
           data-processing agreements:
@@ -149,10 +147,9 @@ const PrivacyPolicy = () => {
             provider, where you use them.
           </li>
         </ul>
-      </section>
+      </DocSection>
 
-      <section id="transfers">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>6. International transfers</h2>
+      <DocSection id="transfers" title="6. International transfers">
         <p>
           Where a recipient sits outside the EEA and no adequacy decision applies (for example
           Supabase in Singapore), we put appropriate safeguards in place, in particular the European
@@ -166,28 +163,25 @@ const PrivacyPolicy = () => {
           </a>
           {', to ensure an adequate level of protection.'}
         </p>
-      </section>
+      </DocSection>
 
-      <section id="storage">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>7. Storage periods</h2>
+      <DocSection id="storage" title="7. Storage periods">
         <p>
           We keep data for the periods described above. Where data serves more than one purpose, the
           longest applicable period applies, after which it is deleted. Booking and billing data is
           kept for the statutory retention periods (6 years under the HGB, 10 years under the AO).
         </p>
-      </section>
+      </DocSection>
 
-      <section id="automated">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>8. Automated decisions</h2>
+      <DocSection id="automated" title="8. Automated decisions">
         <p>
           We do not use automated decision-making that produces legal effects on you or similarly
           significantly affects you. You are not obliged to provide data, but some is needed to
           create an account or use the service.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="rights">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>9. Your rights</h2>
+      <DocSection id="rights" title="9. Your rights">
         <p>Subject to the legal requirements, you have the right to:</p>
         <ul>
           <li>
@@ -216,12 +210,14 @@ const PrivacyPolicy = () => {
           To exercise any of these, use the <Link href="/contact-us">data request form</Link> or
           email <a href="mailto:security@yosemitecrew.com">security@yosemitecrew.com</a>.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="objection">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>
+      <DocSection
+        id="objection"
+        title="
           10. Right to object and to withdraw consent
-        </h2>
+        "
+      >
         <p>
           You may object at any time, on grounds relating to your particular situation, to
           processing based on our legitimate interest. If you do, we stop unless we can show
@@ -233,16 +229,15 @@ const PrivacyPolicy = () => {
           You can <strong>withdraw any consent</strong> (including analytics) at any time with
           future effect, via any contact address known to you.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="contact">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>11. Questions and comments</h2>
+      <DocSection id="contact" title="11. Questions and comments">
         <p>
           For any question about the collection, processing or use of your data, or to request
           information, correction, restriction or deletion, or to withdraw consent, contact{' '}
           <a href="mailto:security@yosemitecrew.com">security@yosemitecrew.com</a>.
         </p>
-      </section>
+      </DocSection>
     </LegalDoc>
   );
 };

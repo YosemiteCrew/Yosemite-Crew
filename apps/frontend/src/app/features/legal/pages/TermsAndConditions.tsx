@@ -1,6 +1,6 @@
 'use client';
 
-import { LegalDoc, type TocEntry } from '@/app/features/marketing/site';
+import { LegalDoc, DocSection, type TocEntry } from '@/app/features/marketing/site';
 
 const TOC: readonly TocEntry[] = [
   { id: 'definitions', label: '1. Definitions' },
@@ -34,8 +34,7 @@ const TermsAndConditions = () => {
       meta="Updated March 2026 · DuneXploration UG (haftungsbeschränkt), Mainz"
       toc={TOC}
     >
-      <section id="definitions">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>1. Definitions</h2>
+      <DocSection id="definitions" title="1. Definitions">
         <p>
           Key terms used throughout: <strong>Admin Account</strong> (the account you register, with
           the fullest rights), <strong>Business Owner</strong> and <strong>Developer</strong> (types
@@ -46,60 +45,57 @@ const TermsAndConditions = () => {
           <strong>DuneXploration</strong> (DuneXploration UG (haftungsbeschränkt), Am Finther Weg 7,
           55127 Mainz).
         </p>
-      </section>
+      </DocSection>
 
-      <section id="scope">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>2. Scope</h2>
+      <DocSection id="scope" title="2. Scope">
         <p>
           These Terms control the SaaS Services and prevail over conflicting terms.{' '}
           <strong>Licensing of the self-hosting Software is not covered here</strong> and is
           governed solely by its open-source licence. We do not accept customers&apos; own terms and
           conditions. An individual written agreement, where one exists, prevails over these Terms.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="overview">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>3. Overview of the SaaS Services</h2>
+      <DocSection id="overview" title="3. Overview of the SaaS Services">
         <p>
           DuneXploration operates a flexible, scalable practice management system for Business
           Owners and marketplace tools for Developers. A separate Mobile App serves Pet Owners for
           booking and services, under its own terms. The service works anywhere with a good internet
           connection.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="account">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>4. Registering an account</h2>
+      <DocSection id="account" title="4. Registering an account">
         <p>
           Registration is free. You create an Admin Account, and the contract is concluded when you
           confirm your email. The person registering confirms they may act for the Customer. You
           must keep credentials confidential and report any suspected abuse. The agreement is
           concluded in English.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="functions">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>5. Functions of the PIMS</h2>
+      <DocSection id="functions" title="5. Functions of the PIMS">
         <p>
           Depending on your business type, the PIMS provides an overview of business metrics, user
           management, clinic visibility options, appointment management, roles and permissions,
           inventory and procedure management, and billing and invoicing. We may add, change or
           remove functions but will keep the core available and notify you of changes.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="developers">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>6. Functions for developers</h2>
+      <DocSection id="developers" title="6. Functions for developers">
         <p>
           Developers can build plugins for the PIMS and sell them to Business Owners on the Digital
           Marketplace. The marketplace is under active development and details will follow.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="p2b">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>
+      <DocSection
+        id="p2b"
+        title="
           7. Offering services to pet owners (P2B transparency)
-        </h2>
+        "
+      >
         <p>
           Where Business Owners make services visible to Pet Owners, we meet our obligations under
           the EU Platform-to-Business Regulation (EU) 2019/1150. Search results are ranked mainly by
@@ -112,20 +108,18 @@ const TermsAndConditions = () => {
             '. Ranking cannot be influenced by payments to us. After termination, we retain no identifiable Customer Data, though we may keep aggregated, anonymised data.'
           }
         </p>
-      </section>
+      </DocSection>
 
-      <section id="responsibilities">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>8. Our responsibilities</h2>
+      <DocSection id="responsibilities" title="8. Our responsibilities">
         <p>
           We provide the technical resources and host the service up to our data-centre access
           point; you maintain your own internet access. Service levels are set out in Exhibit A. We
           maintain the environment, apply updates, provide support, and keep backups of the Customer
           Data we are required to retain.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="rights">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>9. Access rights and licences</h2>
+      <DocSection id="rights" title="9. Access rights and licences">
         <p>
           During your subscription you get a non-exclusive, non-transferable, non-sublicensable
           right to use the SaaS Services for your internal business use. All other
@@ -133,10 +127,9 @@ const TermsAndConditions = () => {
           service, create derivative or substantially similar works, remove proprietary notices, or
           resell or transfer the rights granted.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="obligations">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>10. Your obligations</h2>
+      <DocSection id="obligations" title="10. Your obligations">
         <p>
           You allocate user accounts per your licence and ensure your use meets all statutory
           requirements, <strong>including maintaining a proper imprint</strong> and complying with
@@ -144,18 +137,16 @@ const TermsAndConditions = () => {
           do not harm third parties or us, compromise security, run penetration tests, attempt
           prompt-injection attacks, or pass off generated output as human-made.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="technical">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>11. Technical requirements</h2>
+      <DocSection id="technical" title="11. Technical requirements">
         <p>
           Current versions of Windows and macOS, and of Chrome, Firefox, Safari or Edge, are fully
           supported, with a sufficient broadband connection.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="fees">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>12. Fees</h2>
+      <DocSection id="fees" title="12. Fees">
         <p>
           Fees are calculated as described on the website and invoiced at the end of each month, net
           of VAT. We may raise the underlying prices for the first time after 12 months, and only if
@@ -163,10 +154,9 @@ const TermsAndConditions = () => {
           notice. You may terminate within 30 days of such a notice, and we will tell you about this
           right each time.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="customer-data">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>13. Customer data</h2>
+      <DocSection id="customer-data" title="13. Customer data">
         <p>
           You own your Customer Data; we receive no ownership beyond what is needed to run the
           service. We may use aggregated, anonymised and de-identified information that cannot
@@ -174,20 +164,18 @@ const TermsAndConditions = () => {
           billing. You are responsible for having the rights and consents to provide the data and
           for its legality.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="warranty">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>14. Warranty</h2>
+      <DocSection id="warranty" title="14. Warranty">
         <p>
           Statutory warranty applies, subject to the liability limits below. Claims to reduce fees
           lapse one year after the end of the calendar year in which they arose and you knew, or
           should have known, the relevant circumstances. We may briefly restrict access for
           scheduled maintenance under Exhibit A.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="liability">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>15. Limitation of liability</h2>
+      <DocSection id="liability" title="15. Limitation of liability">
         <p>
           We are liable without limit for intent and gross negligence, for breach of a guarantee,
           for culpable injury to life, body or health, and under the German Product Liability Act.
@@ -196,48 +184,46 @@ const TermsAndConditions = () => {
           liability is capped at the greater of the fees paid in the prior 12 months or{' '}
           <strong>EUR 5,000</strong>. You are responsible for keeping regular backups of your data.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="confidentiality">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>16. Confidentiality</h2>
+      <DocSection id="confidentiality" title="16. Confidentiality">
         <p>
           Each party protects the other&apos;s confidential information and does not disclose it,
           for ten years after disclosure, with the usual exceptions for information that becomes
           public, was already known, was independently developed, or must be disclosed by law.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="marks">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>17. Use of name and logo</h2>
+      <DocSection id="marks" title="17. Use of name and logo">
         <p>
           You grant us a non-exclusive, royalty-free, worldwide licence to use your name, trademarks
           and logos on our website and in marketing materials.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="term">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>18. Term and termination</h2>
+      <DocSection id="term" title="18. Term and termination">
         <p>
           The agreement runs for the initial subscription term and renews automatically unless
           either party gives at least 30 days&apos; notice before the end of the term. Either party
           may terminate for cause, including an uncured material breach within 30 days of notice, or
           insolvency. Notices are given in writing, with email sufficing.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="law">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>19. Governing law and jurisdiction</h2>
+      <DocSection id="law" title="19. Governing law and jurisdiction">
         <p>
           These Terms are governed by the laws of the Federal Republic of Germany, excluding the UN
           Convention on Contracts for the International Sale of Goods and conflict-of-law rules. The
           courts of <strong>Mainz</strong> have exclusive jurisdiction.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="exhibits">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>
+      <DocSection
+        id="exhibits"
+        title="
           Exhibit A (Service levels) and Exhibit B (Data Processing Agreement)
-        </h2>
+        "
+      >
         <p>
           <strong>Exhibit A (Support and SLA):</strong> we target a monthly availability of 99.99%,
           excluding excused downtime, with severity-based response times and service-level credits,
@@ -252,7 +238,7 @@ const TermsAndConditions = () => {
           <a href="mailto:security@yosemitecrew.com">security@yosemitecrew.com</a>. The full Terms,
           Exhibits and Standard Contractual Clauses are available on request.
         </p>
-      </section>
+      </DocSection>
     </LegalDoc>
   );
 };

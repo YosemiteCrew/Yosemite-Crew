@@ -1,6 +1,6 @@
 'use client';
 
-import { LegalDoc, type TocEntry } from '@/app/features/marketing/site';
+import { LegalDoc, DocSection, type TocEntry } from '@/app/features/marketing/site';
 
 const TOC: readonly TocEntry[] = [
   { id: 'reporting', label: 'Reporting copyright infringement' },
@@ -18,8 +18,7 @@ const DmcaCopyrightPolicy = () => {
       meta="Effective 28 September 2024 · Last updated June 2026"
       toc={TOC}
     >
-      <section id="reporting">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>Reporting copyright infringement</h2>
+      <DocSection id="reporting" title="Reporting copyright infringement">
         <p>
           This policy helps rights holders submit notices of claimed copyright infringement under
           the Digital Millennium Copyright Act, 17 U.S.C. § 512 (&quot;DMCA&quot;). If you believe
@@ -59,12 +58,14 @@ const DmcaCopyrightPolicy = () => {
             Email: <a href="mailto:dmca@yosemitecrew.com">dmca@yosemitecrew.com</a>
           </div>
         </div>
-      </section>
+      </DocSection>
 
-      <section id="requirements">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>
+      <DocSection
+        id="requirements"
+        title="
           Required elements of a takedown notice
-        </h2>
+        "
+      >
         <p>
           To be valid under 17 U.S.C. § 512(c)(3), your notice must include all of the following, in
           this order:
@@ -99,27 +100,25 @@ const DmcaCopyrightPolicy = () => {
           Under 17 U.S.C. § 512(f), anyone who knowingly materially misrepresents that material is
           infringing may be liable for damages, including costs and attorneys&apos; fees.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="submit">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>How to submit</h2>
+      <DocSection id="submit" title="How to submit">
         <p>
           Email your complete notice to{' '}
           <a href="mailto:dmca@yosemitecrew.com">dmca@yosemitecrew.com</a> with the subject line{' '}
           <strong>&quot;DMCA Notice - Attn: Copyright Agent.&quot;</strong> We process notices
           received at that address only; notices sent elsewhere may not be reviewed promptly.
         </p>
-      </section>
+      </DocSection>
 
-      <section id="questions">
-        <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>Questions</h2>
+      <DocSection id="questions" title="Questions">
         <p>
           Questions about this policy? Contact{' '}
           <a href="mailto:dmca@yosemitecrew.com">dmca@yosemitecrew.com</a>. This policy applies to
           content hosted on Yosemite Crew&apos;s platform. Yosemite Crew is not a law firm and this
           page is not legal advice; please consult an attorney about your specific situation.
         </p>
-      </section>
+      </DocSection>
     </LegalDoc>
   );
 };

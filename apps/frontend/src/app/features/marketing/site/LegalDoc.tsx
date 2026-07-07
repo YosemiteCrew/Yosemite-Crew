@@ -8,6 +8,18 @@ export interface TocEntry {
   label: string;
 }
 
+/** One anchored section of a legal/trust document: a serif heading + its prose. */
+export const DocSection = ({
+  id,
+  title,
+  children,
+}: Readonly<{ id: string; title: string; children: ReactNode }>) => (
+  <section id={id}>
+    <h2 style={{ fontFamily: 'var(--font-newsreader)' }}>{title}</h2>
+    {children}
+  </section>
+);
+
 interface LegalDocProps {
   eyebrow: string;
   title: string;
