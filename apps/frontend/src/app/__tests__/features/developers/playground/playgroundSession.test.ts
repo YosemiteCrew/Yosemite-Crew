@@ -26,12 +26,12 @@ afterAll(() => {
 });
 
 describe('playground session settings', () => {
-  test('defaults to localhost:8000 when no env base URL is set', () => {
-    expect(getDefaultBaseUrl()).toBe('http://localhost:8000');
+  test('defaults to localhost:3000 when no env base URL is set', () => {
+    expect(getDefaultBaseUrl()).toBe('http://localhost:3000');
     expect(getDefaultPlaygroundSettings()).toEqual({
       anthropicKey: '',
       yosemiteKey: '',
-      baseUrl: 'http://localhost:8000',
+      baseUrl: 'http://localhost:3000',
       model: DEFAULT_PLAYGROUND_MODEL,
     });
   });

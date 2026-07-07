@@ -26,7 +26,7 @@ export const PLAYGROUND_MODELS = [
 ] as const;
 
 export const getDefaultBaseUrl = (): string =>
-  process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8000';
+  process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
 export const getDefaultPlaygroundSettings = (): PlaygroundSettings => ({
   anthropicKey: '',

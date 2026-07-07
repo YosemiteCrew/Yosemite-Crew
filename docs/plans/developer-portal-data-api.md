@@ -31,6 +31,8 @@ Authentication is exactly what `apps/backend/src/middlewares/api-key-auth.ts` al
 
 **Org scoping is absolute.** Every query on the data plane is filtered by `organisationId` from the verified key. There is no query param, header, or path segment that selects an organisation; a key can only ever see its own org's data. Cross-org access does not exist in v1. (The schema-per-tenant machinery in `packages/database/src/tenant.ts` is orthogonal and unwired; v1 scoping is row-level `organisationId` filtering in the shared schema.)
 
+> Amended by the [delegated OAuth plan](./developer-portal-delegated-oauth.md): once that ships, the data plane also accepts user-delegated `yc_uat_` bearer tokens alongside API keys. Both resolve to a single `organisationId` and the absolute org-scoping rule above is unchanged; the token type only changes how the acting identity is attributed. Until delegated OAuth ships, the data plane is API-key only.
+
 ### Environments
 
 Keys carry `environment: live | test` (`DeveloperApiKeyEnvironment`), visible in the key prefix (`yc_live_`, `yc_test_`).

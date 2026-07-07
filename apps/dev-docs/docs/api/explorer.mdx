@@ -11,7 +11,7 @@ This page renders the OpenAPI spec from `apps/dev-docs/static/openapi.yaml` with
 How to use it:
 
 1. Set the API base URL to the backend you want to test against (for local development that is usually `http://localhost:3000`). Requests built by "try it out" are rewritten to that origin.
-2. Click **Authorize** and paste a developer API key (`yc_test_...` recommended). The key is sent as `Authorization: Bearer` on each request and is kept only in your browser.
+2. Click **Authorize** and paste a developer API key (`yc_test_...` recommended). The key is sent as `Authorization: Bearer` on each request and is held only in this browser tab for the current session; it is not persisted across restarts. On a shared machine, close the tab when you are done.
 3. Expand an endpoint, click **Try it out**, fill the parameters, and execute.
 
 :::caution Test keys read real data

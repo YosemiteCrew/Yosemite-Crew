@@ -86,10 +86,12 @@ export default function SwaggerView({ specUrl }: { specUrl: string }): React.Rea
           overflowX: 'auto',
         }}
       >
+        {/* persistAuthorization intentionally omitted: it stores the pasted key
+            in localStorage across browser restarts, a weaker custody posture
+            than we want on a shared docs site. The key lives only for the tab. */}
         <SwaggerUI
           url={specUrl}
           tryItOutEnabled
-          persistAuthorization
           docExpansion="none"
           defaultModelsExpandDepth={-1}
           requestInterceptor={requestInterceptor}

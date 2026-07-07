@@ -46,7 +46,7 @@ describe('DeveloperPlayground page', () => {
     expect(screen.getByRole('heading', { name: 'Agent Playground' })).toBeInTheDocument();
     expect(screen.getByLabelText('Anthropic API key')).toBeInTheDocument();
     expect(screen.getByLabelText('Yosemite API key')).toBeInTheDocument();
-    expect(screen.getByLabelText('API base URL')).toHaveValue('http://localhost:8000');
+    expect(screen.getByLabelText('API base URL')).toHaveValue('http://localhost:3000');
     expect(screen.getByLabelText('Model')).toHaveValue('claude-sonnet-5');
     expect(screen.getByText(/No messages yet/)).toBeInTheDocument();
     expect(
@@ -85,7 +85,7 @@ describe('DeveloperPlayground page', () => {
       'yc_test_typed'
     );
     expect(window.sessionStorage.getItem(PLAYGROUND_STORAGE_KEYS.baseUrl)).toBe(
-      'http://localhost:8000/extra'
+      'http://localhost:3000/extra'
     );
     expect(window.sessionStorage.getItem(PLAYGROUND_STORAGE_KEYS.model)).toBe(
       'claude-haiku-4-5-20251001'
@@ -139,7 +139,7 @@ describe('DeveloperPlayground page', () => {
     expect(config).toEqual({
       anthropicKey: 'sk-ant-fake',
       yosemiteKey: 'yc_test_fake',
-      baseUrl: 'http://localhost:8000',
+      baseUrl: 'http://localhost:3000',
       model: 'claude-sonnet-5',
     });
   });
@@ -269,7 +269,7 @@ describe('DeveloperPlayground page', () => {
     await sendMessage(user, 'Hello');
 
     await waitFor(() => expect(runAgentTurnMock).toHaveBeenCalled());
-    expect(runAgentTurnMock.mock.calls[0][1].baseUrl).toBe('http://localhost:8000');
+    expect(runAgentTurnMock.mock.calls[0][1].baseUrl).toBe('http://localhost:3000');
   });
 
   test('clear conversation resets messages and notices', async () => {
@@ -288,5 +288,23 @@ describe('DeveloperPlayground page', () => {
 
     expect(screen.queryByText('Reply text.')).not.toBeInTheDocument();
     expect(screen.getByText(/No messages yet/)).toBeInTheDocument();
+  });
+
+  test('forget keys clears both keys from state and sessionStorage', async () => {
+    const user = userEvent.setup();
+    seedKeys();
+
+    render(<DeveloperPlayground />);
+    await waitFor(() =>
+      expect(screen.getByLabelText('Anthropic API key')).toHaveValue('sk-ant-fake')
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Forget keys' }));
+
+    expect(screen.getByLabelText('Anthropic API key')).toHaveValue('');
+    expect(screen.getByLabelText('Yosemite API key')).toHaveValue('');
+    expect(window.sessionStorage.getItem(PLAYGROUND_STORAGE_KEYS.anthropicKey)).toBeNull();
+    expect(window.sessionStorage.getItem(PLAYGROUND_STORAGE_KEYS.yosemiteKey)).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent('API keys cleared');
   });
 });

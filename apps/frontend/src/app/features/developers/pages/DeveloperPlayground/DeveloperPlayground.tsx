@@ -9,6 +9,8 @@ import type {
   ContentBlock,
 } from '@/app/features/developers/playground/anthropicClient';
 import {
+  clearPlaygroundKeys,
+  getDefaultBaseUrl,
   getDefaultPlaygroundSettings,
   loadPlaygroundSettings,
   PLAYGROUND_MODELS,
@@ -74,6 +76,12 @@ const DeveloperPlayground = () => {
     setNotice(null);
   };
 
+  const handleForgetKeys = () => {
+    clearPlaygroundKeys();
+    setSettings((previous) => ({ ...previous, anthropicKey: '', yosemiteKey: '' }));
+    setNotice('API keys cleared from this browser session.');
+  };
+
   const handleSend = async () => {
     const prompt = draft.trim();
     if (!prompt || busy) return;
@@ -98,7 +106,7 @@ const DeveloperPlayground = () => {
         {
           anthropicKey: settings.anthropicKey.trim(),
           yosemiteKey: settings.yosemiteKey.trim(),
-          baseUrl: settings.baseUrl.trim() || 'http://localhost:8000',
+          baseUrl: settings.baseUrl.trim() || getDefaultBaseUrl(),
           model: settings.model,
         },
         (progress) => setMessages(progress)
@@ -120,7 +128,10 @@ const DeveloperPlayground = () => {
       <div className="OperationsWrapper">
         <div className="TitleContainer">
           <h1 className="text-heading-1 text-text-primary">Agent Playground</h1>
-          <Button variant="secondary" text="Clear conversation" onClick={handleClear} />
+          <div className="flex items-center gap-3">
+            <Button variant="secondary" text="Forget keys" onClick={handleForgetKeys} />
+            <Button variant="secondary" text="Clear conversation" onClick={handleClear} />
+          </div>
         </div>
 
         <div className="flex flex-col gap-6 lg:flex-row">
@@ -163,7 +174,7 @@ const DeveloperPlayground = () => {
               </Text>
               <Input
                 type="text"
-                placeholder="http://localhost:8000"
+                placeholder="http://localhost:3000"
                 value={settings.baseUrl}
                 onChange={(event) => updateSetting('baseUrl', event.target.value)}
               />
