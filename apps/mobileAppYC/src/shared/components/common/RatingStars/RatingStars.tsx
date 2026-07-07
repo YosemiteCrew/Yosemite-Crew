@@ -13,18 +13,30 @@ export const RatingStars: React.FC<{
   const styles = React.useMemo(() => createStyles(theme, size), [theme, size]);
   return (
     <View style={styles.row}>
-      {[1, 2, 3, 4, 5].map(i => (
-        <PressableOpacity
-          key={i}
-          onPress={() => onChange?.(i)}
-          activeOpacity={0.8}>
-          <Image
-            source={i <= value ? Images.starSolid : Images.starOutline}
-            style={[styles.star, {width: size, height: size}]}
-            resizeMode="contain"
-          />
-        </PressableOpacity>
-      ))}
+      {[1, 2, 3, 4, 5].map(i => {
+        const filled = i <= value;
+        return (
+          <PressableOpacity
+            key={i}
+            onPress={() => onChange?.(i)}
+            activeOpacity={0.8}>
+            <Image
+              source={filled ? Images.starSolid : Images.starOutline}
+              style={[
+                styles.star,
+                {width: size, height: size},
+                // Pink = companion moment (hearts / ratings).
+                {
+                  tintColor: filled
+                    ? theme.colors.pink
+                    : theme.colors.inkFaint2,
+                },
+              ]}
+              resizeMode="contain"
+            />
+          </PressableOpacity>
+        );
+      })}
     </View>
   );
 };
