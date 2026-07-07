@@ -71,6 +71,7 @@ export const devRoutes: RouteItem[] = [
   { name: 'API Keys', href: '/developers/api-keys' },
   { name: 'Website - Builder', href: '/developers/website-builder' },
   { name: 'Plugins', href: '/developers/plugins' },
+  { name: 'Playground', href: '/developers/playground' },
   { name: 'Documentation', href: '/developers/documentation' },
 ];
 
