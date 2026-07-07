@@ -4,7 +4,7 @@
 **Scope:** `apps/backend` (new router + controllers), `apps/dev-docs` (OpenAPI spec).
 **Status:** Proposed. Depends on PR #1696 (key issuance, `authorizeApiKey`, usage metering) which is built but not yet merged as of 2026-07-07; the middleware is currently mounted nowhere.
 **Reference:** Closed PR #1726 prototyped 4 of these endpoints (`developer-data.router.ts`, `developer-data.controller.ts`); this contract supersedes it.
-**Related:** [ADR 0004](../adr/0004-developer-tenant-data-residency.md) (tenant data residency), [ADR 0005](../adr/0005-ai-editing-agent-security-model.md) (the Phase 2 AI agent consumes this surface), [website builder plan](./developer-portal-website-builder.md) (Phase 3b), [Tier 2 GitHub App plan](./developer-portal-tier2-github-app.md).
+**Related:** [ADR 0004](../adr/0004-developer-tenant-data-residency.md) (tenant data residency), [ADR 0005](../adr/0005-ai-editing-agent-security-model.md) (the Phase 2 AI agent consumes this surface), [website builder plan](./developer-portal-website-builder.md) (Phase 3b), [Tier 2 GitHub App plan](./developer-portal-tier2-github-app.md), [delegated OAuth plan](./developer-portal-delegated-oauth.md) (user-delegated access to this same data plane), [FHIR API plan](./developer-portal-fhir-api.md) (FHIR R4 dialect of this surface, same keys and scopes).
 
 ---
 

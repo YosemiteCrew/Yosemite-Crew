@@ -5,7 +5,7 @@
 - Owner: Developer portal workstream (epic #1582)
 - Scope: New Prisma models in `packages/database`, new backend routes in `apps/backend` (publisher, registry, and admin-boundary surfaces), publisher UI in the `/developers` portal, install/browse UI in the clinic settings area of `apps/frontend`
 - Depends on: Phase 1 data plane ([data API contract](./developer-portal-data-api.md); API keys in PR #1696, built but unmerged as of 2026-07-07), the config engine's existing versioned Forms/Templates machinery, [ADR 0005](../adr/0005-ai-editing-agent-security-model.md) (draft/promote gate)
-- Related: closed issue #770 (SuperAdmin plugin review queue spec, Sept 2025), [website builder plan](./developer-portal-website-builder.md) (Phase 3b), [Tier 2 GitHub App plan](./developer-portal-tier2-github-app.md)
+- Related: closed issue #770 (SuperAdmin plugin review queue spec, Sept 2025), [website builder plan](./developer-portal-website-builder.md) (Phase 3b), [Tier 2 GitHub App plan](./developer-portal-tier2-github-app.md), [marketplace monetization plan](./developer-portal-marketplace-monetization.md) (resolves open question 1)
 - Status: Proposed - this is a design for ratification, not an implementation log
 
 ---
@@ -189,7 +189,7 @@ Field lists only - Prisma modelling at implementation time, following existing s
 
 ## 10. Open questions for the reviewer
 
-1. **Monetization and rev-share.** v1 is free-only. When paid plugins come, is it Stripe subscriptions on the platform account with publisher payouts (a marketplace, with the platform as merchant of record for plugin fees - note the tension with ADR 0002's clinic-is-MoR posture for clinical payments), or purely a listing fee? This shapes whether install analytics need billing-grade accuracy now.
+1. **Monetization and rev-share.** v1 is free-only. When paid plugins come, is it Stripe subscriptions on the platform account with publisher payouts (a marketplace, with the platform as merchant of record for plugin fees - note the tension with ADR 0002's clinic-is-MoR posture for clinical payments), or purely a listing fee? This shapes whether install analytics need billing-grade accuracy now. Now framed in full in the [marketplace monetization plan](./developer-portal-marketplace-monetization.md), including the fields to reserve on the models in section 8.
 2. **External code-scan tooling.** Issue #770 specced a code-scan step. For config-only manifests the scan is content sanitisation and schema linting we write ourselves; is that sufficient for v1, or should we contract an external scanning service now so the pipeline slot exists before code plugins ever land?
 3. **Featured/curation policy.** Who decides featured placement and category taxonomy, and is it editorial (maintainer judgment) or metric-driven (installs, ratings)? Ratings/reviews by clinics are not in this design - confirm they can wait.
 4. **Observation tool org scoping.** Add `organisationId` (nullable) to `ObservationToolDefinition` in this workstream, or ship v1 with forms + templates + integration presets only and defer observation tools? The migration is small but touches a shared clinical model.
