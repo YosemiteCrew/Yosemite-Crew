@@ -352,26 +352,26 @@ const createStyles = (theme: any) =>
       resizeMode: 'contain',
     },
     emptyTitle: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
       textAlign: 'center',
       marginBottom: theme.spacing['3'],
     },
     emptySubtitle: {
       ...theme.typography.paragraph,
-      color: theme.colors.secondary,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
       marginBottom: theme.spacing['6'],
     },
     emptyButton: {
       paddingHorizontal: theme.spacing['6'],
       paddingVertical: theme.spacing['3'],
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.borderRadius.xl,
+      backgroundColor: theme.colors.cta,
+      borderRadius: theme.borderRadius.button,
     },
     emptyButtonText: {
       ...theme.typography.titleSmall,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
     emptySection: {
       paddingVertical: theme.spacing['6'],
