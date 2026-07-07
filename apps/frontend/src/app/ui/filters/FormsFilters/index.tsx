@@ -66,9 +66,9 @@ const FormsFilters = ({
   );
   const effectiveCategory = allowedCategoryValues.has(activeCategory) ? activeCategory : 'All';
 
-  useEffect(() => {
-    if (effectiveCategory !== activeCategory) setActiveCategory(effectiveCategory);
-  }, [activeCategory, effectiveCategory]);
+  if (effectiveCategory !== activeCategory) {
+    setActiveCategory(effectiveCategory);
+  }
 
   const filteredList = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

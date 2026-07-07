@@ -50,4 +50,39 @@ describe('<InventoryTurnoverFilters />', () => {
     fireEvent.click(screen.getByRole('button', { name: 'pick-category' }));
     expect(setFilteredList.mock.calls.at(-1)?.[0]).toEqual([list[1]]);
   });
+
+  test('resets an invalid category to all and closes the status menu on outside click and scroll', () => {
+    const setFilteredList = jest.fn();
+    const { rerender } = render(
+      <div>
+        <button type="button">outside</button>
+        <InventoryTurnoverFilters
+          list={list as any}
+          setFilteredList={setFilteredList}
+          categories={['Medicine', 'Consumable']}
+        />
+      </div>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+    expect(screen.getByRole('button', { name: 'Excellent' })).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'outside' }));
+    expect(screen.queryByRole('button', { name: 'Excellent' })).not.toBeInTheDocument();
+
+    rerender(
+      <InventoryTurnoverFilters
+        list={list as any}
+        setFilteredList={setFilteredList}
+        categories={['Unknown']}
+      />
+    );
+
+    expect(setFilteredList.mock.calls.at(-1)?.[0]).toEqual(list);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+    expect(screen.getByRole('button', { name: 'Excellent' })).toBeInTheDocument();
+    fireEvent.scroll(window);
+    expect(screen.queryByRole('button', { name: 'Excellent' })).not.toBeInTheDocument();
+  });
 });

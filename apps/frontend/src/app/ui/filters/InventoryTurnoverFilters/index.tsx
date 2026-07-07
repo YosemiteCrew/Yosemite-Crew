@@ -104,9 +104,9 @@ const InventoryTurnoverFilters = ({
   const effectiveCategory =
     activeCategory !== 'all' && !categories.includes(activeCategory) ? 'all' : activeCategory;
 
-  useEffect(() => {
-    if (effectiveCategory !== activeCategory) setActiveCategory(effectiveCategory);
-  }, [activeCategory, effectiveCategory]);
+  if (effectiveCategory !== activeCategory) {
+    setActiveCategory(effectiveCategory);
+  }
 
   const filteredList = useMemo(() => {
     return list.filter((item) => {

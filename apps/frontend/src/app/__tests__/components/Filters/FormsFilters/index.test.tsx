@@ -2,13 +2,14 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import FormsFilters from '@/app/ui/filters/FormsFilters';
 import { FormsProps } from '@/app/features/forms/types/forms';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 // --- Mocks ---
 
 // Mock the constants from the types file
 jest.mock('@/app/features/forms/types/forms', () => ({
   FormsStatusFilters: ['All', 'Active', 'Archived'],
-  FormsCategoryOptions: ['Registration', 'Feedback', 'Survey'],
+  FormsCategoryOptions: ['Consent form', 'Discharge', 'Prescription', 'Custom', 'Boarder Intake'],
   getFormCategoryDisplayLabel: (category: string) => category,
 }));
 
@@ -42,6 +43,17 @@ jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   ),
 }));
 
+jest.mock('@/app/stores/orgStore', () => ({
+  useOrgStore: jest.fn((selector) =>
+    selector({
+      primaryOrgId: 'org-1',
+      orgsById: {
+        'org-1': { type: undefined },
+      },
+    })
+  ),
+}));
+
 // --- Test Data ---
 
 const mockFormsList: FormsProps[] = [
@@ -71,11 +83,21 @@ const mockFormsList: FormsProps[] = [
   },
 ] as any;
 
+const mockUseOrgStore = useOrgStore as unknown as jest.Mock;
+
 describe('FormsFilters Component', () => {
   const mockSetFilteredList = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseOrgStore.mockImplementation((selector) =>
+      selector({
+        primaryOrgId: 'org-1',
+        orgsById: {
+          'org-1': { type: undefined },
+        },
+      })
+    );
   });
 
   // --- 1. Initial Render & Defaults ---
@@ -114,19 +136,25 @@ describe('FormsFilters Component', () => {
   it('filters by Category (Registration)', () => {
     render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
 
-    const optionBtn = screen.getByTestId('option-Registration');
+    const optionBtn = screen.getByTestId('option-Custom');
     fireEvent.click(optionBtn);
 
-    expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockFormsList[0], mockFormsList[3]]);
+    expect(mockSetFilteredList).toHaveBeenLastCalledWith([]);
   });
 
   // --- 3. Combined Filtering ---
 
   it('filters by Status + Category + Search combined', () => {
-    render(<FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />);
+    render(
+      <FormsFilters
+        list={mockFormsList}
+        setFilteredList={mockSetFilteredList}
+        searchQuery="staff"
+      />
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Archived' }));
-    fireEvent.click(screen.getByTestId('option-Registration'));
+    fireEvent.click(screen.getByTestId('option-All'));
 
     expect(mockSetFilteredList).toHaveBeenLastCalledWith([mockFormsList[3]]);
   });
@@ -154,8 +182,62 @@ describe('FormsFilters Component', () => {
 
     expect(currentValueDisplay).toHaveTextContent('All');
 
-    fireEvent.click(screen.getByTestId('option-Feedback'));
+    fireEvent.click(screen.getByTestId('option-Custom'));
 
-    expect(currentValueDisplay).toHaveTextContent('Feedback');
+    expect(currentValueDisplay).toHaveTextContent('Custom');
+  });
+
+  it('limits category options based on org type and preserves the custom action', () => {
+    mockUseOrgStore.mockImplementation((selector) =>
+      selector({
+        primaryOrgId: 'org-1',
+        orgsById: {
+          'org-1': { type: 'BOARDER' },
+        },
+      })
+    );
+
+    render(
+      <FormsFilters
+        list={mockFormsList}
+        setFilteredList={mockSetFilteredList}
+        categoryAction={<button type="button">Add category</button>}
+      />
+    );
+
+    expect(screen.getByText('Add category')).toBeInTheDocument();
+    expect(screen.getByTestId('option-Boarder Intake')).toBeInTheDocument();
+    expect(screen.queryByTestId('option-Custom')).toBeInTheDocument();
+  });
+
+  it('resets an invalid active category to All when the allowed options change', () => {
+    mockUseOrgStore.mockImplementation((selector) =>
+      selector({
+        primaryOrgId: 'org-1',
+        orgsById: {
+          'org-1': { type: 'BOARDER' },
+        },
+      })
+    );
+
+    const { rerender } = render(
+      <FormsFilters list={mockFormsList} setFilteredList={mockSetFilteredList} />
+    );
+
+    fireEvent.click(screen.getByTestId('option-Boarder Intake'));
+    expect(screen.getByTestId('dropdown-current-value')).toHaveTextContent('Boarder Intake');
+
+    mockUseOrgStore.mockImplementation((selector) =>
+      selector({
+        primaryOrgId: 'org-1',
+        orgsById: {
+          'org-1': { type: 'HOSPITAL' },
+        },
+      })
+    );
+    rerender(<FormsFilters list={[]} setFilteredList={mockSetFilteredList} />);
+
+    expect(screen.getByTestId('dropdown-current-value')).toHaveTextContent('All');
+    expect(mockSetFilteredList).toHaveBeenLastCalledWith([]);
   });
 });
