@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-An ADR captures a single architectural decision: the context that forced it, the decision itself, and the trade-offs accepted. It exists so a new contributor can understand *why* the code looks the way it does without reverse-engineering it from git blame or asking in Discord.
+An ADR captures a single architectural decision: the context that forced it, the decision itself, and the trade-offs accepted. It exists so a new contributor can understand _why_ the code looks the way it does without reverse-engineering it from git blame or asking in Discord.
 
 ## When to write one
 
@@ -17,9 +17,12 @@ Skip it for anything a code review can fully capture on its own — a new utilit
 
 ## Index
 
-| # | Title | Status | Date |
-|---|-------|--------|------|
-| [0001](./0001-postgres-prisma-source-of-truth.md) | Postgres + Prisma as the target source of truth | Accepted (migration in progress) | 2026-06-07 |
-| [0002](./0002-stripe-direct-charges-merchant-of-record.md) | Stripe Standard Connect with direct charges; clinic as merchant of record | Accepted | 2026-06-25 |
+| #                                                          | Title                                                                                          | Status                           | Date       |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------- | ---------- |
+| [0001](./0001-postgres-prisma-source-of-truth.md)          | Postgres + Prisma as the target source of truth                                                | Accepted (migration in progress) | 2026-06-07 |
+| [0002](./0002-stripe-direct-charges-merchant-of-record.md) | Stripe Standard Connect with direct charges; clinic as merchant of record                      | Accepted                         | 2026-06-25 |
+| 0003                                                       | Provider-neutral auth boundary with SuperTokens as the first adapter (PR #1763, pending merge) | Proposed                         | 2026-07-02 |
+| [0004](./0004-developer-tenant-data-residency.md)          | Single declared region for developer tenants, with a region field for later                    | Proposed                         | 2026-07-07 |
+| [0005](./0005-ai-editing-agent-security-model.md)          | Security model for the Tier 1 in-browser AI editing agent                                      | Proposed                         | 2026-07-07 |
 
 See also [SuperAdmin ADR-0001](https://github.com/YosemiteCrew/SuperAdmin/blob/main/docs/adr/0001-audit-log-on-supertokens-usermetadata.md) for the audit-log persistence decision in the SuperAdmin app (separate repo, separate ADR log — it documents SuperAdmin's own codebase).
