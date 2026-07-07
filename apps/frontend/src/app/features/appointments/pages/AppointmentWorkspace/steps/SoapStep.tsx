@@ -135,7 +135,7 @@ const SoapStep = ({
   const [isSaving, setIsSaving] = useState(false);
   const isApplyingTemplateRef = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [persistedDraftId, setPersistedDraftId] = useState<string | undefined>(undefined);
+  const persistedDraftIdRef = useRef<string | undefined>(undefined);
 
   // Work on the active draft (first not-yet-signed note); once a note is signed
   // it moves to "All SOAP notes" history and the form clears for a new entry.
@@ -147,7 +147,7 @@ const SoapStep = ({
   const lockReason = soapLock.reason;
 
   useEffect(() => {
-    setPersistedDraftId(isPersistedSoapId(note.id) ? note.id : undefined);
+    persistedDraftIdRef.current = isPersistedSoapId(note.id) ? note.id : undefined;
   }, [note.id]);
 
   // Auto-load the SOAP template linked to the encounter's service/package when the active draft
@@ -271,8 +271,8 @@ const SoapStep = ({
     try {
       if (organisationId) {
         const noteForSave =
-          persistedDraftId && !isPersistedSoapId(note.id)
-            ? { ...note, id: persistedDraftId }
+          persistedDraftIdRef.current && !isPersistedSoapId(note.id)
+            ? { ...note, id: persistedDraftIdRef.current }
             : note;
         const saved = await saveSoapNote(
           {

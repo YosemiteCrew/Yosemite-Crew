@@ -103,7 +103,7 @@ const HospitalizationModal = ({
       '0'
     )}`;
   });
-  const [dischargeDate, setDischargeDate] = useState<Date | null>(addDays(today, 2));
+  const [dischargeDate, setDischargeDate] = useState<Date | null>(() => addDays(today, 2));
   const [roomId, setRoomId] = useState<string | undefined>(defaultRoomId);
   const [unitId, setUnitId] = useState<string | undefined>(defaultUnitId);
   const defaultSupportId = supportOptions.find((option) => option.label === supportName)?.value;

@@ -366,6 +366,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   );
   const [dischargeOverrideReason, setDischargeOverrideReason] = useState('');
   const lifecycleEncounterIdRef = useRef<string | undefined>(appointment.encounterId);
+  const initializedEncounterKeyRef = useRef<string | null>(null);
   const supportStaffMember = useMemo(() => {
     const leadName = (appointment.lead?.name ?? '').trim();
     return (appointment.supportStaff ?? []).find(
@@ -373,8 +374,19 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     );
   }, [appointment.lead?.name, appointment.supportStaff]);
 
-  useEffect(() => {
-    if (!appointmentId) return;
+  const encounterInitKey = appointmentId
+    ? [
+        appointmentId,
+        appointment.encounterId ?? '',
+        initialMode,
+        appointment.lead?.id ?? '',
+        appointment.lead?.name ?? '',
+        supportStaffMember?.id ?? '',
+        supportStaffMember?.name ?? '',
+      ].join('|')
+    : '';
+  if (appointmentId && initializedEncounterKeyRef.current !== encounterInitKey) {
+    initializedEncounterKeyRef.current = encounterInitKey;
     lifecycleEncounterIdRef.current = appointment.encounterId;
     const leadName = (appointment.lead?.name ?? '').trim();
     initEncounter(appointmentId, initialMode, {
@@ -383,14 +395,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       nurseId: supportStaffMember?.id,
       nurseName: supportStaffMember?.name?.trim(),
     });
-  }, [
-    appointment.encounterId,
-    appointment.lead,
-    appointmentId,
-    initEncounter,
-    initialMode,
-    supportStaffMember,
-  ]);
+  }
 
   useEffect(() => {
     const organisationId = appointment.organisationId;
@@ -883,11 +888,11 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   const persistUnitAssignment = useCallback(
     async (unitId?: string) => {
+      if (!unitId) return false;
       const encounterId =
         lifecycleEncounterIdRef.current ??
         appointment.encounterId ??
         (await refreshWorkspaceEncounterId());
-      if (!unitId) return false;
       if (!encounterId) {
         notify('error', {
           title: 'Unable to assign unit',

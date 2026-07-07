@@ -21,7 +21,6 @@ import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type {
   AppointmentEncounter,
-  BillableKind,
   InvoiceLineItem,
   InvoiceStatus,
   LineItem,
@@ -43,22 +42,21 @@ import {
 } from '@/app/features/billing/services/invoiceService';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { deletePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
-import {
-  computePackageBreakdownItem,
-  computePackageTotals,
-} from '@/app/features/organization/services/catalogCalculations';
-import type {
-  PackageBreakdownItem,
-  PackageRevamp,
-  ServiceRevamp,
-} from '@/app/features/organization/types/revamp';
+import { computePackageTotals } from '@/app/features/organization/services/catalogCalculations';
+import type { PackageRevamp, ServiceRevamp } from '@/app/features/organization/types/revamp';
 import { useInventoryStore } from '@/app/stores/inventoryStore';
 import { fetchInventoryItems } from '@/app/features/inventory/services/inventoryService';
 import { mapApiItemToInventoryItem } from '@/app/features/inventory/pages/Inventory/utils';
-import type { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
-import { inventoryToPrescriptionItem } from '@/app/features/appointments/lib/inventoryPrescription';
 import { useNotify } from '@/app/hooks/useNotify';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import {
+  breakdownToInvoiceBreakdown,
+  buildBillableItems,
+  collectSeededBillNames,
+  discountCentsFromPercent,
+  moneyToCents,
+  normalizeLineName,
+} from './invoiceStepUtils';
 
 type InvoiceStepProps = {
   appointmentId: string;
@@ -88,14 +86,6 @@ const PAYMENT_LABELS: Record<PaymentMethod, string> = {
   ONLINE: 'Paid Online',
   CASH: 'Paid via Cash',
   DEPOSIT: 'Paid from Deposit',
-};
-
-export type BillableCandidate = Omit<InvoiceLineItem, 'id'> & {
-  kind: BillableKind;
-  // Present when this candidate is a dispensable drug; used to backfill a linked
-  // prescription row when the item is billed without one (the bill/prescription
-  // interlink), so clinical details can't be skipped before finalizing.
-  prescription?: Omit<PrescriptionItem, 'id'>;
 };
 
 const DEFAULT_CURRENCY = 'USD';
@@ -339,25 +329,6 @@ const toFinanceLineItems = (items: InvoiceLineItem[]) =>
     total: centsToMajor(item.amountCents),
   }));
 
-const toInvoiceCandidate = (
-  name: string,
-  amountCents: number,
-  kind: BillableKind
-): BillableCandidate => ({
-  name,
-  unitPriceCents: amountCents,
-  qty: 1,
-  grossCents: amountCents,
-  discountCents: 0,
-  amountCents,
-  kind,
-});
-
-const discountCentsFromPercent = (grossCents: number, percent: number): number =>
-  Math.min(grossCents, Math.round((grossCents * percent) / 100));
-
-const normalizeLineName = (value: string): string => value.trim().toLowerCase();
-
 // Lossless map of a saved Service/Package treatment row into a Total Bill line —
 // preserves unit price AND quantity (unlike toInvoiceCandidate, which collapses to
 // qty 1 / unitPrice=amountCents and would misprice any qty>1 line).
@@ -443,85 +414,6 @@ const prescriptionToInvoiceLine = (rx: PrescriptionItem): Omit<InvoiceLineItem, 
   };
 };
 
-const moneyToCents = (amount: number): number => Math.max(0, Math.round(amount * 100));
-
-const breakdownToInvoiceBreakdown = (item: PackageBreakdownItem) => {
-  const { gross, discountAmt, net } = computePackageBreakdownItem(item);
-  return {
-    id: item.id,
-    name: item.name,
-    qty: item.quantity,
-    instructions: item.type,
-    unitPriceCents: moneyToCents(item.unitPrice),
-    grossCents: moneyToCents(gross),
-    discountPercent: item.discount,
-    discountCents: moneyToCents(discountAmt),
-    amountCents: moneyToCents(net),
-  };
-};
-
-/**
- * Build a candidate that surfaces the catalog discount on the line: gross is the
- * full price, the default-discount % is applied as the starting line discount, and
- * the max-discount % becomes the editable ceiling so a manual edit can't exceed it.
- */
-const toDiscountedCandidate = (
-  name: string,
-  grossDollars: number,
-  defaultDiscountPercent: number,
-  maxDiscountPercent: number,
-  kind: BillableKind,
-  breakdown?: InvoiceLineItem['breakdown']
-): BillableCandidate => {
-  const grossCents = moneyToCents(grossDollars);
-  const discountCents = Math.min(
-    grossCents,
-    Math.round((grossCents * defaultDiscountPercent) / 100)
-  );
-  const maxDiscountCents = Math.min(
-    grossCents,
-    Math.round((grossCents * maxDiscountPercent) / 100)
-  );
-  return {
-    name,
-    unitPriceCents: grossCents,
-    qty: 1,
-    grossCents,
-    discountCents,
-    amountCents: grossCents - discountCents,
-    maxDiscountPercent,
-    maxDiscountCents,
-    breakdown,
-    kind,
-  };
-};
-
-const serviceToInvoiceCandidate = (service: ServiceRevamp) =>
-  toDiscountedCandidate(
-    service.name,
-    service.grossAmount,
-    service.defaultDiscount ?? 0,
-    service.maxDiscount ?? 0,
-    'BILLING_ONLY'
-  );
-
-const packageToInvoiceCandidate = (pkg: PackageRevamp) => {
-  const { additionalDiscountAmt, afterItemDiscounts } = computePackageTotals(pkg);
-  const candidate = toDiscountedCandidate(
-    pkg.name,
-    afterItemDiscounts,
-    pkg.additionalDiscount ?? 0,
-    pkg.additionalDiscount ?? 0,
-    'PACKAGE_COMPONENT',
-    pkg.breakdown.map(breakdownToInvoiceBreakdown)
-  );
-  return {
-    ...candidate,
-    packageDefaultDiscountPercent: pkg.additionalDiscount ?? 0,
-    packageDefaultDiscountCents: moneyToCents(additionalDiscountAmt),
-  };
-};
-
 const findCatalogPackageForLine = (
   line: InvoiceLineItem,
   catalogPackages: PackageRevamp[],
@@ -538,138 +430,6 @@ const packageInvoicePatch = (pkg: PackageRevamp): Partial<InvoiceLineItem> => {
   return {
     breakdown: pkg.breakdown.map(breakdownToInvoiceBreakdown),
   };
-};
-
-const uniqueByName = (
-  items: BillableCandidate[],
-  excludedNames: Set<string>
-): BillableCandidate[] => {
-  const seen = new Set(excludedNames);
-  return items.filter((item) => {
-    const key = item.name.trim().toLowerCase();
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
-
-/**
- * Treat an inventory item as a dispensable drug when it is explicitly typed as a
- * Drug, carries a controlled-substance schedule, or is marked prescription-
- * required. Relying on `itemType` alone misses drugs whose type field was never
- * set, so we also accept the drug-only schedule/prescription attributes.
- */
-const isDispensableDrug = (item: InventoryItem): boolean => {
-  const info = item.basicInfo;
-  if (info.itemType?.trim().toLowerCase() === 'drug') return true;
-  if (info.drugSchedule?.trim()) return true;
-  const requiresRx = info.prescriptionRequired?.trim().toLowerCase();
-  return requiresRx === 'yes' || requiresRx === 'true' || requiresRx === 'required';
-};
-
-const inventoryToInvoiceCandidate = (item: InventoryItem): BillableCandidate => {
-  const sellingDollars = Number(item.pricing?.selling ?? 0);
-  const candidate = toInvoiceCandidate(
-    item.basicInfo.name,
-    moneyToCents(sellingDollars),
-    'INVENTORY'
-  );
-  // Drug stock billed here should also exist as a prescription so the Treatment
-  // step and the bill stay in sync; carry the prescription payload so the add
-  // handler can backfill one when none exists yet.
-  if (isDispensableDrug(item)) {
-    return { ...candidate, prescription: inventoryToPrescriptionItem(item) };
-  }
-  return candidate;
-};
-
-export const buildBillableItems = (
-  encounter: AppointmentEncounter,
-  catalogServices: ServiceRevamp[],
-  catalogPackages: PackageRevamp[],
-  inventoryItems: InventoryItem[],
-  organisationId?: string
-): BillableCandidate[] => {
-  const existingNames = new Set(
-    encounter.invoiceLineItems.map((item) => item.name.trim().toLowerCase())
-  );
-  const serviceItems: BillableCandidate[] = [];
-  for (const item of encounter.services) {
-    if (
-      !item.billed &&
-      item.amountCents > 0 &&
-      !existingNames.has(item.name.trim().toLowerCase())
-    ) {
-      serviceItems.push(toInvoiceCandidate(item.name, item.amountCents, 'EXISTING_TREATMENT'));
-    }
-  }
-  // In-house medications prescribed this visit. Their price comes from the linked
-  // inventory item; when it is missing we still surface them at 0 so they can be
-  // added and priced inline rather than silently dropped from the bill.
-  const prescriptionItems: BillableCandidate[] = [];
-  for (const item of encounter.prescription) {
-    if (
-      !item.billed &&
-      item.fulfillment === 'IN_HOUSE' &&
-      !existingNames.has(item.medicineName.trim().toLowerCase())
-    ) {
-      prescriptionItems.push(
-        toInvoiceCandidate(
-          item.medicineName,
-          Math.max(0, item.priceCents ?? 0),
-          'IN_HOUSE_PRESCRIPTION'
-        )
-      );
-    }
-  }
-  const catalogItems: BillableCandidate[] = [];
-  if (organisationId) {
-    for (const service of catalogServices) {
-      if (service.organisationId === organisationId && service.status === 'ACTIVE') {
-        catalogItems.push(serviceToInvoiceCandidate(service));
-      }
-    }
-    for (const pkg of catalogPackages) {
-      if (pkg.organisationId === organisationId && pkg.status === 'ACTIVE') {
-        catalogItems.push(packageToInvoiceCandidate(pkg));
-      }
-    }
-  }
-  // Inventory/stock items (drugs, consumables) so they can be charged directly.
-  const inventoryCandidates: BillableCandidate[] = [];
-  for (const item of inventoryItems) {
-    if (
-      item.basicInfo?.name &&
-      item.status !== 'HIDDEN' &&
-      !existingNames.has(item.basicInfo.name.trim().toLowerCase())
-    ) {
-      inventoryCandidates.push(inventoryToInvoiceCandidate(item));
-    }
-  }
-  const visitItems = uniqueByName(
-    [...serviceItems, ...prescriptionItems, ...inventoryCandidates],
-    new Set()
-  );
-  return uniqueByName([...visitItems, ...catalogItems], existingNames);
-};
-
-/**
- * Names that must not be auto-seeded onto the editable bill because they are already
- * represented there — either on the current builder or on an OPEN (unpaid/partial)
- * invoice, which hydrateInvoiceBilling seeds straight into the builder. Paid invoices
- * are handled separately (settledLineNames) and excluded here so their lines don't
- * block a legitimate re-bill.
- */
-export const collectSeededBillNames = (
-  builderNames: string[],
-  pastInvoices: PastInvoice[]
-): Set<string> => {
-  const names = new Set(builderNames.map((name) => normalizeLineName(name)));
-  for (const invoice of pastInvoices) {
-    if (invoice.status === 'PAID_FULL') continue;
-    for (const item of invoice.items) names.add(normalizeLineName(item.name));
-  }
-  return names;
 };
 
 const computeInvoiceTotalCents = (encounter: AppointmentEncounter): number => {
@@ -1332,21 +1092,19 @@ const InvoiceStep = ({
       Pick<InvoiceLineItem, 'maxDiscountPercent' | 'packageDefaultDiscountPercent'>
     >();
     if (!organisationId) return map;
-    catalogServices
-      .filter((service) => service.organisationId === organisationId)
-      .forEach((service) => {
-        map.set(normalizeLineName(service.name), {
-          maxDiscountPercent: service.maxDiscount ?? 0,
-        });
+    for (const service of catalogServices) {
+      if (service.organisationId !== organisationId) continue;
+      map.set(normalizeLineName(service.name), {
+        maxDiscountPercent: service.maxDiscount ?? 0,
       });
-    catalogPackages
-      .filter((pkg) => pkg.organisationId === organisationId)
-      .forEach((pkg) => {
-        map.set(normalizeLineName(pkg.name), {
-          maxDiscountPercent: pkg.additionalDiscount ?? 0,
-          packageDefaultDiscountPercent: pkg.additionalDiscount ?? 0,
-        });
+    }
+    for (const pkg of catalogPackages) {
+      if (pkg.organisationId !== organisationId) continue;
+      map.set(normalizeLineName(pkg.name), {
+        maxDiscountPercent: pkg.additionalDiscount ?? 0,
+        packageDefaultDiscountPercent: pkg.additionalDiscount ?? 0,
       });
+    }
     return map;
   }, [catalogPackages, catalogServices, organisationId]);
 
@@ -1506,7 +1264,13 @@ const InvoiceStep = ({
   // have to re-add each saved item by search. Each name seeds at most once per mount
   // (so a manually removed line doesn't snap back), lines already on the bill are
   // skipped, and billed/paid items are excluded upstream by the !billed filter.
-  const seededBillNamesRef = useRef<Set<string>>(new Set());
+  const seededBillNamesRef = useRef<Set<string> | null>(null);
+  const getSeededBillNames = () => {
+    if (seededBillNamesRef.current === null) {
+      seededBillNamesRef.current = new Set();
+    }
+    return seededBillNamesRef.current;
+  };
   useEffect(() => {
     if (!canBuildBill || !billingHydrated) return;
     // Names already represented on the bill: the current builder plus any OPEN invoice
@@ -1522,10 +1286,11 @@ const InvoiceStep = ({
     // A booked line already on any open invoice blocks re-seeding it under a mismatched name.
     const bookedAlreadyOnBill =
       bookedLineKey !== undefined && taken.size > 0 && encounter.pastInvoices.length > 0;
+    const seededBillNames = getSeededBillNames();
     autoSeedCandidates.forEach((line) => {
       const key = normalizeLineName(line.name);
-      if (!key || seededBillNamesRef.current.has(key)) return;
-      seededBillNamesRef.current.add(key);
+      if (!key || seededBillNames.has(key)) return;
+      seededBillNames.add(key);
       const isBookedDuplicate = key === bookedLineKey && bookedAlreadyOnBill;
       if (taken.has(key) || isBookedDuplicate) return;
       taken.add(key);
@@ -1978,7 +1743,7 @@ const InvoiceStep = ({
       if (!prescriptionId || !organisationId) return;
       // Drop the source prescription locally and remember the dismissal so auto-seed doesn't
       // re-add it this session.
-      if (line?.name) seededBillNamesRef.current.add(line.name.trim().toLowerCase());
+      if (line?.name) getSeededBillNames().add(line.name.trim().toLowerCase());
       removePrescription(appointmentId, prescriptionId);
       const isPersisted = !prescriptionId.startsWith('local-');
       if (!isPersisted) return;

@@ -1,7 +1,7 @@
 import {
   buildBillableItems,
   collectSeededBillNames,
-} from '@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep';
+} from '@/app/features/appointments/pages/AppointmentWorkspace/steps/invoiceStepUtils';
 import type {
   AppointmentEncounter,
   InvoiceLineItem,

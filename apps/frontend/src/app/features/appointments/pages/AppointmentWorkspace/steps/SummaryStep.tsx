@@ -341,6 +341,185 @@ const AllDocumentsTable = ({
   );
 };
 
+type TemplateSearchSectionProps = {
+  templateSearchRef: React.RefObject<HTMLDivElement | null>;
+  templateQuery: string;
+  setTemplateQuery: (value: string) => void;
+  templateMatches: TemplateLike[];
+  templateError: string | null;
+  onSelectTemplate: (template: TemplateLike) => void;
+};
+
+const TemplateSearchSection = ({
+  templateSearchRef,
+  templateQuery,
+  setTemplateQuery,
+  templateMatches,
+  templateError,
+  onSelectTemplate,
+}: TemplateSearchSectionProps) => (
+  <div className="relative flex justify-end">
+    <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
+      <Search
+        value={templateQuery}
+        setSearch={setTemplateQuery}
+        placeholder="Search discharge templates"
+        label="Search discharge templates"
+        className="w-full!"
+      />
+      <SearchResultsDropdown
+        anchorRef={templateSearchRef}
+        open={Boolean(templateQuery.trim()) && !templateError}
+        onClose={() => setTemplateQuery('')}
+      >
+        {templateMatches.length > 0 ? (
+          <ul>
+            {templateMatches.map((template) => (
+              <WorkspaceSearchResultRow
+                key={template.id}
+                name={template.name}
+                leadingIcon={<LuSearch aria-hidden="true" className="shrink-0" />}
+                onSelect={() => onSelectTemplate(template)}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className="px-4 py-3 text-body-4 text-text-secondary">
+            No discharge templates match this search.
+          </p>
+        )}
+      </SearchResultsDropdown>
+      {templateError && <p className="mt-2 text-caption-1 text-danger-600">{templateError}</p>}
+    </div>
+  </div>
+);
+
+type SavedDischargeViewProps = {
+  encounter: AppointmentEncounter;
+  followUpDate: Date | null;
+  onEdit: () => void;
+};
+
+const SavedDischargeView = ({ encounter, followUpDate, onEdit }: SavedDischargeViewProps) => (
+  <div className="relative">
+    {/* Editable until the encounter is locked (window closed / completed /
+        discharged). Absolutely positioned so it overlays the top-right
+        without pushing the summary down a row. */}
+    {!encounter.viewOnly && (
+      <div className="absolute top-0 right-0 z-10">
+        <CircleIconButton
+          icon={<LuPencil aria-hidden="true" />}
+          label="Edit discharge summary"
+          variant="dark"
+          onClick={onEdit}
+        />
+      </div>
+    )}
+    <div
+      className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
+      dangerouslySetInnerHTML={{
+        __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
+      }}
+    />
+    <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+      {/* Same Datepicker container as edit mode, rendered non-interactive. */}
+      <div className="pointer-events-none w-full select-none sm:max-w-72" aria-disabled="true">
+        <Datepicker
+          type="input"
+          currentDate={followUpDate}
+          setCurrentDate={() => undefined}
+          placeholder="Follow up date"
+        />
+      </div>
+      <div className="flex flex-col items-end leading-[120%]">
+        <span className="text-[12px] font-bold text-neutral-900">
+          Saved by {encounter.dischargeSavedByName}
+        </span>
+        <span className="text-[12px] font-medium text-text-brand">
+          {formatDateTime(encounter.dischargeSavedAt ?? '')}
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
+type ActionButtonsRowProps = {
+  showDocumentActions: boolean;
+  dischargeSaved: boolean;
+  isPrinting: boolean;
+  isSaving: boolean;
+  isSigning: boolean;
+  isPacketSigned: boolean;
+  signDisabled: boolean;
+  signDisabledReason: string | undefined;
+  encounterViewOnly: boolean | undefined;
+  onPrint: () => void;
+  onSave: () => void;
+  onDownloadSigned: () => void;
+  onSign: () => void;
+};
+
+const ActionButtonsRow = ({
+  showDocumentActions,
+  dischargeSaved,
+  isPrinting,
+  isSaving,
+  isSigning,
+  isPacketSigned,
+  signDisabled,
+  signDisabledReason,
+  encounterViewOnly,
+  onPrint,
+  onSave,
+  onDownloadSigned,
+  onSign,
+}: ActionButtonsRowProps) => (
+  <div className="flex flex-wrap items-center justify-end gap-3">
+    {showDocumentActions && (
+      <Secondary
+        text={isPrinting ? 'Preparing…' : 'Print All'}
+        icon={<LuPrinter aria-hidden="true" />}
+        onClick={onPrint}
+        isDisabled={isPrinting}
+      />
+    )}
+    {!dischargeSaved && (
+      <Secondary
+        text="Save"
+        icon={<LuSave aria-hidden="true" />}
+        onClick={onSave}
+        isDisabled={encounterViewOnly || isSaving}
+      />
+    )}
+    {showDocumentActions && isPacketSigned && (
+      <Secondary
+        text="Download Signed"
+        icon={<LuDownload aria-hidden="true" />}
+        onClick={onDownloadSigned}
+        isDisabled={isPrinting}
+      />
+    )}
+    {showDocumentActions && !isPacketSigned && signDisabledReason && (
+      <GlassTooltip content={signDisabledReason} side="top">
+        <Secondary
+          text={isSigning ? 'Signing…' : 'Sign'}
+          icon={<LuFileSignature aria-hidden="true" />}
+          onClick={onSign}
+          isDisabled={signDisabled}
+        />
+      </GlassTooltip>
+    )}
+    {showDocumentActions && !isPacketSigned && !signDisabledReason && (
+      <Secondary
+        text={isSigning ? 'Signing…' : 'Sign'}
+        icon={<LuFileSignature aria-hidden="true" />}
+        onClick={onSign}
+        isDisabled={signDisabled}
+      />
+    )}
+  </div>
+);
+
 const SummaryStep = ({
   appointmentId,
   appointment,
@@ -746,91 +925,25 @@ const SummaryStep = ({
 
       {/* Discharge-template search sits above the container (like the SOAP step's
           template search) — selecting a template fills the editor. */}
-      <div className="relative flex justify-end">
-        <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
-          <Search
-            value={templateQuery}
-            setSearch={setTemplateQuery}
-            placeholder="Search discharge templates"
-            label="Search discharge templates"
-            className="w-full!"
-          />
-          <SearchResultsDropdown
-            anchorRef={templateSearchRef}
-            open={Boolean(templateQuery.trim()) && !templateState.error}
-            onClose={() => setTemplateQuery('')}
-          >
-            {templateMatches.length > 0 ? (
-              <ul>
-                {templateMatches.map((template) => (
-                  <WorkspaceSearchResultRow
-                    key={template.id}
-                    name={template.name}
-                    leadingIcon={<LuSearch aria-hidden="true" className="shrink-0" />}
-                    onSelect={() => handleTemplateSelect(template)}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p className="px-4 py-3 text-body-4 text-text-secondary">
-                No discharge templates match this search.
-              </p>
-            )}
-          </SearchResultsDropdown>
-          {templateState.error && (
-            <p className="mt-2 text-caption-1 text-danger-600">{templateState.error}</p>
-          )}
-        </div>
-      </div>
+      <TemplateSearchSection
+        templateSearchRef={templateSearchRef}
+        templateQuery={templateQuery}
+        setTemplateQuery={setTemplateQuery}
+        templateMatches={templateMatches}
+        templateError={templateState.error}
+        onSelectTemplate={handleTemplateSelect}
+      />
 
       {/* Mirrors the SOAP step sections: title + inset rich-text editor only.
           Once saved, the editor is replaced by a read-only render of the summary
           with a fixed follow-up date and a "Saved on … by …" stamp. */}
       <SectionContainer titleClassName="text-yc-20-b-primary" title="Discharge Summary" compactTop>
         {dischargeSaved ? (
-          <div className="relative">
-            {/* Editable until the encounter is locked (window closed / completed /
-                discharged). Absolutely positioned so it overlays the top-right
-                without pushing the summary down a row. */}
-            {!encounter.viewOnly && (
-              <div className="absolute top-0 right-0 z-10">
-                <CircleIconButton
-                  icon={<LuPencil aria-hidden="true" />}
-                  label="Edit discharge summary"
-                  variant="dark"
-                  onClick={() => reopenDischargeSummary(appointmentId)}
-                />
-              </div>
-            )}
-            <div
-              className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
-              dangerouslySetInnerHTML={{
-                __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
-              }}
-            />
-            <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-              {/* Same Datepicker container as edit mode, rendered non-interactive. */}
-              <div
-                className="pointer-events-none w-full select-none sm:max-w-72"
-                aria-disabled="true"
-              >
-                <Datepicker
-                  type="input"
-                  currentDate={followUpDate}
-                  setCurrentDate={() => undefined}
-                  placeholder="Follow up date"
-                />
-              </div>
-              <div className="flex flex-col items-end leading-[120%]">
-                <span className="text-[12px] font-bold text-neutral-900">
-                  Saved by {encounter.dischargeSavedByName}
-                </span>
-                <span className="text-[12px] font-medium text-text-brand">
-                  {formatDateTime(encounter.dischargeSavedAt ?? '')}
-                </span>
-              </div>
-            </div>
-          </div>
+          <SavedDischargeView
+            encounter={encounter}
+            followUpDate={followUpDate}
+            onEdit={() => reopenDischargeSummary(appointmentId)}
+          />
         ) : (
           <>
             <RichTextEditor
@@ -866,50 +979,21 @@ const SummaryStep = ({
             {signError}
           </p>
         )}
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {showDocumentActions && (
-            <Secondary
-              text={isPrinting ? 'Preparing…' : 'Print All'}
-              icon={<LuPrinter aria-hidden="true" />}
-              onClick={handlePrint}
-              isDisabled={isPrinting}
-            />
-          )}
-          {!dischargeSaved && (
-            <Secondary
-              text="Save"
-              icon={<LuSave aria-hidden="true" />}
-              onClick={handleSave}
-              isDisabled={encounter.viewOnly || isSaving}
-            />
-          )}
-          {showDocumentActions && isPacketSigned && (
-            <Secondary
-              text="Download Signed"
-              icon={<LuDownload aria-hidden="true" />}
-              onClick={handleDownloadSigned}
-              isDisabled={isPrinting}
-            />
-          )}
-          {showDocumentActions && !isPacketSigned && signDisabledReason && (
-            <GlassTooltip content={signDisabledReason} side="top">
-              <Secondary
-                text={isSigning ? 'Signing…' : 'Sign'}
-                icon={<LuFileSignature aria-hidden="true" />}
-                onClick={handleSign}
-                isDisabled={signDisabled}
-              />
-            </GlassTooltip>
-          )}
-          {showDocumentActions && !isPacketSigned && !signDisabledReason && (
-            <Secondary
-              text={isSigning ? 'Signing…' : 'Sign'}
-              icon={<LuFileSignature aria-hidden="true" />}
-              onClick={handleSign}
-              isDisabled={signDisabled}
-            />
-          )}
-        </div>
+        <ActionButtonsRow
+          showDocumentActions={showDocumentActions}
+          dischargeSaved={dischargeSaved}
+          isPrinting={isPrinting}
+          isSaving={isSaving}
+          isSigning={isSigning}
+          isPacketSigned={isPacketSigned}
+          signDisabled={signDisabled}
+          signDisabledReason={signDisabledReason}
+          encounterViewOnly={encounter.viewOnly}
+          onPrint={() => void handlePrint()}
+          onSave={() => void handleSave()}
+          onDownloadSigned={() => void handleDownloadSigned()}
+          onSign={() => void handleSign()}
+        />
       </div>
 
       <AllDocumentsTable
