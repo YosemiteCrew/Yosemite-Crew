@@ -1,0 +1,23 @@
+---
+id: explorer
+title: Interactive API Explorer
+slug: /api/explorer
+---
+
+import ApiExplorer from '@site/src/components/ApiExplorer';
+
+This page renders the OpenAPI spec from `apps/dev-docs/static/openapi.yaml` with Swagger UI and "try it out" enabled, so you can exercise endpoints directly from the browser.
+
+How to use it:
+
+1. Set the API base URL to the backend you want to test against (for local development that is usually `http://localhost:3000`). Requests built by "try it out" are rewritten to that origin.
+2. Click **Authorize** and paste a developer API key (`yc_test_...` recommended). The key is sent as `Authorization: Bearer` on each request and is kept only in your browser.
+3. Expand an endpoint, click **Try it out**, fill the parameters, and execute.
+
+:::caution Test keys read real data
+`yc_test_...` keys are read-only and excluded from billing, but in v1 they read your organisation's real data. Full sandbox isolation ships later with the preview environment.
+:::
+
+The explorer renders whatever the spec currently contains, so new endpoints appear here automatically when `static/openapi.yaml` is updated. For a read-optimised reference view of the same spec, see the [OpenAPI Reference](/openapi). For what changed between versions, see the [API Changelog](/api/changelog).
+
+<ApiExplorer />

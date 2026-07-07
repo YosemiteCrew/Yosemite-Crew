@@ -11,6 +11,12 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Developer API',
+      collapsed: false,
+      items: ['api/explorer', 'api/changelog', 'api/connect-claude'],
+    },
+    {
+      type: 'category',
       label: 'Apps',
       collapsed: false,
       items: [

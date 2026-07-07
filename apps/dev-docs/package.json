@@ -7,7 +7,7 @@
     "start": "docusaurus start --host 0.0.0.0 --port 3100",
     "build": "docusaurus build",
     "postbuild": "rm -rf ../frontend/public/dev-docs && cp -a build ../frontend/public/dev-docs",
-    "serve": "docusaurus serve --build-dir build --host 0.0.0.0 --port 4100",
+    "serve": "docusaurus serve --dir build --host 0.0.0.0 --port 4100",
     "clean": "docusaurus clear",
     "export": "pnpm build"
   },
@@ -15,13 +15,16 @@
     "@docusaurus/core": "^3.6.1",
     "@docusaurus/preset-classic": "^3.6.1",
     "@easyops-cn/docusaurus-search-local": "^0.52.1",
+    "buffer": "^6.0.3",
     "clsx": "^2.1.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "swagger-ui-react": "^5.32.8"
   },
   "devDependencies": {
     "@docusaurus/tsconfig": "^3.6.1",
     "baseline-browser-mapping": "^2.9.19",
+    "stream-browserify": "^3.0.0",
     "typescript": "~5.6.3"
   }
 }

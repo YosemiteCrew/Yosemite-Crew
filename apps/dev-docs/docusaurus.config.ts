@@ -1,33 +1,33 @@
-import type { Config } from "@docusaurus/types";
-import type { Options, ThemeConfig } from "@docusaurus/preset-classic";
-import { themes as prismThemes } from "prism-react-renderer";
+import type { Config } from '@docusaurus/types';
+import type { Options, ThemeConfig } from '@docusaurus/preset-classic';
+import { themes as prismThemes } from 'prism-react-renderer';
 
 const config: Config = {
-  title: "Yosemite Crew Developer Docs",
-  tagline: "Build, integrate, and launch on Yosemite Crew.",
-  favicon: "img/favicon.ico",
-  url: "http://localhost:3000",
-  baseUrl: "/dev-docs/",
-  organizationName: "yosemite-crew",
-  projectName: "developer-docs",
-  onBrokenLinks: "throw",
+  title: 'Yosemite Crew Developer Docs',
+  tagline: 'Build, integrate, and launch on Yosemite Crew.',
+  favicon: 'img/favicon.ico',
+  url: 'http://localhost:3000',
+  baseUrl: '/dev-docs/',
+  organizationName: 'yosemite-crew',
+  projectName: 'developer-docs',
+  onBrokenLinks: 'throw',
   markdown: {
     hooks: {
-      onBrokenMarkdownLinks: "warn",
+      onBrokenMarkdownLinks: 'warn',
     },
   },
   trailingSlash: false,
   i18n: {
-    defaultLocale: "en",
-    locales: ["en"],
+    defaultLocale: 'en',
+    locales: ['en'],
   },
   presets: [
     [
-      "classic",
+      'classic',
       {
         docs: {
-          routeBasePath: "/",
-          sidebarPath: "./sidebars.ts",
+          routeBasePath: '/',
+          sidebarPath: './sidebars.ts',
           showLastUpdateTime: true,
           showLastUpdateAuthor: false,
           editUrl: undefined,
@@ -35,90 +35,110 @@ const config: Config = {
         blog: false,
         pages: false,
         theme: {
-          customCss: "./src/css/custom.css",
+          customCss: './src/css/custom.css',
         },
       } satisfies Options,
     ],
   ],
   plugins: [
+    // swagger-ui-react (API explorer) depends on Node's `stream` module,
+    // which webpack 5 no longer polyfills by default.
+    function nodePolyfillsForSwaggerUi() {
+      return {
+        name: 'node-polyfills-for-swagger-ui',
+        configureWebpack() {
+          return {
+            resolve: {
+              fallback: {
+                stream: require.resolve('stream-browserify'),
+              },
+            },
+          };
+        },
+      };
+    },
     [
-      "@easyops-cn/docusaurus-search-local",
+      '@easyops-cn/docusaurus-search-local',
       {
         hashed: true,
         indexDocs: true,
         indexPages: true,
         highlightSearchTermsOnTargetPage: true,
         explicitSearchResultPath: true,
-        docsRouteBasePath: "/",
+        docsRouteBasePath: '/',
       },
     ],
   ],
   themeConfig: {
-    image: "img/social-card.png",
+    image: 'img/social-card.png',
     navbar: {
-      title: "Developer Docs",
+      title: 'Developer Docs',
       logo: {
-        alt: "Yosemite Crew",
-        src: "img/logo.svg",
+        alt: 'Yosemite Crew',
+        src: 'img/logo.svg',
       },
       items: [
         {
-          type: "doc",
-          docId: "overview",
-          position: "left",
-          label: "Overview",
+          type: 'doc',
+          docId: 'overview',
+          position: 'left',
+          label: 'Overview',
         },
-        { href: "https://yosemitecrew.com", label: "Main site", position: "right" },
-        { href: "https://github.com/YosemiteCrew/Yosemite-Crew", label: "GitHub", position: "right" },
+        { href: 'https://yosemitecrew.com', label: 'Main site', position: 'right' },
+        {
+          href: 'https://github.com/YosemiteCrew/Yosemite-Crew',
+          label: 'GitHub',
+          position: 'right',
+        },
       ],
     },
     footer: {
-      style: "dark",
+      style: 'dark',
       links: [
         {
-          title: "Docs",
+          title: 'Docs',
           items: [
             {
-              label: "Overview",
-              to: "/",
+              label: 'Overview',
+              to: '/',
             },
             {
-              label: "Notification setup",
-              to: "/guides/notification-setup",
+              label: 'Notification setup',
+              to: '/guides/notification-setup',
             },
             {
-              label: "Frontend app",
-              to: "/apps/frontend",
+              label: 'Frontend app',
+              to: '/apps/frontend',
             },
           ],
         },
         {
-          title: "Community",
+          title: 'Community',
           items: [
             {
-              label: "Support",
-              href: "https://yosemitecrew.com/contact",
+              label: 'Support',
+              href: 'https://yosemitecrew.com/contact',
             },
             {
-              label: "Status",
-              href: "https://status.yosemitecrew.com",
+              label: 'Status',
+              href: 'https://status.yosemitecrew.com',
             },
             {
-              label: "Changelog",
-              href: "https://yosemitecrew.com",
+              label: 'Changelog',
+              href: 'https://yosemitecrew.com',
             },
           ],
         },
         {
-          title: "More",
+          title: 'More',
           items: [
             {
-              label: "Homepage",
-              href: "https://yosemitecrew.com",
+              label: 'Homepage',
+              href: 'https://yosemitecrew.com',
             },
             {
-              label: "GitHub",
-              href: "https://github.com/YosemiteCrew/Yosemite-Crew",
+              label: 'GitHub',
+              href: 'https://github.com/YosemiteCrew/Yosemite-Crew',
             },
           ],
         },
@@ -128,7 +148,7 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
-      additionalLanguages: ["bash", "json"],
+      additionalLanguages: ['bash', 'json'],
     },
     tableOfContents: {
       minHeadingLevel: 2,
