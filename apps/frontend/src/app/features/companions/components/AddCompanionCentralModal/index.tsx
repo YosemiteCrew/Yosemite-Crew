@@ -343,10 +343,13 @@ const InputWithDropdown = ({
   }, []);
 
   // Auto-open when results arrive, auto-close when empty — but only after user interaction
-  useEffect(() => {
-    if (!userHasTypedRef.current) return;
-    setOpen(filtered.length > 0);
-  }, [filtered.length]);
+  const [prevFilteredLength, setPrevFilteredLength] = useState(filtered.length);
+  if (filtered.length !== prevFilteredLength) {
+    setPrevFilteredLength(filtered.length);
+    if (userHasTypedRef.current) {
+      setOpen(filtered.length > 0);
+    }
+  }
 
   const computeStyle = useCallback(() => {
     const rect = wrapRef.current?.getBoundingClientRect();
@@ -784,7 +787,12 @@ const AddCompanionCentralModal = ({
   }, [showModal, resetAll, initialMode]);
 
   // ── Populate edit form from viewCompanion ──
-  useEffect(() => {
+  const prevEditSyncRef = useRef({ mode, viewCompanion });
+  if (
+    prevEditSyncRef.current.mode !== mode ||
+    prevEditSyncRef.current.viewCompanion !== viewCompanion
+  ) {
+    prevEditSyncRef.current = { mode, viewCompanion };
     if (mode === 'edit' && viewCompanion) {
       const c = viewCompanion.companion;
       const p = viewCompanion.parent;
@@ -808,7 +816,7 @@ const AddCompanionCentralModal = ({
     } else if (mode !== 'edit') {
       editSnapshotRef.current = null;
     }
-  }, [mode, viewCompanion]);
+  }
 
   // ── Parent search — debounced API call; skipped once after a selection ──
   useEffect(() => {
