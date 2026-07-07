@@ -4,6 +4,7 @@ import {
   DeveloperApiKeyStatus,
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import { emitDeveloperEvent } from "src/utils/developer-events";
 
 export class DeveloperApiKeyServiceError extends Error {
   constructor(
@@ -172,6 +173,11 @@ export const DeveloperApiKeyService = {
         expiresAt: input.expiresAt ?? null,
       },
     });
+    emitDeveloperEvent("api_key.created", organisationId, {
+      keyId: record.id,
+      prefix: record.prefix,
+      environment: record.environment,
+    });
 
     return {
       id: record.id,
@@ -226,6 +232,7 @@ export const DeveloperApiKeyService = {
     if (result.count === 0) {
       throw new DeveloperApiKeyServiceError("API key not found", 404);
     }
+    emitDeveloperEvent("api_key.revoked", organisationId, { keyId });
   },
 
   // Rotates a key: issues a replacement with the same scopes / environment /
@@ -281,6 +288,10 @@ export const DeveloperApiKeyService = {
         data: { rotationGraceUntil: graceUntil },
       }),
     ]);
+    emitDeveloperEvent("api_key.rotated", organisationId, {
+      keyId: existing.id,
+      newKeyId: record.id,
+    });
 
     return {
       id: record.id,

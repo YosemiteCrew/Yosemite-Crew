@@ -5,6 +5,8 @@ import {
   requireScope,
 } from "src/middlewares/api-key-auth";
 import { DeveloperDataController } from "../controllers/web/developer-data.controller";
+import { DeveloperEventsController } from "../controllers/web/developer-events.controller";
+import { DeveloperFhirController } from "../controllers/web/developer-fhir.controller";
 import { DeveloperMcpController } from "../controllers/web/developer-mcp.controller";
 
 // Developer Data API v1 (mounted at /v1/developer): API-key-authenticated,
@@ -20,6 +22,22 @@ developerDataRouter.get(
   "/usage",
   authorizeApiKeyVerifyOnly,
   DeveloperDataController.getUsage,
+);
+
+// FHIR capability statement: valid key, NO scope, quota-exempt (FHIR plan
+// section 3 - same carve-out as /usage).
+developerDataRouter.get(
+  "/fhir/metadata",
+  authorizeApiKeyVerifyOnly,
+  DeveloperFhirController.metadata,
+);
+
+// SSE event stream: the key is verified once at connect and the long-lived
+// connection never increments the monthly quota (a stream is not N calls).
+developerDataRouter.get(
+  "/events",
+  authorizeApiKeyVerifyOnly,
+  DeveloperEventsController.stream,
 );
 
 // Stateless MCP protocol responses: GET (no server-initiated stream) and
@@ -81,6 +99,60 @@ developerDataRouter.get(
   "/organization",
   requireScope("organization:read"),
   DeveloperDataController.getOrganization,
+);
+
+// FHIR R4 dialect (plan: developer-portal-fhir-api.md): same scopes, same
+// org scoping, same quota unit per call as the JSON endpoints above. The
+// envelope differs (Bundle / OperationOutcome), nothing else does.
+developerDataRouter.get(
+  "/fhir/Organization",
+  requireScope("organization:read"),
+  DeveloperFhirController.searchOrganization,
+);
+developerDataRouter.get(
+  "/fhir/Organization/:id",
+  requireScope("organization:read"),
+  DeveloperFhirController.readOrganization,
+);
+developerDataRouter.get(
+  "/fhir/Patient",
+  requireScope("patients:read"),
+  DeveloperFhirController.searchPatients,
+);
+developerDataRouter.get(
+  "/fhir/Patient/:id",
+  requireScope("patients:read"),
+  DeveloperFhirController.readPatient,
+);
+developerDataRouter.get(
+  "/fhir/Appointment",
+  requireScope("appointments:read"),
+  DeveloperFhirController.searchAppointments,
+);
+developerDataRouter.get(
+  "/fhir/Appointment/:id",
+  requireScope("appointments:read"),
+  DeveloperFhirController.readAppointment,
+);
+developerDataRouter.get(
+  "/fhir/Encounter",
+  requireScope("encounters:read"),
+  DeveloperFhirController.searchEncounters,
+);
+developerDataRouter.get(
+  "/fhir/Encounter/:id",
+  requireScope("encounters:read"),
+  DeveloperFhirController.readEncounter,
+);
+developerDataRouter.get(
+  "/fhir/Invoice",
+  requireScope("invoices:read"),
+  DeveloperFhirController.searchInvoices,
+);
+developerDataRouter.get(
+  "/fhir/Invoice/:id",
+  requireScope("invoices:read"),
+  DeveloperFhirController.readInvoice,
 );
 
 export default developerDataRouter;

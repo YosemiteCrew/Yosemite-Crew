@@ -40,6 +40,32 @@ jest.mock("src/controllers/web/developer-mcp.controller", () => ({
   DeveloperMcpController,
 }));
 
+const DeveloperFhirController = {
+  metadata: jest.fn(),
+  searchOrganization: jest.fn(),
+  readOrganization: jest.fn(),
+  searchPatients: jest.fn(),
+  readPatient: jest.fn(),
+  searchAppointments: jest.fn(),
+  readAppointment: jest.fn(),
+  searchEncounters: jest.fn(),
+  readEncounter: jest.fn(),
+  searchInvoices: jest.fn(),
+  readInvoice: jest.fn(),
+};
+
+jest.mock("src/controllers/web/developer-fhir.controller", () => ({
+  DeveloperFhirController,
+}));
+
+const DeveloperEventsController = {
+  stream: jest.fn(),
+};
+
+jest.mock("src/controllers/web/developer-events.controller", () => ({
+  DeveloperEventsController,
+}));
+
 const router = jest.requireActual("../../src/routers/developer-data.router")
   .default as Router;
 
@@ -135,6 +161,119 @@ describe("developer-data.router", () => {
       const route = findRoute(path, "get");
       expect(route?.stack.at(-1)?.handle).toBe(handler);
     }
+  });
+
+  describe("FHIR dialect", () => {
+    it("registers /fhir/metadata quota-exempt with the verify-only variant and no scope", () => {
+      const route = findRoute("/fhir/metadata", "get");
+      expect(route?.stack[0]?.handle).toBe(authorizeApiKeyVerifyOnly);
+      expect(route?.stack.at(-1)?.handle).toBe(
+        DeveloperFhirController.metadata,
+      );
+      const metadataIndex = layers.findIndex(
+        (entry) => entry.route?.path === "/fhir/metadata",
+      );
+      const quotaIndex = layers.findIndex(
+        (entry) => entry.handle === authorizeApiKey,
+      );
+      expect(metadataIndex).toBeGreaterThanOrEqual(0);
+      expect(metadataIndex).toBeLessThan(quotaIndex);
+      expect(
+        route?.stack.some((entry) =>
+          Object.values(scopeMiddlewares).includes(entry.handle as jest.Mock),
+        ),
+      ).toBe(false);
+    });
+
+    it("wires each FHIR resource to the SAME scope as its JSON sibling", () => {
+      const cases: Array<[string, string, jest.Mock]> = [
+        [
+          "/fhir/Organization",
+          "organization:read",
+          DeveloperFhirController.searchOrganization,
+        ],
+        [
+          "/fhir/Organization/:id",
+          "organization:read",
+          DeveloperFhirController.readOrganization,
+        ],
+        [
+          "/fhir/Patient",
+          "patients:read",
+          DeveloperFhirController.searchPatients,
+        ],
+        [
+          "/fhir/Patient/:id",
+          "patients:read",
+          DeveloperFhirController.readPatient,
+        ],
+        [
+          "/fhir/Appointment",
+          "appointments:read",
+          DeveloperFhirController.searchAppointments,
+        ],
+        [
+          "/fhir/Appointment/:id",
+          "appointments:read",
+          DeveloperFhirController.readAppointment,
+        ],
+        [
+          "/fhir/Encounter",
+          "encounters:read",
+          DeveloperFhirController.searchEncounters,
+        ],
+        [
+          "/fhir/Encounter/:id",
+          "encounters:read",
+          DeveloperFhirController.readEncounter,
+        ],
+        [
+          "/fhir/Invoice",
+          "invoices:read",
+          DeveloperFhirController.searchInvoices,
+        ],
+        [
+          "/fhir/Invoice/:id",
+          "invoices:read",
+          DeveloperFhirController.readInvoice,
+        ],
+      ];
+      const quotaIndex = layers.findIndex(
+        (entry) => entry.handle === authorizeApiKey,
+      );
+      for (const [path, scope, handler] of cases) {
+        const route = findRoute(path, "get");
+        expect(route).toBeDefined();
+        expect(route?.stack[0]?.handle).toBe(scopeMiddlewares[scope]);
+        expect(route?.stack.at(-1)?.handle).toBe(handler);
+        // Behind authorizeApiKey: a FHIR call is one metered unit like JSON.
+        const index = layers.findIndex((entry) => entry.route?.path === path);
+        expect(index).toBeGreaterThan(quotaIndex);
+      }
+    });
+  });
+
+  describe("SSE events endpoint", () => {
+    it("registers GET /events quota-exempt with the verify-only variant and no scope", () => {
+      const route = findRoute("/events", "get");
+      expect(route?.stack[0]?.handle).toBe(authorizeApiKeyVerifyOnly);
+      expect(route?.stack.at(-1)?.handle).toBe(
+        DeveloperEventsController.stream,
+      );
+      const eventsIndex = layers.findIndex(
+        (entry) => entry.route?.path === "/events",
+      );
+      const quotaIndex = layers.findIndex(
+        (entry) => entry.handle === authorizeApiKey,
+      );
+      expect(eventsIndex).toBeGreaterThanOrEqual(0);
+      expect(eventsIndex).toBeLessThan(quotaIndex);
+      expect(
+        route?.stack.some((entry) =>
+          Object.values(scopeMiddlewares).includes(entry.handle as jest.Mock),
+        ),
+      ).toBe(false);
+    });
   });
 
   describe("remote MCP endpoint", () => {

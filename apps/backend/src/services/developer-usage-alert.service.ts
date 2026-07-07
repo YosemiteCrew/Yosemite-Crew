@@ -1,4 +1,5 @@
 import { prisma } from "src/config/prisma";
+import { emitDeveloperEvent } from "src/utils/developer-events";
 import { sendEmail } from "src/utils/email";
 import logger from "src/utils/logger";
 
@@ -155,6 +156,14 @@ export const DeveloperUsageAlertService = {
       }
       throw error;
     }
+    // The dedupe row is the source of truth for "threshold crossed this
+    // month" - emit once it commits, independent of email delivery.
+    emitDeveloperEvent("usage.threshold_crossed", input.organisationId, {
+      billingPeriod: input.billingPeriod,
+      threshold: input.threshold,
+      callCount: input.callCount,
+      limit: input.limit,
+    });
 
     const owner = await resolveOrgOwnerContact(input.organisationId);
     if (!owner) {

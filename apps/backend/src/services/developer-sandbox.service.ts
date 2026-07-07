@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import { emitDeveloperEvent } from "src/utils/developer-events";
 
 // Developer sandbox: one seeded demo clinic per developer organisation
 // (POST/GET/DELETE /v1/developers/sandbox, management plane). The sandbox is a
@@ -416,6 +417,10 @@ export const DeveloperSandboxService = {
       });
     });
 
+    emitDeveloperEvent("sandbox.created", input.organisationId, {
+      sandboxOrganisationId: record.sandboxOrganisationId,
+    });
+
     return {
       created: true,
       sandbox: {
@@ -499,6 +504,9 @@ export const DeveloperSandboxService = {
       // OrganizationAddress cascades from the org delete.
       await tx.organization.delete({ where: { id: sandboxOrgId } });
       await tx.developerSandbox.delete({ where: { id: record.id } });
+    });
+    emitDeveloperEvent("sandbox.deleted", organisationId, {
+      sandboxOrganisationId: sandboxOrgId,
     });
   },
 };

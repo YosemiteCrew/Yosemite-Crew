@@ -6,6 +6,7 @@ import {
 import { DeveloperDataService } from "src/services/developer-data.service";
 import { DeveloperUsageService } from "src/services/developer-usage.service";
 import { buildListPage, keysetWhere } from "src/utils/cursor-pagination";
+import { emitDeveloperEvent } from "src/utils/developer-events";
 import {
   generatePresignedDownloadUrl,
   uploadToS3,
@@ -253,11 +254,18 @@ export const DeveloperExportService = {
         where: { id: job.id },
         data: { status: "COMPLETED", s3Key, rowCounts },
       });
+      emitDeveloperEvent("export.completed", job.organisationId, {
+        exportJobId: job.id,
+        rowCounts,
+      });
     } catch (error) {
       logger.error("Developer export failed", { exportJobId, error });
       await prisma.developerExportJob.update({
         where: { id: job.id },
         data: { status: "FAILED", error: toErrorText(error) },
+      });
+      emitDeveloperEvent("export.failed", job.organisationId, {
+        exportJobId: job.id,
       });
     }
   },

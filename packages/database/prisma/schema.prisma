@@ -3100,3 +3100,70 @@ model CreditNote {
   @@index([invoiceId])
   @@index([status])
 }
+
+/// Template pack registry (plan: developer-portal-plugin-registry.md).
+/// A pack is a validated manifest of config contributions: a publisher org
+/// bundles its PUBLISHED templates; installing orgs materialize each item as
+/// a NEW DRAFT Template (ADR 0005 - installs never touch live config).
+model TemplatePack {
+  id                      String             @id @default(uuid())
+  publisherOrganisationId String
+  name                    String
+  slug                    String             @unique
+  description             String?
+  status                  TemplatePackStatus @default(DRAFT)
+  /// RESERVED for marketplace monetization (registry plan section 10.1).
+  /// Never read or written in v1 - exists so paid packs need no migration.
+  priceCents              Int?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  items    TemplatePackItem[]
+  installs TemplatePackInstall[]
+
+  @@index([publisherOrganisationId])
+  @@index([status, createdAt])
+  @@map("TemplatePacks")
+}
+
+/// One template pinned into a pack at its publishedVersion at pack-creation
+/// time (snapshotVersion). templateId is a plain reference, not an FK: the
+/// installed copy is materialized from the TemplateVersion snapshot, so a
+/// publisher later archiving or deleting the source must not break packs.
+model TemplatePackItem {
+  id              String   @id @default(uuid())
+  packId          String
+  templateId      String
+  snapshotVersion Int
+  addedAt         DateTime @default(now())
+
+  pack TemplatePack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@unique([packId, templateId])
+  @@index([templateId])
+  @@map("TemplatePackItems")
+}
+
+/// One org's install of a pack. materializedTemplateIds records the DRAFT
+/// Template rows created in the installing org so support/tooling can trace
+/// provenance. Uninstall deletes only this row - the drafts belong to the
+/// installing org once materialized.
+model TemplatePackInstall {
+  id                      String   @id @default(uuid())
+  packId                  String
+  organisationId          String
+  installedAt             DateTime @default(now())
+  materializedTemplateIds String[]
+
+  pack TemplatePack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@unique([packId, organisationId])
+  @@index([organisationId])
+  @@map("TemplatePackInstalls")
+}
+
+enum TemplatePackStatus {
+  DRAFT
+  PUBLISHED
+  SUSPENDED
+}
