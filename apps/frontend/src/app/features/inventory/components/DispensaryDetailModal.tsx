@@ -62,6 +62,149 @@ const pluralizeUnit = (unit: string, count: number): string => {
   return lower.endsWith('s') ? lower : `${lower}s`;
 };
 
+type DispensaryItemRowProps = {
+  item: DispensaryItem;
+  idx: number;
+};
+
+const DispensaryItemRow = ({ item, idx }: Readonly<DispensaryItemRowProps>) => {
+  const effectiveFreqPerDay = item.frequencyPerDay ?? parseFrequencyPerDay(item.frequency);
+  const totalUnits = calcTotalUnits(item, effectiveFreqPerDay);
+  const packs = calcPacks(totalUnits, item.stockUnitQty);
+  const doseUnit = item.doseUnit ?? '';
+  const stockUnit = item.stockUnitType ?? '';
+  const hasCalc = effectiveFreqPerDay != null && item.durationDays != null;
+
+  const dispenseSummary =
+    packs !== null && stockUnit
+      ? `${packs} ${pluralizeUnit(stockUnit, packs)}`
+      : `${totalUnits} ${pluralizeUnit(stockUnit || 'unit', totalUnits)}`;
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Item header row */}
+      <div className="flex items-center gap-2">
+        <span className="text-body-4 text-text-secondary shrink-0">{idx + 1}.</span>
+        <div className="flex flex-1 items-center gap-2 min-w-0">
+          <span className="text-body-4 font-semibold text-text-primary truncate">{item.name}</span>
+          {item.isRx && (
+            <span className="inline-flex size-6 items-center justify-center rounded-full bg-blue-text text-white text-[10px] font-bold shrink-0">
+              Rx
+            </span>
+          )}
+          {item.isControlled && (
+            <span className="inline-flex items-center rounded-full border border-card-border px-2 py-0.5 text-caption-1 text-text-secondary shrink-0">
+              Controlled
+            </span>
+          )}
+        </div>
+        <span className="text-body-4 font-semibold text-blue-text shrink-0">{dispenseSummary}</span>
+      </div>
+
+      {/* Prescription + calculation card */}
+      <div className="rounded-xl border border-card-border bg-[var(--color-neutral-50,#f9fafb)] p-3 flex flex-col gap-3">
+        {/* Prescription row */}
+        <div>
+          <div className="text-caption-1 text-text-secondary mb-1.5">Prescription:</div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption-1">
+            <span className="text-text-secondary">Qnt.</span>
+            <span className="text-text-primary font-medium">{item.quantity}</span>
+            {item.frequency && (
+              <>
+                <span className="text-text-secondary">Freq.</span>
+                <span className="text-text-primary font-medium">{item.frequency}</span>
+              </>
+            )}
+            {item.durationDays != null && (
+              <>
+                <span className="text-text-secondary">Duration</span>
+                <span className="text-text-primary font-medium">
+                  {item.durationDays} {item.durationUnit ?? 'days'}
+                </span>
+              </>
+            )}
+            <span className="text-text-secondary">Refill</span>
+            <span className="text-text-primary font-medium">
+              {item.refillsRemaining == null ? '—' : `${item.refillsRemaining} remaining`}
+            </span>
+          </div>
+        </div>
+
+        {/* Dispense calculation */}
+        {hasCalc && (
+          <div className="flex items-end justify-between gap-4 pt-2">
+            <div className="min-w-0">
+              <div className="text-caption-1 text-text-secondary mb-1">
+                Dispense qnt. calculation:
+              </div>
+              <div className="text-caption-1 text-text-primary">
+                {effectiveFreqPerDay! < 1 ? (
+                  <>
+                    {item.quantity} x {item.durationDays} {item.durationUnit ?? 'days'} (
+                    {item.frequency}) ={' '}
+                    <span className="font-bold">
+                      {Math.ceil(totalUnits)}{' '}
+                      {pluralizeUnit(doseUnit || 'unit', Math.ceil(totalUnits))}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {item.quantity} x {Number(effectiveFreqPerDay!.toFixed(2))}/day x{' '}
+                    {item.durationDays} {item.durationUnit ?? 'days'} ={' '}
+                    <span className="font-bold">
+                      {Number(totalUnits.toFixed(2))}{' '}
+                      {pluralizeUnit(doseUnit || 'unit', totalUnits)}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+            {packs !== null && (
+              <div className="text-right shrink-0">
+                {stockUnit && item.stockUnitQty && (
+                  <div className="text-caption-1 text-text-secondary">
+                    1 {stockUnit.toLowerCase()} of {item.stockUnitQty} {doseUnit || 'units'}
+                  </div>
+                )}
+                <div className="text-caption-1">
+                  <span className="text-text-secondary">To dispense: </span>
+                  <span className="font-semibold text-[var(--color-success-600)]">
+                    {packs} {pluralizeUnit(stockUnit || 'unit', packs)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Fallback for items without enriched fields */}
+        {!hasCalc && item.prescription && !item.frequency && !item.durationDays && (
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1">
+            {item.prescription.freq && (
+              <>
+                <span className="text-text-secondary">Freq.</span>
+                <span className="text-text-primary">{item.prescription.freq}</span>
+              </>
+            )}
+            {item.prescription.duration && (
+              <>
+                <span className="text-text-secondary">Duration</span>
+                <span className="text-text-primary">{item.prescription.duration}</span>
+              </>
+            )}
+            {item.prescription.refill && (
+              <>
+                <span className="text-text-secondary">Refill</span>
+                <span className="text-text-primary">{item.prescription.refill}</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const DispensaryDetailModal = ({
   record,
   showModal,
@@ -168,157 +311,9 @@ const DispensaryDetailModal = ({
           {/* Items */}
           {items.length > 0 ? (
             <div className="flex flex-col gap-4">
-              {items.map((item, idx) => {
-                const effectiveFreqPerDay =
-                  item.frequencyPerDay ?? parseFrequencyPerDay(item.frequency);
-                const totalUnits = calcTotalUnits(item, effectiveFreqPerDay);
-                const packs = calcPacks(totalUnits, item.stockUnitQty);
-                const doseUnit = item.doseUnit ?? '';
-                const stockUnit = item.stockUnitType ?? '';
-                const hasCalc = effectiveFreqPerDay != null && item.durationDays != null;
-
-                const dispenseSummary =
-                  packs !== null && stockUnit
-                    ? `${packs} ${pluralizeUnit(stockUnit, packs)}`
-                    : `${totalUnits} ${pluralizeUnit(stockUnit || 'unit', totalUnits)}`;
-
-                return (
-                  <div key={`${item.name}-${idx}`} className="flex flex-col gap-2">
-                    {/* Item header row */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-body-4 text-text-secondary shrink-0">{idx + 1}.</span>
-                      <div className="flex flex-1 items-center gap-2 min-w-0">
-                        <span className="text-body-4 font-semibold text-text-primary truncate">
-                          {item.name}
-                        </span>
-                        {item.isRx && (
-                          <span className="inline-flex size-6 items-center justify-center rounded-full bg-blue-text text-white text-[10px] font-bold shrink-0">
-                            Rx
-                          </span>
-                        )}
-                        {item.isControlled && (
-                          <span className="inline-flex items-center rounded-full border border-card-border px-2 py-0.5 text-caption-1 text-text-secondary shrink-0">
-                            Controlled
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-body-4 font-semibold text-blue-text shrink-0">
-                        {dispenseSummary}
-                      </span>
-                    </div>
-
-                    {/* Prescription + calculation card */}
-                    <div className="rounded-xl border border-card-border bg-[var(--color-neutral-50,#f9fafb)] p-3 flex flex-col gap-3">
-                      {/* Prescription row */}
-                      <div>
-                        <div className="text-caption-1 text-text-secondary mb-1.5">
-                          Prescription:
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption-1">
-                          <span className="text-text-secondary">Qnt.</span>
-                          <span className="text-text-primary font-medium">{item.quantity}</span>
-                          {item.frequency && (
-                            <>
-                              <span className="text-text-secondary">Freq.</span>
-                              <span className="text-text-primary font-medium">
-                                {item.frequency}
-                              </span>
-                            </>
-                          )}
-                          {item.durationDays != null && (
-                            <>
-                              <span className="text-text-secondary">Duration</span>
-                              <span className="text-text-primary font-medium">
-                                {item.durationDays} {item.durationUnit ?? 'days'}
-                              </span>
-                            </>
-                          )}
-                          <span className="text-text-secondary">Refill</span>
-                          <span className="text-text-primary font-medium">
-                            {item.refillsRemaining == null
-                              ? '—'
-                              : `${item.refillsRemaining} remaining`}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Dispense calculation */}
-                      {hasCalc && (
-                        <div className="flex items-end justify-between gap-4 pt-2">
-                          <div className="min-w-0">
-                            <div className="text-caption-1 text-text-secondary mb-1">
-                              Dispense qnt. calculation:
-                            </div>
-                            <div className="text-caption-1 text-text-primary">
-                              {effectiveFreqPerDay! < 1 ? (
-                                <>
-                                  {item.quantity} x {item.durationDays}{' '}
-                                  {item.durationUnit ?? 'days'} ({item.frequency}) ={' '}
-                                  <span className="font-bold">
-                                    {Math.ceil(totalUnits)}{' '}
-                                    {pluralizeUnit(doseUnit || 'unit', Math.ceil(totalUnits))}
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  {item.quantity} x {Number(effectiveFreqPerDay!.toFixed(2))}/day x{' '}
-                                  {item.durationDays} {item.durationUnit ?? 'days'} ={' '}
-                                  <span className="font-bold">
-                                    {Number(totalUnits.toFixed(2))}{' '}
-                                    {pluralizeUnit(doseUnit || 'unit', totalUnits)}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          {packs !== null && (
-                            <div className="text-right shrink-0">
-                              {stockUnit && item.stockUnitQty && (
-                                <div className="text-caption-1 text-text-secondary">
-                                  1 {stockUnit.toLowerCase()} of {item.stockUnitQty}{' '}
-                                  {doseUnit || 'units'}
-                                </div>
-                              )}
-                              <div className="text-caption-1">
-                                <span className="text-text-secondary">To dispense: </span>
-                                <span className="font-semibold text-[var(--color-success-600)]">
-                                  {packs} {pluralizeUnit(stockUnit || 'unit', packs)}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Fallback for items without enriched fields */}
-                      {!hasCalc && item.prescription && !item.frequency && !item.durationDays && (
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-caption-1">
-                          {item.prescription.freq && (
-                            <>
-                              <span className="text-text-secondary">Freq.</span>
-                              <span className="text-text-primary">{item.prescription.freq}</span>
-                            </>
-                          )}
-                          {item.prescription.duration && (
-                            <>
-                              <span className="text-text-secondary">Duration</span>
-                              <span className="text-text-primary">
-                                {item.prescription.duration}
-                              </span>
-                            </>
-                          )}
-                          {item.prescription.refill && (
-                            <>
-                              <span className="text-text-secondary">Refill</span>
-                              <span className="text-text-primary">{item.prescription.refill}</span>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+              {items.map((item, idx) => (
+                <DispensaryItemRow key={`${item.name}-${idx}`} item={item} idx={idx} />
+              ))}
             </div>
           ) : (
             <div className="py-4 text-center text-body-4 text-text-secondary">

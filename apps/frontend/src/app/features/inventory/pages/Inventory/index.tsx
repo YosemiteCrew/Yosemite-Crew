@@ -1,6 +1,7 @@
 'use client';
 import React, {
   Suspense,
+  useDeferredValue,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -851,6 +852,7 @@ export const InventoryFilterModal = ({
                           onChange={() => toggleCategoryFilter(category)}
                           className="size-4 accent-blue-text"
                           id={`cat-${category}`}
+                          aria-label={category}
                         />
                         <label
                           htmlFor={`cat-${category}`}
@@ -881,6 +883,7 @@ export const InventoryFilterModal = ({
                                 checked={filters.subCategories.includes(sub)}
                                 onChange={() => toggleListFilter('subCategories', sub)}
                                 className="size-4 accent-blue-text"
+                                aria-label={sub}
                               />
                               <span>{sub}</span>
                             </label>
@@ -1198,8 +1201,6 @@ const Inventory = () => {
   const [filteredTurnoverList, setFilteredTurnoverList] = useState<InventoryTurnoverItem[]>([]);
 
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
-  const [debouncedSearch, setDebouncedSearch] = useState(headerSearchQuery);
-  const [filteredInventory, setFilteredInventory] = useState<InventoryItem[]>([]);
   const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
 
   const fetchDispensaryRecords = useCallback(async () => {
@@ -1253,19 +1254,24 @@ const Inventory = () => {
   const loadingList = status === 'loading';
   const error = actionError ?? loadError;
 
-  useEffect(() => {
-    const org = primaryOrgId ? orgsById[primaryOrgId] : null;
-    if (org?.type && BusinessTypes.includes(org.type)) {
-      setBusinessType(org.type);
+  // Resolve businessType from the primary org's type, falling back to GROOMER
+  // once no org type is available. Render-time prev-comparison keyed on the
+  // org identity (id + type) instead of an effect that self-depends on the
+  // state it sets.
+  const resolvedOrgType = primaryOrgId ? orgsById[primaryOrgId]?.type : undefined;
+  const [prevOrgKey, setPrevOrgKey] = useState<string | null>(null);
+  const orgKey = `${primaryOrgId ?? ''}:${resolvedOrgType ?? ''}`;
+  if (prevOrgKey === null || orgKey !== prevOrgKey) {
+    setPrevOrgKey(orgKey);
+    if (resolvedOrgType && BusinessTypes.includes(resolvedOrgType)) {
+      setBusinessType(resolvedOrgType);
     } else if (businessType === null) {
       setBusinessType('GROOMER');
     }
-  }, [primaryOrgId, orgsById, businessType]);
+  }
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(filters.search || headerSearchQuery), 300);
-    return () => clearTimeout(timer);
-  }, [headerSearchQuery, filters.search]);
+  const activeSearchQuery = filters.search || headerSearchQuery;
+  const debouncedSearch = useDeferredValue(activeSearchQuery);
 
   const categoryOptions = useMemo(() => {
     const configured = CategoryOptionsByBusiness[resolvedBusinessType] ?? [];
@@ -1283,9 +1289,14 @@ const Inventory = () => {
     [turnover]
   );
 
-  useEffect(() => {
+  // Reset the (child-owned, further-filterable) turnover list whenever the
+  // source `turnover` data changes. Render-time prev-comparison instead of an
+  // effect — same [turnover] dependency semantics, one fewer render.
+  const [prevTurnover, setPrevTurnover] = useState<typeof turnover | null>(null);
+  if (prevTurnover === null || turnover !== prevTurnover) {
+    setPrevTurnover(turnover);
     setFilteredTurnoverList(turnover);
-  }, [turnover]);
+  }
 
   const stockLocationOptions = useMemo(() => {
     const roomNames = rooms
@@ -1333,33 +1344,41 @@ const Inventory = () => {
     plannerClassName: '',
   });
 
-  useEffect(() => {
-    setFilteredInventory(filterAndSortInventory(inventory, filters, debouncedSearch, sortMode));
-  }, [inventory, filters, debouncedSearch, sortMode]);
+  const filteredInventory = useMemo(
+    () => filterAndSortInventory(inventory, filters, debouncedSearch, sortMode),
+    [inventory, filters, debouncedSearch, sortMode]
+  );
 
-  useEffect(() => {
-    setActiveInventory((prev) => {
-      if (!filteredInventory.length) return null;
-      return filteredInventory.find((i) => i.id === prev?.id) ?? filteredInventory[0];
-    });
-    if (!filteredInventory.length) {
+  const [prevFilteredInventory, setPrevFilteredInventory] = useState<InventoryItem[] | null>(null);
+  if (prevFilteredInventory === null || prevFilteredInventory !== filteredInventory) {
+    setPrevFilteredInventory(filteredInventory);
+    const nextActiveInventory =
+      filteredInventory.length === 0
+        ? null
+        : (filteredInventory.find((item) => item.id === activeInventory?.id) ??
+          filteredInventory[0]);
+    if (nextActiveInventory !== activeInventory) {
+      setActiveInventory(nextActiveInventory);
+    }
+    if (filteredInventory.length === 0 && viewInventory) {
       setViewInventory(false);
     }
-  }, [filteredInventory]);
+  }
 
-  useEffect(() => {
-    const inventoryId = String(searchParams.get('inventoryId') ?? '').trim();
-    if (!inventoryId) return;
-    if (handledDeepLinkRef.current === inventoryId) return;
-
-    const target = inventory.find((item) => item.id === inventoryId);
-    if (target === undefined) return;
-
-    setActiveInventory(target);
-    setInfoInitialSection(undefined);
-    setViewInventory(true);
-    handledDeepLinkRef.current = inventoryId;
-  }, [inventory, searchParams]);
+  const deepLinkedInventoryId = String(searchParams.get('inventoryId') ?? '').trim();
+  if (deepLinkedInventoryId && handledDeepLinkRef.current !== deepLinkedInventoryId) {
+    const target = inventory.find((item) => item.id === deepLinkedInventoryId);
+    if (target !== undefined) {
+      handledDeepLinkRef.current = deepLinkedInventoryId;
+      if (activeInventory !== target) {
+        setActiveInventory(target);
+      }
+      if (viewInventory !== true) {
+        setViewInventory(true);
+      }
+      setInfoInitialSection(undefined);
+    }
+  }
 
   const handleCreateInventory = useCallback(
     async (data: InventoryItem) => {

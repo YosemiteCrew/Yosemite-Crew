@@ -11,7 +11,7 @@ import {
   parseDate,
   resolveLabel,
   validateNumberField,
-} from '@/app/features/inventory/components/InventoryInfo';
+} from '@/app/features/inventory/components/inventoryInfoHelpers';
 
 jest.mock('@/app/features/inventory/pages/Inventory/utils', () => ({
   formatDisplayDate: jest.fn((value) => (value ? `Formatted ${value}` : '')),

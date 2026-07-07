@@ -113,6 +113,34 @@ const makeUploadFooter =
     />
   );
 
+const flattenFields = (cfg: ConfigItem<any>[]): FieldDef<any>[] => {
+  const result: FieldDef<any>[] = [];
+  for (const item of cfg) {
+    if (item.kind === 'row') {
+      for (const f of item.fields) result.push(f);
+    } else {
+      result.push(item.field);
+    }
+  }
+  return result;
+};
+
+const DRUG_ONLY_BY_SECTION: Partial<Record<InventorySectionKey, Set<string>>> = {
+  classification: new Set([
+    'genericName',
+    'drugSchedule',
+    'form',
+    'administration',
+    'strength',
+    'unitofMeasure',
+    'controlledSubstance',
+    'prescriptionRequired',
+    'reportableToGovernment',
+  ]),
+  batch: new Set(['tracking']),
+  stock: new Set(['withdrawlPeriod']),
+};
+
 const InfoSection: React.FC<InfoSectionProps> = ({
   businessType,
   sectionKey,
@@ -138,35 +166,9 @@ const InfoSection: React.FC<InfoSectionProps> = ({
 
   const data = inventory[sectionKey] as any;
 
-  const flattenFields = (cfg: ConfigItem<any>[]): FieldDef<any>[] => {
-    const result: FieldDef<any>[] = [];
-    for (const item of cfg) {
-      if (item.kind === 'row') {
-        for (const f of item.fields) result.push(f);
-      } else {
-        result.push(item.field);
-      }
-    }
-    return result;
-  };
-
   const isNonDrug = String(inventory.classification?.itemType ?? '').toLowerCase() === 'non-drug';
 
-  const drugOnlyBySection: Partial<Record<InventorySectionKey, Set<string>>> = {
-    classification: new Set([
-      'genericName',
-      'drugSchedule',
-      'form',
-      'administration',
-      'strength',
-      'unitofMeasure',
-      'controlledSubstance',
-      'prescriptionRequired',
-      'reportableToGovernment',
-    ]),
-    batch: new Set(['tracking']),
-    stock: new Set(['withdrawlPeriod']),
-  };
+  const drugOnlyBySection = DRUG_ONLY_BY_SECTION;
 
   const allFields = flattenFields(sectionConfig).filter((f) => {
     // classification section is handled fully by inventoryFieldFilter (dynamic)

@@ -1,9 +1,16 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  useReducer,
+} from 'react';
 import { BatchValues, InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import { BusinessType } from '@/app/features/organization/types/org';
 import {
   formatCurrencyValue,
-  formatDisplayDate,
   formatPercentValue,
   getGrossProfitPerUnit,
   getMarginPercent,
@@ -27,6 +34,17 @@ import InfoSection from '@/app/features/inventory/components/InfoSection';
 import Close from '@/app/ui/primitives/Icons/Close';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
+import {
+  formatDate,
+  formatFinalValue,
+  getBasicInfoErrors,
+  getFieldDisplay,
+  getPricingErrors,
+  getPrimaryButtonText,
+  getStockErrors,
+  normalizeOptions,
+  parseDate,
+} from './inventoryInfoHelpers';
 
 const drugOnlyBatchFieldNames = new Set(['tracking']);
 
@@ -42,66 +60,6 @@ const emptyBatch: BatchValues = {
   allocated: '',
 };
 
-export const validateNumberField = (
-  value: unknown,
-  requiredMsg: string,
-  numberMsg: string
-): string | null => {
-  if (value === '' || value === undefined) return requiredMsg;
-  if (Number.isNaN(Number(value))) return numberMsg;
-  return null;
-};
-
-export const getBasicInfoErrors = (
-  values: Record<string, any>,
-  inventory: InventoryItem
-): Record<string, string> => {
-  const errs: Record<string, string> = {};
-  if (!values.name && !inventory.basicInfo.name) errs.name = 'Name is required';
-  if (!values.category && !inventory.basicInfo.category) errs.category = 'Category is required';
-  return errs;
-};
-
-export const getPricingErrors = (
-  values: Record<string, any>,
-  inventory: InventoryItem
-): Record<string, string> => {
-  const errs: Record<string, string> = {};
-  const purchaseErr = validateNumberField(
-    values.purchaseCost ?? inventory.pricing.purchaseCost,
-    'Purchase cost is required',
-    'Enter a valid number'
-  );
-  const sellingErr = validateNumberField(
-    values.selling ?? inventory.pricing.selling,
-    'Selling price is required',
-    'Enter a valid number'
-  );
-  if (purchaseErr) errs.purchaseCost = purchaseErr;
-  if (sellingErr) errs.selling = sellingErr;
-  return errs;
-};
-
-export const getStockErrors = (
-  values: Record<string, any>,
-  inventory: InventoryItem
-): Record<string, string> => {
-  const errs: Record<string, string> = {};
-  const currentErr = validateNumberField(
-    values.current ?? inventory.stock.current,
-    'On hand quantity is required',
-    'Enter a valid number'
-  );
-  const reorderErr = validateNumberField(
-    values.reorderLevel ?? inventory.stock.reorderLevel,
-    'Reorder level is required',
-    'Enter a valid number'
-  );
-  if (currentErr) errs.current = currentErr;
-  if (reorderErr) errs.reorderLevel = reorderErr;
-  return errs;
-};
-
 const sectionValidationHandlers: Partial<
   Record<
     InventorySectionKey,
@@ -113,52 +71,39 @@ const sectionValidationHandlers: Partial<
   stock: getStockErrors,
 };
 
-export const parseDate = (value?: string): Date | null => {
-  if (!value) return null;
-  if (value.includes('/')) {
-    const [dd, mm, yyyy] = value.split('/');
-    const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-  }
-
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-  if (isoMatch) {
-    const [, yyyy, mm, dd] = isoMatch;
-    const parsed = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+type BatchEditorState = {
+  newBatches: BatchValues[];
+  isEditing: boolean;
+  editableExistingBatches: BatchValues[];
 };
 
-export const formatDate = (date: Date) => {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+const initialBatchEditorState: BatchEditorState = {
+  newBatches: [],
+  isEditing: false,
+  editableExistingBatches: [],
 };
 
-export const normalizeOptions = (options?: Array<string | { label: string; value: string }>) =>
-  options?.map((option: any) =>
-    typeof option === 'string' ? { label: option, value: option } : option
-  ) ?? [];
+type BatchEditorAction = { type: 'PATCH'; payload: Partial<BatchEditorState> } | { type: 'RESET' };
 
-export const resolveLabel = (options: Array<{ label: string; value: string }>, value: string) =>
-  options.find((o) => o.value === value)?.label ?? value;
-
-export const formatDateValue = (value?: string) => {
-  return formatDisplayDate(value) || '—';
-};
-
-export const formatFinalValue = (display: string | string[]): string => {
-  if (Array.isArray(display)) {
-    return display.length > 0 ? display.join(', ') : '—';
+const batchEditorReducer = (
+  state: BatchEditorState,
+  action: BatchEditorAction
+): BatchEditorState => {
+  switch (action.type) {
+    case 'PATCH': {
+      const next = { ...state, ...action.payload };
+      // Bail out with the same reference when nothing actually changed, so a
+      // no-op PATCH doesn't force a re-render the way useState's Object.is
+      // bailout would already prevent for an individual setter.
+      const keys = Object.keys(action.payload) as (keyof BatchEditorState)[];
+      const changed = keys.some((key) => next[key] !== state[key]);
+      return changed ? next : state;
+    }
+    case 'RESET':
+      return state === initialBatchEditorState ? state : initialBatchEditorState;
+    default:
+      return state;
   }
-  if (display !== undefined && display !== '') {
-    return String(display);
-  }
-  return '—';
 };
 
 type BatchEditorProps = {
@@ -190,21 +135,24 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
       inventory.batches && inventory.batches.length > 0 ? inventory.batches : [inventory.batch],
     [inventory]
   );
-  const [newBatches, setNewBatches] = useState<BatchValues[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editableExistingBatches, setEditableExistingBatches] = useState<BatchValues[]>([]);
+  const [{ newBatches, isEditing, editableExistingBatches }, dispatchBatchEditor] = useReducer(
+    batchEditorReducer,
+    initialBatchEditorState
+  );
+  const patchBatchEditor = useCallback(
+    (payload: Partial<BatchEditorState>) => dispatchBatchEditor({ type: 'PATCH', payload }),
+    []
+  );
   const [prevDisableEditing, setPrevDisableEditing] = useState(disableEditing);
   if (disableEditing !== prevDisableEditing) {
     setPrevDisableEditing(disableEditing);
     if (disableEditing && isEditing) {
-      setIsEditing(false);
+      patchBatchEditor({ isEditing: false });
     }
   }
 
   useLayoutEffect(() => {
-    setNewBatches([]);
-    setIsEditing(false);
-    setEditableExistingBatches([]);
+    dispatchBatchEditor({ type: 'RESET' });
     onEditingChange?.(false);
   }, [inventory, onEditingChange]);
 
@@ -222,14 +170,14 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
 
   const beginEditing = useCallback(() => {
     if (disableEditing) return;
-    setIsEditing(true);
-    setEditableExistingBatches((prev) =>
-      prev.length ? prev : existingBatches.map((b) => ({ ...b }))
-    );
-    if (newBatches.length === 0) {
-      setNewBatches([{ ...emptyBatch }]);
-    }
-  }, [disableEditing, newBatches.length, existingBatches]);
+    patchBatchEditor({
+      isEditing: true,
+      editableExistingBatches: editableExistingBatches.length
+        ? editableExistingBatches
+        : existingBatches.map((b) => ({ ...b })),
+      newBatches: newBatches.length === 0 ? [{ ...emptyBatch }] : newBatches,
+    });
+  }, [disableEditing, newBatches, editableExistingBatches, existingBatches, patchBatchEditor]);
 
   useEffect(() => {
     onEditingChange?.(isEditing);
@@ -237,41 +185,40 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
 
   const handleChange = useCallback(
     (index: number, name: keyof BatchValues, value: string) => {
-      setNewBatches((prev) => {
-        const next = [...prev];
-        next[index] = { ...(next[index] ?? emptyBatch), [name]: value };
-        return next;
-      });
-      if (!isEditing) setIsEditing(true);
+      const next = [...newBatches];
+      next[index] = { ...(next[index] ?? emptyBatch), [name]: value };
+      patchBatchEditor({ newBatches: next, isEditing: true });
     },
-    [isEditing]
+    [newBatches, patchBatchEditor]
   );
 
   const handleExistingChange = useCallback(
     (index: number, name: keyof BatchValues, value: string) => {
-      setEditableExistingBatches((prev) => {
-        const source = prev.length > 0 ? prev : existingBatches.map((b) => ({ ...b }));
-        const next = [...source];
-        next[index] = { ...(next[index] ?? emptyBatch), [name]: value };
-        return next;
-      });
-      if (!isEditing) setIsEditing(true);
+      const source =
+        editableExistingBatches.length > 0
+          ? editableExistingBatches
+          : existingBatches.map((b) => ({ ...b }));
+      const next = [...source];
+      next[index] = { ...(next[index] ?? emptyBatch), [name]: value };
+      patchBatchEditor({ editableExistingBatches: next, isEditing: true });
     },
-    [existingBatches, isEditing]
+    [existingBatches, editableExistingBatches, patchBatchEditor]
   );
 
   const addBatch = useCallback(() => {
-    setNewBatches((prev) => [...prev, { ...emptyBatch }]);
-    if (!isEditing) setIsEditing(true);
-  }, [isEditing]);
+    patchBatchEditor({ newBatches: [...newBatches, { ...emptyBatch }], isEditing: true });
+  }, [newBatches, patchBatchEditor]);
 
-  const removeBatch = useCallback((index: number) => {
-    setNewBatches((prev) => {
-      const next = prev.filter((_, i) => i !== index);
-      return next.length ? next : [{ ...emptyBatch }];
-    });
-    setIsEditing(true);
-  }, []);
+  const removeBatch = useCallback(
+    (index: number) => {
+      const next = newBatches.filter((_, i) => i !== index);
+      patchBatchEditor({
+        newBatches: next.length ? next : [{ ...emptyBatch }],
+        isEditing: true,
+      });
+    },
+    [newBatches, patchBatchEditor]
+  );
 
   const hasBatchChanged = useCallback((original?: BatchValues, updated?: BatchValues) => {
     if (!original || !updated) return false;
@@ -313,22 +260,12 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
       newBatches: meaningfulNew,
       updatedBatches,
     });
-    setIsEditing(false);
-    setNewBatches([]);
-    setEditableExistingBatches([]);
+    dispatchBatchEditor({ type: 'RESET' });
   }, [newBatches, editableExistingBatches, existingBatches, hasBatchChanged, onSave]);
 
   const handleCancel = useCallback(() => {
-    setNewBatches([]);
-    setEditableExistingBatches([]);
-    setIsEditing(false);
+    dispatchBatchEditor({ type: 'RESET' });
   }, []);
-
-  useLayoutEffect(() => {
-    if (disableEditing && isEditing) {
-      setIsEditing(false);
-    }
-  }, [disableEditing, isEditing]);
 
   useEffect(() => {
     onRegisterActions?.({
@@ -545,48 +482,6 @@ const modalSections: { key: InventorySectionKey; name: string }[] = [
   { key: 'pricing', name: 'Pricing' },
   { key: 'vendor', name: 'Vendor details' },
 ];
-
-export const getPrimaryButtonText = (
-  inEditMode: boolean,
-  isUpdating: boolean,
-  isHiding: boolean,
-  isHidden: boolean
-): string => {
-  if (inEditMode) {
-    return isUpdating ? 'Saving...' : 'Save';
-  }
-  if (isHiding) {
-    return isHidden ? 'Unhiding...' : 'Hiding...';
-  }
-  return isHidden ? 'Restore item' : 'Delete item';
-};
-
-export const getFieldDisplay = (
-  component: string,
-  value: any,
-  normalizedOptions: any[]
-): string | string[] => {
-  if (component === 'multiSelect') {
-    if (Array.isArray(value)) return value;
-    if (typeof value === 'string' && value.trim() !== '') {
-      return value.split(',').map((v: string) => v.trim());
-    }
-    return [];
-  }
-
-  if (component === 'dropdown') {
-    if (value !== undefined && value !== '') {
-      return resolveLabel(normalizedOptions, String(value));
-    }
-    return '—';
-  }
-
-  if (component === 'date') {
-    return formatDateValue(String(value ?? ''));
-  }
-
-  return String(value ?? '');
-};
 
 const PreviewField = ({ field, batchData }: { field: any; batchData: BatchValues }) => {
   const { placeholder, label, component, options, name } = field;
