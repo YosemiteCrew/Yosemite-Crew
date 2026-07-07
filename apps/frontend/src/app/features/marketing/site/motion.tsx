@@ -642,11 +642,14 @@ export function InkAnnotate({
     };
 
     const fonts = globalThis.document.fonts;
-    if (fonts?.ready)
+    // Wait for webfonts so the ink traces the final glyph metrics, not the fallback.
+    if (fonts) {
       fonts.ready.then(() => {
         raf = requestAnimationFrame(draw);
       });
-    else raf = requestAnimationFrame(draw);
+    } else {
+      raf = requestAnimationFrame(draw);
+    }
 
     return () => {
       cancelAnimationFrame(raf);
