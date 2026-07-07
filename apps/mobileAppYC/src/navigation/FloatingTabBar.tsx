@@ -134,15 +134,14 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
     }
 
     if (hasInitializedRef.current) {
-      // Bouncy spring animation with scale wiggle effect
+      // Snappy spring slide with a subtle scale wiggle on top
       pillTranslateX.value = withSpring(activeTabLayout.x, {
-        damping: 12,
-        stiffness: 180,
-        velocity: 3,
+        damping: 22,
+        stiffness: 220,
       });
       pillScale.value = withSequence(
-        withSpring(1.15, {damping: 16, stiffness: 320}),
-        withSpring(1, {damping: 12, stiffness: 180}),
+        withSpring(1.06, {damping: 16, stiffness: 320}),
+        withSpring(1, {damping: 18, stiffness: 220}),
       );
     } else {
       // Initial position - no animation
@@ -318,7 +317,7 @@ const createStyles = (theme: any, isIOS: boolean) =>
       backgroundColor: 'transparent',
       paddingVertical: theme.spacing['3.5'],
       paddingHorizontal: theme.spacing['4'],
-      overflow: 'visible',
+      overflow: 'hidden',
     },
     barGlass: {
       backgroundColor: 'transparent',
@@ -327,10 +326,10 @@ const createStyles = (theme: any, isIOS: boolean) =>
       backgroundColor: theme.colors.cardOverlay,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      overflow: 'hidden',
     },
     pillContainer: {
       position: 'absolute',
+      left: 0,
       top: theme.spacing['2'],
       bottom: theme.spacing['2'],
       zIndex: 2,
