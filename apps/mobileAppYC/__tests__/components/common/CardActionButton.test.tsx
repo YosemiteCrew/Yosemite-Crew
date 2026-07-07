@@ -30,11 +30,14 @@ jest.mock('react-native', () => {
       }),
     );
 
+  const mockTouchableOpacity = createMockComponent(
+    'TouchableOpacity',
+    'mock-touchable-opacity',
+  );
+
   return {
-    TouchableOpacity: createMockComponent(
-      'TouchableOpacity',
-      'mock-touchable-opacity',
-    ),
+    TouchableOpacity: mockTouchableOpacity,
+    Pressable: mockTouchableOpacity,
     Text: createMockComponent('Text', 'mock-text'),
     View: createMockComponent('View'),
     Image: createMockComponent('Image', 'mock-image'),
@@ -172,9 +175,8 @@ describe('CardActionButton', () => {
     const icon = getByTestId('mock-image');
     const label = getByText('Custom');
 
-    expect(button.props.style).toEqual(
-      expect.arrayContaining([customButtonStyle]),
-    );
+    const buttonStyles = [button.props.style({pressed: false})].flat(Infinity);
+    expect(buttonStyles).toEqual(expect.arrayContaining([customButtonStyle]));
     expect(label.props.style).toEqual(
       expect.arrayContaining([customLabelStyle]),
     );

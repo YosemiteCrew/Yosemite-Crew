@@ -1,11 +1,15 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {TouchableOpacity, Image} from 'react-native';
+import {Pressable, Image} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {
   DocumentCard,
   DocumentCardProps,
 } from '../../../src/shared/components/common/DocumentCard/DocumentCard';
+
+// react-native's Pressable is wrapped in React.memo; UNSAFE_getByType must
+// match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 
 // --- Mocks ---
 
@@ -156,7 +160,7 @@ describe('DocumentCard Component', () => {
 
   it('calls onPress when card is pressed', () => {
     const {UNSAFE_getByType} = render(<DocumentCard {...defaultProps} />);
-    const touchable = UNSAFE_getByType(TouchableOpacity);
+    const touchable = UNSAFE_getByType(PressableType);
 
     fireEvent.press(touchable);
     expect(defaultProps.onPress).toHaveBeenCalledTimes(1);
@@ -177,7 +181,7 @@ describe('DocumentCard Component', () => {
     const {UNSAFE_getByType} = render(
       <DocumentCard {...defaultProps} onPress={undefined} />,
     );
-    const touchable = UNSAFE_getByType(TouchableOpacity);
+    const touchable = UNSAFE_getByType(PressableType);
     expect(touchable.props.disabled).toBe(true);
   });
 });

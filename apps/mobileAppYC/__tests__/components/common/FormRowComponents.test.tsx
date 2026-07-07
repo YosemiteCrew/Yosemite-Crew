@@ -27,6 +27,7 @@ jest.mock('react-native', () => {
     View: createMockComponent('View'),
     Text: createMockComponent('Text'),
     TouchableOpacity: createMockComponent('TouchableOpacity'),
+    Pressable: createMockComponent('TouchableOpacity'),
     Image: createMockComponent('Image'),
     StyleSheet: {
       create: (styles: any) => styles,

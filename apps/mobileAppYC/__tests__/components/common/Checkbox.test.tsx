@@ -1,8 +1,8 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import { render, fireEvent } from '@testing-library/react-native';
-import { Checkbox } from '@/shared/components/common/Checkbox/Checkbox';
-import { useTheme } from '@/hooks';
+import {render, fireEvent} from '@testing-library/react-native';
+import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
+import {useTheme} from '@/hooks';
 
 // --- Mocks ---
 
@@ -29,21 +29,23 @@ jest.mock('react-native', () => {
       }),
     );
 
-  const MockTouchableOpacity = ReactActual.forwardRef((props: any, ref: any) => {
-    const { onPress, disabled, ...rest } = props;
-    const handlePress = () => {
-      if (!disabled) {
-        onPress?.();
-      }
-    };
-    return ReactActual.createElement('TouchableOpacity', {
-      ...rest,
-      ref,
-      onPress: handlePress,
-      disabled: disabled,
-      testID: props.testID || 'mock-touchable-opacity',
-    });
-  });
+  const MockTouchableOpacity = ReactActual.forwardRef(
+    (props: any, ref: any) => {
+      const {onPress, disabled, ...rest} = props;
+      const handlePress = () => {
+        if (!disabled) {
+          onPress?.();
+        }
+      };
+      return ReactActual.createElement('TouchableOpacity', {
+        ...rest,
+        ref,
+        onPress: handlePress,
+        disabled: disabled,
+        testID: props.testID || 'mock-touchable-opacity',
+      });
+    },
+  );
 
   const MockImage = ReactActual.forwardRef((props: any, ref: any) => {
     return ReactActual.createElement('Image', {
@@ -55,6 +57,7 @@ jest.mock('react-native', () => {
 
   return {
     TouchableOpacity: MockTouchableOpacity,
+    Pressable: MockTouchableOpacity,
     Text: createMockComponent('Text', 'mock-text'),
     View: createMockComponent('View', 'mock-view'),
     Image: MockImage,
@@ -74,11 +77,11 @@ describe('Checkbox', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useTheme as jest.Mock).mockReturnValue({ theme: mockTheme });
+    (useTheme as jest.Mock).mockReturnValue({theme: mockTheme});
   });
 
   it('renders unchecked by default with checkEmpty image', () => {
-    const { getByTestId } = render(
+    const {getByTestId} = render(
       <Checkbox value={false} onValueChange={mockOnValueChange} />,
     );
     const image = getByTestId('mock-image');
@@ -86,7 +89,7 @@ describe('Checkbox', () => {
   });
 
   it('renders checked when value is true with checkFill image', () => {
-    const { getByTestId } = render(
+    const {getByTestId} = render(
       <Checkbox value={true} onValueChange={mockOnValueChange} />,
     );
     const image = getByTestId('mock-image');
@@ -94,7 +97,7 @@ describe('Checkbox', () => {
   });
 
   it('calls onValueChange with true when pressed while unchecked', () => {
-    const { getByTestId } = render(
+    const {getByTestId} = render(
       <Checkbox value={false} onValueChange={mockOnValueChange} />,
     );
     fireEvent.press(getByTestId('mock-touchable-opacity'));
@@ -102,7 +105,7 @@ describe('Checkbox', () => {
   });
 
   it('calls onValueChange with false when pressed while checked', () => {
-    const { getByTestId } = render(
+    const {getByTestId} = render(
       <Checkbox value={true} onValueChange={mockOnValueChange} />,
     );
     fireEvent.press(getByTestId('mock-touchable-opacity'));
@@ -110,7 +113,7 @@ describe('Checkbox', () => {
   });
 
   it('renders the label when provided', () => {
-    const { getByText } = render(
+    const {getByText} = render(
       <Checkbox
         value={false}
         onValueChange={mockOnValueChange}
@@ -121,7 +124,7 @@ describe('Checkbox', () => {
   });
 
   it('renders the error message when provided', () => {
-    const { getByText } = render(
+    const {getByText} = render(
       <Checkbox
         value={false}
         onValueChange={mockOnValueChange}
@@ -132,15 +135,15 @@ describe('Checkbox', () => {
   });
 
   it('does not render the error message when not provided', () => {
-    const { queryByText } = render(
+    const {queryByText} = render(
       <Checkbox value={false} onValueChange={mockOnValueChange} />,
     );
     expect(queryByText('Test Error')).toBeNull();
   });
 
   it('applies custom labelStyle', () => {
-    const customStyle = { color: 'red', fontSize: 20 };
-    const { getByText } = render(
+    const customStyle = {color: 'red', fontSize: 20};
+    const {getByText} = render(
       <Checkbox
         value={false}
         onValueChange={mockOnValueChange}
@@ -153,7 +156,7 @@ describe('Checkbox', () => {
   });
 
   it('renders with checkbox wrapper view', () => {
-    const { getByTestId } = render(
+    const {getByTestId} = render(
       <Checkbox value={true} onValueChange={mockOnValueChange} />,
     );
     const touchable = getByTestId('mock-touchable-opacity');
@@ -162,7 +165,7 @@ describe('Checkbox', () => {
   });
 
   it('applies checkboxError style when error is provided', () => {
-    const { getByTestId } = render(
+    const {getByTestId} = render(
       <Checkbox
         value={false}
         onValueChange={mockOnValueChange}
@@ -174,13 +177,13 @@ describe('Checkbox', () => {
 
     expect(checkboxView.props.style).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ borderColor: mockTheme.colors.error }),
+        expect.objectContaining({borderColor: mockTheme.colors.error}),
       ]),
     );
   });
 
   it('applies error border color when error is provided', () => {
-    const { getByTestId } = render(
+    const {getByTestId} = render(
       <Checkbox
         value={true}
         onValueChange={mockOnValueChange}
@@ -192,7 +195,7 @@ describe('Checkbox', () => {
 
     expect(checkboxView.props.style).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ borderColor: mockTheme.colors.error }),
+        expect.objectContaining({borderColor: mockTheme.colors.error}),
       ]),
     );
   });
@@ -211,9 +214,9 @@ describe('Checkbox', () => {
         // subtitleRegular14 is deliberately missing
       },
     };
-    (useTheme as jest.Mock).mockReturnValue({ theme: themeWithoutTypography });
+    (useTheme as jest.Mock).mockReturnValue({theme: themeWithoutTypography});
 
-    const { getByText } = render(
+    const {getByText} = render(
       <Checkbox
         value={false}
         onValueChange={mockOnValueChange}

@@ -19,7 +19,8 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
-const flattenStyle = (style: any) => (Array.isArray(style) ? style.flat().filter(Boolean) : [style].filter(Boolean));
+const flattenStyle = (style: any) =>
+  Array.isArray(style) ? style.flat().filter(Boolean) : [style].filter(Boolean);
 
 describe('Header', () => {
   const onBackMock = jest.fn();
@@ -51,8 +52,11 @@ describe('Header', () => {
       <Header title="My Title" showBackButton={true} onBack={onBackMock} />,
     );
 
-    const {TouchableOpacity} = require('react-native');
-    const buttons = UNSAFE_getAllByType(TouchableOpacity);
+    // Header buttons now render react-native's Pressable (via
+    // LiquidGlassIconButton/PressableOpacity), which is wrapped in
+    // React.memo, so match against the memoized inner component.
+    const {Pressable} = require('react-native');
+    const buttons = UNSAFE_getAllByType((Pressable as any).type);
     expect(buttons.length).toBe(1);
 
     fireEvent.press(buttons[0]);
@@ -62,11 +66,15 @@ describe('Header', () => {
   it('calls onRightPress when right icon pressed', () => {
     const rightIcon = 456;
     const {UNSAFE_getAllByType} = render(
-      <Header title="My Title" rightIcon={rightIcon} onRightPress={onRightPressMock} />,
+      <Header
+        title="My Title"
+        rightIcon={rightIcon}
+        onRightPress={onRightPressMock}
+      />,
     );
 
-    const {TouchableOpacity} = require('react-native');
-    const buttons = UNSAFE_getAllByType(TouchableOpacity);
+    const {Pressable} = require('react-native');
+    const buttons = UNSAFE_getAllByType((Pressable as any).type);
     expect(buttons.length).toBe(1);
 
     fireEvent.press(buttons[0]);

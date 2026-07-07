@@ -4,7 +4,11 @@ import {render, fireEvent, act, screen} from '@testing-library/react-native';
 import {NotificationCard} from '../../../../src/features/notifications/components/NotificationCard/NotificationCard';
 // FIX 1 & 2: Removed the unused 'Images' import which was causing the module error.
 // FIX 3: Added 'Image' to imports so we can use it in getAllByType
-import {Image, TouchableOpacity} from 'react-native';
+import {Image, Pressable} from 'react-native';
+
+// react-native's Pressable is wrapped in React.memo; UNSAFE_getAllByType
+// must match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 
 const mockPanGestures: any[] = [];
 
@@ -276,7 +280,7 @@ describe('NotificationCard', () => {
       );
       triggerGestureHandler('onStart');
 
-      const [touchable] = screen.UNSAFE_getAllByType(TouchableOpacity);
+      const [touchable] = screen.UNSAFE_getAllByType(PressableType);
       expect(touchable.props.disabled).toBe(true);
     });
 
@@ -291,7 +295,7 @@ describe('NotificationCard', () => {
       triggerGestureHandler('onStart');
       triggerGestureHandler('onFinalize');
 
-      const [touchable] = screen.UNSAFE_getAllByType(TouchableOpacity);
+      const [touchable] = screen.UNSAFE_getAllByType(PressableType);
       const disabledState = touchable.props.disabled;
       expect(!!disabledState).toBe(false);
     });

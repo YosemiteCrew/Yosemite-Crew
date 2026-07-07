@@ -129,10 +129,13 @@ describe('ExpenseCard', () => {
       <ExpenseCard {...defaultProps} onPressView={onPressView} />,
     );
 
-    const {TouchableOpacity} = require('react-native');
-    // Note: CardActionButton is also a TouchableOpacity in our mock, but it is rendered *after* or conditionally.
-    // The main card touchable is inside SwipeableActionCard children.
-    const touchable = UNSAFE_getByType(TouchableOpacity);
+    // The main card body now renders react-native's Pressable (via
+    // PressableOpacity), which is wrapped in React.memo, so match against
+    // the memoized inner component. (CardActionButton is still a
+    // TouchableOpacity in our mock, but it isn't rendered here since no
+    // `payment` prop is provided.)
+    const {Pressable} = require('react-native');
+    const touchable = UNSAFE_getByType((Pressable as any).type);
 
     fireEvent.press(touchable);
     expect(onPressView).toHaveBeenCalled();

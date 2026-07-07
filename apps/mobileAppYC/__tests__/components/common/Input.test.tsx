@@ -4,7 +4,11 @@ import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
 import {Input} from '@/shared/components/common/Input/Input';
 import {themeReducer} from '@/features/theme';
-import {TextInput, Text, TouchableOpacity, View} from 'react-native';
+import {TextInput, Text, Pressable, View} from 'react-native';
+
+// react-native's Pressable is wrapped in React.memo; findByType/findAllByType
+// must match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 
 describe('Input', () => {
   const createTestStore = () => {
@@ -54,9 +58,7 @@ describe('Input', () => {
     const onChangeText = jest.fn();
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        wrap(<Input onChangeText={onChangeText} />)
-      );
+      tree = TestRenderer.create(wrap(<Input onChangeText={onChangeText} />));
     });
 
     const textInput = tree.root.findByType(TextInput);
@@ -101,13 +103,13 @@ describe('Input', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<Input error="This field is required" />)
+        wrap(<Input error="This field is required" />),
       );
     });
 
     const texts = tree.root.findAllByType(Text);
     const hasError = texts.some(
-      text => text.props.children === 'This field is required'
+      text => text.props.children === 'This field is required',
     );
     expect(hasError).toBe(true);
   });
@@ -140,11 +142,11 @@ describe('Input', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<Input icon={<Icon />} onIconPress={onIconPress} />)
+        wrap(<Input icon={<Icon />} onIconPress={onIconPress} />),
       );
     });
 
-    const touchables = tree.root.findAllByType(TouchableOpacity);
+    const touchables = tree.root.findAllByType(PressableType);
     expect(touchables.length).toBeGreaterThan(0);
   });
 
@@ -154,11 +156,11 @@ describe('Input', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<Input icon={<Icon />} onIconPress={onIconPress} />)
+        wrap(<Input icon={<Icon />} onIconPress={onIconPress} />),
       );
     });
 
-    const touchable = tree.root.findByType(TouchableOpacity);
+    const touchable = tree.root.findByType(PressableType);
     TestRenderer.act(() => {
       touchable.props.onPress();
     });
@@ -181,9 +183,7 @@ describe('Input', () => {
     const customStyle = {marginTop: 20};
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        wrap(<Input containerStyle={customStyle} />)
-      );
+      tree = TestRenderer.create(wrap(<Input containerStyle={customStyle} />));
     });
 
     const views = tree.root.findAllByType(View);
@@ -192,7 +192,7 @@ describe('Input', () => {
         view.props.style &&
         (Array.isArray(view.props.style)
           ? view.props.style.some((s: any) => s && s.marginTop === 20)
-          : view.props.style.marginTop === 20)
+          : view.props.style.marginTop === 20),
     );
     expect(hasCustomStyle).toBe(true);
   });
@@ -208,9 +208,7 @@ describe('Input', () => {
     const styleArray = Array.isArray(textInput.props.style)
       ? textInput.props.style
       : [textInput.props.style];
-    const hasCustomStyle = styleArray.some(
-      (s: any) => s && s.fontSize === 18
-    );
+    const hasCustomStyle = styleArray.some((s: any) => s && s.fontSize === 18);
     expect(hasCustomStyle).toBe(true);
   });
 
@@ -224,8 +222,8 @@ describe('Input', () => {
             keyboardType="email-address"
             autoCapitalize="none"
             secureTextEntry
-          />
-        )
+          />,
+        ),
       );
     });
 
@@ -311,7 +309,7 @@ describe('Input', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<Input label="Test" labelStyle={customStyle} />)
+        wrap(<Input label="Test" labelStyle={customStyle} />),
       );
     });
 
@@ -323,14 +321,12 @@ describe('Input', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<Input error="Error" errorStyle={customStyle} />)
+        wrap(<Input error="Error" errorStyle={customStyle} />),
       );
     });
 
     const texts = tree.root.findAllByType(Text);
-    const errorText = texts.find(
-      text => text.props.children === 'Error'
-    );
+    const errorText = texts.find(text => text.props.children === 'Error');
     expect(errorText).toBeTruthy();
   });
 

@@ -360,10 +360,18 @@ describe('AddressBottomSheet Component', () => {
     expect(mockClearSuggestions).toHaveBeenCalled();
     expect(mockResetError).toHaveBeenCalled();
 
-    // Also verify header close button works (same logic)
-    const {TouchableOpacity} = require('react-native');
-    const touchables = UNSAFE_getAllByType(TouchableOpacity);
-    const headerClose = touchables[0]; // First one is header close
+    // Also verify header close button works (same logic).
+    // The header close button and the keyboard-dismiss content wrapper both
+    // now render react-native's Pressable (via PressableOpacity), which is
+    // wrapped in React.memo, so we match against the memoized inner
+    // component. The wrapper's onPress is Keyboard.dismiss, so exclude it to
+    // isolate the actual header close button.
+    const {Pressable, Keyboard} = require('react-native');
+    const PressableType = (Pressable as any).type;
+    const touchables = UNSAFE_getAllByType(PressableType);
+    const headerClose = touchables.find(
+      (t: any) => t.props.onPress !== Keyboard.dismiss,
+    );
     fireEvent.press(headerClose);
     expect(mockClearSuggestions).toHaveBeenCalledTimes(2);
   });

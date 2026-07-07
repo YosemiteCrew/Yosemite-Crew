@@ -49,6 +49,7 @@ jest.mock('react-native', () => {
     Text: createMockComponent('Text'),
     Image: MockImage,
     TouchableOpacity: MockTouchableOpacity,
+    Pressable: MockTouchableOpacity,
     StyleSheet: {
       create: jest.fn(styles => styles),
       flatten: jest.fn(style => style), // <-- This is required by testing-library

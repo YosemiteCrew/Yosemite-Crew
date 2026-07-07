@@ -75,6 +75,7 @@ jest.mock('react-native', () => {
     Text: MockText,
     Image: MockImage,
     TouchableOpacity: MockTouchableOpacity,
+    Pressable: MockTouchableOpacity,
     Alert: {alert: jest.fn()},
     Linking: {
       openURL: jest.fn(() => Promise.resolve()),
@@ -256,20 +257,18 @@ describe('LinkedBusinessCard', () => {
 
       await waitFor(() => {
         expect(Linking.canOpenURL).toHaveBeenCalledWith(
-          expect.stringContaining(
-            'maps://?q=123%20Health%20St%2C%20Mediville',
-          ),
+          expect.stringContaining('maps://?q=123%20Health%20St%2C%20Mediville'),
         );
         expect(Linking.openURL).toHaveBeenCalledWith(
-          expect.stringContaining(
-            'maps://?q=123%20Health%20St%2C%20Mediville',
-          ),
+          expect.stringContaining('maps://?q=123%20Health%20St%2C%20Mediville'),
         );
       });
     });
 
     it('falls back to Apple Maps web if the native scheme is unavailable', async () => {
-      (Linking.canOpenURL as jest.Mock).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+      (Linking.canOpenURL as jest.Mock)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
 
       render(<LinkedBusinessCard business={mockBusiness} />);
 
@@ -281,7 +280,9 @@ describe('LinkedBusinessCard', () => {
 
       await waitFor(() => {
         expect(Linking.openURL).toHaveBeenCalledWith(
-          expect.stringContaining('http://maps.apple.com/?q=123%20Health%20St%2C%20Mediville'),
+          expect.stringContaining(
+            'http://maps.apple.com/?q=123%20Health%20St%2C%20Mediville',
+          ),
         );
       });
     });
