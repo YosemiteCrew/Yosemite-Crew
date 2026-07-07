@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef, useEffect, useId, useLayoutEffect } from 'react';
+import React, { useState, useRef, useId, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -44,7 +44,6 @@ const OtpModal = ({
   const { confirmSignUp, resendCode, signIn, role } = useAuthStore();
   const router = useRouter();
   const [code, setCode] = useState(() => new Array(6).fill(''));
-  const [activeInput, setActiveInput] = useState(0);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [invalidOtp, setInvalidOtp] = useState(false);
   const dialogTitleId = useId();
@@ -54,6 +53,11 @@ const OtpModal = ({
   // Stable ref callback to avoid React warning
   const setOtpRef = (el: HTMLInputElement | null, idx: number) => {
     otpRefs.current[idx] = el;
+  };
+  // The active input is only ever read to move focus, never rendered — track it in a
+  // ref and focus imperatively instead of round-tripping through state + an effect.
+  const focusInput = (idx: number) => {
+    otpRefs.current[idx]?.focus();
   };
 
   const [timer, setTimer] = useState(150); // 2.30 minutes in seconds
@@ -70,8 +74,7 @@ const OtpModal = ({
       setInvalidOtp(false);
     }
     if (idx < 5 && val) {
-      otpRefs.current[idx + 1]?.focus();
-      setActiveInput(idx + 1);
+      focusInput(idx + 1);
     }
   };
 
@@ -82,15 +85,12 @@ const OtpModal = ({
         newCode[idx] = '';
         setCode(newCode);
       } else if (idx > 0) {
-        otpRefs.current[idx - 1]?.focus();
-        setActiveInput(idx - 1);
+        focusInput(idx - 1);
       }
     } else if (e.key === 'ArrowLeft' && idx > 0) {
-      otpRefs.current[idx - 1]?.focus();
-      setActiveInput(idx - 1);
+      focusInput(idx - 1);
     } else if (e.key === 'ArrowRight' && idx < 5) {
-      otpRefs.current[idx + 1]?.focus();
-      setActiveInput(idx + 1);
+      focusInput(idx + 1);
     }
   };
 
@@ -186,7 +186,7 @@ const OtpModal = ({
           className: 'CongratsBg',
         });
         setCode(new Array(6).fill('')); // Clear OTP fields on resend
-        setActiveInput(0); // Focus first input
+        focusInput(0); // Focus first input
         setTimer(150);
         setTimerActive(true);
       }
@@ -230,10 +230,6 @@ const OtpModal = ({
       setTimerActive(true);
     }
   }, [showVerifyModal]);
-
-  useEffect(() => {
-    otpRefs.current[activeInput]?.focus();
-  }, [activeInput]);
 
   if (!showVerifyModal) return null;
 

@@ -63,6 +63,7 @@ export function PaymentStatusContent() {
         const res = await fetch(buildPaymentStatusUrl(safeSessionId), {
           cache: 'no-store',
         });
+        if (!alive) return;
         const json = (await res.json()) as Return;
         if (!alive) return;
         setState((current) => ({ ...current, data: json, requestState: 'ready' }));

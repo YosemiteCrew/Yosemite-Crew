@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 type ModalBaseProps = {
@@ -44,7 +44,8 @@ const ModalBase = ({
   const previousFocusRef = useRef<HTMLElement | null>(null);
   // React 19 owns the inert attribute via this boolean prop (true = inert, undefined = not inert).
   // Never mix with imperative setAttribute to avoid the empty-string boolean warning.
-  const [isInert, setIsInert] = useState(!showModal);
+  // Derived directly from showModal — no need to copy it into state and sync it in an effect.
+  const isInert = !showModal;
 
   const closeModal = useCallback(() => {
     if (canClose && !canClose()) return;
@@ -62,7 +63,6 @@ const ModalBase = ({
   // Focus is moved in a separate effect that fires after isInert settles (below).
   useEffect(() => {
     if (showModal) {
-      setIsInert(false);
       previousFocusRef.current = document.activeElement as HTMLElement;
       const scrollbarWidth =
         globalThis.window === undefined
@@ -73,7 +73,6 @@ const ModalBase = ({
       // Safari requires overflow:hidden on <html> to prevent body scroll
       document.documentElement.style.overflow = 'hidden';
     } else {
-      setIsInert(true);
       // Restore focus to the element that was active before the modal opened.
       // This runs before inert is applied to the DOM (React batches the state update),
       // so the focused element is already outside the modal when inert renders.
