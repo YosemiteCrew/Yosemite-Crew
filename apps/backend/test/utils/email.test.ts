@@ -3,6 +3,7 @@ import logger from "../../src/utils/logger";
 // --- Static Mocks ---
 jest.mock("../../src/utils/logger", () => ({
   error: jest.fn(),
+  warn: jest.fn(),
 }));
 
 jest.mock("../../src/utils/email-templates", () => ({
@@ -181,6 +182,23 @@ describe("Email Utils", () => {
       });
 
       expect(MockSESClient).toHaveBeenCalledTimes(1);
+    });
+
+    it("should treat SES parse errors on HTTP 200 responses as success", async () => {
+      mockSend.mockRejectedValue({
+        message:
+          "[EntityReplacer] Invalid character '#' in entity name: \"#xD\"",
+        $metadata: { httpStatusCode: 200 },
+      });
+
+      await expect(
+        emailModule.sendEmail({
+          to: "test@test.com",
+          subject: "s",
+          textBody: "b",
+          sourceEmail: "src@test.com",
+        }),
+      ).resolves.toEqual({});
     });
   });
 
