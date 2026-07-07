@@ -14,6 +14,9 @@ const CreateApiKeySchema = z.object({
   scopes: z.array(z.string().trim().min(1)).max(50).optional(),
   environment: z.nativeEnum(DeveloperApiKeyEnvironment).optional(),
   expiresAt: z.string().datetime().optional(),
+  // Scope the key to this org instead of the session org. The service only
+  // accepts the caller's own sandbox org here (DeveloperSandbox ownership).
+  organisationId: z.string().trim().min(1).optional(),
 });
 
 const getOrgId = (req: Request): string | undefined =>
@@ -58,6 +61,7 @@ export const DeveloperApiKeyController = {
         scopes,
         environment,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
+        targetOrganisationId: parsed.data.organisationId,
       });
       return res.status(201).json(issued);
     } catch (error) {

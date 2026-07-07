@@ -6,6 +6,7 @@ import "./idexx-reference.worker";
 import "./lab-status.worker";
 import "./lab-results.worker";
 import "./developer-maintenance.worker";
+import "./developer-export.worker";
 import logger from "src/utils/logger";
 
 logger.info("👷 BullMQ workers running...");

@@ -121,11 +121,31 @@ export const DeveloperApiKeyService = {
     scopes?: string[];
     environment?: DeveloperApiKeyEnvironment;
     expiresAt?: Date | null;
+    // Optional org the key should be scoped to instead of the caller's own.
+    // Only the caller's seeded sandbox org is a valid target - anything else
+    // is rejected, so this can never become arbitrary org targeting.
+    targetOrganisationId?: string;
   }): Promise<IssuedApiKey> {
-    const organisationId = requireNonEmpty(
+    let organisationId = requireNonEmpty(
       input.organisationId,
       "organisationId",
     );
+    if (
+      input.targetOrganisationId &&
+      input.targetOrganisationId !== organisationId
+    ) {
+      const sandbox = await prisma.developerSandbox.findUnique({
+        where: { organisationId },
+        select: { sandboxOrganisationId: true },
+      });
+      if (sandbox?.sandboxOrganisationId !== input.targetOrganisationId) {
+        throw new DeveloperApiKeyServiceError(
+          "Keys can only be issued for your own organisation or its sandbox",
+          403,
+        );
+      }
+      organisationId = input.targetOrganisationId;
+    }
     const name = requireNonEmpty(input.name, "name");
     const createdBy = requireNonEmpty(input.createdBy, "createdBy");
     const environment = input.environment ?? DeveloperApiKeyEnvironment.live;

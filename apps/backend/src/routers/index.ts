@@ -63,6 +63,8 @@ import developerDataRouter from "./developer-data.router";
 import developerBillingRouter from "./developer-billing.router";
 import developerUsageRouter from "./developer-usage.router";
 import developerRequestLogRouter from "./developer-request-log.router";
+import developerSandboxRouter from "./developer-sandbox.router";
+import developerExportRouter from "./developer-export.router";
 import { captureApiKeyRequestLog } from "src/middlewares/api-key-request-log";
 
 export function registerRoutes(app: Express) {
@@ -128,6 +130,8 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/developers/billing`, developerBillingRouter);
   app.use(`/v1/developers/usage`, developerUsageRouter);
   app.use(`/v1/developers/request-logs`, developerRequestLogRouter);
+  app.use(`/v1/developers/sandbox`, developerSandboxRouter);
+  app.use(`/v1/developers/exports`, developerExportRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);
   app.use(`/v1/codes`, codeRouter);
   app.use(`/v1/labs`, labOrderRouter);

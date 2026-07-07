@@ -114,6 +114,30 @@ describe("DeveloperApiKeyController.createApiKey", () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  it("passes a sandbox target through as targetOrganisationId", async () => {
+    svc.issue.mockResolvedValue({ id: "k", apiKey: "yc_test_secret" });
+    const res = buildRes();
+    await DeveloperApiKeyController.createApiKey(
+      buildReq({
+        organisationId: "o",
+        userId: "u",
+        body: {
+          name: "sandbox",
+          environment: "test",
+          organisationId: "sandbox-org",
+        },
+      }),
+      res,
+    );
+    expect(svc.issue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organisationId: "o",
+        targetOrganisationId: "sandbox-org",
+      }),
+    );
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
   it("coerces expiresAt to a Date", async () => {
     svc.issue.mockResolvedValue({});
     const res = buildRes();

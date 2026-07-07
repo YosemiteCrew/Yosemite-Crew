@@ -31,6 +31,15 @@ jest.mock("src/controllers/web/developer-data.controller", () => ({
   DeveloperDataController,
 }));
 
+const DeveloperMcpController = {
+  handlePost: jest.fn(),
+  methodNotAllowed: jest.fn(),
+};
+
+jest.mock("src/controllers/web/developer-mcp.controller", () => ({
+  DeveloperMcpController,
+}));
+
 const router = jest.requireActual("../../src/routers/developer-data.router")
   .default as Router;
 
@@ -126,5 +135,50 @@ describe("developer-data.router", () => {
       const route = findRoute(path, "get");
       expect(route?.stack.at(-1)?.handle).toBe(handler);
     }
+  });
+
+  describe("remote MCP endpoint", () => {
+    it("registers POST /mcp behind authorizeApiKey (one quota unit per MCP call)", () => {
+      const route = findRoute("/mcp", "post");
+      expect(route?.stack.at(-1)?.handle).toBe(
+        DeveloperMcpController.handlePost,
+      );
+      const mcpPostIndex = layers.findIndex(
+        (entry) =>
+          entry.route?.path === "/mcp" && Boolean(entry.route?.methods?.post),
+      );
+      const quotaIndex = layers.findIndex(
+        (entry) => entry.handle === authorizeApiKey,
+      );
+      expect(mcpPostIndex).toBeGreaterThan(quotaIndex);
+    });
+
+    it("applies no route-level scope to POST /mcp (tools enforce their own)", () => {
+      const route = findRoute("/mcp", "post");
+      expect(
+        route?.stack.some((entry) =>
+          Object.values(scopeMiddlewares).includes(entry.handle as jest.Mock),
+        ),
+      ).toBe(false);
+    });
+
+    it("registers GET and DELETE /mcp as 405s before the quota middleware", () => {
+      const quotaIndex = layers.findIndex(
+        (entry) => entry.handle === authorizeApiKey,
+      );
+      for (const method of ["get", "delete"]) {
+        const route = findRoute("/mcp", method);
+        expect(route?.stack.at(-1)?.handle).toBe(
+          DeveloperMcpController.methodNotAllowed,
+        );
+        const index = layers.findIndex(
+          (entry) =>
+            entry.route?.path === "/mcp" &&
+            Boolean(entry.route?.methods?.[method]),
+        );
+        expect(index).toBeGreaterThanOrEqual(0);
+        expect(index).toBeLessThan(quotaIndex);
+      }
+    });
   });
 });

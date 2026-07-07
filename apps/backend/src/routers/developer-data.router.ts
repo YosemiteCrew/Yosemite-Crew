@@ -5,6 +5,7 @@ import {
   requireScope,
 } from "src/middlewares/api-key-auth";
 import { DeveloperDataController } from "../controllers/web/developer-data.controller";
+import { DeveloperMcpController } from "../controllers/web/developer-mcp.controller";
 
 // Developer Data API v1 (mounted at /v1/developer): API-key-authenticated,
 // org-scoped, read-only. The management plane at /v1/developers stays
@@ -21,9 +22,20 @@ developerDataRouter.get(
   DeveloperDataController.getUsage,
 );
 
+// Stateless MCP protocol responses: GET (no server-initiated stream) and
+// DELETE (no session to terminate) are 405 regardless of credentials, so they
+// sit BEFORE authorizeApiKey and never consume rate limit or quota.
+developerDataRouter.get("/mcp", DeveloperMcpController.methodNotAllowed);
+developerDataRouter.delete("/mcp", DeveloperMcpController.methodNotAllowed);
+
 // Everything below verifies the key, applies the per-key rate limit, and
 // increments the monthly quota.
 developerDataRouter.use(authorizeApiKey);
+
+// Remote MCP endpoint: one quota unit per MCP POST, exactly like a REST call.
+// No route-level requireScope - each tool enforces its own scope inside
+// DeveloperMcpService so a mixed-scope key still sees its permitted tools.
+developerDataRouter.post("/mcp", DeveloperMcpController.handlePost);
 
 developerDataRouter.get(
   "/appointments",

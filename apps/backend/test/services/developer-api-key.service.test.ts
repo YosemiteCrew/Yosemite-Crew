@@ -14,6 +14,9 @@ jest.mock("../../src/config/prisma", () => ({
       update: jest.fn(),
       updateMany: jest.fn(),
     },
+    developerSandbox: {
+      findUnique: jest.fn(),
+    },
     $transaction: jest.fn(async (operations: Promise<unknown>[]) =>
       Promise.all(operations),
     ),
@@ -28,6 +31,9 @@ const mockPrisma = prisma as unknown as {
     findUnique: jest.Mock;
     update: jest.Mock;
     updateMany: jest.Mock;
+  };
+  developerSandbox: {
+    findUnique: jest.Mock;
   };
   $transaction: jest.Mock;
 };
@@ -178,6 +184,89 @@ describe("DeveloperApiKeyService", () => {
       expect(mockPrisma.developerApiKey.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ scopes }) }),
       );
+    });
+
+    describe("sandbox-targeted issuance", () => {
+      const created = {
+        id: "k",
+        name: "n",
+        prefix: "yc_test_x",
+        last4: "abcd",
+        scopes: [],
+        environment: "test",
+      };
+
+      it("issues a key FOR the sandbox org when the caller owns that sandbox", async () => {
+        mockPrisma.developerSandbox.findUnique.mockResolvedValue({
+          sandboxOrganisationId: "sandbox-org",
+        });
+        mockPrisma.developerApiKey.create.mockResolvedValue(created);
+
+        await DeveloperApiKeyService.issue({
+          organisationId: "org-1",
+          name: "sandbox key",
+          createdBy: "u",
+          targetOrganisationId: "sandbox-org",
+        });
+
+        expect(mockPrisma.developerSandbox.findUnique).toHaveBeenCalledWith({
+          where: { organisationId: "org-1" },
+          select: { sandboxOrganisationId: true },
+        });
+        expect(mockPrisma.developerApiKey.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ organisationId: "sandbox-org" }),
+          }),
+        );
+      });
+
+      it("rejects a target that is not the caller's sandbox with a 403", async () => {
+        mockPrisma.developerSandbox.findUnique.mockResolvedValue({
+          sandboxOrganisationId: "sandbox-org",
+        });
+
+        await expect(
+          DeveloperApiKeyService.issue({
+            organisationId: "org-1",
+            name: "n",
+            createdBy: "u",
+            targetOrganisationId: "victim-org",
+          }),
+        ).rejects.toMatchObject({ statusCode: 403 });
+        expect(mockPrisma.developerApiKey.create).not.toHaveBeenCalled();
+      });
+
+      it("rejects any target when the caller has no sandbox at all", async () => {
+        mockPrisma.developerSandbox.findUnique.mockResolvedValue(null);
+
+        await expect(
+          DeveloperApiKeyService.issue({
+            organisationId: "org-1",
+            name: "n",
+            createdBy: "u",
+            targetOrganisationId: "sandbox-org",
+          }),
+        ).rejects.toMatchObject({ statusCode: 403 });
+        expect(mockPrisma.developerApiKey.create).not.toHaveBeenCalled();
+      });
+
+      it("treats the caller's own org as a target as a plain self-issue", async () => {
+        mockPrisma.developerApiKey.create.mockResolvedValue(created);
+
+        await DeveloperApiKeyService.issue({
+          organisationId: "org-1",
+          name: "n",
+          createdBy: "u",
+          targetOrganisationId: "org-1",
+        });
+
+        expect(mockPrisma.developerSandbox.findUnique).not.toHaveBeenCalled();
+        expect(mockPrisma.developerApiKey.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({ organisationId: "org-1" }),
+          }),
+        );
+      });
     });
   });
 

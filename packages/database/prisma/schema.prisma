@@ -1370,6 +1370,46 @@ model DeveloperUsageAlert {
   @@map("DeveloperUsageAlerts")
 }
 
+/// Links a developer organisation to its seeded demo clinic. One sandbox per
+/// developer org; the unique organisationId is the idempotency guarantee for
+/// POST /v1/developers/sandbox.
+model DeveloperSandbox {
+  id                    String   @id @default(uuid())
+  organisationId        String   @unique
+  sandboxOrganisationId String
+  createdAt             DateTime @default(now())
+
+  @@index([sandboxOrganisationId])
+  @@map("DeveloperSandboxes")
+}
+
+/// One bulk-export request (POST /v1/developers/exports). The worker moves
+/// status QUEUED -> RUNNING -> COMPLETED (s3Key + rowCounts set) or FAILED
+/// (error set). At most one QUEUED/RUNNING job per organisation.
+model DeveloperExportJob {
+  id             String                   @id @default(uuid())
+  organisationId String
+  status         DeveloperExportJobStatus @default(QUEUED)
+  resources      String[]
+  format         String
+  s3Key          String?
+  error          String?
+  rowCounts      Json?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([organisationId, createdAt])
+  @@index([organisationId, status])
+  @@map("DeveloperExportJobs")
+}
+
+enum DeveloperExportJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 enum DevicePlatform {
   ios
   android
