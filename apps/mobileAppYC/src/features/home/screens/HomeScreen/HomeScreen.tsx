@@ -1565,8 +1565,9 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     greetingName: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.secondary,
+      // Warm-bone greeting: Newsreader serif italic in the companion pink.
+      ...theme.typography.greeting,
+      color: theme.colors.pink,
     },
     headerActions: {
       flexDirection: 'row',
