@@ -85,7 +85,7 @@ function CertCard({ cert }: Readonly<{ cert: Certification }>) {
   return (
     <div
       style={{
-        border: '1px solid #e5dccf',
+        border: '1px solid var(--hairline)',
         borderRadius: 18,
         padding: 20,
         background: CARD_BG,
@@ -107,10 +107,12 @@ function CertCard({ cert }: Readonly<{ cert: Certification }>) {
         <span style={getStatusPillStyle(cert.status)}>{cert.status}</span>
       </div>
       <div>
-        <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em', color: '#1d1c1b' }}>
+        <div
+          style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--ink)' }}
+        >
           {cert.name}
         </div>
-        <div style={{ fontSize: 13, lineHeight: 1.5, color: '#8f8984', marginTop: 5 }}>
+        <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-faint)', marginTop: 5 }}>
           {cert.description}
         </div>
       </div>
@@ -121,14 +123,19 @@ function CertCard({ cert }: Readonly<{ cert: Certification }>) {
 function PillarCard({ pillar }: Readonly<{ pillar: SecurityPillar }>) {
   return (
     <div
-      style={{ border: '1px solid #e5dccf', borderRadius: 20, padding: 24, background: CARD_BG }}
+      style={{
+        border: '1px solid var(--hairline)',
+        borderRadius: 20,
+        padding: 24,
+        background: CARD_BG,
+      }}
     >
       <div
         style={{
           fontSize: 16,
           fontWeight: 700,
           letterSpacing: '-0.02em',
-          color: '#1d1c1b',
+          color: 'var(--ink)',
           marginBottom: 14,
         }}
       >
@@ -140,9 +147,9 @@ function PillarCard({ pillar }: Readonly<{ pillar: SecurityPillar }>) {
             <IoCheckmark
               size={16}
               aria-hidden
-              style={{ color: '#008f5d', flex: 'none', marginTop: 2 }}
+              style={{ color: 'var(--success)', flex: 'none', marginTop: 2 }}
             />
-            <span style={{ fontSize: 14, lineHeight: 1.5, color: '#5c5956' }}>{item}</span>
+            <span style={{ fontSize: 14, lineHeight: 1.5, color: 'var(--ink-muted)' }}>{item}</span>
           </div>
         ))}
       </div>
@@ -163,12 +170,16 @@ function SubprocessorRow({ sub, first }: Readonly<{ sub: Subprocessor; first: bo
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em', color: '#1d1c1b' }}>
+        <span
+          style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--ink)' }}
+        >
           {sub.name}
         </span>
-        <span style={{ fontSize: 13, color: '#8f8984' }}>{sub.service}</span>
+        <span style={{ fontSize: 13, color: 'var(--ink-faint)' }}>{sub.service}</span>
       </div>
-      <span style={{ fontSize: 13, color: '#5c5956', whiteSpace: 'nowrap' }}>{sub.location}</span>
+      <span style={{ fontSize: 13, color: 'var(--ink-muted)', whiteSpace: 'nowrap' }}>
+        {sub.location}
+      </span>
     </div>
   );
 }
@@ -265,7 +276,7 @@ const TrustCenter = () => {
         <p>We keep the list short and current, and bind each with a data-processing agreement.</p>
         <div
           style={{
-            border: '1px solid #e5dccf',
+            border: '1px solid var(--hairline)',
             borderRadius: 20,
             overflow: 'hidden',
             maxWidth: 700,

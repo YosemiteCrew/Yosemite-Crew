@@ -28,10 +28,10 @@ const DmcaCopyrightPolicy = () => {
         </p>
         <div
           style={{
-            border: '1px solid #e5dccf',
+            border: '1px solid var(--hairline)',
             borderRadius: 18,
             padding: '20px 22px',
-            background: '#efe8dc',
+            background: 'var(--page)',
             maxWidth: 460,
           }}
         >
@@ -41,13 +41,13 @@ const DmcaCopyrightPolicy = () => {
               fontWeight: 700,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
-              color: '#a9a39e',
+              color: 'var(--ink-faint2)',
               marginBottom: 10,
             }}
           >
             Copyright agent
           </div>
-          <div style={{ fontSize: 15, lineHeight: 1.6, color: '#302f2e' }}>
+          <div style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--ink-body)' }}>
             DuneXploration UG (haftungsbeschränkt)
             <br />
             Am Finther Weg 7

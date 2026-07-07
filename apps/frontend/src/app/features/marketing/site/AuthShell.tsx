@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { IoArrowBackOutline, IoStar } from 'react-icons/io5';
 import { CERT_BADGES, GITHUB_REPO_URL, MARKETING_LOGO } from './assets';
 import { useGithubStats } from './useGithubStats';
+import { ThemeToggle } from './ThemeToggle';
 
 export interface AuthBrandPoint {
   icon: ReactNode;
@@ -156,6 +157,7 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
   return (
     <div
       data-authgrid="true"
+      data-yc-theme
       style={{ display: 'grid', gridTemplateColumns: '1.06fr 1fr', minHeight: '100svh' }}
     >
       <div
@@ -300,7 +302,7 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
       <div
         style={{
           position: 'relative',
-          background: 'linear-gradient(180deg, #efe8dc, #e8e0d2)',
+          background: 'linear-gradient(180deg, var(--page), var(--band))',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -321,14 +323,14 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
               alignItems: 'center',
               gap: 7,
               textDecoration: 'none',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               fontSize: 14,
               fontWeight: 500,
               letterSpacing: '-0.01em',
               padding: '8px 15px 8px 12px',
               borderRadius: 9999,
-              border: '1px solid #e0d7c9',
-              background: 'rgba(253,251,246,0.7)',
+              border: '1px solid var(--hairline)',
+              background: 'var(--glass-92)',
             }}
             className="yc-switch"
           >
@@ -342,10 +344,11 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
               gap: 13,
               fontSize: 14.5,
               letterSpacing: '-0.01em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
             }}
           >
             {topRight}
+            <ThemeToggle style={{ width: 38, height: 38 }} />
           </div>
         </header>
 

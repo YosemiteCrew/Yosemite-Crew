@@ -22,7 +22,7 @@ const headingStyle: CSSProperties = {
   fontWeight: 400,
   lineHeight: 1.06,
   letterSpacing: '-0.03em',
-  color: '#1d1c1b',
+  color: 'var(--ink)',
 };
 
 const subtitleStyle: CSSProperties = {
@@ -30,7 +30,7 @@ const subtitleStyle: CSSProperties = {
   fontSize: 15.5,
   lineHeight: 1.55,
   letterSpacing: '-0.01em',
-  color: '#5c5956',
+  color: 'var(--ink-muted)',
 };
 
 const authFormStyle: CSSProperties = {
@@ -69,7 +69,7 @@ const toggleButtonStyle: CSSProperties = {
   height: 32,
   border: 'none',
   background: 'transparent',
-  color: '#8f8984',
+  color: 'var(--ink-faint)',
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
@@ -83,13 +83,13 @@ const submitButtonStyle: CSSProperties = {
   fontSize: 16,
   padding: '16px 24px',
   borderRadius: 13,
-  boxShadow: '0 14px 30px rgba(29,28,27,0.22)',
+  boxShadow: '0 14px 30px var(--sh22)',
 };
 
 const altNoteStyle: CSSProperties = {
   marginTop: 22,
   paddingTop: 18,
-  borderTop: '1px solid #e5dccf',
+  borderTop: '1px solid var(--hairline)',
   display: 'flex',
   alignItems: 'center',
   gap: 10,
@@ -97,7 +97,7 @@ const altNoteStyle: CSSProperties = {
   textAlign: 'center',
   fontSize: 13.5,
   lineHeight: 1.5,
-  color: '#8f8984',
+  color: 'var(--ink-faint)',
   letterSpacing: '-0.01em',
 };
 
@@ -276,7 +276,7 @@ export const AuthSubmitButton = ({
 export const AuthAltNote = ({ children }: Readonly<{ children: ReactNode }>) => (
   <div style={altNoteStyle}>
     <IoPhonePortraitOutline
-      style={{ fontSize: 17, flex: 'none', color: '#a9a39e' }}
+      style={{ fontSize: 17, flex: 'none', color: 'var(--ink-faint2)' }}
       aria-hidden="true"
     />
     <span>{children}</span>

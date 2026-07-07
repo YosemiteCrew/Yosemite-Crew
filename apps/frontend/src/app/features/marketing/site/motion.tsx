@@ -294,7 +294,7 @@ export function ScrollProgress() {
         left: 0,
         height: '2px',
         width: `${pct}%`,
-        background: 'linear-gradient(90deg,#257bed,#5ce1e6)',
+        background: 'linear-gradient(90deg,var(--blue),var(--cyan))',
         zIndex: 130,
         transition: 'width 80ms linear',
         pointerEvents: 'none',

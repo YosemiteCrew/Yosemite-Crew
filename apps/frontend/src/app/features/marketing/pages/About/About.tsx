@@ -41,7 +41,7 @@ const sectionHeadingStyle: CSSProperties = {
   fontWeight: 500,
   lineHeight: 1.1,
   letterSpacing: '-0.05em',
-  color: '#1d1c1b',
+  color: 'var(--ink)',
   textWrap: 'balance',
 };
 
@@ -52,9 +52,9 @@ const communityPillStyle: CSSProperties = {
   textDecoration: 'none',
   padding: '9px 16px',
   borderRadius: '9999px',
-  border: '1px solid #e5dccf',
-  background: '#f7f3ec',
-  color: '#302f2e',
+  border: '1px solid var(--hairline)',
+  background: 'var(--screen)',
+  color: 'var(--ink-body)',
   fontSize: '14px',
   fontWeight: 500,
   letterSpacing: '-0.01em',
@@ -70,10 +70,11 @@ function Hero() {
   };
   return (
     <section
+      data-hero
       style={{
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(180deg, #efe8dc 0%, #efe8dc 65%, #eae2d5 100%)',
+        background: 'linear-gradient(180deg, var(--page) 0%, var(--page) 65%, var(--inset) 100%)',
         padding: '152px 24px 100px',
       }}
     >
@@ -85,7 +86,7 @@ function Hero() {
           left: 'calc(50% - 420px)',
           width: '840px',
           height: '560px',
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.08), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b08), transparent 70%)',
           pointerEvents: 'none',
           animation: 'ycDrift 34s ease-in-out infinite alternate',
         }}
@@ -109,14 +110,14 @@ function Hero() {
             gap: '8px',
             padding: '8px 16px',
             borderRadius: '9999px',
-            border: '1px solid #e5dccf',
-            background: 'rgba(239,232,220,0.94)',
+            border: '1px solid var(--hairline)',
+            background: 'var(--glass-95)',
             backdropFilter: 'blur(40px)',
             WebkitBackdropFilter: 'blur(40px)',
             fontSize: '13px',
             fontWeight: 500,
             letterSpacing: '-0.01em',
-            color: '#5c5956',
+            color: 'var(--ink-muted)',
             opacity: 0,
             animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
           }}
@@ -126,7 +127,7 @@ function Hero() {
               width: '7px',
               height: '7px',
               borderRadius: '9999px',
-              background: '#008f5d',
+              background: 'var(--success)',
             }}
           />
           About us
@@ -139,7 +140,7 @@ function Hero() {
             fontWeight: 500,
             lineHeight: 1.03,
             letterSpacing: '-0.06em',
-            color: '#1d1c1b',
+            color: 'var(--ink)',
             textWrap: 'balance',
             display: 'flex',
             flexWrap: 'wrap',
@@ -184,7 +185,7 @@ function Hero() {
               display: 'inline-block',
               fontStyle: 'italic',
               fontWeight: 480,
-              color: '#257bed',
+              color: 'var(--blue-text)',
               opacity: 0,
               animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.58s both',
             }}
@@ -199,7 +200,7 @@ function Hero() {
             fontSize: 'clamp(17px, 2vw, 21px)',
             lineHeight: 1.6,
             letterSpacing: '-0.025em',
-            color: '#5c5956',
+            color: 'var(--ink-muted)',
             opacity: 0,
             animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.5s both',
             textWrap: 'pretty',
@@ -218,7 +219,7 @@ function Hero() {
 
 function Origin() {
   return (
-    <Spotlight style={{ background: '#1d1c1b', overflow: 'hidden' }}>
+    <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
       <section data-screen-label="Origin">
         <div
           aria-hidden="true"
@@ -228,7 +229,7 @@ function Origin() {
             right: '-160px',
             width: '780px',
             height: '600px',
-            background: 'radial-gradient(closest-side, rgba(37,123,237,0.12), transparent 70%)',
+            background: 'radial-gradient(closest-side, var(--glow-b12), transparent 70%)',
             pointerEvents: 'none',
           }}
         />
@@ -355,9 +356,9 @@ const BELIEFS: Belief[] = [
         <strong
           style={{
             fontWeight: 700,
-            color: '#302f2e',
+            color: 'var(--ink-body)',
             textDecoration: 'underline',
-            textDecorationColor: '#257bed',
+            textDecorationColor: 'var(--blue)',
             textDecorationThickness: '2px',
             textUnderlineOffset: '3px',
           }}
@@ -421,7 +422,7 @@ function BeliefCard({ belief }: Readonly<{ belief: Belief }>) {
     <Reveal
       delay={belief.delay}
       style={{
-        background: '#eae2d5',
+        background: 'var(--inset)',
         borderRadius: '24px',
         padding: '28px',
         display: 'flex',
@@ -434,8 +435,8 @@ function BeliefCard({ belief }: Readonly<{ belief: Belief }>) {
           width: '44px',
           height: '44px',
           borderRadius: '13px',
-          background: '#f7f3ec',
-          color: '#257bed',
+          background: 'var(--pill-raised)',
+          color: 'var(--blue)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -448,7 +449,7 @@ function BeliefCard({ belief }: Readonly<{ belief: Belief }>) {
           fontSize: '19px',
           fontWeight: 700,
           letterSpacing: '-0.03em',
-          color: '#1d1c1b',
+          color: 'var(--ink)',
         }}
       >
         {belief.title}
@@ -457,7 +458,7 @@ function BeliefCard({ belief }: Readonly<{ belief: Belief }>) {
         style={{
           fontSize: '15px',
           lineHeight: 1.6,
-          color: '#5c5956',
+          color: 'var(--ink-muted)',
           letterSpacing: '-0.01em',
         }}
       >
@@ -469,7 +470,7 @@ function BeliefCard({ belief }: Readonly<{ belief: Belief }>) {
 
 function Beliefs() {
   return (
-    <section style={{ background: '#efe8dc' }}>
+    <section style={{ background: 'var(--page)' }}>
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -484,7 +485,7 @@ function Beliefs() {
             marginBottom: 'clamp(40px, 5vw, 64px)',
           }}
         >
-          <span style={{ ...eyebrowStyle, color: '#257bed' }}>What we believe</span>
+          <span style={{ ...eyebrowStyle, color: 'var(--blue-text)' }}>What we believe</span>
           <h2 style={sectionHeadingStyle}>Six things we won&apos;t quietly walk back.</h2>
         </Reveal>
         <div
@@ -518,7 +519,7 @@ function StatColumn({ stat }: Readonly<{ stat: LiveStat }>) {
     <Reveal
       delay={stat.delay}
       style={{
-        borderTop: '1px solid #d6d1cd',
+        borderTop: '1px solid var(--divider)',
         paddingTop: '24px',
         display: 'flex',
         flexDirection: 'column',
@@ -532,7 +533,7 @@ function StatColumn({ stat }: Readonly<{ stat: LiveStat }>) {
           fontWeight: 500,
           letterSpacing: '-0.05em',
           lineHeight: 1,
-          color: '#1d1c1b',
+          color: 'var(--ink)',
         }}
       />
       <span
@@ -540,7 +541,7 @@ function StatColumn({ stat }: Readonly<{ stat: LiveStat }>) {
           fontSize: '15px',
           fontWeight: 500,
           letterSpacing: '-0.02em',
-          color: '#302f2e',
+          color: 'var(--ink-body)',
         }}
       >
         {stat.label}
@@ -549,7 +550,7 @@ function StatColumn({ stat }: Readonly<{ stat: LiveStat }>) {
         style={{
           fontSize: '13px',
           letterSpacing: '-0.01em',
-          color: '#a9a39e',
+          color: 'var(--ink-faint2)',
         }}
       >
         {stat.source}
@@ -588,7 +589,7 @@ function BuildingInPublic() {
   ];
 
   return (
-    <section style={{ background: '#eae2d5' }}>
+    <section style={{ background: 'var(--inset)' }}>
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -597,7 +598,7 @@ function BuildingInPublic() {
         }}
       >
         <Reveal delay={0} style={{ maxWidth: '720px' }}>
-          <span style={{ ...eyebrowStyle, color: '#8f8984' }}>Building in public</span>
+          <span style={{ ...eyebrowStyle, color: 'var(--ink-faint)' }}>Building in public</span>
           <h2 style={sectionHeadingStyle}>
             Most companies keep their numbers private. We don&apos;t.
           </h2>
@@ -607,7 +608,7 @@ function BuildingInPublic() {
               fontSize: '18px',
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               textWrap: 'pretty',
             }}
           >
@@ -698,9 +699,9 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
             aspectRatio: '1 / 1',
             borderRadius: '22px',
             overflow: 'hidden',
-            background: '#eae2d5',
-            border: '1px solid #e5dccf',
-            boxShadow: '0 18px 40px rgba(29,28,27,0.08)',
+            background: 'var(--inset)',
+            border: '1px solid var(--hairline)',
+            boxShadow: '0 18px 40px var(--sh08)',
           }}
         >
           <span
@@ -714,8 +715,8 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'linear-gradient(135deg, #eae2d5 0%, #e5dccf 100%)',
-              color: '#a9a39e',
+              background: 'linear-gradient(135deg, var(--inset) 0%, var(--hairline) 100%)',
+              color: 'var(--ink-faint2)',
               fontFamily: SERIF,
               fontSize: '38px',
               fontWeight: 500,
@@ -740,16 +741,16 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
                 fontSize: '16px',
                 fontWeight: 700,
                 letterSpacing: '-0.02em',
-                color: '#1d1c1b',
+                color: 'var(--ink)',
               }}
             >
               {member.name}
             </div>
-            <div style={{ fontSize: '12.5px', color: '#8f8984' }}>{member.role}</div>
+            <div style={{ fontSize: '12.5px', color: 'var(--ink-faint)' }}>{member.role}</div>
           </div>
           <IoLogoLinkedin
             aria-hidden="true"
-            style={{ flex: 'none', fontSize: '18px', color: '#257bed' }}
+            style={{ flex: 'none', fontSize: '18px', color: 'var(--blue)' }}
           />
         </div>
       </a>
@@ -759,7 +760,7 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
 
 function TheCrew() {
   return (
-    <section style={{ background: '#efe8dc' }}>
+    <section style={{ background: 'var(--page)' }}>
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -774,7 +775,7 @@ function TheCrew() {
             marginBottom: 'clamp(44px, 5vw, 68px)',
           }}
         >
-          <span style={{ ...eyebrowStyle, color: '#257bed' }}>The crew</span>
+          <span style={{ ...eyebrowStyle, color: 'var(--blue-text)' }}>The crew</span>
           <h2 style={sectionHeadingStyle}>A small crew, and everyone who shows up.</h2>
           <p
             style={{
@@ -782,7 +783,7 @@ function TheCrew() {
               fontSize: '18px',
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               textWrap: 'pretty',
             }}
           >
@@ -819,7 +820,7 @@ function TheCrew() {
             style={{
               fontSize: '15px',
               letterSpacing: '-0.01em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
             }}
           >
             And the wider community that keeps it moving.
@@ -892,7 +893,7 @@ const ENTITY_FACTS: EntityFact[] = [
 
 function Company() {
   return (
-    <section style={{ background: '#e8e0d2' }}>
+    <section style={{ background: 'var(--band)' }}>
       <div
         data-grid-1-m="true"
         style={{
@@ -906,7 +907,7 @@ function Company() {
         }}
       >
         <Reveal delay={0}>
-          <span style={{ ...eyebrowStyle, color: '#257bed' }}>The company</span>
+          <span style={{ ...eyebrowStyle, color: 'var(--blue-text)' }}>The company</span>
           <h2
             style={{
               margin: '20px 0 0',
@@ -915,7 +916,7 @@ function Company() {
               fontWeight: 500,
               lineHeight: 1.12,
               letterSpacing: '-0.045em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -927,7 +928,7 @@ function Company() {
               fontSize: '16px',
               lineHeight: 1.65,
               letterSpacing: '-0.01em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
             }}
           >
             Yosemite Crew is built so that nobody can cleanly buy it, and for once, that&apos;s
@@ -937,7 +938,7 @@ function Company() {
         <Reveal
           delay={100}
           style={{
-            background: '#eae2d5',
+            background: 'var(--inset)',
             borderRadius: '28px',
             padding: 'clamp(28px, 3.4vw, 44px)',
             display: 'grid',
@@ -953,7 +954,7 @@ function Company() {
                   fontWeight: 700,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
-                  color: '#a9a39e',
+                  color: 'var(--ink-faint2)',
                   marginBottom: '8px',
                 }}
               >
@@ -963,7 +964,7 @@ function Company() {
                 style={{
                   fontSize: '15.5px',
                   lineHeight: 1.5,
-                  color: '#302f2e',
+                  color: 'var(--ink-body)',
                   letterSpacing: '-0.01em',
                 }}
               >
@@ -981,7 +982,7 @@ function Company() {
 
 function ClosingCta() {
   return (
-    <Spotlight style={{ background: '#1d1c1b', overflow: 'hidden' }}>
+    <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
       <section data-screen-label="CTA">
         <div
           aria-hidden="true"
@@ -992,7 +993,7 @@ function ClosingCta() {
             transform: 'translate(-50%,-50%)',
             width: '900px',
             height: '500px',
-            background: 'radial-gradient(closest-side, rgba(37,123,237,0.14), transparent 70%)',
+            background: 'radial-gradient(closest-side, var(--glow-b14), transparent 70%)',
             pointerEvents: 'none',
           }}
         />

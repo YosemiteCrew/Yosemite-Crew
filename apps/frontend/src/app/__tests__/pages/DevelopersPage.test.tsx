@@ -130,11 +130,13 @@ describe('DevelopersPage', () => {
   });
 
   it('renders the FHIR response codes with cyan keys', () => {
-    // Hero Patient response key uses the cream-cyan text tone.
+    // Hero Patient response key uses the cyan-text token (light value #38ccd8),
+    // which flips to a brighter cyan on the dark theme's response card.
     const heroKey = screen.getByText('"species"');
-    expect(heroKey.style.color).toBe('rgb(56, 204, 216)');
+    expect(heroKey.style.color).toBe('var(--cyan-text)');
 
-    // The bundle.json block keys use the dark-section cyan fill.
+    // The bundle.json block keys sit on an always-dark code card, so they keep the
+    // literal cyan fill in both themes.
     const bundleKeys = within(document.body).getAllByText('"authority"');
     expect(bundleKeys.length).toBeGreaterThanOrEqual(2);
     bundleKeys.forEach((key) => {

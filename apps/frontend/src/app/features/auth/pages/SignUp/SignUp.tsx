@@ -287,7 +287,9 @@ const SignUp = ({
       <AuthShell brand={brand} topRight={topRight}>
         <AuthHeading>
           Create your{' '}
-          <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#1657c9' }}>account</em>
+          <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--nav-active)' }}>
+            account
+          </em>
         </AuthHeading>
         <AuthSubtitle>
           For clinics and developers. Free to self-host, no card required.
@@ -401,9 +403,9 @@ const SignUp = ({
                 width: 20,
                 height: 20,
                 marginTop: 1,
-                border: `1.5px solid ${agree ? '#257bed' : '#d6d1cd'}`,
+                border: `1.5px solid ${agree ? 'var(--blue)' : 'var(--divider)'}`,
                 borderRadius: 6,
-                background: agree ? '#257bed' : '#fdfbf6',
+                background: agree ? 'var(--blue)' : 'var(--field-bg)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -436,21 +438,21 @@ const SignUp = ({
               style={{
                 fontSize: 13.5,
                 lineHeight: 1.5,
-                color: '#5c5956',
+                color: 'var(--ink-muted)',
                 letterSpacing: '-0.01em',
               }}
             >
               I agree to the{' '}
               <Link
                 href="/terms-and-conditions?ref=signup"
-                style={{ color: '#1657c9', textDecoration: 'none' }}
+                style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
               >
                 Terms
               </Link>{' '}
               and{' '}
               <Link
                 href="/privacy-policy?ref=signup"
-                style={{ color: '#1657c9', textDecoration: 'none' }}
+                style={{ color: 'var(--nav-active)', textDecoration: 'none' }}
               >
                 Privacy policy
               </Link>
@@ -469,7 +471,7 @@ const SignUp = ({
           Pet parent? Your account lives in the{' '}
           <Link
             href="/pet-parents"
-            style={{ color: '#1657c9', textDecoration: 'none', fontWeight: 600 }}
+            style={{ color: 'var(--nav-active)', textDecoration: 'none', fontWeight: 600 }}
           >
             mobile app
           </Link>

@@ -57,10 +57,10 @@ function HeroPhone() {
           background: '#1d1c1b',
           borderRadius: 46,
           padding: 8,
-          boxShadow: '0 40px 90px rgba(29,28,27,0.2)',
+          boxShadow: '0 40px 90px var(--sh20)',
         }}
       >
-        <div style={{ background: '#efe8dc', borderRadius: 39, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--page)', borderRadius: 39, overflow: 'hidden' }}>
           <div
             style={{
               display: 'flex',
@@ -69,9 +69,9 @@ function HeroPhone() {
               padding: '13px 24px 6px',
             }}
           >
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#302f2e' }}>9:41</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>9:41</span>
             <span style={{ width: 78, height: 22, borderRadius: 9999, background: '#1d1c1b' }} />
-            <span style={{ display: 'flex', gap: 4, color: '#302f2e' }}>
+            <span style={{ display: 'flex', gap: 4, color: 'var(--ink-body)' }}>
               <IoCellular style={{ fontSize: 12 }} aria-hidden="true" />
               <IoBatteryFull style={{ fontSize: 14 }} aria-hidden="true" />
             </span>
@@ -80,7 +80,7 @@ function HeroPhone() {
             style={{ padding: '14px 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}
           >
             <div>
-              <div style={{ fontSize: 13, color: '#8f8984', letterSpacing: '-0.01em' }}>
+              <div style={{ fontSize: 13, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
                 Good morning, Lena
               </div>
               <div
@@ -88,7 +88,7 @@ function HeroPhone() {
                   fontSize: 21,
                   fontWeight: 700,
                   letterSpacing: '-0.03em',
-                  color: '#1d1c1b',
+                  color: 'var(--ink)',
                 }}
               >
                 Your companions
@@ -103,8 +103,8 @@ function HeroPhone() {
                   alignItems: 'center',
                   gap: 6,
                   padding: '12px 8px',
-                  background: '#f7f3ec',
-                  border: '1.5px solid #257bed',
+                  background: 'var(--screen)',
+                  border: '1.5px solid var(--blue)',
                   borderRadius: 18,
                 }}
               >
@@ -113,8 +113,8 @@ function HeroPhone() {
                     width: 42,
                     height: 42,
                     borderRadius: 9999,
-                    background: '#e6f2ff',
-                    color: '#257bed',
+                    background: 'var(--blue-soft)',
+                    color: 'var(--blue)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -124,7 +124,9 @@ function HeroPhone() {
                 >
                   B
                 </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#302f2e' }}>Bella</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>
+                  Bella
+                </span>
               </div>
               <div
                 style={{
@@ -134,8 +136,8 @@ function HeroPhone() {
                   alignItems: 'center',
                   gap: 6,
                   padding: '12px 8px',
-                  background: '#f7f3ec',
-                  border: '1px solid #e5dccf',
+                  background: 'var(--screen)',
+                  border: '1px solid var(--hairline)',
                   borderRadius: 18,
                 }}
               >
@@ -144,7 +146,7 @@ function HeroPhone() {
                     width: 42,
                     height: 42,
                     borderRadius: 9999,
-                    background: '#e6f4ef',
+                    background: 'var(--avatar-green-bg)',
                     color: '#006642',
                     display: 'flex',
                     alignItems: 'center',
@@ -155,7 +157,9 @@ function HeroPhone() {
                 >
                   F
                 </span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: '#5c5956' }}>Fjord</span>
+                <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-muted)' }}>
+                  Fjord
+                </span>
               </div>
               <div
                 style={{
@@ -165,8 +169,8 @@ function HeroPhone() {
                   alignItems: 'center',
                   gap: 6,
                   padding: '12px 8px',
-                  background: '#f7f3ec',
-                  border: '1px solid #e5dccf',
+                  background: 'var(--screen)',
+                  border: '1px solid var(--hairline)',
                   borderRadius: 18,
                 }}
               >
@@ -175,8 +179,8 @@ function HeroPhone() {
                     width: 42,
                     height: 42,
                     borderRadius: 9999,
-                    background: '#fef3e9',
-                    color: '#af5e19',
+                    background: 'var(--avatar-amber-bg)',
+                    color: 'var(--avatar-amber-ink)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -186,13 +190,15 @@ function HeroPhone() {
                 >
                   M
                 </span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: '#5c5956' }}>Miso</span>
+                <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-muted)' }}>
+                  Miso
+                </span>
               </div>
             </div>
             <div
               style={{
-                background: '#f7f3ec',
-                border: '1px solid #e5dccf',
+                background: 'var(--screen)',
+                border: '1px solid var(--hairline)',
                 borderRadius: 20,
                 padding: 15,
               }}
@@ -210,7 +216,7 @@ function HeroPhone() {
                     fontSize: 13,
                     fontWeight: 700,
                     letterSpacing: '-0.02em',
-                    color: '#302f2e',
+                    color: 'var(--ink-body)',
                   }}
                 >
                   Next appointment
@@ -220,8 +226,8 @@ function HeroPhone() {
                     fontSize: 10,
                     fontWeight: 700,
                     letterSpacing: '0.04em',
-                    color: '#257bed',
-                    background: '#e6f2ff',
+                    color: 'var(--blue)',
+                    background: 'var(--blue-soft)',
                     borderRadius: 9999,
                     padding: '3px 9px',
                   }}
@@ -236,8 +242,8 @@ function HeroPhone() {
                     width: 40,
                     height: 40,
                     borderRadius: 14,
-                    background: '#e6f2ff',
-                    color: '#257bed',
+                    background: 'var(--blue-soft)',
+                    color: 'var(--blue)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -246,10 +252,10 @@ function HeroPhone() {
                   <IoCalendarOutline style={{ fontSize: 18 }} aria-hidden="true" />
                 </span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#302f2e' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-body)' }}>
                     Sat 5 July, 09:00
                   </div>
-                  <div style={{ fontSize: 12, color: '#8f8984' }}>
+                  <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>
                     Bella · Dr. Weber · Alpenblick
                   </div>
                 </div>
@@ -257,8 +263,8 @@ function HeroPhone() {
             </div>
             <div
               style={{
-                background: '#f7f3ec',
-                border: '1px solid #e5dccf',
+                background: 'var(--screen)',
+                border: '1px solid var(--hairline)',
                 borderRadius: 20,
                 padding: 15,
                 display: 'flex',
@@ -271,7 +277,7 @@ function HeroPhone() {
                   fontSize: 13,
                   fontWeight: 700,
                   letterSpacing: '-0.02em',
-                  color: '#302f2e',
+                  color: 'var(--ink-body)',
                 }}
               >
                 Reminders
@@ -283,8 +289,8 @@ function HeroPhone() {
                     width: 30,
                     height: 30,
                     borderRadius: 10,
-                    background: '#fef3e9',
-                    color: '#af5e19',
+                    background: 'var(--avatar-amber-bg)',
+                    color: 'var(--avatar-amber-ink)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -292,11 +298,16 @@ function HeroPhone() {
                 >
                   <IoMedkitOutline style={{ fontSize: 15 }} aria-hidden="true" />
                 </span>
-                <span style={{ fontSize: 12.5, color: '#5c5956', flex: 1 }}>
+                <span style={{ fontSize: 12.5, color: 'var(--ink-muted)', flex: 1 }}>
                   Carprofen, this evening
                 </span>
                 <span
-                  style={{ width: 18, height: 18, borderRadius: 9999, border: '2px solid #d6d1cd' }}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9999,
+                    border: '2px solid var(--divider)',
+                  }}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -306,7 +317,7 @@ function HeroPhone() {
                     width: 30,
                     height: 30,
                     borderRadius: 10,
-                    background: '#e6f4ef',
+                    background: 'var(--avatar-green-bg)',
                     color: '#006642',
                     display: 'flex',
                     alignItems: 'center',
@@ -315,11 +326,16 @@ function HeroPhone() {
                 >
                   <IoShieldCheckmarkOutline style={{ fontSize: 15 }} aria-hidden="true" />
                 </span>
-                <span style={{ fontSize: 12.5, color: '#5c5956', flex: 1 }}>
+                <span style={{ fontSize: 12.5, color: 'var(--ink-muted)', flex: 1 }}>
                   Fjord, vaccine due in 9 days
                 </span>
                 <span
-                  style={{ width: 18, height: 18, borderRadius: 9999, border: '2px solid #d6d1cd' }}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9999,
+                    border: '2px solid var(--divider)',
+                  }}
                 />
               </div>
             </div>
@@ -329,13 +345,22 @@ function HeroPhone() {
                 justifyContent: 'space-around',
                 alignItems: 'center',
                 padding: '8px 6px 2px',
-                borderTop: '1px solid #eae2d5',
+                borderTop: '1px solid var(--inset)',
               }}
             >
-              <IoHome style={{ fontSize: 20, color: '#257bed' }} aria-hidden="true" />
-              <IoCalendarOutline style={{ fontSize: 20, color: '#a9a39e' }} aria-hidden="true" />
-              <IoChatbubbleOutline style={{ fontSize: 20, color: '#a9a39e' }} aria-hidden="true" />
-              <IoPersonOutline style={{ fontSize: 20, color: '#a9a39e' }} aria-hidden="true" />
+              <IoHome style={{ fontSize: 20, color: 'var(--blue)' }} aria-hidden="true" />
+              <IoCalendarOutline
+                style={{ fontSize: 20, color: 'var(--ink-faint2)' }}
+                aria-hidden="true"
+              />
+              <IoChatbubbleOutline
+                style={{ fontSize: 20, color: 'var(--ink-faint2)' }}
+                aria-hidden="true"
+              />
+              <IoPersonOutline
+                style={{ fontSize: 20, color: 'var(--ink-faint2)' }}
+                aria-hidden="true"
+              />
             </div>
           </div>
         </div>
@@ -351,11 +376,11 @@ function HeroPhone() {
           gap: 10,
           padding: '11px 15px',
           borderRadius: 16,
-          background: 'rgba(239,232,220,0.93)',
+          background: 'var(--glass-93)',
           backdropFilter: 'blur(40px)',
           WebkitBackdropFilter: 'blur(40px)',
-          border: '1px solid rgba(239,232,220,0.94)',
-          boxShadow: '0 16px 44px rgba(29,28,27,0.12)',
+          border: '1px solid var(--glass-95)',
+          boxShadow: '0 16px 44px var(--sh12)',
           animation: 'ycFloatA 7s ease-in-out infinite',
         }}
       >
@@ -364,8 +389,8 @@ function HeroPhone() {
             width: 30,
             height: 30,
             borderRadius: 9999,
-            background: '#e6f2ff',
-            color: '#257bed',
+            background: 'var(--blue-soft)',
+            color: 'var(--blue)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -376,8 +401,8 @@ function HeroPhone() {
           SW
         </span>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#302f2e' }}>Dr. Weber</div>
-          <div style={{ fontSize: 11, color: '#8f8984' }}>Bloodwork came back clear</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>Dr. Weber</div>
+          <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>Bloodwork came back clear</div>
         </div>
       </div>
       <div
@@ -391,11 +416,11 @@ function HeroPhone() {
           gap: 10,
           padding: '11px 15px',
           borderRadius: 16,
-          background: 'rgba(239,232,220,0.93)',
+          background: 'var(--glass-93)',
           backdropFilter: 'blur(40px)',
           WebkitBackdropFilter: 'blur(40px)',
-          border: '1px solid rgba(239,232,220,0.94)',
-          boxShadow: '0 16px 44px rgba(29,28,27,0.12)',
+          border: '1px solid var(--glass-95)',
+          boxShadow: '0 16px 44px var(--sh12)',
           animation: 'ycFloatB 8.5s ease-in-out 1s infinite',
         }}
       >
@@ -404,7 +429,7 @@ function HeroPhone() {
             width: 30,
             height: 30,
             borderRadius: 10,
-            background: '#e6f4ef',
+            background: 'var(--avatar-green-bg)',
             color: '#006642',
             display: 'flex',
             alignItems: 'center',
@@ -414,10 +439,10 @@ function HeroPhone() {
           <IoShareOutline style={{ fontSize: 15 }} aria-hidden="true" />
         </span>
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#302f2e' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>
             Sent to the new clinic
           </div>
-          <div style={{ fontSize: 11, color: '#8f8984' }}>One tap, whole history</div>
+          <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>One tap, whole history</div>
         </div>
       </div>
     </div>
@@ -437,10 +462,11 @@ function Hero() {
 
   return (
     <section
+      data-hero
       style={{
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(180deg, #efe8dc 0%, #efe8dc 55%, #eae2d5 100%)',
+        background: 'linear-gradient(180deg, var(--page) 0%, var(--page) 55%, var(--inset) 100%)',
         padding: '140px 24px 90px',
       }}
     >
@@ -464,7 +490,7 @@ function Hero() {
           right: 'calc(50% - 640px)',
           width: 820,
           height: 580,
-          background: 'radial-gradient(closest-side, rgba(244,121,190,0.10), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-p10), transparent 70%)',
           pointerEvents: 'none',
           animation: 'ycDrift 32s ease-in-out infinite alternate',
         }}
@@ -477,7 +503,7 @@ function Hero() {
           left: -120,
           width: 720,
           height: 540,
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.08), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b08), transparent 70%)',
           pointerEvents: 'none',
           animation: 'ycDrift 40s ease-in-out 3s infinite alternate-reverse',
         }}
@@ -508,7 +534,7 @@ function Hero() {
               fontWeight: 500,
               lineHeight: 1.04,
               letterSpacing: '-0.06em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
               display: 'flex',
               flexWrap: 'wrap',
@@ -523,7 +549,7 @@ function Hero() {
                     display: 'inline-block',
                     fontStyle: 'italic',
                     fontWeight: 480,
-                    color: '#ff90d4',
+                    color: 'var(--pink)',
                     opacity: 0,
                     animation: `ycWord 1.1s ${EASE} ${word.delay} both`,
                   }}
@@ -551,7 +577,7 @@ function Hero() {
               fontSize: 'clamp(17px, 2vw, 20px)',
               lineHeight: 1.6,
               letterSpacing: '-0.025em',
-              color: '#423f3c',
+              color: 'var(--ink-soft)',
               textShadow: '0 1px 16px rgba(239,232,220,0.94), 0 1px 3px rgba(239,232,220,0.85)',
               opacity: 0,
               animation: `ycHeroUp 1s ${EASE} 0.5s both`,
@@ -578,11 +604,12 @@ function Hero() {
               href={APP_STORE_URL}
               target="_blank"
               rel="noopener"
+              data-appbadge
               style={appBadgeStyle}
             >
               <IoLogoApple style={{ fontSize: 26 }} aria-hidden="true" />
               <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.05 }}>
-                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: '#a9a39e' }}>
+                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
                   Download on the
                 </span>
                 <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.02em' }}>
@@ -595,11 +622,12 @@ function Hero() {
               href={PLAY_STORE_URL}
               target="_blank"
               rel="noopener"
+              data-appbadge
               style={appBadgeStyle}
             >
               <IoLogoGooglePlaystore style={{ fontSize: 23 }} aria-hidden="true" />
               <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.05 }}>
-                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: '#a9a39e' }}>
+                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
                   Get it on
                 </span>
                 <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.02em' }}>
@@ -620,11 +648,11 @@ const appBadgeStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 11,
-  background: '#1d1c1b',
-  color: '#ffffff',
+  background: 'var(--dl-btn)',
+  color: 'var(--dl-btn-text)',
   padding: '12px 20px',
   borderRadius: 16,
-  boxShadow: '0 10px 26px rgba(29,28,27,0.16)',
+  boxShadow: '0 10px 26px var(--sh16)',
   transition: 'background 200ms, transform 200ms',
 };
 
@@ -632,7 +660,7 @@ const appBadgeStyle: CSSProperties = {
 
 function Story() {
   return (
-    <Spotlight style={{ position: 'relative', background: '#1d1c1b', overflow: 'hidden' }}>
+    <Spotlight style={{ position: 'relative', background: 'var(--spot)', overflow: 'hidden' }}>
       <div
         aria-hidden="true"
         style={{
@@ -641,7 +669,7 @@ function Story() {
           left: -160,
           width: 780,
           height: 600,
-          background: 'radial-gradient(closest-side, rgba(244,121,190,0.12), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-p12), transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -773,7 +801,7 @@ function FeatureCard({ feature }: Readonly<{ feature: Feature }>) {
       delay={feature.delay}
       className="yc-card-lift"
       style={{
-        background: '#eae2d5',
+        background: 'var(--inset)',
         borderRadius: 26,
         padding: 30,
         display: 'flex',
@@ -786,8 +814,8 @@ function FeatureCard({ feature }: Readonly<{ feature: Feature }>) {
           width: 46,
           height: 46,
           borderRadius: 14,
-          background: '#f7f3ec',
-          color: '#257bed',
+          background: 'var(--pill-raised)',
+          color: 'var(--blue)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -795,10 +823,17 @@ function FeatureCard({ feature }: Readonly<{ feature: Feature }>) {
       >
         <Icon style={{ fontSize: 22 }} aria-hidden="true" />
       </span>
-      <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.03em', color: '#1d1c1b' }}>
+      <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--ink)' }}>
         {feature.title}
       </div>
-      <div style={{ fontSize: 15, lineHeight: 1.6, color: '#5c5956', letterSpacing: '-0.01em' }}>
+      <div
+        style={{
+          fontSize: 15,
+          lineHeight: 1.6,
+          color: 'var(--ink-muted)',
+          letterSpacing: '-0.01em',
+        }}
+      >
         {feature.body}
       </div>
     </Reveal>
@@ -807,7 +842,7 @@ function FeatureCard({ feature }: Readonly<{ feature: Feature }>) {
 
 function Features() {
   return (
-    <section style={{ background: '#efe8dc' }}>
+    <section style={{ background: 'var(--page)' }}>
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -822,7 +857,7 @@ function Features() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#257bed',
+              color: 'var(--blue)',
             }}
           >
             What you can do
@@ -835,7 +870,7 @@ function Features() {
               fontWeight: 500,
               lineHeight: 1.1,
               letterSpacing: '-0.05em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -862,7 +897,7 @@ function Cta() {
   const secondaryRef = useMagnet<HTMLAnchorElement>();
 
   return (
-    <section style={{ position: 'relative', background: '#eae2d5', overflow: 'hidden' }}>
+    <section style={{ position: 'relative', background: 'var(--inset)', overflow: 'hidden' }}>
       <div
         aria-hidden="true"
         style={{
@@ -872,7 +907,7 @@ function Cta() {
           transform: 'translate(-50%,-50%)',
           width: 900,
           height: 500,
-          background: 'radial-gradient(closest-side, rgba(244,121,190,0.08), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-p08), transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -897,7 +932,7 @@ function Cta() {
               fontWeight: 500,
               lineHeight: 1.06,
               letterSpacing: '-0.055em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -912,7 +947,7 @@ function Cta() {
               fontSize: 18,
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               textWrap: 'pretty',
             }}
           >
@@ -933,7 +968,7 @@ function Cta() {
                 fontSize: 17,
                 padding: '16px 32px',
                 borderRadius: 9999,
-                boxShadow: '0 10px 30px rgba(29,28,27,0.18)',
+                boxShadow: '0 10px 30px var(--sh18)',
               }}
             >
               Get the app <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
@@ -946,14 +981,14 @@ function Cta() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                background: '#f7f3ec',
-                color: '#302f2e',
+                background: 'var(--screen)',
+                color: 'var(--ink-body)',
                 fontSize: 17,
                 fontWeight: 500,
                 letterSpacing: '-0.02em',
                 padding: '16px 32px',
                 borderRadius: 9999,
-                border: '1px solid #e5dccf',
+                border: '1px solid var(--hairline)',
                 transition: 'border-color 200ms',
               }}
             >

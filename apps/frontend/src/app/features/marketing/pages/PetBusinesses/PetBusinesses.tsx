@@ -91,8 +91,8 @@ function FeatureCheck({ children }: Readonly<FeatureCheckProps>) {
           width: 26,
           height: 26,
           borderRadius: 8,
-          background: '#e6f2ff',
-          color: '#257bed',
+          background: 'var(--blue-soft)',
+          color: 'var(--blue)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -100,7 +100,7 @@ function FeatureCheck({ children }: Readonly<FeatureCheckProps>) {
       >
         <IoCheckmark style={{ fontSize: 15 }} aria-hidden="true" />
       </span>
-      <span style={{ fontSize: 15.5, color: '#302f2e', letterSpacing: '-0.015em' }}>
+      <span style={{ fontSize: 15.5, color: 'var(--ink-body)', letterSpacing: '-0.015em' }}>
         {children}
       </span>
     </div>
@@ -132,10 +132,11 @@ function Hero() {
   return (
     <section
       data-screen-label="Hero"
+      data-hero
       style={{
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(180deg, #efe8dc 0%, #efe8dc 60%, #eae2d5 100%)',
+        background: 'linear-gradient(180deg, var(--page) 0%, var(--page) 60%, var(--inset) 100%)',
         padding: '148px 24px 90px',
       }}
     >
@@ -148,7 +149,7 @@ function Hero() {
           left: 'calc(50% - 620px)',
           width: 860,
           height: 600,
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.09), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b09), transparent 70%)',
           pointerEvents: 'none',
           animation: 'ycDrift 30s ease-in-out infinite alternate',
           zIndex: 1,
@@ -162,7 +163,7 @@ function Hero() {
           right: -140,
           width: 720,
           height: 540,
-          background: 'radial-gradient(closest-side, rgba(92,225,230,0.09), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-c09), transparent 70%)',
           pointerEvents: 'none',
           animation: 'ycDrift 38s ease-in-out 3s infinite alternate-reverse',
           zIndex: 1,
@@ -193,7 +194,7 @@ function Hero() {
             fontWeight: 500,
             lineHeight: 1.03,
             letterSpacing: '-0.06em',
-            color: '#1d1c1b',
+            color: 'var(--ink)',
             maxWidth: '14ch',
             textWrap: 'balance',
             display: 'flex',
@@ -208,7 +209,7 @@ function Hero() {
           {heroWord('one', '0.46s', {
             fontStyle: 'italic',
             fontWeight: 480,
-            color: '#257bed',
+            color: 'var(--blue-text)',
           })}
           {heroWord('screen.', '0.58s')}
         </h1>
@@ -220,8 +221,8 @@ function Hero() {
             fontSize: 'clamp(17px, 2vw, 20px)',
             lineHeight: 1.6,
             letterSpacing: '-0.025em',
-            color: '#423f3c',
-            textShadow: '0 1px 16px rgba(239,232,220,0.94), 0 1px 3px rgba(239,232,220,0.85)',
+            color: 'var(--ink-soft)',
+            textShadow: '0 1px 16px var(--hero-halo1), 0 1px 3px var(--hero-halo2)',
             opacity: 0,
             animation: `ycHeroUp 1s ${EASE} 0.5s both`,
             textWrap: 'pretty',
@@ -251,14 +252,14 @@ function Hero() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              background: '#302f2e',
-              color: '#ffffff',
+              background: 'var(--cta)',
+              color: 'var(--cta-text)',
               fontSize: 17,
               fontWeight: 500,
               letterSpacing: '-0.02em',
               padding: '16px 32px',
               borderRadius: 9999,
-              boxShadow: '0 10px 30px rgba(29,28,27,0.18)',
+              boxShadow: '0 10px 30px var(--sh18)',
               transition: 'background 200ms',
             }}
           >
@@ -272,14 +273,14 @@ function Hero() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              background: 'rgba(239,232,220,0.94)',
-              color: '#302f2e',
+              background: 'var(--glass-95)',
+              color: 'var(--ink-body)',
               fontSize: 17,
               fontWeight: 500,
               letterSpacing: '-0.02em',
               padding: '16px 32px',
               borderRadius: 9999,
-              border: '1px solid #e5dccf',
+              border: '1px solid var(--hairline)',
               transition: 'border-color 200ms',
             }}
           >
@@ -317,7 +318,7 @@ function Hero() {
                 width: 7,
                 height: 7,
                 borderRadius: 9999,
-                background: '#008f5d',
+                background: 'var(--success)',
                 boxShadow: '0 0 0 3px rgba(0,143,93,0.16)',
               }}
             />
@@ -335,11 +336,11 @@ function Hero() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                background: '#1d1c1b',
-                color: '#ffffff',
+                background: 'var(--dl-btn)',
+                color: 'var(--dl-btn-text)',
                 padding: '10px 18px',
                 borderRadius: 14,
-                boxShadow: '0 10px 26px rgba(29,28,27,0.14)',
+                boxShadow: '0 10px 26px var(--sh14)',
                 transition: 'background 200ms, transform 200ms',
               }}
             >
@@ -352,7 +353,7 @@ function Hero() {
                   textAlign: 'left',
                 }}
               >
-                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: '#a9a39e' }}>
+                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
                   Download for
                 </span>
                 <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em' }}>
@@ -371,11 +372,11 @@ function Hero() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                background: '#1d1c1b',
-                color: '#ffffff',
+                background: 'var(--dl-btn)',
+                color: 'var(--dl-btn-text)',
                 padding: '10px 18px',
                 borderRadius: 14,
-                boxShadow: '0 10px 26px rgba(29,28,27,0.14)',
+                boxShadow: '0 10px 26px var(--sh14)',
                 transition: 'background 200ms, transform 200ms',
               }}
             >
@@ -388,7 +389,7 @@ function Hero() {
                   textAlign: 'left',
                 }}
               >
-                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: '#a9a39e' }}>
+                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
                   Download for
                 </span>
                 <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em' }}>
@@ -433,11 +434,13 @@ function ScheduleRow({
         alignItems: 'center',
         gap: 12,
         padding: '11px 14px',
-        border: '1px solid #e5dccf',
+        border: '1px solid var(--hairline)',
         borderRadius: 14,
       }}
     >
-      <span style={{ fontSize: 12.5, color: '#8f8984', width: 38, flex: 'none' }}>{time}</span>
+      <span style={{ fontSize: 12.5, color: 'var(--ink-faint)', width: 38, flex: 'none' }}>
+        {time}
+      </span>
       <span
         style={{
           flex: 'none',
@@ -461,12 +464,12 @@ function ScheduleRow({
             fontSize: 13.5,
             fontWeight: 700,
             letterSpacing: '-0.02em',
-            color: '#302f2e',
+            color: 'var(--ink-body)',
           }}
         >
           {name}
         </div>
-        <div style={{ fontSize: 11.5, color: '#8f8984' }}>{detail}</div>
+        <div style={{ fontSize: 11.5, color: 'var(--ink-faint)' }}>{detail}</div>
       </div>
       {badge}
     </div>
@@ -488,8 +491,8 @@ function SidebarItem({ icon, label, active = false }: Readonly<SidebarItemProps>
         gap: 10,
         padding: '9px 10px',
         borderRadius: 12,
-        background: active ? '#e6f2ff' : undefined,
-        color: active ? '#257bed' : '#5c5956',
+        background: active ? 'var(--blue-soft)' : undefined,
+        color: active ? 'var(--blue)' : 'var(--ink-muted)',
         fontSize: 13.5,
         fontWeight: active ? 700 : 500,
       }}
@@ -514,10 +517,10 @@ function HeroMockup() {
     >
       <div
         style={{
-          background: '#f7f3ec',
-          border: '1px solid #e5dccf',
+          background: 'var(--screen)',
+          border: '1px solid var(--hairline)',
           borderRadius: 28,
-          boxShadow: '0 40px 100px rgba(29,28,27,0.16)',
+          boxShadow: '0 40px 100px var(--sh16)',
           overflow: 'hidden',
         }}
       >
@@ -528,22 +531,28 @@ function HeroMockup() {
             alignItems: 'center',
             gap: 14,
             padding: '14px 20px',
-            borderBottom: '1px solid #eae2d5',
-            background: '#f1ebe1',
+            borderBottom: '1px solid var(--inset)',
+            background: 'var(--screen-2)',
           }}
         >
           <div style={{ display: 'flex', gap: 7 }}>
-            <span style={{ width: 11, height: 11, borderRadius: 9999, background: '#e5dccf' }} />
-            <span style={{ width: 11, height: 11, borderRadius: 9999, background: '#e5dccf' }} />
-            <span style={{ width: 11, height: 11, borderRadius: 9999, background: '#e5dccf' }} />
+            <span
+              style={{ width: 11, height: 11, borderRadius: 9999, background: 'var(--hairline)' }}
+            />
+            <span
+              style={{ width: 11, height: 11, borderRadius: 9999, background: 'var(--hairline)' }}
+            />
+            <span
+              style={{ width: 11, height: 11, borderRadius: 9999, background: 'var(--hairline)' }}
+            />
           </div>
           <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
             <span
               style={{
                 fontSize: 12.5,
-                color: '#a9a39e',
+                color: 'var(--ink-faint2)',
                 letterSpacing: '-0.01em',
-                background: '#eae2d5',
+                background: 'var(--inset)',
                 padding: '5px 16px',
                 borderRadius: 9999,
               }}
@@ -557,7 +566,7 @@ function HeroMockup() {
               alignItems: 'center',
               gap: 6,
               fontSize: 11.5,
-              color: '#008f5d',
+              color: 'var(--success)',
               fontWeight: 700,
             }}
           >
@@ -567,7 +576,7 @@ function HeroMockup() {
                 width: 7,
                 height: 7,
                 borderRadius: 9999,
-                background: '#008f5d',
+                background: 'var(--success)',
                 animation: 'ycPulse 2.4s ease-out infinite',
               }}
             />
@@ -582,8 +591,8 @@ function HeroMockup() {
             style={{
               width: 210,
               flex: 'none',
-              borderRight: '1px solid #eae2d5',
-              background: 'linear-gradient(180deg, #f7f3ec, #f1ebe1)',
+              borderRight: '1px solid var(--inset)',
+              background: 'linear-gradient(180deg, var(--screen), var(--screen-2))',
               padding: '18px 14px',
               display: 'flex',
               flexDirection: 'column',
@@ -601,8 +610,10 @@ function HeroMockup() {
                 style={{ width: 30, height: 30, objectFit: 'contain' }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#302f2e' }}>Alpenblick</span>
-                <span style={{ fontSize: 11, color: '#a9a39e' }}>Veterinary Clinic</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-body)' }}>
+                  Alpenblick
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--ink-faint2)' }}>Veterinary Clinic</span>
               </div>
             </div>
             <span
@@ -610,7 +621,7 @@ function HeroMockup() {
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: '0.1em',
-                color: '#a9a39e',
+                color: 'var(--ink-faint2)',
                 padding: '8px 8px 4px',
               }}
             >
@@ -638,7 +649,7 @@ function HeroMockup() {
                 fontSize: 10,
                 fontWeight: 700,
                 letterSpacing: '0.1em',
-                color: '#a9a39e',
+                color: 'var(--ink-faint2)',
                 padding: '12px 8px 4px',
               }}
             >
@@ -670,7 +681,7 @@ function HeroMockup() {
               }}
             >
               <div>
-                <div style={{ fontSize: 12, color: '#a9a39e', letterSpacing: '-0.01em' }}>
+                <div style={{ fontSize: 12, color: 'var(--ink-faint2)', letterSpacing: '-0.01em' }}>
                   Thursday, 3 July
                 </div>
                 <div
@@ -678,7 +689,7 @@ function HeroMockup() {
                     fontSize: 22,
                     fontWeight: 700,
                     letterSpacing: '-0.03em',
-                    color: '#1d1c1b',
+                    color: 'var(--ink)',
                   }}
                 >
                   Today&apos;s schedule
@@ -689,8 +700,8 @@ function HeroMockup() {
                   data-hide-m="true"
                   style={{
                     fontSize: 12.5,
-                    color: '#5c5956',
-                    border: '1px solid #e5dccf',
+                    color: 'var(--ink-muted)',
+                    border: '1px solid var(--hairline)',
                     borderRadius: 9999,
                     padding: '7px 14px',
                   }}
@@ -700,8 +711,8 @@ function HeroMockup() {
                 <span
                   style={{
                     fontSize: 12.5,
-                    color: '#ffffff',
-                    background: '#302f2e',
+                    color: 'var(--cta-text)',
+                    background: 'var(--cta)',
                     borderRadius: 9999,
                     padding: '7px 14px',
                   }}
@@ -719,49 +730,51 @@ function HeroMockup() {
                 marginBottom: 16,
               }}
             >
-              <div style={{ border: '1px solid #e5dccf', borderRadius: 16, padding: 14 }}>
-                <div style={{ fontSize: 12, color: '#8f8984' }}>Booked today</div>
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 16, padding: 14 }}>
+                <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Booked today</div>
                 <div
                   style={{
                     fontSize: 24,
                     fontWeight: 700,
                     letterSpacing: '-0.03em',
-                    color: '#1d1c1b',
+                    color: 'var(--ink)',
                   }}
                 >
                   12
                 </div>
-                <div style={{ fontSize: 11.5, color: '#008f5d', fontWeight: 600 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--success)', fontWeight: 600 }}>
                   ↑ 2 from yesterday
                 </div>
               </div>
-              <div style={{ border: '1px solid #e5dccf', borderRadius: 16, padding: 14 }}>
-                <div style={{ fontSize: 12, color: '#8f8984' }}>In the building</div>
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 16, padding: 14 }}>
+                <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>In the building</div>
                 <div
                   style={{
                     fontSize: 24,
                     fontWeight: 700,
                     letterSpacing: '-0.03em',
-                    color: '#1d1c1b',
+                    color: 'var(--ink)',
                   }}
                 >
                   3
                 </div>
-                <div style={{ fontSize: 11.5, color: '#8f8984' }}>2 waiting · 1 in room</div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-faint)' }}>
+                  2 waiting · 1 in room
+                </div>
               </div>
-              <div style={{ border: '1px solid #e5dccf', borderRadius: 16, padding: 14 }}>
-                <div style={{ fontSize: 12, color: '#8f8984' }}>Invoiced</div>
+              <div style={{ border: '1px solid var(--hairline)', borderRadius: 16, padding: 14 }}>
+                <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Invoiced</div>
                 <div
                   style={{
                     fontSize: 24,
                     fontWeight: 700,
                     letterSpacing: '-0.03em',
-                    color: '#1d1c1b',
+                    color: 'var(--ink)',
                   }}
                 >
                   €1,840
                 </div>
-                <div style={{ fontSize: 11.5, color: '#8f8984' }}>0% platform fee</div>
+                <div style={{ fontSize: 11.5, color: 'var(--ink-faint)' }}>0% platform fee</div>
               </div>
             </div>
 
@@ -769,29 +782,37 @@ function HeroMockup() {
               <ScheduleRow
                 time="08:30"
                 initial="B"
-                initialBg="#e6f2ff"
-                initialColor="#257bed"
+                initialBg="var(--blue-soft)"
+                initialColor="var(--blue)"
                 name="Bella · Labrador"
                 detail="Senior wellness · Dr. Weber"
-                badge={<StatusBadge label="Checked in" bg="#e6f4ef" color="#006642" />}
+                badge={
+                  <StatusBadge
+                    label="Checked in"
+                    bg="var(--avatar-green-bg)"
+                    color="var(--code-str)"
+                  />
+                }
               />
               <ScheduleRow
                 time="09:00"
                 initial="M"
-                initialBg="#f5f3ff"
-                initialColor="#5b21b6"
+                initialBg="var(--avatar-violet-bg)"
+                initialColor="var(--avatar-violet-ink)"
                 name="Miso · Shorthair"
                 detail="Dental follow-up · Dr. Osei"
-                badge={<StatusBadge label="In progress" bg="#e6f2ff" color="#257bed" />}
+                badge={
+                  <StatusBadge label="In progress" bg="var(--blue-soft)" color="var(--blue)" />
+                }
               />
               <ScheduleRow
                 time="09:30"
                 initial="F"
-                initialBg="#e6f4ef"
-                initialColor="#006642"
+                initialBg="var(--avatar-green-bg)"
+                initialColor="var(--code-str)"
                 name="Fjord · Icelandic Horse"
                 detail="Lameness exam · yard visit"
-                badge={<StatusBadge label="Upcoming" bg="#eae2d5" color="#5c5956" />}
+                badge={<StatusBadge label="Upcoming" bg="var(--inset)" color="var(--ink-muted)" />}
               />
             </div>
           </div>
@@ -810,11 +831,11 @@ function HeroMockup() {
           gap: 10,
           padding: '12px 16px',
           borderRadius: 16,
-          background: 'rgba(239,232,220,0.92)',
+          background: 'var(--glass-92)',
           backdropFilter: 'blur(40px)',
           WebkitBackdropFilter: 'blur(40px)',
-          border: '1px solid rgba(239,232,220,0.94)',
-          boxShadow: '0 16px 44px rgba(29,28,27,0.12)',
+          border: '1px solid var(--glass-95)',
+          boxShadow: '0 16px 44px var(--sh12)',
           animation: 'ycFloatA 7s ease-in-out infinite',
         }}
       >
@@ -823,8 +844,8 @@ function HeroMockup() {
             width: 30,
             height: 30,
             borderRadius: 10,
-            background: '#e6f4ef',
-            color: '#006642',
+            background: 'var(--avatar-green-bg)',
+            color: 'var(--code-str)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -833,10 +854,10 @@ function HeroMockup() {
           <IoCloudOfflineOutline style={{ fontSize: 16 }} aria-hidden="true" />
         </span>
         <div>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#302f2e' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-body)' }}>
             Wifi dropped, still typing
           </div>
-          <div style={{ fontSize: 11, color: '#8f8984' }}>Nothing lost · syncs later</div>
+          <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>Nothing lost · syncs later</div>
         </div>
       </div>
       <div
@@ -850,11 +871,11 @@ function HeroMockup() {
           gap: 10,
           padding: '12px 16px',
           borderRadius: 16,
-          background: 'rgba(239,232,220,0.92)',
+          background: 'var(--glass-92)',
           backdropFilter: 'blur(40px)',
           WebkitBackdropFilter: 'blur(40px)',
-          border: '1px solid rgba(239,232,220,0.94)',
-          boxShadow: '0 16px 44px rgba(29,28,27,0.12)',
+          border: '1px solid var(--glass-95)',
+          boxShadow: '0 16px 44px var(--sh12)',
           animation: 'ycFloatB 8.5s ease-in-out 1s infinite',
         }}
       >
@@ -863,8 +884,8 @@ function HeroMockup() {
             width: 30,
             height: 30,
             borderRadius: 10,
-            background: '#e6f2ff',
-            color: '#257bed',
+            background: 'var(--blue-soft)',
+            color: 'var(--blue)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -873,8 +894,10 @@ function HeroMockup() {
           <IoDownloadOutline style={{ fontSize: 16 }} aria-hidden="true" />
         </span>
         <div>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: '#302f2e' }}>Export everything</div>
-          <div style={{ fontSize: 11, color: '#8f8984' }}>Leaving is free</div>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-body)' }}>
+            Export everything
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>Leaving is free</div>
         </div>
       </div>
     </div>
@@ -887,7 +910,7 @@ function NotebookSection() {
   return (
     <section
       data-screen-label="The notebook"
-      style={{ position: 'relative', background: '#1d1c1b', overflow: 'hidden' }}
+      style={{ position: 'relative', background: 'var(--spot)', overflow: 'hidden' }}
     >
       <Spotlight style={{ position: 'static' }}>
         <div
@@ -898,7 +921,7 @@ function NotebookSection() {
             right: -160,
             width: 780,
             height: 600,
-            background: 'radial-gradient(closest-side, rgba(37,123,237,0.12), transparent 70%)',
+            background: 'radial-gradient(closest-side, var(--glow-b12), transparent 70%)',
             pointerEvents: 'none',
           }}
         />
@@ -963,7 +986,7 @@ function NotebookSection() {
 
 function RecordsSection() {
   return (
-    <section data-screen-label="Records" style={{ background: '#efe8dc' }}>
+    <section data-screen-label="Records" style={{ background: 'var(--page)' }}>
       <div
         data-grid-1-m="true"
         style={{
@@ -991,7 +1014,7 @@ function RecordsSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#257bed',
+              color: 'var(--blue)',
             }}
           >
             Companions &amp; records
@@ -1004,7 +1027,7 @@ function RecordsSection() {
               fontWeight: 500,
               lineHeight: 1.1,
               letterSpacing: '-0.045em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -1016,7 +1039,7 @@ function RecordsSection() {
               fontSize: 17.5,
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               textWrap: 'pretty',
             }}
           >
@@ -1038,10 +1061,10 @@ function RecordsSection() {
             style={{
               width: '100%',
               maxWidth: 560,
-              background: '#f7f3ec',
-              border: '1px solid #e5dccf',
+              background: 'var(--screen)',
+              border: '1px solid var(--hairline)',
               borderRadius: 22,
-              boxShadow: '0 24px 60px rgba(29,28,27,0.1)',
+              boxShadow: '0 24px 60px var(--sh10)',
               overflow: 'hidden',
             }}
           >
@@ -1051,7 +1074,7 @@ function RecordsSection() {
                 alignItems: 'center',
                 gap: 14,
                 padding: '18px 20px',
-                borderBottom: '1px solid #eae2d5',
+                borderBottom: '1px solid var(--inset)',
               }}
             >
               <span
@@ -1060,8 +1083,8 @@ function RecordsSection() {
                   width: 48,
                   height: 48,
                   borderRadius: 9999,
-                  background: '#e6f2ff',
-                  color: '#257bed',
+                  background: 'var(--blue-soft)',
+                  color: 'var(--blue)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1077,16 +1100,16 @@ function RecordsSection() {
                     fontSize: 17,
                     fontWeight: 700,
                     letterSpacing: '-0.03em',
-                    color: '#1d1c1b',
+                    color: 'var(--ink)',
                   }}
                 >
                   Bella
                 </div>
-                <div style={{ fontSize: 13, color: '#8f8984' }}>
+                <div style={{ fontSize: 13, color: 'var(--ink-faint)' }}>
                   Labrador Retriever · ♀ · 11 yrs · #A-2014
                 </div>
               </div>
-              <StatusBadge label="Active" bg="#e6f4ef" color="#006642" />
+              <StatusBadge label="Active" bg="var(--avatar-green-bg)" color="var(--code-str)" />
             </div>
             <div
               style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}
@@ -1096,29 +1119,29 @@ function RecordsSection() {
                   fontSize: 11,
                   fontWeight: 700,
                   letterSpacing: '0.1em',
-                  color: '#a9a39e',
+                  color: 'var(--ink-faint2)',
                 }}
               >
                 TIMELINE
               </span>
               <TimelineRow
                 icon={<IoWaterOutline style={{ fontSize: 15 }} aria-hidden="true" />}
-                iconBg="#e6f4ef"
-                iconColor="#006642"
+                iconBg="var(--avatar-green-bg)"
+                iconColor="var(--code-str)"
                 title="Bloodwork panel, all clear"
                 meta="Dr. Weber · 2 days ago"
               />
               <TimelineRow
                 icon={<IoScanOutline style={{ fontSize: 15 }} aria-hidden="true" />}
-                iconBg="#f5f3ff"
-                iconColor="#5b21b6"
+                iconBg="var(--avatar-violet-bg)"
+                iconColor="var(--avatar-violet-ink)"
                 title="Hip X-ray · mild arthritis"
                 meta="Imaging · May"
               />
               <TimelineRow
                 icon={<IoMedkitOutline style={{ fontSize: 15 }} aria-hidden="true" />}
-                iconBg="#fef3e9"
-                iconColor="#af5e19"
+                iconBg="var(--avatar-amber-bg)"
+                iconColor="var(--avatar-amber-ink)"
                 title="Carprofen 75mg · 1×/day"
                 meta="Prescription · ongoing"
               />
@@ -1126,8 +1149,8 @@ function RecordsSection() {
                 style={{
                   marginTop: 6,
                   padding: 14,
-                  background: '#efe8dc',
-                  border: '1px solid #eae2d5',
+                  background: 'var(--page)',
+                  border: '1px solid var(--inset)',
                   borderRadius: 14,
                 }}
               >
@@ -1136,17 +1159,17 @@ function RecordsSection() {
                     fontSize: 11,
                     fontWeight: 700,
                     letterSpacing: '0.08em',
-                    color: '#a9a39e',
+                    color: 'var(--ink-faint2)',
                     marginBottom: 6,
                   }}
                 >
                   S · O · A · P
                 </div>
-                <div style={{ fontSize: 13, lineHeight: 1.55, color: '#5c5956' }}>
-                  <span style={{ color: '#302f2e', fontWeight: 600 }}>A:</span> Stable senior.
-                  Weight holding at 29.4kg.{' '}
-                  <span style={{ color: '#302f2e', fontWeight: 600 }}>P:</span> Recheck in 4 weeks;
-                  continue NSAIDs.
+                <div style={{ fontSize: 13, lineHeight: 1.55, color: 'var(--ink-muted)' }}>
+                  <span style={{ color: 'var(--ink-body)', fontWeight: 600 }}>A:</span> Stable
+                  senior. Weight holding at 29.4kg.{' '}
+                  <span style={{ color: 'var(--ink-body)', fontWeight: 600 }}>P:</span> Recheck in 4
+                  weeks; continue NSAIDs.
                 </div>
               </div>
             </div>
@@ -1184,8 +1207,8 @@ function TimelineRow({ icon, iconBg, iconColor, title, meta }: Readonly<Timeline
         {icon}
       </span>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: '#302f2e' }}>{title}</div>
-        <div style={{ fontSize: 12, color: '#8f8984' }}>{meta}</div>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink-body)' }}>{title}</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{meta}</div>
       </div>
     </div>
   );
@@ -1196,7 +1219,7 @@ function TimelineRow({ icon, iconBg, iconColor, title, meta }: Readonly<Timeline
 function FinanceSection() {
   const linkRef = useMagnet<HTMLAnchorElement>();
   return (
-    <section data-screen-label="Finance" style={{ background: '#e8e0d2' }}>
+    <section data-screen-label="Finance" style={{ background: 'var(--band)' }}>
       <div
         data-grid-1-m="true"
         style={{
@@ -1215,17 +1238,17 @@ function FinanceSection() {
             style={{
               width: '100%',
               maxWidth: 500,
-              background: '#f7f3ec',
-              border: '1px solid #e5dccf',
+              background: 'var(--screen)',
+              border: '1px solid var(--hairline)',
               borderRadius: 22,
-              boxShadow: '0 24px 60px rgba(29,28,27,0.1)',
+              boxShadow: '0 24px 60px var(--sh10)',
               overflow: 'hidden',
             }}
           >
             <div
               style={{
                 padding: 20,
-                borderBottom: '1px solid #eae2d5',
+                borderBottom: '1px solid var(--inset)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -1236,18 +1259,18 @@ function FinanceSection() {
                   fontSize: 15,
                   fontWeight: 700,
                   letterSpacing: '-0.02em',
-                  color: '#1d1c1b',
+                  color: 'var(--ink)',
                 }}
               >
                 Invoice · #YC-2041
               </div>
-              <StatusBadge label="Paid" bg="#e6f4ef" color="#006642" />
+              <StatusBadge label="Paid" bg="var(--avatar-green-bg)" color="var(--code-str)" />
             </div>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <InvoiceRow label="Senior wellness exam" amount="€65.00" />
               <InvoiceRow label="Bloodwork panel" amount="€48.00" />
               <InvoiceRow label="Carprofen 75mg × 30" amount="€22.00" />
-              <div style={{ height: 1, background: '#eae2d5', margin: '4px 0' }} />
+              <div style={{ height: 1, background: 'var(--inset)', margin: '4px 0' }} />
               <div
                 style={{
                   display: 'flex',
@@ -1255,13 +1278,13 @@ function FinanceSection() {
                   alignItems: 'baseline',
                 }}
               >
-                <span style={{ fontSize: 15, fontWeight: 700, color: '#1d1c1b' }}>Total</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>Total</span>
                 <span
                   style={{
                     fontSize: 22,
                     fontWeight: 700,
                     letterSpacing: '-0.03em',
-                    color: '#1d1c1b',
+                    color: 'var(--ink)',
                   }}
                 >
                   €135.00
@@ -1274,18 +1297,18 @@ function FinanceSection() {
                   alignItems: 'center',
                   gap: 10,
                   padding: '12px 14px',
-                  background: '#e6f4ef',
+                  background: 'var(--avatar-green-bg)',
                   borderRadius: 14,
                 }}
               >
                 <IoShieldCheckmarkOutline
-                  style={{ fontSize: 18, color: '#006642' }}
+                  style={{ fontSize: 18, color: 'var(--code-str)' }}
                   aria-hidden="true"
                 />
                 <span
                   style={{
                     fontSize: 13,
-                    color: '#006642',
+                    color: 'var(--code-str)',
                     fontWeight: 600,
                     letterSpacing: '-0.01em',
                   }}
@@ -1315,7 +1338,7 @@ function FinanceSection() {
                 fontWeight: 700,
                 letterSpacing: '0.14em',
                 textTransform: 'uppercase',
-                color: '#257bed',
+                color: 'var(--blue)',
               }}
             >
               Finance
@@ -1328,7 +1351,7 @@ function FinanceSection() {
                 fontWeight: 500,
                 lineHeight: 1.1,
                 letterSpacing: '-0.045em',
-                color: '#1d1c1b',
+                color: 'var(--ink)',
                 textWrap: 'balance',
               }}
             >
@@ -1340,7 +1363,7 @@ function FinanceSection() {
                 fontSize: 17.5,
                 lineHeight: 1.65,
                 letterSpacing: '-0.02em',
-                color: '#5c5956',
+                color: 'var(--ink-muted)',
                 textWrap: 'pretty',
               }}
             >
@@ -1350,9 +1373,9 @@ function FinanceSection() {
               <strong
                 style={{
                   fontWeight: 700,
-                  color: '#302f2e',
+                  color: 'var(--ink-body)',
                   textDecoration: 'underline',
-                  textDecorationColor: '#257bed',
+                  textDecorationColor: 'var(--blue)',
                   textDecorationThickness: '2px',
                   textUnderlineOffset: '3px',
                 }}
@@ -1371,7 +1394,7 @@ function FinanceSection() {
                 alignItems: 'center',
                 gap: 8,
                 textDecoration: 'none',
-                color: '#257bed',
+                color: 'var(--blue-text)',
                 fontSize: 17,
                 fontWeight: 500,
                 letterSpacing: '-0.02em',
@@ -1397,8 +1420,8 @@ interface InvoiceRowProps {
 function InvoiceRow({ label, amount }: Readonly<InvoiceRowProps>) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-      <span style={{ color: '#5c5956' }}>{label}</span>
-      <span style={{ color: '#302f2e', fontWeight: 600 }}>{amount}</span>
+      <span style={{ color: 'var(--ink-muted)' }}>{label}</span>
+      <span style={{ color: 'var(--ink-body)', fontWeight: 600 }}>{amount}</span>
     </div>
   );
 }
@@ -1417,8 +1440,8 @@ function OfflineCard({ delay, icon, title, body }: Readonly<OfflineCardProps>) {
     <Reveal
       delay={delay}
       style={{
-        background: '#f7f3ec',
-        border: '1px solid #e5dccf',
+        background: 'var(--screen)',
+        border: '1px solid var(--hairline)',
         borderRadius: 20,
         padding: 24,
       }}
@@ -1428,8 +1451,8 @@ function OfflineCard({ delay, icon, title, body }: Readonly<OfflineCardProps>) {
           width: 40,
           height: 40,
           borderRadius: 12,
-          background: '#eae2d5',
-          color: '#302f2e',
+          background: 'var(--inset)',
+          color: 'var(--ink-body)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1443,20 +1466,20 @@ function OfflineCard({ delay, icon, title, body }: Readonly<OfflineCardProps>) {
           fontSize: 16,
           fontWeight: 700,
           letterSpacing: '-0.02em',
-          color: '#1d1c1b',
+          color: 'var(--ink)',
           marginBottom: 6,
         }}
       >
         {title}
       </div>
-      <div style={{ fontSize: 14, lineHeight: 1.55, color: '#5c5956' }}>{body}</div>
+      <div style={{ fontSize: 14, lineHeight: 1.55, color: 'var(--ink-muted)' }}>{body}</div>
     </Reveal>
   );
 }
 
 function OfflineSection() {
   return (
-    <section data-screen-label="Offline-first" style={{ background: '#eae2d5' }}>
+    <section data-screen-label="Offline-first" style={{ background: 'var(--inset)' }}>
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -1471,7 +1494,7 @@ function OfflineSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             Built for the worst afternoon
@@ -1484,7 +1507,7 @@ function OfflineSection() {
               fontWeight: 500,
               lineHeight: 1.1,
               letterSpacing: '-0.05em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -1496,7 +1519,7 @@ function OfflineSection() {
               fontSize: 18,
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               textWrap: 'pretty',
             }}
           >
@@ -1567,7 +1590,7 @@ const CALCULATORS: ReadonlyArray<{ name: string; unit?: string }> = [
 
 function CalculatorsSection() {
   return (
-    <section data-screen-label="Calculators" style={{ background: '#e8e0d2' }}>
+    <section data-screen-label="Calculators" style={{ background: 'var(--band)' }}>
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -1582,7 +1605,7 @@ function CalculatorsSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#257bed',
+              color: 'var(--blue)',
             }}
           >
             Clinical tools, built in
@@ -1595,7 +1618,7 @@ function CalculatorsSection() {
               fontWeight: 500,
               lineHeight: 1.1,
               letterSpacing: '-0.05em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -1607,7 +1630,7 @@ function CalculatorsSection() {
               fontSize: 18,
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               textWrap: 'pretty',
             }}
           >
@@ -1633,8 +1656,8 @@ function CalculatorsSection() {
                 display: 'flex',
                 alignItems: 'baseline',
                 gap: 8,
-                background: '#f7f3ec',
-                border: '1px solid #e5dccf',
+                background: 'var(--screen)',
+                border: '1px solid var(--hairline)',
                 borderRadius: 14,
                 padding: '12px 16px',
               }}
@@ -1643,7 +1666,7 @@ function CalculatorsSection() {
                 style={{
                   fontSize: 14.5,
                   fontWeight: 600,
-                  color: '#1d1c1b',
+                  color: 'var(--ink)',
                   letterSpacing: '-0.02em',
                 }}
               >
@@ -1654,7 +1677,7 @@ function CalculatorsSection() {
                   style={{
                     fontFamily: 'ui-monospace, Menlo, monospace',
                     fontSize: 11,
-                    color: '#8f8984',
+                    color: 'var(--ink-faint)',
                   }}
                 >
                   {calc.unit}
@@ -1671,12 +1694,12 @@ function CalculatorsSection() {
             gap: 10,
             marginTop: 26,
             fontSize: 13.5,
-            color: '#8f8984',
+            color: 'var(--ink-faint)',
             letterSpacing: '-0.01em',
           }}
         >
           <IoInformationCircleOutline
-            style={{ fontSize: 17, color: '#a9a39e' }}
+            style={{ fontSize: 17, color: 'var(--ink-faint2)' }}
             aria-hidden="true"
           />
           <span>
@@ -1703,7 +1726,7 @@ function ModuleCard({ delay, icon, title, body }: Readonly<ModuleCardProps>) {
     <Reveal
       delay={delay}
       style={{
-        background: '#eae2d5',
+        background: 'var(--inset)',
         borderRadius: 24,
         padding: 28,
         display: 'flex',
@@ -1716,8 +1739,8 @@ function ModuleCard({ delay, icon, title, body }: Readonly<ModuleCardProps>) {
           width: 44,
           height: 44,
           borderRadius: 13,
-          background: '#f7f3ec',
-          color: '#257bed',
+          background: 'var(--pill-raised)',
+          color: 'var(--blue)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1725,10 +1748,17 @@ function ModuleCard({ delay, icon, title, body }: Readonly<ModuleCardProps>) {
       >
         {icon}
       </span>
-      <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.03em', color: '#1d1c1b' }}>
+      <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--ink)' }}>
         {title}
       </div>
-      <div style={{ fontSize: 15, lineHeight: 1.6, color: '#5c5956', letterSpacing: '-0.01em' }}>
+      <div
+        style={{
+          fontSize: 15,
+          lineHeight: 1.6,
+          color: 'var(--ink-muted)',
+          letterSpacing: '-0.01em',
+        }}
+      >
         {body}
       </div>
     </Reveal>
@@ -1794,7 +1824,7 @@ const MODULES: ReadonlyArray<{ delay: number; icon: ReactNode; title: string; bo
 
 function ModulesSection() {
   return (
-    <section data-screen-label="Modules" style={{ background: '#efe8dc' }}>
+    <section data-screen-label="Modules" style={{ background: 'var(--page)' }}>
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -1810,7 +1840,7 @@ function ModulesSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#257bed',
+              color: 'var(--blue)',
             }}
           >
             One system, not six tabs
@@ -1823,7 +1853,7 @@ function ModulesSection() {
               fontWeight: 500,
               lineHeight: 1.1,
               letterSpacing: '-0.05em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -1835,7 +1865,7 @@ function ModulesSection() {
               fontSize: 18,
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               textWrap: 'pretty',
             }}
           >
@@ -1843,9 +1873,9 @@ function ModulesSection() {
             <strong
               style={{
                 fontWeight: 700,
-                color: '#302f2e',
+                color: 'var(--ink-body)',
                 textDecoration: 'underline',
-                textDecorationColor: '#257bed',
+                textDecorationColor: 'var(--blue)',
                 textDecorationThickness: '2px',
                 textUnderlineOffset: '3px',
               }}
@@ -1884,7 +1914,7 @@ function CtaSection() {
   return (
     <section
       data-screen-label="CTA"
-      style={{ position: 'relative', background: '#efe8dc', overflow: 'hidden' }}
+      style={{ position: 'relative', background: 'var(--page)', overflow: 'hidden' }}
     >
       <div
         aria-hidden="true"
@@ -1895,7 +1925,7 @@ function CtaSection() {
           transform: 'translate(-50%,-50%)',
           width: 900,
           height: 500,
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.07), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b07), transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -1924,7 +1954,7 @@ function CtaSection() {
               fontWeight: 500,
               lineHeight: 1.06,
               letterSpacing: '-0.055em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
               fontStyle: 'italic',
             }}
@@ -1941,7 +1971,7 @@ function CtaSection() {
             fontSize: 18,
             lineHeight: 1.65,
             letterSpacing: '-0.02em',
-            color: '#5c5956',
+            color: 'var(--ink-muted)',
             textWrap: 'pretty',
           }}
         >
@@ -1963,14 +1993,14 @@ function CtaSection() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                background: '#302f2e',
-                color: '#ffffff',
+                background: 'var(--cta)',
+                color: 'var(--cta-text)',
                 fontSize: 17,
                 fontWeight: 500,
                 letterSpacing: '-0.02em',
                 padding: '16px 32px',
                 borderRadius: 9999,
-                boxShadow: '0 10px 30px rgba(29,28,27,0.18)',
+                boxShadow: '0 10px 30px var(--sh18)',
                 transition: 'background 200ms',
               }}
             >
@@ -1984,14 +2014,14 @@ function CtaSection() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                background: '#f7f3ec',
-                color: '#302f2e',
+                background: 'var(--screen)',
+                color: 'var(--ink-body)',
                 fontSize: 17,
                 fontWeight: 500,
                 letterSpacing: '-0.02em',
                 padding: '16px 32px',
                 borderRadius: 9999,
-                border: '1px solid #e5dccf',
+                border: '1px solid var(--hairline)',
                 transition: 'border-color 200ms',
               }}
             >

@@ -19,11 +19,11 @@ const SERIF = 'var(--font-newsreader)';
 type FeatureItem = { label: string; dot: string };
 
 const FREE_FEATURES: FeatureItem[] = [
-  { label: '120 appointments', dot: '#008f5d' },
-  { label: '200 observational tools', dot: '#008f5d' },
-  { label: 'Scheduler, templates & e-signing', dot: '#008f5d' },
-  { label: 'IDEXX + MSD Veterinary Manual', dot: '#008f5d' },
-  { label: 'Community & Discord support', dot: '#008f5d' },
+  { label: '120 appointments', dot: 'var(--success)' },
+  { label: '200 observational tools', dot: 'var(--success)' },
+  { label: 'Scheduler, templates & e-signing', dot: 'var(--success)' },
+  { label: 'IDEXX + MSD Veterinary Manual', dot: 'var(--success)' },
+  { label: 'Community & Discord support', dot: 'var(--success)' },
 ];
 
 const BUSINESS_FEATURES: FeatureItem[] = [
@@ -35,11 +35,11 @@ const BUSINESS_FEATURES: FeatureItem[] = [
 ];
 
 const ENTERPRISE_FEATURES: FeatureItem[] = [
-  { label: 'Everything in Business', dot: '#008f5d' },
-  { label: 'Multiple availability zones', dot: '#008f5d' },
-  { label: 'Setup, maintenance & backups', dot: '#008f5d' },
-  { label: 'Uptime guarantee & SLAs', dot: '#008f5d' },
-  { label: 'Priority support', dot: '#008f5d' },
+  { label: 'Everything in Business', dot: 'var(--success)' },
+  { label: 'Multiple availability zones', dot: 'var(--success)' },
+  { label: 'Setup, maintenance & backups', dot: 'var(--success)' },
+  { label: 'Uptime guarantee & SLAs', dot: 'var(--success)' },
+  { label: 'Priority support', dot: 'var(--success)' },
 ];
 
 type FaqEntry = { q: string; a: string; open?: boolean };
@@ -102,7 +102,7 @@ function BillingToggle({
     letterSpacing: '-0.01em',
     transition: 'color 200ms, background 200ms',
     background: active ? '#1d1c1b' : 'transparent',
-    color: active ? '#f7f3ec' : '#5c5956',
+    color: active ? '#f7f3ec' : 'var(--ink-muted)',
   });
 
   return (
@@ -122,8 +122,8 @@ function BillingToggle({
           alignItems: 'center',
           gap: '4px',
           padding: '5px',
-          background: '#f7f3ec',
-          border: '1px solid #e5dccf',
+          background: 'var(--screen)',
+          border: '1px solid var(--hairline)',
           borderRadius: '9999px',
         }}
       >
@@ -142,7 +142,7 @@ function BillingToggle({
           fontSize: '13px',
           fontWeight: 600,
           letterSpacing: '-0.01em',
-          color: '#257bed',
+          color: 'var(--blue-text)',
         }}
       >
         <IoPricetagOutline aria-hidden="true" style={{ fontSize: '14px' }} />
@@ -160,8 +160,8 @@ function FreePlanCard() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        background: '#f7f3ec',
-        border: '1px solid #e5dccf',
+        background: 'var(--screen)',
+        border: '1px solid var(--hairline)',
         borderRadius: '28px',
         padding: '32px',
       }}
@@ -172,7 +172,7 @@ function FreePlanCard() {
           fontWeight: 700,
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
-          color: '#8f8984',
+          color: 'var(--ink-faint)',
         }}
       >
         Free
@@ -183,12 +183,12 @@ function FreePlanCard() {
             fontSize: '52px',
             fontWeight: 500,
             letterSpacing: '-0.05em',
-            color: '#1d1c1b',
+            color: 'var(--ink)',
           }}
         >
           {CURRENCY}0
         </span>
-        <span style={{ fontSize: '16px', color: '#8f8984' }}>forever</span>
+        <span style={{ fontSize: '16px', color: 'var(--ink-faint)' }}>forever</span>
       </div>
       <p
         style={{
@@ -196,7 +196,7 @@ function FreePlanCard() {
           fontSize: '15px',
           lineHeight: 1.55,
           letterSpacing: '-0.01em',
-          color: '#5c5956',
+          color: 'var(--ink-muted)',
         }}
       >
         For a new or small practice finding its feet, on us.
@@ -204,26 +204,27 @@ function FreePlanCard() {
       <Link
         ref={btnRef}
         href="/signup"
+        data-btn-invert
         style={{
           textDecoration: 'none',
           textAlign: 'center',
-          background: '#f7f3ec',
-          color: '#302f2e',
+          background: 'var(--screen)',
+          color: 'var(--ink-body)',
           fontSize: '15px',
           fontWeight: 500,
           letterSpacing: '-0.02em',
           padding: '13px 22px',
           borderRadius: '9999px',
-          border: '1px solid #d6d1cd',
+          border: '1px solid var(--divider)',
           transition: 'border-color 200ms, background 200ms',
         }}
       >
         Get started free
       </Link>
-      <div style={{ height: '1px', background: '#eae2d5', margin: '24px 0' }} />
+      <div style={{ height: '1px', background: 'var(--inset)', margin: '24px 0' }} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {FREE_FEATURES.map((item) => (
-          <FeatureRow key={item.label} item={item} color="#5c5956" />
+          <FeatureRow key={item.label} item={item} color="var(--ink-muted)" />
         ))}
       </div>
     </Reveal>
@@ -238,11 +239,11 @@ function BusinessPlanCard({ price, period }: Readonly<{ price: string; period: s
       style={{
         display: 'flex',
         flexDirection: 'column',
-        background: '#1d1c1b',
-        border: '1px solid #1d1c1b',
+        background: 'var(--spot)',
+        border: '1px solid var(--spot)',
         borderRadius: '28px',
         padding: '32px',
-        boxShadow: '0 30px 70px rgba(29,28,27,0.22)',
+        boxShadow: '0 30px 70px var(--sh22)',
         position: 'relative',
         transform: 'translateY(-8px)',
       }}
@@ -334,8 +335,8 @@ function EnterprisePlanCard() {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        background: '#f7f3ec',
-        border: '1px solid #e5dccf',
+        background: 'var(--screen)',
+        border: '1px solid var(--hairline)',
         borderRadius: '28px',
         padding: '32px',
       }}
@@ -347,7 +348,7 @@ function EnterprisePlanCard() {
             fontWeight: 700,
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
-            color: '#8f8984',
+            color: 'var(--ink-faint)',
           }}
         >
           Enterprise
@@ -357,8 +358,8 @@ function EnterprisePlanCard() {
             fontSize: '11px',
             fontWeight: 700,
             letterSpacing: '0.04em',
-            color: '#8f8984',
-            background: '#eae2d5',
+            color: 'var(--ink-faint)',
+            background: 'var(--inset)',
             padding: '5px 11px',
             borderRadius: '9999px',
           }}
@@ -372,7 +373,7 @@ function EnterprisePlanCard() {
             fontSize: '34px',
             fontWeight: 500,
             letterSpacing: '-0.04em',
-            color: '#1d1c1b',
+            color: 'var(--ink)',
           }}
         >
           Coming soon
@@ -384,7 +385,7 @@ function EnterprisePlanCard() {
           fontSize: '15px',
           lineHeight: 1.55,
           letterSpacing: '-0.01em',
-          color: '#5c5956',
+          color: 'var(--ink-muted)',
         }}
       >
         Scalability, control and security for larger multi-site groups.
@@ -392,26 +393,27 @@ function EnterprisePlanCard() {
       <Link
         ref={btnRef}
         href="/contact-us"
+        data-btn-invert
         style={{
           textDecoration: 'none',
           textAlign: 'center',
-          background: '#f7f3ec',
-          color: '#302f2e',
+          background: 'var(--screen)',
+          color: 'var(--ink-body)',
           fontSize: '15px',
           fontWeight: 500,
           letterSpacing: '-0.02em',
           padding: '13px 22px',
           borderRadius: '9999px',
-          border: '1px solid #d6d1cd',
+          border: '1px solid var(--divider)',
           transition: 'border-color 200ms',
         }}
       >
         Notify me
       </Link>
-      <div style={{ height: '1px', background: '#eae2d5', margin: '24px 0' }} />
+      <div style={{ height: '1px', background: 'var(--inset)', margin: '24px 0' }} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {ENTERPRISE_FEATURES.map((item) => (
-          <FeatureRow key={item.label} item={item} color="#5c5956" />
+          <FeatureRow key={item.label} item={item} color="var(--ink-muted)" />
         ))}
       </div>
     </Reveal>
@@ -423,7 +425,7 @@ function FaqRow({ entry }: Readonly<{ entry: FaqEntry }>) {
     <details
       className="yc-faq"
       open={entry.open}
-      style={{ borderTop: '1px solid #e5dccf', padding: '22px 0' }}
+      style={{ borderTop: '1px solid var(--hairline)', padding: '22px 0' }}
     >
       <summary
         style={{
@@ -436,7 +438,7 @@ function FaqRow({ entry }: Readonly<{ entry: FaqEntry }>) {
           fontSize: '19px',
           fontWeight: 600,
           letterSpacing: '-0.025em',
-          color: '#1d1c1b',
+          color: 'var(--ink)',
         }}
       >
         {entry.q}
@@ -445,7 +447,7 @@ function FaqRow({ entry }: Readonly<{ entry: FaqEntry }>) {
           aria-hidden="true"
           style={{
             fontSize: '22px',
-            color: '#8f8984',
+            color: 'var(--ink-faint)',
             flex: 'none',
             transition: 'transform 250ms cubic-bezier(0.16,1,0.3,1)',
           }}
@@ -457,7 +459,7 @@ function FaqRow({ entry }: Readonly<{ entry: FaqEntry }>) {
           fontSize: '16px',
           lineHeight: 1.65,
           letterSpacing: '-0.01em',
-          color: '#5c5956',
+          color: 'var(--ink-muted)',
           maxWidth: '620px',
         }}
       >
@@ -470,10 +472,11 @@ function FaqRow({ entry }: Readonly<{ entry: FaqEntry }>) {
 function HeroSection() {
   return (
     <section
+      data-hero
       style={{
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(180deg, #efe8dc 0%, #efe8dc 65%, #eae2d5 100%)',
+        background: 'linear-gradient(180deg, var(--page) 0%, var(--page) 65%, var(--inset) 100%)',
         padding: '148px 24px 60px',
       }}
     >
@@ -485,7 +488,7 @@ function HeroSection() {
           left: 'calc(50% - 400px)',
           width: '800px',
           height: '560px',
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.09), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b09), transparent 70%)',
           pointerEvents: 'none',
           animation: 'ycDrift 32s ease-in-out infinite alternate',
         }}
@@ -509,13 +512,13 @@ function HeroSection() {
             gap: '8px',
             padding: '8px 16px',
             borderRadius: '9999px',
-            border: '1px solid #e5dccf',
-            background: 'rgba(239,232,220,0.94)',
+            border: '1px solid var(--hairline)',
+            background: 'var(--glass-95)',
             backdropFilter: 'blur(40px)',
             fontSize: '13px',
             fontWeight: 500,
             letterSpacing: '-0.01em',
-            color: '#5c5956',
+            color: 'var(--ink-muted)',
             opacity: 0,
             animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
           }}
@@ -525,7 +528,7 @@ function HeroSection() {
               width: '7px',
               height: '7px',
               borderRadius: '9999px',
-              background: '#008f5d',
+              background: 'var(--success)',
             }}
           />
           No contracts. No platform fees.
@@ -538,7 +541,7 @@ function HeroSection() {
             fontWeight: 500,
             lineHeight: 1.03,
             letterSpacing: '-0.06em',
-            color: '#1d1c1b',
+            color: 'var(--ink)',
             textWrap: 'balance',
             display: 'flex',
             flexWrap: 'wrap',
@@ -564,7 +567,7 @@ function HeroSection() {
               display: 'inline-block',
               fontStyle: 'italic',
               fontWeight: 480,
-              color: '#257bed',
+              color: 'var(--blue-text)',
               opacity: 0,
               animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.94s both',
             }}
@@ -579,7 +582,7 @@ function HeroSection() {
             fontSize: 'clamp(17px, 2vw, 20px)',
             lineHeight: 1.6,
             letterSpacing: '-0.025em',
-            color: '#5c5956',
+            color: 'var(--ink-muted)',
             opacity: 0,
             animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.5s both',
             textWrap: 'pretty',
@@ -600,7 +603,7 @@ function PlansSection() {
   const businessPeriod = yearly ? 'per user / month, billed yearly' : 'per user / month';
 
   return (
-    <section style={{ background: '#eae2d5' }}>
+    <section style={{ background: 'var(--inset)' }}>
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -633,7 +636,7 @@ function PlansSection() {
             fontSize: '14px',
             lineHeight: 1.6,
             letterSpacing: '-0.01em',
-            color: '#8f8984',
+            color: 'var(--ink-faint)',
           }}
         >
           Every plan is the full product, and we{' '}
@@ -641,9 +644,9 @@ function PlansSection() {
             style={{
               fontStyle: 'normal',
               fontWeight: 700,
-              color: '#302f2e',
+              color: 'var(--ink-body)',
               textDecoration: 'underline',
-              textDecorationColor: '#257bed',
+              textDecorationColor: 'var(--blue-text)',
               textDecorationThickness: '2px',
               textUnderlineOffset: '3px',
             }}
@@ -660,8 +663,8 @@ function PlansSection() {
 
 function NoFeeSection() {
   return (
-    <Spotlight style={{ background: '#1d1c1b', overflow: 'hidden' }}>
-      <section style={{ position: 'relative', background: '#1d1c1b', overflow: 'hidden' }}>
+    <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
+      <section style={{ position: 'relative', background: 'var(--spot)', overflow: 'hidden' }}>
         <div
           aria-hidden="true"
           style={{
@@ -670,7 +673,7 @@ function NoFeeSection() {
             right: '-160px',
             width: '780px',
             height: '600px',
-            background: 'radial-gradient(closest-side, rgba(37,123,237,0.12), transparent 70%)',
+            background: 'radial-gradient(closest-side, var(--glow-b12), transparent 70%)',
             pointerEvents: 'none',
           }}
         />
@@ -731,7 +734,7 @@ function NoFeeSection() {
 
 function FaqSection() {
   return (
-    <section style={{ background: '#efe8dc' }}>
+    <section style={{ background: 'var(--page)' }}>
       <div
         data-grid-1-m="true"
         style={{
@@ -750,7 +753,7 @@ function FaqSection() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#257bed',
+              color: 'var(--blue-text)',
             }}
           >
             Questions
@@ -763,7 +766,7 @@ function FaqSection() {
               fontWeight: 500,
               lineHeight: 1.1,
               letterSpacing: '-0.045em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -775,11 +778,11 @@ function FaqSection() {
               fontSize: '16px',
               lineHeight: 1.6,
               letterSpacing: '-0.01em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
             }}
           >
             Still unsure?{' '}
-            <Link href="/contact-us" style={{ color: '#257bed', textDecoration: 'none' }}>
+            <Link href="/contact-us" style={{ color: 'var(--blue-text)', textDecoration: 'none' }}>
               Talk to a human.
             </Link>
           </p>
@@ -798,7 +801,7 @@ function CtaSection() {
   const primaryRef = useMagnet<HTMLAnchorElement>();
   const secondaryRef = useMagnet<HTMLAnchorElement>();
   return (
-    <section style={{ position: 'relative', background: '#eae2d5', overflow: 'hidden' }}>
+    <section style={{ position: 'relative', background: 'var(--inset)', overflow: 'hidden' }}>
       <div
         aria-hidden="true"
         style={{
@@ -808,7 +811,7 @@ function CtaSection() {
           transform: 'translate(-50%,-50%)',
           width: '900px',
           height: '500px',
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.07), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b07), transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -833,7 +836,7 @@ function CtaSection() {
               fontWeight: 500,
               lineHeight: 1.06,
               letterSpacing: '-0.055em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -850,7 +853,7 @@ function CtaSection() {
             fontSize: '18px',
             lineHeight: 1.65,
             letterSpacing: '-0.02em',
-            color: '#5c5956',
+            color: 'var(--ink-muted)',
             textWrap: 'pretty',
           }}
         >
@@ -867,14 +870,14 @@ function CtaSection() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                background: '#302f2e',
-                color: '#ffffff',
+                background: 'var(--cta)',
+                color: 'var(--cta-text)',
                 fontSize: '17px',
                 fontWeight: 500,
                 letterSpacing: '-0.02em',
                 padding: '16px 32px',
                 borderRadius: '9999px',
-                boxShadow: '0 10px 30px rgba(29,28,27,0.18)',
+                boxShadow: '0 10px 30px var(--sh18)',
                 transition: 'background 200ms',
               }}
             >
@@ -889,14 +892,14 @@ function CtaSection() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                background: '#f7f3ec',
-                color: '#302f2e',
+                background: 'var(--screen)',
+                color: 'var(--ink-body)',
                 fontSize: '17px',
                 fontWeight: 500,
                 letterSpacing: '-0.02em',
                 padding: '16px 32px',
                 borderRadius: '9999px',
-                border: '1px solid #e5dccf',
+                border: '1px solid var(--hairline)',
                 transition: 'border-color 200ms',
               }}
             >

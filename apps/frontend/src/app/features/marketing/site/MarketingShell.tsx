@@ -20,18 +20,18 @@ export function MarketingShell({
   hideFooter = false,
 }: Readonly<MarketingShellProps>) {
   return (
-    <>
+    <div data-yc-theme style={{ background: 'var(--page)', color: 'var(--ink-body)' }}>
       <ScrollProgress />
       <SiteNav active={active} />
       <main
         id="main-content"
         tabIndex={-1}
         className="yc-public-page"
-        style={{ background: '#efe8dc' }}
+        style={{ background: 'var(--page)' }}
       >
         {children}
       </main>
       {hideFooter ? null : <SiteFooter />}
-    </>
+    </div>
   );
 }

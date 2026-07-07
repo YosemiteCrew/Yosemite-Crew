@@ -212,7 +212,7 @@ const optionRow: CSSProperties = {
   cursor: 'pointer',
   fontSize: 13.5,
   lineHeight: 1.5,
-  color: '#5c5956',
+  color: 'var(--ink-muted)',
   letterSpacing: '-0.01em',
 };
 
@@ -221,7 +221,7 @@ const controlStyle: CSSProperties = {
   width: 18,
   height: 18,
   marginTop: 1,
-  accentColor: '#257bed',
+  accentColor: 'var(--blue)',
   cursor: 'pointer',
 };
 
@@ -229,7 +229,7 @@ const groupHeading: CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
   letterSpacing: '-0.01em',
-  color: '#302f2e',
+  color: 'var(--ink-body)',
 };
 
 const requiredMark = (
@@ -273,8 +273,8 @@ function ChannelCard({
         gap: 14,
         textDecoration: 'none',
         padding: '15px 18px',
-        background: 'rgba(239,232,220,0.7)',
-        border: '1px solid #e5dccf',
+        background: 'var(--surface-soft)',
+        border: '1px solid var(--hairline)',
         borderRadius: 18,
         transition: 'border-color 200ms, background 200ms, transform 200ms',
       }}
@@ -297,8 +297,17 @@ function ChannelCard({
         {icon}
       </span>
       <div>
-        <div style={{ fontSize: 12.5, color: '#8f8984', letterSpacing: '-0.01em' }}>{kicker}</div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#302f2e', letterSpacing: '-0.02em' }}>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-faint)', letterSpacing: '-0.01em' }}>
+          {kicker}
+        </div>
+        <div
+          style={{
+            fontSize: 15,
+            fontWeight: 600,
+            color: 'var(--ink-body)',
+            letterSpacing: '-0.02em',
+          }}
+        >
           {label}
         </div>
       </div>
@@ -540,9 +549,9 @@ const ContactusPage = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: active ? '#f7f3ec' : 'transparent',
-      color: active ? '#1d1c1b' : '#5c5956',
-      boxShadow: active ? '0 2px 8px rgba(29,28,27,0.1)' : 'none',
+      background: active ? 'var(--pill-raised)' : 'transparent',
+      color: active ? 'var(--ink)' : 'var(--ink-muted)',
+      boxShadow: active ? '0 2px 8px var(--sh10)' : 'none',
     };
   };
 
@@ -570,15 +579,15 @@ const ContactusPage = () => {
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
-        background: '#302f2e',
-        color: '#ffffff',
+        background: 'var(--cta)',
+        color: 'var(--cta-text)',
         fontSize: 16,
         fontWeight: 500,
         letterSpacing: '-0.02em',
         padding: '15px 24px',
         border: 'none',
         borderRadius: 9999,
-        boxShadow: '0 12px 26px rgba(29,28,27,0.16)',
+        boxShadow: '0 12px 26px var(--sh16)',
         opacity: submitDisabled ? 0.5 : 1,
         pointerEvents: submitDisabled ? 'none' : 'auto',
       }}
@@ -634,10 +643,11 @@ const ContactusPage = () => {
 
   return (
     <section
+      data-hero
       style={{
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(180deg, #efe8dc 0%, #efe8dc 72%, #eae2d5 100%)',
+        background: 'linear-gradient(180deg, var(--page) 0%, var(--page) 72%, var(--inset) 100%)',
         padding: '148px 24px 100px',
       }}
     >
@@ -649,7 +659,7 @@ const ContactusPage = () => {
           right: 'calc(50% - 560px)',
           width: 820,
           height: 560,
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.08), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b08), transparent 70%)',
           pointerEvents: 'none',
           animation: 'ycDrift 34s ease-in-out infinite alternate',
         }}
@@ -683,19 +693,19 @@ const ContactusPage = () => {
               gap: 8,
               padding: '8px 16px',
               borderRadius: 9999,
-              border: '1px solid #e5dccf',
-              background: 'rgba(239,232,220,0.94)',
+              border: '1px solid var(--hairline)',
+              background: 'var(--glass-95)',
               backdropFilter: 'blur(40px)',
               fontSize: 13,
               fontWeight: 500,
               letterSpacing: '-0.01em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               animation: `ycHeroUp 0.9s ${EASE} 0.05s both`,
             }}
           >
             <span
               aria-hidden="true"
-              style={{ width: 7, height: 7, borderRadius: 9999, background: '#008f5d' }}
+              style={{ width: 7, height: 7, borderRadius: 9999, background: 'var(--success)' }}
             />
             A person reads every message
           </div>
@@ -707,12 +717,14 @@ const ContactusPage = () => {
               fontWeight: 500,
               lineHeight: 1.03,
               letterSpacing: '-0.06em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
             Talk to a{' '}
-            <em style={{ fontStyle: 'italic', fontWeight: 480, color: '#257bed' }}>human.</em>
+            <em style={{ fontStyle: 'italic', fontWeight: 480, color: 'var(--blue-text)' }}>
+              human.
+            </em>
           </h1>
           <p
             style={{
@@ -721,7 +733,7 @@ const ContactusPage = () => {
               fontSize: 18,
               lineHeight: 1.6,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               animation: `ycHeroUp 1s ${EASE} 0.5s both`,
               textWrap: 'pretty',
             }}
@@ -743,7 +755,7 @@ const ContactusPage = () => {
               href="mailto:support@yosemitecrew.com"
               iconBg="rgba(37,123,237,0.10)"
               iconBorder="rgba(37,123,237,0.18)"
-              iconColor="#257bed"
+              iconColor="var(--blue)"
               icon={<IoAtOutline aria-hidden="true" style={{ fontSize: 22 }} />}
               kicker="Email"
               label="support@yosemitecrew.com"
@@ -752,7 +764,7 @@ const ContactusPage = () => {
               href="tel:+4915227763275"
               iconBg="rgba(0,143,93,0.10)"
               iconBorder="rgba(0,143,93,0.18)"
-              iconColor="#008f5d"
+              iconColor="var(--success)"
               icon={<IoCallOutline aria-hidden="true" style={{ fontSize: 20 }} />}
               kicker="Phone"
               label="+49 152 277 63275"
@@ -781,7 +793,7 @@ const ContactusPage = () => {
                   width: 42,
                   display: 'flex',
                   justifyContent: 'center',
-                  color: '#a9a39e',
+                  color: 'var(--ink-faint2)',
                   paddingTop: 2,
                 }}
               >
@@ -791,7 +803,7 @@ const ContactusPage = () => {
                 style={{
                   fontSize: 13.5,
                   lineHeight: 1.5,
-                  color: '#8f8984',
+                  color: 'var(--ink-faint)',
                   letterSpacing: '-0.01em',
                 }}
               >
@@ -811,10 +823,10 @@ const ContactusPage = () => {
               void handleContectSubmit();
             }}
             style={{
-              background: '#f7f3ec',
-              border: '1px solid #e5dccf',
+              background: 'var(--screen)',
+              border: '1px solid var(--hairline)',
               borderRadius: 28,
-              boxShadow: '0 30px 70px rgba(29,28,27,0.09)',
+              boxShadow: '0 30px 70px var(--sh09)',
               padding: 'clamp(26px, 3.2vw, 40px)',
               display: 'flex',
               flexDirection: 'column',
@@ -828,7 +840,7 @@ const ContactusPage = () => {
                   fontSize: 13,
                   fontWeight: 600,
                   letterSpacing: '-0.01em',
-                  color: '#302f2e',
+                  color: 'var(--ink-body)',
                   marginBottom: 10,
                 }}
               >
@@ -841,7 +853,7 @@ const ContactusPage = () => {
                   display: 'flex',
                   flexWrap: 'wrap',
                   gap: 6,
-                  background: '#eae2d5',
+                  background: 'var(--inset)',
                   padding: 5,
                   borderRadius: 16,
                 }}
@@ -925,8 +937,8 @@ const ContactusPage = () => {
                     fontSize: 13,
                     lineHeight: 1.55,
                     letterSpacing: '-0.01em',
-                    color: '#5c5956',
-                    background: '#eae2d5',
+                    color: 'var(--ink-muted)',
+                    background: 'var(--inset)',
                     borderRadius: 14,
                     padding: '14px 16px',
                   }}
@@ -1032,11 +1044,17 @@ const ContactusPage = () => {
                     onChange={(e) => setComplaintImage(e.target.files?.[0] || null)}
                     style={{
                       fontSize: 13,
-                      color: '#5c5956',
+                      color: 'var(--ink-muted)',
                     }}
                   />
                   {hasComplaintImage ? (
-                    <div style={{ fontSize: 12.5, color: '#8f8984', letterSpacing: '-0.01em' }}>
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        color: 'var(--ink-faint)',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
                       {complaintImage?.name}
                     </div>
                   ) : null}
@@ -1073,7 +1091,7 @@ const ContactusPage = () => {
                 margin: 0,
                 fontSize: 12.5,
                 lineHeight: 1.5,
-                color: '#a9a39e',
+                color: 'var(--ink-faint2)',
                 textAlign: 'center',
                 letterSpacing: '-0.01em',
               }}

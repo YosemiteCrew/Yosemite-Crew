@@ -4,6 +4,8 @@ export { SiteFooter } from './SiteFooter';
 export { AuthShell, AuthBrandContent, type AuthBrandPoint } from './AuthShell';
 export { ReleasePill } from './ReleasePill';
 export { LegalDoc, type TocEntry } from './LegalDoc';
+export { ThemeToggle } from './ThemeToggle';
+export { useTheme, type Theme } from './useTheme';
 export {
   Reveal,
   Tilt,

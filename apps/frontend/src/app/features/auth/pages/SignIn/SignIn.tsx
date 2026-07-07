@@ -210,7 +210,9 @@ const SignIn = ({
           ) : (
             <>
               Welcome{' '}
-              <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#1657c9' }}>back</em>
+              <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--nav-active)' }}>
+                back
+              </em>
             </>
           )}
         </AuthHeading>
@@ -251,7 +253,7 @@ const SignIn = ({
                 href="/forgot-password"
                 style={{
                   fontSize: 13,
-                  color: '#1657c9',
+                  color: 'var(--nav-active)',
                   textDecoration: 'none',
                   letterSpacing: '-0.01em',
                 }}
@@ -267,7 +269,7 @@ const SignIn = ({
           Pet parent? Sign in from the{' '}
           <Link
             href="/pet-parents"
-            style={{ color: '#1657c9', textDecoration: 'none', fontWeight: 600 }}
+            style={{ color: 'var(--nav-active)', textDecoration: 'none', fontWeight: 600 }}
           >
             mobile app
           </Link>

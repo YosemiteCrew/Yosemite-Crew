@@ -38,22 +38,22 @@ const colHead: CSSProperties = {
   fontWeight: 700,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
-  color: '#a9a39e',
+  color: 'var(--ink-faint2)',
 };
 const colLink: CSSProperties = {
   fontSize: 15,
   letterSpacing: '-0.015em',
-  color: '#5c5956',
+  color: 'var(--ink-muted)',
 };
 const socialLink: CSSProperties = {
   width: 37,
   height: 37,
   borderRadius: 9999,
-  border: '1px solid #d6d1cd',
+  border: '1px solid var(--divider)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  color: '#5c5956',
+  color: 'var(--ink-muted)',
   textDecoration: 'none',
 };
 const appBadge: CSSProperties = {
@@ -62,9 +62,9 @@ const appBadge: CSSProperties = {
   gap: 8,
   padding: '9px 16px',
   borderRadius: 9999,
-  border: '1px solid #d6d1cd',
-  background: '#f7f3ec',
-  color: '#5c5956',
+  border: '1px solid var(--divider)',
+  background: 'var(--pill-raised)',
+  color: 'var(--ink-muted)',
   textDecoration: 'none',
   fontSize: 13,
   fontWeight: 500,
@@ -79,8 +79,8 @@ const chip: CSSProperties = {
   borderRadius: 9999,
   fontSize: 12.5,
   letterSpacing: '-0.01em',
-  color: '#6b6763',
-  background: '#f7f3ec',
+  color: 'var(--ink-6b)',
+  background: 'var(--pill-raised)',
 };
 
 const PRODUCT_LINKS = [
@@ -113,7 +113,10 @@ export function SiteFooter() {
   const { stars } = useGithubStats();
 
   return (
-    <footer data-yc-footer="true" style={{ background: '#eae2d5', borderTop: '1px solid #e5dccf' }}>
+    <footer
+      data-yc-footer="true"
+      style={{ background: 'var(--inset)', borderTop: '1px solid var(--hairline)' }}
+    >
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -289,7 +292,7 @@ export function SiteFooter() {
           style={{
             marginTop: 48,
             paddingTop: 34,
-            borderTop: '1px solid #e5dccf',
+            borderTop: '1px solid var(--hairline)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-end',
@@ -304,6 +307,7 @@ export function SiteFooter() {
                 target="_blank"
                 rel="noopener"
                 className="yc-appbadge"
+                data-appbadge="true"
                 style={appBadge}
               >
                 <IoLogoApple style={{ fontSize: 16 }} />
@@ -314,6 +318,7 @@ export function SiteFooter() {
                 target="_blank"
                 rel="noopener"
                 className="yc-appbadge"
+                data-appbadge="true"
                 style={appBadge}
               >
                 <IoLogoWindows style={{ fontSize: 15 }} />
@@ -326,6 +331,7 @@ export function SiteFooter() {
                 target="_blank"
                 rel="noopener"
                 className="yc-appbadge"
+                data-appbadge="true"
                 style={appBadge}
               >
                 <IoLogoApple style={{ fontSize: 16 }} />
@@ -336,6 +342,7 @@ export function SiteFooter() {
                 target="_blank"
                 rel="noopener"
                 className="yc-appbadge"
+                data-appbadge="true"
                 style={appBadge}
               >
                 <IoLogoGooglePlaystore style={{ fontSize: 15 }} />
@@ -347,14 +354,15 @@ export function SiteFooter() {
             href={GITHUB_REPO_URL}
             target="_blank"
             rel="noopener"
+            data-star="true"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 9,
               padding: '11px 18px',
               borderRadius: 9999,
-              background: '#302f2e',
-              color: '#fff',
+              background: 'var(--cta)',
+              color: 'var(--cta-text)',
               textDecoration: 'none',
               fontSize: 14,
               fontWeight: 500,
@@ -388,7 +396,7 @@ export function SiteFooter() {
           style={{
             marginTop: 34,
             paddingTop: 30,
-            borderTop: '1px solid #e5dccf',
+            borderTop: '1px solid var(--hairline)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -406,7 +414,7 @@ export function SiteFooter() {
               padding: '8px 14px 8px 13px',
               border: '1px solid #cfe9dd',
               borderRadius: 9999,
-              background: '#f7f3ec',
+              background: 'var(--pill-raised)',
               textDecoration: 'none',
               width: 'fit-content',
             }}
@@ -416,7 +424,7 @@ export function SiteFooter() {
                 width: 9,
                 height: 9,
                 borderRadius: 9999,
-                background: '#008f5d',
+                background: 'var(--success)',
                 animation: 'ycStatusPulse 2.6s ease-out infinite',
               }}
               aria-hidden="true"
@@ -427,12 +435,13 @@ export function SiteFooter() {
               All systems operational
             </span>
             <span
+              data-live-tag="true"
               style={{
                 fontSize: 10.5,
                 fontWeight: 700,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                color: '#a9a39e',
+                color: 'var(--ink-faint2)',
                 borderLeft: '1px solid #e0dcd8',
                 paddingLeft: 10,
               }}
@@ -442,23 +451,23 @@ export function SiteFooter() {
           </Link>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <span style={chip}>
-              <IoShieldCheckmarkOutline style={{ fontSize: 13, color: '#257bed' }} />
+              <IoShieldCheckmarkOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
               GDPR
             </span>
             <span style={chip}>
-              <IoShieldCheckmarkOutline style={{ fontSize: 13, color: '#257bed' }} />
+              <IoShieldCheckmarkOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
               SOC 2 Type II
             </span>
             <span style={chip}>
-              <IoShieldCheckmarkOutline style={{ fontSize: 13, color: '#257bed' }} />
+              <IoShieldCheckmarkOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
               ISO 27001
             </span>
             <span style={chip}>
-              <IoPulseOutline style={{ fontSize: 13, color: '#257bed' }} />
+              <IoPulseOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
               HL7 FHIR
             </span>
             <span style={chip}>
-              <IoDocumentTextOutline style={{ fontSize: 13, color: '#257bed' }} />
+              <IoDocumentTextOutline style={{ fontSize: 13, color: 'var(--blue)' }} />
               21 CFR Part 11
             </span>
           </div>
@@ -470,7 +479,7 @@ export function SiteFooter() {
           style={{
             marginTop: 30,
             paddingTop: 26,
-            borderTop: '1px solid #e5dccf',
+            borderTop: '1px solid var(--hairline)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-end',
@@ -478,11 +487,11 @@ export function SiteFooter() {
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: '#a9a39e' }}>
+            <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
               © 2026 DuneXploration UG (haftungsbeschränkt) · Am Finther Weg 7, 55127 Mainz ·
               support@yosemitecrew.com · +49 152 277 63275
             </span>
-            <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: '#a9a39e' }}>
+            <span style={{ fontSize: 13, letterSpacing: '-0.01em', color: 'var(--ink-faint2)' }}>
               Geschäftsführer: Ankit Upadhyay · Amtsgericht Mainz HRB 52778 · VAT: DE367920596 ·
               Yosemite Crew™ is a trademark of DuneXploration UG.
             </span>

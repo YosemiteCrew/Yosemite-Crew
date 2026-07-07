@@ -30,10 +30,11 @@ function Hero() {
 
   return (
     <section
+      data-hero
       style={{
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(180deg, #efe8dc 0%, #efe8dc 60%, #eae2d5 100%)',
+        background: 'linear-gradient(180deg, var(--page) 0%, var(--page) 60%, var(--inset) 100%)',
         padding: '148px 24px 90px',
       }}
     >
@@ -45,7 +46,7 @@ function Hero() {
           left: 'calc(50% - 620px)',
           width: '860px',
           height: '600px',
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.10), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b10), transparent 70%)',
           pointerEvents: 'none',
           animation: 'ycDrift 30s ease-in-out infinite alternate',
         }}
@@ -58,7 +59,7 @@ function Hero() {
           right: '-140px',
           width: '720px',
           height: '540px',
-          background: 'radial-gradient(closest-side, rgba(92,225,230,0.09), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-c09), transparent 70%)',
           pointerEvents: 'none',
           animation: 'ycDrift 38s ease-in-out 3s infinite alternate-reverse',
         }}
@@ -84,25 +85,35 @@ function Hero() {
               gap: '8px',
               padding: '8px 16px',
               borderRadius: '9999px',
-              border: '1px solid #e5dccf',
-              background: 'rgba(239,232,220,0.94)',
+              border: '1px solid var(--hairline)',
+              background: 'var(--glass-95)',
               backdropFilter: 'blur(40px)',
               fontSize: '13px',
               fontWeight: 500,
               letterSpacing: '-0.01em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               opacity: 0,
               animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
             }}
           >
             <span
-              style={{ width: '7px', height: '7px', borderRadius: '9999px', background: '#008f5d' }}
+              style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '9999px',
+                background: 'var(--success)',
+              }}
             />
             Developer portal
             <span
-              style={{ width: '1px', height: '12px', background: '#d6d1cd', margin: '0 3px' }}
+              style={{
+                width: '1px',
+                height: '12px',
+                background: 'var(--divider)',
+                margin: '0 3px',
+              }}
             />
-            <span style={{ color: '#1d1c1b', fontWeight: 600 }}>Coming soon</span>
+            <span style={{ color: 'var(--ink)', fontWeight: 600 }}>Coming soon</span>
           </div>
           <h1
             style={{
@@ -112,7 +123,7 @@ function Hero() {
               fontWeight: 500,
               lineHeight: 1.04,
               letterSpacing: '-0.06em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
               display: 'flex',
               flexWrap: 'wrap',
@@ -169,7 +180,7 @@ function Hero() {
                 display: 'inline-block',
                 fontStyle: 'italic',
                 fontWeight: 480,
-                color: '#38ccd8',
+                color: 'var(--cyan-text)',
                 opacity: 0,
                 animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.7s both',
               }}
@@ -184,7 +195,7 @@ function Hero() {
               fontSize: 'clamp(17px, 2vw, 20px)',
               lineHeight: 1.6,
               letterSpacing: '-0.025em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               opacity: 0,
               animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.5s both',
               textWrap: 'pretty',
@@ -214,14 +225,14 @@ function Hero() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                background: '#302f2e',
-                color: '#ffffff',
+                background: 'var(--cta)',
+                color: 'var(--cta-text)',
                 fontSize: '17px',
                 fontWeight: 500,
                 letterSpacing: '-0.02em',
                 padding: '16px 30px',
                 borderRadius: '9999px',
-                boxShadow: '0 10px 30px rgba(29,28,27,0.18)',
+                boxShadow: '0 10px 30px var(--sh18)',
               }}
             >
               Read the docs{' '}
@@ -237,14 +248,14 @@ function Hero() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                background: 'rgba(239,232,220,0.94)',
-                color: '#302f2e',
+                background: 'var(--glass-95)',
+                color: 'var(--ink-body)',
                 fontSize: '17px',
                 fontWeight: 500,
                 letterSpacing: '-0.02em',
                 padding: '16px 30px',
                 borderRadius: '9999px',
-                border: '1px solid #e5dccf',
+                border: '1px solid var(--hairline)',
               }}
             >
               <IoLogoGithub aria-hidden="true" style={{ fontSize: '18px' }} /> Clone the repo
@@ -265,9 +276,9 @@ function Hero() {
         >
           <div
             style={{
-              background: '#1d1c1b',
+              background: 'var(--spot)',
               borderRadius: '20px',
-              boxShadow: '0 30px 70px rgba(29,28,27,0.2)',
+              boxShadow: '0 30px 70px var(--sh20)',
               overflow: 'hidden',
             }}
           >
@@ -350,10 +361,10 @@ function Hero() {
           </div>
           <div
             style={{
-              background: '#f7f3ec',
-              border: '1px solid #e5dccf',
+              background: 'var(--screen)',
+              border: '1px solid var(--hairline)',
               borderRadius: '20px',
-              boxShadow: '0 24px 60px rgba(29,28,27,0.1)',
+              boxShadow: '0 24px 60px var(--sh10)',
               overflow: 'hidden',
             }}
           >
@@ -363,23 +374,24 @@ function Hero() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '13px 18px',
-                borderBottom: '1px solid #eae2d5',
+                borderBottom: '1px solid var(--inset)',
               }}
             >
               <span
                 style={{
                   fontFamily: 'ui-monospace, Menlo, monospace',
                   fontSize: '12.5px',
-                  color: '#5c5956',
+                  color: 'var(--ink-muted)',
                 }}
               >
-                <span style={{ color: '#008f5d', fontWeight: 700 }}>GET</span> /fhir/Patient/bella
+                <span style={{ color: 'var(--success)', fontWeight: 700 }}>GET</span>{' '}
+                /fhir/Patient/bella
               </span>
               <span
                 style={{
                   fontSize: '11px',
                   fontWeight: 700,
-                  color: '#008f5d',
+                  color: 'var(--success)',
                   letterSpacing: '0.06em',
                 }}
               >
@@ -393,22 +405,22 @@ function Hero() {
                 fontFamily: MONO,
                 fontSize: '12.5px',
                 lineHeight: 1.65,
-                color: '#5c5956',
+                color: 'var(--ink-muted)',
                 overflowX: 'auto',
               }}
             >
-              <span style={{ color: '#a9a39e' }}>{'{'}</span>
+              <span style={{ color: 'var(--ink-faint2)' }}>{'{'}</span>
               {'\n  '}
-              <span style={{ color: '#38ccd8' }}>&quot;resourceType&quot;</span>:{' '}
-              <span style={{ color: '#006642' }}>&quot;Patient&quot;</span>,{'\n  '}
-              <span style={{ color: '#38ccd8' }}>&quot;species&quot;</span>:{' '}
-              <span style={{ color: '#006642' }}>&quot;canine&quot;</span>,{' '}
-              <span style={{ color: '#38ccd8' }}>&quot;name&quot;</span>:{' '}
-              <span style={{ color: '#006642' }}>&quot;Bella&quot;</span>,{'\n  '}
-              <span style={{ color: '#38ccd8' }}>&quot;managingOrg&quot;</span>:{' '}
-              <span style={{ color: '#006642' }}>&quot;Alpenblick Clinic&quot;</span>
+              <span style={{ color: 'var(--cyan-text)' }}>&quot;resourceType&quot;</span>:{' '}
+              <span style={{ color: 'var(--code-str)' }}>&quot;Patient&quot;</span>,{'\n  '}
+              <span style={{ color: 'var(--cyan-text)' }}>&quot;species&quot;</span>:{' '}
+              <span style={{ color: 'var(--code-str)' }}>&quot;canine&quot;</span>,{' '}
+              <span style={{ color: 'var(--cyan-text)' }}>&quot;name&quot;</span>:{' '}
+              <span style={{ color: 'var(--code-str)' }}>&quot;Bella&quot;</span>,{'\n  '}
+              <span style={{ color: 'var(--cyan-text)' }}>&quot;managingOrg&quot;</span>:{' '}
+              <span style={{ color: 'var(--code-str)' }}>&quot;Alpenblick Clinic&quot;</span>
               {'\n'}
-              <span style={{ color: '#a9a39e' }}>{'}'}</span>
+              <span style={{ color: 'var(--ink-faint2)' }}>{'}'}</span>
             </pre>
           </div>
           <div
@@ -422,10 +434,10 @@ function Hero() {
               gap: '10px',
               padding: '11px 15px',
               borderRadius: '16px',
-              background: 'rgba(239,232,220,0.94)',
+              background: 'var(--glass-95)',
               backdropFilter: 'blur(40px)',
-              border: '1px solid rgba(239,232,220,0.94)',
-              boxShadow: '0 16px 44px rgba(29,28,27,0.12)',
+              border: '1px solid var(--glass-95)',
+              boxShadow: '0 16px 44px var(--sh12)',
               animation: 'ycFloatB 8s ease-in-out infinite',
             }}
           >
@@ -434,8 +446,8 @@ function Hero() {
                 width: '30px',
                 height: '30px',
                 borderRadius: '10px',
-                background: '#e6f2ff',
-                color: '#257bed',
+                background: 'var(--blue-soft)',
+                color: 'var(--blue)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -444,8 +456,10 @@ function Hero() {
               <IoGitBranchOutline aria-hidden="true" style={{ fontSize: '16px' }} />
             </span>
             <div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#302f2e' }}>AGPL-3.0</div>
-              <div style={{ fontSize: '11px', color: '#8f8984' }}>Every line, public</div>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-body)' }}>
+                AGPL-3.0
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--ink-faint)' }}>Every line, public</div>
             </div>
           </div>
         </div>
@@ -457,7 +471,7 @@ function Hero() {
 /** Dark editorial statement about the machine user. */
 function MachineUser() {
   return (
-    <Spotlight style={{ background: '#1d1c1b', overflow: 'hidden' }}>
+    <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
       <div
         aria-hidden="true"
         style={{
@@ -466,7 +480,7 @@ function MachineUser() {
           right: '-160px',
           width: '780px',
           height: '600px',
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.13), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b13), transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -527,7 +541,7 @@ function MachineUser() {
 /** Feature 1: FHIR API, one animal many authorities + bundle.json mock. */
 function FhirApiFeature() {
   return (
-    <section style={{ background: '#efe8dc' }}>
+    <section style={{ background: 'var(--page)' }}>
       <div
         data-grid-1-m="true"
         style={{
@@ -555,7 +569,7 @@ function FhirApiFeature() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#257bed',
+              color: 'var(--blue)',
             }}
           >
             FHIR-native API
@@ -568,7 +582,7 @@ function FhirApiFeature() {
               fontWeight: 500,
               lineHeight: 1.1,
               letterSpacing: '-0.045em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -580,7 +594,7 @@ function FhirApiFeature() {
               fontSize: '17.5px',
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               textWrap: 'pretty',
             }}
           >
@@ -605,10 +619,10 @@ function FhirApiFeature() {
                 gap: '12px',
                 fontFamily: 'ui-monospace, Menlo, monospace',
                 fontSize: '13.5px',
-                color: '#5c5956',
+                color: 'var(--ink-muted)',
               }}
             >
-              <span style={{ fontWeight: 700, color: '#008f5d', width: '46px' }}>GET</span>{' '}
+              <span style={{ fontWeight: 700, color: 'var(--success)', width: '46px' }}>GET</span>{' '}
               /fhir/Observation?patient=bella
             </div>
             <div
@@ -618,10 +632,10 @@ function FhirApiFeature() {
                 gap: '12px',
                 fontFamily: 'ui-monospace, Menlo, monospace',
                 fontSize: '13.5px',
-                color: '#5c5956',
+                color: 'var(--ink-muted)',
               }}
             >
-              <span style={{ fontWeight: 700, color: '#257bed', width: '46px' }}>POST</span>{' '}
+              <span style={{ fontWeight: 700, color: 'var(--blue)', width: '46px' }}>POST</span>{' '}
               /fhir/Appointment
             </div>
             <div
@@ -631,10 +645,12 @@ function FhirApiFeature() {
                 gap: '12px',
                 fontFamily: 'ui-monospace, Menlo, monospace',
                 fontSize: '13.5px',
-                color: '#5c5956',
+                color: 'var(--ink-muted)',
               }}
             >
-              <span style={{ fontWeight: 700, color: '#af5e19', width: '46px' }}>SUB</span>{' '}
+              <span style={{ fontWeight: 700, color: 'var(--avatar-amber-ink)', width: '46px' }}>
+                SUB
+              </span>{' '}
               /fhir/subscriptions
             </div>
           </div>
@@ -645,9 +661,9 @@ function FhirApiFeature() {
             style={{
               width: '100%',
               maxWidth: '540px',
-              background: '#1d1c1b',
+              background: 'var(--spot)',
               borderRadius: '22px',
-              boxShadow: '0 24px 60px rgba(29,28,27,0.16)',
+              boxShadow: '0 24px 60px var(--sh16)',
               overflow: 'hidden',
             }}
           >
@@ -750,7 +766,7 @@ function FhirNative() {
     'Immunization',
   ];
   return (
-    <section style={{ background: '#efe8dc' }}>
+    <section style={{ background: 'var(--page)' }}>
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -765,7 +781,7 @@ function FhirNative() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#257bed',
+              color: 'var(--blue)',
             }}
           >
             Speaks the language of health data
@@ -778,7 +794,7 @@ function FhirNative() {
               fontWeight: 500,
               lineHeight: 1.1,
               letterSpacing: '-0.05em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -790,7 +806,7 @@ function FhirNative() {
               fontSize: '18px',
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               textWrap: 'pretty',
             }}
           >
@@ -816,8 +832,8 @@ function FhirNative() {
                 display: 'flex',
                 alignItems: 'baseline',
                 gap: '8px',
-                background: '#f7f3ec',
-                border: '1px solid #e5dccf',
+                background: 'var(--screen)',
+                border: '1px solid var(--hairline)',
                 borderRadius: '14px',
                 padding: '12px 16px',
               }}
@@ -827,7 +843,7 @@ function FhirNative() {
                   fontFamily: 'ui-monospace, Menlo, monospace',
                   fontSize: '13.5px',
                   fontWeight: 600,
-                  color: '#1d1c1b',
+                  color: 'var(--ink)',
                 }}
               >
                 {name}
@@ -853,14 +869,14 @@ function PluginRow({ iconBg, iconColor, icon, title, desc, cta }: Readonly<Plugi
   return (
     <div
       style={{
-        background: '#f7f3ec',
-        border: '1px solid #e5dccf',
+        background: 'var(--screen)',
+        border: '1px solid var(--hairline)',
         borderRadius: '18px',
         padding: '16px',
         display: 'flex',
         alignItems: 'center',
         gap: '14px',
-        boxShadow: '0 8px 24px rgba(29,28,27,0.06)',
+        boxShadow: '0 8px 24px var(--sh06)',
       }}
     >
       <span
@@ -880,19 +896,24 @@ function PluginRow({ iconBg, iconColor, icon, title, desc, cta }: Readonly<Plugi
       </span>
       <div style={{ flex: 1 }}>
         <div
-          style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '-0.02em', color: '#1d1c1b' }}
+          style={{
+            fontSize: '15px',
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            color: 'var(--ink)',
+          }}
         >
           {title}
         </div>
-        <div style={{ fontSize: '12.5px', color: '#8f8984' }}>{desc}</div>
+        <div style={{ fontSize: '12.5px', color: 'var(--ink-faint)' }}>{desc}</div>
       </div>
       {cta === 'install' ? (
         <span
           style={{
             fontSize: '12.5px',
             fontWeight: 600,
-            color: '#ffffff',
-            background: '#302f2e',
+            color: 'var(--cta-text)',
+            background: 'var(--cta)',
             padding: '7px 14px',
             borderRadius: '9999px',
           }}
@@ -904,8 +925,8 @@ function PluginRow({ iconBg, iconColor, icon, title, desc, cta }: Readonly<Plugi
           style={{
             fontSize: '12.5px',
             fontWeight: 600,
-            color: '#302f2e',
-            border: '1px solid #e5dccf',
+            color: 'var(--ink-body)',
+            border: '1px solid var(--hairline)',
             padding: '7px 14px',
             borderRadius: '9999px',
           }}
@@ -920,7 +941,7 @@ function PluginRow({ iconBg, iconColor, icon, title, desc, cta }: Readonly<Plugi
 /** Feature 2: marketplace, reversed layout. */
 function Marketplace() {
   return (
-    <section style={{ background: '#e8e0d2' }}>
+    <section style={{ background: 'var(--band)' }}>
       <div
         data-grid-1-m="true"
         style={{
@@ -944,15 +965,15 @@ function Marketplace() {
             }}
           >
             <PluginRow
-              iconBg="#e6f2ff"
-              iconColor="#257bed"
+              iconBg="var(--blue-soft)"
+              iconColor="var(--blue)"
               icon={<IoMicOutline aria-hidden="true" style={{ fontSize: '20px' }} />}
               title="AI Scribe"
               desc="Turns the consult into a SOAP note"
               cta="install"
             />
             <PluginRow
-              iconBg="#e6f4ef"
+              iconBg="var(--avatar-green-bg)"
               iconColor="#006642"
               icon={<IoPulseOutline aria-hidden="true" style={{ fontSize: '20px' }} />}
               title="Triage Agent"
@@ -960,8 +981,8 @@ function Marketplace() {
               cta="installed"
             />
             <PluginRow
-              iconBg="#fef3e9"
-              iconColor="#af5e19"
+              iconBg="var(--avatar-amber-bg)"
+              iconColor="var(--avatar-amber-ink)"
               icon={<IoCallOutline aria-hidden="true" style={{ fontSize: '20px' }} />}
               title="Voice Reminders"
               desc="Calls pet parents about overdue vaccines"
@@ -969,7 +990,7 @@ function Marketplace() {
             />
             <div
               style={{
-                border: '1.5px dashed #d6d1cd',
+                border: '1.5px dashed var(--divider)',
                 borderRadius: '18px',
                 padding: '16px',
                 display: 'flex',
@@ -983,8 +1004,8 @@ function Marketplace() {
                   width: '44px',
                   height: '44px',
                   borderRadius: '13px',
-                  background: '#eae2d5',
-                  color: '#8f8984',
+                  background: 'var(--inset)',
+                  color: 'var(--ink-faint)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -998,12 +1019,14 @@ function Marketplace() {
                     fontSize: '15px',
                     fontWeight: 700,
                     letterSpacing: '-0.02em',
-                    color: '#5c5956',
+                    color: 'var(--ink-muted)',
                   }}
                 >
                   Your plugin here
                 </div>
-                <div style={{ fontSize: '12.5px', color: '#a9a39e' }}>Publish in an afternoon</div>
+                <div style={{ fontSize: '12.5px', color: 'var(--ink-faint2)' }}>
+                  Publish in an afternoon
+                </div>
               </div>
             </div>
           </div>
@@ -1024,7 +1047,7 @@ function Marketplace() {
                 fontWeight: 700,
                 letterSpacing: '0.14em',
                 textTransform: 'uppercase',
-                color: '#257bed',
+                color: 'var(--blue)',
               }}
             >
               Plugin marketplace
@@ -1037,7 +1060,7 @@ function Marketplace() {
                 fontWeight: 500,
                 lineHeight: 1.1,
                 letterSpacing: '-0.045em',
-                color: '#1d1c1b',
+                color: 'var(--ink)',
                 textWrap: 'balance',
               }}
             >
@@ -1049,7 +1072,7 @@ function Marketplace() {
                 fontSize: '17.5px',
                 lineHeight: 1.65,
                 letterSpacing: '-0.02em',
-                color: '#5c5956',
+                color: 'var(--ink-muted)',
                 textWrap: 'pretty',
               }}
             >
@@ -1066,7 +1089,7 @@ function Marketplace() {
                 alignItems: 'center',
                 gap: '8px',
                 textDecoration: 'none',
-                color: '#257bed',
+                color: 'var(--blue-text)',
                 fontSize: '17px',
                 fontWeight: 500,
                 letterSpacing: '-0.02em',
@@ -1137,7 +1160,7 @@ function EconColumn({ index, icon, title, desc, delay }: Readonly<EconColumnProp
 /** Economics: 0% platform cut, comparison bars, editorial row. Stays BLUE, not cyan. */
 function Economics() {
   return (
-    <Spotlight style={{ background: '#1d1c1b', overflow: 'hidden' }}>
+    <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
       <div
         aria-hidden="true"
         style={{
@@ -1146,7 +1169,7 @@ function Economics() {
           left: '-160px',
           width: '760px',
           height: '580px',
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.12), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b12), transparent 70%)',
           pointerEvents: 'none',
           animation: 'ycDrift 34s ease-in-out infinite alternate',
         }}
@@ -1253,7 +1276,7 @@ function Economics() {
                 right: '-80px',
                 width: '380px',
                 height: '380px',
-                background: 'radial-gradient(closest-side, rgba(37,123,237,0.20), transparent 70%)',
+                background: 'radial-gradient(closest-side, var(--glow-b20), transparent 70%)',
                 pointerEvents: 'none',
               }}
             />
@@ -1518,8 +1541,8 @@ function ProofCard({ icon, title, desc, delay }: Readonly<ProofCardProps>) {
     <Reveal
       delay={delay}
       style={{
-        background: '#f7f3ec',
-        border: '1px solid #e5dccf',
+        background: 'var(--screen)',
+        border: '1px solid var(--hairline)',
         borderRadius: '20px',
         padding: '24px',
       }}
@@ -1529,8 +1552,8 @@ function ProofCard({ icon, title, desc, delay }: Readonly<ProofCardProps>) {
           width: '40px',
           height: '40px',
           borderRadius: '12px',
-          background: '#eae2d5',
-          color: '#302f2e',
+          background: 'var(--inset)',
+          color: 'var(--ink-body)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1544,13 +1567,13 @@ function ProofCard({ icon, title, desc, delay }: Readonly<ProofCardProps>) {
           fontSize: '16px',
           fontWeight: 700,
           letterSpacing: '-0.02em',
-          color: '#1d1c1b',
+          color: 'var(--ink)',
           marginBottom: '6px',
         }}
       >
         {title}
       </div>
-      <div style={{ fontSize: '14px', lineHeight: 1.55, color: '#5c5956' }}>{desc}</div>
+      <div style={{ fontSize: '14px', lineHeight: 1.55, color: 'var(--ink-muted)' }}>{desc}</div>
     </Reveal>
   );
 }
@@ -1558,7 +1581,7 @@ function ProofCard({ icon, title, desc, delay }: Readonly<ProofCardProps>) {
 /** Open source / proof. */
 function OpenSource() {
   return (
-    <section style={{ background: '#eae2d5' }}>
+    <section style={{ background: 'var(--inset)' }}>
       <div
         style={{
           width: 'min(1240px, calc(100% - 48px))',
@@ -1573,7 +1596,7 @@ function OpenSource() {
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#8f8984',
+              color: 'var(--ink-faint)',
             }}
           >
             Why it&apos;s open
@@ -1586,7 +1609,7 @@ function OpenSource() {
               fontWeight: 500,
               lineHeight: 1.1,
               letterSpacing: '-0.05em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
               textWrap: 'balance',
             }}
           >
@@ -1598,7 +1621,7 @@ function OpenSource() {
               fontSize: '18px',
               lineHeight: 1.65,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
               textWrap: 'pretty',
             }}
           >
@@ -1608,9 +1631,9 @@ function OpenSource() {
             <strong
               style={{
                 fontWeight: 700,
-                color: '#302f2e',
+                color: 'var(--ink-body)',
                 textDecoration: 'underline',
-                textDecorationColor: '#257bed',
+                textDecorationColor: 'var(--blue-text)',
                 textDecorationThickness: '2px',
                 textUnderlineOffset: '3px',
               }}
@@ -1665,7 +1688,7 @@ function ClosingCta() {
   const ghRef = useMagnet<HTMLAnchorElement>();
   const portalRef = useMagnet<HTMLAnchorElement>();
   return (
-    <Spotlight style={{ background: '#1d1c1b', overflow: 'hidden' }}>
+    <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
       <div
         aria-hidden="true"
         style={{
@@ -1675,7 +1698,7 @@ function ClosingCta() {
           transform: 'translate(-50%,-50%)',
           width: '900px',
           height: '500px',
-          background: 'radial-gradient(closest-side, rgba(37,123,237,0.14), transparent 70%)',
+          background: 'radial-gradient(closest-side, var(--glow-b14), transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -1753,6 +1776,7 @@ function ClosingCta() {
             <Link
               ref={portalRef}
               href="/developers/signup"
+              data-btn-invert
               style={{
                 textDecoration: 'none',
                 display: 'flex',

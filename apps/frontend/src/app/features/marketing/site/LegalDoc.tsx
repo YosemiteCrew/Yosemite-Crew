@@ -32,10 +32,10 @@ export function LegalDoc({
   children,
 }: Readonly<LegalDocProps>) {
   return (
-    <>
+    <div data-yc-theme style={{ background: 'var(--page)', color: 'var(--ink-body)' }}>
       <section
         style={{
-          background: 'linear-gradient(180deg, #efe8dc, #eae2d5)',
+          background: 'linear-gradient(180deg, var(--page), var(--inset))',
           padding: '128px 24px 56px',
         }}
       >
@@ -52,7 +52,7 @@ export function LegalDoc({
               fontWeight: 700,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#257bed',
+              color: 'var(--blue-text)',
             }}
           >
             {eyebrow}
@@ -65,7 +65,7 @@ export function LegalDoc({
               fontWeight: 500,
               lineHeight: 1.05,
               letterSpacing: '-0.055em',
-              color: '#1d1c1b',
+              color: 'var(--ink)',
             }}
           >
             {title}
@@ -77,14 +77,19 @@ export function LegalDoc({
               fontSize: 18,
               lineHeight: 1.6,
               letterSpacing: '-0.02em',
-              color: '#5c5956',
+              color: 'var(--ink-muted)',
             }}
           >
             {subtitle}
           </p>
           {meta ? (
             <div
-              style={{ marginTop: 22, fontSize: 14, letterSpacing: '-0.01em', color: '#a9a39e' }}
+              style={{
+                marginTop: 22,
+                fontSize: 14,
+                letterSpacing: '-0.01em',
+                color: 'var(--ink-faint2)',
+              }}
             >
               {meta}
             </div>
@@ -92,7 +97,7 @@ export function LegalDoc({
         </div>
       </section>
 
-      <section style={{ background: '#f7f3ec', padding: '24px 24px 80px' }}>
+      <section style={{ background: 'var(--screen)', padding: '24px 24px 80px' }}>
         <div
           data-doc-grid="true"
           style={{
@@ -115,7 +120,7 @@ export function LegalDoc({
                 fontWeight: 700,
                 letterSpacing: '0.1em',
                 textTransform: 'uppercase',
-                color: '#a9a39e',
+                color: 'var(--ink-faint2)',
                 paddingLeft: 14,
                 marginBottom: 8,
               }}
@@ -131,6 +136,6 @@ export function LegalDoc({
           <Reveal className="yc-doc">{children}</Reveal>
         </div>
       </section>
-    </>
+    </div>
   );
 }

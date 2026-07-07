@@ -7,6 +7,7 @@ import { IoLogoGithub, IoMenuOutline, IoCloseOutline } from 'react-icons/io5';
 import { GITHUB_REPO_URL, MARKETING_LOGO } from './assets';
 import { useGithubStats } from './useGithubStats';
 import { useScrolled } from './motion';
+import { ThemeToggle } from './ThemeToggle';
 
 export type NavKey =
   | 'pet-businesses'
@@ -61,10 +62,8 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
     return () => globalThis.window.removeEventListener('keydown', onKey);
   }, [menuOpen]);
 
-  const navBackground = scrolled ? 'rgba(241,235,225,0.58)' : 'transparent';
-  const navShadow = scrolled
-    ? '0 1px 0 rgba(255,255,255,0.5), 0 8px 24px rgba(29,28,27,0.05)'
-    : 'none';
+  const navBackground = scrolled ? 'var(--nav-glass)' : 'transparent';
+  const navShadow = scrolled ? 'var(--nav-shadow)' : 'none';
 
   return (
     <header
@@ -76,9 +75,9 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
         right: 0,
         zIndex: 100,
         background: navBackground,
-        backdropFilter: scrolled ? 'blur(24px) saturate(160%)' : 'none',
-        WebkitBackdropFilter: scrolled ? 'blur(24px) saturate(160%)' : 'none',
-        borderBottom: `1px solid ${scrolled ? 'rgba(29,28,27,0.05)' : 'transparent'}`,
+        backdropFilter: scrolled ? 'blur(40px) saturate(180%)' : 'none',
+        WebkitBackdropFilter: scrolled ? 'blur(40px) saturate(180%)' : 'none',
+        borderBottom: `1px solid ${scrolled ? 'var(--nav-border)' : 'transparent'}`,
         boxShadow: navShadow,
         transition:
           'background 300ms ease, box-shadow 300ms ease, border-color 300ms ease, backdrop-filter 300ms ease',
@@ -124,8 +123,8 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
                 aria-current={isActive ? 'page' : undefined}
                 style={{
                   ...linkBase,
-                  color: isActive ? '#1657c9' : '#5c5956',
-                  background: isActive ? 'rgba(37,123,237,0.08)' : 'transparent',
+                  color: isActive ? 'var(--nav-active)' : 'var(--ink-muted)',
+                  background: isActive ? 'var(--nav-active-bg)' : 'transparent',
                 }}
               >
                 {item.label}
@@ -135,6 +134,7 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
         </nav>
 
         <div className="yc-nav-cta" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <ThemeToggle style={{ width: 40, height: 40 }} />
           <a
             href={GITHUB_REPO_URL}
             target="_blank"
@@ -144,23 +144,29 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
               alignItems: 'center',
               gap: 8,
               textDecoration: 'none',
-              color: '#302f2e',
+              color: 'var(--ink-body)',
               fontSize: 14,
               fontWeight: 500,
               letterSpacing: '-0.02em',
               padding: '9px 16px',
-              border: '1px solid rgba(255,255,255,0.65)',
+              border: '1px solid var(--glass-btn-border)',
               borderRadius: 9999,
-              background: 'linear-gradient(180deg, rgba(255,253,250,0.9), rgba(250,246,239,0.8))',
+              background: 'var(--glass-btn)',
               backdropFilter: 'blur(30px) saturate(190%)',
               WebkitBackdropFilter: 'blur(30px) saturate(190%)',
               boxShadow:
-                '0 2px 4px rgba(29,28,27,0.05), 0 8px 20px rgba(29,28,27,0.08), inset 0 1px 0 rgba(255,255,255,0.9)',
+                '0 2px 4px var(--sh05), 0 8px 20px var(--sh08), inset 0 1px 0 var(--glass-inset-hi)',
             }}
           >
             <IoLogoGithub style={{ fontSize: 16 }} aria-hidden="true" />
             <span>Star</span>
-            <span style={{ color: '#8f8984', fontWeight: 400, fontVariantNumeric: 'tabular-nums' }}>
+            <span
+              style={{
+                color: 'var(--ink-faint)',
+                fontWeight: 400,
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
               {starsLabel}
             </span>
           </a>
@@ -168,8 +174,8 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
             href="/signup"
             style={{
               textDecoration: 'none',
-              background: '#302f2e',
-              color: '#ffffff',
+              background: 'var(--cta)',
+              color: 'var(--cta-text)',
               fontSize: 15,
               fontWeight: 500,
               letterSpacing: '-0.02em',
@@ -194,10 +200,10 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
             justifyContent: 'center',
             width: 44,
             height: 44,
-            border: '1px solid #e5dccf',
+            border: '1px solid var(--hairline)',
             borderRadius: 14,
-            background: 'rgba(239,232,220,0.7)',
-            color: '#302f2e',
+            background: 'var(--glass-92)',
+            color: 'var(--ink-body)',
             cursor: 'pointer',
           }}
         >
@@ -222,11 +228,11 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
           right: 12,
           top: 78,
           zIndex: 99,
-          background: 'rgba(239,232,220,0.93)',
+          background: 'var(--glass-93)',
           backdropFilter: 'blur(40px) saturate(200%)',
           WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-          border: '1px solid rgba(239,232,220,0.93)',
-          boxShadow: '0 24px 60px rgba(29,28,27,0.16)',
+          border: '1px solid var(--hairline-soft)',
+          boxShadow: '0 24px 60px var(--sh16)',
           borderRadius: 24,
           padding: 14,
           display: 'flex',
@@ -247,7 +253,7 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
             aria-current={item.key === active ? 'page' : undefined}
             style={{
               textDecoration: 'none',
-              color: item.key === active ? '#1657c9' : '#302f2e',
+              color: item.key === active ? 'var(--nav-active)' : 'var(--ink-body)',
               fontSize: 17,
               fontWeight: 500,
               letterSpacing: '-0.02em',
@@ -258,7 +264,7 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
             {item.label}
           </Link>
         ))}
-        <div style={{ height: 1, background: '#e5dccf', margin: '10px 4px' }} />
+        <div style={{ height: 1, background: 'var(--hairline)', margin: '10px 4px' }} />
         <a
           href={GITHUB_REPO_URL}
           target="_blank"
@@ -270,35 +276,38 @@ export function SiteNav({ active }: Readonly<SiteNavProps>) {
             justifyContent: 'center',
             gap: 8,
             textDecoration: 'none',
-            color: '#302f2e',
+            color: 'var(--ink-body)',
             fontSize: 15,
             fontWeight: 500,
             padding: '13px 16px',
-            border: '1px solid #e0d7c9',
+            border: '1px solid var(--hairline)',
             borderRadius: 9999,
             margin: '4px 0',
           }}
         >
           <IoLogoGithub style={{ fontSize: 16 }} aria-hidden="true" /> Star on GitHub
         </a>
-        <Link
-          href="/signup"
-          onClick={() => setMenuOpen(false)}
-          style={{
-            textDecoration: 'none',
-            display: 'flex',
-            justifyContent: 'center',
-            background: '#302f2e',
-            color: '#fff',
-            fontSize: 15,
-            fontWeight: 500,
-            padding: '13px 16px',
-            borderRadius: 9999,
-            margin: '4px 0',
-          }}
-        >
-          Get started
-        </Link>
+        <div style={{ display: 'flex', gap: 8, margin: '4px 0' }}>
+          <Link
+            href="/signup"
+            onClick={() => setMenuOpen(false)}
+            style={{
+              textDecoration: 'none',
+              flex: 1,
+              display: 'flex',
+              justifyContent: 'center',
+              background: 'var(--cta)',
+              color: 'var(--cta-text)',
+              fontSize: 15,
+              fontWeight: 500,
+              padding: '13px 16px',
+              borderRadius: 9999,
+            }}
+          >
+            Get started
+          </Link>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

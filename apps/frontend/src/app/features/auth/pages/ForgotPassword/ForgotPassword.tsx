@@ -61,7 +61,7 @@ const primaryBtnStyle: React.CSSProperties = {
   fontSize: 16,
   padding: '16px 24px',
   borderRadius: 13,
-  boxShadow: '0 14px 30px rgba(29,28,27,0.22)',
+  boxShadow: '0 14px 30px var(--sh22)',
 };
 
 const ghostBtnStyle: React.CSSProperties = {
@@ -79,7 +79,7 @@ const headingStyle: React.CSSProperties = {
   fontWeight: 400,
   lineHeight: 1.06,
   letterSpacing: '-0.03em',
-  color: '#1d1c1b',
+  color: 'var(--ink)',
 };
 
 const subheadStyle: React.CSSProperties = {
@@ -87,7 +87,7 @@ const subheadStyle: React.CSSProperties = {
   fontSize: 15.5,
   lineHeight: 1.55,
   letterSpacing: '-0.01em',
-  color: '#5c5956',
+  color: 'var(--ink-muted)',
 };
 
 const ForgotPassword = () => {
@@ -391,7 +391,10 @@ const ForgotPassword = () => {
   const renderEmailStep = () => (
     <div>
       <h1 style={headingStyle}>
-        Forgot <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#1657c9' }}>password?</em>
+        Forgot{' '}
+        <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--nav-active)' }}>
+          password?
+        </em>
       </h1>
       <p style={{ ...subheadStyle, margin: '12px 0 26px' }}>
         Enter your registered email, and we&rsquo;ll send you a code to reset it.
@@ -445,7 +448,8 @@ const ForgotPassword = () => {
   const renderVerifyStep = () => (
     <div>
       <h1 style={headingStyle}>
-        Verify <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#1657c9' }}>code</em>
+        Verify{' '}
+        <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--nav-active)' }}>code</em>
       </h1>
       <p style={{ ...subheadStyle, margin: '12px 0 26px' }}>
         Enter the code we just sent to your email to proceed with resetting your password.
@@ -473,7 +477,7 @@ const ForgotPassword = () => {
       </fieldset>
       <p
         id={otpHintId}
-        style={{ margin: '14px 0 0', fontSize: 13, color: '#8f8984', textAlign: 'center' }}
+        style={{ margin: '14px 0 0', fontSize: 13, color: 'var(--ink-faint)', textAlign: 'center' }}
       >
         Enter the 6-digit code from your email.
       </p>
@@ -513,12 +517,12 @@ const ForgotPassword = () => {
         >
           Back
         </button>
-        <div style={{ fontSize: 13.5, color: '#5c5956', letterSpacing: '-0.01em' }}>
+        <div style={{ fontSize: 13.5, color: 'var(--ink-muted)', letterSpacing: '-0.01em' }}>
           Didn&apos;t receive the code?{' '}
           <Link
             href="#"
             onClick={handleOtp}
-            style={{ color: '#1657c9', textDecoration: 'none', fontWeight: 600 }}
+            style={{ color: 'var(--nav-active)', textDecoration: 'none', fontWeight: 600 }}
           >
             Request New Code
           </Link>
@@ -530,7 +534,10 @@ const ForgotPassword = () => {
   const renderNewPasswordStep = () => (
     <div>
       <h1 style={headingStyle}>
-        Set new <em style={{ fontStyle: 'italic', fontWeight: 500, color: '#1657c9' }}>password</em>
+        Set new{' '}
+        <em style={{ fontStyle: 'italic', fontWeight: 500, color: 'var(--nav-active)' }}>
+          password
+        </em>
       </h1>
       <p style={{ ...subheadStyle, margin: '12px 0 26px' }}>
         Choose a new password for your workspace.
@@ -571,7 +578,7 @@ const ForgotPassword = () => {
                 height: 32,
                 border: 'none',
                 background: 'transparent',
-                color: '#8f8984',
+                color: 'var(--ink-faint)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -657,8 +664,8 @@ const ForgotPassword = () => {
             width: 66,
             height: 66,
             borderRadius: 9999,
-            background: '#e6f2ff',
-            color: '#257bed',
+            background: 'var(--blue-soft)',
+            color: 'var(--blue)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
