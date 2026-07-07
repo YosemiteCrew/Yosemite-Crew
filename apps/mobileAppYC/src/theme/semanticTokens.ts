@@ -9,49 +9,49 @@
  * - Do NOT import this from web/Next.js code.
  * - Liquid-glass and iOS-specific visual effects remain mobile implementation
  *   concerns and are NOT represented in the shared token contract.
- * - When a shared token maps to a mobile-specific override (e.g., a dark theme
- *   value differs from web), document it with a comment.
+ * - Light maps to the warm-bone palette (`colors`); dark maps to the espresso
+ *   palette (`colorsDark`). The two objects always share the same keys.
  *
  * Token naming convention mirrors @yosemite-crew/design-tokens/src/color.ts
  * so that web and mobile engineers read the same semantic vocabulary.
  */
 
-import {colors} from './colors';
+import {colors, colorsDark} from './colors';
 
 /**
- * Semantic color mapping for the **light** (default) theme.
+ * Semantic color mapping for the **light** (default) theme - warm bone.
  * Keys match the shared token contract from design-tokens/src/color.ts.
  */
 export const semanticColorsLight = {
   // --- Text ---
-  'text.primary': colors.text, // #302F2E
-  'text.secondary': colors.textSecondary, // #747473
-  'text.tertiary': colors.textTertiary, // #247AED (brand accent for tertiary CTA text)
-  'text.brand': colors.primary, // #247AED
-  'text.error': colors.error, // #F44336
-  'text.onDark': colors.white, // #FFFFFF
+  'text.primary': colors.ink,
+  'text.secondary': colors.inkMuted,
+  'text.tertiary': colors.blueText,
+  'text.brand': colors.blue,
+  'text.error': colors.danger,
+  'text.onDark': colors.white,
 
   // --- Surface / Background ---
-  'surface.card': colors.cardBackground, // #FFFFFF
-  'surface.page': colors.background, // #FFFFFF
-  'surface.subtle': colors.backgroundSecondary, // #F8F9FA
-  'surface.hover': colors.backgroundSecondary,
-  'surface.inputBg': colors.inputBackground, // #FAFAFA
-  'surface.brandLight': colors.lightBlueBackground, // #E9F2FD
+  'surface.card': colors.cardBackground,
+  'surface.page': colors.background,
+  'surface.subtle': colors.screen2,
+  'surface.hover': colors.screen2,
+  'surface.inputBg': colors.fieldBg,
+  'surface.brandLight': colors.blueSoft,
 
   // --- Border ---
-  'border.default': colors.border, // #EAEAEA
-  'border.muted': colors.borderMuted, // rgba(234,234,234,0.9)
-  'border.card': colors.border,
-  'border.error': colors.error,
-  'border.active': colors.primary,
+  'border.default': colors.hairline,
+  'border.muted': colors.borderMuted,
+  'border.card': colors.hairline,
+  'border.error': colors.danger,
+  'border.active': colors.blue,
 
   // --- Action / Interactive ---
-  'action.primary.bg': colors.secondary, // #302F2E
-  'action.primary.text': colors.white,
-  'action.brand.bg': colors.primary,
+  'action.primary.bg': colors.cta,
+  'action.primary.text': colors.ctaText,
+  'action.brand.bg': colors.blue,
   'action.brand.text': colors.white,
-  'action.danger.bg': colors.error,
+  'action.danger.bg': colors.danger,
   'action.danger.text': colors.white,
 
   // --- Status ---
@@ -59,16 +59,16 @@ export const semanticColorsLight = {
   'status.successSurface': colors.successSurface,
   'status.warning': colors.warning,
   'status.warningSurface': colors.warningSurface,
-  'status.error': colors.error,
-  'status.errorSurface': colors.errorSurface,
+  'status.error': colors.danger,
+  'status.errorSurface': colors.dangerSurface,
   'status.info': colors.info,
   'status.infoSurface': colors.infoSurface,
 
   // --- Input ---
-  'input.bg': colors.inputBackground,
-  'input.borderDefault': colors.border,
-  'input.borderError': colors.error,
-  'input.borderActive': colors.primary,
+  'input.bg': colors.fieldBg,
+  'input.borderDefault': colors.hairline,
+  'input.borderError': colors.danger,
+  'input.borderActive': colors.blue,
   'input.placeholder': colors.placeholder,
 
   // --- Overlay ---
@@ -78,62 +78,62 @@ export const semanticColorsLight = {
 } as const;
 
 /**
- * Semantic color mapping for the **dark** theme.
- * Only values that differ from light theme are documented with a reason comment.
+ * Semantic color mapping for the **dark** (espresso) theme.
+ * Same keys as light, resolved against the espresso palette.
  */
 export const semanticColorsDark = {
   // --- Text ---
-  'text.primary': colors.textDark, // Light text on dark bg
-  'text.secondary': colors.textDarkSecondary,
-  'text.tertiary': colors.textTertiary, // Brand color stays consistent
-  'text.brand': colors.primaryLight, // Lighter shade for dark bg contrast
-  'text.error': colors.error,
-  'text.onDark': colors.text, // On dark mode "on-dark" flips to dark text
+  'text.primary': colorsDark.ink,
+  'text.secondary': colorsDark.inkMuted,
+  'text.tertiary': colorsDark.blueText,
+  'text.brand': colorsDark.blueText,
+  'text.error': colorsDark.danger,
+  'text.onDark': colorsDark.ink,
 
   // --- Surface ---
-  'surface.card': colors.gray800, // Dark card surface
-  'surface.page': colors.backgroundDark,
-  'surface.subtle': colors.backgroundDarkSecondary,
-  'surface.hover': colors.backgroundDarkSecondary,
-  'surface.inputBg': colors.backgroundDarkSecondary,
-  'surface.brandLight': colors.lightBlueBackground,
+  'surface.card': colorsDark.cardBackground,
+  'surface.page': colorsDark.background,
+  'surface.subtle': colorsDark.screen2,
+  'surface.hover': colorsDark.screen2,
+  'surface.inputBg': colorsDark.fieldBg,
+  'surface.brandLight': colorsDark.blueSoft,
 
   // --- Border ---
-  'border.default': colors.borderDark,
-  'border.muted': colors.borderDark,
-  'border.card': colors.borderDark,
-  'border.error': colors.error,
-  'border.active': colors.primary,
+  'border.default': colorsDark.hairline,
+  'border.muted': colorsDark.borderMuted,
+  'border.card': colorsDark.hairline,
+  'border.error': colorsDark.danger,
+  'border.active': colorsDark.blue,
 
   // --- Action ---
-  'action.primary.bg': colors.secondaryLight,
-  'action.primary.text': colors.text,
-  'action.brand.bg': colors.primary,
-  'action.brand.text': colors.white,
-  'action.danger.bg': colors.error,
-  'action.danger.text': colors.white,
+  'action.primary.bg': colorsDark.cta,
+  'action.primary.text': colorsDark.ctaText,
+  'action.brand.bg': colorsDark.blue,
+  'action.brand.text': colorsDark.white,
+  'action.danger.bg': colorsDark.danger,
+  'action.danger.text': colorsDark.white,
 
-  // --- Status (same as light — status colors are context-invariant) ---
-  'status.success': colors.success,
-  'status.successSurface': colors.successSurface,
-  'status.warning': colors.warning,
-  'status.warningSurface': colors.warningSurface,
-  'status.error': colors.error,
-  'status.errorSurface': colors.errorSurface,
-  'status.info': colors.info,
-  'status.infoSurface': colors.infoSurface,
+  // --- Status ---
+  'status.success': colorsDark.success,
+  'status.successSurface': colorsDark.successSurface,
+  'status.warning': colorsDark.warning,
+  'status.warningSurface': colorsDark.warningSurface,
+  'status.error': colorsDark.danger,
+  'status.errorSurface': colorsDark.dangerSurface,
+  'status.info': colorsDark.info,
+  'status.infoSurface': colorsDark.infoSurface,
 
   // --- Input ---
-  'input.bg': colors.backgroundDarkSecondary,
-  'input.borderDefault': colors.borderDark,
-  'input.borderError': colors.error,
-  'input.borderActive': colors.primary,
-  'input.placeholder': colors.placeholder,
+  'input.bg': colorsDark.fieldBg,
+  'input.borderDefault': colorsDark.hairline,
+  'input.borderError': colorsDark.danger,
+  'input.borderActive': colorsDark.blue,
+  'input.placeholder': colorsDark.placeholder,
 
   // --- Overlay ---
-  'overlay.modal': colors.overlay,
-  'overlay.light': colors.overlayLight,
-  'overlay.card': colors.overlay,
+  'overlay.modal': colorsDark.modalOverlay,
+  'overlay.light': colorsDark.overlayLight,
+  'overlay.card': colorsDark.cardOverlay,
 } as const;
 
 export type SemanticColorTokens = typeof semanticColorsLight;
