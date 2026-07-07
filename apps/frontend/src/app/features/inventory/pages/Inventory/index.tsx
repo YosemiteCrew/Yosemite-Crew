@@ -95,7 +95,11 @@ const toggleArrayValue = (values: string[], value: string) =>
 
 type SortMode = 'name' | 'expiry' | 'stock';
 
-const compareInventoryRows = (a: InventoryItem, b: InventoryItem, sortMode: SortMode): number => {
+export const compareInventoryRows = (
+  a: InventoryItem,
+  b: InventoryItem,
+  sortMode: SortMode
+): number => {
   if (sortMode === 'expiry') {
     return String(a.batch.expiryDate ?? '').localeCompare(String(b.batch.expiryDate ?? ''));
   }
@@ -105,10 +109,10 @@ const compareInventoryRows = (a: InventoryItem, b: InventoryItem, sortMode: Sort
   return a.basicInfo.name.localeCompare(b.basicInfo.name);
 };
 
-const getSupplierName = (item: InventoryItem) =>
+export const getSupplierName = (item: InventoryItem) =>
   (item.vendor?.supplierName || item.vendor?.vendor || '').trim();
 
-const filterAndSortInventory = (
+export const filterAndSortInventory = (
   inventory: InventoryItem[],
   filters: InventoryFiltersState,
   debouncedSearch: string,
@@ -162,7 +166,7 @@ const filterAndSortInventory = (
   return nextFiltered;
 };
 
-const getDispenseRequestType = (
+export const getDispenseRequestType = (
   fulfillment: string | undefined,
   patientName: string | null
 ): 'IN_HOUSE' | 'PATIENT' => {
@@ -170,7 +174,7 @@ const getDispenseRequestType = (
   return patientName ? 'PATIENT' : 'IN_HOUSE';
 };
 
-const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryRecord => {
+export const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryRecord => {
   const firstMed = req.medications[0];
   const requestType = getDispenseRequestType(firstMed?.fulfillment, req.patientName);
   const amountCents = req.medications.reduce((sum, m) => sum + (m.priceCents ?? 0), 0);
@@ -241,7 +245,7 @@ const mapDispenseRequestToRecord = (req: DispenseRequestApi): DispensaryRecord =
   };
 };
 
-const getVisibilityLabel = (vis: 'ALL' | 'ACTIVE' | 'HIDDEN'): string => {
+export const getVisibilityLabel = (vis: 'ALL' | 'ACTIVE' | 'HIDDEN'): string => {
   if (vis === 'ALL') return 'All inventory';
   if (vis === 'ACTIVE') return 'Active';
   return 'Hidden';
@@ -268,7 +272,7 @@ type InventoryFilterBarProps = {
   setSortMode: React.Dispatch<React.SetStateAction<SortMode>>;
 };
 
-const InventoryFilterBar = ({
+export const InventoryFilterBar = ({
   filters,
   selectedFilterChips,
   sortMode,
@@ -452,7 +456,7 @@ type DispensaryFilterBarProps = {
   setDispensarySearch: React.Dispatch<React.SetStateAction<string>>;
 };
 
-const DispensaryFilterBar = ({
+export const DispensaryFilterBar = ({
   dispensarySearch,
   dispensaryStatusFilter,
   setDispensaryStatusFilter,
@@ -498,7 +502,7 @@ type ActiveFilterBarProps = {
   setDispensarySearch: React.Dispatch<React.SetStateAction<string>>;
 };
 
-const ActiveFilterBar = (props: ActiveFilterBarProps) => {
+export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
   if (props.activeView === 'inventory') {
     return (
       <InventoryFilterBar
@@ -526,7 +530,7 @@ const ActiveFilterBar = (props: ActiveFilterBarProps) => {
   return null;
 };
 
-const filterDispensaryRecords = (
+export const filterDispensaryRecords = (
   records: DispensaryRecord[],
   requestType: DispensaryRequestType,
   statusFilter: DispensaryStatus | 'ALL',
@@ -565,7 +569,7 @@ type InventoryTableContentProps = {
   onDispense?: (record: DispensaryRecord) => Promise<void>;
 };
 
-const InventoryTableContent = ({
+export const InventoryTableContent = ({
   activeView,
   turnover,
   setFilteredTurnoverList,
@@ -622,13 +626,13 @@ const InventoryTableContent = ({
   );
 };
 
-const getInventoryPageTitle = (view: InventoryView): string => {
+export const getInventoryPageTitle = (view: InventoryView): string => {
   if (view === 'turnover') return 'Dispensary';
   if (view === 'analytics') return 'Turnover';
   return 'Inventory';
 };
 
-const toggleSetItem = (prev: Set<string>, key: string): Set<string> => {
+export const toggleSetItem = (prev: Set<string>, key: string): Set<string> => {
   const next = new Set(prev);
   if (next.has(key)) {
     next.delete(key);
@@ -665,7 +669,7 @@ type InventoryFilterModalProps = {
   supplierFilterOptions: string[];
 };
 
-const InventoryFilterModal = ({
+export const InventoryFilterModal = ({
   filterOpen,
   selectedFilterChips,
   setFilterOpen,
@@ -859,6 +863,7 @@ const InventoryFilterModal = ({
                             type="button"
                             onClick={() => toggleExpandedCategory(category)}
                             className="text-text-secondary"
+                            aria-label={isExpanded ? `Collapse ${category}` : `Expand ${category}`}
                           >
                             {isExpanded ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
                           </button>
@@ -1005,7 +1010,7 @@ type DispensaryFilterModalProps = {
   toggleFilterSection: (key: string) => void;
 };
 
-const DispensaryFilterModal = ({
+export const DispensaryFilterModal = ({
   dispensaryFilterOpen,
   setDispensaryFilterOpen,
   dispensaryStatusFilter,
@@ -1273,7 +1278,7 @@ const Inventory = () => {
   const turnoverCategoryOptions = useMemo(
     () =>
       Array.from(
-        new Set(turnover.map((item) => item.category?.trim()).filter(Boolean) as string[])
+        new Set(turnover.flatMap((item) => (item.category?.trim() ? [item.category.trim()] : [])))
       ),
     [turnover]
   );

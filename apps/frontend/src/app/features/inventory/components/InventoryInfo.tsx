@@ -42,7 +42,7 @@ const emptyBatch: BatchValues = {
   allocated: '',
 };
 
-const validateNumberField = (
+export const validateNumberField = (
   value: unknown,
   requiredMsg: string,
   numberMsg: string
@@ -52,7 +52,7 @@ const validateNumberField = (
   return null;
 };
 
-const getBasicInfoErrors = (
+export const getBasicInfoErrors = (
   values: Record<string, any>,
   inventory: InventoryItem
 ): Record<string, string> => {
@@ -62,7 +62,7 @@ const getBasicInfoErrors = (
   return errs;
 };
 
-const getPricingErrors = (
+export const getPricingErrors = (
   values: Record<string, any>,
   inventory: InventoryItem
 ): Record<string, string> => {
@@ -82,7 +82,7 @@ const getPricingErrors = (
   return errs;
 };
 
-const getStockErrors = (
+export const getStockErrors = (
   values: Record<string, any>,
   inventory: InventoryItem
 ): Record<string, string> => {
@@ -113,7 +113,7 @@ const sectionValidationHandlers: Partial<
   stock: getStockErrors,
 };
 
-const parseDate = (value?: string): Date | null => {
+export const parseDate = (value?: string): Date | null => {
   if (!value) return null;
   if (value.includes('/')) {
     const [dd, mm, yyyy] = value.split('/');
@@ -132,26 +132,26 @@ const parseDate = (value?: string): Date | null => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const formatDate = (date: Date) => {
+export const formatDate = (date: Date) => {
   const yyyy = date.getFullYear();
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 };
 
-const normalizeOptions = (options?: Array<string | { label: string; value: string }>) =>
+export const normalizeOptions = (options?: Array<string | { label: string; value: string }>) =>
   options?.map((option: any) =>
     typeof option === 'string' ? { label: option, value: option } : option
   ) ?? [];
 
-const resolveLabel = (options: Array<{ label: string; value: string }>, value: string) =>
+export const resolveLabel = (options: Array<{ label: string; value: string }>, value: string) =>
   options.find((o) => o.value === value)?.label ?? value;
 
-const formatDateValue = (value?: string) => {
+export const formatDateValue = (value?: string) => {
   return formatDisplayDate(value) || '—';
 };
 
-const formatFinalValue = (display: string | string[]): string => {
+export const formatFinalValue = (display: string | string[]): string => {
   if (Array.isArray(display)) {
     return display.length > 0 ? display.join(', ') : '—';
   }
@@ -193,6 +193,13 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
   const [newBatches, setNewBatches] = useState<BatchValues[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editableExistingBatches, setEditableExistingBatches] = useState<BatchValues[]>([]);
+  const [prevDisableEditing, setPrevDisableEditing] = useState(disableEditing);
+  if (disableEditing !== prevDisableEditing) {
+    setPrevDisableEditing(disableEditing);
+    if (disableEditing && isEditing) {
+      setIsEditing(false);
+    }
+  }
 
   useLayoutEffect(() => {
     setNewBatches([]);
@@ -539,7 +546,7 @@ const modalSections: { key: InventorySectionKey; name: string }[] = [
   { key: 'vendor', name: 'Vendor details' },
 ];
 
-const getPrimaryButtonText = (
+export const getPrimaryButtonText = (
   inEditMode: boolean,
   isUpdating: boolean,
   isHiding: boolean,
@@ -554,7 +561,7 @@ const getPrimaryButtonText = (
   return isHidden ? 'Restore item' : 'Delete item';
 };
 
-const getFieldDisplay = (
+export const getFieldDisplay = (
   component: string,
   value: any,
   normalizedOptions: any[]
