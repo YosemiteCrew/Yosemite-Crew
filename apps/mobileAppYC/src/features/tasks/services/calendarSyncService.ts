@@ -262,16 +262,20 @@ const createDosageCalendarEvents = async (
   }
 
   try {
-    for (const dosage of dosages) {
-      const eventId = await createSingleDosageEvent(
-        task,
-        dosage,
-        alarms,
-        recurrenceParams,
-        companionName,
-        assignedToName,
-      );
+    const eventResults = await Promise.all(
+      dosages.map(dosage =>
+        createSingleDosageEvent(
+          task,
+          dosage,
+          alarms,
+          recurrenceParams,
+          companionName,
+          assignedToName,
+        ),
+      ),
+    );
 
+    for (const eventId of eventResults) {
       if (eventId) {
         eventIds.push(eventId);
       }
@@ -473,15 +477,17 @@ export const removeCalendarEvents = async (
   });
 
   try {
-    for (const eventId of eventIds) {
-      try {
-        await RNCalendarEvents.removeEvent(eventId);
-        console.log('[Calendar] Removed event:', eventId);
-      } catch (error) {
-        console.warn('[Calendar] Failed to remove event:', eventId, error);
-        // Continue removing other events even if one fails
-      }
-    }
+    await Promise.all(
+      eventIds.map(async eventId => {
+        try {
+          await RNCalendarEvents.removeEvent(eventId);
+          console.log('[Calendar] Removed event:', eventId);
+        } catch (error) {
+          console.warn('[Calendar] Failed to remove event:', eventId, error);
+          // Continue removing other events even if one fails
+        }
+      }),
+    );
   } catch (error) {
     console.error('[Calendar] Failed to remove calendar events:', error);
   }

@@ -10,11 +10,19 @@
  */
 
 import React, {useState, useEffect} from 'react';
-import {View, TouchableOpacity, StyleSheet, Text, ActivityIndicator} from 'react-native';
+import {View, StyleSheet, Text, ActivityIndicator} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Sound from 'react-native-nitro-sound';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {useTheme} from '@/hooks';
+
+const formatTime = (milliseconds: number) => {
+  const seconds = Math.floor(milliseconds / 1000);
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 interface VoiceMessagePlayerProps {
   audioUrl: string;
@@ -44,13 +52,6 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
     };
   }, [isPlaying]);
 
-  const formatTime = (milliseconds: number) => {
-    const seconds = Math.floor(milliseconds / 1000);
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const handlePlayPause = async () => {
     ReactNativeHapticFeedback.trigger('impactLight');
     setIsLoading(true);
@@ -64,7 +65,7 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
         // Play
         if (currentPosition === 0) {
           // Start from beginning
-          Sound.addPlayBackListener((e) => {
+          Sound.addPlayBackListener(e => {
             setCurrentPosition(e.currentPosition);
             setDuration(e.duration);
           });
@@ -108,16 +109,20 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
+      <PressableOpacity
         onPress={handlePlayPause}
         style={styles.playButton}
         disabled={isLoading}>
         {isLoading ? (
           <ActivityIndicator color={theme.colors.white} size="small" />
         ) : (
-          <Icon name={isPlaying ? 'pause' : 'play-arrow'} size={24} color={theme.colors.white} />
+          <Icon
+            name={isPlaying ? 'pause' : 'play-arrow'}
+            size={24}
+            color={theme.colors.white}
+          />
         )}
-      </TouchableOpacity>
+      </PressableOpacity>
 
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
@@ -129,9 +134,9 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
       </View>
 
       {isPlaying && (
-        <TouchableOpacity onPress={handleStop} style={styles.stopButton}>
+        <PressableOpacity onPress={handleStop} style={styles.stopButton}>
           <Icon name="stop" size={20} color={theme.colors.error} />
-        </TouchableOpacity>
+        </PressableOpacity>
       )}
     </View>
   );

@@ -64,7 +64,7 @@ jobs:
       - name: Enforce React Doctor score
         env:
           REACT_DOCTOR_SCORE: ${{ steps.react-doctor.outputs.score }}
-          REACT_DOCTOR_MIN_SCORE: '70'
+          REACT_DOCTOR_MIN_SCORE: '95'
         run: |
           if [ -z "$REACT_DOCTOR_SCORE" ]; then
             echo "::warning::React Doctor did not return a score (scoring service unavailable); skipping the score gate. Blocking diagnostics are still enforced via 'blocking: error'."

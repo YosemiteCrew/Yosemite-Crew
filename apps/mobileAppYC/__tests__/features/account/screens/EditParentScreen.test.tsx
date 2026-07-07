@@ -141,22 +141,34 @@ jest.mock('@/shared/components/common/LiquidGlassCard/LiquidGlassCard', () => {
   };
 });
 
-jest.mock('@/shared/components/common/FormRowComponents', () => {
-  const {View: MockView, Text: MockText} = require('react-native');
+jest.mock('@/shared/components/common/Separator', () => {
+  const {View: MockView} = require('react-native');
   return {
     Separator: jest.fn(() => <MockView testID="mock-separator" />),
+  };
+});
+
+jest.mock('@/shared/components/common/RowButton', () => {
+  const {View: MockView, Text: MockText} = require('react-native');
+  return {
     RowButton: jest.fn((props: any) => (
       <MockView
         testID={`mock-row-${props.label}`}
         {...props}
         onPress={props.onPress}>
-                <MockText>{props.label}</MockText>
+        <MockText>{props.label}</MockText>
         <MockText>{props.value}</MockText>
       </MockView>
     )),
+  };
+});
+
+jest.mock('@/shared/components/common/ReadOnlyRow', () => {
+  const {View: MockView, Text: MockText} = require('react-native');
+  return {
     ReadOnlyRow: jest.fn((props: any) => (
       <MockView testID={`mock-row-${props.label}`} {...props}>
-                <MockText>{props.label}</MockText>
+        <MockText>{props.label}</MockText>
         <MockText>{props.value}</MockText>
       </MockView>
     )),
@@ -254,14 +266,16 @@ jest.mock(
                 onPress={() => onDateChange(null)}
               />
               <MockView testID="mock-date-picker-dismiss" onPress={onDismiss} />
-                 
             </MockView>
           ) : null,
       ),
-      formatDateForDisplay: jest.fn(date => date?.toLocaleDateString('en-US')),
     };
   },
 );
+
+jest.mock('@/shared/components/common/SimpleDatePicker/dateTimeFormat', () => ({
+  formatDateForDisplay: jest.fn(date => date?.toLocaleDateString('en-US')),
+}));
 // --- END UPDATED MOCK ---
 
 // Image Picker

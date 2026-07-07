@@ -1,5 +1,5 @@
-import React, {useMemo} from 'react';
-import {View, Text, ScrollView} from 'react-native';
+import React, {useCallback, useMemo} from 'react';
+import {View, Text, FlatList} from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {SafeArea} from '@/shared/components/common';
@@ -9,7 +9,10 @@ import {SubcategoryAccordion} from '@/shared/components/common/SubcategoryAccord
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
-import {DOCUMENT_CATEGORIES, SUBCATEGORY_ICONS} from '@/features/documents/constants';
+import {
+  DOCUMENT_CATEGORIES,
+  SUBCATEGORY_ICONS,
+} from '@/features/documents/constants';
 import {Images} from '@/assets/images';
 import {setSelectedCompanion} from '@/features/companion';
 import {formatLabel} from '@/shared/utils/helpers';
@@ -21,11 +24,16 @@ import {useDocumentCompanionSync} from '@/features/documents/hooks/useDocumentCo
 import {useDocumentNavigation} from '@/features/documents/hooks/useDocumentNavigation';
 import {DocumentCompanionSelector} from '@/features/documents/components/DocumentCompanionSelector';
 
-type CategoryDetailNavigationProp = NativeStackNavigationProp<DocumentStackParamList>;
-type CategoryDetailRouteProp = RouteProp<DocumentStackParamList, 'CategoryDetail'>;
+type CategoryDetailNavigationProp =
+  NativeStackNavigationProp<DocumentStackParamList>;
+type CategoryDetailRouteProp = RouteProp<
+  DocumentStackParamList,
+  'CategoryDetail'
+>;
 
 export const CategoryDetailScreen: React.FC = () => {
-  const {theme, dispatch, companions, selectedCompanionId} = useCompanionFormScreen();
+  const {theme, dispatch, companions, selectedCompanionId} =
+    useCompanionFormScreen();
   const styles = useCommonScreenStyles(theme, themeArg => ({
     contentContainer: {
       paddingHorizontal: themeArg.spacing['6'],
@@ -40,14 +48,17 @@ export const CategoryDetailScreen: React.FC = () => {
   const {categoryId} = route.params;
   const category = DOCUMENT_CATEGORIES.find(c => c.id === categoryId);
 
-  const documents = useSelector((state: RootState) => state.documents.documents);
+  const documents = useSelector(
+    (state: RootState) => state.documents.documents,
+  );
 
   // Filter documents by category and companion
   const categoryDocuments = useMemo(() => {
     return documents.filter(
       doc =>
         doc.category === categoryId &&
-        (selectedCompanionId === null || doc.companionId === selectedCompanionId),
+        (selectedCompanionId === null ||
+          doc.companionId === selectedCompanionId),
     );
   }, [documents, categoryId, selectedCompanionId]);
 
@@ -76,20 +87,71 @@ export const CategoryDetailScreen: React.FC = () => {
 
   const subcategoriesToRender = useMemo(() => {
     const existing = category?.subcategories ?? [];
-    const extras = Object.keys(documentsBySubcategory)
-      .filter(id => !existing.some(sub => sub.id === id))
-      .map(id => ({
-        id,
-        label: formatLabel(id, 'Other'),
-        fileCount: 0,
-      }));
+    const extras = Object.keys(documentsBySubcategory).flatMap(id =>
+      !existing.some(sub => sub.id === id)
+        ? [
+            {
+              id,
+              label: formatLabel(id, 'Other'),
+              fileCount: 0,
+            },
+          ]
+        : [],
+    );
     return [...existing, ...extras];
   }, [category?.subcategories, documentsBySubcategory]);
+
+  const renderSubcategory = useCallback(
+    (renderItemInfo: {item: (typeof subcategoriesToRender)[number]}) => {
+      const {item: subcategory} = renderItemInfo;
+      const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
+      const subcategoryIcon =
+        SUBCATEGORY_ICONS[subcategory.id] || category?.icon;
+      const subcategorySuffix = subcategoryDocs.length === 1 ? '' : 's';
+
+      return (
+        <SubcategoryAccordion
+          title={subcategory.label}
+          subtitle={`${subcategoryDocs.length} file${subcategorySuffix}`}
+          icon={subcategoryIcon}
+          defaultExpanded={false}
+          containerStyle={styles.accordionItem}>
+          {subcategoryDocs.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No documents found</Text>
+            </View>
+          ) : (
+            subcategoryDocs.map(doc => (
+              <DocumentListItem
+                key={doc.id}
+                document={doc}
+                onPressView={handleViewDocument}
+                onPressEdit={handleEditDocument}
+              />
+            ))
+          )}
+        </SubcategoryAccordion>
+      );
+    },
+    [
+      category?.icon,
+      documentsBySubcategory,
+      handleEditDocument,
+      handleViewDocument,
+      styles.accordionItem,
+      styles.emptyContainer,
+      styles.emptyText,
+    ],
+  );
 
   if (!category) {
     return (
       <SafeArea>
-        <Header title="Category" showBackButton={true} onBack={() => navigation.goBack()} />
+        <Header
+          title="Category"
+          showBackButton={true}
+          onBack={() => navigation.goBack()}
+        />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Category not found</Text>
         </View>
@@ -114,47 +176,22 @@ export const CategoryDetailScreen: React.FC = () => {
       cardGap={theme.spacing['3']}
       contentPadding={theme.spacing['3']}>
       {contentPaddingStyle => (
-        <ScrollView
+        <FlatList
+          data={subcategoriesToRender}
+          keyExtractor={subcategory => subcategory.id}
+          renderItem={renderSubcategory}
           style={styles.container}
           contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
-          showsVerticalScrollIndicator={false}>
-          <DocumentCompanionSelector
-            companions={companions}
-            selectedCompanionId={selectedCompanionId}
-            onSelect={(id: string) => dispatch(setSelectedCompanion(id))}
-            containerStyle={styles.companionSelector}
-          />
-          {subcategoriesToRender.map(subcategory => {
-            const subcategoryDocs = documentsBySubcategory[subcategory.id] || [];
-            const subcategoryIcon = SUBCATEGORY_ICONS[subcategory.id] || category.icon;
-            const subcategorySuffix = subcategoryDocs.length === 1 ? '' : 's';
-
-            return (
-              <SubcategoryAccordion
-                key={subcategory.id}
-                title={subcategory.label}
-                subtitle={`${subcategoryDocs.length} file${subcategorySuffix}`}
-                icon={subcategoryIcon}
-                defaultExpanded={false}
-                containerStyle={styles.accordionItem}>
-                {subcategoryDocs.length === 0 ? (
-                  <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No documents found</Text>
-                  </View>
-                ) : (
-                  subcategoryDocs.map(doc => (
-                    <DocumentListItem
-                      key={doc.id}
-                      document={doc}
-                      onPressView={handleViewDocument}
-                      onPressEdit={handleEditDocument}
-                    />
-                  ))
-                )}
-              </SubcategoryAccordion>
-            );
-          })}
-        </ScrollView>
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <DocumentCompanionSelector
+              companions={companions}
+              selectedCompanionId={selectedCompanionId}
+              onSelect={(id: string) => dispatch(setSelectedCompanion(id))}
+              containerStyle={styles.companionSelector}
+            />
+          }
+        />
       )}
     </LiquidGlassHeaderScreen>
   );

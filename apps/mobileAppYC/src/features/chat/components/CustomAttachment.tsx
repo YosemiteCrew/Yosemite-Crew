@@ -9,13 +9,8 @@
  */
 
 import React from 'react';
-import {
-  View,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import {View, StyleSheet, Text, useWindowDimensions} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Attachment, useMessageContext} from 'stream-chat-react-native';
 import Video from 'react-native-video';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -23,13 +18,15 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {VoiceMessagePlayer} from './VoiceMessagePlayer';
 import {useTheme} from '@/hooks';
 
-const {width: SCREEN_WIDTH} = Dimensions.get('window');
-const MAX_WIDTH = SCREEN_WIDTH * 0.7;
-
 export const CustomAttachment: React.FC = () => {
   const {message} = useMessageContext();
   const {theme} = useTheme();
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const {width: screenWidth} = useWindowDimensions();
+  const maxWidth = screenWidth * 0.7;
+  const styles = React.useMemo(
+    () => createStyles(theme, maxWidth),
+    [theme, maxWidth],
+  );
   const [videoPaused, setVideoPaused] = React.useState(true);
 
   if (!message.attachments || message.attachments.length === 0) {
@@ -58,7 +55,7 @@ export const CustomAttachment: React.FC = () => {
   // Handle video attachments
   if (attachmentType === 'video' && attachment.asset_url) {
     return (
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.videoContainer}
         onPress={() => {
           ReactNativeHapticFeedback.trigger('impactLight');
@@ -84,7 +81,7 @@ export const CustomAttachment: React.FC = () => {
           <Icon name="videocam" size={16} color={theme.colors.white} />
           <Text style={styles.videoText}>{attachment.title || 'Video'}</Text>
         </View>
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   }
 
@@ -97,7 +94,7 @@ export const CustomAttachment: React.FC = () => {
         : undefined;
 
     return (
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.fileContainer}
         onPress={() => {
           ReactNativeHapticFeedback.trigger('impactLight');
@@ -117,7 +114,7 @@ export const CustomAttachment: React.FC = () => {
           {fileSize ? <Text style={styles.fileSize}>{fileSize}</Text> : null}
         </View>
         <Icon name="download" size={24} color={theme.colors.primary} />
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   }
 
@@ -125,14 +122,14 @@ export const CustomAttachment: React.FC = () => {
   return <Attachment attachment={attachment} />;
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, maxWidth: number) =>
   StyleSheet.create({
     audioContainer: {
       marginVertical: theme.spacing['1'],
     },
     videoContainer: {
-      width: MAX_WIDTH,
-      height: MAX_WIDTH * 0.75,
+      width: maxWidth,
+      height: maxWidth * 0.75,
       borderRadius: theme.borderRadius.md,
       overflow: 'hidden',
       backgroundColor: theme.colors.black,
@@ -179,7 +176,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.cardBackground,
       borderRadius: theme.borderRadius.md,
       gap: theme.spacing['3'],
-      maxWidth: MAX_WIDTH,
+      maxWidth,
     },
     fileIcon: {
       width: theme.spacing['12'],

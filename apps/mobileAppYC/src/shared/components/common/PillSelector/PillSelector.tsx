@@ -2,12 +2,12 @@ import React from 'react';
 import {
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
   ViewStyle,
   Text,
   View,
   FlatList,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 
 export interface PillOption {
@@ -38,7 +38,10 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
   autoScroll = false,
 }) => {
   const {theme} = useTheme();
-  const styles = React.useMemo(() => createStyles(theme, pillSpacing), [theme, pillSpacing]);
+  const styles = React.useMemo(
+    () => createStyles(theme, pillSpacing),
+    [theme, pillSpacing],
+  );
   const scrollViewRef = React.useRef<ScrollView>(null);
   const flatListRef = React.useRef<FlatList>(null);
 
@@ -91,7 +94,7 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
     (option: PillOption) => {
       const isSelected = selectedId === option.id;
       return (
-        <TouchableOpacity
+        <PressableOpacity
           key={option.id}
           style={[styles.pill, isSelected && styles.pillActive]}
           onPress={() => onSelect(option.id)}
@@ -104,7 +107,7 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
               <Text style={styles.badgeText}>{option.badgeCount}</Text>
             </View>
           )}
-        </TouchableOpacity>
+        </PressableOpacity>
       );
     },
     [
@@ -152,7 +155,7 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, contentStyle]}
         style={[styles.container, containerStyle]}>
-        {options.map(renderOption)}
+        <View style={styles.scrollRow}>{options.map(renderOption)}</View>
       </ScrollView>
     );
   }
@@ -172,6 +175,10 @@ const createStyles = (theme: any, pillSpacing?: number) =>
     scrollContent: {
       gap: pillSpacing ?? theme.spacing['2'],
       paddingRight: theme.spacing['2'],
+    },
+    scrollRow: {
+      flexDirection: 'row',
+      gap: pillSpacing ?? theme.spacing['2'],
     },
     staticContainer: {
       flexDirection: 'row',
@@ -193,16 +200,16 @@ const createStyles = (theme: any, pillSpacing?: number) =>
       minHeight: 40,
     },
     pillActive: {
-  backgroundColor: theme.colors.lightBlueBackground,
-  borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.lightBlueBackground,
+      borderColor: theme.colors.primary,
     },
     pillText: {
       ...theme.typography.pillSubtitleBold15,
-  color: theme.colors.text,
+      color: theme.colors.text,
       textAlign: 'center',
     },
     pillTextActive: {
-  color: theme.colors.primary,
+      color: theme.colors.primary,
     },
     badge: {
       minWidth: 20,

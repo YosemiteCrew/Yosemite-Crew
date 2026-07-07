@@ -183,7 +183,6 @@ export const AddTaskScreen: React.FC = () => {
     taskTypeSelection,
     isMedicationForm,
     isObservationalToolForm,
-    isSimpleForm,
     handleTaskTypeSelect,
     handleCompanionSelect,
     handleBack,
@@ -197,6 +196,18 @@ export const AddTaskScreen: React.FC = () => {
     openSheet,
     openTaskSheet,
   } = hookData;
+  const taskFormMode = useMemo(():
+    | 'medication'
+    | 'observationalTool'
+    | 'simple' => {
+    if (isMedicationForm) {
+      return 'medication';
+    }
+    if (isObservationalToolForm) {
+      return 'observationalTool';
+    }
+    return 'simple';
+  }, [isMedicationForm, isObservationalToolForm]);
 
   // Pre-fill form when reusing a task (only once)
   useEffect(() => {
@@ -369,14 +380,11 @@ export const AddTaskScreen: React.FC = () => {
                 errors={errors}
                 theme={theme}
                 updateField={updateField}
-                isMedicationForm={isMedicationForm}
-                isObservationalToolForm={isObservationalToolForm}
-                isSimpleForm={isSimpleForm}
+                taskFormMode={taskFormMode}
                 reminderOptions={REMINDER_OPTIONS}
                 styles={styles}
                 taskTypeSelection={taskTypeSelection}
-                showTaskTypeSelector
-                taskTypeSelectorProps={{
+                taskTypeSelector={{
                   onPress: () => {
                     openTaskSheet('task-type');
                     taskTypeSheetRef.current?.open();

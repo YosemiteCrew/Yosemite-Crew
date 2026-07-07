@@ -128,11 +128,15 @@ describe('IconInfoTile Component', () => {
       <IconInfoTile {...defaultProps} containerStyle={customStyle} />,
     );
 
-    const {TouchableOpacity} = require('react-native');
-    const touchable = UNSAFE_getByType(TouchableOpacity);
+    // The container now renders react-native's Pressable (via
+    // PressableOpacity), which is wrapped in React.memo, so match against
+    // the memoized inner component. Its style prop is a function of press
+    // state, so it must be invoked before flattening.
+    const {Pressable} = require('react-native');
+    const touchable = UNSAFE_getByType((Pressable as any).type);
 
     // Flatten styles to verify containment
-    const flattened = [touchable.props.style].flat();
+    const flattened = [touchable.props.style({pressed: false})].flat(Infinity);
     expect(flattened).toEqual(
       expect.arrayContaining([expect.objectContaining(customStyle)]),
     );

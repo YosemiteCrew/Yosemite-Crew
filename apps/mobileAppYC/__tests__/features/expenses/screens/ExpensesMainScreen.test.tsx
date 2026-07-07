@@ -94,19 +94,22 @@ jest.mock('@/features/expenses/components', () => {
     ExpenseCard: (props: any) => (
       <RN.View data-testid="expense-card">
         <RN.TouchableOpacity testID="view-button" onPress={props.onPressView} />
-        {props.showEditAction && props.onPressEdit && (
+        {props.editAction === 'visible' && props.onPressEdit && (
           <RN.TouchableOpacity
             testID="edit-button"
             onPress={props.onPressEdit}
           />
         )}
-        {props.showPayButton && props.onPressPay && (
-          <RN.TouchableOpacity testID="pay-button" onPress={props.onPressPay} />
+        {props.payment?.status === 'unpaid' && props.payment.cta && (
+          <RN.TouchableOpacity
+            testID="pay-button"
+            onPress={props.payment.cta.onPress}
+          />
         )}
-        {props.isPaid && props.onTogglePaidStatus && (
+        {props.payment?.status === 'paid' && props.payment.onToggleStatus && (
           <RN.TouchableOpacity
             testID="toggle-paid-button"
-            onPress={props.onTogglePaidStatus}
+            onPress={props.payment.onToggleStatus}
           />
         )}
       </RN.View>

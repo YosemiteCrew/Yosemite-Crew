@@ -3,7 +3,7 @@ import {render, screen, fireEvent, within} from '@testing-library/react-native';
 // FIX 1: Update component import path
 import {MedicationFormSection} from '@/features/tasks/components/MedicationFormSection/MedicationFormSection';
 // FIX 2: Update helper import path
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 
 import type {
   TaskFormData,
@@ -77,22 +77,22 @@ jest.mock('@/shared/components/common', () => {
 });
 
 // FIX 4: Update mocked component path
-jest.mock(
-  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
-  () => ({
-    formatDateForDisplay: jest.fn((date: Date | null): string => {
-      if (!date) return '';
-      const year = date.getFullYear();
-      const month = (date.getMonth() + 1).toString().padStart(2, '0');
-      const day = date.getDate().toString().padStart(2, '0');
-      return `Formatted: ${year}-${month}-${day}`;
-    }),
+jest.mock('@/shared/components/common/SimpleDatePicker/dateTimeFormat', () => ({
+  formatDateForDisplay: jest.fn((date: Date | null): string => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `Formatted: ${year}-${month}-${day}`;
   }),
-);
+}));
 
 // Mock hooks to prevent Redux context errors
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useTheme: () => ({
+    theme: require('../../setup/mockTheme').mockTheme,
+    isDark: false,
+  }),
   useAppDispatch: () => jest.fn(),
   useAppSelector: jest.fn(),
 }));
@@ -129,8 +129,6 @@ jest.mock('react-native/Libraries/Image/Image', () => {
   MockImage.displayName = 'Image';
   return MockImage;
 });
-
-
 
 const baseFormData: TaskFormData = {
   title: 'Give Medication',

@@ -1,7 +1,10 @@
 // src/components/common/BreedBottomSheet/BreedBottomSheet.tsx
-import React, { forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
-import { GenericSelectBottomSheet, type SelectItem } from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
-import type { Breed } from '@/features/companion/types';
+import React, {useImperativeHandle, useRef, useMemo} from 'react';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import type {Breed} from '@/features/companion/types';
 
 export interface BreedBottomSheetRef {
   open: () => void;
@@ -14,27 +17,31 @@ interface BreedBottomSheetProps {
   onSave: (breed: Breed | null) => void;
 }
 
-export const BreedBottomSheet = forwardRef<
-  BreedBottomSheetRef,
-  BreedBottomSheetProps
->(({ breeds, selectedBreed, onSave }, ref) => {
+export const BreedBottomSheet = ({
+  breeds,
+  selectedBreed,
+  onSave,
+  ref,
+}: BreedBottomSheetProps & {ref?: React.Ref<BreedBottomSheetRef>}) => {
   const bottomSheetRef = useRef<any>(null);
 
-
-
-  const breedItems: SelectItem[] = useMemo(() =>
-    breeds.map(breed => ({
-      id: breed.breedId.toString(),
-      label: breed.breedName,
-      ...breed,
-    })), [breeds]
+  const breedItems: SelectItem[] = useMemo(
+    () =>
+      breeds.map(breed => ({
+        id: breed.breedId.toString(),
+        label: breed.breedName,
+        ...breed,
+      })),
+    [breeds],
   );
 
-  const selectedItem = selectedBreed ? {
-    id: selectedBreed.breedId.toString(),
-    label: selectedBreed.breedName,
-    ...selectedBreed,
-  } : null;
+  const selectedItem = selectedBreed
+    ? {
+        id: selectedBreed.breedId.toString(),
+        label: selectedBreed.breedName,
+        ...selectedBreed,
+      }
+    : null;
 
   useImperativeHandle(ref, () => ({
     open: () => {
@@ -46,7 +53,9 @@ export const BreedBottomSheet = forwardRef<
   }));
 
   const handleSave = (item: SelectItem | null) => {
-    const breed = item ? breeds.find(b => b.breedId.toString() === item.id) || null : null;
+    const breed = item
+      ? breeds.find(b => b.breedId.toString() === item.id) || null
+      : null;
     onSave(breed);
   };
 
@@ -61,9 +70,9 @@ export const BreedBottomSheet = forwardRef<
       emptyMessage="No breeds available"
       mode="select"
       maxListHeight={600}
-      snapPoints={['90%','95%']}
+      snapPoints={['90%', '95%']}
     />
   );
-});
+};
 
 BreedBottomSheet.displayName = 'BreedBottomSheet';

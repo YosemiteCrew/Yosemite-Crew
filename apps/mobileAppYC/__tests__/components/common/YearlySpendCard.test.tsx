@@ -2,7 +2,11 @@ import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {YearlySpendCard} from '../../../src/shared/components/common/YearlySpendCard/YearlySpendCard';
-import {Image, TouchableOpacity} from 'react-native';
+import {Image, Pressable} from 'react-native';
+
+// react-native's Pressable is wrapped in React.memo; UNSAFE_getByType must
+// match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 
 // --- Mocks ---
 
@@ -142,7 +146,7 @@ describe('YearlySpendCard Component', () => {
       <YearlySpendCard onPressView={mockOnPressView} />,
     );
 
-    const touchable = UNSAFE_getByType(TouchableOpacity);
+    const touchable = UNSAFE_getByType(PressableType);
     fireEvent.press(touchable);
     expect(mockOnPressView).toHaveBeenCalledTimes(1);
   });
