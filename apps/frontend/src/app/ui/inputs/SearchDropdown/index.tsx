@@ -71,13 +71,23 @@ const SearchDropdown = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open]);
 
-  useEffect(() => {
+  const [activeIndexDeps, setActiveIndexDeps] = useState({
+    filtered,
+    open,
+    queryLength: query.length,
+  });
+  if (
+    filtered !== activeIndexDeps.filtered ||
+    open !== activeIndexDeps.open ||
+    query.length !== activeIndexDeps.queryLength
+  ) {
+    setActiveIndexDeps({ filtered, open, queryLength: query.length });
     if (!open || filtered.length === 0 || query.length < minChars) {
       setActiveIndex(-1);
-      return;
+    } else if (activeIndex < 0 || activeIndex >= filtered.length) {
+      setActiveIndex(0);
     }
-    setActiveIndex((current) => (current >= 0 && current < filtered.length ? current : 0));
-  }, [filtered, minChars, open, query.length]);
+  }
 
   const activeOptionId =
     activeIndex >= 0 && activeIndex < filtered.length

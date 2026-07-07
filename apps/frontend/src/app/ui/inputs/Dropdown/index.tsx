@@ -32,11 +32,21 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
       ? `${listboxId}-option-${options[activeIndex].key}`
       : undefined;
 
-  useEffect(() => {
-    if (!defaultOption) return;
-    const found = options.find((option) => option.key === defaultOption);
-    if (found) setSelected(found);
-  }, [defaultOption, options]);
+  const [prevDefaultDeps, setPrevDefaultDeps] = useState<{
+    defaultOption?: string;
+    options: Option[];
+  } | null>(null);
+  if (
+    prevDefaultDeps === null ||
+    defaultOption !== prevDefaultDeps.defaultOption ||
+    options !== prevDefaultDeps.options
+  ) {
+    setPrevDefaultDeps({ defaultOption, options });
+    if (defaultOption) {
+      const found = options.find((option) => option.key === defaultOption);
+      if (found) setSelected(found);
+    }
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -50,17 +60,24 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
     };
   }, []);
 
-  useEffect(() => {
+  const [activeIndexDeps, setActiveIndexDeps] = useState({
+    options,
+    open,
+    selectedKey: selected?.key,
+  });
+  if (
+    options !== activeIndexDeps.options ||
+    open !== activeIndexDeps.open ||
+    selected?.key !== activeIndexDeps.selectedKey
+  ) {
+    setActiveIndexDeps({ options, open, selectedKey: selected?.key });
     if (!open || options.length === 0) {
       setActiveIndex(-1);
-      return;
-    }
-    setActiveIndex((current) => {
-      if (current >= 0 && current < options.length) return current;
+    } else if (activeIndex < 0 || activeIndex >= options.length) {
       const selectedIndex = options.findIndex((option) => option.key === selected?.key);
-      return Math.max(selectedIndex, 0);
-    });
-  }, [open, options, selected?.key]);
+      setActiveIndex(Math.max(selectedIndex, 0));
+    }
+  }
 
   useEffect(() => {
     if (!open || !activeOptionId) return;

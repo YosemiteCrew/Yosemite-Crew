@@ -143,17 +143,24 @@ const LabelDropdown = ({
     };
   }, [closeDropdown, open, portal]);
 
-  useEffect(() => {
+  const [activeIndexDeps, setActiveIndexDeps] = useState({
+    filteredOptions,
+    open,
+    selectedValue: selected?.value,
+  });
+  if (
+    filteredOptions !== activeIndexDeps.filteredOptions ||
+    open !== activeIndexDeps.open ||
+    selected?.value !== activeIndexDeps.selectedValue
+  ) {
+    setActiveIndexDeps({ filteredOptions, open, selectedValue: selected?.value });
     if (!open || filteredOptions.length === 0) {
       setActiveIndex(-1);
-      return;
-    }
-    setActiveIndex((current) => {
-      if (current >= 0 && current < filteredOptions.length) return current;
+    } else if (activeIndex < 0 || activeIndex >= filteredOptions.length) {
       const selectedIndex = filteredOptions.findIndex((option) => option.value === selected?.value);
-      return Math.max(selectedIndex, 0);
-    });
-  }, [filteredOptions, open, selected?.value]);
+      setActiveIndex(Math.max(selectedIndex, 0));
+    }
+  }
 
   useEffect(() => {
     if (!open || !activeOptionId) return;

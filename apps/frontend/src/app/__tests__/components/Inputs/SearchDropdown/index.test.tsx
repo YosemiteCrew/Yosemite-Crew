@@ -81,6 +81,95 @@ describe('SearchDropdown', () => {
     expect(screen.getByTestId('icon-warning')).toBeInTheDocument();
   });
 
+  it('supports home, escape, and loading-more states', () => {
+    const setQuery = jest.fn();
+    const onSelect = jest.fn();
+    const onReachEnd = jest.fn();
+
+    render(
+      <SearchDropdown
+        options={[
+          { value: 'buddy', label: 'Buddy' },
+          { value: 'bella', label: 'Bella' },
+        ]}
+        onSelect={onSelect}
+        placeholder="Search"
+        query="b"
+        setQuery={setQuery}
+        minChars={1}
+        onReachEnd={onReachEnd}
+        hasMore={true}
+        isLoadingMore={true}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Search');
+    fireEvent.focus(input);
+    fireEvent.keyDown(input, { key: 'Home' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith('buddy');
+
+    fireEvent.focus(input);
+    expect(screen.getByText('Loading more results…')).toBeInTheDocument();
+    fireEvent.scroll(screen.getByRole('button', { name: 'Buddy' }).parentElement!);
+    expect(onReachEnd).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByText('Buddy')).not.toBeInTheDocument();
+  });
+
+  it('requests more results when scrolling near the bottom', () => {
+    const onReachEnd = jest.fn();
+
+    render(
+      <SearchDropdown
+        options={[
+          { value: 'buddy', label: 'Buddy' },
+          { value: 'bella', label: 'Bella' },
+        ]}
+        onSelect={jest.fn()}
+        placeholder="Search"
+        query="b"
+        setQuery={jest.fn()}
+        minChars={1}
+        onReachEnd={onReachEnd}
+        hasMore={true}
+      />
+    );
+
+    const input = screen.getByPlaceholderText('Search');
+    fireEvent.focus(input);
+    const panel = screen.getByRole('button', { name: 'Buddy' }).parentElement as HTMLDivElement;
+    Object.defineProperty(panel, 'scrollHeight', { configurable: true, value: 200 });
+    Object.defineProperty(panel, 'scrollTop', { configurable: true, value: 80, writable: true });
+    Object.defineProperty(panel, 'clientHeight', { configurable: true, value: 100 });
+
+    fireEvent.scroll(panel);
+
+    expect(onReachEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the error after a selection has been made', () => {
+    const onSelect = jest.fn();
+    render(
+      <SearchDropdown
+        options={[{ value: 'buddy', label: 'Buddy' }]}
+        onSelect={onSelect}
+        placeholder="Search"
+        query="b"
+        setQuery={jest.fn()}
+        minChars={1}
+        error="Required"
+      />
+    );
+
+    fireEvent.focus(screen.getByPlaceholderText('Search'));
+    fireEvent.click(screen.getByText('Buddy'));
+
+    expect(onSelect).toHaveBeenCalledWith('buddy');
+    expect(screen.queryByText('Required')).not.toBeInTheDocument();
+  });
+
   it('has no axe accessibility violations', async () => {
     const { container } = render(<Wrapper onSelect={jest.fn()} />);
 

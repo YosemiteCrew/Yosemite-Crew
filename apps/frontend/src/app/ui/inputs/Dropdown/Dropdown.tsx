@@ -186,17 +186,20 @@ const Dropdown = ({
   const isActive = open || !!value;
   const selected = list.find((opt: any) => opt.value === value);
 
-  useEffect(() => {
+  const [activeIndexDeps, setActiveIndexDeps] = useState({ filteredList, open, value });
+  if (
+    filteredList !== activeIndexDeps.filteredList ||
+    open !== activeIndexDeps.open ||
+    value !== activeIndexDeps.value
+  ) {
+    setActiveIndexDeps({ filteredList, open, value });
     if (!open || filteredList.length === 0) {
       setActiveIndex(-1);
-      return;
-    }
-    setActiveIndex((current) => {
-      if (current >= 0 && current < filteredList.length) return current;
+    } else if (activeIndex < 0 || activeIndex >= filteredList.length) {
       const selectedIndex = filteredList.findIndex((option: any) => option.value === value);
-      return Math.max(selectedIndex, 0);
-    });
-  }, [filteredList, open, value]);
+      setActiveIndex(Math.max(selectedIndex, 0));
+    }
+  }
 
   useEffect(() => {
     if (!open || !activeOptionId) return;
