@@ -4,6 +4,7 @@ import {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   type CSSProperties,
@@ -90,6 +91,78 @@ type AddAppointmentCentralModalProps = {
 };
 
 type NotifyChannel = 'app' | 'sms' | 'email';
+
+type ModalUiState = {
+  submitAttempted: boolean;
+  addCompanionTarget: 'patient' | 'client' | null;
+  showDiscardConfirm: boolean;
+  isLoadingTimeSlots: boolean;
+  pendingAutoSelectCompanionId: string | null;
+  patientQuery: string;
+  clientQuery: string;
+  selectedClientId: string | null;
+  notifyChannels: Set<NotifyChannel>;
+  prefillDismissed: boolean;
+};
+
+type ModalUiAction =
+  | { type: 'reset' }
+  | { type: 'setSubmitAttempted'; value: boolean }
+  | { type: 'setAddCompanionTarget'; value: ModalUiState['addCompanionTarget'] }
+  | { type: 'setShowDiscardConfirm'; value: boolean }
+  | { type: 'setIsLoadingTimeSlots'; value: boolean }
+  | { type: 'setPendingAutoSelectCompanionId'; value: string | null }
+  | { type: 'setPatientQuery'; value: string }
+  | { type: 'setClientQuery'; value: string }
+  | { type: 'setSelectedClientId'; value: string | null }
+  | { type: 'toggleNotify'; value: NotifyChannel }
+  | { type: 'dismissPrefill' };
+
+const createInitialModalUiState = (): ModalUiState => ({
+  submitAttempted: false,
+  addCompanionTarget: null,
+  showDiscardConfirm: false,
+  isLoadingTimeSlots: false,
+  pendingAutoSelectCompanionId: null,
+  patientQuery: '',
+  clientQuery: '',
+  selectedClientId: null,
+  notifyChannels: new Set(['app']),
+  prefillDismissed: false,
+});
+
+const modalUiReducer = (state: ModalUiState, action: ModalUiAction): ModalUiState => {
+  switch (action.type) {
+    case 'reset':
+      return createInitialModalUiState();
+    case 'setSubmitAttempted':
+      return { ...state, submitAttempted: action.value };
+    case 'setAddCompanionTarget':
+      return { ...state, addCompanionTarget: action.value };
+    case 'setShowDiscardConfirm':
+      return { ...state, showDiscardConfirm: action.value };
+    case 'setIsLoadingTimeSlots':
+      return { ...state, isLoadingTimeSlots: action.value };
+    case 'setPendingAutoSelectCompanionId':
+      return { ...state, pendingAutoSelectCompanionId: action.value };
+    case 'setPatientQuery':
+      return { ...state, patientQuery: action.value };
+    case 'setClientQuery':
+      return { ...state, clientQuery: action.value };
+    case 'setSelectedClientId':
+      return { ...state, selectedClientId: action.value };
+    case 'toggleNotify': {
+      const next = new Set(state.notifyChannels);
+      if (next.has(action.value)) next.delete(action.value);
+      else next.add(action.value);
+      return { ...state, notifyChannels: next };
+    }
+    case 'dismissPrefill':
+      return state.prefillDismissed ? state : { ...state, prefillDismissed: true };
+    default:
+      return state;
+  }
+};
 
 const NOTIFY_OPTIONS: Array<{ key: NotifyChannel; label: string }> = [
   { key: 'app', label: 'Notify via App' },
@@ -596,6 +669,353 @@ const getNoSlotsMessage = (hasService: boolean, hasSpeciality: boolean): string 
   return 'Select a speciality and service first';
 };
 
+type AppointmentFormContentProps = {
+  patientLabel: string;
+  selectedPatientName?: string;
+  selectedPatientPhoto?: string;
+  patientQuery: string;
+  setPatientQuery: (value: string) => void;
+  patientOptions: Array<{ value: string; label: string; photoUrl?: string }>;
+  handlePatientSelect: (id: string) => void;
+  handlePatientClear: () => void;
+  selectedClientName?: string;
+  clientQuery: string;
+  setClientQuery: (value: string) => void;
+  clientOptions: Array<{ value: string; label: string }>;
+  handleClientSelect: (id: string) => void;
+  handleClientClear: () => void;
+  setAddCompanionTarget: (target: 'patient' | 'client') => void;
+  selectedDate: Date | null;
+  handleDateChange: (date: SetStateAction<Date>) => void;
+  today: Date;
+  timeSlots: Slot[];
+  selectedSlot: Slot | null;
+  onSlotSelect: (slot: SetStateAction<Slot | null>) => void;
+  isLoadingTimeSlots: boolean;
+  isLoadingSlotScopedOptions: boolean;
+  hasService: boolean;
+  noSlotsMessage: string;
+  prefillTimeLabel: string | null;
+  durationDisplay: string | null;
+  visitType: string;
+  handleVisitTypeSelect: (opt: string | { label: string; value: string }) => void;
+  LeadOptions: Array<{ label: string; value: string }>;
+  formData: any;
+  formDataErrors: Record<string, string | undefined>;
+  handleLeadSelectWithReset: (option: { label: string; value: string }) => void;
+  leadEmptyStateMessage?: string;
+  supportOptions: Array<{ label: string; value: string }>;
+  handleSupportStaffChange: (options: string[]) => void;
+  SpecialitiesOptions: Array<{ label: string; value: string }>;
+  handleSpecialitySelect: (option: { label: string; value: string }) => void;
+  ServicesOptions: Array<{ label: string; value: string }>;
+  handleServiceSelect: (option: { label: string; value: string }) => void;
+  setFormData: Dispatch<SetStateAction<any>>;
+  ServiceInfoData: any;
+  submitAttempted: boolean;
+  showError: (field: string) => string | undefined;
+  toggleNotify: (key: NotifyChannel) => void;
+  notifyChannels: Set<NotifyChannel>;
+  handleSubmit: () => void;
+  isLoading: boolean;
+};
+
+const AppointmentFormContent = ({
+  patientLabel,
+  selectedPatientName,
+  selectedPatientPhoto,
+  patientQuery,
+  setPatientQuery,
+  patientOptions,
+  handlePatientSelect,
+  handlePatientClear,
+  selectedClientName,
+  clientQuery,
+  setClientQuery,
+  clientOptions,
+  handleClientSelect,
+  handleClientClear,
+  setAddCompanionTarget,
+  selectedDate,
+  handleDateChange,
+  today,
+  timeSlots,
+  selectedSlot,
+  onSlotSelect,
+  isLoadingTimeSlots,
+  isLoadingSlotScopedOptions,
+  hasService,
+  noSlotsMessage,
+  prefillTimeLabel,
+  durationDisplay,
+  visitType,
+  handleVisitTypeSelect,
+  LeadOptions,
+  formData,
+  formDataErrors,
+  handleLeadSelectWithReset,
+  leadEmptyStateMessage,
+  supportOptions,
+  handleSupportStaffChange,
+  SpecialitiesOptions,
+  handleSpecialitySelect,
+  ServicesOptions,
+  handleServiceSelect,
+  setFormData,
+  ServiceInfoData,
+  submitAttempted,
+  showError,
+  toggleNotify,
+  notifyChannels,
+  handleSubmit,
+  isLoading,
+}: AppointmentFormContentProps) => (
+  <div className="relative">
+    <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+      <div className="flex flex-col gap-4">
+        <PersonRow
+          fieldId="central-patient"
+          label={patientLabel}
+          icon={<IoPaw size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+          selectedName={selectedPatientName}
+          selectedPhotoUrl={selectedPatientPhoto}
+          query={patientQuery}
+          setQuery={setPatientQuery}
+          options={patientOptions}
+          onSelect={handlePatientSelect}
+          onClear={handlePatientClear}
+          onNew={() => setAddCompanionTarget('patient')}
+          error={showError('companionId')}
+        />
+
+        <PersonRow
+          fieldId="central-client"
+          label="Client"
+          icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+          selectedName={selectedClientName}
+          query={clientQuery}
+          setQuery={setClientQuery}
+          options={clientOptions}
+          onSelect={handleClientSelect}
+          onClear={handleClientClear}
+          onNew={() => setAddCompanionTarget('client')}
+        />
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex-1">
+            <Datepicker
+              currentDate={selectedDate}
+              setCurrentDate={handleDateChange}
+              placeholder="Date"
+              type="input"
+              portal
+              minDate={today}
+            />
+          </div>
+
+          <div className="flex-1">
+            <TimeSlotDropdown
+              timeSlots={timeSlots}
+              selectedSlot={selectedSlot}
+              setSelectedSlot={onSlotSelect}
+              isLoading={(isLoadingTimeSlots && hasService) || isLoadingSlotScopedOptions}
+              hasService={hasService}
+              noSlotsMessage={noSlotsMessage}
+              prefillLabel={prefillTimeLabel}
+              error={showError('slot') ?? showError('duration')}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex-1">
+            <SlotBadge label={durationDisplay} />
+          </div>
+          <div className="flex-1">
+            <LabelDropdown
+              placeholder="Type of Visit"
+              options={VISIT_TYPE_OPTIONS}
+              defaultOption={visitType}
+              onSelect={handleVisitTypeSelect}
+              searchable={false}
+              portal
+            />
+          </div>
+        </div>
+
+        <div>
+          <LabelDropdown
+            placeholder="Lead"
+            options={LeadOptions}
+            defaultOption={formData.lead?.id ?? ''}
+            onSelect={handleLeadSelectWithReset}
+            error={showError('leadId')}
+            searchable
+            portal
+            icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+            noOptionsMessage={leadEmptyStateMessage}
+          />
+        </div>
+
+        <MultiSelectDropdown
+          placeholder="Support"
+          options={supportOptions}
+          value={formData.supportStaff?.map((s: { id?: string }) => s.id ?? '') ?? []}
+          onChange={handleSupportStaffChange}
+          portal
+          icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+        />
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <LabelDropdown
+          placeholder="Speciality"
+          options={SpecialitiesOptions}
+          defaultOption={formData.appointmentType?.speciality?.id ?? ''}
+          onSelect={handleSpecialitySelect}
+          error={showError('specialityId')}
+          searchable
+          portal
+          icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+        />
+
+        <LabelDropdown
+          placeholder="Services / Packages"
+          options={ServicesOptions}
+          defaultOption={formData.appointmentType?.id ?? ''}
+          onSelect={handleServiceSelect}
+          error={showError('serviceId')}
+          searchable
+          portal
+          icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+        />
+
+        <FormDesc
+          intype="text"
+          inlabel="Chief Complaint"
+          value={formData.concern ?? ''}
+          onChange={(e) => setFormData((prev: any) => ({ ...prev, concern: e.target.value }))}
+          error={showError('concern')}
+          className="min-h-20"
+        />
+
+        <AppointmentEstimatePanel
+          cost={ServiceInfoData?.cost}
+          maxDiscount={ServiceInfoData?.maxDiscount}
+        />
+
+        <label className="mt-auto ml-auto flex cursor-pointer select-none items-center justify-end gap-2">
+          <input
+            type="checkbox"
+            aria-label="Mark appointment as emergency"
+            checked={formData.isEmergency ?? false}
+            onChange={(e) =>
+              setFormData((prev: any) => ({ ...prev, isEmergency: e.target.checked }))
+            }
+            className="size-4 shrink-0 cursor-pointer"
+          />
+          <span style={text14M}>Is this an Emergency?</span>
+        </label>
+      </div>
+    </div>
+
+    {submitAttempted && formDataErrors.booking && (
+      <div className="mt-4 flex items-center gap-2 rounded-2xl border border-input-border-error px-4 py-3">
+        <IoIosWarning className="shrink-0 text-text-error" size={16} aria-hidden="true" />
+        <span style={{ ...text14M, color: 'var(--color-text-error, #d32f2f)' }}>
+          {formDataErrors.booking}
+        </span>
+      </div>
+    )}
+
+    <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center gap-4">
+        {NOTIFY_OPTIONS.map(({ key, label }) => (
+          <label key={key} className="flex cursor-pointer select-none items-center gap-2">
+            <input
+              type="checkbox"
+              aria-label={`Notify by ${label}`}
+              checked={notifyChannels.has(key)}
+              onChange={() => toggleNotify(key)}
+              className="size-4 shrink-0 cursor-pointer"
+            />
+            <span style={text14M}>{label}</span>
+          </label>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={isLoading}
+        className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-[11px] whitespace-nowrap font-satoshi text-base font-medium leading-[1.5rem] text-white! disabled:cursor-not-allowed disabled:opacity-60"
+        onPointerDown={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
+          e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
+        }}
+        onPointerMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
+          e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
+        }}
+      >
+        + Add Appointment
+      </button>
+    </div>
+  </div>
+);
+
+const DiscardConfirmationModal = ({
+  showModal,
+  setShowModal,
+  onDiscard,
+}: {
+  showModal: boolean;
+  setShowModal: Dispatch<SetStateAction<boolean>>;
+  onDiscard: () => void;
+}) => (
+  <CenterModal
+    showModal={showModal}
+    setShowModal={setShowModal}
+    containerClassName="shadow-[0_0_40px_0_rgba(0,0,0,0.20)]!"
+  >
+    <div className="flex flex-col gap-4 p-2">
+      <h3 style={{ ...text14M, fontSize: 18 }}>Discard changes?</h3>
+      <p style={{ ...text14M, fontWeight: 400 }}>
+        You have unsaved changes. Are you sure you want to discard them?
+      </p>
+      <div className="flex justify-end gap-3">
+        <button
+          type="button"
+          onClick={() => setShowModal(false)}
+          className="rounded-2xl border border-input-border-default px-5 py-2.5 transition-colors hover:bg-card-hover active:bg-card-hover/80"
+          style={text14M}
+        >
+          Keep editing
+        </button>
+        <button
+          type="button"
+          onClick={onDiscard}
+          className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] text-white! disabled:cursor-not-allowed disabled:opacity-60"
+          onPointerDown={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
+            e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
+          }}
+          onPointerMove={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
+            e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
+          }}
+        >
+          Discard
+        </button>
+      </div>
+    </div>
+  </CenterModal>
+);
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 const AddAppointmentCentralModal = ({
@@ -609,24 +1029,10 @@ const AddAppointmentCentralModal = ({
 }: AddAppointmentCentralModalProps) => {
   const terminologyText = useCompanionTerminologyText();
   const companions = useCompanionsParentsForPrimaryOrg();
-
-  const [submitAttempted, setSubmitAttempted] = useState(false);
-  const [addCompanionTarget, setAddCompanionTarget] = useState<'patient' | 'client' | null>(null);
-  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  const [isLoadingTimeSlots, setIsLoadingTimeSlots] = useState(false);
-  const [pendingAutoSelectCompanionId, setPendingAutoSelectCompanionId] = useState<string | null>(
-    null
-  );
-  const [patientQuery, setPatientQuery] = useState('');
-  const [clientQuery, setClientQuery] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [uiState, dispatchUi] = useReducer(modalUiReducer, undefined, createInitialModalUiState);
   const [visitType, setVisitType] = useState('Outpatient');
-  const [notifyChannels, setNotifyChannels] = useState<Set<NotifyChannel>>(new Set(['app']));
-  // prefillActive: true while showing the locked prefill date/time/lead display
-  const [prefillActive, setPrefillActive] = useState(Boolean(prefill));
-  // calendarSlotFlowActive: kept false so services are NOT filtered by the clicked time slot.
-  // Date/time prefill still works via pendingPrefill — the slot-time auto-selects after service pick.
-  const [calendarSlotFlowActive, setCalendarSlotFlowActive] = useState(false);
+  const prefillActive = Boolean(prefill) && !uiState.prefillDismissed;
+  const calendarSlotFlowActive = false;
 
   const appointmentForm = useAppointmentForm({
     onSuccess: () => {
@@ -665,67 +1071,79 @@ const AddAppointmentCentralModal = ({
     resetForm,
     validateForm,
   } = appointmentForm;
+  const syncedVisitType = appointmentKindToVisitType(formData.appointmentKind);
+  if (visitType !== syncedVisitType) {
+    setVisitType(syncedVisitType);
+  }
+  const prevShowModalRef = useRef(showModal);
+  const prevPrefillKeyRef = useRef<string | null>(null);
+  const autoSelectKeyRef = useRef<string | null>(null);
 
   const hasUnsavedChanges = useMemo(
     () => hasUnsavedCentralChanges(formData, selectedSlot),
     [formData, selectedSlot]
   );
 
-  const showAddCompanionModal = Boolean(addCompanionTarget) && showModal;
+  const showAddCompanionModal = Boolean(uiState.addCompanionTarget) && showModal;
 
-  // ── Reset on close ───────────────────────────────────────────────────────────
   useLayoutEffect(() => {
-    if (!showModal) {
-      setSubmitAttempted(false);
-      setPatientQuery('');
-      setClientQuery('');
-      setSelectedClientId(null);
-      setVisitType('Outpatient');
-      setNotifyChannels(new Set(['app']));
-      setPendingAutoSelectCompanionId(null);
-      setPrefillActive(Boolean(prefill));
-      setCalendarSlotFlowActive(false);
+    if (!showModal && prevShowModalRef.current) {
+      dispatchUi({ type: 'reset' });
       resetForm();
-      onPrefillConsumed?.();
     }
-  }, [showModal, resetForm, onPrefillConsumed, prefill]);
+    prevShowModalRef.current = showModal;
+  }, [resetForm, showModal]);
 
-  useLayoutEffect(() => {
-    setPrefillActive(Boolean(prefill));
-    setCalendarSlotFlowActive(false);
-  }, [prefill]);
-
-  // ── Slot loading indicator (non-prefill flow only) ───────────────────────────
   const prevServiceIdRef = useRef<string | undefined>(undefined);
   useLayoutEffect(() => {
     const svcId = formData.appointmentType?.id;
     if (svcId !== prevServiceIdRef.current) {
       prevServiceIdRef.current = svcId;
-      if (svcId && !calendarSlotFlowActive) setIsLoadingTimeSlots(true);
+      if (svcId && !calendarSlotFlowActive) {
+        dispatchUi({ type: 'setIsLoadingTimeSlots', value: true });
+      }
     }
   }, [formData.appointmentType?.id, calendarSlotFlowActive]);
 
   useLayoutEffect(() => {
-    setIsLoadingTimeSlots(false);
+    dispatchUi({ type: 'setIsLoadingTimeSlots', value: false });
   }, [timeSlots]);
 
   useLayoutEffect(() => {
-    setVisitType(appointmentKindToVisitType(formData.appointmentKind));
-  }, [formData.appointmentKind]);
-
-  // ── Revalidate after submit attempt ─────────────────────────────────────────
-  useLayoutEffect(() => {
-    if (!submitAttempted) return;
+    if (!uiState.submitAttempted) return;
     const errors = validateForm(true);
     setFormDataErrors(errors);
-  }, [formData, selectedSlot, submitAttempted, setFormDataErrors, validateForm]);
+  }, [formData, selectedSlot, setFormDataErrors, uiState.submitAttempted, validateForm]);
 
-  // ── Options ──────────────────────────────────────────────────────────────────
+  const prefillForKey = prefill as
+    | (AppointmentDraftPrefill & { assignedTo?: string; startTime?: Date | string })
+    | null
+    | undefined;
+  const prefillKey = prefillForKey
+    ? JSON.stringify({
+        date:
+          prefillForKey.date instanceof Date
+            ? prefillForKey.date.toISOString()
+            : prefillForKey.date,
+        minuteOfDay: prefillForKey.minuteOfDay,
+        leadId: prefillForKey.leadId,
+        assignedTo: prefillForKey.assignedTo,
+        startTime:
+          prefillForKey.startTime instanceof Date
+            ? prefillForKey.startTime.toISOString()
+            : prefillForKey.startTime,
+      })
+    : null;
+  if (prefillKey !== prevPrefillKeyRef.current) {
+    prevPrefillKeyRef.current = prefillKey;
+    dispatchUi({ type: 'reset' });
+  }
+
   const patientOptions = useMemo(
     () =>
       companions.reduce<Array<{ value: string; label: string; photoUrl?: string }>>(
         (options, c) => {
-          if (selectedClientId && c.parent.id !== selectedClientId) return options;
+          if (uiState.selectedClientId && c.parent.id !== uiState.selectedClientId) return options;
           options.push({
             value: c.companion.id,
             label: formatCompanionNameWithOwnerLastName(c.companion.name, c.parent),
@@ -735,7 +1153,7 @@ const AddAppointmentCentralModal = ({
         },
         []
       ),
-    [companions, selectedClientId]
+    [companions, uiState.selectedClientId]
   );
 
   const clientOptions = useMemo(() => {
@@ -752,7 +1170,6 @@ const AddAppointmentCentralModal = ({
     return result;
   }, [companions]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
   const handlePatientSelect = useCallback(
     (id: string) => {
       const hit = companions.find((c) => c.companion.id === id);
@@ -770,34 +1187,45 @@ const AddAppointmentCentralModal = ({
           },
         },
       }));
-      setSelectedClientId(hit.parent.id);
-      if (submitAttempted) setFormDataErrors((prev) => ({ ...prev, companionId: undefined }));
+      dispatchUi({ type: 'setSelectedClientId', value: hit.parent.id });
+      if (uiState.submitAttempted)
+        setFormDataErrors((prev) => ({ ...prev, companionId: undefined }));
     },
-    [companions, setFormData, setFormDataErrors, submitAttempted]
+    [companions, setFormData, setFormDataErrors, uiState.submitAttempted]
   );
 
-  // ── Auto-select companion when opened from an external context (e.g. companions table) ──
-  // Runs once per (showModal, initialCompanionId) activation; if the companion isn't loaded
-  // yet, the `pendingAutoSelectCompanionId` effect below resolves it once `companions` arrives.
-  const [prevAutoSelectKey, setPrevAutoSelectKey] = useState<{
-    showModal: boolean;
-    initialCompanionId?: string | null;
-  } | null>(null);
-  if (
-    prevAutoSelectKey === null ||
-    showModal !== prevAutoSelectKey.showModal ||
-    initialCompanionId !== prevAutoSelectKey.initialCompanionId
-  ) {
-    setPrevAutoSelectKey({ showModal, initialCompanionId });
-    if (showModal && initialCompanionId) {
-      const found = companions.find((c) => c.companion.id === initialCompanionId);
+  const autoSelectKey = showModal ? (initialCompanionId ?? null) : null;
+  if (autoSelectKey !== autoSelectKeyRef.current) {
+    autoSelectKeyRef.current = autoSelectKey;
+    if (autoSelectKey) {
+      const found = companions.find((c) => c.companion.id === autoSelectKey);
       if (found) {
         handlePatientSelect(found.companion.id);
-        setPatientQuery(formatCompanionNameWithOwnerLastName(found.companion.name, found.parent));
+        dispatchUi({
+          type: 'setPatientQuery',
+          value: formatCompanionNameWithOwnerLastName(found.companion.name, found.parent),
+        });
       } else {
-        setPendingAutoSelectCompanionId(initialCompanionId);
+        dispatchUi({ type: 'setPendingAutoSelectCompanionId', value: autoSelectKey });
       }
+    } else if (!showModal) {
+      dispatchUi({ type: 'setPendingAutoSelectCompanionId', value: null });
     }
+  }
+
+  const pendingCompanion = uiState.pendingAutoSelectCompanionId
+    ? companions.find((c) => c.companion.id === uiState.pendingAutoSelectCompanionId)
+    : undefined;
+  if (showModal && pendingCompanion && uiState.pendingAutoSelectCompanionId) {
+    handlePatientSelect(pendingCompanion.companion.id);
+    dispatchUi({
+      type: 'setPatientQuery',
+      value: formatCompanionNameWithOwnerLastName(
+        pendingCompanion.companion.name,
+        pendingCompanion.parent
+      ),
+    });
+    dispatchUi({ type: 'setPendingAutoSelectCompanionId', value: null });
   }
 
   const handlePatientClear = useCallback(() => {
@@ -809,24 +1237,15 @@ const AddAppointmentCentralModal = ({
 
   const handleClientSelect = useCallback(
     (id: string) => {
-      setSelectedClientId(id);
+      dispatchUi({ type: 'setSelectedClientId', value: id });
       if (formData.companion.id && formData.companion.parent?.id !== id) handlePatientClear();
     },
     [formData.companion, handlePatientClear]
   );
 
   const handleClientClear = useCallback(() => {
-    setSelectedClientId(null);
+    dispatchUi({ type: 'setSelectedClientId', value: null });
   }, []);
-
-  useLayoutEffect(() => {
-    if (!showModal || !pendingAutoSelectCompanionId) return;
-    const found = companions.find((c) => c.companion.id === pendingAutoSelectCompanionId);
-    if (!found) return;
-    handlePatientSelect(found.companion.id);
-    setPatientQuery(formatCompanionNameWithOwnerLastName(found.companion.name, found.parent));
-    setPendingAutoSelectCompanionId(null);
-  }, [companions, handlePatientSelect, pendingAutoSelectCompanionId, showModal]);
 
   const supportOptions = useMemo(
     () => TeamOptions.filter((o) => o.value !== formData.lead?.id),
@@ -834,21 +1253,25 @@ const AddAppointmentCentralModal = ({
   );
 
   const canCloseModal = useCallback(() => {
-    // Never close the appointment modal while the add-companion sub-modal is open on top
     if (showAddCompanionModal) return false;
     if (isLoading) return false;
     if (!hasUnsavedChanges) return true;
-    setShowDiscardConfirm(true);
+    dispatchUi({ type: 'setShowDiscardConfirm', value: true });
     return false;
   }, [showAddCompanionModal, isLoading, hasUnsavedChanges]);
 
-  const handleDiscardAndClose = useCallback(() => {
-    setShowDiscardConfirm(false);
+  const closeModal = useCallback(() => {
     setShowModal(false);
-  }, [setShowModal]);
+    onPrefillConsumed?.();
+  }, [onPrefillConsumed, setShowModal]);
+
+  const handleDiscardAndClose = useCallback(() => {
+    dispatchUi({ type: 'setShowDiscardConfirm', value: false });
+    closeModal();
+  }, [closeModal]);
 
   const handleSubmit = async () => {
-    setSubmitAttempted(true);
+    dispatchUi({ type: 'setSubmitAttempted', value: true });
     const errors = validateForm(true);
     setFormDataErrors(errors);
     if (Object.values(errors).some(Boolean)) return;
@@ -858,25 +1281,16 @@ const AddAppointmentCentralModal = ({
   const handleAddCompanionClose = (value: SetStateAction<boolean>) => {
     const nextOpen = typeof value === 'function' ? value(showAddCompanionModal) : value;
     if (!nextOpen) {
-      setAddCompanionTarget(null);
+      dispatchUi({ type: 'setAddCompanionTarget', value: null });
       loadCompanionsForPrimaryOrg({ force: true, silent: true }).catch(() => undefined);
     }
   };
 
-  const toggleNotify = (key: NotifyChannel) => {
-    const next = new Set(notifyChannels);
-    if (next.has(key)) {
-      next.delete(key);
-    } else {
-      next.add(key);
-    }
-    setNotifyChannels(next);
-  };
+  const toggleNotify = (key: NotifyChannel) => dispatchUi({ type: 'toggleNotify', value: key });
 
   const handleVisitTypeSelect = useCallback(
     (opt: string | { label: string; value: string }) => {
       const nextVisitType = getDropdownValue(opt);
-      setVisitType(nextVisitType);
       setFormData((prev) => ({
         ...prev,
         appointmentKind: visitTypeToAppointmentKind(nextVisitType),
@@ -886,17 +1300,13 @@ const AddAppointmentCentralModal = ({
   );
 
   const showError = (field: keyof typeof formDataErrors) =>
-    submitAttempted ? formDataErrors[field] : undefined;
+    uiState.submitAttempted ? formDataErrors[field] : undefined;
 
-  // Switches from prefill/calendar-slot mode to free-flow mode, preserving the patient/client
-  // selections since those aren't prefilled — only date/time/speciality/service/slot/lead reset.
   const exitPrefillMode = useCallback(() => {
-    if (!prefillActive && !calendarSlotFlowActive) return;
-    setPrefillActive(false);
-    setCalendarSlotFlowActive(false);
-    // Reset form to clear slot-scoped speciality/service/slot/lead state from the hook
+    if (!prefillActive) return;
+    dispatchUi({ type: 'dismissPrefill' });
     resetForm();
-  }, [prefillActive, calendarSlotFlowActive, resetForm]);
+  }, [prefillActive, resetForm]);
 
   const handleDateChange = useCallback(
     (date: SetStateAction<Date>) => {
@@ -908,16 +1318,12 @@ const AddAppointmentCentralModal = ({
 
   const handleLeadSelectWithReset = useCallback(
     (option: { label: string; value: string }) => {
-      // Only drop the locked-date display — do NOT reset the form.
-      // Date/time/speciality/service/slot are all still valid when the user just switches leads.
-      setPrefillActive(false);
+      dispatchUi({ type: 'dismissPrefill' });
       handleLeadSelect(option);
     },
     [handleLeadSelect]
   );
 
-  // ── Derived values ────────────────────────────────────────────────────────────
-  // Shown in the time dropdown trigger before a real slot is matched (prefill phase).
   const prefillTimeLabel = useMemo(
     () =>
       prefillActive && !selectedSlot && formData.startTime
@@ -940,8 +1346,8 @@ const AddAppointmentCentralModal = ({
     [formData.companion.id, patientOptions]
   );
   const selectedClientName = useMemo(
-    () => clientOptions.find((c) => c.value === selectedClientId)?.label,
-    [selectedClientId, clientOptions]
+    () => clientOptions.find((c) => c.value === uiState.selectedClientId)?.label,
+    [clientOptions, uiState.selectedClientId]
   );
 
   const durationDisplay = useMemo(() => {
@@ -975,226 +1381,61 @@ const AddAppointmentCentralModal = ({
         canClose={canCloseModal}
         isLoading={isLoading}
       >
-        <div className="relative">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            {/* ─── LEFT COLUMN ─────────────────────────────────────────── */}
-            <div className="flex flex-col gap-4">
-              {/* Patient (dynamic terminology) */}
-              <PersonRow
-                fieldId="central-patient"
-                label={patientLabel}
-                icon={<IoPaw size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-                selectedName={selectedPatientName}
-                selectedPhotoUrl={selectedPatientPhoto}
-                query={patientQuery}
-                setQuery={setPatientQuery}
-                options={patientOptions}
-                onSelect={handlePatientSelect}
-                onClear={handlePatientClear}
-                onNew={() => setAddCompanionTarget('patient')}
-                error={showError('companionId')}
-              />
-
-              {/* Client */}
-              <PersonRow
-                fieldId="central-client"
-                label="Client"
-                icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-                selectedName={selectedClientName}
-                query={clientQuery}
-                setQuery={setClientQuery}
-                options={clientOptions}
-                onSelect={handleClientSelect}
-                onClear={handleClientClear}
-                onNew={() => setAddCompanionTarget('client')}
-              />
-
-              {/* Date + Time — 2-col row */}
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <div className="flex-1">
-                  <Datepicker
-                    currentDate={selectedDate}
-                    setCurrentDate={handleDateChange}
-                    placeholder="Date"
-                    type="input"
-                    portal
-                    minDate={today}
-                  />
-                </div>
-
-                <div className="flex-1">
-                  <TimeSlotDropdown
-                    timeSlots={timeSlots}
-                    selectedSlot={selectedSlot}
-                    setSelectedSlot={(slot) => {
-                      setPrefillActive(false);
-                      setSelectedSlot(slot);
-                    }}
-                    isLoading={(isLoadingTimeSlots && hasService) || isLoadingSlotScopedOptions}
-                    hasService={hasService}
-                    noSlotsMessage={noSlotsMessage}
-                    prefillLabel={prefillTimeLabel}
-                    error={showError('slot') ?? showError('duration')}
-                  />
-                </div>
-              </div>
-
-              {/* Slot (duration) + Type of Visit — 2-col row */}
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <div className="flex-1">
-                  <SlotBadge label={durationDisplay} />
-                </div>
-                <div className="flex-1">
-                  <LabelDropdown
-                    placeholder="Type of Visit"
-                    options={VISIT_TYPE_OPTIONS}
-                    defaultOption={visitType}
-                    onSelect={handleVisitTypeSelect}
-                    searchable={false}
-                    portal
-                  />
-                </div>
-              </div>
-
-              {/* Lead */}
-              <div>
-                <LabelDropdown
-                  placeholder="Lead"
-                  options={LeadOptions}
-                  defaultOption={formData.lead?.id ?? ''}
-                  onSelect={handleLeadSelectWithReset}
-                  error={showError('leadId')}
-                  searchable
-                  portal
-                  icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-                  noOptionsMessage={leadEmptyStateMessage}
-                />
-                {calendarSlotFlowActive && isLoadingSlotScopedOptions && (
-                  <p
-                    className="px-4 mt-1"
-                    style={{ ...text14M, fontSize: 12, color: INPUT_PLACEHOLDER_ACTIVE }}
-                  >
-                    Resolving available leads…
-                  </p>
-                )}
-              </div>
-
-              {/* Support */}
-              <MultiSelectDropdown
-                placeholder="Support"
-                options={supportOptions}
-                value={formData.supportStaff?.map((s) => s.id ?? '') ?? []}
-                onChange={handleSupportStaffChange}
-                portal
-                icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-              />
-            </div>
-
-            {/* ─── RIGHT COLUMN ────────────────────────────────────────── */}
-            <div className="flex flex-col gap-4">
-              {/* Speciality */}
-              <LabelDropdown
-                placeholder="Speciality"
-                options={SpecialitiesOptions}
-                defaultOption={formData.appointmentType?.speciality?.id ?? ''}
-                onSelect={handleSpecialitySelect}
-                error={showError('specialityId')}
-                searchable
-                portal
-                icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-              />
-
-              {/* Service / Package */}
-              <LabelDropdown
-                placeholder="Services / Packages"
-                options={ServicesOptions}
-                defaultOption={formData.appointmentType?.id ?? ''}
-                onSelect={handleServiceSelect}
-                error={showError('serviceId')}
-                searchable
-                portal
-                icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
-              />
-
-              {/* Chief Complaint */}
-              <FormDesc
-                intype="text"
-                inlabel="Chief Complaint"
-                value={formData.concern ?? ''}
-                onChange={(e) => setFormData((prev) => ({ ...prev, concern: e.target.value }))}
-                error={showError('concern')}
-                className="min-h-20"
-              />
-
-              {/* Estimate — always shown */}
-              <AppointmentEstimatePanel
-                cost={ServiceInfoData?.cost}
-                maxDiscount={ServiceInfoData?.maxDiscount}
-              />
-
-              {/* Emergency */}
-              <label className="ml-auto flex items-center justify-end gap-2 cursor-pointer select-none mt-auto">
-                <input
-                  type="checkbox"
-                  aria-label="Mark appointment as emergency"
-                  checked={formData.isEmergency ?? false}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, isEmergency: e.target.checked }))
-                  }
-                  className="size-4 cursor-pointer shrink-0"
-                />
-                <span style={text14M}>Is this an Emergency?</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Booking error */}
-          {submitAttempted && formDataErrors.booking && (
-            <div className="mt-4 flex items-center gap-2 px-4 py-3 rounded-2xl border border-input-border-error">
-              <IoIosWarning className="text-text-error shrink-0" size={16} aria-hidden="true" />
-              <span style={{ ...text14M, color: 'var(--color-text-error, #d32f2f)' }}>
-                {formDataErrors.booking}
-              </span>
-            </div>
-          )}
-
-          {/* Footer */}
-          <div className="flex flex-col gap-3 mt-6 pt-4 border-t border-card-border sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4 flex-wrap">
-              {NOTIFY_OPTIONS.map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    aria-label={`Notify by ${label}`}
-                    checked={notifyChannels.has(key)}
-                    onChange={() => toggleNotify(key)}
-                    className="size-4 cursor-pointer shrink-0"
-                  />
-                  <span style={text14M}>{label}</span>
-                </label>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-[11px] whitespace-nowrap font-satoshi text-base font-medium leading-[1.5rem] text-white! disabled:opacity-60 disabled:cursor-not-allowed"
-              onPointerDown={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-                e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-              }}
-              onPointerMove={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-                e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-              }}
-            >
-              + Add Appointment
-            </button>
-          </div>
-        </div>
+        <AppointmentFormContent
+          patientLabel={patientLabel}
+          selectedPatientName={selectedPatientName}
+          selectedPatientPhoto={selectedPatientPhoto}
+          patientQuery={uiState.patientQuery}
+          setPatientQuery={(value) => dispatchUi({ type: 'setPatientQuery', value })}
+          patientOptions={patientOptions}
+          handlePatientSelect={handlePatientSelect}
+          handlePatientClear={handlePatientClear}
+          selectedClientName={selectedClientName}
+          clientQuery={uiState.clientQuery}
+          setClientQuery={(value) => dispatchUi({ type: 'setClientQuery', value })}
+          clientOptions={clientOptions}
+          handleClientSelect={handleClientSelect}
+          handleClientClear={handleClientClear}
+          setAddCompanionTarget={(target) =>
+            dispatchUi({ type: 'setAddCompanionTarget', value: target })
+          }
+          selectedDate={selectedDate}
+          handleDateChange={handleDateChange}
+          today={today}
+          timeSlots={timeSlots}
+          selectedSlot={selectedSlot}
+          onSlotSelect={(slot) => {
+            dispatchUi({ type: 'dismissPrefill' });
+            setSelectedSlot(slot);
+          }}
+          isLoadingTimeSlots={uiState.isLoadingTimeSlots}
+          isLoadingSlotScopedOptions={isLoadingSlotScopedOptions}
+          hasService={hasService}
+          noSlotsMessage={noSlotsMessage}
+          prefillTimeLabel={prefillTimeLabel}
+          durationDisplay={durationDisplay}
+          visitType={visitType}
+          handleVisitTypeSelect={handleVisitTypeSelect}
+          LeadOptions={LeadOptions}
+          formData={formData}
+          formDataErrors={formDataErrors}
+          handleLeadSelectWithReset={handleLeadSelectWithReset}
+          leadEmptyStateMessage={leadEmptyStateMessage}
+          supportOptions={supportOptions}
+          handleSupportStaffChange={handleSupportStaffChange}
+          SpecialitiesOptions={SpecialitiesOptions}
+          handleSpecialitySelect={handleSpecialitySelect}
+          ServicesOptions={ServicesOptions}
+          handleServiceSelect={handleServiceSelect}
+          setFormData={setFormData}
+          ServiceInfoData={ServiceInfoData}
+          submitAttempted={uiState.submitAttempted}
+          showError={(field) => showError(field as keyof typeof formDataErrors)}
+          toggleNotify={toggleNotify}
+          notifyChannels={uiState.notifyChannels}
+          handleSubmit={handleSubmit}
+          isLoading={isLoading}
+        />
       </AppointmentCentralModalShell>
 
       <AddCompanionCentralModal
@@ -1202,52 +1443,22 @@ const AddAppointmentCentralModal = ({
         setShowModal={handleAddCompanionClose}
         formMode="fasttrack"
         onCompanionCreated={(companionId) => {
-          setPendingAutoSelectCompanionId(companionId);
-          setAddCompanionTarget(null);
+          dispatchUi({ type: 'setPendingAutoSelectCompanionId', value: companionId });
+          dispatchUi({ type: 'setAddCompanionTarget', value: null });
         }}
-        onGoToAppointment={() => setAddCompanionTarget(null)}
+        onGoToAppointment={() => dispatchUi({ type: 'setAddCompanionTarget', value: null })}
       />
 
-      {/* Discard confirmation */}
-      <CenterModal
-        showModal={showDiscardConfirm}
-        setShowModal={setShowDiscardConfirm}
-        containerClassName="shadow-[0_0_40px_0_rgba(0,0,0,0.20)]!"
-      >
-        <div className="flex flex-col gap-4 p-2">
-          <h3 style={{ ...text14M, fontSize: 18 }}>Discard changes?</h3>
-          <p style={{ ...text14M, fontWeight: 400 }}>
-            You have unsaved changes. Are you sure you want to discard them?
-          </p>
-          <div className="flex gap-3 justify-end">
-            <button
-              type="button"
-              onClick={() => setShowDiscardConfirm(false)}
-              className="rounded-2xl border border-input-border-default px-5 py-2.5 hover:bg-card-hover active:bg-card-hover/80 transition-colors"
-              style={text14M}
-            >
-              Keep editing
-            </button>
-            <button
-              type="button"
-              onClick={handleDiscardAndClose}
-              className="yc-primary-button rounded-2xl! px-5 py-2.5 font-satoshi text-base font-medium leading-[1.2] text-white! disabled:opacity-60 disabled:cursor-not-allowed"
-              onPointerDown={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-                e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-              }}
-              onPointerMove={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                e.currentTarget.style.setProperty('--yc-button-x', `${e.clientX - r.left}px`);
-                e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
-              }}
-            >
-              Discard
-            </button>
-          </div>
-        </div>
-      </CenterModal>
+      <DiscardConfirmationModal
+        showModal={uiState.showDiscardConfirm}
+        setShowModal={(value) =>
+          dispatchUi({
+            type: 'setShowDiscardConfirm',
+            value: typeof value === 'function' ? value(uiState.showDiscardConfirm) : value,
+          })
+        }
+        onDiscard={handleDiscardAndClose}
+      />
     </>
   );
 };

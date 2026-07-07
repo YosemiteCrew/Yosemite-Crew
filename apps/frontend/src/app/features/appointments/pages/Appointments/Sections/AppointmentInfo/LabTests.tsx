@@ -35,7 +35,15 @@ import {
   LabResult,
 } from '@/app/features/integrations/services/types';
 import { formatDateTimeLocal } from '@/app/lib/date';
-import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
+import {
+  formatTestPrice,
+  getOrderStatusBadgeClass,
+  getTestSpecimen,
+  getTestTurnaround,
+  resolveOrderPdfUrl,
+  resolveOrderUiUrl,
+  toTitleCase,
+} from './labTestsUtils';
 
 const TESTS_PAGE_SIZE = 25;
 const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
@@ -111,30 +119,6 @@ const getResultOrderId = (result: LabResult) => {
   ).trim();
 };
 
-export const formatTestPrice = (test: IdexxTest) => {
-  const amount = String(test.meta?.listPrice ?? '').trim();
-  if (!amount) return 'Rate unavailable';
-  const currency = String(test.meta?.currencyCode ?? '').trim();
-  if (!currency) return amount;
-  const numericAmount = Number.parseFloat(amount.replaceAll(',', '.').replaceAll(/[^0-9.+-]/g, ''));
-  if (!Number.isFinite(numericAmount)) return `${currency.toUpperCase()} ${amount}`;
-  try {
-    return numericAmount.toLocaleString(undefined, {
-      style: 'currency',
-      currency: currency.toUpperCase(),
-      currencyDisplay: 'symbol',
-    });
-  } catch {
-    return `${currency.toUpperCase()} ${amount}`;
-  }
-};
-
-export const getTestTurnaround = (test: IdexxTest) =>
-  String(test.meta?.turnaround ?? '').trim() || 'TAT not listed';
-
-export const getTestSpecimen = (test: IdexxTest) =>
-  String(test.meta?.specimen ?? '').trim() || 'Specimen not listed';
-
 const formatCensusIvlsDevices = (entry: CensusEntry | null) => {
   const devices = entry?.ivls ?? [];
   if (devices.length === 0) return '-';
@@ -181,32 +165,7 @@ const getMeterMeta = (test: LabResultTest) => {
   return { canRender: true, percent, markerClass };
 };
 
-export const toTitleCase = (value?: string | null) => {
-  const raw = String(value ?? '').trim();
-  if (!raw) return '-';
-  const normalized = raw.toLowerCase().replaceAll(/[_-]+/g, ' ');
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-};
-
 const orderSortDate = (order: LabOrder) => order.updatedAt ?? order.createdAt ?? '';
-
-export const resolveOrderUiUrl = (order: LabOrder | null) => {
-  if (!order) return '';
-  const nested = String(
-    (order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? ''
-  ).trim();
-  const raw = String(order.uiUrl ?? '').trim() || nested;
-  return getSafeIdexxIframeUrl(raw);
-};
-
-export const resolveOrderPdfUrl = (order: LabOrder | null) => {
-  if (!order) return '';
-  const nested = String(
-    (order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? ''
-  ).trim();
-  const raw = String(order.pdfUrl ?? '').trim() || nested;
-  return getSafeIdexxIframeUrl(raw);
-};
 
 const getNormalizedLifecycleStatus = (order: LabOrder | null) =>
   String(order?.externalStatus ?? order?.status ?? '')
@@ -252,23 +211,6 @@ const normalizeResultProgress = (status?: string | null) => {
   if (key.includes('COMPLETE') || key.includes('FINAL')) return 'Complete';
   if (key.includes('ERROR') || key.includes('FAIL')) return 'Error';
   return '';
-};
-
-export const getOrderStatusBadgeClass = (
-  order: LabOrder,
-  resultProgressByOrderId: Map<string, string>
-) => {
-  const resultProgress = resultProgressByOrderId.get(String(order.idexxOrderId ?? '').trim());
-  if (resultProgress === 'Complete') return 'bg-green-50 text-green-800';
-  if (resultProgress === 'In process') return 'bg-amber-50 text-amber-700';
-  if (resultProgress === 'Error') return 'bg-red-50 text-red-700';
-  const key = String(order.status ?? '').toLowerCase();
-  if (key.includes('submitted') || key.includes('complete') || key.includes('final'))
-    return 'bg-green-50 text-green-800';
-  if (key.includes('created') || key.includes('pending')) return 'bg-amber-50 text-amber-700';
-  if (key.includes('error') || key.includes('failed') || key.includes('cancel'))
-    return 'bg-red-50 text-red-700';
-  return 'bg-card-hover text-text-secondary';
 };
 
 const shouldCloseOrderIframe = (args: {
@@ -439,7 +381,7 @@ const PastOrderCard = ({
 export const useLabTests = (activeAppointment: Appointment | null) => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const idexxIntegration = useIntegrationByProviderForPrimaryOrg('IDEXX');
-  const [integrationEnabled, setIntegrationEnabled] = useState(false);
+  const integrationEnabled = idexxIntegration?.status === 'enabled';
   const [devices, setDevices] = useState<IvlsDevice[]>([]);
   const [tests, setTests] = useState<IdexxTest[]>([]);
   const [testsPage, setTestsPage] = useState(1);
@@ -452,10 +394,16 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [modality, setModality] = useState<'REFERENCE_LAB' | 'INHOUSE'>('REFERENCE_LAB');
   const [selectedIvls, setSelectedIvls] = useState('');
-  const [veterinarian, setVeterinarian] = useState('');
-  const [technician, setTechnician] = useState('');
+  const defaultLeadName = (activeAppointment?.lead?.name ?? '').trim();
+  const defaultTechnicianName = (activeAppointment?.supportStaff ?? [])
+    .map((staff) => (staff.name ?? '').trim())
+    .find((name) => name && name !== defaultLeadName);
+  const [veterinarian, setVeterinarian] = useState(defaultLeadName);
+  const [technician, setTechnician] = useState(defaultTechnicianName ?? '');
   const [notes, setNotes] = useState('');
-  const [specimenCollectionDate, setSpecimenCollectionDate] = useState('');
+  const [specimenCollectionDate, setSpecimenCollectionDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [latestOrder, setLatestOrder] = useState<LabOrder | null>(null);
   const [results, setResults] = useState<LabResult[]>([]);
   const [censusEntries, setCensusEntries] = useState<CensusEntry[]>([]);
@@ -477,6 +425,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
 
   const companionId = activeAppointment?.companion?.id;
   const parentId = activeAppointment?.companion?.parent?.id;
+  const [prevAppointmentStaffKey, setPrevAppointmentStaffKey] = useState<string | null>(null);
 
   // Stable ref so callbacks can read the latest appointmentOrders without
   // listing the array as a dep (new array ref every render → infinite loop).
@@ -517,24 +466,17 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     });
   }, []);
 
-  useEffect(() => {
-    setSpecimenCollectionDate(new Date().toISOString().slice(0, 10));
-  }, []);
-
-  useEffect(() => {
-    const leadName = (activeAppointment?.lead?.name ?? '').trim();
-    // Technician defaults to the first support staff member who isn't the lead,
-    // so the Veterinarian (lead) and Technician fields don't echo the same person.
-    const supportTechnicianName = (activeAppointment?.supportStaff ?? [])
-      .map((staff) => (staff.name ?? '').trim())
-      .find((name) => name && name !== leadName);
-    setVeterinarian(leadName);
-    setTechnician(supportTechnicianName ?? '');
-  }, [activeAppointment?.id, activeAppointment?.lead?.name, activeAppointment?.supportStaff]);
-
-  useEffect(() => {
-    setIntegrationEnabled(idexxIntegration?.status === 'enabled');
-  }, [idexxIntegration?.status]);
+  const appointmentStaffKey = `${activeAppointment?.id ?? ''}:${defaultLeadName}:${(activeAppointment?.supportStaff ?? []).map((staff) => staff.id ?? staff.name ?? '').join('|')}`;
+  if (prevAppointmentStaffKey === null || appointmentStaffKey !== prevAppointmentStaffKey) {
+    setPrevAppointmentStaffKey(appointmentStaffKey);
+    if (veterinarian !== defaultLeadName) {
+      setVeterinarian(defaultLeadName);
+    }
+    const nextTechnician = defaultTechnicianName ?? '';
+    if (technician !== nextTechnician) {
+      setTechnician(nextTechnician);
+    }
+  }
 
   useEffect(() => {
     const run = async () => {

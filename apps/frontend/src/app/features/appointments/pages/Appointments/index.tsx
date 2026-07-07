@@ -317,26 +317,40 @@ const Appointments = () => {
     viewInitializedFromProfileRef.current = true;
   }, [profile, primaryOrgType]);
 
-  useEffect(() => {
-    if (activeCalendar !== 'week') return;
-    const nextWeekStart = startOfDay(currentDate);
-    setWeekStart((previous) =>
-      previous.getTime() === nextWeekStart.getTime() ? previous : nextWeekStart
-    );
-  }, [currentDate, activeCalendar]);
+  // Derive weekStart from currentDate whenever the team-week calendar is active.
+  // Render-time prev-comparison (see the null-sentinel note above) instead of an
+  // effect, so the derived value is correct on the same commit as the change.
+  const [prevWeekKey, setPrevWeekKey] = useState<string | null>(null);
+  const weekKey = `${activeCalendar}:${currentDate.getTime()}`;
+  if (prevWeekKey === null || weekKey !== prevWeekKey) {
+    setPrevWeekKey(weekKey);
+    if (activeCalendar === 'week') {
+      const nextWeekStart = startOfDay(currentDate);
+      if (nextWeekStart.getTime() !== weekStart.getTime()) {
+        setWeekStart(nextWeekStart);
+      }
+    }
+  }
 
-  useEffect(() => {
+  // Clear the deep-link view intent once both popups are closed.
+  const [prevPopupKey, setPrevPopupKey] = useState<string | null>(null);
+  const popupKey = `${viewPopup}:${detailPopup}`;
+  if (prevPopupKey === null || popupKey !== prevPopupKey) {
+    setPrevPopupKey(popupKey);
     if (!viewPopup && !detailPopup) {
       setViewIntent(null);
       handledDeepLinkRef.current = null;
     }
-  }, [viewPopup, detailPopup]);
+  }
 
-  useEffect(() => {
+  // Clear the preferred status once the change-status popup closes.
+  const [prevChangeStatusPopup, setPrevChangeStatusPopup] = useState<boolean | null>(null);
+  if (prevChangeStatusPopup === null || changeStatusPopup !== prevChangeStatusPopup) {
+    setPrevChangeStatusPopup(changeStatusPopup);
     if (!changeStatusPopup) {
       setChangeStatusPreferredStatus(null);
     }
-  }, [changeStatusPopup]);
+  }
 
   useEffect(() => {
     setActiveAppointment((prev) => getNextSelectedAppointment(prev, appointments));
