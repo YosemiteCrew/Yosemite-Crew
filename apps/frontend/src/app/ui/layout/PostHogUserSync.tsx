@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import posthog from 'posthog-js';
 import { getStorageItem } from '@/app/lib/browserStorage';
 import { COOKIE_CONSENT_KEY, POSTHOG_READY_EVENT } from '@/app/lib/posthog';
@@ -22,29 +22,17 @@ const PostHogUserSync = () => {
   const attributes = useAuthStore((state) => state.attributes);
   const status = useAuthStore((state) => state.status);
   const identifiedIdRef = useRef<string | null>(null);
-  const [consented, setConsented] = useState(false);
-  const [ready, setReady] = useState(false);
+  const consentedRef = useRef(false);
+  const readyRef = useRef(false);
 
-  useEffect(() => {
-    setConsented(hasConsent());
-    setReady(isPostHogLoaded());
+  // syncIdentityRef always points at a closure over the latest attributes/status
+  // (refreshed every render below) so the mount-only event listeners and the
+  // reactive effect can share one implementation without re-subscribing listeners.
+  const syncIdentityRef = useRef<() => void>(() => {});
+  syncIdentityRef.current = () => {
+    const consented = consentedRef.current;
+    const ready = readyRef.current;
 
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === COOKIE_CONSENT_KEY) {
-        setConsented(event.newValue === 'true');
-      }
-    };
-    const onPostHogReady = () => setReady(true);
-
-    globalThis.addEventListener('storage', onStorage);
-    globalThis.addEventListener(POSTHOG_READY_EVENT, onPostHogReady);
-    return () => {
-      globalThis.removeEventListener('storage', onStorage);
-      globalThis.removeEventListener(POSTHOG_READY_EVENT, onPostHogReady);
-    };
-  }, []);
-
-  useEffect(() => {
     if (!consented || !ready) {
       if (identifiedIdRef.current && ready) {
         posthog.reset();
@@ -74,7 +62,35 @@ const PostHogUserSync = () => {
 
     posthog.identify(distinctId, personProperties);
     identifiedIdRef.current = distinctId;
-  }, [attributes, consented, ready, status]);
+  };
+
+  useEffect(() => {
+    consentedRef.current = hasConsent();
+    readyRef.current = isPostHogLoaded();
+    syncIdentityRef.current();
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === COOKIE_CONSENT_KEY) {
+        consentedRef.current = event.newValue === 'true';
+        syncIdentityRef.current();
+      }
+    };
+    const onPostHogReady = () => {
+      readyRef.current = true;
+      syncIdentityRef.current();
+    };
+
+    globalThis.addEventListener('storage', onStorage);
+    globalThis.addEventListener(POSTHOG_READY_EVENT, onPostHogReady);
+    return () => {
+      globalThis.removeEventListener('storage', onStorage);
+      globalThis.removeEventListener(POSTHOG_READY_EVENT, onPostHogReady);
+    };
+  }, []);
+
+  useEffect(() => {
+    syncIdentityRef.current();
+  }, [attributes, status]);
 
   return null;
 };
