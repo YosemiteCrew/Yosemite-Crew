@@ -262,7 +262,7 @@ textarea:focus-visible {
 
   --color-text-primary: var(--color-neutral-900);
   --color-text-cta: var(--color-neutral-900);
-  --color-text-error: var(--color-danger-600);
+  --color-text-error: var(--color-danger-700);
   --color-text-brand: var(--color-brand-950);
   --color-text-secondary: var(--color-neutral-700);
   --color-text-tertiary: var(--color-neutral-600);
@@ -304,7 +304,7 @@ textarea:focus-visible {
   --color-error-100: #fee7e7;
   --color-error-500: #ef4444;
   --color-error-700: #b91c1c;
-  --color-delete: #ea3729;
+  --color-delete: var(--color-danger-700);
   --color-pending-text: #f68523;
   --color-danger-soft: #fee7e7;
   --color-calendar-line-strong: #c3cedc;
