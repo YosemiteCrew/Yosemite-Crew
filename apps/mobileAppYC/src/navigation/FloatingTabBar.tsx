@@ -186,7 +186,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
           <LiquidGlassView
             style={styles.pillGlass}
             effect="clear"
-            tintColor={theme.colors.secondary}
+            tintColor={theme.colors.blue}
             colorScheme="light"
             interactive
           />
@@ -323,9 +323,9 @@ const createStyles = (theme: any, isIOS: boolean) =>
       backgroundColor: 'transparent',
     },
     barSolid: {
-      backgroundColor: theme.colors.cardOverlay,
+      backgroundColor: theme.colors.glassPill,
       borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      borderColor: theme.colors.glassPillBorder,
     },
     pillContainer: {
       position: 'absolute',
@@ -337,7 +337,7 @@ const createStyles = (theme: any, isIOS: boolean) =>
     pill: {
       flex: 1,
       borderRadius: theme.borderRadius.xl,
-      backgroundColor: theme.colors.secondary,
+      backgroundColor: theme.colors.navActiveBg,
     },
     pillGlass: {
       flex: 1,
@@ -345,7 +345,7 @@ const createStyles = (theme: any, isIOS: boolean) =>
       backgroundColor: 'transparent',
     },
     pillSolid: {
-      backgroundColor: theme.colors.secondary,
+      backgroundColor: theme.colors.navActiveBg,
     },
     invisiblePill: {
       flex: 1,
@@ -371,23 +371,23 @@ const createStyles = (theme: any, isIOS: boolean) =>
     label: {
       ...theme.typography.tabLabel,
       textAlign: 'center',
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint,
       maxWidth: '100%',
     },
     labelActive: {
       ...theme.typography.tabLabelFocused,
-      color: theme.colors.white,
+      color: theme.colors.navActive,
     },
     labelInactive: {
       ...theme.typography.tabLabel,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint,
     },
     iconImage: {
       width: theme.spacing['5'],
       height: theme.spacing['5'],
-      tintColor: theme.colors.textSecondary,
+      tintColor: theme.colors.inkFaint,
     },
     iconImageActive: {
-      tintColor: theme.colors.white,
+      tintColor: theme.colors.navActive,
     },
   });

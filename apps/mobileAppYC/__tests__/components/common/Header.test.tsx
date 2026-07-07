@@ -42,8 +42,9 @@ describe('Header', () => {
     expect(flat).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          color: mockTheme.colors.text,
-          fontSize: mockTheme.typography.h3.fontSize,
+          color: mockTheme.colors.ink,
+          fontSize: mockTheme.typography.mobileBodyEmphasis.fontSize,
+          fontWeight: '600',
         }),
       ]),
     );

@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   glass = true,
 }) => {
   const {theme} = useTheme();
-  const iconButtonSize = theme.spacing?.['9'] ?? 36;
+  const iconButtonSize = theme.spacing?.['10'] ?? 40;
   const styles = createStyles(theme);
 
   const content = (
@@ -87,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({
 };
 
 const createStyles = (theme: any) => {
-  const iconButtonSize = theme.spacing?.['9'] ?? 36;
+  const iconButtonSize = theme.spacing?.['10'] ?? 40;
 
   return StyleSheet.create({
     container: {
@@ -150,8 +150,9 @@ const createStyles = (theme: any) => {
     title: {
       flex: 1,
       textAlign: 'center',
-      ...theme.typography.h3,
-      color: theme.colors.text,
+      ...theme.typography.mobileBodyEmphasis,
+      fontWeight: '600',
+      color: theme.colors.ink,
     },
   });
 };

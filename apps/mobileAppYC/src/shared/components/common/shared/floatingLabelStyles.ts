@@ -66,7 +66,7 @@ export const useFloatingLabelAnimatedStyle = ({
         [theme.colors.textSecondary, activeColor],
       ),
       letterSpacing: theme.typography.inputLabel.letterSpacing,
-      backgroundColor: theme.colors.surface || theme.colors.background,
+      backgroundColor: theme.colors.fieldBg,
       paddingHorizontal: interpolate(
         animatedValue.value,
         [0, 1],
@@ -90,10 +90,10 @@ export const useFloatingLabelAnimatedStyle = ({
 };
 
 export const getInputContainerBaseStyle = (theme: Theme, error?: string) => ({
-  borderWidth: 1,
-  borderColor: error ? theme.colors.error : theme.colors.border,
-  borderRadius: theme.borderRadius.lg,
-  backgroundColor: theme.colors.surface,
+  borderWidth: 1.5,
+  borderColor: error ? theme.colors.error : theme.colors.hairline,
+  borderRadius: theme.borderRadius.field,
+  backgroundColor: theme.colors.fieldBg,
   paddingHorizontal: theme.spacing['5'],
   minHeight: theme.spacing['14'],
   position: 'relative' as const,

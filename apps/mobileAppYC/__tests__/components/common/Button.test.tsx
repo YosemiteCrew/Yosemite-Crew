@@ -124,7 +124,7 @@ describe('Button', () => {
       />,
     );
     expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.surface,
+      mockTheme.colors.ctaText,
     );
   });
 
@@ -138,7 +138,7 @@ describe('Button', () => {
       />,
     );
     expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.surface,
+      mockTheme.colors.inkBody,
     );
   });
 
@@ -152,7 +152,7 @@ describe('Button', () => {
       />,
     );
     expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.primary,
+      mockTheme.colors.blue,
     );
   });
 
@@ -166,7 +166,7 @@ describe('Button', () => {
       />,
     );
     expect(getByTestId('mock-activity-indicator').props.color).toBe(
-      mockTheme.colors.primary,
+      mockTheme.colors.blue,
     );
   });
 
