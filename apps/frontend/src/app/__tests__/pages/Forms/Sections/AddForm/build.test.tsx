@@ -72,9 +72,6 @@ jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper', () => ({
   __esModule: true,
-  // Real context so Build's <StructureLockContext.Provider> renders; the stub wrapper
-  // below ignores the lock (BuilderWrapper's own lock behaviour is covered in its own test).
-  StructureLockContext: jest.requireActual('react').createContext(false),
   default: ({ field, onDelete, onMoveUp, onMoveDown, children }: any) => (
     <section aria-label={`${field.type.charAt(0).toUpperCase()}${field.type.slice(1)} field`}>
       {onMoveUp ? (

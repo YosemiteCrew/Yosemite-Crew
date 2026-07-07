@@ -1,8 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import BuilderWrapper, {
-  StructureLockContext,
-} from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import BuilderWrapper from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import { StructureLockContext } from '@/app/features/forms/pages/Forms/Sections/AddForm/components/structureLockContext';
 import { FormField } from '@/app/features/forms/types/forms';
 
 // --- Mocks ---

@@ -20,16 +20,15 @@ import {
   FREQUENCY_OPTIONS,
   inventoryToPrescriptionItem,
 } from '@/app/features/appointments/lib/inventoryPrescription';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { use, useEffect, useRef, useState } from 'react';
 import { IoIosAddCircleOutline, IoIosWarning } from 'react-icons/io';
 import TextBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextBuilder';
 import RichTextBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/RichText/RichTextBuilder';
 import InputBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputBuilder';
 import DropdownBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder';
 import SignatureBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureBuilder';
-import BuilderWrapper, {
-  StructureLockContext,
-} from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import BuilderWrapper from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import { StructureLockContext } from '@/app/features/forms/pages/Forms/Sections/AddForm/components/structureLockContext';
 import BooleanBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanBuilder';
 import DateBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateBuilder';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -490,7 +489,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   createField,
   serviceOptions,
 }) => {
-  const structureLocked = React.useContext(StructureLockContext);
+  const structureLocked = use(StructureLockContext);
   const groupField: FormField & { type: 'group'; fields?: FormField[] } = {
     ...field,
     fields: field.fields ?? [],
@@ -784,7 +783,7 @@ type MedicationGroupBuilderProps = {
 };
 
 const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, onChange }) => {
-  const structureLocked = React.useContext(StructureLockContext);
+  const structureLocked = use(StructureLockContext);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const [medicines, setMedicines] = useState<InventoryApiItem[]>([]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);

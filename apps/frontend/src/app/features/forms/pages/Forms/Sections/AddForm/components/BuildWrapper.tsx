@@ -2,14 +2,7 @@ import React from 'react';
 import { FormField } from '@/app/features/forms/types/forms';
 import { MdDeleteForever, MdDragIndicator } from 'react-icons/md';
 import { IoMdArrowUp, IoMdArrowDown } from 'react-icons/io';
-
-/**
- * When true, the template structure is locked (YC-default ownership): builder controls
- * that change structure — add/remove/delete/move/reorder and the medication/task pickers —
- * are hidden at every nesting level, while field content stays editable. Provided by Build
- * and consumed by BuilderWrapper plus the nested group builders.
- */
-export const StructureLockContext = React.createContext(false);
+import { StructureLockContext } from '@/app/features/forms/pages/Forms/Sections/AddForm/components/structureLockContext';
 
 const BuilderWrapper: React.FC<{
   field: FormField;
@@ -49,7 +42,7 @@ const BuilderWrapper: React.FC<{
   contentDeletable = false,
   children,
 }) => {
-  const structureLocked = React.useContext(StructureLockContext);
+  const structureLocked = React.use(StructureLockContext);
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
   const dragPreviewRef = React.useRef<HTMLDivElement | null>(null);
   const title = field.type.charAt(0).toUpperCase() + field.type.slice(1);

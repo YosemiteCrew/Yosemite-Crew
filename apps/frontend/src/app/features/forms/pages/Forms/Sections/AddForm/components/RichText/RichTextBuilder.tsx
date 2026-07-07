@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { use } from 'react';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
 import { FormField } from '@/app/features/forms/types/forms';
-import { StructureLockContext } from '../BuildWrapper';
+import { StructureLockContext } from '@/app/features/forms/pages/Forms/Sections/AddForm/components/structureLockContext';
 
 /**
  * Builder block for a rich-text field. The author sets a label and the default
@@ -18,7 +18,7 @@ const RichTextBuilder: React.FC<{
   field: FormField & { type: 'richtext' };
   onChange: (f: FormField) => void;
 }> = ({ field, onChange }) => {
-  const structureLocked = React.useContext(StructureLockContext);
+  const structureLocked = use(StructureLockContext);
   const label = field.label || 'Rich text';
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-input-border bg-surface-1 p-3">
