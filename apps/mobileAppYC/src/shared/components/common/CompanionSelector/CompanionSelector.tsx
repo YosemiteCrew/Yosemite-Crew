@@ -2,19 +2,19 @@ import React from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Image,
   StyleSheet,
   ScrollView,
-  Animated,
   Alert,
   Platform,
   ToastAndroid,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useSelector} from 'react-redux';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
+import {useLazyRef} from '@/shared/hooks/useLazyRef';
 import type {RootState} from '@/app/store';
 import type {CoParentPermissions} from '@/features/coParent';
 
@@ -56,31 +56,43 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
 }: CompanionSelectorProps<T>) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const [failedImages, setFailedImages] = React.useState<Record<string, boolean>>({});
+  const [failedImages, setFailedImages] = React.useState<
+    Record<string, boolean>
+  >({});
   const accessMap = useSelector(
     (state: RootState) => state.coParent?.accessByCompanionId ?? {},
   );
-  const defaultAccess = useSelector((state: RootState) => state.coParent?.defaultAccess ?? null);
-  const globalRole = useSelector((state: RootState) => state.coParent?.lastFetchedRole);
+  const defaultAccess = useSelector(
+    (state: RootState) => state.coParent?.defaultAccess ?? null,
+  );
+  const globalRole = useSelector(
+    (state: RootState) => state.coParent?.lastFetchedRole,
+  );
   const globalPermissions = useSelector(
     (state: RootState) => state.coParent?.lastFetchedPermissions,
   );
-  const originalOrderRef = React.useRef<Map<string, number>>(new Map());
+  const originalOrderRef = useLazyRef(() => new Map<string, number>());
   React.useEffect(() => {
     const map = new Map<string, number>();
     companions.forEach((companion, index) => {
-      const companionId = companion.id ?? (companion as any)._id ?? (companion as any).companionId;
+      const companionId =
+        companion.id ??
+        (companion as any)._id ??
+        (companion as any).companionId;
       if (companionId) {
         map.set(companionId, index);
       }
     });
     originalOrderRef.current = map;
-  }, [companions]);
+  }, [companions, originalOrderRef]);
 
   const resolveRolePriority = React.useCallback(
     (companion: T) => {
       const companionId =
-        companion.id ?? (companion as any)._id ?? (companion as any).companionId ?? '';
+        companion.id ??
+        (companion as any)._id ??
+        (companion as any).companionId ??
+        '';
       const access = accessMap?.[companionId] ?? defaultAccess ?? null;
       const role = (access?.role ?? globalRole ?? '').toUpperCase();
       if (role.includes('PRIMARY')) {
@@ -111,7 +123,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
       const indexB = originalOrderRef.current.get(idB) ?? 0;
       return indexA - indexB;
     });
-  }, [companions, resolveRolePriority]);
+  }, [companions, originalOrderRef, resolveRolePriority]);
 
   const handleImageError = React.useCallback((id: string) => {
     setFailedImages(prev => {
@@ -122,22 +134,21 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
     });
   }, []);
 
-  const showPermissionToast = React.useCallback(
-    (label?: string) => {
-      const message = label
-        ? `You don't have access to ${label}. Ask the primary parent to enable it.`
-        : "You don't have access to this companion. Ask the primary parent to enable it.";
-      if (Platform.OS === 'android') {
-        ToastAndroid.show(message, ToastAndroid.SHORT);
-      } else {
-        Alert.alert('Permission needed', message);
-      }
-    },
-    [],
-  );
+  const showPermissionToast = React.useCallback((label?: string) => {
+    const message = label
+      ? `You don't have access to ${label}. Ask the primary parent to enable it.`
+      : "You don't have access to this companion. Ask the primary parent to enable it.";
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(message, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Permission needed', message);
+    }
+  }, []);
 
-  const renderCompanionBadge = (companion: T) => {
-    const companionId = companion.id ?? (companion as any)._id ?? (companion as any).companionId;
+  const renderCompanionBadge = (companion: T, index: number) => {
+    const companionId =
+      companion.id ?? (companion as any)._id ?? (companion as any).companionId;
+    const companionKey = companionId ?? `companion-${index}`;
     const isSelected = selectedCompanionId === companionId;
     let badgeText: string | undefined;
     if (getBadgeText) {
@@ -148,8 +159,8 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
     const avatarUri = normalizeImageUri(companion.profileImage ?? null);
 
     return (
-      <TouchableOpacity
-        key={companionId}
+      <PressableOpacity
+        key={companionKey}
         style={styles.companionTouchable}
         activeOpacity={0.88}
         onPress={() => {
@@ -162,8 +173,12 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
             const role = (access?.role ?? globalRole ?? '').toUpperCase();
             const isPrimary = role.includes('PRIMARY');
             const permissions =
-              access?.permissions ?? globalPermissions ?? defaultAccess?.permissions;
-            const hasPermission = isPrimary || (permissions ? Boolean(permissions[requiredPermission]) : false);
+              access?.permissions ??
+              globalPermissions ??
+              defaultAccess?.permissions;
+            const hasPermission =
+              isPrimary ||
+              (permissions ? Boolean(permissions[requiredPermission]) : false);
             if (!hasPermission) {
               showPermissionToast(permissionLabel ?? requiredPermission);
               return;
@@ -173,7 +188,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
           onSelect(companionId);
         }}>
         <View style={styles.companionItem}>
-          <Animated.View
+          <View
             style={[
               styles.companionAvatarRing,
               isSelected && styles.companionAvatarRingSelected,
@@ -192,7 +207,7 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
                 </Text>
               </View>
             )}
-          </Animated.View>
+          </View>
 
           <Text
             style={styles.companionName}
@@ -200,18 +215,14 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
             ellipsizeMode="tail">
             {companion.name}
           </Text>
-          {badgeText && (
-            <Text style={styles.companionMeta}>
-              {badgeText}
-            </Text>
-          )}
+          {badgeText && <Text style={styles.companionMeta}>{badgeText}</Text>}
         </View>
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   };
 
   const renderAddCompanionBadge = () => (
-    <TouchableOpacity
+    <PressableOpacity
       key="add-companion"
       style={styles.companionTouchable}
       activeOpacity={0.85}
@@ -222,16 +233,20 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
         </View>
         <Text style={styles.addCompanionLabel}>Add companion</Text>
       </View>
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[styles.companionRow, containerStyle]}>
-      {sortedCompanions.map(renderCompanionBadge)}
-      {showAddButton && onAddCompanion && renderAddCompanionBadge()}
+      contentContainerStyle={containerStyle}>
+      <View style={styles.companionRow}>
+        {sortedCompanions.map((companion, index) =>
+          renderCompanionBadge(companion, index),
+        )}
+        {showAddButton && onAddCompanion && renderAddCompanionBadge()}
+      </View>
     </ScrollView>
   );
 };

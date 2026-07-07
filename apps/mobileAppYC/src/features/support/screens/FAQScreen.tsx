@@ -1,15 +1,11 @@
 import React from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-  LayoutAnimation,
-  Platform,
-  UIManager,
-  Image,
-} from 'react-native';
+import {ScrollView, StyleSheet, Text, View, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from 'react-native-reanimated';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Header} from '@/shared/components/common';
 import {PillSelector} from '@/shared/components/common/PillSelector/PillSelector';
@@ -21,21 +17,6 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {FAQ_CATEGORIES, FAQ_ENTRIES, type FAQEntry} from '../data/faqData';
 import {Images} from '@/assets/images';
 import type {HomeStackParamList} from '@/navigation/types';
-
-const isFabricEnabled =
-  typeof globalThis !== 'undefined' &&
-  Boolean(
-    // nativeFabricUIManager is present when the New Architecture is active
-    (globalThis as {nativeFabricUIManager?: object}).nativeFabricUIManager,
-  );
-
-if (
-  Platform.OS === 'android' &&
-  !isFabricEnabled &&
-  typeof UIManager.setLayoutAnimationEnabledExperimental === 'function'
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 type FAQScreenProps = NativeStackScreenProps<HomeStackParamList, 'FAQ'>;
 
@@ -73,8 +54,10 @@ const FAQCard: React.FC<{
       shadow="base"
       style={styles.faqCard}
       fallbackStyle={styles.cardFallback}>
-      <View style={styles.faqCardContent}>
-        <TouchableOpacity
+      <Animated.View
+        layout={LinearTransition.duration(200)}
+        style={styles.faqCardContent}>
+        <PressableOpacity
           style={styles.questionRow}
           onPress={() => onToggle(faq.id)}
           activeOpacity={0.8}>
@@ -83,10 +66,14 @@ const FAQCard: React.FC<{
             source={Images.downArrow}
             style={[styles.toggleIcon, isExpanded && styles.toggleIconExpanded]}
           />
-        </TouchableOpacity>
+        </PressableOpacity>
 
         {isExpanded && (
-          <View style={styles.answerSection}>
+          <Animated.View
+            entering={FadeIn.duration(160)}
+            exiting={FadeOut.duration(120)}
+            layout={LinearTransition.duration(200)}
+            style={styles.answerSection}>
             <Text style={styles.answerText}>{faq.answer}</Text>
 
             <View style={styles.helpfulSection}>
@@ -126,7 +113,7 @@ const FAQCard: React.FC<{
               <View style={styles.relatedSection}>
                 <Text style={styles.relatedTitle}>Related Questions</Text>
                 {relatedEntries.map(related => (
-                  <TouchableOpacity
+                  <PressableOpacity
                     key={related.id}
                     style={styles.relatedRow}
                     onPress={() => onRelatedPress(related.id, false)}
@@ -136,13 +123,13 @@ const FAQCard: React.FC<{
                       source={Images.rightArrow}
                       style={styles.relatedArrow}
                     />
-                  </TouchableOpacity>
+                  </PressableOpacity>
                 ))}
               </View>
             )}
-          </View>
+          </Animated.View>
         )}
-      </View>
+      </Animated.View>
     </LiquidGlassCard>
   </View>
 );
@@ -199,7 +186,6 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
   }, []);
 
   const handleToggle = React.useCallback((faqId: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedFaqId(prev => (prev === faqId ? null : faqId));
   }, []);
 

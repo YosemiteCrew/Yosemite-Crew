@@ -31,11 +31,14 @@ jest.mock('react-native', () => {
       }),
     );
 
+  const mockTouchableOpacity = createMockComponent(
+    'TouchableOpacity',
+    'mock-touchable-opacity',
+  );
+
   return {
-    TouchableOpacity: createMockComponent(
-      'TouchableOpacity',
-      'mock-touchable-opacity',
-    ),
+    TouchableOpacity: mockTouchableOpacity,
+    Pressable: mockTouchableOpacity,
     Text: createMockComponent('Text', 'mock-text'),
     View: createMockComponent('View'),
     ActivityIndicator: createMockComponent(
@@ -173,7 +176,8 @@ describe('Button', () => {
       <Button title="Custom" onPress={mockOnPress} style={customStyle} />,
     );
     const button = getByTestId('mock-touchable-opacity');
-    expect(button.props.style).toEqual(expect.arrayContaining([customStyle]));
+    const styles = [button.props.style({pressed: false})].flat(Infinity);
+    expect(styles).toEqual(expect.arrayContaining([customStyle]));
   });
 
   it('applies custom textStyle to Text', () => {

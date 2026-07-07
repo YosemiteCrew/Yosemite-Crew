@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, {createContext, use, useEffect, useMemo, useState} from 'react';
 import {useNetInfo} from '@react-native-community/netinfo';
 
 export interface NetworkContextType {
@@ -50,7 +44,7 @@ export const NetworkProvider: React.FC<{children: React.ReactNode}> = ({
 };
 
 export const useNetworkStatus = () => {
-  const context = useContext(NetworkContext);
+  const context = use(NetworkContext);
   if (!context) {
     throw new Error('useNetworkStatus must be used within NetworkProvider');
   }

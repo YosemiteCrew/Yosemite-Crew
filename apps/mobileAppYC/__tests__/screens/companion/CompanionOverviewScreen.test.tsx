@@ -192,10 +192,16 @@ jest.mock('@/features/companion/components/CompanionProfileHeader', () => {
     )),
   };
 });
-jest.mock('@/shared/components/common/FormRowComponents', () => {
-  const {Text, TouchableOpacity, View} = jest.requireActual('react-native');
+jest.mock('@/shared/components/common/Separator', () => {
+  const {View} = jest.requireActual('react-native');
   return {
     Separator: jest.fn(() => <View testID="row-separator" />),
+  };
+});
+
+jest.mock('@/shared/components/common/RowButton', () => {
+  const {Text, TouchableOpacity} = jest.requireActual('react-native');
+  return {
     RowButton: jest.fn(({label, value, onPress, testID: explicitTestID}) => {
       const generatedTestID = `row-button-${label.replaceAll(/\s+/g, '-')}`;
       return (

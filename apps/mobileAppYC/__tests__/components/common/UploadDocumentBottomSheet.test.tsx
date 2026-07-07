@@ -1,11 +1,15 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {TouchableOpacity} from 'react-native';
+import {Pressable} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {
   UploadDocumentBottomSheet,
   UploadDocumentBottomSheetRef,
 } from '../../../src/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
+
+// react-native's Pressable is wrapped in React.memo; UNSAFE_getAllByType
+// must match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 
 // --- Mocks ---
 
@@ -185,9 +189,9 @@ describe('UploadDocumentBottomSheet Component', () => {
       />,
     );
 
-    // Find TouchableOpacity. There are 4 total (close btn + 3 options).
+    // Find Pressable nodes. There are 4 total (close btn + 3 options).
     // The close button is the first one in the tree (in the header).
-    const buttons = UNSAFE_getAllByType(TouchableOpacity);
+    const buttons = UNSAFE_getAllByType(PressableType);
     const closeButton = buttons[0];
 
     fireEvent.press(closeButton);

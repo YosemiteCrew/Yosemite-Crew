@@ -4,12 +4,7 @@ import {render, fireEvent, act} from '@testing-library/react-native';
 import {ProfileOverviewScreen} from '@/features/companion/screens/ProfileOverviewScreen';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {
-  Alert,
-  BackHandler,
-  ToastAndroid,
-  Platform,
-} from 'react-native';
+import {Alert, BackHandler, ToastAndroid, Platform} from 'react-native';
 
 // --- Imports to be mocked ---
 import {
@@ -117,21 +112,15 @@ jest.mock(
     const React = require('react');
     const RN = require('react-native');
 
-    const MockSheet = React.forwardRef(
-      ({onDelete, onCancel}: any, ref: any) => {
-        React.useImperativeHandle(ref, () => ({
-          open: jest.fn(),
-          close: jest.fn(),
-        }));
-        return (
-          <RN.View
-            testID="DeleteSheet"
-            onDelete={onDelete}
-            onCancel={onCancel}
-          />
-        );
-      },
-    );
+    const MockSheet = ({onDelete, onCancel, ref}: any) => {
+      React.useImperativeHandle(ref, () => ({
+        open: jest.fn(),
+        close: jest.fn(),
+      }));
+      return (
+        <RN.View testID="DeleteSheet" onDelete={onDelete} onCancel={onCancel} />
+      );
+    };
 
     return {
       __esModule: true,

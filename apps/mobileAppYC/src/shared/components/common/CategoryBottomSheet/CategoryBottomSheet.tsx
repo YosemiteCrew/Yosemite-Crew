@@ -1,6 +1,9 @@
-import React, {forwardRef, useState, useImperativeHandle, useRef} from 'react';
+import React, {useState, useImperativeHandle, useRef} from 'react';
 import {GenericSelectBottomSheet} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
-import type {GenericSelectBottomSheetRef, SelectItem} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import type {
+  GenericSelectBottomSheetRef,
+  SelectItem,
+} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
 
 export interface CategoryBottomSheetRef {
   open: () => void;
@@ -20,10 +23,11 @@ const CATEGORIES: SelectItem[] = [
   {id: 'others', label: 'Others'},
 ];
 
-export const CategoryBottomSheet = forwardRef<
-  CategoryBottomSheetRef,
-  CategoryBottomSheetProps
->(({selectedCategory, onSave}, ref) => {
+export const CategoryBottomSheet = ({
+  selectedCategory,
+  onSave,
+  ref,
+}: CategoryBottomSheetProps & {ref?: React.Ref<CategoryBottomSheetRef>}) => {
   const bottomSheetRef = useRef<GenericSelectBottomSheetRef>(null);
   const [tempCategory, setTempCategory] = useState<SelectItem | null>(
     selectedCategory
@@ -64,6 +68,6 @@ export const CategoryBottomSheet = forwardRef<
       maxListHeight={250}
     />
   );
-});
+};
 
 CategoryBottomSheet.displayName = 'CategoryBottomSheet';

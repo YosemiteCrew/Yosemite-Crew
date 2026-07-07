@@ -1,4 +1,4 @@
-import {deriveHomeGreetingName} from '@/features/home/screens/HomeScreen/HomeScreen';
+import {deriveHomeGreetingName} from '@/features/home/screens/HomeScreen/HomeScreen.helpers';
 
 describe('deriveHomeGreetingName', () => {
   it('falls back to Sky when name is empty', () => {

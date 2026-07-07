@@ -1,9 +1,12 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect as useReactEffect, useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, Text} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {CancelAppointmentBottomSheet, type CancelAppointmentBottomSheetRef} from '@/features/appointments/components/CancelAppointmentBottomSheet';
+import {
+  CancelAppointmentBottomSheet,
+  type CancelAppointmentBottomSheetRef,
+} from '@/features/appointments/components/CancelAppointmentBottomSheet';
 import {AppointmentFormContent} from '@/features/appointments/components/AppointmentFormContent';
 import {BookingSummaryCard} from '@/features/appointments/components/BookingSummaryCard/BookingSummaryCard';
 import {useTheme} from '@/hooks';
@@ -12,8 +15,14 @@ import type {RootState, AppDispatch} from '@/app/store';
 import {useRoute, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
-import {selectAvailabilityFor, selectServiceById} from '@/features/appointments/selectors';
-import {cancelAppointment, rescheduleAppointment} from '@/features/appointments/appointmentsSlice';
+import {
+  selectAvailabilityFor,
+  selectServiceById,
+} from '@/features/appointments/selectors';
+import {
+  cancelAppointment,
+  rescheduleAppointment,
+} from '@/features/appointments/appointmentsSlice';
 import {
   getFirstAvailableDate,
   getFutureAvailabilityMarkers,
@@ -24,7 +33,10 @@ import {
 import {formatTimeRange} from '@/features/appointments/utils/timeFormatting';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {fetchServiceSlots} from '@/features/appointments/businessesSlice';
-import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import {
+  fetchBusinessDetails,
+  fetchGooglePlacesImage,
+} from '@/features/linkedBusinesses';
 import {useNavigateToLegalPages} from '@/shared/hooks/useNavigateToLegalPages';
 import {useOrganisationDocumentNavigation} from '@/shared/hooks/useOrganisationDocumentNavigation';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
@@ -33,7 +45,11 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
 const isAppointmentCancellable = (status?: string | null) => {
-  return status !== 'NO_PAYMENT' && status !== 'AWAITING_PAYMENT' && status !== 'PAYMENT_FAILED';
+  return (
+    status !== 'NO_PAYMENT' &&
+    status !== 'AWAITING_PAYMENT' &&
+    status !== 'PAYMENT_FAILED'
+  );
 };
 
 const getInitialTimeLabel = (apt?: {
@@ -58,8 +74,12 @@ const getRescheduleIsoTimes = (
   const resolvedStart = (startTime ?? selectedTime).padEnd(5, ':00');
   const resolvedEnd = (endTime ?? startTime ?? selectedTime).padEnd(5, ':00');
   return {
-    startIso: slotWindow?.startTimeUtc ?? new Date(`${selectedDate}T${resolvedStart}Z`).toISOString(),
-    endIso: slotWindow?.endTimeUtc ?? new Date(`${selectedDate}T${resolvedEnd}Z`).toISOString(),
+    startIso:
+      slotWindow?.startTimeUtc ??
+      new Date(`${selectedDate}T${resolvedStart}Z`).toISOString(),
+    endIso:
+      slotWindow?.endTimeUtc ??
+      new Date(`${selectedDate}T${resolvedEnd}Z`).toISOString(),
   };
 };
 
@@ -74,7 +94,7 @@ const useFetchServiceSlots = ({
   serviceId?: string | null;
   date?: string | null;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (!businessId || !serviceId || !date) {
       return;
     }
@@ -101,9 +121,10 @@ const useBusinessPhotoFallback = ({
   setFallbackPhoto: React.Dispatch<React.SetStateAction<string | null>>;
   dispatch: AppDispatch;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (!googlePlacesId) return;
-    const needsPhoto = (!businessPhoto || isDummyPhoto(businessPhoto)) && !fallbackPhoto;
+    const needsPhoto =
+      (!businessPhoto || isDummyPhoto(businessPhoto)) && !fallbackPhoto;
     if (!needsPhoto) return;
     dispatch(fetchBusinessDetails(googlePlacesId))
       .unwrap()
@@ -118,7 +139,13 @@ const useBusinessPhotoFallback = ({
           })
           .catch(() => {});
       });
-  }, [businessPhoto, dispatch, fallbackPhoto, googlePlacesId, setFallbackPhoto]);
+  }, [
+    businessPhoto,
+    dispatch,
+    fallbackPhoto,
+    googlePlacesId,
+    setFallbackPhoto,
+  ]);
 };
 
 const useAppointmentSlots = ({
@@ -142,7 +169,10 @@ const useAppointmentSlots = ({
 };
 
 const useFutureDateMarkers = (availability: any, todayISO: string) => {
-  return useMemo(() => getFutureAvailabilityMarkers(availability, todayISO), [availability, todayISO]);
+  return useMemo(
+    () => getFutureAvailabilityMarkers(availability, todayISO),
+    [availability, todayISO],
+  );
 };
 
 const buildBusinessCard = ({
@@ -239,7 +269,8 @@ const buildAgreements = ({
         <Text style={linkStyle} onPress={openBusinessCancellation}>
           cancellation policy
         </Text>
-        . I consent to the sharing of my companion's health information with {businessDisplayName} for the purpose of assessment.
+        . I consent to the sharing of my companion's health information with{' '}
+        {businessDisplayName} for the purpose of assessment.
       </Text>
     ),
   },
@@ -284,8 +315,13 @@ export const EditAppointmentScreen: React.FC = () => {
   const navigation = useNavigation<Nav>();
   const route = useRoute<any>();
   const {appointmentId} = route.params as {appointmentId: string};
-  const {handleOpenTerms: handleOpenAppTerms, handleOpenPrivacy: handleOpenAppPrivacy} = useNavigateToLegalPages();
-  const apt = useSelector((s: RootState) => s.appointments.items.find(a => a.id === appointmentId));
+  const {
+    handleOpenTerms: handleOpenAppTerms,
+    handleOpenPrivacy: handleOpenAppPrivacy,
+  } = useNavigateToLegalPages();
+  const apt = useSelector((s: RootState) =>
+    s.appointments.items.find(a => a.id === appointmentId),
+  );
   const service = useSelector(selectServiceById(apt?.serviceId ?? null));
   const availabilitySelector = React.useMemo(
     () =>
@@ -293,13 +329,24 @@ export const EditAppointmentScreen: React.FC = () => {
         serviceId: apt?.serviceId,
         employeeId: apt?.employeeId ?? service?.defaultEmployeeId ?? null,
       }),
-    [apt?.businessId, apt?.employeeId, apt?.serviceId, service?.defaultEmployeeId],
+    [
+      apt?.businessId,
+      apt?.employeeId,
+      apt?.serviceId,
+      service?.defaultEmployeeId,
+    ],
   );
   const availability = useSelector(availabilitySelector);
-  const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === apt?.businessId));
-  const employee = useSelector((s: RootState) => s.businesses.employees.find(e => e.id === apt?.employeeId));
+  const business = useSelector((s: RootState) =>
+    s.businesses.businesses.find(b => b.id === apt?.businessId),
+  );
+  const employee = useSelector((s: RootState) =>
+    s.businesses.employees.find(e => e.id === apt?.employeeId),
+  );
   const companions = useSelector((s: RootState) => s.companion.companions);
-  const appointmentsLoading = useSelector((s: RootState) => s.appointments.loading);
+  const appointmentsLoading = useSelector(
+    (s: RootState) => s.appointments.loading,
+  );
   const {
     openTerms: openBusinessTerms,
     openPrivacy: openBusinessPrivacy,
@@ -315,7 +362,9 @@ export const EditAppointmentScreen: React.FC = () => {
     [availability, todayISO, apt?.date],
   );
   const [date, setDate] = useState<string>(apt?.date ?? firstAvailableDate);
-  const [dateObj, setDateObj] = useState<Date>(new Date(apt?.date ?? firstAvailableDate));
+  const [dateObj, setDateObj] = useState<Date>(
+    new Date(apt?.date ?? firstAvailableDate),
+  );
   const initialTimeLabel = getInitialTimeLabel(apt);
   const [time, setTime] = useState<string | null>(initialTimeLabel);
   const type = apt?.type || 'General Checkup';
@@ -323,9 +372,11 @@ export const EditAppointmentScreen: React.FC = () => {
   const [emergency, setEmergency] = useState(apt?.emergency || false);
   const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
+  const googlePlacesId =
+    business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
   const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
-  const businessDisplayName = business?.name ?? apt?.organisationName ?? 'this clinic';
+  const businessDisplayName =
+    business?.name ?? apt?.organisationName ?? 'this clinic';
 
   useFetchServiceSlots({
     dispatch,
@@ -387,7 +438,10 @@ export const EditAppointmentScreen: React.FC = () => {
       businessPhoto,
     });
   }, [apt, business, businessPhoto, fallbackPhoto]);
-  const serviceCard = useMemo(() => buildServiceCard(service, apt), [apt, service]);
+  const serviceCard = useMemo(
+    () => buildServiceCard(service, apt),
+    [apt, service],
+  );
   const employeeCard = useMemo(
     () => buildEmployeeCard(employee, () => navigation.goBack()),
     [employee, navigation],
@@ -434,7 +488,9 @@ export const EditAppointmentScreen: React.FC = () => {
             showBackButton
             onBack={() => navigation.goBack()}
             rightIcon={isCancellable ? Images.deleteIcon : undefined}
-            onRightPress={isCancellable ? () => cancelSheetRef.current?.open?.() : undefined}
+            onRightPress={
+              isCancellable ? () => cancelSheetRef.current?.open?.() : undefined
+            }
             glass={false}
           />
         }
@@ -443,12 +499,8 @@ export const EditAppointmentScreen: React.FC = () => {
         {contentPaddingStyle => (
           <ScrollView
             style={styles.scrollView}
-            contentContainerStyle={[
-              styles.container,
-              contentPaddingStyle,
-            ]}
-            showsVerticalScrollIndicator={false}
-          >
+            contentContainerStyle={[styles.container, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
             <BookingSummaryCard
               title={businessCard.title}
               subtitlePrimary={businessCard.subtitlePrimary}
@@ -544,24 +596,24 @@ export const EditAppointmentScreen: React.FC = () => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-  scrollView: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  container: {
-    paddingHorizontal: theme.spacing['5'],
-    paddingTop: theme.spacing['6'],
-    paddingBottom: theme.spacing['24'],
-    gap: theme.spacing['6'],
-  },
-  summaryCard: {
-    marginBottom: theme.spacing['1'],
-  },
-  confirmPrimaryButtonText: {
-    ...theme.typography.button,
-    color: theme.colors.white,
-    textAlign: 'center',
-  },
-});
+    scrollView: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    container: {
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
+      gap: theme.spacing['6'],
+    },
+    summaryCard: {
+      marginBottom: theme.spacing['1'],
+    },
+    confirmPrimaryButtonText: {
+      ...theme.typography.button,
+      color: theme.colors.white,
+      textAlign: 'center',
+    },
+  });
 
 export default EditAppointmentScreen;

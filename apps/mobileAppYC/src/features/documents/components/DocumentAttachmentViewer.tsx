@@ -3,14 +3,14 @@ import {
   View,
   Image,
   Text,
-  TouchableOpacity,
   Alert,
-  Dimensions,
+  useWindowDimensions,
   Share,
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Pdf from 'react-native-pdf';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
@@ -58,7 +58,8 @@ const PdfViewer: React.FC<{
   onTouchEnd?: () => void;
 }> = ({uri, fallback, onTouchStart, onTouchEnd}) => {
   const {theme} = useTheme();
-  const height = Math.max(Dimensions.get('window').height * 0.6, 400);
+  const {height: windowHeight} = useWindowDimensions();
+  const height = Math.max(windowHeight * 0.6, 400);
   const [shouldFallback, setShouldFallback] = React.useState(false);
   const [pageInfo, setPageInfo] = React.useState({page: 1, numberOfPages: 1});
 
@@ -130,7 +131,8 @@ const DocViewer: React.FC<{fallback?: React.ReactNode; fileName?: string}> = ({
   fileName,
 }) => {
   const {theme} = useTheme();
-  const height = Math.max(Dimensions.get('window').height * 0.6, 400);
+  const {height: windowHeight} = useWindowDimensions();
+  const height = Math.max(windowHeight * 0.6, 400);
 
   return (
     <View style={[viewerStyles.docContainer(theme.borderRadius.lg), {height}]}>
@@ -146,6 +148,68 @@ const DocViewer: React.FC<{fallback?: React.ReactNode; fileName?: string}> = ({
       )}
     </View>
   );
+};
+
+const ensureStoragePermission = async () => {
+  if (Platform.OS !== 'android') {
+    return true;
+  }
+  // For API 33+, writing to Downloads does not require legacy storage permission.
+  if (Platform.Version >= 33) {
+    return true;
+  }
+  const result = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+  );
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+};
+
+const handleDownload = async (file: DocumentFile) => {
+  const sourceUri = resolveSourceUri(file);
+  if (!sourceUri) {
+    Alert.alert(
+      'Unavailable',
+      'We could not find a download link for this file. Please try again later.',
+    );
+    return;
+  }
+
+  try {
+    const hasPermission = await ensureStoragePermission();
+    if (!hasPermission) {
+      Alert.alert(
+        'Permission needed',
+        'Please grant storage permission to download files.',
+      );
+      return;
+    }
+
+    const normalizedType = normalizeMimeType(file.type);
+    const extension =
+      (normalizedType && MIME_EXTENSION_MAP[normalizedType]) ||
+      (normalizedType ? normalizedType.split('/').pop() : undefined) ||
+      'bin';
+    const safeName = (file.name || 'document').replaceAll(/[\\/:]/g, '_');
+    const fileName = safeName.toLowerCase().endsWith(`.${extension}`)
+      ? safeName
+      : `${safeName}.${extension}`;
+    const downloadDir =
+      RNFS.DownloadDirectoryPath ?? RNFS.DocumentDirectoryPath;
+    const downloadPath = `${downloadDir}/${fileName}`;
+    await RNFS.mkdir(downloadDir);
+    await RNFS.downloadFile({
+      fromUrl: sourceUri,
+      toFile: downloadPath,
+      discretionary: true,
+    }).promise;
+    Alert.alert('Download complete', `Saved to:\n${downloadPath}`);
+  } catch (error) {
+    console.warn('[DocumentAttachmentViewer] Download error', error);
+    Alert.alert(
+      'Download failed',
+      'Unable to download the file. Please check your connection and try again.',
+    );
+  }
 };
 
 export interface DocumentAttachmentViewerProps {
@@ -179,7 +243,7 @@ export const DocumentAttachmentViewer: React.FC<
       </View>
     );
   }
-  const renderPlaceholder = (message: string) => (
+  const buildPlaceholder = (message: string) => (
     <View style={styles.pdfPlaceholder}>
       <Image source={Images.documentIcon} style={styles.pdfIcon} />
       <Text style={styles.pdfLabel}>{message}</Text>
@@ -204,68 +268,6 @@ export const DocumentAttachmentViewer: React.FC<
     }
   };
 
-  const ensureStoragePermission = async () => {
-    if (Platform.OS !== 'android') {
-      return true;
-    }
-    // For API 33+, writing to Downloads does not require legacy storage permission.
-    if (Platform.Version >= 33) {
-      return true;
-    }
-    const result = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-    );
-    return result === PermissionsAndroid.RESULTS.GRANTED;
-  };
-
-  const handleDownload = async (file: DocumentFile) => {
-    const sourceUri = resolveSourceUri(file);
-    if (!sourceUri) {
-      Alert.alert(
-        'Unavailable',
-        'We could not find a download link for this file. Please try again later.',
-      );
-      return;
-    }
-
-    try {
-      const hasPermission = await ensureStoragePermission();
-      if (!hasPermission) {
-        Alert.alert(
-          'Permission needed',
-          'Please grant storage permission to download files.',
-        );
-        return;
-      }
-
-      const normalizedType = normalizeMimeType(file.type);
-      const extension =
-        (normalizedType && MIME_EXTENSION_MAP[normalizedType]) ||
-        (normalizedType ? normalizedType.split('/').pop() : undefined) ||
-        'bin';
-      const safeName = (file.name || 'document').replaceAll(/[\\/:]/g, '_');
-      const fileName = safeName.toLowerCase().endsWith(`.${extension}`)
-        ? safeName
-        : `${safeName}.${extension}`;
-      const downloadDir =
-        RNFS.DownloadDirectoryPath ?? RNFS.DocumentDirectoryPath;
-      const downloadPath = `${downloadDir}/${fileName}`;
-      await RNFS.mkdir(downloadDir);
-      await RNFS.downloadFile({
-        fromUrl: sourceUri,
-        toFile: downloadPath,
-        discretionary: true,
-      }).promise;
-      Alert.alert('Download complete', `Saved to:\n${downloadPath}`);
-    } catch (error) {
-      console.warn('[DocumentAttachmentViewer] Download error', error);
-      Alert.alert(
-        'Download failed',
-        'Unable to download the file. Please check your connection and try again.',
-      );
-    }
-  };
-
   return (
     <View style={{gap: theme.spacing['6']}}>
       {attachments.map(file => {
@@ -273,7 +275,7 @@ export const DocumentAttachmentViewer: React.FC<
         const canPreview = Boolean(sourceUri);
         const isPdf = isPdfFile(file.type);
         const isDoc = isDocViewerFile(file.type);
-        const placeholder = renderPlaceholder(
+        const placeholder = buildPlaceholder(
           canPreview
             ? 'Preview unavailable right now. Try downloading or check back later.'
             : 'File is missing or the link is broken.',
@@ -314,7 +316,7 @@ export const DocumentAttachmentViewer: React.FC<
                   return (
                     <DocViewer
                       fileName={file.name}
-                      fallback={renderPlaceholder(
+                      fallback={buildPlaceholder(
                         'Preview disabled for this file type. Download the file to view it securely.',
                       )}
                     />
@@ -332,14 +334,14 @@ export const DocumentAttachmentViewer: React.FC<
               })()}
 
               <View style={styles.actionRow}>
-                <TouchableOpacity
+                <PressableOpacity
                   style={styles.shareButton}
                   onPress={() => handleShare(file)}
                   accessibilityRole="button"
                   accessibilityLabel="Share attachment">
                   <Image source={Images.shareIcon} style={styles.shareIcon} />
-                </TouchableOpacity>
-                <TouchableOpacity
+                </PressableOpacity>
+                <PressableOpacity
                   style={styles.downloadButton}
                   onPress={() => handleDownload(file)}
                   accessibilityRole="button"
@@ -348,7 +350,7 @@ export const DocumentAttachmentViewer: React.FC<
                     source={Images.downloadIcon}
                     style={styles.downloadIcon}
                   />
-                </TouchableOpacity>
+                </PressableOpacity>
               </View>
             </LiquidGlassCard>
           </View>

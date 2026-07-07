@@ -186,15 +186,12 @@ jest.mock('@/features/tasks/utils/taskLabels', () => ({
   buildTaskTypeBreadcrumb: () => 'Medication > Flea',
 }));
 
-jest.mock(
-  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
-  () => ({
-    formatDateForDisplay: (date: Date) => {
-      if (!date || Number.isNaN(date.getTime())) return '';
-      return date.toISOString().split('T')[0];
-    },
-  }),
-);
+jest.mock('@/shared/components/common/SimpleDatePicker/dateTimeFormat', () => ({
+  formatDateForDisplay: (date: Date) => {
+    if (!date || Number.isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+  },
+}));
 
 jest.mock('@/features/tasks/thunks', () => ({
   markTaskStatus: jest.fn(payload => ({type: 'tasks/markStatus', payload})),

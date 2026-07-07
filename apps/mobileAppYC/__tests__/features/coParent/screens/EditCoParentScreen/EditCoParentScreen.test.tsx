@@ -59,15 +59,18 @@ const mockActions = {
   setSelectedCompanion: jest.fn(id => ({type: 'SET_COMPANION', payload: id})),
 };
 
-jest.mock('../../../../../src/features/coParent', () => ({
+jest.mock('../../../../../src/features/coParent/thunks', () => ({
   updateCoParentPermissions: (...args: any) =>
     mockActions.updateCoParentPermissions(...args),
-  selectCoParentLoading: (state: any) => state.coParent?.loading,
   deleteCoParent: (...args: any) => mockActions.deleteCoParent(...args),
   fetchCoParents: (...args: any) => mockActions.fetchCoParents(...args),
   promoteCoParentToPrimary: (...args: any) =>
     mockActions.promoteCoParentToPrimary(...args),
   fetchParentAccess: (...args: any) => mockActions.fetchParentAccess(...args),
+}));
+
+jest.mock('../../../../../src/features/coParent/selectors', () => ({
+  selectCoParentLoading: (state: any) => state.coParent?.loading,
 }));
 
 jest.mock('@/features/companion', () => ({

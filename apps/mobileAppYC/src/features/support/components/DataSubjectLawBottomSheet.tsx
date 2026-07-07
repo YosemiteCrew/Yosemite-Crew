@@ -1,4 +1,4 @@
-import React, {forwardRef, useImperativeHandle, useMemo, useRef} from 'react';
+import React, {useImperativeHandle, useMemo, useRef} from 'react';
 import {
   GenericSelectBottomSheet,
   type SelectItem,
@@ -15,10 +15,13 @@ interface DataSubjectLawBottomSheetProps {
   onSelect: (option: SelectItem | null) => void;
 }
 
-export const DataSubjectLawBottomSheet = forwardRef<
-  DataSubjectLawBottomSheetRef,
-  DataSubjectLawBottomSheetProps
->(({selectedLawId, onSelect}, ref) => {
+export const DataSubjectLawBottomSheet = ({
+  selectedLawId,
+  onSelect,
+  ref,
+}: DataSubjectLawBottomSheetProps & {
+  ref?: React.Ref<DataSubjectLawBottomSheetRef>;
+}) => {
   const sheetRef = useRef<any>(null);
 
   const items: SelectItem[] = useMemo(
@@ -52,13 +55,13 @@ export const DataSubjectLawBottomSheet = forwardRef<
       title="Select regulation"
       items={items}
       selectedItem={selectedItem}
-  onSave={onSelect}
-  hasSearch={false}
-  mode="select"
-  snapPoints={['55%', '65%']}
+      onSave={onSelect}
+      hasSearch={false}
+      mode="select"
+      snapPoints={['55%', '65%']}
     />
   );
-});
+};
 
 DataSubjectLawBottomSheet.displayName = 'DataSubjectLawBottomSheet';
 

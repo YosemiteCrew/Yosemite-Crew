@@ -1,11 +1,6 @@
 import React from 'react';
 import {mockTheme} from '../../setup/mockTheme';
-import {
-  render,
-  fireEvent,
-  screen,
-  act,
-} from '@testing-library/react-native';
+import {render, fireEvent, screen, act} from '@testing-library/react-native';
 import {
   GenericSelectBottomSheet,
   type GenericSelectBottomSheetRef,
@@ -72,7 +67,7 @@ jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
         close: mockClose,
       }));
       mockSheetOnChange = props.onChange;
-      if (!props.enableBackdrop) {
+      if (!props.behavior?.backdrop) {
         return null;
       }
       return <RNView testID="mock-sheet-content">{props.children}</RNView>;
@@ -84,10 +79,8 @@ jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
 jest.mock(
   '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
   () => {
-    const {
-      TouchableOpacity: RNTouchableOpacity,
-      Text: RNText,
-    } = jest.requireActual('react-native');
+    const {TouchableOpacity: RNTouchableOpacity, Text: RNText} =
+      jest.requireActual('react-native');
     return {
       __esModule: true,
       default: (props: any) => (
