@@ -185,8 +185,8 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['2'],
     },
     emptyStateTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
       textAlign: 'center',
     },
     emptyStateSubtitle: {
