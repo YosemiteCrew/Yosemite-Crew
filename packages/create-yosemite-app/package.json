@@ -1,0 +1,38 @@
+{
+  "name": "create-yosemite-app",
+  "version": "0.1.0",
+  "description": "Scaffold a TypeScript starter project for the Yosemite Crew Developer Data API",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "create-yosemite-app": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^22.15.21",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.4",
+    "typescript": "5.0.4"
+  }
+}

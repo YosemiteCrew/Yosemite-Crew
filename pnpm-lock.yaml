@@ -1027,6 +1027,24 @@ importers:
         specifier: 5.0.4
         version: 5.0.4
 
+  packages/create-yosemite-app:
+    devDependencies:
+      '@types/jest':
+        specifier: ^29.5.12
+        version: 29.5.14
+      '@types/node':
+        specifier: ^22.15.21
+        version: 22.19.8
+      jest:
+        specifier: ^29.7.0
+        version: 29.7.0(@types/node@22.19.8)(ts-node@10.9.2)
+      ts-jest:
+        specifier: ^29.3.4
+        version: 29.4.6(@babel/core@7.29.6)(esbuild@0.28.1)(jest@29.7.0)(typescript@5.0.4)
+      typescript:
+        specifier: 5.0.4
+        version: 5.0.4
+
   packages/database:
     dependencies:
       '@prisma/client':
