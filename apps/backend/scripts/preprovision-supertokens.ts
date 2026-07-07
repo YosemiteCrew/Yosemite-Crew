@@ -31,6 +31,9 @@
 
 import { randomBytes } from "crypto";
 import { readFileSync } from "fs";
+import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
+import path from "node:path";
 import SuperTokens from "supertokens-node";
 import EmailPassword from "supertokens-node/recipe/emailpassword";
 import Passwordless from "supertokens-node/recipe/passwordless";
@@ -38,6 +41,14 @@ import EmailVerification from "supertokens-node/recipe/emailverification";
 import UserMetadata from "supertokens-node/recipe/usermetadata";
 import { initSuperTokens } from "@yosemite-crew/auth";
 import { prisma } from "../src/config/prisma";
+
+dotenv.config({
+  path: path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    ".env",
+  ),
+});
 
 const TENANT = "public";
 
