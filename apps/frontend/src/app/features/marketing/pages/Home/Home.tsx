@@ -23,6 +23,7 @@ import {
   Reveal,
   Spotlight,
   HeroVideo,
+  HeroGlow,
   CountUp,
   InkAnnotate,
   useMagnet,
@@ -33,9 +34,110 @@ import {
   HERO_VIDEOS,
   HERO_POSTERS,
   GITHUB_REPO_URL,
+  ctaBandContainerStyle,
 } from '@/app/features/marketing/site';
 
 const SERIF = 'var(--font-newsreader)';
+
+/* ─────────────────────────── SHARED ─────────────────────────── */
+
+/** Uppercase section eyebrow shared across the marketing sections. */
+function Eyebrow({
+  as: Tag = 'div',
+  color,
+  children,
+}: Readonly<{ as?: 'div' | 'span'; color: string; children: ReactNode }>) {
+  return (
+    <Tag
+      style={{
+        fontSize: 12,
+        fontWeight: 700,
+        letterSpacing: '0.14em',
+        textTransform: 'uppercase',
+        color,
+      }}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+/** The three inert traffic-light dots in a mock window/card chrome. */
+function WindowDots({ color }: Readonly<{ color: string }>) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ width: 10, height: 10, borderRadius: 9999, background: color }} />
+      <span style={{ width: 10, height: 10, borderRadius: 9999, background: color }} />
+      <span style={{ width: 10, height: 10, borderRadius: 9999, background: color }} />
+    </div>
+  );
+}
+
+type PillarCopyProps = Readonly<{
+  eyebrow: string;
+  eyebrowAs?: 'div' | 'span';
+  heading: ReactNode;
+  body: ReactNode;
+  linkHref: string;
+  linkText: ReactNode;
+}>;
+
+/** Shared left/right copy column (eyebrow + heading + body + link) for the three pillars. */
+function PillarCopy({ eyebrow, eyebrowAs, heading, body, linkHref, linkText }: PillarCopyProps) {
+  return (
+    <Reveal
+      delay={0}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 20 }}
+    >
+      <Eyebrow as={eyebrowAs} color="var(--blue-text)">
+        {eyebrow}
+      </Eyebrow>
+      <h2
+        style={{
+          fontFamily: SERIF,
+          margin: 0,
+          fontSize: 'clamp(34px, 4vw, 52px)',
+          fontWeight: 500,
+          lineHeight: 1.1,
+          letterSpacing: '-0.045em',
+          color: 'var(--ink)',
+          textWrap: 'balance',
+        }}
+      >
+        {heading}
+      </h2>
+      <p
+        style={{
+          margin: 0,
+          fontSize: 18,
+          lineHeight: 1.65,
+          letterSpacing: '-0.02em',
+          color: 'var(--ink-muted)',
+          textWrap: 'pretty',
+        }}
+      >
+        {body}
+      </p>
+      <Link
+        href={linkHref}
+        className="yc-link"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          textDecoration: 'none',
+          color: 'var(--blue-text)',
+          fontSize: 17,
+          fontWeight: 500,
+          letterSpacing: '-0.02em',
+          marginTop: 8,
+        }}
+      >
+        {linkText} <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
+      </Link>
+    </Reveal>
+  );
+}
 
 /* ─────────────────────────── HERO ─────────────────────────── */
 
@@ -288,51 +390,24 @@ function Hero() {
       <HeroVideo src={HERO_VIDEOS.home} poster={HERO_POSTERS.home} position="center 50%" />
 
       {/* ambient glows — each on a parallax-depth layer so it drifts toward the cursor */}
-      <div data-depth="0.05" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: -180,
-            left: 'calc(50% - 630px)',
-            width: 900,
-            height: 620,
-            background: 'radial-gradient(closest-side, var(--glow-b09), transparent 70%)',
-            pointerEvents: 'none',
-            animation: 'ycDrift 26s ease-in-out infinite alternate',
-          }}
-        />
-      </div>
-      <div data-depth="0.06" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            bottom: -220,
-            right: -120,
-            width: 760,
-            height: 560,
-            background: 'radial-gradient(closest-side, var(--glow-c10), transparent 70%)',
-            pointerEvents: 'none',
-            animation: 'ycDrift 34s ease-in-out 4s infinite alternate-reverse',
-          }}
-        />
-      </div>
-      <div data-depth="0.04" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            bottom: -160,
-            left: -140,
-            width: 620,
-            height: 480,
-            background: 'radial-gradient(closest-side, var(--glow-p07), transparent 70%)',
-            pointerEvents: 'none',
-            animation: 'ycDrift 40s ease-in-out 2s infinite alternate',
-          }}
-        />
-      </div>
+      <HeroGlow
+        depth="0.05"
+        color="var(--glow-b09)"
+        box={{ top: -180, left: 'calc(50% - 630px)', width: 900, height: 620 }}
+        animation="ycDrift 26s ease-in-out infinite alternate"
+      />
+      <HeroGlow
+        depth="0.06"
+        color="var(--glow-c10)"
+        box={{ bottom: -220, right: -120, width: 760, height: 560 }}
+        animation="ycDrift 34s ease-in-out 4s infinite alternate-reverse"
+      />
+      <HeroGlow
+        depth="0.04"
+        color="var(--glow-p07)"
+        box={{ bottom: -160, left: -140, width: 620, height: 480 }}
+        animation="ycDrift 40s ease-in-out 2s infinite alternate"
+      />
 
       <HeroFloatingCards />
 
@@ -642,17 +717,7 @@ function Companions() {
         }}
       >
         <Reveal delay={0} style={{ maxWidth: 680, marginBottom: 'clamp(32px, 4vw, 48px)' }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              color: 'var(--blue-text)',
-            }}
-          >
-            Every companion
-          </div>
+          <Eyebrow color="var(--blue-text)">Every companion</Eyebrow>
           <h2
             style={{
               fontFamily: SERIF,
@@ -893,69 +958,20 @@ function PetBusinessesPillar() {
           alignItems: 'center',
         }}
       >
-        <Reveal
-          delay={0}
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 20 }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              color: 'var(--blue-text)',
-            }}
-          >
-            For pet businesses
-          </div>
-          <h2
-            style={{
-              fontFamily: SERIF,
-              margin: 0,
-              fontSize: 'clamp(34px, 4vw, 52px)',
-              fontWeight: 500,
-              lineHeight: 1.1,
-              letterSpacing: '-0.045em',
-              color: 'var(--ink)',
-              textWrap: 'balance',
-            }}
-          >
-            Run the practice, not the software.
-          </h2>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 18,
-              lineHeight: 1.65,
-              letterSpacing: '-0.02em',
-              color: 'var(--ink-muted)',
-              textWrap: 'pretty',
-            }}
-          >
-            Whether you run a clinic, a boarding kennel or a grooming salon, one system carries the
-            day: appointments, records, invoicing and inventory, instead of six tabs and a notebook
-            of workarounds. And because the database lives on your machine, a blinking router never
-            takes the morning down.
-          </p>
-          <Link
-            href="/pet-businesses"
-            className="yc-link"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              textDecoration: 'none',
-              color: 'var(--blue-text)',
-              fontSize: 17,
-              fontWeight: 500,
-              letterSpacing: '-0.02em',
-              marginTop: 8,
-            }}
-          >
-            Explore the practice suite{' '}
-            <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
-          </Link>
-        </Reveal>
+        <PillarCopy
+          eyebrow="For pet businesses"
+          heading="Run the practice, not the software."
+          body={
+            <>
+              Whether you run a clinic, a boarding kennel or a grooming salon, one system carries
+              the day: appointments, records, invoicing and inventory, instead of six tabs and a
+              notebook of workarounds. And because the database lives on your machine, a blinking
+              router never takes the morning down.
+            </>
+          }
+          linkHref="/pet-businesses"
+          linkText="Explore the practice suite"
+        />
 
         <Reveal delay={150} style={{ display: 'flex', justifyContent: 'center' }}>
           <div
@@ -979,32 +995,7 @@ function PetBusinessesPillar() {
                 borderBottom: '1px solid var(--inset)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 9999,
-                    background: 'var(--hairline)',
-                  }}
-                />
-                <span
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 9999,
-                    background: 'var(--hairline)',
-                  }}
-                />
-                <span
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 9999,
-                    background: 'var(--hairline)',
-                  }}
-                />
-              </div>
+              <WindowDots color="var(--hairline)" />
               <span
                 style={{
                   fontSize: 13,
@@ -1028,7 +1019,7 @@ function PetBusinessesPillar() {
                 <span
                   style={{ width: 7, height: 7, borderRadius: 9999, background: 'var(--success)' }}
                 />
-                Offline-ready
+                {'Offline-ready'}
               </span>
             </div>
             <div style={{ padding: 20 }}>
@@ -1140,6 +1131,58 @@ function RecordRow({ icon, text, meta }: RecordRowProps) {
   );
 }
 
+type CompanionTileProps = Readonly<{
+  initial: string;
+  name: string;
+  avatarBg: string;
+  avatarColor: string;
+  active?: boolean;
+}>;
+
+function CompanionTile({ initial, name, avatarBg, avatarColor, active }: CompanionTileProps) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+        padding: '12px 8px',
+        background: 'var(--screen)',
+        border: active ? '1.5px solid var(--blue)' : '1px solid var(--hairline)',
+        borderRadius: 18,
+      }}
+    >
+      <span
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 9999,
+          background: avatarBg,
+          color: avatarColor,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 14,
+          fontWeight: 700,
+        }}
+      >
+        {initial}
+      </span>
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: active ? 700 : 500,
+          color: active ? 'var(--ink-body)' : 'var(--ink-muted)',
+        }}
+      >
+        {name}
+      </span>
+    </div>
+  );
+}
+
 function PhoneMockup() {
   return (
     <div
@@ -1200,101 +1243,29 @@ function PhoneMockup() {
             </span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                padding: '12px 8px',
-                background: 'var(--screen)',
-                border: '1.5px solid var(--blue)',
-                borderRadius: 18,
-              }}
-            >
-              <span
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 9999,
-                  background: 'var(--blue-soft)',
-                  color: 'var(--blue)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              >
-                B
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>Bella</span>
-            </div>
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                padding: '12px 8px',
-                background: 'var(--screen)',
-                border: '1px solid var(--hairline)',
-                borderRadius: 18,
-              }}
-            >
-              <span
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 9999,
-                  background: 'var(--avatar-green-bg)',
-                  color: 'var(--avatar-green-ink)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              >
-                F
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-muted)' }}>
-                Fjord
-              </span>
-            </div>
-            <div
-              style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-                padding: '12px 8px',
-                background: 'var(--screen)',
-                border: '1px solid var(--hairline)',
-                borderRadius: 18,
-              }}
-            >
-              <span
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 9999,
-                  background: 'var(--avatar-amber-bg)',
-                  color: 'var(--avatar-amber-ink)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              >
-                M
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-muted)' }}>Miso</span>
-            </div>
+            {[
+              {
+                initial: 'B',
+                name: 'Bella',
+                avatarBg: 'var(--blue-soft)',
+                avatarColor: 'var(--blue)',
+                active: true,
+              },
+              {
+                initial: 'F',
+                name: 'Fjord',
+                avatarBg: 'var(--avatar-green-bg)',
+                avatarColor: 'var(--avatar-green-ink)',
+              },
+              {
+                initial: 'M',
+                name: 'Miso',
+                avatarBg: 'var(--avatar-amber-bg)',
+                avatarColor: 'var(--avatar-amber-ink)',
+              },
+            ].map((tile) => (
+              <CompanionTile key={tile.name} {...tile} />
+            ))}
           </div>
           <div
             style={{
@@ -1442,69 +1413,21 @@ function PetParentsPillar() {
           <PhoneMockup />
         </Reveal>
         <div data-order-first-m="true">
-          <Reveal
-            delay={0}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 20 }}
-          >
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-                color: 'var(--blue-text)',
-              }}
-            >
-              For pet parents
-            </span>
-            <h2
-              style={{
-                fontFamily: SERIF,
-                margin: 0,
-                fontSize: 'clamp(34px, 4vw, 52px)',
-                fontWeight: 500,
-                lineHeight: 1.1,
-                letterSpacing: '-0.045em',
-                color: 'var(--ink)',
-                textWrap: 'balance',
-              }}
-            >
-              The whole story, in your pocket.
-            </h2>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 18,
-                lineHeight: 1.65,
-                letterSpacing: '-0.02em',
-                color: 'var(--ink-muted)',
-                textWrap: 'pretty',
-              }}
-            >
-              Cats, dogs and horses. Every record, every visit and every dose in one place, shared
-              with everyone who helps care for them. Book across the businesses you are linked to,
-              message your vet, and never again ask anyone to print four years of history page by
-              page.
-            </p>
-            <Link
-              href="/pet-parents"
-              className="yc-link"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                textDecoration: 'none',
-                color: 'var(--blue-text)',
-                fontSize: 17,
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                marginTop: 8,
-              }}
-            >
-              See the companion app{' '}
-              <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
-            </Link>
-          </Reveal>
+          <PillarCopy
+            eyebrow="For pet parents"
+            eyebrowAs="span"
+            heading="The whole story, in your pocket."
+            body={
+              <>
+                Cats, dogs and horses. Every record, every visit and every dose in one place, shared
+                with everyone who helps care for them. Book across the businesses you are linked to,
+                message your vet, and never again ask anyone to print four years of history page by
+                page.
+              </>
+            }
+            linkHref="/pet-parents"
+            linkText="See the companion app"
+          />
         </div>
       </div>
     </section>
@@ -1528,68 +1451,19 @@ function DevelopersPillar() {
           alignItems: 'center',
         }}
       >
-        <Reveal
-          delay={0}
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 20 }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              color: 'var(--blue-text)',
-            }}
-          >
-            For developers
-          </div>
-          <h2
-            style={{
-              fontFamily: SERIF,
-              margin: 0,
-              fontSize: 'clamp(34px, 4vw, 52px)',
-              fontWeight: 500,
-              lineHeight: 1.1,
-              letterSpacing: '-0.045em',
-              color: 'var(--ink)',
-              textWrap: 'balance',
-            }}
-          >
-            Build on an open spine.
-          </h2>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 18,
-              lineHeight: 1.65,
-              letterSpacing: '-0.02em',
-              color: 'var(--ink-muted)',
-              textWrap: 'pretty',
-            }}
-          >
-            A FHIR-native API, a plugin marketplace, and a codebase you can actually read. Take an
-            idea, whether it&apos;s an AI scribe, a triage agent or a smarter reminder, and put it
-            in front of working clinics in hours, not quarters.
-          </p>
-          <Link
-            href="/developers"
-            className="yc-link"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              textDecoration: 'none',
-              color: 'var(--blue-text)',
-              fontSize: 17,
-              fontWeight: 500,
-              letterSpacing: '-0.02em',
-              marginTop: 8,
-            }}
-          >
-            Read the developer docs{' '}
-            <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
-          </Link>
-        </Reveal>
+        <PillarCopy
+          eyebrow="For developers"
+          heading="Build on an open spine."
+          body={
+            <>
+              A FHIR-native API, a plugin marketplace, and a codebase you can actually read. Take an
+              idea, whether it&apos;s an AI scribe, a triage agent or a smarter reminder, and put it
+              in front of working clinics in hours, not quarters.
+            </>
+          }
+          linkHref="/developers"
+          linkText="Read the developer docs"
+        />
 
         <Reveal
           delay={150}
@@ -1615,17 +1489,7 @@ function DevelopersPillar() {
                 borderBottom: '1px solid #302f2e',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span
-                  style={{ width: 10, height: 10, borderRadius: 9999, background: '#454341' }}
-                />
-                <span
-                  style={{ width: 10, height: 10, borderRadius: 9999, background: '#454341' }}
-                />
-                <span
-                  style={{ width: 10, height: 10, borderRadius: 9999, background: '#454341' }}
-                />
-              </div>
+              <WindowDots color="#454341" />
               <span
                 style={{
                   fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
@@ -1816,17 +1680,7 @@ function Principles() {
         }}
       >
         <Reveal delay={0} style={{ maxWidth: 760 }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              color: 'var(--ink-faint)',
-            }}
-          >
-            Trust, the expensive kind
-          </div>
+          <Eyebrow color="var(--ink-faint)">Trust, the expensive kind</Eyebrow>
           <h2
             style={{
               fontFamily: SERIF,
@@ -1890,8 +1744,9 @@ function Principles() {
             >
               We take no cut of payments
             </strong>
-            , because toll collectors stop making the product better, and we intend to keep making
-            it better.
+            {
+              ', because toll collectors stop making the product better, and we intend to keep making it better.'
+            }
           </PrincipleCell>
           <PrincipleCell
             number="03"
@@ -2025,17 +1880,7 @@ function BuildingInPublic() {
           }}
         >
           <div style={{ maxWidth: 620 }}>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-                color: 'var(--ink-faint)',
-              }}
-            >
-              Building in public
-            </div>
+            <Eyebrow color="var(--ink-faint)">Building in public</Eyebrow>
             <h2
               style={{
                 fontFamily: SERIF,
@@ -2121,31 +1966,18 @@ function FinalCta() {
       id="cta"
       style={{ position: 'relative', background: 'var(--page)', overflow: 'hidden' }}
     >
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
+      <HeroGlow
+        parallax={false}
+        color="var(--glow-b07)"
+        box={{
           top: '50%',
           left: '50%',
           transform: 'translate(-50%,-50%)',
           width: 900,
           height: 500,
-          background: 'radial-gradient(closest-side, var(--glow-b07), transparent 70%)',
-          pointerEvents: 'none',
         }}
       />
-      <div
-        style={{
-          width: 'min(880px, calc(100% - 48px))',
-          margin: '0 auto',
-          padding: 'clamp(96px, 13vw, 170px) 0',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          position: 'relative',
-        }}
-      >
+      <div style={ctaBandContainerStyle('clamp(96px, 13vw, 170px) 0')}>
         <Reveal delay={0} as="span">
           <h2
             style={{

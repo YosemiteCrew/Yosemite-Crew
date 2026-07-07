@@ -1,6 +1,6 @@
 'use client';
 
-import type { CSSProperties, FormEvent, ReactNode } from 'react';
+import type { CSSProperties, ReactNode, SyntheticEvent } from 'react';
 import {
   IoAlertCircleOutline,
   IoArrowForwardOutline,
@@ -114,7 +114,7 @@ export const AuthForm = ({
   method,
   children,
 }: Readonly<{
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: SyntheticEvent<HTMLFormElement>) => void;
   method?: string;
   children: ReactNode;
 }>) => (

@@ -24,6 +24,7 @@ jest.mock('@/app/features/marketing/site', () => {
       R.createElement(as, { className, style }, children),
     Spotlight: ({ children, style }: any) => R.createElement('div', { style }, children),
     useMagnet: () => R.useRef(null),
+    HeroGlow: () => null,
   };
 });
 

@@ -17,6 +17,8 @@ jest.mock('@/app/features/marketing/site', () => {
     Spotlight: ({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) =>
       React_.createElement('div', { style }, children),
     HeroVideo: () => null,
+    HeroGlow: () => null,
+    ctaBandContainerStyle: () => ({}),
     ReleasePill: () => React_.createElement('span', null, 'Latest release'),
     CountUp: ({ value }: { value: string }) => React_.createElement('span', null, value),
     useMagnet: () => React_.createRef(),

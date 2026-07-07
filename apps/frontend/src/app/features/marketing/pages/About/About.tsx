@@ -18,9 +18,11 @@ import {
   Reveal,
   Spotlight,
   CountUp,
+  HeroGlow,
   useGithubStats,
   ABOUT_ORIGIN_PHOTO,
   GITHUB_REPO_URL,
+  GITHUB_STAR_CTA_STYLE,
   DISCORD_INVITE_URL,
 } from '@/app/features/marketing/site';
 
@@ -78,18 +80,11 @@ function Hero() {
         padding: '152px 24px 100px',
       }}
     >
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: '-160px',
-          left: 'calc(50% - 420px)',
-          width: '840px',
-          height: '560px',
-          background: 'radial-gradient(closest-side, var(--glow-b08), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 34s ease-in-out infinite alternate',
-        }}
+      <HeroGlow
+        parallax={false}
+        color="var(--glow-b08)"
+        box={{ top: '-160px', left: 'calc(50% - 420px)', width: '840px', height: '560px' }}
+        animation="ycDrift 34s ease-in-out infinite alternate"
       />
       <div
         style={{
@@ -130,7 +125,7 @@ function Hero() {
               background: 'var(--success)',
             }}
           />
-          About us
+          {'About us'}
         </div>
         <h1
           style={{
@@ -221,17 +216,10 @@ function Origin() {
   return (
     <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
       <section data-screen-label="Origin">
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: '-200px',
-            right: '-160px',
-            width: '780px',
-            height: '600px',
-            background: 'radial-gradient(closest-side, var(--glow-b12), transparent 70%)',
-            pointerEvents: 'none',
-          }}
+        <HeroGlow
+          parallax={false}
+          color="var(--glow-b12)"
+          box={{ top: '-200px', right: '-160px', width: '780px', height: '600px' }}
         />
         <div
           style={{
@@ -365,8 +353,9 @@ const BELIEFS: Belief[] = [
         >
           We take no cut of your payments
         </strong>
-        . The day you tax money you didn&apos;t create, you stop making the product better and start
-        making the toll bigger.
+        {
+          ". The day you tax money you didn't create, you stop making the product better and start making the toll bigger."
+        }
       </>
     ),
     delay: 80,
@@ -758,6 +747,25 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
   );
 }
 
+function CommunityPill({
+  href,
+  icon,
+  label,
+}: Readonly<{ href: string; icon: ReactNode; label: string }>) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener"
+      className="yc-community-pill"
+      style={communityPillStyle}
+    >
+      {icon}
+      {label}
+    </a>
+  );
+}
+
 function TheCrew() {
   return (
     <section style={{ background: 'var(--page)' }}>
@@ -826,26 +834,16 @@ function TheCrew() {
             And the wider community that keeps it moving.
           </span>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <a
+            <CommunityPill
               href={CONTRIBUTORS_URL}
-              target="_blank"
-              rel="noopener"
-              className="yc-community-pill"
-              style={communityPillStyle}
-            >
-              <IoLogoGithub aria-hidden="true" style={{ fontSize: '16px' }} />
-              Contributors on GitHub
-            </a>
-            <a
+              icon={<IoLogoGithub aria-hidden="true" style={{ fontSize: '16px' }} />}
+              label="Contributors on GitHub"
+            />
+            <CommunityPill
               href={DISCORD_INVITE_URL}
-              target="_blank"
-              rel="noopener"
-              className="yc-community-pill"
-              style={communityPillStyle}
-            >
-              <IoLogoDiscord aria-hidden="true" style={{ fontSize: '16px' }} />
-              Join the Discord
-            </a>
+              icon={<IoLogoDiscord aria-hidden="true" style={{ fontSize: '16px' }} />}
+              label="Join the Discord"
+            />
           </div>
         </Reveal>
       </div>
@@ -984,17 +982,15 @@ function ClosingCta() {
   return (
     <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
       <section data-screen-label="CTA">
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
+        <HeroGlow
+          parallax={false}
+          color="var(--glow-b14)"
+          box={{
             top: '50%',
             left: '50%',
             transform: 'translate(-50%,-50%)',
             width: '900px',
             height: '500px',
-            background: 'radial-gradient(closest-side, var(--glow-b14), transparent 70%)',
-            pointerEvents: 'none',
           }}
         />
         <div
@@ -1056,20 +1052,7 @@ function ClosingCta() {
               target="_blank"
               rel="noopener"
               className="yc-cta-solid"
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: '#f7f3ec',
-                color: '#1d1c1b',
-                fontSize: '17px',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 32px',
-                borderRadius: '9999px',
-                transition: 'background 200ms',
-              }}
+              style={GITHUB_STAR_CTA_STYLE}
             >
               <IoLogoGithub aria-hidden="true" style={{ fontSize: '18px' }} />
               Star on GitHub

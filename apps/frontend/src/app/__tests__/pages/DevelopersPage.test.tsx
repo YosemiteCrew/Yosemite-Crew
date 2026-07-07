@@ -26,6 +26,7 @@ jest.mock('@/app/features/marketing/site', () => {
     GITHUB_REPO_URL: 'https://github.com/YosemiteCrew/Yosemite-Crew',
     useMagnet: () => React2.useRef(null),
     useParallax: () => React2.useRef(null),
+    HeroGlow: () => null,
     Reveal: ({ children, style, className }: WrapProps) =>
       React2.createElement('div', { style, className }, children),
     Tilt: ({ children, style, className }: WrapProps) =>

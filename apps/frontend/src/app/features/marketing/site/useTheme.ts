@@ -9,7 +9,7 @@ const THEME_CHANGE_EVENT = 'yc-theme-change';
 
 /** The current theme, read from the source of truth: <html data-theme>. */
 const readTheme = (): Theme => {
-  const attr = globalThis.document?.documentElement.getAttribute('data-theme');
+  const attr = globalThis.document?.documentElement.dataset.theme;
   return attr === 'dark' ? 'dark' : 'light';
 };
 
@@ -29,8 +29,8 @@ const syncMetaThemeColor = () => {
 
 const applyTheme = (theme: Theme, persist: boolean) => {
   const root = globalThis.document.documentElement;
-  root.setAttribute('data-theme', theme);
-  root.setAttribute('data-theme-ready', '1');
+  root.dataset.theme = theme;
+  root.dataset.themeReady = '1';
   if (persist) {
     try {
       globalThis.localStorage.setItem(STORAGE_KEY, theme);
@@ -57,7 +57,7 @@ export function useTheme() {
 
     // Enable the flip transition after first paint so the initial paint never animates.
     const readyTimer = globalThis.setTimeout(() => {
-      globalThis.document.documentElement.setAttribute('data-theme-ready', '1');
+      globalThis.document.documentElement.dataset.themeReady = '1';
     }, 60);
 
     // Keep every toggle instance's icon in sync when any of them flips the theme.

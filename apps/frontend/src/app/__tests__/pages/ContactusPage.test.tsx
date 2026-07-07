@@ -7,6 +7,7 @@ import { postData } from '@/app/services/axios';
 
 jest.mock('@/app/features/marketing/site', () => ({
   useMagnet: () => ({ current: null }),
+  HeroGlow: () => null,
   DISCORD_INVITE_URL: 'https://discord.gg/yosemitecrew',
 }));
 

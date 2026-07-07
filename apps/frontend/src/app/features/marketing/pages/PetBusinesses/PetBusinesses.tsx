@@ -1,6 +1,6 @@
 'use client';
 
-import { type CSSProperties, type ReactNode } from 'react';
+import { type CSSProperties, type ReactNode, type RefObject } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -31,6 +31,7 @@ import {
 } from 'react-icons/io5';
 import {
   HeroVideo,
+  HeroGlow,
   Reveal,
   Spotlight,
   ReleasePill,
@@ -40,6 +41,7 @@ import {
   HERO_POSTERS,
   RELEASES_LATEST_URL,
   MARKETING_LOGO,
+  ctaBandContainerStyle,
 } from '@/app/features/marketing/site';
 
 const NEWSREADER = 'var(--font-newsreader)';
@@ -109,6 +111,53 @@ function FeatureCheck({ children }: Readonly<FeatureCheckProps>) {
   );
 }
 
+interface DownloadButtonProps {
+  linkRef: RefObject<HTMLAnchorElement | null>;
+  href: string;
+  ariaLabel: string;
+  icon: ReactNode;
+  label: string;
+}
+
+function DownloadButton({ linkRef, href, ariaLabel, icon, label }: Readonly<DownloadButtonProps>) {
+  return (
+    <a
+      ref={linkRef}
+      href={href}
+      target="_blank"
+      rel="noopener"
+      aria-label={ariaLabel}
+      style={{
+        textDecoration: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        background: 'var(--dl-btn)',
+        color: 'var(--dl-btn-text)',
+        padding: '10px 18px',
+        borderRadius: 14,
+        boxShadow: '0 10px 26px var(--sh14)',
+        transition: 'background 200ms, transform 200ms',
+      }}
+    >
+      {icon}
+      <span
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          lineHeight: 1.05,
+          textAlign: 'left',
+        }}
+      >
+        <span style={{ fontSize: 10, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
+          Download for
+        </span>
+        <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em' }}>{label}</span>
+      </span>
+    </a>
+  );
+}
+
 /* ---------- HERO ---------- */
 
 function Hero() {
@@ -149,42 +198,20 @@ function Hero() {
         poster={HERO_POSTERS.petBusinesses}
         position="center 40%"
       />
-      <div
-        data-depth="0.05"
-        style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}
-      >
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: -160,
-            left: 'calc(50% - 620px)',
-            width: 860,
-            height: 600,
-            background: 'radial-gradient(closest-side, var(--glow-b09), transparent 70%)',
-            pointerEvents: 'none',
-            animation: 'ycDrift 30s ease-in-out infinite alternate',
-          }}
-        />
-      </div>
-      <div
-        data-depth="0.06"
-        style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}
-      >
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            bottom: -220,
-            right: -140,
-            width: 720,
-            height: 540,
-            background: 'radial-gradient(closest-side, var(--glow-c09), transparent 70%)',
-            pointerEvents: 'none',
-            animation: 'ycDrift 38s ease-in-out 3s infinite alternate-reverse',
-          }}
-        />
-      </div>
+      <HeroGlow
+        color="var(--glow-b09)"
+        box={{ top: -160, left: 'calc(50% - 620px)', width: 860, height: 600 }}
+        animation="ycDrift 30s ease-in-out infinite alternate"
+        depth="0.05"
+        zIndex={1}
+      />
+      <HeroGlow
+        color="var(--glow-c09)"
+        box={{ bottom: -220, right: -140, width: 720, height: 540 }}
+        animation="ycDrift 38s ease-in-out 3s infinite alternate-reverse"
+        depth="0.06"
+        zIndex={1}
+      />
 
       <div
         style={{
@@ -338,81 +365,23 @@ function Hero() {
                 boxShadow: '0 0 0 3px rgba(0,143,93,0.16)',
               }}
             />
-            Runs offline. Get the desktop app
+            {'Runs offline. Get the desktop app'}
           </span>
           <div style={{ display: 'flex', gap: 10 }}>
-            <a
-              ref={macRef}
+            <DownloadButton
+              linkRef={macRef}
               href={MAC_DOWNLOAD_URL}
-              target="_blank"
-              rel="noopener"
-              aria-label="Download the macOS desktop app"
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background: 'var(--dl-btn)',
-                color: 'var(--dl-btn-text)',
-                padding: '10px 18px',
-                borderRadius: 14,
-                boxShadow: '0 10px 26px var(--sh14)',
-                transition: 'background 200ms, transform 200ms',
-              }}
-            >
-              <IoLogoApple style={{ fontSize: 22 }} aria-hidden="true" />
-              <span
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  lineHeight: 1.05,
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
-                  Download for
-                </span>
-                <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em' }}>
-                  macOS
-                </span>
-              </span>
-            </a>
-            <a
-              ref={winRef}
+              ariaLabel="Download the macOS desktop app"
+              icon={<IoLogoApple style={{ fontSize: 22 }} aria-hidden="true" />}
+              label="macOS"
+            />
+            <DownloadButton
+              linkRef={winRef}
               href={WINDOWS_DOWNLOAD_URL}
-              target="_blank"
-              rel="noopener"
-              aria-label="Download the Windows desktop app"
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background: 'var(--dl-btn)',
-                color: 'var(--dl-btn-text)',
-                padding: '10px 18px',
-                borderRadius: 14,
-                boxShadow: '0 10px 26px var(--sh14)',
-                transition: 'background 200ms, transform 200ms',
-              }}
-            >
-              <IoLogoWindows style={{ fontSize: 20 }} aria-hidden="true" />
-              <span
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  lineHeight: 1.05,
-                  textAlign: 'left',
-                }}
-              >
-                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
-                  Download for
-                </span>
-                <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.02em' }}>
-                  Windows
-                </span>
-              </span>
-            </a>
+              ariaLabel="Download the Windows desktop app"
+              icon={<IoLogoWindows style={{ fontSize: 20 }} aria-hidden="true" />}
+              label="Windows"
+            />
           </div>
         </div>
       </div>
@@ -519,6 +488,33 @@ function SidebarItem({ icon, label, active = false }: Readonly<SidebarItemProps>
   );
 }
 
+interface StatCardProps {
+  label: string;
+  value: string;
+  sub: string;
+  subColor: string;
+  subWeight?: number;
+}
+
+function StatCard({ label, value, sub, subColor, subWeight }: Readonly<StatCardProps>) {
+  return (
+    <div style={{ border: '1px solid var(--hairline)', borderRadius: 16, padding: 14 }}>
+      <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{label}</div>
+      <div
+        style={{
+          fontSize: 24,
+          fontWeight: 700,
+          letterSpacing: '-0.03em',
+          color: 'var(--ink)',
+        }}
+      >
+        {value}
+      </div>
+      <div style={{ fontSize: 11.5, color: subColor, fontWeight: subWeight }}>{sub}</div>
+    </div>
+  );
+}
+
 function HeroMockup() {
   return (
     <div
@@ -552,15 +548,12 @@ function HeroMockup() {
           }}
         >
           <div style={{ display: 'flex', gap: 7 }}>
-            <span
-              style={{ width: 11, height: 11, borderRadius: 9999, background: 'var(--hairline)' }}
-            />
-            <span
-              style={{ width: 11, height: 11, borderRadius: 9999, background: 'var(--hairline)' }}
-            />
-            <span
-              style={{ width: 11, height: 11, borderRadius: 9999, background: 'var(--hairline)' }}
-            />
+            {['r', 'y', 'g'].map((dot) => (
+              <span
+                key={dot}
+                style={{ width: 11, height: 11, borderRadius: 9999, background: 'var(--hairline)' }}
+              />
+            ))}
           </div>
           <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
             <span
@@ -596,7 +589,7 @@ function HeroMockup() {
                 animation: 'ycPulse 2.4s ease-out infinite',
               }}
             />
-            Offline-ready
+            {'Offline-ready'}
           </span>
         </div>
 
@@ -746,52 +739,25 @@ function HeroMockup() {
                 marginBottom: 16,
               }}
             >
-              <div style={{ border: '1px solid var(--hairline)', borderRadius: 16, padding: 14 }}>
-                <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Booked today</div>
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 700,
-                    letterSpacing: '-0.03em',
-                    color: 'var(--ink)',
-                  }}
-                >
-                  12
-                </div>
-                <div style={{ fontSize: 11.5, color: 'var(--success)', fontWeight: 600 }}>
-                  ↑ 2 from yesterday
-                </div>
-              </div>
-              <div style={{ border: '1px solid var(--hairline)', borderRadius: 16, padding: 14 }}>
-                <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>In the building</div>
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 700,
-                    letterSpacing: '-0.03em',
-                    color: 'var(--ink)',
-                  }}
-                >
-                  3
-                </div>
-                <div style={{ fontSize: 11.5, color: 'var(--ink-faint)' }}>
-                  2 waiting · 1 in room
-                </div>
-              </div>
-              <div style={{ border: '1px solid var(--hairline)', borderRadius: 16, padding: 14 }}>
-                <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Invoiced</div>
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 700,
-                    letterSpacing: '-0.03em',
-                    color: 'var(--ink)',
-                  }}
-                >
-                  €1,840
-                </div>
-                <div style={{ fontSize: 11.5, color: 'var(--ink-faint)' }}>0% platform fee</div>
-              </div>
+              <StatCard
+                label="Booked today"
+                value="12"
+                sub="↑ 2 from yesterday"
+                subColor="var(--success)"
+                subWeight={600}
+              />
+              <StatCard
+                label="In the building"
+                value="3"
+                sub="2 waiting · 1 in room"
+                subColor="var(--ink-faint)"
+              />
+              <StatCard
+                label="Invoiced"
+                value="€1,840"
+                sub="0% platform fee"
+                subColor="var(--ink-faint)"
+              />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1398,8 +1364,9 @@ function FinanceSection() {
               >
                 We take zero cut of your payments
               </strong>
-              , because the day you become a toll collector is the day you stop making the product
-              better.
+              {
+                ', because the day you become a toll collector is the day you stop making the product better.'
+              }
             </p>
             <Link
               ref={linkRef}
@@ -1898,9 +1865,9 @@ function ModulesSection() {
             >
               swivel-chair shuffle
             </strong>
-            : ten tabs for ten tools, copying a name from one into the next, with none of it part of
-            the actual work. Here it is one workflow, so the day moves through the system instead of
-            around it.
+            {
+              ': ten tabs for ten tools, copying a name from one into the next, with none of it part of the actual work. Here it is one workflow, so the day moves through the system instead of around it.'
+            }
           </p>
         </Reveal>
         <div
@@ -1932,31 +1899,18 @@ function CtaSection() {
       data-screen-label="CTA"
       style={{ position: 'relative', background: 'var(--page)', overflow: 'hidden' }}
     >
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
+      <HeroGlow
+        parallax={false}
+        color="var(--glow-b07)"
+        box={{
           top: '50%',
           left: '50%',
           transform: 'translate(-50%,-50%)',
           width: 900,
           height: 500,
-          background: 'radial-gradient(closest-side, var(--glow-b07), transparent 70%)',
-          pointerEvents: 'none',
         }}
       />
-      <div
-        style={{
-          width: 'min(880px, calc(100% - 48px))',
-          margin: '0 auto',
-          padding: 'clamp(88px, 12vw, 150px) 0',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          position: 'relative',
-        }}
-      >
+      <div style={ctaBandContainerStyle('clamp(88px, 12vw, 150px) 0')}>
         <Reveal
           as="div"
           delay={0}

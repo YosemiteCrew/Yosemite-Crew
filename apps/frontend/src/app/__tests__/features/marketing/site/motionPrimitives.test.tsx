@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { InkAnnotate, useParallax } from '@/app/features/marketing/site/motion';
+import { HeroGlow, InkAnnotate, useParallax } from '@/app/features/marketing/site/motion';
 
 const setReducedMotion = (reduced: boolean) => {
   (globalThis as { matchMedia: unknown }).matchMedia = jest.fn().mockReturnValue({
@@ -123,5 +123,38 @@ describe('InkAnnotate', () => {
     setReducedMotion(true);
     render(<InkAnnotate type="circle">whole</InkAnnotate>);
     expect(document.querySelector('[data-ink]')).not.toBeNull();
+  });
+});
+
+describe('HeroGlow', () => {
+  it('wraps the glow in a parallax depth layer by default', () => {
+    const { container } = render(
+      <HeroGlow
+        color="var(--glow-b09)"
+        box={{ top: 0, width: 100, height: 100 }}
+        animation="ycDrift 30s ease-in-out infinite alternate"
+        depth="0.06"
+      />
+    );
+    const layer = container.querySelector('[data-depth="0.06"]');
+    expect(layer).not.toBeNull();
+    const glow = layer?.querySelector('[aria-hidden="true"]');
+    expect(glow?.getAttribute('style')).toContain('var(--glow-b09)');
+    expect(glow?.getAttribute('style')).toContain('ycDrift');
+  });
+
+  it('renders a bare static glow with no parallax wrapper when parallax is false', () => {
+    const { container } = render(
+      <HeroGlow
+        parallax={false}
+        color="var(--glow-b12)"
+        box={{ bottom: 0, width: 80, height: 80 }}
+      />
+    );
+    expect(container.querySelector('[data-depth]')).toBeNull();
+    const glow = container.querySelector('[aria-hidden="true"]');
+    expect(glow).not.toBeNull();
+    expect(glow?.getAttribute('style')).toContain('var(--glow-b12)');
+    expect(glow?.getAttribute('style')).not.toContain('animation');
   });
 });

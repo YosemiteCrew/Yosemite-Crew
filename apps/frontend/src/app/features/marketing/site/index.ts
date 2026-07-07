@@ -11,6 +11,7 @@ export {
   Tilt,
   Spotlight,
   HeroVideo,
+  HeroGlow,
   ScrollProgress,
   CountUp,
   InkAnnotate,

@@ -22,9 +22,11 @@ import {
   Reveal,
   Spotlight,
   Tilt,
+  HeroGlow,
   useMagnet,
   useParallax,
   GITHUB_REPO_URL,
+  GITHUB_STAR_CTA_STYLE,
 } from '@/app/features/marketing/site';
 
 const NEWSREADER = 'var(--font-newsreader)';
@@ -48,36 +50,18 @@ function Hero() {
         padding: '148px 24px 90px',
       }}
     >
-      <div data-depth="0.05" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: '-160px',
-            left: 'calc(50% - 620px)',
-            width: '860px',
-            height: '600px',
-            background: 'radial-gradient(closest-side, var(--glow-b10), transparent 70%)',
-            pointerEvents: 'none',
-            animation: 'ycDrift 30s ease-in-out infinite alternate',
-          }}
-        />
-      </div>
-      <div data-depth="0.06" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            bottom: '-220px',
-            right: '-140px',
-            width: '720px',
-            height: '540px',
-            background: 'radial-gradient(closest-side, var(--glow-c09), transparent 70%)',
-            pointerEvents: 'none',
-            animation: 'ycDrift 38s ease-in-out 3s infinite alternate-reverse',
-          }}
-        />
-      </div>
+      <HeroGlow
+        depth="0.05"
+        color="var(--glow-b10)"
+        box={{ top: '-160px', left: 'calc(50% - 620px)', width: '860px', height: '600px' }}
+        animation="ycDrift 30s ease-in-out infinite alternate"
+      />
+      <HeroGlow
+        depth="0.06"
+        color="var(--glow-c09)"
+        box={{ bottom: '-220px', right: '-140px', width: '720px', height: '540px' }}
+        animation="ycDrift 38s ease-in-out 3s infinite alternate-reverse"
+      />
       <div
         data-grid-1-m="true"
         style={{
@@ -118,7 +102,7 @@ function Hero() {
                 background: 'var(--success)',
               }}
             />
-            Developer portal
+            {'Developer portal'}
             <span
               style={{
                 width: '1px',
@@ -359,7 +343,8 @@ function Hero() {
                 → PIMS live on :3000 &nbsp;·&nbsp; works offline
               </span>
               {'\n'}
-              <span style={{ color: '#54b492' }}>$</span> yc plugins publish ./ai-scribe
+              <span style={{ color: '#54b492' }}>$</span>
+              {' yc plugins publish ./ai-scribe'}
               <span
                 style={{
                   display: 'inline-block',
@@ -552,6 +537,29 @@ function MachineUser() {
   );
 }
 
+interface ApiLineProps {
+  method: string;
+  color: string;
+  path: string;
+}
+
+function ApiLine({ method, color, path }: Readonly<ApiLineProps>) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        fontFamily: 'ui-monospace, Menlo, monospace',
+        fontSize: '13.5px',
+        color: 'var(--ink-muted)',
+      }}
+    >
+      <span style={{ fontWeight: 700, color, width: '46px' }}>{method}</span> {path}
+    </div>
+  );
+}
+
 /** Feature 1: FHIR API, one animal many authorities + bundle.json mock. */
 function FhirApiFeature() {
   return (
@@ -626,47 +634,9 @@ function FhirApiFeature() {
               width: '100%',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                fontFamily: 'ui-monospace, Menlo, monospace',
-                fontSize: '13.5px',
-                color: 'var(--ink-muted)',
-              }}
-            >
-              <span style={{ fontWeight: 700, color: 'var(--success)', width: '46px' }}>GET</span>{' '}
-              /fhir/Observation?patient=bella
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                fontFamily: 'ui-monospace, Menlo, monospace',
-                fontSize: '13.5px',
-                color: 'var(--ink-muted)',
-              }}
-            >
-              <span style={{ fontWeight: 700, color: 'var(--blue)', width: '46px' }}>POST</span>{' '}
-              /fhir/Appointment
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                fontFamily: 'ui-monospace, Menlo, monospace',
-                fontSize: '13.5px',
-                color: 'var(--ink-muted)',
-              }}
-            >
-              <span style={{ fontWeight: 700, color: 'var(--avatar-amber-ink)', width: '46px' }}>
-                SUB
-              </span>{' '}
-              /fhir/subscriptions
-            </div>
+            <ApiLine method="GET" color="var(--success)" path="/fhir/Observation?patient=bella" />
+            <ApiLine method="POST" color="var(--blue)" path="/fhir/Appointment" />
+            <ApiLine method="SUB" color="var(--avatar-amber-ink)" path="/fhir/subscriptions" />
           </div>
         </Reveal>
         <Reveal delay={150} style={{ display: 'flex', justifyContent: 'center' }}>
@@ -1175,31 +1145,17 @@ function EconColumn({ index, icon, title, desc, delay }: Readonly<EconColumnProp
 function Economics() {
   return (
     <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: '-200px',
-          left: '-160px',
-          width: '760px',
-          height: '580px',
-          background: 'radial-gradient(closest-side, var(--glow-b12), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 34s ease-in-out infinite alternate',
-        }}
+      <HeroGlow
+        parallax={false}
+        color="var(--glow-b12)"
+        box={{ top: '-200px', left: '-160px', width: '760px', height: '580px' }}
+        animation="ycDrift 34s ease-in-out infinite alternate"
       />
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          bottom: '-220px',
-          right: '-160px',
-          width: '680px',
-          height: '520px',
-          background: 'radial-gradient(closest-side, rgba(130,175,236,0.08), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 42s ease-in-out 3s infinite alternate-reverse',
-        }}
+      <HeroGlow
+        parallax={false}
+        color="rgba(130,175,236,0.08)"
+        box={{ bottom: '-220px', right: '-160px', width: '680px', height: '520px' }}
+        animation="ycDrift 42s ease-in-out 3s infinite alternate-reverse"
       />
       <div
         style={{
@@ -1654,8 +1610,9 @@ function OpenSource() {
             >
               fork it and walk
             </strong>
-            . That costs us the lock-in every investor wanted us to keep, which is exactly why
-            it&apos;s worth believing.
+            {
+              ". That costs us the lock-in every investor wanted us to keep, which is exactly why it's worth believing."
+            }
           </p>
         </Reveal>
         <div
@@ -1770,20 +1727,7 @@ function ClosingCta() {
               href={GITHUB_REPO_URL}
               target="_blank"
               rel="noopener"
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: '#f7f3ec',
-                color: '#1d1c1b',
-                fontSize: '17px',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 32px',
-                borderRadius: '9999px',
-                transition: 'background 200ms',
-              }}
+              style={GITHUB_STAR_CTA_STYLE}
             >
               <IoLogoGithub aria-hidden="true" style={{ fontSize: '18px' }} /> Star on GitHub
             </a>

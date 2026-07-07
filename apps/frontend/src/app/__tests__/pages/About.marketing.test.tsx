@@ -36,6 +36,7 @@ jest.mock('@/app/features/marketing/site', () => {
     Reveal: ({ children, as = 'div', className, style }: any) =>
       R.createElement(as, { className, style }, children),
     Spotlight: ({ children, style }: any) => R.createElement('div', { style }, children),
+    HeroGlow: () => null,
     CountUp: ({ value, className, style }: any) =>
       R.createElement('span', { className, style }, value),
     useGithubStats: () => mockStats,

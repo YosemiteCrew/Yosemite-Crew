@@ -45,7 +45,7 @@ export const redirectToUrl = (url: string): void => {
 const bytesToBase64Url = (bytes: Uint8Array): string => {
   let binary = '';
   bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
+    binary += String.fromCodePoint(byte);
   });
   return globalThis.btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 };

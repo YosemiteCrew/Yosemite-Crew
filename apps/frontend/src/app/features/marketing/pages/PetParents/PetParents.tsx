@@ -1,6 +1,6 @@
 'use client';
 
-import { type CSSProperties } from 'react';
+import { type CSSProperties, type ReactNode } from 'react';
 import {
   IoCellular,
   IoBatteryFull,
@@ -26,6 +26,7 @@ import { type IconType } from 'react-icons';
 import Link from 'next/link';
 import {
   HeroVideo,
+  HeroGlow,
   Reveal,
   Spotlight,
   ReleasePill,
@@ -41,6 +42,184 @@ const HEADING_FONT = 'var(--font-newsreader)';
 const EASE = 'cubic-bezier(0.16,1,0.3,1)';
 
 /* ---------- Hero ---------- */
+
+interface Companion {
+  letter: string;
+  name: string;
+  border: string;
+  avatarBg: string;
+  avatarColor: string;
+  nameWeight: number;
+  nameColor: string;
+}
+
+const COMPANIONS: readonly Companion[] = [
+  {
+    letter: 'B',
+    name: 'Bella',
+    border: '1.5px solid var(--blue)',
+    avatarBg: 'var(--blue-soft)',
+    avatarColor: 'var(--blue)',
+    nameWeight: 700,
+    nameColor: 'var(--ink-body)',
+  },
+  {
+    letter: 'F',
+    name: 'Fjord',
+    border: '1px solid var(--hairline)',
+    avatarBg: 'var(--avatar-green-bg)',
+    avatarColor: '#006642',
+    nameWeight: 500,
+    nameColor: 'var(--ink-muted)',
+  },
+  {
+    letter: 'M',
+    name: 'Miso',
+    border: '1px solid var(--hairline)',
+    avatarBg: 'var(--avatar-amber-bg)',
+    avatarColor: 'var(--avatar-amber-ink)',
+    nameWeight: 500,
+    nameColor: 'var(--ink-muted)',
+  },
+];
+
+function CompanionCard({
+  letter,
+  name,
+  border,
+  avatarBg,
+  avatarColor,
+  nameWeight,
+  nameColor,
+}: Readonly<Companion>) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+        padding: '12px 8px',
+        background: 'var(--screen)',
+        border,
+        borderRadius: 18,
+      }}
+    >
+      <span
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: 9999,
+          background: avatarBg,
+          color: avatarColor,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 15,
+          fontWeight: 700,
+        }}
+      >
+        {letter}
+      </span>
+      <span style={{ fontSize: 12, fontWeight: nameWeight, color: nameColor }}>{name}</span>
+    </div>
+  );
+}
+
+interface Reminder {
+  icon: IconType;
+  iconBg: string;
+  iconColor: string;
+  text: string;
+}
+
+const REMINDERS: readonly Reminder[] = [
+  {
+    icon: IoMedkitOutline,
+    iconBg: 'var(--avatar-amber-bg)',
+    iconColor: 'var(--avatar-amber-ink)',
+    text: 'Carprofen, this evening',
+  },
+  {
+    icon: IoShieldCheckmarkOutline,
+    iconBg: 'var(--avatar-green-bg)',
+    iconColor: '#006642',
+    text: 'Fjord, vaccine due in 9 days',
+  },
+];
+
+function ReminderRow({ icon: Icon, iconBg, iconColor, text }: Readonly<Reminder>) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span
+        style={{
+          flex: 'none',
+          width: 30,
+          height: 30,
+          borderRadius: 10,
+          background: iconBg,
+          color: iconColor,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon style={{ fontSize: 15 }} aria-hidden="true" />
+      </span>
+      <span style={{ fontSize: 12.5, color: 'var(--ink-muted)', flex: 1 }}>{text}</span>
+      <span
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: 9999,
+          border: '2px solid var(--divider)',
+        }}
+      />
+    </div>
+  );
+}
+
+function HeroFloatCard({
+  position,
+  animation,
+  avatar,
+  title,
+  subtitle,
+}: Readonly<{
+  position: CSSProperties;
+  animation: string;
+  avatar: ReactNode;
+  title: string;
+  subtitle: string;
+}>) {
+  return (
+    <div
+      data-hero-float="true"
+      style={{
+        position: 'absolute',
+        ...position,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '11px 15px',
+        borderRadius: 16,
+        background: 'var(--glass-93)',
+        backdropFilter: 'blur(40px)',
+        WebkitBackdropFilter: 'blur(40px)',
+        border: '1px solid var(--glass-95)',
+        boxShadow: '0 16px 44px var(--sh12)',
+        animation,
+      }}
+    >
+      {avatar}
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>{title}</div>
+        <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>{subtitle}</div>
+      </div>
+    </div>
+  );
+}
 
 function HeroPhone() {
   return (
@@ -97,105 +276,9 @@ function HeroPhone() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <div
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '12px 8px',
-                  background: 'var(--screen)',
-                  border: '1.5px solid var(--blue)',
-                  borderRadius: 18,
-                }}
-              >
-                <span
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 9999,
-                    background: 'var(--blue-soft)',
-                    color: 'var(--blue)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 15,
-                    fontWeight: 700,
-                  }}
-                >
-                  B
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>
-                  Bella
-                </span>
-              </div>
-              <div
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '12px 8px',
-                  background: 'var(--screen)',
-                  border: '1px solid var(--hairline)',
-                  borderRadius: 18,
-                }}
-              >
-                <span
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 9999,
-                    background: 'var(--avatar-green-bg)',
-                    color: '#006642',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 15,
-                    fontWeight: 700,
-                  }}
-                >
-                  F
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-muted)' }}>
-                  Fjord
-                </span>
-              </div>
-              <div
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '12px 8px',
-                  background: 'var(--screen)',
-                  border: '1px solid var(--hairline)',
-                  borderRadius: 18,
-                }}
-              >
-                <span
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 9999,
-                    background: 'var(--avatar-amber-bg)',
-                    color: 'var(--avatar-amber-ink)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 15,
-                    fontWeight: 700,
-                  }}
-                >
-                  M
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-muted)' }}>
-                  Miso
-                </span>
-              </div>
+              {COMPANIONS.map((companion) => (
+                <CompanionCard key={companion.letter} {...companion} />
+              ))}
             </div>
             <div
               style={{
@@ -284,62 +367,9 @@ function HeroPhone() {
               >
                 Reminders
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span
-                  style={{
-                    flex: 'none',
-                    width: 30,
-                    height: 30,
-                    borderRadius: 10,
-                    background: 'var(--avatar-amber-bg)',
-                    color: 'var(--avatar-amber-ink)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <IoMedkitOutline style={{ fontSize: 15 }} aria-hidden="true" />
-                </span>
-                <span style={{ fontSize: 12.5, color: 'var(--ink-muted)', flex: 1 }}>
-                  Carprofen, this evening
-                </span>
-                <span
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 9999,
-                    border: '2px solid var(--divider)',
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span
-                  style={{
-                    flex: 'none',
-                    width: 30,
-                    height: 30,
-                    borderRadius: 10,
-                    background: 'var(--avatar-green-bg)',
-                    color: '#006642',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <IoShieldCheckmarkOutline style={{ fontSize: 15 }} aria-hidden="true" />
-                </span>
-                <span style={{ fontSize: 12.5, color: 'var(--ink-muted)', flex: 1 }}>
-                  Fjord, vaccine due in 9 days
-                </span>
-                <span
-                  style={{
-                    width: 18,
-                    height: 18,
-                    borderRadius: 9999,
-                    border: '2px solid var(--divider)',
-                  }}
-                />
-              </div>
+              {REMINDERS.map((reminder) => (
+                <ReminderRow key={reminder.text} {...reminder} />
+              ))}
             </div>
             <div
               style={{
@@ -367,86 +397,52 @@ function HeroPhone() {
           </div>
         </div>
       </div>
-      <div
-        data-hero-float="true"
-        style={{
-          position: 'absolute',
-          top: '12%',
-          left: -40,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '11px 15px',
-          borderRadius: 16,
-          background: 'var(--glass-93)',
-          backdropFilter: 'blur(40px)',
-          WebkitBackdropFilter: 'blur(40px)',
-          border: '1px solid var(--glass-95)',
-          boxShadow: '0 16px 44px var(--sh12)',
-          animation: 'ycFloatA 7s ease-in-out infinite',
-        }}
-      >
-        <span
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 9999,
-            background: 'var(--blue-soft)',
-            color: 'var(--blue)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 11,
-            fontWeight: 700,
-          }}
-        >
-          SW
-        </span>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>Dr. Weber</div>
-          <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>Bloodwork came back clear</div>
-        </div>
-      </div>
-      <div
-        data-hero-float="true"
-        style={{
-          position: 'absolute',
-          bottom: '14%',
-          right: -34,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '11px 15px',
-          borderRadius: 16,
-          background: 'var(--glass-93)',
-          backdropFilter: 'blur(40px)',
-          WebkitBackdropFilter: 'blur(40px)',
-          border: '1px solid var(--glass-95)',
-          boxShadow: '0 16px 44px var(--sh12)',
-          animation: 'ycFloatB 8.5s ease-in-out 1s infinite',
-        }}
-      >
-        <span
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 10,
-            background: 'var(--avatar-green-bg)',
-            color: '#006642',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <IoShareOutline style={{ fontSize: 15 }} aria-hidden="true" />
-        </span>
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>
-            Sent to the new clinic
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>One tap, whole history</div>
-        </div>
-      </div>
+      <HeroFloatCard
+        position={{ top: '12%', left: -40 }}
+        animation="ycFloatA 7s ease-in-out infinite"
+        avatar={
+          <span
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 9999,
+              background: 'var(--blue-soft)',
+              color: 'var(--blue)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            SW
+          </span>
+        }
+        title="Dr. Weber"
+        subtitle="Bloodwork came back clear"
+      />
+      <HeroFloatCard
+        position={{ bottom: '14%', right: -34 }}
+        animation="ycFloatB 8.5s ease-in-out 1s infinite"
+        avatar={
+          <span
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 10,
+              background: 'var(--avatar-green-bg)',
+              color: '#006642',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <IoShareOutline style={{ fontSize: 15 }} aria-hidden="true" />
+          </span>
+        }
+        title="Sent to the new clinic"
+        subtitle="One tap, whole history"
+      />
     </div>
   );
 }
@@ -487,36 +483,18 @@ function Hero() {
             'radial-gradient(74% 72% at 32% 50%, rgba(239,232,220,0.95) 0%, rgba(239,232,220,0.66) 38%, rgba(239,232,220,0.12) 72%, rgba(239,232,220,0) 86%), linear-gradient(180deg, rgba(239,232,220,0.6) 0%, rgba(239,232,220,0.3) 46%, rgba(239,232,220,0.06) 74%, rgba(239,232,220,0) 92%)',
         }}
       />
-      <div data-depth="0.05" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: -140,
-            right: 'calc(50% - 640px)',
-            width: 820,
-            height: 580,
-            background: 'radial-gradient(closest-side, var(--glow-p10), transparent 70%)',
-            pointerEvents: 'none',
-            animation: 'ycDrift 32s ease-in-out infinite alternate',
-          }}
-        />
-      </div>
-      <div data-depth="0.06" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            bottom: -200,
-            left: -120,
-            width: 720,
-            height: 540,
-            background: 'radial-gradient(closest-side, var(--glow-b08), transparent 70%)',
-            pointerEvents: 'none',
-            animation: 'ycDrift 40s ease-in-out 3s infinite alternate-reverse',
-          }}
-        />
-      </div>
+      <HeroGlow
+        color="var(--glow-p10)"
+        box={{ top: -140, right: 'calc(50% - 640px)', width: 820, height: 580 }}
+        animation="ycDrift 32s ease-in-out infinite alternate"
+        depth="0.05"
+      />
+      <HeroGlow
+        color="var(--glow-b08)"
+        box={{ bottom: -200, left: -120, width: 720, height: 540 }}
+        animation="ycDrift 40s ease-in-out 3s infinite alternate-reverse"
+        depth="0.06"
+      />
       <div
         data-grid-1-m="true"
         style={{

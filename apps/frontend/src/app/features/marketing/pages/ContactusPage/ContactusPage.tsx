@@ -13,7 +13,7 @@ import {
   IoArrowForwardOutline,
 } from 'react-icons/io5';
 
-import { useMagnet, DISCORD_INVITE_URL } from '@/app/features/marketing/site';
+import { useMagnet, HeroGlow, DISCORD_INVITE_URL } from '@/app/features/marketing/site';
 import { postData } from '@/app/services/axios';
 
 const NEWSREADER = 'var(--font-newsreader)';
@@ -238,6 +238,45 @@ const requiredMark = (
     *
   </span>
 );
+
+/* ---------- shared checkbox / radio option row ---------- */
+
+interface OptionRowProps {
+  type: 'radio' | 'checkbox';
+  name: string;
+  control: CSSProperties;
+  ariaLabel: string;
+  value: string;
+  checked: boolean;
+  onChange: () => void;
+  label: string;
+}
+
+function OptionRow({
+  type,
+  name,
+  control,
+  ariaLabel,
+  value,
+  checked,
+  onChange,
+  label,
+}: Readonly<OptionRowProps>) {
+  return (
+    <label style={optionRow}>
+      <input
+        type={type}
+        name={name}
+        style={control}
+        aria-label={ariaLabel}
+        value={value}
+        checked={checked}
+        onChange={onChange}
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
 
 /* ---------- contact channel card (left column) ---------- */
 
@@ -601,18 +640,17 @@ const ContactusPage = () => {
     <div style={groupBlock}>
       <div style={groupHeading}>I confirm that</div>
       {confirmOptions.map((option) => (
-        <label key={option} style={optionRow}>
-          <input
-            type="checkbox"
-            name={name}
-            style={{ ...controlStyle, borderRadius: 6 }}
-            aria-label={`Confirm ${option}`}
-            value={option}
-            checked={confirmSelections.includes(option)}
-            onChange={() => toggleConfirmOption(option)}
-          />
-          <span>{option}</span>
-        </label>
+        <OptionRow
+          key={option}
+          type="checkbox"
+          name={name}
+          control={{ ...controlStyle, borderRadius: 6 }}
+          ariaLabel={`Confirm ${option}`}
+          value={option}
+          checked={confirmSelections.includes(option)}
+          onChange={() => toggleConfirmOption(option)}
+          label={option}
+        />
       ))}
     </div>
   );
@@ -621,22 +659,21 @@ const ContactusPage = () => {
     <div style={groupBlock}>
       <div style={groupHeading}>{heading}</div>
       {subrequestOptions.map((option) => (
-        <label key={option.value} style={optionRow}>
-          <input
-            type="radio"
-            name={name}
-            style={controlStyle}
-            aria-label={
-              name === 'complaintSubmitAs'
-                ? `Submit complaint as ${option.label}`
-                : `Submit data service access request as ${option.label}`
-            }
-            value={option.value}
-            checked={subselectedRequest === option.value}
-            onChange={() => setSubselectedRequest(option.value)}
-          />
-          <span>{option.label}</span>
-        </label>
+        <OptionRow
+          key={option.value}
+          type="radio"
+          name={name}
+          control={controlStyle}
+          ariaLabel={
+            name === 'complaintSubmitAs'
+              ? `Submit complaint as ${option.label}`
+              : `Submit data service access request as ${option.label}`
+          }
+          value={option.value}
+          checked={subselectedRequest === option.value}
+          onChange={() => setSubselectedRequest(option.value)}
+          label={option.label}
+        />
       ))}
     </div>
   );
@@ -651,18 +688,11 @@ const ContactusPage = () => {
         padding: '148px 24px 100px',
       }}
     >
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: -160,
-          right: 'calc(50% - 560px)',
-          width: 820,
-          height: 560,
-          background: 'radial-gradient(closest-side, var(--glow-b08), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 34s ease-in-out infinite alternate',
-        }}
+      <HeroGlow
+        parallax={false}
+        color="var(--glow-b08)"
+        box={{ top: -160, right: 'calc(50% - 560px)', width: 820, height: 560 }}
+        animation="ycDrift 34s ease-in-out infinite alternate"
       />
       <div
         data-grid-1-m
@@ -707,7 +737,7 @@ const ContactusPage = () => {
               aria-hidden="true"
               style={{ width: 7, height: 7, borderRadius: 9999, background: 'var(--success)' }}
             />
-            A person reads every message
+            {'A person reads every message'}
           </div>
           <h1
             style={{
@@ -975,18 +1005,17 @@ const ContactusPage = () => {
                 <div style={groupBlock}>
                   <div style={groupHeading}>You are submitting this request to</div>
                   {requestOptions.map((option) => (
-                    <label key={option.label} style={optionRow}>
-                      <input
-                        type="radio"
-                        name="dsarRequestTo"
-                        style={controlStyle}
-                        aria-label={`Submit data service access request to ${option.label}`}
-                        value={option.value}
-                        checked={selectedRequest === option.label}
-                        onChange={() => setSelectedRequest(option.label)}
-                      />
-                      <span>{option.label}</span>
-                    </label>
+                    <OptionRow
+                      key={option.label}
+                      type="radio"
+                      name="dsarRequestTo"
+                      control={controlStyle}
+                      ariaLabel={`Submit data service access request to ${option.label}`}
+                      value={option.value}
+                      checked={selectedRequest === option.label}
+                      onChange={() => setSelectedRequest(option.label)}
+                      label={option.label}
+                    />
                   ))}
                 </div>
 

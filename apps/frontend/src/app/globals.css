@@ -520,18 +520,16 @@ textarea:focus-visible {
   --img-bg-lines: url('https://d2il6osz49gpup.cloudfront.net/Images/LINES.png');
   --img-bg-trust-after: url('https://d2il6osz49gpup.cloudfront.net/Images/TrustAfter.png');
   --img-bg-about: url('https://d2il6osz49gpup.cloudfront.net/Images/aboutbg.png');
-}
 
-/* ============================================================================
-   Marketing site theming — light (warm-bone) + dark (espresso) tokens.
-   Light values are byte-identical to the marketing pages' original inline hexes,
-   so light mode is unchanged. Dark mode is driven by html[data-theme="dark"],
-   set pre-paint from localStorage 'yc-theme' or prefers-color-scheme. Rules that
-   would otherwise touch the PIMS app (color-scheme, flip transitions, focus
-   rings, selection) are scoped to the [data-yc-theme] marketing surface.
-   Reference: design_handoff_dark_mode/site-theme.css.
-   ============================================================================ */
-:root {
+  /* ==========================================================================
+     Marketing site theming — light (warm-bone) + dark (espresso) tokens.
+     Light values are byte-identical to the marketing pages' original inline hexes,
+     so light mode is unchanged. Dark mode is driven by html[data-theme="dark"],
+     set pre-paint from localStorage 'yc-theme' or prefers-color-scheme. Rules that
+     would otherwise touch the PIMS app (color-scheme, flip transitions, focus
+     rings, selection) are scoped to the [data-yc-theme] marketing surface.
+     Reference: design_handoff_dark_mode/site-theme.css.
+     ========================================================================== */
   /* surfaces */
   --page: #efe8dc;
   --band: #e8e0d2;

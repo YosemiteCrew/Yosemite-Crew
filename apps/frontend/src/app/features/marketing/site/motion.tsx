@@ -440,6 +440,60 @@ export function useParallax<T extends HTMLElement = HTMLDivElement>() {
   return ref;
 }
 
+interface HeroGlowProps {
+  /** Accent token for the radial glow, e.g. 'var(--glow-b09)'. */
+  color: string;
+  /** Absolute box (top/left/bottom/right/width/height) of the glow. */
+  box: CSSProperties;
+  /** ycDrift animation shorthand; omit for a static glow. */
+  animation?: string;
+  /** Parallax depth factor; the layer drifts toward the cursor by this amount. */
+  depth?: string;
+  /** Stack above a hero video/scrim when needed (parallax layer only). */
+  zIndex?: number;
+  /**
+   * Wrap the glow in a `[data-depth]` parallax layer (default). Set false for a
+   * bare glow placed directly in its section, matching a page with no parallax scope.
+   */
+  parallax?: boolean;
+}
+
+/**
+ * One ambient glow. By default it rides its own parallax-depth layer, so the glow
+ * keeps its ycDrift while the layer drifts toward the cursor (see useParallax);
+ * pass parallax={false} for a bare glow that sits directly in its section.
+ */
+export function HeroGlow({
+  color,
+  box,
+  animation,
+  depth = '0.05',
+  zIndex,
+  parallax = true,
+}: Readonly<HeroGlowProps>) {
+  const glow = (
+    <div
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        ...box,
+        background: `radial-gradient(closest-side, ${color}, transparent 70%)`,
+        pointerEvents: 'none',
+        animation,
+      }}
+    />
+  );
+  if (!parallax) return glow;
+  return (
+    <div
+      data-depth={depth}
+      style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex }}
+    >
+      {glow}
+    </div>
+  );
+}
+
 function underlinePath(padX: number, padY: number, w: number, h: number): string {
   const y = padY + h * 0.99;
   const x0 = padX - w * 0.02;

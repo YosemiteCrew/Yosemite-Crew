@@ -8,7 +8,7 @@ import {
   IoAddOutline,
   IoArrowForwardOutline,
 } from 'react-icons/io5';
-import { Reveal, Spotlight, useMagnet } from '@/app/features/marketing/site';
+import { Reveal, Spotlight, HeroGlow, useMagnet } from '@/app/features/marketing/site';
 
 const CURRENCY = '€';
 const BUSINESS_MONTHLY = '12';
@@ -84,6 +84,66 @@ function FeatureRow({ item, color }: Readonly<{ item: FeatureItem; color: string
       <IoCheckmark aria-hidden="true" style={{ fontSize: '18px', color: item.dot, flex: 'none' }} />
       {item.label}
     </div>
+  );
+}
+
+function PlanBadgeHeader({
+  label,
+  labelColor,
+  badge,
+  badgeColor,
+  badgeBg,
+}: Readonly<{
+  label: string;
+  labelColor: string;
+  badge: string;
+  badgeColor: string;
+  badgeBg: string;
+}>) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <span
+        style={{
+          fontSize: '13px',
+          fontWeight: 700,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          color: labelColor,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontSize: '11px',
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          color: badgeColor,
+          background: badgeBg,
+          padding: '5px 11px',
+          borderRadius: '9999px',
+        }}
+      >
+        {badge}
+      </span>
+    </div>
+  );
+}
+
+function PlanFeatureList({
+  features,
+  color,
+  divider,
+}: Readonly<{ features: FeatureItem[]; color: string; divider: string }>) {
+  return (
+    <>
+      <div style={{ height: '1px', background: divider, margin: '24px 0' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {features.map((item) => (
+          <FeatureRow key={item.label} item={item} color={color} />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -221,12 +281,7 @@ function FreePlanCard() {
       >
         Get started free
       </Link>
-      <div style={{ height: '1px', background: 'var(--inset)', margin: '24px 0' }} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {FREE_FEATURES.map((item) => (
-          <FeatureRow key={item.label} item={item} color="var(--ink-muted)" />
-        ))}
-      </div>
+      <PlanFeatureList features={FREE_FEATURES} color="var(--ink-muted)" divider="var(--inset)" />
     </Reveal>
   );
 }
@@ -248,32 +303,13 @@ function BusinessPlanCard({ price, period }: Readonly<{ price: string; period: s
         transform: 'translateY(-8px)',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span
-          style={{
-            fontSize: '13px',
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: '#82afec',
-          }}
-        >
-          Business
-        </span>
-        <span
-          style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            color: '#1d1c1b',
-            background: '#82afec',
-            padding: '5px 11px',
-            borderRadius: '9999px',
-          }}
-        >
-          RECOMMENDED
-        </span>
-      </div>
+      <PlanBadgeHeader
+        label="Business"
+        labelColor="#82afec"
+        badge="RECOMMENDED"
+        badgeColor="#1d1c1b"
+        badgeBg="#82afec"
+      />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '20px 0 4px' }}>
         <span
           style={{
@@ -317,12 +353,7 @@ function BusinessPlanCard({ price, period }: Readonly<{ price: string; period: s
       >
         Get started
       </Link>
-      <div style={{ height: '1px', background: '#302f2e', margin: '24px 0' }} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {BUSINESS_FEATURES.map((item) => (
-          <FeatureRow key={item.label} item={item} color="#d6d1cd" />
-        ))}
-      </div>
+      <PlanFeatureList features={BUSINESS_FEATURES} color="#d6d1cd" divider="#302f2e" />
     </Reveal>
   );
 }
@@ -341,32 +372,13 @@ function EnterprisePlanCard() {
         padding: '32px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span
-          style={{
-            fontSize: '13px',
-            fontWeight: 700,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: 'var(--ink-faint)',
-          }}
-        >
-          Enterprise
-        </span>
-        <span
-          style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-            color: 'var(--ink-faint)',
-            background: 'var(--inset)',
-            padding: '5px 11px',
-            borderRadius: '9999px',
-          }}
-        >
-          COMING SOON
-        </span>
-      </div>
+      <PlanBadgeHeader
+        label="Enterprise"
+        labelColor="var(--ink-faint)"
+        badge="COMING SOON"
+        badgeColor="var(--ink-faint)"
+        badgeBg="var(--inset)"
+      />
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', margin: '20px 0 4px' }}>
         <span
           style={{
@@ -410,12 +422,11 @@ function EnterprisePlanCard() {
       >
         Notify me
       </Link>
-      <div style={{ height: '1px', background: 'var(--inset)', margin: '24px 0' }} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {ENTERPRISE_FEATURES.map((item) => (
-          <FeatureRow key={item.label} item={item} color="var(--ink-muted)" />
-        ))}
-      </div>
+      <PlanFeatureList
+        features={ENTERPRISE_FEATURES}
+        color="var(--ink-muted)"
+        divider="var(--inset)"
+      />
     </Reveal>
   );
 }
@@ -480,18 +491,11 @@ function HeroSection() {
         padding: '148px 24px 60px',
       }}
     >
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: '-160px',
-          left: 'calc(50% - 400px)',
-          width: '800px',
-          height: '560px',
-          background: 'radial-gradient(closest-side, var(--glow-b09), transparent 70%)',
-          pointerEvents: 'none',
-          animation: 'ycDrift 32s ease-in-out infinite alternate',
-        }}
+      <HeroGlow
+        parallax={false}
+        color="var(--glow-b09)"
+        box={{ top: '-160px', left: 'calc(50% - 400px)', width: '800px', height: '560px' }}
+        animation="ycDrift 32s ease-in-out infinite alternate"
       />
       <div
         style={{
@@ -531,7 +535,7 @@ function HeroSection() {
               background: 'var(--success)',
             }}
           />
-          No contracts. No platform fees.
+          {'No contracts. No platform fees.'}
         </div>
         <h1
           style={{
@@ -665,17 +669,10 @@ function NoFeeSection() {
   return (
     <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
       <section style={{ position: 'relative', background: 'var(--spot)', overflow: 'hidden' }}>
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            bottom: '-220px',
-            right: '-160px',
-            width: '780px',
-            height: '600px',
-            background: 'radial-gradient(closest-side, var(--glow-b12), transparent 70%)',
-            pointerEvents: 'none',
-          }}
+        <HeroGlow
+          parallax={false}
+          color="var(--glow-b12)"
+          box={{ bottom: '-220px', right: '-160px', width: '780px', height: '600px' }}
         />
         <div
           style={{
@@ -802,17 +799,15 @@ function CtaSection() {
   const secondaryRef = useMagnet<HTMLAnchorElement>();
   return (
     <section style={{ position: 'relative', background: 'var(--inset)', overflow: 'hidden' }}>
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
+      <HeroGlow
+        parallax={false}
+        color="var(--glow-b07)"
+        box={{
           top: '50%',
           left: '50%',
           transform: 'translate(-50%,-50%)',
           width: '900px',
           height: '500px',
-          background: 'radial-gradient(closest-side, var(--glow-b07), transparent 70%)',
-          pointerEvents: 'none',
         }}
       />
       <div
