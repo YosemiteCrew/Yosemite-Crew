@@ -100,9 +100,12 @@ const AppointmentTask = () => {
     activeTable === 'Appointments' ? AppointmentStatusFiltersUI : TaskStatusFilters;
   const [activeSubLabel, setActiveSubLabel] = useState('all');
 
-  useEffect(() => {
-    if (!viewPopup && !detailPopup) setViewIntent(null);
-  }, [viewPopup, detailPopup]);
+  const popupsOpen = viewPopup || detailPopup;
+  const prevPopupsOpenRef = useRef(popupsOpen);
+  if (prevPopupsOpenRef.current !== popupsOpen) {
+    prevPopupsOpenRef.current = popupsOpen;
+    if (!popupsOpen) setViewIntent(null);
+  }
 
   const prevActiveTableRef = useRef(activeTable);
   if (prevActiveTableRef.current !== activeTable) {
