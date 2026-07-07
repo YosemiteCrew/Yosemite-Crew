@@ -279,7 +279,9 @@ export const DeveloperBillingService = {
   },
 
   // Reports metered API usage to Stripe so it is invoiced at end of period.
-  // Uses Stripe Billing Meters (v20+ API). Call after each authenticated API request or batch.
+  // Uses Stripe Billing Meters (v20+ API). `quantity` is a DELTA: the meter
+  // sums event values, so callers pass the units to add (1 per billable call),
+  // never a cumulative counter.
   async reportUsage(customerId: string, quantity: number): Promise<void> {
     if (!customerId || quantity <= 0) return;
     const eventName = process.env.STRIPE_DEV_METER_EVENT_NAME;

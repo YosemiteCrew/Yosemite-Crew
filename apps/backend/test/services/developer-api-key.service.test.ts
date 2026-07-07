@@ -115,6 +115,64 @@ describe("DeveloperApiKeyService", () => {
       ).rejects.toBeInstanceOf(DeveloperApiKeyServiceError);
       expect(mockPrisma.developerApiKey.create).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ["free text", "read appointments"],
+      ["unknown resource", "pets:read"],
+      ["legacy coarse read", "read"],
+      ["legacy coarse write", "write"],
+      ["legacy coarse admin", "admin"],
+      // Reserved for the Phase 2 editing agent (ADR 0005); not issuable
+      // until the agent surface ships.
+      ["reserved Phase 2 config read", "config:read"],
+      ["reserved Phase 2 config draft write", "config:draft:write"],
+    ])(
+      "rejects a non-canonical scope (%s) with a 400",
+      async (_label, scope) => {
+        await expect(
+          DeveloperApiKeyService.issue({
+            organisationId: "org-1",
+            name: "n",
+            createdBy: "u",
+            scopes: [scope],
+          }),
+        ).rejects.toMatchObject({ statusCode: 400 });
+        expect(mockPrisma.developerApiKey.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it("accepts the full canonical, reserved v1.1 write, and wildcard scope set", async () => {
+      mockPrisma.developerApiKey.create.mockResolvedValue({
+        id: "k",
+        name: "n",
+        prefix: "yc_live_x",
+        last4: "abcd",
+        scopes: [],
+        environment: "live",
+      });
+      const scopes = [
+        "appointments:read",
+        "patients:read",
+        "encounters:read",
+        "invoices:read",
+        "organization:read",
+        "appointments:write",
+        "patients:write",
+        "invoices:write",
+        "*",
+      ];
+      await expect(
+        DeveloperApiKeyService.issue({
+          organisationId: "org-1",
+          name: "n",
+          createdBy: "u",
+          scopes,
+        }),
+      ).resolves.toBeDefined();
+      expect(mockPrisma.developerApiKey.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ scopes }) }),
+      );
+    });
   });
 
   describe("list", () => {
@@ -237,6 +295,53 @@ describe("DeveloperApiKeyService", () => {
       });
       mockPrisma.developerApiKey.update.mockRejectedValue(new Error("db down"));
       expect(await DeveloperApiKeyService.verify("yc_live_x")).not.toBeNull();
+    });
+
+    describe("coarse scope expansion (contract section 4)", () => {
+      const verifyWithScopes = async (scopes: string[]) => {
+        mockPrisma.developerApiKey.findUnique.mockResolvedValue({
+          ...activeRecord,
+          scopes,
+          lastUsedAt: new Date(),
+        });
+        const result = await DeveloperApiKeyService.verify("yc_live_x");
+        return result?.scopes;
+      };
+
+      const allReadScopes = [
+        "appointments:read",
+        "patients:read",
+        "encounters:read",
+        "invoices:read",
+        "organization:read",
+      ];
+
+      it("expands legacy read to all canonical :read scopes", async () => {
+        expect(await verifyWithScopes(["read"])).toEqual(allReadScopes);
+      });
+
+      it("expands legacy write to all :read plus all :write scopes", async () => {
+        expect(await verifyWithScopes(["write"])).toEqual([
+          ...allReadScopes,
+          "appointments:write",
+          "patients:write",
+          "invoices:write",
+        ]);
+      });
+
+      it("expands legacy admin to the wildcard", async () => {
+        expect(await verifyWithScopes(["admin"])).toEqual(["*"]);
+      });
+
+      it("leaves canonical scopes untouched and dedupes overlap", async () => {
+        expect(
+          await verifyWithScopes([
+            "read",
+            "appointments:read",
+            "invoices:write",
+          ]),
+        ).toEqual([...allReadScopes, "invoices:write"]);
+      });
     });
   });
 });

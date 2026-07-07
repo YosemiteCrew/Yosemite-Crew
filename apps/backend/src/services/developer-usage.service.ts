@@ -12,9 +12,12 @@ const currentBillingPeriod = (): string => {
 
 export const DeveloperUsageService = {
   // Increments call count atomically and checks quota.
-  // Returns { allowed: boolean, callCount: number } — caller should 429 when !allowed.
+  // Returns { allowed: boolean, callCount: number } - caller should 429 when !allowed.
+  // Test-key traffic (environment "test") still counts toward the free-tier
+  // abuse cap but is excluded from Stripe metered billing (contract section 2).
   async incrementAndCheck(
     organisationId: string,
+    environment: "live" | "test" = "live",
   ): Promise<{ allowed: boolean; callCount: number }> {
     const period = currentBillingPeriod();
 
@@ -37,29 +40,35 @@ export const DeveloperUsageService = {
       return { allowed: false, callCount: record.callCount };
     }
 
-    if (plan === "pro" && sub?.stripeCustomerId) {
+    if (plan === "pro" && sub?.stripeCustomerId && environment !== "test") {
+      // One billable live call = one metered unit. The Stripe meter aggregates
+      // by summing event values, so this must be the per-call delta - never
+      // record.callCount, whose cumulative monthly total would bill
+      // n(n+1)/2 units over a month of n calls.
       DeveloperUsageService.reportToStripe(
         sub.stripeCustomerId,
         organisationId,
         period,
-        record.callCount,
+        1,
       );
     }
 
     return { allowed: true, callCount: record.callCount };
   },
 
-  // Fire-and-forget: report accumulated usage to Stripe and update lastReportedAt.
-  // Called inline from incrementAndCheck; errors are logged but never surfaced to the caller.
+  // Fire-and-forget: report a usage delta (units to ADD to the sum-aggregated
+  // Stripe meter) and update lastReportedAt. Called inline from
+  // incrementAndCheck with a delta of 1 per billable live call; errors are
+  // logged but never surfaced to the caller.
   reportToStripe(
     customerId: string,
     organisationId: string,
     billingPeriod: string,
-    callCount: number,
+    quantity: number,
   ): void {
     void (async () => {
       try {
-        await DeveloperBillingService.reportUsage(customerId, callCount);
+        await DeveloperBillingService.reportUsage(customerId, quantity);
         await prisma.developerApiUsage.update({
           where: {
             organisationId_billingPeriod: {

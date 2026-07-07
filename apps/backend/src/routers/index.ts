@@ -59,6 +59,7 @@ import encounterRouter from "./encounter.router";
 import roomUnitRouter from "./room-unit.router";
 import roomUnitGroupRouter from "./room-unit-group.router";
 import developerApiKeyRouter from "./developer-api-key.router";
+import developerDataRouter from "./developer-data.router";
 import developerBillingRouter from "./developer-billing.router";
 import developerUsageRouter from "./developer-usage.router";
 
@@ -118,6 +119,9 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/companion-history`, companionHistoryRouter);
   app.use(`/v1/integration`, integrationRouter);
   app.use(`/v1/developers/api-keys`, developerApiKeyRouter);
+  // Data plane (API-key auth) - singular "developer", distinct from the
+  // session-authenticated management plane under /v1/developers.
+  app.use(`/v1/developer`, developerDataRouter);
   app.use(`/v1/developers/billing`, developerBillingRouter);
   app.use(`/v1/developers/usage`, developerUsageRouter);
   app.use(`/v1/knowledge`, knowledgeRouter);

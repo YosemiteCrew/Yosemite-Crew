@@ -1,8 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import {
   authorizeApiKey,
+  authorizeApiKeyVerifyOnly,
   requireScope,
 } from "../../src/middlewares/api-key-auth";
+import { enforceApiKeyRateLimit } from "../../src/middlewares/api-key-rate-limit";
 import { DeveloperApiKeyService } from "../../src/services/developer-api-key.service";
 import { DeveloperUsageService } from "../../src/services/developer-usage.service";
 
@@ -14,13 +16,19 @@ jest.mock("../../src/services/developer-usage.service", () => ({
   DeveloperUsageService: { incrementAndCheck: jest.fn() },
 }));
 
+jest.mock("../../src/middlewares/api-key-rate-limit", () => ({
+  enforceApiKeyRateLimit: jest.fn(),
+}));
+
 const verifyMock = DeveloperApiKeyService.verify as jest.Mock;
 const incrementMock = DeveloperUsageService.incrementAndCheck as jest.Mock;
+const rateLimitMock = enforceApiKeyRateLimit as jest.Mock;
 
 const buildRes = (): Response => {
   const res: Partial<Response> = {};
   res.status = jest.fn().mockReturnValue(res);
   res.json = jest.fn().mockReturnValue(res);
+  res.setHeader = jest.fn().mockReturnValue(res);
   return res as Response;
 };
 
@@ -42,16 +50,21 @@ describe("authorizeApiKey", () => {
     jest.clearAllMocks();
     next = jest.fn();
     incrementMock.mockResolvedValue({ allowed: true, callCount: 1 });
+    rateLimitMock.mockResolvedValue(true);
   });
 
-  it("401 when no key is presented", async () => {
+  it("401 with missing_api_key when no key is presented", async () => {
     const res = buildRes();
     await authorizeApiKey(buildReq(), res, next);
     expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Missing API key",
+      code: "missing_api_key",
+    });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("401 when the key is invalid", async () => {
+  it("401 with invalid_api_key when the key is invalid", async () => {
     verifyMock.mockResolvedValue(null);
     const res = buildRes();
     await authorizeApiKey(
@@ -60,6 +73,10 @@ describe("authorizeApiKey", () => {
       next,
     );
     expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Invalid or expired API key",
+      code: "invalid_api_key",
+    });
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -105,7 +122,21 @@ describe("authorizeApiKey", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("429 when quota is exceeded", async () => {
+  it("runs the per-key rate limit BEFORE the quota increment", async () => {
+    verifyMock.mockResolvedValue(verifiedKey);
+    rateLimitMock.mockResolvedValue(false);
+    const res = buildRes();
+    await authorizeApiKey(
+      buildReq({ authorization: "Bearer yc_live_good" }),
+      res,
+      next,
+    );
+    expect(rateLimitMock).toHaveBeenCalled();
+    expect(incrementMock).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("429 with quota_exceeded and Retry-After when quota is exhausted", async () => {
     verifyMock.mockResolvedValue(verifiedKey);
     incrementMock.mockResolvedValue({ allowed: false, callCount: 1001 });
     const res = buildRes();
@@ -115,18 +146,62 @@ describe("authorizeApiKey", () => {
       next,
     );
     expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Monthly API quota exceeded. Upgrade to Pro to continue.",
+      code: "quota_exceeded",
+    });
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Retry-After",
+      expect.stringMatching(/^\d+$/),
+    );
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("calls incrementAndCheck with the organisationId", async () => {
-    verifyMock.mockResolvedValue(verifiedKey);
+  it("calls incrementAndCheck with the organisationId and key environment", async () => {
+    verifyMock.mockResolvedValue({ ...verifiedKey, environment: "test" });
     const res = buildRes();
     await authorizeApiKey(
-      buildReq({ authorization: "Bearer yc_live_good" }),
+      buildReq({ authorization: "Bearer yc_test_good" }),
       res,
       next,
     );
-    expect(incrementMock).toHaveBeenCalledWith("org-9");
+    expect(incrementMock).toHaveBeenCalledWith("org-9", "test");
+  });
+});
+
+describe("authorizeApiKeyVerifyOnly", () => {
+  let next: NextFunction;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    next = jest.fn();
+    rateLimitMock.mockResolvedValue(true);
+  });
+
+  it("verifies, rate limits, and skips the quota increment", async () => {
+    verifyMock.mockResolvedValue(verifiedKey);
+    const req = buildReq({ authorization: "Bearer yc_live_good" });
+    const res = buildRes();
+
+    await authorizeApiKeyVerifyOnly(req, res, next);
+
+    expect(rateLimitMock).toHaveBeenCalled();
+    expect(incrementMock).not.toHaveBeenCalled();
+    expect((req as unknown as { organisationId: string }).organisationId).toBe(
+      "org-9",
+    );
+    expect(next).toHaveBeenCalled();
+  });
+
+  it("still 401s an invalid key", async () => {
+    verifyMock.mockResolvedValue(null);
+    const res = buildRes();
+    await authorizeApiKeyVerifyOnly(
+      buildReq({ authorization: "Bearer yc_live_bad" }),
+      res,
+      next,
+    );
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
   });
 });
 
@@ -136,11 +211,15 @@ describe("requireScope", () => {
     next = jest.fn();
   });
 
-  it("403 when the scope is absent", () => {
+  it("403 with insufficient_scope when the scope is absent", () => {
     const req = { apiKey: { scopes: ["a"] } } as unknown as Request;
     const res = buildRes();
     requireScope("b")(req, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Insufficient scope for this API key",
+      code: "insufficient_scope",
+    });
     expect(next).not.toHaveBeenCalled();
   });
 

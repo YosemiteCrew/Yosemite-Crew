@@ -18,6 +18,57 @@ export class DeveloperApiKeyServiceError extends Error {
 const KEY_SECRET_BYTES = 24;
 const LAST_USED_THROTTLE_MS = 60_000;
 
+// Canonical v1 scope taxonomy (data-plane contract, section 4).
+export const CANONICAL_V1_READ_SCOPES = [
+  "appointments:read",
+  "patients:read",
+  "encounters:read",
+  "invoices:read",
+  "organization:read",
+] as const;
+
+const RESERVED_V1_WRITE_SCOPES = [
+  "appointments:write",
+  "patients:write",
+  "invoices:write",
+] as const;
+
+// Reserved for the Phase 2 editing agent (ADR 0005, ai-editing-agent security
+// model): read and draft-only write access to config-engine entities. They
+// join ISSUABLE_SCOPES only when the agent surface ships - until then they are
+// NOT issuable, and they never grant publish rights.
+export const RESERVED_CONFIG_SCOPES = [
+  "config:read",
+  "config:draft:write",
+] as const;
+
+// Scopes a key can be issued with: the canonical v1 read list, the reserved
+// v1.1 write scopes (issuable as explicit opt-ins, inert until their routes
+// ship), and "*" for internal tooling (valid but never offered in the portal
+// UI). Anything else - including the legacy coarse read/write/admin values and
+// the Phase 2 config scopes - is rejected with a 400 at issuance.
+export const ISSUABLE_SCOPES: readonly string[] = [
+  ...CANONICAL_V1_READ_SCOPES,
+  ...RESERVED_V1_WRITE_SCOPES,
+  "*",
+];
+
+// Coarse scopes stored on pre-v1 keys expand at verification time so no data
+// migration is needed (contract section 4). Expansion lives here, in verify,
+// and nowhere else. "read"/"write" expand to the canonical v1 lists only; the
+// Phase 2 config scopes are never granted implicitly.
+const COARSE_SCOPE_EXPANSION: Record<string, readonly string[]> = {
+  read: CANONICAL_V1_READ_SCOPES,
+  write: [...CANONICAL_V1_READ_SCOPES, ...RESERVED_V1_WRITE_SCOPES],
+  admin: ["*"],
+};
+
+export const expandApiKeyScopes = (stored: string[]): string[] => [
+  ...new Set(
+    stored.flatMap((scope) => COARSE_SCOPE_EXPANSION[scope] ?? [scope]),
+  ),
+];
+
 export type IssuedApiKey = {
   id: string;
   name: string;
@@ -76,6 +127,11 @@ export const DeveloperApiKeyService = {
     const scopes = (input.scopes ?? []).map((scope) =>
       requireNonEmpty(scope, "scope"),
     );
+    for (const scope of scopes) {
+      if (!ISSUABLE_SCOPES.includes(scope)) {
+        throw new DeveloperApiKeyServiceError(`Unknown scope: ${scope}`, 400);
+      }
+    }
 
     const generated = generateApiKey(environment);
     const record = await prisma.developerApiKey.create({
@@ -176,7 +232,7 @@ export const DeveloperApiKeyService = {
     return {
       id: record.id,
       organisationId: record.organisationId,
-      scopes: record.scopes,
+      scopes: expandApiKeyScopes(record.scopes),
       environment: record.environment,
     };
   },

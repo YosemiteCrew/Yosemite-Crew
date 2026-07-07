@@ -228,7 +228,7 @@ const DeveloperApiKeys = () => {
               className="DevApiKeys-input"
               value={scopesInput}
               onChange={(event) => setScopesInput(event.target.value)}
-              placeholder="appointments:read, inventory:read"
+              placeholder="appointments:read, patients:read, encounters:read, invoices:read, organization:read"
             />
             <div className="DevApiKeys-formActions">
               <Primary

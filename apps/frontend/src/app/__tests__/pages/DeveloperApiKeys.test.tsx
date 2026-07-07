@@ -104,16 +104,27 @@ describe('DeveloperApiKeys page', () => {
     await openCreateForm(user);
 
     await user.type(screen.getByLabelText('Key name'), 'CI');
-    await user.type(screen.getByLabelText(/Scopes/), 'appointments:read, inventory:read');
+    await user.type(screen.getByLabelText(/Scopes/), 'appointments:read, invoices:read');
     await user.click(screen.getByRole('button', { name: 'Create' }));
 
     expect(await screen.findByTestId('issued-secret')).toHaveTextContent('yc_live_THE_SECRET');
     expect(createApiKeyMock).toHaveBeenCalledWith({
       name: 'CI',
       environment: 'live',
-      scopes: ['appointments:read', 'inventory:read'],
+      scopes: ['appointments:read', 'invoices:read'],
     });
     await waitFor(() => expect(listApiKeysMock).toHaveBeenCalledTimes(2));
+  });
+
+  it('suggests only canonical read scopes in the scopes placeholder', async () => {
+    const user = userEvent.setup();
+    render(<DeveloperApiKeys />);
+    await openCreateForm(user);
+
+    expect(screen.getByLabelText(/Scopes/)).toHaveAttribute(
+      'placeholder',
+      'appointments:read, patients:read, encounters:read, invoices:read, organization:read'
+    );
   });
 
   it('disables Create until a name is entered', async () => {

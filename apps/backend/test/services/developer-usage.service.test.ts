@@ -88,7 +88,7 @@ describe("DeveloperUsageService", () => {
       expect(result).toEqual({ allowed: true, callCount: 1000 });
     });
 
-    it("pro plan — returns allowed:true and fires reportToStripe for Stripe", async () => {
+    it("pro plan — returns allowed:true and reports a delta of exactly 1 to Stripe", async () => {
       mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 42 });
       mockPrisma.developerSubscription.findUnique.mockResolvedValue({
         plan: "pro",
@@ -105,7 +105,31 @@ describe("DeveloperUsageService", () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(mockReportUsage).toHaveBeenCalledWith("cus_x", 42);
+      // One billable call -> one meter event of value 1. Never the cumulative
+      // counter: the Stripe meter sums event values, so reporting callCount
+      // would bill n(n+1)/2 units over a month of n calls.
+      expect(mockReportUsage).toHaveBeenCalledTimes(1);
+      expect(mockReportUsage).toHaveBeenCalledWith("cus_x", 1);
+    });
+
+    it("reports a delta of 1 no matter how high the monthly counter is", async () => {
+      mockPrisma.developerApiUsage.upsert.mockResolvedValue({
+        callCount: 99_999,
+      });
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        plan: "pro",
+        stripeCustomerId: "cus_x",
+      });
+      mockReportUsage.mockResolvedValue(undefined);
+      mockPrisma.developerApiUsage.update.mockResolvedValue({});
+
+      await DeveloperUsageService.incrementAndCheck("org-1");
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(mockReportUsage).toHaveBeenCalledTimes(1);
+      expect(mockReportUsage).toHaveBeenCalledWith("cus_x", 1);
     });
 
     it("no subscription record (null) — defaults to free plan, allowed:true when count <= 1000", async () => {
@@ -116,6 +140,98 @@ describe("DeveloperUsageService", () => {
 
       expect(result).toEqual({ allowed: true, callCount: 5 });
       expect(mockReportUsage).not.toHaveBeenCalled();
+    });
+
+    it("test-key traffic on a pro plan increments the shared counter but emits NO Stripe meter event (contract section 2)", async () => {
+      mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 7 });
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        plan: "pro",
+        stripeCustomerId: "cus_x",
+      });
+
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "test",
+      );
+
+      expect(result).toEqual({ allowed: true, callCount: 7 });
+      // Still counted toward the shared monthly counter (the free-tier abuse
+      // cap): the atomic increment ran exactly once...
+      expect(mockPrisma.developerApiUsage.upsert).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.developerApiUsage.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: { callCount: { increment: 1 } },
+        }),
+      );
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // ...but not one meter event reaches Stripe, so test calls never bill.
+      expect(mockReportUsage).not.toHaveBeenCalled();
+      expect(mockPrisma.developerApiUsage.update).not.toHaveBeenCalled();
+    });
+
+    it("a live call followed by a test call bills exactly one unit total", async () => {
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        plan: "pro",
+        stripeCustomerId: "cus_x",
+      });
+      mockReportUsage.mockResolvedValue(undefined);
+      mockPrisma.developerApiUsage.update.mockResolvedValue({});
+
+      mockPrisma.developerApiUsage.upsert.mockResolvedValueOnce({
+        callCount: 1,
+      });
+      await DeveloperUsageService.incrementAndCheck("org-1", "live");
+
+      mockPrisma.developerApiUsage.upsert.mockResolvedValueOnce({
+        callCount: 2,
+      });
+      await DeveloperUsageService.incrementAndCheck("org-1", "test");
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Both calls hit the shared counter; only the live one metered, as 1.
+      expect(mockPrisma.developerApiUsage.upsert).toHaveBeenCalledTimes(2);
+      expect(mockReportUsage).toHaveBeenCalledTimes(1);
+      expect(mockReportUsage).toHaveBeenCalledWith("cus_x", 1);
+    });
+
+    it("test-key traffic still counts toward the free-tier cap", async () => {
+      mockPrisma.developerApiUsage.upsert.mockResolvedValue({
+        callCount: 1001,
+      });
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        plan: "free",
+        stripeCustomerId: null,
+      });
+
+      const result = await DeveloperUsageService.incrementAndCheck(
+        "org-1",
+        "test",
+      );
+
+      expect(result).toEqual({ allowed: false, callCount: 1001 });
+    });
+
+    it("live traffic on a pro plan emits exactly one meter event of 1 (explicit environment)", async () => {
+      mockPrisma.developerApiUsage.upsert.mockResolvedValue({ callCount: 8 });
+      mockPrisma.developerSubscription.findUnique.mockResolvedValue({
+        plan: "pro",
+        stripeCustomerId: "cus_x",
+      });
+      mockReportUsage.mockResolvedValue(undefined);
+      mockPrisma.developerApiUsage.update.mockResolvedValue({});
+
+      await DeveloperUsageService.incrementAndCheck("org-1", "live");
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(mockReportUsage).toHaveBeenCalledTimes(1);
+      expect(mockReportUsage).toHaveBeenCalledWith("cus_x", 1);
     });
 
     it("pro plan with null stripeCustomerId — does NOT call reportUsage", async () => {
@@ -137,17 +253,17 @@ describe("DeveloperUsageService", () => {
   });
 
   describe("reportToStripe", () => {
-    it("happy path — calls reportUsage then updates lastReportedAt", async () => {
+    it("happy path — passes the delta through to reportUsage then updates lastReportedAt", async () => {
       mockReportUsage.mockResolvedValue(undefined);
       mockPrisma.developerApiUsage.update.mockResolvedValue({});
 
-      DeveloperUsageService.reportToStripe("cus_abc", "org-1", "2026-06", 99);
+      DeveloperUsageService.reportToStripe("cus_abc", "org-1", "2026-06", 1);
 
       // Wait for the void IIFE to settle
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(mockReportUsage).toHaveBeenCalledWith("cus_abc", 99);
+      expect(mockReportUsage).toHaveBeenCalledWith("cus_abc", 1);
       expect(mockPrisma.developerApiUsage.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
