@@ -27,6 +27,9 @@ import {AppNavigator} from './src/navigation/AppNavigator';
 import {useTheme} from './src/shared/hooks/useTheme';
 import CustomSplashScreen from './src/shared/components/common/customSplashScreen/customSplash';
 import './src/localization';
+// Required by native/runtime dependencies even though app code does not use their exports directly.
+import '@aws-amplify/react-native';
+import '@react-native-masked-view/masked-view';
 import devOutputs from './devamplify_outputs.json';
 import prodOutputs from './prodamplify_outputs.json';
 import {StripeProvider} from '@stripe/stripe-react-native';

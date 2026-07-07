@@ -17,6 +17,7 @@
     "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
+    "@aws-amplify/react-native": "^1.1.10",
     "@callstack/liquid-glass": "^0.7.0",
     "@d11/react-native-fast-image": "^8.13.0",
     "@gorhom/bottom-sheet": "^5",
@@ -32,6 +33,7 @@
     "@react-native-firebase/auth": "^23.5.0",
     "@react-native-firebase/messaging": "^23.5.0",
     "@react-native-google-signin/google-signin": "^15.0.0",
+    "@react-native-masked-view/masked-view": "^0.3.2",
     "@react-native/codegen": "0.81.4",
     "@react-native/gradle-plugin": "0.81.4",
     "@react-native/new-app-screen": "0.81.4",
