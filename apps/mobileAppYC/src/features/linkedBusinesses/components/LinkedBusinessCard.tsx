@@ -1,13 +1,11 @@
-import React, {useMemo, useCallback, useState, useEffect} from 'react';
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  Platform,
-} from 'react-native';
+import React, {
+  useMemo,
+  useCallback,
+  useState,
+  useEffect as useReactEffect,
+} from 'react';
+import {View, Text, Image, StyleSheet, Alert, Platform} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
@@ -51,7 +49,7 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
   );
 
   // Fetch Google Places image for all linked businesses
-  useEffect(() => {
+  useReactEffect(() => {
     if (business.placeId && !googlePlacesPhoto) {
       dispatch(fetchGooglePlacesImage(business.placeId))
         .unwrap()
@@ -95,7 +93,7 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
       shadow="sm"
       style={[styles.container, showBorder && styles.containerWithBorder]}
       fallbackStyle={styles.containerFallback}>
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.cardContent}
         activeOpacity={0.8}
         onPress={onPress}
@@ -128,21 +126,21 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
             </View>
           </View>
         </View>
-      </TouchableOpacity>
+      </PressableOpacity>
       {showActionButtons && (
         <View style={styles.actionButtons}>
-          <TouchableOpacity
+          <PressableOpacity
             style={styles.actionButton}
             onPress={handleGetDirections}
             hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
             <Image source={Images.getDirection} style={styles.actionIcon} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PressableOpacity>
+          <PressableOpacity
             style={styles.actionButton}
             onPress={handleDeletePress}
             hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
             <Image source={Images.deleteIconRed} style={styles.actionIcon} />
-          </TouchableOpacity>
+          </PressableOpacity>
         </View>
       )}
     </LiquidGlassCard>

@@ -7,7 +7,7 @@
  */
 import React, {
   useCallback,
-  useEffect,
+  useEffect as useReactEffect,
   useReducer,
   useRef,
   useState,
@@ -221,7 +221,7 @@ function App(): React.JSX.Element {
   const pendingIntentRef = useRef<NotificationNavigationIntent | null>(null);
   const currentRouteNameRef = useRef<string | null>(null);
 
-  useEffect(() => {
+  useReactEffect(() => {
     const sub = DeviceEventEmitter.addListener(
       DEV_API_MODE_CHANGED_EVENT,
       ({isDevApi}: {isDevApi: boolean}) => {
@@ -245,11 +245,11 @@ function App(): React.JSX.Element {
     return () => sub.remove();
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     configureSocialProviders();
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!POSTHOG_CONFIG.enabled) {
       return;
     }
@@ -257,7 +257,7 @@ function App(): React.JSX.Element {
     initializePostHog();
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     let mounted = true;
 
     const loadMobileConfig = async () => {
@@ -454,7 +454,7 @@ function App(): React.JSX.Element {
       STRIPE_CONFIG.publishableKey)
     : (mobileConfig?.stripePublishableKey ?? STRIPE_CONFIG.publishableKey);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!resolvedPublishableKey && !isConfigLoading) {
       console.warn(
         '[Stripe] Missing publishableKey from mobile config API and local config.',
@@ -597,7 +597,7 @@ const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
 }) => {
   const updateSheetRef = useRef<AppUpdateBottomSheetRef>(null);
 
-  useEffect(() => {
+  useReactEffect(() => {
     console.log('[AppUpdate] Gate state', {
       kind: prompt?.kind ?? null,
       hasStoreUrl: Boolean(prompt?.storeUrl),
@@ -712,7 +712,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     lastRegisteredRef.current = null;
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!isLoggedIn) return;
     const preloadTools = async () => {
       try {
@@ -724,7 +724,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     preloadTools();
   }, [isLoggedIn]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     let mounted = true;
 
     const setup = async () => {
@@ -756,7 +756,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     };
   }, [dispatch, onNavigate, syncRegisterToken]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     authStatusRef.current = {isLoggedIn, userId: currentUserId};
     if (isLoggedIn && latestTokenRef.current) {
       syncRegisterToken(latestTokenRef.current);

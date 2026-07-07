@@ -1,4 +1,10 @@
-import React, {useMemo, useState, useEffect, useRef, useCallback} from 'react';
+import React, {
+  useMemo,
+  useState,
+  useEffect as useReactEffect,
+  useRef,
+  useCallback,
+} from 'react';
 import {
   ScrollView,
   View,
@@ -815,7 +821,7 @@ const useFetchAppointmentById = ({
   apt?: any;
   dispatch: AppDispatch;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (!apt && appointmentId) {
       dispatch(fetchAppointmentById({appointmentId}));
     }
@@ -831,7 +837,7 @@ const useBusinessPhoto = ({
   dispatch: AppDispatch;
   setFallbackPhoto: (value: string | null) => void;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (!googlePlacesId) return;
     const fetchPhoto = async () => {
       try {
@@ -881,7 +887,7 @@ const useEnsurePaymentData = ({
   isInvoiceBasedFlow: boolean;
   setInvoiceLoading: (value: boolean) => void;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (isInvoiceBasedFlow) {
       return;
     }
@@ -1377,7 +1383,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
     setInvoiceLoading,
   });
 
-  useEffect(() => {
+  useReactEffect(() => {
     // Always ensure we have a payment intent when opening from Pay Now.
     // Also re-fetch when connectedAccountId is missing — it only comes from the
     // sessions endpoint, so existing appointments with a stored clientSecret but

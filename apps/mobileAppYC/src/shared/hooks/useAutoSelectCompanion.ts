@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect as useReactEffect} from 'react';
 import {useDispatch} from 'react-redux';
 import type {AppDispatch} from '@/app/store';
 import {setSelectedCompanion} from '@/features/companion';
@@ -13,7 +13,7 @@ export const useAutoSelectCompanion = (
 ) => {
   const dispatch = useDispatch<AppDispatch>();
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!selectedCompanionId && companions.length > 0) {
       const fallbackId =
         companions[0]?.id ??

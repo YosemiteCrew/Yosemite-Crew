@@ -1,4 +1,10 @@
-import React, {useState, useCallback, useMemo, useRef, useEffect} from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect as useReactEffect,
+} from 'react';
 import {
   View,
   FlatList,
@@ -63,7 +69,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   const deleteBottomSheetRef = useRef<DeleteBusinessBottomSheetRef>(null);
 
   // Fetch linked businesses on mount
-  useEffect(() => {
+  useReactEffect(() => {
     const loadLinkedBusinesses = async () => {
       try {
         console.log(
@@ -89,7 +95,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
   }, [companionId, category, dispatch]);
 
   // Log mount/navigation only when params change, not on every render
-  useEffect(() => {
+  useReactEffect(() => {
     console.log(
       '[BusinessSearch] Screen navigated with companionId:',
       companionId,

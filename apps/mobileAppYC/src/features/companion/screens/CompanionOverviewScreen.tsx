@@ -1,4 +1,10 @@
-import React, {useMemo, useRef, useState, useCallback, useEffect} from 'react';
+import React, {
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  useEffect as useReactEffect,
+} from 'react';
 import {
   View,
   Text,
@@ -140,7 +146,7 @@ export const CompanionOverviewScreen: React.FC<
     return selectedCompanionFromState ?? allCompanions[0] ?? null;
   }, [allCompanions, resolvedCompanionId, selectedCompanionFromState]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (resolvedCompanionId) {
       dispatch(setSelectedCompanion(resolvedCompanionId));
     }
@@ -234,7 +240,7 @@ export const CompanionOverviewScreen: React.FC<
   );
 
   // Handle Android back button for bottom sheets and date picker
-  useEffect(() => {
+  useReactEffect(() => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
@@ -296,7 +302,7 @@ export const CompanionOverviewScreen: React.FC<
     return `${age} ${numValue === 1 ? 'Year' : 'Years'}`;
   }, [safeCompanion]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     let mounted = true;
 
     const loadBreeds = async () => {

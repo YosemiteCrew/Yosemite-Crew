@@ -1,4 +1,10 @@
-import React, {useMemo, useState, useRef, useCallback} from 'react';
+import React, {
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+  useEffect as useReactEffect,
+} from 'react';
 import {
   View,
   Text,
@@ -48,19 +54,19 @@ export const DocumentSearchScreen: React.FC = () => {
   const [query, setQuery] = useState('');
   const lastQueryRef = useRef('');
 
-  React.useEffect(() => {
+  useReactEffect(() => {
     if (companions.length > 0 && selectedCompanionId === null) {
       dispatch(setSelectedCompanion(companions[0].id));
     }
   }, [companions, selectedCompanionId, dispatch]);
 
-  React.useEffect(() => {
+  useReactEffect(() => {
     if (!query.trim()) {
       dispatch(clearSearchResults());
     }
   }, [query, dispatch]);
 
-  React.useEffect(() => {
+  useReactEffect(() => {
     if (lastQueryRef.current && selectedCompanionId) {
       dispatch(
         searchDocuments({
@@ -89,7 +95,7 @@ export const DocumentSearchScreen: React.FC = () => {
   const triggerSearchRef = useRef(triggerSearch);
   triggerSearchRef.current = triggerSearch;
 
-  React.useEffect(() => {
+  useReactEffect(() => {
     if (!query.trim()) {
       dispatch(clearSearchResults());
       return;

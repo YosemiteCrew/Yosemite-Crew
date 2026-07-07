@@ -1,17 +1,17 @@
-import React, {useEffect} from 'react';
+import React, {useEffect as useReactEffect} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Image,
-  TouchableOpacity,
   StyleSheet as RNStyleSheet,
   BackHandler,
   Alert,
   ToastAndroid,
   Platform,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {
@@ -290,7 +290,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     [canAccessFeature, showPermissionToast],
   );
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (companionId) {
       dispatch(setSelectedCompanion(companionId));
     }
@@ -471,7 +471,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   };
 
   // Handle Android back button for delete bottom sheet
-  useEffect(() => {
+  useReactEffect(() => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
@@ -580,7 +580,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
                 fallbackStyle={styles.glassFallback}>
                 <View style={styles.listContainer}>
                   {sections.map((item, index) => (
-                    <TouchableOpacity
+                    <PressableOpacity
                       key={item.id}
                       style={styles.row}
                       activeOpacity={0.7}
@@ -613,7 +613,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
                       {index !== sections.length - 1 && (
                         <View style={styles.separator} />
                       )}
-                    </TouchableOpacity>
+                    </PressableOpacity>
                   ))}
                 </View>
               </LiquidGlassCard>

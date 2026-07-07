@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useMemo} from 'react';
+import React, {useEffect as useReactEffect, useState, useMemo} from 'react';
 import {
   View,
   StyleSheet,
@@ -132,7 +132,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
   }
 
   const companionDispatchedRef = React.useRef(false);
-  useEffect(() => {
+  useReactEffect(() => {
     if (
       !companionDispatchedRef.current &&
       selectedCompanionId &&
@@ -151,7 +151,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!coParent && selectedCompanion?.id) {
       dispatch(
         fetchCoParents({
@@ -165,7 +165,7 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
 
   const currentCoParent = coParent;
 
-  useEffect(() => {
+  useReactEffect(() => {
     const isSelfPrimary =
       (currentCoParent?.role ?? '').toUpperCase().includes('PRIMARY') &&
       currentCoParent?.parentId === authUser?.parentId;

@@ -3,7 +3,7 @@ import React, {
   useRef,
   useMemo,
   useState,
-  useEffect,
+  useEffect as useReactEffect,
 } from 'react';
 import {View, Image, Text, StyleSheet, Platform} from 'react-native';
 import RNCalendarEvents from 'react-native-calendar-events';
@@ -80,7 +80,7 @@ export const CalendarSyncBottomSheet = ({
   const [loading, setLoading] = useState(true);
   const permissionGranted = permissionStatus === 'authorized';
 
-  useEffect(() => {
+  useReactEffect(() => {
     const fetchDeviceCalendars = async () => {
       try {
         setLoading(true);
