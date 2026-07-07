@@ -32,17 +32,20 @@ jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
-  default: ({ placeholder, onSelect, defaultOption }: any) => (
-    <button
-      type="button"
-      onClick={() =>
-        onSelect({
-          value: placeholder === 'Room Type' ? 'INPATIENT' : defaultOption || 'CONSULTATION',
-        })
-      }
-    >
-      {placeholder}
-    </button>
+  default: ({ placeholder, onSelect, defaultOption, error }: any) => (
+    <div>
+      <button
+        type="button"
+        onClick={() =>
+          onSelect({
+            value: placeholder === 'Room Type' ? 'INPATIENT' : defaultOption || 'CONSULTATION',
+          })
+        }
+      >
+        {placeholder}
+      </button>
+      {error && <span>{error}</span>}
+    </div>
   ),
 }));
 
@@ -134,6 +137,7 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Room code'), {
       target: { value: 'RA-01' },
     });
+    fireEvent.click(screen.getByText('Room Type'));
     fireEvent.click(screen.getByText('Add room'));
 
     await waitFor(() => {
@@ -145,10 +149,22 @@ describe('AddRoom', () => {
         code: 'RA-01',
         unitCount: 0,
         units: [],
-        equipment: ['Oxygen Tank', 'Dental Unit', 'Isolation unit'],
+        equipment: [],
       })
     );
     expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('does not prefill room type or equipment, and blocks save until a room type is chosen', () => {
+    render(<AddRoom showModal setShowModal={jest.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Room B' },
+    });
+    fireEvent.click(screen.getByText('Add room'));
+
+    expect(screen.getByText('Room type is required')).toBeInTheDocument();
+    expect(roomService.createRoom).not.toHaveBeenCalled();
   });
 
   it('creates a room without a custom code so the backend can generate one', async () => {
@@ -159,6 +175,7 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Consultation Room' },
     });
+    fireEvent.click(screen.getByText('Room Type'));
     fireEvent.click(screen.getByText('Add room'));
 
     await waitFor(() => {
@@ -186,6 +203,7 @@ describe('AddRoom', () => {
       target: { value: 'MRI Scanner' },
     });
     fireEvent.click(screen.getByLabelText('Add custom equipment'));
+    fireEvent.click(screen.getByText('Room Type'));
     fireEvent.click(screen.getByText('Add room'));
 
     await waitFor(() => {
@@ -237,6 +255,7 @@ describe('AddRoom', () => {
       target: { value: 'SW-01' },
     });
     fireEvent.click(screen.getByLabelText('Species'));
+    fireEvent.click(screen.getByText('Room Type'));
     fireEvent.click(screen.getByText('Add room'));
 
     await waitFor(() => {

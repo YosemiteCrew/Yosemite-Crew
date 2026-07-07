@@ -8,7 +8,7 @@ import { toTitle } from '@/app/lib/validators';
 import { NoDataMessage } from '@/app/ui/tables/common';
 
 import { joinNames } from '@/app/ui/tables/tableUtils';
-import { IoCreateOutline, IoEyeOutline } from 'react-icons/io5';
+import { IoEyeOutline } from 'react-icons/io5';
 
 import './DataTable.css';
 
@@ -32,7 +32,6 @@ type RoomTableProps = {
   filteredList: RoomManagementRoom[];
   setActive?: (room: RoomManagementRoom) => void;
   setView?: (open: boolean) => void;
-  onEdit?: (room: RoomManagementRoom) => void;
   onToggleAvailability?: (room: RoomManagementRoom, isAvailable: boolean) => void;
   canEditRoom?: boolean;
 };
@@ -124,7 +123,6 @@ const RoomTable = ({
   filteredList,
   setActive,
   setView,
-  onEdit,
   onToggleAvailability,
   canEditRoom = false,
 }: RoomTableProps) => {
@@ -249,11 +247,6 @@ const RoomTable = ({
                         >
                           <IoEyeOutline size={16} aria-hidden="true" />
                         </IconButton>
-                        {canEditRoom && (
-                          <IconButton label={`Edit ${room.name}`} onClick={() => onEdit?.(room)}>
-                            <IoCreateOutline size={16} aria-hidden="true" />
-                          </IconButton>
-                        )}
                       </div>
                     </td>
                   </tr>

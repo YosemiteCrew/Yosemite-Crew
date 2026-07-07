@@ -36,8 +36,9 @@ type RoomUnitDraft = {
   occupied?: boolean;
 };
 
-type RoomFormData = Omit<OrganisationRoom, 'assignedSpecialiteis' | 'assignedStaffs'> & {
+type RoomFormData = Omit<OrganisationRoom, 'assignedSpecialiteis' | 'assignedStaffs' | 'type'> & {
   code: string;
+  type: OrganisationRoom['type'] | '';
   assignedSpecialiteis: string[];
   assignedStaffs: string[];
   availability: {
@@ -59,7 +60,7 @@ const INITIAL_FORM_DATA: RoomFormData = {
   organisationId: '',
   name: '',
   code: '',
-  type: 'SURGERY',
+  type: '',
   assignedSpecialiteis: [],
   assignedStaffs: [],
   availability: {
@@ -72,7 +73,7 @@ const INITIAL_FORM_DATA: RoomFormData = {
   },
   units: [],
   unitCount: 0,
-  equipment: ['Oxygen Tank', 'Dental Unit', 'Isolation unit'],
+  equipment: [],
 };
 
 const buildRoomId = () => `room-${Date.now()}`;
@@ -97,7 +98,7 @@ const distributeUnitCounts = (units: RoomUnitDraft[], totalUnits: number) => {
   });
 };
 
-const isUnitCapableRoomType = (type: OrganisationRoom['type']) =>
+const isUnitCapableRoomType = (type: OrganisationRoom['type'] | '') =>
   UnitCapableRoomTypes.includes(type as (typeof UnitCapableRoomTypes)[number]);
 
 const toOptionMap = (options: { label: string; value: string }[]) =>
@@ -179,7 +180,11 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
   const { notify } = useNotify();
   const specialities = useSpecialitiesForPrimaryOrg();
   const [formData, setFormData] = useState<RoomFormData>(INITIAL_FORM_DATA);
-  const [formDataErrors, setFormDataErrors] = useState<{ name?: string; code?: string }>({});
+  const [formDataErrors, setFormDataErrors] = useState<{
+    name?: string;
+    code?: string;
+    type?: string;
+  }>({});
   const [saving, setSaving] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [customEquipmentName, setCustomEquipmentName] = useState('');
@@ -323,17 +328,20 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
   };
 
   const handleSave = async () => {
-    const errors: { name?: string; code?: string } = {};
+    const errors: { name?: string; code?: string; type?: string } = {};
     if (!formData.name.trim()) errors.name = 'Name is required';
+    if (!formData.type) errors.type = 'Room type is required';
     setFormDataErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
+    const roomType = formData.type as OrganisationRoom['type'];
     setSaving(true);
     try {
       const totalUnits = getTotalUnits(formData.units, formData.availability.totalUnits);
       const roomPayload: OrganisationRoom &
         Pick<RoomFormData, 'availability' | 'unitCount' | 'units' | 'equipment'> = {
         ...formData,
+        type: roomType,
         id: formData.id || buildRoomId(),
         unitCount: totalUnits,
         availability: {
@@ -418,6 +426,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
                       }
                       defaultOption={formData.type}
                       options={RoomsTypes}
+                      error={formDataErrors.type}
                     />
                   </div>
                   <div className="sm:col-span-2">

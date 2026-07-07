@@ -37,11 +37,6 @@ const Rooms = () => {
     });
   }, [rooms]);
 
-  const handleEditRoom = (room: ManagedRoom) => {
-    setActiveRoom(room);
-    setViewPopup(true);
-  };
-
   const handleToggleAvailability = async (room: ManagedRoom, isAvailable: boolean) => {
     if (!canEditRoom) return;
     try {
@@ -71,7 +66,6 @@ const Rooms = () => {
           filteredList={rooms}
           setActive={setActiveRoom}
           setView={setViewPopup}
-          onEdit={handleEditRoom}
           onToggleAvailability={handleToggleAvailability}
           canEditRoom={canEditRoom}
         />
