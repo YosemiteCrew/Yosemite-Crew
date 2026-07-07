@@ -36,6 +36,7 @@ import {
   ReleasePill,
   useMagnet,
   HERO_VIDEOS,
+  HERO_POSTERS,
   RELEASES_LATEST_URL,
   MARKETING_LOGO,
 } from '@/app/features/marketing/site';
@@ -140,7 +141,11 @@ function Hero() {
         padding: '148px 24px 90px',
       }}
     >
-      <HeroVideo src={HERO_VIDEOS.petBusinesses} position="center 40%" />
+      <HeroVideo
+        src={HERO_VIDEOS.petBusinesses}
+        poster={HERO_POSTERS.petBusinesses}
+        position="center 40%"
+      />
       <div
         aria-hidden="true"
         style={{

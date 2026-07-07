@@ -1,3 +1,5 @@
+import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
+
 export const CDN_BASE = 'https://d2il6osz49gpup.cloudfront.net';
 
 export const GITHUB_REPO_URL = 'https://github.com/YosemiteCrew/Yosemite-Crew';
@@ -25,13 +27,19 @@ export const COMPANION_PHOTOS = {
 } as const;
 export const ABOUT_ORIGIN_PHOTO = '/images/marketing/about-origin.webp';
 
-/* Ambient hero loops live on the marketing CDN, not in the repo (size + stock
-   licensing). Upload targets documented in the PR; HeroVideo no-ops until the
-   file is reachable. */
+/* Ambient hero loops + posters live on the marketing CDN (size + stock
+   licensing), sourced from the shared media constants. HeroVideo shows the
+   poster while the loop loads and no-ops under reduced motion / load failure. */
+const HERO = MEDIA_SOURCES.landing.hero;
 export const HERO_VIDEOS = {
-  home: `${CDN_BASE}/videos/hero-loop.mp4`,
-  petBusinesses: `${CDN_BASE}/videos/hero-farm-veterinarian.mp4`,
-  petParents: `${CDN_BASE}/videos/hero-pet-parents.mp4`,
+  home: HERO.home.video,
+  petBusinesses: HERO.businesses.video,
+  petParents: HERO.petParents.video,
+} as const;
+export const HERO_POSTERS = {
+  home: HERO.home.poster,
+  petBusinesses: HERO.businesses.poster,
+  petParents: HERO.petParents.poster,
 } as const;
 
 export const CERT_BADGES = {

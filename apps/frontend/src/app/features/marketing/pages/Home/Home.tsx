@@ -29,6 +29,7 @@ import {
   HERO_AVATARS,
   COMPANION_PHOTOS,
   HERO_VIDEOS,
+  HERO_POSTERS,
   GITHUB_REPO_URL,
 } from '@/app/features/marketing/site';
 
@@ -280,7 +281,7 @@ function Hero() {
         padding: '140px 24px 100px',
       }}
     >
-      <HeroVideo src={HERO_VIDEOS.home} position="center 50%" />
+      <HeroVideo src={HERO_VIDEOS.home} poster={HERO_POSTERS.home} position="center 50%" />
 
       {/* ambient glows */}
       <div

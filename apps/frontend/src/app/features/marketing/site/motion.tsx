@@ -213,12 +213,14 @@ export function Spotlight({ children, className, style }: Readonly<SpotlightProp
 
 interface HeroVideoProps {
   src: string;
+  /** Poster image shown while the loop loads. */
+  poster?: string;
   /** object-position, e.g. 'center 42%'. */
   position?: string;
 }
 
 /** Ambient looping hero video with a warm scrim. Not rendered under reduced motion. */
-export function HeroVideo({ src, position = 'center 42%' }: Readonly<HeroVideoProps>) {
+export function HeroVideo({ src, poster, position = 'center 42%' }: Readonly<HeroVideoProps>) {
   const reduced = useReducedMotion();
   const [failed, setFailed] = useState(false);
   if (reduced || failed) return null;
@@ -233,6 +235,7 @@ export function HeroVideo({ src, position = 'center 42%' }: Readonly<HeroVideoPr
         autoPlay
         loop
         playsInline
+        poster={poster}
         onError={() => setFailed(true)}
         style={{
           position: 'absolute',
