@@ -25,29 +25,27 @@ export const getViewActionButtonStyle = (theme: any) => ({
   borderBottomRightRadius: theme.borderRadius.lg,
 });
 
-export const createCardStyles = (theme: any) =>
-  StyleSheet.create({
+export const createCardStyles = (theme: any) => {
+  // Card and swipe-fallback share one warm-bone surface (rounded, hairline
+  // border, soft elevation).
+  const cardSurface = {
+    borderRadius: theme.borderRadius.card,
+    paddingHorizontal: theme.spacing['4'],
+    paddingVertical: theme.spacing['4'],
+    backgroundColor: theme.colors.cardBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.hairline,
+    ...theme.shadows.card,
+  };
+
+  return StyleSheet.create({
     container: {
       width: '100%',
       alignSelf: 'center',
       marginBottom: theme.spacing['4'],
     },
-    card: {
-      borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['4'],
-      backgroundColor: theme.colors.cardBackground,
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
-    fallback: {
-      borderRadius: theme.borderRadius.lg,
-      paddingHorizontal: theme.spacing['4'],
-      paddingVertical: theme.spacing['4'],
-      backgroundColor: theme.colors.cardBackground,
-      borderWidth: 0,
-      borderColor: 'transparent',
-    },
+    card: cardSurface,
+    fallback: cardSurface,
     actionContainer: {
       flexDirection: 'row',
       alignItems: 'stretch',
@@ -80,9 +78,9 @@ export const createCardStyles = (theme: any) =>
     thumbnailContainer: {
       width: theme.spacing['14'],
       height: theme.spacing['14'],
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.cardSmall,
       overflow: 'hidden' as const,
-      backgroundColor: theme.colors.primarySurface,
+      backgroundColor: theme.colors.screen2,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -110,3 +108,4 @@ export const createCardStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
   });
+};
