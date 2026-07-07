@@ -539,6 +539,16 @@ describe('AddAppointmentCentralModal', () => {
     expect(screen.getByTestId('modal-shell')).toBeInTheDocument();
   });
 
+  it('auto-selects companion on first mount when showModal and initialCompanionId are already true/set (mount-time, not toggled)', () => {
+    // Regression test: the component can mount with showModal=true and initialCompanionId
+    // already populated (e.g. lazy-loaded chunk resolving after the parent already opened it,
+    // or a deep-link into the workspace). The auto-select must fire on this very first render,
+    // not only when showModal/initialCompanionId change on a later render.
+    render(<AddAppointmentCentralModal {...defaultProps} showModal initialCompanionId="c1" />);
+    const patientInput = screen.getByLabelText('Patient') as HTMLInputElement;
+    expect(patientInput.value).toBe('Buddy');
+  });
+
   it('renders visit notes FormDesc', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
     expect(screen.getByTestId('form-desc')).toBeInTheDocument();

@@ -287,6 +287,25 @@ describe('usePopoverManager', () => {
     jest.useRealTimers();
   });
 
+  it('schedulePopoverClose resets when hover re-enters before timeout', () => {
+    jest.useFakeTimers();
+    const { result } = renderHook(() => usePopoverManager());
+
+    act(() => {
+      result.current.setActivePopoverKey('key-1');
+      result.current.schedulePopoverClose();
+      result.current.clearCloseTimer();
+      result.current.schedulePopoverClose();
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(121);
+    });
+
+    expect(result.current.activePopoverKey).toBeNull();
+    jest.useRealTimers();
+  });
+
   it('closes popover on window resize without accessing event.target', () => {
     const { result } = renderHook(() => usePopoverManager());
 
@@ -323,5 +342,52 @@ describe('usePopoverManager', () => {
 
     unregister();
     jest.useRealTimers();
+  });
+
+  it('registerAnchorEl returns a noop unregister when passed null', () => {
+    const { result } = renderHook(() => usePopoverManager());
+
+    const unregister = result.current.registerAnchorEl(null);
+
+    expect(unregister).toEqual(expect.any(Function));
+    expect(() => unregister()).not.toThrow();
+  });
+
+  it('schedules close on anchor mouseleave and cancels it on mouseenter', () => {
+    jest.useFakeTimers();
+    const { result } = renderHook(() => usePopoverManager());
+    const anchor = document.createElement('button');
+    const unregister = result.current.registerAnchorEl(anchor);
+
+    act(() => {
+      result.current.setActivePopoverKey('key-1');
+    });
+
+    act(() => {
+      anchor.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      anchor.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      jest.advanceTimersByTime(121);
+    });
+
+    expect(result.current.activePopoverKey).toBe('key-1');
+    unregister();
+    jest.useRealTimers();
+  });
+
+  it('removes anchor listeners when unregister is called', () => {
+    const addSpy = jest.spyOn(HTMLElement.prototype, 'addEventListener');
+    const removeSpy = jest.spyOn(HTMLElement.prototype, 'removeEventListener');
+    const { result } = renderHook(() => usePopoverManager());
+    const anchor = document.createElement('button');
+
+    const unregister = result.current.registerAnchorEl(anchor);
+    unregister();
+
+    expect(addSpy).toHaveBeenCalledWith('mouseenter', expect.any(Function));
+    expect(addSpy).toHaveBeenCalledWith('mouseleave', expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith('mouseenter', expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith('mouseleave', expect.any(Function));
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
   });
 });

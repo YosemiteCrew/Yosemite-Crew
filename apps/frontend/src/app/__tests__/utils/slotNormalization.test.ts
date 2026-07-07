@@ -53,6 +53,26 @@ describe('slotNormalization', () => {
     expect(new Set(normalized[0].slot.vetIds)).toEqual(new Set(['vet-a', 'vet-b']));
   });
 
+  it('orders slots with the same start minute by end minute', () => {
+    const localClock = (value: string) => {
+      const map: Record<string, { minutes: number; dayOffset: number }> = {
+        '09:00': { minutes: 540, dayOffset: 0 },
+        '09:15': { minutes: 555, dayOffset: 0 },
+        '09:45': { minutes: 585, dayOffset: 0 },
+      };
+      return map[value] ?? { minutes: 0, dayOffset: 0 };
+    };
+
+    const slots: Slot[] = [
+      { startTime: '09:00', endTime: '09:45', vetIds: ['vet-a'] },
+      { startTime: '09:00', endTime: '09:15', vetIds: ['vet-b'] },
+    ];
+
+    const normalized = normalizeSlotsForSelectedDay([{ dayShift: 0, slots }], localClock);
+
+    expect(normalized.map((entry) => entry.meta.localEndMinute)).toEqual([555, 585]);
+  });
+
   it('filters out slots where localStartMinute is negative (out of range)', () => {
     // dayShift: -1 and a slot that does not carry over into the selected day
     // startAbsoluteMinute = 540 (09:00), dayShift = -1 → localStartMinute = 540 - 1440 = -900 → filtered

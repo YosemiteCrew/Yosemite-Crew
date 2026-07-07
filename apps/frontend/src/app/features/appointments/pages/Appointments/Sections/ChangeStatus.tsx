@@ -186,9 +186,10 @@ const ChangeStatus = ({
         const matchingSlot = slots.find((slot) =>
           doesSlotStartMatchAppointment(slot.startTime, appointmentStart)
         );
-        const vetIds = (matchingSlot?.vetIds ?? [])
-          .map((vetId) => normalizeId(vetId))
-          .filter(Boolean);
+        const vetIds = (matchingSlot?.vetIds ?? []).flatMap((vetId) => {
+          const normalized = normalizeId(vetId);
+          return normalized ? [normalized] : [];
+        });
         setAvailableVetIds(vetIds);
       })
       .catch(() => {
@@ -216,31 +217,46 @@ const ChangeStatus = ({
     getSelectedSupportIds(activeAppointment.supportStaff)
   );
 
-  React.useEffect(() => {
-    if (!showModal) return;
-    setSelectedSupportIds(getSelectedSupportIds(activeAppointment.supportStaff));
+  const [prevLeadSelectionDeps, setPrevLeadSelectionDeps] = React.useState<Record<
+    string,
+    unknown
+  > | null>(null);
+  {
     const activeLeadId = normalizeId(activeAppointment.lead?.id);
-    setSelectedLeadId((previousLeadId) => {
-      const canUsePreviousLead =
-        !previousLeadId || availableLeadOptions.some((option) => option.value === previousLeadId);
-      if (previousLeadId && canUsePreviousLead) return previousLeadId;
-      const canUseActiveLead =
-        activeLeadId &&
-        (availableVetIds === null ||
-          availableLeadOptions.some((option) => option.value === activeLeadId));
-      if (canUseActiveLead) return activeLeadId;
-      if (!activeLeadId && leadOptions.length === 1) return leadOptions[0].value;
-      return '';
-    });
-  }, [
-    activeAppointment.id,
-    activeAppointment.lead?.id,
-    activeAppointment.supportStaff,
-    availableLeadOptions,
-    availableVetIds,
-    leadOptions,
-    showModal,
-  ]);
+    const nextDeps = {
+      showModal,
+      activeAppointmentId: activeAppointment.id,
+      activeLeadId,
+      supportStaff: activeAppointment.supportStaff,
+      availableLeadOptions,
+      availableVetIds,
+      leadOptions,
+    };
+    const depsChanged =
+      prevLeadSelectionDeps === null ||
+      (Object.keys(nextDeps) as Array<keyof typeof nextDeps>).some(
+        (key) => nextDeps[key] !== prevLeadSelectionDeps[key]
+      );
+    if (depsChanged) {
+      setPrevLeadSelectionDeps(nextDeps);
+      if (showModal) {
+        setSelectedSupportIds(getSelectedSupportIds(activeAppointment.supportStaff));
+        setSelectedLeadId((previousLeadId) => {
+          const canUsePreviousLead =
+            !previousLeadId ||
+            availableLeadOptions.some((option) => option.value === previousLeadId);
+          if (previousLeadId && canUsePreviousLead) return previousLeadId;
+          const canUseActiveLead =
+            activeLeadId &&
+            (availableVetIds === null ||
+              availableLeadOptions.some((option) => option.value === activeLeadId));
+          if (canUseActiveLead) return activeLeadId;
+          if (!activeLeadId && leadOptions.length === 1) return leadOptions[0].value;
+          return '';
+        });
+      }
+    }
+  }
 
   const handleLeadSelect = (option: { value: string }) => {
     setSelectedLeadId(option.value);

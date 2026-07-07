@@ -62,6 +62,26 @@ describe('inventoryToPrescriptionItem', () => {
     expect(result.prescriptionRequired).toBeUndefined();
     expect(result.doseUnit).toBe('mL');
   });
+
+  it('maps ointment-like forms to an application dose unit', () => {
+    const item = buildInventoryItem({
+      classification: { strength: '5', unitofMeasure: 'g', form: 'Cream', dosageForm: 'Cream' },
+    });
+    const result = inventoryToPrescriptionItem(item);
+    expect(result.doseUnit).toBe('application');
+  });
+
+  it('leaves dose unit undefined for an unrecognized or missing form', () => {
+    const unrecognized = buildInventoryItem({
+      classification: { strength: '5', unitofMeasure: 'g', form: 'Patch' },
+    });
+    expect(inventoryToPrescriptionItem(unrecognized).doseUnit).toBeUndefined();
+
+    const missingForm = buildInventoryItem({
+      classification: { strength: '5', unitofMeasure: 'g' },
+    });
+    expect(inventoryToPrescriptionItem(missingForm).doseUnit).toBeUndefined();
+  });
 });
 
 describe('validatePrescriptionItem', () => {
@@ -78,6 +98,11 @@ describe('validatePrescriptionItem', () => {
     expect(errors.durationDays).toBe('Enter a number');
     expect(errors.qty).toBe('Whole number');
     expect(errors.refill).toBe('Max 12');
+  });
+
+  it('flags a non-numeric refill value', () => {
+    const errors = validatePrescriptionItem({ refill: 'abc' });
+    expect(errors.refill).toBe('Whole number');
   });
 
   it('flags non-positive numbers', () => {

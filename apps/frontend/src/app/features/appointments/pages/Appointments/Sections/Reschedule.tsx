@@ -8,7 +8,7 @@ import {
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { buildUtcDateFromDateAndTime, getDurationMinutes, toUtcCalendarDate } from '@/app/lib/date';
 import { Appointment } from '@yosemite-crew/types';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef } from 'react';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import DateTimePickerSection from '@/app/features/appointments/components/DateTimePickerSection';
 import { allowReschedule } from '@/app/lib/appointments';
@@ -20,26 +20,101 @@ type RescheduleProp = {
   activeAppointment: Appointment;
 };
 
+type RescheduleFormErrors = {
+  leadId?: string;
+  duration?: string;
+  slot?: string;
+};
+
+type RescheduleState = {
+  formData: Appointment;
+  selectedDate: Date;
+  selectedSlot: Slot | null;
+  timeSlots: Slot[];
+  formDataErrors: RescheduleFormErrors;
+};
+
+type RescheduleStatePatch = Partial<{
+  formData: Partial<Appointment>;
+  selectedDate: Date;
+  selectedSlot: Slot | null;
+  timeSlots: Slot[];
+  formDataErrors: Partial<RescheduleFormErrors>;
+}>;
+
+type RescheduleAction =
+  | { type: 'RESET'; state: RescheduleState }
+  | { type: 'PATCH'; patch: RescheduleStatePatch }
+  | { type: 'SET_FORM_DATA_ERRORS'; errors: RescheduleFormErrors };
+
+const rescheduleReducer = (state: RescheduleState, action: RescheduleAction): RescheduleState => {
+  if (action.type === 'RESET') return action.state;
+  if (action.type === 'SET_FORM_DATA_ERRORS') return { ...state, formDataErrors: action.errors };
+  const { patch } = action;
+  return {
+    ...state,
+    ...patch,
+    formData: patch.formData ? { ...state.formData, ...patch.formData } : state.formData,
+    formDataErrors: patch.formDataErrors
+      ? { ...state.formDataErrors, ...patch.formDataErrors }
+      : state.formDataErrors,
+  };
+};
+
 const Reschedule = ({ showModal, setShowModal, activeAppointment }: RescheduleProp) => {
   const { notify } = useNotify();
   const teams = useTeamForPrimaryOrg();
-  const [formData, setFormData] = useState<Appointment>(activeAppointment);
-  const [selectedDate, setSelectedDate] = useState<Date>(() =>
-    toUtcCalendarDate(activeAppointment.appointmentDate)
+  const [state, dispatch] = useReducer(rescheduleReducer, undefined, () => ({
+    formData: activeAppointment,
+    selectedDate: toUtcCalendarDate(activeAppointment.appointmentDate),
+    selectedSlot: null as Slot | null,
+    timeSlots: [] as Slot[],
+    formDataErrors: {} as RescheduleFormErrors,
+  }));
+  const { formData, selectedDate, selectedSlot, timeSlots, formDataErrors } = state;
+  const patchState = useCallback(
+    (patch: RescheduleStatePatch) => dispatch({ type: 'PATCH', patch }),
+    []
   );
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
-  const [formDataErrors, setFormDataErrors] = useState<{
-    leadId?: string;
-    duration?: string;
-    slot?: string;
-  }>({});
+  const setSelectedDate = useCallback<React.Dispatch<React.SetStateAction<Date>>>(
+    (value) => {
+      dispatch({
+        type: 'PATCH',
+        patch: {
+          selectedDate:
+            typeof value === 'function'
+              ? (value as (prev: Date) => Date)(state.selectedDate)
+              : value,
+        },
+      });
+    },
+    [state.selectedDate]
+  );
+  const setSelectedSlot = useCallback<React.Dispatch<React.SetStateAction<Slot | null>>>(
+    (value) => {
+      dispatch({
+        type: 'PATCH',
+        patch: {
+          selectedSlot:
+            typeof value === 'function'
+              ? (value as (prev: Slot | null) => Slot | null)(state.selectedSlot)
+              : value,
+        },
+      });
+    },
+    [state.selectedSlot]
+  );
 
   const prevActiveAppointmentRef = useRef(activeAppointment);
   if (prevActiveAppointmentRef.current !== activeAppointment) {
     prevActiveAppointmentRef.current = activeAppointment;
-    setFormData(activeAppointment);
-    setSelectedDate(toUtcCalendarDate(activeAppointment.appointmentDate));
+    dispatch({
+      type: 'PATCH',
+      patch: {
+        formData: activeAppointment,
+        selectedDate: toUtcCalendarDate(activeAppointment.appointmentDate),
+      },
+    });
   }
 
   const getLeadOptionsForSlot = useCallback(
@@ -73,49 +148,46 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
     const currentLeadId = formData.lead?.id || '';
 
     if (options.length === 0) {
-      setSelectedSlot(null);
-      setFormData((prev) => ({ ...prev, lead: undefined }));
-      setFormDataErrors((prev) => ({
-        ...prev,
-        slot: 'No lead is available for this slot. Please choose another slot.',
-        leadId: 'No lead is available for this slot.',
-      }));
+      patchState({
+        selectedSlot: null,
+        formData: { lead: undefined },
+        formDataErrors: {
+          slot: 'No lead is available for this slot. Please choose another slot.',
+          leadId: 'No lead is available for this slot.',
+        },
+      });
       return;
     }
 
     if (options.length === 1) {
       const onlyLead = options[0];
-      if (currentLeadId !== onlyLead.value) {
-        setFormData((prev) => ({
-          ...prev,
-          lead: {
-            id: onlyLead.value,
-            name: onlyLead.label,
-          },
-        }));
-      }
-      setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+      patchState({
+        formData:
+          currentLeadId !== onlyLead.value
+            ? { lead: { id: onlyLead.value, name: onlyLead.label } }
+            : {},
+        formDataErrors: { slot: undefined, leadId: undefined },
+      });
       return;
     }
 
     const hasSelectedValidLead = options.some((option) => option.value === currentLeadId);
     if (!hasSelectedValidLead) {
-      setFormData((prev) => ({ ...prev, lead: undefined }));
-      setFormDataErrors((prev) => ({
-        ...prev,
-        slot: undefined,
-        leadId: 'Multiple leads are available. Please choose a lead.',
-      }));
+      patchState({
+        formData: { lead: undefined },
+        formDataErrors: {
+          slot: undefined,
+          leadId: 'Multiple leads are available. Please choose a lead.',
+        },
+      });
       return;
     }
-    setFormDataErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
-  }, [selectedSlot, getLeadOptionsForSlot, formData.lead?.id]);
+    patchState({ formDataErrors: { slot: undefined, leadId: undefined } });
+  }, [selectedSlot, getLeadOptionsForSlot, formData.lead?.id, patchState]);
 
   const handleCancel = () => {
     setShowModal(false);
-    setSelectedSlot(null);
-    setTimeSlots([]);
-    setFormDataErrors({});
+    patchState({ selectedSlot: null, timeSlots: [], formDataErrors: {} });
   };
 
   const handleAppointmentUpdate = async () => {
@@ -151,7 +223,7 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
     ) {
       errors.leadId = 'Selected lead is not available for this slot.';
     }
-    setFormDataErrors(errors);
+    dispatch({ type: 'SET_FORM_DATA_ERRORS', errors });
     if (Object.keys(errors).length > 0) {
       return;
     }
@@ -159,9 +231,7 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
       const payload: Appointment = { ...formData, status: activeAppointment.status };
       await updateAppointment(payload);
       setShowModal(false);
-      setFormDataErrors({});
-      setTimeSlots([]);
-      setSelectedSlot(null);
+      patchState({ formDataErrors: {}, timeSlots: [], selectedSlot: null });
     } catch (error) {
       console.log(error);
     }
@@ -170,7 +240,7 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
   useLayoutEffect(() => {
     const appointmentTypeId = formData.appointmentType?.id;
     if (!appointmentTypeId || !selectedDate) {
-      setTimeSlots([]);
+      patchState({ timeSlots: [] });
       return;
     }
     let cancelled = false;
@@ -178,19 +248,18 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
       try {
         const slots = await getSlotsForServiceAndDateForPrimaryOrg(appointmentTypeId, selectedDate);
         if (cancelled) return;
-        setTimeSlots(slots);
-        setSelectedSlot(slots.length > 0 ? slots[0] : null);
+        patchState({ timeSlots: slots, selectedSlot: slots.length > 0 ? slots[0] : null });
       } catch (err) {
         console.log(err);
         if (!cancelled) {
-          setTimeSlots([]);
+          patchState({ timeSlots: [] });
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [formData.appointmentType?.id, selectedDate]);
+  }, [formData.appointmentType?.id, selectedDate, patchState]);
 
   useEffect(() => {
     if (!showModal) return;
@@ -205,24 +274,21 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
 
   useEffect(() => {
     if (!selectedSlot || !selectedDate) return;
-    setFormData((prev) => ({
-      ...prev,
-      startTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.startTime),
-      endTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.endTime),
-      appointmentDate: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.startTime),
-      durationMinutes: getDurationMinutes(selectedSlot.startTime, selectedSlot.endTime),
-    }));
-  }, [selectedSlot, selectedDate]);
-
-  const handleLeadSelect = (option: { label: string; value: string }) => {
-    setFormData({
-      ...formData,
-      lead: {
-        name: option.label,
-        id: option.value,
+    patchState({
+      formData: {
+        startTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.startTime),
+        endTime: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.endTime),
+        appointmentDate: buildUtcDateFromDateAndTime(selectedDate, selectedSlot.startTime),
+        durationMinutes: getDurationMinutes(selectedSlot.startTime, selectedSlot.endTime),
       },
     });
-    setFormDataErrors((prev) => ({ ...prev, leadId: undefined }));
+  }, [selectedSlot, selectedDate, patchState]);
+
+  const handleLeadSelect = (option: { label: string; value: string }) => {
+    patchState({
+      formData: { lead: { name: option.label, id: option.value } },
+      formDataErrors: { leadId: undefined },
+    });
   };
 
   return (

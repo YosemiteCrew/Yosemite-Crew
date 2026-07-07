@@ -777,17 +777,28 @@ const AddAppointmentCentralModal = ({
   );
 
   // ── Auto-select companion when opened from an external context (e.g. companions table) ──
-  useEffect(() => {
-    if (!showModal || !initialCompanionId) return;
-    const found = companions.find((c) => c.companion.id === initialCompanionId);
-    if (found) {
-      handlePatientSelect(found.companion.id);
-      setPatientQuery(formatCompanionNameWithOwnerLastName(found.companion.name, found.parent));
-    } else {
-      // Companions may not be loaded yet — park and auto-select when they arrive
-      setPendingAutoSelectCompanionId(initialCompanionId);
+  // Runs once per (showModal, initialCompanionId) activation; if the companion isn't loaded
+  // yet, the `pendingAutoSelectCompanionId` effect below resolves it once `companions` arrives.
+  const [prevAutoSelectKey, setPrevAutoSelectKey] = useState<{
+    showModal: boolean;
+    initialCompanionId?: string | null;
+  } | null>(null);
+  if (
+    prevAutoSelectKey === null ||
+    showModal !== prevAutoSelectKey.showModal ||
+    initialCompanionId !== prevAutoSelectKey.initialCompanionId
+  ) {
+    setPrevAutoSelectKey({ showModal, initialCompanionId });
+    if (showModal && initialCompanionId) {
+      const found = companions.find((c) => c.companion.id === initialCompanionId);
+      if (found) {
+        handlePatientSelect(found.companion.id);
+        setPatientQuery(formatCompanionNameWithOwnerLastName(found.companion.name, found.parent));
+      } else {
+        setPendingAutoSelectCompanionId(initialCompanionId);
+      }
     }
-  }, [showModal, initialCompanionId, companions, handlePatientSelect]);
+  }
 
   const handlePatientClear = useCallback(() => {
     setFormData((prev) => ({

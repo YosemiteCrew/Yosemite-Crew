@@ -15,7 +15,7 @@ import {
 } from '@/app/features/appointments/types/appointments';
 import { buildUtcDateFromDateAndTime, getDurationMinutes, toUtcCalendarDate } from '@/app/lib/date';
 import { Appointment } from '@yosemite-crew/types';
-import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useReducer, useState } from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
@@ -176,6 +176,66 @@ const validateAppointmentForm = ({
   return { ...formErrors, ...slotLeadErrors };
 };
 
+type AppointmentValuesState = {
+  concern: string;
+  room: string;
+  specialityId: string;
+  serviceId: string;
+  status: AppointmentStatus | '';
+  leadId: string;
+  supportIds: string[];
+};
+
+type AppointmentFormState = {
+  appointmentValues: AppointmentValuesState;
+  errors: FormErrors;
+  selectedDate: Date;
+  selectedSlot: Slot | null;
+  timeSlots: Slot[];
+};
+
+type AppointmentFormPatch = Partial<{
+  appointmentValues: Partial<AppointmentValuesState>;
+  errors: Partial<FormErrors>;
+  selectedDate: Date;
+  selectedSlot: Slot | null;
+  timeSlots: Slot[];
+}>;
+
+type AppointmentFormAction =
+  | { type: 'RESET'; state: AppointmentFormState }
+  | { type: 'PATCH'; patch: AppointmentFormPatch }
+  | { type: 'SET_ERRORS'; errors: FormErrors };
+
+const appointmentFormReducer = (
+  state: AppointmentFormState,
+  action: AppointmentFormAction
+): AppointmentFormState => {
+  if (action.type === 'RESET') return action.state;
+  if (action.type === 'SET_ERRORS') return { ...state, errors: action.errors };
+  const { patch } = action;
+  return {
+    ...state,
+    ...patch,
+    appointmentValues: patch.appointmentValues
+      ? { ...state.appointmentValues, ...patch.appointmentValues }
+      : state.appointmentValues,
+    errors: patch.errors ? { ...state.errors, ...patch.errors } : state.errors,
+  };
+};
+
+const buildAppointmentValuesFromAppointment = (
+  appointment: Appointment
+): AppointmentValuesState => ({
+  concern: appointment.concern ?? '',
+  room: appointment.room?.id ?? '',
+  specialityId: appointment.appointmentType?.speciality?.id ?? '',
+  serviceId: appointment.appointmentType?.id ?? '',
+  status: appointment.status ?? '',
+  leadId: appointment.lead?.id ?? '',
+  supportIds: appointment.supportStaff?.map((s) => s.id) ?? [],
+});
+
 type AppointmentSaveContext = {
   activeAppointment: Appointment;
   appointmentValues: {
@@ -301,24 +361,54 @@ const AppointmentInfo = ({
   const specialities = useSpecialitiesForPrimaryOrg();
   const getServicesBySpecialityId = useServiceStore.getState().getServicesBySpecialityId;
   const [isEditingAppointment, setIsEditingAppointment] = useState(false);
-  const [appointmentValues, setAppointmentValues] = useState({
-    concern: '',
-    room: '',
-    specialityId: '',
-    serviceId: '',
-    status: '' as AppointmentStatus | '',
-    leadId: '',
-    supportIds: [] as string[],
-  });
-  const [errors, setErrors] = useState<{
-    specialityId?: string;
-    serviceId?: string;
-    slot?: string;
-    leadId?: string;
-  }>({});
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [timeSlots, setTimeSlots] = useState<Slot[]>([]);
+  const [formState, dispatchFormState] = useReducer(appointmentFormReducer, undefined, () => ({
+    appointmentValues: {
+      concern: '',
+      room: '',
+      specialityId: '',
+      serviceId: '',
+      status: '' as AppointmentStatus | '',
+      leadId: '',
+      supportIds: [] as string[],
+    },
+    errors: {} as FormErrors,
+    selectedDate: new Date(),
+    selectedSlot: null as Slot | null,
+    timeSlots: [] as Slot[],
+  }));
+  const { appointmentValues, errors, selectedDate, selectedSlot, timeSlots } = formState;
+  const patchFormState = useCallback(
+    (patch: AppointmentFormPatch) => dispatchFormState({ type: 'PATCH', patch }),
+    []
+  );
+  const setSelectedDate = useCallback<React.Dispatch<React.SetStateAction<Date>>>(
+    (value) => {
+      dispatchFormState({
+        type: 'PATCH',
+        patch: {
+          selectedDate:
+            typeof value === 'function'
+              ? (value as (prev: Date) => Date)(formState.selectedDate)
+              : value,
+        },
+      });
+    },
+    [formState.selectedDate]
+  );
+  const setSelectedSlot = useCallback<React.Dispatch<React.SetStateAction<Slot | null>>>(
+    (value) => {
+      dispatchFormState({
+        type: 'PATCH',
+        patch: {
+          selectedSlot:
+            typeof value === 'function'
+              ? (value as (prev: Slot | null) => Slot | null)(formState.selectedSlot)
+              : value,
+        },
+      });
+    },
+    [formState.selectedSlot]
+  );
   const lastAppointmentIdRef = React.useRef<string | undefined>(undefined);
   const normalizeId = useCallback((value?: string | null) => {
     return String(value ?? '')
@@ -486,26 +576,22 @@ const AppointmentInfo = ({
     }
     lastAppointmentIdRef.current = currentId;
 
-    setAppointmentValues({
-      concern: activeAppointment.concern ?? '',
-      room: activeAppointment.room?.id ?? '',
-      specialityId: activeAppointment.appointmentType?.speciality?.id ?? '',
-      serviceId: activeAppointment.appointmentType?.id ?? '',
-      status: activeAppointment.status ?? '',
-      leadId: activeAppointment.lead?.id ?? '',
-      supportIds: activeAppointment.supportStaff?.map((s) => s.id) ?? [],
+    dispatchFormState({
+      type: 'RESET',
+      state: {
+        appointmentValues: buildAppointmentValuesFromAppointment(activeAppointment),
+        errors: {},
+        selectedDate: toUtcCalendarDate(activeAppointment.appointmentDate),
+        selectedSlot: null,
+        timeSlots: [],
+      },
     });
-    setSelectedDate(toUtcCalendarDate(activeAppointment.appointmentDate));
-    setSelectedSlot(null);
-    setTimeSlots([]);
-    setErrors({});
   }, [activeAppointment]);
 
   useLayoutEffect(() => {
     if (!isEditingAppointment || !canRescheduleByStatus) return;
     if (!appointmentValues.serviceId || !selectedDate) {
-      setTimeSlots([]);
-      setSelectedSlot(null);
+      patchFormState({ timeSlots: [], selectedSlot: null });
       return;
     }
     let cancelled = false;
@@ -516,7 +602,6 @@ const AppointmentInfo = ({
           selectedDate
         );
         if (cancelled) return;
-        setTimeSlots(slots);
         const currentStart = toIsoTimePart(activeAppointment.startTime);
         const currentEnd = toIsoTimePart(activeAppointment.endTime);
         // Prefer the exact matching free slot; if the booked slot is no longer in the
@@ -531,12 +616,11 @@ const AppointmentInfo = ({
                 vetIds: activeAppointment.lead?.id ? [activeAppointment.lead.id] : [],
               }
             : null);
-        setSelectedSlot(matchingSlot);
+        patchFormState({ timeSlots: slots, selectedSlot: matchingSlot });
       } catch (error) {
         console.log(error);
         if (!cancelled) {
-          setTimeSlots([]);
-          setSelectedSlot(null);
+          patchFormState({ timeSlots: [], selectedSlot: null });
         }
       }
     })();
@@ -551,6 +635,7 @@ const AppointmentInfo = ({
     activeAppointment.startTime,
     activeAppointment.endTime,
     activeAppointment.lead?.id,
+    patchFormState,
   ]);
 
   useLayoutEffect(() => {
@@ -559,22 +644,23 @@ const AppointmentInfo = ({
     const currentLeadId = appointmentValues.leadId;
 
     if (options.length === 0) {
-      setSelectedSlot(null);
-      setAppointmentValues((prev) => ({ ...prev, leadId: '' }));
-      setErrors((prev) => ({
-        ...prev,
-        slot: 'No lead is available for this slot. Please choose another slot.',
-        leadId: 'No lead is available for this slot.',
-      }));
+      patchFormState({
+        selectedSlot: null,
+        appointmentValues: { leadId: '' },
+        errors: {
+          slot: 'No lead is available for this slot. Please choose another slot.',
+          leadId: 'No lead is available for this slot.',
+        },
+      });
       return;
     }
 
     if (options.length === 1) {
       const onlyLead = options[0];
-      if (currentLeadId !== onlyLead.value) {
-        setAppointmentValues((prev) => ({ ...prev, leadId: onlyLead.value }));
-      }
-      setErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+      patchFormState({
+        appointmentValues: currentLeadId !== onlyLead.value ? { leadId: onlyLead.value } : {},
+        errors: { slot: undefined, leadId: undefined },
+      });
       return;
     }
 
@@ -582,15 +668,13 @@ const AppointmentInfo = ({
       (option) => normalizeId(option.value) === normalizeId(currentLeadId)
     );
     if (!hasSelectedValidLead) {
-      setAppointmentValues((prev) => ({ ...prev, leadId: '' }));
-      setErrors((prev) => ({
-        ...prev,
-        slot: undefined,
-        leadId: 'Multiple leads are available. Please choose a lead.',
-      }));
+      patchFormState({
+        appointmentValues: { leadId: '' },
+        errors: { slot: undefined, leadId: 'Multiple leads are available. Please choose a lead.' },
+      });
       return;
     }
-    setErrors((prev) => ({ ...prev, slot: undefined, leadId: undefined }));
+    patchFormState({ errors: { slot: undefined, leadId: undefined } });
   }, [
     isEditingAppointment,
     canRescheduleByStatus,
@@ -598,6 +682,7 @@ const AppointmentInfo = ({
     getLeadOptionsForSlot,
     appointmentValues.leadId,
     normalizeId,
+    patchFormState,
   ]);
 
   const AppointmentInfoData = useMemo(
@@ -618,19 +703,16 @@ const AppointmentInfo = ({
 
   const handleAppointmentEditCancel = () => {
     setIsEditingAppointment(false);
-    setErrors({});
-    setAppointmentValues({
-      concern: activeAppointment.concern ?? '',
-      room: activeAppointment.room?.id ?? '',
-      specialityId: activeAppointment.appointmentType?.speciality?.id ?? '',
-      serviceId: activeAppointment.appointmentType?.id ?? '',
-      status: activeAppointment.status ?? '',
-      leadId: activeAppointment.lead?.id ?? '',
-      supportIds: activeAppointment.supportStaff?.map((s) => s.id) ?? [],
+    dispatchFormState({
+      type: 'RESET',
+      state: {
+        appointmentValues: buildAppointmentValuesFromAppointment(activeAppointment),
+        errors: {},
+        selectedDate: toUtcCalendarDate(activeAppointment.appointmentDate),
+        selectedSlot: null,
+        timeSlots: [],
+      },
     });
-    setSelectedDate(toUtcCalendarDate(activeAppointment.appointmentDate));
-    setSelectedSlot(null);
-    setTimeSlots([]);
   };
 
   const checkScheduleAndRoomBlocked = (
@@ -688,7 +770,7 @@ const AppointmentInfo = ({
       normalizeId,
       requireScheduleSelection: canRescheduleByStatus,
     });
-    setErrors(formErrors);
+    dispatchFormState({ type: 'SET_ERRORS', errors: formErrors });
     if (Object.keys(formErrors).length > 0) return;
 
     const { nextStartTime, nextEndTime } = computeNextTimes(
@@ -715,7 +797,7 @@ const AppointmentInfo = ({
     const succeeded = await applyStatusChange(appointmentValues.status);
     if (!succeeded) return;
     setIsEditingAppointment(false);
-    setErrors({});
+    dispatchFormState({ type: 'SET_ERRORS', errors: {} });
   };
 
   return (
@@ -735,11 +817,9 @@ const AppointmentInfo = ({
                   <LabelDropdown
                     placeholder="Speciality"
                     onSelect={(option) =>
-                      setAppointmentValues((prev) => ({
-                        ...prev,
-                        specialityId: option.value,
-                        serviceId: '',
-                      }))
+                      patchFormState({
+                        appointmentValues: { specialityId: option.value, serviceId: '' },
+                      })
                     }
                     defaultOption={appointmentValues.specialityId}
                     error={errors.specialityId}
@@ -748,7 +828,7 @@ const AppointmentInfo = ({
                   <LabelDropdown
                     placeholder="Service"
                     onSelect={(option) =>
-                      setAppointmentValues((prev) => ({ ...prev, serviceId: option.value }))
+                      patchFormState({ appointmentValues: { serviceId: option.value } })
                     }
                     defaultOption={appointmentValues.serviceId}
                     error={errors.serviceId}
@@ -773,7 +853,7 @@ const AppointmentInfo = ({
                 value={appointmentValues.concern}
                 inlabel="Describe concern"
                 onChange={(event) =>
-                  setAppointmentValues((prev) => ({ ...prev, concern: event.target.value }))
+                  patchFormState({ appointmentValues: { concern: event.target.value } })
                 }
                 className="min-h-[120px]!"
               />
@@ -789,13 +869,15 @@ const AppointmentInfo = ({
                   leadError={errors.leadId}
                   leadOptions={LeadOptions}
                   onLeadSelect={(option) => {
-                    setAppointmentValues((prev) => ({ ...prev, leadId: option.value }));
-                    setErrors((prev) => ({ ...prev, leadId: undefined }));
+                    patchFormState({
+                      appointmentValues: { leadId: option.value },
+                      errors: { leadId: undefined },
+                    });
                   }}
                   supportStaffIds={appointmentValues.supportIds}
                   teamOptions={TeamOptions}
                   onSupportStaffChange={(ids) =>
-                    setAppointmentValues((prev) => ({ ...prev, supportIds: ids }))
+                    patchFormState({ appointmentValues: { supportIds: ids } })
                   }
                 />
               ) : (
@@ -823,7 +905,7 @@ const AppointmentInfo = ({
                 <LabelDropdown
                   placeholder="Room"
                   onSelect={(option) =>
-                    setAppointmentValues((prev) => ({ ...prev, room: option.value }))
+                    patchFormState({ appointmentValues: { room: option.value } })
                   }
                   defaultOption={appointmentValues.room}
                   options={RoomOptions}
@@ -835,10 +917,9 @@ const AppointmentInfo = ({
                 <LabelDropdown
                   placeholder="Status"
                   onSelect={(option) =>
-                    setAppointmentValues((prev) => ({
-                      ...prev,
-                      status: option.value as AppointmentStatus,
-                    }))
+                    patchFormState({
+                      appointmentValues: { status: option.value as AppointmentStatus },
+                    })
                   }
                   defaultOption={appointmentValues.status}
                   options={allowedStatusOptions}
