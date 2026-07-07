@@ -41,6 +41,172 @@ const YC_DEFAULT_CATEGORIES = new Set<FormsCategory>([
 const getTemplateTypeOption = (templateSource?: FormsProps['templateSource']) =>
   templateSource === 'YC_LIBRARY' ? 'YC_LIBRARY' : 'CUSTOM';
 
+type FormDetailsErrors = {
+  name?: string;
+  category?: string;
+  species?: string;
+  description?: string;
+  services?: string;
+  requiredSigner?: string;
+};
+
+type FormDetailsFieldsProps = {
+  formData: FormsProps;
+  formDataErrors: FormDetailsErrors;
+  isYcDefault: boolean;
+  categoryOptions: FormsCategory[];
+  effectiveOrgType: Organisation['type'] | undefined;
+  onNameChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
+  onOwnershipChange: (value: string) => void;
+  onCategoryChange: (category: FormsCategory) => void;
+  onRequiredSignerChange: (value: string) => void;
+};
+
+const FormDetailsFields = ({
+  formData,
+  formDataErrors,
+  isYcDefault,
+  categoryOptions,
+  effectiveOrgType,
+  onNameChange,
+  onDescriptionChange,
+  onOwnershipChange,
+  onCategoryChange,
+  onRequiredSignerChange,
+}: FormDetailsFieldsProps) => (
+  <div className="flex flex-col gap-3">
+    <FormInput
+      intype="text"
+      inname="name"
+      value={formData.name}
+      inlabel="Form name"
+      onChange={(e) => onNameChange(e.target.value)}
+      error={formDataErrors.name}
+      className="min-h-12!"
+    />
+    <FormInput
+      intype="text"
+      inname="description"
+      value={formData.description || ''}
+      inlabel="Description"
+      onChange={(e) => onDescriptionChange(e.target.value)}
+      error={formDataErrors.description}
+      className="min-h-12!"
+    />
+    <LabelDropdown
+      placeholder="Template Source"
+      defaultOption={getTemplateTypeOption(formData.templateSource)}
+      onSelect={(option) => onOwnershipChange(option.value)}
+      options={[
+        { label: 'YC default (locked structure)', value: 'YC_LIBRARY' },
+        { label: 'Custom', value: 'CUSTOM' },
+      ]}
+    />
+    {isYcDefault && (
+      <p className="text-caption-2 text-text-secondary">
+        YC default templates have a fixed structure. You can edit field content, but adding,
+        removing, or reordering fields is locked.
+      </p>
+    )}
+    <LabelDropdown
+      placeholder="Category"
+      defaultOption={formData.category || ''}
+      onSelect={(option) => onCategoryChange(option.value as FormsCategory)}
+      options={categoryOptions.map((cat) => ({
+        label: getFormCategoryDisplayLabel(cat, effectiveOrgType),
+        value: cat,
+      }))}
+      error={formDataErrors.category}
+    />
+    {!isYcDefault && (
+      <LabelDropdown
+        placeholder="Signed by"
+        defaultOption={formData.requiredSigner}
+        onSelect={(option) => onRequiredSignerChange(option.value)}
+        options={
+          formData.category === 'SOAP'
+            ? RequiredSignerOptions.filter((option) => option.value === '')
+            : RequiredSignerOptions
+        }
+        error={formDataErrors.requiredSigner}
+      />
+    )}
+  </div>
+);
+
+type FormUsageFieldsProps = {
+  formData: FormsProps;
+  formDataErrors: FormDetailsErrors;
+  isYcDefault: boolean;
+  isInpatientOnlyCategory: boolean;
+  effectiveServiceOptions: {
+    label: string;
+    value: string;
+    badge?: string;
+    isInpatient?: boolean;
+  }[];
+  onUsageChange: (value: FormsUsage) => void;
+  onTemplateVisibilityChange: (value: FormsProps['templateSource']) => void;
+  onServicesChange: (value: string[]) => void;
+  onSpeciesChange: (value: string[]) => void;
+};
+
+const FormUsageFields = ({
+  formData,
+  formDataErrors,
+  isYcDefault,
+  isInpatientOnlyCategory,
+  effectiveServiceOptions,
+  onUsageChange,
+  onTemplateVisibilityChange,
+  onServicesChange,
+  onSpeciesChange,
+}: FormUsageFieldsProps) => (
+  <div className="flex flex-col gap-3">
+    <LabelDropdown
+      placeholder="Visibility type"
+      defaultOption={formData.usage}
+      onSelect={(option) => onUsageChange(option.value as FormsUsage)}
+      options={FormsUsageOptions.map((opt) => ({ label: opt, value: opt }))}
+    />
+    {!isYcDefault && (
+      <LabelDropdown
+        placeholder="Template visibility"
+        defaultOption={formData.templateSource ?? 'ORG_TEMPLATE'}
+        onSelect={(option) =>
+          onTemplateVisibilityChange(option.value as FormsProps['templateSource'])
+        }
+        options={[
+          { label: 'Organisation (team)', value: 'ORG_TEMPLATE' },
+          { label: 'Personal', value: 'USER_TEMPLATE' },
+        ]}
+      />
+    )}
+    <MultiSelectDropdown
+      placeholder={
+        formData.category === 'Custom' ? 'Services / Packages (Optional)' : 'Services / Packages'
+      }
+      value={formData.services || []}
+      error={formDataErrors.services}
+      onChange={onServicesChange}
+      options={effectiveServiceOptions}
+    />
+    {isInpatientOnlyCategory && (
+      <p className="text-caption-2 text-text-secondary">
+        Task templates apply to in-patient services / packages only.
+      </p>
+    )}
+    <MultiSelectDropdown
+      placeholder="Species"
+      value={formData.species || []}
+      error={formDataErrors.species}
+      onChange={onSpeciesChange}
+      options={['Canine', 'Feline', 'Equine']}
+    />
+  </div>
+);
+
 const Details = ({
   formData,
   setFormData,
@@ -202,158 +368,69 @@ const Details = ({
     <div className="flex flex-col gap-6 w-full flex-1 justify-between">
       <div className="flex flex-col gap-6">
         <Accordion title="Form details" defaultOpen showEditIcon={false} isEditing={true}>
-          <div className="flex flex-col gap-3">
-            <FormInput
-              intype="text"
-              inname="name"
-              value={formData.name}
-              inlabel="Form name"
-              onChange={(e) => {
-                if (formDataErrors.name) {
-                  setFormDataErrors((prev) => ({ ...prev, name: undefined }));
+          <FormDetailsFields
+            formData={formData}
+            formDataErrors={formDataErrors}
+            isYcDefault={isYcDefault}
+            categoryOptions={categoryOptions}
+            effectiveOrgType={effectiveOrgType}
+            onNameChange={(value) => {
+              if (formDataErrors.name) {
+                setFormDataErrors((prev) => ({ ...prev, name: undefined }));
+              }
+              setFormData({ ...formData, name: value });
+            }}
+            onDescriptionChange={(value) => {
+              if (formDataErrors.description) {
+                setFormDataErrors((errs) => ({ ...errs, description: undefined }));
+              }
+              setFormData((prev) => ({ ...prev, description: value }));
+            }}
+            onOwnershipChange={handleOwnershipChange}
+            onCategoryChange={handleCategoryChange}
+            onRequiredSignerChange={(value) => {
+              if (formDataErrors.requiredSigner) {
+                setFormDataErrors((prev) => ({ ...prev, requiredSigner: undefined }));
+              }
+              const nextSigner = value as FormsProps['requiredSigner'];
+              setFormData((prev) => {
+                const next: FormsProps = {
+                  ...prev,
+                  requiredSigner: nextSigner,
+                };
+                if (!nextSigner) {
+                  next.schema = removeSignatureFields(next.schema ?? []);
+                } else if (
+                  new Set(['Prescription', 'Discharge Form']).has(next.category) &&
+                  !hasSignatureField(next.schema ?? [])
+                ) {
+                  next.schema = ensureSingleSignatureAtEnd(next.schema ?? []);
                 }
-                setFormData({
-                  ...formData,
-                  name: e.target.value,
-                });
-              }}
-              error={formDataErrors.name}
-              className="min-h-12!"
-            />
-            <FormInput
-              intype="text"
-              inname="description"
-              value={formData.description || ''}
-              inlabel="Description"
-              onChange={(e) => {
-                if (formDataErrors.description) {
-                  setFormDataErrors((errs) => ({
-                    ...errs,
-                    description: undefined,
-                  }));
-                }
-                setFormData((prev) => ({ ...prev, description: e.target.value }));
-              }}
-              error={formDataErrors.description}
-              className="min-h-12!"
-            />
-            <LabelDropdown
-              placeholder="Template Source"
-              defaultOption={getTemplateTypeOption(formData.templateSource)}
-              onSelect={(option) => handleOwnershipChange(option.value)}
-              options={[
-                { label: 'YC default (locked structure)', value: 'YC_LIBRARY' },
-                { label: 'Custom', value: 'CUSTOM' },
-              ]}
-            />
-            {isYcDefault && (
-              <p className="text-caption-2 text-text-secondary">
-                YC default templates have a fixed structure. You can edit field content, but adding,
-                removing, or reordering fields is locked.
-              </p>
-            )}
-            <LabelDropdown
-              placeholder="Category"
-              defaultOption={formData.category || ''}
-              onSelect={(option) => handleCategoryChange(option.value as FormsCategory)}
-              options={categoryOptions.map((cat) => ({
-                label: getFormCategoryDisplayLabel(cat, effectiveOrgType),
-                value: cat,
-              }))}
-              error={formDataErrors.category}
-            />
-            {!isYcDefault && (
-              <LabelDropdown
-                placeholder="Signed by"
-                defaultOption={formData.requiredSigner}
-                onSelect={(option) => {
-                  if (formDataErrors.requiredSigner) {
-                    setFormDataErrors((prev) => ({
-                      ...prev,
-                      requiredSigner: undefined,
-                    }));
-                  }
-                  const nextSigner = option.value as FormsProps['requiredSigner'];
-                  setFormData((prev) => {
-                    const next: FormsProps = {
-                      ...prev,
-                      requiredSigner: nextSigner,
-                    };
-                    if (!nextSigner) {
-                      next.schema = removeSignatureFields(next.schema ?? []);
-                    } else if (
-                      new Set(['Prescription', 'Discharge Form']).has(next.category) &&
-                      !hasSignatureField(next.schema ?? [])
-                    ) {
-                      next.schema = ensureSingleSignatureAtEnd(next.schema ?? []);
-                    }
-                    return next;
-                  });
-                }}
-                options={
-                  formData.category === 'SOAP'
-                    ? RequiredSignerOptions.filter((option) => option.value === '')
-                    : RequiredSignerOptions
-                }
-                error={formDataErrors.requiredSigner}
-              />
-            )}
-          </div>
+                return next;
+              });
+            }}
+          />
         </Accordion>
         <Accordion title="Usage and visibility" defaultOpen showEditIcon={false} isEditing={true}>
-          <div className="flex flex-col gap-3">
-            <LabelDropdown
-              placeholder="Visibility type"
-              defaultOption={formData.usage}
-              onSelect={(option) => setFormData({ ...formData, usage: option.value as FormsUsage })}
-              options={FormsUsageOptions.map((opt) => ({ label: opt, value: opt }))}
-            />
-            {!isYcDefault && (
-              <LabelDropdown
-                placeholder="Template visibility"
-                defaultOption={formData.templateSource ?? 'ORG_TEMPLATE'}
-                onSelect={(option) =>
-                  setFormData({
-                    ...formData,
-                    templateSource: option.value as FormsProps['templateSource'],
-                  })
-                }
-                options={[
-                  { label: 'Organisation (team)', value: 'ORG_TEMPLATE' },
-                  { label: 'Personal', value: 'USER_TEMPLATE' },
-                ]}
-              />
-            )}
-            <MultiSelectDropdown
-              placeholder={
-                formData.category === 'Custom'
-                  ? 'Services / Packages (Optional)'
-                  : 'Services / Packages'
-              }
-              value={formData.services || []}
-              error={formDataErrors.services}
-              onChange={(e) => {
-                setFormData({ ...formData, services: e });
-                setFormDataErrors((prev) => ({ ...prev, services: undefined }));
-              }}
-              options={effectiveServiceOptions}
-            />
-            {isInpatientOnlyCategory && (
-              <p className="text-caption-2 text-text-secondary">
-                Task templates apply to in-patient services / packages only.
-              </p>
-            )}
-            <MultiSelectDropdown
-              placeholder="Species"
-              value={formData.species || []}
-              error={formDataErrors.species}
-              onChange={(e) => {
-                setFormData({ ...formData, species: e });
-                setFormDataErrors((prev) => ({ ...prev, species: undefined }));
-              }}
-              options={['Canine', 'Feline', 'Equine']}
-            />
-          </div>
+          <FormUsageFields
+            formData={formData}
+            formDataErrors={formDataErrors}
+            isYcDefault={isYcDefault}
+            isInpatientOnlyCategory={isInpatientOnlyCategory}
+            effectiveServiceOptions={effectiveServiceOptions}
+            onUsageChange={(value) => setFormData({ ...formData, usage: value })}
+            onTemplateVisibilityChange={(value) =>
+              setFormData({ ...formData, templateSource: value })
+            }
+            onServicesChange={(value) => {
+              setFormData({ ...formData, services: value });
+              setFormDataErrors((prev) => ({ ...prev, services: undefined }));
+            }}
+            onSpeciesChange={(value) => {
+              setFormData({ ...formData, species: value });
+              setFormDataErrors((prev) => ({ ...prev, species: undefined }));
+            }}
+          />
         </Accordion>
       </div>
       <div className="px-3 pb-3 flex justify-center">

@@ -996,6 +996,12 @@ const taskBlockFieldValue = (field?: FormField): string => {
   return value === undefined || value === null ? '' : String(value);
 };
 
+const taskBlockFieldOptions = (f?: FormField): { label: string; value: string }[] =>
+  ((f as { options?: { label: string; value: string }[] } | undefined)?.options ?? []) as {
+    label: string;
+    value: string;
+  }[];
+
 /**
  * One task block in the "Building a template" task builder, rendered as the
  * mockup card: Task title, Category, Instructions, Repeat, Reminder, Duration —
@@ -1013,11 +1019,7 @@ const TaskBlockCard: React.FC<{
   const fieldByKey = (key: string) =>
     (block.fields ?? []).find((f) => (f.meta as { taskBlockKey?: string })?.taskBlockKey === key);
 
-  const fieldOptions = (f?: FormField): { label: string; value: string }[] =>
-    ((f as { options?: { label: string; value: string }[] } | undefined)?.options ?? []) as {
-      label: string;
-      value: string;
-    }[];
+  const fieldOptions = taskBlockFieldOptions;
 
   const setKeyValue = (key: string, value: string) => {
     onChange({
