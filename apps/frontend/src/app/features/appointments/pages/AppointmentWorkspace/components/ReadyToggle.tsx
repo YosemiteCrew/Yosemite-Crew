@@ -40,7 +40,7 @@ const ReadyToggle = ({ label, state, disabled = false, onToggle }: ReadyTogglePr
         className={`flex h-8 items-center gap-2 rounded-2xl px-3 leading-[120%] transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand disabled:cursor-not-allowed disabled:opacity-60 ${
           checked
             ? 'border border-transparent bg-pill-success-bg text-pill-success-text'
-            : 'border border-[#D6D1CD] bg-[#FAF8F6] text-neutral-700'
+            : 'border border-neutral-300 bg-neutral-100 text-neutral-700'
         }`}
       >
         <span

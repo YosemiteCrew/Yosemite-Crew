@@ -385,7 +385,7 @@ const CompanionHistoryPageInner = () => {
         <div className="flex w-full flex-col gap-6 px-4 py-5 md:px-8">
           <div
             className="-mx-4 -mt-5 flex flex-col gap-6 px-4 pt-5 pb-5 md:-mx-8 md:px-8"
-            style={{ background: 'var(--Neutrals-Neutral-100, #FAF8F6)' }}
+            style={{ background: 'var(--color-neutral-100)' }}
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 flex-wrap items-center gap-3">

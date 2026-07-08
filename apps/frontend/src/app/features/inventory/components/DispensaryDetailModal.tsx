@@ -208,7 +208,7 @@ const DispensaryDetailModal = ({
                     </div>
 
                     {/* Prescription + calculation card */}
-                    <div className="rounded-xl border border-card-border bg-[var(--color-neutral-50,#f9fafb)] p-3 flex flex-col gap-3">
+                    <div className="rounded-xl border border-card-border bg-neutral-100 p-3 flex flex-col gap-3">
                       {/* Prescription row */}
                       <div>
                         <div className="text-caption-1 text-text-secondary mb-1.5">

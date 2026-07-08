@@ -496,8 +496,8 @@ const CategoryPill = ({ icon, label }: { icon: React.ReactNode; label: string })
   <span
     className="inline-flex h-9 w-fit max-w-full items-center gap-2 rounded-2xl border px-4 text-body-4 text-neutral-900"
     style={{
-      borderColor: 'var(--Neutrals-Neutral-300, #D6D1CD)',
-      background: 'var(--Neutrals-Neutral-100, #FAF8F6)',
+      borderColor: 'var(--color-neutral-300)',
+      background: 'var(--color-neutral-100)',
     }}
   >
     {icon}
@@ -506,7 +506,7 @@ const CategoryPill = ({ icon, label }: { icon: React.ReactNode; label: string })
 );
 
 const TABLE_HEADING_STYLE = {
-  color: 'var(--Neutrals-Neutral-600, #8F8984)',
+  color: 'var(--color-neutral-600)',
   fontFamily: 'var(--font-satoshi), "Satoshi Variable", sans-serif',
   fontSize: '12px',
   fontStyle: 'normal',
@@ -515,7 +515,7 @@ const TABLE_HEADING_STYLE = {
 } satisfies React.CSSProperties;
 
 const TABLE_DATA_STYLE = {
-  color: 'var(--Neutrals-Neutral-900, #302F2E)',
+  color: 'var(--color-neutral-900)',
   fontFamily: 'var(--font-satoshi), "Satoshi Variable", sans-serif',
   fontSize: '14px',
   fontStyle: 'normal',

@@ -194,7 +194,7 @@ const toIsoString = (value: string | Date): string =>
   typeof value === 'string' ? value : new Date(value).toISOString();
 
 const DocumentSourcePill = ({ source }: { source: string }) => (
-  <span className="inline-flex rounded-2xl border border-[#D6D1CD] bg-[#FAF8F6] px-3 py-1 text-caption-1 text-text-primary">
+  <span className="inline-flex rounded-2xl border border-neutral-300 bg-neutral-100 px-3 py-1 text-caption-1 text-text-primary">
     {humanizeToken(source)}
   </span>
 );

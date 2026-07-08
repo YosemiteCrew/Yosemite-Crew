@@ -77,7 +77,7 @@ const AppointmentCentralModalShell = ({
         {/* Header */}
         <div
           className="flex items-center justify-between px-4 py-3 sm:px-6 shrink-0 border-b border-card-border"
-          style={{ background: 'var(--Neutrals-Neutral-100, #FAF8F6)' }}
+          style={{ background: 'var(--color-neutral-100)' }}
         >
           <div className="flex-1" />
           <h2

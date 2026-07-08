@@ -149,7 +149,7 @@ const formatTime = (value: Date | string | undefined) => {
 
 const StateBadge = ({ label, tone }: { label: string; tone: string }) => (
   <span
-    className={`inline-flex items-center rounded-2xl border border-card-border bg-[#FAF8F6] px-3 py-1 text-[12px] ${tone}`}
+    className={`inline-flex items-center rounded-2xl border border-card-border bg-neutral-100 px-3 py-1 text-[12px] ${tone}`}
   >
     {label}
   </span>
