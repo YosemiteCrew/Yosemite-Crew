@@ -22,6 +22,14 @@ const subscribeToConsent = (onChange: () => void): (() => void) => {
 const getConsentSnapshot = () => getStorageItem('local', COOKIE_CONSENT_KEY);
 const getServerConsentSnapshot = () => null;
 
+const handleConsent = () => {
+  setConsent('true');
+};
+
+const handleRejection = () => {
+  setConsent('false');
+};
+
 const Cookies = () => {
   const consent = useSyncExternalStore(
     subscribeToConsent,
@@ -29,14 +37,6 @@ const Cookies = () => {
     getServerConsentSnapshot
   );
   const showCookiePopup = !consent;
-
-  const handleConsent = () => {
-    setConsent('true');
-  };
-
-  const handleRejection = () => {
-    setConsent('false');
-  };
 
   if (!showCookiePopup) return null;
 
