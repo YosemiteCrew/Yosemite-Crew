@@ -16,11 +16,9 @@
   gap: 12px;
   overflow: visible;
   padding: 10px var(--sidebar-pad-x) 16px;
-  border-right: 1px solid color-mix(in srgb, var(--color-card-border) 82%, transparent);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.74)),
-    var(--color-surface-card);
-  box-shadow: 10px 0 28px rgba(48, 47, 46, 0.04);
+  border-right: 1px solid var(--hairline);
+  background: var(--screen-2);
+  box-shadow: 10px 0 28px var(--sh05);
   backdrop-filter: blur(18px) saturate(150%);
   transition:
     width 0.22s ease,
@@ -208,9 +206,9 @@
   height: var(--sidebar-control-height);
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--color-card-border) 85%, transparent);
+  border: 1px solid var(--hairline);
   border-radius: var(--sidebar-radius);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--color-surface-card);
   color: var(--color-text-secondary);
   cursor: pointer;
   transition:

@@ -101,17 +101,17 @@
 .yc-command-button:hover,
 .yc-icon-button:hover {
   border-color: color-mix(in srgb, var(--color-brand-950) 28%, transparent);
-  background: color-mix(in srgb, var(--color-brand-100) 58%, white);
+  background: color-mix(in srgb, var(--color-brand-100) 58%, var(--color-surface-card));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    0 10px 24px rgba(0, 124, 245, 0.1);
+    inset 0 1px 0 var(--glass-inset-hi),
+    0 10px 24px var(--glow-b10);
 }
 
 .yc-header-avatar {
   width: 34px;
   height: 34px;
   flex: 0 0 34px;
-  border: 1px solid rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--glass-inset-hi);
   border-radius: 16px;
   object-fit: cover;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--color-neutral-950) 8%, transparent);

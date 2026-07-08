@@ -45,6 +45,7 @@ import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
 import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
+import { ThemeToggle } from '@/app/ui/theme';
 import './UserHeader.css';
 
 const ROUTE_ICONS = {
@@ -539,6 +540,8 @@ const UserHeader = () => {
           <span className="yc-command-divider">+</span>
           <span className="yc-command-key">K</span>
         </button>
+
+        <ThemeToggle />
 
         <button type="button" className="yc-icon-button" aria-label="Notifications">
           <MdNotificationsActive size={19} />

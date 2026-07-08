@@ -1035,6 +1035,7 @@ input[type='number'] {
   --avatar-amber-bg: #fef3e9;
   --avatar-amber-ink: #af5e19;
   --hairline-soft: rgba(29, 28, 27, 0.09);
+  --glass-inset-hi: rgba(255, 255, 255, 0.8);
   /* elevation scale — warm-dark in light, deeper black in dark */
   --sh03: rgba(29, 28, 27, 0.03);
   --sh05: rgba(29, 28, 27, 0.05);
@@ -1101,6 +1102,7 @@ html[data-theme='dark'] {
   --avatar-amber-bg: rgba(233, 170, 120, 0.17);
   --avatar-amber-ink: #ecb488;
   --hairline-soft: rgba(255, 255, 255, 0.09);
+  --glass-inset-hi: rgba(255, 255, 255, 0.06);
   --sh03: rgba(0, 0, 0, 0.14);
   --sh05: rgba(0, 0, 0, 0.2);
   --sh06: rgba(0, 0, 0, 0.24);
