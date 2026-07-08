@@ -364,9 +364,9 @@ const UniversalSearchPalette = () => {
         className="absolute inset-0"
         onClick={close}
       />
-      <section className="mx-auto mt-2 sm:mt-8 w-full max-w-2xl overflow-hidden rounded-2xl! border border-white/40 bg-white/68 shadow-[0_24px_70px_rgba(29,28,27,0.24)] backdrop-blur-xl">
+      <section className="mx-auto mt-2 sm:mt-8 w-full max-w-2xl overflow-hidden rounded-2xl! border border-white/40 bg-neutral-0/68 shadow-[0_24px_70px_rgba(29,28,27,0.24)] backdrop-blur-xl">
         <div className="border-b border-white/55 bg-gradient-to-r from-brand-100/60 via-white/65 to-white/55 p-3 sm:px-4">
-          <div className="flex items-center gap-2 rounded-2xl! border border-white/70 bg-white/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-md">
+          <div className="flex items-center gap-2 rounded-2xl! border border-white/70 bg-neutral-0/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-md">
             <input
               ref={inputRef}
               value={query}
@@ -397,7 +397,7 @@ const UniversalSearchPalette = () => {
                     className={`flex w-full min-h-[64px] items-center rounded-2xl! px-3 py-2.5 text-left transition-all duration-150 ${
                       isActive
                         ? 'border border-brand-500/35 bg-[linear-gradient(135deg,rgba(242,248,255,0.92),rgba(255,255,255,0.88))] shadow-[0_6px_18px_rgba(36,122,237,0.12)]'
-                        : 'border border-white/45 bg-white/62 hover:border-brand-500/25 hover:bg-white/78'
+                        : 'border border-white/45 bg-neutral-0/62 hover:border-brand-500/25 hover:bg-neutral-0/78'
                     }`}
                   >
                     <div className="min-w-0 flex-1">
@@ -405,7 +405,7 @@ const UniversalSearchPalette = () => {
                         <div className="truncate pr-2 font-satoshi text-body-4 text-text-primary">
                           {item.title}
                         </div>
-                        <div className="shrink-0 rounded-xl border border-white/65 bg-white/72 px-2 py-0.5 font-satoshi text-[0.65rem] font-medium uppercase tracking-[-0.22px] text-text-secondary">
+                        <div className="shrink-0 rounded-xl border border-white/65 bg-neutral-0/72 px-2 py-0.5 font-satoshi text-[0.65rem] font-medium uppercase tracking-[-0.22px] text-text-secondary">
                           {moduleLabels[item.module]}
                         </div>
                       </div>

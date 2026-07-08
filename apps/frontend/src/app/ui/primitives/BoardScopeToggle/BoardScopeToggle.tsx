@@ -24,7 +24,7 @@ const BoardScopeToggle = ({
 
   return (
     <div
-      className={`relative inline-flex items-center h-10 w-[320px] max-w-full rounded-[999px]! border border-card-border bg-white overflow-hidden ${
+      className={`relative inline-flex items-center h-10 w-[320px] max-w-full rounded-[999px]! border border-card-border bg-neutral-0 overflow-hidden ${
         disabled ? 'opacity-70' : ''
       }`}
     >

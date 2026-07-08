@@ -238,7 +238,7 @@ const MultiSelectPanel = ({
   <div
     id={listboxId}
     data-portal-dropdown
-    className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-2xl border border-t bg-white flex flex-col items-stretch w-full px-3 py-2.5"
+    className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-2xl border border-t bg-neutral-0 flex flex-col items-stretch w-full px-3 py-2.5"
     style={shouldPortal ? (portalStyle ?? undefined) : undefined}
   >
     {filteredOptions.length > 0 ? (

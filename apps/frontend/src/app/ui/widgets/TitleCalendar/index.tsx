@@ -92,7 +92,7 @@ const TitleCalendar = ({
         )}
         <fieldset
           aria-label={`${title} view`}
-          className={`relative flex h-10 items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white m-0 p-0 ${containerW}`}
+          className={`relative flex h-10 items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-neutral-0 m-0 p-0 ${containerW}`}
         >
           <legend className="sr-only">{`${title} view`}</legend>
           <div

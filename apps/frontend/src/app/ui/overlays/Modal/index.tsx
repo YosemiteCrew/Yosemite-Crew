@@ -27,7 +27,7 @@ const Modal = ({ children, showModal, setShowModal, onClose, canClose }: ModalPr
     }`}
     overlayStyle={{ backgroundColor: 'var(--color-overlay-backdrop)' }}
     containerClassName={`fixed top-0 right-0 bottom-0 m-3 p-3 h-[calc(100%-2rem)] w-[calc(100%-2rem)] sm:w-[530px]
-        bg-white border border-card-border rounded-2xl z-[1200]
+        bg-neutral-0 border border-card-border rounded-2xl z-[1200]
         transition-transform duration-300 ease-in-out
         ${showModal ? 'translate-x-0' : 'translate-x-[120%]'}`}
   >

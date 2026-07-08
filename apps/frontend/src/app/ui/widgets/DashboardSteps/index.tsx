@@ -107,7 +107,7 @@ const DashboardSteps = () => {
           {steps.map((step: Step) => (
             <div
               key={step.title}
-              className={`flex flex-col items-center justify-between gap-3 p-3 rounded-2xl border border-card-border bg-white ${step.isCompleted && 'opacity-50'}`}
+              className={`flex flex-col items-center justify-between gap-3 p-3 rounded-2xl border border-card-border bg-neutral-0 ${step.isCompleted && 'opacity-50'}`}
             >
               <div className="flex flex-col items-center">
                 <div className="text-body-4 text-text-primary">{step.title}</div>

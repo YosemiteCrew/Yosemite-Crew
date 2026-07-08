@@ -174,7 +174,7 @@ const InventoryFilters = ({
       <div className="flex flex-1 min-w-70 items-center gap-3 flex-wrap">
         {/* Visibility toggle: All / Active / Hidden */}
         <div
-          className="relative inline-flex items-center h-12 rounded-[999px]! border border-card-border bg-white overflow-hidden"
+          className="relative inline-flex items-center h-12 rounded-[999px]! border border-card-border bg-neutral-0 overflow-hidden"
           style={{ width: 240 }}
         >
           <div
@@ -233,7 +233,7 @@ const InventoryFilters = ({
           createPortal(
             <div
               ref={panelRef}
-              className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
               style={dropdownStyle}
             >
               {StockHealthOptions.map((option) => {

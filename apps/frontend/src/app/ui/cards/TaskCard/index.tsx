@@ -34,7 +34,7 @@ const TaskCard = ({
   canEditTasks = false,
 }: TaskCardProps) => {
   return (
-    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
+    <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex items-start justify-between gap-2">
         <div className="text-body-3-emphasis text-text-primary">{item.name}</div>
         <div className="appointment-status shrink-0" style={getTaskStatusStyle(item.status)}>

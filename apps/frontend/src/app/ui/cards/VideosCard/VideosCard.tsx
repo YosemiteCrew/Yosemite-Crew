@@ -52,7 +52,7 @@ const VideosCard = () => {
         {previewVideos.map((video) => (
           <button
             type="button"
-            className="rounded-2xl! border border-card-border bg-white flex flex-col cursor-pointer text-left"
+            className="rounded-2xl! border border-card-border bg-neutral-0 flex flex-col cursor-pointer text-left"
             key={video.id}
             onClick={() => handleOpenVideo(video)}
             aria-label={`Play video: ${video.title}`}

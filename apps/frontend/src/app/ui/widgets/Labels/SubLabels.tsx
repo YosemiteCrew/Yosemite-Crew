@@ -38,7 +38,7 @@ const getPillClassName = ({
   disabledClass: string;
 }): string => {
   if (isLogoOnlyWithRedirect) {
-    return `transition-all duration-200 h-9 flex items-center rounded-2xl! border border-card-border bg-white my-1 pl-1.5 pr-1.5 gap-0 ${disabledClass}`;
+    return `transition-all duration-200 h-9 flex items-center rounded-2xl! border border-card-border bg-neutral-0 my-1 pl-1.5 pr-1.5 gap-0 ${disabledClass}`;
   }
   if (hasEmbeddedRedirect) {
     return `transition-all duration-200 h-9 flex items-center rounded-2xl! border focus-within:ring-2 focus-within:ring-blue-text ${activeClass} ${disabledClass}`;
@@ -63,7 +63,7 @@ const getButtonClassName = ({
     return 'transition-all duration-200 flex items-center py-1.5 pl-2 pr-0.5 focus-visible:outline-none rounded-l-2xl!';
   }
   if (isLogoOnlyIdexx) {
-    return `transition-all duration-200 flex items-center py-1.5 px-2 rounded-2xl! border border-card-border bg-white focus-visible:outline-none ${disabledClass}`;
+    return `transition-all duration-200 flex items-center py-1.5 px-2 rounded-2xl! border border-card-border bg-neutral-0 focus-visible:outline-none ${disabledClass}`;
   }
   if (hasEmbeddedRedirect) {
     return 'h-full pl-3 pr-2 flex items-center focus-visible:outline-none rounded-l-2xl!';
@@ -86,7 +86,7 @@ const getRedirectClassName = (
   if (hasEmbeddedRedirect) {
     return 'h-full pr-3 pl-1 inline-flex items-center justify-center text-text-secondary hover:text-text-brand focus-visible:outline-none rounded-r-2xl!';
   }
-  return 'size-6 rounded-full border border-card-border bg-white text-text-secondary hover:text-text-brand hover:border-text-brand transition-colors inline-flex items-center justify-center';
+  return 'size-6 rounded-full border border-card-border bg-neutral-0 text-text-secondary hover:text-text-brand hover:border-text-brand transition-colors inline-flex items-center justify-center';
 };
 
 const SubLabels = ({
@@ -105,8 +105,8 @@ const SubLabels = ({
         const disabledClass = disableClicking ? 'opacity-70 cursor-not-allowed' : '';
         const activeClass =
           activeLabel === label.key
-            ? 'bg-white! text-(--color-primary-700)! border-text-brand!'
-            : 'text-black-text border-transparent hover:bg-white';
+            ? 'bg-neutral-0! text-(--color-primary-700)! border-text-brand!'
+            : 'text-black-text border-transparent hover:bg-neutral-0';
         const isLogoOnlyWithRedirect = isLogoOnlyIdexx && Boolean(label.redirectHref);
         const hasEmbeddedRedirect = Boolean(label.redirectHref);
         const pillClassName = getPillClassName({

@@ -33,7 +33,7 @@ const RevenueLeadersStat = () => {
         selected={selectedDuration}
         onSelect={(next) => setSelectedDuration(next as DashboardDurationOption)}
       />
-      <div className="bg-white border border-card-border p-3 flex flex-col gap-2 rounded-2xl w-full min-h-89 overflow-hidden">
+      <div className="bg-neutral-0 border border-card-border p-3 flex flex-col gap-2 rounded-2xl w-full min-h-89 overflow-hidden">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center gap-2 text-text-tertiary flex-1 min-h-75">
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">

@@ -36,7 +36,7 @@ const PdfPreviewOverlay = ({
       data-signing-overlay="true"
       style={{ pointerEvents: 'auto' }}
     >
-      <div className="relative bg-white rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
+      <div className="relative bg-neutral-0 rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
           <div className="text-body-2 text-text-primary">{title}</div>
           <div className="flex items-center gap-2">
@@ -65,7 +65,7 @@ const PdfPreviewOverlay = ({
         </div>
         <div className="relative flex-1 min-h-0">
           {!loaded && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
               <YosemiteLoader label="Loading PDF" size={120} testId="pdf-preview-loader" />
             </div>
           )}

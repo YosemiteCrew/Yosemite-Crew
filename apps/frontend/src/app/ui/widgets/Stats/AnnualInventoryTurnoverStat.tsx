@@ -24,7 +24,7 @@ const AnnualInventoryTurnoverStat = () => {
   return (
     <div className="flex flex-col gap-2">
       <CardHeader title={'Annual inventory turnover'} options={options} selected={options[0]} />
-      <div className="bg-white border border-card-border p-3 rounded-2xl w-full min-h-75 flex flex-col gap-3">
+      <div className="bg-neutral-0 border border-card-border p-3 rounded-2xl w-full min-h-75 flex flex-col gap-3">
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center gap-2 text-text-tertiary flex-1">
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">

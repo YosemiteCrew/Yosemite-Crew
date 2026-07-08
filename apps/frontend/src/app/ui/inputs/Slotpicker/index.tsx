@@ -41,9 +41,9 @@ function getDaysInMonth(year: number, month: number): Date[] {
 
 function getDayButtonClass(isCurrent: boolean, isPast: boolean, isTodayDay: boolean): string {
   if (isCurrent) return 'text-blue-text bg-blue-light border-blue-text!';
-  if (isPast) return 'border-grey-text! bg-white opacity-40 cursor-not-allowed';
+  if (isPast) return 'border-grey-text! bg-neutral-0 opacity-40 cursor-not-allowed';
   if (isTodayDay) return 'border-blue-text! bg-brand-100';
-  return 'border-grey-text! bg-white';
+  return 'border-grey-text! bg-neutral-0';
 }
 
 const Slotpicker = ({
@@ -254,7 +254,7 @@ const Slotpicker = ({
                 type="button"
                 key={slot.startTime + i}
                 onClick={() => setSelectedSlot(slot)}
-                className={`${selected ? 'text-blue-text bg-blue-light border-blue-text!' : 'border-grey-text! bg-white'} px-3.5 py-2 flex items-center justify-center border rounded-xl! font-satoshi text-[12px]!`}
+                className={`${selected ? 'text-blue-text bg-blue-light border-blue-text!' : 'border-grey-text! bg-neutral-0'} px-3.5 py-2 flex items-center justify-center border rounded-xl! font-satoshi text-[12px]!`}
               >
                 {formatUtcTimeToLocalLabel(slot.startTime)}
               </button>

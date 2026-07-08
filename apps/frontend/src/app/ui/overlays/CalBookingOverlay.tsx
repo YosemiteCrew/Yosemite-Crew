@@ -37,7 +37,7 @@ const CalBookingOverlay = ({ open, onClose }: CalBookingOverlayProps) => {
       <button
         type="button"
         onClick={onClose}
-        className="fixed right-4 top-4 z-[10001] p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer bg-white/90 shadow-sm"
+        className="fixed right-4 top-4 z-[10001] p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer bg-neutral-0/90 shadow-sm"
         aria-label="Close booking overlay"
         style={{ pointerEvents: 'auto' }}
       >

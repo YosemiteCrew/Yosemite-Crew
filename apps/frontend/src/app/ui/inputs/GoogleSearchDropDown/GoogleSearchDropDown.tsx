@@ -403,7 +403,7 @@ const GoogleSearchDropDown = ({
       </div>
       {isDropdownOpen && (
         <div
-          className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-white flex flex-col items-center w-full px-[12px] py-[10px]"
+          className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-neutral-0 flex flex-col items-center w-full px-[12px] py-[10px]"
           onPointerDown={(e) => e.preventDefault()}
         >
           {predictions?.map((pred, index: number) => (

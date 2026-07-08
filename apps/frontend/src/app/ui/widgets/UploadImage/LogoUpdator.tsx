@@ -171,7 +171,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
                 />
                 <label
                   htmlFor={inputId}
-                  className={`size-25 relative rounded-full bg-white hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${safePreviewSrc ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
+                  className={`size-25 relative rounded-full bg-neutral-0 hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${safePreviewSrc ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
                   aria-label="Upload logo"
                 >
                   {safePreviewSrc ? (

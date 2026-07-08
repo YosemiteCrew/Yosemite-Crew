@@ -180,7 +180,7 @@ const SearchDropdown = ({
         <div
           id={listboxId}
           aria-label={accessibleLabel}
-          className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b border-t bg-white flex flex-col items-center w-full px-3 py-2.5"
+          className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
           onScroll={handleScroll}
         >
           {filtered.map((option) => (

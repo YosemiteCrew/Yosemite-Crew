@@ -168,7 +168,7 @@ const GenericTable = <T extends object>({
           <Back
             onClick={handlePrev}
             disabled={currentPage === 1}
-            className={currentPage === 1 ? 'hover:bg-white! cursor-not-allowed' : ''}
+            className={currentPage === 1 ? 'hover:bg-neutral-0! cursor-not-allowed' : ''}
           />
           <div className="text-body-4 text-text-primary" aria-live="polite">
             Showing{' '}
@@ -179,7 +179,7 @@ const GenericTable = <T extends object>({
           <Next
             onClick={handleNext}
             disabled={currentPage === totalPages}
-            className={currentPage === totalPages ? 'hover:bg-white! cursor-not-allowed' : ''}
+            className={currentPage === totalPages ? 'hover:bg-neutral-0! cursor-not-allowed' : ''}
           />
         </div>
       )}

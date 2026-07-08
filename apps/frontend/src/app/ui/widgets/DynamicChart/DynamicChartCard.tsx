@@ -334,7 +334,7 @@ const DynamicChartCard: FC<ChartProps> = ({
   };
 
   return (
-    <div className="bg-white border border-card-border p-3 flex flex-col gap-2 rounded-2xl">
+    <div className="bg-neutral-0 border border-card-border p-3 flex flex-col gap-2 rounded-2xl">
       {headerContent}
       {!hideKeys && !headerContent && <ChartLegend keys={keys} />}
       {isEmpty ? (
