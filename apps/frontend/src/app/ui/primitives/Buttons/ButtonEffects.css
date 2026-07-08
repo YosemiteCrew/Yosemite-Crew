@@ -4,14 +4,14 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-text-primary) 86%, white);
+  border: 1px solid color-mix(in srgb, var(--color-text-primary) 86%, var(--color-neutral-0));
   background: var(--color-text-primary);
   box-shadow: none !important;
   font-family: 'Satoshi Variable', 'Satoshi', sans-serif !important;
   font-size: 1rem !important;
   font-weight: 500 !important;
   line-height: 1.5rem !important;
-  color: #fff !important;
+  color: var(--color-neutral-0) !important;
   transition:
     background-color 200ms ease-out,
     border-color 200ms ease-out,
@@ -51,7 +51,7 @@
 }
 
 .yc-primary-button:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-text-primary) 35%, white);
+  outline: 2px solid color-mix(in srgb, var(--color-text-primary) 35%, var(--color-neutral-0));
   outline-offset: 2px;
 }
 
