@@ -421,7 +421,6 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState('IDEXX PDF');
   const [pdfPreviewLoadingId, setPdfPreviewLoadingId] = useState<string | null>(null);
-  const lastIframeOpenStateRef = React.useRef(false);
 
   const companionId = activeAppointment?.companion?.id;
   const parentId = activeAppointment?.companion?.parent?.id;
@@ -679,6 +678,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
             })
           ) {
             setShowOrderIframe(false);
+            void refreshAppointmentOrders();
             return;
           }
           return;
@@ -697,6 +697,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
           })
         ) {
           setShowOrderIframe(false);
+          void refreshAppointmentOrders();
           return;
         }
       } catch (e) {
@@ -714,6 +715,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     iframeInitialStatus,
     upsertAppointmentOrder,
     companionId,
+    refreshAppointmentOrders,
   ]);
 
   const openOrderIframe = useCallback(
@@ -736,15 +738,8 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
 
   const closeOrderIframeManually = useCallback(() => {
     setShowOrderIframe(false);
-  }, []);
-
-  useEffect(() => {
-    const wasOpen = lastIframeOpenStateRef.current;
-    lastIframeOpenStateRef.current = showOrderIframe;
-    if (wasOpen && !showOrderIframe) {
-      void refreshAppointmentOrders();
-    }
-  }, [refreshAppointmentOrders, showOrderIframe]);
+    void refreshAppointmentOrders();
+  }, [refreshAppointmentOrders]);
 
   const closePdfPreview = useCallback(() => {
     setShowPdfPreview(false);
