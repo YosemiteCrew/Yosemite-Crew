@@ -646,6 +646,45 @@ const consumePendingDeepLink = (): void => {
   void activeContents()?.loadURL(href);
 };
 
+const vaultCompletedDownload = (item: Electron.DownloadItem): void => {
+  const vault = documentVault;
+  if (!vault) return;
+  // Vaulting reads the whole file into memory, which would spike or exhaust
+  // main-process memory on a multi-GB download, so skip very large files.
+  const MAX_VAULT_BYTES = 25 * 1024 * 1024;
+  if (item.getReceivedBytes() > MAX_VAULT_BYTES) {
+    logger.warn('download_vault_skipped_too_large', {
+      filename: item.getFilename(),
+      bytes: item.getReceivedBytes(),
+    });
+    return;
+  }
+  try {
+    const mimeType = item.getMimeType() || 'application/octet-stream';
+    const isText = /^text\/|^application\/(json|xml|javascript)$/.test(mimeType);
+    const saved = isText
+      ? vault.saveDocument(
+          item.getFilename(),
+          fs.readFileSync(item.getSavePath(), 'utf8'),
+          mimeType
+        )
+      : vault.saveDocumentBuffer(item.getFilename(), fs.readFileSync(item.getSavePath()), mimeType);
+    if ('error' in saved) {
+      // e.g. OS encryption unavailable — never vault PHI in cleartext.
+      logger.warn('download_vault_skipped', {
+        filename: item.getFilename(),
+        reason: saved.error,
+      });
+    } else {
+      logger.debug('download_vaulted', { filename: item.getFilename() });
+    }
+  } catch {
+    logger.warn('download_vault_failed', {
+      filename: item.getFilename(),
+    });
+  }
+};
+
 const configureDownloads = (ses: Session): void => {
   if (downloadsConfigured) return;
   downloadsConfigured = true;
@@ -659,45 +698,9 @@ const configureDownloads = (ses: Session): void => {
       logger.info('download_finished', { filename: item.getFilename(), state });
       if (state === 'completed') {
         shell.showItemInFolder(item.getSavePath());
-        // Auto-save completed downloads into the document vault. Skip very large
-        // files — vaulting reads the whole file into memory, which would spike or
-        // exhaust main-process memory on a multi-GB download.
-        const MAX_VAULT_BYTES = 25 * 1024 * 1024;
-        if (documentVault && item.getReceivedBytes() > MAX_VAULT_BYTES) {
-          logger.warn('download_vault_skipped_too_large', {
-            filename: item.getFilename(),
-            bytes: item.getReceivedBytes(),
-          });
-        } else if (documentVault) {
-          try {
-            const mimeType = item.getMimeType() || 'application/octet-stream';
-            const isText = /^text\/|^application\/(json|xml|javascript)$/.test(mimeType);
-            const saved = isText
-              ? documentVault.saveDocument(
-                  item.getFilename(),
-                  fs.readFileSync(item.getSavePath(), 'utf8'),
-                  mimeType
-                )
-              : documentVault.saveDocumentBuffer(
-                  item.getFilename(),
-                  fs.readFileSync(item.getSavePath()),
-                  mimeType
-                );
-            if ('error' in saved) {
-              // e.g. OS encryption unavailable — never vault PHI in cleartext.
-              logger.warn('download_vault_skipped', {
-                filename: item.getFilename(),
-                reason: saved.error,
-              });
-            } else {
-              logger.debug('download_vaulted', { filename: item.getFilename() });
-            }
-          } catch {
-            logger.warn('download_vault_failed', {
-              filename: item.getFilename(),
-            });
-          }
-        }
+        // Auto-save completed downloads into the document vault (skips very large
+        // files and cleartext-only environments — see vaultCompletedDownload).
+        vaultCompletedDownload(item);
       } else if (state === 'interrupted') {
         dialog.showErrorBox('Download failed', `${item.getFilename()} could not be downloaded.`);
       }
