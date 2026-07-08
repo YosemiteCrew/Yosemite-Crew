@@ -45,14 +45,10 @@ run_react_doctor() {
     return
   fi
 
-  if command -v react-doctor >/dev/null 2>&1; then
-    react-doctor --verbose --diff --fail-on warning --no-score
-    return
-  fi
-
-  # Do not fall back to `pnpm dlx`/`npx --yes react-doctor@latest`: fetching and
-  # executing the latest published package on every edit is an unpinned
-  # supply-chain risk. Only the lockfile-resolved local binary is trusted.
+  # Only the lockfile-resolved local binary is trusted. Do not fall back to a
+  # global/ambient `react-doctor` on PATH, nor to `pnpm dlx`/`npx --yes
+  # react-doctor@latest`: running an unpinned or unmanaged version on every edit
+  # is a supply-chain risk.
   printf '%s\n' 'react-doctor: locked binary not installed (run pnpm install); skipping agent hook scan.'
   return 0
 }
