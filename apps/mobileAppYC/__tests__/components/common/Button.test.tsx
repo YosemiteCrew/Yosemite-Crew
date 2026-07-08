@@ -170,6 +170,50 @@ describe('Button', () => {
     );
   });
 
+  it('passes correct indicator color for "danger" variant', () => {
+    const {getByTestId} = render(
+      <Button
+        title="Loading"
+        onPress={mockOnPress}
+        loading={true}
+        variant="danger"
+      />,
+    );
+    expect(getByTestId('mock-activity-indicator').props.color).toBe(
+      mockTheme.colors.white,
+    );
+  });
+
+  it('passes correct indicator color for "dangerGhost" variant', () => {
+    const {getByTestId} = render(
+      <Button
+        title="Loading"
+        onPress={mockOnPress}
+        loading={true}
+        variant="dangerGhost"
+      />,
+    );
+    expect(getByTestId('mock-activity-indicator').props.color).toBe(
+      mockTheme.colors.danger,
+    );
+  });
+
+  it('renders danger variants in a disabled state', () => {
+    const {getByText, rerender} = render(
+      <Button title="Del" onPress={mockOnPress} variant="danger" disabled />,
+    );
+    expect(getByText('Del')).toBeTruthy();
+    rerender(
+      <Button
+        title="Del"
+        onPress={mockOnPress}
+        variant="dangerGhost"
+        disabled
+      />,
+    );
+    expect(getByText('Del')).toBeTruthy();
+  });
+
   it('applies custom style to TouchableOpacity', () => {
     const customStyle = {margin: 100};
     const {getByTestId} = render(

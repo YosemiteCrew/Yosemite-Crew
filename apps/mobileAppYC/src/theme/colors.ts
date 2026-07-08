@@ -35,6 +35,10 @@ const palette = {
   errorSurface: ['#FDEBEA', 'rgba(234, 55, 41, 0.16)'],
   info: ['#257BED', '#8FB6F5'],
   infoSurface: ['rgba(37, 123, 237, 0.12)', 'rgba(37, 123, 237, 0.18)'],
+  indigo: ['#4F46E5', '#A5B4FC'],
+  indigoSurface: ['#E0E7FF', 'rgba(99, 102, 241, 0.18)'],
+  violet: ['#7C3AED', '#C4B5FD'],
+  violetSurface: ['#EDE9FE', 'rgba(139, 92, 246, 0.18)'],
 
   // --- Surfaces ---
   page: ['#EFE8DC', '#201C18'],
