@@ -432,6 +432,7 @@ const TaskSlot = ({
                 <button
                   type="button"
                   title="View task"
+                  aria-label="View task details"
                   className="size-6 rounded-full bg-white/95 border border-card-border flex items-center justify-center cursor-pointer shadow-sm"
                   onClick={(event) => {
                     event.preventDefault();

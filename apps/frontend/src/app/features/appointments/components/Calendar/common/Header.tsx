@@ -422,6 +422,7 @@ const Header = ({
                 type="button"
                 onClick={() => setZoomMode('in')}
                 title="Zoom in timeline"
+                aria-label="Zoom in timeline"
                 className={`size-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
                   isZoomIn
                     ? 'bg-white text-text-primary border border-card-border'
@@ -434,6 +435,7 @@ const Header = ({
                 type="button"
                 onClick={() => setZoomMode('out')}
                 title="Zoom out timeline"
+                aria-label="Zoom out timeline"
                 className={`size-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
                   isZoomOut
                     ? 'bg-white text-text-primary border border-card-border'
