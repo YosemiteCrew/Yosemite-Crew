@@ -21,6 +21,14 @@ jest.mock('@/shared/components/common', () => {
         {props.rightComponent}
       </View>
     ),
+    Toggle: (props: any) => (
+      <TouchableOpacity
+        accessibilityRole="switch"
+        accessibilityState={{checked: props.value}}
+        onPress={() => props.onValueChange(!props.value)}>
+        <Text>toggle</Text>
+      </TouchableOpacity>
+    ),
   };
 });
 
@@ -49,7 +57,6 @@ jest.mock('@/shared/utils/formStyles', () => ({
 describe('CalendarSyncSection', () => {
   const mockUpdateField = jest.fn();
   const mockOnOpenSheet = jest.fn();
-  
 
   const defaultProps = {
     formData: {
@@ -72,9 +79,9 @@ describe('CalendarSyncSection', () => {
     // Check static text
     expect(screen.getByText('Sync with Calendar')).toBeTruthy();
 
-    // Switch should be present
+    // Toggle should be present and reflect the disabled state
     const switchElement = screen.getByRole('switch');
-    expect(switchElement.props.value).toBe(false);
+    expect(switchElement.props.accessibilityState.checked).toBe(false);
 
     // TouchableInput should NOT be rendered
     expect(screen.queryByTestId('touchable-input')).toBeNull();
@@ -84,7 +91,7 @@ describe('CalendarSyncSection', () => {
     render(<CalendarSyncSection {...defaultProps} />);
 
     const switchElement = screen.getByRole('switch');
-    fireEvent(switchElement, 'onValueChange', true);
+    fireEvent.press(switchElement);
 
     expect(mockUpdateField).toHaveBeenCalledWith('syncWithCalendar', true);
   });
