@@ -263,7 +263,7 @@ const buildTrafficChartConfig = (
 
 const chartKeys = [
   { name: 'Self Hosters', color: 'var(--color-badge-blue-bg)' },
-  { name: 'Builders', color: '#10B981' },
+  { name: 'Builders', color: 'var(--success)' },
   { name: 'Github Stars', color: 'var(--color-warning-600)' },
 ];
 

@@ -486,7 +486,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
                     {newBatches.length > 1 && !disableEditing && (
                       <button
                         type="button"
-                        className="text-red-500 text-sm font-semibold"
+                        className="text-text-error text-sm font-semibold"
                         onClick={() => removeBatch(batchIdx)}
                       >
                         Remove

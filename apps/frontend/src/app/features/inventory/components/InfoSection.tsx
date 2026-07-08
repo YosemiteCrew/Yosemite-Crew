@@ -130,7 +130,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
 
   if (!sectionConfig || sectionConfig.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-gray-500">
+      <div className="flex flex-1 items-center justify-center text-sm text-text-tertiary">
         No fields configured for this section.
       </div>
     );

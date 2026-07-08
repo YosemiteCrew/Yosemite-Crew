@@ -412,7 +412,7 @@ const FormSection: React.FC<FormSectionProps> = ({
   const sectionConfig = configForBusiness[sectionKey];
 
   if (!sectionConfig || sectionConfig.length === 0) {
-    return <div className="text-sm text-gray-500">No fields configured.</div>;
+    return <div className="text-sm text-text-tertiary">No fields configured.</div>;
   }
 
   const sectionData = formData[sectionKey] as any;
@@ -478,7 +478,7 @@ const FormSection: React.FC<FormSectionProps> = ({
                     {formData.batches && formData.batches.length > 1 && (
                       <button
                         type="button"
-                        className="text-red-500 text-sm font-semibold"
+                        className="text-text-error text-sm font-semibold"
                         onClick={() => onRemoveBatch?.(batchIdx)}
                       >
                         Remove

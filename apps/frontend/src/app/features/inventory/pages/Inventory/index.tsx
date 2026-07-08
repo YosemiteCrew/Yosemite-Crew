@@ -368,7 +368,7 @@ const InventoryFilterBar = ({
           createPortal(
             <div
               ref={panelRef}
-              className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_var(--color-shadow-soft)] overflow-hidden"
               style={dropdownStyle}
             >
               {SORT_OPTIONS.map((option) => {
@@ -1574,7 +1574,7 @@ const Inventory = () => {
     <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
       <div className="flex justify-between items-center w-full flex-wrap gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
+          <h1 className="text-text-primary text-heading-2 font-newsreader flex items-center gap-2">
             <span>{pageTitle}</span>
             {activeView === 'inventory' && (
               <GlassTooltip
@@ -1665,7 +1665,7 @@ const Inventory = () => {
         </div>
       </div>
 
-      {error && <div className="text-red-500 text-sm font-satoshi font-semibold">{error}</div>}
+      {error && <div className="text-text-error text-sm font-satoshi font-semibold">{error}</div>}
 
       <PermissionGate allOf={[PERMISSIONS.INVENTORY_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>

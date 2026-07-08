@@ -233,6 +233,26 @@ describe('TaskBoard', () => {
     });
   });
 
+  it('paints task card status badges with theme-aware status tokens', () => {
+    renderBoard();
+
+    const pendingCard = screen
+      .getByRole('button', { name: 'Open task Task One' })
+      .closest('article');
+    const pendingBadge = pendingCard!.querySelector('[style*="--status-requested-bg"]');
+    expect(pendingBadge).not.toBeNull();
+    expect(pendingBadge!.getAttribute('style')).toContain('color: var(--status-requested-text)');
+
+    const inProgressCard = screen
+      .getByRole('button', { name: 'Open task Task Two' })
+      .closest('article');
+    const inProgressBadge = inProgressCard!.querySelector('[style*="--status-in-progress-bg"]');
+    expect(inProgressBadge).not.toBeNull();
+    expect(inProgressBadge!.getAttribute('style')).toContain(
+      'color: var(--status-in-progress-text)'
+    );
+  });
+
   it('shows warning and blocks drop for invalid status transition', async () => {
     (canTransitionTaskStatus as jest.Mock).mockReturnValue(false);
     renderBoard();

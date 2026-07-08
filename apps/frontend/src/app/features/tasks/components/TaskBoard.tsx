@@ -74,13 +74,25 @@ const getInitialsStatic = (name: string) =>
 const getColumnBadgeStyle = (status: BoardStatus) => {
   switch (status) {
     case 'COMPLETED':
-      return { backgroundColor: 'rgba(16, 185, 129, 0.18)', color: 'rgb(6, 95, 70)' };
+      return {
+        backgroundColor: 'var(--status-completed-bg)',
+        color: 'var(--status-completed-text)',
+      };
     case 'CANCELLED':
-      return { backgroundColor: 'rgba(239, 68, 68, 0.16)', color: 'rgb(153, 27, 27)' };
+      return {
+        backgroundColor: 'var(--status-cancelled-bg)',
+        color: 'var(--status-cancelled-text)',
+      };
     case 'IN_PROGRESS':
-      return { backgroundColor: 'rgba(59, 130, 246, 0.18)', color: 'rgb(30, 64, 175)' };
+      return {
+        backgroundColor: 'var(--status-in-progress-bg)',
+        color: 'var(--status-in-progress-text)',
+      };
     default:
-      return { backgroundColor: 'rgba(245, 158, 11, 0.18)', color: 'rgb(146, 64, 14)' };
+      return {
+        backgroundColor: 'var(--status-requested-bg)',
+        color: 'var(--status-requested-text)',
+      };
   }
 };
 

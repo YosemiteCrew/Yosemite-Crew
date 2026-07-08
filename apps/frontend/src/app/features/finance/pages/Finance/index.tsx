@@ -118,7 +118,7 @@ const Finance = () => {
         <div className={wrapperClassName}>
           <div className="flex items-center justify-between w-full flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <h1 className="text-text-primary text-heading-2">
+              <h1 className="text-text-primary text-heading-2 font-newsreader">
                 {'Finance'}
                 <span className="text-body-2 text-text-tertiary">{` (${invoices.length})`}</span>
               </h1>

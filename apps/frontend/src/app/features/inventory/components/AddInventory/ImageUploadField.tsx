@@ -125,7 +125,7 @@ const ImageUploadField = ({ label, value, organisationId, onChange }: Props) => 
         onChange={handleFileChange}
       />
 
-      {error && <div className="px-4 text-caption-1 text-red-600">{error}</div>}
+      {error && <div className="px-4 text-caption-1 text-text-error">{error}</div>}
     </div>
   );
 };
