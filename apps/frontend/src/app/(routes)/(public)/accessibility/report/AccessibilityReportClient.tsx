@@ -118,7 +118,7 @@ export default function AccessibilityReportClient() {
         <main id="main-content" tabIndex={-1} className="mx-auto max-w-2xl px-6 pt-22 pb-16">
           <output
             aria-live="polite"
-            className="rounded-2xl border border-card-border bg-neutral-0 p-8 text-center"
+            className="rounded-2xl border border-card-border bg-white p-8 text-center"
           >
             <h1 className="text-heading-2 text-text-primary mb-4">Thank you for your report</h1>
             <p className="text-body-4 text-text-secondary mb-6">

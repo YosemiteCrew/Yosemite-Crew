@@ -105,7 +105,7 @@ const Github = () => {
           href="https://github.com/YosemiteCrew/Yosemite-Crew"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 rounded-2xl cursor-pointer bg-neutral-0 px-2"
+          className="flex items-center justify-center gap-2 rounded-2xl cursor-pointer bg-white px-2"
         >
           <div className="flex items-center gap-1">
             <Icon icon="mdi:github" width="28" height="28" color="var(--color-neutral-900)" />

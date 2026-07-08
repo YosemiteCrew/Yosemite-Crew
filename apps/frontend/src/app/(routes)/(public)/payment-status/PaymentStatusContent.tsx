@@ -143,7 +143,7 @@ export function PaymentStatusContent() {
 
   return (
     <div className="min-h-[max(720px,100vh)] flex items-center justify-center px-4 pt-22 pb-10 bg-[radial-gradient(circle_at_10%_10%,rgba(250,238,210,0.6),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(210,235,248,0.6),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(215,245,230,0.7),transparent_50%)]">
-      <div className="w-full max-w-xl bg-neutral-0/80 border border-card-border rounded-2xl px-6 py-10">
+      <div className="w-full max-w-xl bg-white/80 border border-card-border rounded-2xl px-6 py-10">
         <div className="flex flex-col items-center text-center gap-4">
           <div className="relative flex items-center justify-center size-24 rounded-full">
             {(requestState === 'missing_session' || requestState === 'error') && (
@@ -219,22 +219,22 @@ export function PaymentStatusContent() {
 
           <div className="flex flex-wrap items-center justify-center gap-3 text-caption-1 text-text-primary">
             {session_id && (
-              <span className="px-4 py-2 rounded-full border border-card-border bg-neutral-0/70">
+              <span className="px-4 py-2 rounded-full border border-card-border bg-white/70">
                 Session {shortId(session_id)}
               </span>
             )}
             {statusChipLabel && (
-              <span className="px-4 py-2 rounded-full border border-card-border bg-neutral-0/70">
+              <span className="px-4 py-2 rounded-full border border-card-border bg-white/70">
                 Status {statusChipLabel}
               </span>
             )}
             {amountLabel && (
-              <span className="px-4 py-2 rounded-full border border-card-border bg-neutral-0/70">
+              <span className="px-4 py-2 rounded-full border border-card-border bg-white/70">
                 {amountLabel}
               </span>
             )}
             {stopped && (
-              <span className="px-4 py-2 rounded-full border border-card-border bg-neutral-0/70">
+              <span className="px-4 py-2 rounded-full border border-card-border bg-white/70">
                 Auto-check stopped
               </span>
             )}
