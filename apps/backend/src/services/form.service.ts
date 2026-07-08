@@ -2352,25 +2352,13 @@ export const FormService = {
     const appointment = appointmentLookup.appointment;
     const appointmentId = normalizeAppointmentId(params.appointmentId);
 
-    if (
-      params.requesterOrgId &&
-      appointment.organisationId !== params.requesterOrgId
-    ) {
-      throw new FormServiceError(
-        "Forbidden: appointment does not belong to this organisation",
-        403,
-      );
-    }
+    assertSoapAppointmentAccess({
+      appointment,
+      requesterOrgId: params.requesterOrgId,
+      requesterParentId: params.viewerParentId,
+    });
 
     if (params.viewerParentId) {
-      const appointmentParentId = resolveAppointmentParentId(appointment);
-      if (
-        !appointmentParentId ||
-        appointmentParentId !== params.viewerParentId
-      ) {
-        throw new FormServiceError("Forbidden", 403);
-      }
-
       try {
         await FormAssignmentService.markViewedForAppointment({
           organisationId: appointment.organisationId,

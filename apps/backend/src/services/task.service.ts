@@ -1436,9 +1436,7 @@ export const TaskService = {
   ): Promise<TaskLike> {
     const orgScope = asNonEmptyString(organisationId);
     const task = await prisma.task.findFirst({
-      where: orgScope
-        ? { id: taskId, organisationId: orgScope }
-        : { id: taskId },
+      where: { id: taskId, ...(orgScope ? { organisationId: orgScope } : {}) },
     });
     if (!task) throw new TaskServiceError("Task not found", 404);
 
