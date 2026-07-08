@@ -34,7 +34,7 @@ const DashboardProfile = () => {
           width={40}
           className="rounded-full object-cover h-10 min-w-10 max-h-10"
         />
-        <p className="text-heading-1 text-text-primary">
+        <p className="text-heading-1 font-newsreader text-text-primary">
           {(attributes?.given_name || '') + ' ' + (attributes?.family_name || '')}
         </p>
       </div>

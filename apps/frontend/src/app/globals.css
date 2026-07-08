@@ -438,7 +438,7 @@ textarea:focus-visible {
   --color-cyan: #5ce1e6;
   --color-cyan-text: #38ccd8;
 
-  --font-newsreader: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-newsreader: var(--font-newsreader-src, 'Newsreader'), Georgia, 'Times New Roman', serif;
 }
 :root {
   --black-text: var(--color-black-text);
@@ -1221,4 +1221,15 @@ html[data-theme-ready] [data-yc-app] * {
 }
 html[data-theme='dark'] [data-yc-app] ::selection {
   background: rgba(143, 182, 245, 0.3);
+}
+
+/* Warm-bone display serif for page titles + greeting moments. Defined explicitly
+   (unlayered) so it beats the @layer-components text-* helpers' font-satoshi and the
+   body font-family. Consumes --font-newsreader (Newsreader via next/font, else Georgia). */
+.font-newsreader {
+  font-family: var(--font-newsreader);
+}
+.italic-newsreader {
+  font-family: var(--font-newsreader);
+  font-style: italic;
 }

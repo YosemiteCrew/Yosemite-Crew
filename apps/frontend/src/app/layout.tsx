@@ -1,6 +1,17 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { Newsreader } from 'next/font/google';
 import './globals.css';
+
+// Warm-bone display serif for page titles + greeting moments. Self-hosted by next/font
+// at build time (served from /_next, so it satisfies the strict app-route CSP), exposed
+// as --font-newsreader-src which the --font-newsreader token consumes (see globals.css).
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+  variable: '--font-newsreader-src',
+  display: 'swap',
+});
 
 import 'react-datepicker/dist/react-datepicker.css';
 import ToastProvider from '@/app/ui/layout/ToastProvider';
@@ -40,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={newsreader.variable}>
       <body>
         <SkipLink />
         <Cookies />
