@@ -227,7 +227,7 @@ describe('createOfflineCache', () => {
     cache.set(createCacheEntry('https://example.com/empty', '', 'text/html'));
     const entry = cache.get('https://example.com/empty');
     expect(entry).toBeDefined();
-    expect(entry!.body.length).toBe(0);
+    expect(entry!.body).toHaveLength(0);
   });
 
   test('set with single entry exceeding MAX_SIZE_BYTES stops eviction at 1', () => {
