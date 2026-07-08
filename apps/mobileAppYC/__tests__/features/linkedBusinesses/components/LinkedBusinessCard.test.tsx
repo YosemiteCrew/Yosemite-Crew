@@ -8,7 +8,7 @@ import {
 } from '@testing-library/react-native';
 import {LinkedBusinessCard} from '../../../../src/features/linkedBusinesses/components/LinkedBusinessCard';
 // Explicitly import the mocked components to use in UNSAFE_getAllByType
-import {Linking, Alert, Image} from 'react-native';
+import {Linking, Alert, Image, Platform} from 'react-native';
 import {fetchGooglePlacesImage} from '../../../../src/features/linkedBusinesses/thunks';
 
 // --- Mocks ---
@@ -130,9 +130,7 @@ describe('LinkedBusinessCard', () => {
     mockDispatch.mockImplementation(action => action);
 
     (fetchGooglePlacesImage as unknown as jest.Mock).mockReturnValue({
-      unwrap: jest
-        .fn()
-        .mockResolvedValue({photoUrl: 'http://google-places.com/photo.jpg'}),
+      unwrap: jest.fn().mockResolvedValue({photoUrl: null}),
     });
   });
 
@@ -170,12 +168,36 @@ describe('LinkedBusinessCard', () => {
   });
 
   it('fetches Google Places image on mount if placeId exists', async () => {
+    (fetchGooglePlacesImage as unknown as jest.Mock).mockReturnValue({
+      unwrap: jest
+        .fn()
+        .mockResolvedValue({photoUrl: 'http://google-places.com/photo.jpg'}),
+    });
+
     render(<LinkedBusinessCard business={mockBusiness} />);
 
     await waitFor(() => {
       expect(mockDispatch).toHaveBeenCalled();
       expect(fetchGooglePlacesImage).toHaveBeenCalledWith('place_123');
     });
+  });
+
+  it('logs a warning when the Google Places image fetch fails', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const error = new Error('places unavailable');
+    (fetchGooglePlacesImage as unknown as jest.Mock).mockReturnValue({
+      unwrap: jest.fn().mockRejectedValue(error),
+    });
+
+    render(<LinkedBusinessCard business={mockBusiness} />);
+
+    await waitFor(() => {
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[LinkedBusinessCard] Failed to fetch Google Places image:',
+        error,
+      );
+    });
+    warnSpy.mockRestore();
   });
 
   it('handles main card press', () => {
@@ -204,6 +226,18 @@ describe('LinkedBusinessCard', () => {
     expect(mockOnDeletePress).toHaveBeenCalledWith(mockBusiness);
   });
 
+  it('does nothing when Delete is pressed without a delete handler', () => {
+    render(<LinkedBusinessCard business={mockBusiness} />);
+
+    const deleteBtnImage = getDeleteButton();
+    expect(deleteBtnImage).toBeDefined();
+    if (deleteBtnImage) {
+      fireEvent.press(deleteBtnImage);
+    }
+
+    expect(mockOnDeletePress).not.toHaveBeenCalled();
+  });
+
   it('hides action buttons when showActionButtons is false', () => {
     render(
       <LinkedBusinessCard business={mockBusiness} showActionButtons={false} />,
@@ -218,6 +252,16 @@ describe('LinkedBusinessCard', () => {
       <LinkedBusinessCard business={mockBusiness} showBorder={true} />,
     );
     expect(toJSON()).toBeDefined();
+  });
+
+  it('uses the Android fallback border style', () => {
+    const previousOS = Platform.OS;
+    Platform.OS = 'android';
+
+    const {toJSON} = render(<LinkedBusinessCard business={mockBusiness} />);
+
+    expect(toJSON()).toBeDefined();
+    Platform.OS = previousOS;
   });
 
   describe('Directions Logic', () => {
