@@ -4,7 +4,7 @@ import {render, fireEvent, act, screen} from '@testing-library/react-native';
 import {NotificationCard} from '../../../../src/features/notifications/components/NotificationCard/NotificationCard';
 // FIX 1 & 2: Removed the unused 'Images' import which was causing the module error.
 // FIX 3: Added 'Image' to imports so we can use it in getAllByType
-import {Image, Pressable} from 'react-native';
+import {Image, Pressable, StyleSheet} from 'react-native';
 
 // react-native's Pressable is wrapped in React.memo; UNSAFE_getAllByType
 // must match against the memoized inner component, not the memo wrapper.
@@ -202,6 +202,29 @@ describe('NotificationCard', () => {
       // FIX 3: Pass the 'Image' component itself, not the string 'Image'
       const images = screen.UNSAFE_getAllByType(Image);
       expect(images[0].props.source.uri).toBe('default-icon-uri');
+    });
+
+    it.each([
+      ['health', mockTheme.colors.successSurface],
+      ['appointments', mockTheme.colors.indigoSurface],
+      ['messages', mockTheme.colors.blueSoft],
+      ['dietary', mockTheme.colors.warningSurface],
+    ] as const)('tints the icon tile for the %s category', (category, bg) => {
+      render(
+        <NotificationCard
+          notification={{...baseNotification, category} as any}
+        />,
+      );
+      const iconTile = screen.UNSAFE_getAllByType(Image)[0].parent;
+      const tileStyle = StyleSheet.flatten(iconTile?.props.style);
+      expect(tileStyle.backgroundColor).toBe(bg);
+    });
+
+    it('falls back to the neutral tile when the category is unknown', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+      const iconTile = screen.UNSAFE_getAllByType(Image)[0].parent;
+      const tileStyle = StyleSheet.flatten(iconTile?.props.style);
+      expect(tileStyle.backgroundColor).toBe(mockTheme.colors.screen2);
     });
   });
 
