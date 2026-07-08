@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import BootSplash from 'react-native-bootsplash';
 import LinearGradient from 'react-native-linear-gradient';
+import {InkEncircle} from '@/shared/components/common/InkEncircle/InkEncircle';
 
 type Props = {
   onAnimationEnd: () => void;
@@ -217,13 +218,19 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
           clockwise={false}
         />
 
-        {/* Main Logo - Center */}
+        {/* Main Logo - Center, with the hand-drawn ink encircle brand moment */}
         <View style={styles.logoContainer}>
           <Animated.View style={logoAnimatedStyle}>
             <Image
               source={MAIN_LOGO}
               style={styles.mainLogo}
               resizeMode="contain"
+            />
+            <InkEncircle
+              width={230}
+              height={180}
+              style={styles.logoEncircle}
+              testID="splash-encircle"
             />
           </Animated.View>
         </View>
@@ -273,6 +280,10 @@ const styles = StyleSheet.create({
   mainLogo: {
     width: 176,
     height: 176,
+  },
+  logoEncircle: {
+    top: (176 - 180) / 2,
+    left: (176 - 230) / 2,
   },
   starContainer: {
     position: 'absolute',

@@ -170,6 +170,8 @@ jest.mock('react-native-reanimated', () => {
     useSharedValue: v => ({value: v}),
     useAnimatedStyle: updater =>
       typeof updater === 'function' ? updater() : {},
+    useAnimatedProps: updater =>
+      typeof updater === 'function' ? updater() : {},
     withTiming: (v, _config, callback) => {
       callback?.(true);
       return v;
@@ -197,6 +199,33 @@ jest.mock('react-native-reanimated', () => {
     LinearTransition: transitionBuilder,
     // No-op components/hooks used by some libs
     useAnimatedScrollHandler: () => ({}),
+  };
+});
+
+// Mock react-native-svg so SVG primitives render as plain hosts in tests.
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  const make = name => {
+    const Component = ({children, ...props}) =>
+      React.createElement(View, {testID: `svg-${name}`, ...props}, children);
+    Component.displayName = name;
+    return Component;
+  };
+  const Svg = make('Svg');
+  return {
+    __esModule: true,
+    default: Svg,
+    Svg,
+    Circle: make('Circle'),
+    Ellipse: make('Ellipse'),
+    Path: make('Path'),
+    G: make('G'),
+    Rect: make('Rect'),
+    Line: make('Line'),
+    Defs: make('Defs'),
+    Stop: make('Stop'),
+    LinearGradient: make('LinearGradient'),
   };
 });
 
