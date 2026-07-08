@@ -649,39 +649,38 @@ const consumePendingDeepLink = (): void => {
 const vaultCompletedDownload = (item: Electron.DownloadItem): void => {
   const vault = documentVault;
   if (!vault) return;
+  const filename = item.getFilename();
   // Vaulting reads the whole file into memory, which would spike or exhaust
   // main-process memory on a multi-GB download, so skip very large files.
   const MAX_VAULT_BYTES = 25 * 1024 * 1024;
   if (item.getReceivedBytes() > MAX_VAULT_BYTES) {
     logger.warn('download_vault_skipped_too_large', {
-      filename: item.getFilename(),
+      filename,
       bytes: item.getReceivedBytes(),
     });
+    return;
+  }
+  // getSavePath() is the absolute path Electron just wrote the completed download
+  // to; refuse any path-traversal sequence before reading the file back in.
+  const savePath = item.getSavePath();
+  if (savePath.includes('..')) {
+    logger.warn('download_vault_skipped_invalid_path', { filename });
     return;
   }
   try {
     const mimeType = item.getMimeType() || 'application/octet-stream';
     const isText = /^text\/|^application\/(json|xml|javascript)$/.test(mimeType);
     const saved = isText
-      ? vault.saveDocument(
-          item.getFilename(),
-          fs.readFileSync(item.getSavePath(), 'utf8'),
-          mimeType
-        )
-      : vault.saveDocumentBuffer(item.getFilename(), fs.readFileSync(item.getSavePath()), mimeType);
+      ? vault.saveDocument(filename, fs.readFileSync(savePath, 'utf8'), mimeType)
+      : vault.saveDocumentBuffer(filename, fs.readFileSync(savePath), mimeType);
     if ('error' in saved) {
       // e.g. OS encryption unavailable — never vault PHI in cleartext.
-      logger.warn('download_vault_skipped', {
-        filename: item.getFilename(),
-        reason: saved.error,
-      });
+      logger.warn('download_vault_skipped', { filename, reason: saved.error });
     } else {
-      logger.debug('download_vaulted', { filename: item.getFilename() });
+      logger.debug('download_vaulted', { filename });
     }
   } catch {
-    logger.warn('download_vault_failed', {
-      filename: item.getFilename(),
-    });
+    logger.warn('download_vault_failed', { filename });
   }
 };
 
