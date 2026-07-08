@@ -173,7 +173,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#000000",
+                    "backgroundColor": "#1D1C1B",
                     "opacity": 1,
                   },
                 ]
@@ -189,8 +189,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -205,8 +205,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -221,8 +221,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -341,7 +341,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#000000",
+                    "backgroundColor": "#1D1C1B",
                     "opacity": 1,
                   },
                 ]
@@ -357,8 +357,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -373,8 +373,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -389,8 +389,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -509,7 +509,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#000000",
+                    "backgroundColor": "#1D1C1B",
                     "opacity": 1,
                   },
                 ]
@@ -525,8 +525,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -541,8 +541,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -557,8 +557,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -677,7 +677,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#000000",
+                    "backgroundColor": "#1D1C1B",
                     "opacity": 1,
                   },
                 ]
@@ -693,8 +693,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -709,8 +709,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
@@ -725,8 +725,8 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#747473",
-                    "opacity": 0.3,
+                    "backgroundColor": "#A9A39E",
+                    "opacity": 0.4,
                   },
                 ]
               }
