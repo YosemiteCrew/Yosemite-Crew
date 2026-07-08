@@ -203,8 +203,8 @@ const createStyles = (theme: any) =>
       justifyContent: 'space-between',
     },
     title: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
       textAlign: 'center',
     },
     buttonContainer: {

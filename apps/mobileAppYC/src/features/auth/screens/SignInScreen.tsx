@@ -520,8 +520,8 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['4'],
     },
     title: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
       marginBottom: theme.spacing['6'],
       textAlign: 'center',
     },
