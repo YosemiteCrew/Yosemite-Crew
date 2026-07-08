@@ -97,14 +97,14 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
     },
     pillActive: {
-      backgroundColor: theme.colors.blueSoft,
-      borderColor: theme.colors.blue,
+      backgroundColor: theme.colors.cta,
+      borderColor: theme.colors.cta,
     },
     pillText: {
       ...theme.typography.pillSubtitleBold15,
       color: theme.colors.inkBody,
     },
     pillTextActive: {
-      color: theme.colors.navActive,
+      color: theme.colors.ctaText,
     },
   });

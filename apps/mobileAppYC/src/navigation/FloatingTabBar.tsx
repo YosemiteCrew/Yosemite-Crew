@@ -60,10 +60,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   const companionId = selectedCompanionIdFromState ?? companions[0]?.id ?? null;
   const isIOS = Platform.OS === 'ios';
   const useGlass = isIOS && isLiquidGlassSupported;
-  const styles = React.useMemo(
-    () => createStyles(theme, isIOS),
-    [theme, isIOS],
-  );
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const refreshTabData = React.useCallback(
     (routeName: string) => {
@@ -285,7 +282,7 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
   );
 };
 
-const createStyles = (theme: any, isIOS: boolean) =>
+const createStyles = (theme: any) =>
   StyleSheet.create({
     wrapper: {
       position: 'absolute',
@@ -313,7 +310,7 @@ const createStyles = (theme: any, isIOS: boolean) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-around',
-      borderRadius: isIOS ? theme.borderRadius.md : theme.borderRadius.xl,
+      borderRadius: theme.borderRadius.sheet,
       backgroundColor: 'transparent',
       paddingVertical: theme.spacing['3.5'],
       paddingHorizontal: theme.spacing['4'],
@@ -336,12 +333,12 @@ const createStyles = (theme: any, isIOS: boolean) =>
     },
     pill: {
       flex: 1,
-      borderRadius: theme.borderRadius.xl,
+      borderRadius: theme.borderRadius.card,
       backgroundColor: theme.colors.navActiveBg,
     },
     pillGlass: {
       flex: 1,
-      borderRadius: isIOS ? theme.borderRadius.lg : theme.borderRadius['2xl'],
+      borderRadius: theme.borderRadius.card,
       backgroundColor: 'transparent',
     },
     pillSolid: {

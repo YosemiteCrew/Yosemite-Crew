@@ -22,6 +22,7 @@ export interface EmptyStateProps {
   description?: string;
   icon?: React.ReactNode;
   actionLabel?: string;
+  actionIcon?: React.ReactNode;
   onAction?: () => void;
   style?: StyleProp<ViewStyle>;
   testID?: string;
@@ -32,6 +33,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   description,
   icon,
   actionLabel,
+  actionIcon,
   onAction,
   style,
   testID,
@@ -54,6 +56,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           accessibilityLabel={actionLabel}
           onPress={onAction}
           style={styles.cta}>
+          {actionIcon}
           <Text style={styles.ctaLabel}>{actionLabel}</Text>
         </PressableOpacity>
       ) : null}
@@ -91,12 +94,14 @@ const createStyles = (theme: Theme) =>
     },
     cta: {
       minHeight: 54,
-      alignSelf: 'stretch',
+      alignSelf: 'center',
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: theme.borderRadius.button,
+      gap: theme.spacing['2'],
+      borderRadius: theme.borderRadius.pill,
       backgroundColor: theme.colors.cta,
-      paddingHorizontal: theme.spacing['6'],
+      paddingHorizontal: theme.spacing['7'],
       marginTop: theme.spacing['6'],
     },
     ctaLabel: {
