@@ -1,6 +1,8 @@
 import React from 'react';
+import {Alert} from 'react-native';
 import {mockTheme} from '../../../setup/mockTheme';
-import {render, fireEvent, act} from '@testing-library/react-native';
+import {render, fireEvent, act, waitFor} from '@testing-library/react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 // FIX: Removed unused View and Text. Kept BackHandler for tests.
 import {EditParentScreen} from '@/features/account/screens/EditParentScreen';
 import {useTheme} from '@/hooks';
@@ -115,10 +117,36 @@ jest.mock('@/features/auth', () => ({
   authReducer: jest.fn(),
 }));
 
+const mockGetFreshStoredTokens = jest.fn(() => new Promise(() => {}));
+const mockIsTokenExpired = jest.fn(() => true);
 jest.mock('@/features/auth/sessionManager', () => ({
   __esModule: true,
-  getFreshStoredTokens: jest.fn(() => new Promise(() => {})),
-  isTokenExpired: jest.fn(() => true),
+  getFreshStoredTokens: (...args: any[]) => mockGetFreshStoredTokens(...args),
+  isTokenExpired: (...args: any[]) => mockIsTokenExpired(...args),
+}));
+
+const mockPreparePhotoPayload = jest.fn();
+jest.mock('@/features/account/utils/profilePhoto', () => ({
+  preparePhotoPayload: (...args: any[]) => mockPreparePhotoPayload(...args),
+}));
+
+const mockRequestParentProfileUploadUrl = jest.fn();
+const mockUploadFileToPresignedUrl = jest.fn();
+jest.mock('@/shared/services/uploadService', () => ({
+  requestParentProfileUploadUrl: (...args: any[]) =>
+    mockRequestParentProfileUploadUrl(...args),
+  uploadFileToPresignedUrl: (...args: any[]) =>
+    mockUploadFileToPresignedUrl(...args),
+}));
+
+const mockUpdateParentProfile = jest.fn();
+jest.mock('@/features/account/services/profileService', () => ({
+  updateParentProfile: (...args: any[]) => mockUpdateParentProfile(...args),
+}));
+
+jest.mock('@react-native-clipboard/clipboard', () => ({
+  __esModule: true,
+  default: {setString: jest.fn()},
 }));
 
 // --- Component Mocks ---
@@ -722,4 +750,369 @@ describe('EditParentScreen', () => {
       expect(mockGoBack).not.toHaveBeenCalled();
     });
   });
+
+  describe('User Not Found', () => {
+    it('shows a loader while auth is loading and there is no user', () => {
+      setupMockState(null, true);
+      const {queryByTestId, queryByText} = renderComponent();
+      expect(queryByText('User not found.')).toBeNull();
+      // GifLoader renders a mocked FastImage; absence of the text message
+      // combined with no crash confirms the loading branch rendered.
+      expect(queryByTestId('mock-header')).toBeTruthy();
+    });
+
+    it('shows a "User not found" message once loading finishes with no user', () => {
+      setupMockState(null, false);
+      const {getByText} = renderComponent();
+      expect(getByText('User not found.')).toBeTruthy();
+    });
+  });
+
+  describe('Email Copy', () => {
+    beforeEach(() => {
+      jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    });
+
+    it('copies the email to the clipboard and shows a confirmation', () => {
+      const {UNSAFE_getAllByType} = renderComponent();
+
+      // The copy-icon PressableOpacity is the only real (unmocked)
+      // Pressable this screen renders itself; every other row/section is
+      // mocked away as a plain View in this test file.
+      const {Pressable} = require('react-native');
+      const PressableType = (Pressable as any).type;
+      const [copyButton] = UNSAFE_getAllByType(PressableType);
+      fireEvent.press(copyButton);
+
+      expect(Clipboard.setString).toHaveBeenCalledWith('test@example.com');
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Copied',
+        'Email Id copied to clipboard',
+      );
+    });
+
+    it('does nothing when the user has no email to copy', () => {
+      setupMockState({...mockUser, email: '  '} as any, false);
+      const {UNSAFE_getAllByType} = renderComponent();
+
+      // The copy-icon PressableOpacity is the only real (unmocked)
+      // Pressable this screen renders itself; every other row/section is
+      // mocked away as a plain View in this test file.
+      const {Pressable} = require('react-native');
+      const PressableType = (Pressable as any).type;
+      const [copyButton] = UNSAFE_getAllByType(PressableType);
+      fireEvent.press(copyButton);
+
+      expect(Clipboard.setString).not.toHaveBeenCalled();
+      expect(Alert.alert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Token Loading', () => {
+    it('sets the access token when a fresh, non-expired token is available', async () => {
+      mockGetFreshStoredTokens.mockResolvedValueOnce({
+        accessToken: 'tok-valid',
+        expiresAt: Date.now() + 100000,
+      });
+      mockIsTokenExpired.mockReturnValueOnce(false);
+
+      const parentUser = {...mockUser, parentId: 'parent-1'};
+      setupMockState(parentUser, false);
+      mockPreparePhotoPayload.mockResolvedValue({
+        remoteUrl: 'https://existing.png',
+        localFile: null,
+      });
+      mockUpdateParentProfile.mockResolvedValue({});
+
+      const {getByTestId} = renderComponent();
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      fireEvent.press(getByTestId('mock-inline-save-First name'));
+
+      await waitFor(() => {
+        expect(mockUpdateParentProfile).toHaveBeenCalledWith(
+          expect.any(Object),
+          'tok-valid',
+        );
+      });
+    });
+
+    it('discards an expired token', async () => {
+      mockGetFreshStoredTokens.mockResolvedValueOnce({
+        accessToken: 'tok-expired',
+        expiresAt: Date.now() - 100000,
+      });
+      mockIsTokenExpired.mockReturnValueOnce(true);
+      const warnSpy = consoleWarnSpyFn();
+
+      const parentUser = {...mockUser, parentId: 'parent-1'};
+      setupMockState(parentUser, false);
+
+      const {getByTestId} = renderComponent();
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      fireEvent.press(getByTestId('mock-inline-save-First name'));
+
+      await waitFor(() => {
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[EditParent] No access token available; skipping remote sync.',
+        );
+      });
+      expect(mockUpdateParentProfile).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('discards a null tokens response', async () => {
+      mockGetFreshStoredTokens.mockResolvedValueOnce(null);
+      const warnSpy = consoleWarnSpyFn();
+
+      const parentUser = {...mockUser, parentId: 'parent-1'};
+      setupMockState(parentUser, false);
+
+      const {getByTestId} = renderComponent();
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      fireEvent.press(getByTestId('mock-inline-save-First name'));
+
+      await waitFor(() => {
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[EditParent] No access token available; skipping remote sync.',
+        );
+      });
+      warnSpy.mockRestore();
+    });
+
+    it('warns when loading the stored tokens throws', async () => {
+      mockGetFreshStoredTokens.mockRejectedValueOnce(new Error('storage down'));
+      const warnSpy = consoleWarnSpyFn();
+
+      renderComponent();
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[EditParent] Failed to load stored tokens',
+        expect.any(Error),
+      );
+      warnSpy.mockRestore();
+    });
+  });
+
+  describe('Parent Profile Sync', () => {
+    const parentUser = {...mockUser, parentId: 'parent-1'};
+
+    const renderWithFreshToken = async (user = parentUser) => {
+      mockGetFreshStoredTokens.mockResolvedValueOnce({
+        accessToken: 'tok-1',
+        expiresAt: Date.now() + 100000,
+      });
+      mockIsTokenExpired.mockReturnValueOnce(false);
+      setupMockState(user, false);
+
+      const utils = renderComponent();
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      return utils;
+    };
+
+    it('warns and skips the sync when the user has no parentId', async () => {
+      const warnSpy = consoleWarnSpyFn();
+      mockGetFreshStoredTokens.mockResolvedValueOnce({
+        accessToken: 'tok-1',
+        expiresAt: Date.now() + 100000,
+      });
+      mockIsTokenExpired.mockReturnValueOnce(false);
+
+      const {getByTestId} = await renderWithFreshToken(mockUser);
+      fireEvent.press(getByTestId('mock-inline-save-First name'));
+
+      await waitFor(() => {
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[EditParent] Missing parent identifier; skipping remote sync.',
+        );
+      });
+      expect(mockUpdateParentProfile).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('uploads a new local photo and applies the full remote patch', async () => {
+      mockPreparePhotoPayload.mockResolvedValue({
+        remoteUrl: null,
+        localFile: {path: '/tmp/photo.jpg', mimeType: 'image/jpeg'},
+      });
+      mockRequestParentProfileUploadUrl.mockResolvedValue({
+        url: 'https://upload.example.com',
+        key: 'uploaded-key',
+      });
+      mockUploadFileToPresignedUrl.mockResolvedValue(undefined);
+      mockUpdateParentProfile.mockResolvedValue({
+        profileImageUrl: 'https://cdn.example.com/pic.png',
+        isComplete: true,
+        birthDate: '1990-05-15',
+        phoneNumber: '+18005551212',
+        address: {
+          addressLine: 'New Line',
+          city: 'New City',
+          state: 'New State',
+          postalCode: '99999',
+          country: 'New Country',
+        },
+      });
+
+      const {getByTestId} = await renderWithFreshToken();
+      fireEvent.press(getByTestId('mock-inline-save-First name'));
+
+      await waitFor(() => {
+        expect(mockUpdateParentProfile).toHaveBeenCalled();
+      });
+
+      expect(mockRequestParentProfileUploadUrl).toHaveBeenCalledWith({
+        accessToken: 'tok-1',
+        mimeType: 'image/jpeg',
+      });
+      expect(mockUploadFileToPresignedUrl).toHaveBeenCalledWith({
+        filePath: '/tmp/photo.jpg',
+        mimeType: 'image/jpeg',
+        url: 'https://upload.example.com',
+      });
+
+      const [payload] = mockUpdateParentProfile.mock.calls[0];
+      expect(payload.profileImageKey).toBe('uploaded-key');
+      expect(payload.existingPhotoUrl).toBeNull();
+      expect(payload.address).toEqual(
+        expect.objectContaining({addressLine: '123 Main St'}),
+      );
+
+      // Second dispatch call carries the mapped remote patch.
+      await waitFor(() => {
+        expect(mockUpdateUserProfileImpl).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            profileToken: 'https://cdn.example.com/pic.png',
+            profilePicture: 'https://cdn.example.com/pic.png',
+            profileCompleted: true,
+            dateOfBirth: '1990-05-15',
+            phone: '+18005551212',
+            address: {
+              addressLine: 'New Line',
+              city: 'New City',
+              stateProvince: 'New State',
+              postalCode: '99999',
+              country: 'New Country',
+            },
+          }),
+        );
+      });
+    });
+
+    it('reuses the existing remote photo url without uploading', async () => {
+      mockPreparePhotoPayload.mockResolvedValue({
+        remoteUrl: 'https://existing.example.com/pic.png',
+        localFile: null,
+      });
+      mockUpdateParentProfile.mockResolvedValue({});
+
+      const {getByTestId} = await renderWithFreshToken();
+      fireEvent.press(getByTestId('mock-inline-save-First name'));
+
+      await waitFor(() => {
+        expect(mockUpdateParentProfile).toHaveBeenCalled();
+      });
+
+      expect(mockRequestParentProfileUploadUrl).not.toHaveBeenCalled();
+      expect(mockUploadFileToPresignedUrl).not.toHaveBeenCalled();
+
+      const [payload] = mockUpdateParentProfile.mock.calls[0];
+      expect(payload.profileImageKey).toBeNull();
+      expect(payload.existingPhotoUrl).toBe(
+        'https://existing.example.com/pic.png',
+      );
+    });
+
+    it('omits the address from the payload when the user has no address fields', async () => {
+      mockPreparePhotoPayload.mockResolvedValue({
+        remoteUrl: null,
+        localFile: null,
+      });
+      mockUpdateParentProfile.mockResolvedValue({});
+
+      const userWithoutAddress = {
+        ...parentUser,
+        address: {
+          addressLine: undefined,
+          city: undefined,
+          stateProvince: undefined,
+          postalCode: undefined,
+          country: undefined,
+        },
+      } as any;
+
+      const {getByTestId} = await renderWithFreshToken(userWithoutAddress);
+      fireEvent.press(getByTestId('mock-inline-save-First name'));
+
+      await waitFor(() => {
+        expect(mockUpdateParentProfile).toHaveBeenCalled();
+      });
+
+      const [payload] = mockUpdateParentProfile.mock.calls[0];
+      expect(payload.address).toBeUndefined();
+    });
+
+    it('does not dispatch a second update when the summary has no updatable fields', async () => {
+      mockPreparePhotoPayload.mockResolvedValue({
+        remoteUrl: null,
+        localFile: null,
+      });
+      mockUpdateParentProfile.mockResolvedValue({});
+
+      const {getByTestId} = await renderWithFreshToken();
+      fireEvent.press(getByTestId('mock-inline-save-First name'));
+
+      await waitFor(() => {
+        expect(mockUpdateParentProfile).toHaveBeenCalled();
+      });
+
+      // Only the initial local-patch dispatch happened; no remote patch.
+      expect(mockAppDispatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs an error when the remote sync request fails', async () => {
+      mockPreparePhotoPayload.mockResolvedValue({
+        remoteUrl: null,
+        localFile: null,
+      });
+      mockUpdateParentProfile.mockRejectedValue(new Error('server exploded'));
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      const {getByTestId} = await renderWithFreshToken();
+      fireEvent.press(getByTestId('mock-inline-save-First name'));
+
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalledWith(
+          '[EditParent] Failed to sync parent profile',
+          expect.any(Error),
+        );
+      });
+      errorSpy.mockRestore();
+    });
+  });
 });
+
+function consoleWarnSpyFn() {
+  return jest.spyOn(console, 'warn').mockImplementation(() => {});
+}

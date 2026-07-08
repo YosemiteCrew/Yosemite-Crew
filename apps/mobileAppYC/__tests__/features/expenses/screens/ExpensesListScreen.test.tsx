@@ -30,6 +30,8 @@ jest.mock('@react-navigation/native', () => ({
 }));
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
+const mockOpenPaymentScreen = jest.fn();
+let mockProcessingPayment = false;
 (useNavigation as jest.Mock).mockReturnValue({
   navigate: mockNavigate,
   goBack: mockGoBack,
@@ -103,6 +105,13 @@ jest.mock('@/features/expenses/utils/expenseLabels', () => ({
 }));
 jest.mock('@/shared/utils/currency', () => ({
   resolveCurrencySymbol: () => '$',
+}));
+
+jest.mock('@/features/expenses/hooks/useExpensePayment', () => ({
+  useExpensePayment: () => ({
+    openPaymentScreen: mockOpenPaymentScreen,
+    processingPayment: mockProcessingPayment,
+  }),
 }));
 
 // Mock Redux actions
@@ -281,6 +290,8 @@ describe('ExpensesListScreen', () => {
     (companionSlice.setSelectedCompanion as unknown as jest.Mock).mockClear();
     mockNavigate.mockClear();
     mockGoBack.mockClear();
+    mockOpenPaymentScreen.mockClear();
+    mockProcessingPayment = false;
   });
 
   describe('Data Fetching', () => {
@@ -434,6 +445,46 @@ describe('ExpensesListScreen', () => {
       expect(paidCard.props.onPressEdit).toBeUndefined();
       expect(paidCard.props.payment).toEqual({status: 'paid'});
     });
+
+    it('opens payment from invoice-backed unpaid in-app expense and honors processing guard', () => {
+      const invoiceState = structuredClone(baseState) as Partial<RootState>;
+      const unpaidExpense = invoiceState.expenses!.items.find(
+        item => item.id === 'inapp-1',
+      ) as Expense & {invoiceId?: string};
+      unpaidExpense.invoiceId = 'invoice-1';
+
+      const {getAllByTestId, rerender} = renderComponent('inApp', invoiceState);
+      const unpaidCard = getAllByTestId('mock-ExpenseCard').find(
+        card => card.props.title === 'In-App Booking',
+      );
+
+      expect(unpaidCard?.props.payment).toEqual(
+        expect.objectContaining({status: 'unpaid'}),
+      );
+
+      act(() => {
+        unpaidCard?.props.payment.cta.onPress();
+      });
+      expect(mockOpenPaymentScreen).toHaveBeenCalledWith(
+        expect.objectContaining({id: 'inapp-1'}),
+      );
+
+      mockProcessingPayment = true;
+      mockOpenPaymentScreen.mockClear();
+      rerender(
+        <Provider store={store}>
+          <ExpensesListScreen />
+        </Provider>,
+      );
+      const processingCard = getAllByTestId('mock-ExpenseCard').find(
+        card => card.props.title === 'In-App Booking',
+      );
+
+      act(() => {
+        processingCard?.props.payment.cta.onPress();
+      });
+      expect(mockOpenPaymentScreen).not.toHaveBeenCalled();
+    });
   });
 
   describe('General Interactions', () => {
@@ -545,11 +596,13 @@ describe('ExpensesListScreen', () => {
     it('renders 0 for yearly summary if summary is null', () => {
       const noSummaryState = structuredClone(baseState); // This is now Partial<RootState>
       (noSummaryState.expenses!.summaries as any)['companion-1'] = null;
+      noSummaryState.auth = {user: null} as any;
 
       const {getByTestId} = renderComponent('external', noSummaryState);
       const summaryCard = getByTestId('mock-YearlySpendCard');
 
       expect(summaryCard.props.amount).toBe(0);
+      expect(summaryCard.props.currencyCode).toBe('USD');
     });
   });
 });

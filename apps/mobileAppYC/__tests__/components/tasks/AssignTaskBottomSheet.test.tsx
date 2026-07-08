@@ -51,7 +51,10 @@ jest.mock('@react-navigation/native', () => ({
 // Redux Provider is handled by renderWithProviders from testUtils
 // FIX 4: Update hook mock path
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: require('../../setup/mockTheme').mockTheme, isDark: false}),
+  useTheme: () => ({
+    theme: require('../../setup/mockTheme').mockTheme,
+    isDark: false,
+  }),
   useAppDispatch: () => jest.fn(),
   useAppSelector: jest.fn(),
 }));
@@ -271,6 +274,213 @@ describe('AssignTaskBottomSheet', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  describe('assignableCoParents filtering', () => {
+    const renderWithCoParents = (
+      coParents: any[],
+      selectedCompanionId: string | null,
+    ) => {
+      mockReduxState = {
+        auth: {user: mockUserFull} as any,
+        companion: {
+          selectedCompanionId,
+          companions: [],
+        } as any,
+      };
+
+      mockedSelectAuthUser.mockImplementation(
+        (state: RootState) => state.auth.user,
+      );
+      mockedSelectAcceptedCoParents.mockReturnValue(coParents);
+      mockedUseSelector.mockImplementation(
+        (selector: (state: RootState) => any): any =>
+          selector(mockReduxState as RootState),
+      );
+
+      const onSelect = jest.fn();
+      render(
+        <AssignTaskBottomSheet onSelect={onSelect} selectedUserId={null} />,
+      );
+      return screen.getByTestId('mock-generic-sheet');
+    };
+
+    it('excludes all co-parents when no companion is selected', () => {
+      const sheet = renderWithCoParents(
+        [
+          {
+            companionId: 'c1',
+            role: 'member',
+            status: 'accepted',
+            parentId: 'cp-1',
+            firstName: 'Amy',
+          },
+        ],
+        null,
+      );
+      // Only the current user is present; no co-parent items.
+      expect(sheet.props.items).toHaveLength(1);
+    });
+
+    it('excludes co-parents belonging to a different companion', () => {
+      const sheet = renderWithCoParents(
+        [
+          {
+            companionId: 'other-companion',
+            role: 'member',
+            status: 'accepted',
+            parentId: 'cp-1',
+            firstName: 'Amy',
+          },
+        ],
+        'c1',
+      );
+      expect(sheet.props.items).toHaveLength(1);
+    });
+
+    it('excludes a co-parent with the "primary" role', () => {
+      const sheet = renderWithCoParents(
+        [
+          {
+            companionId: 'c1',
+            role: 'Primary',
+            status: 'accepted',
+            parentId: 'cp-1',
+            firstName: 'Amy',
+          },
+        ],
+        'c1',
+      );
+      expect(sheet.props.items).toHaveLength(1);
+    });
+
+    it('excludes a co-parent whose tasks permission is explicitly false', () => {
+      const sheet = renderWithCoParents(
+        [
+          {
+            companionId: 'c1',
+            role: 'member',
+            status: 'accepted',
+            permissions: {tasks: false},
+            parentId: 'cp-1',
+            firstName: 'Amy',
+          },
+        ],
+        'c1',
+      );
+      expect(sheet.props.items).toHaveLength(1);
+    });
+
+    it('excludes a co-parent who is not accepted', () => {
+      const sheet = renderWithCoParents(
+        [
+          {
+            companionId: 'c1',
+            role: 'member',
+            status: 'pending',
+            parentId: 'cp-1',
+            firstName: 'Amy',
+          },
+        ],
+        'c1',
+      );
+      expect(sheet.props.items).toHaveLength(1);
+    });
+
+    it('includes a co-parent that satisfies every filter condition (permissions defaulting to allowed)', () => {
+      const sheet = renderWithCoParents(
+        [
+          {
+            companionId: 'c1',
+            role: 'member',
+            status: 'Accepted',
+            parentId: 'cp-1',
+            firstName: 'Amy',
+            lastName: 'Lee',
+          },
+        ],
+        'c1',
+      );
+      expect(sheet.props.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({id: 'cp-1', label: 'Amy Lee'}),
+        ]),
+      );
+    });
+
+    it('treats a missing role and status as falling back to an empty string', () => {
+      const sheet = renderWithCoParents(
+        [
+          {
+            companionId: 'c1',
+            role: undefined,
+            status: undefined,
+            parentId: 'cp-1',
+            firstName: 'Amy',
+          },
+        ],
+        'c1',
+      );
+      // role falls back to '' (!== 'primary'), but status falls back to ''
+      // (!== 'accepted'), so this co-parent is still excluded overall.
+      expect(sheet.props.items).toHaveLength(1);
+    });
+
+    it('falls back to email, then "Co-parent", when firstName/lastName are missing', () => {
+      const withEmail = renderWithCoParents(
+        [
+          {
+            companionId: 'c1',
+            role: 'member',
+            status: 'accepted',
+            parentId: 'cp-1',
+            email: 'amy@example.com',
+          },
+        ],
+        'c1',
+      );
+      expect(withEmail.props.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({id: 'cp-1', label: 'amy@example.com'}),
+        ]),
+      );
+
+      const withoutEmail = renderWithCoParents(
+        [
+          {
+            companionId: 'c1',
+            role: 'member',
+            status: 'accepted',
+            parentId: 'cp-2',
+          },
+        ],
+        'c1',
+      );
+      expect(withoutEmail.props.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({id: 'cp-2', label: 'Co-parent'}),
+        ]),
+      );
+    });
+
+    it('deduplicates a co-parent whose resolved id already appeared (e.g. matches the current user)', () => {
+      const sheet = renderWithCoParents(
+        [
+          {
+            companionId: 'c1',
+            role: 'member',
+            status: 'accepted',
+            parentId: 'user-1', // Same id as the current user (mockUserFull).
+            firstName: 'Duplicate',
+          },
+        ],
+        'c1',
+      );
+      // The duplicate co-parent entry should be filtered out, leaving only
+      // the original current-user entry.
+      expect(sheet.props.items).toHaveLength(1);
+      expect(sheet.props.items[0].id).toBe('user-1');
+    });
+  });
+
   describe('renderUserItem', () => {
     let renderItem: (
       item: SelectItem,
@@ -285,7 +495,17 @@ describe('AssignTaskBottomSheet', () => {
     });
 
     it('renders avatar image when avatar URL is present', () => {
-      // useTheme is already mocked in @/hooks mock
+      const {Image} = require('react-native');
+      const item: SelectItem = {
+        id: 'user-1',
+        label: 'Test',
+        avatar: 'http://example.com/avatar.png',
+      };
+      const {UNSAFE_getByType, queryByText} = render(renderItem(item, false));
+      expect(UNSAFE_getByType(Image).props.source).toEqual({
+        uri: 'http://example.com/avatar.png',
+      });
+      expect(queryByText('T')).toBeNull();
     });
 
     it('renders initials when avatar URL is missing', () => {
@@ -297,11 +517,51 @@ describe('AssignTaskBottomSheet', () => {
     });
 
     it('renders a checkmark when item is selected', () => {
-      // useTheme is already mocked in @/hooks mock
+      const item: SelectItem = {id: 'user-1', label: 'Test', avatar: undefined};
+      const {getByText} = render(renderItem(item, true));
+      expect(getByText('✓')).toBeTruthy();
     });
 
     it('does not render a checkmark when item is not selected', () => {
-      // useTheme is already mocked in @/hooks mock
+      const item: SelectItem = {id: 'user-1', label: 'Test', avatar: undefined};
+      const {queryByText} = render(renderItem(item, false));
+      expect(queryByText('✓')).toBeNull();
+    });
+  });
+
+  describe('users deduplication', () => {
+    it('excludes co-parent entries that resolve to no id', () => {
+      const sheet = (() => {
+        mockReduxState = {
+          auth: {user: mockUserFull} as any,
+          companion: {selectedCompanionId: 'c1', companions: []} as any,
+        };
+        mockedSelectAuthUser.mockImplementation(
+          (state: RootState) => state.auth.user,
+        );
+        mockedSelectAcceptedCoParents.mockReturnValue([
+          {
+            companionId: 'c1',
+            role: 'member',
+            status: 'accepted',
+            // No parentId, id, or userId -> resolves to a falsy id
+            firstName: 'NoId',
+          },
+        ]);
+        mockedUseSelector.mockImplementation(
+          (selector: (state: RootState) => any): any =>
+            selector(mockReduxState as RootState),
+        );
+        render(
+          <AssignTaskBottomSheet onSelect={jest.fn()} selectedUserId={null} />,
+        );
+        return screen.getByTestId('mock-generic-sheet');
+      })();
+
+      // Only the current user (with a valid id) should remain.
+      expect(sheet.props.items).toEqual([
+        {id: 'user-1', label: 'Test', avatar: 'http://example.com/avatar.png'},
+      ]);
     });
   });
 });

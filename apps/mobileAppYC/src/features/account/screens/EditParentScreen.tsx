@@ -269,7 +269,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
 
   // Parse phone number to separate dial code and local number
   const parsedPhone = useMemo(() => {
-    if (!safeUser.phone) return {dialCode: '+1', localNumber: ''};
+    if (!safeUser?.phone) return {dialCode: '+1', localNumber: ''};
     const rawPhone = safeUser.phone.replaceAll(/[^0-9+]/g, '');
     const normalizedPhoneDigits = rawPhone.replaceAll(/\D/g, '');
     let resolvedCountry =
@@ -290,7 +290,7 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
       : normalizedPhoneDigits;
     const localPhoneNumber = localPhoneRaw.slice(-12); // Support up to 12-digit phone numbers
     return {dialCode: resolvedCountry.dial_code, localNumber: localPhoneNumber};
-  }, [safeUser.phone]);
+  }, [safeUser?.phone]);
 
   const handleProfileImageChange = useCallback(
     (imageUri: string | null) => {

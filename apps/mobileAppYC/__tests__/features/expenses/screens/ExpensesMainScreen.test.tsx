@@ -1,6 +1,11 @@
 import React from 'react';
 import {mockTheme} from '../../../setup/mockTheme';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  waitFor,
+  screen,
+} from '@testing-library/react-native';
 import {ExpensesMainScreen} from '@/features/expenses/screens/ExpensesMainScreen/ExpensesMainScreen';
 import {setSelectedCompanion} from '@/features/companion';
 import type {ExpensePaymentStatus} from '@/features/expenses';
@@ -15,6 +20,20 @@ import type {RootState} from '@/app/store';
 import type {AuthProvider, AuthStatus, User} from '@/features/auth';
 import type {Companion} from '@/features/companion';
 import type {ThemeState} from '@/features/theme';
+import {Pressable} from 'react-native';
+import {
+  hasInvoice,
+  isExpensePaid,
+  isExpensePaymentPending,
+} from '@/features/expenses/utils/status';
+import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
+
+const PressableType = (Pressable as any).type;
+const hasInvoiceMock = hasInvoice as unknown as jest.Mock;
+const isExpensePaidMock = isExpensePaid as unknown as jest.Mock;
+const isExpensePaymentPendingMock =
+  isExpensePaymentPending as unknown as jest.Mock;
+const useExpensePaymentMock = useExpensePayment as unknown as jest.Mock;
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -150,9 +169,11 @@ jest.mock('@/features/expenses/utils/status', () => ({
   isExpensePaymentPending: jest.fn(() => false),
 }));
 
+const mockOpenPaymentScreen = jest.fn();
+
 jest.mock('@/features/expenses/hooks/useExpensePayment', () => ({
   useExpensePayment: jest.fn(() => ({
-    openPaymentScreen: jest.fn(),
+    openPaymentScreen: mockOpenPaymentScreen,
     processingPayment: false,
   })),
 }));
@@ -411,12 +432,29 @@ describe('ExpensesMainScreen', () => {
     selectHasHydratedCompanionMock.mockReturnValue(() => false);
     selectRecentExternalExpensesMock.mockReturnValue(() => []);
     selectRecentInAppExpensesMock.mockReturnValue(() => []);
+
+    hasInvoiceMock.mockReturnValue(false);
+    isExpensePaidMock.mockReturnValue(false);
+    isExpensePaymentPendingMock.mockReturnValue(false);
+    useExpensePaymentMock.mockReturnValue({
+      openPaymentScreen: mockOpenPaymentScreen,
+      processingPayment: false,
+    });
   });
 
   it('should render nothing if no companions exist', () => {
     mockState.companion.companions = [];
     const {toJSON} = render(<ExpensesMainScreen />);
     expect(toJSON()).toBeNull();
+  });
+
+  it('should fall back to USD when the user has no currency set', () => {
+    mockState.auth.user = {...mockUser, currency: undefined as any};
+    selectHasHydratedCompanionMock.mockReturnValue(() => true);
+    selectExpenseSummaryByCompanionMock.mockReturnValue(() => null);
+    selectRecentInAppExpensesMock.mockReturnValue(() => [mockInAppExpense]);
+
+    expect(() => render(<ExpensesMainScreen />)).not.toThrow();
   });
 
   it('should dispatch setSelectedCompanion if one is not selected', async () => {
@@ -488,6 +526,13 @@ describe('ExpensesMainScreen', () => {
       expect(mockGoBack).toHaveBeenCalled();
     });
 
+    it('should not navigate back when canGoBack is false', () => {
+      mockCanGoBack.mockReturnValueOnce(false);
+      const {getByTestId} = render(<ExpensesMainScreen />);
+      fireEvent.press(getByTestId('back-button'));
+      expect(mockGoBack).not.toHaveBeenCalled();
+    });
+
     it('should navigate to AddExpense on header add press', () => {
       const {getByTestId} = render(<ExpensesMainScreen />);
       fireEvent.press(getByTestId('add-button-header')); // Use press
@@ -543,6 +588,64 @@ describe('ExpensesMainScreen', () => {
       const {getByTestId} = render(<ExpensesMainScreen />);
       fireEvent.press(getByTestId('select-c2')); // Use press
       expect(mockDispatch).toHaveBeenCalledWith(setSelectedCompanion('c2'));
+    });
+
+    it('should navigate to in-app ExpensesList when the yearly spend card is pressed', () => {
+      render(<ExpensesMainScreen />);
+      const pressables = screen.UNSAFE_getAllByType(PressableType);
+      fireEvent.press(pressables[0]);
+      expect(mockNavigate).toHaveBeenCalledWith('ExpensesList', {
+        mode: 'inApp',
+      });
+    });
+  });
+
+  describe('In-app expense payment status', () => {
+    beforeEach(() => {
+      selectHasHydratedCompanionMock.mockReturnValue(() => true);
+      selectRecentInAppExpensesMock.mockReturnValue(() => [mockInAppExpense]);
+      selectRecentExternalExpensesMock.mockReturnValue(() => []);
+    });
+
+    it('marks the expense as paid and hides the pay button when isExpensePaid is true', () => {
+      isExpensePaidMock.mockReturnValue(true);
+      const {queryByTestId} = render(<ExpensesMainScreen />);
+      expect(queryByTestId('pay-button')).toBeNull();
+    });
+
+    it('shows a pay button and calls openPaymentScreen when unpaid, pending and not already processing', () => {
+      isExpensePaidMock.mockReturnValue(false);
+      isExpensePaymentPendingMock.mockReturnValue(true);
+      hasInvoiceMock.mockReturnValue(true);
+
+      const {getByTestId} = render(<ExpensesMainScreen />);
+      fireEvent.press(getByTestId('pay-button'));
+
+      expect(mockOpenPaymentScreen).toHaveBeenCalledWith(mockInAppExpense);
+    });
+
+    it('does not open the payment screen when a payment is already processing', () => {
+      isExpensePaidMock.mockReturnValue(false);
+      isExpensePaymentPendingMock.mockReturnValue(true);
+      hasInvoiceMock.mockReturnValue(true);
+      useExpensePaymentMock.mockReturnValue({
+        openPaymentScreen: mockOpenPaymentScreen,
+        processingPayment: true,
+      });
+
+      const {getByTestId} = render(<ExpensesMainScreen />);
+      fireEvent.press(getByTestId('pay-button'));
+
+      expect(mockOpenPaymentScreen).not.toHaveBeenCalled();
+    });
+
+    it('hides the pay button when pending but there is no invoice', () => {
+      isExpensePaidMock.mockReturnValue(false);
+      isExpensePaymentPendingMock.mockReturnValue(true);
+      hasInvoiceMock.mockReturnValue(false);
+
+      const {queryByTestId} = render(<ExpensesMainScreen />);
+      expect(queryByTestId('pay-button')).toBeNull();
     });
   });
 });

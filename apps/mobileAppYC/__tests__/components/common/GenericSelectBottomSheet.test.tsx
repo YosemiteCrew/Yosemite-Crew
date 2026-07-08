@@ -13,16 +13,21 @@ import {View, Text} from 'react-native';
 // --- Mocks ---
 
 // 1. Mock useTheme and useKeyboardVisible
+let mockKeyboardVisible = false;
+let mockSearchIcon: any = null;
+let mockBottomSheetProps: any = null;
 
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
-  useKeyboardVisible: () => false,
+  useKeyboardVisible: () => mockKeyboardVisible,
 }));
 
 // 2. Mock Images
 jest.mock('@/assets/images', () => ({
   Images: {
-    searchIcon: null, // Set to null to cover the 'else' branch
+    get searchIcon() {
+      return mockSearchIcon;
+    },
   },
 }));
 
@@ -62,6 +67,7 @@ jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
   return {
     __esModule: true,
     default: ReactActual.forwardRef((props: any, ref: any) => {
+      mockBottomSheetProps = props;
       ReactActual.useImperativeHandle(ref, () => ({
         snapToIndex: mockSnapToIndex,
         close: mockClose,
@@ -128,6 +134,9 @@ describe('GenericSelectBottomSheet', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockKeyboardVisible = false;
+    mockSearchIcon = null;
+    mockBottomSheetProps = null;
     ref = React.createRef<GenericSelectBottomSheetRef | null>();
   });
 
@@ -175,6 +184,39 @@ describe('GenericSelectBottomSheet', () => {
     act(() => mockSheetOnChange(-1));
     expect(onSheetChange).toHaveBeenCalledWith(-1);
     expect(screen.queryByTestId('mock-sheet-content')).toBeNull();
+  });
+
+  it('dismisses the keyboard from backdrop press and animate handlers', () => {
+    const {Keyboard} = require('react-native');
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+
+    render(<GenericSelectBottomSheet {...defaultProps} ref={ref} />);
+    openSheet();
+
+    act(() => {
+      mockBottomSheetProps.onBackdropPress();
+      mockBottomSheetProps.onAnimate();
+    });
+
+    expect(dismissSpy).toHaveBeenCalled();
+  });
+
+  it('uses expanded snap points and keeps keyboard open while keyboard is visible', () => {
+    const {Keyboard} = require('react-native');
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+    mockKeyboardVisible = true;
+
+    render(<GenericSelectBottomSheet {...defaultProps} ref={ref} />);
+    openSheet();
+
+    expect(mockBottomSheetProps.snapPoints).toEqual(['95%', '95%']);
+    dismissSpy.mockClear();
+
+    act(() => {
+      mockBottomSheetProps.onAnimate();
+    });
+
+    expect(dismissSpy).not.toHaveBeenCalled();
   });
 
   it('resets tempItem and search on open', () => {
@@ -340,6 +382,13 @@ describe('GenericSelectBottomSheet', () => {
       expect(screen.queryByText('Item Three')).toBeNull();
     });
 
+    it('passes the search icon when one is configured', () => {
+      mockSearchIcon = {uri: 'search-icon'};
+      render(<GenericSelectBottomSheet {...defaultProps} ref={ref} />);
+      openSheet();
+      expect(screen.getByPlaceholderText('Search')).toBeTruthy();
+    });
+
     it('shows empty message when filter has no results', () => {
       render(<GenericSelectBottomSheet {...defaultProps} ref={ref} />);
       openSheet();
@@ -355,6 +404,20 @@ describe('GenericSelectBottomSheet', () => {
       );
       openSheet();
       expect(screen.getByText(defaultProps.emptyMessage)).toBeTruthy();
+    });
+
+    it('uses the default empty message when none is provided', () => {
+      render(
+        <GenericSelectBottomSheet
+          title={defaultProps.title}
+          selectedItem={defaultProps.selectedItem}
+          onSave={defaultProps.onSave}
+          items={[]}
+          ref={ref}
+        />,
+      );
+      openSheet();
+      expect(screen.getByText('No items available')).toBeTruthy();
     });
 
     it('renders customContent', () => {

@@ -194,8 +194,7 @@ export const addCoParent = createAsyncThunk<
           ...response,
           companionId: inviteRequest.companionId,
           parentId: response?.parentId ?? response?.coParentId ?? response?.id,
-          firstName:
-            response?.firstName ?? firstName ?? inviteRequest.candidateName,
+          firstName: response?.firstName ?? firstName,
           lastName: response?.lastName ?? rest.join(' '),
           email: response?.email ?? inviteRequest.email,
           phoneNumber: response?.phoneNumber ?? inviteRequest.phoneNumber,
@@ -243,7 +242,7 @@ export const updateCoParentPermissions = createAsyncThunk<
         state.coParent?.coParents.find(cp => cp.id === coParentId) ?? null;
 
       return normalizeCoParent(
-        response && Object.keys(response || {}).length
+        response && Object.keys(response).length
           ? response
           : {...existing, permissions, companionId},
         {
