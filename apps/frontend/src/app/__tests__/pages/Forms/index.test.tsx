@@ -90,13 +90,19 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 
 jest.mock('@/app/ui/filters/FormsFilters', () => ({
   __esModule: true,
-  default: ({ setFilteredList, list, categoryAction }: any) => (
+  default: ({ onFiltersChange, categoryAction }: any) => (
     <div data-testid="forms-filters">
       {categoryAction}
-      <button data-testid="filter-reset" onClick={() => setFilteredList(list)}>
+      <button
+        data-testid="filter-reset"
+        onClick={() => onFiltersChange({ status: 'All', category: 'All' })}
+      >
         Reset Filter
       </button>
-      <button data-testid="filter-empty" onClick={() => setFilteredList([])}>
+      <button
+        data-testid="filter-empty"
+        onClick={() => onFiltersChange({ status: 'Archived', category: 'Custom' })}
+      >
         Empty Filter
       </button>
     </div>

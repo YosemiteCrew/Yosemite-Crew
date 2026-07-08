@@ -10,7 +10,7 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import { FormsProps } from '@/app/features/forms/types/forms';
-import FormsFilters from '@/app/ui/filters/FormsFilters';
+import FormsFilters, { type FormsFilterState } from '@/app/ui/filters/FormsFilters';
 import FormsTable from '@/app/ui/tables/FormsTable';
 import { useFormsStore } from '@/app/stores/formsStore';
 import { loadForms } from '@/app/features/forms/services/formService';
@@ -36,7 +36,7 @@ const Forms = () => {
   const headerSearchQuery = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const handledDeepLinkRef = useRef<string | null>(null);
-  const [filteredList, setFilteredList] = useState<FormsProps[]>([]);
+  const [filters, setFilters] = useState<FormsFilterState>({ status: 'All', category: 'All' });
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [editingForm, setEditingForm] = useState<FormsProps | null>(null);
@@ -76,6 +76,17 @@ const Forms = () => {
     [formIds, formsById]
   );
 
+  const filteredList = useMemo(() => {
+    const q = headerSearchQuery.trim().toLowerCase();
+    return list.filter((item) => {
+      const matchesStatus = filters.status === 'All' || item.status === filters.status;
+      const matchesCategory = filters.category === 'All' || item.category === filters.category;
+      const matchesQuery =
+        !q || item.name?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q);
+      return matchesStatus && matchesCategory && matchesQuery;
+    });
+  }, [filters, headerSearchQuery, list]);
+
   const activeForm: FormsProps | null = useMemo(() => {
     const current = activeFormId ? formsById[activeFormId] : null;
     if (current) {
@@ -84,10 +95,6 @@ const Forms = () => {
     }
     return filteredList[0] ?? null;
   }, [activeFormId, filteredList, formsById]);
-
-  useEffect(() => {
-    setFilteredList(list);
-  }, [list]);
 
   const serviceOptions = useMemo(() => {
     const specialityNameById = new Map(
@@ -241,9 +248,8 @@ const Forms = () => {
       <PermissionGate allOf={[PERMISSIONS.FORMS_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>
           <FormsFilters
-            list={list}
-            setFilteredList={setFilteredList}
-            searchQuery={headerSearchQuery}
+            filters={filters}
+            onFiltersChange={setFilters}
             categoryAction={
               canEditForms ? <Primary href="#" text="Add" onClick={openAddForm} /> : null
             }
