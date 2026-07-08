@@ -95,7 +95,7 @@ const PricingSummary = ({ formData }: { formData: InventoryItem }) => (
       </span>
     </div>
     <div className="relative rounded-2xl border border-input-border-default px-6 py-3 min-h-12">
-      <span className="absolute left-4 -top-[11px] bg-white px-1.5 text-xs text-input-text-placeholder">
+      <span className="absolute left-4 -top-[11px] bg-neutral-0 px-1.5 text-xs text-input-text-placeholder">
         Total stock value
       </span>
       <div className="flex items-center justify-between gap-2">

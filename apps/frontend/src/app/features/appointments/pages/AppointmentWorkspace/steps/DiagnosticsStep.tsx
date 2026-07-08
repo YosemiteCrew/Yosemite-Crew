@@ -310,7 +310,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
         onReachEnd={s.loadMoreTests}
         hasMore={s.testsHasMore}
         isLoadingMore={s.testsLoadingMore}
-        optionClassName="w-full text-start rounded-2xl! border border-card-border bg-white px-3 py-2 mb-2 last:mb-0 hover:bg-white transition-colors"
+        optionClassName="w-full text-start rounded-2xl! border border-card-border bg-neutral-0 px-3 py-2 mb-2 last:mb-0 hover:bg-neutral-0 transition-colors"
         renderOption={(option) => {
           const test = option.meta as IdexxTest | undefined;
           if (!test) return option.label;
@@ -719,7 +719,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
       className="fixed inset-0 z-5000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       data-signing-overlay="true"
     >
-      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-neutral-0 shadow-2xl">
         <div className="flex items-center justify-between border-b border-black/10 px-4 py-2">
           <span className="flex flex-col">
             <span className="text-body-2 text-text-primary">{title}</span>
@@ -741,7 +741,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
         </div>
         <div className="relative flex-1">
           {loaded ? null : (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
               <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-order-loader" />
             </div>
           )}

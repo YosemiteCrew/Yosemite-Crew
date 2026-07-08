@@ -1174,7 +1174,7 @@ const AppoitmentInfo = ({
               <Image
                 alt="pet image"
                 src={companionImageSrc}
-                className="size-10 shrink-0 rounded-full object-cover border border-card-border bg-white"
+                className="size-10 shrink-0 rounded-full object-cover border border-card-border bg-neutral-0"
                 height={40}
                 width={40}
               />

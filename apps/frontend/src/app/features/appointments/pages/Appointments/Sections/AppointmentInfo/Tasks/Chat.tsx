@@ -216,7 +216,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
         </p>
 
         {error && (
-          <div className="px-4 py-3 rounded-2xl border border-error bg-white">
+          <div className="px-4 py-3 rounded-2xl border border-error bg-neutral-0">
             <p className="font-satoshi text-[14px] text-error m-0">{error}</p>
           </div>
         )}

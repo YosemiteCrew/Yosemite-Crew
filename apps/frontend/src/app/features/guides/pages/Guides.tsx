@@ -85,7 +85,7 @@ const Guides = () => {
       </div>
 
       {featuredGuide && (
-        <div className="rounded-2xl! border border-card-border bg-white overflow-hidden">
+        <div className="rounded-2xl! border border-card-border bg-neutral-0 overflow-hidden">
           <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr]">
             <button
               type="button"
@@ -95,10 +95,10 @@ const Guides = () => {
               aria-label={`Play featured video: ${featuredGuide.title}`}
             >
               <div className="absolute inset-0 bg-black/35" />
-              <div className="relative flex items-center justify-center size-16 rounded-full bg-white/20">
+              <div className="relative flex items-center justify-center size-16 rounded-full bg-neutral-0/20">
                 <FaCirclePlay size={50} color="var(--color-neutral-0)" />
               </div>
-              <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-white/90 text-body-4 text-text-primary">
+              <div className="absolute bottom-4 right-4 px-3 py-1 rounded-full bg-neutral-0/90 text-body-4 text-text-primary">
                 {featuredGuide.duration}
               </div>
             </button>
@@ -171,7 +171,7 @@ const Guides = () => {
           {filteredGuides.map((video) => (
             <button
               type="button"
-              className="rounded-2xl! border border-card-border bg-white flex flex-col cursor-pointer text-left hover:shadow-sm transition-all duration-300"
+              className="rounded-2xl! border border-card-border bg-neutral-0 flex flex-col cursor-pointer text-left hover:shadow-sm transition-all duration-300"
               key={video.id}
               onClick={() => handleOpenVideo(video)}
               aria-label={`Play video: ${video.title}`}
@@ -181,10 +181,10 @@ const Guides = () => {
                 className="relative aspect-video bg-no-repeat bg-cover bg-center w-full rounded-t-2xl flex items-center justify-center"
               >
                 <div className="absolute inset-0 bg-black/35 rounded-t-2xl" />
-                <div className="relative flex items-center justify-center size-14 rounded-full bg-white/20">
+                <div className="relative flex items-center justify-center size-14 rounded-full bg-neutral-0/20">
                   <FaCirclePlay size={46} color="var(--color-neutral-0)" />
                 </div>
-                <div className="absolute bottom-3 right-3 px-3 py-1 rounded-full bg-white/90 text-body-4 text-text-primary">
+                <div className="absolute bottom-3 right-3 px-3 py-1 rounded-full bg-neutral-0/90 text-body-4 text-text-primary">
                   {video.duration}
                 </div>
               </div>

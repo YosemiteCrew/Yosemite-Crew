@@ -831,7 +831,7 @@ const IdexxIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
+        <div className="size-[72px] rounded-xl border border-card-border bg-neutral-0 p-2 flex items-center justify-center">
           <Image
             src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
             alt="IDEXX"
@@ -901,7 +901,7 @@ const MerckIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center">
+        <div className="size-[72px] rounded-xl border border-card-border bg-neutral-0 p-2 flex items-center justify-center">
           <Image
             src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
             alt="MSD Veterinary Manual"
@@ -969,7 +969,7 @@ const RadIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
+        <div className="size-[72px] rounded-xl border border-card-border bg-neutral-0 p-2 flex items-center justify-center overflow-hidden">
           <Image
             src={MEDIA_SOURCES.futureAssets.radAnalyzerLogoUrl}
             alt="RadAnalyzer"
@@ -1020,7 +1020,7 @@ const VetnioIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
+        <div className="size-[72px] rounded-xl border border-card-border bg-neutral-0 p-2 flex items-center justify-center overflow-hidden">
           <Image
             src={MEDIA_SOURCES.futureAssets.vetnioLogoUrl}
             alt="Vetnio"
@@ -1072,7 +1072,7 @@ const QuickBooksIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-1 flex items-center justify-center overflow-hidden">
+        <div className="size-[72px] rounded-xl border border-card-border bg-neutral-0 p-1 flex items-center justify-center overflow-hidden">
           <span className="font-satoshi text-[28px] font-bold leading-none tracking-[-0.56px] text-[#2ca01c]">
             qb
           </span>
@@ -1120,7 +1120,7 @@ const LaikaIntegrationCard = ({
   return (
     <div className={INTEGRATION_CARD_CLASS}>
       <div className="shrink-0 w-[72px] flex flex-col items-center justify-between">
-        <div className="size-[72px] rounded-xl border border-card-border bg-white p-2 flex items-center justify-center overflow-hidden">
+        <div className="size-[72px] rounded-xl border border-card-border bg-neutral-0 p-2 flex items-center justify-center overflow-hidden">
           <Image
             src={MEDIA_SOURCES.futureAssets.laikaLogoUrl}
             alt="Laika"

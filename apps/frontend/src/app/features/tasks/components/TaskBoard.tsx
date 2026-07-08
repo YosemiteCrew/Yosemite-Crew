@@ -157,7 +157,7 @@ const TaskCard = ({
               className="size-[18px] rounded-full border border-card-border object-cover"
             />
           ) : (
-            <div className="size-[18px] rounded-full border border-card-border bg-white text-[8px] font-semibold text-text-secondary flex items-center justify-center">
+            <div className="size-[18px] rounded-full border border-card-border bg-neutral-0 text-[8px] font-semibold text-text-secondary flex items-center justify-center">
               {getInitialsStatic(item.value.name)}
             </div>
           )}
@@ -169,7 +169,7 @@ const TaskCard = ({
       ))}
     </div>
 
-    <div className="relative z-10 mt-1.5 rounded-xl border border-card-border bg-white/80 px-2 py-1">
+    <div className="relative z-10 mt-1.5 rounded-xl border border-card-border bg-neutral-0/80 px-2 py-1">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] text-text-secondary">Due</span>
         <span className="text-[10px] text-text-primary">
@@ -190,7 +190,7 @@ const TaskCard = ({
       <GlassTooltip content="View task" side="bottom">
         <button
           type="button"
-          className="size-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+          className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -204,7 +204,7 @@ const TaskCard = ({
         <GlassTooltip content="Change status" side="bottom">
           <button
             type="button"
-            className="size-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+            className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -219,7 +219,7 @@ const TaskCard = ({
         <GlassTooltip content="Reschedule" side="bottom">
           <button
             type="button"
-            className="size-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+            className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -500,8 +500,8 @@ const TaskBoard = ({
   }, [autoScrollBoardOnDrag, canEditTasks, draggedTaskId]);
 
   return (
-    <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
-      <div className="border-b border-card-border bg-white px-3 py-2">
+    <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-neutral-0 overflow-hidden flex flex-col">
+      <div className="border-b border-card-border bg-neutral-0 px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[340px]">
             <GlassTooltip content="Select date" side="bottom">
@@ -578,7 +578,7 @@ const TaskBoard = ({
                 ref={(element) => {
                   columnDropRefs.current[column.key] = element;
                 }}
-                className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
+                className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-neutral-0 overflow-hidden flex flex-col min-h-0"
               >
                 <div
                   className="rounded-t-2xl border-b px-3 py-2"
@@ -610,7 +610,7 @@ const TaskBoard = ({
                   ref={(element) => {
                     columnScrollRefs.current[column.key] = element;
                   }}
-                  className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
+                  className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-neutral-0 overflow-y-auto"
                   onWheel={onWheelBoundary}
                   data-calendar-scroll="true"
                 >
@@ -633,7 +633,7 @@ const TaskBoard = ({
                     />
                   ))}
                   {!hasTasks && (
-                    <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">
+                    <div className="rounded-2xl border border-dashed border-card-border bg-neutral-0 px-3 py-4 text-center text-caption-1 text-text-secondary">
                       No tasks
                     </div>
                   )}

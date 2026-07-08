@@ -87,7 +87,7 @@ const LinkedMedicalDevices = () => {
               alt="IDEXX"
               width={40}
               height={40}
-              className="rounded-lg border border-card-border p-1.5 bg-white"
+              className="rounded-lg border border-card-border p-1.5 bg-neutral-0"
             />
             <div>
               <div className="text-body-2 text-text-primary">IDEXX</div>

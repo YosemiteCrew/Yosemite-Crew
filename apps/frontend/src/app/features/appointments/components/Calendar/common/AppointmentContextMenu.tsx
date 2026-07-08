@@ -68,8 +68,10 @@ type SubmenuPosition = {
 const getMenuItemClassName = (destructive = false, active = false) =>
   [
     'flex w-full items-center justify-between gap-2 rounded-[12px] px-2.5 py-1.5 text-left font-satoshi text-[16px] font-normal leading-5 tracking-[-0.32px] transition-colors',
-    destructive ? 'text-text-error hover:bg-danger-100/72' : 'text-text-primary hover:bg-white/50',
-    active ? 'bg-white/58' : 'bg-transparent',
+    destructive
+      ? 'text-text-error hover:bg-danger-100/72'
+      : 'text-text-primary hover:bg-neutral-0/50',
+    active ? 'bg-neutral-0/58' : 'bg-transparent',
   ].join(' ');
 
 const resolveMenuError = (error: unknown, fallback: string) => {
@@ -394,7 +396,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
         role="menu"
         aria-label="Appointment context actions"
         data-context-menu="true"
-        className="fixed z-[1001] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
+        className="fixed z-[1001] overflow-hidden rounded-[22px] border border-white/45 bg-neutral-0/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
         style={menuPositionStyle}
       >
         <div className="flex flex-col gap-0.5">
@@ -451,7 +453,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
           role="menu"
           aria-label="Change appointment status"
           data-context-menu="true"
-          className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
+          className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-neutral-0/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
           style={submenuStyle}
         >
           <div className="flex flex-col gap-0.5">
@@ -486,7 +488,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
           role="menu"
           aria-label="Assign appointment room"
           data-context-menu="true"
-          className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-white/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
+          className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-neutral-0/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
           style={submenuStyle}
         >
           <div className="flex max-h-[260px] flex-col gap-0.5 overflow-y-auto">

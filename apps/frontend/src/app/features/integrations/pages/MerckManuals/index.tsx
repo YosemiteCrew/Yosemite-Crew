@@ -137,7 +137,7 @@ const getMerckErrorMessage = (error: unknown) => {
 
 const getMerckContainerClassName = (embedded: boolean) =>
   embedded
-    ? 'w-full p-4 md:p-6 bg-white min-h-screen'
+    ? 'w-full p-4 md:p-6 bg-neutral-0 min-h-screen'
     : 'flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!';
 
 const getMerckResultsContainerClassName = (embedded: boolean) =>
@@ -163,7 +163,7 @@ const AudienceToggle = ({
 
   return (
     <fieldset
-      className={`relative inline-flex items-center h-11 w-full max-w-[320px] rounded-[999px]! border border-card-border bg-white overflow-hidden ${
+      className={`relative inline-flex items-center h-11 w-full max-w-[320px] rounded-[999px]! border border-card-border bg-neutral-0 overflow-hidden ${
         disabled ? 'opacity-70' : ''
       }`}
     >
@@ -438,7 +438,7 @@ const MerckSearchPanel = ({
     </div>
 
     {advancedOpen ? (
-      <div className="rounded-2xl border border-card-border bg-white p-3 flex flex-col gap-2">
+      <div className="rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="text-body-4 text-text-secondary">Refine Results</div>
           <button
@@ -516,7 +516,7 @@ const MerckReaderPortal = ({
       className="fixed inset-0 z-10000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
       data-merck-reader-overlay="true"
     >
-      <div className="relative bg-white rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
+      <div className="relative bg-neutral-0 rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
           <div id="merck-reader-title" className="text-body-2 text-text-primary truncate pr-2">
             {readerTitle}
@@ -532,7 +532,7 @@ const MerckReaderPortal = ({
         </div>
         <div className="relative flex-1">
           {readerLoading ? (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
               <YosemiteLoader label="Loading Manual" size={120} testId="merck-reader-loader" />
             </div>
           ) : null}

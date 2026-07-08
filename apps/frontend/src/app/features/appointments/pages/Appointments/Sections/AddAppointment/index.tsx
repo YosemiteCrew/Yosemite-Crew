@@ -448,7 +448,7 @@ const AddAppointment = ({
       >
         <div className="relative flex flex-col h-full gap-6">
           {isLoading && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/88 backdrop-blur-sm">
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl bg-neutral-0/88 backdrop-blur-sm">
               <YosemiteLoader label="Booking appointment" />
               <div className="text-body-4 text-text-secondary">
                 Finalizing the appointment and refreshing the schedule.

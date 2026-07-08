@@ -327,7 +327,7 @@ const InventoryFilterBar = ({
               key={vis}
               type="button"
               onClick={() => setFilters((prev) => ({ ...prev, visibility: vis }))}
-              className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-blue-text text-blue-text bg-blue-light' : 'border-card-border text-text-primary hover:bg-card-hover bg-white'}`}
+              className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-blue-text text-blue-text bg-blue-light' : 'border-card-border text-text-primary hover:bg-card-hover bg-neutral-0'}`}
             >
               {label}
             </button>
@@ -338,7 +338,7 @@ const InventoryFilterBar = ({
         <button
           type="button"
           onClick={() => setFilterOpen(true)}
-          className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-white px-4 text-body-4 text-text-primary"
+          className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-neutral-0 px-4 text-body-4 text-text-primary"
         >
           <FiSliders size={18} aria-hidden="true" />
           <span>Filter</span>
@@ -354,7 +354,7 @@ const InventoryFilterBar = ({
           ref={triggerRef}
           type="button"
           onClick={() => setSortOpen((v) => !v)}
-          className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-white px-4 text-body-4 text-text-primary"
+          className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-neutral-0 px-4 text-body-4 text-text-primary"
         >
           <FiFilter size={18} aria-hidden="true" />
           <span>Sort by</span>
@@ -368,7 +368,7 @@ const InventoryFilterBar = ({
           createPortal(
             <div
               ref={panelRef}
-              className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
               style={dropdownStyle}
             >
               {SORT_OPTIONS.map((option) => {
@@ -402,7 +402,7 @@ const InventoryFilterBar = ({
             value={filters.search}
             onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
             placeholder="Search inventory"
-            className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
+            className="h-11 w-full rounded-2xl border border-card-border bg-neutral-0 pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
           />
         </div>
       </div>
@@ -478,7 +478,7 @@ const DispensaryFilterBar = ({
         value={dispensarySearch}
         onChange={(event) => setDispensarySearch(event.target.value)}
         placeholder="Search dispensary"
-        className="h-11 w-full rounded-2xl border border-card-border bg-white pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
+        className="h-11 w-full rounded-2xl border border-card-border bg-neutral-0 pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
       />
     </div>
   </div>
@@ -984,7 +984,7 @@ const InventoryFilterModal = ({
               setFilters(defaultFilters);
               setFilterOpen(false);
             }}
-            className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-white px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
+            className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-neutral-0 px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
           >
             Discard
           </button>
@@ -1158,7 +1158,7 @@ const DispensaryFilterModal = ({
               setDispensaryRequestType('ALL');
               setDispensaryFilterOpen(false);
             }}
-            className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-white px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
+            className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-neutral-0 px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
           >
             Discard
           </button>
@@ -1607,7 +1607,7 @@ const Inventory = () => {
             <button
               type="button"
               onClick={() => setActiveView('inventory')}
-              className="inline-flex h-11 items-center justify-center rounded-2xl border border-text-primary bg-white px-5 text-body-4-emphasis text-text-primary hover:bg-card-hover transition-colors"
+              className="inline-flex h-11 items-center justify-center rounded-2xl border border-text-primary bg-neutral-0 px-5 text-body-4-emphasis text-text-primary hover:bg-card-hover transition-colors"
             >
               Inventory
             </button>
@@ -1617,7 +1617,7 @@ const Inventory = () => {
                 type="button"
                 aria-label="Turnover analytics"
                 onClick={() => setActiveView('analytics')}
-                className="inline-flex size-11 items-center justify-center rounded-full border border-card-border bg-white text-text-primary hover:bg-card-hover transition-colors"
+                className="inline-flex size-11 items-center justify-center rounded-full border border-card-border bg-neutral-0 text-text-primary hover:bg-card-hover transition-colors"
               >
                 <LuFileText size={20} aria-hidden="true" />
               </button>
@@ -1626,7 +1626,7 @@ const Inventory = () => {
           {canViewPrescription && activeView !== 'analytics' && (
             <fieldset
               aria-label="Inventory view"
-              className="relative flex h-10 w-[260px] items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white m-0 p-0"
+              className="relative flex h-10 w-[260px] items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-neutral-0 m-0 p-0"
             >
               <legend className="sr-only">Inventory view</legend>
               <div

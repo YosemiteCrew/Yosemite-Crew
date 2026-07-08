@@ -244,7 +244,7 @@ const Header = ({
   });
 
   return (
-    <div className="sticky top-0 z-140 shrink-0 flex w-full items-center gap-4 border-b border-grey-light bg-white px-3 py-2">
+    <div className="sticky top-0 z-140 shrink-0 flex w-full items-center gap-4 border-b border-grey-light bg-neutral-0 px-3 py-2">
       <div className="flex shrink-0 items-center gap-3">
         <GlassTooltip content="Select date" side="bottom">
           <div className="relative z-150">
@@ -304,7 +304,7 @@ const Header = ({
                 createPortal(
                   <div
                     ref={panelRef}
-                    className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+                    className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
                     style={dropdownStyle}
                   >
                     {statusOptions.map((status) => {
@@ -388,7 +388,7 @@ const Header = ({
                 createPortal(
                   <div
                     ref={calendarPanelRef}
-                    className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+                    className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
                     style={calendarDropdownStyle}
                   >
                     {CALENDAR_OPTIONS.map((option) => {
@@ -424,7 +424,7 @@ const Header = ({
                 title="Zoom in timeline"
                 className={`size-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
                   isZoomIn
-                    ? 'bg-white text-text-primary border border-card-border'
+                    ? 'bg-neutral-0 text-text-primary border border-card-border'
                     : 'text-text-secondary hover:bg-card-hover border border-transparent'
                 }`}
               >
@@ -436,7 +436,7 @@ const Header = ({
                 title="Zoom out timeline"
                 className={`size-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
                   isZoomOut
-                    ? 'bg-white text-text-primary border border-card-border'
+                    ? 'bg-neutral-0 text-text-primary border border-card-border'
                     : 'text-text-secondary hover:bg-card-hover border border-transparent'
                 }`}
               >

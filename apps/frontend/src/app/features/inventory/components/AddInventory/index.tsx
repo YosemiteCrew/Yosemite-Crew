@@ -506,7 +506,7 @@ const AddInventory = ({
                   >
                     <span
                       aria-hidden="true"
-                      className={`block size-6 rounded-full bg-white shadow-sm transition-transform ${
+                      className={`block size-6 rounded-full bg-neutral-0 shadow-sm transition-transform ${
                         formData.basicInfo.visibleInInventory === false
                           ? 'translate-x-0'
                           : 'translate-x-6'

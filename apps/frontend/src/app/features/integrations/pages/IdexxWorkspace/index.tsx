@@ -323,7 +323,7 @@ const MobileResultCard = ({
   openResultDetails,
   openResultPdfPreview,
 }: MobileResultCardProps) => (
-  <div className="rounded-2xl border border-card-border p-3 bg-white flex flex-col gap-2">
+  <div className="rounded-2xl border border-card-border p-3 bg-neutral-0 flex flex-col gap-2">
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0 flex-1">
         <div className="text-body-4 text-text-primary">{result.patientName ?? '-'}</div>
@@ -516,7 +516,7 @@ const getResultModalOverlayClassName = (showResultModal: boolean): string => {
 const getResultModalContainerClassName = (showResultModal: boolean): string => {
   const translateClass = showResultModal ? 'translate-x-0' : 'translate-x-[120%]';
   return `fixed top-0 right-0 bottom-0 m-3 p-3 h-[calc(100%-2rem)] w-[calc(100%-2rem)] sm:w-[680px] lg:w-[760px]
-          bg-white border border-card-border rounded-2xl z-[1200]
+          bg-neutral-0 border border-card-border rounded-2xl z-[1200]
           transition-transform duration-300 ease-in-out
           ${translateClass}`;
 };
@@ -554,7 +554,7 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
       data-signing-overlay="true"
       style={{ pointerEvents: 'auto' }}
     >
-      <div className="relative bg-white rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
+      <div className="relative bg-neutral-0 rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
           <div className="text-body-2 text-text-primary">IDEXX follow-up hub</div>
           <button
@@ -569,7 +569,7 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
         </div>
         <div className="relative flex-1">
           {loaded ? null : (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
               <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-followup-loader" />
             </div>
           )}
@@ -649,7 +649,7 @@ const CensusEntriesList = ({ entries, terminologyText }: CensusEntriesListProps)
       {entries.map((entry) => (
         <div
           key={`${entry.id}-${entry.patient.patientId}`}
-          className="rounded-2xl border border-card-border p-3 bg-white"
+          className="rounded-2xl border border-card-border p-3 bg-neutral-0"
         >
           <div className="text-body-4 text-text-primary">{entry.patient.name}</div>
           <div className="text-caption-1 text-text-secondary mt-0.5">
@@ -1085,7 +1085,7 @@ const IdexxWorkspacePage = () => {
   const startRow = getStartRow(s.page, s.pageSize, s.paginatedResults.length);
   const idexxHubLabel = (
     <span className="inline-flex items-center gap-2 py-1 my-1">
-      <span className="inline-flex items-center justify-center rounded-md bg-white px-1.5 py-1">
+      <span className="inline-flex items-center justify-center rounded-md bg-neutral-0 px-1.5 py-1">
         <Image
           src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
           alt="IDEXX"
@@ -1174,15 +1174,15 @@ const IdexxWorkspacePage = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-        <div className="rounded-2xl border border-card-border p-3 bg-white">
+        <div className="rounded-2xl border border-card-border p-3 bg-neutral-0">
           <div className="text-caption-1 text-text-secondary">Results</div>
           <div className="text-body-3-emphasis text-text-primary">{s.summary.totalResults}</div>
         </div>
-        <div className="rounded-2xl border border-card-border p-3 bg-white">
+        <div className="rounded-2xl border border-card-border p-3 bg-neutral-0">
           <div className="text-caption-1 text-text-secondary">Census entries</div>
           <div className="text-body-3-emphasis text-text-primary">{s.summary.censusCount}</div>
         </div>
-        <div className="rounded-2xl border border-card-border p-3 bg-white">
+        <div className="rounded-2xl border border-card-border p-3 bg-neutral-0">
           <div className="text-caption-1 text-text-secondary">Last refreshed</div>
           <div className="text-body-4 text-text-primary">
             {formatDateTimeLocal(s.lastRefreshedAt, 'Not refreshed yet')}
@@ -1256,7 +1256,7 @@ const IdexxWorkspacePage = () => {
               <Back
                 onClick={() => s.setPage((p) => Math.max(1, p - 1))}
                 disabled={s.page <= 1}
-                className={s.page <= 1 ? 'hover:bg-white! cursor-not-allowed opacity-40' : ''}
+                className={s.page <= 1 ? 'hover:bg-neutral-0! cursor-not-allowed opacity-40' : ''}
               />
               <div aria-current="page" className="text-body-4 text-text-primary">
                 Page {s.page} / {s.totalPages}
@@ -1265,7 +1265,7 @@ const IdexxWorkspacePage = () => {
                 onClick={() => s.setPage((p) => Math.min(s.totalPages, p + 1))}
                 disabled={s.page >= s.totalPages}
                 className={
-                  s.page >= s.totalPages ? 'hover:bg-white! cursor-not-allowed opacity-40' : ''
+                  s.page >= s.totalPages ? 'hover:bg-neutral-0! cursor-not-allowed opacity-40' : ''
                 }
               />
             </nav>

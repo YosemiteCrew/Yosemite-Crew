@@ -259,7 +259,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                     height={height}
                     slotOffsetMinutes={slotOffsetMinutes}
                     showSlotTimeLabels={showSlotTimeLabels}
-                    className="sticky left-0 z-20 bg-white"
+                    className="sticky left-0 z-20 bg-neutral-0"
                   />
                   <div className="grid min-w-max" style={teamColumnsStyle}>
                     {team?.map((user, index) => {
@@ -338,7 +338,10 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
                       );
                     })}
                   </div>
-                  <div className="sticky right-0 z-20 bg-white" style={{ height: height + 'px' }} />
+                  <div
+                    className="sticky right-0 z-20 bg-neutral-0"
+                    style={{ height: height + 'px' }}
+                  />
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />

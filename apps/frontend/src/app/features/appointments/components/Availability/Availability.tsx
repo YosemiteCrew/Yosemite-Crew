@@ -69,7 +69,7 @@ const Availability: React.FC<AvailabilityProps> = ({
   const renderDayCard = (day: string) => (
     <div
       key={day}
-      className="mb-3 break-inside-avoid rounded-2xl border border-card-border bg-white p-3"
+      className="mb-3 break-inside-avoid rounded-2xl border border-card-border bg-neutral-0 p-3"
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -118,7 +118,7 @@ const Availability: React.FC<AvailabilityProps> = ({
                   disabled={readOnly}
                 />
                 {!readOnly && (
-                  <div className="border-none outline-none bg-white flex items-center justify-center shrink-0">
+                  <div className="border-none outline-none bg-neutral-0 flex items-center justify-center shrink-0">
                     {i === 0 ? (
                       <FaCirclePlus
                         color="var(--color-neutral-900)"

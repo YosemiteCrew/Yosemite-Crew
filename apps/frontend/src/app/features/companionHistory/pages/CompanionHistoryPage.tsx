@@ -449,7 +449,7 @@ const CompanionHistoryPageInner = () => {
             ) : null}
 
             {hasCompanionId ? null : (
-              <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
+              <div className="rounded-2xl border border-card-border bg-neutral-0 px-4 py-6 text-body-3 text-text-secondary">
                 Companion id is missing. Please open overview from Appointments or Companions.
               </div>
             )}

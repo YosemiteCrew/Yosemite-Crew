@@ -289,12 +289,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
         onWheel={onWheelHorizontal}
       >
         <div className="min-w-max h-full flex flex-col">
-          <div className="z-30 bg-white shrink-0">
-            <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
-              <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
+          <div className="z-30 bg-neutral-0 shrink-0">
+            <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-neutral-0">
+              <div className="sticky left-0 z-40 bg-neutral-0 flex items-center justify-center">
                 <Back onClick={handlePrevWeek} />
               </div>
-              <div className="grid bg-white" style={dayColumnsStyle}>
+              <div className="grid bg-neutral-0" style={dayColumnsStyle}>
                 {days.map((day) => {
                   const weekday = day.toLocaleDateString('en-US', {
                     weekday: 'short',
@@ -322,7 +322,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                   );
                 })}
               </div>
-              <div className="sticky right-0 z-40 bg-white flex items-center justify-center">
+              <div className="sticky right-0 z-40 bg-neutral-0 flex items-center justify-center">
                 <Next onClick={handleNextWeek} />
               </div>
             </div>
@@ -394,7 +394,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     showSlotTimeLabels={showSlotTimeLabels}
                     pinFirstHour
                     firstHour={visibleHours[0]}
-                    className="sticky left-0 z-20 bg-white"
+                    className="sticky left-0 z-20 bg-neutral-0"
                   />
                   <div className="grid min-w-max" style={dayColumnsStyle}>
                     {days.map((day, dayIndex) => {
@@ -466,7 +466,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                       );
                     })}
                   </div>
-                  <div className="sticky right-0 z-20 bg-white" style={{ height }} />
+                  <div className="sticky right-0 z-20 bg-neutral-0" style={{ height }} />
                 </div>
               ))}
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />

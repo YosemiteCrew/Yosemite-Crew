@@ -244,7 +244,7 @@ const TaskSlot = ({
     <>
       <section
         aria-label={taskSlotLabel}
-        className={`relative bg-white border-l border-grey-light ${
+        className={`relative bg-neutral-0 border-l border-grey-light ${
           resolvedDayIndex === length ? 'border-r' : ''
         }`}
         style={{ height: `${height}px` }}
@@ -432,7 +432,7 @@ const TaskSlot = ({
                 <button
                   type="button"
                   title="View task"
-                  className="size-6 rounded-full bg-white/95 border border-card-border flex items-center justify-center cursor-pointer shadow-sm"
+                  className="size-6 rounded-full bg-neutral-0/95 border border-card-border flex items-center justify-center cursor-pointer shadow-sm"
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -453,7 +453,7 @@ const TaskSlot = ({
               id={taskPopoverId}
               ref={popoverDialogRef}
               open
-              className="fixed z-[1000] m-0 box-border w-[304px] max-w-[calc(100vw-16px)] rounded-2xl border border-card-border bg-white p-3 shadow-[0_8px_24px_0_rgba(0,0,0,0.16)] outline-none"
+              className="fixed z-[1000] m-0 box-border w-[304px] max-w-[calc(100vw-16px)] rounded-2xl border border-card-border bg-neutral-0 p-3 shadow-[0_8px_24px_0_rgba(0,0,0,0.16)] outline-none"
               style={popoverStyle}
               aria-labelledby={taskPopoverTitleId}
               aria-modal="false"

@@ -283,7 +283,7 @@ const ToggleSwitch = ({
   >
     <span
       aria-hidden="true"
-      className={`block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+      className={`block h-4 w-4 rounded-full bg-neutral-0 shadow-sm transition-transform ${
         checked ? 'translate-x-6' : 'translate-x-0'
       }`}
     />
@@ -331,7 +331,7 @@ const IconCircleButton = ({
     onClick={onClick}
     className={`flex h-8 w-8 items-center justify-center rounded-full border ${
       danger
-        ? 'border-text-error bg-white text-text-error'
+        ? 'border-text-error bg-neutral-0 text-text-error'
         : 'border-text-primary bg-text-primary text-white'
     }`}
   >

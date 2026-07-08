@@ -162,7 +162,7 @@ const OldHeroSection = ({
                   key={slide.id}
                   type="button"
                   aria-label={`Go to slide ${i + 1}`}
-                  className={`size-2 rounded-full transition-colors ${i === index ? 'bg-white' : 'bg-white/40'}`}
+                  className={`size-2 rounded-full transition-colors ${i === index ? 'bg-neutral-0' : 'bg-neutral-0/40'}`}
                   onClick={() => handleSelect(i)}
                 />
               ))}

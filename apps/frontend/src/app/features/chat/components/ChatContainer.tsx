@@ -144,7 +144,7 @@ function ChatScopeSwitcher({
   return (
     <fieldset
       aria-label="Chat audience"
-      className="relative m-0 flex h-10 w-full items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-white p-0"
+      className="relative m-0 flex h-10 w-full items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-neutral-0 p-0"
     >
       <legend className="sr-only">Chat audience</legend>
       <div

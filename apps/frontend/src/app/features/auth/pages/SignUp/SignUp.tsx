@@ -280,7 +280,7 @@ const SignUp = ({
           </div>
         </div>
 
-        <div className="w-full sm:w-[70%] md:w-1/2 bg-white p-[20px] border border-card-border rounded-3xl elevation-1">
+        <div className="w-full sm:w-[70%] md:w-1/2 bg-neutral-0 p-[20px] border border-card-border rounded-3xl elevation-1">
           <form onSubmit={handleSignUp} method="post" className="flex flex-col gap-6">
             <div className="flex flex-col gap-6">
               <h1 className="text-display-2 text-text-primary text-center auth-title">

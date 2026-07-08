@@ -211,7 +211,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
       id={popoverId}
       ref={popoverDialogRef}
       open
-      className="fixed z-[1000] w-[440px] rounded-3xl border border-card-border bg-white p-5 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
+      className="fixed z-[1000] w-[440px] rounded-3xl border border-card-border bg-neutral-0 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
       style={popoverStyle}
       aria-labelledby={titleId}
       aria-modal="false"
@@ -231,7 +231,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
             )}
             height={48}
             width={48}
-            className="flex aspect-square size-12 shrink-0 items-center justify-center rounded-full border border-card-border bg-white object-cover"
+            className="flex aspect-square size-12 shrink-0 items-center justify-center rounded-full border border-card-border bg-neutral-0 object-cover"
             style={{ width: 48, height: 48 }}
             alt=""
           />
@@ -359,7 +359,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                 type="button"
                 title="Appointment overview"
                 aria-label="Appointment overview"
-                className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+                className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-neutral-0 p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
                 onClick={() => {
                   router.push(
                     buildAppointmentCompanionHistoryHref(
@@ -379,7 +379,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                 type="button"
                 title="Finance summary"
                 aria-label="Finance summary"
-                className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+                className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-neutral-0 p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
                 onClick={() => {
                   openWorkspace({ label: 'finance', subLabel: 'summary' });
                 }}
@@ -392,7 +392,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                 type="button"
                 title="Lab tests"
                 aria-label="Lab tests"
-                className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+                className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-neutral-0 p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
                 onClick={() => {
                   openWorkspace({ label: 'labs', subLabel: 'idexx-labs' });
                 }}
@@ -406,7 +406,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                   type="button"
                   title="Reschedule"
                   aria-label="Reschedule appointment"
-                  className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+                  className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-neutral-0 p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
                   onClick={() => {
                     handleRescheduleAppointment(appointment);
                     onClose();
@@ -422,7 +422,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                   type="button"
                   title="Assign room"
                   aria-label="Assign room"
-                  className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+                  className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-neutral-0 p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
                   onClick={() => {
                     handleChangeRoomAppointment?.(appointment);
                     onClose();
@@ -437,7 +437,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                 type="button"
                 title={clinicalNotesLabel}
                 aria-label={clinicalNotesLabel}
-                className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-white p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
+                className="flex size-12 shrink-0 items-center justify-center rounded-full! border-[1.2px] border-neutral-900 bg-neutral-0 p-3 text-neutral-900 shadow-[0_1px_8px_1px_rgba(169,163,158,0.10)] hover:bg-card-bg"
                 onClick={() => {
                   openWorkspace(clinicalNotesIntent);
                 }}

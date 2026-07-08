@@ -76,7 +76,7 @@ const ImageUploadField = ({ label, value, organisationId, onChange }: Props) => 
       {label && <div className="px-4 text-caption-1 text-text-secondary">{label}</div>}
 
       {displayUrl ? (
-        <div className="relative overflow-hidden rounded-2xl border border-input-border-default bg-white">
+        <div className="relative overflow-hidden rounded-2xl border border-input-border-default bg-neutral-0">
           <Image
             src={displayUrl}
             alt="Product image"
@@ -90,13 +90,13 @@ const ImageUploadField = ({ label, value, organisationId, onChange }: Props) => 
               type="button"
               onClick={handleRemove}
               aria-label="Remove image"
-              className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-white/90 shadow hover:bg-white transition-colors"
+              className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-neutral-0/90 shadow hover:bg-neutral-0 transition-colors"
             >
               <FiX size={14} />
             </button>
           )}
           {isUploading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/60">
+            <div className="absolute inset-0 flex items-center justify-center bg-neutral-0/60">
               <span className="text-body-4 text-text-secondary">Uploading…</span>
             </div>
           )}
@@ -106,7 +106,7 @@ const ImageUploadField = ({ label, value, organisationId, onChange }: Props) => 
           type="button"
           disabled={isUploading}
           onClick={() => document.getElementById(inputId)?.click()}
-          className="flex min-h-35 w-full flex-col items-center justify-center rounded-2xl border border-input-border-default bg-white px-4 py-5 text-center text-text-primary disabled:opacity-60"
+          className="flex min-h-35 w-full flex-col items-center justify-center rounded-2xl border border-input-border-default bg-neutral-0 px-4 py-5 text-center text-text-primary disabled:opacity-60"
         >
           <RiUploadCloud2Fill size={34} className="text-blue-text" aria-hidden="true" />
           <span className="mt-2 text-body-4-emphasis">

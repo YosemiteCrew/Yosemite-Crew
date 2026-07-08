@@ -653,7 +653,7 @@ const SlotComponent: React.FC<SlotProps> = ({
             })()}
           </div>
         ) : (
-          <div className="relative h-full bg-white overflow-visible px-1">
+          <div className="relative h-full bg-neutral-0 overflow-visible px-1">
             {laidOutZoomInEvents.map(
               ({
                 ev,

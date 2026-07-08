@@ -403,8 +403,8 @@ const AppointmentBoardComponent = ({
   }, [autoScrollBoardOnDrag, canEditAppointments, draggedAppointmentId]);
 
   return (
-    <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
-      <div className="shrink-0 border-b border-grey-light bg-white px-3 py-2">
+    <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-neutral-0 overflow-hidden flex flex-col">
+      <div className="shrink-0 border-b border-grey-light bg-neutral-0 px-3 py-2">
         <div className="flex w-full items-center gap-4">
           <div className="flex shrink-0 items-center gap-2 text-body-4-emphasis text-text-primary">
             <GlassTooltip content="Select date" side="bottom">
@@ -512,7 +512,7 @@ const AppointmentBoardComponent = ({
                 ref={(element) => {
                   columnDropRefs.current[column.key] = element;
                 }}
-                className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
+                className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-neutral-0 overflow-hidden flex flex-col min-h-0"
               >
                 <div
                   className="rounded-t-2xl border-b px-3 py-2"
@@ -544,7 +544,7 @@ const AppointmentBoardComponent = ({
                   ref={(element) => {
                     columnScrollRefs.current[column.key] = element;
                   }}
-                  className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
+                  className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-neutral-0 overflow-y-auto"
                   onWheel={onWheelBoundary}
                   data-calendar-scroll="true"
                 >
@@ -571,7 +571,7 @@ const AppointmentBoardComponent = ({
                             ? `Draggable appointment ${companionDisplayName}`
                             : `Appointment ${companionDisplayName}`
                         }
-                        className={`relative w-full min-h-[142px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-white px-4 py-3 text-left transition-colors flex flex-col items-stretch justify-start ${
+                        className={`relative w-full min-h-[142px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-neutral-0 px-4 py-3 text-left transition-colors flex flex-col items-stretch justify-start ${
                           draggedAppointmentId === (appointment.id ?? null)
                             ? 'opacity-60 shadow-none'
                             : 'hover:border-input-border-active! hover:bg-card-hover!'
@@ -625,7 +625,7 @@ const AppointmentBoardComponent = ({
                               )}
                               height={24}
                               width={24}
-                              className="size-6 rounded-full border border-card-border bg-white object-cover"
+                              className="size-6 rounded-full border border-card-border bg-neutral-0 object-cover"
                               alt=""
                             />
                             <div className="text-[10px] text-text-secondary whitespace-nowrap">
@@ -686,7 +686,7 @@ const AppointmentBoardComponent = ({
                               <GlassTooltip content="View appointment" side="bottom">
                                 <button
                                   type="button"
-                                  className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                  className="size-8 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
                                   onClick={(event) => {
                                     event.preventDefault();
                                     event.stopPropagation();
@@ -700,7 +700,7 @@ const AppointmentBoardComponent = ({
                             <GlassTooltip content="Overview" side="bottom">
                               <button
                                 type="button"
-                                className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                className="size-8 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
                                 onClick={(event) => {
                                   event.preventDefault();
                                   event.stopPropagation();
@@ -716,7 +716,7 @@ const AppointmentBoardComponent = ({
                                 <GlassTooltip content="Change status" side="bottom">
                                   <button
                                     type="button"
-                                    className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                    className="size-8 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
                                     onClick={(event) => {
                                       event.preventDefault();
                                       event.stopPropagation();
@@ -734,7 +734,7 @@ const AppointmentBoardComponent = ({
                               <GlassTooltip content="Reschedule" side="bottom">
                                 <button
                                   type="button"
-                                  className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                  className="size-8 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
                                   onClick={(event) => {
                                     event.preventDefault();
                                     event.stopPropagation();
@@ -750,7 +750,7 @@ const AppointmentBoardComponent = ({
                                 <GlassTooltip content="Assign room" side="bottom">
                                   <button
                                     type="button"
-                                    className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                    className="size-8 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
                                     onClick={(event) => {
                                       event.preventDefault();
                                       event.stopPropagation();
@@ -769,7 +769,7 @@ const AppointmentBoardComponent = ({
                             >
                               <button
                                 type="button"
-                                className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                className="size-8 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
                                 onClick={(event) => {
                                   event.preventDefault();
                                   event.stopPropagation();
@@ -788,7 +788,7 @@ const AppointmentBoardComponent = ({
                             <GlassTooltip content="Finance summary" side="bottom">
                               <button
                                 type="button"
-                                className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                className="size-8 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
                                 onClick={(event) => {
                                   event.preventDefault();
                                   event.stopPropagation();
@@ -804,7 +804,7 @@ const AppointmentBoardComponent = ({
                             <GlassTooltip content="Lab tests" side="bottom">
                               <button
                                 type="button"
-                                className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                                className="size-8 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
                                 onClick={(event) => {
                                   event.preventDefault();
                                   event.stopPropagation();
@@ -828,7 +828,7 @@ const AppointmentBoardComponent = ({
                     );
                   })}
                   {!hasAppointments && (
-                    <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">
+                    <div className="rounded-2xl border border-dashed border-card-border bg-neutral-0 px-3 py-4 text-center text-caption-1 text-text-secondary">
                       No appointments
                     </div>
                   )}

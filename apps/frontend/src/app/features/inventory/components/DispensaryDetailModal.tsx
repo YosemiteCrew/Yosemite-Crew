@@ -336,7 +336,7 @@ const DispensaryDetailModal = ({
                 onClick={handlePrintLabel}
                 disabled={printing}
                 aria-label="Label"
-                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-text-primary bg-white px-5 text-body-4-emphasis text-text-primary hover:bg-card-hover transition-colors disabled:opacity-50"
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-text-primary bg-neutral-0 px-5 text-body-4-emphasis text-text-primary hover:bg-card-hover transition-colors disabled:opacity-50"
               >
                 <FiPrinter size={16} />
                 <span>{printing ? 'Loading…' : 'Label'}</span>

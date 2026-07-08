@@ -315,7 +315,7 @@ const AddFieldDropdown: React.FC<{
         className="cursor-pointer"
       />
       {open && (
-        <div className="absolute top-[120%] z-10 right-0 rounded-2xl border border-grey-noti bg-white shadow-md! flex flex-col items-center w-[160px]">
+        <div className="absolute top-[120%] z-10 right-0 rounded-2xl border border-grey-noti bg-neutral-0 shadow-md! flex flex-col items-center w-[160px]">
           {options.map((option, i) => (
             <button
               type="button"

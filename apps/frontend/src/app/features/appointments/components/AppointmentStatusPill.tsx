@@ -157,7 +157,7 @@ const AppointmentStatusPill = ({
       {error && (
         <div
           role="alert"
-          className="absolute right-0 top-full mt-1 z-10 rounded-lg border border-card-border bg-white px-2 py-1 text-[10px] text-text-error shadow-sm whitespace-nowrap"
+          className="absolute right-0 top-full mt-1 z-10 rounded-lg border border-card-border bg-neutral-0 px-2 py-1 text-[10px] text-text-error shadow-sm whitespace-nowrap"
         >
           {error}
         </div>
@@ -171,7 +171,7 @@ const AppointmentStatusPill = ({
             data-popover-panel="true"
             role="menu"
             onPointerDown={(e) => e.stopPropagation()}
-            className="rounded-2xl! bg-white shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden whitespace-nowrap"
+            className="rounded-2xl! bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.12)] overflow-hidden whitespace-nowrap"
             style={{
               ...menuStyle,
               minWidth: 120,

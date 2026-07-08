@@ -128,7 +128,7 @@ const Arrow = ({ open }: { open: boolean }) => (
 // ─── Floating label ─────────────────────────────────────────────────────────────
 const FloatLabel = ({ floated, children }: { floated: boolean; children: ReactNode }) => (
   <span
-    className="pointer-events-none absolute left-5 z-10 flex items-center gap-1 bg-white px-1 transition-all duration-150"
+    className="pointer-events-none absolute left-5 z-10 flex items-center gap-1 bg-neutral-0 px-1 transition-all duration-150"
     style={
       floated
         ? { ...floatLabelActive, top: 0, transform: 'translateY(-50%)' }
@@ -239,7 +239,7 @@ const PersonRow = ({
           <div
             data-portal-dropdown
             className={clsx(
-              'bg-white rounded-b-2xl overflow-y-auto max-h-44 scrollbar-hidden',
+              'bg-neutral-0 rounded-b-2xl overflow-y-auto max-h-44 scrollbar-hidden',
               'border-l border-r border-b border-t',
               error ? 'border-input-border-error' : 'border-input-text-placeholder-active'
             )}
@@ -284,7 +284,7 @@ const PersonRow = ({
       <div
         ref={triggerRef}
         className={clsx(
-          'relative flex items-center min-h-12 border bg-white transition-colors duration-150 cursor-text',
+          'relative flex items-center min-h-12 border bg-neutral-0 transition-colors duration-150 cursor-text',
           open
             ? 'rounded-t-2xl border-input-border-active border-b-0'
             : 'rounded-2xl border-input-border-default',
@@ -528,7 +528,7 @@ const TimeSlotDropdown = ({
           <div
             data-portal-dropdown
             className={clsx(
-              'bg-white rounded-b-2xl overflow-y-auto max-h-44 scrollbar-hidden',
+              'bg-neutral-0 rounded-b-2xl overflow-y-auto max-h-44 scrollbar-hidden',
               'border-l border-r border-b border-t',
               error ? 'border-input-border-error' : 'border-input-text-placeholder-active'
             )}
@@ -557,7 +557,7 @@ const TimeSlotDropdown = ({
         type="button"
         ref={triggerRef}
         className={clsx(
-          'relative flex w-full items-center min-h-12 border bg-white text-left transition-colors duration-150 select-none',
+          'relative flex w-full items-center min-h-12 border bg-neutral-0 text-left transition-colors duration-150 select-none',
           open
             ? 'rounded-t-2xl border-input-border-active border-b-0'
             : 'rounded-2xl border-input-border-default',
@@ -584,7 +584,7 @@ const TimeSlotDropdown = ({
 
 // ─── SlotBadge — duration display ──────────────────────────────────────────────
 const SlotBadge = ({ label }: { label: string | null }) => (
-  <div className="relative flex items-center min-h-12 border border-input-border-default rounded-2xl bg-white px-5 py-3">
+  <div className="relative flex items-center min-h-12 border border-input-border-default rounded-2xl bg-neutral-0 px-5 py-3">
     <FloatLabel floated={Boolean(label)}>Slot duration</FloatLabel>
     <span style={label ? text16R : { ...text16R, color: INPUT_PLACEHOLDER }}>{label ?? ''}</span>
   </div>

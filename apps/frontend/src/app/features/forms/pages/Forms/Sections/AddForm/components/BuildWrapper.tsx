@@ -108,7 +108,7 @@ const BuilderWrapper: React.FC<{
     <section
       ref={wrapperRef}
       aria-label={`${title} field`}
-      className={`${compact ? 'border border-card-border rounded-xl px-3 py-2 gap-2 bg-white' : 'border border-grey-light rounded-2xl p-3 gap-3 bg-white'} flex flex-col ${
+      className={`${compact ? 'border border-card-border rounded-xl px-3 py-2 gap-2 bg-neutral-0' : 'border border-grey-light rounded-2xl p-3 gap-3 bg-neutral-0'} flex flex-col ${
         isDragging ? 'rounded-2xl' : ''
       }`}
       {...dragProps}

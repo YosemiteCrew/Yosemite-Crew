@@ -729,7 +729,7 @@ const PaymentProgressOverlay = ({
         aria-modal="true"
         aria-labelledby="payment-progress-title"
         aria-describedby="payment-progress-description"
-        className="flex w-full max-w-115 flex-col items-center gap-4 rounded-3xl border border-card-border bg-white p-6 text-center shadow-[0_24px_60px_rgba(0,0,0,0.22)]"
+        className="flex w-full max-w-115 flex-col items-center gap-4 rounded-3xl border border-card-border bg-neutral-0 p-6 text-center shadow-[0_24px_60px_rgba(0,0,0,0.22)]"
       >
         {isChecking ? (
           <YosemiteLoader size={64} testId="invoice-payment-progress-loader" />

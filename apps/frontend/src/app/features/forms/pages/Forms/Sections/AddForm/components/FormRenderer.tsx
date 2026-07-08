@@ -64,15 +64,15 @@ const isMedicationLikeGroup = (field: FormField): boolean =>
 
 const getGroupContainerClass = (level: number, medicationGroup: boolean): string => {
   if (level === 0) {
-    return 'rounded-2xl border border-card-border bg-white p-4';
+    return 'rounded-2xl border border-card-border bg-neutral-0 p-4';
   }
   if (medicationGroup) {
-    return 'rounded-xl border border-card-border bg-white p-3';
+    return 'rounded-xl border border-card-border bg-neutral-0 p-3';
   }
   if (level === 1) {
-    return 'rounded-xl border border-grey-light bg-white p-3';
+    return 'rounded-xl border border-grey-light bg-neutral-0 p-3';
   }
-  return 'rounded-lg border-l-2 border-card-border bg-white px-3 py-2';
+  return 'rounded-lg border-l-2 border-card-border bg-neutral-0 px-3 py-2';
 };
 
 const getGroupTitleClass = (level: number): string =>
