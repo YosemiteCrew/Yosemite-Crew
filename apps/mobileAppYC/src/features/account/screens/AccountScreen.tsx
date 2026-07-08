@@ -33,6 +33,7 @@ import DeleteAccountBottomSheet, {
   type DeleteAccountBottomSheetRef,
 } from '@/features/account/components/DeleteAccountBottomSheet';
 import {AccountMenuList} from '@/features/account/components/AccountMenuList';
+import type {IconTileTone} from '@/shared/components/common/IconTile/IconTile';
 import {Header} from '@/shared/components/common/Header/Header';
 import {AppearanceSelector} from '@/shared/components/common/AppearanceSelector/AppearanceSelector';
 import {
@@ -65,6 +66,7 @@ type MenuItem = {
   id: string;
   label: string;
   icon: ImageSourcePropType;
+  tone?: IconTileTone;
   onPress: () => void;
   danger?: boolean;
 };
@@ -331,6 +333,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'faqs',
         label: 'FAQs',
         icon: Images.faqIcon,
+        tone: 'info',
         onPress: () => {
           navigation.navigate('FAQ');
         },
@@ -339,6 +342,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'about',
         label: 'About us',
         icon: Images.aboutusIcon,
+        tone: 'indigo',
         onPress: () => {
           Linking.openURL('https://www.yosemitecrew.com/about').catch(
             console.warn,
@@ -349,6 +353,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'terms',
         label: 'Terms and Conditions',
         icon: Images.tncIcon,
+        tone: 'violet',
         onPress: () => {
           navigation.navigate('TermsAndConditions');
         },
@@ -357,6 +362,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'privacy',
         label: 'Privacy Policy',
         icon: Images.privacyIcon,
+        tone: 'success',
         onPress: () => {
           navigation.navigate('PrivacyPolicy');
         },
@@ -365,6 +371,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'contact',
         label: 'Contact us',
         icon: Images.contactIcon,
+        tone: 'warning',
         onPress: () => {
           navigation.navigate('ContactUs');
         },

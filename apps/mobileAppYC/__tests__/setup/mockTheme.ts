@@ -618,6 +618,8 @@ export const createMockTheme = () => ({
     indigoSurface: '#E0E7FF',
     violet: '#7C3AED',
     violetSurface: '#EDE9FE',
+    successSurface: 'rgba(0, 143, 93, 0.12)',
+    warningSurface: 'rgba(255, 152, 0, 0.12)',
     avatarAmberBg: '#FEF3E9',
     avatarAmberInk: '#AF5E19',
     avatarVioletBg: '#F5F3FF',
