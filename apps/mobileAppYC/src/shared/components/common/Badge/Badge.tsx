@@ -16,7 +16,14 @@ import {
 import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
 
-export type BadgeTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger';
+export type BadgeTone =
+  | 'neutral'
+  | 'info'
+  | 'indigo'
+  | 'violet'
+  | 'success'
+  | 'warning'
+  | 'danger';
 
 export type BadgeStatus =
   | 'upcoming'
@@ -40,8 +47,8 @@ export interface BadgeProps {
 const STATUS_TONE: Record<BadgeStatus, BadgeTone> = {
   upcoming: 'info',
   requested: 'neutral',
-  checkedIn: 'info',
-  inProgress: 'info',
+  checkedIn: 'indigo',
+  inProgress: 'violet',
   completed: 'success',
   pending: 'warning',
   cancelled: 'danger',
@@ -58,6 +65,18 @@ const tonePalette = (theme: Theme, tone: BadgeTone): TonePalette => {
   switch (tone) {
     case 'info':
       return {bg: colors.blueSoft, text: colors.navActive, border: colors.blue};
+    case 'indigo':
+      return {
+        bg: colors.indigoSurface,
+        text: colors.indigo,
+        border: colors.indigo,
+      };
+    case 'violet':
+      return {
+        bg: colors.violetSurface,
+        text: colors.violet,
+        border: colors.violet,
+      };
     case 'success':
       return {
         bg: colors.successSurface,

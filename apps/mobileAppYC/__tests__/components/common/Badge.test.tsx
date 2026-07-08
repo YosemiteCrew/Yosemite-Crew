@@ -28,6 +28,8 @@ describe('Badge', () => {
 
   it.each([
     ['info', mockTheme.colors.blueSoft],
+    ['indigo', mockTheme.colors.indigoSurface],
+    ['violet', mockTheme.colors.violetSurface],
     ['success', mockTheme.colors.successSurface],
     ['warning', mockTheme.colors.warningSurface],
     ['danger', mockTheme.colors.dangerSurface],
@@ -39,8 +41,8 @@ describe('Badge', () => {
   it.each([
     ['upcoming', mockTheme.colors.blueSoft],
     ['requested', mockTheme.colors.screen2],
-    ['checkedIn', mockTheme.colors.blueSoft],
-    ['inProgress', mockTheme.colors.blueSoft],
+    ['checkedIn', mockTheme.colors.indigoSurface],
+    ['inProgress', mockTheme.colors.violetSurface],
     ['completed', mockTheme.colors.successSurface],
     ['pending', mockTheme.colors.warningSurface],
     ['cancelled', mockTheme.colors.dangerSurface],

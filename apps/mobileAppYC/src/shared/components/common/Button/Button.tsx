@@ -9,7 +9,13 @@ import {
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
+type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'outline'
+  | 'ghost'
+  | 'danger'
+  | 'dangerGhost';
 
 interface ButtonProps {
   title: string;
@@ -41,6 +47,8 @@ export const Button: React.FC<ButtonProps> = ({
     secondary: theme.colors.inkBody,
     outline: theme.colors.blue,
     ghost: theme.colors.blue,
+    danger: theme.colors.white,
+    dangerGhost: theme.colors.danger,
   };
 
   const getButtonStyle = (): ViewStyle => {
@@ -87,6 +95,12 @@ export const Button: React.FC<ButtonProps> = ({
       ghost: {
         backgroundColor: theme.colors.transparent,
       },
+      danger: {
+        backgroundColor: disabled ? theme.colors.divider : theme.colors.danger,
+      },
+      dangerGhost: {
+        backgroundColor: theme.colors.transparent,
+      },
     };
 
     return {
@@ -110,6 +124,10 @@ export const Button: React.FC<ButtonProps> = ({
       },
       outline: {color: disabled ? theme.colors.inkFaint : theme.colors.blue},
       ghost: {color: disabled ? theme.colors.inkFaint : theme.colors.blue},
+      danger: {color: theme.colors.white},
+      dangerGhost: {
+        color: disabled ? theme.colors.inkFaint : theme.colors.danger,
+      },
     };
 
     return {
