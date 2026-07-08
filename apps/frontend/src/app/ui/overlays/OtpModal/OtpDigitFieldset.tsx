@@ -1,6 +1,15 @@
 import React from 'react';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
+const OTP_DIGIT_KEYS = [
+  'otp-digit-1',
+  'otp-digit-2',
+  'otp-digit-3',
+  'otp-digit-4',
+  'otp-digit-5',
+  'otp-digit-6',
+] as const;
+
 type OtpDigitFieldsetProps = {
   code: string[];
   otpHintId: string;
@@ -29,7 +38,7 @@ const OtpDigitFieldset = ({
     >
       {code.map((digit, idx) => (
         <input
-          key={idx}
+          key={OTP_DIGIT_KEYS[idx]}
           ref={(el) => setOtpRef(el, idx)}
           type="text"
           maxLength={1}
