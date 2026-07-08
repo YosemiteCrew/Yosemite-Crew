@@ -99,7 +99,7 @@ const GoogleSearchDropDown = ({
   onAddressSelect,
 }: Readonly<GoogleSearchDropDownProps>) => {
   const uid = useId();
-  const [isFocused, setIsFocused] = useState(false);
+  const isFocusedRef = useRef(false);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -174,7 +174,7 @@ const GoogleSearchDropDown = ({
       logger.debug('Google places autocomplete results', list);
       lastQueriedRef.current = q;
       setPredictions(list);
-      if (!suppressNextOpenRef.current && isFocused) setOpen(list.length > 0);
+      if (!suppressNextOpenRef.current && isFocusedRef.current) setOpen(list.length > 0);
     } catch (err) {
       logger.error('Google places autocomplete failed', err);
       setPredictions([]);
@@ -343,7 +343,7 @@ const GoogleSearchDropDown = ({
   };
 
   const onFocus = () => {
-    setIsFocused(true);
+    isFocusedRef.current = true;
     shouldFetchRef.current = true;
     if (predictions.length) setOpen(true);
   };
@@ -369,7 +369,7 @@ const GoogleSearchDropDown = ({
           ref={inputRef}
           onBlur={() => {
             if (suppressNextOpenRef.current) return;
-            setIsFocused(false);
+            isFocusedRef.current = false;
             setOpen(false);
           }}
           className={`
