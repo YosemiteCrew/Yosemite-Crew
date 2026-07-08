@@ -16,5 +16,14 @@ const PRE_PAINT_SCRIPT =
 
 export default async function ThemeScript() {
   const nonce = (await headers()).get(NONCE_HEADER) ?? undefined;
-  return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: PRE_PAINT_SCRIPT }} />;
+  // The browser strips the nonce attribute from the DOM after applying the CSP,
+  // so React's hydration would otherwise flag a server/client mismatch on it.
+  // The script has already executed (pre-paint) with a valid nonce by then.
+  return (
+    <script
+      nonce={nonce}
+      suppressHydrationWarning
+      dangerouslySetInnerHTML={{ __html: PRE_PAINT_SCRIPT }}
+    />
+  );
 }
