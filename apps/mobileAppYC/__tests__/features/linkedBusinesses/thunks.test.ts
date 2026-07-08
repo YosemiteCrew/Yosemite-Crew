@@ -14,9 +14,15 @@ import {
   fetchGooglePlacesImage,
 } from '@/features/linkedBusinesses/thunks';
 import linkedBusinessesService from '@/features/linkedBusinesses/services/linkedBusinessesService';
-import { fetchBusinessesBySearch, fetchBusinessPlaceDetails } from '@/shared/services/maps/googlePlaces';
-import { getFreshStoredTokens, isTokenExpired } from '@/features/auth/sessionManager';
-import { configureStore } from '@reduxjs/toolkit';
+import {
+  fetchBusinessesBySearch,
+  fetchBusinessPlaceDetails,
+} from '@/shared/services/maps/googlePlaces';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
+import {configureStore} from '@reduxjs/toolkit';
 
 // --- Mocks ---
 jest.mock('@/features/linkedBusinesses/services/linkedBusinessesService');
@@ -43,7 +49,10 @@ describe('linkedBusinesses thunks', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (getFreshStoredTokens as jest.Mock).mockResolvedValue({ accessToken: mockAccessToken, expiresAt: Date.now() + 10000 });
+    (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+      accessToken: mockAccessToken,
+      expiresAt: Date.now() + 10000,
+    });
     (isTokenExpired as jest.Mock).mockReturnValue(false);
   });
 
@@ -52,18 +61,44 @@ describe('linkedBusinesses thunks', () => {
     it('throws if no access token', async () => {
       (getFreshStoredTokens as jest.Mock).mockResolvedValue(null);
       const store = createTestStore();
-      const result = await store.dispatch(fetchLinkedBusinesses({ companionId: 'c1', category: 'hospital' }));
+      const result = await store.dispatch(
+        fetchLinkedBusinesses({companionId: 'c1', category: 'hospital'}),
+      );
       expect(result.type).toBe('linkedBusinesses/fetchLinked/rejected');
-      expect(result.payload).toBe('Missing access token. Please sign in again.');
+      expect(result.payload).toBe(
+        'Missing access token. Please sign in again.',
+      );
     });
 
     it('throws if token expired', async () => {
-      (getFreshStoredTokens as jest.Mock).mockResolvedValue({ accessToken: 'expired', expiresAt: 100 });
+      (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+        accessToken: 'expired',
+        expiresAt: 100,
+      });
       (isTokenExpired as jest.Mock).mockReturnValue(true);
       const store = createTestStore();
-      const result = await store.dispatch(fetchLinkedBusinesses({ companionId: 'c1', category: 'hospital' }));
+      const result = await store.dispatch(
+        fetchLinkedBusinesses({companionId: 'c1', category: 'hospital'}),
+      );
       expect(result.type).toBe('linkedBusinesses/fetchLinked/rejected');
-      expect(result.payload).toBe('Your session expired. Please sign in again.');
+      expect(result.payload).toBe(
+        'Your session expired. Please sign in again.',
+      );
+    });
+
+    it('treats a missing expiresAt as undefined when checking expiry', async () => {
+      (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+        accessToken: mockAccessToken,
+      });
+      (
+        linkedBusinessesService.fetchLinkedBusinesses as jest.Mock
+      ).mockResolvedValue([]);
+      const store = createTestStore();
+      const result = await store.dispatch(
+        fetchLinkedBusinesses({companionId: 'c1', category: 'hospital'}),
+      );
+      expect(isTokenExpired).toHaveBeenCalledWith(undefined);
+      expect(result.type).toBe('linkedBusinesses/fetchLinked/fulfilled');
     });
   });
 
@@ -74,26 +109,36 @@ describe('linkedBusinesses thunks', () => {
         organisationId: {
           _id: 'org1',
           name: 'Vet 1',
-          address: { addressLine: '123 St', city: 'City', state: 'ST', postalCode: '12345', country: 'US' },
+          address: {
+            addressLine: '123 St',
+            city: 'City',
+            state: 'ST',
+            postalCode: '12345',
+            country: 'US',
+          },
           phoneNo: '1234567890',
           email: 'vet1@example.com',
           googlePlacesId: 'place1',
           imageURL: 'img_url',
           distance: 10,
-          rating: 4.5
+          rating: 4.5,
         },
         organisationType: 'HOSPITAL',
         status: 'ACTIVE',
         _id: 'link1',
         createdAt: '2023-01-01',
-        updatedAt: '2023-01-02'
-      }
+        updatedAt: '2023-01-02',
+      },
     ];
 
     it('handles successful fetch (array response)', async () => {
-      (linkedBusinessesService.fetchLinkedBusinesses as jest.Mock).mockResolvedValue(mockResponseArray);
+      (
+        linkedBusinessesService.fetchLinkedBusinesses as jest.Mock
+      ).mockResolvedValue(mockResponseArray);
       const store = createTestStore();
-      const result = await store.dispatch(fetchLinkedBusinesses({ companionId: 'c1', category: 'hospital' }));
+      const result = await store.dispatch(
+        fetchLinkedBusinesses({companionId: 'c1', category: 'hospital'}),
+      );
 
       expect(result.type).toBe('linkedBusinesses/fetchLinked/fulfilled');
       expect(result.payload[0].businessName).toBe('Vet 1');
@@ -102,81 +147,191 @@ describe('linkedBusinesses thunks', () => {
 
     it('handles pending invite format (nested object with links array)', async () => {
       const mockPendingResponse = {
-        links: [{
-          status: 'PENDING',
-          organisationName: 'Pending Vet',
-          organisationId: { id: 'org2', addressLine: 'Simple Address', phone: '000' },
-          linkedByParentId: { name: 'Parent', email: 'parent@test.com' }
-        }],
+        links: [
+          {
+            status: 'PENDING',
+            organisationName: 'Pending Vet',
+            organisationId: {
+              id: 'org2',
+              addressLine: 'Simple Address',
+              phone: '000',
+            },
+            linkedByParentId: {name: 'Parent', email: 'parent@test.com'},
+          },
+        ],
         email: 'parent@test.com',
         phoneNumber: '111',
-        parentName: 'Parent Name'
+        parentName: 'Parent Name',
       };
 
-      (linkedBusinessesService.fetchLinkedBusinesses as jest.Mock).mockResolvedValue(mockPendingResponse);
+      (
+        linkedBusinessesService.fetchLinkedBusinesses as jest.Mock
+      ).mockResolvedValue(mockPendingResponse);
       const store = createTestStore();
-      const result = await store.dispatch(fetchLinkedBusinesses({ companionId: 'c1', category: 'boarder' }));
+      const result = await store.dispatch(
+        fetchLinkedBusinesses({companionId: 'c1', category: 'boarder'}),
+      );
 
       expect(result.payload[0].inviteStatus).toBe('pending');
       expect(result.payload[0].address).toBe('Simple Address');
       expect(result.payload[0].parentEmail).toBe('parent@test.com');
     });
 
-    it('handles flattened link object fallback', async () => {
-       // Cover fallback logic where organisationId is missing and uses root link object
-       const flatLink = [{
-           _id: 'linkX',
-           name: 'Flat Org',
-           addressLine: 'Flat Addr',
-           status: 'ACTIVE'
-       }];
-       (linkedBusinessesService.fetchLinkedBusinesses as jest.Mock).mockResolvedValue(flatLink);
-       const store = createTestStore();
-       const result = await store.dispatch(fetchLinkedBusinesses({ companionId: 'c1', category: 'groomer' }));
+    it('handles missing response links as an empty result', async () => {
+      (
+        linkedBusinessesService.fetchLinkedBusinesses as jest.Mock
+      ).mockResolvedValue(undefined);
+      const store = createTestStore();
+      const result = await store.dispatch(
+        fetchLinkedBusinesses({companionId: 'c1', category: 'breeder'}),
+      );
+      expect(result.payload).toEqual([]);
+    });
 
-       expect(result.payload[0].businessName).toBe('Flat Org');
+    it('uses pending parent-level contact fallbacks and generated id fallback', async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(123);
+      (
+        linkedBusinessesService.fetchLinkedBusinesses as jest.Mock
+      ).mockResolvedValue({
+        links: [
+          {
+            status: 'PENDING',
+            organisationName: 'Pending Parent Vet',
+            organisationId: {addressLine: 'Parent Addr'},
+          },
+        ],
+        email: 'parent-level@test.com',
+        phoneNumber: '222',
+        parentName: 'Parent Level',
+      });
+
+      const store = createTestStore();
+      const result = await store.dispatch(
+        fetchLinkedBusinesses({companionId: 'c1', category: 'hospital'}),
+      );
+
+      expect(result.payload[0]).toEqual(
+        expect.objectContaining({
+          id: 'Pending Parent Vet-123',
+          phone: '222',
+          email: 'parent-level@test.com',
+          parentName: 'Parent Level',
+          parentEmail: 'parent-level@test.com',
+        }),
+      );
+      (Date.now as jest.Mock).mockRestore();
+    });
+
+    it('handles flattened link object fallback', async () => {
+      // Cover fallback logic where organisationId is missing and uses root link object
+      const flatLink = [
+        {
+          _id: 'linkX',
+          name: 'Flat Org',
+          addressLine: 'Flat Addr',
+          status: 'ACTIVE',
+        },
+      ];
+      (
+        linkedBusinessesService.fetchLinkedBusinesses as jest.Mock
+      ).mockResolvedValue(flatLink);
+      const store = createTestStore();
+      const result = await store.dispatch(
+        fetchLinkedBusinesses({companionId: 'c1', category: 'groomer'}),
+      );
+
+      expect(result.payload[0].businessName).toBe('Flat Org');
     });
 
     it('handles errors', async () => {
-      (linkedBusinessesService.fetchLinkedBusinesses as jest.Mock).mockRejectedValue(new Error('Fetch failed'));
+      (
+        linkedBusinessesService.fetchLinkedBusinesses as jest.Mock
+      ).mockRejectedValue(new Error('Fetch failed'));
       const store = createTestStore();
-      const result = await store.dispatch(fetchLinkedBusinesses({ companionId: 'c1', category: 'hospital' }));
+      const result = await store.dispatch(
+        fetchLinkedBusinesses({companionId: 'c1', category: 'hospital'}),
+      );
       expect(result.payload).toBe('Fetch failed');
+    });
+
+    it('uses generic fetch error for non-error failures', async () => {
+      (
+        linkedBusinessesService.fetchLinkedBusinesses as jest.Mock
+      ).mockRejectedValue('bad fetch');
+      const store = createTestStore();
+      const result = await store.dispatch(
+        fetchLinkedBusinesses({companionId: 'c1', category: 'hospital'}),
+      );
+      expect(result.payload).toBe('Failed to fetch linked businesses');
     });
   });
 
   // --- searchBusinessesByLocation ---
   describe('searchBusinessesByLocation', () => {
-    const mockResults = [{ id: 'res1', name: 'Res 1', address: 'Addr 1' }];
+    const mockResults = [{id: 'res1', name: 'Res 1', address: 'Addr 1'}];
 
     it('fetches from API and caches result', async () => {
       (fetchBusinessesBySearch as jest.Mock).mockResolvedValue(mockResults);
       const store = createTestStore();
 
-      const result = await store.dispatch(searchBusinessesByLocation({ query: 'vet', location: { latitude: 10, longitude: 20 } }));
+      const result = await store.dispatch(
+        searchBusinessesByLocation({
+          query: 'vet',
+          location: {latitude: 10, longitude: 20},
+        }),
+      );
 
       expect(result.payload).toHaveLength(1);
       expect(fetchBusinessesBySearch).toHaveBeenCalled();
 
       // Second call should hit cache (mock fetch won't run again)
       (fetchBusinessesBySearch as jest.Mock).mockClear();
-      await store.dispatch(searchBusinessesByLocation({ query: 'vet', location: { latitude: 10, longitude: 20 } }));
+      await store.dispatch(
+        searchBusinessesByLocation({
+          query: 'vet',
+          location: {latitude: 10, longitude: 20},
+        }),
+      );
       expect(fetchBusinessesBySearch).not.toHaveBeenCalled();
     });
 
     it('handles query without location for cache key', async () => {
-        (fetchBusinessesBySearch as jest.Mock).mockResolvedValue(mockResults);
-        const store = createTestStore();
-        await store.dispatch(searchBusinessesByLocation({ query: 'groomer', location: null }));
-        // Should succeed and cache with simple key
-        expect(fetchBusinessesBySearch).toHaveBeenCalled();
+      (fetchBusinessesBySearch as jest.Mock).mockResolvedValue(mockResults);
+      const store = createTestStore();
+      await store.dispatch(
+        searchBusinessesByLocation({query: 'groomer', location: null}),
+      );
+      // Should succeed and cache with simple key
+      expect(fetchBusinessesBySearch).toHaveBeenCalled();
     });
 
     it('handles quota error gracefully', async () => {
-      (fetchBusinessesBySearch as jest.Mock).mockRejectedValue(new Error('Quota exceeded'));
+      (fetchBusinessesBySearch as jest.Mock).mockRejectedValue(
+        new Error('Quota exceeded'),
+      );
       const store = createTestStore();
-      const result = await store.dispatch(searchBusinessesByLocation({ query: 'vet' }));
+      const result = await store.dispatch(
+        searchBusinessesByLocation({query: 'vet'}),
+      );
       expect(result.payload).toEqual([]); // Returns empty array fallback
+    });
+
+    it('handles resource exhausted and non-quota search errors gracefully', async () => {
+      const store = createTestStore();
+      (fetchBusinessesBySearch as jest.Mock).mockRejectedValueOnce(
+        new Error('RESOURCE_EXHAUSTED'),
+      );
+      await store.dispatch(
+        searchBusinessesByLocation({query: 'quota-resource'}),
+      );
+
+      (fetchBusinessesBySearch as jest.Mock).mockRejectedValueOnce(
+        new Error('Plain failure'),
+      );
+      const result = await store.dispatch(
+        searchBusinessesByLocation({query: 'plain-failure'}),
+      );
+      expect(result.payload).toEqual([]);
     });
   });
 
@@ -186,12 +341,17 @@ describe('linkedBusinesses thunks', () => {
       (linkedBusinessesService.checkBusiness as jest.Mock).mockResolvedValue({
         isPmsOrganisation: true,
         organisation: {
-            id: 'org_pms',
-            telecom: [{ system: 'phone', value: '123' }, { system: 'url', value: 'http' }]
-        }
+          id: 'org_pms',
+          telecom: [
+            {system: 'phone', value: '123'},
+            {system: 'url', value: 'http'},
+          ],
+        },
       });
       const store = createTestStore();
-      const result = await store.dispatch(checkOrganisation({ placeId: 'p1', lat: 1, lng: 1, addressLine: 'addr' }));
+      const result = await store.dispatch(
+        checkOrganisation({placeId: 'p1', lat: 1, lng: 1, addressLine: 'addr'}),
+      );
 
       expect(result.payload.isPmsOrganisation).toBe(true);
       expect(result.payload.phone).toBe('123');
@@ -199,299 +359,584 @@ describe('linkedBusinesses thunks', () => {
     });
 
     it('handles error', async () => {
-      (linkedBusinessesService.checkBusiness as jest.Mock).mockRejectedValue(new Error('Check failed'));
+      (linkedBusinessesService.checkBusiness as jest.Mock).mockRejectedValue(
+        new Error('Check failed'),
+      );
       const store = createTestStore();
-      const result = await store.dispatch(checkOrganisation({ placeId: 'p1', lat: 1, lng: 1, addressLine: 'addr' }));
+      const result = await store.dispatch(
+        checkOrganisation({placeId: 'p1', lat: 1, lng: 1, addressLine: 'addr'}),
+      );
       expect(result.payload).toBe('Check failed');
+    });
+
+    it('handles missing and unrelated telecom entries', async () => {
+      (linkedBusinessesService.checkBusiness as jest.Mock).mockResolvedValue({
+        isPmsOrganisation: false,
+        organisation: {telecom: [{system: 'email', value: 'x@y.com'}]},
+      });
+      const store = createTestStore();
+      const result = await store.dispatch(
+        checkOrganisation({placeId: 'p1', lat: 1, lng: 1, addressLine: 'addr'}),
+      );
+      expect(result.payload.phone).toBeUndefined();
+      expect(result.payload.website).toBeUndefined();
+    });
+
+    it('handles organisations without telecom', async () => {
+      (linkedBusinessesService.checkBusiness as jest.Mock).mockResolvedValue({
+        isPmsOrganisation: false,
+        organisation: {},
+      });
+      const store = createTestStore();
+      const result = await store.dispatch(
+        checkOrganisation({placeId: 'p1', lat: 1, lng: 1, addressLine: 'addr'}),
+      );
+      expect(result.payload.phone).toBeUndefined();
+      expect(result.payload.website).toBeUndefined();
+    });
+
+    it('uses generic check error for non-error failures', async () => {
+      (linkedBusinessesService.checkBusiness as jest.Mock).mockRejectedValue(
+        'bad check',
+      );
+      const store = createTestStore();
+      const result = await store.dispatch(
+        checkOrganisation({placeId: 'p1', lat: 1, lng: 1, addressLine: 'addr'}),
+      );
+      expect(result.payload).toBe('Failed to check organization');
     });
   });
 
   // --- fetchPlaceCoordinates ---
   describe('fetchPlaceCoordinates', () => {
     it('fetches coordinates and caches them', async () => {
-      (fetchBusinessPlaceDetails as jest.Mock).mockResolvedValue({ latitude: 50, longitude: 60 });
+      (fetchBusinessPlaceDetails as jest.Mock).mockResolvedValue({
+        latitude: 50,
+        longitude: 60,
+      });
       const store = createTestStore();
 
       const result = await store.dispatch(fetchPlaceCoordinates('place_x'));
-      expect(result.payload).toEqual({ latitude: 50, longitude: 60 });
+      expect(result.payload).toEqual({latitude: 50, longitude: 60});
 
       // Cache hit check
       (fetchBusinessPlaceDetails as jest.Mock).mockClear();
       const cached = await store.dispatch(fetchPlaceCoordinates('place_x'));
       expect(fetchBusinessPlaceDetails).not.toHaveBeenCalled();
-      expect(cached.payload).toEqual({ latitude: 50, longitude: 60 });
+      expect(cached.payload).toEqual({latitude: 50, longitude: 60});
     });
 
     it('handles error', async () => {
-      (fetchBusinessPlaceDetails as jest.Mock).mockRejectedValue(new Error('Coords fail'));
+      (fetchBusinessPlaceDetails as jest.Mock).mockRejectedValue(
+        new Error('Coords fail'),
+      );
       const store = createTestStore();
       const result = await store.dispatch(fetchPlaceCoordinates('place_err'));
       expect(result.payload).toBe('Coords fail');
+    });
+
+    it('uses generic coordinate error for non-error failures', async () => {
+      (fetchBusinessPlaceDetails as jest.Mock).mockRejectedValue('bad coords');
+      const store = createTestStore();
+      const result = await store.dispatch(
+        fetchPlaceCoordinates('place_generic_err'),
+      );
+      expect(result.payload).toBe('Failed to fetch coordinates');
     });
   });
 
   // --- searchBusinessByQRCode ---
   describe('searchBusinessByQRCode', () => {
-      // Mock timers for delay
-      beforeEach(() => { jest.useFakeTimers(); });
-      afterEach(() => { jest.useRealTimers(); });
+    // Mock timers for delay
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
 
-      it('finds business by valid QR code', async () => {
-          const store = createTestStore();
-          const promise = store.dispatch(searchBusinessByQRCode('PMS_SFAMC_001'));
+    it('finds business by valid QR code', async () => {
+      const store = createTestStore();
+      const promise = store.dispatch(searchBusinessByQRCode('PMS_SFAMC_001'));
 
-          jest.runAllTimers(); // fast forward delay
-          const result = await promise;
+      jest.runAllTimers(); // fast forward delay
+      const result = await promise;
 
-          expect(result.payload.name).toBe('San Francisco Animal Medical Center');
-      });
+      expect(result.payload.name).toBe('San Francisco Animal Medical Center');
+    });
 
-      it('throws error for invalid QR code', async () => {
-          const store = createTestStore();
-          const promise = store.dispatch(searchBusinessByQRCode('INVALID_CODE'));
+    it('throws error for invalid QR code', async () => {
+      const store = createTestStore();
+      const promise = store.dispatch(searchBusinessByQRCode('INVALID_CODE'));
 
-          jest.runAllTimers();
-          const result = await promise;
+      jest.runAllTimers();
+      const result = await promise;
 
-          expect(result.error.message).toBe('Business not found for this QR code');
-      });
+      expect(result.error.message).toBe('Business not found for this QR code');
+    });
   });
 
   // --- linkBusiness ---
   describe('linkBusiness', () => {
-      it('links business successfully', async () => {
-          (linkedBusinessesService.linkBusiness as jest.Mock).mockResolvedValue({
-              id: 'org_link_1',
-              name: 'Linked Vet',
-              type: 'HOSPITAL',
-              state: 'active'
-          });
-          const store = createTestStore();
-          const result = await store.dispatch(linkBusiness({
-              companionId: 'c1', organisationId: 'org1', category: 'hospital'
-          }));
-
-          expect(result.payload.businessId).toBe('org_link_1');
-          expect(result.payload.inviteStatus).toBe('accepted');
+    it('links business successfully', async () => {
+      (linkedBusinessesService.linkBusiness as jest.Mock).mockResolvedValue({
+        id: 'org_link_1',
+        name: 'Linked Vet',
+        type: 'HOSPITAL',
+        state: 'active',
       });
+      const store = createTestStore();
+      const result = await store.dispatch(
+        linkBusiness({
+          companionId: 'c1',
+          organisationId: 'org1',
+          category: 'hospital',
+        }),
+      );
 
-      it('handles link fallback ID logic', async () => {
-        (linkedBusinessesService.linkBusiness as jest.Mock).mockResolvedValue({
-            // Missing id, uses linkId or organisationId fallback
-            linkId: 'link_id_val',
-            name: 'Vet'
-        });
-        const store = createTestStore();
-        const result = await store.dispatch(linkBusiness({
-            companionId: 'c1', organisationId: 'org_fallback', category: 'boarder'
-        }));
+      expect(result.payload.businessId).toBe('org_link_1');
+      expect(result.payload.inviteStatus).toBe('accepted');
+    });
 
-        expect(result.payload.id).toBe('link_id_val');
+    it('handles link fallback ID logic', async () => {
+      (linkedBusinessesService.linkBusiness as jest.Mock).mockResolvedValue({
+        // Missing id, uses linkId or organisationId fallback
+        linkId: 'link_id_val',
+        name: 'Vet',
       });
+      const store = createTestStore();
+      const result = await store.dispatch(
+        linkBusiness({
+          companionId: 'c1',
+          organisationId: 'org_fallback',
+          category: 'boarder',
+        }),
+      );
 
-      it('handles error', async () => {
-          (linkedBusinessesService.linkBusiness as jest.Mock).mockRejectedValue(new Error('Link failed'));
-          const store = createTestStore();
-          const result = await store.dispatch(linkBusiness({ companionId: 'c1', organisationId: 'o1', category: 'hospital' }));
-          expect(result.payload).toBe('Link failed');
+      expect(result.payload.id).toBe('link_id_val');
+    });
+
+    it('falls back to organisation id when link response has no ids', async () => {
+      (linkedBusinessesService.linkBusiness as jest.Mock).mockResolvedValue({
+        name: 'Vet',
       });
+      const store = createTestStore();
+      const result = await store.dispatch(
+        linkBusiness({
+          companionId: 'c1',
+          organisationId: 'org_fallback',
+          category: 'boarder',
+        }),
+      );
+
+      expect(result.payload.id).toBe('org_fallback');
+    });
+
+    it('handles error', async () => {
+      (linkedBusinessesService.linkBusiness as jest.Mock).mockRejectedValue(
+        new Error('Link failed'),
+      );
+      const store = createTestStore();
+      const result = await store.dispatch(
+        linkBusiness({
+          companionId: 'c1',
+          organisationId: 'o1',
+          category: 'hospital',
+        }),
+      );
+      expect(result.payload).toBe('Link failed');
+    });
+
+    it('uses generic link error for non-error failures', async () => {
+      (linkedBusinessesService.linkBusiness as jest.Mock).mockRejectedValue(
+        'bad link',
+      );
+      const store = createTestStore();
+      const result = await store.dispatch(
+        linkBusiness({
+          companionId: 'c1',
+          organisationId: 'o1',
+          category: 'hospital',
+        }),
+      );
+      expect(result.payload).toBe('Failed to link business');
+    });
   });
 
   // --- addLinkedBusiness ---
   describe('addLinkedBusiness', () => {
-      it('creates local linked business object', async () => {
-          const store = createTestStore();
-          const result = await store.dispatch(addLinkedBusiness({
-              companionId: 'c1',
-              businessId: 'local_biz',
-              businessName: 'My Local Vet',
-              category: 'hospital',
-              address: '123 Local St'
-          }));
+    it('creates local linked business object', async () => {
+      const store = createTestStore();
+      const result = await store.dispatch(
+        addLinkedBusiness({
+          companionId: 'c1',
+          businessId: 'local_biz',
+          businessName: 'My Local Vet',
+          category: 'hospital',
+          address: '123 Local St',
+        }),
+      );
 
-          expect(result.payload.id).toBe('local_biz');
-          expect(result.payload.state).toBe('active');
-          expect(result.payload.type).toBe('HOSPITAL');
-      });
+      expect(result.payload.id).toBe('local_biz');
+      expect(result.payload.state).toBe('active');
+      expect(result.payload.type).toBe('HOSPITAL');
+    });
   });
 
   // --- inviteBusiness ---
   describe('inviteBusiness', () => {
-      it('sends invite successfully', async () => {
-          (linkedBusinessesService.inviteBusiness as jest.Mock).mockResolvedValue({ success: true });
-          const store = createTestStore();
-          const result = await store.dispatch(inviteBusiness({
-              companionId: 'c1', email: 'test@biz.com', businessName: 'Biz', category: 'groomer'
-          }));
-
-          expect(result.payload.success).toBe(true);
+    it('sends invite successfully', async () => {
+      (linkedBusinessesService.inviteBusiness as jest.Mock).mockResolvedValue({
+        success: true,
       });
+      const store = createTestStore();
+      const result = await store.dispatch(
+        inviteBusiness({
+          companionId: 'c1',
+          email: 'test@biz.com',
+          businessName: 'Biz',
+          category: 'groomer',
+        }),
+      );
 
-      it('handles error', async () => {
-          (linkedBusinessesService.inviteBusiness as jest.Mock).mockRejectedValue(new Error('Invite fail'));
-          const store = createTestStore();
-          const result = await store.dispatch(inviteBusiness({ companionId: 'c1', email: 'e', businessName: 'b', category: 'hospital' }));
-          expect(result.payload).toBe('Invite fail');
-      });
+      expect(result.payload.success).toBe(true);
+    });
+
+    it('handles error', async () => {
+      (linkedBusinessesService.inviteBusiness as jest.Mock).mockRejectedValue(
+        new Error('Invite fail'),
+      );
+      const store = createTestStore();
+      const result = await store.dispatch(
+        inviteBusiness({
+          companionId: 'c1',
+          email: 'e',
+          businessName: 'b',
+          category: 'hospital',
+        }),
+      );
+      expect(result.payload).toBe('Invite fail');
+    });
+
+    it('uses generic invite error for non-error failures', async () => {
+      (linkedBusinessesService.inviteBusiness as jest.Mock).mockRejectedValue(
+        'bad invite',
+      );
+      const store = createTestStore();
+      const result = await store.dispatch(
+        inviteBusiness({
+          companionId: 'c1',
+          email: 'e',
+          businessName: 'b',
+          category: 'hospital',
+        }),
+      );
+      expect(result.payload).toBe('Failed to invite business');
+    });
   });
 
   // --- deleteLinkedBusiness ---
   describe('deleteLinkedBusiness', () => {
-      it('deletes successfully if business exists in state', async () => {
-          const mockState = {
-              linkedBusinesses: {
-                  linkedBusinesses: [{ id: 'link1', linkId: 'real_link_id' }]
-              }
-          };
-          // @ts-ignore - Partial state mock
-          const store = createTestStore(mockState);
+    it('deletes successfully if business exists in state', async () => {
+      const mockState = {
+        linkedBusinesses: {
+          linkedBusinesses: [{id: 'link1', linkId: 'real_link_id'}],
+        },
+      };
+      // @ts-ignore - Partial state mock
+      const store = createTestStore(mockState);
 
-          (linkedBusinessesService.revokeLinkedBusiness as jest.Mock).mockResolvedValue({});
+      (
+        linkedBusinessesService.revokeLinkedBusiness as jest.Mock
+      ).mockResolvedValue({});
 
-          const result = await store.dispatch(deleteLinkedBusiness('link1'));
-          expect(result.payload).toBe('link1');
-          expect(linkedBusinessesService.revokeLinkedBusiness).toHaveBeenCalledWith('real_link_id', mockAccessToken);
-      });
+      const result = await store.dispatch(deleteLinkedBusiness('link1'));
+      expect(result.payload).toBe('link1');
+      expect(linkedBusinessesService.revokeLinkedBusiness).toHaveBeenCalledWith(
+        'real_link_id',
+        mockAccessToken,
+      );
+    });
 
-      it('returns error if business not found in state', async () => {
-          const store = createTestStore({ linkedBusinesses: { linkedBusinesses: [] } });
-          const result = await store.dispatch(deleteLinkedBusiness('missing_id'));
-          expect(result.payload).toBe('Business not found');
-      });
+    it('returns error if business not found in state', async () => {
+      const store = createTestStore({linkedBusinesses: {linkedBusinesses: []}});
+      const result = await store.dispatch(deleteLinkedBusiness('missing_id'));
+      expect(result.payload).toBe('Business not found');
+    });
 
-      it('handles API error', async () => {
-        const mockState = { linkedBusinesses: { linkedBusinesses: [{ id: 'link1' }] } };
-        // @ts-ignore
-        const store = createTestStore(mockState);
-        (linkedBusinessesService.revokeLinkedBusiness as jest.Mock).mockRejectedValue(new Error('Revoke fail'));
+    it('returns error if linked businesses array is missing', async () => {
+      const store = createTestStore({linkedBusinesses: {}});
+      const result = await store.dispatch(deleteLinkedBusiness('missing_id'));
+      expect(result.payload).toBe('Business not found');
+    });
 
-        const result = await store.dispatch(deleteLinkedBusiness('link1'));
-        expect(result.payload).toBe('Revoke fail');
-      });
+    it('deletes by matching linkId', async () => {
+      const mockState = {
+        linkedBusinesses: {
+          linkedBusinesses: [{id: 'local-id', linkId: 'link-target'}],
+        },
+      };
+      // @ts-ignore
+      const store = createTestStore(mockState);
+      (
+        linkedBusinessesService.revokeLinkedBusiness as jest.Mock
+      ).mockResolvedValue({});
+
+      await store.dispatch(deleteLinkedBusiness('link-target'));
+      expect(linkedBusinessesService.revokeLinkedBusiness).toHaveBeenCalledWith(
+        'link-target',
+        mockAccessToken,
+      );
+    });
+
+    it('handles API error', async () => {
+      const mockState = {linkedBusinesses: {linkedBusinesses: [{id: 'link1'}]}};
+      // @ts-ignore
+      const store = createTestStore(mockState);
+      (
+        linkedBusinessesService.revokeLinkedBusiness as jest.Mock
+      ).mockRejectedValue(new Error('Revoke fail'));
+
+      const result = await store.dispatch(deleteLinkedBusiness('link1'));
+      expect(result.payload).toBe('Revoke fail');
+    });
+
+    it('uses generic delete error for non-error failures', async () => {
+      const mockState = {linkedBusinesses: {linkedBusinesses: [{id: 'link1'}]}};
+      // @ts-ignore
+      const store = createTestStore(mockState);
+      (
+        linkedBusinessesService.revokeLinkedBusiness as jest.Mock
+      ).mockRejectedValue('bad delete');
+
+      const result = await store.dispatch(deleteLinkedBusiness('link1'));
+      expect(result.payload).toBe('Failed to delete business');
+    });
   });
 
   // --- acceptBusinessInvite ---
   describe('acceptBusinessInvite', () => {
-      it('accepts successfully', async () => {
-        const mockState = { linkedBusinesses: { linkedBusinesses: [{ linkId: 'link1', name: 'Old' }] } };
-        // @ts-ignore
-        const store = createTestStore(mockState);
+    it('accepts successfully', async () => {
+      const mockState = {
+        linkedBusinesses: {linkedBusinesses: [{linkId: 'link1', name: 'Old'}]},
+      };
+      // @ts-ignore
+      const store = createTestStore(mockState);
 
-        (linkedBusinessesService.approveLinkInvite as jest.Mock).mockResolvedValue({ name: 'Updated' });
+      (
+        linkedBusinessesService.approveLinkInvite as jest.Mock
+      ).mockResolvedValue({name: 'Updated'});
 
-        const result = await store.dispatch(acceptBusinessInvite('link1'));
-        expect(result.payload.name).toBe('Updated');
-        expect(result.payload.inviteStatus).toBe('accepted');
-      });
+      const result = await store.dispatch(acceptBusinessInvite('link1'));
+      expect(result.payload.name).toBe('Updated');
+      expect(result.payload.inviteStatus).toBe('accepted');
+    });
 
-      it('fails if business not found', async () => {
-          const store = createTestStore({ linkedBusinesses: { linkedBusinesses: [] } });
-          const result = await store.dispatch(acceptBusinessInvite('missing'));
-          expect(result.payload).toBe('Business not found');
-      });
+    it('fails if business not found', async () => {
+      const store = createTestStore({linkedBusinesses: {linkedBusinesses: []}});
+      const result = await store.dispatch(acceptBusinessInvite('missing'));
+      expect(result.payload).toBe('Business not found');
+    });
 
-      it('handles API error', async () => {
-        const mockState = { linkedBusinesses: { linkedBusinesses: [{ linkId: 'link1' }] } };
-        // @ts-ignore
-        const store = createTestStore(mockState);
-        (linkedBusinessesService.approveLinkInvite as jest.Mock).mockRejectedValue(new Error('Accept fail'));
-        const result = await store.dispatch(acceptBusinessInvite('link1'));
-        expect(result.payload).toBe('Accept fail');
-      });
+    it('fails if linked businesses array is missing', async () => {
+      const store = createTestStore({linkedBusinesses: {}});
+      const result = await store.dispatch(acceptBusinessInvite('missing'));
+      expect(result.payload).toBe('Business not found');
+    });
+
+    it('accepts by matching business id', async () => {
+      const mockState = {
+        linkedBusinesses: {
+          linkedBusinesses: [{id: 'business-id', name: 'Old'}],
+        },
+      };
+      // @ts-ignore
+      const store = createTestStore(mockState);
+
+      (
+        linkedBusinessesService.approveLinkInvite as jest.Mock
+      ).mockResolvedValue({name: 'Updated by id'});
+
+      const result = await store.dispatch(acceptBusinessInvite('business-id'));
+      expect(result.payload.name).toBe('Updated by id');
+    });
+
+    it('handles API error', async () => {
+      const mockState = {
+        linkedBusinesses: {linkedBusinesses: [{linkId: 'link1'}]},
+      };
+      // @ts-ignore
+      const store = createTestStore(mockState);
+      (
+        linkedBusinessesService.approveLinkInvite as jest.Mock
+      ).mockRejectedValue(new Error('Accept fail'));
+      const result = await store.dispatch(acceptBusinessInvite('link1'));
+      expect(result.payload).toBe('Accept fail');
+    });
+
+    it('uses generic accept error for non-error failures', async () => {
+      const mockState = {
+        linkedBusinesses: {linkedBusinesses: [{linkId: 'link1'}]},
+      };
+      // @ts-ignore
+      const store = createTestStore(mockState);
+      (
+        linkedBusinessesService.approveLinkInvite as jest.Mock
+      ).mockRejectedValue('bad accept');
+      const result = await store.dispatch(acceptBusinessInvite('link1'));
+      expect(result.payload).toBe('Failed to accept invite');
+    });
   });
 
   // --- declineBusinessInvite ---
   describe('declineBusinessInvite', () => {
     it('declines successfully', async () => {
-      const mockState = { linkedBusinesses: { linkedBusinesses: [{ linkId: 'link1' }] } };
+      const mockState = {
+        linkedBusinesses: {linkedBusinesses: [{linkId: 'link1'}]},
+      };
       // @ts-ignore
       const store = createTestStore(mockState);
 
-      (linkedBusinessesService.denyLinkInvite as jest.Mock).mockResolvedValue({});
+      (linkedBusinessesService.denyLinkInvite as jest.Mock).mockResolvedValue(
+        {},
+      );
 
       const result = await store.dispatch(declineBusinessInvite('link1'));
       expect(result.payload.inviteStatus).toBe('declined');
     });
 
     it('fails if business not found', async () => {
-        const store = createTestStore({ linkedBusinesses: { linkedBusinesses: [] } });
-        const result = await store.dispatch(declineBusinessInvite('missing'));
-        expect(result.payload).toBe('Business not found');
+      const store = createTestStore({linkedBusinesses: {linkedBusinesses: []}});
+      const result = await store.dispatch(declineBusinessInvite('missing'));
+      expect(result.payload).toBe('Business not found');
+    });
+
+    it('fails if linked businesses array is missing', async () => {
+      const store = createTestStore({linkedBusinesses: {}});
+      const result = await store.dispatch(declineBusinessInvite('missing'));
+      expect(result.payload).toBe('Business not found');
+    });
+
+    it('declines by matching business id', async () => {
+      const mockState = {
+        linkedBusinesses: {linkedBusinesses: [{id: 'business-id'}]},
+      };
+      // @ts-ignore
+      const store = createTestStore(mockState);
+
+      (linkedBusinessesService.denyLinkInvite as jest.Mock).mockResolvedValue(
+        {},
+      );
+
+      const result = await store.dispatch(declineBusinessInvite('business-id'));
+      expect(result.payload.inviteStatus).toBe('declined');
     });
 
     it('handles API error', async () => {
-        const mockState = { linkedBusinesses: { linkedBusinesses: [{ linkId: 'link1' }] } };
-        // @ts-ignore
-        const store = createTestStore(mockState);
-        (linkedBusinessesService.denyLinkInvite as jest.Mock).mockRejectedValue(new Error('Deny fail'));
-        const result = await store.dispatch(declineBusinessInvite('link1'));
-        expect(result.payload).toBe('Deny fail');
+      const mockState = {
+        linkedBusinesses: {linkedBusinesses: [{linkId: 'link1'}]},
+      };
+      // @ts-ignore
+      const store = createTestStore(mockState);
+      (linkedBusinessesService.denyLinkInvite as jest.Mock).mockRejectedValue(
+        new Error('Deny fail'),
+      );
+      const result = await store.dispatch(declineBusinessInvite('link1'));
+      expect(result.payload).toBe('Deny fail');
+    });
+
+    it('uses generic decline error for non-error failures', async () => {
+      const mockState = {
+        linkedBusinesses: {linkedBusinesses: [{linkId: 'link1'}]},
+      };
+      // @ts-ignore
+      const store = createTestStore(mockState);
+      (linkedBusinessesService.denyLinkInvite as jest.Mock).mockRejectedValue(
+        'bad decline',
+      );
+      const result = await store.dispatch(declineBusinessInvite('link1'));
+      expect(result.payload).toBe('Failed to decline invite');
     });
   });
 
   // --- fetchBusinessDetails ---
   describe('fetchBusinessDetails', () => {
-      it('fetches details and caches', async () => {
-          (fetchBusinessPlaceDetails as jest.Mock).mockResolvedValue({
-              photoUrl: 'http://photo', phoneNumber: '555', website: 'site.com'
-          });
-          const store = createTestStore();
+    it('fetches details and caches', async () => {
+      (fetchBusinessPlaceDetails as jest.Mock).mockResolvedValue({
+        photoUrl: 'http://photo',
+        phoneNumber: '555',
+        website: 'site.com',
+      });
+      const store = createTestStore();
 
-          const result = await store.dispatch(fetchBusinessDetails('p1'));
-          expect(result.payload).toEqual({
-              placeId: 'p1',
-              photoUrl: 'http://photo',
-              phoneNumber: '555',
-              website: 'site.com'
-          });
-
-          // Cache check
-          (fetchBusinessPlaceDetails as jest.Mock).mockClear();
-          await store.dispatch(fetchBusinessDetails('p1'));
-          expect(fetchBusinessPlaceDetails).not.toHaveBeenCalled();
+      const result = await store.dispatch(fetchBusinessDetails('p1'));
+      expect(result.payload).toEqual({
+        placeId: 'p1',
+        photoUrl: 'http://photo',
+        phoneNumber: '555',
+        website: 'site.com',
       });
 
-      it('handles error gracefully returns partial data', async () => {
-          (fetchBusinessPlaceDetails as jest.Mock).mockRejectedValue(new Error('Detail fail'));
-          const store = createTestStore();
-          const result = await store.dispatch(fetchBusinessDetails('p_err'));
+      // Cache check
+      (fetchBusinessPlaceDetails as jest.Mock).mockClear();
+      await store.dispatch(fetchBusinessDetails('p1'));
+      expect(fetchBusinessPlaceDetails).not.toHaveBeenCalled();
+    });
 
-          // Should return object with placeId but undefined fields, NOT throw
-          expect(result.payload).toEqual({
-              placeId: 'p_err',
-              photoUrl: undefined,
-              phoneNumber: undefined,
-              website: undefined
-          });
+    it('handles error gracefully returns partial data', async () => {
+      (fetchBusinessPlaceDetails as jest.Mock).mockRejectedValue(
+        new Error('Detail fail'),
+      );
+      const store = createTestStore();
+      const result = await store.dispatch(fetchBusinessDetails('p_err'));
+
+      // Should return object with placeId but undefined fields, NOT throw
+      expect(result.payload).toEqual({
+        placeId: 'p_err',
+        photoUrl: undefined,
+        phoneNumber: undefined,
+        website: undefined,
       });
+    });
   });
 
   // --- fetchGooglePlacesImage ---
   describe('fetchGooglePlacesImage', () => {
-      it('fetches image and caches', async () => {
-          (fetchBusinessPlaceDetails as jest.Mock).mockResolvedValue({ photoUrl: 'http://img' });
-          const store = createTestStore();
-
-          const result = await store.dispatch(fetchGooglePlacesImage('g1'));
-          expect(result.payload.photoUrl).toBe('http://img');
-
-          // Cache check
-          (fetchBusinessPlaceDetails as jest.Mock).mockClear();
-          await store.dispatch(fetchGooglePlacesImage('g1'));
-          expect(fetchBusinessPlaceDetails).not.toHaveBeenCalled();
+    it('fetches image and caches', async () => {
+      (fetchBusinessPlaceDetails as jest.Mock).mockResolvedValue({
+        photoUrl: 'http://img',
       });
+      const store = createTestStore();
 
-      it('returns null if no ID provided', async () => {
-          const store = createTestStore();
-          const result = await store.dispatch(fetchGooglePlacesImage(''));
-          expect(result.payload.photoUrl).toBeNull();
-      });
+      const result = await store.dispatch(fetchGooglePlacesImage('g1'));
+      expect(result.payload.photoUrl).toBe('http://img');
 
-      it('handles error gracefully', async () => {
-          (fetchBusinessPlaceDetails as jest.Mock).mockRejectedValue(new Error('Img fail'));
-          const store = createTestStore();
-          const result = await store.dispatch(fetchGooglePlacesImage('g_err'));
-          expect(result.payload.photoUrl).toBeNull();
-      });
+      // Cache check
+      (fetchBusinessPlaceDetails as jest.Mock).mockClear();
+      await store.dispatch(fetchGooglePlacesImage('g1'));
+      expect(fetchBusinessPlaceDetails).not.toHaveBeenCalled();
+    });
+
+    it('returns null when fetched image details have no photo URL', async () => {
+      (fetchBusinessPlaceDetails as jest.Mock).mockResolvedValue({});
+      const store = createTestStore();
+      const result = await store.dispatch(fetchGooglePlacesImage('g_no_photo'));
+      expect(result.payload.photoUrl).toBeNull();
+    });
+
+    it('returns null if no ID provided', async () => {
+      const store = createTestStore();
+      const result = await store.dispatch(fetchGooglePlacesImage(''));
+      expect(result.payload.photoUrl).toBeNull();
+    });
+
+    it('handles error gracefully', async () => {
+      (fetchBusinessPlaceDetails as jest.Mock).mockRejectedValue(
+        new Error('Img fail'),
+      );
+      const store = createTestStore();
+      const result = await store.dispatch(fetchGooglePlacesImage('g_err'));
+      expect(result.payload.photoUrl).toBeNull();
+    });
   });
 });

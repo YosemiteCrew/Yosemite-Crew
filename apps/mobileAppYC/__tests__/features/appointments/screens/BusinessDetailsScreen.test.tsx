@@ -15,17 +15,33 @@ jest.mock('../../../../src/hooks', () => ({
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
 const mockCanGoBack = jest.fn().mockReturnValue(true);
+const mockTabNavigate = jest.fn();
+let mockGetParent: jest.Mock = jest.fn().mockReturnValue({
+  navigate: mockTabNavigate,
+});
 // Use a getter for params so we can change them per test if needed
-let mockRouteParams = {businessId: 'bus-123'};
+let mockRouteParams: any = {businessId: 'bus-123'};
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,
     goBack: mockGoBack,
     canGoBack: mockCanGoBack,
+    getParent: mockGetParent,
   }),
   useRoute: () => ({
     params: mockRouteParams,
+  }),
+}));
+
+let mockDistanceUnit = 'km';
+jest.mock('../../../../src/features/preferences/PreferencesContext', () => ({
+  usePreferences: () => ({
+    measurementSystem: 'metric',
+    weightUnit: 'kg',
+    get distanceUnit() {
+      return mockDistanceUnit;
+    },
   }),
 }));
 
@@ -78,6 +94,7 @@ jest.mock(
     return (props: any) => (
       <View testID="vet-business-card">
         <Text>{props.name}</Text>
+        <Text>{props.distance}</Text>
         <Text>
           {props.fallbackPhoto
             ? `Fallback:${props.fallbackPhoto}`
@@ -230,6 +247,8 @@ describe('BusinessDetailsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRouteParams = {businessId: 'bus-123'};
+    mockDistanceUnit = 'km';
+    mockGetParent = jest.fn().mockReturnValue({navigate: mockTabNavigate});
 
     // Default Selector Implementation
     (useSelector as unknown as jest.Mock).mockImplementation(selectorFn => {
@@ -315,6 +334,116 @@ describe('BusinessDetailsScreen', () => {
     const {getByTestId} = render(<BusinessDetailsScreen />);
     fireEvent.press(getByTestId('header-back'));
     expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  it('navigates to a parent tab when returnTo.tab is set instead of going back', () => {
+    mockRouteParams = {
+      businessId: 'bus-123',
+      returnTo: {tab: 'Home', screen: 'Dashboard'},
+    };
+    const {getByTestId} = render(<BusinessDetailsScreen />);
+    fireEvent.press(getByTestId('header-back'));
+
+    expect(mockTabNavigate).toHaveBeenCalledWith('Home', {screen: 'Dashboard'});
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  it('navigates to a parent tab with no screen param when returnTo.screen is missing', () => {
+    mockRouteParams = {
+      businessId: 'bus-123',
+      returnTo: {tab: 'Home'},
+    };
+    const {getByTestId} = render(<BusinessDetailsScreen />);
+    fireEvent.press(getByTestId('header-back'));
+
+    expect(mockTabNavigate).toHaveBeenCalledWith('Home', undefined);
+  });
+
+  it('falls back to normal goBack when returnTo.tab is set but no parent navigator exists', () => {
+    mockRouteParams = {
+      businessId: 'bus-123',
+      returnTo: {tab: 'Home'},
+    };
+    mockGetParent = jest.fn().mockReturnValue(undefined);
+    const {getByTestId} = render(<BusinessDetailsScreen />);
+    fireEvent.press(getByTestId('header-back'));
+
+    expect(mockTabNavigate).not.toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
+  it('shows the distance in miles when the preferred unit is not km', () => {
+    mockDistanceUnit = 'mi';
+    const {getByText} = render(<BusinessDetailsScreen />);
+    expect(getByText('5.5mi')).toBeTruthy();
+  });
+
+  it('groups packages by specialty and navigates to BookingForm when a package is selected', () => {
+    (useSelector as unknown as jest.Mock).mockImplementation(selectorFn =>
+      selectorFn({
+        businesses: {
+          businesses: [mockBusiness],
+          services: mockServices,
+          packages: [
+            {
+              id: 'pkg-1',
+              businessId: 'bus-123',
+              name: 'Wellness Package',
+              specialty: 'Surgical',
+              specialityId: 'spec-2',
+            },
+            {
+              // Second package sharing the 'Surgical' key exercises the
+              // "group already exists" branch of the grouping loop.
+              id: 'pkg-1b',
+              businessId: 'bus-123',
+              name: 'Deluxe Surgical Package',
+              specialty: 'Surgical',
+              specialityId: 'spec-2b',
+            },
+            {
+              // 'Grooming' has no matching service, so serviceGroups['Grooming']
+              // is undefined -> exercises the `?? 0` / `?? []` fallbacks.
+              id: 'pkg-3',
+              businessId: 'bus-123',
+              name: 'Grooming Package',
+              specialty: 'Grooming',
+            },
+            {
+              // No specialty/specialityId -> exercises the undefined fallbacks
+              // in handleSelectPackage's navigation params.
+              id: 'pkg-2',
+              businessId: 'bus-123',
+              name: 'Basic Package',
+            },
+          ],
+        },
+        companion: {companions: [], selectedCompanionId: null},
+      }),
+    );
+
+    const {getByTestId, getByText} = render(<BusinessDetailsScreen />);
+    expect(getByText('Wellness Package')).toBeTruthy();
+    expect(getByText('Basic Package')).toBeTruthy();
+    expect(getByText('Grooming Package')).toBeTruthy();
+
+    fireEvent.press(getByTestId('package-pkg-1'));
+    expect(mockNavigate).toHaveBeenCalledWith('BookingForm', {
+      businessId: 'bus-123',
+      serviceId: 'pkg-1',
+      serviceName: 'Wellness Package',
+      serviceSpecialty: 'Surgical',
+      serviceSpecialtyId: 'spec-2',
+    });
+
+    fireEvent.press(getByTestId('package-pkg-2'));
+    expect(mockNavigate).toHaveBeenCalledWith('BookingForm', {
+      businessId: 'bus-123',
+      serviceId: 'pkg-2',
+      serviceName: 'Basic Package',
+      serviceSpecialty: undefined,
+      serviceSpecialtyId: undefined,
+    });
   });
 
   it('navigates to BookingForm with correct params when service selected', () => {
@@ -570,5 +699,113 @@ describe('BusinessDetailsScreen', () => {
       expect(mockAlertFn).not.toHaveBeenCalled();
       expect(mockNavigate).toHaveBeenCalled();
     });
+
+    it('shows a species mismatch alert using the raw category for an unrecognized species', () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selectorFn =>
+        selectorFn({
+          businesses: {
+            businesses: [mockBusiness],
+            services: mockServicesWithSpecies,
+          },
+          companion: {
+            companions: [{id: 'c1', category: 'rabbit', name: 'Thumper'}],
+            selectedCompanionId: 'c1',
+          },
+        }),
+      );
+      const {getByTestId} = render(<BusinessDetailsScreen />);
+      fireEvent.press(getByTestId('service-svc-feline'));
+
+      expect(mockAlertFn).toHaveBeenCalledWith(
+        'Species Mismatch',
+        expect.stringContaining('cats'),
+        [{text: 'OK'}],
+      );
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('resolves a "cat" category to feline and navigates when species match', () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selectorFn =>
+        selectorFn({
+          businesses: {
+            businesses: [mockBusiness],
+            services: mockServicesWithSpecies,
+          },
+          companion: {
+            companions: [{id: 'c1', category: 'cat', name: 'Whiskers'}],
+            selectedCompanionId: 'c1',
+          },
+        }),
+      );
+      const {getByTestId} = render(<BusinessDetailsScreen />);
+      fireEvent.press(getByTestId('service-svc-feline'));
+
+      expect(mockAlertFn).not.toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'BookingForm',
+        expect.objectContaining({serviceId: 'svc-feline'}),
+      );
+    });
+
+    it('treats a companion with no category as an empty string and still alerts on mismatch', () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selectorFn =>
+        selectorFn({
+          businesses: {
+            businesses: [mockBusiness],
+            services: mockServicesWithSpecies,
+          },
+          companion: {
+            companions: [{id: 'c1', name: 'Mystery'}],
+            selectedCompanionId: 'c1',
+          },
+        }),
+      );
+      const {getByTestId} = render(<BusinessDetailsScreen />);
+      fireEvent.press(getByTestId('service-svc-feline'));
+
+      expect(mockAlertFn).toHaveBeenCalled();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+  });
+
+  it('treats a selectedCompanionId with no matching companion as no companion selected', () => {
+    (useSelector as unknown as jest.Mock).mockImplementation(selectorFn =>
+      selectorFn({
+        businesses: {
+          businesses: [mockBusiness],
+          services: mockServicesWithSpecies,
+        },
+        companion: {
+          companions: [{id: 'other-id', category: 'dog', name: 'Rex'}],
+          selectedCompanionId: 'c1',
+        },
+      }),
+    );
+    const {getByTestId} = render(<BusinessDetailsScreen />);
+    fireEvent.press(getByTestId('service-svc-feline'));
+
+    expect(mockAlertFn).not.toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalled();
+  });
+
+  it('falls back to an undefined specialityId when the selected service has none', () => {
+    const {getByTestId} = render(<BusinessDetailsScreen />);
+    fireEvent.press(getByTestId('service-svc-3'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('BookingForm', {
+      businessId: 'bus-123',
+      serviceId: 'svc-3',
+      serviceName: 'Checkup',
+      serviceSpecialty: 'General',
+      serviceSpecialtyId: undefined,
+    });
+  });
+
+  it('does not call goBack when there is nothing to go back to', () => {
+    mockCanGoBack.mockReturnValueOnce(false);
+    const {getByTestId} = render(<BusinessDetailsScreen />);
+    fireEvent.press(getByTestId('header-back'));
+
+    expect(mockGoBack).not.toHaveBeenCalled();
   });
 });

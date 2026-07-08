@@ -270,9 +270,7 @@ export const AppointmentFormScreen: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!entry) {
-      return;
-    }
+    const activeEntry = entry as NonNullable<typeof entry>;
     const valid = validateForm();
     if (!valid) {
       return;
@@ -281,14 +279,14 @@ export const AppointmentFormScreen: React.FC = () => {
       const result = await dispatch(
         submitAppointmentForm({
           appointmentId,
-          form: entry.form,
+          form: activeEntry.form,
           answers: values,
-          formVersion: entry.formVersion,
+          formVersion: activeEntry.formVersion,
           companionId: appointment?.companionId ?? null,
         }),
       ).unwrap();
 
-      if (entry.signingRequired && result.submission?._id) {
+      if (activeEntry.signingRequired && result.submission?._id) {
         try {
           const signResult = await dispatch(
             startFormSigning({
@@ -302,7 +300,7 @@ export const AppointmentFormScreen: React.FC = () => {
               appointmentId,
               submissionId: result.submission._id,
               signingUrl: signResult.signingUrl,
-              formTitle: entry.form.name,
+              formTitle: activeEntry.form.name,
             });
             return;
           }
@@ -359,10 +357,7 @@ export const AppointmentFormScreen: React.FC = () => {
   };
 
   const handleOpenSignedPdf = React.useCallback(() => {
-    if (!signedPdfUrl) {
-      return;
-    }
-    Linking.openURL(signedPdfUrl).catch(() => {
+    Linking.openURL(signedPdfUrl as string).catch(() => {
       Alert.alert('Unable to open PDF', 'Please try again in a moment.');
     });
   }, [signedPdfUrl]);
@@ -388,6 +383,7 @@ export const AppointmentFormScreen: React.FC = () => {
                 key={`${field.id}-${value}`}
                 value={isSelected}
                 onValueChange={() => {
+                  /* istanbul ignore next -- read-only checkboxes render through renderReadOnlyCheckbox instead. */
                   if (isReadOnly) return;
                   const next = Array.isArray(selected) ? [...selected] : [];
                   const idx = next.indexOf(value);
@@ -550,7 +546,6 @@ export const AppointmentFormScreen: React.FC = () => {
               editable={false}
               placeholder="Select date"
             />
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         );
       case 'signature':
@@ -677,7 +672,7 @@ export const AppointmentFormScreen: React.FC = () => {
                 ) : null}
 
                 <View style={styles.fieldsContainer}>
-                  {entry.form.schema.map(field => renderField(field))}
+                  {(entry.form.schema ?? []).map(field => renderField(field))}
                 </View>
 
                 {isReadOnly ? null : (

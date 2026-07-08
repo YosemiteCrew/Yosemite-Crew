@@ -153,11 +153,13 @@ export const EditCoParentScreen: React.FC<Props> = ({route, navigation}) => {
 
   useReactEffect(() => {
     if (!coParent && selectedCompanion?.id) {
+      const selectedCompanionImage =
+        selectedCompanion.profileImage ?? undefined;
       dispatch(
         fetchCoParents({
           companionId: selectedCompanion.id,
           companionName: selectedCompanion.name,
-          companionImage: selectedCompanion.profileImage ?? undefined,
+          companionImage: selectedCompanionImage,
         }),
       );
     }

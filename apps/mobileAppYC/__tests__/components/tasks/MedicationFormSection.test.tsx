@@ -294,6 +294,23 @@ describe('MedicationFormSection', () => {
   });
 
   describe('Dosage Display Section', () => {
+    it('defaults showDosageDisplay to true when the prop is omitted entirely', () => {
+      render(
+        <MedicationFormSection
+          formData={{...baseFormData, dosages: [mockDosages[0]]}}
+          errors={baseErrors}
+          updateField={jest.fn()}
+          onOpenMedicationTypeSheet={jest.fn()}
+          onOpenDosageSheet={jest.fn()}
+          onOpenMedicationFrequencySheet={jest.fn()}
+          onOpenStartDatePicker={jest.fn()}
+          onOpenEndDatePicker={jest.fn()}
+          theme={mockTheme}
+        />,
+      );
+      expect(screen.getByText('Value: 1 Tablet')).toBeTruthy();
+    });
+
     it('does not render dosage display if showDosageDisplay is false', () => {
       renderComponent({
         formData: {dosages: mockDosages},
@@ -336,9 +353,84 @@ describe('MedicationFormSection', () => {
       fireEvent.press(screen.getByText('Value: 1 Tablet'));
       expect(mockOnOpenDosageSheet).toHaveBeenCalledTimes(1);
     });
+
+    it('formats a time-only "HH:mm" string using today\'s date', () => {
+      renderComponent({
+        formData: {
+          dosages: [{id: '1', label: '1 Tablet', time: '14:30'}],
+        },
+        showDosageDisplay: true,
+      });
+
+      const expected = new Date();
+      expected.setHours(14, 30, 0, 0);
+      const expectedText = expected.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+      expect(screen.getByText(`Value: ${expectedText}`)).toBeTruthy();
+    });
+
+    it('shows "Invalid time" for a time-only string with non-numeric hours/minutes', () => {
+      renderComponent({
+        formData: {
+          dosages: [{id: '1', label: '1 Tablet', time: 'aa:bb'}],
+        },
+        showDosageDisplay: true,
+      });
+      expect(screen.getByText('Value: Invalid time')).toBeTruthy();
+    });
+
+    it('shows "Invalid time" for a string with neither "T" nor ":"', () => {
+      renderComponent({
+        formData: {
+          dosages: [{id: '1', label: '1 Tablet', time: 'notatime'}],
+        },
+        showDosageDisplay: true,
+      });
+      expect(screen.getByText('Value: Invalid time')).toBeTruthy();
+    });
+
+    it('shows "Invalid time" for an unparseable ISO-like string', () => {
+      renderComponent({
+        formData: {
+          dosages: [{id: '1', label: '1 Tablet', time: 'not-a-date-Tzz'}],
+        },
+        showDosageDisplay: true,
+      });
+      expect(screen.getByText('Value: Invalid time')).toBeTruthy();
+    });
+
+    it('shows "Invalid time" when formatting throws (e.g. a non-string time value)', () => {
+      renderComponent({
+        formData: {
+          dosages: [{id: '1', label: '1 Tablet', time: null as any}],
+        },
+        showDosageDisplay: true,
+      });
+      expect(screen.getByText('Value: Invalid time')).toBeTruthy();
+    });
   });
 
   describe('Interactions', () => {
+    it('calls updateField on "Task name" change', () => {
+      const {mockUpdateField} = renderComponent();
+      fireEvent.press(screen.getByTestId('mock-input-Task-name-touchable'));
+      expect(mockUpdateField).toHaveBeenCalledWith('title', 'mock change');
+    });
+
+    it('calls updateField on "Task description" change', () => {
+      const {mockUpdateField} = renderComponent();
+      fireEvent.press(
+        screen.getByTestId('mock-input-Task-description-(optional)-touchable'),
+      );
+      expect(mockUpdateField).toHaveBeenCalledWith(
+        'description',
+        'mock change',
+      );
+    });
+
     it('calls updateField on "Medicine name" change', () => {
       const {mockUpdateField} = renderComponent();
       fireEvent.press(screen.getByTestId('mock-input-Medicine-name-touchable'));

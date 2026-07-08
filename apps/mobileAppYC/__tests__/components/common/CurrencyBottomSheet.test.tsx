@@ -37,15 +37,17 @@ jest.mock(
     const ReactActual = jest.requireActual('react');
     const {View: RNView} = jest.requireActual('react-native');
     return {
-      GenericSelectBottomSheet: ReactActual.forwardRef((props: any, ref: any) => {
-        ReactActual.useImperativeHandle(ref, () => ({
-          open: mockOpen,
-          close: mockClose,
-        }));
-        mockSheetOnSave = props.onSave;
-        mockGenericSheet(props);
-        return <RNView testID="mock-generic-sheet" />;
-      }),
+      GenericSelectBottomSheet: ReactActual.forwardRef(
+        (props: any, ref: any) => {
+          ReactActual.useImperativeHandle(ref, () => ({
+            open: mockOpen,
+            close: mockClose,
+          }));
+          mockSheetOnSave = props.onSave;
+          mockGenericSheet(props);
+          return <RNView testID="mock-generic-sheet" />;
+        },
+      ),
     };
   },
 );
@@ -154,5 +156,70 @@ describe('CurrencyBottomSheet', () => {
     });
 
     expect(mockOnSave).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the default flag when the currency countryCode has no matching country', () => {
+    // mockCurrencies is the same array reference the component captured at
+    // import time, so mutating an entry in place changes what it sees on
+    // the next render without needing to reset/re-require modules.
+    const originalCountryCode = mockCurrencies[0].countryCode;
+    mockCurrencies[0].countryCode = 'ZZ';
+
+    try {
+      render(
+        <CurrencyBottomSheet selectedCurrency="USD" onSave={mockOnSave} />,
+      );
+
+      expect(mockGenericSheet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: expect.arrayContaining([
+            expect.objectContaining({code: 'EUR', flag: '🇺🇸'}),
+          ]),
+        }),
+      );
+    } finally {
+      mockCurrencies[0].countryCode = originalCountryCode;
+    }
+  });
+
+  it('falls back to the first option when neither the selected currency nor USD is present', () => {
+    const originalUsdCode = mockCurrencies[1].code;
+    mockCurrencies[1].code = 'GBP';
+
+    try {
+      render(
+        <CurrencyBottomSheet selectedCurrency="INVALID" onSave={mockOnSave} />,
+      );
+
+      expect(mockGenericSheet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selectedItem: expect.objectContaining({code: 'EUR'}),
+        }),
+      );
+    } finally {
+      mockCurrencies[1].code = originalUsdCode;
+    }
+  });
+
+  it('falls back to null when there are no currency options at all', () => {
+    const originalEurCode = mockCurrencies[0].code;
+    const originalUsdCode = mockCurrencies[1].code;
+    mockCurrencies[0].code = 'GBP';
+    mockCurrencies[1].code = 'JPY';
+
+    try {
+      render(
+        <CurrencyBottomSheet selectedCurrency="INVALID" onSave={mockOnSave} />,
+      );
+
+      expect(mockGenericSheet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selectedItem: null,
+        }),
+      );
+    } finally {
+      mockCurrencies[0].code = originalEurCode;
+      mockCurrencies[1].code = originalUsdCode;
+    }
   });
 });

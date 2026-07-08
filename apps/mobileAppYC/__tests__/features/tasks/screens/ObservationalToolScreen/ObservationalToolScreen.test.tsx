@@ -184,7 +184,12 @@ jest.mock(
             open: () => props.onDiscard && props.onDiscard(),
             close: jest.fn(),
           }));
-          return <MockView testID="discard-sheet" />;
+          return (
+            <MockView
+              testID="discard-sheet"
+              onTouchEnd={() => props.onKeepEditing && props.onKeepEditing()}
+            />
+          );
         },
       ),
     };
@@ -373,8 +378,11 @@ describe('ObservationalToolScreen', () => {
     it('shows error if task not found', () => {
       (selectTaskById as unknown as jest.Mock).mockReturnValue(() => null);
 
-      const {getByText} = renderScreen();
+      const {getByTestId, getByText} = renderScreen();
       expect(getByText('Task not found')).toBeTruthy();
+
+      fireEvent(getByTestId('header-back'), 'onTouchEnd');
+      expect(mockGoBack).toHaveBeenCalled();
     });
   });
 
@@ -385,6 +393,7 @@ describe('ObservationalToolScreen', () => {
 
       fireEvent(backBtn, 'onTouchEnd');
       expect(mockGoBack).toHaveBeenCalled();
+      fireEvent(getByTestId('discard-sheet'), 'onTouchEnd');
     });
 
     it('resets stack if first in history on safe exit', () => {
@@ -649,8 +658,10 @@ describe('ObservationalToolScreen', () => {
         return undefined;
       });
 
-      const {getByText} = renderScreen();
+      const {getByTestId, getByText} = renderScreen();
       expect(getByText('Loading observational tool...')).toBeTruthy();
+      fireEvent(getByTestId('header-back'), 'onTouchEnd');
+      expect(mockGoBack).toHaveBeenCalled();
     });
 
     it('shows an unable-to-load state when no definition can be resolved', async () => {
@@ -685,9 +696,33 @@ describe('ObservationalToolScreen', () => {
         return undefined;
       });
 
-      const {getByText} = renderScreen();
+      const {getByTestId, getByText} = renderScreen();
       await waitFor(() => {
         expect(getByText('Unable to load observational tool.')).toBeTruthy();
+      });
+      fireEvent(getByTestId('header-back'), 'onTouchEnd');
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+
+    it('logs remote definition load failures', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(jest.fn());
+      (getCachedObservationTool as jest.Mock).mockReturnValue(null);
+      (selectTaskById as unknown as jest.Mock).mockReturnValue(() => ({
+        ...mockTask,
+        observationToolId: 'unknown-tool',
+        details: {toolType: 'unknown-tool'},
+      }));
+      (observationToolApi.get as jest.Mock).mockRejectedValueOnce(
+        new Error('definition failed'),
+      );
+
+      renderScreen();
+
+      await waitFor(() => {
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[ObservationalTool] Failed to load definition',
+          expect.any(Error),
+        );
       });
     });
   });
