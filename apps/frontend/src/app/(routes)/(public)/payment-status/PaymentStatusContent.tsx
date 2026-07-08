@@ -21,6 +21,13 @@ type PaymentStatusState = {
 const shortId = (value: string) =>
   value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
 
+const fetchPaymentStatus = async (sessionId: string): Promise<Return> => {
+  const res = await fetch(buildPaymentStatusUrl(sessionId), {
+    cache: 'no-store',
+  });
+  return (await res.json()) as Return;
+};
+
 export function PaymentStatusContent() {
   const searchParams = useSearchParams();
   // Stripe's configured redirect appends a stray quote to the session id
@@ -54,17 +61,19 @@ export function PaymentStatusContent() {
 
     const safeSessionId = session_id;
     let alive = true;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let attempts = 0;
     const maxAttempts = 30;
 
+    const scheduleNextFetch = () => {
+      if (!alive || stopPollingRef.current) return;
+      timeoutId = setTimeout(fetchStatus, 2000);
+    };
+
     async function fetchStatus() {
-      if (stopPollingRef.current) return;
+      if (!alive || stopPollingRef.current) return;
       try {
-        const res = await fetch(buildPaymentStatusUrl(safeSessionId), {
-          cache: 'no-store',
-        });
-        if (!alive) return;
-        const json = (await res.json()) as Return;
+        const json = await fetchPaymentStatus(safeSessionId);
         if (!alive) return;
         setState((current) => ({ ...current, data: json, requestState: 'ready' }));
         attempts += 1;
@@ -75,6 +84,8 @@ export function PaymentStatusContent() {
         ) {
           stopPollingRef.current = true;
           setState((current) => ({ ...current, stopped: true }));
+        } else {
+          scheduleNextFetch();
         }
       } catch {
         if (!alive) return;
@@ -85,11 +96,12 @@ export function PaymentStatusContent() {
     }
 
     fetchStatus();
-    const interval = setInterval(fetchStatus, 2000);
 
     return () => {
       alive = false;
-      clearInterval(interval);
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [session_id]);
 
