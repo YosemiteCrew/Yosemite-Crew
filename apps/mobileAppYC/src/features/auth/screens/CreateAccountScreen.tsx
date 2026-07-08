@@ -1431,8 +1431,8 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['4'],
     },
     successTitle: {
-      ...theme.typography.h3,
-      color: theme.colors.text,
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
       textAlign: 'center',
     },
     successMessage: {

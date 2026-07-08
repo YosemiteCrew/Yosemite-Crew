@@ -225,8 +225,8 @@ const createStyles = (theme: any) =>
       resizeMode: 'contain',
     },
     title: {
-      ...theme.typography.h2,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
     },
     subtitle: {
       ...theme.typography.body14,
