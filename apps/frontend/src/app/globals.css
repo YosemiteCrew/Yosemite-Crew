@@ -29,7 +29,7 @@ html {
 
 body {
   min-height: 100vh;
-  background-color: var(--whitebg) !important;
+  background-color: var(--page) !important;
   color: var(--color-text-primary);
   font-family: var(--font-satoshi) !important;
   font-size: 1rem;
@@ -195,16 +195,24 @@ textarea:focus-visible {
   }
 }
 @theme {
-  --color-neutral-950: #1d1c1b;
-  --color-neutral-900: #302f2e;
-  --color-neutral-800: #454341;
-  --color-neutral-700: #5c5956;
-  --color-neutral-600: #8f8984;
-  --color-neutral-500: #a9a39e;
-  --color-neutral-300: #d6d1cd;
-  --color-neutral-200: #e9e6e3;
-  --color-neutral-100: #f5f3f1;
-  --color-neutral-0: #ffffff;
+  /* Neutral ramp is re-pointed to the warm-bone token layer (defined at the end of
+     this file with light + dark values). Light values are near-identical to the
+     originals, so light mode barely shifts; dark mode comes free because every
+     `neutral-*` utility and the semantic tokens that reference the ramp resolve
+     through `--ink*`/`--screen*`/`--hairline`, which flip under html[data-theme=dark].
+     `--color-white` is intentionally NOT re-pointed: it stays pure white for text and
+     icons on solid/coloured fills. Surfaces on `bg-white` are migrated to `bg-neutral-0`
+     per area. */
+  --color-neutral-950: var(--ink);
+  --color-neutral-900: var(--ink-body);
+  --color-neutral-800: var(--ink-soft);
+  --color-neutral-700: var(--ink-muted);
+  --color-neutral-600: var(--ink-faint);
+  --color-neutral-500: var(--ink-faint2);
+  --color-neutral-300: var(--divider);
+  --color-neutral-200: var(--hairline);
+  --color-neutral-100: var(--screen-2);
+  --color-neutral-0: var(--screen);
 
   /* Brand (blue) */
   --color-primary-100: #e6f2ff;
