@@ -121,6 +121,74 @@ describe('Inventory page helpers', () => {
     expect(filtered[0].id).toBe('a');
   });
 
+  it('keeps all filters optional and searches category, batch, and description fields', () => {
+    expect(
+      filterAndSortInventory(
+        inventoryItems as any,
+        {
+          ...defaultFilters,
+          visibility: 'ALL',
+          status: 'ALL',
+          category: 'all',
+          categories: undefined,
+          subCategories: undefined,
+          locations: undefined,
+          abcClasses: undefined,
+          suppliers: undefined,
+        } as any,
+        'lot-2',
+        'expiry'
+      ).map((item) => item.id)
+    ).toEqual(['b']);
+
+    expect(
+      filterAndSortInventory(
+        inventoryItems as any,
+        { ...defaultFilters, visibility: 'ALL', status: 'ALL' },
+        'medicine',
+        'name'
+      ).map((item) => item.id)
+    ).toEqual(['a']);
+
+    expect(
+      filterAndSortInventory(
+        inventoryItems as any,
+        { ...defaultFilters, visibility: 'ALL', status: 'ALL' },
+        'daily',
+        'name'
+      ).map((item) => item.id)
+    ).toEqual(['a']);
+  });
+
+  it('excludes inventory rows when optional filters do not match', () => {
+    expect(
+      filterAndSortInventory(
+        inventoryItems as any,
+        { ...defaultFilters, visibility: 'HIDDEN', status: 'ALL' },
+        '',
+        'name'
+      ).map((item) => item.id)
+    ).toEqual(['b']);
+
+    expect(
+      filterAndSortInventory(
+        inventoryItems as any,
+        { ...defaultFilters, visibility: 'ALL', status: 'HEALTHY', categories: ['Medicine'] },
+        '',
+        'name'
+      )
+    ).toHaveLength(0);
+
+    expect(
+      filterAndSortInventory(
+        inventoryItems as any,
+        { ...defaultFilters, visibility: 'ALL', status: 'ALL', suppliers: ['Missing Supplier'] },
+        '',
+        'name'
+      )
+    ).toHaveLength(0);
+  });
+
   it('includes single selected category and sub-category matches even when category is not in categories array', () => {
     const filtered = filterAndSortInventory(
       inventoryItems as any,
@@ -172,6 +240,61 @@ describe('Inventory page helpers', () => {
     expect(secondItem?.prescription?.duration).toBe('');
   });
 
+  it('maps dispense API requests with nested fallbacks and missing optional fields', () => {
+    const record = mapDispenseRequestToRecord({
+      ...baseDispenseRequest,
+      patientName: null,
+      metadata: {},
+      patientImageUrl: undefined,
+      petBreed: undefined,
+      petAge: undefined,
+      leadName: undefined,
+      location: undefined,
+      invoiceId: undefined,
+      paymentStatus: undefined,
+      currency: undefined,
+      reviewedAt: undefined,
+      prescription: {
+        artifact: {
+          appointmentId: undefined,
+          summary: 'Prescription Summary',
+        },
+      },
+      medications: [
+        {
+          inventoryItemId: 'inv-fallback',
+          medication: 'Medication Fallback',
+          quantity: undefined,
+          priceCents: undefined,
+          isRx: true,
+          isControlled: false,
+          doseUnit: 'ml',
+          durationDays: 2,
+          packageQuantity: 12,
+          unitQuantity: 6,
+        },
+        {
+          inventoryItemId: 'inv-summary',
+          quantity: 3,
+          unitQuantity: 4,
+        },
+      ],
+    });
+
+    expect(record.patient.name).toBe('—');
+    expect(record.patient.appointmentId).toBe('—');
+    expect(record.lead).toBe('—');
+    expect(record.location).toBe('—');
+    expect(record.currency).toBeUndefined();
+    expect(record.items?.[0]?.name).toBe('Medication Fallback');
+    expect(record.items?.[0]?.quantity).toBe(1);
+    expect(record.items?.[0]?.priceCents).toBe(0);
+    expect(record.items?.[0]?.stockUnitQty).toBe(12);
+    expect(record.items?.[0]?.prescription?.duration).toBe('2 days');
+    expect(record.items?.[1]?.name).toBe('Prescription Summary');
+    expect(record.items?.[1]?.stockUnitQty).toBe(4);
+  });
+
   it('filters dispensary records by request type, status, and multi-field search', () => {
     const records = [
       {
@@ -197,6 +320,8 @@ describe('Inventory page helpers', () => {
     expect(filterDispensaryRecords(records, 'PATIENT', 'ALL', 'milo')).toHaveLength(1);
     expect(filterDispensaryRecords(records, 'ALL', 'DISPENSED', 'vitamin')).toHaveLength(1);
     expect(filterDispensaryRecords(records, 'PATIENT', 'PENDING', 'treatment')).toHaveLength(1);
+    expect(filterDispensaryRecords(records, 'ALL', 'ALL', 'dr other')).toHaveLength(1);
+    expect(filterDispensaryRecords(records, 'IN_HOUSE', 'PENDING', '')).toHaveLength(0);
   });
 
   it('returns labels and titles for inventory view variants', () => {

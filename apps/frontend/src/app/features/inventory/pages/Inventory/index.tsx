@@ -27,7 +27,7 @@ import {
 } from '@/app/features/inventory/pages/Inventory/types';
 import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
 import { InventorySectionKey } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
-import { BusinessType, BusinessTypes } from '@/app/features/organization/types/org';
+import { BusinessType } from '@/app/features/organization/types/org';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useLoadOrg } from '@/app/hooks/useLoadOrg';
 import { useInventoryModule } from '@/app/hooks/useInventory';
@@ -835,14 +835,14 @@ const Inventory = () => {
     permissions.can(PERMISSIONS.INVENTORY_EDIT_ANY);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgsById = useOrgStore((s) => s.orgsById);
-  const primaryOrg = primaryOrgId ? orgsById[primaryOrgId] : null;
   const rooms = useRoomsForPrimaryOrg();
   const headerSearchQuery = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const handledDeepLinkRef = useRef<string | null>(null);
 
-  const [businessType, setBusinessType] = useState<BusinessType | null>(primaryOrg?.type ?? null);
-  const resolvedBusinessType: BusinessType = businessType ?? 'GROOMER';
+  const resolvedOrgType = primaryOrgId ? orgsById[primaryOrgId]?.type : undefined;
+  const resolvedBusinessType: BusinessType =
+    (resolvedOrgType as BusinessType | undefined) ?? 'GROOMER';
 
   const inventoryModule = useInventoryModule(resolvedBusinessType);
   const { inventory, turnover, status, error: loadError } = inventoryModule;
@@ -901,22 +901,6 @@ const Inventory = () => {
 
   const loadingList = status === 'loading';
   const error = actionError ?? loadError;
-
-  // Resolve businessType from the primary org's type, falling back to GROOMER
-  // once no org type is available. Render-time prev-comparison keyed on the
-  // org identity (id + type) instead of an effect that self-depends on the
-  // state it sets.
-  const resolvedOrgType = primaryOrgId ? orgsById[primaryOrgId]?.type : undefined;
-  const [prevOrgKey, setPrevOrgKey] = useState<string | null>(null);
-  const orgKey = `${primaryOrgId ?? ''}:${resolvedOrgType ?? ''}`;
-  if (prevOrgKey === null || orgKey !== prevOrgKey) {
-    setPrevOrgKey(orgKey);
-    if (resolvedOrgType && BusinessTypes.includes(resolvedOrgType)) {
-      setBusinessType(resolvedOrgType);
-    } else if (businessType === null) {
-      setBusinessType('GROOMER');
-    }
-  }
 
   const activeSearchQuery = filters.search || headerSearchQuery;
   const debouncedSearch = useDeferredValue(activeSearchQuery);
@@ -1137,11 +1121,11 @@ const Inventory = () => {
       setFilters((prev) => {
         const categories = toggleArrayValue(prev.categories ?? [], category);
         const categorySubcategories = categorySubcategoryOptions[category] ?? [];
-        const subCategories = categories.includes(category)
+        const selectedCategories = new Set(categories);
+        const categorySubcategorySet = new Set(categorySubcategories);
+        const subCategories = selectedCategories.has(category)
           ? prev.subCategories
-          : prev.subCategories.filter(
-              (subCategory) => !categorySubcategories.includes(subCategory)
-            );
+          : prev.subCategories.filter((subCategory) => !categorySubcategorySet.has(subCategory));
         return {
           ...prev,
           category: categories.length === 1 ? categories[0] : 'all',

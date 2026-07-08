@@ -51,6 +51,12 @@ export const InventoryFilterModal = ({
   toggleExpandedCategory,
   supplierFilterOptions,
 }: InventoryFilterModalProps) => {
+  const selectedLocations = new Set(filters.locations);
+  const selectedCategories = new Set(filters.categories);
+  const selectedSubCategories = new Set(filters.subCategories);
+  const selectedAbcClasses = new Set(filters.abcClasses);
+  const selectedSuppliers = new Set(filters.suppliers);
+
   return (
     <Modal showModal={filterOpen} setShowModal={setFilterOpen}>
       <div className="flex h-full flex-col">
@@ -170,7 +176,7 @@ export const InventoryFilterModal = ({
                     >
                       <input
                         type="checkbox"
-                        checked={filters.locations.includes(loc)}
+                        checked={selectedLocations.has(loc)}
                         onChange={() => toggleListFilter('locations', loc)}
                         className="size-4 accent-blue-text"
                       />
@@ -205,7 +211,7 @@ export const InventoryFilterModal = ({
               <div className="flex flex-col pb-3">
                 {categoryOptions.map((category) => {
                   const subs = categorySubcategoryOptions[category] ?? [];
-                  const isChecked = filters.categories.includes(category);
+                  const isChecked = selectedCategories.has(category);
                   const isExpanded = expandedCategories.has(category);
                   return (
                     <div key={category}>
@@ -244,7 +250,7 @@ export const InventoryFilterModal = ({
                             >
                               <input
                                 type="checkbox"
-                                checked={filters.subCategories.includes(sub)}
+                                checked={selectedSubCategories.has(sub)}
                                 onChange={() => toggleListFilter('subCategories', sub)}
                                 className="size-4 accent-blue-text"
                                 aria-label={sub}
@@ -289,7 +295,7 @@ export const InventoryFilterModal = ({
                   >
                     <input
                       type="checkbox"
-                      checked={filters.abcClasses.includes(cls)}
+                      checked={selectedAbcClasses.has(cls)}
                       onChange={() => toggleListFilter('abcClasses', cls)}
                       className="size-4 accent-blue-text"
                     />
@@ -329,7 +335,7 @@ export const InventoryFilterModal = ({
                     >
                       <input
                         type="checkbox"
-                        checked={filters.suppliers.includes(sup)}
+                        checked={selectedSuppliers.has(sup)}
                         onChange={() => toggleListFilter('suppliers', sup)}
                         className="size-4 accent-blue-text"
                       />

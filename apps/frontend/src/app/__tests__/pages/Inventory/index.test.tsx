@@ -377,6 +377,7 @@ describe('Inventory Page', () => {
       addBatch: mockAddBatch,
     });
     (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([]);
+    (listDispenseRequests as jest.Mock).mockReturnValue(new Promise(() => {}));
   });
 
   afterEach(() => {
