@@ -494,6 +494,7 @@ function HeroSection() {
       <HeroGlow
         parallax={false}
         color="var(--glow-b09)"
+        scrollSpeed="-0.04"
         box={{ top: '-160px', left: 'calc(50% - 400px)', width: '800px', height: '560px' }}
         animation="ycDrift 32s ease-in-out infinite alternate"
       />

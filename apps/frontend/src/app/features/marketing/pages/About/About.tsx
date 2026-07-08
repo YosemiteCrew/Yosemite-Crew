@@ -83,6 +83,7 @@ function Hero() {
       <HeroGlow
         parallax={false}
         color="var(--glow-b08)"
+        scrollSpeed="-0.04"
         box={{ top: '-160px', left: 'calc(50% - 420px)', width: '840px', height: '560px' }}
         animation="ycDrift 34s ease-in-out infinite alternate"
       />

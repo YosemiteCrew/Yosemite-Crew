@@ -53,12 +53,14 @@ function Hero() {
       <HeroGlow
         depth="0.05"
         color="var(--glow-b10)"
+        scrollSpeed="-0.05"
         box={{ top: '-160px', left: 'calc(50% - 620px)', width: '860px', height: '600px' }}
         animation="ycDrift 30s ease-in-out infinite alternate"
       />
       <HeroGlow
         depth="0.06"
         color="var(--glow-c09)"
+        scrollSpeed="0.04"
         box={{ bottom: '-220px', right: '-140px', width: '720px', height: '540px' }}
         animation="ycDrift 38s ease-in-out 3s infinite alternate-reverse"
       />

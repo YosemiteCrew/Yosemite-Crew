@@ -485,12 +485,14 @@ function Hero() {
       />
       <HeroGlow
         color="var(--glow-p10)"
+        scrollSpeed="-0.05"
         box={{ top: -140, right: 'calc(50% - 640px)', width: 820, height: 580 }}
         animation="ycDrift 32s ease-in-out infinite alternate"
         depth="0.05"
       />
       <HeroGlow
         color="var(--glow-b08)"
+        scrollSpeed="0.04"
         box={{ bottom: -200, left: -120, width: 720, height: 540 }}
         animation="ycDrift 40s ease-in-out 3s infinite alternate-reverse"
         depth="0.06"
