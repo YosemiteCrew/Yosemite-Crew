@@ -2,11 +2,17 @@ import {useTheme} from '@/hooks';
 import React from 'react';
 import {Image, ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {
+  IconTile,
+  type IconTileTone,
+} from '@/shared/components/common/IconTile/IconTile';
 
 export interface AccountMenuItem {
   id: string;
   label: string;
   icon: ImageSourcePropType;
+  /** Warm-bone tile tint. Falls back to danger/neutral when omitted. */
+  tone?: IconTileTone;
   danger?: boolean;
 }
 
@@ -33,10 +39,12 @@ export const AccountMenuList: React.FC<AccountMenuListProps> = ({
           onPress={() => onItemPress(item.id)}
           accessibilityRole="button"
           accessibilityLabel={item.label}>
-          <View
-            style={[styles.iconCircle, item.danger && styles.iconCircleDanger]}>
-            <Image source={item.icon} style={styles.icon} />
-          </View>
+          <IconTile
+            icon={item.icon}
+            tone={item.tone ?? (item.danger ? 'danger' : 'neutral')}
+            size={theme.spacing['10']}
+            style={styles.iconTile}
+          />
           <Text style={[styles.label, item.danger && styles.labelDanger]}>
             {item.label}
           </Text>
@@ -67,22 +75,8 @@ const createStyles = (theme: any) =>
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.colors.border,
     },
-    iconCircle: {
-      width: theme.spacing['10'],
-      height: theme.spacing['10'],
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: 'rgba(48, 47, 46, 0.12)',
-      alignItems: 'center',
-      justifyContent: 'center',
+    iconTile: {
       marginRight: theme.spacing['4'],
-    },
-    iconCircleDanger: {
-      backgroundColor: theme.colors.errorSurface,
-    },
-    icon: {
-      width: theme.spacing['5'],
-      height: theme.spacing['5'],
-      resizeMode: 'contain',
     },
     label: {
       flex: 1,
