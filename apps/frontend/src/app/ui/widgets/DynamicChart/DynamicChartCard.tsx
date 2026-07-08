@@ -109,7 +109,15 @@ const getDayTickLabel = (value: string): string => {
 
 const TiltedYTick = ({ x, y, payload }: TiltedTickProps) => (
   <g transform={`translate(${x},${y})`}>
-    <text x={0} y={0} dx={-4} textAnchor="end" fontSize={11} fill="#666" transform="rotate(-30)">
+    <text
+      x={0}
+      y={0}
+      dx={-4}
+      textAnchor="end"
+      fontSize={11}
+      fill="var(--ink-faint)"
+      transform="rotate(-30)"
+    >
       {payload.value}
     </text>
   </g>

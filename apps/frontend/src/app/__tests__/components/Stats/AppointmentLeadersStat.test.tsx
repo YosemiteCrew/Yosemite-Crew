@@ -7,8 +7,13 @@ import CardHeader from '@/app/ui/cards/CardHeader/CardHeader';
 jest.mock('next/dynamic', () => ({
   __esModule: true,
   default: () => {
-    const MockDynamicChartCard = ({ layout, hideKeys }: any) => (
-      <div data-testid="chart" data-layout={layout} data-hide={String(hideKeys)} />
+    const MockDynamicChartCard = ({ layout, hideKeys, keys }: any) => (
+      <div
+        data-testid="chart"
+        data-layout={layout}
+        data-hide={String(hideKeys)}
+        data-colors={(keys ?? []).map((key: { color: string }) => key.color).join(',')}
+      />
     );
     MockDynamicChartCard.displayName = 'MockDynamicChartCard';
     return MockDynamicChartCard;
@@ -27,6 +32,7 @@ describe('AppointmentLeadersStat', () => {
     expect(screen.getByTestId('card-header')).toHaveTextContent('Appointment leaders');
     expect(screen.getByTestId('chart')).toHaveAttribute('data-hide', 'false');
     expect(screen.getByTestId('chart')).toHaveAttribute('data-layout', 'vertical');
+    expect(screen.getByTestId('chart')).toHaveAttribute('data-colors', 'var(--cta)');
     expect(CardHeader).toHaveBeenCalled();
   });
 });

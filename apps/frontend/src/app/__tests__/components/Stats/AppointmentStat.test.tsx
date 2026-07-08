@@ -8,7 +8,12 @@ jest.mock('next/dynamic', () => ({
   __esModule: true,
   default: () => {
     const MockDynamicChartCard = ({ data, keys }: any) => (
-      <div data-testid="chart" data-points={data.length} data-keys={keys.length} />
+      <div
+        data-testid="chart"
+        data-points={data.length}
+        data-keys={keys.length}
+        data-colors={keys.map((key: { color: string }) => key.color).join(',')}
+      />
     );
     MockDynamicChartCard.displayName = 'MockDynamicChartCard';
     return MockDynamicChartCard;
@@ -46,6 +51,7 @@ describe('AppointmentStat', () => {
     expect(screen.getByTestId('card-header')).toHaveTextContent('Appointments');
     expect(screen.getByTestId('chart')).toHaveAttribute('data-points', '7');
     expect(screen.getByTestId('chart')).toHaveAttribute('data-keys', '2');
+    expect(screen.getByTestId('chart')).toHaveAttribute('data-colors', 'var(--cta),var(--divider)');
     expect(CardHeader).toHaveBeenCalled();
   });
 });
