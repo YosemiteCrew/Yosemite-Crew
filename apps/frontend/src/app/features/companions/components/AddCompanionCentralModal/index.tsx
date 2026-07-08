@@ -1,16 +1,6 @@
 'use client';
-import React, {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { createPortal } from 'react-dom';
-import { IoClose, IoPencilOutline, IoInformationCircleOutline } from 'react-icons/io5';
-import { IoIosWarning } from 'react-icons/io';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { IoPencilOutline, IoInformationCircleOutline } from 'react-icons/io5';
 import { FiPlus, FiCheck } from 'react-icons/fi';
 import { MdPets } from 'react-icons/md';
 import { FaUser } from 'react-icons/fa';
@@ -27,22 +17,13 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useNotify } from '@/app/hooks/useNotify';
-import { useFilteredOptions } from '@/app/hooks/useDropdown';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import {
-  searchParent,
-  createCompanion,
-  createParent,
   getCompanionForParent,
-  linkCompanion,
   updateCompanion,
   updateParent,
 } from '@/app/features/companions/services/companionService';
-import {
-  fetchBreedCodeEntries,
-  fetchSpeciesCodeEntries,
-  BreedCodeEntry,
-} from '@/app/features/companions/services/codeEntriesService';
+import { fetchSpeciesCodeEntries } from '@/app/features/companions/services/codeEntriesService';
 import {
   StoredCompanion,
   StoredParent,
@@ -52,11 +33,9 @@ import {
   EMPTY_STORED_COMPANION,
   EMPTY_STORED_PARENT,
   CompanionAlert,
-  CompanionFormData,
   fromStoredCompanionAlerts,
   toStoredCompanionAlerts,
   AlertPriority,
-  ALERT_PRIORITY_CONFIG,
   CountryDialCodeOptions,
   CountryDialCodeOption,
   findPhoneData,
@@ -65,412 +44,56 @@ import {
   CountriesOptions,
   OriginOptions,
 } from '@/app/features/companions/components/AddCompanion/type';
-import {
-  getEmailValidationError,
-  normalizeEmail,
-  validatePhone,
-  toTitleCase,
-} from '@/app/lib/validators';
-import { CompanionType, RecordStatus, Gender, SourceType } from '@yosemite-crew/types';
+import { normalizeEmail, toTitleCase } from '@/app/lib/validators';
+import { CompanionType, Gender, RecordStatus, SourceType } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
-import { formatDisplayDate, getAgeInYears } from '@/app/lib/date';
 import { getCompanionStatusStyle } from '@/app/ui/tables/tableUtils';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import clsx from 'clsx';
-
-// ─── Species / breed constants ────────────────────────────────────────────────
-
-type SpeciesOption = {
-  value: string;
-  label: string;
-  type: CompanionType;
-  speciesCode: string;
-  speciesQuery: string;
-};
-type BreedOption = { value: string; label: string; breedCode: string; speciesCode: string };
-
-const DEFAULT_SPECIES_OPTIONS: SpeciesOption[] = [
-  { label: 'Canine', value: 'dog', type: 'dog', speciesCode: '', speciesQuery: 'canine' },
-  { label: 'Feline', value: 'cat', type: 'cat', speciesCode: '', speciesQuery: 'feline' },
-  { label: 'Equine', value: 'horse', type: 'horse', speciesCode: '', speciesQuery: 'equine' },
-];
-
-const SPECIES_LABEL: Record<string, string> = {
-  dog: 'Canine',
-  cat: 'Feline',
-  horse: 'Equine',
-  other: 'Other',
-};
-
-const BLOOD_GROUP_OPTIONS_BY_SPECIES: Record<CompanionType, { value: string; label: string }[]> = {
-  cat: ['A', 'B', 'AB', 'Unknown'].map((g) => ({ value: g, label: g })),
-  dog: [
-    'DEA 1.1 Positive',
-    'DEA 1.1 Negative',
-    'DEA 1.2 Positive',
-    'DEA 1.2 Negative',
-    'DEA 3 Positive',
-    'DEA 3 Negative',
-    'DEA 4 Positive',
-    'DEA 4 Negative',
-    'DEA 5 Positive',
-    'DEA 5 Negative',
-    'DEA 7 Positive',
-    'DEA 7 Negative',
-    'Universal Donor',
-    'Unknown',
-  ].map((g) => ({ value: g, label: g })),
-  horse: ['Aa', 'Ca', 'Da', 'Ka', 'Pa', 'Qa', 'Ua', 'Universal Donor', 'Unknown'].map((g) => ({
-    value: g,
-    label: g,
-  })),
-  other: [{ value: 'Unknown', label: 'Unknown' }],
-};
-
-const STATUS_OPTIONS: { value: RecordStatus; label: string }[] = [
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
-  { value: 'archived', label: 'Archived' },
-];
-
-// Gender + neuter combined into one dropdown
-type GenderNeuter = { gender: string; neutered: boolean };
-
-const GENDER_NEUTER_OPTIONS: { value: string; label: string; data: GenderNeuter }[] = [
-  { value: 'male-intact', label: 'Male', data: { gender: 'male', neutered: false } },
-  { value: 'male-neutered', label: 'Male Neutered', data: { gender: 'male', neutered: true } },
-  { value: 'female-intact', label: 'Female', data: { gender: 'female', neutered: false } },
-  { value: 'female-spayed', label: 'Female Spayed', data: { gender: 'female', neutered: true } },
-  { value: 'unknown-intact', label: 'Unknown', data: { gender: 'unknown', neutered: false } },
-];
-
-const getGenderNeuterValue = (gender: string, neutered: boolean): string => {
-  const match = GENDER_NEUTER_OPTIONS.find(
-    (o) => o.data.gender === gender && o.data.neutered === neutered
-  );
-  return match?.value ?? 'unknown-intact';
-};
-
-const toNonNegativeNumber = (value: string | number | undefined) => {
-  const parsed = typeof value === 'number' ? value : Number.parseFloat((value ?? '').toString());
-  if (Number.isNaN(parsed)) return undefined;
-  return Math.max(0, parsed);
-};
-
-const MAX_LOCAL_PHONE_LENGTH = 15;
-
-const ALERT_PRIORITY_OPTIONS: { value: AlertPriority; label: string }[] = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'critical', label: 'Critical' },
-];
-
-const buildFullName = (firstName: string, lastName?: string | null): string =>
-  lastName ? `${firstName} ${lastName}` : firstName;
-
-const deduplicateBreedEntries = (
-  entries: BreedCodeEntry[],
-  fallbackSpeciesCode: string
-): BreedOption[] => {
-  const seen = new Set<string>();
-  return entries.reduce<BreedOption[]>((acc, e) => {
-    if (!seen.has(e.display)) {
-      seen.add(e.display);
-      acc.push({
-        value: e.display,
-        label: e.display,
-        breedCode: e.code,
-        speciesCode: e.meta?.speciesCode ?? fallbackSpeciesCode,
-      });
-    }
-    return acc;
-  }, []);
-};
-
-const loadBreedOptions = async (
-  speciesOptions: SpeciesOption[],
-  companionType: string,
-  setBreedOptions: (opts: BreedOption[]) => void,
-  signal: { cancelled: boolean }
-) => {
-  const sel = speciesOptions.find((o) => o.type === companionType);
-  if (!sel) {
-    setBreedOptions([]);
-    return;
-  }
-  try {
-    const entries = await fetchBreedCodeEntries(sel.speciesQuery);
-    if (!signal.cancelled) setBreedOptions(deduplicateBreedEntries(entries, sel.speciesCode));
-  } catch {
-    if (!signal.cancelled) setBreedOptions([]);
-  }
-};
-
-const fmtDate = (v?: Date | string) => {
-  if (!v) return '-';
-  return formatDisplayDate(v, '-');
-};
-
-const fmtAge = (dob?: Date | string) => {
-  if (!dob) return '-';
-  const age = getAgeInYears(dob);
-  if (!Number.isFinite(age) || age < 0) return '-';
-  return `${age} ${age === 1 ? 'Yr' : 'Yrs'}`;
-};
-
-const fmt = (v?: string | number | null) => String(v ?? '').trim() || '-';
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-const SectionHeading = ({ icon, title }: { icon: React.ReactNode; title: string }) => (
-  <div className="flex items-center gap-2">
-    <span className="flex items-center justify-center text-text-primary">{icon}</span>
-    <h3
-      style={{
-        fontFamily: 'var(--font-satoshi), sans-serif',
-        fontSize: 16,
-        fontWeight: 700,
-        lineHeight: '120%',
-        color: 'var(--color-neutral-700)',
-      }}
-    >
-      {title}
-    </h3>
-  </div>
-);
-
-const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div className="flex items-start justify-between gap-3 py-2.5 border-t border-card-border first:border-t-0">
-    <span className="text-[12px] font-semibold text-text-secondary shrink-0">{label}</span>
-    <span className="text-[13px] font-medium text-text-primary text-right">{value || '-'}</span>
-  </div>
-);
-
-const AlertChipView = ({ alert }: { alert: CompanionAlert }) => {
-  const cfg = ALERT_PRIORITY_CONFIG[alert.priority] ?? ALERT_PRIORITY_CONFIG.medium;
-  return (
-    <span
-      className="inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold border leading-[1.4]"
-      style={{ background: cfg.bg, color: cfg.text, borderColor: cfg.border }}
-    >
-      {alert.label}
-    </span>
-  );
-};
-
-const AlertChipEdit = ({
-  alert,
-  onRemove,
-}: {
-  alert: CompanionAlert;
-  onRemove: (id: string) => void;
-}) => {
-  const cfg = ALERT_PRIORITY_CONFIG[alert.priority];
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-semibold border leading-[1.4]"
-      style={{ background: cfg.bg, color: cfg.text, borderColor: cfg.border }}
-    >
-      {alert.label}
-      <button
-        type="button"
-        aria-label={`Remove alert ${alert.label}`}
-        onClick={() => onRemove(alert.id)}
-        className="flex items-center justify-center rounded-full size-3.5 hover:opacity-70 transition-opacity"
-        style={{ color: cfg.text }}
-      >
-        <IoClose size={11} />
-      </button>
-    </span>
-  );
-};
-
-// ─── Inline search input with design-system dropdown ─────────────────────────
-
-const getInputBorderClass = (error?: string): string =>
-  error ? 'border-input-border-error!' : 'border-input-border-default!';
-
-type SearchOption = { value: string; label: string };
-
-const DROPDOWN_MAX_HEIGHT = 200;
-const DROPDOWN_MIN_HEIGHT = 72;
-
-/**
- * Text input whose value drives an async search.
- * Dropdown panel matches LabelDropdown styling exactly.
- * Rendered via portal so it is never clipped by overflow:hidden parents.
- * Option clicks use stopPropagation so the modal's outside-click listener never fires.
- */
-const InputWithDropdown = ({
-  value,
-  inlabel,
-  inname,
-  onChange,
-  onSelect,
-  options,
-  error,
-}: {
-  value: string;
-  inlabel: string;
-  inname: string;
-  onChange: (v: string) => void;
-  onSelect: (opt: SearchOption) => void;
-  options: SearchOption[];
-  error?: string;
-}) => {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [portalStyle, setPortalStyle] = useState<React.CSSProperties | null>(null);
-  const uid = useId();
-  // Only auto-open after the user has typed — prevents dropdown firing when
-  // edit mode mounts with a pre-filled value that matches existing companions.
-  const userHasTypedRef = useRef(false);
-
-  const filtered = useFilteredOptions(options, value);
-
-  // Close on outside mousedown — but never when target is inside the portal panel
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('[data-iwd-panel]')) return;
-      if (wrapRef.current && !wrapRef.current.contains(target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  // Auto-open when results arrive, auto-close when empty — but only after user interaction
-  const [prevFilteredLength, setPrevFilteredLength] = useState(filtered.length);
-  if (filtered.length !== prevFilteredLength) {
-    setPrevFilteredLength(filtered.length);
-    if (userHasTypedRef.current) {
-      setOpen(filtered.length > 0);
-    }
-  }
-
-  const computeStyle = useCallback(() => {
-    const rect = wrapRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const maxH = Math.min(DROPDOWN_MAX_HEIGHT, Math.max(DROPDOWN_MIN_HEIGHT, spaceBelow - 8));
-    setPortalStyle({
-      position: 'fixed',
-      left: rect.left,
-      width: rect.width,
-      top: rect.bottom - 1,
-      maxHeight: maxH,
-      zIndex: 5000,
-    });
-  }, []);
-
-  const computeStyleRef = useRef(computeStyle);
-  computeStyleRef.current = computeStyle;
-
-  useLayoutEffect(() => {
-    if (!open) {
-      setPortalStyle(null);
-      return;
-    }
-    computeStyleRef.current();
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const stableResize = () => computeStyleRef.current();
-    window.addEventListener('resize', stableResize);
-    return () => window.removeEventListener('resize', stableResize);
-  }, [open]);
-
-  const handleSelect = (opt: SearchOption) => {
-    onSelect(opt);
-    setOpen(false);
-  };
-
-  const panel = (
-    <div
-      data-iwd-panel
-      aria-label={inlabel}
-      className="border-input-text-placeholder-active overflow-y-auto scrollbar-hidden rounded-b-2xl border border-t bg-white flex flex-col items-stretch px-3 py-2.5"
-      style={portalStyle ?? undefined}
-    >
-      {filtered.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          className="px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={() => handleSelect(opt)}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
-  );
-
-  return (
-    <div className="flex flex-col w-full">
-      <div className="w-full relative" ref={wrapRef}>
-        <input
-          id={uid}
-          type="text"
-          name={inname}
-          aria-label={inlabel}
-          value={value}
-          autoComplete="off"
-          placeholder=" "
-          onChange={(e) => {
-            userHasTypedRef.current = true;
-            onChange(e.target.value);
-          }}
-          onFocus={() => {
-            if (userHasTypedRef.current && filtered.length > 0) setOpen(true);
-          }}
-          aria-invalid={Boolean(error)}
-          className={`
-            peer w-full min-h-12 rounded-2xl bg-transparent px-6 py-2.5
-            text-body-4 text-text-primary outline-none border
-            ${open ? 'border-input-border-active! rounded-b-none! border-b-0!' : getInputBorderClass(error)}
-          `}
-        />
-        <label
-          htmlFor={uid}
-          className={`
-            pointer-events-none absolute left-4
-            top-1/2 -translate-y-1/2
-            max-w-[calc(100%-2rem)] truncate
-            text-body-4 text-input-text-placeholder
-            transition-all duration-200
-            peer-focus:-top-2.75 peer-focus:translate-y-0
-            peer-focus:text-xs! peer-focus:text-input-text-placeholder-active
-            peer-focus:bg-(--whitebg) peer-focus:px-1.5 peer-focus:max-w-none
-            peer-not-placeholder-shown:px-1.5 peer-not-placeholder-shown:max-w-none
-            peer-not-placeholder-shown:-top-2.75 peer-not-placeholder-shown:translate-y-0
-            peer-not-placeholder-shown:text-xs! peer-not-placeholder-shown:bg-(--whitebg)
-          `}
-        >
-          {inlabel}
-        </label>
-        {open &&
-          portalStyle &&
-          typeof document !== 'undefined' &&
-          createPortal(panel, document.body)}
-      </div>
-      {error && (
-        <div className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error">
-          <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
-  );
-};
+import {
+  SpeciesOption,
+  BreedOption,
+  DEFAULT_SPECIES_OPTIONS,
+  SPECIES_LABEL,
+  BLOOD_GROUP_OPTIONS_BY_SPECIES,
+  STATUS_OPTIONS,
+  GENDER_NEUTER_OPTIONS,
+  getGenderNeuterValue,
+  toNonNegativeNumber,
+  MAX_LOCAL_PHONE_LENGTH,
+  ALERT_PRIORITY_OPTIONS,
+  buildFullName,
+  loadBreedOptions,
+  fmtDate,
+  fmtAge,
+  fmt,
+  ModalMode,
+  ExtCompanionForValidation,
+  validateParentFields,
+  validateCompanionFields,
+  EditSnapshot,
+  EMPTY_SNAPSHOT,
+  ModalSyncState,
+  computeHasUnsavedChanges,
+  fetchParentResults,
+  createCompanionFlow,
+  getModalTitle,
+  getSexLabel,
+  isCompanionModalBusy,
+  getCompanionModalLoadingLabel,
+} from './addCompanionCentralModalHelpers';
+import {
+  SectionHeading,
+  InfoRow,
+  AlertChipView,
+  AlertChipEdit,
+  FooterLeft,
+} from './AddCompanionPresentational';
+import InputWithDropdown from './InputWithDropdown';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
-
-type ModalMode = 'create' | 'view' | 'edit';
 
 type AddCompanionCentralModalProps = {
   showModal: boolean;
@@ -484,210 +107,6 @@ type AddCompanionCentralModalProps = {
   /** Shows "← Go to Appointment" bottom-left button when provided */
   onGoToAppointment?: () => void;
 };
-
-type ExtCompanionForValidation = CompanionFormData;
-
-const validateParentFields = (
-  parentFormData: StoredParent,
-  selectedCountryCode: CountryDialCodeOption | null,
-  localPhoneNumber: string
-): Partial<Record<string, string>> => {
-  const errs: Partial<Record<string, string>> = {};
-  if (!parentFormData.firstName) errs.firstName = 'First name is required';
-  if (!parentFormData.lastName) errs.lastName = 'Last name is required';
-  const emailError = getEmailValidationError(parentFormData.email);
-  if (emailError) errs.email = emailError;
-  if (!selectedCountryCode?.dialCode) errs.countryCode = 'Country code is required';
-  if (!localPhoneNumber) errs.phoneNumber = 'Number is required';
-  if (!parentFormData.address.addressLine?.trim()) errs.addressLine = 'Address is required';
-  if (!parentFormData.address.city?.trim()) errs.city = 'City is required';
-  if (!parentFormData.address.state?.trim()) errs.state = 'State/Province is required';
-  if (!parentFormData.address.postalCode?.trim()) errs.postalCode = 'Postal code is required';
-  if (selectedCountryCode?.dialCode && localPhoneNumber) {
-    if (!validatePhone(`${selectedCountryCode.dialCode}${localPhoneNumber}`))
-      errs.phoneNumber = 'Enter a valid phone number';
-  }
-  return errs;
-};
-
-const validateCompanionFields = (
-  companionFormData: ExtCompanionForValidation,
-  isFastTrack: boolean
-): Partial<Record<string, string>> => {
-  const errs: Partial<Record<string, string>> = {};
-  if (!companionFormData.name) errs.name = 'Name is required';
-  if (!companionFormData.type) errs.species = 'Species is required';
-  if (!companionFormData.breed) errs.breed = 'Breed is required';
-  if (!isFastTrack && companionFormData.isInsured) {
-    if (!companionFormData.insurance?.companyName)
-      errs.insuranceCompany = 'Company name is required';
-    if (!companionFormData.insurance?.policyNumber)
-      errs.insuranceNumber = 'Policy number is required';
-  }
-  return errs;
-};
-
-type EditSnapshot = {
-  companionName: string;
-  companionType: string;
-  companionBreed: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-};
-
-const EMPTY_SNAPSHOT: EditSnapshot = {
-  companionName: EMPTY_STORED_COMPANION.name,
-  companionType: EMPTY_STORED_COMPANION.type,
-  companionBreed: EMPTY_STORED_COMPANION.breed,
-  firstName: EMPTY_STORED_PARENT.firstName,
-  lastName: EMPTY_STORED_PARENT.lastName ?? '',
-  email: EMPTY_STORED_PARENT.email,
-  phone: '',
-};
-
-type ModalSyncState = {
-  initialMode: ModalMode;
-  showModal: boolean;
-};
-
-const computeHasUnsavedChanges = (
-  snap: EditSnapshot,
-  companionFormData: ExtCompanionForValidation,
-  parentFormData: StoredParent,
-  localPhoneNumber: string
-): boolean =>
-  companionFormData.name !== snap.companionName ||
-  (companionFormData.type ?? '') !== snap.companionType ||
-  (companionFormData.breed ?? '') !== snap.companionBreed ||
-  (parentFormData.firstName ?? '') !== snap.firstName ||
-  (parentFormData.lastName ?? '') !== snap.lastName ||
-  (parentFormData.email ?? '') !== snap.email ||
-  localPhoneNumber !== snap.phone;
-
-const fetchParentResults = async (q: string): Promise<StoredParent[]> => {
-  try {
-    return await searchParent(q);
-  } catch {
-    return [];
-  }
-};
-
-const createCompanionFlow = async (
-  normalizedParent: StoredParent,
-  companionFormData: ExtCompanionForValidation
-): Promise<StoredCompanion | undefined> => {
-  if (normalizedParent.id) {
-    const payload: StoredCompanion = {
-      ...companionFormData,
-      alerts: toStoredCompanionAlerts(companionFormData.alerts),
-      parentId: normalizedParent.id,
-    };
-    // Persist parent-level edits (e.g. client alerts) for the existing parent;
-    // createCompanion/linkCompanion only upsert the parent into the local store,
-    // so without this the alerts would disappear after a refresh.
-    if (companionFormData.id) {
-      await updateParent(normalizedParent);
-      return (await linkCompanion(payload, normalizedParent)) ?? undefined;
-    }
-    await updateParent(normalizedParent);
-    return (await createCompanion(payload, normalizedParent)) ?? undefined;
-  }
-  const parentId = await createParent(normalizedParent);
-  const pp: StoredParent = { ...normalizedParent, id: parentId! };
-  return (
-    (await createCompanion(
-      {
-        ...companionFormData,
-        alerts: toStoredCompanionAlerts(companionFormData.alerts),
-        parentId: parentId!,
-      },
-      pp
-    )) ?? undefined
-  );
-};
-
-const getModalTitle = (
-  mode: ModalMode,
-  companionTitle: string,
-  terminologyText: (text: string) => string
-): string => {
-  if (mode === 'view') return companionTitle || terminologyText('Patient Details');
-  if (mode === 'edit') return terminologyText('Edit Patient / Client');
-  return terminologyText('New Patient / Client');
-};
-
-type FooterLeftProps = {
-  mode: ModalMode;
-  onGoToAppointment?: () => void;
-  hasUnsavedChanges: boolean;
-  pendingGoToAppointmentRef: React.RefObject<boolean>;
-  setShowDiscardConfirm: (v: boolean) => void;
-  setMode: (m: ModalMode) => void;
-  setCompanionErrors: (e: Partial<Record<string, string>>) => void;
-  setParentErrors: (e: Partial<Record<string, string>>) => void;
-};
-
-const FooterLeft = ({
-  mode,
-  onGoToAppointment,
-  hasUnsavedChanges,
-  pendingGoToAppointmentRef,
-  setShowDiscardConfirm,
-  setMode,
-  setCompanionErrors,
-  setParentErrors,
-}: FooterLeftProps) => {
-  if (onGoToAppointment && mode === 'create') {
-    return (
-      <Secondary
-        href="#"
-        text="← Go to Appointment"
-        onClick={(e) => {
-          e?.preventDefault();
-          if (hasUnsavedChanges) {
-            pendingGoToAppointmentRef.current = true;
-            setShowDiscardConfirm(true);
-          } else {
-            onGoToAppointment();
-          }
-        }}
-      />
-    );
-  }
-  if (mode === 'edit') {
-    return (
-      <Secondary
-        href="#"
-        text="Discard changes"
-        onClick={() => {
-          setMode('view');
-          setCompanionErrors({});
-          setParentErrors({});
-        }}
-      />
-    );
-  }
-  return <div />;
-};
-
-const getSexLabel = (gender: string | undefined, isneutered: boolean | undefined): string => {
-  if (!gender) return '-';
-  return (
-    GENDER_NEUTER_OPTIONS.find(
-      (o) => o.data.gender === gender && o.data.neutered === (isneutered ?? false)
-    )?.label ?? toTitleCase(gender)
-  );
-};
-
-// ─── Main component ───────────────────────────────────────────────────────────
-
-const isCompanionModalBusy = (isSubmitting: boolean, savingStatus: boolean): boolean =>
-  isSubmitting || savingStatus;
-
-const getCompanionModalLoadingLabel = (savingStatus: boolean): string =>
-  savingStatus ? 'Updating status…' : 'Saving companion…';
 
 const AddCompanionCentralModal = ({
   showModal,
