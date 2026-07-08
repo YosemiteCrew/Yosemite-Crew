@@ -145,7 +145,7 @@ describe('Header Component', () => {
   it('keeps the calendar header sticky at the top of the planner', () => {
     const { container } = render(<Header {...defaultProps} />);
 
-    expect(container.firstChild).toHaveClass('sticky', 'top-0', 'bg-white');
+    expect(container.firstChild).toHaveClass('sticky', 'top-0', 'bg-neutral-0');
   });
 
   it('uses readable dropdown text when a status pill uses light text tokens', () => {
