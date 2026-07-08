@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Appointments from '@/app/ui/tables/Appointments';
 import Tasks from '@/app/ui/tables/Tasks';
@@ -122,13 +122,17 @@ const AppointmentTask = () => {
     });
   }
 
-  useEffect(() => {
+  const prevAppointmentsRef = useRef(appointments);
+  if (prevAppointmentsRef.current !== appointments) {
+    prevAppointmentsRef.current = appointments;
     setActiveAppointment((prev) => getNextSelectedAppointment(prev, appointments));
-  }, [appointments]);
+  }
 
-  useEffect(() => {
+  const prevTasksRef = useRef(tasks);
+  if (prevTasksRef.current !== tasks) {
+    prevTasksRef.current = tasks;
     setActiveTask((prev) => getNextSelectedTask(prev, tasks));
-  }, [tasks]);
+  }
 
   const filteredList = useMemo(() => {
     if (activeTable !== 'Appointments') return [];

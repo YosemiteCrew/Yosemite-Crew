@@ -352,9 +352,11 @@ const Appointments = () => {
     }
   }
 
-  useEffect(() => {
+  const prevAppointmentsRef = useRef(appointments);
+  if (prevAppointmentsRef.current !== appointments) {
+    prevAppointmentsRef.current = appointments;
     setActiveAppointment((prev) => getNextSelectedAppointment(prev, appointments));
-  }, [appointments]);
+  }
 
   useEffect(() => {
     const appointmentId = String(searchParams.get('appointmentId') ?? '').trim();
