@@ -86,9 +86,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
               {
                 backgroundColor:
                   index === currentIndex
-                    ? theme.colors.black
-                    : theme.colors.textSecondary,
-                opacity: index === currentIndex ? 1 : 0.3,
+                    ? theme.colors.ink
+                    : theme.colors.inkFaint2,
+                opacity: index === currentIndex ? 1 : 0.4,
               },
             ]}
           />
