@@ -19,6 +19,8 @@ import type { LineItem } from '@/app/features/appointments/types/workspace';
 import { deleteData, getData, patchData, postData } from '@/app/services/axios';
 
 jest.mock('@/app/services/axios', () => ({
+  __esModule: true,
+  default: { get: jest.fn() },
   deleteData: jest.fn(),
   getData: jest.fn(),
   patchData: jest.fn(),

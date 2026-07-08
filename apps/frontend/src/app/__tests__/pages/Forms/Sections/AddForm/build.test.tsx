@@ -23,6 +23,13 @@ jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   ),
 }));
 
+jest.mock('@/app/ui/inputs/FormDesc/FormDesc', () => ({
+  __esModule: true,
+  default: ({ value, onChange, inname }: any) => (
+    <textarea data-testid={inname || 'form-desc'} value={value || ''} onChange={onChange} />
+  ),
+}));
+
 jest.mock('@/app/ui/inputs/MultiSelectDropdown', () => ({
   __esModule: true,
   default: ({ options, onChange, value, placeholder }: any) => (
@@ -498,6 +505,67 @@ describe('Build form step', () => {
       expect(screen.getAllByRole('button', { name: 'toggle-add-field' }).length).toBeGreaterThan(0);
       expect(screen.getByText('Add Field')).toBeInTheDocument();
       expect(screen.getByTestId('medicine-dropdown')).toBeInTheDocument();
+    });
+
+    it('edits, duplicates and removes task blocks', async () => {
+      const taskGroup: FormField = {
+        id: 'task_blocks',
+        type: 'group',
+        label: 'Schedule tasks',
+        meta: { taskGroup: true } as any,
+        fields: [],
+      } as FormField;
+
+      renderBuild(baseFormData({ category: 'Task Template', schema: [taskGroup] }));
+
+      fireEvent.click(screen.getByRole('button', { name: /Add task block/i }));
+
+      let schema = readSchema();
+      let taskGroupState = schema[0] as FormField & { fields?: FormField[] };
+      let block = taskGroupState.fields?.[0] as FormField & {
+        id: string;
+        fields?: FormField[];
+      };
+
+      fireEvent.change(screen.getByTestId(`${block.id}-title`), {
+        target: { value: 'Record vitals' },
+      });
+      fireEvent.click(screen.getByRole('option', { name: 'Care' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Every 12 hours' }));
+      fireEvent.click(screen.getByRole('option', { name: '15 minutes before' }));
+      fireEvent.change(screen.getByTestId(`${block.id}-instructions`), {
+        target: { value: 'Check twice a day' },
+      });
+      fireEvent.change(screen.getByTestId(`${block.id}-duration`), {
+        target: { value: '5' },
+      });
+
+      schema = readSchema();
+      taskGroupState = schema[0] as FormField & { fields?: FormField[] };
+      block = taskGroupState.fields?.[0] as FormField & {
+        id: string;
+        fields?: FormField[];
+      };
+      const byKey = (key: string) =>
+        (block.fields ?? []).find((f: any) => f.meta?.taskBlockKey === key) as any;
+      expect(byKey('name').defaultValue).toBe('Record vitals');
+      expect(byKey('category').defaultValue).toBe('CARE');
+      expect(byKey('recurrence.type').defaultValue).toBe('EVERY_12_HOURS');
+      expect(byKey('reminderOffsetMinutes').defaultValue).toBe('15');
+      expect(byKey('additionalNotes').defaultValue).toBe('Check twice a day');
+      expect(byKey('durationDays').defaultValue).toBe('5');
+
+      // Duplicate the task block
+      fireEvent.click(screen.getByRole('button', { name: /Duplicate task 1/i }));
+      schema = readSchema();
+      taskGroupState = schema[0] as FormField & { fields?: FormField[] };
+      expect(taskGroupState.fields).toHaveLength(2);
+
+      // Remove the first task block
+      fireEvent.click(screen.getAllByRole('button', { name: /Remove task/i })[0]);
+      schema = readSchema();
+      taskGroupState = schema[0] as FormField & { fields?: FormField[] };
+      expect(taskGroupState.fields).toHaveLength(1);
     });
 
     it('lets YC-default task templates add schedule task blocks as content', () => {
