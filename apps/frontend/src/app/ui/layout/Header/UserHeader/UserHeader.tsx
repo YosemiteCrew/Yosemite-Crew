@@ -23,6 +23,7 @@ import {
 import { FaPaw, FaCaretDown } from 'react-icons/fa6';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSignOut } from '@/app/hooks/useAuth';
+import { useHasMounted } from '@/app/hooks/useHasMounted';
 import { removeStorageItem } from '@/app/lib/browserStorage';
 
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -160,7 +161,7 @@ const UserHeader = () => {
   const attributes = useAuthStore((s) => s.attributes);
   const profile = usePrimaryOrgProfile();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHasMounted();
   const isDev = pathname.startsWith('/developers');
   const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
   const routes = isDev ? headerDevRoutes : headerAppRoutes;
@@ -202,10 +203,6 @@ const UserHeader = () => {
     setSelectProfile(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     const closeMenuOnDesktop = () => {
