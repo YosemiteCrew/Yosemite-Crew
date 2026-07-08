@@ -206,7 +206,72 @@ describe("FormSigningService.startSigning", () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 
-  it("uses submission.submittedBy instead of initiatedBy for non-parent signing", async () => {
+  it("rejects PMS signing when the caller is not the submission owner", async () => {
+    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
+      _id: { toString: () => "submission-2" },
+      formId: "form-2",
+      formVersion: 1,
+      submittedBy: "submission-owner",
+      signing: { status: "NOT_STARTED" },
+      answers: { consent: true },
+      submittedAt: new Date("2026-01-01"),
+      save: jest.fn(),
+    });
+
+    mockedFormModel.findById.mockReturnValueOnce({
+      lean: jest.fn().mockResolvedValue({
+        name: "Clinical Form",
+        orgId: "org-2",
+        requiredSigner: "VET",
+      }),
+    });
+
+    await expect(
+      FormSigningService.startSigning({
+        submissionId: "submission-2",
+        initiatedBy: "attacker-user",
+        organisationId: "org-2",
+      }),
+    ).rejects.toThrow("Unauthorized to sign this submission");
+
+    expect(mockedCreateRenderedDocumentRecord).not.toHaveBeenCalled();
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("rejects PMS signing when the form belongs to another organisation", async () => {
+    mockedFormSubmissionModel.findById.mockResolvedValueOnce({
+      _id: { toString: () => "submission-2b" },
+      formId: "form-2b",
+      formVersion: 1,
+      submittedBy: "submission-owner",
+      signing: { status: "NOT_STARTED" },
+      answers: { consent: true },
+      submittedAt: new Date("2026-01-01"),
+      save: jest.fn(),
+    });
+
+    mockedFormModel.findById.mockReturnValueOnce({
+      lean: jest.fn().mockResolvedValue({
+        name: "Clinical Form",
+        orgId: "org-owner",
+        requiredSigner: "VET",
+      }),
+    });
+
+    await expect(
+      FormSigningService.startSigning({
+        submissionId: "submission-2b",
+        // Caller IS the submission owner, but is acting from a different org.
+        initiatedBy: "submission-owner",
+        organisationId: "org-attacker",
+      }),
+    ).rejects.toThrow("Unauthorized to sign this submission");
+
+    expect(mockedCreateRenderedDocumentRecord).not.toHaveBeenCalled();
+    expect(mockedSignPersistedRenderedDocument).not.toHaveBeenCalled();
+  });
+
+  it("allows PMS signing when the caller owns the submission in their org", async () => {
     const save = jest.fn().mockResolvedValue(undefined);
 
     mockedFormSubmissionModel.findById.mockResolvedValueOnce({
@@ -251,7 +316,8 @@ describe("FormSigningService.startSigning", () => {
     await expect(
       FormSigningService.startSigning({
         submissionId: "submission-2",
-        initiatedBy: "attacker-user",
+        initiatedBy: "submission-owner",
+        organisationId: "org-2",
       }),
     ).resolves.toEqual({
       documentId: "456",
@@ -357,6 +423,7 @@ describe("FormSigningService.startSigning", () => {
       FormSigningService.startSigning({
         submissionId: "submission-4",
         initiatedBy: "user-4",
+        organisationId: "org-pg",
       }),
     ).resolves.toEqual({
       documentId: "789",
