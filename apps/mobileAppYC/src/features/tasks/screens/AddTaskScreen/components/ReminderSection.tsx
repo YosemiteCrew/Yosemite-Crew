@@ -1,6 +1,7 @@
 import React from 'react';
-import {View, Text, Switch} from 'react-native';
+import {View, Text} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {Toggle} from '@/shared/components/common';
 import {createFormStyles} from '@/shared/utils/formStyles';
 import type {TaskFormData, ReminderOption} from '@/features/tasks/types';
 
@@ -26,14 +27,10 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({
     <>
       <View style={formStyles.toggleSection}>
         <Text style={formStyles.toggleLabel}>Reminder</Text>
-        <Switch
+        <Toggle
           value={formData.reminderEnabled}
           onValueChange={value => updateField('reminderEnabled', value)}
-          trackColor={{
-            false: theme.colors.borderMuted,
-            true: theme.colors.primary,
-          }}
-          thumbColor={theme.colors.white}
+          accessibilityLabel="Reminder"
         />
       </View>
 
