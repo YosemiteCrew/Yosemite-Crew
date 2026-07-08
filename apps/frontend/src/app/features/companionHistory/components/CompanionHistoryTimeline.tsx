@@ -1295,7 +1295,7 @@ const AuditTimeline = ({
               className={`w-px flex-1 ${index === entries.length - 1 ? '' : 'bg-card-border'}`}
             />
           </div>
-          <div className="mb-2 flex-1 rounded-xl border border-card-border bg-neutral-0 px-3 py-2 shadow-[0_1px_10px_0_rgba(169,163,158,0.08)]">
+          <div className="mb-2 flex-1 rounded-xl border border-card-border bg-neutral-0 px-3 py-2 shadow-[0_1px_10px_0_var(--sh08)]">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="min-w-0 text-body-4 font-bold text-neutral-900">
                 {toTitle(entry.eventType)}

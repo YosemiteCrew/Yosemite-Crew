@@ -471,7 +471,7 @@ const AppointmentBoardComponent = ({
                     className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
                     style={{
                       backgroundColor: 'var(--color-semantic-error-700)',
-                      outline: '2px solid white',
+                      outline: '2px solid var(--color-neutral-0)',
                     }}
                   />
                 )}
@@ -575,7 +575,7 @@ const AppointmentBoardComponent = ({
                           draggedAppointmentId === (appointment.id ?? null)
                             ? 'opacity-60 shadow-none'
                             : 'hover:border-input-border-active! hover:bg-card-hover!'
-                        } ${isCardDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                        } ${isCardDraggable ? 'cursor-grab active:cursor-grabbing' : ''} ${appointment.isEmergency ? 'border-l-[3px] border-l-danger-600' : ''}`}
                         draggable={isCardDraggable}
                         onDragStart={(event) => handleAppointmentDragStart(event, appointment.id)}
                         onDragEnd={() => setDraggedAppointmentId(null)}

@@ -720,7 +720,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
       data-signing-overlay="true"
     >
       <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-neutral-0 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-black/10 px-4 py-2">
+        <div className="flex items-center justify-between border-b border-card-border px-4 py-2">
           <span className="flex flex-col">
             <span className="text-body-2 text-text-primary">{title}</span>
             {s.iframeOpenSource === 'followup' ? (

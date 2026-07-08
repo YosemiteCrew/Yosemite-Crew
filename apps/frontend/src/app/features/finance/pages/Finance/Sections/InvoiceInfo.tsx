@@ -70,10 +70,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
   );
 
   const invoiceStatusLabel = toTitle(activeInvoice?.status ?? '');
-  const invoiceStatusStyle = (() => {
-    const s = getInvoiceStatusStyle(activeInvoice?.status ?? '');
-    return { ...s, borderColor: s.color };
-  })();
+  const invoiceStatusStyle = getInvoiceStatusStyle(activeInvoice?.status ?? '');
 
   const appointmentInfoData = useMemo(() => {
     if (appointment) {

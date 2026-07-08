@@ -67,7 +67,7 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
           />
         </div>
         <div className="flex justify-end items-end gap-3 w-full flex-col">
-          {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+          {error && <div className="text-text-error text-sm text-center">{error}</div>}
           <div className="flex gap-3 w-full">
             <Secondary
               href="#"

@@ -137,7 +137,7 @@ export const AppointmentModePill = ({
     borderStyle: 'solid',
     borderWidth: '1px',
     boxShadow: isStrong && isInpatient ? '0 1px 6px rgba(0, 87, 194, 0.18)' : undefined,
-    color: isInpatient ? 'var(--color-neutral-0)' : 'var(--color-neutral-700)',
+    color: isInpatient ? 'var(--color-white)' : 'var(--color-neutral-700)',
   };
 
   return (

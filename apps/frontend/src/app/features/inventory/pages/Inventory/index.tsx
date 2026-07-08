@@ -740,7 +740,7 @@ const InventoryFilterModal = ({
               <div className="flex items-center gap-2">
                 <span className="text-body-4 text-text-primary">Stock status</span>
                 {filters.status !== 'ALL' && (
-                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-badge-blue-bg text-[10px] font-bold text-badge-blue-text">
                     1
                   </span>
                 )}
@@ -781,7 +781,7 @@ const InventoryFilterModal = ({
                 <div className="flex items-center gap-2">
                   <span className="text-body-4 text-text-primary">Location</span>
                   {filters.locations.length > 0 && (
-                    <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                    <span className="inline-flex size-5 items-center justify-center rounded-full bg-badge-blue-bg text-[10px] font-bold text-badge-blue-text">
                       {filters.locations.length}
                     </span>
                   )}
@@ -821,7 +821,7 @@ const InventoryFilterModal = ({
               <div className="flex items-center gap-2">
                 <span className="text-body-4 text-text-primary">Category</span>
                 {filters.categories.length > 0 && (
-                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-badge-blue-bg text-[10px] font-bold text-badge-blue-text">
                     {filters.categories.length}
                   </span>
                 )}
@@ -897,7 +897,7 @@ const InventoryFilterModal = ({
               <div className="flex items-center gap-2">
                 <span className="text-body-4 text-text-primary">ABC</span>
                 {filters.abcClasses.length > 0 && (
-                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-badge-blue-bg text-[10px] font-bold text-badge-blue-text">
                     {filters.abcClasses.length}
                   </span>
                 )}
@@ -937,7 +937,7 @@ const InventoryFilterModal = ({
                 <div className="flex items-center gap-2">
                   <span className="text-body-4 text-text-primary">Supplier</span>
                   {filters.suppliers.length > 0 && (
-                    <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                    <span className="inline-flex size-5 items-center justify-center rounded-full bg-badge-blue-bg text-[10px] font-bold text-badge-blue-text">
                       {filters.suppliers.length}
                     </span>
                   )}
@@ -1056,7 +1056,7 @@ const DispensaryFilterModal = ({
               <div className="flex items-center gap-2">
                 <span className="text-body-4 text-text-primary">Status</span>
                 {dispensaryStatusFilter !== 'ALL' && (
-                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-badge-blue-bg text-[10px] font-bold text-badge-blue-text">
                     1
                   </span>
                 )}
@@ -1103,7 +1103,7 @@ const DispensaryFilterModal = ({
               <div className="flex items-center gap-2">
                 <span className="text-body-4 text-text-primary">Request type</span>
                 {dispensaryRequestType !== 'ALL' && (
-                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-blue-text text-[10px] font-bold text-white">
+                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-badge-blue-bg text-[10px] font-bold text-badge-blue-text">
                     1
                   </span>
                 )}
@@ -1631,7 +1631,7 @@ const Inventory = () => {
               <legend className="sr-only">Inventory view</legend>
               <div
                 aria-hidden
-                className={`pointer-events-none absolute top-0 bottom-0 w-1/2 rounded-[999px]! transition-all duration-300 ease-in-out ${activeView === 'inventory' ? 'bg-(--color-primary-700)' : 'bg-success-700'}`}
+                className={`pointer-events-none absolute top-0 bottom-0 w-1/2 rounded-[999px]! transition-all duration-300 ease-in-out ${activeView === 'inventory' ? 'bg-(--color-primary-700)' : 'bg-success-800'}`}
                 style={{ transform: `translateX(${activeView === 'inventory' ? '0%' : '100%'})` }}
               />
               <button

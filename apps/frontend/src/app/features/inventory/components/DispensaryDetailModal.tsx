@@ -192,7 +192,7 @@ const DispensaryDetailModal = ({
                           {item.name}
                         </span>
                         {item.isRx && (
-                          <span className="inline-flex size-6 items-center justify-center rounded-full bg-blue-text text-white text-[10px] font-bold shrink-0">
+                          <span className="inline-flex size-6 items-center justify-center rounded-full bg-badge-blue-bg text-badge-blue-text text-[10px] font-bold shrink-0">
                             Rx
                           </span>
                         )}

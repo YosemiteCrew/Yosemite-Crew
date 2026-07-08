@@ -377,7 +377,7 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
         <button
           type="button"
           onClick={handleAddClick}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-input-border-active text-body-4 text-text-brand hover:bg-blue-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-input-border-active text-body-4 text-text-brand hover:bg-primary-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         >
           <AiOutlinePlus size={16} aria-hidden="true" />
           Click to add service

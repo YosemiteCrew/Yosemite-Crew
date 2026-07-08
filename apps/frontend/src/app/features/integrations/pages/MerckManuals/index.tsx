@@ -513,7 +513,7 @@ const MerckReaderPortal = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-10000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-10000 bg-[var(--sh55)] backdrop-blur-sm flex items-center justify-center p-4"
       data-merck-reader-overlay="true"
     >
       <div className="relative bg-neutral-0 rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
@@ -524,7 +524,7 @@ const MerckReaderPortal = ({
           <button
             type="button"
             onClick={() => setReaderOpen(false)}
-            className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
+            className="p-2 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer"
             aria-label="Close Merck reader"
           >
             <Close iconOnly />

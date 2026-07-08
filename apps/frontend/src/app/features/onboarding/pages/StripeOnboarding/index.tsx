@@ -132,7 +132,9 @@ const StripeOnboarding = () => {
           onClick={() => router.back()}
           className="absolute left-0 top-1/2 -translate-y-1/2"
         />
-        <h1 className="px-24 text-center text-heading-1 text-text-primary">Stripe Onboarding</h1>
+        <h1 className="px-24 text-center text-heading-1 text-text-primary font-newsreader">
+          Stripe Onboarding
+        </h1>
       </div>
       <div className="mx-auto max-w-3xl text-center text-body-3 text-text-secondary">
         Complete your Stripe setup to accept card payments, verify tax details, and review

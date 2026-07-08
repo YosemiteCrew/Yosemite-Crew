@@ -318,8 +318,8 @@ const FOOTER_BREAKDOWN_ROW =
   'grid min-h-8 grid-cols-[5.5rem_minmax(0,1fr)_7rem] items-center gap-3';
 const FOOTER_FONT = '"Satoshi Variable", var(--font-satoshi), sans-serif';
 const NEUTRAL_TEXT = 'var(--color-neutral-900)';
-const PRIMARY_TEXT = 'var(--color-primary-600, #006AE0)';
-const DISCOUNT_TEXT = 'var(--color-semantics-success-700, #15803D)';
+const PRIMARY_TEXT = 'var(--color-text-brand)';
+const DISCOUNT_TEXT = 'var(--color-success-700)';
 
 const FOOTER_HELPER_TEXT_STYLE: React.CSSProperties = {
   color: NEUTRAL_TEXT,

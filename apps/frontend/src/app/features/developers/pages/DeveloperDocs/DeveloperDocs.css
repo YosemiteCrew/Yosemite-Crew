@@ -21,12 +21,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-brand-950);
+  color: var(--color-text-brand);
   padding: 6px 10px;
   border-radius: 8px;
   border: 1px solid var(--color-card-border);
   background: var(--color-surface-card);
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .DocsBackLink:hover {

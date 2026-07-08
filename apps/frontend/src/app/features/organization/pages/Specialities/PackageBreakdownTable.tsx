@@ -279,7 +279,7 @@ const PackageBreakdownTable = ({
                 </span>
               ) : (
                 <span
-                  className="inline-flex items-center gap-2 justify-end rounded-2xl bg-blue-50 px-4 py-2 text-body-3-emphasis text-text-brand whitespace-nowrap"
+                  className="inline-flex items-center gap-2 justify-end rounded-2xl bg-primary-100 px-4 py-2 text-body-3-emphasis text-text-brand whitespace-nowrap"
                   style={{ minWidth: 120, height: 40 }}
                 >
                   {formatMoney(totalCost, orgCurrency)}

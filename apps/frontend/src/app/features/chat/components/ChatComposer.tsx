@@ -235,7 +235,7 @@ export function ChatComposer() {
           aria-label="Send message"
           onClick={send}
           disabled={Boolean(cooldownRemaining)}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-500 text-neutral-0 transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <LuSendHorizonal className="h-5 w-5" />
         </button>

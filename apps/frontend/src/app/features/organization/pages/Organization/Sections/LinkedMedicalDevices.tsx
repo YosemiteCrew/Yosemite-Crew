@@ -15,10 +15,10 @@ import { formatDateTimeLocal } from '@/app/lib/date';
 import { IoRefreshOutline } from 'react-icons/io5';
 
 const getIntegrationStatusClass = (key: string) => {
-  if (key === 'enabled') return 'bg-green-50 text-green-800';
-  if (key === 'error') return 'bg-red-50 text-red-700';
-  if (key === 'pending') return 'bg-blue-50 text-blue-700';
-  return 'bg-amber-50 text-amber-700';
+  if (key === 'enabled') return 'bg-success-100 text-success-700';
+  if (key === 'error') return 'bg-danger-100 text-danger-700';
+  if (key === 'pending') return 'bg-primary-100 text-blue-text';
+  return 'bg-warning-100 text-warning-700';
 };
 
 const getDeviceStatusLabel = (value?: string) => {
@@ -152,8 +152,8 @@ const LinkedMedicalDevices = () => {
                   <span
                     className={`text-label-xsmall px-2 py-1 rounded ${
                       String(device.vcpActivatedStatus || '').toLowerCase() === 'active'
-                        ? 'bg-green-50 text-green-800'
-                        : 'bg-amber-50 text-amber-700'
+                        ? 'bg-success-100 text-success-700'
+                        : 'bg-warning-100 text-warning-700'
                     }`}
                   >
                     {getDeviceStatusLabel(device.vcpActivatedStatus)}

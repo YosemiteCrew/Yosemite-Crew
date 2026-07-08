@@ -48,7 +48,7 @@
   line-height: 150%;
   letter-spacing: -0.32px;
   border-radius: 12px;
-  border: 1px solid var(--black-bg);
+  border: 1px solid var(--color-neutral-200);
   cursor: pointer;
   background: var(--whitebg);
 }
@@ -115,7 +115,7 @@
   width: 100%;
 }
 .step-inline-error {
-  color: var(--red-text, #ea3729);
+  color: var(--color-text-error);
   font-family: var(--font-satoshi);
   font-size: 14px;
   font-style: normal;
@@ -297,7 +297,7 @@
   border: 1px solid var(--color-neutral-100);
   border-radius: 16px;
   background: var(--color-neutral-0);
-  box-shadow: 0 16px 32px rgba(48, 47, 46, 0.08);
+  box-shadow: 0 16px 32px var(--sh08);
 }
 
 .step-three-picker-option {
@@ -316,12 +316,12 @@
 .step-three-remove-button:hover,
 .step-three-recommendation-chip:hover,
 .step-three-service-icon:hover {
-  border-color: #b7c8ff;
+  border-color: var(--color-input-border-active);
   background: var(--color-neutral-100);
 }
 
 .step-three-service-card:hover {
-  border-color: #b7c8ff;
+  border-color: var(--color-input-border-active);
   background: var(--color-neutral-100);
 }
 
@@ -495,7 +495,7 @@
 
 .step-three-service-icon[aria-label^='Delete'],
 .step-three-remove-button {
-  color: #ea3729;
+  color: var(--color-text-error);
 }
 
 .step-three-selected-actions {

@@ -24,7 +24,7 @@ const DeveloperPortalHome = () => {
     <DevRouteGuard>
       <div className="OperationsWrapper">
         <div className="TitleContainer">
-          <h1 className="text-heading-1 text-text-primary">Developer Home</h1>
+          <h1 className="text-heading-1 text-text-primary font-newsreader">Developer Home</h1>
           <Primary text="View docs" href="/developers/documentation" style={{ maxWidth: 180 }} />
         </div>
 
@@ -32,7 +32,9 @@ const DeveloperPortalHome = () => {
           <div className="dev-portal-hero">
             <div className="dev-hero-copy">
               <span className="dev-badge text-caption-2">Developer</span>
-              <h2 className="text-heading-1 text-text-primary">Welcome back, {displayName}</h2>
+              <h2 className="text-heading-1 text-text-primary italic-newsreader">
+                Welcome back, {displayName}
+              </h2>
               <p className="text-body-3 text-text-secondary dev-hero-subtext">
                 Build, customise, and launch apps with Yosemite Crew. Access APIs, SDKs, and starter
                 templates designed for the animal health ecosystem.

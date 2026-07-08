@@ -36,8 +36,8 @@
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: var(--color-brand-100);
-  color: var(--color-brand-950);
+  background: transparent;
+  color: var(--color-cyan-text);
   border-radius: 9999px;
   font-weight: 600;
   text-transform: uppercase;
@@ -125,13 +125,13 @@
 
 .dev-card-pill.secondary {
   background: var(--color-brand-900);
-  color: var(--color-neutral-0);
+  color: var(--color-badge-blue-text);
   border-color: var(--color-brand-900);
 }
 
 .dev-card-pill.muted {
   background: var(--color-neutral-600);
-  color: var(--color-neutral-0);
+  color: var(--color-white);
   border-color: var(--color-neutral-600);
 }
 
@@ -156,7 +156,7 @@
 }
 
 .dev-links a:hover {
-  color: var(--color-text-brand);
+  color: var(--color-cyan-text);
 }
 
 .dev-empty {

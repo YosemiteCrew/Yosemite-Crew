@@ -75,7 +75,7 @@ const BuilderWrapper: React.FC<{
       clone.style.borderRadius = '16px';
       clone.style.overflow = 'hidden';
       clone.style.background = 'var(--color-neutral-0)';
-      clone.style.boxShadow = '0 10px 30px rgba(0,0,0,0.08)';
+      clone.style.boxShadow = '0 10px 30px var(--sh08)';
       document.body.appendChild(clone);
       dragPreviewRef.current = clone;
       const offsetX = e.clientX - rect.left;

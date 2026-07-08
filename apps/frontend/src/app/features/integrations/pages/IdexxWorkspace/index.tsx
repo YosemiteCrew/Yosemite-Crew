@@ -510,7 +510,7 @@ const getRefreshButtonLabel = (loading: boolean): string => {
 
 const getResultModalOverlayClassName = (showResultModal: boolean): string => {
   const visibleClass = showResultModal ? 'opacity-100' : 'opacity-0 pointer-events-none';
-  return `fixed backdrop-blur-[2px] inset-0 bg-black/50 z-[1100] transition-opacity duration-300 ease-in-out ${visibleClass}`;
+  return `fixed backdrop-blur-[2px] inset-0 bg-[var(--sh55)] z-[1100] transition-opacity duration-300 ease-in-out ${visibleClass}`;
 };
 
 const getResultModalContainerClassName = (showResultModal: boolean): string => {
@@ -550,7 +550,7 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[5000] bg-[var(--sh55)] backdrop-blur-sm flex items-center justify-center p-4"
       data-signing-overlay="true"
       style={{ pointerEvents: 'auto' }}
     >
@@ -560,7 +560,7 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-black/5 rounded-full transition-colors cursor-pointer"
+            className="p-2 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer"
             aria-label="Close IDEXX follow-up frame"
             style={{ pointerEvents: 'auto' }}
           >

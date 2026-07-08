@@ -182,7 +182,7 @@ const InvoicePaymentActions = ({
   return (
     <>
       {isInPersonCashSelected ? (
-        <div className="rounded-2xl border border-warning-200 bg-[color-mix(in_srgb,var(--color-warning-100)_65%,white)] p-4 flex flex-col gap-3">
+        <div className="rounded-2xl border border-warning-200 bg-warning-100 p-4 flex flex-col gap-3">
           <div className="flex items-start justify-between gap-2">
             <div className="text-body-4-emphasis text-text-primary">
               Confirm cash payment before marking this invoice as paid.

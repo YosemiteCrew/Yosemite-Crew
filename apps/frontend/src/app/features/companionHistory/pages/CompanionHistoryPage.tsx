@@ -140,7 +140,7 @@ const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
   return (
     <section
       aria-label="Companion profile"
-      className="flex min-h-36 flex-col gap-4 rounded-2xl border border-card-border bg-neutral-0 p-4 shadow-[0_1px_10px_0_rgba(169,163,158,0.10)] md:flex-row md:items-start"
+      className="flex min-h-36 flex-col gap-4 rounded-2xl border border-card-border bg-neutral-0 p-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
     >
       <Image
         alt={record.companion.name}
@@ -189,7 +189,7 @@ const ParentProfilePanel = ({
   return (
     <section
       aria-label="Parent profile"
-      className="flex min-h-36 flex-col gap-3 rounded-2xl border border-card-border bg-neutral-0 p-4 shadow-[0_1px_10px_0_rgba(169,163,158,0.10)] md:flex-row md:items-start"
+      className="flex min-h-36 flex-col gap-3 rounded-2xl border border-card-border bg-neutral-0 p-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
     >
       <div className="flex w-16 shrink-0 items-start">
         <Image
@@ -207,7 +207,7 @@ const ParentProfilePanel = ({
           ))}
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
-          <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-3xl bg-[#15803D] px-3 py-1 text-caption-1 font-medium text-neutral-0">
+          <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-3xl border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-3 py-1 text-caption-1 font-medium text-[var(--status-completed-text)]">
             Dues cleared
             <LuCheck size={13} aria-hidden="true" />
           </span>
