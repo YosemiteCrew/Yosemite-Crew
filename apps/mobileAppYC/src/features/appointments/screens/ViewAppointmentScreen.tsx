@@ -303,6 +303,18 @@ const useAppointmentDisplayData = (params: {
     isRequested,
   } = params;
   return useMemo(() => {
+    if (!apt) {
+      return {
+        cancellationNote: null,
+        businessName: business?.name || 'Provider',
+        businessAddress: business?.address || '',
+        resolvedPhoto:
+          fallbackPhoto || (isDummyPhoto(businessPhoto) ? null : businessPhoto),
+        department: service?.specialty ?? service?.name ?? null,
+        statusHelpText: null,
+      };
+    }
+
     const hasAssignedEmployee = Boolean(employee);
     const normalizedStatus = String(apt.status ?? '')
       .trim()
@@ -609,7 +621,6 @@ const StatusCard = ({
 type AppointmentAction =
   | {
       kind: 'checkIn';
-      status: 'available' | 'checkedIn' | 'inProgress';
       loading: boolean;
       onPress: () => void;
     }
@@ -631,19 +642,12 @@ const ActionButtons = ({
     <View style={styles.actionsContainer}>
       {actions.map(action => {
         if (action.kind === 'checkIn') {
-          let checkInTitle = 'Check in';
-          if (action.status === 'inProgress') {
-            checkInTitle = 'In progress';
-          } else if (action.status === 'checkedIn') {
-            checkInTitle = 'Checked in';
-          }
-          const checkInDisabled =
-            action.loading || action.status !== 'available';
+          const checkInDisabled = action.loading;
 
           return (
             <LiquidGlassButton
               key={action.kind}
-              title={checkInTitle}
+              title="Check in"
               onPress={action.onPress}
               height={56}
               borderRadius={16}
@@ -887,15 +891,8 @@ export const ViewAppointmentScreen: React.FC = () => {
     apt?.paymentStatus,
     apt?.bookingPaymentStatus,
   );
-  const {
-    isRequested,
-    isCheckedIn,
-    isInProgress,
-    isTerminal,
-    showPayNow,
-    showInvoice,
-    showCancel,
-  } = statusFlags;
+  const {isRequested, isTerminal, showPayNow, showInvoice, showCancel} =
+    statusFlags;
   const statusInfo = getStatusDisplay(
     status,
     apt?.paymentStatus,
@@ -1139,19 +1136,8 @@ export const ViewAppointmentScreen: React.FC = () => {
     const actions: AppointmentAction[] = [];
 
     if (showCheckInButton) {
-      let checkInStatus: Extract<
-        AppointmentAction,
-        {kind: 'checkIn'}
-      >['status'] = 'available';
-      if (isInProgress) {
-        checkInStatus = 'inProgress';
-      } else if (isCheckedIn) {
-        checkInStatus = 'checkedIn';
-      }
-
       actions.push({
         kind: 'checkIn',
-        status: checkInStatus,
         loading: checkingIn,
         onPress: handleCheckIn,
       });
@@ -1187,8 +1173,6 @@ export const ViewAppointmentScreen: React.FC = () => {
     handleInvoice,
     handlePayNow,
     hasMultipleInvoices,
-    isCheckedIn,
-    isInProgress,
     isRequested,
     isTerminal,
     navigation,

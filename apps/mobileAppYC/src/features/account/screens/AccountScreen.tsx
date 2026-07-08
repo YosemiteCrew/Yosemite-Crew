@@ -121,9 +121,6 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   );
   const handleProfileImageError = React.useCallback((id: string) => {
     setFailedProfileImages(prev => {
-      if (prev[id]) {
-        return prev;
-      }
       return {...prev, [id]: true};
     });
   }, []);

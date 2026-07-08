@@ -7,7 +7,7 @@ import {
   updateSystemTheme,
 } from '../../src/features/theme';
 import * as hooks from '../../src/app/hooks';
-import {lightTheme, darkTheme} from '../../src/theme';
+import {darkTheme, lightTheme} from '../../src/theme';
 
 // --- Mocks ---
 
@@ -133,5 +133,46 @@ describe('useTheme Hook', () => {
     });
 
     expect(mockDispatch).toHaveBeenCalledWith(updateSystemTheme('light'));
+  });
+
+  it('syncs system theme and exposes dark-mode controls in system mode', () => {
+    const remove = jest.fn();
+    let appearanceListener:
+      | ((event: {colorScheme: 'light' | 'dark' | null}) => void)
+      | undefined;
+
+    (Appearance.getColorScheme as jest.Mock).mockReturnValue('dark');
+    (Appearance.addChangeListener as jest.Mock).mockImplementation(listener => {
+      appearanceListener = listener;
+      return {remove};
+    });
+    (hooks.useAppSelector as jest.Mock).mockReturnValue({
+      theme: 'system',
+      isDark: true,
+    });
+
+    const {result, unmount} = renderHook(() => useTheme());
+
+    expect(result.current.theme).toBe(darkTheme);
+    expect(result.current.isDark).toBe(true);
+    expect(result.current.themeMode).toBe('system');
+    expect(result.current.darkModeLocked).toBe(false);
+    expect(mockDispatch).toHaveBeenCalledWith(updateSystemTheme('dark'));
+
+    act(() => {
+      appearanceListener?.({colorScheme: null});
+    });
+    expect(mockDispatch).toHaveBeenCalledWith(updateSystemTheme('light'));
+
+    act(() => {
+      result.current.setTheme('dark');
+      result.current.toggleTheme();
+    });
+
+    expect(mockDispatch).toHaveBeenCalledWith(setTheme('dark'));
+    expect(mockDispatch).toHaveBeenCalledWith(toggleTheme());
+
+    unmount();
+    expect(remove).toHaveBeenCalledTimes(1);
   });
 });

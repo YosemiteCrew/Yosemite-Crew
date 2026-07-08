@@ -59,11 +59,14 @@ jest.mock('@/shared/utils/bottomSheetHelpers', () => ({
 
 // Mock CustomBottomSheet
 // FIX: Renamed require('react') to ReactLib to avoid shadowing top-level React import
+let lastBottomSheetProps: any = null;
+
 jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
   const ReactLib = require('react');
   const {View: RNView, Button: RNButton} = require('react-native'); // Require Button here
 
   return ReactLib.forwardRef((props: any, ref: any) => {
+    lastBottomSheetProps = props;
     ReactLib.useImperativeHandle(ref, () => ({
       open: jest.fn(),
       close: jest.fn(),
@@ -374,5 +377,92 @@ describe('AddressBottomSheet Component', () => {
     );
     fireEvent.press(headerClose);
     expect(mockClearSuggestions).toHaveBeenCalledTimes(2);
+  });
+
+  it('dismisses the keyboard when the sheet closes or animates', () => {
+    const {Keyboard} = require('react-native');
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+
+    render(
+      <AddressBottomSheet
+        ref={ref}
+        selectedAddress={initialAddress}
+        onSave={mockOnSave}
+      />,
+    );
+
+    dismissSpy.mockClear();
+    lastBottomSheetProps.onChange(-1);
+    expect(dismissSpy).toHaveBeenCalled();
+
+    dismissSpy.mockClear();
+    lastBottomSheetProps.onAnimate();
+    expect(dismissSpy).toHaveBeenCalled();
+
+    dismissSpy.mockRestore();
+  });
+
+  it('falls back to an empty query when the selected address has no addressLine', () => {
+    const addressWithoutLine = {
+      ...initialAddress,
+      addressLine: undefined as any,
+    };
+    const {getByTestId} = render(
+      <AddressBottomSheet
+        ref={ref}
+        selectedAddress={addressWithoutLine}
+        onSave={mockOnSave}
+      />,
+    );
+
+    ref.current?.open();
+    expect(mockSetQuery).toHaveBeenCalledWith('', {suppressLookup: true});
+
+    mockSetQuery.mockClear();
+    fireEvent.press(getByTestId('btn-Cancel'));
+    expect(mockSetQuery).toHaveBeenCalledWith('', {suppressLookup: true});
+  });
+
+  it('falls back to the previous city when a selected suggestion has no city', async () => {
+    mockSelectSuggestion.mockResolvedValueOnce({
+      addressLine: 'New Line',
+      stateProvince: 'New State',
+      postalCode: '11111',
+      country: 'New Country',
+      // city intentionally omitted
+    });
+
+    const {getByTestId} = render(
+      <AddressBottomSheet
+        ref={ref}
+        selectedAddress={initialAddress}
+        onSave={mockOnSave}
+      />,
+    );
+
+    await fireEvent.press(getByTestId('trigger-suggestion'));
+
+    await waitFor(() => {
+      fireEvent.press(getByTestId('btn-Save'));
+    });
+
+    expect(mockOnSave).toHaveBeenCalledWith(
+      expect.objectContaining({city: 'Old City'}),
+    );
+  });
+
+  it('uses the taller snap points when the keyboard is visible', () => {
+    const {useKeyboardVisible} = require('@/hooks');
+    (useKeyboardVisible as jest.Mock).mockReturnValueOnce(true);
+
+    render(
+      <AddressBottomSheet
+        ref={ref}
+        selectedAddress={initialAddress}
+        onSave={mockOnSave}
+      />,
+    );
+
+    expect(lastBottomSheetProps.snapPoints).toEqual(['93%', '96%']);
   });
 });

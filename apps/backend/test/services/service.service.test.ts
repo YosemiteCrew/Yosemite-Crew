@@ -448,6 +448,85 @@ describe("ServiceService", () => {
     });
   });
 
+  describe("organisation scoping (cross-tenant IDOR guard)", () => {
+    const orgA = new Types.ObjectId().toHexString();
+    const orgB = new Types.ObjectId().toHexString();
+
+    it("update: allows updating a service in the caller's own org", async () => {
+      const mockDoc = createMockDoc();
+      mockDoc.organisationId = new Types.ObjectId(orgA);
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      await ServiceService.update(validIdStr, { name: "X" } as any, orgA);
+
+      expect(ServiceModel.findById).toHaveBeenCalled();
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+
+    it("update: editor in org A gets 404 for a service in org B", async () => {
+      const mockDoc = createMockDoc();
+      mockDoc.organisationId = new Types.ObjectId(orgB);
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      await expect(
+        ServiceService.update(validIdStr, { name: "X" } as any, orgA),
+      ).rejects.toThrow(new ServiceServiceError("Service not found", 404));
+      expect(mockDoc.save).not.toHaveBeenCalled();
+    });
+
+    it("delete: removes a service in the caller's own org (Mongo + Postgres scoped)", async () => {
+      const mockDoc = createMockDoc();
+      mockDoc.organisationId = new Types.ObjectId(orgA);
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      const res = await ServiceService.delete(validIdStr, orgA);
+
+      expect(res).toBe(true);
+      expect(ServiceModel.findById).toHaveBeenCalled();
+      expect(mockDoc.deleteOne).toHaveBeenCalled();
+      expect(prisma.service.deleteMany).toHaveBeenCalledWith({
+        where: { id: validIdStr, organisationId: orgA },
+      });
+    });
+
+    it("delete: editor in org A gets a no-op (null) for a service in org B", async () => {
+      const mockDoc = createMockDoc();
+      mockDoc.organisationId = new Types.ObjectId(orgB);
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      const res = await ServiceService.delete(validIdStr, orgA);
+
+      expect(res).toBeNull();
+      expect(mockDoc.deleteOne).not.toHaveBeenCalled();
+      expect(prisma.service.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it("update: preserves unscoped behaviour for callers that omit organisationId", async () => {
+      const mockDoc = createMockDoc();
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      await ServiceService.update(validIdStr, { name: "Y" } as any);
+
+      expect(ServiceModel.findById).toHaveBeenCalled();
+      expect(ServiceModel.findOne).not.toHaveBeenCalled();
+      expect(mockDoc.save).toHaveBeenCalled();
+    });
+
+    it("delete: preserves unscoped behaviour for callers that omit organisationId", async () => {
+      const mockDoc = createMockDoc();
+      (ServiceModel.findById as jest.Mock).mockResolvedValue(mockDoc);
+
+      const res = await ServiceService.delete(validIdStr);
+
+      expect(res).toBe(true);
+      expect(ServiceModel.findById).toHaveBeenCalled();
+      expect(ServiceModel.findOne).not.toHaveBeenCalled();
+      expect(prisma.service.deleteMany).toHaveBeenCalledWith({
+        where: { id: validIdStr },
+      });
+    });
+  });
+
   describe("search", () => {
     it("should build filter with org and query correctly", async () => {
       (ServiceModel.find as jest.Mock).mockReturnValue(

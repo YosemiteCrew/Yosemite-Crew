@@ -1,5 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 // --- Mocks Setup ---
 
 // 1. Mock AsyncStorage
@@ -11,8 +9,8 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 
 // 2. Mock Redux Actions
 jest.mock('@/features/notifications', () => ({
-  createNotification: jest.fn((payload) => ({type: 'MOCK_CREATE', payload})),
-  addNotificationToList: jest.fn((payload) => ({type: 'MOCK_ADD_LIST', payload})),
+  createNotification: jest.fn(payload => ({type: 'MOCK_CREATE', payload})),
+  addNotificationToList: jest.fn(payload => ({type: 'MOCK_ADD_LIST', payload})),
 }));
 
 // 3. Mock Firebase App
@@ -25,7 +23,7 @@ jest.mock('react-native', () => ({
   Platform: {
     OS: 'android',
     Version: 33,
-    select: jest.fn((objs) => objs.android),
+    select: jest.fn(objs => objs.android),
   },
   PermissionsAndroid: {
     check: jest.fn(() => Promise.resolve(true)),
@@ -59,8 +57,10 @@ jest.mock('@react-native-firebase/messaging', () => {
     onMessage: mockMessaging.onMessage,
     onTokenRefresh: mockMessaging.onTokenRefresh,
     getInitialNotification: mockMessaging.getInitialNotification,
-    isDeviceRegisteredForRemoteMessages: mockMessaging.isDeviceRegisteredForRemoteMessages,
-    registerDeviceForRemoteMessages: mockMessaging.registerDeviceForRemoteMessages,
+    isDeviceRegisteredForRemoteMessages:
+      mockMessaging.isDeviceRegisteredForRemoteMessages,
+    registerDeviceForRemoteMessages:
+      mockMessaging.registerDeviceForRemoteMessages,
     setAutoInitEnabled: mockMessaging.setAutoInitEnabled,
   };
 });
@@ -70,8 +70,10 @@ const mockNotifee = {
   displayNotification: jest.fn(() => Promise.resolve()),
   createChannel: jest.fn(() => Promise.resolve()),
   getChannel: jest.fn(() => Promise.resolve(null)),
-  requestPermission: jest.fn(() => Promise.resolve({ authorizationStatus: 1 })),
-  getNotificationSettings: jest.fn(() => Promise.resolve({ authorizationStatus: 1 })),
+  requestPermission: jest.fn(() => Promise.resolve({authorizationStatus: 1})),
+  getNotificationSettings: jest.fn(() =>
+    Promise.resolve({authorizationStatus: 1}),
+  ),
   onForegroundEvent: jest.fn(() => jest.fn()), // Returns unsubscribe
   onBackgroundEvent: jest.fn(),
   getInitialNotification: jest.fn(() => Promise.resolve(null)),
@@ -84,12 +86,12 @@ const mockNotifee = {
 jest.mock('@notifee/react-native', () => ({
   __esModule: true,
   default: mockNotifee,
-  AndroidImportance: { HIGH: 4 },
-  AndroidVisibility: { PUBLIC: 1 },
-  AuthorizationStatus: { AUTHORIZED: 1, DENIED: 0, NOT_DETERMINED: -1 },
-  EventType: { PRESS: 1, DISMISSED: 2, ACTION_PRESS: 3 },
-  TriggerType: { TIMESTAMP: 1 },
-  TimeUnit: { MINUTES: 'minutes' },
+  AndroidImportance: {HIGH: 4},
+  AndroidVisibility: {PUBLIC: 1},
+  AuthorizationStatus: {AUTHORIZED: 1, DENIED: 0, NOT_DETERMINED: -1},
+  EventType: {PRESS: 1, DISMISSED: 2, ACTION_PRESS: 3},
+  TriggerType: {TIMESTAMP: 1},
+  TimeUnit: {MINUTES: 'minutes'},
 }));
 
 describe('firebaseNotifications Service', () => {
@@ -139,8 +141,9 @@ describe('firebaseNotifications Service', () => {
 
   describe('Initialization', () => {
     it('initializes correctly on Android', async () => {
-      const { initializeNotifications, areNotificationsInitialized } = loadService();
-      const { PermissionsAndroid } = require('react-native');
+      const {initializeNotifications, areNotificationsInitialized} =
+        loadService();
+      const {PermissionsAndroid} = require('react-native');
 
       PermissionsAndroid.check.mockResolvedValue(false);
 
@@ -157,7 +160,7 @@ describe('firebaseNotifications Service', () => {
 
       // Channel
       expect(mockNotifee.createChannel).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'yc_general_notifications' }),
+        expect.objectContaining({id: 'yc_general_notifications'}),
       );
 
       // Token
@@ -173,7 +176,7 @@ describe('firebaseNotifications Service', () => {
 
     it('handles iOS specific initialization (APNs check)', async () => {
       Platform.OS = 'ios';
-      const { initializeNotifications } = loadService();
+      const {initializeNotifications} = loadService();
 
       // Simulate un-registered device
       mockMessaging.isDeviceRegisteredForRemoteMessages.mockReturnValue(false);
@@ -196,22 +199,38 @@ describe('firebaseNotifications Service', () => {
     });
 
     it('flushes pending intent from storage on init', async () => {
-      const { initializeNotifications } = loadService();
-      const pendingData = { navigationId: 'tasks', screen: 'TasksMain', tab: 'Tasks' };
+      const {initializeNotifications} = loadService();
+      // Re-require after loadService() so this points at the same mock
+      // instance the freshly-loaded (post jest.resetModules()) service uses.
+      const freshAsyncStorage = require('@react-native-async-storage/async-storage');
+      const pendingData = {
+        navigationId: 'tasks',
+        screen: 'TasksMain',
+        tab: 'Tasks',
+      };
 
-      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(pendingData));
+      (freshAsyncStorage.getItem as jest.Mock).mockResolvedValue(
+        JSON.stringify(pendingData),
+      );
 
       await initializeNotifications({
         dispatch: mockDispatch,
         onNavigate: mockNavigate,
       });
+
+      expect(freshAsyncStorage.removeItem).toHaveBeenCalledWith(
+        '@yc/pending-notification-intent',
+      );
+      expect(mockNavigate).toHaveBeenCalledWith(
+        expect.objectContaining({tab: 'Tasks', stackScreen: 'TasksMain'}),
+      );
     });
 
     it('processes initial notification from Notifee', async () => {
-      const { initializeNotifications } = loadService();
+      const {initializeNotifications} = loadService();
 
       mockNotifee.getInitialNotification.mockResolvedValue({
-        notification: { data: { deepLink: 'yosemite://chat' } },
+        notification: {data: {deepLink: 'yosemite://chat'}},
       });
 
       await initializeNotifications({
@@ -220,20 +239,139 @@ describe('firebaseNotifications Service', () => {
       });
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        expect.objectContaining({ deepLink: 'yosemite://chat' }),
+        expect.objectContaining({deepLink: 'yosemite://chat'}),
       );
+    });
+
+    it('short-circuits on a second call once already initialized', async () => {
+      const {initializeNotifications, areNotificationsInitialized} =
+        loadService();
+
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+      expect(areNotificationsInitialized()).toBe(true);
+
+      jest.clearAllMocks();
+      const secondNavigate = jest.fn();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: secondNavigate,
+      });
+
+      // Should not re-run permission/channel/token setup.
+      expect(mockMessaging.getToken).not.toHaveBeenCalled();
+      expect(mockNotifee.createChannel).not.toHaveBeenCalled();
+    });
+
+    it('propagates the token error on non-iOS platforms instead of swallowing it', async () => {
+      Platform.OS = 'android';
+      const {initializeNotifications} = loadService();
+      mockMessaging.getToken.mockRejectedValue(new Error('Token boom'));
+
+      await expect(
+        initializeNotifications({
+          dispatch: mockDispatch,
+          onNavigate: mockNavigate,
+        }),
+      ).rejects.toThrow('Token boom');
+    });
+
+    it('does not call onTokenUpdate when no initial token is returned', async () => {
+      const {initializeNotifications} = loadService();
+      mockMessaging.getToken.mockResolvedValue(null as any);
+
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+        onTokenUpdate: mockTokenUpdate,
+      });
+
+      expect(mockTokenUpdate).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the Firebase Messaging initial notification when Notifee has none', async () => {
+      const {initializeNotifications} = loadService();
+      mockNotifee.getInitialNotification.mockResolvedValue(null);
+      mockMessaging.getInitialNotification.mockResolvedValue({
+        data: {deepLink: 'yosemite://messaging-fallback'},
+      });
+
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        expect.objectContaining({deepLink: 'yosemite://messaging-fallback'}),
+      );
+    });
+
+    it('does not navigate when neither Notifee nor Messaging report an initial notification', async () => {
+      const {initializeNotifications} = loadService();
+      mockNotifee.getInitialNotification.mockResolvedValue(null);
+      mockMessaging.getInitialNotification.mockResolvedValue(null);
+
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('requests permission when the current authorization status is denied', async () => {
+      const {initializeNotifications} = loadService();
+      mockNotifee.getNotificationSettings.mockResolvedValue({
+        authorizationStatus: 0, // DENIED
+      });
+
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      expect(mockNotifee.requestPermission).toHaveBeenCalledWith(
+        expect.objectContaining({alert: true, badge: true, sound: true}),
+      );
+    });
+
+    it('calls onTokenUpdate when the FCM token refreshes', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+        onTokenUpdate: mockTokenUpdate,
+      });
+
+      const refreshCallback = mockMessaging.onTokenRefresh.mock.calls[0][1];
+      await refreshCallback('new_token');
+
+      expect(mockTokenUpdate).toHaveBeenCalledWith('new_token');
+    });
+
+    it('does not throw when a token refreshes without an onTokenUpdate handler', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      const refreshCallback = mockMessaging.onTokenRefresh.mock.calls[0][1];
+      await expect(refreshCallback('new_token')).resolves.toBeUndefined();
     });
   });
 
   describe('Message Handling', () => {
     const mockRemoteMessage: any = {
       messageId: 'msg_123',
-      notification: { title: 'Test', body: 'Body' },
-      data: { category: 'tasks', priority: 'high' },
+      notification: {title: 'Test', body: 'Body'},
+      data: {category: 'tasks', priority: 'high'},
     };
 
     it('dispatches CREATE_NOTIFICATION and displays via Notifee', async () => {
-      const { initializeNotifications } = loadService();
+      const {initializeNotifications} = loadService();
 
       await initializeNotifications({
         dispatch: mockDispatch,
@@ -252,13 +390,15 @@ describe('firebaseNotifications Service', () => {
       expect(mockNotifee.displayNotification).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Test',
-          android: expect.objectContaining({ channelId: 'yc_general_notifications' }),
+          android: expect.objectContaining({
+            channelId: 'yc_general_notifications',
+          }),
         }),
       );
     });
 
     it('falls back to addNotificationToList on dispatch error', async () => {
-      const { initializeNotifications } = loadService();
+      const {initializeNotifications} = loadService();
       await initializeNotifications({
         dispatch: mockDispatch,
         onNavigate: mockNavigate,
@@ -275,16 +415,188 @@ describe('firebaseNotifications Service', () => {
     });
 
     it('handles background messages via exported handler', async () => {
-      const { handleBackgroundRemoteMessage } = loadService();
-      const bgMessage = { ...mockRemoteMessage, data: { deepLink: 'bg://link' } };
+      const {handleBackgroundRemoteMessage} = loadService();
+      const bgMessage = {...mockRemoteMessage, data: {deepLink: 'bg://link'}};
 
       await handleBackgroundRemoteMessage(bgMessage);
+    });
+
+    it('normalizes a recognized relatedType and extracts metadata keys', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+      const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
+
+      await registeredCallback({
+        messageId: 'msg_meta',
+        notification: {title: 'Meta', body: 'Body'},
+        data: {
+          category: 'tasks',
+          relatedType: 'appointment',
+          navigationId: 'nav-1',
+          trackingId: 'track-1',
+        },
+      });
+
+      const [[payload]] = require('@/features/notifications').createNotification
+        .mock.calls;
+      expect(payload.relatedType).toBe('appointment');
+      expect(payload.metadata.navigationId).toBe('nav-1');
+      expect(payload.metadata.trackingId).toBe('track-1');
+    });
+
+    it('ignores an unrecognized relatedType', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+      const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
+
+      await registeredCallback({
+        messageId: 'msg_bad_related',
+        notification: {title: 'Meta', body: 'Body'},
+        data: {relatedType: 'not-a-real-type'},
+      });
+
+      const [[payload]] = require('@/features/notifications').createNotification
+        .mock.calls;
+      expect(payload.relatedType).toBeUndefined();
+    });
+
+    it('includes largeIcon in the android config when an image url is present', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+      const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
+
+      await registeredCallback({
+        messageId: 'msg_icon',
+        notification: {
+          title: 'Icon',
+          body: 'Body',
+          android: {imageUrl: 'https://example.com/pic.png'},
+        },
+        data: {},
+      });
+
+      expect(mockNotifee.displayNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          android: expect.objectContaining({
+            largeIcon: 'https://example.com/pic.png',
+          }),
+        }),
+      );
+    });
+
+    it('normalizes a plain android resource name for smallIcon', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+      const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
+
+      await registeredCallback({
+        messageId: 'msg_small_icon',
+        notification: {title: 'Icon', body: 'Body'},
+        data: {smallIcon: 'Custom_Icon_1'},
+      });
+
+      expect(mockNotifee.displayNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          android: expect.objectContaining({smallIcon: 'custom_icon_1'}),
+        }),
+      );
+    });
+
+    it('falls back to ic_launcher for a smallIcon with invalid characters', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+      const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
+
+      await registeredCallback({
+        messageId: 'msg_bad_icon',
+        notification: {title: 'Icon', body: 'Body'},
+        data: {smallIcon: 'not a valid icon!'},
+      });
+
+      expect(mockNotifee.displayNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          android: expect.objectContaining({smallIcon: 'ic_launcher'}),
+        }),
+      );
+    });
+
+    it('falls back to ic_launcher for a whitespace-only smallIcon', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+      const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
+
+      await registeredCallback({
+        messageId: 'msg_blank_icon',
+        notification: {title: 'Icon', body: 'Body'},
+        data: {smallIcon: '   '},
+      });
+
+      expect(mockNotifee.displayNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          android: expect.objectContaining({smallIcon: 'ic_launcher'}),
+        }),
+      );
+    });
+
+    it('handles a message with no data payload at all', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+      const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
+
+      await expect(
+        registeredCallback({
+          messageId: 'msg_no_data',
+          notification: {title: 'NoData', body: 'Body'},
+        }),
+      ).resolves.toBeUndefined();
+    });
+
+    it('coerces unserializable data values (e.g. BigInt) to a fallback string', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+      const registeredCallback = mockMessaging.onMessage.mock.calls[0][1];
+
+      await registeredCallback({
+        messageId: 'msg_bigint',
+        notification: {title: 'Big', body: 'Body'},
+        data: {weird: BigInt(10) as any},
+      });
+
+      expect(mockNotifee.displayNotification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({weird: '[unserializable]'}),
+        }),
+      );
     });
   });
 
   describe('Notifee Event Handling', () => {
     it('handles foreground PRESS event', async () => {
-      const { initializeNotifications } = loadService();
+      const {initializeNotifications} = loadService();
       await initializeNotifications({
         dispatch: mockDispatch,
         onNavigate: mockNavigate,
@@ -298,7 +610,7 @@ describe('firebaseNotifications Service', () => {
         detail: {
           notification: {
             id: 'n1',
-            data: { navigationId: 'appointments' }, // Maps to 'MyAppointments'
+            data: {navigationId: 'appointments'}, // Maps to 'MyAppointments'
           },
         },
       };
@@ -315,7 +627,7 @@ describe('firebaseNotifications Service', () => {
     });
 
     it('handles ACTION_PRESS (mark-as-read)', async () => {
-      const { initializeNotifications } = loadService();
+      const {initializeNotifications} = loadService();
       await initializeNotifications({
         dispatch: mockDispatch,
         onNavigate: mockNavigate,
@@ -326,53 +638,186 @@ describe('firebaseNotifications Service', () => {
       const event = {
         type: 3, // EventType.ACTION_PRESS
         detail: {
-          pressAction: { id: 'mark-as-read' },
-          notification: { data: { deepLink: 'app://read' } },
+          pressAction: {id: 'mark-as-read'},
+          notification: {data: {deepLink: 'app://read'}},
         },
       };
 
       await onEventCallback(event);
 
       expect(mockNavigate).toHaveBeenCalledWith(
-        expect.objectContaining({ deepLink: 'app://read' }),
+        expect.objectContaining({deepLink: 'app://read'}),
       );
     });
 
     it('stores intent on background PRESS', async () => {
-      const { handleNotificationBackgroundEvent } = loadService();
+      const {handleNotificationBackgroundEvent} = loadService();
       const event: any = {
         type: 1, // EventType.PRESS
         detail: {
-          notification: { data: { foo: 'bar' } },
+          notification: {data: {foo: 'bar'}},
         },
       };
 
       await handleNotificationBackgroundEvent(event);
     });
+
+    it('cancels the notification on background mark-as-read', async () => {
+      const {handleNotificationBackgroundEvent} = loadService();
+      const event: any = {
+        type: 3, // EventType.ACTION_PRESS
+        detail: {
+          pressAction: {id: 'mark-as-read'},
+          notification: {id: 'bg-n1'},
+        },
+      };
+
+      await handleNotificationBackgroundEvent(event);
+
+      expect(mockNotifee.cancelNotification).toHaveBeenCalledWith('bg-n1');
+    });
+
+    it('cancels the notification on foreground DISMISSED', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      const onEventCallback = mockNotifee.onForegroundEvent.mock.calls[0][0];
+      await onEventCallback({
+        type: 2, // EventType.DISMISSED
+        detail: {notification: {id: 'n-dismissed'}},
+      });
+
+      expect(mockNotifee.cancelNotification).toHaveBeenCalledWith(
+        'n-dismissed',
+      );
+    });
+
+    it('does nothing for an unrecognized foreground event type', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      const onEventCallback = mockNotifee.onForegroundEvent.mock.calls[0][0];
+      await expect(
+        onEventCallback({type: 999, detail: {}}),
+      ).resolves.toBeUndefined();
+      expect(mockNotifee.cancelNotification).not.toHaveBeenCalled();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Navigation Intent Persistence', () => {
+    it('warns but does not throw when persisting a pending intent fails', async () => {
+      const {handleNotificationBackgroundEvent} = loadService();
+      // Re-require after loadService() so this points at the same mock
+      // instance the freshly-loaded (post jest.resetModules()) service uses.
+      const freshAsyncStorage = require('@react-native-async-storage/async-storage');
+      (freshAsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(
+        new Error('disk full'),
+      );
+
+      const event: any = {
+        type: 1, // EventType.PRESS
+        detail: {notification: {data: {foo: 'bar'}}},
+      };
+
+      await handleNotificationBackgroundEvent(event);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        '[Notifications] Failed to persist navigation intent',
+        expect.any(Error),
+      );
+    });
+
+    it('warns but does not throw when reading a pending intent fails during init', async () => {
+      const {initializeNotifications} = loadService();
+      const freshAsyncStorage = require('@react-native-async-storage/async-storage');
+      (freshAsyncStorage.getItem as jest.Mock).mockRejectedValueOnce(
+        new Error('read fail'),
+      );
+
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        '[Notifications] Failed to read stored navigation intent',
+        expect.any(Error),
+      );
+    });
+
+    it('falls back to a raw value wrapper when stored params are not valid JSON', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      const onEventCallback = mockNotifee.onForegroundEvent.mock.calls[0][0];
+      await onEventCallback({
+        type: 1, // EventType.PRESS
+        detail: {
+          notification: {
+            data: {navigationId: 'tasks', params: 'not-json'},
+          },
+        },
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        expect.objectContaining({params: {value: 'not-json'}}),
+      );
+    });
+
+    it('does not navigate when the intent has neither a screen, tab, nor deep link', async () => {
+      const {initializeNotifications} = loadService();
+      await initializeNotifications({
+        dispatch: mockDispatch,
+        onNavigate: mockNavigate,
+      });
+
+      const onEventCallback = mockNotifee.onForegroundEvent.mock.calls[0][0];
+      await onEventCallback({
+        type: 1, // EventType.PRESS
+        detail: {
+          notification: {id: 'n-empty', data: {unrelatedKey: 'x'}},
+        },
+      });
+
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(mockNotifee.cancelNotification).toHaveBeenCalledWith('n-empty');
+    });
   });
 
   describe('Utilities', () => {
     it('schedules local reminder', async () => {
-      const { scheduleLocalReminder } = loadService();
-      mockNotifee.getChannel.mockResolvedValue({ id: 'yc_general_notifications' });
+      const {scheduleLocalReminder} = loadService();
+      mockNotifee.getChannel.mockResolvedValue({
+        id: 'yc_general_notifications',
+      });
 
       await scheduleLocalReminder('Title', 'Body', 10);
 
       expect(mockNotifee.createTriggerNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ title: 'Title' }),
-        expect.objectContaining({ type: 1 }), // TriggerType.TIMESTAMP
+        expect.objectContaining({title: 'Title'}),
+        expect.objectContaining({type: 1}), // TriggerType.TIMESTAMP
       );
     });
 
     it('clears all notifications', async () => {
-      const { clearAllSystemNotifications } = loadService();
+      const {clearAllSystemNotifications} = loadService();
       await clearAllSystemNotifications();
       expect(mockNotifee.cancelAllNotifications).toHaveBeenCalled();
     });
 
     it('gets current FCM token', async () => {
       Platform.OS = 'ios';
-      const { getCurrentFcmToken } = loadService();
+      const {getCurrentFcmToken} = loadService();
 
       mockMessaging.isDeviceRegisteredForRemoteMessages.mockReturnValue(true);
       mockMessaging.getToken.mockResolvedValue('token_abc');
@@ -382,7 +827,7 @@ describe('firebaseNotifications Service', () => {
     });
 
     it('returns null on token failure', async () => {
-      const { getCurrentFcmToken } = loadService();
+      const {getCurrentFcmToken} = loadService();
 
       // Override default success with rejection for this test only
       mockMessaging.getToken.mockRejectedValue(new Error('Fail'));
@@ -394,7 +839,7 @@ describe('firebaseNotifications Service', () => {
 
   describe('Data Normalization', () => {
     it('coerces non-string data to strings', async () => {
-      const { initializeNotifications } = loadService();
+      const {initializeNotifications} = loadService();
       await initializeNotifications({
         dispatch: mockDispatch,
         onNavigate: mockNavigate,
@@ -406,7 +851,7 @@ describe('firebaseNotifications Service', () => {
       const rawData = {
         id: 123,
         active: true,
-        meta: { nested: 'val' },
+        meta: {nested: 'val'},
         empty: null,
       };
 
@@ -420,7 +865,7 @@ describe('firebaseNotifications Service', () => {
           data: {
             id: '123',
             active: 'true',
-            meta: JSON.stringify({ nested: 'val' }),
+            meta: JSON.stringify({nested: 'val'}),
             empty: '',
           },
         }),

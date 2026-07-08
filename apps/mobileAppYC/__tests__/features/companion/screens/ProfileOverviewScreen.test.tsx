@@ -618,4 +618,202 @@ describe('ProfileOverviewScreen', () => {
       expect.objectContaining({params: {category: 'custom'}}),
     );
   });
+
+  it('marks a linked-business section complete when a matching business exists', () => {
+    const linkedState = {
+      ...initialState,
+      linkedBusinesses: {
+        linkedBusinesses: [
+          {id: 'lb-1', companionId: 'comp-123', category: 'hospital'},
+        ],
+        loading: false,
+        error: null,
+      },
+    };
+    const {getAllByText} = setup(linkedState);
+    expect(getAllByText('Complete').length).toBeGreaterThan(0);
+  });
+
+  it('marks the co-parent section complete when a distinct co-parent email exists', () => {
+    const coParentState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        coParents: [{email: 'friend@example.com'}],
+      },
+    };
+    const {getAllByText} = setup(coParentState);
+    expect(getAllByText('Complete').length).toBeGreaterThan(0);
+  });
+
+  it('throws and shows an alert when parentId is missing during profile image update', async () => {
+    const {useAuth} = require('@/features/auth/context/AuthContext');
+    (useAuth as jest.Mock).mockReturnValueOnce({user: {parentId: undefined}});
+
+    const spyAlert = jest.spyOn(Alert, 'alert');
+    const {getByTestId} = setup();
+    const header = getByTestId('CompanionProfileHeader');
+
+    await act(async () => {
+      await header.props.onImageSelected('new-image-uri');
+    });
+
+    expect(spyAlert).toHaveBeenCalledWith(
+      'Image Update Failed',
+      expect.any(String),
+      expect.any(Array),
+    );
+    expect(updateCompanionProfile).not.toHaveBeenCalled();
+  });
+
+  it('blocks Documents when the documents permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {documents: false}},
+        },
+      },
+    };
+    const spyAlert = jest.spyOn(Alert, 'alert');
+    const {getByText} = setup(restrictedState);
+    // setSelectedCompanion also fires unconditionally on mount, so clear it
+    // to isolate the effect of pressing Documents specifically.
+    (setSelectedCompanion as unknown as jest.Mock).mockClear();
+
+    fireEvent.press(getByText('Documents'));
+
+    expect(setSelectedCompanion).not.toHaveBeenCalled();
+    expect(spyAlert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining("don't have access"),
+    );
+  });
+
+  it('blocks a linked-business section when the appointments permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {appointments: false}},
+        },
+      },
+    };
+    const spyAlert = jest.spyOn(Alert, 'alert');
+    const {getByText} = setup(restrictedState);
+
+    fireEvent.press(getByText('Boarder'));
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'LinkedBusinesses',
+      expect.anything(),
+    );
+    expect(spyAlert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining("don't have access"),
+    );
+  });
+
+  it('blocks Health tasks when the tasks permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {tasks: false}},
+        },
+      },
+    };
+    const {getByText} = setup(restrictedState);
+
+    fireEvent.press(getByText('Health tasks'));
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'Tasks',
+      expect.objectContaining({params: {category: 'health'}}),
+    );
+  });
+
+  it('navigates to Hygiene tasks when the tasks permission is granted', () => {
+    const {getByText} = setup();
+    mockGetParent.mockReturnValue(navigationMock);
+    fireEvent.press(getByText('Hygiene tasks'));
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      'Tasks',
+      expect.objectContaining({params: {category: 'hygiene'}}),
+    );
+  });
+
+  it('blocks Dietary plan tasks when the tasks permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {tasks: false}},
+        },
+      },
+    };
+    const {getByText} = setup(restrictedState);
+
+    fireEvent.press(getByText('Dietary plan tasks'));
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'Tasks',
+      expect.objectContaining({params: {category: 'dietary'}}),
+    );
+  });
+
+  it('blocks Custom tasks when the tasks permission is denied', () => {
+    const restrictedState = {
+      ...initialState,
+      coParent: {
+        ...initialState.coParent,
+        accessByCompanionId: {
+          'comp-123': {role: 'CO_PARENT', permissions: {tasks: false}},
+        },
+      },
+    };
+    const {getByText} = setup(restrictedState);
+
+    fireEvent.press(getByText('Custom tasks'));
+
+    expect(mockNavigate).not.toHaveBeenCalledWith(
+      'Tasks',
+      expect.objectContaining({params: {category: 'custom'}}),
+    );
+  });
+
+  it('BackHandler returns false when the delete sheet is not open', () => {
+    const addSpy = jest
+      .spyOn(BackHandler, 'addEventListener')
+      .mockImplementation(_ => {
+        return {remove: jest.fn()} as any;
+      });
+
+    setup();
+
+    const lastCall = addSpy.mock.calls[addSpy.mock.calls.length - 1];
+    const cb = lastCall[1];
+
+    expect(cb()).toBe(false);
+  });
+
+  it('closes the delete sheet without deleting when cancelled', () => {
+    const {getByTestId} = setup();
+    const header = getByTestId('Header');
+    act(() => {
+      header.props.onRightPress();
+    });
+    const sheet = getByTestId('DeleteSheet');
+
+    act(() => {
+      sheet.props.onCancel();
+    });
+
+    expect(deleteCompanion).not.toHaveBeenCalled();
+  });
 });

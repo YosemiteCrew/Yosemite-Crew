@@ -524,14 +524,8 @@ const extractDocumentsCollection = (payload: any): any[] => {
     return candidate.data;
   }
 
-  if (Array.isArray(payload)) {
-    return payload;
-  }
   if (Array.isArray(payload?.documents)) {
     return payload.documents;
-  }
-  if (Array.isArray(payload?.data)) {
-    return payload.data;
   }
   if (Array.isArray(payload?.results)) {
     return payload.results;

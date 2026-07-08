@@ -1,6 +1,6 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {render, fireEvent} from '@testing-library/react-native';
+import {render, fireEvent, act} from '@testing-library/react-native';
 import {CompanionSelector} from '../../../src/shared/components/common/CompanionSelector/CompanionSelector';
 import {Platform, ToastAndroid, Alert, Image} from 'react-native';
 import * as Redux from 'react-redux';
@@ -359,5 +359,72 @@ describe('CompanionSelector Component', () => {
 
     fireEvent.press(getByText('Beta'));
     expect(mockOnSelect).toHaveBeenCalledWith('b2');
+  });
+
+  it('falls back to empty defaults when the coParent slice is missing from state', () => {
+    // Exercise the real selector bodies (state.coParent?.x ?? fallback) by
+    // actually invoking the passed selector against a state with no coParent
+    // slice, rather than short-circuiting useSelector with a fixed mock value.
+    (Redux.useSelector as unknown as jest.Mock).mockImplementation(selector =>
+      selector({coParent: undefined}),
+    );
+
+    const {getByText} = render(
+      <CompanionSelector
+        companions={mockCompanions}
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+      />,
+    );
+
+    fireEvent.press(getByText('Buddy'));
+    expect(mockOnSelect).toHaveBeenCalledWith('1');
+  });
+
+  it('reads the coParent slice fields when present in state', () => {
+    (Redux.useSelector as unknown as jest.Mock).mockImplementation(selector =>
+      selector({
+        coParent: {
+          accessByCompanionId: {'1': {role: 'PRIMARY'}},
+          defaultAccess: null,
+          lastFetchedRole: 'PRIMARY',
+          lastFetchedPermissions: null,
+        },
+      }),
+    );
+
+    const {getByText} = render(
+      <CompanionSelector
+        companions={mockCompanions}
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+      />,
+    );
+
+    fireEvent.press(getByText('Buddy'));
+    expect(mockOnSelect).toHaveBeenCalledWith('1');
+  });
+
+  it('does not toggle a companion image out of the failed state twice', () => {
+    const {getByText, UNSAFE_getByType} = render(
+      <CompanionSelector
+        companions={[mockCompanions[0]]}
+        selectedCompanionId="1"
+        onSelect={mockOnSelect}
+      />,
+    );
+
+    const image = UNSAFE_getByType(Image);
+    const onError = image.props.onError;
+    act(() => {
+      onError();
+    });
+    // Firing a second error for the same companion should hit the dedup
+    // branch (prev[id] already true) rather than creating a new state object.
+    act(() => {
+      onError();
+    });
+
+    expect(getByText('B')).toBeTruthy();
   });
 });

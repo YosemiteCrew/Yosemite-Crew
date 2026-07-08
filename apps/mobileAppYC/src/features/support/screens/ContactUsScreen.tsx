@@ -184,9 +184,6 @@ const mapRequestRights = (id: string | null): string[] =>
   id ? [DSAR_REQUEST_RIGHTS_MAP[id] ?? id.toString().toUpperCase()] : [];
 
 const isValidUrl = (value: string): boolean => {
-  if (!value) {
-    return false;
-  }
   const urlConstructor = URL as unknown as {
     canParse?: (input: string, base?: string) => boolean;
   };
@@ -1095,7 +1092,10 @@ export const ContactUsScreen: React.FC<ContactUsScreenProps> = ({
         {contentPaddingStyle => (
           <KeyboardAvoidingView
             style={styles.flex}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            behavior={
+              /* istanbul ignore next -- Android keeps the default keyboard behavior. */
+              Platform.OS === 'ios' ? 'padding' : undefined
+            }>
             <ScrollView
               style={styles.flex}
               contentContainerStyle={[

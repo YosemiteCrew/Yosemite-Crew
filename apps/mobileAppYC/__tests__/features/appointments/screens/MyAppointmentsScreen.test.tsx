@@ -15,9 +15,13 @@ import {showPermissionDeniedToast} from '@/shared/utils/permissionToast';
 // ----------------------------------------------------------------------
 // 1. Mocks: Navigation & Core
 // ----------------------------------------------------------------------
+let lastFocusEffectCleanup: (() => void) | undefined;
+
 jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn(),
-  useFocusEffect: jest.fn(cb => cb()),
+  useFocusEffect: jest.fn(cb => {
+    lastFocusEffectCleanup = cb();
+  }),
 }));
 
 // Suppress specific warnings for native modules
@@ -96,13 +100,10 @@ jest.mock('@/features/appointments/utils/appointmentCardData', () => ({
     const needsPayment =
       isApt2 || ['NO_PAYMENT', 'AWAITING_PAYMENT'].includes(item.status);
 
-    // FIX S3358: Removed nested ternary
-    let checkInLabel = 'Check in';
-    if (item.status === 'CHECKED_IN') {
-      checkInLabel = 'Checked in';
-    } else if (item.status === 'IN_PROGRESS') {
-      checkInLabel = 'In progress';
-    }
+    // Leave checkInLabel empty so the screen's own resolvedCheckInLabel
+    // fallback (isInProgress / isCheckedIn / default) computes the text,
+    // exercising that branch instead of always trusting the card data.
+    const checkInLabel = '';
 
     return {
       cardTitle: 'Dr. Test',
@@ -183,25 +184,43 @@ jest.mock('@/shared/components/common/AppointmentCard/AppointmentCard', () => {
   return {
     AppointmentCard: ({
       onChat,
+      onChatBlocked,
       onCheckIn,
       onGetDirections,
+      onAvatarError,
+      onViewDetails,
+      onPress,
       doctorName,
       hospital,
       footer,
       checkInLabel,
+      checkInDisabled,
     }: any) => (
       <View testID={`card-${doctorName}`}>
         <Text>{doctorName}</Text>
         <Text>{hospital}</Text>
         <Text testID="lbl-checkin-status">{checkInLabel}</Text>
+        <Text testID="lbl-checkin-disabled">{String(checkInDisabled)}</Text>
         <TouchableOpacity onPress={onChat} testID="btn-chat">
           <Text>Chat</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onChatBlocked} testID="btn-chat-blocked">
+          <Text>ChatBlocked</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={onCheckIn} testID="btn-checkin">
           <Text>CheckIn</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={onGetDirections} testID="btn-directions">
           <Text>Directions</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onAvatarError} testID="btn-avatar-error">
+          <Text>AvatarError</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onViewDetails} testID="btn-view-details">
+          <Text>ViewDetails</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onPress} testID="btn-card-press">
+          <Text>Press</Text>
         </TouchableOpacity>
         {footer}
       </View>
@@ -231,8 +250,18 @@ jest.mock(
 jest.mock(
   '@/shared/components/common/CompanionSelector/CompanionSelector',
   () => {
-    const {View} = require('react-native');
-    return {CompanionSelector: () => <View />};
+    const {View, TouchableOpacity, Text} = require('react-native');
+    return {
+      CompanionSelector: ({onSelect}: any) => (
+        <View>
+          <TouchableOpacity
+            testID="btn-select-companion"
+            onPress={() => onSelect('c2')}>
+            <Text>SelectCompanion</Text>
+          </TouchableOpacity>
+        </View>
+      ),
+    };
   },
 );
 
@@ -468,6 +497,15 @@ describe('MyAppointmentsScreen', () => {
       expect(ratingText).toBeTruthy();
     });
 
+    it('shows a "-" placeholder when rated but no numeric rating is available', async () => {
+      renderScreen();
+
+      simulateOrgRatingUpdate({loading: false, isRated: true, rating: null});
+
+      const ratingText = await screen.findByText('-/5');
+      expect(ratingText).toBeTruthy();
+    });
+
     it('covers all status formatting cases', () => {
       // We create a store with all distinct statuses to hit switch cases
       // We ensure "PAYMENT_FAILED" is included to hit the footer text logic
@@ -523,6 +561,163 @@ describe('MyAppointmentsScreen', () => {
       );
 
       expect(setSelectedCompanion).toHaveBeenCalledWith('c99');
+    });
+
+    it('dispatches setSelectedCompanion when a companion is selected from the header', () => {
+      renderScreen();
+      fireEvent.press(screen.getByTestId('btn-select-companion'));
+      expect(setSelectedCompanion).toHaveBeenCalledWith('c2');
+    });
+
+    it('filters upcoming and past cards by the selected business category', () => {
+      renderScreen();
+
+      fireEvent.press(screen.getByText('Hospital'));
+      expect(screen.getAllByText('Vet Clinic').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Grooming Salon')).toBeNull();
+
+      fireEvent.press(screen.getByText('Groomer'));
+      expect(screen.getByText('Grooming Salon')).toBeTruthy();
+      expect(screen.queryByText('Vet Clinic')).toBeNull();
+    });
+
+    it('opens the chat channel once handleChatActivation invokes onOpenChat', () => {
+      renderScreen();
+      const chatBtns = screen.getAllByTestId('btn-chat');
+      fireEvent.press(chatBtns[0]);
+
+      expect(handleChatActivation).toHaveBeenCalled();
+      const {onOpenChat} = (handleChatActivation as jest.Mock).mock.calls[0][0];
+
+      act(() => {
+        onOpenChat();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'ChatChannel',
+        expect.objectContaining({doctorName: 'Dr. Test', petName: 'Buddy'}),
+      );
+    });
+
+    it('normalizes a short (HH:mm) appointment time before opening chat', () => {
+      renderScreen();
+      const chatBtns = screen.getAllByTestId('btn-chat');
+      // index 0 is apt-2 (time: '09:00', a 5-char HH:mm string)
+      fireEvent.press(chatBtns[0]);
+      const {onOpenChat} = (handleChatActivation as jest.Mock).mock.calls[0][0];
+
+      act(() => {
+        onOpenChat();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'ChatChannel',
+        expect.objectContaining({appointmentTime: '2023-12-24T09:00:00Z'}),
+      );
+    });
+
+    it('blocks chat and shows a toast via onChatBlocked', () => {
+      renderScreen();
+      fireEvent.press(screen.getAllByTestId('btn-chat-blocked')[0]);
+      expect(showPermissionDeniedToast).toHaveBeenCalledWith('chat with vet');
+    });
+
+    it('marks a companion as checking in via onCheckingInChange, disabling further presses', () => {
+      renderScreen();
+      fireEvent.press(screen.getAllByTestId('btn-checkin')[0]);
+
+      const [{onCheckingInChange}] = mockHandleCheckIn.mock.calls[0];
+      act(() => {
+        onCheckingInChange('apt-2', true);
+      });
+
+      expect(
+        screen.getAllByTestId('lbl-checkin-disabled')[0].props.children,
+      ).toBe('true');
+
+      mockHandleCheckIn.mockClear();
+      fireEvent.press(screen.getAllByTestId('btn-checkin')[0]);
+      expect(mockHandleCheckIn).not.toHaveBeenCalled();
+    });
+
+    it('shows the requested status badge for a REQUESTED appointment', () => {
+      store = mockStore({
+        companion: {
+          companions: [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+          selectedCompanionId: 'c1',
+        },
+        appointments: {
+          upcomingOverride: [
+            {
+              id: 'apt-req',
+              businessId: 'biz-1',
+              date: '2023-12-25',
+              time: '10:00',
+              status: 'REQUESTED',
+              companionId: 'c1',
+            },
+          ],
+          pastOverride: [],
+        },
+      });
+
+      renderScreen();
+      expect(screen.getByText('Requested')).toBeTruthy();
+    });
+
+    it('navigates to ViewAppointment from onViewDetails and onPress (upcoming card)', () => {
+      renderScreen();
+      fireEvent.press(screen.getAllByTestId('btn-view-details')[0]);
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'apt-2',
+      });
+
+      mockNavigate.mockClear();
+      fireEvent.press(screen.getAllByTestId('btn-card-press')[0]);
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'apt-2',
+      });
+    });
+
+    it('navigates to ViewAppointment from onViewDetails and onPress (past card)', () => {
+      renderScreen();
+      const viewDetailsBtns = screen.getAllByTestId('btn-view-details');
+      fireEvent.press(viewDetailsBtns[viewDetailsBtns.length - 1]);
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'apt-past-1',
+      });
+
+      mockNavigate.mockClear();
+      const cardPressBtns = screen.getAllByTestId('btn-card-press');
+      fireEvent.press(cardPressBtns[cardPressBtns.length - 1]);
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'apt-past-1',
+      });
+    });
+
+    it('shows a permission toast when check-in is denied', () => {
+      renderScreen();
+      fireEvent.press(screen.getAllByTestId('btn-checkin')[0]);
+
+      const [{onPermissionDenied}] = mockHandleCheckIn.mock.calls[0];
+      act(() => {
+        onPermissionDenied();
+      });
+
+      expect(showPermissionDeniedToast).toHaveBeenCalledWith('appointments');
+    });
+
+    it('clears the last-fetched companion ref when the screen loses focus', () => {
+      renderScreen();
+      expect(() => lastFocusEffectCleanup?.()).not.toThrow();
+    });
+
+    it('reports avatar load errors for both upcoming and past cards', () => {
+      renderScreen();
+      const avatarErrorBtns = screen.getAllByTestId('btn-avatar-error');
+      expect(() =>
+        avatarErrorBtns.forEach(btn => fireEvent.press(btn)),
+      ).not.toThrow();
     });
   });
 });

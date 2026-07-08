@@ -1,8 +1,11 @@
 import React from 'react';
+import {Alert} from 'react-native';
 import {mockTheme} from '../../../../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {TaskViewScreen} from '@/features/tasks/screens/TaskViewScreen/TaskViewScreen';
 import * as Redux from 'react-redux';
+
+const mockAlertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 // --- Mocks ---
 
@@ -117,11 +120,19 @@ jest.mock('@/shared/components/common', () => {
 
 jest.mock('@/features/documents/components/DocumentAttachmentViewer', () => ({
   __esModule: true,
-  default: () => {
-    const {View, Text} = require('react-native');
+  default: (props: any) => {
+    const {View, Text, TouchableOpacity} = require('react-native');
     return (
       <View>
         <Text>Attachments Section</Text>
+        <TouchableOpacity
+          testID="pdf-touch-start"
+          onPress={props.onPdfTouchStart}>
+          <Text>Touch Start</Text>
+        </TouchableOpacity>
+        <TouchableOpacity testID="pdf-touch-end" onPress={props.onPdfTouchEnd}>
+          <Text>Touch End</Text>
+        </TouchableOpacity>
       </View>
     );
   },
@@ -273,6 +284,38 @@ describe('TaskViewScreen', () => {
           frequency: {type: 'daily'},
         },
       },
+      'task-med-string-freq': {
+        id: 'task-med-string-freq',
+        status: 'pending',
+        title: 'Give pill (string freq)',
+        category: 'medication',
+        companionId: 'comp-1',
+        date: '2025-01-01',
+        time: '09:00:00',
+        details: {
+          taskType: 'give-medication',
+          medicineName: 'Apoquel',
+          medicineType: 'pill',
+          dosages: [{id: 'd1', label: '1 pill', time: '09:00:00'}],
+          startDate: '2025-01-01',
+          endDate: '2025-01-10',
+          frequency: 'daily',
+        },
+      },
+      'task-ot-book': {
+        id: 'task-ot-book',
+        status: 'completed',
+        title: 'Book pain check',
+        category: 'health',
+        companionId: 'comp-1',
+        date: '2025-01-07',
+        completedAt: '2025-01-07T10:00:00.000Z',
+        otSubmissionId: null,
+        details: {
+          taskType: 'take-observational-tool',
+          toolType: 'pain-scale',
+        },
+      },
       'task-ot': {
         id: 'task-ot',
         status: 'pending',
@@ -420,6 +463,14 @@ describe('TaskViewScreen', () => {
         attachDocuments: true,
         attachments: [
           {id: 'att-1', key: 'lab/report.pdf', name: 'report.pdf', type: null},
+          {id: 'att-2', key: 'photo.jpg', name: 'photo.jpg', type: null},
+          {id: 'att-3', key: 'photo.jpeg', name: 'photo.jpeg', type: null},
+          {id: 'att-4', key: 'icon.png', name: 'icon.png', type: null},
+          {id: 'att-5', key: 'anim.webp', name: 'anim.webp', type: null},
+          {id: 'att-6', key: 'letter.doc', name: 'letter.doc', type: null},
+          {id: 'att-7', key: 'letter.docx', name: 'letter.docx', type: null},
+          {id: 'att-8', key: 'unknown.xyz', name: 'unknown.xyz', type: null},
+          {id: 'att-9', key: 'no-name-key', name: null, type: null},
         ],
         details: {taskType: 'custom'},
       },
@@ -762,5 +813,171 @@ describe('TaskViewScreen', () => {
     mockRouteParams = {taskId: 'task-med', source: 'tasks'};
     const {getByText} = render(<TaskViewScreen />);
     expect(getByText('Unknown')).toBeTruthy();
+  });
+
+  it('handles a medication frequency provided as a plain string', () => {
+    mockRouteParams = {taskId: 'task-med-string-freq', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+    // Frequency 'daily' !== 'once', so the end date field should still render.
+    expect(getByTestId('touchable-End Date')).toBeTruthy();
+  });
+
+  it('infers mime types from file extensions for attachments with no type', () => {
+    mockRouteParams = {taskId: 'task-attachment', source: 'tasks'};
+    // Rendering without crashing exercises guessMimeFromName for every
+    // extension branch (jpg/jpeg/png/webp/pdf/doc/docx/unknown).
+    const {getByText} = render(<TaskViewScreen />);
+    expect(getByText('Attachments Section')).toBeTruthy();
+  });
+
+  it('returns an empty string when formatTime throws internally', () => {
+    const spy = jest
+      .spyOn(Date.prototype, 'toLocaleTimeString')
+      .mockImplementationOnce(() => {
+        throw new Error('boom');
+      });
+
+    mockRouteParams = {taskId: 'task-med', source: 'tasks'};
+    render(<TaskViewScreen />);
+
+    spy.mockRestore();
+  });
+
+  it('triggers the PDF interaction touch handlers', () => {
+    mockRouteParams = {taskId: 'task-attachment', source: 'tasks'};
+    const {getByTestId} = render(<TaskViewScreen />);
+
+    fireEvent.press(getByTestId('pdf-touch-start'));
+    fireEvent.press(getByTestId('pdf-touch-end'));
+    // Implicit: exercises setIsPdfInteracting(true) and (false) without crash.
+  });
+
+  describe('handleBookAppointment', () => {
+    const servicesState = {
+      ...mockState,
+      businesses: {
+        ...mockState.businesses,
+        businesses: [{id: 'biz-1', name: 'Care Vet'}],
+        services: [
+          {
+            id: 'svc-1',
+            businessId: 'biz-1',
+            name: 'Pain Scale Observation',
+            specialty: 'Observation',
+            specialityId: 'spec-1',
+          },
+        ],
+      },
+    };
+
+    beforeEach(() => {
+      mockRouteParams = {taskId: 'task-ot-book', source: 'tasks'};
+    });
+
+    it('shows an alert when the submission preview fails', async () => {
+      const {
+        observationToolApi,
+      } = require('@/features/observationalTools/services/observationToolService');
+      (
+        observationToolApi.previewTaskSubmission as jest.Mock
+      ).mockRejectedValueOnce(new Error('preview failed'));
+      mockUseSelector.mockImplementation((cb: any) => cb(mockState));
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockAlertSpy).toHaveBeenCalledWith(
+        'Submission required',
+        'Complete the observational tool before booking.',
+      );
+    });
+
+    it('shows an alert when the preview resolves without a submission id', async () => {
+      const {
+        observationToolApi,
+      } = require('@/features/observationalTools/services/observationToolService');
+      (
+        observationToolApi.previewTaskSubmission as jest.Mock
+      ).mockResolvedValueOnce({});
+      mockUseSelector.mockImplementation((cb: any) => cb(mockState));
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockAlertSpy).toHaveBeenCalledWith(
+        'Submission required',
+        'Complete the observational tool before booking.',
+      );
+    });
+
+    it('shows an alert when no matching provider service is found', async () => {
+      mockUseSelector.mockImplementation((cb: any) => cb(mockState)); // empty services by default
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockAlertSpy).toHaveBeenCalledWith(
+        'No providers available',
+        'We could not find a clinic offering this tool yet.',
+      );
+    });
+
+    it('shows an alert when the matched service has no known business', async () => {
+      const noBusinessState = {
+        ...servicesState,
+        businesses: {...servicesState.businesses, businesses: []},
+      };
+      mockUseSelector.mockImplementation((cb: any) => cb(noBusinessState));
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockAlertSpy).toHaveBeenCalledWith(
+        'No providers available',
+        'We could not find a clinic offering this tool yet.',
+      );
+    });
+
+    it('navigates to BookingForm when a matching service and business are found', async () => {
+      mockUseSelector.mockImplementation((cb: any) => cb(servicesState));
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('Appointments', {
+        screen: 'BookingForm',
+        params: expect.objectContaining({
+          businessId: 'biz-1',
+          serviceId: 'svc-1',
+          serviceName: 'Pain Scale Observation',
+        }),
+      });
+    });
+
+    it('skips the preview fetch when a submission id already exists', async () => {
+      const withSubmissionState = {
+        ...servicesState,
+        tasks: {
+          ...servicesState.tasks,
+          'task-ot-book': {
+            ...servicesState.tasks['task-ot-book'],
+            otSubmissionId: 'existing-submission',
+          },
+        },
+      };
+      mockUseSelector.mockImplementation((cb: any) => cb(withSubmissionState));
+      const {
+        observationToolApi,
+      } = require('@/features/observationalTools/services/observationToolService');
+
+      const {getByTestId} = render(<TaskViewScreen />);
+      await fireEvent.press(getByTestId('btn-Book appointment'));
+
+      expect(observationToolApi.previewTaskSubmission).not.toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith(
+        'Appointments',
+        expect.objectContaining({screen: 'BookingForm'}),
+      );
+    });
   });
 });

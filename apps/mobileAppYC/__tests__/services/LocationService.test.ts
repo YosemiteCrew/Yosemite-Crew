@@ -1,7 +1,7 @@
 import LocationService from '../../src/shared/services/LocationService';
 import Geolocation from '@react-native-community/geolocation';
-import { Platform, Alert } from 'react-native';
-import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import {Platform, Alert} from 'react-native';
+import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 
 // --- Mocks ---
 
@@ -15,8 +15,8 @@ jest.mock('react-native-permissions', () => ({
   check: jest.fn(),
   request: jest.fn(),
   PERMISSIONS: {
-    IOS: { LOCATION_WHEN_IN_USE: 'ios.permission.LOCATION_WHEN_IN_USE' },
-    ANDROID: { ACCESS_FINE_LOCATION: 'android.permission.ACCESS_FINE_LOCATION' },
+    IOS: {LOCATION_WHEN_IN_USE: 'ios.permission.LOCATION_WHEN_IN_USE'},
+    ANDROID: {ACCESS_FINE_LOCATION: 'android.permission.ACCESS_FINE_LOCATION'},
   },
   RESULTS: {
     GRANTED: 'granted',
@@ -80,7 +80,9 @@ describe('LocationService', () => {
 
       const result = await LocationService.checkLocationPermission();
 
-      expect(check).toHaveBeenCalledWith(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION);
+      expect(check).toHaveBeenCalledWith(
+        PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+      );
       expect(result).toBe(false);
     });
   });
@@ -92,7 +94,9 @@ describe('LocationService', () => {
 
       const result = await LocationService.requestLocationPermission();
 
-      expect(request).toHaveBeenCalledWith(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE);
+      expect(request).toHaveBeenCalledWith(
+        PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+      );
       expect(result).toBe(true);
     });
 
@@ -102,7 +106,9 @@ describe('LocationService', () => {
 
       const result = await LocationService.requestLocationPermission();
 
-      expect(request).toHaveBeenCalledWith(PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION);
+      expect(request).toHaveBeenCalledWith(
+        PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+      );
       expect(result).toBe(false);
     });
 
@@ -137,7 +143,7 @@ describe('LocationService', () => {
       (request as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
 
       (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
-        (success) => success(mockPosition)
+        success => success(mockPosition),
       );
 
       const coords = await LocationService.getCurrentPosition();
@@ -149,7 +155,7 @@ describe('LocationService', () => {
     it('returns coordinates directly if permission already granted', async () => {
       (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
       (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
-        (success) => success(mockPosition)
+        success => success(mockPosition),
       );
 
       const coords = await LocationService.getCurrentPosition();
@@ -160,10 +166,10 @@ describe('LocationService', () => {
 
     it('handles geolocation errors via reject', async () => {
       (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
-      const geoError = { code: 1, message: 'User denied location' };
+      const geoError = new Error('User denied location');
 
       (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
-        (_success, error) => error(geoError)
+        (_success, error) => error(geoError),
       );
 
       // Spy on console error to suppress it in test output
@@ -176,11 +182,27 @@ describe('LocationService', () => {
       consoleSpy.mockRestore();
     });
 
+    it('handles geolocation errors without a message using fallback text', async () => {
+      (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
+
+      (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
+        (_success, error) => error({}),
+      );
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await expect(LocationService.getCurrentPosition()).rejects.toThrow(
+        'Unable to retrieve location',
+      );
+
+      consoleSpy.mockRestore();
+    });
+
     it('handles non-standard geolocation errors (fallback message)', async () => {
       (check as jest.Mock).mockResolvedValue(RESULTS.GRANTED);
 
       (Geolocation.getCurrentPosition as jest.Mock).mockImplementation(
-        (_success, error) => error({}) // Empty object error
+        (_success, error) => error({}), // Empty object error
       );
 
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -195,12 +217,10 @@ describe('LocationService', () => {
 
   describe('watchPosition', () => {
     it('sets watchId and calls onSuccess', () => {
-      (Geolocation.watchPosition as jest.Mock).mockImplementation(
-        (success) => {
-          success(mockPosition);
-          return 123; // return watchId
-        }
-      );
+      (Geolocation.watchPosition as jest.Mock).mockImplementation(success => {
+        success(mockPosition);
+        return 123; // return watchId
+      });
 
       const successCallback = jest.fn();
       LocationService.watchPosition(successCallback);
@@ -215,7 +235,7 @@ describe('LocationService', () => {
         (_success, error) => {
           error(geoError);
           return 123;
-        }
+        },
       );
 
       const errorCallback = jest.fn();
@@ -228,23 +248,44 @@ describe('LocationService', () => {
     });
 
     it('calls onError on failure with non-error object', () => {
-        // Cover branch: error instanceof Error ? ... : ... inside watchPosition error callback
-        const geoError = { message: 'Watch failed generic' };
-        (Geolocation.watchPosition as jest.Mock).mockImplementation(
-          (_success, error) => {
-            error(geoError);
-            return 123;
-          }
-        );
+      // Cover branch: error instanceof Error ? ... : ... inside watchPosition error callback
+      const geoError = {message: 'Watch failed generic'};
+      (Geolocation.watchPosition as jest.Mock).mockImplementation(
+        (_success, error) => {
+          error(geoError);
+          return 123;
+        },
+      );
 
-        const errorCallback = jest.fn();
-        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const errorCallback = jest.fn();
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-        LocationService.watchPosition(jest.fn(), errorCallback);
+      LocationService.watchPosition(jest.fn(), errorCallback);
 
-        expect(errorCallback).toHaveBeenCalledWith(expect.objectContaining({ message: 'Watch failed generic' }));
-        consoleSpy.mockRestore();
-      });
+      expect(errorCallback).toHaveBeenCalledWith(
+        expect.objectContaining({message: 'Watch failed generic'}),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('normalizes watch failures without a message and works without an error callback', () => {
+      (Geolocation.watchPosition as jest.Mock).mockImplementation(
+        (_success, error) => {
+          error({});
+          return 123;
+        },
+      );
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      LocationService.watchPosition(jest.fn());
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Watch position error:',
+        expect.objectContaining({message: 'Unable to watch location'}),
+      );
+      consoleSpy.mockRestore();
+    });
   });
 
   describe('stopWatching', () => {
@@ -272,16 +313,33 @@ describe('LocationService', () => {
   });
 
   describe('getLocationWithRetry', () => {
+    it('returns null without attempting location when maxRetries is zero', async () => {
+      const mockGetCurrentPosition = jest.spyOn(
+        LocationService,
+        'getCurrentPosition',
+      );
+
+      const result = await LocationService.getLocationWithRetry(0);
+
+      expect(result).toBeNull();
+      expect(mockGetCurrentPosition).not.toHaveBeenCalled();
+    });
+
     it('returns coordinates immediately on success', async () => {
       // Mock success on first try
-      jest.spyOn(LocationService, 'getCurrentPosition').mockResolvedValue(mockCoords);
+      jest
+        .spyOn(LocationService, 'getCurrentPosition')
+        .mockResolvedValue(mockCoords);
 
       const result = await LocationService.getLocationWithRetry();
       expect(result).toEqual(mockCoords);
     });
 
     it('retries on failure and eventually succeeds', async () => {
-      const mockGetCurrentPosition = jest.spyOn(LocationService, 'getCurrentPosition');
+      const mockGetCurrentPosition = jest.spyOn(
+        LocationService,
+        'getCurrentPosition',
+      );
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       // Fail once, then succeed
@@ -303,7 +361,10 @@ describe('LocationService', () => {
     });
 
     it('fails after max retries and shows Alert', async () => {
-      const mockGetCurrentPosition = jest.spyOn(LocationService, 'getCurrentPosition');
+      const mockGetCurrentPosition = jest.spyOn(
+        LocationService,
+        'getCurrentPosition',
+      );
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
       // Always fail
@@ -320,7 +381,7 @@ describe('LocationService', () => {
       expect(Alert.alert).toHaveBeenCalledWith(
         'Location Error',
         expect.stringContaining('Unable to get your location'),
-        expect.any(Array)
+        expect.any(Array),
       );
       expect(result).toBeNull();
 
@@ -330,32 +391,35 @@ describe('LocationService', () => {
     // ** CRITICAL TEST for branch coverage **
     // This tests line 138 where the error is NOT an instance of Error
     it('normalizes non-Error objects (string rejection) during retry', async () => {
-        const mockGetCurrentPosition = jest.spyOn(LocationService, 'getCurrentPosition');
-        const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const mockGetCurrentPosition = jest.spyOn(
+        LocationService,
+        'getCurrentPosition',
+      );
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-        // Fail with a raw string 'Network failure' which is NOT an Error object
-        // This triggers the `else` branch: new Error(String(error))
-        mockGetCurrentPosition
-          .mockRejectedValueOnce('Network failure')
-          .mockResolvedValueOnce(mockCoords);
+      // Fail with a raw string 'Network failure' which is NOT an Error object
+      // This triggers the `else` branch: new Error(String(error))
+      mockGetCurrentPosition
+        .mockRejectedValueOnce('Network failure')
+        .mockResolvedValueOnce(mockCoords);
 
-        const promise = LocationService.getLocationWithRetry();
+      const promise = LocationService.getLocationWithRetry();
 
-        // Advance timer for retry
-        await jest.runAllTimersAsync();
+      // Advance timer for retry
+      await jest.runAllTimersAsync();
 
-        const result = await promise;
+      const result = await promise;
 
-        expect(result).toEqual(mockCoords);
+      expect(result).toEqual(mockCoords);
 
-        // Verify that the log contained the string message we passed
-        expect(consoleSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Location attempt 1 failed'),
-          // We check if the second arg is an Error object created from our string
-          expect.objectContaining({ message: 'Network failure' })
-        );
+      // Verify that the log contained the string message we passed
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Location attempt 1 failed'),
+        // We check if the second arg is an Error object created from our string
+        expect.objectContaining({message: 'Network failure'}),
+      );
 
-        consoleSpy.mockRestore();
-      });
+      consoleSpy.mockRestore();
+    });
   });
 });

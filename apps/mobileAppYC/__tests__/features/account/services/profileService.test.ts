@@ -32,8 +32,14 @@ const mockedHeaders = withAuthHeaders as jest.MockedFunction<
   typeof withAuthHeaders
 >;
 
+// Extension URL used by toFHIRRelatedPerson when building outgoing request bodies.
 const COMPLETION_EXTENSION =
   'https://yosemitecrew.com/fhir/StructureDefinition/parent-profile-completed';
+// Extension URL profileService itself looks for when parsing incoming responses
+// (see PROFILE_COMPLETION_EXTENSION_URL in profileService.ts) - deliberately
+// different from the outgoing one above.
+const PARSED_COMPLETION_EXTENSION =
+  'http://example.org/fhir/StructureDefinition/parent-profile-completed';
 
 const createRelatedPerson = (
   overrides: Partial<RelatedPerson> = {},
@@ -63,7 +69,7 @@ const createRelatedPerson = (
   photo: [{url: 'https://cdn.example.com/photo.jpg'}],
   extension: [
     {
-      url: COMPLETION_EXTENSION,
+      url: PARSED_COMPLETION_EXTENSION,
       valueBoolean: true,
     },
   ],
@@ -183,6 +189,129 @@ describe('profileService', () => {
         source: 'fallback',
       });
     });
+
+    it('omits the address when the resource has no address entries', async () => {
+      const resource = createRelatedPerson({address: undefined});
+      mockedClient.get.mockResolvedValueOnce({status: 200, data: resource});
+
+      const result = await fetchProfileStatus({
+        accessToken: 'token',
+        userId: 'parent-123',
+      });
+
+      expect(result.parent?.address).toBeUndefined();
+    });
+
+    it('omits age when the resource has no birthDate', async () => {
+      const resource = createRelatedPerson({birthDate: undefined});
+      mockedClient.get.mockResolvedValueOnce({status: 200, data: resource});
+
+      const result = await fetchProfileStatus({
+        accessToken: 'token',
+        userId: 'parent-123',
+      });
+
+      expect(result.parent?.age).toBeUndefined();
+    });
+
+    it('omits age when the birthDate cannot be parsed', async () => {
+      const resource = createRelatedPerson({birthDate: 'not-a-date'});
+      mockedClient.get.mockResolvedValueOnce({status: 200, data: resource});
+
+      const result = await fetchProfileStatus({
+        accessToken: 'token',
+        userId: 'parent-123',
+      });
+
+      expect(result.parent?.age).toBeUndefined();
+    });
+
+    it('subtracts a year when the birthday has not yet occurred this year', async () => {
+      // System time is frozen at 2025-11-19; a December birthDate means the
+      // birthday hasn't happened yet this year, so age is reduced by one.
+      const resource = createRelatedPerson({birthDate: '1990-12-25'});
+      mockedClient.get.mockResolvedValueOnce({status: 200, data: resource});
+
+      const result = await fetchProfileStatus({
+        accessToken: 'token',
+        userId: 'parent-123',
+      });
+
+      expect(result.parent?.age).toBe(34);
+    });
+
+    it('subtracts a year when the birthday is later this month', async () => {
+      // System time is frozen at 2025-11-19; a birthDate on the 25th of
+      // November means the birthday hasn't happened yet this month.
+      const resource = createRelatedPerson({birthDate: '1990-11-25'});
+      mockedClient.get.mockResolvedValueOnce({status: 200, data: resource});
+
+      const result = await fetchProfileStatus({
+        accessToken: 'token',
+        userId: 'parent-123',
+      });
+
+      expect(result.parent?.age).toBe(34);
+    });
+
+    it('uses the name text fallback when no given name is present', async () => {
+      const resource = createRelatedPerson({
+        name: [{family: 'Doe', text: 'Full Name Only'}],
+      });
+      mockedClient.get.mockResolvedValueOnce({status: 200, data: resource});
+
+      const result = await fetchProfileStatus({
+        accessToken: 'token',
+        userId: 'parent-123',
+      });
+
+      expect(result.parent?.firstName).toBe('Full Name Only');
+    });
+
+    it('falls back to an empty id when the resource has none', async () => {
+      const resource = createRelatedPerson({id: undefined});
+      mockedClient.get.mockResolvedValueOnce({status: 200, data: resource});
+
+      const result = await fetchProfileStatus({
+        accessToken: 'token',
+        userId: 'parent-123',
+      });
+
+      expect(result.parent?.id).toBe('');
+    });
+
+    it('reports incomplete when both the extension and the fallback derivation say incomplete', async () => {
+      const resource = createRelatedPerson({
+        name: [{given: [], family: ''}],
+        extension: [{url: PARSED_COMPLETION_EXTENSION, valueBoolean: false}],
+      });
+      mockedClient.get.mockResolvedValueOnce({status: 200, data: resource});
+
+      const result = await fetchProfileStatus({
+        accessToken: 'token',
+        userId: 'parent-123',
+      });
+
+      expect(result.isComplete).toBe(false);
+    });
+
+    it('falls back to the default derivation when no matching completion extension is present', async () => {
+      const resource = createRelatedPerson({
+        extension: [
+          {url: 'https://example.com/other-extension', valueBoolean: false},
+        ],
+      });
+      mockedClient.get.mockResolvedValueOnce({status: 200, data: resource});
+
+      const result = await fetchProfileStatus({
+        accessToken: 'token',
+        userId: 'parent-123',
+      });
+
+      // No matching extension -> falls back to computeDefaultCompletion,
+      // which is true since firstName/lastName/phoneNumber are all present.
+      expect(result.isComplete).toBe(true);
+    });
   });
 
   describe('parent profile mutations', () => {
@@ -292,6 +421,80 @@ describe('profileService', () => {
         updateParentProfile({...basePayload, parentId: null}, 'token'),
       ).rejects.toThrow('Parent identifier is required for updates.');
     });
+
+    it('does not append a duplicate email telecom entry when the trimmed email is blank', async () => {
+      const resource = createRelatedPerson({extension: []});
+      mockedClient.request.mockResolvedValueOnce({status: 200, data: resource});
+
+      await updateParentProfile(
+        {...basePayload, parentId: 'parent-123', email: ''},
+        'token',
+      );
+
+      const requestBody = mockedClient.request.mock.calls[0][0].data;
+      const emailEntries = requestBody.telecom.filter(
+        (item: any) => item.system === 'email',
+      );
+      // toFHIRRelatedPerson already inserts one email entry regardless of
+      // value; buildParentRequestBody's own append logic should bail out
+      // early (blank trimmed email) rather than appending a second one.
+      expect(emailEntries).toHaveLength(1);
+    });
+
+    it('omits dateOfBirth and address from the request body when they are not provided', async () => {
+      const resource = createRelatedPerson({extension: []});
+      mockedClient.request.mockResolvedValueOnce({status: 200, data: resource});
+
+      const payloadWithoutDobOrAddress: typeof basePayload = {
+        ...basePayload,
+        parentId: 'parent-123',
+      };
+      delete payloadWithoutDobOrAddress.dateOfBirth;
+      delete payloadWithoutDobOrAddress.address;
+      await updateParentProfile(payloadWithoutDobOrAddress, 'token');
+
+      const requestBody = mockedClient.request.mock.calls[0][0].data;
+      expect(requestBody.birthDate).toBeUndefined();
+      expect(requestBody.address ?? []).toHaveLength(0);
+    });
+
+    it('falls back to the existing photo url when no new profileImageKey is provided', async () => {
+      const resource = createRelatedPerson({extension: []});
+      mockedClient.request.mockResolvedValueOnce({status: 200, data: resource});
+
+      await updateParentProfile(
+        {
+          ...basePayload,
+          parentId: 'parent-123',
+          profileImageKey: undefined,
+          existingPhotoUrl: 'https://cdn.example.com/existing.jpg',
+        },
+        'token',
+      );
+
+      const requestBody = mockedClient.request.mock.calls[0][0].data;
+      expect(requestBody.photo).toEqual([
+        {url: 'https://cdn.example.com/existing.jpg'},
+      ]);
+    });
+
+    it('omits the photo entirely when neither a new key nor an existing url is provided', async () => {
+      const resource = createRelatedPerson({extension: []});
+      mockedClient.request.mockResolvedValueOnce({status: 200, data: resource});
+
+      await updateParentProfile(
+        {
+          ...basePayload,
+          parentId: 'parent-123',
+          profileImageKey: undefined,
+          existingPhotoUrl: undefined,
+        },
+        'token',
+      );
+
+      const requestBody = mockedClient.request.mock.calls[0][0].data;
+      expect(requestBody.photo ?? []).toHaveLength(0);
+    });
   });
 
   describe('deleteParentProfile', () => {
@@ -328,6 +531,24 @@ describe('profileService', () => {
 
       await expect(deleteParentProfile('parent-123', 'token')).rejects.toThrow(
         'network down',
+      );
+    });
+
+    it('falls back to the default message when the axios error has no response data', async () => {
+      mockedClient.delete.mockRejectedValueOnce(
+        createAxiosError(500, undefined),
+      );
+
+      await expect(deleteParentProfile('parent-123', 'token')).rejects.toThrow(
+        'Failed to delete parent profile.',
+      );
+    });
+
+    it('throws a generic message when a non-Error value is thrown', async () => {
+      mockedClient.delete.mockRejectedValueOnce('a plain string rejection');
+
+      await expect(deleteParentProfile('parent-123', 'token')).rejects.toThrow(
+        'Failed to delete parent profile.',
       );
     });
   });
