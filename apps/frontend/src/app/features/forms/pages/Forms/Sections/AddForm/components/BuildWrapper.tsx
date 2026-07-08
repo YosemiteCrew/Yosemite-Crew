@@ -130,6 +130,7 @@ const BuilderWrapper: React.FC<{
                 disabled={!canMoveUp}
                 className={`${canMoveUp ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
                 title="Move up"
+                aria-label={`Move ${title} up`}
               >
                 <IoMdArrowUp size={20} color="var(--color-neutral-900)" />
               </button>
@@ -141,12 +142,18 @@ const BuilderWrapper: React.FC<{
                 disabled={!canMoveDown}
                 className={`${canMoveDown ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
                 title="Move down"
+                aria-label={`Move ${title} down`}
               >
                 <IoMdArrowDown size={20} color="var(--color-neutral-900)" />
               </button>
             )}
             {/* Delete stays available for content items (medications/tasks) even when locked. */}
-            <button type="button" onClick={onDelete} className="hover:bg-red-50 rounded p-1">
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label={`Delete ${title}`}
+              className="hover:bg-red-50 rounded p-1"
+            >
               <MdDeleteForever size={20} color="var(--color-danger-600)" />
             </button>
           </div>
