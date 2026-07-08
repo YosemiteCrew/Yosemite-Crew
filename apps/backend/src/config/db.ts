@@ -2,6 +2,17 @@ import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import logger from "../utils/logger";
 
+/**
+ * Remove any `user:password@` credentials from a MongoDB connection string so
+ * the URI can be safely logged. Handles `mongodb://` and `mongodb+srv://`.
+ */
+export function redactMongoUri(uri: string): string {
+  if (!uri) {
+    return "(no MONGODB_URI configured)";
+  }
+  return uri.replace(/\/\/[^@/]+@/, "//****@");
+}
+
 export async function connectDB() {
   if (process.env.READ_FROM_POSTGRES === "true") {
     logger.info("Skipping MongoDB connection because READ_FROM_POSTGRES=true");
@@ -23,5 +34,5 @@ export async function connectDB() {
   }
 
   await mongoose.connect(mongoUri);
-  logger.info(`Connected to MongoDB at ${mongoUri}`);
+  logger.info(`Connected to MongoDB at ${redactMongoUri(mongoUri)}`);
 }

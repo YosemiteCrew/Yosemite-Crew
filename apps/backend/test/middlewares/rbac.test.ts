@@ -119,6 +119,59 @@ describe("rbac middleware", () => {
     });
   });
 
+  it("rejects a structured (non-string) organisationId in the body", async () => {
+    const res = mockRes();
+
+    await withOrgPermissions()(
+      {
+        userId: "user_1",
+        params: {},
+        headers: {},
+        body: { organisationId: { not: "" } },
+      } as unknown as Request,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.userOrganization.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects a structured (non-string) organisationId in the query", async () => {
+    const res = mockRes();
+
+    await withOrgPermissions()(
+      {
+        userId: "user_1",
+        params: {},
+        headers: {},
+        query: { organisationId: { not: "" } },
+      } as unknown as Request,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.userOrganization.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("ignores an empty-string organisationId param", async () => {
+    const res = mockRes();
+
+    await withOrgPermissions()(
+      {
+        userId: "user_1",
+        params: { organisationId: "   " },
+        headers: {},
+      } as unknown as Request,
+      res,
+      next(),
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(prisma.userOrganization.findFirst).not.toHaveBeenCalled();
+  });
+
   it("loads permissions from postgres when effective permissions are current", async () => {
     (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
       id: "map_1",
