@@ -170,6 +170,7 @@ const AppointmentBoardCard = ({
           <GlassTooltip content="Accept request" side="bottom">
             <button
               type="button"
+              aria-label="Accept request"
               className="size-7 rounded-full! bg-success-100 border border-success-200 flex items-center justify-center"
               onClick={(event) => {
                 event.preventDefault();
@@ -183,6 +184,7 @@ const AppointmentBoardCard = ({
           <GlassTooltip content="Decline request" side="bottom">
             <button
               type="button"
+              aria-label="Decline request"
               className="size-7 rounded-full! bg-danger-100 border border-danger-200 flex items-center justify-center"
               onClick={(event) => {
                 event.preventDefault();
@@ -201,6 +203,7 @@ const AppointmentBoardCard = ({
             <GlassTooltip content="View appointment" side="bottom">
               <button
                 type="button"
+                aria-label="View appointment"
                 className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
                 onClick={(event) => {
                   event.preventDefault();
@@ -215,6 +218,7 @@ const AppointmentBoardCard = ({
           <GlassTooltip content="Overview" side="bottom">
             <button
               type="button"
+              aria-label="Overview"
               className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
               onClick={(event) => {
                 event.preventDefault();
@@ -230,6 +234,7 @@ const AppointmentBoardCard = ({
             <GlassTooltip content="Change status" side="bottom">
               <button
                 type="button"
+                aria-label="Change status"
                 className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
                 onClick={(event) => {
                   event.preventDefault();
@@ -245,6 +250,7 @@ const AppointmentBoardCard = ({
             <GlassTooltip content="Reschedule" side="bottom">
               <button
                 type="button"
+                aria-label="Reschedule"
                 className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
                 onClick={(event) => {
                   event.preventDefault();
@@ -260,6 +266,7 @@ const AppointmentBoardCard = ({
             <GlassTooltip content="Assign room" side="bottom">
               <button
                 type="button"
+                aria-label="Assign room"
                 className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
                 onClick={(event) => {
                   event.preventDefault();
@@ -277,6 +284,7 @@ const AppointmentBoardCard = ({
           >
             <button
               type="button"
+              aria-label={getClinicalNotesLabel(getBoardOrgType(appointment, orgsById))}
               className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
               onClick={(event) => {
                 event.preventDefault();
@@ -294,6 +302,7 @@ const AppointmentBoardCard = ({
           <GlassTooltip content="Finance summary" side="bottom">
             <button
               type="button"
+              aria-label="Finance summary"
               className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
               onClick={(event) => {
                 event.preventDefault();
@@ -307,6 +316,7 @@ const AppointmentBoardCard = ({
           <GlassTooltip content="Lab tests" side="bottom">
             <button
               type="button"
+              aria-label="Lab tests"
               className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
               onClick={(event) => {
                 event.preventDefault();
