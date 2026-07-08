@@ -74,7 +74,8 @@ const createStyles = (theme: Theme) =>
     track: {
       flexDirection: 'row',
       backgroundColor: theme.colors.inset,
-      borderRadius: theme.borderRadius.pill,
+      // Rounded rectangle, not a full stadium (matches the design switch).
+      borderRadius: 14,
       padding: theme.spacing['1'],
     },
     segment: {
@@ -82,7 +83,7 @@ const createStyles = (theme: Theme) =>
       minHeight: 36,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: theme.borderRadius.pill,
+      borderRadius: 11,
       paddingVertical: theme.spacing['2'],
     },
     segmentActive: {

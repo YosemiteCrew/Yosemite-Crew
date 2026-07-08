@@ -57,14 +57,17 @@ const createStyles = (theme: any) =>
     },
     titleContainer: {
       flex: 1,
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'center',
-      paddingHorizontal: theme.spacing['10'],
+      paddingRight: theme.spacing['12'],
     },
     title: {
-      ...theme.typography.paragraph18Bold,
+      // Left-aligned 18/700 Satoshi (paragraph18Bold resolves to 16/500).
+      ...theme.typography.paragraphBold,
+      fontSize: 18,
+      lineHeight: 24,
       color: theme.colors.ink,
-      textAlign: 'center',
+      textAlign: 'left',
       maxWidth: '100%',
     },
     closeButton: {

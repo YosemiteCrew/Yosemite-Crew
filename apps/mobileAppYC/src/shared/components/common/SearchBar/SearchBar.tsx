@@ -52,9 +52,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       style={styles.touchable}
       onPress={onPress}>
       <View style={styles.content}>
-        <Text style={styles.placeholder} numberOfLines={1} ellipsizeMode="tail">
-          {placeholder}
-        </Text>
         <PressableOpacity
           activeOpacity={0.85}
           onPress={onIconPress ?? onPress}
@@ -66,6 +63,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           }}>
           <Image source={Images.searchIcon} style={styles.icon} />
         </PressableOpacity>
+        <Text style={styles.placeholder} numberOfLines={1} ellipsizeMode="tail">
+          {placeholder}
+        </Text>
       </View>
       {rightElement}
     </PressableOpacity>
@@ -73,19 +73,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   const renderInput = () => (
     <View style={styles.inputWrapper}>
-      <TextInput
-        autoFocus={autoFocus}
-        style={styles.input}
-        placeholder={placeholder}
-        placeholderTextColor={theme.colors.textSecondary}
-        value={value}
-        onChangeText={onChangeText}
-        onSubmitEditing={onSubmitEditing}
-        returnKeyType="done"
-        keyboardAppearance={keyboardAppearance}
-        multiline={false}
-        numberOfLines={1}
-      />
       <PressableOpacity
         activeOpacity={0.85}
         onPress={() => {
@@ -103,6 +90,19 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         }}>
         <Image source={Images.searchIcon} style={styles.icon} />
       </PressableOpacity>
+      <TextInput
+        autoFocus={autoFocus}
+        style={styles.input}
+        placeholder={placeholder}
+        placeholderTextColor={theme.colors.textSecondary}
+        value={value}
+        onChangeText={onChangeText}
+        onSubmitEditing={onSubmitEditing}
+        returnKeyType="done"
+        keyboardAppearance={keyboardAppearance}
+        multiline={false}
+        numberOfLines={1}
+      />
       {rightElement}
     </View>
   );
