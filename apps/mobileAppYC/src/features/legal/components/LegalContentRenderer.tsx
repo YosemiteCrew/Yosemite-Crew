@@ -26,9 +26,9 @@ const buildSegments = (
         styles.paragraphText,
         isCenter ? styles.paragraphTextCenter : undefined,
       ]}>
-      {segments.map((segment, index) => (
+      {segments.map(segment => (
         <Text
-          key={`${segment.text}-${index}`}
+          key={`${segment.bold ? 'b' : ''}${segment.underline ? 'u' : ''}:${segment.text}`}
           style={[
             segment.bold && styles.boldText,
             segment.underline && styles.underlineText,
