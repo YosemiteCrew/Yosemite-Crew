@@ -8,7 +8,7 @@ import {
 } from '@testing-library/react-native';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {Alert, ActivityIndicator} from 'react-native';
+import {Alert, ActivityIndicator, Platform, ToastAndroid} from 'react-native';
 
 // --- Relative Imports ---
 import ViewAppointmentScreen from '../../../../src/features/appointments/screens/ViewAppointmentScreen';
@@ -196,14 +196,20 @@ jest.mock(
   () => {
     // eslint-disable-next-line @typescript-eslint/no-shadow
     const React = require('react');
-    const {View} = require('react-native');
+    const {Text, TouchableOpacity, View} = require('react-native');
     // @ts-ignore
-    return ({ref}: any) => {
+    return ({ref, onClose}: any) => {
       React.useImperativeHandle(ref, () => ({
         open: jest.fn(),
         close: jest.fn(),
       }));
-      return <View testID="rescheduled-sheet" />;
+      return (
+        <View testID="rescheduled-sheet">
+          <TouchableOpacity testID="rescheduled-close" onPress={onClose}>
+            <Text>Close</Text>
+          </TouchableOpacity>
+        </View>
+      );
     };
   },
 );
@@ -211,13 +217,21 @@ jest.mock(
 jest.mock(
   '../../../../src/features/documents/components/DocumentAttachmentViewer',
   () => {
-    const {View, Text} = require('react-native');
+    const {View, Text, TouchableOpacity} = require('react-native');
     return (props: any) => (
       <View testID="attachment-viewer">
         <Text>{props.documentTitle}</Text>
         {props.attachments?.map((a: any) => (
           <Text key={a.id}>{a.name}</Text>
         ))}
+        <TouchableOpacity
+          testID="pdf-touch-start"
+          onPress={props.onPdfTouchStart}>
+          <Text>PDF Start</Text>
+        </TouchableOpacity>
+        <TouchableOpacity testID="pdf-touch-end" onPress={props.onPdfTouchEnd}>
+          <Text>PDF End</Text>
+        </TouchableOpacity>
       </View>
     );
   },
@@ -228,11 +242,16 @@ jest.mock(
   () => {
     const {Text, TouchableOpacity} = require('react-native');
     return {
-      DocumentCard: ({title, onPress}: any) => {
+      DocumentCard: ({title, onPress, onPressView}: any) => {
         return (
-          <TouchableOpacity testID={`doc-${title}`} onPress={onPress}>
-            <Text>{title}</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity testID={`doc-${title}`} onPress={onPressView}>
+              <Text>{title}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity testID={`doc-${title}-press`} onPress={onPress}>
+              <Text>{title} Press</Text>
+            </TouchableOpacity>
+          </>
         );
       },
     };
@@ -744,6 +763,44 @@ describe('ViewAppointmentScreen', () => {
       expect(screen.getByText('123 Test St')).toBeTruthy();
     });
 
+    it('shows a loading state and fetches when the appointment is missing', () => {
+      const state = clone(defaultState);
+      state.appointments.items = [];
+
+      renderScreen(state);
+
+      expect(screen.getByText('Loading appointment...')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('header-back'));
+      expect(mockGoBack).toHaveBeenCalled();
+      expect(AppointmentSlice.fetchAppointmentById).toHaveBeenCalledWith({
+        appointmentId: mockAptId,
+      });
+    });
+
+    it('skips appointment document fetch when route appointment id is empty', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: ''},
+      });
+
+      renderScreen();
+
+      expect(screen.getByText('Loading appointment...')).toBeTruthy();
+      expect(
+        require('../../../../src/features/documents/documentSlice')
+          .fetchAppointmentDocuments,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('handles embedded PDF touch callbacks and reschedule sheet close', () => {
+      renderScreen();
+
+      fireEvent.press(screen.getByTestId('pdf-touch-start'));
+      fireEvent.press(screen.getByTestId('pdf-touch-end'));
+      fireEvent.press(screen.getByTestId('rescheduled-close'));
+
+      expect(screen.getByTestId('attachment-viewer')).toBeTruthy();
+    });
+
     it('displays fallback business info if business entity is missing', () => {
       const state = clone(defaultState);
       state.businesses.businesses = [];
@@ -896,6 +953,7 @@ describe('ViewAppointmentScreen', () => {
     it('opens document on press', () => {
       renderScreen();
       fireEvent.press(screen.getByTestId('doc-Vaccine Record'));
+      fireEvent.press(screen.getByTestId('doc-Vaccine Record-press'));
       expect(mockNavigate).toHaveBeenCalledWith(
         'Documents',
         expect.objectContaining({
@@ -1139,6 +1197,26 @@ describe('ViewAppointmentScreen', () => {
         );
       });
     });
+
+    it('shows the Android success toast after check-in', async () => {
+      const originalOS = Platform.OS;
+      Platform.OS = 'android';
+      const toastSpy = jest
+        .spyOn(ToastAndroid, 'show')
+        .mockImplementation(jest.fn());
+
+      try {
+        renderScreen();
+        await act(async () => {
+          fireEvent.press(screen.getByTestId('btn-Check in'));
+        });
+
+        expect(toastSpy).toHaveBeenCalledWith('Checked in', ToastAndroid.SHORT);
+      } finally {
+        Platform.OS = originalOS;
+        toastSpy.mockRestore();
+      }
+    });
   });
 
   // --- Payment & Invoices ---
@@ -1294,6 +1372,36 @@ describe('ViewAppointmentScreen', () => {
       fireEvent.press(screen.getByTestId('view-invoice-Consultation'));
       fireEvent.press(screen.getByTestId('pay-invoice-Consultation'));
       expect(mockOpenPayment).not.toHaveBeenCalled();
+    });
+
+    it('omits payment actions for external invoice rows', () => {
+      mockSelectExpenses.mockReturnValue([
+        {...mockExpense1, source: 'external', invoiceId: 'external-1'},
+        mockExpense2,
+      ]);
+
+      render(
+        <Provider store={createTestStore(invoiceState)}>
+          <ViewAppointmentScreen />
+        </Provider>,
+      );
+
+      expect(screen.getByTestId('expense-Consultation')).toBeTruthy();
+    });
+
+    it('marks paid invoice rows as paid', () => {
+      mockSelectExpenses.mockReturnValue([
+        {...mockExpense1, status: 'PAID'},
+        mockExpense2,
+      ]);
+
+      render(
+        <Provider store={createTestStore(invoiceState)}>
+          <ViewAppointmentScreen />
+        </Provider>,
+      );
+
+      expect(screen.getByTestId('expense-Consultation')).toBeTruthy();
     });
   });
 
@@ -1693,6 +1801,32 @@ describe('ViewAppointmentScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('Tasks', {
         screen: 'TaskView',
         params: {taskId: 'task-1'},
+      });
+    });
+
+    it('uses local navigation for linked tasks when parent tab navigation is unavailable', () => {
+      (mockGetParent as jest.Mock).mockReturnValue(null);
+
+      const state = clone(defaultState);
+      state.tasks.items = [
+        {
+          id: 'task-local',
+          appointmentId: mockAptId,
+          title: 'Local navigation task',
+          category: 'FOLLOW_UP',
+          date: '2024-01-02',
+          time: '12:00',
+          status: 'OPEN',
+          details: 'Use stack fallback',
+        },
+      ];
+
+      renderScreen(state);
+
+      fireEvent.press(screen.getByTestId('task-Local navigation task'));
+      expect(mockNavigate).toHaveBeenCalledWith('Tasks', {
+        screen: 'TaskView',
+        params: {taskId: 'task-local'},
       });
     });
 
