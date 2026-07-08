@@ -184,7 +184,7 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
   useFullscreenLoader('session-initializer', isChecking);
 
   return (
-    <div className="flex h-screen flex-1 lg:overflow-hidden">
+    <div data-yc-app className="flex h-screen flex-1 lg:overflow-hidden">
       <Sidebar />
 
       <div className="flex flex-col flex-1 min-w-0">
