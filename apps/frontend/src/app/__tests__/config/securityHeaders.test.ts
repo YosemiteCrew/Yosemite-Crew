@@ -26,6 +26,8 @@ const parseCspDirectives = (csp: string): Map<string, string> =>
 
 describe('security headers', () => {
   test('applies critical non-HSTS security headers to all routes in local/test mode', async () => {
+    expect(nextConfig.poweredByHeader).toBe(false);
+
     const routes = await nextConfig.headers?.();
     expect(routes).toBeDefined();
     expect(routes).toHaveLength(2);
@@ -119,19 +121,30 @@ describe('security headers', () => {
     expect(directives.get('frame-src')).toContain('https://sign.example.com');
   });
 
-  test('builds a static-compatible content security policy for public pages', () => {
-    const directives = parseCspDirectives(
+  test('never allows inline scripts, with or without a nonce', () => {
+    const withNonce = parseCspDirectives(
       buildContentSecurityPolicy({
-        allowInlineScripts: true,
+        nonce: 'test-nonce',
         documensoHost: 'https://sign.example.com',
       })
     );
+    expect(withNonce.get('script-src')).toContain("'nonce-test-nonce'");
+    expect(withNonce.get('script-src')).not.toContain("'unsafe-inline'");
 
-    expect(directives.get('script-src')).toContain("'self'");
-    expect(directives.get('script-src')).toContain("'unsafe-inline'");
-    expect(directives.get('script-src')).not.toContain("'nonce-");
-    expect(directives.get('style-src')).toContain("'unsafe-inline'");
-    expect(directives.get('style-src-elem')).toContain("'unsafe-inline'");
+    const withoutNonce = parseCspDirectives(
+      buildContentSecurityPolicy({ documensoHost: 'https://sign.example.com' })
+    );
+    expect(withoutNonce.get('script-src')).toContain("'self'");
+    expect(withoutNonce.get('script-src')).not.toContain("'unsafe-inline'");
+    expect(withoutNonce.get('script-src')).not.toContain("'nonce-");
+    // Inline styles remain allowed (extensive element style attributes rely on it).
+    expect(withoutNonce.get('style-src')).toContain("'unsafe-inline'");
+  });
+
+  test('falls back to the default Documenso host when none is provided', () => {
+    const directives = parseCspDirectives(buildContentSecurityPolicy());
+
+    expect(directives.get('frame-src')).toContain('https://ds.yosemitecrew.com');
   });
 
   test('does not allow the US PostHog host from env', () => {
@@ -176,20 +189,17 @@ describe('security headers', () => {
     expect(directives.get('upgrade-insecure-requests')).toBe('');
   });
 
-  test('keeps public static CSP compatible in production', () => {
+  test('omits inline scripts even without a nonce in production', () => {
     const originalNodeEnv = process.env.NODE_ENV;
     (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
 
     const directives = parseCspDirectives(
-      buildContentSecurityPolicy({
-        allowInlineScripts: true,
-        documensoHost: 'https://sign.example.com',
-      })
+      buildContentSecurityPolicy({ documensoHost: 'https://sign.example.com' })
     );
 
     (process.env as Record<string, string | undefined>).NODE_ENV = originalNodeEnv;
 
-    expect(directives.get('script-src')).toContain("'unsafe-inline'");
+    expect(directives.get('script-src')).not.toContain("'unsafe-inline'");
     expect(directives.get('script-src')).not.toContain("'unsafe-eval'");
     expect(directives.get('script-src')).not.toContain("'nonce-");
   });

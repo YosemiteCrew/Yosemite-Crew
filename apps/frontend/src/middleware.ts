@@ -4,31 +4,20 @@ import { buildContentSecurityPolicy, securityHeaders } from '@/securityHeaders';
 const CSP_HEADER = 'Content-Security-Policy';
 const NONCE_HEADER = 'x-nonce';
 
-const STRICT_CSP_PATH_PREFIXES = [
-  '/appointments',
-  '/book-onboarding',
-  '/chat',
-  '/companions',
-  '/create-org',
-  '/dashboard',
-  '/developers/api-keys',
-  '/developers/documentation',
-  '/developers/home',
-  '/developers/plugins',
-  '/developers/settings',
-  '/developers/website-builder',
-  '/finance',
-  '/forms',
-  '/guides',
-  '/integrations',
-  '/inventory',
-  '/organization',
-  '/organizations',
-  '/settings',
-  '/stripe-onboarding',
-  '/tasks',
-  '/team-onboarding',
-];
+// Static asset file extensions. Requests for these are served as-is: they are
+// not HTML documents, so they do not execute inline script and never need a
+// per-request nonce. The `/dev-docs` surface carries its own strict CSP from
+// next.config.ts, so it is skipped here to avoid emitting a second, conflicting
+// policy.
+const STATIC_ASSET_PATTERN =
+  /\.(?:html?|css|js|mjs|map|json|txt|xml|ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|otf|eot|ya?ml|pdf|wasm)$/i;
+
+const isSkippablePath = (pathname: string): boolean =>
+  pathname.startsWith('/_next') ||
+  pathname.startsWith('/api') ||
+  pathname.startsWith('/fonts') ||
+  pathname.startsWith('/dev-docs') ||
+  STATIC_ASSET_PATTERN.test(pathname);
 
 const createNonce = () => {
   const bytes = new Uint8Array(16);
@@ -36,35 +25,25 @@ const createNonce = () => {
   return btoa(String.fromCodePoint(...bytes));
 };
 
-const usesStrictContentSecurityPolicy = (pathname: string) =>
-  STRICT_CSP_PATH_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip Next.js internal routes and static files
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/fonts') ||
-    pathname.includes('.')
-  ) {
+  if (isSkippablePath(pathname)) {
     return NextResponse.next();
   }
 
-  const usesStrictCsp = usesStrictContentSecurityPolicy(pathname);
-  const nonce = usesStrictCsp ? createNonce() : undefined;
+  // Every HTML document response gets a per-request nonce CSP with no
+  // 'unsafe-inline' script source. There are no author-written inline scripts;
+  // Next.js applies this nonce to its own framework scripts automatically
+  // because the policy is also set on the forwarded request headers below.
+  const nonce = createNonce();
   const csp = buildContentSecurityPolicy({
     nonce,
     documensoHost: process.env.NEXT_PUBLIC_DOCUMENSO_HOST,
-    allowInlineScripts: !usesStrictCsp,
   });
+
   const requestHeaders = new Headers(request.headers);
-  if (nonce) {
-    requestHeaders.set(NONCE_HEADER, nonce);
-  }
+  requestHeaders.set(NONCE_HEADER, nonce);
   requestHeaders.set(CSP_HEADER, csp);
 
   // Security headers on every document response.

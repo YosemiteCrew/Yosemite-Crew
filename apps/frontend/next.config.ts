@@ -44,6 +44,8 @@ const nextConfig: NextConfig = {
     serverSourceMaps: false,
   },
   productionBrowserSourceMaps: false,
+  // Do not advertise the framework/version in responses (X-Powered-By).
+  poweredByHeader: false,
   async headers() {
     return [
       {
