@@ -62,6 +62,20 @@ const pluralizeUnit = (unit: string, count: number): string => {
   return lower.endsWith('s') ? lower : `${lower}s`;
 };
 
+const getDispensaryItemKey = (item: DispensaryItem): string =>
+  [
+    item.name,
+    item.quantity,
+    item.priceCents,
+    item.doseQty ?? '',
+    item.doseUnit ?? '',
+    item.frequency ?? '',
+    item.durationDays ?? '',
+    item.durationUnit ?? '',
+    item.stockUnitQty ?? '',
+    item.stockUnitType ?? '',
+  ].join('|');
+
 type DispensaryItemRowProps = {
   item: DispensaryItem;
   idx: number;
@@ -312,7 +326,7 @@ const DispensaryDetailModal = ({
           {items.length > 0 ? (
             <div className="flex flex-col gap-4">
               {items.map((item, idx) => (
-                <DispensaryItemRow key={`${item.name}-${idx}`} item={item} idx={idx} />
+                <DispensaryItemRow key={getDispensaryItemKey(item)} item={item} idx={idx} />
               ))}
             </div>
           ) : (
