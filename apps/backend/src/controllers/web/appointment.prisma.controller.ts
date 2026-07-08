@@ -406,13 +406,12 @@ export const AppointmentController = {
     try {
       const orgReq = req as OrgRequest;
       // PMS routes pass through withOrgPermissions which sets organisationId on
-      // the request; mobile routes (authorizeCognitoMobile) do not. When there
-      // is no authorized org context (mobile/internal), call unscoped exactly
-      // as before so those callers are unchanged.
+      // the request; mobile routes (authorizeCognitoMobile) do not.
       const organisationId =
         orgReq.organisationId ?? req.params.organisationId ?? undefined;
 
       let restrictToAssignedActorId: string | undefined;
+      let restrictToParentId: string | undefined;
       if (organisationId) {
         const permissions = orgReq.userPermissions ?? [];
         const canViewAny = permissions.includes("appointments:view:any");
@@ -421,12 +420,27 @@ export const AppointmentController = {
           // assigned to the authenticated actor from the verified token.
           restrictToAssignedActorId = resolveUserIdFromRequest(req);
         }
+      } else {
+        // Mobile/parent context: authorizeCognitoMobile resolves no PMS org.
+        // Restrict the fetch to the authenticated parent's own appointments so
+        // a parent cannot read another parent's appointment by guessing its ID.
+        const authUserId = resolveUserIdFromRequest(req);
+        const authUser = authUserId
+          ? await AuthUserMobileService.getByProviderUserId(authUserId)
+          : null;
+        restrictToParentId = authUser?.parentId?.toString();
+        if (!restrictToParentId) {
+          return res
+            .status(403)
+            .json({ message: "Parent information missing for user" });
+        }
       }
 
       const data = await AppointmentPrismaService.getById(
         req.params.appointmentId,
         organisationId,
         restrictToAssignedActorId,
+        restrictToParentId,
       );
       return res.status(200).json({ data });
     } catch (err: unknown) {

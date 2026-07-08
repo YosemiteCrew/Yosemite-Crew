@@ -2125,6 +2125,7 @@ export const AppointmentPrismaService = {
     appointmentId: string,
     organisationId?: string,
     restrictToAssignedActorId?: string,
+    restrictToParentId?: string,
   ): Promise<AppointmentResponseDTO> {
     if (!appointmentId) {
       throw new AppointmentPrismaServiceError(
@@ -2151,6 +2152,16 @@ export const AppointmentPrismaService = {
     if (
       restrictToAssignedActorId &&
       !canViewOwnAppointment(row as AppointmentRow, restrictToAssignedActorId)
+    ) {
+      throw new AppointmentPrismaServiceError("Appointment not found", 404);
+    }
+
+    // Parent-scope enforcement (mobile): a parent may only read their own
+    // appointments. An appointment owned by another parent is indistinguishable
+    // from not-found so IDs cannot be probed.
+    if (
+      restrictToParentId &&
+      getParentIdFromRow(row as AppointmentRow) !== restrictToParentId
     ) {
       throw new AppointmentPrismaServiceError("Appointment not found", 404);
     }

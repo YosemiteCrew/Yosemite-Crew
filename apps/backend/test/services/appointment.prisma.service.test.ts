@@ -560,6 +560,36 @@ describe("AppointmentPrismaService", () => {
       });
     });
 
+    it("parent-scope: returns the appointment when it belongs to the parent", async () => {
+      mockedPrisma.appointment.findUnique.mockResolvedValue(makeRow());
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.getById(
+        "appt_1",
+        undefined,
+        undefined,
+        "parent_1",
+      );
+
+      expect(result.id).toBe("appt_1");
+    });
+
+    it("parent-scope: returns 404 for an appointment owned by another parent", async () => {
+      mockedPrisma.appointment.findUnique.mockResolvedValue(makeRow());
+
+      await expect(
+        AppointmentPrismaService.getById(
+          "appt_1",
+          undefined,
+          undefined,
+          "intruder_parent",
+        ),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+    });
+
     it("own-scope: returns the appointment when the actor is assigned support staff (not lead)", async () => {
       mockedPrisma.appointment.findFirst.mockResolvedValue(
         makeRow({

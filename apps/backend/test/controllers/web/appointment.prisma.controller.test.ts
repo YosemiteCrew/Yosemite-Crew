@@ -342,6 +342,7 @@ describe("AppointmentPrismaController", () => {
       "appt_1",
       undefined,
       undefined,
+      "parent_1",
     );
     expect(mockedService.getAppointmentsForCompanion).toHaveBeenCalledWith(
       "comp_1",
@@ -367,6 +368,7 @@ describe("AppointmentPrismaController", () => {
       "appt_1",
       "org_1",
       "lead_1",
+      undefined,
     );
   });
 
@@ -396,9 +398,13 @@ describe("AppointmentPrismaController", () => {
   });
 
   describe("getById org-scoping and own-scope (IDOR)", () => {
-    it("mobile path (no org context) calls getById unscoped", async () => {
+    it("mobile path (no org context) scopes getById to the authenticated parent", async () => {
       mockedService.getById.mockResolvedValue({ id: "appt_1" } as any);
       req.params = { appointmentId: "appt_1" };
+      (req as any).userId = "user_1";
+      mockedAuth.getByProviderUserId.mockResolvedValue({
+        parentId: "parent_1",
+      } as any);
 
       await AppointmentController.getById(req as any, res as any);
 
@@ -406,8 +412,21 @@ describe("AppointmentPrismaController", () => {
         "appt_1",
         undefined,
         undefined,
+        "parent_1",
       );
       expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("mobile path rejects with 403 when no parent can be resolved", async () => {
+      mockedService.getById.mockResolvedValue({ id: "appt_1" } as any);
+      req.params = { appointmentId: "appt_1" };
+      (req as any).userId = "user_1";
+      mockedAuth.getByProviderUserId.mockResolvedValue({} as any);
+
+      await AppointmentController.getById(req as any, res as any);
+
+      expect(mockedService.getById).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
     });
 
     it("PMS view:any caller passes the authorized org and no own-scope restriction", async () => {
@@ -422,6 +441,7 @@ describe("AppointmentPrismaController", () => {
       expect(mockedService.getById).toHaveBeenCalledWith(
         "appt_1",
         "org_1",
+        undefined,
         undefined,
       );
       expect(res.status).toHaveBeenCalledWith(200);
@@ -440,6 +460,7 @@ describe("AppointmentPrismaController", () => {
         "appt_1",
         "org_1",
         "vet_1",
+        undefined,
       );
       expect(res.status).toHaveBeenCalledWith(200);
     });
@@ -456,6 +477,7 @@ describe("AppointmentPrismaController", () => {
       expect(mockedService.getById).toHaveBeenCalledWith(
         "appt_1",
         "org_authorized",
+        undefined,
         undefined,
       );
     });

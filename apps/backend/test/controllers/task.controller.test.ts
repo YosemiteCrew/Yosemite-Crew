@@ -229,7 +229,11 @@ describe("Task Controllers", () => {
       it("should success (200)", async () => {
         req.params = { taskId: "t1" };
         (req as any).userId = "u1";
-        (req as any).userPermissions = ["tasks:view:own"];
+        // Mobile (no org context): the authenticated parent owns the task
+        // because it is assigned to them.
+        (mockedAuthService.getByProviderUserId as any).mockResolvedValue({
+          parentId: "u1",
+        });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedTaskService.getById as any).mockResolvedValue({
           id: "t1",
@@ -242,6 +246,22 @@ describe("Task Controllers", () => {
           assignedTo: "u1",
           createdBy: "u2",
         });
+      });
+
+      it("should 404 for a mobile caller who does not own the task", async () => {
+        req.params = { taskId: "t1" };
+        (req as any).userId = "u1";
+        (mockedAuthService.getByProviderUserId as any).mockResolvedValue({
+          parentId: "other-parent",
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (mockedTaskService.getById as any).mockResolvedValue({
+          id: "t1",
+          assignedTo: "u9",
+          createdBy: "u8",
+        });
+        await TaskController.getById(req as any, res as Response);
+        expect(statusMock).toHaveBeenCalledWith(404);
       });
 
       it("should handle error", async () => {
