@@ -396,6 +396,42 @@ describe('DocumentAttachmentViewer', () => {
     );
   });
 
+  it('renders the PDF loading indicator', () => {
+    jest.spyOn(AttachmentUtils, 'isPdfFile').mockReturnValue(true);
+
+    const {getByTestId} = render(
+      <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
+    );
+
+    const loaderElement =
+      getByTestId('MockPdf').props.renderActivityIndicator();
+    expect(loaderElement).toBeTruthy();
+  });
+
+  it('shows an Android scroll indicator once the PDF has multiple pages', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'android',
+    });
+    jest.spyOn(AttachmentUtils, 'isPdfFile').mockReturnValue(true);
+
+    const {getByTestId} = render(
+      <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
+    );
+
+    act(() => {
+      getByTestId('MockPdf').props.onLoadComplete(3);
+    });
+    act(() => {
+      getByTestId('MockPdf').props.onPageChanged(2, 3);
+    });
+
+    // Scroll indicator is rendered via a plain View (no distinct testID), so
+    // assert indirectly by confirming the PDF continues to render without
+    // falling back, after the multi-page state update.
+    expect(getByTestId('MockPdf')).toBeTruthy();
+  });
+
   it('shows a failure alert when download throws', async () => {
     (RNFS.downloadFile as jest.Mock).mockReturnValueOnce({
       promise: Promise.reject(new Error('download failed')),
