@@ -41,7 +41,7 @@ const IndividualProductTurnoverStat = () => {
                   {product.name}
                 </div>
                 <div
-                  className="h-5 rounded-full bg-[#F4F4F4] overflow-hidden"
+                  className="h-5 rounded-full bg-neutral-100 overflow-hidden"
                   style={{
                     backgroundImage:
                       'repeating-linear-gradient(to right, rgba(17,17,17,0.08) 0, rgba(17,17,17,0.08) 1px, transparent 1px, transparent 16.66%)',
