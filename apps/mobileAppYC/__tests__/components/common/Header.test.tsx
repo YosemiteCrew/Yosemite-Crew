@@ -48,6 +48,21 @@ describe('Header', () => {
     );
   });
 
+  it('renders a serif left-aligned title for the root variant', () => {
+    const {getByText} = render(<Header title="Tasks" variant="root" />);
+    const flat = flattenStyle(getByText('Tasks').props.style);
+    expect(flat).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fontFamily: mockTheme.typography.serifTitle.fontFamily,
+          fontSize: mockTheme.typography.serifTitle.fontSize,
+          textAlign: 'left',
+          color: mockTheme.colors.ink,
+        }),
+      ]),
+    );
+  });
+
   it('calls onBack when back button pressed', () => {
     const {UNSAFE_getAllByType} = render(
       <Header title="My Title" showBackButton={true} onBack={onBackMock} />,

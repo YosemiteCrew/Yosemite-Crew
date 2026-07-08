@@ -14,6 +14,11 @@ interface HeaderProps {
   onRightPress?: () => void;
   style?: object;
   glass?: boolean;
+  /**
+   * `root` renders a tab-root header: a large left-aligned Newsreader title.
+   * `default` renders a sub-screen header: a centered 17/600 title.
+   */
+  variant?: 'default' | 'root';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,31 +29,36 @@ export const Header: React.FC<HeaderProps> = ({
   onRightPress,
   style,
   glass = true,
+  variant = 'default',
 }) => {
   const {theme} = useTheme();
   const iconButtonSize = theme.spacing?.['10'] ?? 40;
   const styles = createStyles(theme);
+  const isRoot = variant === 'root';
 
   const content = (
     <View style={[styles.container, style]}>
-      {showBackButton ? (
-        <View style={styles.iconButtonShadow}>
-          <LiquidGlassIconButton
-            onPress={onBack ?? (() => {})}
-            size={iconButtonSize}
-            style={styles.iconButton}>
-            <Image
-              source={Images.backIcon}
-              style={[styles.icon, {tintColor: theme.colors.text}]}
-            />
-          </LiquidGlassIconButton>
-        </View>
-      ) : (
-        <View style={styles.spacer} />
-      )}
+      {!isRoot &&
+        (showBackButton ? (
+          <View style={styles.iconButtonShadow}>
+            <LiquidGlassIconButton
+              onPress={onBack ?? (() => {})}
+              size={iconButtonSize}
+              style={styles.iconButton}>
+              <Image
+                source={Images.backIcon}
+                style={[styles.icon, {tintColor: theme.colors.text}]}
+              />
+            </LiquidGlassIconButton>
+          </View>
+        ) : (
+          <View style={styles.spacer} />
+        ))}
 
       {title && (
-        <Text style={styles.title} numberOfLines={1}>
+        <Text
+          style={isRoot ? styles.titleRoot : styles.title}
+          numberOfLines={1}>
           {title}
         </Text>
       )}
@@ -63,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
           </LiquidGlassIconButton>
         </View>
       ) : (
-        <View style={styles.spacer} />
+        !isRoot && <View style={styles.spacer} />
       )}
     </View>
   );
@@ -152,6 +162,12 @@ const createStyles = (theme: any) => {
       textAlign: 'center',
       ...theme.typography.mobileBodyEmphasis,
       fontWeight: '600',
+      color: theme.colors.ink,
+    },
+    titleRoot: {
+      flex: 1,
+      textAlign: 'left',
+      ...theme.typography.serifTitle,
       color: theme.colors.ink,
     },
   });

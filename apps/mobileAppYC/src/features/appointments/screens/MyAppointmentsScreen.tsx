@@ -562,6 +562,7 @@ export const MyAppointmentsScreen: React.FC = () => {
         <>
           <Header
             title="My Appointments"
+            variant="root"
             showBackButton={false}
             rightIcon={Images.addIconDark}
             onRightPress={handleAdd}
