@@ -614,12 +614,13 @@ export function InkAnnotate({
       const len = path.getTotalLength();
       const dur = type === 'circle' ? 1550 : 1150;
       let first = true;
+      const reveal = () => {
+        path.style.strokeDashoffset = '0';
+      };
       const play = () => {
         path.style.transition = `stroke-dashoffset ${dur}ms cubic-bezier(0.6,0.04,0.28,1) ${first ? delay : 220}ms`;
         first = false;
-        afterTwoFrames(() => {
-          path.style.strokeDashoffset = '0';
-        });
+        afterTwoFrames(reveal);
       };
       const rewind = () => {
         path.style.transition = 'none';
