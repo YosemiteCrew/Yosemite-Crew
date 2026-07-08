@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   buildBillableItems,
@@ -36,13 +36,28 @@ jest.mock(
       items,
       onAddItem,
       onRemoveItem,
+      onToggleWithdrawDeposit,
+      onChangeOverallDiscount,
+      onUpdateItem,
     }: {
       items: InvoiceLineItem[];
       onAddItem: (item: Omit<InvoiceLineItem, 'id'>) => void;
       onRemoveItem: (id: string) => void;
+      onToggleWithdrawDeposit?: (value: boolean) => void;
+      onChangeOverallDiscount?: (percent: number) => void;
+      onUpdateItem?: (id: string, patch: Partial<InvoiceLineItem>) => void;
     }) => (
       <div data-testid="total-bill-container">
         <span>Bill lines: {items.length}</span>
+        <button type="button" onClick={() => onToggleWithdrawDeposit?.(true)}>
+          Toggle withdraw deposit
+        </button>
+        <button type="button" onClick={() => onChangeOverallDiscount?.(10)}>
+          Set overall discount
+        </button>
+        <button type="button" onClick={() => items[0] && onUpdateItem?.(items[0].id, { qty: 2 })}>
+          Bump first qty
+        </button>
         <button
           type="button"
           onClick={() =>
@@ -640,5 +655,241 @@ describe('<InvoiceStep /> component', () => {
 
     await waitFor(() => expect(invoiceServiceMock.sendInvoiceToClient).toHaveBeenCalled());
     expect(await screen.findByText(/invoice sent to client/i)).toBeInTheDocument();
+  });
+
+  it('forwards bill builder callbacks to the workspace store', async () => {
+    renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+    await screen.findByTestId('total-bill-container');
+
+    await userEvent.click(screen.getByText('Toggle withdraw deposit'));
+    expect(workspaceStoreMock.setWithdrawDeposit).toHaveBeenCalledWith('appt-1', true);
+
+    await userEvent.click(screen.getByText('Set overall discount'));
+    expect(workspaceStoreMock.setOverallDiscountPercent).toHaveBeenCalledWith('appt-1', 10);
+
+    await userEvent.click(screen.getByText('Bump first qty'));
+    expect(workspaceStoreMock.updateInvoiceLineItem).toHaveBeenCalledWith(
+      'appt-1',
+      'invoice-Consultation',
+      { qty: 2 }
+    );
+
+    await userEvent.click(screen.getByText('Add manual item'));
+    expect(workspaceStoreMock.addInvoiceLineItem).toHaveBeenCalledWith(
+      'appt-1',
+      expect.objectContaining({ name: 'Manual add' })
+    );
+  });
+
+  it('completes the step and opens the summary from the Summary button', async () => {
+    const onOpenSummary = jest.fn();
+    renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] }, { onOpenSummary });
+    await screen.findByTestId('total-bill-container');
+
+    await userEvent.click(screen.getByRole('button', { name: /summary/i }));
+
+    expect(workspaceStoreMock.setStepStatus).toHaveBeenCalledWith('appt-1', 'INVOICE', 'COMPLETED');
+    expect(onOpenSummary).toHaveBeenCalled();
+  });
+
+  describe('invoice download and share', () => {
+    const settledInvoice = (overrides: Partial<PastInvoice> = {}): PastInvoice =>
+      ({
+        id: 'inv-doc',
+        status: 'PAID_FULL',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        totalCents: 1000,
+        outstandingCents: 0,
+        items: [invoiceLine('Consultation')],
+        ...overrides,
+      }) as unknown as PastInvoice;
+
+    it('opens the backend PDF when the invoice has one', async () => {
+      const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
+      renderInvoiceStep({ pastInvoices: [settledInvoice({ pdfUrl: 'https://cdn/invoice.pdf' })] });
+
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'Download invoice inv-doc' })
+      );
+
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://cdn/invoice.pdf',
+        '_blank',
+        'noopener,noreferrer'
+      );
+      openSpy.mockRestore();
+    });
+
+    it('falls back to a print window and escapes invoice HTML', async () => {
+      const printWindow = {
+        document: { head: { innerHTML: '' }, body: { innerHTML: '' } },
+        focus: jest.fn(),
+        print: jest.fn(),
+      };
+      const openSpy = jest.spyOn(window, 'open').mockReturnValue(printWindow as never);
+      renderInvoiceStep({
+        pastInvoices: [
+          settledInvoice({ items: [{ ...invoiceLine('Rabies <vaccine> & "shot"') }] } as never),
+        ],
+      });
+
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'Download invoice inv-doc' })
+      );
+
+      expect(printWindow.print).toHaveBeenCalled();
+      expect(printWindow.document.body.innerHTML).toContain(
+        'Rabies &lt;vaccine&gt; &amp; &quot;shot&quot;'
+      );
+      openSpy.mockRestore();
+    });
+
+    it('warns when the print popup is blocked', async () => {
+      const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
+      renderInvoiceStep({ pastInvoices: [settledInvoice()] });
+
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'Download invoice inv-doc' })
+      );
+
+      expect(mockNotify).toHaveBeenCalledWith(
+        'warning',
+        expect.objectContaining({ title: 'Allow pop-ups to download' })
+      );
+      openSpy.mockRestore();
+    });
+
+    it('copies the hosted PDF link to the clipboard when sharing', async () => {
+      const writeText = jest.fn().mockResolvedValue(undefined);
+      Object.defineProperty(globalThis.navigator, 'clipboard', {
+        value: { writeText },
+        configurable: true,
+      });
+      renderInvoiceStep({ pastInvoices: [settledInvoice({ pdfUrl: 'https://cdn/invoice.pdf' })] });
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Share invoice inv-doc' }));
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://cdn/invoice.pdf'));
+      expect(await screen.findByText('Invoice link copied to clipboard.')).toBeInTheDocument();
+    });
+
+    it('falls back to the appointment deep link and handles clipboard failures', async () => {
+      const writeText = jest.fn().mockRejectedValue(new Error('denied'));
+      Object.defineProperty(globalThis.navigator, 'clipboard', {
+        value: { writeText },
+        configurable: true,
+      });
+      renderInvoiceStep({ pastInvoices: [settledInvoice()] });
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Share invoice inv-doc' }));
+
+      await waitFor(() =>
+        expect(writeText).toHaveBeenCalledWith(
+          expect.stringContaining('/appointments/appt-1/workspace?step=INVOICE')
+        )
+      );
+      expect(await screen.findByText('Invoice link:')).toBeInTheDocument();
+    });
+
+    it('shows the link without copying when the clipboard API is unavailable', async () => {
+      Object.defineProperty(globalThis.navigator, 'clipboard', {
+        value: undefined,
+        configurable: true,
+      });
+      renderInvoiceStep({ pastInvoices: [settledInvoice()] });
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Share invoice inv-doc' }));
+
+      expect(await screen.findByText('Invoice link:')).toBeInTheDocument();
+    });
+  });
+
+  describe('payment progress overlay', () => {
+    const collectOnline = async () => {
+      await screen.findByTestId('total-bill-container');
+      await act(async () => {
+        await userEvent.click(screen.getByRole('button', { name: /pay online/i }));
+      });
+    };
+
+    it('confirms the payment once the invoice settles and closes via Done', async () => {
+      invoiceServiceMock.loadAppointmentBilling.mockResolvedValue({
+        pastInvoices: [
+          {
+            id: 'inv-new',
+            status: 'PAID_FULL',
+            outstandingCents: 0,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            totalCents: 1000,
+            items: [],
+          },
+        ],
+        depositCents: 0,
+        currency: 'usd',
+      });
+      renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+
+      await collectOnline();
+
+      expect(await screen.findByText('Payment confirmed')).toBeInTheDocument();
+      expect(workspaceStoreMock.recordInvoicePayment).toHaveBeenCalledWith(
+        'appt-1',
+        expect.objectContaining({ method: 'ONLINE' })
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+      expect(screen.queryByText('Payment confirmed')).not.toBeInTheDocument();
+    });
+
+    const goDelayed = async () => {
+      // Re-check on window focus while still inside the polling window.
+      await act(async () => {
+        globalThis.window.dispatchEvent(new Event('focus'));
+        await Promise.resolve();
+      });
+      expect(screen.getByText('Payment in progress')).toBeInTheDocument();
+
+      // Jump the clock past the poll timeout, then trigger a visibility poll so
+      // the overlay flips to the delayed state.
+      const future = Date.now() + 130000;
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(future);
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+        await Promise.resolve();
+      });
+      nowSpy.mockRestore();
+      expect(screen.getByRole('button', { name: 'Check again' })).toBeInTheDocument();
+    };
+
+    it('polls, goes delayed after the timeout, retries, and aborts', async () => {
+      renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+      await collectOnline();
+
+      expect(screen.getByText('Payment in progress')).toBeInTheDocument();
+      expect(screen.getByText('Reopen Stripe checkout')).toBeInTheDocument();
+
+      await goDelayed();
+
+      // Check again restarts the checking state…
+      fireEvent.click(screen.getByRole('button', { name: 'Check again' }));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(screen.getByText('Payment in progress')).toBeInTheDocument();
+
+      // …and Abort tears the overlay down.
+      fireEvent.click(screen.getByRole('button', { name: 'Abort' }));
+      expect(screen.queryByText('Payment in progress')).not.toBeInTheDocument();
+    });
+
+    it('continues editing after a delayed payment and reloads billing', async () => {
+      renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+      await collectOnline();
+      await goDelayed();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
+      expect(screen.queryByText('Payment in progress')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
+    });
   });
 });
