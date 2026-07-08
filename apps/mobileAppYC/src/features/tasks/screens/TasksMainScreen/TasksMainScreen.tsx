@@ -329,6 +329,7 @@ export const TasksMainScreen: React.FC = () => {
       header={
         <Header
           title="Tasks"
+          variant="root"
           showBackButton={false}
           rightIcon={Images.addIconDark}
           onRightPress={handleAddTask}
