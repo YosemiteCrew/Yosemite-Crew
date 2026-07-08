@@ -1598,12 +1598,17 @@ const CompanionHistoryTimeline = ({
     };
   }, [activeFilter, companionId, patchHistoryLoad]);
 
+  const requestedTypeSet = useMemo(
+    () => (requestedTypes ? new Set(requestedTypes) : undefined),
+    [requestedTypes]
+  );
+
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const byTab =
       activeFilter === 'MEDICAL_RECORDS'
         ? entries.filter((entry) => MEDICAL_RECORD_TYPES.has(entry.type))
-        : entries.filter((entry) => requestedTypes?.includes(entry.type));
+        : entries.filter((entry) => requestedTypeSet?.has(entry.type));
     const bySearch = normalizedQuery
       ? byTab.filter((entry) => getSearchableText(entry).includes(normalizedQuery))
       : byTab;
@@ -1624,7 +1629,7 @@ const CompanionHistoryTimeline = ({
     compact,
     entries,
     query,
-    requestedTypes,
+    requestedTypeSet,
     sortKey,
     statusFilter,
     statusOverrides,

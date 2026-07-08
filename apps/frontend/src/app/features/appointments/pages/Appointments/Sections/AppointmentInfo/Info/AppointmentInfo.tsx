@@ -298,9 +298,10 @@ const buildUpdatedAppointment = (ctx: AppointmentSaveContext): Appointment => {
     const id = member.practionerId || member._id;
     return id === appointmentValues.leadId;
   });
+  const supportIdSet = new Set(appointmentValues.supportIds);
   const supportStaff = teams.reduce<Array<{ id: string; name: string }>>((items, member) => {
     const id = member.practionerId || member._id;
-    if (!id || !appointmentValues.supportIds.includes(id)) return items;
+    if (!id || !supportIdSet.has(id)) return items;
     items.push({
       id: member.practionerId || member._id || '',
       name: member.name || member.practionerId || member._id || '',

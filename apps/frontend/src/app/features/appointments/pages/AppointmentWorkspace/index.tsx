@@ -1541,8 +1541,9 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
             allowModeConversion: true,
           });
           if (!converted) return false;
+          const servicePackageIdSet = new Set(payload.servicePackageIds);
           const selectedServicePackages = hospitalizationServicePackages.filter((item) =>
-            payload.servicePackageIds.includes(item.id)
+            servicePackageIdSet.has(item.id)
           );
           // Admission has created/resolved the encounter — persist each chosen service/package as a
           // treatment item so it survives a refresh (local addLineItem alone is lost on reload).
