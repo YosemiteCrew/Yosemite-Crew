@@ -27,10 +27,6 @@ describe('floatingLabelStyles', () => {
           fontSize: undefined,
         },
       },
-      colors: {
-        ...mockTheme.colors,
-        surface: '',
-      },
     } as typeof mockTheme;
 
     const style = useFloatingLabelAnimatedStyle({
@@ -46,7 +42,7 @@ describe('floatingLabelStyles', () => {
         textAlignVertical: 'center',
         left: mockTheme.spacing['5'],
         color: mockTheme.colors.primary,
-        backgroundColor: mockTheme.colors.background,
+        backgroundColor: mockTheme.colors.fieldBg,
         paddingHorizontal: mockTheme.spacing['1'],
         pointerEvents: 'none',
       }),
@@ -75,13 +71,13 @@ describe('floatingLabelStyles', () => {
     expect(getInputContainerBaseStyle(mockTheme, 'Required')).toEqual(
       expect.objectContaining({
         borderColor: mockTheme.colors.error,
-        backgroundColor: mockTheme.colors.surface,
+        backgroundColor: mockTheme.colors.fieldBg,
       }),
     );
 
     expect(getInputContainerBaseStyle(mockTheme)).toEqual(
       expect.objectContaining({
-        borderColor: mockTheme.colors.border,
+        borderColor: mockTheme.colors.hairline,
       }),
     );
   });
