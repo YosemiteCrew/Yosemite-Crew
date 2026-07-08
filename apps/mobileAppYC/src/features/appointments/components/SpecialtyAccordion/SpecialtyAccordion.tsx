@@ -206,7 +206,7 @@ export const SpecialtyAccordion: React.FC<SpecialtyAccordionProps> = ({
       <View style={styles.specialtiesList}>
         {specialties.map((specialty, index) => (
           <SpecialtyItem
-            key={`${specialty.name}-${index}`}
+            key={specialty.name}
             specialty={specialty}
             defaultExpanded={index === 0}
             onSelectService={onSelectService}
