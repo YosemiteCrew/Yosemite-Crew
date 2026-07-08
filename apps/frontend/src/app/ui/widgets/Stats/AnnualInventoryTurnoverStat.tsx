@@ -28,9 +28,9 @@ const AnnualInventoryTurnoverStat = () => {
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center gap-2 text-text-tertiary flex-1">
             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-              <rect x="4" y="24" width="8" height="12" rx="2" fill="#E7E7E7" />
-              <rect x="16" y="16" width="8" height="20" rx="2" fill="#E7E7E7" />
-              <rect x="28" y="10" width="8" height="26" rx="2" fill="#E7E7E7" />
+              <rect x="4" y="24" width="8" height="12" rx="2" fill="var(--color-neutral-200)" />
+              <rect x="16" y="16" width="8" height="20" rx="2" fill="var(--color-neutral-200)" />
+              <rect x="28" y="10" width="8" height="26" rx="2" fill="var(--color-neutral-200)" />
             </svg>
             <span className="text-body-3">No data available</span>
           </div>
@@ -59,7 +59,7 @@ const AnnualInventoryTurnoverStat = () => {
               {Array.from({ length: SEGMENT_COUNT }, (_, index) => (
                 <div
                   key={`turnover-segment-${index + 1}`}
-                  className={`h-2 rounded-full ${index < filledSegments ? 'bg-[#F28A2E]' : 'bg-[#E7E7E7]'}`}
+                  className={`h-2 rounded-full ${index < filledSegments ? 'bg-[#F28A2E]' : 'bg-neutral-200'}`}
                 />
               ))}
             </div>
