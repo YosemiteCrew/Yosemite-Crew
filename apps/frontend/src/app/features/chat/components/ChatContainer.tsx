@@ -615,7 +615,7 @@ const ChatChannelListPaginator: FC<
   <>
     {children}
     {hasNextPage && (
-      <div className="flex justify-center px-3 py-3">
+      <div className="flex justify-center p-3">
         <Primary
           text={isLoading ? 'Loading…' : 'Load more'}
           onClick={loadNextPage}
@@ -633,7 +633,7 @@ const ChatClosedFooter: FC<{ closedAt?: string }> = ({ closedAt }) => {
   const formattedClosedTime = formatClosedTime(closedAt);
 
   return (
-    <div className="flex shrink-0 flex-col items-center gap-1.5 border-t border-chat-divider bg-chat-surface-soft px-4 py-4">
+    <div className="flex shrink-0 flex-col items-center gap-1.5 border-t border-chat-divider bg-chat-surface-soft p-4">
       <Text as="p" variant="body-4-emphasis" className="text-neutral-700">
         Chat session closed
       </Text>
@@ -693,8 +693,8 @@ const RegularChannelWindow: FC<{ currentUserId?: string | null }> = ({ currentUs
 
 const ChatEmptyThread: FC = () => (
   <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-    <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-chat-panel text-primary-600">
-      <LuMessageSquarePlus className="h-6 w-6" />
+    <span className="mb-1 flex size-12 items-center justify-center rounded-full bg-chat-panel text-primary-600">
+      <LuMessageSquarePlus className="size-6" />
     </span>
     <Text as="p" variant="body-3-emphasis" className="text-neutral-700">
       No messages yet
@@ -884,7 +884,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
               : 'border-chat-divider text-neutral-500 hover:bg-chat-surface-soft hover:text-neutral-900'
           )}
         >
-          <LuArchive className="h-3.5 w-3.5" />
+          <LuArchive className="size-3.5" />
           Archived
         </button>
       </div>
@@ -893,7 +893,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
       </div>
       <div className="border-b border-chat-divider p-3">
         <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) px-4 py-2.5 transition-colors focus-within:border-input-border-active">
-          <LuSearch className="h-4 w-4 shrink-0 text-input-text-placeholder" />
+          <LuSearch className="size-4 shrink-0 text-input-text-placeholder" />
           <input
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
@@ -902,7 +902,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
             className="w-full bg-transparent font-satoshi text-body-4 text-text-primary outline-none placeholder:text-input-text-placeholder"
           />
           <span className="hidden shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-neutral-400 sm:flex">
-            <LuCommand className="h-3 w-3" />K
+            <LuCommand className="size-3" />K
           </span>
         </div>
       </div>
@@ -954,7 +954,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
                         })
                       }
                       disabled={creatingChat}
-                      className="flex min-h-14 cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 px-3 py-3 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex min-h-14 cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 p-3 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <ChatAvatar name={user.name || user.email || '?'} />
                       <span className="flex min-w-0 flex-col gap-0.5">
@@ -1085,9 +1085,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   const [orgUsers, setOrgUsers] = useState<OrgUserOption[]>([]);
   const [orgUsersStatus, setOrgUsersStatus] = useState<'idle' | 'loading' | 'loaded'>('idle');
   const orgUsersLoading = orgUsersStatus === 'loading';
-  const [statusByAppointmentId, setStatusByAppointmentId] = useState<
-    Record<string, 'active' | 'ended'>
-  >({});
+  const [chatSessionChannels, setChatSessionChannels] = useState<any[]>([]);
   const [directSearch, setDirectSearch] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [shareChannelId, setShareChannelId] = useState<string | null>(null);
@@ -1128,15 +1126,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
       .then((response) => {
         const payload: any = response ?? {};
         const channels = getSessionChannels(payload);
-        const next: Record<string, 'active' | 'ended'> = {};
-        channels.forEach((session: any) => {
-          if (session.appointmentId) {
-            const rawStatus = String(session.status || '').toLowerCase();
-            next[session.appointmentId] =
-              rawStatus === 'closed' || rawStatus === 'ended' ? 'ended' : 'active';
-          }
-        });
-        setStatusByAppointmentId(next);
+        setChatSessionChannels(channels);
       })
       .catch((err) => {
         console.error('Failed to load chat session statuses:', err);
@@ -1450,6 +1440,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         return;
       }
       setCreatingChat(true);
+      const candidateIdSet = new Set(candidateIds);
 
       // First, check if a direct channel already exists with this user
       // by querying backend sessions API and also Stream Chat channels
@@ -1462,7 +1453,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
           const sessionMembers = s.members || [];
           return sessionMembers.some((m: any) => {
             const memberId = m.userId || m.practitionerId || m.id || m;
-            return candidateIds.includes(memberId);
+            return candidateIdSet.has(memberId);
           });
         });
 
@@ -1514,12 +1505,12 @@ export const ChatContainer: FC<ChatContainerProps> = ({
           if (!otherMemberId) return false;
 
           // Direct match on member ID
-          if (candidateIds.includes(otherMemberId)) return true;
+          if (candidateIdSet.has(otherMemberId)) return true;
 
           // Also check user.id and user.name from member object
           const otherMember = members[otherMemberId];
           const otherUserIdFromMember = otherMember?.user?.id || otherMember?.user_id;
-          if (otherUserIdFromMember && candidateIds.includes(otherUserIdFromMember)) return true;
+          if (otherUserIdFromMember && candidateIdSet.has(otherUserIdFromMember)) return true;
 
           // Also match by name as last resort (for John Doe case where IDs might differ)
           const otherUserName = otherMember?.user?.name;
@@ -1827,6 +1818,17 @@ export const ChatContainer: FC<ChatContainerProps> = ({
     }),
     [openCreateGroupModal, openEditGroupModal]
   );
+  const statusByAppointmentId = useMemo(() => {
+    const next: Record<string, 'active' | 'ended'> = {};
+    chatSessionChannels.forEach((session: any) => {
+      if (session.appointmentId) {
+        const rawStatus = String(session.status || '').toLowerCase();
+        next[session.appointmentId] =
+          rawStatus === 'closed' || rawStatus === 'ended' ? 'ended' : 'active';
+      }
+    });
+    return next;
+  }, [chatSessionChannels]);
   const chatSessionStatusContextValue = useMemo(
     () => ({
       statusByAppointmentId,
