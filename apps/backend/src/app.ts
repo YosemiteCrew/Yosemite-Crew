@@ -8,6 +8,7 @@ import cors from "cors";
 import { DocumensoWebhookController } from "./controllers/web/documenso.controller";
 import { ChatWebhookController } from "./controllers/app/chatWebhook.controller";
 import mongoSanitize from "express-mongo-sanitize";
+import helmet from "helmet";
 import {
   initSuperTokens,
   registerSuperTokensBeforeRoutes,
@@ -36,6 +37,7 @@ export function createApp() {
     initSuperTokens();
     registerSuperTokensBeforeRoutes(app);
   }
+  app.use(helmet());
   app.disable("x-powered-by");
 
   const limiter = rateLimit({
