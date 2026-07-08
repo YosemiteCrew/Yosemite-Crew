@@ -6,12 +6,7 @@
  */
 
 import React, {useEffect, useState, useMemo, useCallback} from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  Alert,
-} from 'react-native';
+import {StyleSheet, View, Text, Alert} from 'react-native';
 import {
   Channel,
   MessageList,
@@ -35,6 +30,10 @@ import {selectAuthUser} from '@/features/auth/selectors';
 import {CustomAttachment} from '../components/CustomAttachment';
 import type {TabParamList} from '@/navigation/types';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {
+  createMyMessageTheme,
+  createStreamChatTheme,
+} from '@/features/chat/streamChatTheme';
 
 type RouteParams = {
   appointmentId: string;
@@ -47,6 +46,8 @@ type RouteParams = {
 export const ChatChannelScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const chatTheme = useMemo(() => createStreamChatTheme(theme), [theme]);
+  const myMessageTheme = useMemo(() => createMyMessageTheme(theme), [theme]);
   const navigation = useNavigation();
   const route = useRoute();
   const authUser = useSelector(selectAuthUser);
@@ -77,7 +78,10 @@ export const ChatChannelScreen: React.FC = () => {
       }
 
       const displayName =
-        [authUser.firstName, authUser.lastName].filter(Boolean).join(' ').trim() ||
+        [authUser.firstName, authUser.lastName]
+          .filter(Boolean)
+          .join(' ')
+          .trim() ||
         authUser.email ||
         'Pet Parent';
       const avatar = authUser.profilePicture ?? undefined;
@@ -87,11 +91,7 @@ export const ChatChannelScreen: React.FC = () => {
 
       // 2. Connect to Stream
       const chatClient = getChatClient();
-      await connectStreamUser(
-        chatUserId,
-        displayName,
-        avatar,
-      );
+      await connectStreamUser(chatUserId, displayName, avatar);
 
       setClient(chatClient);
 
@@ -115,13 +115,12 @@ export const ChatChannelScreen: React.FC = () => {
 
       // User-friendly error messages
       let errorMessage =
-        (typeof err?.message === 'string' && err.message.length > 0
+        typeof err?.message === 'string' && err.message.length > 0
           ? err.message
-          : 'Failed to load chat. Please try again.');
+          : 'Failed to load chat. Please try again.';
 
       if (err.message?.includes('API key')) {
-        errorMessage =
-          'Chat is not configured. Please contact support.';
+        errorMessage = 'Chat is not configured. Please contact support.';
       } else if (err.message?.includes('network')) {
         errorMessage =
           'Network error. Please check your connection and try again.';
@@ -251,20 +250,22 @@ export const ChatChannelScreen: React.FC = () => {
         <View style={styles.contentWrapper}>
           <View style={styles.chatWrapper}>
             <OverlayProvider>
-              <Chat client={client}>
+              <Chat client={client} style={chatTheme}>
                 <Channel
                   channel={channel}
                   Attachment={CustomAttachment}
-                >
+                  myMessageTheme={myMessageTheme}>
                   <MessageList
                     onThreadSelect={threadMessage => {
                       if (threadMessage?.id) {
-                        console.log('[Chat] Thread selected:', threadMessage.id);
+                        console.log(
+                          '[Chat] Thread selected:',
+                          threadMessage.id,
+                        );
                       }
                     }}
                   />
-                  <MessageInput
-                  />
+                  <MessageInput />
                 </Channel>
               </Chat>
             </OverlayProvider>
