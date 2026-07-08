@@ -12,7 +12,11 @@ import Reanimated, {
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
-import type {Notification} from '../../types';
+import {
+  IconTile,
+  type IconTileTone,
+} from '@/shared/components/common/IconTile/IconTile';
+import type {Notification, NotificationCategory} from '../../types';
 import {fonts} from '@/theme/typography';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 
@@ -24,6 +28,19 @@ interface NotificationCardProps {
   onArchive?: () => void;
   swipeEnabled?: boolean;
 }
+
+// Warm-bone tile tint per notification category.
+const CATEGORY_TONE: Record<NotificationCategory, IconTileTone> = {
+  all: 'neutral',
+  messages: 'info',
+  appointments: 'indigo',
+  tasks: 'violet',
+  documents: 'neutral',
+  health: 'success',
+  dietary: 'warning',
+  hygiene: 'info',
+  payment: 'success',
+};
 
 export const NotificationCard: React.FC<NotificationCardProps> = ({
   notification,
@@ -142,17 +159,13 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
             fallbackStyle={styles.cardFallback}>
             <View style={styles.content}>
               {/* Icon */}
-              <View
-                style={[
-                  styles.iconContainer,
-                  isDragging && styles.iconContainerDragging,
-                ]}>
-                <Image
-                  source={getIconFromImages(notification.icon)}
-                  style={styles.icon}
-                  resizeMode="contain"
-                />
-              </View>
+              <IconTile
+                icon={getIconFromImages(notification.icon)}
+                tone={CATEGORY_TONE[notification.category] ?? 'neutral'}
+                size={theme.spacing['11']}
+                iconSize={theme.spacing['6']}
+                style={isDragging ? styles.iconDragging : undefined}
+              />
 
               {/* Main content */}
               <View style={styles.mainContent}>
@@ -220,21 +233,8 @@ const createStyles = (theme: any) =>
     pressable: {
       flex: 1,
     },
-    iconContainer: {
-      width: theme.spacing['11'],
-      height: theme.spacing['11'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-      flexShrink: 0,
-    },
-    iconContainerDragging: {
+    iconDragging: {
       opacity: 0.7,
-    },
-    icon: {
-      width: theme.spacing['6'],
-      height: theme.spacing['6'],
     },
     mainContent: {
       flex: 1,
