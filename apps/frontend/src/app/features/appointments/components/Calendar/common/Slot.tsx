@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useId, useLayoutEffect, useMemo, useState } from 'react';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
 import { Appointment, Invoice } from '@yosemite-crew/types';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
@@ -13,9 +13,9 @@ import AppointmentContextMenu from '@/app/features/appointments/components/Calen
 import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { useNotify } from '@/app/hooks/useNotify';
-import { canEnterAppointmentWorkspace } from '@/app/lib/appointmentWorkspace';
 import ZoomOutMarker from '@/app/features/appointments/components/Calendar/common/ZoomOutMarker';
 import ZoomInMarker from '@/app/features/appointments/components/Calendar/common/ZoomInMarker';
+import { useSlotMarkerInteractions } from '@/app/features/appointments/components/Calendar/common/useSlotMarkerInteractions';
 
 type SlotProps = {
   slotEvents: Appointment[];
@@ -47,8 +47,6 @@ type SlotProps = {
   invoicesByAppointmentId?: Record<string, Invoice>;
 };
 
-const MARKER_CLICK_DELAY_MS = 180;
-
 const DEFAULT_DROP_AVAILABILITY_INTERVALS: Array<{ startMinute: number; endMinute: number }> = [];
 const DEFAULT_UNAVAILABLE_SEGMENTS: Array<{ startMinute: number; endMinute: number }> = [];
 const DEFAULT_INVOICES_BY_APPOINTMENT_ID: Record<string, Invoice> = {};
@@ -60,12 +58,6 @@ const getSlotEventKey = (event: Appointment): string =>
     event.startTime.toISOString(),
     event.endTime.toISOString(),
   ].join('-');
-
-type ContextMenuState = {
-  appointment: Appointment;
-  x: number;
-  y: number;
-};
 
 const SlotComponent: React.FC<SlotProps> = ({
   slotEvents,
@@ -98,10 +90,7 @@ const SlotComponent: React.FC<SlotProps> = ({
 }) => {
   const isZoomOutMode = zoomMode === 'out';
   const { notify } = useNotify();
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const {
     activePopoverKey,
     setActivePopoverKey,
@@ -112,69 +101,6 @@ const SlotComponent: React.FC<SlotProps> = ({
     registerAnchorEl,
   } = usePopoverManager({ closeOnHoverLeave: false });
   const appointmentPopoverId = useId();
-
-  useLayoutEffect(() => {
-    if (!draggedAppointmentId) return;
-    setActivePopoverKey(null);
-    setDropPreviewMinute(null);
-    setContextMenu(null);
-  }, [draggedAppointmentId, setActivePopoverKey]);
-
-  useEffect(
-    () => () => {
-      if (clickTimerRef.current) {
-        clearTimeout(clickTimerRef.current);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (!contextMenu) return;
-
-    const closeContextMenu = () => setContextMenu(null);
-    const swallowDismissClick = () => {
-      const handleClickCapture = (event: MouseEvent) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if ('stopImmediatePropagation' in event) {
-          event.stopImmediatePropagation();
-        }
-        globalThis.removeEventListener('click', handleClickCapture, true);
-      };
-
-      globalThis.addEventListener('click', handleClickCapture, true);
-    };
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null;
-      if (contextMenuRef.current?.contains(target)) return;
-      if ((target as Element | null)?.closest('[data-context-menu]')) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if ('stopImmediatePropagation' in event) {
-        event.stopImmediatePropagation();
-      }
-      swallowDismissClick();
-      setContextMenu(null);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setContextMenu(null);
-      }
-    };
-
-    globalThis.addEventListener('pointerdown', handlePointerDown, true);
-    globalThis.addEventListener('scroll', closeContextMenu, true);
-    globalThis.addEventListener('resize', closeContextMenu);
-    globalThis.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      globalThis.removeEventListener('pointerdown', handlePointerDown, true);
-      globalThis.removeEventListener('scroll', closeContextMenu, true);
-      globalThis.removeEventListener('resize', closeContextMenu);
-      globalThis.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [contextMenu]);
 
   const sortedSlotEvents = useMemo(
     () => slotEvents.toSorted((a, b) => a.startTime.getTime() - b.startTime.getTime()),
@@ -192,16 +118,30 @@ const SlotComponent: React.FC<SlotProps> = ({
     clientY?: number
   ): void => openPopover(key, target, draggedAppointmentId, clientX, clientY);
 
+  const {
+    contextMenuRef,
+    contextMenu,
+    setContextMenu,
+    contextMenuStyle,
+    handleMarkerClick,
+    handleMarkerDoubleClick,
+    handleMarkerContextMenu,
+  } = useSlotMarkerInteractions({
+    handleOpenPopover,
+    setActivePopoverKey,
+    handleOpenWorkspace,
+    handleDetailAppointment,
+    handleViewAppointment,
+  });
+
   const popoverStyle = getPopoverStyle(440, 490);
-  const contextMenuStyle = useMemo(() => {
-    if (!contextMenu) return null;
-    const width = 280;
-    const height = 420;
-    const margin = 12;
-    const left = Math.max(margin, Math.min(contextMenu.x, globalThis.innerWidth - width - margin));
-    const top = Math.max(margin, Math.min(contextMenu.y, globalThis.innerHeight - height - margin));
-    return { left, top, width };
-  }, [contextMenu]);
+
+  useLayoutEffect(() => {
+    if (!draggedAppointmentId) return;
+    setActivePopoverKey(null);
+    setDropPreviewMinute(null);
+    setContextMenu(null);
+  }, [draggedAppointmentId, setActivePopoverKey, setContextMenu]);
 
   const getMinuteFromSlotPointer = (clientY: number, container: HTMLDivElement) => {
     const rect = container.getBoundingClientRect();
@@ -305,48 +245,6 @@ const SlotComponent: React.FC<SlotProps> = ({
 
     return output;
   }, [sortedSlotEvents]);
-
-  const clearPendingMarkerClick = () => {
-    if (!clickTimerRef.current) return;
-    clearTimeout(clickTimerRef.current);
-    clickTimerRef.current = null;
-  };
-
-  const handleMarkerClick = (event: React.MouseEvent<HTMLButtonElement>, key: string) => {
-    const target = event.currentTarget;
-    const { clientX, clientY } = event;
-    clearPendingMarkerClick();
-    setContextMenu(null);
-    clickTimerRef.current = setTimeout(() => {
-      handleOpenPopover(key, target, clientX, clientY);
-      clickTimerRef.current = null;
-    }, MARKER_CLICK_DELAY_MS);
-  };
-
-  const handleMarkerDoubleClick = (appointment: Appointment) => {
-    clearPendingMarkerClick();
-    setContextMenu(null);
-    setActivePopoverKey(null);
-    if (handleOpenWorkspace && canEnterAppointmentWorkspace(appointment.status)) {
-      handleOpenWorkspace(appointment);
-      return;
-    }
-    (handleDetailAppointment ?? handleViewAppointment)(appointment);
-  };
-
-  const handleMarkerContextMenu = (
-    event: React.MouseEvent<HTMLButtonElement>,
-    appointment: Appointment
-  ) => {
-    event.preventDefault();
-    clearPendingMarkerClick();
-    setActivePopoverKey(null);
-    setContextMenu({
-      appointment,
-      x: event.clientX,
-      y: event.clientY,
-    });
-  };
 
   const tryCreateAppointmentAt = (minute: number) => {
     if (!dropDate || !onCreateAppointmentAt) return;
