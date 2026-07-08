@@ -144,12 +144,23 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     []
   );
   const [prevDisableEditing, setPrevDisableEditing] = useState(disableEditing);
-  if (disableEditing !== prevDisableEditing) {
+  const disableEditingChanged = disableEditing !== prevDisableEditing;
+  if (disableEditingChanged) {
     setPrevDisableEditing(disableEditing);
     if (disableEditing && isEditing) {
       patchBatchEditor({ isEditing: false });
     }
   }
+
+  // Reporting isEditing:false to the parent here (rather than from a
+  // useEffect watching isEditing) still has to happen after this render
+  // commits, since calling the parent's setter mid-render would update a
+  // different component while this one is rendering.
+  useLayoutEffect(() => {
+    if (disableEditingChanged && disableEditing && isEditing === false) {
+      onEditingChange?.(false);
+    }
+  });
 
   useLayoutEffect(() => {
     dispatchBatchEditor({ type: 'RESET' });
@@ -177,11 +188,15 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
         : existingBatches.map((b) => ({ ...b })),
       newBatches: newBatches.length === 0 ? [{ ...emptyBatch }] : newBatches,
     });
-  }, [disableEditing, newBatches, editableExistingBatches, existingBatches, patchBatchEditor]);
-
-  useEffect(() => {
-    onEditingChange?.(isEditing);
-  }, [isEditing, onEditingChange]);
+    onEditingChange?.(true);
+  }, [
+    disableEditing,
+    newBatches,
+    editableExistingBatches,
+    existingBatches,
+    patchBatchEditor,
+    onEditingChange,
+  ]);
 
   const handleChange = useCallback(
     (index: number, name: keyof BatchValues, value: string) => {
@@ -261,11 +276,20 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
       updatedBatches,
     });
     dispatchBatchEditor({ type: 'RESET' });
-  }, [newBatches, editableExistingBatches, existingBatches, hasBatchChanged, onSave]);
+    onEditingChange?.(false);
+  }, [
+    newBatches,
+    editableExistingBatches,
+    existingBatches,
+    hasBatchChanged,
+    onSave,
+    onEditingChange,
+  ]);
 
   const handleCancel = useCallback(() => {
     dispatchBatchEditor({ type: 'RESET' });
-  }, []);
+    onEditingChange?.(false);
+  }, [onEditingChange]);
 
   useEffect(() => {
     onRegisterActions?.({
