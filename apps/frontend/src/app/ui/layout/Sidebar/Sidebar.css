@@ -189,7 +189,7 @@
 
 .route:hover {
   border-color: color-mix(in srgb, var(--color-card-border) 82%, transparent);
-  background: color-mix(in srgb, var(--color-card-hover) 74%, white);
+  background: color-mix(in srgb, var(--color-card-hover) 74%, var(--color-neutral-0));
   color: var(--color-text-primary);
 }
 

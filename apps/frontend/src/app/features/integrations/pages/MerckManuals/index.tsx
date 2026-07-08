@@ -517,7 +517,7 @@ const MerckReaderPortal = ({
       data-merck-reader-overlay="true"
     >
       <div className="relative bg-neutral-0 rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-card-border">
           <div id="merck-reader-title" className="text-body-2 text-text-primary truncate pr-2">
             {readerTitle}
           </div>
@@ -546,7 +546,7 @@ const MerckReaderPortal = ({
             onLoad={() => setReaderLoading(false)}
           />
         </div>
-        <div className="p-3 border-t border-black/10 flex justify-end">
+        <div className="p-3 border-t border-card-border flex justify-end">
           <Link
             href={readerUrl}
             target="_blank"

@@ -101,7 +101,7 @@ const TaskCard = ({
 }: TaskCardProps) => (
   <article
     aria-label={`Open task ${task.name || '-'}`}
-    className={`relative w-full min-h-[112px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-gradient-to-b from-white to-card-hover px-3 py-2.5 text-left transition-colors flex flex-col items-stretch justify-start ${
+    className={`relative w-full min-h-[112px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-gradient-to-b from-neutral-0 to-card-hover px-3 py-2.5 text-left transition-colors flex flex-col items-stretch justify-start ${
       draggedTaskId === (task._id ?? null)
         ? 'opacity-60 shadow-none'
         : 'hover:border-input-border-active! hover:bg-card-hover!'

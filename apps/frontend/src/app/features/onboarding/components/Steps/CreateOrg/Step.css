@@ -317,12 +317,12 @@
 .step-three-recommendation-chip:hover,
 .step-three-service-icon:hover {
   border-color: #b7c8ff;
-  background: #f8fbff;
+  background: var(--color-neutral-100);
 }
 
 .step-three-service-card:hover {
   border-color: #b7c8ff;
-  background: #f8fbff;
+  background: var(--color-neutral-100);
 }
 
 .step-three-picker-option--empty {
@@ -373,7 +373,7 @@
   min-height: 26px;
   padding: 0 9px;
   border-radius: 999px;
-  background: #f4f4f4;
+  background: var(--color-neutral-100);
   color: var(--color-neutral-700);
   font-family: var(--font-satoshi);
   font-size: 12px;

@@ -230,7 +230,7 @@
 }
 
 .yc-menu-row:hover {
-  background: color-mix(in srgb, var(--color-card-hover) 74%, white);
+  background: color-mix(in srgb, var(--color-card-hover) 74%, var(--color-neutral-0));
   color: var(--color-text-primary) !important;
 }
 

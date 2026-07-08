@@ -183,7 +183,7 @@ const InventoryFilters = ({
               'absolute top-0 bottom-0 left-0 rounded-[999px]! transition-all duration-300 ease-in-out',
               sliderTranslate
             )}
-            style={{ width: 'calc(100% / 3)', backgroundColor: '#454341' }}
+            style={{ width: 'calc(100% / 3)', backgroundColor: 'var(--color-neutral-900)' }}
           />
           {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((key) => {
             const label = getVisibilityLabel(key);
@@ -197,7 +197,7 @@ const InventoryFilters = ({
                 className="relative z-10 h-full transition-colors duration-200 cursor-pointer"
                 style={{
                   width: 'calc(100% / 3)',
-                  color: isCurrent ? '#FFF' : 'var(--color-neutral-600)',
+                  color: isCurrent ? 'var(--color-neutral-0)' : 'var(--color-neutral-600)',
                   fontWeight: 500,
                   lineHeight: '120%',
                   letterSpacing: '-0.28px',
