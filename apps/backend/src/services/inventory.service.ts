@@ -2398,8 +2398,8 @@ export const InventoryService = {
     }
 
     const item = await InventoryItemModel.findOne({
-      _id: itemId,
-      organisationId: safeOrganisationId,
+      _id: String(itemId),
+      organisationId: String(safeOrganisationId),
     });
     if (!item) throw new InventoryServiceError("Inventory item not found", 404);
 
@@ -2484,8 +2484,8 @@ export const InventoryService = {
     }
 
     const batch = await InventoryBatchModel.findOne({
-      _id: batchId,
-      organisationId: safeOrganisationId,
+      _id: String(batchId),
+      organisationId: String(safeOrganisationId),
     }).exec();
     if (!batch) {
       throw new InventoryServiceError("Batch not found", 404);
@@ -2542,7 +2542,10 @@ export const InventoryService = {
       if (!batch) return;
 
       await prisma.inventoryBatch.deleteMany({
-        where: { id: batchId, organisationId: safeOrganisationId },
+        where: {
+          id: String(batchId),
+          organisationId: String(safeOrganisationId),
+        },
       });
 
       const { onHand, allocated } = await recomputeStockFromBatches(
@@ -2556,8 +2559,8 @@ export const InventoryService = {
     }
 
     const batch = await InventoryBatchModel.findOne({
-      _id: batchId,
-      organisationId: safeOrganisationId,
+      _id: String(batchId),
+      organisationId: String(safeOrganisationId),
     }).exec();
     if (!batch) return;
 
@@ -2645,8 +2648,8 @@ export const InventoryService = {
     }
 
     const item = await InventoryItemModel.findOne({
-      _id: safeItemId,
-      organisationId: safeOrganisationId,
+      _id: String(safeItemId),
+      organisationId: String(safeOrganisationId),
     }).exec();
     if (!item) {
       throw new InventoryServiceError("Inventory item not found", 404);
@@ -2824,8 +2827,8 @@ export const InventoryAdjustmentService = {
     }
 
     const item = await InventoryItemModel.findOne({
-      _id: safeItemId,
-      organisationId: safeOrganisationId,
+      _id: String(safeItemId),
+      organisationId: String(safeOrganisationId),
     });
     if (!item) throw new InventoryServiceError("Item not found", 404);
 
@@ -2946,8 +2949,8 @@ export const InventoryAllocationService = {
     }
 
     const item = await InventoryItemModel.findOne({
-      _id: itemId,
-      organisationId: safeOrganisationId,
+      _id: String(itemId),
+      organisationId: String(safeOrganisationId),
     });
     if (!item) throw new InventoryServiceError("Item not found", 404);
 
@@ -3011,8 +3014,8 @@ export const InventoryAllocationService = {
     }
 
     const item = await InventoryItemModel.findOne({
-      _id: itemId,
-      organisationId: safeOrganisationId,
+      _id: String(itemId),
+      organisationId: String(safeOrganisationId),
     });
     if (!item) throw new InventoryServiceError("Item not found", 404);
 
@@ -3112,8 +3115,8 @@ export const InventoryVendorService = {
     }
 
     const vendor = await InventoryVendorModel.findOne({
-      _id: vendorId,
-      organisationId: safeOrganisationId,
+      _id: String(vendorId),
+      organisationId: String(safeOrganisationId),
     });
     if (!vendor) throw new InventoryServiceError("Vendor not found", 404);
 
@@ -3151,8 +3154,8 @@ export const InventoryVendorService = {
       });
     }
     return InventoryVendorModel.findOne({
-      _id: vendorId,
-      organisationId: safeOrganisationId,
+      _id: String(vendorId),
+      organisationId: String(safeOrganisationId),
     });
   },
 
@@ -3164,18 +3167,24 @@ export const InventoryVendorService = {
     );
     if (isReadFromPostgres()) {
       await prisma.inventoryVendor.deleteMany({
-        where: { id: vendorId, organisationId: safeOrganisationId },
+        where: {
+          id: String(vendorId),
+          organisationId: String(safeOrganisationId),
+        },
       });
       return;
     }
     await InventoryVendorModel.findOneAndDelete({
-      _id: vendorId,
-      organisationId: safeOrganisationId,
+      _id: String(vendorId),
+      organisationId: String(safeOrganisationId),
     });
     if (shouldDualWrite) {
       try {
         await prisma.inventoryVendor.deleteMany({
-          where: { id: vendorId, organisationId: safeOrganisationId },
+          where: {
+            id: String(vendorId),
+            organisationId: String(safeOrganisationId),
+          },
         });
       } catch (err) {
         handleDualWriteError("InventoryVendor delete", err);

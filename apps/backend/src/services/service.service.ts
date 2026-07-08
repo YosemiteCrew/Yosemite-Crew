@@ -577,12 +577,11 @@ export const ServiceService = {
         await prisma.service.deleteMany({
           where:
             organisationId === undefined
-              ? { id: id }
+              ? { id: String(id) }
               : {
-                  id: id,
-                  organisationId: requireSafeString(
-                    organisationId,
-                    "organisationId",
+                  id: String(id),
+                  organisationId: String(
+                    requireSafeString(organisationId, "organisationId"),
                   ),
                 },
         });
