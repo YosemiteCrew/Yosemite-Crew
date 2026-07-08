@@ -1377,8 +1377,8 @@ const createStyles = (theme: any) => {
       resizeMode: 'contain',
     },
     emptyStateTitle: {
-      ...theme.typography.businessSectionTitle20,
-      color: theme.colors.secondary,
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
       textAlign: 'center',
     },
     emptyStateMessage: {

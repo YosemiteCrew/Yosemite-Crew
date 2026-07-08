@@ -244,8 +244,8 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['6'],
     },
     emptyTitle: {
-      ...theme.typography.businessSectionTitle20,
-      color: theme.colors.secondary,
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
       textAlign: 'center',
       marginBottom: theme.spacing['3'],
     },
