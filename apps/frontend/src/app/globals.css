@@ -1128,6 +1128,70 @@ html[data-theme='dark'] {
   --field-bg: #241f18;
 }
 
+/* Dark overrides for coloured ramps, status chips, and semantic one-offs so tinted
+   badges, alerts, pills, chat, and calendar surfaces flip with the theme. Status values
+   match the DS dark set. Light mode is unaffected (these only apply under data-theme=dark). */
+html[data-theme='dark'] {
+  /* tinted chip backgrounds + text (success / warning / danger / brand) */
+  --color-success-100: rgba(74, 205, 155, 0.16);
+  --color-success-700: #74d0a2;
+  --color-success-600: #2bbd86;
+  --color-warning-100: rgba(245, 168, 60, 0.16);
+  --color-warning-700: #f2b56b;
+  --color-danger-100: rgba(234, 55, 41, 0.18);
+  --color-danger-700: #f2938a;
+  --color-primary-100: rgba(143, 182, 245, 0.16);
+  --color-blue-light: rgba(143, 182, 245, 0.16);
+  --color-blue-text: #8fb6f5;
+  --color-text-brand: #8fb6f5;
+  --color-text-error: #f2938a;
+  /* warning / pending / danger-soft surfaces */
+  --color-card-warning: rgba(245, 168, 60, 0.14);
+  --color-white-pending: rgba(245, 168, 60, 0.14);
+  --color-danger-soft: rgba(234, 55, 41, 0.18);
+  /* overlays + shadows */
+  --color-overlay-backdrop: rgba(0, 0, 0, 0.62);
+  --color-shadow-soft: rgba(0, 0, 0, 0.4);
+  --color-shadow-xs: rgba(0, 0, 0, 0.28);
+  --color-shadow-sm: rgba(0, 0, 0, 0.5);
+  --color-shadow-md: rgba(0, 0, 0, 0.55);
+  /* chat surfaces */
+  --color-chat-surface: #221d17;
+  --color-chat-panel: #2a2216;
+  --color-chat-panel-border: #40362b;
+  --color-chat-divider: #3a3128;
+  --color-chat-divider-soft: #302820;
+  --color-chat-surface-soft: #262019;
+  --color-chat-empty-bg: #201c18;
+  /* calendar gridlines */
+  --color-calendar-line-strong: #4a4136;
+  --color-calendar-line-soft: #302820;
+  /* active input border */
+  --color-input-border-active: #8fb6f5;
+  /* DS Badge status set — dark tint-on-dark equivalents */
+  --status-requested-bg: rgba(255, 255, 255, 0.07);
+  --status-requested-text: #b9b0a4;
+  --status-requested-border: rgba(255, 255, 255, 0.28);
+  --status-upcoming-bg: rgba(37, 123, 237, 0.18);
+  --status-upcoming-text: #9cc4f8;
+  --status-upcoming-border: rgba(103, 160, 239, 0.6);
+  --status-checked-in-bg: rgba(99, 102, 241, 0.18);
+  --status-checked-in-text: #bcbef9;
+  --status-checked-in-border: rgba(129, 132, 245, 0.6);
+  --status-in-progress-bg: rgba(139, 92, 246, 0.18);
+  --status-in-progress-text: #cdb8fa;
+  --status-in-progress-border: rgba(154, 113, 247, 0.6);
+  --status-completed-bg: rgba(74, 205, 155, 0.16);
+  --status-completed-text: #74d0a2;
+  --status-completed-border: rgba(74, 205, 155, 0.5);
+  --status-cancelled-bg: rgba(249, 115, 22, 0.16);
+  --status-cancelled-text: #f9b47a;
+  --status-cancelled-border: rgba(249, 115, 22, 0.5);
+  --status-no-show-bg: rgba(249, 115, 22, 0.16);
+  --status-no-show-text: #f9b47a;
+  --status-no-show-border: rgba(249, 115, 22, 0.5);
+}
+
 /* PIMS app surface — native control theming + post-paint flip transition.
    Scoped to [data-yc-app] (the app shell root) so the transition never touches
    the marketing tree, and the initial paint never animates (gated on

@@ -8,7 +8,7 @@ export type BadgeProps = {
 
 const toneClassMap: Record<NonNullable<BadgeProps['tone']>, string> = {
   neutral: 'bg-card-bg text-text-secondary',
-  brand: 'bg-[#006AE0] text-white',
+  brand: 'bg-primary-600 text-white',
   success: 'bg-success-100 text-success-700',
   warning: 'bg-warning-100 text-warning-700',
   danger: 'bg-danger-100 text-danger-700',
