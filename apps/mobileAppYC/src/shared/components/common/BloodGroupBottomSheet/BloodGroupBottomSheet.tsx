@@ -1,7 +1,10 @@
 // src/components/common/BloodGroupBottomSheet/BloodGroupBottomSheet.tsx
-import React, { forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
-import { GenericSelectBottomSheet, type SelectItem } from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
-import type { CompanionCategory } from '@/features/companion/types';
+import React, {useImperativeHandle, useRef, useMemo} from 'react';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import type {CompanionCategory} from '@/features/companion/types';
 
 export interface BloodGroupBottomSheetRef {
   open: () => void;
@@ -46,10 +49,14 @@ const BLOOD_GROUPS: Record<CompanionCategory, string[]> = {
   ],
 };
 
-export const BloodGroupBottomSheet = forwardRef<
-  BloodGroupBottomSheetRef,
-  BloodGroupBottomSheetProps
->(({ selectedBloodGroup, category, onSave }, ref) => {
+export const BloodGroupBottomSheet = ({
+  selectedBloodGroup,
+  category,
+  onSave,
+  ref,
+}: BloodGroupBottomSheetProps & {
+  ref?: React.Ref<BloodGroupBottomSheetRef>;
+}) => {
   const bottomSheetRef = useRef<any>(null);
 
   const bloodGroupItems: SelectItem[] = useMemo(() => {
@@ -62,10 +69,12 @@ export const BloodGroupBottomSheet = forwardRef<
     }));
   }, [category]);
 
-  const selectedItem = selectedBloodGroup ? {
-    id: selectedBloodGroup,
-    label: selectedBloodGroup,
-  } : null;
+  const selectedItem = selectedBloodGroup
+    ? {
+        id: selectedBloodGroup,
+        label: selectedBloodGroup,
+      }
+    : null;
 
   useImperativeHandle(ref, () => ({
     open: () => {
@@ -94,6 +103,6 @@ export const BloodGroupBottomSheet = forwardRef<
       maxListHeight={300}
     />
   );
-});
+};
 
 BloodGroupBottomSheet.displayName = 'BloodGroupBottomSheet';

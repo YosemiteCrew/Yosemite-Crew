@@ -3,14 +3,14 @@ import {
   View,
   Image,
   Text,
-  TouchableOpacity,
   Alert,
-  Dimensions,
+  useWindowDimensions,
   Share,
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Pdf from 'react-native-pdf';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
@@ -51,20 +51,40 @@ const buildShareLabel = (
   return companionName ? `${baseTitle} for ${companionName}` : baseTitle;
 };
 
-const PdfViewer: React.FC<{uri: string; fallback: React.ReactNode}> = ({
-  uri,
-  fallback,
-}) => {
+const PdfViewer: React.FC<{
+  uri: string;
+  fallback: React.ReactNode;
+  onTouchStart?: () => void;
+  onTouchEnd?: () => void;
+}> = ({uri, fallback, onTouchStart, onTouchEnd}) => {
   const {theme} = useTheme();
-  const height = Math.max(Dimensions.get('window').height * 0.6, 400);
+  const {height: windowHeight} = useWindowDimensions();
+  const height = Math.max(windowHeight * 0.6, 400);
   const [shouldFallback, setShouldFallback] = React.useState(false);
+  const [pageInfo, setPageInfo] = React.useState({page: 1, numberOfPages: 1});
 
   if (shouldFallback) {
     return <>{fallback}</>;
   }
 
+  // android-pdf-viewer has no native scrollbar (unlike iOS's UIScrollView),
+  // so render a lightweight thumb driven by the page-change callbacks.
+  const trackHeight = height - 24;
+  const thumbHeight = Math.max(trackHeight / pageInfo.numberOfPages, 28);
+  const thumbTop =
+    pageInfo.numberOfPages > 1
+      ? ((pageInfo.page - 1) / (pageInfo.numberOfPages - 1)) *
+        (trackHeight - thumbHeight)
+      : 0;
+  const showScrollIndicator =
+    Platform.OS === 'android' && pageInfo.numberOfPages > 1;
+
   return (
-    <View style={[viewerStyles.pdfContainer(theme.borderRadius.lg), {height}]}>
+    <View
+      style={[viewerStyles.pdfContainer(theme.borderRadius.lg), {height}]}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}>
       <Pdf
         source={{uri, cache: true}}
         style={viewerStyles.pdf}
@@ -72,16 +92,36 @@ const PdfViewer: React.FC<{uri: string; fallback: React.ReactNode}> = ({
         enablePaging
         enableAntialiasing
         spacing={4}
+        showsVerticalScrollIndicator
+        showsHorizontalScrollIndicator
         renderActivityIndicator={() => (
           <View style={viewerStyles.loader}>
             <ActivityIndicator />
           </View>
         )}
+        onLoadComplete={numberOfPages =>
+          setPageInfo(prev => ({...prev, numberOfPages}))
+        }
+        onPageChanged={(page, numberOfPages) =>
+          setPageInfo({page, numberOfPages})
+        }
         onError={error => {
           console.warn('[DocumentAttachmentViewer] PDF error', error);
           setShouldFallback(true);
         }}
       />
+      {showScrollIndicator && (
+        <View
+          style={viewerStyles.scrollTrack(trackHeight)}
+          pointerEvents="none">
+          <View
+            style={[
+              viewerStyles.scrollThumb(theme.colors.primary),
+              {height: thumbHeight, top: thumbTop},
+            ]}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -91,7 +131,8 @@ const DocViewer: React.FC<{fallback?: React.ReactNode; fileName?: string}> = ({
   fileName,
 }) => {
   const {theme} = useTheme();
-  const height = Math.max(Dimensions.get('window').height * 0.6, 400);
+  const {height: windowHeight} = useWindowDimensions();
+  const height = Math.max(windowHeight * 0.6, 400);
 
   return (
     <View style={[viewerStyles.docContainer(theme.borderRadius.lg), {height}]}>
@@ -109,15 +150,85 @@ const DocViewer: React.FC<{fallback?: React.ReactNode; fileName?: string}> = ({
   );
 };
 
+const ensureStoragePermission = async () => {
+  if (Platform.OS !== 'android') {
+    return true;
+  }
+  // For API 33+, writing to Downloads does not require legacy storage permission.
+  if (Platform.Version >= 33) {
+    return true;
+  }
+  const result = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+  );
+  return result === PermissionsAndroid.RESULTS.GRANTED;
+};
+
+const handleDownload = async (file: DocumentFile) => {
+  const sourceUri = resolveSourceUri(file);
+  if (!sourceUri) {
+    Alert.alert(
+      'Unavailable',
+      'We could not find a download link for this file. Please try again later.',
+    );
+    return;
+  }
+
+  try {
+    const hasPermission = await ensureStoragePermission();
+    if (!hasPermission) {
+      Alert.alert(
+        'Permission needed',
+        'Please grant storage permission to download files.',
+      );
+      return;
+    }
+
+    const normalizedType = normalizeMimeType(file.type);
+    const extension =
+      (normalizedType && MIME_EXTENSION_MAP[normalizedType]) ||
+      (normalizedType ? normalizedType.split('/').pop() : undefined) ||
+      'bin';
+    const safeName = (file.name || 'document').replaceAll(/[\\/:]/g, '_');
+    const fileName = safeName.toLowerCase().endsWith(`.${extension}`)
+      ? safeName
+      : `${safeName}.${extension}`;
+    const downloadDir =
+      RNFS.DownloadDirectoryPath ?? RNFS.DocumentDirectoryPath;
+    const downloadPath = `${downloadDir}/${fileName}`;
+    await RNFS.mkdir(downloadDir);
+    await RNFS.downloadFile({
+      fromUrl: sourceUri,
+      toFile: downloadPath,
+      discretionary: true,
+    }).promise;
+    Alert.alert('Download complete', `Saved to:\n${downloadPath}`);
+  } catch (error) {
+    console.warn('[DocumentAttachmentViewer] Download error', error);
+    Alert.alert(
+      'Download failed',
+      'Unable to download the file. Please check your connection and try again.',
+    );
+  }
+};
+
 export interface DocumentAttachmentViewerProps {
   attachments: DocumentFile[];
   documentTitle?: string;
   companionName?: string | null;
+  onPdfTouchStart?: () => void;
+  onPdfTouchEnd?: () => void;
 }
 
 export const DocumentAttachmentViewer: React.FC<
   DocumentAttachmentViewerProps
-> = ({attachments, documentTitle, companionName}) => {
+> = ({
+  attachments,
+  documentTitle,
+  companionName,
+  onPdfTouchStart,
+  onPdfTouchEnd,
+}) => {
   const {theme} = useTheme();
   const styles = createAttachmentStyles(theme);
 
@@ -132,7 +243,7 @@ export const DocumentAttachmentViewer: React.FC<
       </View>
     );
   }
-  const renderPlaceholder = (message: string) => (
+  const buildPlaceholder = (message: string) => (
     <View style={styles.pdfPlaceholder}>
       <Image source={Images.documentIcon} style={styles.pdfIcon} />
       <Text style={styles.pdfLabel}>{message}</Text>
@@ -157,68 +268,6 @@ export const DocumentAttachmentViewer: React.FC<
     }
   };
 
-  const ensureStoragePermission = async () => {
-    if (Platform.OS !== 'android') {
-      return true;
-    }
-    // For API 33+, writing to Downloads does not require legacy storage permission.
-    if (Platform.Version >= 33) {
-      return true;
-    }
-    const result = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-    );
-    return result === PermissionsAndroid.RESULTS.GRANTED;
-  };
-
-  const handleDownload = async (file: DocumentFile) => {
-    const sourceUri = resolveSourceUri(file);
-    if (!sourceUri) {
-      Alert.alert(
-        'Unavailable',
-        'We could not find a download link for this file. Please try again later.',
-      );
-      return;
-    }
-
-    try {
-      const hasPermission = await ensureStoragePermission();
-      if (!hasPermission) {
-        Alert.alert(
-          'Permission needed',
-          'Please grant storage permission to download files.',
-        );
-        return;
-      }
-
-      const normalizedType = normalizeMimeType(file.type);
-      const extension =
-        (normalizedType && MIME_EXTENSION_MAP[normalizedType]) ||
-        (normalizedType ? normalizedType.split('/').pop() : undefined) ||
-        'bin';
-      const safeName = (file.name || 'document').replaceAll(/[\\/:]/g, '_');
-      const fileName = safeName.toLowerCase().endsWith(`.${extension}`)
-        ? safeName
-        : `${safeName}.${extension}`;
-      const downloadDir =
-        RNFS.DownloadDirectoryPath ?? RNFS.DocumentDirectoryPath;
-      const downloadPath = `${downloadDir}/${fileName}`;
-      await RNFS.mkdir(downloadDir);
-      await RNFS.downloadFile({
-        fromUrl: sourceUri,
-        toFile: downloadPath,
-        discretionary: true,
-      }).promise;
-      Alert.alert('Download complete', `Saved to:\n${downloadPath}`);
-    } catch (error) {
-      console.warn('[DocumentAttachmentViewer] Download error', error);
-      Alert.alert(
-        'Download failed',
-        'Unable to download the file. Please check your connection and try again.',
-      );
-    }
-  };
-
   return (
     <View style={{gap: theme.spacing['6']}}>
       {attachments.map(file => {
@@ -226,7 +275,7 @@ export const DocumentAttachmentViewer: React.FC<
         const canPreview = Boolean(sourceUri);
         const isPdf = isPdfFile(file.type);
         const isDoc = isDocViewerFile(file.type);
-        const placeholder = renderPlaceholder(
+        const placeholder = buildPlaceholder(
           canPreview
             ? 'Preview unavailable right now. Try downloading or check back later.'
             : 'File is missing or the link is broken.',
@@ -254,13 +303,20 @@ export const DocumentAttachmentViewer: React.FC<
                   );
                 }
                 if (isPdf && sourceUri) {
-                  return <PdfViewer uri={sourceUri} fallback={placeholder} />;
+                  return (
+                    <PdfViewer
+                      uri={sourceUri}
+                      fallback={placeholder}
+                      onTouchStart={onPdfTouchStart}
+                      onTouchEnd={onPdfTouchEnd}
+                    />
+                  );
                 }
                 if (isDoc && sourceUri) {
                   return (
                     <DocViewer
                       fileName={file.name}
-                      fallback={renderPlaceholder(
+                      fallback={buildPlaceholder(
                         'Preview disabled for this file type. Download the file to view it securely.',
                       )}
                     />
@@ -278,14 +334,14 @@ export const DocumentAttachmentViewer: React.FC<
               })()}
 
               <View style={styles.actionRow}>
-                <TouchableOpacity
+                <PressableOpacity
                   style={styles.shareButton}
                   onPress={() => handleShare(file)}
                   accessibilityRole="button"
                   accessibilityLabel="Share attachment">
                   <Image source={Images.shareIcon} style={styles.shareIcon} />
-                </TouchableOpacity>
-                <TouchableOpacity
+                </PressableOpacity>
+                <PressableOpacity
                   style={styles.downloadButton}
                   onPress={() => handleDownload(file)}
                   accessibilityRole="button"
@@ -294,7 +350,7 @@ export const DocumentAttachmentViewer: React.FC<
                     source={Images.downloadIcon}
                     style={styles.downloadIcon}
                   />
-                </TouchableOpacity>
+                </PressableOpacity>
               </View>
             </LiquidGlassCard>
           </View>
@@ -327,5 +383,21 @@ const viewerStyles = {
     color,
     textAlign: 'center' as const,
     paddingHorizontal: 16,
+  }),
+  scrollTrack: (trackHeight: number) => ({
+    position: 'absolute' as const,
+    right: 4,
+    top: 12,
+    width: 4,
+    height: trackHeight,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+  }),
+  scrollThumb: (color: string) => ({
+    position: 'absolute' as const,
+    right: 0,
+    width: 4,
+    borderRadius: 2,
+    backgroundColor: color,
   }),
 };

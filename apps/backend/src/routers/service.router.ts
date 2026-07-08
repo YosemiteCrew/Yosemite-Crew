@@ -33,7 +33,19 @@ router.post(
   ServiceController.getCalendarPrefill,
 );
 router.get("/:id", ServiceController.getServiceById);
-router.patch("/:id", authorizeCognito, ServiceController.updateService);
-router.delete("/:id", authorizeCognito, ServiceController.deleteService);
+router.patch(
+  "/:id",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("specialities:edit:any"),
+  ServiceController.updateService,
+);
+router.delete(
+  "/:id",
+  authorizeCognito,
+  withOrgPermissions(),
+  requirePermission("specialities:edit:any"),
+  ServiceController.deleteService,
+);
 
 export default router;

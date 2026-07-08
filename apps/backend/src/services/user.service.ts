@@ -1,17 +1,8 @@
 import validator from "validator";
-import UserModel, { type UserDocument, type UserMongo } from "../models/user";
-import UserOrganizationModel from "../models/user-organization";
-import UserProfileModel from "../models/user-profile";
-import BaseAvailabilityModel from "../models/base-availability";
-import WeeklyAvailabilityOverrideModel from "../models/weekly-availablity-override";
-import { OccupancyModel } from "../models/occupancy";
-import { UserOrganizationService } from "./user-organization.service";
 import { User } from "@yosemite-crew/types";
 import { CognitoService } from "./cognito.service";
 import { OrganizationService } from "./organization.service";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
-import { isReadFromPostgres } from "src/config/read-switch";
 
 export class UserServiceError extends Error {
   constructor(
@@ -83,7 +74,7 @@ const toBoolean = (value: unknown, field: string): boolean => {
   throw new UserServiceError(`${field} must be a boolean.`, 400);
 };
 
-const sanitizeUserAttributes = (payload: User): UserMongo => {
+const sanitizeUserAttributes = (payload: User) => {
   const userId = requireSafeIdentifier(payload.id, "User id");
   const email = requireString(payload.email, "Email");
   const firstName = requireString(payload.firstName, "First name");
@@ -112,64 +103,22 @@ type UserDomain = {
   isActive: boolean;
 };
 
-const toUserDomain = (document: UserDocument): UserDomain => {
-  const { userId, email, firstName, lastName, isActive } = document;
-
-  return {
-    id: userId,
-    firstName,
-    lastName,
-    email,
-    isActive,
-  };
-};
-
-const toUserDomainFromPrisma = (user: {
+const toUserDomain = (user: {
   userId: string;
   email: string;
   firstName: string | null;
   lastName: string | null;
   isActive: boolean;
-}): UserDomain => ({
-  id: user.userId,
-  firstName: user.firstName ?? "",
-  lastName: user.lastName ?? "",
-  email: user.email,
-  isActive: user.isActive,
-});
+}): UserDomain => {
+  const { userId, email, firstName, lastName, isActive } = user;
 
-const syncUserToPostgres = async (doc: UserDocument) => {
-  if (!shouldDualWrite) return;
-  try {
-    const obj = doc.toObject() as UserMongo & {
-      _id: { toString(): string };
-      createdAt?: Date;
-      updatedAt?: Date;
-    };
-    await prisma.user.upsert({
-      where: { id: obj._id.toString() },
-      create: {
-        id: obj._id.toString(),
-        userId: obj.userId,
-        email: obj.email,
-        isActive: obj.isActive ?? true,
-        firstName: obj.firstName ?? undefined,
-        lastName: obj.lastName ?? undefined,
-        createdAt: obj.createdAt ?? undefined,
-        updatedAt: obj.updatedAt ?? undefined,
-      },
-      update: {
-        userId: obj.userId,
-        email: obj.email,
-        isActive: obj.isActive ?? true,
-        firstName: obj.firstName ?? undefined,
-        lastName: obj.lastName ?? undefined,
-        updatedAt: obj.updatedAt ?? undefined,
-      },
-    });
-  } catch (err) {
-    handleDualWriteError("User", err);
-  }
+  return {
+    id: userId,
+    firstName: firstName ?? "",
+    lastName: lastName ?? "",
+    email,
+    isActive,
+  };
 };
 
 const collectOwnerOrganizationIds = (
@@ -192,166 +141,118 @@ const collectOwnerOrganizationIds = (
   return ownerOrganizationIds;
 };
 
-const deleteUserOrganizationMappings = async (
-  mappings: Array<{ _id: { toString(): string } }>,
-) => {
-  for (const mapping of mappings) {
-    await UserOrganizationService.deleteById(mapping._id.toString());
-  }
-};
-
-const cleanupDualWriteUserData = async (userId: string) => {
-  try {
-    await prisma.userProfile.deleteMany({ where: { userId } });
-  } catch (err) {
-    handleDualWriteError("UserProfile delete", err);
-  }
-
-  try {
-    await prisma.baseAvailability.deleteMany({ where: { userId } });
-  } catch (err) {
-    handleDualWriteError("BaseAvailability delete", err);
-  }
-
-  try {
-    await prisma.weeklyAvailabilityOverride.deleteMany({
-      where: { userId },
-    });
-  } catch (err) {
-    handleDualWriteError("WeeklyAvailabilityOverride delete", err);
-  }
-
-  try {
-    await prisma.occupancy.deleteMany({ where: { userId } });
-  } catch (err) {
-    handleDualWriteError("Occupancy delete", err);
-  }
-};
-
 export const UserService = {
   async create(payload: User): Promise<UserDomain> {
     const attributes = sanitizeUserAttributes(payload);
 
-    const existingById = await UserModel.findOne(
-      { userId: attributes.userId },
-      null,
-      { sanitizeFilter: true },
-    );
-
-    if (existingById) {
-      throw new UserServiceError(
-        "User with the same id or email already exists.",
-        409,
-      );
-    }
-
-    const existingByEmail = await UserModel.findOne(
-      { email: attributes.email },
-      null,
-      { sanitizeFilter: true },
-    );
-
-    if (existingByEmail) {
-      throw new UserServiceError(
-        "User with the same id or email already exists.",
-        409,
-      );
-    }
-
-    const document = await UserModel.create({
-      userId: attributes.userId,
-      email: attributes.email,
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      isActive: attributes.isActive,
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [{ userId: attributes.userId }, { email: attributes.email }],
+      },
+      select: { id: true },
     });
 
-    await syncUserToPostgres(document);
+    if (existing) {
+      throw new UserServiceError(
+        "User with the same id or email already exists.",
+        409,
+      );
+    }
 
-    return toUserDomain(document);
+    const user = await prisma.user.create({
+      data: {
+        userId: attributes.userId,
+        email: attributes.email,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        isActive: attributes.isActive,
+      },
+      select: {
+        userId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+      },
+    });
+
+    return toUserDomain(user);
   },
 
   async getById(id: unknown): Promise<UserDomain | null> {
     const userId = requireSafeIdentifier(id, "User id");
 
-    if (isReadFromPostgres()) {
-      const user = await prisma.user.findFirst({
-        where: { userId },
-      });
-
-      return user ? toUserDomainFromPrisma(user) : null;
-    }
-
-    const document = await UserModel.findOne({ userId }, null, {
-      sanitizeFilter: true,
+    const user = await prisma.user.findFirst({
+      where: { userId },
+      select: {
+        userId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+      },
     });
 
-    if (!document) {
-      return null;
-    }
-
-    return toUserDomain(document);
+    return user ? toUserDomain(user) : null;
   },
 
   async deleteById(id: unknown): Promise<boolean> {
     const userId = requireSafeIdentifier(id, "User id");
 
-    const existing = await UserModel.findOne({ userId }, null, {
-      sanitizeFilter: true,
-    }).lean();
+    const existing = await prisma.user.findFirst({
+      where: { userId },
+      select: { id: true },
+    });
 
     if (!existing) {
       return false;
     }
 
-    const mappings = await UserOrganizationModel.find(
-      {
-        $or: [
+    const mappings = await prisma.userOrganization.findMany({
+      where: {
+        OR: [
           { practitionerReference: userId },
           { practitionerReference: `Practitioner/${userId}` },
         ],
       },
-      { roleCode: 1, organizationReference: 1 },
-      { sanitizeFilter: true },
-    ).lean();
+      select: { id: true, roleCode: true, organizationReference: true },
+    });
 
-    const ownerOrganizationIds = collectOwnerOrganizationIds(mappings);
-    await deleteUserOrganizationMappings(mappings);
-
-    await Promise.all([
-      UserProfileModel.deleteMany({ userId }).setOptions({
-        sanitizeFilter: true,
-      }),
-      BaseAvailabilityModel.deleteMany({ userId }).setOptions({
-        sanitizeFilter: true,
-      }),
-      WeeklyAvailabilityOverrideModel.deleteMany({ userId }).setOptions({
-        sanitizeFilter: true,
-      }),
-      OccupancyModel.deleteMany({ userId }).setOptions({
-        sanitizeFilter: true,
-      }),
-    ]);
-
-    if (shouldDualWrite) {
-      await cleanupDualWriteUserData(userId);
-    }
-
-    const updated = await UserModel.findOneAndUpdate(
-      { userId },
-      { $set: { isActive: false } },
-      { sanitizeFilter: true },
+    const ownerOrganizationIds = collectOwnerOrganizationIds(
+      mappings.map((mapping) => ({
+        _id: { toString: () => mapping.id },
+        roleCode: mapping.roleCode,
+        organizationReference: mapping.organizationReference,
+      })),
     );
 
-    if (updated) {
-      await syncUserToPostgres(updated);
+    await Promise.all(
+      mappings.map((mapping) =>
+        prisma.userOrganization.delete({ where: { id: mapping.id } }),
+      ),
+    );
+
+    await Promise.all([
+      prisma.userProfile.deleteMany({ where: { userId } }),
+      prisma.baseAvailability.deleteMany({ where: { userId } }),
+      prisma.weeklyAvailabilityOverride.deleteMany({ where: { userId } }),
+      prisma.occupancy.deleteMany({ where: { userId } }),
+    ]);
+
+    const updated = await prisma.user.updateMany({
+      where: { userId },
+      data: { isActive: false },
+    });
+
+    if (updated.count === 0) {
+      return false;
     }
 
     for (const organizationId of ownerOrganizationIds) {
       await OrganizationService.deleteById(organizationId);
     }
 
-    return Boolean(updated);
+    return true;
   },
 
   async updateName(payload: {
@@ -363,8 +264,15 @@ export const UserService = {
     const firstName = requireString(payload.firstName, "First name");
     const lastName = requireString(payload.lastName, "Last name");
 
-    const user = await UserModel.findOne({ userId }, null, {
-      sanitizeFilter: true,
+    const user = await prisma.user.findFirst({
+      where: { userId },
+      select: {
+        userId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+      },
     });
 
     if (!user) {
@@ -382,14 +290,22 @@ export const UserService = {
       lastName,
     });
 
-    user.firstName = firstName;
-    user.lastName = lastName;
+    const updatedUser = await prisma.user.update({
+      where: { userId },
+      data: {
+        firstName,
+        lastName,
+      },
+      select: {
+        userId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+      },
+    });
 
-    await user.save();
-
-    await syncUserToPostgres(user);
-
-    return toUserDomain(user);
+    return toUserDomain(updatedUser);
   },
 };
 

@@ -316,6 +316,41 @@ describe('socialAuth', () => {
     ).toHaveBeenCalledWith('fb-auth-token', 'nonce-123');
   });
 
+  it('signs in with Facebook on Android using the access token flow', async () => {
+    const {AccessToken, LoginManager} = require('react-native-fbsdk-next');
+    RN.Platform.OS = 'android';
+    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({
+      isCancelled: false,
+    });
+    (AccessToken.getCurrentAccessToken as jest.Mock).mockResolvedValueOnce({
+      accessToken: 'android-facebook-token',
+    });
+
+    let signInWithSocialProvider: any;
+    jest.isolateModules(() => {
+      mockConfigModule();
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
+      jest.unmock('@/features/auth/services/socialAuth');
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
+    });
+
+    const result = await signInWithSocialProvider('facebook');
+
+    expect(result.tokens.idToken).toBe('id-jwt');
+    expect(
+      mockFirebaseAuth.FacebookAuthProvider.credential,
+    ).toHaveBeenCalledWith('android-facebook-token');
+  });
+
   it('signs in with Apple on iOS and resolves profile', async () => {
     const {appleAuth} = require('@invertase/react-native-apple-authentication');
     appleAuth.performRequest.mockResolvedValueOnce({
@@ -751,6 +786,82 @@ describe('socialAuth', () => {
     );
   });
 
+  it('formats single provider account-exists guidance', async () => {
+    const {AccessToken, LoginManager} = require('react-native-fbsdk-next');
+    RN.Platform.OS = 'android';
+    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({
+      isCancelled: false,
+    });
+    (AccessToken.getCurrentAccessToken as jest.Mock).mockResolvedValueOnce({
+      accessToken: 'facebook-access-token',
+    });
+    mockFirebaseAuth.fetchSignInMethodsForEmail.mockResolvedValueOnce([
+      'google.com',
+    ]);
+    mockFirebaseAuth.signInWithCredential.mockRejectedValueOnce({
+      code: 'auth/account-exists-with-different-credential',
+      customData: {email: 'test@example.com'},
+    });
+
+    let signInWithSocialProvider: any;
+    jest.isolateModules(() => {
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
+      jest.unmock('@/features/auth/services/socialAuth');
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
+    });
+
+    await expect(signInWithSocialProvider('facebook')).rejects.toThrow(
+      /Sign in with Google and try again/i,
+    );
+  });
+
+  it('falls back to generic account-exists guidance when sign-in method lookup fails', async () => {
+    const {AccessToken, LoginManager} = require('react-native-fbsdk-next');
+    RN.Platform.OS = 'android';
+    (LoginManager.logInWithPermissions as jest.Mock).mockResolvedValueOnce({
+      isCancelled: false,
+    });
+    (AccessToken.getCurrentAccessToken as jest.Mock).mockResolvedValueOnce({
+      accessToken: 'facebook-access-token',
+    });
+    mockFirebaseAuth.fetchSignInMethodsForEmail.mockRejectedValueOnce(
+      new Error('lookup failed'),
+    );
+    mockFirebaseAuth.signInWithCredential.mockRejectedValueOnce({
+      code: 'auth/account-exists-with-different-credential',
+      customData: {email: 'test@example.com'},
+    });
+
+    let signInWithSocialProvider: any;
+    jest.isolateModules(() => {
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
+      jest.unmock('@/features/auth/services/socialAuth');
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
+    });
+
+    await expect(signInWithSocialProvider('facebook')).rejects.toThrow(
+      /existing login method/i,
+    );
+  });
+
   it('handles account-exists without recoverable email (no sign-in methods)', async () => {
     const {AccessToken, LoginManager} = require('react-native-fbsdk-next');
     RN.Platform.OS = 'android';
@@ -1169,6 +1280,44 @@ describe('socialAuth', () => {
     // Should succeed despite Keychain write failure
     const result = await signInWithSocialProvider('apple');
     expect(result.user.email).toBe('user@apple.com');
+  });
+
+  it('continues when clearing the legacy Apple profile cache fails', async () => {
+    const AsyncStorage = jest.requireMock(
+      '@react-native-async-storage/async-storage',
+    );
+    (AsyncStorage.removeItem as jest.Mock).mockRejectedValueOnce(
+      new Error('storage locked'),
+    );
+
+    const {appleAuth} = require('@invertase/react-native-apple-authentication');
+    RN.Platform.OS = 'ios';
+    appleAuth.performRequest.mockResolvedValueOnce({
+      identityToken: 'apple-token',
+      nonce: 'nonce-123',
+      user: 'apple-user-id',
+      email: 'legacy@apple.com',
+      fullName: {givenName: 'Legacy', familyName: 'User'},
+    });
+
+    let signInWithSocialProvider: any;
+    jest.isolateModules(() => {
+      jest.doMock(
+        '@react-native-google-signin/google-signin',
+        () => ({
+          GoogleSignin: mockGoogle,
+          statusCodes: {SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED'},
+        }),
+        {virtual: true},
+      );
+      jest.unmock('@/features/auth/services/socialAuth');
+      ({
+        signInWithSocialProvider,
+      } = require('@/features/auth/services/socialAuth'));
+    });
+
+    const result = await signInWithSocialProvider('apple');
+    expect(result.user.email).toBe('legacy@apple.com');
   });
 
   it('cacheAppleProfile continues when AsyncStorage.setItem throws', async () => {

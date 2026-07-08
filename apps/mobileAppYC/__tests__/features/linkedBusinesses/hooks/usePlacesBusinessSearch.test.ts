@@ -74,7 +74,16 @@ describe('usePlacesBusinessSearch', () => {
   });
 
   describe('Initialization & Search Logic', () => {
+    it('does not enable the location store before a searchable query', () => {
+      const {useLocationStore} = require('@/shared/stores/locationStore');
+
+      renderHook(() => usePlacesBusinessSearch(defaultProps));
+
+      expect(useLocationStore).toHaveBeenLastCalledWith(false);
+    });
+
     it('passes location from store to search', async () => {
+      const {useLocationStore} = require('@/shared/stores/locationStore');
       (searchBusinessesByLocation as unknown as jest.Mock).mockReturnValue({
         payload: [],
       });
@@ -91,6 +100,7 @@ describe('usePlacesBusinessSearch', () => {
       expect(searchBusinessesByLocation).toHaveBeenCalledWith(
         expect.objectContaining({location: {latitude: 50, longitude: 50}}),
       );
+      expect(useLocationStore).toHaveBeenCalledWith(true);
     });
 
     it('works without location when store returns null', async () => {
@@ -111,6 +121,34 @@ describe('usePlacesBusinessSearch', () => {
 
       expect(searchBusinessesByLocation).toHaveBeenCalledWith(
         expect.objectContaining({location: null}),
+      );
+    });
+
+    it('uses provided location without enabling the location store', async () => {
+      const {useLocationStore} = require('@/shared/stores/locationStore');
+      (searchBusinessesByLocation as unknown as jest.Mock).mockReturnValue({
+        payload: [],
+      });
+      const providedLocation = {latitude: 12, longitude: 34};
+      const {result} = renderHook(() =>
+        usePlacesBusinessSearch({
+          ...defaultProps,
+          location: providedLocation,
+          useStoredLocation: false,
+        }),
+      );
+
+      act(() => {
+        result.current.handleSearchChange('abc');
+      });
+
+      await act(async () => {
+        jest.advanceTimersByTime(800);
+      });
+
+      expect(useLocationStore).toHaveBeenCalledWith(false);
+      expect(searchBusinessesByLocation).toHaveBeenCalledWith(
+        expect.objectContaining({location: providedLocation}),
       );
     });
 

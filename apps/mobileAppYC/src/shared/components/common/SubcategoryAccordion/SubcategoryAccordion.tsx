@@ -1,5 +1,6 @@
-import React, {useState} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Image} from 'react-native';
+import React from 'react';
+import {View, Text, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -30,13 +31,13 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const expandedRef = React.useRef(defaultExpanded);
   const animatedHeight = useSharedValue(defaultExpanded ? 1 : 0);
   const chevronRotation = useSharedValue(defaultExpanded ? 1 : 0);
 
   const toggleExpanded = () => {
-    const newExpanded = !expanded;
-    setExpanded(newExpanded);
+    const newExpanded = !expandedRef.current;
+    expandedRef.current = newExpanded;
     animatedHeight.value = withTiming(newExpanded ? 1 : 0, {duration: 300});
     chevronRotation.value = withTiming(newExpanded ? 1 : 0, {duration: 300});
   };
@@ -73,7 +74,7 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
         colorScheme="light"
         style={styles.container}
         fallbackStyle={styles.fallback}>
-        <TouchableOpacity
+        <PressableOpacity
           style={styles.header}
           onPress={toggleExpanded}
           activeOpacity={0.7}>
@@ -96,7 +97,7 @@ export const SubcategoryAccordion: React.FC<SubcategoryAccordionProps> = ({
             source={Images.downArrow}
             style={[styles.chevron, chevronAnimatedStyle]}
           />
-        </TouchableOpacity>
+        </PressableOpacity>
 
         <Animated.View style={contentAnimatedStyle}>
           <View style={styles.content}>{children}</View>

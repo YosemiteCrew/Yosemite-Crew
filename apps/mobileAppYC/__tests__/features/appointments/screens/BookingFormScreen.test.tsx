@@ -221,6 +221,8 @@ jest.mock(
           <View testID="label-app">
             <Text>{props.agreements[2].label}</Text>
           </View>
+          <Text testID="appointment-type-value">{props.appointmentType}</Text>
+          <Text testID="emergency-value">{String(props.emergency)}</Text>
 
           {props.actions}
 
@@ -365,11 +367,12 @@ describe('BookingFormScreen', () => {
       ...storeOverrides,
     });
 
-    return render(
+    const rendered = render(
       <Provider store={finalStore}>
         <BookingFormScreen />
       </Provider>,
     );
+    return {...rendered, store: finalStore};
   };
 
   it('renders correctly and fetches slots on mount', () => {
@@ -598,6 +601,29 @@ describe('BookingFormScreen', () => {
     });
   });
 
+  it('handles appointment creation failure without payload or error message', async () => {
+    jest.spyOn(Alert, 'alert');
+    const {getByTestId} = setup();
+
+    fireEvent.press(getByTestId('select-slot'));
+    fireEvent.press(getByTestId('toggle-agree-business'));
+    fireEvent.press(getByTestId('toggle-agree-app'));
+
+    (createAppointment as unknown as jest.Mock).mockReturnValue({
+      type: 'appointments/createAppointment/rejected',
+      error: {},
+    });
+
+    fireEvent.press(getByTestId('submit-booking-btn'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Booking failed',
+        'Unable to book appointment. Please try again.',
+      );
+    });
+  });
+
   it('handles appointment creation exception', async () => {
     jest.spyOn(Alert, 'alert');
     const {getByTestId} = setup();
@@ -615,6 +641,27 @@ describe('BookingFormScreen', () => {
       expect(Alert.alert).toHaveBeenCalledWith(
         'Booking failed',
         'Network crash',
+      );
+    });
+  });
+
+  it('handles non-error appointment creation exceptions', async () => {
+    jest.spyOn(Alert, 'alert');
+    const {getByTestId} = setup();
+    fireEvent.press(getByTestId('select-slot'));
+    fireEvent.press(getByTestId('toggle-agree-business'));
+    fireEvent.press(getByTestId('toggle-agree-app'));
+
+    (createAppointment as unknown as jest.Mock).mockImplementation(() => {
+      throw 'string crash';
+    });
+
+    fireEvent.press(getByTestId('submit-booking-btn'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Booking failed',
+        'Unable to book appointment. Please try again.',
       );
     });
   });
@@ -703,6 +750,21 @@ describe('BookingFormScreen', () => {
     const {getByTestId} = setup();
     fireEvent.press(getByTestId('toggle-emergency'));
     fireEvent.press(getByTestId('change-type'));
+  });
+
+  it('clears emergency when changing to a non-emergency type after emergency is enabled', async () => {
+    const {getByTestId} = setup();
+
+    fireEvent.press(getByTestId('toggle-emergency'));
+    await waitFor(() => {
+      expect(getByTestId('emergency-value').props.children).toBe('true');
+    });
+
+    fireEvent.press(getByTestId('change-type'));
+
+    await waitFor(() => {
+      expect(getByTestId('emergency-value').props.children).toBe('false');
+    });
   });
 
   it('interacts with document upload sheet', () => {
@@ -918,6 +980,60 @@ describe('BookingFormScreen', () => {
     }));
   });
 
+  it('resets emergency when preset specialty changes away from Emergency', async () => {
+    const selectServiceByIdMock =
+      require('../../../../src/features/appointments/selectors').selectServiceById;
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: null,
+      basePrice: 50,
+    }));
+
+    const rendered = setup({
+      ...defaultParams,
+      appointmentType: 'Emergency',
+      serviceSpecialty: undefined,
+    });
+
+    fireEvent.press(rendered.getByTestId('toggle-emergency'));
+    await waitFor(() => {
+      expect(rendered.getByTestId('emergency-value').props.children).toBe(
+        'true',
+      );
+    });
+
+    const useRoute = require('@react-navigation/native').useRoute;
+    useRoute.mockReturnValue({
+      params: {
+        ...defaultParams,
+        appointmentType: 'Wellness',
+        serviceSpecialty: undefined,
+      },
+    });
+
+    rendered.rerender(
+      <Provider store={rendered.store}>
+        <BookingFormScreen />
+      </Provider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        rendered.getByTestId('appointment-type-value').props.children,
+      ).toBe('Wellness');
+      expect(rendered.getByTestId('emergency-value').props.children).toBe(
+        'false',
+      );
+    });
+
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: 'General',
+    }));
+  });
+
   it('handles OT link failure gracefully and still navigates', async () => {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const {
@@ -955,5 +1071,287 @@ describe('BookingFormScreen', () => {
     });
 
     consoleSpy.mockRestore();
+  });
+
+  it('falls back to the businessId route param when the business is not found in state', () => {
+    const {getByTestId} = setup(defaultParams, {
+      businesses: {businesses: []},
+    });
+    expect(getByTestId('form-content')).toBeTruthy();
+  });
+
+  it('falls back to "Observational Tool" for the service label when otContext has no service or name', () => {
+    const selectServiceByIdMock =
+      require('../../../../src/features/appointments/selectors').selectServiceById;
+    selectServiceByIdMock.mockReturnValueOnce(() => null);
+
+    const {getByTestId} = setup({
+      ...defaultParams,
+      otContext: {submissionId: 'sub-none'},
+      serviceId: undefined,
+      serviceName: undefined,
+    });
+
+    expect(getByTestId('form-content')).toBeTruthy();
+
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: 'General',
+    }));
+  });
+
+  it('has no service card when neither the service lookup nor serviceName resolve (non-OT)', () => {
+    const selectServiceByIdMock =
+      require('../../../../src/features/appointments/selectors').selectServiceById;
+    selectServiceByIdMock.mockReturnValueOnce(() => null);
+
+    const {queryByTestId} = setup({
+      ...defaultParams,
+      serviceId: undefined,
+      serviceName: undefined,
+      otContext: false,
+    });
+
+    // No resolvable service name -> serviceCard is undefined -> no edit-service button.
+    expect(queryByTestId('edit-service')).toBeNull();
+
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: 'General',
+    }));
+  });
+
+  it('reports only the missing service when every other field is complete', () => {
+    jest.spyOn(Alert, 'alert');
+    const selectServiceByIdMock =
+      require('../../../../src/features/appointments/selectors').selectServiceById;
+    // Use mockReturnValue (not Once): the component re-evaluates
+    // selectServiceById(...) on every re-render triggered by the fireEvents
+    // below, so a one-shot override would be consumed before submit.
+    selectServiceByIdMock.mockReturnValue(() => null);
+
+    const {getByTestId} = setup({
+      ...defaultParams,
+      serviceId: undefined,
+      serviceName: undefined,
+    });
+
+    fireEvent.press(getByTestId('select-slot'));
+    fireEvent.press(getByTestId('toggle-agree-business'));
+    fireEvent.press(getByTestId('toggle-agree-app'));
+
+    fireEvent.press(getByTestId('submit-booking-btn'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Complete booking details',
+      'Please select service to continue.',
+    );
+
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: 'General',
+    }));
+  });
+
+  it('assigns no employee when neither the slot nor the service provide one', async () => {
+    const selectServiceByIdMock =
+      require('../../../../src/features/appointments/selectors').selectServiceById;
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: 'General',
+      defaultEmployeeId: undefined,
+    }));
+
+    const {getByTestId} = setup();
+
+    fireEvent.press(getByTestId('select-slot'));
+    fireEvent.press(getByTestId('toggle-agree-business'));
+    fireEvent.press(getByTestId('toggle-agree-app'));
+
+    (createAppointment as unknown as jest.Mock).mockReturnValue({
+      type: 'appointments/createAppointment/fulfilled',
+      payload: {appointment: {id: 'appt-noemp', companionId: 'c1'}},
+      unwrap: () =>
+        Promise.resolve({
+          appointment: {id: 'appt-noemp', companionId: 'c1'},
+        }),
+    });
+
+    fireEvent.press(getByTestId('submit-booking-btn'));
+
+    await waitFor(() => {
+      expect(createAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          employeeId: null,
+          employeeName: null,
+        }),
+      );
+    });
+
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: 'General',
+    }));
+  });
+
+  it('builds fallback UTC and local times when no slot window or parsed times exist', async () => {
+    const availability = require('../../../../src/features/appointments/utils/availability');
+    availability.findSlotByLabel.mockReturnValueOnce(null);
+    availability.parseSlotLabel.mockReturnValueOnce({});
+
+    const {getByTestId} = setup();
+    fireEvent.press(getByTestId('select-slot'));
+    fireEvent.press(getByTestId('toggle-agree-business'));
+    fireEvent.press(getByTestId('toggle-agree-app'));
+
+    (createAppointment as unknown as jest.Mock).mockReturnValue({
+      type: 'appointments/createAppointment/fulfilled',
+      payload: {appointment: {id: 'appt-fallback', companionId: 'c1'}},
+    });
+
+    fireEvent.press(getByTestId('submit-booking-btn'));
+
+    await waitFor(() => {
+      expect(createAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startTime: '10:00',
+          endTime: '10:00',
+          startTimeUtc: '2025-01-01T10:00:00.000Z',
+          endTimeUtc: '2025-01-01T10:00:00.000Z',
+        }),
+      );
+    });
+  });
+
+  it('filters uploaded files without keys and handles missing content type', async () => {
+    const {getByTestId} = setup();
+
+    act(() => {
+      capturedSetFiles([{name: 'missing-key.pdf', uri: 'path/1'}] as any);
+    });
+
+    fireEvent.press(getByTestId('select-slot'));
+    fireEvent.press(getByTestId('toggle-agree-business'));
+    fireEvent.press(getByTestId('toggle-agree-app'));
+
+    (uploadDocumentFiles as unknown as jest.Mock).mockImplementation(args => ({
+      type: 'documents/upload/pending',
+      meta: {arg: args},
+      unwrap: () =>
+        Promise.resolve([
+          {key: '', name: 'missing-key.pdf'},
+          {key: 'valid-key', name: 'valid.pdf'},
+        ]),
+    }));
+
+    (createAppointment as unknown as jest.Mock).mockReturnValue({
+      type: 'appointments/createAppointment/fulfilled',
+      payload: {appointment: {id: 'appt-upload', companionId: 'c1'}},
+    });
+
+    fireEvent.press(getByTestId('submit-booking-btn'));
+
+    await waitFor(() => {
+      expect(createAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          attachments: [
+            {key: 'valid-key', name: 'valid.pdf', contentType: null},
+          ],
+        }),
+      );
+    });
+  });
+
+  it('uses employee name from business employees state when assigned', async () => {
+    const selectServiceByIdMock =
+      require('../../../../src/features/appointments/selectors').selectServiceById;
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: 'General',
+      defaultEmployeeId: 'emp-1',
+      basePrice: 50,
+    }));
+    const {getByTestId} = setup(defaultParams, {
+      businesses: {
+        businesses: [{id: 'biz-1', name: 'Vet Clinic', address: '123 St'}],
+        employees: [{id: 'emp-1', name: 'Dr. Smith'}],
+      },
+    });
+
+    fireEvent.press(getByTestId('select-slot'));
+    fireEvent.press(getByTestId('toggle-agree-business'));
+    fireEvent.press(getByTestId('toggle-agree-app'));
+
+    (createAppointment as unknown as jest.Mock).mockReturnValue({
+      type: 'appointments/createAppointment/fulfilled',
+      payload: {appointment: {id: 'appt-employee-name', companionId: 'c1'}},
+    });
+
+    fireEvent.press(getByTestId('submit-booking-btn'));
+
+    await waitFor(() => {
+      expect(createAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          employeeId: 'emp-1',
+          employeeName: 'Dr. Smith',
+        }),
+      );
+    });
+
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: 'General',
+    }));
+  });
+
+  it('falls back employee name to null when assigned employee is not in state', async () => {
+    const selectServiceByIdMock =
+      require('../../../../src/features/appointments/selectors').selectServiceById;
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: 'General',
+      defaultEmployeeId: 'emp-1',
+      basePrice: 50,
+    }));
+    const {getByTestId} = setup(defaultParams, {
+      businesses: {
+        businesses: [{id: 'biz-1', name: 'Vet Clinic', address: '123 St'}],
+        employees: [],
+      },
+    });
+
+    fireEvent.press(getByTestId('select-slot'));
+    fireEvent.press(getByTestId('toggle-agree-business'));
+    fireEvent.press(getByTestId('toggle-agree-app'));
+
+    (createAppointment as unknown as jest.Mock).mockReturnValue({
+      type: 'appointments/createAppointment/fulfilled',
+      payload: {appointment: {id: 'appt-employee', companionId: 'c1'}},
+    });
+
+    fireEvent.press(getByTestId('submit-booking-btn'));
+
+    await waitFor(() => {
+      expect(createAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          employeeId: 'emp-1',
+          employeeName: null,
+        }),
+      );
+    });
+
+    selectServiceByIdMock.mockReturnValue(() => ({
+      id: 'svc-1',
+      name: 'Service',
+      specialty: 'General',
+    }));
   });
 });

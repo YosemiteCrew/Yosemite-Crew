@@ -52,7 +52,7 @@ jobs:
 
           if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
             # Only ask Turbo for frontend build tasks since BASE_SHA
-            pnpm dlx turbo run build --filter=frontend...[${BASE_SHA}] --dry=json > affected-frontend.json || echo '{"tasks":[]}' > affected-frontend.json
+            pnpm dlx turbo@2.8.3 run build --filter=frontend...[${BASE_SHA}] --dry=json > affected-frontend.json || echo '{"tasks":[]}' > affected-frontend.json
           else
             echo "⚠️ Base SHA not found, assuming frontend is affected"
             echo '{"tasks":[{"package":"frontend"}]}' > affected-frontend.json

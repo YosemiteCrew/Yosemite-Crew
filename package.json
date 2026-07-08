@@ -15,7 +15,7 @@
     "commitlint": "commitlint --edit",
     "check:secrets": "secretlint \"**/*\" --maskSecrets",
     "check:staged-secrets": "node scripts/check-staged-secrets.js",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "pnpm exec react-doctor"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

@@ -54,6 +54,7 @@ export const DocumentPreviewScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   const {documentId, initialDocument} = route.params;
+  const [isPdfInteracting, setIsPdfInteracting] = React.useState(false);
 
   const storedDocument = useSelector((state: RootState) =>
     state.documents.documents.find(doc => doc.id === documentId),
@@ -216,6 +217,8 @@ export const DocumentPreviewScreen: React.FC = () => {
       {contentPaddingStyle => (
         <ScrollView
           style={styles.container}
+          nestedScrollEnabled
+          scrollEnabled={!isPdfInteracting}
           contentContainerStyle={[
             styles.contentContainer,
             contentPaddingStyle,
@@ -231,6 +234,8 @@ export const DocumentPreviewScreen: React.FC = () => {
               attachments={document.files}
               documentTitle={document.title}
               companionName={companion?.name}
+              onPdfTouchStart={() => setIsPdfInteracting(true)}
+              onPdfTouchEnd={() => setIsPdfInteracting(false)}
             />
           </View>
         </ScrollView>

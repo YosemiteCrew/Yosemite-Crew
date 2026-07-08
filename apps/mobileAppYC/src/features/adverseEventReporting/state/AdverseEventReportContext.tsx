@@ -1,4 +1,4 @@
-import React, {createContext, useContext, useMemo, useState} from 'react';
+import React, {createContext, use, useMemo, useState} from 'react';
 import type {
   AdverseEventProductInfo,
   AdverseEventReportDraft,
@@ -70,7 +70,7 @@ export const AdverseEventReportProvider: React.FC<{
 };
 
 export const useAdverseEventReport = (): AdverseEventReportContextValue => {
-  const ctx = useContext(AdverseEventReportContext);
+  const ctx = use(AdverseEventReportContext);
   if (!ctx) {
     throw new Error(
       'useAdverseEventReport must be used within an AdverseEventReportProvider',

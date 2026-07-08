@@ -1,4 +1,4 @@
-import React, {forwardRef, useImperativeHandle, useMemo, useRef} from 'react';
+import React, {useImperativeHandle, useMemo, useRef} from 'react';
 import {
   GenericSelectBottomSheet,
   type GenericSelectBottomSheetRef,
@@ -46,23 +46,27 @@ const resolveFlag = (countryCode: string) => {
 
 // Map only supported currencies (EUR, USD) to options with their flags
 const mapToOptions = (): CurrencyOption[] =>
-  CURRENCIES.filter(currency =>
-    SUPPORTED_CURRENCIES.includes(currency.code as any),
-  ).map(currency => {
+  CURRENCIES.flatMap(currency => {
+    if (!SUPPORTED_CURRENCIES.includes(currency.code as any)) {
+      return [];
+    }
     const flag = resolveFlag(currency.countryCode);
-    return {
-      id: currency.code,
-      label: `${flag} ${currency.name} (${currency.symbol})`,
-      code: currency.code,
-      symbol: currency.symbol,
-      flag,
-    };
+    return [
+      {
+        id: currency.code,
+        label: `${flag} ${currency.name} (${currency.symbol})`,
+        code: currency.code,
+        symbol: currency.symbol,
+        flag,
+      },
+    ];
   });
 
-export const CurrencyBottomSheet = forwardRef<
-  CurrencyBottomSheetRef,
-  CurrencyBottomSheetProps
->(({selectedCurrency, onSave}, ref) => {
+export const CurrencyBottomSheet = ({
+  selectedCurrency,
+  onSave,
+  ref,
+}: CurrencyBottomSheetProps & {ref?: React.Ref<CurrencyBottomSheetRef>}) => {
   const sheetRef = useRef<GenericSelectBottomSheetRef>(null);
 
   const currencyOptions = useMemo(() => mapToOptions(), []);
@@ -104,6 +108,6 @@ export const CurrencyBottomSheet = forwardRef<
       mode="select"
     />
   );
-});
+};
 
 CurrencyBottomSheet.displayName = 'CurrencyBottomSheet';

@@ -564,4 +564,11 @@ export type WorkspaceFinalizationGate = {
   requiredTasksComplete?: boolean;
 };
 
-export type SideAction = 'RECORD' | 'TASKS' | 'DOCUMENTS' | 'CHAT' | 'ACTIVITY' | 'MSD';
+export type SideAction =
+  | 'RECORD'
+  | 'TASKS'
+  | 'DOCUMENTS'
+  | 'CHAT'
+  | 'ACTIVITY'
+  | 'MSD'
+  | 'CALCULATORS';

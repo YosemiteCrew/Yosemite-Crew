@@ -1,4 +1,4 @@
-import {useSyncExternalStore} from 'react';
+import {useCallback, useSyncExternalStore} from 'react';
 import LocationService from '@/shared/services/LocationService';
 
 type Coords = {latitude: number; longitude: number} | null;
@@ -36,6 +36,26 @@ function getSnapshot(): Coords {
   return _coords;
 }
 
-export function useLocationStore(): Coords {
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+export function useLocationStore(enabled = true): Coords {
+  const subscribeIfEnabled = useCallback(
+    (listener: () => void) => {
+      if (!enabled) {
+        return () => {};
+      }
+
+      return subscribe(listener);
+    },
+    [enabled],
+  );
+
+  const getSnapshotIfEnabled = useCallback(
+    () => (enabled ? getSnapshot() : null),
+    [enabled],
+  );
+
+  return useSyncExternalStore(
+    subscribeIfEnabled,
+    getSnapshotIfEnabled,
+    getSnapshotIfEnabled,
+  );
 }

@@ -15,18 +15,14 @@ import {
 } from '@/shared/hooks/useFormBottomSheets';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {CategoryBottomSheet} from '@/shared/components/common/CategoryBottomSheet/CategoryBottomSheet';
-import {
-  SubcategoryBottomSheet,
-  EXPENSE_SUBCATEGORIES,
-} from '@/shared/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
+import {SubcategoryBottomSheet} from '@/shared/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
+import {EXPENSE_SUBCATEGORIES} from '@/shared/components/common/SubcategoryBottomSheet/subcategoryData';
 import {VisitTypeBottomSheet} from '@/shared/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import {Input} from '@/shared/components/common';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {UploadDocumentBottomSheet} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
 import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';

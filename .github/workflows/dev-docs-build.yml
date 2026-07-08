@@ -9,6 +9,10 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
 
+concurrency:
+  group: dev-docs-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-dev-docs:
     name: Build dev-docs (Docusaurus)

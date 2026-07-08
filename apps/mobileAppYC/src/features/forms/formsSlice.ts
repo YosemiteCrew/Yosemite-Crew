@@ -397,8 +397,9 @@ const formsSlice = createSlice({
           if (entry.submission?._id !== submissionId) {
             return entry;
           }
+          const {submission} = entry;
           const signing = {
-            ...(entry.submission?.signing ?? {
+            ...(submission.signing ?? {
               required: true,
               provider: 'DOCUMENSO' as const,
               status: 'IN_PROGRESS' as const,
@@ -407,17 +408,12 @@ const formsSlice = createSlice({
             documentId:
               typeof documentId === 'number'
                 ? String(documentId)
-                : documentId || entry.submission?.signing?.documentId,
+                : documentId || submission.signing?.documentId,
           };
-          const submission = entry.submission
-            ? {...entry.submission, signing}
-            : null;
-          if (!submission) {
-            return entry;
-          }
+          const updatedSubmission = {...submission, signing};
           return buildEntry({
             form: entry.form,
-            submission,
+            submission: updatedSubmission,
             source: entry.source,
             formVersion: entry.formVersion,
             signingUrl: signingUrl ?? entry.signingUrl ?? null,

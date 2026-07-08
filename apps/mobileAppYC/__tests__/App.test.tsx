@@ -6,6 +6,13 @@ import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import {Amplify} from 'aws-amplify';
 
+jest.mock('@aws-amplify/react-native', () => ({}));
+
+jest.mock('@react-native-masked-view/masked-view', () => ({
+  __esModule: true,
+  default: 'MaskedView',
+}));
+
 jest.mock('@stripe/stripe-react-native', () => ({
   StripeProvider: ({children}: {children: React.ReactNode}) => <>{children}</>,
   useStripe: () => ({

@@ -185,6 +185,16 @@ const Footer = () => {
                         style={{ height: 'auto' }}
                       />
                     </li>
+                    <li>
+                      <Image
+                        src={MEDIA_SOURCES.footer.fda}
+                        alt=""
+                        width={48}
+                        height={48}
+                        className="fda-footer"
+                        style={{ height: 'auto' }}
+                      />
+                    </li>
                   </ul>
                   <Link
                     href={PLATFORM_STATUS_URL}
