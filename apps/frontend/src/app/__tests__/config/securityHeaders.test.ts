@@ -147,6 +147,23 @@ describe('security headers', () => {
     expect(directives.get('frame-src')).toContain('https://ds.yosemitecrew.com');
   });
 
+  test('allows the EU PostHog host from env', () => {
+    const originalHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    process.env.NEXT_PUBLIC_POSTHOG_HOST = 'https://eu.i.posthog.com';
+
+    const directives = parseCspDirectives(
+      buildContentSecurityPolicy({
+        nonce: 'test-nonce',
+        documensoHost: 'https://sign.example.com',
+      })
+    );
+
+    process.env.NEXT_PUBLIC_POSTHOG_HOST = originalHost;
+
+    expect(directives.get('script-src')).toContain('https://eu.i.posthog.com');
+    expect(directives.get('connect-src')).toContain('https://eu.i.posthog.com');
+  });
+
   test('does not allow the US PostHog host from env', () => {
     const originalHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
     process.env.NEXT_PUBLIC_POSTHOG_HOST = 'https://us.i.posthog.com';
