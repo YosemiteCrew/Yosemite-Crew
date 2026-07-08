@@ -268,7 +268,14 @@ export const typography = {
   // Paragraph / body
   paragraph: body,
   paragraphBold: bodyBold,
-  paragraph18Bold: bodyMedium,
+  // YC "Paragraph 18 Bold" - 18/700 Satoshi (was mistakenly aliased to
+  // bodyMedium, which renders 16/500).
+  paragraph18Bold: {
+    ...bodyBold,
+    fontSize: 18,
+    lineHeight: 21.6,
+    letterSpacing: -0.36,
+  },
   clashBody13: {
     fontFamily: fonts.SATOSHI_MEDIUM,
     fontSize: fontSizes['13'],

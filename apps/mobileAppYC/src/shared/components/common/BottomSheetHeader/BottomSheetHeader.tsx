@@ -62,7 +62,7 @@ const createStyles = (theme: any) =>
       paddingRight: theme.spacing['12'],
     },
     title: {
-      // Left-aligned 18/700 Satoshi (paragraph18Bold resolves to 16/500).
+      // Left-aligned 18/700 Satoshi title with a slightly taller line height.
       ...theme.typography.paragraphBold,
       fontSize: 18,
       lineHeight: 24,
