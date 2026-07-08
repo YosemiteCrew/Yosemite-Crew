@@ -319,9 +319,9 @@ const Dropdown = ({
             <FaSortDown color="var(--color-neutral-600)" size={20} />
           </div>
         </button>
-        <label className="select-floating-label" aria-hidden="true">
+        <span className="select-floating-label" aria-hidden="true">
           {placeholder}
-        </label>
+        </span>
 
         {open && !disabled && shouldPortal && portalStyle && createPortal(panel, document.body)}
         {open && !disabled && !shouldPortal && panel}

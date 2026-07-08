@@ -53,6 +53,14 @@ const DEFAULT_DROP_AVAILABILITY_INTERVALS: Array<{ startMinute: number; endMinut
 const DEFAULT_UNAVAILABLE_SEGMENTS: Array<{ startMinute: number; endMinute: number }> = [];
 const DEFAULT_INVOICES_BY_APPOINTMENT_ID: Record<string, Invoice> = {};
 
+const getSlotEventKey = (event: Appointment): string =>
+  [
+    event.id,
+    (event.companion ?? event.patient).name,
+    event.startTime.toISOString(),
+    event.endTime.toISOString(),
+  ].join('-');
+
 type ContextMenuState = {
   appointment: Appointment;
   x: number;
@@ -174,12 +182,7 @@ const SlotComponent: React.FC<SlotProps> = ({
   );
 
   const activeEvent = useMemo(
-    () =>
-      sortedSlotEvents.find(
-        (ev, i) =>
-          `${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}-${i}` ===
-          activePopoverKey
-      ) ?? null,
+    () => sortedSlotEvents.find((ev) => getSlotEventKey(ev) === activePopoverKey) ?? null,
     [sortedSlotEvents, activePopoverKey]
   );
   const handleOpenPopover = (
@@ -232,7 +235,7 @@ const SlotComponent: React.FC<SlotProps> = ({
 
   const laidOutZoomInEvents = useMemo(() => {
     const base = sortedSlotEvents
-      .map((ev, index) => {
+      .map((ev) => {
         const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
         const rawDurationMinutes = Math.max(
           5,
@@ -241,7 +244,6 @@ const SlotComponent: React.FC<SlotProps> = ({
         const visibleDurationMinutes = Math.max(10, Math.min(rawDurationMinutes, 60 - startMinute));
         return {
           ev,
-          originalIndex: index,
           startMinute,
           endMinute: startMinute + visibleDurationMinutes,
           visibleDurationMinutes,
@@ -487,8 +489,8 @@ const SlotComponent: React.FC<SlotProps> = ({
           <div className="flex flex-col px-1 py-0 h-full bg-transparent overflow-visible">
             {(() => {
               let cursorMinute = 0;
-              return sortedSlotEvents.map((ev, i) => {
-                const itemKey = `${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}-${i}`;
+              return sortedSlotEvents.map((ev) => {
+                const itemKey = getSlotEventKey(ev);
                 const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
                 const rawDurationMinutes = Math.max(
                   5,
@@ -527,15 +529,8 @@ const SlotComponent: React.FC<SlotProps> = ({
         ) : (
           <div className="relative h-full bg-white overflow-visible px-1">
             {laidOutZoomInEvents.map(
-              ({
-                ev,
-                originalIndex,
-                startMinute,
-                visibleDurationMinutes,
-                laneIndex,
-                laneCount,
-              }) => {
-                const itemKey = `${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}-${originalIndex}`;
+              ({ ev, startMinute, visibleDurationMinutes, laneIndex, laneCount }) => {
+                const itemKey = getSlotEventKey(ev);
                 const topPx = (startMinute / 60) * height;
                 const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 40);
 
