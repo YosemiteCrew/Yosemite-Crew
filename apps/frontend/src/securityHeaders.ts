@@ -59,9 +59,11 @@ const getAllowedPostHogHost = () => {
 export const buildContentSecurityPolicy = ({
   nonce,
   documensoHost = DEFAULT_DOCUMENSO_HOST,
+  allowInlineScripts = false,
 }: {
   nonce?: string;
   documensoHost?: string;
+  allowInlineScripts?: boolean;
 } = {}) => {
   const isProduction = process.env.NODE_ENV === 'production';
   const isDevelopment = !isProduction;
@@ -75,6 +77,7 @@ export const buildContentSecurityPolicy = ({
     [
       "script-src 'self'",
       nonceSource,
+      allowInlineScripts ? "'unsafe-inline'" : undefined,
       isDevelopment ? "'unsafe-eval'" : undefined,
       'https://js.stripe.com',
       'https://*.js.stripe.com',

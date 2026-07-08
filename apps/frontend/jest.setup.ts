@@ -10,9 +10,7 @@ configureAxe({
   },
 });
 
-if (typeof globalThis.HTMLElement !== 'undefined') {
-  globalThis.HTMLElement.prototype.scrollIntoView = jest.fn();
-}
+globalThis.HTMLElement.prototype.scrollIntoView = jest.fn();
 // Polyfill for window.matchMedia
 Object.defineProperty(globalThis, 'matchMedia', {
   writable: true,
@@ -61,17 +59,13 @@ Object.defineProperty(globalThis, 'IntersectionObserver', {
   value: IntersectionObserverMock,
 });
 
-if (typeof HTMLElement !== 'undefined') {
-  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
-    value: jest.fn(),
-    writable: true,
-  });
-}
+Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+  value: jest.fn(),
+  writable: true,
+});
 
 beforeAll(() => {
-  if (typeof window !== 'undefined') {
-    window.scrollTo = jest.fn();
-  }
+  window.scrollTo = jest.fn();
   // Silence noisy logs but keep them visible locally by toggling with an env flag if you want
   jest.spyOn(console, 'log').mockImplementation(() => {});
 
