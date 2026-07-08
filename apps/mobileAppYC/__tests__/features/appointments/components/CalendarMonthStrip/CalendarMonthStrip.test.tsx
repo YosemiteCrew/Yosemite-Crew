@@ -22,16 +22,34 @@ jest.mock('@/assets/images', () => ({
 }));
 
 jest.mock('react-native/Libraries/Lists/FlatList', () => {
+  const ReactActual = require('react');
   const {View: RNView} = require('react-native');
-  const MockFlatList = ({data, renderItem, keyExtractor}: any) => (
-    <RNView testID="flatlist">
-      {data?.map((item: any, index: number) => (
-        <RNView key={keyExtractor ? keyExtractor(item) : index}>
-          {renderItem({item, index, separators: {} as any})}
-        </RNView>
-      ))}
-    </RNView>
-  );
+  // Forwards a ref exposing scrollToIndex so the component's dateListRef.current
+  // is truthy, letting the scroll-to-selected effect run instead of early-returning.
+  // Behavior is driven via globalThis (not an outer const) to avoid jest.mock's
+  // hoisting placing this factory above any local variable's initialization.
+  const MockFlatList = ReactActual.forwardRef((props: any, ref: any) => {
+    const {data, renderItem, keyExtractor, getItemLayout} = props;
+    ReactActual.useImperativeHandle(ref, () => ({
+      scrollToIndex: () => {
+        if ((globalThis as any).__calendarStripScrollShouldThrow) {
+          throw new Error('scrollToIndex failed');
+        }
+        (globalThis as any).__calendarStripScrollCalls =
+          ((globalThis as any).__calendarStripScrollCalls || 0) + 1;
+      },
+    }));
+    (globalThis as any).__calendarStripGetItemLayout = getItemLayout;
+    return (
+      <RNView testID="flatlist">
+        {data?.map((item: any, index: number) => (
+          <RNView key={keyExtractor ? keyExtractor(item) : index}>
+            {renderItem({item, index, separators: {} as any})}
+          </RNView>
+        ))}
+      </RNView>
+    );
+  });
   return {
     __esModule: true,
     default: MockFlatList,
@@ -46,6 +64,9 @@ describe('CalendarMonthStrip', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    (globalThis as any).__calendarStripScrollShouldThrow = false;
+    (globalThis as any).__calendarStripScrollCalls = 0;
+    (globalThis as any).__calendarStripGetItemLayout = undefined;
   });
 
   afterEach(() => {
@@ -151,5 +172,54 @@ describe('CalendarMonthStrip', () => {
     render(<CalendarMonthStrip selectedDate={TODAY} onChange={onChange} />);
     // The day "15" should appear somewhere (selected date)
     expect(screen.getByText('15')).toBeTruthy();
+  });
+
+  it('scrolls to the selected date index shortly after mount', () => {
+    render(<CalendarMonthStrip selectedDate={TODAY} onChange={onChange} />);
+
+    jest.advanceTimersByTime(80);
+    expect((globalThis as any).__calendarStripScrollCalls).toBe(1);
+
+    jest.advanceTimersByTime(140);
+    expect((globalThis as any).__calendarStripScrollCalls).toBe(2);
+  });
+
+  it('warns without throwing when scrollToIndex fails', () => {
+    (globalThis as any).__calendarStripScrollShouldThrow = true;
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    render(<CalendarMonthStrip selectedDate={TODAY} onChange={onChange} />);
+
+    expect(() => jest.advanceTimersByTime(80)).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[CalendarMonthStrip] scrollToIndex failed',
+      expect.any(Error),
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it('does not scroll when the selected date is not visible in the current calendar view', () => {
+    render(<CalendarMonthStrip selectedDate={TODAY} onChange={onChange} />);
+    const navButtons = screen.UNSAFE_getAllByType(PressableType);
+
+    // Navigate two months forward: currentMonth becomes August 2025, but
+    // selectedDate (June 15) stays the same and falls outside that view.
+    fireEvent.press(navButtons[1]);
+    fireEvent.press(screen.UNSAFE_getAllByType(PressableType)[1]);
+
+    jest.runAllTimers();
+    expect((globalThis as any).__calendarStripScrollCalls).toBe(0);
+  });
+
+  it('computes FlatList item layout using the fixed item length and gap', () => {
+    render(<CalendarMonthStrip selectedDate={TODAY} onChange={onChange} />);
+
+    const getItemLayout = (globalThis as any).__calendarStripGetItemLayout;
+    expect(getItemLayout(null, 3)).toEqual({
+      length: 70.5,
+      offset: 3 * (70.5 + 8),
+      index: 3,
+    });
   });
 });
