@@ -129,7 +129,10 @@ const Sidebar = () => {
     });
   };
 
-  const isInitialLoading = orgStatus !== 'loaded';
+  // Skip the org-data loading gate on localhost with NEXT_PUBLIC_DISABLE_AUTH_GUARD so
+  // the nav renders for UI/styling work without a session. No effect when deployed.
+  const authGuardDisabled = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD === 'true';
+  const isInitialLoading = orgStatus !== 'loaded' && !authGuardDisabled;
   const currentRole = membership?.roleDisplay ?? membership?.roleCode;
   const authenticatedLogoHref = isDevPortal
     ? '/developers/home'

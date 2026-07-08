@@ -85,6 +85,23 @@ describe('Sidebar', () => {
     expect(container.querySelectorAll('a')).toHaveLength(0);
   });
 
+  it('renders nav routes without loaded orgs when the auth guard is disabled (local UI mode)', () => {
+    const original = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'true';
+    setupOrgStore('loading');
+    mockUseOrgList.mockReturnValue([]);
+    mockUsePrimaryOrg.mockReturnValue(null);
+
+    try {
+      const { container } = render(<Sidebar />);
+      // The org-loading shell is skipped, so the nav routes render for UI work.
+      expect(container.querySelectorAll('a').length).toBeGreaterThan(0);
+    } finally {
+      if (original === undefined) delete process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
+      else process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = original;
+    }
+  });
+
   it('links the authenticated sidebar logo to the dashboard', () => {
     setupOrgStore('loaded');
     mockUseOrgList.mockReturnValue([]);
