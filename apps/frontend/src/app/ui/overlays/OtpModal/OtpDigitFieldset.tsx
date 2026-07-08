@@ -29,7 +29,7 @@ const OtpDigitFieldset = ({
     >
       {code.map((digit, idx) => (
         <input
-          key={`${digit}-${idx}`}
+          key={idx}
           ref={(el) => setOtpRef(el, idx)}
           type="text"
           maxLength={1}
