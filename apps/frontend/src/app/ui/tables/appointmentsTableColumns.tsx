@@ -249,6 +249,7 @@ export const buildAppointmentColumns = ({
     render: (item: Appointment) => {
       const orgType = (item.organisationId && orgsById[item.organisationId]?.type) || 'HOSPITAL';
       const clinicalNotesLabel = getClinicalNotesLabel(orgType);
+      const companionName = (item.companion ?? item.patient).name || 'appointment';
 
       if (isRequestedLikeStatus(item.status)) {
         return (
@@ -260,6 +261,7 @@ export const buildAppointmentColumns = ({
                   className="action-btn"
                   style={{ background: 'var(--color-success-100)' }}
                   onClick={() => onChangeStatusAppointment(item)}
+                  aria-label={`Accept request for ${companionName}`}
                 >
                   <FaCheckCircle size={22} color="var(--color-success-400)" />
                 </button>
@@ -272,6 +274,7 @@ export const buildAppointmentColumns = ({
                 <button
                   type="button"
                   onClick={() => onCancelAppointment(item)}
+                  aria-label={`Decline request for ${companionName}`}
                   className="action-btn"
                   style={{ background: 'var(--color-danger-100)' }}
                 >
@@ -290,6 +293,7 @@ export const buildAppointmentColumns = ({
               <button
                 type="button"
                 onClick={() => onViewAppointment(item)}
+                aria-label={`View appointment for ${companionName}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               >
                 <IoEyeOutline size={20} color="var(--color-neutral-900)" />
@@ -299,6 +303,7 @@ export const buildAppointmentColumns = ({
               <button
                 type="button"
                 onClick={() => onViewAppointmentHistory(item)}
+                aria-label={`View overview for ${companionName}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Appointment overview"
               >
@@ -310,6 +315,7 @@ export const buildAppointmentColumns = ({
                 <button
                   type="button"
                   onClick={() => onChangeStatusAppointment(item)}
+                  aria-label={`Change status for ${companionName}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 >
                   <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
@@ -321,6 +327,7 @@ export const buildAppointmentColumns = ({
                 <button
                   type="button"
                   onClick={() => onRescheduleAppointment(item)}
+                  aria-label={`Reschedule appointment for ${companionName}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 >
                   <IoIosCalendar size={18} color="var(--color-neutral-900)" />
@@ -332,6 +339,7 @@ export const buildAppointmentColumns = ({
                 <button
                   type="button"
                   onClick={() => onChangeRoomAppointment(item)}
+                  aria-label={`Assign room for ${companionName}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 >
                   <MdMeetingRoom size={18} color="var(--color-neutral-900)" />
@@ -346,6 +354,7 @@ export const buildAppointmentColumns = ({
               <button
                 type="button"
                 onClick={() => onWorkspaceAppointment(item, getSoapViewIntent(item))}
+                aria-label={`${clinicalNotesLabel} for ${companionName}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title={clinicalNotesLabel}
               >
@@ -361,6 +370,7 @@ export const buildAppointmentColumns = ({
                     subLabel: 'summary',
                   })
                 }
+                aria-label={`Finance summary for ${companionName}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               >
                 <IoCardOutline size={18} color="var(--color-neutral-900)" />
@@ -375,6 +385,7 @@ export const buildAppointmentColumns = ({
                     subLabel: 'idexx-labs',
                   })
                 }
+                aria-label={`Lab tests for ${companionName}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               >
                 <MdScience size={18} color="var(--color-neutral-900)" />

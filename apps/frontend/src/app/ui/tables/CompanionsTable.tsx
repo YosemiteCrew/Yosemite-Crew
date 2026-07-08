@@ -298,76 +298,88 @@ const CompanionsTable = ({
       label: 'Actions',
       key: 'actions',
       width: '200px',
-      render: (item: CompanionParent) => (
-        <div className="action-btn-col">
-          <div className="action-btn-grid action-btn-grid-capped">
-            <GlassTooltip
-              content={terminologyText('View companion')}
-              side="bottom"
-              className="table-action-tooltip"
-            >
-              <button
-                type="button"
-                onClick={() => handleViewCompanion(item)}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                title={terminologyText('View companion')}
-              >
-                <IoEye size={20} color="var(--color-neutral-900)" />
-              </button>
-            </GlassTooltip>
-            <GlassTooltip content="View history" side="bottom" className="table-action-tooltip">
-              <button
-                type="button"
-                onClick={() => handleViewHistory(item)}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                title="View history"
-              >
-                <RiHistoryLine size={16} color="var(--color-neutral-900)" />
-              </button>
-            </GlassTooltip>
-            {canEditCompanions && (
-              <GlassTooltip content="Change status" side="bottom" className="table-action-tooltip">
-                <button
-                  type="button"
-                  onClick={() => handleChangeStatus(item)}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                  title="Change status"
-                >
-                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
-                </button>
-              </GlassTooltip>
-            )}
-            {canEditAppointments && (
+      render: (item: CompanionParent) => {
+        const companionName = item.companion.name || 'companion';
+        return (
+          <div className="action-btn-col">
+            <div className="action-btn-grid action-btn-grid-capped">
               <GlassTooltip
-                content="Book appointment"
+                content={terminologyText('View companion')}
                 side="bottom"
                 className="table-action-tooltip"
               >
                 <button
                   type="button"
-                  onClick={() => handleBookAppointment(item)}
+                  onClick={() => handleViewCompanion(item)}
+                  aria-label={`${terminologyText('View companion')} ${companionName}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                  title="Book appointment"
+                  title={terminologyText('View companion')}
                 >
-                  <FaCalendar size={14} color="var(--color-neutral-900)" />
+                  <IoEye size={20} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
-            )}
-            {canEditTasks && (
-              <GlassTooltip content="Add task" side="bottom" className="table-action-tooltip">
+              <GlassTooltip content="View history" side="bottom" className="table-action-tooltip">
                 <button
                   type="button"
-                  onClick={() => handleAddTask(item)}
+                  onClick={() => handleViewHistory(item)}
+                  aria-label={`View history for ${companionName}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                  title="Add task"
+                  title="View history"
                 >
-                  <FaTasks size={14} color="var(--color-neutral-900)" />
+                  <RiHistoryLine size={16} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
-            )}
+              {canEditCompanions && (
+                <GlassTooltip
+                  content="Change status"
+                  side="bottom"
+                  className="table-action-tooltip"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleChangeStatus(item)}
+                    aria-label={`Change status for ${companionName}`}
+                    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                    title="Change status"
+                  >
+                    <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+                  </button>
+                </GlassTooltip>
+              )}
+              {canEditAppointments && (
+                <GlassTooltip
+                  content="Book appointment"
+                  side="bottom"
+                  className="table-action-tooltip"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleBookAppointment(item)}
+                    aria-label={`Book appointment for ${companionName}`}
+                    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                    title="Book appointment"
+                  >
+                    <FaCalendar size={14} color="var(--color-neutral-900)" />
+                  </button>
+                </GlassTooltip>
+              )}
+              {canEditTasks && (
+                <GlassTooltip content="Add task" side="bottom" className="table-action-tooltip">
+                  <button
+                    type="button"
+                    onClick={() => handleAddTask(item)}
+                    aria-label={`Add task for ${companionName}`}
+                    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                    title="Add task"
+                  >
+                    <FaTasks size={14} color="var(--color-neutral-900)" />
+                  </button>
+                </GlassTooltip>
+              )}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
   ];
 
