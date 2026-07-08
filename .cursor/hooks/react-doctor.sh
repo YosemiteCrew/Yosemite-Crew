@@ -50,17 +50,10 @@ run_react_doctor() {
     return
   fi
 
-  if command -v pnpm >/dev/null 2>&1; then
-    pnpm dlx react-doctor@latest --verbose --diff --fail-on warning --no-score
-    return
-  fi
-
-  if command -v npx >/dev/null 2>&1; then
-    npx --yes react-doctor@latest --verbose --diff --fail-on warning --no-score
-    return
-  fi
-
-  printf '%s\n' 'react-doctor: command not found; skipping agent hook scan.'
+  # Do not fall back to `pnpm dlx`/`npx --yes react-doctor@latest`: fetching and
+  # executing the latest published package on every edit is an unpinned
+  # supply-chain risk. Only the lockfile-resolved local binary is trusted.
+  printf '%s\n' 'react-doctor: locked binary not installed (run pnpm install); skipping agent hook scan.'
   return 0
 }
 

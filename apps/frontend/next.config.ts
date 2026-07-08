@@ -1,6 +1,26 @@
 import type { NextConfig } from 'next';
 import { securityHeaders } from './src/securityHeaders';
 
+// Static HTML under /public (e.g. /dev-docs/openapi-ui.html) is skipped by the
+// edge middleware, which only applies the nonce CSP to app document routes.
+// Without this, those pages ship with no Content-Security-Policy and any
+// third-party script they load (Redoc's CDN bundle) runs as first-party
+// JavaScript with access to same-origin localStorage tokens. Restore a strict,
+// tightly allow-listed CSP for the docs surface here.
+const DEV_DOCS_CSP = [
+  "default-src 'self'",
+  "script-src 'self' https://cdn.redoc.ly",
+  "worker-src 'self' blob:",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: https://cdn.redoc.ly",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'self'",
+  "form-action 'self'",
+].join('; ');
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -29,6 +49,10 @@ const nextConfig: NextConfig = {
       {
         source: '/(.*)',
         headers: securityHeaders,
+      },
+      {
+        source: '/dev-docs/:path*',
+        headers: [...securityHeaders, { key: 'Content-Security-Policy', value: DEV_DOCS_CSP }],
       },
     ];
   },
