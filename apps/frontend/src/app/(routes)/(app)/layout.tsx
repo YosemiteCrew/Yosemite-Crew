@@ -1,7 +1,7 @@
 import { connection } from 'next/server';
 
 import SessionInitializer from '@/app/ui/layout/SessionInitializer';
-import { ThemeScript } from '@/app/ui/theme';
+import ThemeScript from '@/app/ui/theme/ThemeScript';
 
 interface AppLayoutProps {
   children: React.ReactNode;
