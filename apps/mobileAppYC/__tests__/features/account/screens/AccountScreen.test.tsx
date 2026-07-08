@@ -54,6 +54,12 @@ jest.mock('../../../../src/features/auth/context/AuthContext', () => ({
   useAuth: jest.fn(),
 }));
 
+// Appearance selector is covered by its own test; stub it here.
+jest.mock(
+  '@/shared/components/common/AppearanceSelector/AppearanceSelector',
+  () => ({AppearanceSelector: () => null}),
+);
+
 // Theme Hook - must return function directly, not variable
 jest.mock('../../../../src/hooks', () => ({
   useTheme: jest.fn(() => ({

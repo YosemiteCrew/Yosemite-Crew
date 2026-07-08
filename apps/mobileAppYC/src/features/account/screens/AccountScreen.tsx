@@ -34,6 +34,7 @@ import DeleteAccountBottomSheet, {
 } from '@/features/account/components/DeleteAccountBottomSheet';
 import {AccountMenuList} from '@/features/account/components/AccountMenuList';
 import {Header} from '@/shared/components/common/Header/Header';
+import {AppearanceSelector} from '@/shared/components/common/AppearanceSelector/AppearanceSelector';
 import {
   calculateAgeFromDateOfBirth,
   truncateText,
@@ -400,6 +401,8 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
             <ScrollView
               contentContainerStyle={[styles.content, contentPaddingStyle]}
               showsVerticalScrollIndicator={false}>
+              {/* Appearance (light / dark / system) */}
+              <AppearanceSelector />
               {/* Companion/Profile Card - Now uses 'profiles' from Redux data */}
               <View style={styles.cardShadowWrapper}>
                 <LiquidGlassCard
