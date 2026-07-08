@@ -147,8 +147,8 @@ const createStyles = (theme: any) => {
       color: theme.colors.textSecondary,
     },
     amount: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
+      ...theme.typography.amountHero,
+      color: theme.colors.ink,
     },
     companionAvatarWrapper: {
       width: theme.spacing['10'],
