@@ -15,6 +15,15 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 
+const OTP_DIGIT_KEYS = [
+  'otp-digit-1',
+  'otp-digit-2',
+  'otp-digit-3',
+  'otp-digit-4',
+  'otp-digit-5',
+  'otp-digit-6',
+] as const;
+
 const scrollToTop = () => {
   if (globalThis.window) {
     globalThis.scrollTo({ top: 0, behavior: 'smooth' });
@@ -361,7 +370,7 @@ const ForgotPassword = () => {
             >
               {otp.map((digit, index) => (
                 <input
-                  key={`${digit}-${index}`}
+                  key={OTP_DIGIT_KEYS[index]}
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"

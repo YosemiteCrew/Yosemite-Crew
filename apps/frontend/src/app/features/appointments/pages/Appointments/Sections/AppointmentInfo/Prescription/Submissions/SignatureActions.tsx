@@ -175,7 +175,6 @@ const SignatureActions = ({ submission, onStatusChange }: SignatureActionsProps)
     submissionId,
     onStatusChange,
     pollForSignedUrl,
-    resolveSignedUrl,
     shouldShowActions,
     submission.signing,
     submission.signatureRequired,
