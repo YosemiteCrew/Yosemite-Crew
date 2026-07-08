@@ -1,20 +1,13 @@
-import React, {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FaSortDown } from 'react-icons/fa';
 import classNames from 'classnames';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
 import countries from '@/app/lib/data/countryList';
-import { DROPDOWN_MAX_HEIGHT, DROPDOWN_MIN_HEIGHT, wrapActiveIndex } from './dropdownHelpers';
 import DropdownPanel from './DropdownPanel';
+import { useDropdownPositioning } from './useDropdownPositioning';
+import { useDropdownKeyboardNav } from './useDropdownKeyboardNav';
 
 import './Dropdown.css';
 
@@ -50,8 +43,6 @@ const Dropdown = ({
   portal = true,
 }: DropdownProps) => {
   const [open, setOpen] = useState(false);
-  const [portalStyle, setPortalStyle] = useState<React.CSSProperties | null>(null);
-  const [activeIndex, setActiveIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
   const errorId = useId();
@@ -99,11 +90,6 @@ const Dropdown = ({
     }
     return list;
   }, [list, query, search]);
-  const activeOptionId =
-    activeIndex >= 0 && activeIndex < filteredList.length
-      ? `${listboxId}-option-${filteredList[activeIndex].value}`
-      : undefined;
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -118,52 +104,17 @@ const Dropdown = ({
 
   const shouldPortal = portal && typeof document !== 'undefined';
 
-  const computePortalStyle = useCallback(() => {
-    const rect = dropdownRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const viewportHeight = globalThis.window.innerHeight;
-    const spaceBelow = viewportHeight - rect.bottom;
-    const panelMaxHeight = Math.min(
-      DROPDOWN_MAX_HEIGHT,
-      Math.max(DROPDOWN_MIN_HEIGHT, spaceBelow - 8)
-    );
-    setPortalStyle({
-      position: 'absolute',
-      left: rect.left + globalThis.window.scrollX,
-      width: rect.width,
-      top: rect.bottom + globalThis.window.scrollY - 1,
-      maxHeight: panelMaxHeight,
-      zIndex: 5000,
-    });
+  const dismissForOuterScroll = useCallback(() => {
+    setOpen(false);
+    setQuery('');
   }, []);
 
-  const computePortalStyleRef = useRef(computePortalStyle);
-  computePortalStyleRef.current = computePortalStyle;
-
-  useLayoutEffect(() => {
-    if (!open || !portal) {
-      setPortalStyle(null);
-      return;
-    }
-    computePortalStyleRef.current();
-  }, [open, portal]);
-
-  useEffect(() => {
-    if (!open || !portal) return;
-    const stableResize = () => computePortalStyleRef.current();
-    const handleOuterScroll = (event: Event) => {
-      const target = event.target;
-      if (target instanceof HTMLElement && target.closest('[data-portal-dropdown]')) return;
-      setOpen(false);
-      setQuery('');
-    };
-    globalThis.window.addEventListener('resize', stableResize);
-    globalThis.window.addEventListener('scroll', handleOuterScroll, true);
-    return () => {
-      globalThis.window.removeEventListener('resize', stableResize);
-      globalThis.window.removeEventListener('scroll', handleOuterScroll, true);
-    };
-  }, [open, portal]);
+  const { portalStyle } = useDropdownPositioning({
+    open,
+    portal,
+    dropdownRef,
+    onOuterScrollDismiss: dismissForOuterScroll,
+  });
 
   // Close on Escape key
   useEffect(() => {
@@ -178,26 +129,6 @@ const Dropdown = ({
   const isActive = open || !!value;
   const selected = list.find((opt: any) => opt.value === value);
 
-  const [activeIndexDeps, setActiveIndexDeps] = useState({ filteredList, open, value });
-  if (
-    filteredList !== activeIndexDeps.filteredList ||
-    open !== activeIndexDeps.open ||
-    value !== activeIndexDeps.value
-  ) {
-    setActiveIndexDeps({ filteredList, open, value });
-    if (!open || filteredList.length === 0) {
-      setActiveIndex(-1);
-    } else if (activeIndex < 0 || activeIndex >= filteredList.length) {
-      const selectedIndex = filteredList.findIndex((option: any) => option.value === value);
-      setActiveIndex(Math.max(selectedIndex, 0));
-    }
-  }
-
-  useEffect(() => {
-    if (!open || !activeOptionId) return;
-    document.getElementById(activeOptionId)?.scrollIntoView({ block: 'nearest' });
-  }, [activeOptionId, open]);
-
   const selectOption = useCallback(
     (option: any) => {
       const valueToSend: string = option.value ?? option.label ?? '';
@@ -208,66 +139,15 @@ const Dropdown = ({
     [onChange, returnObject]
   );
 
-  const handleArrowKey = useCallback(
-    (delta: 1 | -1) => {
-      const optionCount = filteredList.length;
-      if (optionCount === 0) return;
-      if (!open) {
-        setOpen(true);
-        return;
-      }
-      setActiveIndex((current) => wrapActiveIndex(current, optionCount, delta));
-    },
-    [filteredList.length, open]
-  );
-
-  const handleConfirmKey = useCallback(() => {
-    const optionCount = filteredList.length;
-    if (!open) {
-      setOpen(true);
-      return;
-    }
-    if (activeIndex < 0 || activeIndex >= optionCount) return;
-    selectOption(filteredList[activeIndex]);
-  }, [activeIndex, filteredList, open, selectOption]);
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      if (disabled) return;
-      const optionCount = filteredList.length;
-      switch (event.key) {
-        case 'Escape':
-          event.preventDefault();
-          setOpen(false);
-          return;
-        case 'ArrowDown':
-          event.preventDefault();
-          handleArrowKey(1);
-          return;
-        case 'ArrowUp':
-          event.preventDefault();
-          handleArrowKey(-1);
-          return;
-        case 'Home':
-          if (!open || optionCount === 0) return;
-          event.preventDefault();
-          setActiveIndex(0);
-          return;
-        case 'End':
-          if (!open || optionCount === 0) return;
-          event.preventDefault();
-          setActiveIndex(optionCount - 1);
-          return;
-        case 'Enter':
-        case ' ':
-          event.preventDefault();
-          handleConfirmKey();
-          return;
-        default:
-      }
-    },
-    [disabled, filteredList.length, handleArrowKey, handleConfirmKey, open]
-  );
+  const { setActiveIndex, activeOptionId, handleKeyDown } = useDropdownKeyboardNav({
+    open,
+    setOpen,
+    disabled,
+    filteredList,
+    value,
+    listboxId,
+    selectOption,
+  });
 
   const panel = (
     <DropdownPanel
