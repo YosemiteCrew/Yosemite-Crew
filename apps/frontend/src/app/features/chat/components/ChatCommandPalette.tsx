@@ -7,7 +7,7 @@
  * the parent's activateChannelById). Mounted once inside the chat shell.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { StreamChat, Channel, ChannelFilters, ChannelSort } from 'stream-chat';
 import { LuSearch, LuCornerDownLeft, LuCommand } from 'react-icons/lu';
 import Text from '@/app/ui/Text';
@@ -33,6 +33,14 @@ export function ChatCommandPalette({
   const [channels, setChannels] = useState<Channel[]>([]);
   const userId = client.userID;
 
+  // Reset the query as soon as the palette closes, computed during render
+  // (rather than in an effect) so there's no stale-query flash on reopen.
+  const prevOpenRef = useRef(open);
+  if (prevOpenRef.current !== open) {
+    prevOpenRef.current = open;
+    if (!open && query) setQuery('');
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -52,10 +60,7 @@ export function ChatCommandPalette({
   }, []);
 
   useEffect(() => {
-    if (!open) {
-      setQuery('');
-      return;
-    }
+    if (!open) return;
     let active = true;
     client
       .queryChannels(filters, PALETTE_SORT, { limit: 30 })
