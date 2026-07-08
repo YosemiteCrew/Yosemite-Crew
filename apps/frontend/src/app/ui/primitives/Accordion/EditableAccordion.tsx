@@ -465,6 +465,17 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     setFormValuesErrors({});
   }
 
+  const setEditingState = useCallback(
+    (nextEditing: boolean) => {
+      if (readOnly && nextEditing) {
+        return;
+      }
+      setIsEditing(nextEditing);
+      onEditingChange?.(readOnly ? false : nextEditing);
+    },
+    [onEditingChange, readOnly]
+  );
+
   const handleChange = useCallback(
     (key: string, value: any) => {
       const resets = fieldResets?.[key] ?? [];
@@ -486,9 +497,9 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     (key: string, value: any) => {
       if (readOnly) return;
       handleChange(key, value);
-      setIsEditing(true);
+      setEditingState(true);
     },
-    [readOnly, handleChange]
+    [readOnly, handleChange, setEditingState]
   );
 
   const handleMultiChange = (values: Record<string, any>) => {
@@ -518,24 +529,19 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     if (isSaving) return;
     setFormValues(buildInitialValues(fields, data));
     setFormValuesErrors({});
-    setIsEditing(false);
-  }, [data, fields, isSaving]);
+    setEditingState(false);
+  }, [data, fields, isSaving, setEditingState]);
 
-  useEffect(() => {
-    if (readOnly && isEditing) {
-      setIsEditing(false);
-      onEditingChange?.(false);
-    }
-  }, [readOnly, isEditing, onEditingChange]);
+  const effectiveEditing = readOnly ? false : isEditing;
 
   const handleSave = useCallback(async () => {
-    if (isSaving) return;
+    if (readOnly || isSaving) return;
     if (!validate()) return;
 
     setIsSaving(true);
     try {
       await onSave?.(formValues);
-      setIsEditing(false);
+      setEditingState(false);
       setError(null);
     } catch (e) {
       console.error('Failed to save accordion data:', e);
@@ -543,25 +549,19 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     } finally {
       setIsSaving(false);
     }
-  }, [formValues, isSaving, onSave, validate]);
-
-  useEffect(() => {
-    onEditingChange?.(isEditing);
-  }, [isEditing, onEditingChange]);
+  }, [formValues, isSaving, onSave, readOnly, setEditingState, validate]);
 
   useEffect(() => {
     onRegisterActions?.({
       save: handleSave,
       cancel: handleCancel,
       startEditing: () => {
-        setIsEditing(true);
+        setEditingState(true);
       },
-      isEditing: () => isEditing,
+      isEditing: () => effectiveEditing,
     });
     return () => onRegisterActions?.(null);
-  }, [onRegisterActions, handleSave, handleCancel, isEditing, onEditingChange, fields, data]);
-
-  const effectiveEditing = readOnly ? false : isEditing;
+  }, [onRegisterActions, handleSave, handleCancel, effectiveEditing, setEditingState]);
 
   const displayValues: FormValues = useMemo(() => ({ ...data, ...formValues }), [data, formValues]);
   const renderedFooter =
@@ -588,7 +588,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
       <Accordion
         title={title}
         defaultOpen={defaultOpen}
-        onEditClick={() => !readOnly && setIsEditing((prev) => !prev)}
+        onEditClick={() => setEditingState(!effectiveEditing)}
         isEditing={effectiveEditing}
         showEditIcon={!readOnly && showEditIcon}
         rightElement={rightElement}
@@ -623,7 +623,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
         </div>
       </Accordion>
 
-      {isEditing && !hideInlineActions && (
+      {effectiveEditing && !hideInlineActions && (
         <div
           className={
             compactInlineActions
