@@ -1,6 +1,11 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { HeroGlow, InkAnnotate, useParallax } from '@/app/features/marketing/site/motion';
+import {
+  HeroGlow,
+  InkAnnotate,
+  ScrollDrift,
+  useParallax,
+} from '@/app/features/marketing/site/motion';
 
 const setReducedMotion = (reduced: boolean) => {
   (globalThis as { matchMedia: unknown }).matchMedia = jest.fn().mockReturnValue({
@@ -156,5 +161,48 @@ describe('HeroGlow', () => {
     expect(glow).not.toBeNull();
     expect(glow?.getAttribute('style')).toContain('var(--glow-b12)');
     expect(glow?.getAttribute('style')).not.toContain('animation');
+  });
+});
+
+describe('ScrollDrift', () => {
+  beforeEach(() => setReducedMotion(false));
+  afterEach(() => {
+    document.body.innerHTML = '';
+    jest.restoreAllMocks();
+  });
+
+  const addLayer = (speed: string, top: number) => {
+    const el = document.createElement('div');
+    el.setAttribute('data-scroll-speed', speed);
+    el.getBoundingClientRect = () =>
+      ({ top, height: 100, left: 0, right: 0, bottom: top + 100, width: 0 }) as DOMRect;
+    document.body.appendChild(el);
+    return el;
+  };
+
+  it('drifts [data-scroll-speed] layers vertically on scroll', () => {
+    jest
+      .spyOn(globalThis, 'requestAnimationFrame')
+      .mockImplementation((cb: FrameRequestCallback) => {
+        cb(0);
+        return 0;
+      });
+    const layer = addLayer('-0.1', 900);
+    render(<ScrollDrift />);
+    fireEvent.scroll(globalThis.window);
+    expect(layer.style.transform).toContain('translate3d');
+  });
+
+  it('is inert under reduced motion', () => {
+    setReducedMotion(true);
+    const layer = addLayer('-0.1', 900);
+    render(<ScrollDrift />);
+    fireEvent.scroll(globalThis.window);
+    expect(layer.style.transform).toBe('');
+  });
+
+  it('renders nothing and no-ops when there are no drift layers', () => {
+    const { container } = render(<ScrollDrift />);
+    expect(container.firstChild).toBeNull();
   });
 });

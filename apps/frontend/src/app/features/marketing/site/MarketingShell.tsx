@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { SiteNav, type NavKey } from './SiteNav';
 import { SiteFooter } from './SiteFooter';
-import { ScrollProgress } from './motion';
+import { ScrollProgress, ScrollDrift } from './motion';
 
 interface MarketingShellProps {
   children: ReactNode;
@@ -22,6 +22,7 @@ export function MarketingShell({
   return (
     <div data-yc-theme style={{ background: 'var(--page)', color: 'var(--ink-body)' }}>
       <ScrollProgress />
+      <ScrollDrift />
       <SiteNav active={active} />
       <main
         id="main-content"

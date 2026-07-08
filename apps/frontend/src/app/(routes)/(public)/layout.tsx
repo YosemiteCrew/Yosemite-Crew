@@ -1,4 +1,5 @@
 import '@/app/features/marketing/site/marketing.css';
+import { CookieBanner } from '@/app/features/marketing/site/CookieBanner';
 
 interface PublicLayoutProps {
   children: React.ReactNode;
@@ -25,6 +26,7 @@ export default function PublicLayout({ children }: Readonly<PublicLayoutProps>) 
         }}
       />
       {children}
+      <CookieBanner />
     </>
   );
 }

@@ -392,18 +392,21 @@ function Hero() {
       {/* ambient glows — each on a parallax-depth layer so it drifts toward the cursor */}
       <HeroGlow
         depth="0.05"
+        scrollSpeed="-0.05"
         color="var(--glow-b09)"
         box={{ top: -180, left: 'calc(50% - 630px)', width: 900, height: 620 }}
         animation="ycDrift 26s ease-in-out infinite alternate"
       />
       <HeroGlow
         depth="0.06"
+        scrollSpeed="0.04"
         color="var(--glow-c10)"
         box={{ bottom: -220, right: -120, width: 760, height: 560 }}
         animation="ycDrift 34s ease-in-out 4s infinite alternate-reverse"
       />
       <HeroGlow
         depth="0.04"
+        scrollSpeed="-0.03"
         color="var(--glow-p07)"
         box={{ bottom: -160, left: -140, width: 620, height: 480 }}
         animation="ycDrift 40s ease-in-out 2s infinite alternate"

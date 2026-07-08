@@ -12,6 +12,7 @@ jest.mock('@/app/features/marketing/site/SiteFooter', () => ({
 }));
 jest.mock('@/app/features/marketing/site/motion', () => ({
   ScrollProgress: () => <div data-testid="scroll-progress" />,
+  ScrollDrift: () => <div data-testid="scroll-drift" />,
 }));
 
 import { MarketingShell } from '@/app/features/marketing/site/MarketingShell';

@@ -456,6 +456,8 @@ interface HeroGlowProps {
    * bare glow placed directly in its section, matching a page with no parallax scope.
    */
   parallax?: boolean;
+  /** Scroll-linked vertical drift factor for this glow (see ScrollDrift), e.g. '-0.05'. */
+  scrollSpeed?: string;
 }
 
 /**
@@ -470,10 +472,12 @@ export function HeroGlow({
   depth = '0.05',
   zIndex,
   parallax = true,
+  scrollSpeed,
 }: Readonly<HeroGlowProps>) {
   const glow = (
     <div
       aria-hidden="true"
+      data-scroll-speed={scrollSpeed}
       style={{
         position: 'absolute',
         ...box,
@@ -492,6 +496,46 @@ export function HeroGlow({
       {glow}
     </div>
   );
+}
+
+/**
+ * Scroll-linked vertical drift for every `[data-scroll-speed]` layer on the page
+ * (attr value is the drift factor, e.g. '-0.05' rises as you scroll down). Renders
+ * nothing and is inert under reduced motion; wire once inside the marketing shell.
+ */
+export function ScrollDrift() {
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    if (reduced || !globalThis.window) return undefined;
+    const layers = Array.from(
+      globalThis.document.querySelectorAll<HTMLElement>('[data-scroll-speed]')
+    );
+    if (layers.length === 0) return undefined;
+
+    let ticking = false;
+    const apply = () => {
+      const vh = globalThis.window.innerHeight;
+      for (const el of layers) {
+        const rect = el.getBoundingClientRect();
+        const off = (rect.top + rect.height / 2 - vh / 2) / vh;
+        const speed = Number.parseFloat(el.dataset.scrollSpeed ?? '0');
+        el.style.transform = `translate3d(0, ${(off * speed * vh).toFixed(1)}px, 0)`;
+      }
+      ticking = false;
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(apply);
+      }
+    };
+
+    globalThis.window.addEventListener('scroll', onScroll, { passive: true });
+    return () => globalThis.window.removeEventListener('scroll', onScroll);
+  }, [reduced]);
+
+  return null;
 }
 
 function underlinePath(padX: number, padY: number, w: number, h: number): string {
