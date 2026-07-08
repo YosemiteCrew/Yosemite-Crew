@@ -187,13 +187,12 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
 
           onSelect(companionId);
         }}>
-        <View style={styles.companionItem}>
-          <View
-            style={[
-              styles.companionAvatarRing,
-              isSelected && styles.companionAvatarRingSelected,
-              isSelected && {transform: [{scale: 1.08}]},
-            ]}>
+        <View
+          style={[
+            styles.companionItem,
+            isSelected && styles.companionItemSelected,
+          ]}>
+          <View style={styles.companionAvatarRing}>
             {avatarUri && companionId && !failedImages[companionId] ? (
               <Image
                 source={{uri: avatarUri}}
@@ -263,23 +262,28 @@ const createStyles = (theme: any) =>
     },
     companionItem: {
       alignItems: 'center',
-      gap: theme.spacing['2.5'],
-    },
-    companionAvatarRing: {
-      width: 64,
-      height: 64,
-      borderRadius: theme.borderRadius.full,
+      gap: theme.spacing['2'],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['2'],
+      borderRadius: theme.borderRadius.cardSmall,
       borderWidth: 1.5,
       borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen2,
+    },
+    // Pink = companion moment: the selected tile gets a pink border + soft glow.
+    companionItemSelected: {
+      borderColor: theme.colors.pink,
+      backgroundColor: theme.colors.screen,
+      ...theme.shadows.companion,
+    },
+    companionAvatarRing: {
+      width: 56,
+      height: 56,
+      borderRadius: theme.borderRadius.full,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
       backgroundColor: theme.colors.cardBackground,
-    },
-    // Pink = companion moment: selected ring is pink with a soft pink glow.
-    companionAvatarRingSelected: {
-      borderColor: theme.colors.pink,
-      ...theme.shadows.companion,
     },
     companionAvatar: {
       width: '90%',
@@ -312,19 +316,22 @@ const createStyles = (theme: any) =>
     },
     addCompanionItem: {
       alignItems: 'center',
-      gap: theme.spacing['2.5'],
-    },
-    addCompanionCircle: {
-      width: 64,
-      height: 64,
-      marginBottom: theme.spacing['2.5'],
-      borderRadius: theme.borderRadius.full,
+      gap: theme.spacing['2'],
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['2'],
+      borderRadius: theme.borderRadius.cardSmall,
       borderWidth: 1.5,
       borderStyle: 'dashed',
       borderColor: theme.colors.divider,
+      backgroundColor: theme.colors.screen2,
+    },
+    addCompanionCircle: {
+      width: 56,
+      height: 56,
+      borderRadius: theme.borderRadius.full,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.screen2,
+      backgroundColor: theme.colors.screen,
     },
     addCompanionIcon: {
       width: 28,
