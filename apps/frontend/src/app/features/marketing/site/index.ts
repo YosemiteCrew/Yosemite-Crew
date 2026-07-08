@@ -5,7 +5,6 @@ export { AuthShell, AuthBrandContent, type AuthBrandPoint } from './AuthShell';
 export { ReleasePill } from './ReleasePill';
 export { LegalDoc, DocSection, type TocEntry } from './LegalDoc';
 export { ThemeToggle } from './ThemeToggle';
-export { CookieBanner } from './CookieBanner';
 export { useTheme, type Theme } from './useTheme';
 export {
   Reveal,
