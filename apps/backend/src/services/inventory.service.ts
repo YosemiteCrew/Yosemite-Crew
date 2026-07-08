@@ -2469,11 +2469,10 @@ export const InventoryService = {
         data,
       });
 
-      const { onHand, allocated } = await recomputeStockFromBatches(
-        updated.itemId,
-      );
+      const safeItemId = String(updated.itemId);
+      const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
       await prisma.inventoryItem.updateMany({
-        where: { id: updated.itemId },
+        where: { id: safeItemId },
         data: { onHand, allocated },
       });
 
@@ -2548,11 +2547,10 @@ export const InventoryService = {
         },
       });
 
-      const { onHand, allocated } = await recomputeStockFromBatches(
-        batch.itemId,
-      );
+      const safeItemId = String(batch.itemId);
+      const { onHand, allocated } = await recomputeStockFromBatches(safeItemId);
       await prisma.inventoryItem.updateMany({
-        where: { id: batch.itemId },
+        where: { id: safeItemId },
         data: { onHand, allocated },
       });
       return;
