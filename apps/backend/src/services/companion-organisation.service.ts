@@ -72,6 +72,35 @@ const toRecord = (link: PatientOrganisation): PatientOrganisationRecord => ({
   _id: link.id,
 });
 
+/**
+ * Ensures the authenticated parent actually owns (is linked to) the companion
+ * before they can link/invite/approve organisation access for it. Without this
+ * a parent could pass an arbitrary companion id and act on a pet they do not own.
+ */
+const assertParentOwnsCompanion = async (
+  parentId: string,
+  patientId: string,
+): Promise<void> => {
+  // Only an ACTIVE (accepted) parent-companion link confers management rights.
+  // A PENDING link (e.g. a not-yet-accepted co-parent) must not be able to
+  // link/invite/approve/deny/list/revoke organisation access for the companion.
+  const link = await prisma.parentPatient.findFirst({
+    where: {
+      parentId,
+      patientId,
+      status: PatientOrganisationStatus.ACTIVE,
+    },
+    select: { id: true },
+  });
+
+  if (!link) {
+    throw new CompanionOrganisationServiceError(
+      "You are not authorized to manage this companion.",
+      403,
+    );
+  }
+};
+
 const mapOrganizationFromPrisma = (organization: {
   id: string;
   name: string;
@@ -178,6 +207,8 @@ export const CompanionOrganisationService = {
     const companion = requireId(patientId, "patientId");
     const org = requireId(organisationId, "organisationId");
 
+    await assertParentOwnsCompanion(parent, companion);
+
     const existing = await findActiveOrPendingLink({
       patientId: companion,
       organisationId: org,
@@ -282,6 +313,8 @@ export const CompanionOrganisationService = {
 
     const parent = requireId(parentId, "parentId");
     const companion = requireId(patientId, "patientId");
+
+    await assertParentOwnsCompanion(parent, companion);
 
     const link = await createLink({
       patientId: companion,
@@ -465,7 +498,10 @@ export const CompanionOrganisationService = {
     return toRecord(link);
   },
 
-  async revokeLink(linkId: string | Types.ObjectId) {
+  async revokeLink(
+    linkId: string | Types.ObjectId,
+    actingParentId?: string | Types.ObjectId,
+  ) {
     const id = requireId(linkId, "linkId");
 
     const link = await prisma.patientOrganisation.findUnique({
@@ -474,6 +510,11 @@ export const CompanionOrganisationService = {
 
     if (!link) {
       throw new CompanionOrganisationServiceError("Link not found", 404);
+    }
+
+    if (actingParentId !== undefined) {
+      const parent = requireId(actingParentId, "parentId");
+      await assertParentOwnsCompanion(parent, link.patientId);
     }
 
     await prisma.patientOrganisation.delete({
@@ -514,6 +555,8 @@ export const CompanionOrganisationService = {
         404,
       );
     }
+
+    await assertParentOwnsCompanion(parent, link.patientId);
 
     const updated = await updateLink(link.id, {
       status: PatientOrganisationStatus.ACTIVE,
@@ -556,6 +599,8 @@ export const CompanionOrganisationService = {
       );
     }
 
+    await assertParentOwnsCompanion(parent, link.patientId);
+
     const updated = await updateLink(link.id, {
       status: PatientOrganisationStatus.REVOKED,
       acceptedAt: null,
@@ -590,8 +635,14 @@ export const CompanionOrganisationService = {
   async getLinksForCompanionByOrganisationTye(
     patientId: string | Types.ObjectId,
     type: BusinessType,
+    actingParentId?: string | Types.ObjectId,
   ): Promise<CompanionOrganisationLinksResponse> {
     const id = requireId(patientId, "patientId");
+
+    if (actingParentId !== undefined) {
+      const parent = requireId(actingParentId, "parentId");
+      await assertParentOwnsCompanion(parent, id);
+    }
 
     const links = await prisma.patientOrganisation.findMany({
       where: {

@@ -58,6 +58,15 @@ const normalizeMobileSubmissionRequest = (
   return normalized as unknown as FormSubmissionRequestDTO;
 };
 
+const parseAppointmentFormQuery = (body: unknown) => {
+  const { serviceId, species, isPMS } = (body as Record<string, unknown>) ?? {};
+  return {
+    serviceId: typeof serviceId === "string" ? serviceId : undefined,
+    species: typeof species === "string" ? species : undefined,
+    isPMS: typeof isPMS === "string" ? isPMS === "true" : undefined,
+  };
+};
+
 export const FormController = {
   createForm: async (req: Request, res: Response) => {
     try {
@@ -247,8 +256,22 @@ export const FormController = {
   submitFormFromPMS: async (req: Request, res: Response) => {
     try {
       const submissionRequest = req.body as FormSubmissionRequestDTO;
+      // The submitter is the authenticated PMS user from the verified token,
+      // never client-supplied. Persisting submittedBy lets the signing guard
+      // confirm the initiator is the submitter; without it submittedBy is
+      // undefined and the authenticated user is wrongly blocked from signing.
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User ID missing" });
+      }
 
-      const submission = await FormService.submitFHIR(submissionRequest);
+      const submission = await FormService.submitFHIR(
+        submissionRequest,
+        undefined,
+        userId,
+      );
       return res.status(201).json(submission);
     } catch (error) {
       if (error instanceof FormServiceError) {
@@ -363,8 +386,7 @@ export const FormController = {
   getFormsForAppointment: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
-      const { serviceId, species, isPMS } =
-        (req.body as Record<string, unknown>) ?? {};
+      const { serviceId, species, isPMS } = parseAppointmentFormQuery(req.body);
       const isMobileRequest =
         typeof req.path === "string" && req.path.includes("/mobile/");
 
@@ -373,6 +395,7 @@ export const FormController = {
       }
 
       let viewerParentId: string | undefined;
+      let requesterOrgId: string | undefined;
       if (isMobileRequest) {
         const authUserId = resolveUserIdFromRequest(req);
         if (!authUserId) {
@@ -388,14 +411,20 @@ export const FormController = {
         if (!viewerParentId) {
           return res.status(403).json({ message: "Forbidden" });
         }
+      } else {
+        requesterOrgId = (req as OrgRequest).organisationId;
+        if (!requesterOrgId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
       }
 
       const result = await FormService.getFormsForAppointment({
         appointmentId,
-        serviceId: typeof serviceId === "string" ? serviceId : undefined,
-        species: typeof species === "string" ? species : undefined,
-        isPMS: typeof isPMS === "string" ? isPMS === "true" : undefined,
+        serviceId,
+        species,
+        isPMS,
         viewerParentId,
+        requesterOrgId,
       });
 
       return res.status(200).json(result);
