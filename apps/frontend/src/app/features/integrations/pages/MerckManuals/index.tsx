@@ -344,6 +344,7 @@ const executeMerckSearch = async ({
 
   try {
     const gateway = getMerckGateway();
+    if (reqId !== requestIdRef.current) return;
     const response = await gateway.search(
       getMerckSearchPayload({
         organisationId,
@@ -542,7 +543,7 @@ const MerckReaderPortal = ({
             className="flex-1 size-full border-0"
             loading="lazy"
             referrerPolicy="strict-origin"
-            sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
+            sandbox="allow-scripts allow-popups allow-forms"
             onLoad={() => setReaderLoading(false)}
           />
         </div>
@@ -592,11 +593,10 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
 
   const [recentSearchesKey, setRecentSearchesKey] = useState(0);
   // recentSearchesKey is a counter; incrementing it forces recentSearches to recompute on save
-  const recentSearches = useMemo(
-    () => (primaryOrgId ? getRecentSearches(primaryOrgId, audience) : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [primaryOrgId, audience, recentSearchesKey]
-  );
+  const recentSearches = useMemo(() => {
+    void recentSearchesKey;
+    return primaryOrgId ? getRecentSearches(primaryOrgId, audience) : [];
+  }, [primaryOrgId, audience, recentSearchesKey]);
 
   useEffect(() => {
     if (!copied) return;
