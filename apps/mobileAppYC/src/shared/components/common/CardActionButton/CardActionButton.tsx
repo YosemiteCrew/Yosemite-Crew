@@ -4,11 +4,11 @@ import {
   ImageSourcePropType,
   StyleSheet,
   Text,
-  TouchableOpacity,
   ViewStyle,
   TextStyle,
   StyleProp,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 
 export type CardActionButtonVariant = 'primary' | 'success' | 'secondary';
@@ -40,13 +40,13 @@ export const CardActionButton: React.FC<CardActionButtonProps> = ({
   const styles = useMemo(() => createStyles(theme, variant), [theme, variant]);
 
   return (
-    <TouchableOpacity
+    <PressableOpacity
       activeOpacity={0.85}
       style={[styles.button, buttonStyle]}
       onPress={onPress}>
       {icon && <Image source={icon} style={[styles.icon, iconStyle]} />}
       <Text style={[styles.label, labelStyle]}>{label}</Text>
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 };
 

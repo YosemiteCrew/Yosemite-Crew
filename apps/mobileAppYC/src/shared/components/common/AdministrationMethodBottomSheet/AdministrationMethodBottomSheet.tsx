@@ -1,5 +1,8 @@
-import React, {forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
-import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+import React, {useImperativeHandle, useRef, useMemo} from 'react';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 
 export type AdministrationMethod =
   | 'none'
@@ -21,10 +24,13 @@ interface AdministrationMethodBottomSheetProps {
   onSave: (method: AdministrationMethod | null) => void;
 }
 
-export const AdministrationMethodBottomSheet = forwardRef<
-  AdministrationMethodBottomSheetRef,
-  AdministrationMethodBottomSheetProps
->(({selectedMethod, onSave}, ref) => {
+export const AdministrationMethodBottomSheet = ({
+  selectedMethod,
+  onSave,
+  ref,
+}: AdministrationMethodBottomSheetProps & {
+  ref?: React.Ref<AdministrationMethodBottomSheetRef>;
+}) => {
   const bottomSheetRef = useRef<any>(null);
 
   const items: SelectItem[] = useMemo(
@@ -42,7 +48,7 @@ export const AdministrationMethodBottomSheet = forwardRef<
   );
 
   const selectedItem = selectedMethod
-    ? items.find(i => i.id === selectedMethod) ?? null
+    ? (items.find(i => i.id === selectedMethod) ?? null)
     : null;
 
   useImperativeHandle(ref, () => ({
@@ -67,13 +73,12 @@ export const AdministrationMethodBottomSheet = forwardRef<
       onSave={handleSave}
       hasSearch={false}
       mode="select"
-      snapPoints={["55%","65%"]}
+      snapPoints={['55%', '65%']}
       maxListHeight={320}
     />
   );
-});
+};
 
 AdministrationMethodBottomSheet.displayName = 'AdministrationMethodBottomSheet';
 
 export default AdministrationMethodBottomSheet;
-

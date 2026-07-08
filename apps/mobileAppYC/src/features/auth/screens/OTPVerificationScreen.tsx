@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Image,
-  TouchableOpacity,
   ScrollView,
   ActivityIndicator,
   BackHandler,
@@ -12,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {OTPInput, Header, Input} from '@/shared/components/common';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useTheme} from '@/hooks';
@@ -51,6 +51,25 @@ const resolveOtpError = (formatted: string): string =>
   formatted === 'Unexpected authentication error. Please retry.'
     ? 'The code you entered is incorrect. Please try again.'
     : formatted;
+
+const buildUserPayload = (
+  completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
+): User => {
+  const baseUser: User = {
+    id: completion.user.userId,
+    parentId: completion.profile.parent?.id ?? undefined,
+    email: completion.attributes.email ?? completion.user.username,
+    firstName: completion.attributes.given_name,
+    lastName: completion.attributes.family_name,
+    phone: completion.attributes.phone_number,
+    dateOfBirth: completion.attributes.birthdate,
+    profilePicture: completion.attributes.picture,
+    profileToken: completion.profile.profileToken,
+    profileCompleted: completion.profile.isComplete,
+  };
+
+  return mergeUserWithParentProfile(baseUser, completion.profile.parent);
+};
 
 type OTPVerificationScreenProps = NativeStackScreenProps<
   AuthStackParamList,
@@ -130,25 +149,6 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     if (otpError) {
       setOtpError('');
     }
-  };
-
-  const buildUserPayload = (
-    completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
-  ): User => {
-    const baseUser: User = {
-      id: completion.user.userId,
-      parentId: completion.profile.parent?.id ?? undefined,
-      email: completion.attributes.email ?? completion.user.username,
-      firstName: completion.attributes.given_name,
-      lastName: completion.attributes.family_name,
-      phone: completion.attributes.phone_number,
-      dateOfBirth: completion.attributes.birthdate,
-      profilePicture: completion.attributes.picture,
-      profileToken: completion.profile.profileToken,
-      profileCompleted: completion.profile.isComplete,
-    };
-
-    return mergeUserWithParentProfile(baseUser, completion.profile.parent);
   };
 
   const validateCode = (code: string): boolean => {
@@ -397,13 +397,13 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
                     containerStyle={styles.demoInputContainer}
                     error={otpError}
                   />
-                  <TouchableOpacity
+                  <PressableOpacity
                     onPress={() => setOtpCode(DEMO_LOGIN_PASSWORD)}
                     style={styles.prefillButton}>
                     <Text style={styles.prefillText}>
                       Use provided password
                     </Text>
-                  </TouchableOpacity>
+                  </PressableOpacity>
                 </>
               ) : (
                 <>
@@ -447,7 +447,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
               <View style={styles.resendContainer}>
                 <Text style={styles.resendText}>Didn't receive the code? </Text>
                 {canResend ? (
-                  <TouchableOpacity
+                  <PressableOpacity
                     onPress={handleResendOTP}
                     disabled={isResending}
                     style={styles.resendButton}>
@@ -459,7 +459,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
                     ) : (
                       <Text style={styles.resendLink}>Resend</Text>
                     )}
-                  </TouchableOpacity>
+                  </PressableOpacity>
                 ) : (
                   <Text style={styles.countdownText}>
                     00:{countdown.toString().padStart(2, '0')} sec

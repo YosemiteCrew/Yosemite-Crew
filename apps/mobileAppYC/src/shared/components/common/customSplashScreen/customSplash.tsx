@@ -1,16 +1,27 @@
-import React, {useState, useEffect} from 'react';
+import React, {useEffect} from 'react';
 import {
   View,
   Image,
-  Animated,
-  Dimensions,
+  useWindowDimensions,
   StyleSheet,
   StatusBar,
 } from 'react-native';
+import {scheduleOnRN} from 'react-native-worklets';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 import BootSplash from 'react-native-bootsplash';
 import LinearGradient from 'react-native-linear-gradient';
-
-const {width: screenWidth, height: screenHeight} = Dimensions.get('window');
 
 type Props = {
   onAnimationEnd: () => void;
@@ -19,153 +30,119 @@ type Props = {
 const STAR_IMAGE = require('../../../../assets/splash/star1.png');
 const MAIN_LOGO = require('../../../../assets/splash/logo.png');
 const CERTIFICATION_LOGOS = [
-  require('../../../../assets/splash/soc.png'),
-  require('../../../../assets/splash/fhir.png'),
-  require('../../../../assets/splash/gdpr.png'),
-  require('../../../../assets/splash/iso.png'),
-  require('../../../../assets/splash/fda.png'),
+  {id: 'soc', source: require('../../../../assets/splash/soc.png')},
+  {id: 'fhir', source: require('../../../../assets/splash/fhir.png')},
+  {id: 'gdpr', source: require('../../../../assets/splash/gdpr.png')},
+  {id: 'iso', source: require('../../../../assets/splash/iso.png')},
+  {id: 'fda', source: require('../../../../assets/splash/fda.png')},
 ];
 
+const SplashStar = ({
+  positionStyle,
+  opacity,
+  rotate,
+  clockwise,
+}: {
+  positionStyle: {top: number; left?: number; right?: number};
+  opacity: SharedValue<number>;
+  rotate: SharedValue<number>;
+  clockwise: boolean;
+}) => {
+  const starAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [
+      {
+        rotate: `${interpolate(
+          rotate.value,
+          [0, 1],
+          [0, clockwise ? 360 : -360],
+        )}deg`,
+      },
+    ],
+  }));
+
+  return (
+    <Animated.View
+      style={[styles.starContainer, positionStyle, starAnimatedStyle]}>
+      <Image
+        source={STAR_IMAGE}
+        style={styles.starSmall}
+        resizeMode="contain"
+      />
+    </Animated.View>
+  );
+};
+
 const CustomSplashScreen = ({onAnimationEnd}: Props) => {
-  const [fadeAnim] = useState(() => new Animated.Value(1));
-  const [scaleAnim] = useState(() => new Animated.Value(0.8));
-  const [star1Anim] = useState(() => new Animated.Value(1)); // Start visible
-  const [star2Anim] = useState(() => new Animated.Value(1)); // Start visible
-  const [certAnim] = useState(() => new Animated.Value(0));
-  const [star1RotateAnim] = useState(() => new Animated.Value(0)); // For rotation
-  const [star2RotateAnim] = useState(() => new Animated.Value(0)); // For rotation
+  const {width: screenWidth, height: screenHeight} = useWindowDimensions();
+  const fadeAnim = useSharedValue(1);
+  const scaleAnim = useSharedValue(0.8);
+  const star1Anim = useSharedValue(1);
+  const star2Anim = useSharedValue(1);
+  const certAnim = useSharedValue(0);
+  const star1RotateAnim = useSharedValue(0);
+  const star2RotateAnim = useSharedValue(0);
 
   useEffect(() => {
     // Hide native splash immediately with no fade
     BootSplash.hide({fade: false});
 
-    // Start star rotations immediately from the beginning
-    const star1Rotation = Animated.loop(
-      Animated.timing(star1RotateAnim, {
-        toValue: 1,
-        duration: 4000,
-        useNativeDriver: true,
-      }),
+    star1RotateAnim.value = withRepeat(
+      withTiming(1, {duration: 4000, easing: Easing.linear}),
+      -1,
+      false,
     );
 
-    const star2Rotation = Animated.loop(
-      Animated.timing(star2RotateAnim, {
-        toValue: 1,
-        duration: 5000,
-        useNativeDriver: true,
-      }),
+    star2RotateAnim.value = withRepeat(
+      withTiming(1, {duration: 5000, easing: Easing.linear}),
+      -1,
+      false,
     );
 
-    // Start rotations immediately
-    star1Rotation.start();
-    star2Rotation.start();
+    scaleAnim.value = withSpring(1, {damping: 12, stiffness: 120});
+    certAnim.value = withDelay(600, withTiming(1, {duration: 800}));
 
-    // Entrance animations - no fade in for stars, they start visible
-    const entranceAnimations = Animated.sequence([
-      // Logo scale in first
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-      // Certifications fade in only
-      Animated.sequence([
-        Animated.delay(600),
-        Animated.timing(certAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]);
-
-    entranceAnimations.start();
-
-    // Add floating opacity animation for stars after entrance
-    let star1Float: Animated.CompositeAnimation | undefined;
-    let star2Float: Animated.CompositeAnimation | undefined;
-
-    const startFloatingAnimation = () => {
-      star1Float = Animated.loop(
-        Animated.sequence([
-          Animated.timing(star1Anim, {
-            toValue: 0.6,
-            duration: 2500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(star1Anim, {
-            toValue: 1,
-            duration: 2500,
-            useNativeDriver: true,
-          }),
-        ]),
+    const floatingTimer = setTimeout(() => {
+      star1Anim.value = withRepeat(
+        withSequence(
+          withTiming(0.6, {duration: 2500}),
+          withTiming(1, {duration: 2500}),
+        ),
+        -1,
+        false,
       );
-
-      star2Float = Animated.loop(
-        Animated.sequence([
-          Animated.timing(star2Anim, {
-            toValue: 0.7,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(star2Anim, {
-            toValue: 1,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-        ]),
+      star2Anim.value = withRepeat(
+        withSequence(
+          withTiming(0.7, {duration: 3000}),
+          withTiming(1, {duration: 3000}),
+        ),
+        -1,
+        false,
       );
+    }, 1500);
 
-      star1Float.start();
-      star2Float.start();
-    };
-
-    // Start floating after entrance animations complete
-    const floatingTimer = setTimeout(startFloatingAnimation, 1500);
-
-    // Show custom splash for 4 seconds total, then exit
     const exitTimer = setTimeout(() => {
-      // Start the exit animation for our custom splash
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 0.3,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        // Stars fade out during exit
-        Animated.timing(star1Anim, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(star2Anim, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(certAnim, {
-          toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        onAnimationEnd();
+      fadeAnim.value = withTiming(0, {duration: 1000}, finished => {
+        if (finished) {
+          scheduleOnRN(onAnimationEnd);
+        }
       });
+      scaleAnim.value = withTiming(0.3, {duration: 1000});
+      star1Anim.value = withTiming(0, {duration: 1000});
+      star2Anim.value = withTiming(0, {duration: 1000});
+      certAnim.value = withTiming(0, {duration: 1000});
     }, 4000);
 
     return () => {
       clearTimeout(floatingTimer);
       clearTimeout(exitTimer);
-      star1Rotation.stop();
-      star2Rotation.stop();
-      star1Float?.stop();
-      star2Float?.stop();
+      cancelAnimation(fadeAnim);
+      cancelAnimation(scaleAnim);
+      cancelAnimation(star1Anim);
+      cancelAnimation(star2Anim);
+      cancelAnimation(certAnim);
+      cancelAnimation(star1RotateAnim);
+      cancelAnimation(star2RotateAnim);
     };
   }, [
     scaleAnim,
@@ -178,6 +155,23 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
     onAnimationEnd,
   ]);
 
+  const containerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: fadeAnim.value,
+  }));
+
+  const logoAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{scale: scaleAnim.value}],
+  }));
+
+  const certificationsAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: certAnim.value,
+    transform: [
+      {
+        translateY: interpolate(certAnim.value, [0, 1], [30, 0]),
+      },
+    ],
+  }));
+
   // Better random positions for stars
   const star1Position = {
     top: screenHeight * 0.3,
@@ -189,21 +183,6 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
     right: screenWidth * 0.2,
   };
 
-  const stars = [
-    {
-      key: 'star1',
-      positionStyle: star1Position,
-      opacity: star1Anim,
-      rotateAnim: star1RotateAnim,
-    },
-    {
-      key: 'star2',
-      positionStyle: star2Position,
-      opacity: star2Anim,
-      rotateAnim: star2RotateAnim,
-    },
-  ];
-
   return (
     <>
       <StatusBar
@@ -211,13 +190,7 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
         backgroundColor="transparent"
         translucent
       />
-      <Animated.View
-        style={[
-          styles.container,
-          {
-            opacity: fadeAnim,
-          },
-        ]}>
+      <Animated.View style={[styles.container, containerAnimatedStyle]}>
         {/* Background Gradient - Fixed smooth gradient */}
         <LinearGradient
           colors={[
@@ -231,43 +204,22 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
           style={styles.gradient}
         />
 
-        {stars.map(({key, positionStyle, opacity, rotateAnim}) => {
-          const outputRange =
-            key === 'star1' ? ['0deg', '360deg'] : ['0deg', '-360deg'];
-
-          return (
-            <Animated.View
-              key={key}
-              style={[
-                styles.starContainer,
-                positionStyle,
-                {
-                  opacity,
-                  transform: [
-                    {
-                      rotate: rotateAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange,
-                      }),
-                    },
-                  ],
-                },
-              ]}>
-              <Image
-                source={STAR_IMAGE}
-                style={styles.starSmall}
-                resizeMode="contain"
-              />
-            </Animated.View>
-          );
-        })}
+        <SplashStar
+          positionStyle={star1Position}
+          opacity={star1Anim}
+          rotate={star1RotateAnim}
+          clockwise
+        />
+        <SplashStar
+          positionStyle={star2Position}
+          opacity={star2Anim}
+          rotate={star2RotateAnim}
+          clockwise={false}
+        />
 
         {/* Main Logo - Center */}
         <View style={styles.logoContainer}>
-          <Animated.View
-            style={{
-              transform: [{scale: scaleAnim}],
-            }}>
+          <Animated.View style={logoAnimatedStyle}>
             <Image
               source={MAIN_LOGO}
               style={styles.mainLogo}
@@ -278,23 +230,10 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
 
         {/* Bottom Certifications Row */}
         <Animated.View
-          style={[
-            styles.certificationsContainer,
-            {
-              opacity: certAnim,
-              transform: [
-                {
-                  translateY: certAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [30, 0],
-                  }),
-                },
-              ],
-            },
-          ]}>
-          {CERTIFICATION_LOGOS.map((source, index) => (
+          style={[styles.certificationsContainer, certificationsAnimatedStyle]}>
+          {CERTIFICATION_LOGOS.map(({id, source}) => (
             <View
-              key={`${index}-${String(source)}`}
+              key={id}
               testID="certification-logo"
               style={styles.certificationWrapper}>
               <Image

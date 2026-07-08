@@ -2,14 +2,19 @@ import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {Text, TouchableOpacity} from 'react-native';
+import {Text, Pressable} from 'react-native';
 import {Modal} from '@/shared/components/common/Modal/Modal';
 import {themeReducer} from '@/features/theme';
+
+// react-native's Pressable is wrapped in React.memo; findAllByType must
+// match against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 
 describe('Modal', () => {
   // Replace RN Modal with a simple View wrapper at runtime to avoid native internals
   const RN = require('react-native');
-  RN.Modal = ({ children, ...props }: any) => React.createElement(RN.View, props, children);
+  RN.Modal = ({children, ...props}: any) =>
+    React.createElement(RN.View, props, children);
 
   const createTestStore = () => {
     return configureStore({
@@ -49,11 +54,10 @@ describe('Modal', () => {
         ),
       );
     });
-    const backdrop = tree.root.findAllByType(TouchableOpacity)[0];
+    const backdrop = tree.root.findAllByType(PressableType)[0];
     backdrop.props.onPress();
     expect(onClose).toHaveBeenCalled();
   });
-
 
   // Keep behavior tests simple to avoid RN Modal internals
 });

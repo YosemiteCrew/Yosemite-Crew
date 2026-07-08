@@ -157,12 +157,10 @@ export const BookingFormScreen: React.FC = () => {
     if (file.name && !file.name.startsWith('rn_image_picker_lib_temp')) {
       return file.name;
     }
-    if (file.key) {
-      const parts = file.key.split('/').filter(Boolean);
-      const last = parts.at(-1);
-      if (last) {
-        return last;
-      }
+    const parts = (file.key as string).split('/').filter(Boolean);
+    const last = parts.at(-1);
+    if (last) {
+      return last;
     }
     return file.name || 'attachment';
   }, []);
@@ -183,26 +181,20 @@ export const BookingFormScreen: React.FC = () => {
   });
 
   const typeLocked = Boolean(presetSpecialtyLabel);
-  const [prevPresetLabel, setPrevPresetLabel] = useState(presetSpecialtyLabel);
-  if (presetSpecialtyLabel !== prevPresetLabel) {
-    setPrevPresetLabel(presetSpecialtyLabel);
-    if (presetSpecialtyLabel && presetSpecialtyLabel !== type) {
-      setType(presetSpecialtyLabel);
-      if (presetSpecialtyLabel !== 'Emergency' && emergency) {
-        setEmergency(false);
-      }
+  React.useEffect(() => {
+    if (!presetSpecialtyLabel) {
+      return;
     }
-  }
+    setType(presetSpecialtyLabel);
+    setEmergency(current =>
+      presetSpecialtyLabel === 'Emergency' ? current : false,
+    );
+  }, [presetSpecialtyLabel]);
 
-  const handleTypeChange = React.useCallback(
-    (newType: string) => {
-      setType(newType);
-      if (newType !== 'Emergency' && emergency) {
-        setEmergency(false);
-      }
-    },
-    [emergency],
-  );
+  const handleTypeChange = React.useCallback((newType: string) => {
+    setType(newType);
+    setEmergency(false);
+  }, []);
 
   React.useEffect(() => {
     if (!effectiveServiceId || !businessId || !date) {
@@ -258,13 +250,17 @@ export const BookingFormScreen: React.FC = () => {
     const uploaded = await dispatch(
       uploadDocumentFiles({files, companionId}),
     ).unwrap();
-    return uploaded
-      .filter(f => f.key)
-      .map(f => ({
-        key: f.key as string,
-        name: resolveAttachmentName(f),
-        contentType: f.type ?? null,
-      }));
+    return uploaded.flatMap(f =>
+      f.key
+        ? [
+            {
+              key: f.key as string,
+              name: resolveAttachmentName(f),
+              contentType: f.type ?? null,
+            },
+          ]
+        : [],
+    );
   };
 
   const handleBook = async () => {

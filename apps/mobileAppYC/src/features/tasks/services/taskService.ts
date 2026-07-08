@@ -93,7 +93,7 @@ const resolveDateParts = (
 
   return {
     date: formatDateToISODate(dt)!,
-    time: formatTimeToISO(dt) ?? undefined,
+    time: formatTimeToISO(dt) as string,
   };
 };
 
@@ -173,8 +173,7 @@ const normalizeAttachment = (att: any): TaskAttachment => {
     typeof att?.id === 'string' && att.id.includes('/') ? att.id : undefined;
   const key = att?.key ?? keyFromId ?? att?.id ?? att?._id ?? att?.name;
   const name = att?.name ?? att?.fileName ?? key ?? 'attachment';
-  const guessMimeFromName = (fileName?: string | null): string | undefined => {
-    if (!fileName || typeof fileName !== 'string') return undefined;
+  const guessMimeFromName = (fileName: string): string | undefined => {
     const lower = fileName.toLowerCase();
     if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
     if (lower.endsWith('.png')) return 'image/png';
@@ -255,7 +254,7 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
     timezone: apiTask?.timezone,
     date,
     recurrenceEndDate: recurrence?.endDate
-      ? (formatDateToISODate(new Date(recurrence.endDate)) ?? undefined)
+      ? (formatDateToISODate(new Date(recurrence.endDate)) as string)
       : undefined,
     time,
     frequency,
@@ -297,12 +296,10 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
                   dose?.label ??
                   medication?.dosage ??
                   `Dose ${index + 1}`,
-                time: formatDoseTime(
-                  dose?.time ?? time ?? formatTimeToISO(new Date(dueAt)),
-                ),
+                time: formatDoseTime(dose?.time ?? time),
               }))
             : (() => {
-                const timeIso = time || formatTimeToISO(new Date(dueAt));
+                const timeIso = time;
                 return timeIso
                   ? [
                       {
@@ -317,17 +314,13 @@ export const mapApiTaskToTask = (apiTask: any): Task => {
         // Convert end date to full ISO format for calendar recurrence
         const endDateISO = recurrence?.endDate
           ? (() => {
-              try {
-                const endDate = new Date(recurrence.endDate);
-                if (Number.isNaN(endDate.getTime())) return undefined;
-                // Set to end of day if time is not included
-                if (endDate.getHours() === 0 && endDate.getMinutes() === 0) {
-                  endDate.setHours(23, 59, 59, 999);
-                }
-                return endDate.toISOString();
-              } catch {
-                return undefined;
+              const endDate = new Date(recurrence.endDate);
+              if (Number.isNaN(endDate.getTime())) return undefined;
+              // Set to end of day if time is not included
+              if (endDate.getHours() === 0 && endDate.getMinutes() === 0) {
+                endDate.setHours(23, 59, 59, 999);
               }
+              return endDate.toISOString();
             })()
           : undefined;
 
@@ -377,8 +370,7 @@ export const buildTaskDraftFromForm = ({
   observationToolId?: string | null;
 }): TaskDraftPayload => {
   const taskDate = formData.date || formData.startDate || new Date();
-  const formattedDate =
-    formatDateToISODate(taskDate) || taskDate.toISOString().split('T')[0];
+  const formattedDate = formatDateToISODate(taskDate) as string;
   const formattedTime = formData.time
     ? formatTimeToISO(formData.time)
     : undefined;
@@ -468,10 +460,9 @@ export const buildTaskDraftFromForm = ({
                 })
               : undefined,
             dosage: undefined,
-            frequency:
-              (formData.medicationFrequency
-                ? formData.medicationFrequency.toUpperCase()
-                : recurrenceType) ?? undefined,
+            frequency: formData.medicationFrequency
+              ? formData.medicationFrequency.toUpperCase()
+              : recurrenceType,
           } as any)
         : null,
     observationToolId:

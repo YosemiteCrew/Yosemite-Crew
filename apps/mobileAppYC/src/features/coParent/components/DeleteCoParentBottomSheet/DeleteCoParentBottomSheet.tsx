@@ -1,5 +1,8 @@
-import React, {forwardRef, useImperativeHandle, useRef} from 'react';
-import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
+import React, {useImperativeHandle, useRef} from 'react';
+import {
+  ConfirmActionBottomSheet,
+  ConfirmActionBottomSheetRef,
+} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 
 export interface DeleteCoParentBottomSheetRef {
   open: () => void;
@@ -13,10 +16,15 @@ interface DeleteCoParentBottomSheetProps {
   onSheetChange?: (index: number) => void;
 }
 
-export const DeleteCoParentBottomSheet = forwardRef<
-  DeleteCoParentBottomSheetRef,
-  DeleteCoParentBottomSheetProps
->(({coParentName, onDelete, onCancel, onSheetChange}, ref) => {
+export const DeleteCoParentBottomSheet = ({
+  coParentName,
+  onDelete,
+  onCancel,
+  onSheetChange,
+  ref,
+}: DeleteCoParentBottomSheetProps & {
+  ref?: React.Ref<DeleteCoParentBottomSheetRef>;
+}) => {
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
 
   useImperativeHandle(ref, () => ({
@@ -51,6 +59,6 @@ export const DeleteCoParentBottomSheet = forwardRef<
       snapPoints={['35%']}
     />
   );
-});
+};
 
 export default DeleteCoParentBottomSheet;

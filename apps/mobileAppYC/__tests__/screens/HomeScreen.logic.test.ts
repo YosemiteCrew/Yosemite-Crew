@@ -1,4 +1,4 @@
-import {deriveHomeGreetingName} from '@/features/home/screens/HomeScreen/HomeScreen';
+import {deriveHomeGreetingName} from '@/features/home/screens/HomeScreen/HomeScreen.helpers';
 
 describe('deriveHomeGreetingName', () => {
   it('uses trimmed name when provided', () => {
@@ -21,4 +21,3 @@ describe('deriveHomeGreetingName', () => {
     expect(r.displayName.endsWith('...')).toBe(true);
   });
 });
-

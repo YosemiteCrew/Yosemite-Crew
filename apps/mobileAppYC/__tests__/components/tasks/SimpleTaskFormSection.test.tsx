@@ -8,7 +8,7 @@ import {
 // FIX 1: Update component import path
 import {SimpleTaskFormSection} from '@/features/tasks/components/SimpleTaskFormSection/SimpleTaskFormSection';
 // FIX 2: Update helper import path
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 // FIX 3: Update helper import path
 import {formatTimeForDisplay} from '@/shared/utils/timeHelpers';
 import {Images} from '@/assets/images';
@@ -87,12 +87,9 @@ jest.mock('@/shared/components/common', () => {
 
 // Mock utilities
 // FIX 5: Update mocked component path
-jest.mock(
-  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
-  () => ({
-    formatDateForDisplay: jest.fn(),
-  }),
-);
+jest.mock('@/shared/components/common/SimpleDatePicker/dateTimeFormat', () => ({
+  formatDateForDisplay: jest.fn(),
+}));
 const mockFormatDateForDisplay = formatDateForDisplay as jest.Mock;
 
 // FIX 6: Update mocked util path

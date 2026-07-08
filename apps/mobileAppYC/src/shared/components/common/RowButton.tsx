@@ -1,13 +1,8 @@
 import React, {useMemo} from 'react';
-import {View, Text, TouchableOpacity, Image, StyleSheet} from 'react-native';
+import {Text, Image, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
-
-export const Separator = () => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return <View style={styles.separator} />;
-};
 
 export const RowButton: React.FC<{
   label: string;
@@ -16,10 +11,9 @@ export const RowButton: React.FC<{
 }> = ({label, value, onPress}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const displayValue =
-    value && value.trim().length > 0 ? value : '—';
+  const displayValue = value && value.trim().length > 0 ? value : '—';
   return (
-    <TouchableOpacity
+    <PressableOpacity
       style={styles.rowButtonTouchable}
       activeOpacity={0.8}
       onPress={onPress}>
@@ -31,28 +25,7 @@ export const RowButton: React.FC<{
         {displayValue}
       </Text>
       <Image source={Images.rightArrow} style={styles.rowButtonArrow} />
-    </TouchableOpacity>
-  );
-};
-
-export const ReadOnlyRow: React.FC<{
-  label: string;
-  value?: string;
-}> = ({label, value}) => {
-  const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const displayValue =
-    value && value.trim().length > 0 ? value : '—';
-  return (
-    <View style={styles.readOnlyRowContainer}>
-      <Text style={styles.rowButtonLabel}>{label}</Text>
-      <Text
-        style={styles.rowButtonValue}
-        numberOfLines={1}
-        ellipsizeMode="tail">
-        {displayValue}
-      </Text>
-    </View>
+    </PressableOpacity>
   );
 };
 
@@ -82,16 +55,5 @@ const createStyles = (theme: any) =>
       width: 16,
       height: 16,
       resizeMode: 'contain',
-    },
-    readOnlyRowContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['3'],
-    },
-    separator: {
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
-      marginHorizontal: theme.spacing['3'],
     },
   });
