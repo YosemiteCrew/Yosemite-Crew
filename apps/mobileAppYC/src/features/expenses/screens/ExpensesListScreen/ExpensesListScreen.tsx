@@ -107,9 +107,7 @@ export const ExpensesListScreen: React.FC = () => {
   };
 
   const handleEditExpense = (expenseId: string) => {
-    if (mode === 'external') {
-      navigation.navigate('EditExpense', {expenseId});
-    }
+    navigation.navigate('EditExpense', {expenseId});
   };
 
   const getExpensePayment = useCallback(

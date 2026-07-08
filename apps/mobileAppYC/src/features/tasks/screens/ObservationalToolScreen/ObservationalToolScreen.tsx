@@ -1176,8 +1176,10 @@ export const ObservationalToolScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
-  StyleSheet.create({
+const createStyles = (theme: any) => {
+  /* istanbul ignore next -- Android-only border compensation. */
+  const glassFallbackBorderWidth = Platform.OS === 'android' ? 1 : 0;
+  return StyleSheet.create({
     scrollView: {
       flex: 1,
     },
@@ -1209,7 +1211,7 @@ const createStyles = (theme: any) =>
     },
     glassCardFallback: {
       backgroundColor: theme.colors.cardBackground,
-      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderWidth: glassFallbackBorderWidth,
       borderColor: theme.colors.borderMuted,
       boxShadow: `0px 1px 6px ${theme.colors.neutralShadow}`,
     },
@@ -1549,5 +1551,6 @@ const createStyles = (theme: any) =>
       textAlign: 'center',
     },
   });
+};
 
 export default ObservationalToolScreen;
