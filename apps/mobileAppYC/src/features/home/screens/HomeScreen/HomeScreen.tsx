@@ -1324,6 +1324,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             </View>
             <View>
               <Text style={styles.greetingName}>Hello, {displayName}</Text>
+              <Text style={styles.greetingTitle}>
+                {hasCompanions ? 'Your companions' : 'Welcome'}
+              </Text>
             </View>
           </PressableOpacity>
 
@@ -1389,7 +1392,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             <LiquidGlassCard
               glassEffect="clear"
               interactive
-              tintColor={theme.colors.primary}
+              tintColor={theme.colors.cardBackground}
               style={styles.heroCard}
               fallbackStyle={styles.heroFallback}>
               <PressableOpacity
@@ -1403,16 +1406,13 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             </LiquidGlassCard>
           </View>
         ) : (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your companions</Text>
-            <CompanionSelector
-              companions={companions}
-              selectedCompanionId={selectedCompanionIdRedux}
-              onSelect={handleSelectCompanion}
-              onAddCompanion={handleAddCompanion}
-              showAddButton={true}
-            />
-          </View>
+          <CompanionSelector
+            companions={companions}
+            selectedCompanionId={selectedCompanionIdRedux}
+            onSelect={handleSelectCompanion}
+            onAddCompanion={handleAddCompanion}
+            showAddButton={true}
+          />
         )}
 
         <View style={styles.section}>
@@ -1573,6 +1573,11 @@ const createStyles = (theme: any) =>
       ...theme.typography.greeting,
       color: theme.colors.pink,
     },
+    greetingTitle: {
+      // Large Newsreader serif headline under the greeting.
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
+    },
     headerActions: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1639,7 +1644,7 @@ const createStyles = (theme: any) =>
       top: theme.spacing['-11.25'],
       width: theme.spacing['40'],
       height: theme.spacing['40'],
-      tintColor: theme.colors.whiteOverlay70,
+      tintColor: theme.colors.pinkGlow,
       resizeMode: 'contain',
     },
     heroIconImage: {
@@ -1647,18 +1652,18 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['1.25'],
       width: theme.spacing['9'],
       height: theme.spacing['9'],
-      tintColor: theme.colors.onPrimary,
+      tintColor: theme.colors.pink,
       resizeMode: 'contain',
     },
     heroTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.onPrimary,
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
     },
     heroFallback: {
       borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.primary,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       overflow: 'hidden',
     },
     section: {
@@ -1710,7 +1715,7 @@ const createStyles = (theme: any) =>
       width: theme.spacing['12'],
       height: theme.spacing['12'],
       borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.secondary,
+      backgroundColor: theme.colors.blueSoft,
       justifyContent: 'center',
       alignItems: 'center',
       boxShadow: `0px 1px 3px ${theme.colors.neutralShadow}`,
@@ -1751,7 +1756,7 @@ const createStyles = (theme: any) =>
       width: theme.spacing['7'],
       height: theme.spacing['7'],
       resizeMode: 'contain',
-      tintColor: theme.colors.white,
+      tintColor: theme.colors.blue,
     },
     quickActionBrandIcon: {
       width: theme.spacing['12'],
