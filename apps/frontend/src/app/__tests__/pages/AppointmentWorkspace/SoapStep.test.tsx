@@ -296,10 +296,10 @@ describe('SoapStep', () => {
     expect(screen.getAllByText(APPOINTMENT_REASON).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('invokes the Record Vitals callback from the Objective section', () => {
+  it('invokes the Record Vitals callback from the vitals panel', () => {
     onRecordVitals.mockClear();
     renderSoapStep();
-    fireEvent.click(screen.getByRole('button', { name: /record vitals/i }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Record' }));
     expect(onRecordVitals).toHaveBeenCalledTimes(1);
   });
 

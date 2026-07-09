@@ -2,11 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import { IoArrowForward } from 'react-icons/io5';
-import { LuClipboardList } from 'react-icons/lu';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import Search from '@/app/ui/inputs/Search';
 import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
-import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import SoapNotesList, {
   type SoapNoteListItem,
 } from '@/app/features/appointments/pages/AppointmentWorkspace/components/SoapNotesList';
@@ -375,13 +374,6 @@ const SoapStep = ({
                     values={note.customAnswers ?? {}}
                     onChange={handleCustomAnswerChange}
                   />
-                  <div className="mt-3 flex justify-end">
-                    <Secondary
-                      text="Record Vitals"
-                      onClick={onRecordVitals}
-                      icon={<LuClipboardList aria-hidden="true" />}
-                    />
-                  </div>
                 </SectionContainer>
               ) : (
                 <>
@@ -415,13 +407,6 @@ const SoapStep = ({
                       onChange={(html) => upsertSoap(appointmentId, { objective: html })}
                       placeholder="Examination findings and recorded vitals"
                     />
-                    <div className="mt-3 flex justify-end">
-                      <Secondary
-                        text="Record Vitals"
-                        onClick={onRecordVitals}
-                        icon={<LuClipboardList aria-hidden="true" />}
-                      />
-                    </div>
                   </SectionContainer>
 
                   <SectionContainer
