@@ -7,6 +7,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     id: 'admin',
     label: 'Admin',
     icon: Images.adminIcon,
+    iconTint: 'indigoSurface',
     isSynced: false,
     fileCount: 0,
     subcategories: [
@@ -24,6 +25,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     id: 'health',
     label: 'Health',
     icon: Images.healthIconCategory,
+    iconTint: 'successSurface',
     isSynced: true,
     fileCount: 0,
     subcategories: [
@@ -42,6 +44,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     id: 'hygiene-maintenance',
     label: 'Hygiene maintenance',
     icon: Images.hygieneIcon,
+    iconTint: 'blueSoft',
     isSynced: true,
     fileCount: 0,
     subcategories: [
@@ -63,6 +66,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     id: 'dietary-plans',
     label: 'Dietary plans',
     icon: Images.dietaryIcon,
+    iconTint: 'warningSurface',
     isSynced: false,
     fileCount: 0,
     subcategories: [
@@ -73,6 +77,7 @@ export const DOCUMENT_CATEGORIES: DocumentCategory[] = [
     id: 'others',
     label: 'Others',
     icon: Images.othersIconCategory,
+    iconTint: 'violetSurface',
     isSynced: false,
     fileCount: 0,
     subcategories: [
