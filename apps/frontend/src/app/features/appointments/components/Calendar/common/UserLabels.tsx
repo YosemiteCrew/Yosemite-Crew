@@ -25,10 +25,10 @@ const UserLabels = ({ team, columnsStyle, appointmentCounts }: UserLabelsProps) 
 
   return (
     <div className="grid min-w-max py-2" style={columnsStyle}>
-      {team.map((user, idx) => {
+      {team.map((user) => {
         const isCurrentUser = !!currentUserId && user.practionerId === currentUserId;
         const name = user.name || '';
-        const key = `${idx}-${user._id || user.practionerId || name}`;
+        const key = user._id || user.practionerId || name;
 
         if (!showDetails) {
           return (
