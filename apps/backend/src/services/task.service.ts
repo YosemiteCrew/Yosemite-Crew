@@ -88,7 +88,7 @@ const taskScopeWhere = (
   organisationId?: string,
 ): { id: string; organisationId?: string } => {
   const orgScope = asNonEmptyString(organisationId);
-  return orgScope ? { id: taskId, organisationId: orgScope } : { id: taskId };
+  return { id: taskId, ...(orgScope ? { organisationId: orgScope } : {}) };
 };
 
 const isValidDate = (value: unknown): value is Date =>
