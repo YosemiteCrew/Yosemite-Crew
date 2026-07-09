@@ -1,5 +1,21 @@
-import { Appointment } from '@yosemite-crew/types';
+import { Appointment, Invoice } from '@yosemite-crew/types';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
+
+/**
+ * Human-facing invoice number for headers and list cells.
+ * Uses a backend-provided invoice number from metadata when present, otherwise
+ * falls back to the invoice id. Always prefixed with a single '#'.
+ */
+export const getInvoiceNumberLabel = (
+  invoice?: Pick<Invoice, 'id' | 'metadata'> | null
+): string => {
+  if (!invoice) return '';
+  const metadata = invoice.metadata ?? {};
+  const candidate = metadata.invoiceNumber ?? metadata.number ?? invoice.id;
+  const value = String(candidate ?? '').trim();
+  if (!value) return '';
+  return value.startsWith('#') ? value : `#${value}`;
+};
 
 export const normalizeAppointmentId = (appointmentId: string | undefined): string | undefined => {
   const raw = String(appointmentId ?? '').trim();

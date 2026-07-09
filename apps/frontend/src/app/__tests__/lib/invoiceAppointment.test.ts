@@ -3,9 +3,10 @@ import {
   appointmentIdsMatch,
   getAppointmentByIdFromList,
   getCompanionNameFromAppointments,
+  getInvoiceNumberLabel,
   getParentNameFromAppointments,
 } from '@/app/lib/invoice';
-import { Appointment } from '@yosemite-crew/types';
+import { Appointment, Invoice } from '@yosemite-crew/types';
 
 const makeAppt = (id: string, companionName?: string, parentName?: string): Appointment =>
   ({
@@ -116,5 +117,40 @@ describe('getParentNameFromAppointments', () => {
 
   it('returns dash for no match', () => {
     expect(getParentNameFromAppointments(appointments, '999')).toBe('-');
+  });
+});
+
+describe('getInvoiceNumberLabel', () => {
+  it('returns empty string when invoice is missing', () => {
+    expect(getInvoiceNumberLabel(null)).toBe('');
+    expect(getInvoiceNumberLabel(undefined)).toBe('');
+  });
+
+  it('prefers a metadata invoice number', () => {
+    expect(
+      getInvoiceNumberLabel({
+        id: 'inv-1',
+        metadata: { invoiceNumber: '2038' },
+      } as unknown as Invoice)
+    ).toBe('#2038');
+  });
+
+  it('falls back to metadata.number then to the id', () => {
+    expect(
+      getInvoiceNumberLabel({ id: 'inv-9', metadata: { number: 42 } } as unknown as Invoice)
+    ).toBe('#42');
+    expect(getInvoiceNumberLabel({ id: 'inv-9', metadata: {} } as unknown as Invoice)).toBe(
+      '#inv-9'
+    );
+  });
+
+  it('does not double-prefix an existing hash', () => {
+    expect(
+      getInvoiceNumberLabel({ id: 'x', metadata: { invoiceNumber: '#7' } } as unknown as Invoice)
+    ).toBe('#7');
+  });
+
+  it('returns empty string when no usable identifier exists', () => {
+    expect(getInvoiceNumberLabel({ metadata: {} } as unknown as Invoice)).toBe('');
   });
 });

@@ -21,19 +21,47 @@ jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
   useCompanionTerminologyText: () => (text: string) => text,
 }));
 
+jest.mock('@/app/stores/parentStore', () => ({
+  useParentStore: (selector: any) => selector({ getParentById: () => null }),
+}));
+
 jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
 }));
 
-jest.mock('@/app/ui/primitives/Icons/Close', () => ({
+jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceDetailHeader', () => ({
   __esModule: true,
-  default: ({ onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      close
-    </button>
+  default: ({ titleId, invoice, statusLabel, onClose }: any) => (
+    <div data-testid="invoice-header">
+      <h2 id={titleId}>{invoice?.id}</h2>
+      <span>{statusLabel}</span>
+      <button type="button" onClick={onClose}>
+        close
+      </button>
+    </div>
   ),
+}));
+
+jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceBilledItems', () => ({
+  __esModule: true,
+  default: () => <div data-testid="billed-items" />,
+}));
+
+jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceSummaryPanel', () => ({
+  __esModule: true,
+  default: () => <div data-testid="summary-panel" />,
+}));
+
+jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceBilledTo', () => ({
+  __esModule: true,
+  default: () => <div data-testid="billed-to" />,
+}));
+
+jest.mock('@/app/features/finance/pages/Finance/Sections/InvoicePaymentLedger', () => ({
+  __esModule: true,
+  default: () => <div data-testid="payment-ledger" />,
 }));
 
 jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
@@ -45,14 +73,6 @@ jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
       {data?.paymentMethod ? <div>{data.paymentMethod}</div> : null}
     </div>
   ),
-}));
-
-jest.mock('@/app/ui/tables/InvoiceTable', () => ({
-  getStatusStyle: (status: string) => ({
-    color: status === 'PAID' ? 'green' : 'gray',
-    backgroundColor: status === 'PAID' ? '#e6f4ea' : '#f5f5f5',
-    borderColor: status === 'PAID' ? '#34a853' : '#ccc',
-  }),
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
@@ -96,22 +116,32 @@ jest.mock('@/app/lib/validators', () => ({
   toTitle: (s: string) => s,
 }));
 
-const baseInvoice = { id: 'inv-1', status: 'PAID', metadata: {} } as any;
+const baseInvoice = { id: 'inv-1', status: 'PAID', items: [], metadata: {} } as any;
 
 expect.extend(toHaveNoViolations);
 
 describe('InvoiceInfo', () => {
-  it('renders modal with tabs', () => {
+  it('renders modal with enriched header and tabs', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
     expect(screen.getByTestId('modal')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'View invoice' })).toBeInTheDocument();
+    expect(screen.getByTestId('invoice-header')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Details' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Payment' })).toBeInTheDocument();
   });
 
-  it('shows appointment details tab by default', () => {
+  it('renders the design billing sections on the details tab', () => {
+    const setShowModal = jest.fn();
+    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
+
+    expect(screen.getByTestId('billed-items')).toBeInTheDocument();
+    expect(screen.getByTestId('summary-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('billed-to')).toBeInTheDocument();
+    expect(screen.getByTestId('payment-ledger')).toBeInTheDocument();
+  });
+
+  it('shows appointment details accordions by default', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
@@ -151,12 +181,11 @@ describe('InvoiceInfo', () => {
     );
   });
 
-  it('closes modal when close button clicked', () => {
+  it('closes modal when header close button clicked', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
-    const closeButtons = screen.getAllByText('close');
-    fireEvent.click(closeButtons.at(-1)!);
+    fireEvent.click(screen.getByText('close'));
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 
@@ -173,7 +202,7 @@ describe('InvoiceInfo', () => {
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
     // Status badge is rendered as rightElement in the Appointment details accordion
-    expect(screen.getByText('PAID')).toBeInTheDocument();
+    expect(screen.getAllByText('PAID').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows status badge and row in payment tab Pay card', () => {

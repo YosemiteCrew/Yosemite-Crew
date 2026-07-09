@@ -20,6 +20,24 @@ jest.mock('@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHo
   default: () => <div data-testid="dev-portal-home" />,
 }));
 
+jest.mock('@/app/features/developers/pages/DeveloperApiKeys/DeveloperApiKeys', () => ({
+  __esModule: true,
+  default: () => <div data-testid="dev-api-keys" />,
+}));
+
+jest.mock('@/app/features/developers/pages/DeveloperPlugins/DeveloperPlugins', () => ({
+  __esModule: true,
+  default: () => <div data-testid="dev-plugins" />,
+}));
+
+jest.mock(
+  '@/app/features/developers/pages/DeveloperWebsiteBuilder/DeveloperWebsiteBuilder',
+  () => ({
+    __esModule: true,
+    default: () => <div data-testid="dev-website-builder" />,
+  })
+);
+
 jest.mock('@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard', () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="dev-guard">{children}</div>,
@@ -84,22 +102,18 @@ describe('developer routes', () => {
     expect(screen.getByTestId('dev-docs')).toBeInTheDocument();
   });
 
-  test('plugins route renders within guard', () => {
+  test('plugins route renders plugins component', () => {
     render(<DevPluginsRoute />);
-    expect(screen.getByTestId('dev-guard')).toBeInTheDocument();
-    expect(screen.getByText('Plugins')).toBeInTheDocument();
-    expect(screen.getByText(/Coming soon/)).toBeInTheDocument();
+    expect(screen.getByTestId('dev-plugins')).toBeInTheDocument();
   });
 
-  test('website builder route renders within guard', () => {
+  test('website builder route renders website builder component', () => {
     render(<DevWebsiteBuilderRoute />);
-    expect(screen.getByTestId('dev-guard')).toBeInTheDocument();
-    expect(screen.getByText('Website Builder')).toBeInTheDocument();
+    expect(screen.getByTestId('dev-website-builder')).toBeInTheDocument();
   });
 
-  test('api keys route renders within guard', () => {
+  test('api keys route renders api keys component', () => {
     render(<DevApiKeysRoute />);
-    expect(screen.getByTestId('dev-guard')).toBeInTheDocument();
-    expect(screen.getByText('API Keys')).toBeInTheDocument();
+    expect(screen.getByTestId('dev-api-keys')).toBeInTheDocument();
   });
 });

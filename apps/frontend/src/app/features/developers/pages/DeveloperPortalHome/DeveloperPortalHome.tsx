@@ -1,6 +1,7 @@
 'use client';
 import React, { useMemo } from 'react';
 import Link from 'next/link';
+import { Icon } from '@iconify/react';
 
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useAuthStore } from '@/app/stores/authStore';
@@ -8,6 +9,43 @@ import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 
 import './DeveloperPortalHome.css';
 import '@/app/features/organizations/styles/Organizations.css';
+
+type QuickLink = {
+  label: string;
+  href: string;
+  icon: string;
+  external?: boolean;
+};
+
+type ActivityEntry = {
+  method: string;
+  path: string;
+  status: string;
+  ok: boolean;
+};
+
+const QUICK_LINKS: QuickLink[] = [
+  {
+    label: 'Quickstart · first request in 5 minutes',
+    href: '/developers/documentation',
+    icon: 'mdi:rocket-launch-outline',
+  },
+  { label: 'Partner with Yosemite Crew', href: '/contact-us', icon: 'mdi:account-group-outline' },
+  { label: 'Security & compliance', href: '/privacy-policy', icon: 'mdi:shield-check-outline' },
+  {
+    label: 'github.com/YosemiteCrew',
+    href: 'https://github.com/YosemiteCrew',
+    icon: 'mdi:github',
+    external: true,
+  },
+];
+
+const RECENT_ACTIVITY: ActivityEntry[] = [
+  { method: 'POST', path: '/fhir/Appointment', status: '201', ok: true },
+  { method: 'GET', path: '/fhir/Patient?name=poppy', status: '200', ok: true },
+  { method: 'GET', path: '/fhir/Observation/vt-882', status: '200', ok: true },
+  { method: 'POST', path: '/fhir/DocumentReference', status: '422', ok: false },
+];
 
 const DeveloperPortalHome = () => {
   const { session } = useAuthStore();
@@ -29,23 +67,33 @@ const DeveloperPortalHome = () => {
         </div>
 
         <section className="DevPortalHome">
+          <div className="dev-portal-intro">
+            <h2 className="text-heading-1 text-text-primary font-newsreader">
+              <span
+                className="block text-body-2 italic-newsreader"
+                style={{ color: 'var(--color-cyan-text)' }}
+              >
+                Welcome back,
+              </span>
+              {displayName}
+            </h2>
+            <p className="text-body-3 text-text-secondary dev-hero-subtext">
+              Build, customise, and launch apps for the animal health ecosystem.
+            </p>
+          </div>
+
           <div className="dev-portal-hero">
             <div className="dev-hero-copy">
-              <span className="dev-badge text-caption-2">Developer</span>
-              <h2 className="text-heading-1 text-text-primary font-newsreader">
-                <span
-                  className="block text-body-2 italic-newsreader"
-                  style={{ color: 'var(--color-cyan-text)' }}
-                >
-                  Welcome back,
-                </span>
-                {displayName}
-              </h2>
+              <span className="dev-badge text-caption-2">FHIR-NATIVE API</span>
+              <p className="dev-hero-headline text-text-primary">
+                One API for appointments, patients, and records. The same one the PIMS runs on.
+              </p>
               <p className="text-body-3 text-text-secondary dev-hero-subtext">
-                Build, customise, and launch apps with Yosemite Crew. Access APIs, SDKs, and starter
-                templates designed for the animal health ecosystem.
+                Access APIs, SDKs, and starter templates. Ship a plugin to every clinic on the
+                platform, or build your own surface on top.
               </p>
               <div className="dev-hero-actions">
+                <Secondary text="Create an API key" href="/developers/api-keys" />
                 <Secondary text="Contact support" href="/contact-us" />
               </div>
             </div>
@@ -54,11 +102,18 @@ const DeveloperPortalHome = () => {
               <ul>
                 <li>
                   <span className="text-body-4 text-neutral-200">Portal access</span>
-                  <strong className="text-body-4-emphasis text-neutral-0">Active</strong>
+                  <strong className="text-body-4-emphasis dev-status-active">
+                    <span className="dev-dot" aria-hidden="true" />
+                    Active
+                  </strong>
                 </li>
                 <li>
                   <span className="text-body-4 text-neutral-200">Environment</span>
                   <strong className="text-body-4-emphasis text-neutral-0">Dev</strong>
+                </li>
+                <li>
+                  <span className="text-body-4 text-neutral-200">Requests · 24h</span>
+                  <strong className="text-body-4-emphasis text-neutral-0 dev-tabular">4,218</strong>
                 </li>
                 <li>
                   <span className="text-body-4 text-neutral-200">Next step</span>
@@ -77,22 +132,95 @@ const DeveloperPortalHome = () => {
                 <span className="dev-card-pill secondary text-caption-2">Resources</span>
               </div>
               <div className="dev-links">
-                <Link href="/contact-us" className="text-body-4-emphasis text-text-primary">
-                  Partner with Yosemite Crew
-                </Link>
-                <Link href="/privacy-policy" className="text-body-4-emphasis text-text-primary">
-                  Security & compliance
-                </Link>
+                {QUICK_LINKS.map((link) => {
+                  const linkContent = (
+                    <>
+                      <Icon
+                        icon={link.icon}
+                        width={16}
+                        height={16}
+                        className="dev-link-icon"
+                        aria-hidden="true"
+                      />
+                      <span>{link.label}</span>
+                    </>
+                  );
+                  if (link.external) {
+                    return (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="dev-link text-body-4-emphasis text-text-primary"
+                      >
+                        {linkContent}
+                      </a>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="dev-link text-body-4-emphasis text-text-primary"
+                    >
+                      {linkContent}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
+
+            <div className="dev-portal-card">
+              <div className="dev-card-head">
+                <h3 className="text-heading-3 text-text-primary">Your plugin</h3>
+                <span className="dev-status-badge in-review text-caption-2">In review</span>
+              </div>
+              <div className="dev-plugin-row">
+                <span className="dev-plugin-icon" aria-hidden="true">
+                  <Icon icon="mdi:pulse" width={18} height={18} />
+                </span>
+                <span className="dev-plugin-titles">
+                  <span className="dev-plugin-name text-body-4-emphasis text-text-primary">
+                    Anesthesia monitor sync
+                  </span>
+                  <span className="dev-plugin-meta text-caption-2 text-text-tertiary">
+                    v0.4.1 · submitted 04 Jul
+                  </span>
+                </span>
+              </div>
+              <p className="text-body-4 text-text-secondary dev-plugin-desc">
+                Streams vitals from Mindray monitors into the appointment workspace.
+              </p>
+              <Link href="/developers/plugins" className="dev-card-action text-body-4-emphasis">
+                Review status
+                <Icon icon="mdi:arrow-right" width={14} height={14} aria-hidden="true" />
+              </Link>
+            </div>
+
             <div className="dev-portal-card">
               <div className="dev-card-head">
                 <h3 className="text-heading-3 text-text-primary">Recent activity</h3>
-                <span className="dev-card-pill muted text-caption-2">Coming soon</span>
+                <span className="dev-card-pill secondary text-caption-2">Sandbox</span>
               </div>
-              <p className="text-body-4 text-text-tertiary dev-empty">
-                You will see build and release activity here.
-              </p>
+              <ul className="dev-activity">
+                {RECENT_ACTIVITY.map((entry) => (
+                  <li key={`${entry.method}-${entry.path}`}>
+                    <span className="dev-req-path text-body-4 text-text-secondary">
+                      {entry.method} {entry.path}
+                    </span>
+                    <span className={`dev-req-status dev-tabular ${entry.ok ? 'ok' : 'err'}`}>
+                      {entry.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/developers/api-keys"
+                className="dev-activity-foot text-caption-2 text-text-tertiary"
+              >
+                Full request log in API keys →
+              </Link>
             </div>
           </div>
         </section>

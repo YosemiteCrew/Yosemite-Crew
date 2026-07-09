@@ -1,7 +1,6 @@
 'use client';
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 import { Secondary } from '@/app/ui/primitives/Buttons';
-import Close from '@/app/ui/primitives/Icons/Close';
 import Modal from '@/app/ui/overlays/Modal';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
@@ -21,6 +20,12 @@ import Image from 'next/image';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import { useParentStore } from '@/app/stores/parentStore';
+import InvoiceDetailHeader from '@/app/features/finance/pages/Finance/Sections/InvoiceDetailHeader';
+import InvoiceBilledItems from '@/app/features/finance/pages/Finance/Sections/InvoiceBilledItems';
+import InvoiceSummaryPanel from '@/app/features/finance/pages/Finance/Sections/InvoiceSummaryPanel';
+import InvoiceBilledTo from '@/app/features/finance/pages/Finance/Sections/InvoiceBilledTo';
+import InvoicePaymentLedger from '@/app/features/finance/pages/Finance/Sections/InvoicePaymentLedger';
 
 type ActiveTab = 'details' | 'payment';
 
@@ -69,6 +74,28 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
     [appointments, activeInvoice]
   );
 
+  const parentId = useMemo(() => {
+    if (activeInvoice?.parentId) return activeInvoice.parentId;
+    if (appointment) return getAppointmentCompanion(appointment).parent.id;
+    return undefined;
+  }, [activeInvoice, appointment]);
+
+  const storedParent = useParentStore((state) => (parentId ? state.getParentById(parentId) : null));
+
+  const payerName = useMemo(() => {
+    if (storedParent) {
+      const composed = [storedParent.firstName, storedParent.lastName]
+        .map((part) => part?.trim())
+        .filter(Boolean)
+        .join(' ');
+      if (composed) return composed;
+    }
+    if (appointment) return getOwnerFirstName(getAppointmentCompanion(appointment).parent);
+    return '';
+  }, [storedParent, appointment]);
+
+  const payerEmail = storedParent?.email ?? '';
+
   const invoiceStatusLabel = toTitle(activeInvoice?.status ?? '');
   const invoiceStatusStyle = getInvoiceStatusStyle(activeInvoice?.status ?? '');
 
@@ -113,15 +140,16 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-4">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div className="opacity-0 pointer-events-none">
-            <Close onClick={() => {}} />
-          </div>
-          <h2 id={titleId} className="text-body-1 text-text-primary">
-            View invoice
-          </h2>
-          <Close onClick={() => setShowModal(false)} />
-        </div>
+        {activeInvoice && (
+          <InvoiceDetailHeader
+            titleId={titleId}
+            invoice={activeInvoice}
+            appointment={appointment}
+            statusLabel={invoiceStatusLabel}
+            statusStyle={invoiceStatusStyle}
+            onClose={() => setShowModal(false)}
+          />
+        )}
 
         {/* Tab pills */}
         <div
@@ -167,6 +195,23 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
               aria-labelledby={detailsTabId}
               className="flex flex-col gap-6"
             >
+              {activeInvoice && (
+                <div className="flex flex-col gap-5 lg:flex-row">
+                  <div className="flex flex-1 flex-col gap-5">
+                    <InvoiceBilledItems items={activeInvoice.items ?? []} currency={currency} />
+                    <InvoicePaymentLedger
+                      invoice={activeInvoice}
+                      currency={currency}
+                      payerName={payerName}
+                      payerEmail={payerEmail}
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-5">
+                    <InvoiceSummaryPanel invoice={activeInvoice} currency={currency} />
+                    <InvoiceBilledTo parentId={parentId} appointment={appointment} />
+                  </div>
+                </div>
+              )}
               <EditableAccordion
                 key="Appointments-key"
                 title="Appointment details"

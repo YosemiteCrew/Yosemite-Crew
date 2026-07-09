@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import Image from 'next/image';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import { IoEye, IoOpenOutline } from 'react-icons/io5';
 import InvoiceCard from '@/app/ui/cards/InvoiceCard';
@@ -14,10 +15,28 @@ import { formatMoney } from '@/app/lib/money';
 import {
   getAppointmentByIdFromList,
   getCompanionNameFromAppointments,
+  getInvoiceNumberLabel,
   getParentNameFromAppointments,
 } from '@/app/lib/invoice';
 import { getInvoicePaymentMethodLabel } from '@/app/lib/invoicePaymentMethod';
 import { getInvoiceItemNames, getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
+import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import { getAppointmentCompanion, getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
+
+const buildAppointmentSubtitle = (
+  typeName: string | undefined,
+  dateText: string,
+  timeText: string
+): string => {
+  const stamp = [dateText, timeText]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(' ');
+  return [typeName, stamp]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(' · ');
+};
 
 type Column<T> = {
   label: string;
@@ -67,9 +86,22 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
 
   const columns: Column<Invoice>[] = [
     {
-      label: 'Appointment Info',
+      label: 'Invoice',
+      key: 'invoice-number',
+      width: '96px',
+      render: (item: Invoice) => (
+        <div
+          className="appointment-profile-title tabular-nums"
+          title={getInvoiceNumberLabel(item) || undefined}
+        >
+          {getInvoiceNumberLabel(item) || '-'}
+        </div>
+      ),
+    },
+    {
+      label: 'Parent / Patient',
       key: 'appointment-id',
-      width: '160px',
+      width: '200px',
       render: (item: Invoice) => {
         const companionName = getCompanionName(item.appointmentId);
         const parentName = getParentName(item.appointmentId);
@@ -83,12 +115,39 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
         } else {
           ownerAndCompanion = parentName;
         }
+        const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
+        const companion = appointment ? getAppointmentCompanion(appointment) : undefined;
+        const avatarSrc = getSafeImageUrl(
+          getAppointmentCompanionPhotoUrl(companion),
+          (companion?.species as ImageType) ?? 'other'
+        );
+        const subtitle = appointment
+          ? buildAppointmentSubtitle(
+              appointment.appointmentType?.name,
+              formatDateLabel(appointment.appointmentDate),
+              formatTimeLabel(appointment.startTime ?? appointment.appointmentDate)
+            )
+          : '';
         return (
-          <div className="appointment-profile">
-            <div className="appointment-profile-two">
-              <div className="appointment-profile-title" title={ownerAndCompanion}>
+          <div className="appointment-profile flex items-center gap-2.5">
+            <span className="flex size-8 shrink-0 overflow-hidden rounded-full bg-card-hover">
+              <Image
+                src={avatarSrc}
+                alt=""
+                width={32}
+                height={32}
+                className="size-8 rounded-full object-cover"
+              />
+            </span>
+            <div className="appointment-profile-two min-w-0">
+              <div className="appointment-profile-title truncate" title={ownerAndCompanion}>
                 {ownerAndCompanion}
               </div>
+              {subtitle && (
+                <div className="appointment-profile-sub truncate" title={subtitle}>
+                  {subtitle}
+                </div>
+              )}
             </div>
           </div>
         );

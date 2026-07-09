@@ -24,6 +24,11 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: ({ alt }: any) => <span data-testid="companion-avatar">{alt}</span>,
+}));
+
 jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => ({
   __esModule: true,
   default: ({ data, columns }: any) => (
@@ -110,6 +115,7 @@ describe('InvoiceTable', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open finance details for Buddy' }));
 
     expect(screen.getByText('Sam / Buddy')).toBeInTheDocument();
+    expect(screen.getByText('#inv-1')).toBeInTheDocument();
     expect(screen.getByText('Jan 1')).toBeInTheDocument();
     expect(screen.getByText('10:00 AM')).toBeInTheDocument();
     expect(screen.queryByText('Finance')).not.toBeInTheDocument();
