@@ -9,10 +9,12 @@ jest.mock('@/app/hooks/useTeam', () => ({
 }));
 
 const mockAppointmentsForUser = jest.fn();
+const mockCountForUser = jest.fn();
 jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
   DEFAULT_CALENDAR_FOCUS_MINUTES: 540,
   EVENT_VERTICAL_GAP_PX: 2,
   appointentsForUser: (...args: any[]) => mockAppointmentsForUser(...args),
+  countAppointmentsForUserOnDay: (...args: any[]) => mockCountForUser(...args),
   computeUnavailableSegments: jest.fn(() => []),
   getFirstRelevantTimedEventStart: jest.fn(() => null),
   getNowTopPxForHourRange: jest.fn((_: Date, __: number, ___: number, height: number) => height),
@@ -82,7 +84,7 @@ describe('UserCalendar (Appointments)', () => {
   const setCurrentDate = jest.fn();
 
   const team = [
-    { _id: 'u1', name: 'Alex' },
+    { _id: 'u1', practionerId: 'p1', name: 'Alex' },
     { _id: 'u2', name: 'Sam' },
   ];
 
@@ -92,6 +94,7 @@ describe('UserCalendar (Appointments)', () => {
     jest.clearAllMocks();
     (useTeamForPrimaryOrg as jest.Mock).mockReturnValue(team);
     mockAppointmentsForUser.mockReturnValue(events);
+    mockCountForUser.mockImplementation((_events: any, user: any) => (user._id === 'u1' ? 2 : 5));
   });
 
   it('renders user labels and slots per team member', () => {
@@ -108,6 +111,9 @@ describe('UserCalendar (Appointments)', () => {
 
     expect(screen.getByTestId('user-labels')).toBeInTheDocument();
     expect(userLabelsSpy).toHaveBeenCalledWith(expect.objectContaining({ team }));
+    expect(userLabelsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ appointmentCounts: { p1: 2, u2: 5 } })
+    );
 
     const slots = screen.getAllByTestId('slot');
     expect(slots.length).toBeGreaterThanOrEqual(team.length);

@@ -41,6 +41,7 @@ type CalendarDayHeaderProps = {
   teamColumnsStyle: React.CSSProperties;
   onPrevDay: () => void;
   onNextDay: () => void;
+  appointmentCounts?: Record<string, number>;
 };
 
 const CalendarDayHeader = ({
@@ -50,6 +51,7 @@ const CalendarDayHeader = ({
   teamColumnsStyle,
   onPrevDay,
   onNextDay,
+  appointmentCounts,
 }: CalendarDayHeaderProps) => (
   <div className="min-w-max bg-neutral-0 shrink-0">
     <CalendarDayNav
@@ -58,7 +60,11 @@ const CalendarDayHeader = ({
       onPrevDay={onPrevDay}
       onNextDay={onNextDay}
     />
-    <CalendarTeamNamesRow team={team} teamColumnsStyle={teamColumnsStyle} />
+    <CalendarTeamNamesRow
+      team={team}
+      teamColumnsStyle={teamColumnsStyle}
+      appointmentCounts={appointmentCounts}
+    />
   </div>
 );
 

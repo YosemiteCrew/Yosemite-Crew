@@ -353,6 +353,16 @@ export function appointentsForUser(events: Appointment[], user: Team): Appointme
   });
 }
 
+export function countAppointmentsForUserOnDay(
+  events: Appointment[],
+  user: Team,
+  day: Date
+): number {
+  return appointentsForUser(events, user).filter((event) =>
+    isOnPreferredTimeZoneCalendarDay(event.startTime, day)
+  ).length;
+}
+
 export type AvailabilityInterval = { startMinute: number; endMinute: number };
 
 export function computeUnavailableSegments(

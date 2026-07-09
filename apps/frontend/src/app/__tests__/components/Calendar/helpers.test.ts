@@ -15,12 +15,14 @@ import {
   getNowTopPxForHourRange,
   isAllDayForDate,
   eventsForDay,
+  countAppointmentsForUserOnDay,
   scrollContainerToTarget,
   PIXELS_PER_STEP,
   MINUTES_PER_STEP,
 } from '@/app/features/appointments/components/Calendar/helpers';
 import { Appointment } from '@yosemite-crew/types';
 import { Task } from '@/app/features/tasks/types/task';
+import { Team } from '@/app/features/organization/types/team';
 
 jest.mock('@/app/lib/timezone', () => ({
   getMinutesSinceStartOfDayInPreferredTimeZone: (date: Date) =>
@@ -399,6 +401,53 @@ describe('Calendar Helpers', () => {
       const res = eventsForDay(tasks, day);
       expect(res).toHaveLength(1);
       expect(res[0].dueAt.getDate()).toBe(1);
+    });
+  });
+
+  describe('countAppointmentsForUserOnDay', () => {
+    const day = new Date(2023, 0, 1);
+    const user = { practionerId: 'p1' } as Team;
+
+    const leadAppt = (startTime: Date): Appointment =>
+      ({ startTime, lead: { id: 'p1' } }) as unknown as Appointment;
+
+    it('counts the practitioner lead appointments on the day', () => {
+      const events = [leadAppt(new Date(2023, 0, 1, 9, 0)), leadAppt(new Date(2023, 0, 1, 14, 0))];
+      expect(countAppointmentsForUserOnDay(events, user, day)).toBe(2);
+    });
+
+    it('counts appointments where the practitioner is support staff', () => {
+      const events = [
+        {
+          startTime: new Date(2023, 0, 1, 9, 0),
+          lead: { id: 'someone-else' },
+          supportStaff: [{ id: 'p1' }],
+        },
+      ] as unknown as Appointment[];
+      expect(countAppointmentsForUserOnDay(events, user, day)).toBe(1);
+    });
+
+    it('excludes appointments on other days', () => {
+      const events = [leadAppt(new Date(2023, 0, 1, 9, 0)), leadAppt(new Date(2023, 0, 2, 9, 0))];
+      expect(countAppointmentsForUserOnDay(events, user, day)).toBe(1);
+    });
+
+    it('excludes appointments for other practitioners', () => {
+      const events = [
+        { startTime: new Date(2023, 0, 1, 9, 0), lead: { id: 'someone-else' }, supportStaff: [] },
+      ] as unknown as Appointment[];
+      expect(countAppointmentsForUserOnDay(events, user, day)).toBe(0);
+    });
+
+    it('counts a multi-hour appointment once', () => {
+      const events = [
+        {
+          startTime: new Date(2023, 0, 1, 9, 0),
+          endTime: new Date(2023, 0, 1, 12, 0),
+          lead: { id: 'p1' },
+        },
+      ] as unknown as Appointment[];
+      expect(countAppointmentsForUserOnDay(events, user, day)).toBe(1);
     });
   });
 });

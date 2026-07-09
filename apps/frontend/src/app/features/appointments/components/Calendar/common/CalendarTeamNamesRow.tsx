@@ -5,15 +5,20 @@ import { Team } from '@/app/features/organization/types/team';
 type CalendarTeamNamesRowProps = {
   team: Team[];
   teamColumnsStyle: React.CSSProperties;
+  appointmentCounts?: Record<string, number>;
 };
 
-export const CalendarTeamNamesRow = ({ team, teamColumnsStyle }: CalendarTeamNamesRowProps) => (
+export const CalendarTeamNamesRow = ({
+  team,
+  teamColumnsStyle,
+  appointmentCounts,
+}: CalendarTeamNamesRowProps) => (
   <div
     className="grid grid-cols-[64px_minmax(0,1fr)_64px] border-b border-grey-light min-w-max"
     style={{ background: 'color-mix(in srgb, var(--color-brand-100) 55%, var(--screen))' }}
   >
     <div className="sticky left-0 z-30" style={{ background: 'inherit' }} />
-    <UserLabels team={team} columnsStyle={teamColumnsStyle} />
+    <UserLabels team={team} columnsStyle={teamColumnsStyle} appointmentCounts={appointmentCounts} />
     <div className="sticky right-0 z-30" style={{ background: 'inherit' }} />
   </div>
 );

@@ -3,6 +3,7 @@ import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScro
 import {
   computeUnavailableSegments,
   appointentsForUser,
+  countAppointmentsForUserOnDay,
   DEFAULT_CALENDAR_FOCUS_MINUTES,
   getFirstRelevantTimedEventStart,
   getNowTopPxForHourRange,
@@ -118,6 +119,13 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
     () => getCalendarColumnGridStyle(team.length, zoomMode === 'out' ? 108 : 170),
     [team.length, zoomMode]
   );
+  const appointmentCountByPractitioner = useMemo(() => {
+    const counts: Record<string, number> = {};
+    team.forEach((user) => {
+      counts[user.practionerId || user._id] = countAppointmentsForUserOnDay(events, user, date);
+    });
+    return counts;
+  }, [team, events, date]);
   const weekday = formatDateInPreferredTimeZone(date, { weekday: 'short' });
   const dateNumber = formatDateInPreferredTimeZone(date, { day: 'numeric' });
 
@@ -236,6 +244,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
             teamColumnsStyle={teamColumnsStyle}
             onPrevDay={handlePrevDay}
             onNextDay={handleNextDay}
+            appointmentCounts={appointmentCountByPractitioner}
           />
 
           <div
