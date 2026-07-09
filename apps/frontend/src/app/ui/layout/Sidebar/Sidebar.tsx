@@ -29,7 +29,6 @@ import { useUserProfileStore } from '@/app/stores/profileStore';
 import { useLoadSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { appRoutes, devRoutes } from '@/app/config/routes';
 import type { RouteItem } from '@/app/config/routes';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { hasAnyRequiredPermission } from '@/app/lib/routePermissions';
 import {
@@ -156,14 +155,8 @@ const Sidebar = () => {
           className={`logo ${isCollapsed ? 'logo-collapsed' : ''}`}
           aria-label="Yosemite Crew dashboard"
         >
-          <Image
-            src={MEDIA_SOURCES.logo}
-            alt="Yosemite Crew"
-            width={112}
-            height={72}
-            priority
-            style={{ width: 'auto' }}
-          />
+          <Image src="/icon.svg" alt="Yosemite Crew" width={30} height={30} priority />
+          {!isCollapsed && <span className="sidebar-wordmark">Yosemite Crew</span>}
         </Link>
       </div>
       <div className="sidebar-routes">
@@ -194,7 +187,7 @@ const Sidebar = () => {
 
                 const routeIcon = (
                   <span className="route-icon" aria-hidden>
-                    <RouteIcon size={18} className="route-icon-svg" />
+                    <RouteIcon size={17} className="route-icon-svg" />
                   </span>
                 );
 
@@ -239,10 +232,15 @@ const Sidebar = () => {
         ))}
       </div>
       <div className="sidebar-footer">
+        {!isCollapsed && (
+          <span className="sidebar-status">
+            <span className="sidebar-status-dot" aria-hidden />
+            All systems live
+          </span>
+        )}
         <GlassTooltip
           content={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           side={isCollapsed ? 'right' : 'top'}
-          className="sidebar-route-tooltip"
         >
           <button
             type="button"
@@ -251,9 +249,9 @@ const Sidebar = () => {
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? (
-              <MdOutlineKeyboardDoubleArrowRight size={21} />
+              <MdOutlineKeyboardDoubleArrowRight size={17} />
             ) : (
-              <MdOutlineKeyboardDoubleArrowLeft size={21} />
+              <MdOutlineKeyboardDoubleArrowLeft size={17} />
             )}
           </button>
         </GlassTooltip>

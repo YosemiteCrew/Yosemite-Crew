@@ -12,7 +12,7 @@ import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 import { setStorageItem } from '@/app/lib/browserStorage';
-import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
+import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
 
 import './OtpModal.css';
 
@@ -129,7 +129,7 @@ const OtpModal = ({
         setShowVerifyModal(false);
         try {
           await signIn(email, password);
-          defaultSidebarToCollapsed();
+          resetSidebarPreference();
           await afterAuthSuccess();
           // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
           setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
