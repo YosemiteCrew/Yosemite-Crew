@@ -1026,7 +1026,7 @@ const InvoicesSection = ({
 };
 
 /** Payment actions below the Total Bill (Collect Deposit / Collect Cash / Pay Online). */
-const PaymentActions = ({
+export const PaymentActions = ({
   isInpatient,
   depositDisabled,
   paymentDisabled,
