@@ -276,7 +276,7 @@ const createStyles = (theme: any) =>
     message: {
       ...theme.typography.titleMedium,
       paddingBottom: theme.spacing['5'],
-      color: theme.colors.secondary,
+      color: theme.colors.inkMuted,
     },
     buttonRow: {
       flexDirection: 'row',

@@ -253,9 +253,14 @@ const createStyles = (theme: any) =>
       color: theme.colors.secondary,
     },
     doctorCount: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-      textAlign: 'right',
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.blueText,
+      backgroundColor: theme.colors.blueSoft,
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: 2,
+      borderRadius: theme.borderRadius.pill,
+      overflow: 'hidden',
+      alignSelf: 'center',
     },
     chevronIcon: {
       width: theme.spacing['5'],

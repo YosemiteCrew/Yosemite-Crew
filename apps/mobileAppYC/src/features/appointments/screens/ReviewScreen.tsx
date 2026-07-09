@@ -1,5 +1,13 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {ScrollView, View, Text, StyleSheet, TextInput, Image, Keyboard} from 'react-native';
+import {
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  Image,
+  Keyboard,
+} from 'react-native';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
@@ -11,8 +19,14 @@ import {SummaryCards} from '@/features/appointments/components/SummaryCards/Summ
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
 import {appointmentApi} from '@/features/appointments/services/appointmentsService';
-import {getFreshStoredTokens, isTokenExpired} from '@/features/auth/sessionManager';
-import {fetchBusinessDetails, fetchGooglePlacesImage} from '@/features/linkedBusinesses';
+import {
+  getFreshStoredTokens,
+  isTokenExpired,
+} from '@/features/auth/sessionManager';
+import {
+  fetchBusinessDetails,
+  fetchGooglePlacesImage,
+} from '@/features/linkedBusinesses';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
 import {Images} from '@/assets/images';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
@@ -29,9 +43,14 @@ export const ReviewScreen: React.FC = () => {
   const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
-  const appointmentId = (navigation.getState() as any)?.routes?.slice(-1)[0]?.params?.appointmentId;
-  const apt = useSelector((s: RootState) => s.appointments.items.find(a => a.id === appointmentId));
-  const business = useSelector((s: RootState) => s.businesses.businesses.find(b => b.id === apt?.businessId));
+  const appointmentId = (navigation.getState() as any)?.routes?.slice(-1)[0]
+    ?.params?.appointmentId;
+  const apt = useSelector((s: RootState) =>
+    s.appointments.items.find(a => a.id === appointmentId),
+  );
+  const business = useSelector((s: RootState) =>
+    s.businesses.businesses.find(b => b.id === apt?.businessId),
+  );
 
   useEffect(() => {
     if (!business && apt?.businessId) {
@@ -39,7 +58,8 @@ export const ReviewScreen: React.FC = () => {
     }
   }, [apt?.businessId, business, dispatch]);
 
-  const googlePlacesId = business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
+  const googlePlacesId =
+    business?.googlePlacesId ?? apt?.businessGooglePlacesId ?? null;
   const businessPhoto = business?.photo ?? apt?.businessPhoto ?? null;
 
   const displayBusiness = useMemo(
@@ -84,7 +104,10 @@ export const ReviewScreen: React.FC = () => {
     try {
       setSubmitting(true);
       const tokens = await getFreshStoredTokens();
-      if (!tokens?.accessToken || isTokenExpired(tokens?.expiresAt ?? undefined)) {
+      if (
+        !tokens?.accessToken ||
+        isTokenExpired(tokens?.expiresAt ?? undefined)
+      ) {
         throw new Error('Session expired. Please sign in again.');
       }
       await appointmentApi.rateOrganisation({
@@ -187,68 +210,68 @@ const createStyles = (theme: any) => {
       gap: theme.spacing['3'],
     },
     headerSection: {
-    alignItems: 'center',
-    marginBottom: theme.spacing['5'],
-  },
-  checkmarkContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: theme.borderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: theme.spacing['6'],
-        marginBottom: theme.spacing['12'],
-  },
-  checkmarkIcon: {
-    width: 100,
-    height: 100,
-  },
-  title: {
-    ...theme.typography.h3,
-    color: theme.colors.secondary,
-    marginBottom: theme.spacing['2'],
-    textAlign: 'center',
-  },
-  subtitle: {
-    ...theme.typography.body14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-  businessCardContainer: {
-    // Spacing handled by container gap
-  },
-  summaryCard: {
-    // Spacing handled by container gap
-  },
-  ratingSection: {
-    alignItems: 'center',
-    // Spacing handled by container gap
-  },
-  reviewSection: {
-    // Spacing handled by container gap
-  },
-  reviewLabel: {
-    ...theme.typography.titleMedium,
-    color: theme.colors.secondary,
-    marginBottom: theme.spacing['3'],
-  },
-  textArea: {
-    borderRadius: theme.borderRadius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    paddingHorizontal: theme.spacing['3'],
-    paddingVertical: theme.spacing['3'],
-    minHeight: 140,
-    backgroundColor: theme.colors.inputBackground,
-  },
-  input: {
-    ...theme.typography.body14,
-    color: theme.colors.text,
-    minHeight: 120,
-  },
-  buttonContainer: {
-    marginTop: theme.spacing['2'],
-  },
+      alignItems: 'center',
+      marginBottom: theme.spacing['5'],
+    },
+    checkmarkContainer: {
+      width: 72,
+      height: 72,
+      borderRadius: theme.borderRadius.lg,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: theme.spacing['6'],
+      marginBottom: theme.spacing['12'],
+    },
+    checkmarkIcon: {
+      width: 100,
+      height: 100,
+    },
+    title: {
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.secondary,
+      marginBottom: theme.spacing['2'],
+      textAlign: 'center',
+    },
+    subtitle: {
+      ...theme.typography.body14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    businessCardContainer: {
+      // Spacing handled by container gap
+    },
+    summaryCard: {
+      // Spacing handled by container gap
+    },
+    ratingSection: {
+      alignItems: 'center',
+      // Spacing handled by container gap
+    },
+    reviewSection: {
+      // Spacing handled by container gap
+    },
+    reviewLabel: {
+      ...theme.typography.titleMedium,
+      color: theme.colors.secondary,
+      marginBottom: theme.spacing['3'],
+    },
+    textArea: {
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      paddingHorizontal: theme.spacing['3'],
+      paddingVertical: theme.spacing['3'],
+      minHeight: 140,
+      backgroundColor: theme.colors.inputBackground,
+    },
+    input: {
+      ...theme.typography.body14,
+      color: theme.colors.text,
+      minHeight: 120,
+    },
+    buttonContainer: {
+      marginTop: theme.spacing['2'],
+    },
   });
 };
 

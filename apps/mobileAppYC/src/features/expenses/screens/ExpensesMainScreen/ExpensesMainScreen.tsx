@@ -331,8 +331,8 @@ const createStyles = (theme: any) =>
       justifyContent: 'space-between',
     },
     sectionTitle: {
-      ...theme.typography.sectionHeading,
-      color: theme.colors.secondary,
+      ...theme.typography.eyebrow,
+      color: theme.colors.inkMuted,
     },
     cardsContainer: {
       gap: theme.spacing['3'],

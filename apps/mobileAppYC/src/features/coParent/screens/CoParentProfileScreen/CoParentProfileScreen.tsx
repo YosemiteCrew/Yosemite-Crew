@@ -308,13 +308,13 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.full,
       borderWidth: theme.spacing['1'],
       borderColor: theme.colors.white,
-      backgroundColor: theme.colors.lightBlueBackground,
+      backgroundColor: theme.colors.avatarGreenBg,
       justifyContent: 'center',
       alignItems: 'center',
     },
     profileInitialsText: {
       ...theme.typography.h1,
-      color: theme.colors.secondary,
+      color: theme.colors.avatarGreenInk,
     },
     sectionContainer: {
       paddingHorizontal: theme.spacing['5'],

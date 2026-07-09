@@ -107,13 +107,13 @@ const createStyles = (theme: any) =>
       width: 60,
       height: 60,
       borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.lightBlueBackground,
+      backgroundColor: theme.colors.avatarGreenBg,
       justifyContent: 'center',
       alignItems: 'center',
     },
     avatarInitialsText: {
       ...theme.typography.h3,
-      color: theme.colors.secondary,
+      color: theme.colors.avatarGreenInk,
     },
     textContent: {
       flex: 1,
