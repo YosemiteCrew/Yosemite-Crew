@@ -81,6 +81,16 @@ const asNonEmptyString = (value: unknown): string | undefined => {
   return trimmed || undefined;
 };
 
+// Scope a Prisma task lookup to an organisation when one is supplied. Shared by
+// the org-scoped findFirst call sites so the where clause is built in one place.
+const taskScopeWhere = (
+  taskId: string,
+  organisationId?: string,
+): { id: string; organisationId?: string } => {
+  const orgScope = asNonEmptyString(organisationId);
+  return orgScope ? { id: taskId, organisationId: orgScope } : { id: taskId };
+};
+
 const isValidDate = (value: unknown): value is Date =>
   value instanceof Date && !Number.isNaN(value.getTime());
 
@@ -1434,9 +1444,8 @@ export const TaskService = {
     actorId: string,
     organisationId?: string,
   ): Promise<TaskLike> {
-    const orgScope = asNonEmptyString(organisationId);
     const task = await prisma.task.findFirst({
-      where: { id: taskId, ...(orgScope ? { organisationId: orgScope } : {}) },
+      where: taskScopeWhere(taskId, organisationId),
     });
     if (!task) throw new TaskServiceError("Task not found", 404);
 
@@ -1511,11 +1520,8 @@ export const TaskService = {
     completion?: CompleteTaskInput,
     organisationId?: string,
   ): Promise<{ task: TaskLike; completion?: TaskCompletionLike }> {
-    const orgScope = asNonEmptyString(organisationId);
     const task = await prisma.task.findFirst({
-      where: orgScope
-        ? { id: taskId, organisationId: orgScope }
-        : { id: taskId },
+      where: taskScopeWhere(taskId, organisationId),
     });
     if (!task) throw new TaskServiceError("Task not found", 404);
 
@@ -1576,11 +1582,8 @@ export const TaskService = {
     taskId: string,
     organisationId?: string,
   ): Promise<TaskLike | null> {
-    const orgScope = asNonEmptyString(organisationId);
     const task = await prisma.task.findFirst({
-      where: orgScope
-        ? { id: taskId, organisationId: orgScope }
-        : { id: taskId },
+      where: taskScopeWhere(taskId, organisationId),
     });
     return task ? toTaskLike(task) : null;
   },
