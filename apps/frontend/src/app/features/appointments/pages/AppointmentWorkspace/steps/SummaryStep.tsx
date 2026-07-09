@@ -444,15 +444,17 @@ const SavedDischargeView = ({ encounter, followUpDate, onEdit }: SavedDischargeV
 );
 
 type ActionButtonsRowProps = {
-  showDocumentActions: boolean;
-  dischargeSaved: boolean;
-  isPrinting: boolean;
-  isSaving: boolean;
-  isSigning: boolean;
-  isPacketSigned: boolean;
-  signDisabled: boolean;
-  signDisabledReason: string | undefined;
-  encounterViewOnly: boolean | undefined;
+  documentState: {
+    visible: boolean;
+    dischargeSaved: boolean;
+    printing: boolean;
+    saving: boolean;
+    signing: boolean;
+    packetSigned: boolean;
+    signBlocked: boolean;
+    signBlockedReason: string | undefined;
+    encounterViewOnly: boolean | undefined;
+  };
   onPrint: () => void;
   onSave: () => void;
   onDownloadSigned: () => void;
@@ -460,61 +462,53 @@ type ActionButtonsRowProps = {
 };
 
 const ActionButtonsRow = ({
-  showDocumentActions,
-  dischargeSaved,
-  isPrinting,
-  isSaving,
-  isSigning,
-  isPacketSigned,
-  signDisabled,
-  signDisabledReason,
-  encounterViewOnly,
+  documentState,
   onPrint,
   onSave,
   onDownloadSigned,
   onSign,
 }: ActionButtonsRowProps) => (
   <div className="flex flex-wrap items-center justify-end gap-3">
-    {showDocumentActions && (
+    {documentState.visible && (
       <Secondary
-        text={isPrinting ? 'Preparing…' : 'Print All'}
+        text={documentState.printing ? 'Preparing…' : 'Print All'}
         icon={<LuPrinter aria-hidden="true" />}
         onClick={onPrint}
-        isDisabled={isPrinting}
+        isDisabled={documentState.printing}
       />
     )}
-    {!dischargeSaved && (
+    {!documentState.dischargeSaved && (
       <Secondary
         text="Save"
         icon={<LuSave aria-hidden="true" />}
         onClick={onSave}
-        isDisabled={encounterViewOnly || isSaving}
+        isDisabled={documentState.encounterViewOnly || documentState.saving}
       />
     )}
-    {showDocumentActions && isPacketSigned && (
+    {documentState.visible && documentState.packetSigned && (
       <Secondary
         text="Download Signed"
         icon={<LuDownload aria-hidden="true" />}
         onClick={onDownloadSigned}
-        isDisabled={isPrinting}
+        isDisabled={documentState.printing}
       />
     )}
-    {showDocumentActions && !isPacketSigned && signDisabledReason && (
-      <GlassTooltip content={signDisabledReason} side="top">
+    {documentState.visible && !documentState.packetSigned && documentState.signBlockedReason && (
+      <GlassTooltip content={documentState.signBlockedReason} side="top">
         <Secondary
-          text={isSigning ? 'Signing…' : 'Sign'}
+          text={documentState.signing ? 'Signing…' : 'Sign'}
           icon={<LuFileSignature aria-hidden="true" />}
           onClick={onSign}
-          isDisabled={signDisabled}
+          isDisabled={documentState.signBlocked}
         />
       </GlassTooltip>
     )}
-    {showDocumentActions && !isPacketSigned && !signDisabledReason && (
+    {documentState.visible && !documentState.packetSigned && !documentState.signBlockedReason && (
       <Secondary
-        text={isSigning ? 'Signing…' : 'Sign'}
+        text={documentState.signing ? 'Signing…' : 'Sign'}
         icon={<LuFileSignature aria-hidden="true" />}
         onClick={onSign}
-        isDisabled={signDisabled}
+        isDisabled={documentState.signBlocked}
       />
     )}
   </div>
@@ -980,15 +974,17 @@ const SummaryStep = ({
           </p>
         )}
         <ActionButtonsRow
-          showDocumentActions={showDocumentActions}
-          dischargeSaved={dischargeSaved}
-          isPrinting={isPrinting}
-          isSaving={isSaving}
-          isSigning={isSigning}
-          isPacketSigned={isPacketSigned}
-          signDisabled={signDisabled}
-          signDisabledReason={signDisabledReason}
-          encounterViewOnly={encounter.viewOnly}
+          documentState={{
+            visible: showDocumentActions,
+            dischargeSaved,
+            printing: isPrinting,
+            saving: isSaving,
+            signing: isSigning,
+            packetSigned: isPacketSigned,
+            signBlocked: signDisabled,
+            signBlockedReason: signDisabledReason,
+            encounterViewOnly: encounter.viewOnly,
+          }}
           onPrint={() => void handlePrint()}
           onSave={() => void handleSave()}
           onDownloadSigned={() => void handleDownloadSigned()}

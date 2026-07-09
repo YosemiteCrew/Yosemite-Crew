@@ -9,9 +9,9 @@ import { accentFor, initialsOf } from '@/app/features/chat/components/chatAvatar
  */
 
 const SIZE = {
-  sm: 'h-9 w-9 text-xs',
+  sm: 'size-9 text-xs',
   md: 'h-11 w-11 text-sm',
-  lg: 'h-12 w-12 text-base',
+  lg: 'size-12 text-base',
 } as const;
 
 export type ChatAvatarProps = Readonly<{
@@ -32,10 +32,10 @@ export function ChatAvatar({ name, online, group, size = 'md', className }: Chat
           group ? 'bg-chat-panel text-primary-600' : accentFor(name)
         )}
       >
-        {group ? <LuUsers className="h-5 w-5" /> : initialsOf(name)}
+        {group ? <LuUsers className="size-5" /> : initialsOf(name)}
       </span>
       {online && (
-        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-neutral-0 bg-success-bright" />
+        <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-neutral-0 bg-success-bright" />
       )}
     </span>
   );

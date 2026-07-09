@@ -283,7 +283,7 @@ const ToggleSwitch = ({
   >
     <span
       aria-hidden="true"
-      className={`block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+      className={`block size-4 rounded-full bg-white shadow-sm transition-transform ${
         checked ? 'translate-x-6' : 'translate-x-0'
       }`}
     />
@@ -329,7 +329,7 @@ const IconCircleButton = ({
     aria-label={label}
     title={label}
     onClick={onClick}
-    className={`flex h-8 w-8 items-center justify-center rounded-full border ${
+    className={`flex size-8 items-center justify-center rounded-full border ${
       danger
         ? 'border-text-error bg-white text-text-error'
         : 'border-text-primary bg-text-primary text-white'
@@ -810,7 +810,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
                       type="button"
                       aria-label="Add unit type"
                       onClick={addUnitDraft}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-text-primary text-white"
+                      className="flex size-8 items-center justify-center rounded-full bg-text-primary text-white"
                     >
                       <FiPlus size={16} aria-hidden="true" />
                     </button>
@@ -905,7 +905,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
                       type="button"
                       aria-label="Add custom equipment"
                       onClick={addCustomEquipment}
-                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-text-primary text-white"
+                      className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-text-primary text-white"
                     >
                       <FiPlus size={18} aria-hidden="true" />
                     </button>

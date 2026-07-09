@@ -122,7 +122,7 @@ export function ShareEntityModal({
       <div className="relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 shadow-2xl">
         <div className="flex items-center justify-between border-b border-chat-divider px-4 py-3">
           <span className="flex items-center gap-2">
-            <LuShare2 className="h-4 w-4 text-primary-600" />
+            <LuShare2 className="size-4 text-primary-600" />
             <Text as="span" variant="body-3-emphasis" className="text-neutral-900">
               Share from PIMS
             </Text>
@@ -131,9 +131,9 @@ export function ShareEntityModal({
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-chat-surface-soft"
+            className="inline-flex size-8 items-center justify-center rounded-full text-neutral-500 hover:bg-chat-surface-soft"
           >
-            <LuX className="h-4 w-4" />
+            <LuX className="size-4" />
           </button>
         </div>
 
@@ -150,14 +150,14 @@ export function ShareEntityModal({
                   : 'text-neutral-500 hover:bg-chat-surface-soft'
               )}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="size-4" />
               {label}
             </button>
           ))}
         </div>
 
         <div className="flex items-center gap-2 border-b border-chat-divider px-4 py-2">
-          <LuSearch className="h-4 w-4 shrink-0 text-neutral-400" />
+          <LuSearch className="size-4 shrink-0 text-neutral-400" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}

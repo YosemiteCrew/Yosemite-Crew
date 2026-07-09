@@ -691,9 +691,13 @@ type AppointmentFormContentProps = {
   timeSlots: Slot[];
   selectedSlot: Slot | null;
   onSlotSelect: (slot: SetStateAction<Slot | null>) => void;
-  isLoadingTimeSlots: boolean;
-  isLoadingSlotScopedOptions: boolean;
-  hasService: boolean;
+  formState: {
+    loadingTimeSlots: boolean;
+    loadingSlotScopedOptions: boolean;
+    serviceSelected: boolean;
+    submitted: boolean;
+    loading: boolean;
+  };
   noSlotsMessage: string;
   prefillTimeLabel: string | null;
   durationDisplay: string | null;
@@ -712,12 +716,10 @@ type AppointmentFormContentProps = {
   handleServiceSelect: (option: { label: string; value: string }) => void;
   setFormData: Dispatch<SetStateAction<any>>;
   ServiceInfoData: any;
-  submitAttempted: boolean;
   showError: (field: string) => string | undefined;
   toggleNotify: (key: NotifyChannel) => void;
   notifyChannels: Set<NotifyChannel>;
   handleSubmit: () => void;
-  isLoading: boolean;
 };
 
 const AppointmentFormContent = ({
@@ -742,9 +744,7 @@ const AppointmentFormContent = ({
   timeSlots,
   selectedSlot,
   onSlotSelect,
-  isLoadingTimeSlots,
-  isLoadingSlotScopedOptions,
-  hasService,
+  formState,
   noSlotsMessage,
   prefillTimeLabel,
   durationDisplay,
@@ -763,12 +763,10 @@ const AppointmentFormContent = ({
   handleServiceSelect,
   setFormData,
   ServiceInfoData,
-  submitAttempted,
   showError,
   toggleNotify,
   notifyChannels,
   handleSubmit,
-  isLoading,
 }: AppointmentFormContentProps) => (
   <div className="relative">
     <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
@@ -818,8 +816,11 @@ const AppointmentFormContent = ({
               timeSlots={timeSlots}
               selectedSlot={selectedSlot}
               setSelectedSlot={onSlotSelect}
-              isLoading={(isLoadingTimeSlots && hasService) || isLoadingSlotScopedOptions}
-              hasService={hasService}
+              isLoading={
+                (formState.loadingTimeSlots && formState.serviceSelected) ||
+                formState.loadingSlotScopedOptions
+              }
+              hasService={formState.serviceSelected}
               noSlotsMessage={noSlotsMessage}
               prefillLabel={prefillTimeLabel}
               error={showError('slot') ?? showError('duration')}
@@ -919,7 +920,7 @@ const AppointmentFormContent = ({
       </div>
     </div>
 
-    {submitAttempted && formDataErrors.booking && (
+    {formState.submitted && formDataErrors.booking && (
       <div className="mt-4 flex items-center gap-2 rounded-2xl border border-input-border-error px-4 py-3">
         <IoIosWarning className="shrink-0 text-text-error" size={16} aria-hidden="true" />
         <span style={{ ...text14M, color: 'var(--color-text-error, #d32f2f)' }}>
@@ -947,7 +948,7 @@ const AppointmentFormContent = ({
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={isLoading}
+        disabled={formState.loading}
         className="yc-primary-button flex items-center justify-center gap-2 rounded-2xl! px-4 py-[11px] whitespace-nowrap font-satoshi text-base font-medium leading-[1.5rem] text-white! disabled:cursor-not-allowed disabled:opacity-60"
         onPointerDown={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
@@ -1408,9 +1409,13 @@ const AddAppointmentCentralModal = ({
             dispatchUi({ type: 'dismissPrefill' });
             setSelectedSlot(slot);
           }}
-          isLoadingTimeSlots={uiState.isLoadingTimeSlots}
-          isLoadingSlotScopedOptions={isLoadingSlotScopedOptions}
-          hasService={hasService}
+          formState={{
+            loadingTimeSlots: uiState.isLoadingTimeSlots,
+            loadingSlotScopedOptions: isLoadingSlotScopedOptions,
+            serviceSelected: hasService,
+            submitted: uiState.submitAttempted,
+            loading: isLoading,
+          }}
           noSlotsMessage={noSlotsMessage}
           prefillTimeLabel={prefillTimeLabel}
           durationDisplay={durationDisplay}
@@ -1429,12 +1434,10 @@ const AddAppointmentCentralModal = ({
           handleServiceSelect={handleServiceSelect}
           setFormData={setFormData}
           ServiceInfoData={ServiceInfoData}
-          submitAttempted={uiState.submitAttempted}
           showError={(field) => showError(field as keyof typeof formDataErrors)}
           toggleNotify={toggleNotify}
           notifyChannels={uiState.notifyChannels}
           handleSubmit={handleSubmit}
-          isLoading={isLoading}
         />
       </AppointmentCentralModalShell>
 

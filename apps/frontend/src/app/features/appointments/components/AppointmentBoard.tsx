@@ -313,14 +313,15 @@ const AppointmentBoardComponent = ({
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}
         onWheelHorizontal={onWheelHorizontal}
-        toggleEmergencyFilter={toggleEmergencyFilter}
-        isEmergencyActive={isEmergencyActive}
-        emergencyColor={emergencyColor}
-        hasEmergency={hasEmergency}
-        canEditAppointments={canEditAppointments}
+        emergency={{
+          active: isEmergencyActive,
+          color: emergencyColor,
+          present: hasEmergency,
+          onToggle: toggleEmergencyFilter,
+        }}
+        permissions={{ editAppointments: canEditAppointments }}
         onAddAppointment={onAddAppointment}
-        showMineOnly={showMineOnly}
-        setShowMineOnly={setShowMineOnly}
+        scope={{ mineOnly: showMineOnly, onMineOnlyChange: setShowMineOnly }}
       />
       <div
         ref={boardRootRef}

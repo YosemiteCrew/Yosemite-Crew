@@ -633,9 +633,11 @@ const resolveEntryAppointmentId = (entry: HistoryEntry): string | null => {
   return null;
 };
 
+const SEARCHABLE_PAYLOAD_TYPES = new Set(['string', 'number']);
+
 const getSearchableText = (entry: HistoryEntry): string => {
   const payloadText = Object.values(entry.payload)
-    .filter((value) => ['string', 'number'].includes(typeof value))
+    .filter((value) => SEARCHABLE_PAYLOAD_TYPES.has(typeof value))
     .join(' ');
   return [
     entry.title,
@@ -650,6 +652,9 @@ const getSearchableText = (entry: HistoryEntry): string => {
     .join(' ')
     .toLowerCase();
 };
+
+const entryMatchesSearchQuery = (entry: HistoryEntry, normalizedQuery: string): boolean =>
+  getSearchableText(entry).includes(normalizedQuery);
 
 const getRecordCategory = (entry: HistoryEntry): string => {
   if (entry.type === 'DOCUMENT') {
@@ -1610,7 +1615,7 @@ const CompanionHistoryTimeline = ({
         ? entries.filter((entry) => MEDICAL_RECORD_TYPES.has(entry.type))
         : entries.filter((entry) => requestedTypeSet?.has(entry.type));
     const bySearch = normalizedQuery
-      ? byTab.filter((entry) => getSearchableText(entry).includes(normalizedQuery))
+      ? byTab.filter((entry) => entryMatchesSearchQuery(entry, normalizedQuery))
       : byTab;
     const withStatusOverrides = bySearch.map((entry) => ({
       ...entry,

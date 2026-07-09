@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { IoPencilOutline, IoInformationCircleOutline } from 'react-icons/io5';
 import { FiPlus, FiCheck } from 'react-icons/fi';
 import { MdPets } from 'react-icons/md';
@@ -108,6 +108,90 @@ type AddCompanionCentralModalProps = {
   onGoToAppointment?: () => void;
 };
 
+type AddCompanionModalState = {
+  mode: ModalMode;
+  isSubmitting: boolean;
+  savingStatus: boolean;
+  pendingStatus: RecordStatus | null;
+  showDiscardConfirm: boolean;
+  parentFormData: StoredParent;
+  parentErrors: Partial<Record<string, string>>;
+  parentDOB: Date | null;
+  parentResults: StoredParent[];
+  selectedCountryCode: CountryDialCodeOption;
+  localPhoneNumber: string;
+  companionFormData: ExtCompanionForValidation;
+  companionErrors: Partial<Record<string, string>>;
+  companionDOB: Date | null;
+  speciesOptions: SpeciesOption[];
+  breedOptions: BreedOption[];
+  alertInput: string;
+  alertPriority: AlertPriority;
+  clientAlertInput: string;
+  clientAlertPriority: AlertPriority;
+  clientAlerts: CompanionAlert[];
+};
+
+type AddCompanionModalAction =
+  | {
+      type: 'set';
+      field: keyof AddCompanionModalState;
+      value: unknown;
+    }
+  | {
+      type: 'reset';
+      initialMode: ModalMode;
+      selectedCountryCode: CountryDialCodeOption;
+    };
+
+const createInitialModalState = (
+  mode: ModalMode,
+  selectedCountryCode: CountryDialCodeOption
+): AddCompanionModalState => ({
+  mode,
+  isSubmitting: false,
+  savingStatus: false,
+  pendingStatus: null,
+  showDiscardConfirm: false,
+  parentFormData: EMPTY_STORED_PARENT,
+  parentErrors: {},
+  parentDOB: null,
+  parentResults: [],
+  selectedCountryCode,
+  localPhoneNumber: '',
+  companionFormData: EMPTY_STORED_COMPANION,
+  companionErrors: {},
+  companionDOB: null,
+  speciesOptions: DEFAULT_SPECIES_OPTIONS,
+  breedOptions: [],
+  alertInput: '',
+  alertPriority: 'medium',
+  clientAlertInput: '',
+  clientAlertPriority: 'medium',
+  clientAlerts: [],
+});
+
+const resolveModalStateValue = <T,>(currentValue: T, nextValue: unknown): T => {
+  if (typeof nextValue === 'function') {
+    return (nextValue as (previous: T) => T)(currentValue);
+  }
+  return nextValue as T;
+};
+
+const addCompanionModalReducer = (
+  state: AddCompanionModalState,
+  action: AddCompanionModalAction
+): AddCompanionModalState => {
+  if (action.type === 'reset') {
+    return createInitialModalState(action.initialMode, action.selectedCountryCode);
+  }
+
+  return {
+    ...state,
+    [action.field]: resolveModalStateValue(state[action.field], action.value),
+  };
+};
+
 const AddCompanionCentralModal = ({
   showModal,
   setShowModal,
@@ -124,30 +208,139 @@ const AddCompanionCentralModal = ({
 
   // ── Derived initial mode ──
   const initialMode: ModalMode = viewCompanion ? 'view' : 'create';
-  const [mode, setMode] = useState<ModalMode>(initialMode);
-
-  // ── Loading / discard states ──
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [savingStatus, setSavingStatus] = useState(false);
-  const [pendingStatus, setPendingStatus] = useState<RecordStatus | null>(null);
-  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  // When "← Go to Appointment" is clicked with dirty data, we show the discard confirm and then
-  // navigate back rather than closing the whole modal.
-  const pendingGoToAppointmentRef = useRef(false);
 
   // ── Parent form state ──
-  const [parentFormData, setParentFormData] = useState<StoredParent>(EMPTY_STORED_PARENT);
-  const [parentErrors, setParentErrors] = useState<Partial<Record<string, string>>>({});
-  const [parentDOB, setParentDOB] = useState<Date | null>(null);
   const parentSearchQueryRef = useRef('');
   const parentSearchTimeoutRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const parentSelectionRef = useRef(false);
-  const [parentResults, setParentResults] = useState<StoredParent[]>([]);
   const defaultPhoneData = useMemo(() => findPhoneData('', ''), []);
-  const [selectedCountryCode, setSelectedCountryCode] = useState<CountryDialCodeOption>(
-    defaultPhoneData.selectedCode
+  const [modalState, dispatchModalState] = useReducer(
+    addCompanionModalReducer,
+    createInitialModalState(initialMode, defaultPhoneData.selectedCode)
   );
-  const [localPhoneNumber, setLocalPhoneNumber] = useState('');
+  const {
+    mode,
+    isSubmitting,
+    savingStatus,
+    pendingStatus,
+    showDiscardConfirm,
+    parentFormData,
+    parentErrors,
+    parentDOB,
+    parentResults,
+    selectedCountryCode,
+    localPhoneNumber,
+    companionFormData,
+    companionErrors,
+    companionDOB,
+    speciesOptions,
+    breedOptions,
+    alertInput,
+    alertPriority,
+    clientAlertInput,
+    clientAlertPriority,
+    clientAlerts,
+  } = modalState;
+  const setModalField = useCallback(
+    <Field extends keyof AddCompanionModalState>(
+      field: Field,
+      value: React.SetStateAction<AddCompanionModalState[Field]>
+    ) => {
+      dispatchModalState({ type: 'set', field, value });
+    },
+    []
+  );
+  const setMode = useCallback(
+    (value: React.SetStateAction<ModalMode>) => setModalField('mode', value),
+    [setModalField]
+  );
+  const setIsSubmitting = useCallback(
+    (value: React.SetStateAction<boolean>) => setModalField('isSubmitting', value),
+    [setModalField]
+  );
+  const setSavingStatus = useCallback(
+    (value: React.SetStateAction<boolean>) => setModalField('savingStatus', value),
+    [setModalField]
+  );
+  const setPendingStatus = useCallback(
+    (value: React.SetStateAction<RecordStatus | null>) => setModalField('pendingStatus', value),
+    [setModalField]
+  );
+  const setShowDiscardConfirm = useCallback(
+    (value: React.SetStateAction<boolean>) => setModalField('showDiscardConfirm', value),
+    [setModalField]
+  );
+  const setParentFormData = useCallback(
+    (value: React.SetStateAction<StoredParent>) => setModalField('parentFormData', value),
+    [setModalField]
+  );
+  const setParentErrors = useCallback(
+    (value: React.SetStateAction<Partial<Record<string, string>>>) =>
+      setModalField('parentErrors', value),
+    [setModalField]
+  );
+  const setParentDOB = useCallback(
+    (value: React.SetStateAction<Date | null>) => setModalField('parentDOB', value),
+    [setModalField]
+  );
+  const setParentResults = useCallback(
+    (value: React.SetStateAction<StoredParent[]>) => setModalField('parentResults', value),
+    [setModalField]
+  );
+  const setSelectedCountryCode = useCallback(
+    (value: React.SetStateAction<CountryDialCodeOption>) =>
+      setModalField('selectedCountryCode', value),
+    [setModalField]
+  );
+  const setLocalPhoneNumber = useCallback(
+    (value: React.SetStateAction<string>) => setModalField('localPhoneNumber', value),
+    [setModalField]
+  );
+  const setCompanionFormData = useCallback(
+    (value: React.SetStateAction<ExtCompanionForValidation>) =>
+      setModalField('companionFormData', value),
+    [setModalField]
+  );
+  const setCompanionErrors = useCallback(
+    (value: React.SetStateAction<Partial<Record<string, string>>>) =>
+      setModalField('companionErrors', value),
+    [setModalField]
+  );
+  const setCompanionDOB = useCallback(
+    (value: React.SetStateAction<Date | null>) => setModalField('companionDOB', value),
+    [setModalField]
+  );
+  const setSpeciesOptions = useCallback(
+    (value: React.SetStateAction<SpeciesOption[]>) => setModalField('speciesOptions', value),
+    [setModalField]
+  );
+  const setBreedOptions = useCallback(
+    (value: React.SetStateAction<BreedOption[]>) => setModalField('breedOptions', value),
+    [setModalField]
+  );
+  const setAlertInput = useCallback(
+    (value: React.SetStateAction<string>) => setModalField('alertInput', value),
+    [setModalField]
+  );
+  const setAlertPriority = useCallback(
+    (value: React.SetStateAction<AlertPriority>) => setModalField('alertPriority', value),
+    [setModalField]
+  );
+  const setClientAlertInput = useCallback(
+    (value: React.SetStateAction<string>) => setModalField('clientAlertInput', value),
+    [setModalField]
+  );
+  const setClientAlertPriority = useCallback(
+    (value: React.SetStateAction<AlertPriority>) => setModalField('clientAlertPriority', value),
+    [setModalField]
+  );
+  const setClientAlerts = useCallback(
+    (value: React.SetStateAction<CompanionAlert[]>) => setModalField('clientAlerts', value),
+    [setModalField]
+  );
+  // When "← Go to Appointment" is clicked with dirty data, we show the discard confirm and then
+  // navigate back rather than closing the whole modal.
+  const pendingGoToAppointmentRef = useRef(false);
   const dialCodeByOptionValue = useMemo(
     () => new Map(CountryDialCodeOptions.map((o) => [o.value, o])),
     []
@@ -159,25 +352,7 @@ const AddCompanionCentralModal = ({
   // ── Edit-mode dirty tracking — snapshot of field values at the moment edit starts ──
   const editSnapshotRef = useRef<EditSnapshot | null>(null);
 
-  // ── Companion form state ──
-  const [companionFormData, setCompanionFormData] =
-    useState<ExtCompanionForValidation>(EMPTY_STORED_COMPANION);
-  const [companionErrors, setCompanionErrors] = useState<Partial<Record<string, string>>>({});
-  const [companionDOB, setCompanionDOB] = useState<Date | null>(null);
   const companionResultsRef = useRef<StoredCompanion[]>([]);
-
-  // ── Species / breed ──
-  const [speciesOptions, setSpeciesOptions] = useState<SpeciesOption[]>(DEFAULT_SPECIES_OPTIONS);
-  const [breedOptions, setBreedOptions] = useState<BreedOption[]>([]);
-
-  // ── Alerts ──
-  const [alertInput, setAlertInput] = useState('');
-  const [alertPriority, setAlertPriority] = useState<AlertPriority>('medium');
-
-  // ── Client (parent) alerts ──
-  const [clientAlertInput, setClientAlertInput] = useState('');
-  const [clientAlertPriority, setClientAlertPriority] = useState<AlertPriority>('medium');
-  const [clientAlerts, setClientAlerts] = useState<CompanionAlert[]>([]);
 
   const clearParentSearchTimeout = useCallback(() => {
     if (parentSearchTimeoutRef.current !== null) {
@@ -203,29 +378,20 @@ const AddCompanionCentralModal = ({
         fetchParentResults(trimmed).then(setParentResults);
       }, 300);
     },
-    [clearParentSearchTimeout]
+    [clearParentSearchTimeout, setParentResults]
   );
 
   // ── Reset on close ──
   const resetAll = useCallback(() => {
-    setParentFormData(EMPTY_STORED_PARENT);
-    setParentErrors({});
-    setParentDOB(null);
     parentSearchQueryRef.current = '';
     clearParentSearchTimeout();
-    setParentResults([]);
-    setSelectedCountryCode(defaultPhoneData.selectedCode);
-    setLocalPhoneNumber('');
-    setCompanionFormData(EMPTY_STORED_COMPANION);
-    setCompanionErrors({});
-    setCompanionDOB(null);
     companionResultsRef.current = [];
-    setAlertInput('');
-    setAlertPriority('medium');
-    setClientAlertInput('');
-    setClientAlertPriority('medium');
-    setClientAlerts([]);
-  }, [clearParentSearchTimeout, defaultPhoneData.selectedCode]);
+    dispatchModalState({
+      type: 'reset',
+      initialMode,
+      selectedCountryCode: defaultPhoneData.selectedCode,
+    });
+  }, [clearParentSearchTimeout, defaultPhoneData.selectedCode, initialMode]);
 
   const modalSyncRef = useRef<ModalSyncState>({ initialMode, showModal });
   if (
@@ -299,15 +465,21 @@ const AddCompanionCentralModal = ({
   // ── DOB picker handlers — update the picker's own Date state and mirror the
   // value into the persisted form object in the same event, instead of a
   // useEffect watching the picker state (avoids an extra render per change). ──
-  const handleParentDOBChange = useCallback((date: Date | null) => {
-    setParentDOB(date);
-    setParentFormData((prev) => ({ ...prev, birthDate: date ?? undefined }));
-  }, []);
+  const handleParentDOBChange = useCallback(
+    (date: Date | null) => {
+      setParentDOB(date);
+      setParentFormData((prev) => ({ ...prev, birthDate: date ?? undefined }));
+    },
+    [setParentDOB, setParentFormData]
+  );
 
-  const handleCompanionDOBChange = useCallback((date: Date | null) => {
-    setCompanionDOB(date);
-    setCompanionFormData((prev) => ({ ...prev, dateOfBirth: date ?? new Date() }));
-  }, []);
+  const handleCompanionDOBChange = useCallback(
+    (date: Date | null) => {
+      setCompanionDOB(date);
+      setCompanionFormData((prev) => ({ ...prev, dateOfBirth: date ?? new Date() }));
+    },
+    [setCompanionDOB, setCompanionFormData]
+  );
 
   // ── Species codes ──
   useEffect(() => {
@@ -329,7 +501,7 @@ const AddCompanionCentralModal = ({
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [setSpeciesOptions]);
 
   // ── Breed codes ──
   useEffect(() => {
@@ -338,7 +510,7 @@ const AddCompanionCentralModal = ({
     return () => {
       signal.cancelled = true;
     };
-  }, [companionFormData.type, speciesOptions]);
+  }, [companionFormData.type, setBreedOptions, speciesOptions]);
 
   // ── Handlers: parent ──
   const handleParentSelect = (parentId: string) => {
@@ -601,7 +773,7 @@ const AddCompanionCentralModal = ({
       return false;
     }
     return true;
-  }, [isSubmitting, savingStatus, hasUnsavedChanges]);
+  }, [isSubmitting, savingStatus, hasUnsavedChanges, setShowDiscardConfirm]);
 
   const handleDiscardAndClose = useCallback(() => {
     setShowDiscardConfirm(false);
@@ -611,7 +783,7 @@ const AddCompanionCentralModal = ({
     } else {
       setShowModal(false);
     }
-  }, [setShowModal, onGoToAppointment]);
+  }, [setShowModal, onGoToAppointment, setShowDiscardConfirm]);
 
   // ────────────────────────────────────────────────────────────────────────────
   return (

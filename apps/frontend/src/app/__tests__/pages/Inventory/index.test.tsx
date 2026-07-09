@@ -1,13 +1,17 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
-import ProtectedInventory from '@/app/features/inventory/pages/Inventory';
+import ProtectedInventory, {
+  DispensaryFilterModal,
+  InventoryFilterBar,
+} from '@/app/features/inventory/pages/Inventory';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useInventoryModule } from '@/app/hooks/useInventory';
 import { listDispenseRequests } from '@/app/features/inventory/services/dispensaryService';
 import { dispensePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 import { PERMISSIONS } from '@/app/lib/permissions';
+import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
 
 expect.extend(toHaveNoViolations);
 
@@ -27,7 +31,8 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
-  default: (loader: () => Promise<unknown>) => {
+  default: (loader: () => Promise<unknown>, options?: { loading?: React.FC }) => {
+    options?.loading?.({});
     const source = loader.toString();
     const LoadableComponent = (props: Record<string, unknown>) => {
       if (source.includes('ui/tables/InventoryTable')) {
@@ -55,6 +60,15 @@ jest.mock('next/dynamic', () => ({
           }
         ).default;
         return <MockInventoryTurnoverTable {...props} />;
+      }
+
+      if (source.includes('ui/filters/InventoryTurnoverFilters')) {
+        const MockInventoryTurnoverFilters = (
+          jest.requireMock('@/app/ui/filters/InventoryTurnoverFilters') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockInventoryTurnoverFilters {...props} />;
       }
 
       if (source.includes('components/AddInventory')) {
@@ -198,19 +212,29 @@ jest.mock('@/app/features/appointments/services/prescriptionWorkflowService', ()
 // Mock Tables
 jest.mock('@/app/ui/tables/InventoryTable', () => ({
   __esModule: true,
-  default: ({ filteredList, setActiveInventory, setViewInventory }: any) => (
+  default: ({ filteredList, setActiveInventory, setViewInventory, onView, onRestock }: any) => (
     <div data-testid="inventory-table">
       {filteredList.map((item: any) => (
-        <button
-          key={item.id}
-          data-testid={`item-${item.id}`}
-          onClick={() => {
-            setActiveInventory(item);
-            setViewInventory(true);
-          }}
-        >
-          {item.basicInfo.name}
-        </button>
+        <div key={item.id}>
+          <button
+            data-testid={`item-${item.id}`}
+            onClick={() => {
+              if (onView) {
+                onView(item);
+              } else {
+                setActiveInventory(item);
+                setViewInventory(true);
+              }
+            }}
+          >
+            {item.basicInfo.name}
+          </button>
+          {onRestock && (
+            <button data-testid={`restock-${item.id}`} onClick={() => onRestock(item)}>
+              Restock {item.basicInfo.name}
+            </button>
+          )}
+        </div>
       ))}
     </div>
   ),
@@ -242,7 +266,15 @@ jest.mock('@/app/features/inventory/components/AddInventory', () => ({
 
 jest.mock('@/app/features/inventory/components', () => ({
   __esModule: true,
-  InventoryInfo: ({ showModal, activeInventory, onUpdate, onAddBatch, onHide, onUnhide }: any) =>
+  InventoryInfo: ({
+    showModal,
+    activeInventory,
+    onUpdate,
+    onAddBatch,
+    onUpdateBatch,
+    onHide,
+    onUnhide,
+  }: any) =>
     showModal ? (
       <div data-testid="info-modal">
         <span>Current: {activeInventory.basicInfo.name}</span>
@@ -267,6 +299,14 @@ jest.mock('@/app/features/inventory/components', () => ({
           }}
         >
           Add Batch
+        </button>
+        <button
+          data-testid="update-batch-btn"
+          onClick={() => {
+            Promise.resolve(onUpdateBatch(activeInventory.id, [{ id: 'b2' }])).catch(() => {});
+          }}
+        >
+          Update Batch
         </button>
         <button
           data-testid="hide-btn"
@@ -343,6 +383,7 @@ describe('Inventory Page', () => {
   const mockHideItem = jest.fn();
   const mockUnhideItem = jest.fn();
   const mockAddBatch = jest.fn();
+  const mockUpdateBatch = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -375,6 +416,7 @@ describe('Inventory Page', () => {
       hideItem: mockHideItem,
       unhideItem: mockUnhideItem,
       addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
     });
     (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([]);
     (listDispenseRequests as jest.Mock).mockReturnValue(new Promise(() => {}));
@@ -420,6 +462,106 @@ describe('Inventory Page', () => {
 
     expect(screen.getByTestId('dispensary-table')).toBeInTheDocument();
     expect(screen.queryByTestId('inventory-table')).not.toBeInTheDocument();
+  });
+
+  it('exercises inventory filter bar search, filter, and sort callbacks directly', () => {
+    const setFilterOpen = jest.fn();
+    const setSortMode = jest.fn();
+    const setFilters = jest.fn();
+    const removeChip = jest.fn();
+
+    render(
+      <InventoryFilterBar
+        filters={{ ...defaultFilters, search: '' }}
+        selectedFilterChips={[{ id: 'status-low', label: 'low stock', onRemove: removeChip }]}
+        sortMode="name"
+        setFilterOpen={setFilterOpen}
+        setFilters={setFilters}
+        setSortMode={setSortMode}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Filter/ }));
+    expect(setFilterOpen).toHaveBeenCalledWith(true);
+
+    fireEvent.change(screen.getByPlaceholderText('Search inventory'), {
+      target: { value: 'needle' },
+    });
+    expect(setFilters).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stock level' }));
+    expect(setSortMode).toHaveBeenCalledWith('stock');
+  });
+
+  it('keeps the sort menu open when clicking its trigger or panel', () => {
+    render(
+      <InventoryFilterBar
+        filters={{ ...defaultFilters, search: '' }}
+        selectedFilterChips={[]}
+        sortMode="name"
+        setFilterOpen={jest.fn()}
+        setFilters={jest.fn()}
+        setSortMode={jest.fn()}
+      />
+    );
+
+    const sortTrigger = screen.getByRole('button', { name: 'Sort by' });
+    fireEvent.click(sortTrigger);
+    expect(screen.getByRole('button', { name: 'Expiry date' })).toBeInTheDocument();
+
+    fireEvent.mouseDown(sortTrigger);
+    expect(screen.getByRole('button', { name: 'Expiry date' })).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole('button', { name: /^Name/ }));
+    expect(screen.getByRole('button', { name: 'Expiry date' })).toBeInTheDocument();
+  });
+
+  it('exercises dispensary filter modal clear, apply, discard, and radio callbacks directly', () => {
+    const setDispensaryFilterOpen = jest.fn();
+    const setDispensaryStatusFilter = jest.fn();
+    const setDispensaryRequestType = jest.fn();
+    const toggleFilterSection = jest.fn();
+
+    render(
+      <DispensaryFilterModal
+        dispensaryFilterOpen
+        setDispensaryFilterOpen={setDispensaryFilterOpen}
+        dispensaryStatusFilter="PENDING"
+        setDispensaryStatusFilter={setDispensaryStatusFilter}
+        dispensaryRequestType="PATIENT"
+        setDispensaryRequestType={setDispensaryRequestType}
+        filterOpenSections={new Set(['disp-status', 'disp-type'])}
+        toggleFilterSection={toggleFilterSection}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+    expect(setDispensaryStatusFilter).toHaveBeenLastCalledWith('ALL');
+    expect(setDispensaryRequestType).toHaveBeenLastCalledWith('ALL');
+
+    fireEvent.click(screen.getByRole('button', { name: /Status/ }));
+    expect(toggleFilterSection).toHaveBeenCalledWith('disp-status');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Dispensed' }));
+    expect(setDispensaryStatusFilter).toHaveBeenLastCalledWith('DISPENSED');
+
+    fireEvent.click(screen.getByRole('button', { name: /Request type/ }));
+    expect(toggleFilterSection).toHaveBeenCalledWith('disp-type');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Inhouse' }));
+    expect(setDispensaryRequestType).toHaveBeenLastCalledWith('IN_HOUSE');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Apply dispensary filters' }));
+    expect(setDispensaryFilterOpen).toHaveBeenLastCalledWith(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(setDispensaryFilterOpen).toHaveBeenLastCalledWith(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(setDispensaryStatusFilter).toHaveBeenLastCalledWith('ALL');
+    expect(setDispensaryRequestType).toHaveBeenLastCalledWith('ALL');
+    expect(setDispensaryFilterOpen).toHaveBeenLastCalledWith(false);
   });
 
   it('displays loading state when fetching data', () => {
@@ -707,6 +849,56 @@ describe('Inventory Page', () => {
     });
   });
 
+  it('removes every active filter chip type individually', async () => {
+    (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([{ name: 'Ward A' }]);
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: [
+        {
+          id: '1',
+          status: 'ACTIVE',
+          stockHealth: 'LOW_STOCK',
+          stock: { stockLocation: 'Ward A', abcClass: 'Class A' },
+          vendor: { supplierName: 'Acme Vet' },
+          basicInfo: {
+            name: 'Capsule One',
+            category: 'Medicine',
+            subCategory: 'Antibiotic',
+            description: 'Primary item',
+          },
+        },
+      ],
+      turnover: mockTurnover,
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
+    fireEvent.click(screen.getByRole('radio', { name: 'low stock' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Location' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Ward A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Category' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Medicine' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Medicine' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Antibiotic' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ABC' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Class A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Supplier' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Acme Vet' }));
+
+    for (const label of ['low stock', 'Antibiotic', 'Ward A', 'Class A', 'Acme Vet', 'Medicine']) {
+      fireEvent.click(screen.getByRole('button', { name: `Remove ${label}` }));
+      expect(screen.queryByRole('button', { name: `Remove ${label}` })).not.toBeInTheDocument();
+    }
+  });
+
   // --- Section 3: Interactions (Modals & Selection) ---
 
   it('opens add modal on button click', () => {
@@ -714,6 +906,54 @@ describe('Inventory Page', () => {
     expect(screen.queryByTestId('add-modal')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
     expect(screen.getByTestId('add-modal')).toBeInTheDocument();
+  });
+
+  it('closes the sort menu on outside click and scroll', () => {
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    expect(screen.getByRole('button', { name: 'Expiry date' })).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('button', { name: 'Expiry date' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
+    expect(screen.getByRole('button', { name: 'Stock level' })).toBeInTheDocument();
+    fireEvent.scroll(window);
+    expect(screen.queryByRole('button', { name: 'Stock level' })).not.toBeInTheDocument();
+  });
+
+  it('opens analytics view and returns to inventory', () => {
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Turnover' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Inventory' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Inventory' })).toBeInTheDocument();
+  });
+
+  it('derives turnover categories from non-empty turnover entries', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: mockInventory,
+      turnover: [
+        { id: 't1', name: 'Food Rotation', category: ' Food ' },
+        { id: 't2', name: 'Blank Rotation', category: ' ' },
+      ],
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+
+    expect(screen.getByTestId('turnover-filters')).toBeInTheDocument();
   });
 
   it('selects an item and opens info modal when clicked', () => {
@@ -827,6 +1067,44 @@ describe('Inventory Page', () => {
     });
   });
 
+  it('ignores inventory actions when the active item has no id', async () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: [
+        {
+          id: '',
+          status: 'ACTIVE',
+          stockHealth: 'Healthy',
+          basicInfo: { name: 'Draft Item', category: 'Medicine', description: 'No id yet' },
+        },
+      ],
+      turnover: mockTurnover,
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByTestId('item-'));
+    fireEvent.click(screen.getByTestId('update-btn'));
+    fireEvent.click(screen.getByTestId('add-batch-btn'));
+    fireEvent.click(screen.getByTestId('update-batch-btn'));
+    fireEvent.click(screen.getByTestId('hide-btn'));
+    fireEvent.click(screen.getByTestId('unhide-btn'));
+
+    await waitFor(() => {
+      expect(mockUpdateItem).not.toHaveBeenCalled();
+      expect(mockAddBatch).not.toHaveBeenCalled();
+      expect(mockUpdateBatch).not.toHaveBeenCalled();
+      expect(mockHideItem).not.toHaveBeenCalled();
+      expect(mockUnhideItem).not.toHaveBeenCalled();
+    });
+  });
+
   it('handles update item error', async () => {
     mockUpdateItem.mockRejectedValue(new Error('Fail'));
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -848,6 +1126,20 @@ describe('Inventory Page', () => {
     expect(mockAddBatch).toHaveBeenCalledWith('1', [{ id: 'b1' }]);
   });
 
+  it('handles update batch success', async () => {
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByTestId('item-1'));
+    fireEvent.click(screen.getByTestId('update-batch-btn'));
+    expect(mockUpdateBatch).toHaveBeenCalledWith('1', [{ id: 'b2' }]);
+  });
+
+  it('opens stock details when restock is clicked', () => {
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByTestId('restock-1'));
+    expect(screen.getByTestId('info-modal')).toBeInTheDocument();
+    expect(screen.getByText('Current: Item A')).toBeInTheDocument();
+  });
+
   it('handles add batch error', async () => {
     mockAddBatch.mockRejectedValue(new Error('Fail'));
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -858,6 +1150,20 @@ describe('Inventory Page', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Unable to add batch.')).toBeInTheDocument();
+    });
+    consoleSpy.mockRestore();
+  });
+
+  it('handles update batch error', async () => {
+    mockUpdateBatch.mockRejectedValue(new Error('Fail'));
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByTestId('item-1'));
+    fireEvent.click(screen.getByTestId('update-batch-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Unable to update batch.')).toBeInTheDocument();
     });
     consoleSpy.mockRestore();
   });
@@ -876,6 +1182,23 @@ describe('Inventory Page', () => {
     await waitFor(() => expect(mockUnhideItem).toHaveBeenCalled());
   });
 
+  it('keeps the active inventory when hide and unhide return no updated item', async () => {
+    mockHideItem.mockResolvedValue(undefined);
+    mockUnhideItem.mockResolvedValue(undefined);
+
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByTestId('item-1'));
+    expect(screen.getByText('Current: Item A')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('hide-btn'));
+    await waitFor(() => expect(mockHideItem).toHaveBeenCalledWith('1'));
+    expect(screen.getByText('Current: Item A')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('unhide-btn'));
+    await waitFor(() => expect(mockUnhideItem).toHaveBeenCalledWith('1'));
+    expect(screen.getByText('Current: Item A')).toBeInTheDocument();
+  });
+
   it('handles hide/unhide error', async () => {
     mockHideItem.mockRejectedValue(new Error('Fail'));
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -886,6 +1209,20 @@ describe('Inventory Page', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Unable to hide inventory item.')).toBeInTheDocument();
+    });
+    consoleSpy.mockRestore();
+  });
+
+  it('handles unhide error', async () => {
+    mockUnhideItem.mockRejectedValue(new Error('Fail'));
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByTestId('item-1'));
+    fireEvent.click(screen.getByTestId('unhide-btn'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Unable to unhide inventory item.')).toBeInTheDocument();
     });
     consoleSpy.mockRestore();
   });
@@ -953,10 +1290,6 @@ describe('Inventory Page', () => {
       expect(screen.getByTestId(`dispensary-record-${recordId}`)).toBeInTheDocument();
     });
   };
-
-  beforeEach(() => {
-    (listDispenseRequests as jest.Mock).mockReset().mockResolvedValue([]);
-  });
 
   it('prefers the top-level parentName over metadata.petParentName', async () => {
     (listDispenseRequests as jest.Mock).mockResolvedValue([

@@ -161,25 +161,24 @@ const ChangeStatus = ({
   // When accepting a requested appointment we only offer leads that the bookable-slots
   // API reports as available for this service + slot. `null` = availability not yet
   // resolved (fall back to all leads); an array = the resolved set of available vet ids.
-  const [availableVetIds, setAvailableVetIds] = React.useState<string[] | null>(null);
-  const [isLoadingAvailability, setIsLoadingAvailability] = React.useState(false);
   const serviceId = normalizeId(activeAppointment.appointmentType?.id);
+  const shouldLoadAvailability = showModal && currentStatus === 'REQUESTED' && Boolean(serviceId);
+  const [availableVetIds, setAvailableVetIds] = React.useState<string[] | null>(null);
+  const [isLoadingAvailability, setIsLoadingAvailability] = React.useState(shouldLoadAvailability);
   const availabilityKey = `${showModal ? 'open' : 'closed'}:${currentStatus}:${serviceId}:${activeAppointment.startTime}`;
   const previousAvailabilityKeyRef = React.useRef(availabilityKey);
   if (previousAvailabilityKeyRef.current !== availabilityKey) {
     previousAvailabilityKeyRef.current = availabilityKey;
     setAvailableVetIds(null);
-    setIsLoadingAvailability(false);
+    setIsLoadingAvailability(shouldLoadAvailability);
   }
 
   React.useEffect(() => {
-    if (!showModal || currentStatus !== 'REQUESTED' || !serviceId) {
+    if (!shouldLoadAvailability) {
       return;
     }
     let cancelled = false;
     const appointmentStart = new Date(activeAppointment.startTime);
-    setIsLoadingAvailability(true);
-    setAvailableVetIds(null);
     getSlotsForServiceAndDateForPrimaryOrg(serviceId, new Date(activeAppointment.startTime))
       .then((slots: Slot[]) => {
         if (cancelled) return;
@@ -202,7 +201,7 @@ const ChangeStatus = ({
     return () => {
       cancelled = true;
     };
-  }, [showModal, currentStatus, serviceId, activeAppointment.startTime]);
+  }, [shouldLoadAvailability, serviceId, activeAppointment.startTime]);
 
   // Leads to actually offer: once slot availability resolves, show only leads
   // reported available for that appointment slot.

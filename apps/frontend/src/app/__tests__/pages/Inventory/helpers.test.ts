@@ -145,6 +145,15 @@ describe('Inventory page helpers', () => {
       filterAndSortInventory(
         inventoryItems as any,
         { ...defaultFilters, visibility: 'ALL', status: 'ALL' },
+        'alpha',
+        'name'
+      ).map((item) => item.id)
+    ).toEqual(['a']);
+
+    expect(
+      filterAndSortInventory(
+        inventoryItems as any,
+        { ...defaultFilters, visibility: 'ALL', status: 'ALL' },
         'medicine',
         'name'
       ).map((item) => item.id)
@@ -204,6 +213,73 @@ describe('Inventory page helpers', () => {
 
     expect(filtered).toHaveLength(1);
     expect(filtered[0].id).toBe('b');
+  });
+
+  it('covers nullish inventory sorting and fallback filter branches', () => {
+    const sparseItems = [
+      {
+        id: 'fallback-status',
+        basicInfo: { name: 'Fallback Status', status: 'ACTIVE' },
+        batch: {},
+        stock: {},
+        vendor: {},
+      },
+      {
+        id: 'missing-fields',
+        status: '',
+        basicInfo: { name: 'Missing Fields' },
+        batch: {},
+        stock: {},
+        vendor: {},
+      },
+    ] as any[];
+
+    expect(compareInventoryRows(sparseItems[0] as any, sparseItems[1] as any, 'expiry')).toBe(0);
+    expect(compareInventoryRows(sparseItems[0] as any, sparseItems[1] as any, 'stock')).toBe(0);
+
+    expect(
+      filterAndSortInventory(
+        sparseItems as any,
+        { ...defaultFilters, visibility: undefined, status: 'ALL' } as any,
+        '',
+        'name'
+      ).map((item) => item.id)
+    ).toEqual(['fallback-status', 'missing-fields']);
+
+    expect(
+      filterAndSortInventory(
+        sparseItems as any,
+        { ...defaultFilters, visibility: 'ACTIVE', status: 'ALL' },
+        '',
+        'name'
+      ).map((item) => item.id)
+    ).toEqual(['fallback-status']);
+
+    expect(
+      filterAndSortInventory(
+        sparseItems as any,
+        { ...defaultFilters, visibility: 'ALL', status: 'LOW_STOCK' },
+        '',
+        'name'
+      )
+    ).toHaveLength(0);
+
+    expect(
+      filterAndSortInventory(
+        sparseItems as any,
+        {
+          ...defaultFilters,
+          visibility: 'ALL',
+          status: 'ALL',
+          categories: ['Medicine'],
+          subCategories: ['Tablet'],
+          locations: ['Ward A'],
+          abcClasses: ['Class A'],
+        },
+        '',
+        'name'
+      )
+    ).toHaveLength(0);
   });
 
   it('derives dispense request type from fulfillment and patient name', () => {
@@ -295,6 +371,28 @@ describe('Inventory page helpers', () => {
     expect(record.items?.[1]?.stockUnitQty).toBe(4);
   });
 
+  it('falls back to inventory item id when medication names and summary are missing', () => {
+    const record = mapDispenseRequestToRecord({
+      ...baseDispenseRequest,
+      prescription: {
+        artifact: {
+          appointmentId: undefined,
+          summary: undefined,
+        },
+      },
+      medications: [
+        {
+          inventoryItemId: 'inv-id-only',
+          quantity: undefined,
+          priceCents: undefined,
+          metadata: {},
+        },
+      ],
+    });
+
+    expect(record.items?.[0]?.name).toBe('inv-id-only');
+  });
+
   it('filters dispensary records by request type, status, and multi-field search', () => {
     const records = [
       {
@@ -311,16 +409,18 @@ describe('Inventory page helpers', () => {
         requestType: 'IN_HOUSE',
         status: 'DISPENSED',
         patient: { name: 'Bella' },
-        lead: 'Dr Other',
-        location: 'Ward',
-        items: [{ name: 'Vitamin' }],
+        lead: undefined,
+        location: undefined,
+        items: undefined,
       },
     ] as any[];
 
     expect(filterDispensaryRecords(records, 'PATIENT', 'ALL', 'milo')).toHaveLength(1);
-    expect(filterDispensaryRecords(records, 'ALL', 'DISPENSED', 'vitamin')).toHaveLength(1);
+    expect(filterDispensaryRecords(records, 'ALL', 'DISPENSED', 'bella')).toHaveLength(1);
     expect(filterDispensaryRecords(records, 'PATIENT', 'PENDING', 'treatment')).toHaveLength(1);
-    expect(filterDispensaryRecords(records, 'ALL', 'ALL', 'dr other')).toHaveLength(1);
+    expect(filterDispensaryRecords(records, 'ALL', 'ALL', 'amoxicillin')).toHaveLength(1);
+    expect(filterDispensaryRecords(records, 'ALL', 'ALL', 'milo')).toHaveLength(1);
+    expect(filterDispensaryRecords(records, 'ALL', 'ALL', 'missing')).toHaveLength(0);
     expect(filterDispensaryRecords(records, 'IN_HOUSE', 'PENDING', '')).toHaveLength(0);
   });
 

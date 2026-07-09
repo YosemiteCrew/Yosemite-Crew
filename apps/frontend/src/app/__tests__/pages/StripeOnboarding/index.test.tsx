@@ -12,10 +12,11 @@ const useSubscriptionMock = jest.fn();
 const createAccountMock = jest.fn();
 const onboardAccountMock = jest.fn();
 const loadConnectMock = jest.fn();
+let mockOrgIdFromQuery: string | null = 'org-1';
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: pushMock, back: backMock }),
-  useSearchParams: () => ({ get: () => 'org-1' }),
+  useSearchParams: () => ({ get: () => mockOrgIdFromQuery }),
 }));
 
 jest.mock('@/app/hooks/useStripeOnboarding', () => ({
@@ -42,7 +43,19 @@ jest.mock('@stripe/react-connect-js', () => ({
   ConnectComponentsProvider: ({ children }: any) => (
     <div data-testid="connect-provider">{children}</div>
   ),
-  ConnectAccountOnboarding: () => <div data-testid="connect-onboarding" />,
+  ConnectAccountOnboarding: ({ onExit, onStepChange }: any) => (
+    <div data-testid="connect-onboarding">
+      <button type="button" onClick={onExit}>
+        Exit onboarding
+      </button>
+      <button type="button" onClick={() => onStepChange({ step: 'stripe_user_authentication' })}>
+        Auth step
+      </button>
+      <button type="button" onClick={() => onStepChange({ step: 'business_profile' })}>
+        Business step
+      </button>
+    </div>
+  ),
   ConnectTaxRegistrations: () => <div data-testid="connect-tax-registrations" />,
   ConnectTaxSettings: () => <div data-testid="connect-tax-settings" />,
 }));
@@ -60,6 +73,8 @@ jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
 describe('Stripe onboarding page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    loadConnectMock.mockReset();
+    mockOrgIdFromQuery = 'org-1';
     process.env.NEXT_PUBLIC_SANDBOX_PUBLISH = 'pk_test';
     useSubscriptionCounterUpdateMock.mockResolvedValue(undefined);
   });
@@ -100,6 +115,7 @@ describe('Stripe onboarding page', () => {
     await waitFor(() => {
       expect(loadConnectMock).toHaveBeenCalled();
     });
+    await expect(loadConnectMock.mock.calls[0][0].fetchClientSecret()).resolves.toBe('secret');
 
     expect(
       screen.getByRole('heading', { level: 1, name: 'Stripe Onboarding' })
@@ -118,10 +134,20 @@ describe('Stripe onboarding page', () => {
 
     fireEvent.click(backButton);
     expect(backMock).toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Exit onboarding' }));
+    await waitFor(() => expect(useSubscriptionCounterUpdateMock).toHaveBeenCalledTimes(1));
+    expect(pushMock).toHaveBeenCalledWith('/dashboard');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Auth step' }));
+    await waitFor(() => expect(useSubscriptionCounterUpdateMock).toHaveBeenCalledTimes(2));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Business step' }));
+    expect(useSubscriptionCounterUpdateMock).toHaveBeenCalledTimes(2);
   });
 
   it('shows a retryable alert when account creation fails', async () => {
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     useStripeOnboardingMock.mockReturnValue({ onboard: true });
     useSubscriptionMock.mockReturnValue({
       connectChargesEnabled: false,
@@ -137,9 +163,51 @@ describe('Stripe onboarding page', () => {
     ).toBeInTheDocument();
 
     createAccountMock.mockResolvedValue('acct_retry');
+    loadConnectMock.mockReturnValue({});
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
     await waitFor(() => expect(createAccountMock.mock.calls.length).toBeGreaterThan(1));
     await waitFor(() => expect(screen.getByTestId('connect-provider')).toBeInTheDocument());
+    consoleSpy.mockRestore();
+  });
+
+  it('redirects when required onboarding inputs are missing', async () => {
+    useStripeOnboardingMock.mockReturnValue({ onboard: true });
+    useSubscriptionMock.mockReturnValue({
+      connectChargesEnabled: false,
+      connectAccountId: '',
+    });
+    mockOrgIdFromQuery = null;
+
+    render(<ProtectedStripeOnboarding />);
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith('/dashboard');
+    });
+
+    pushMock.mockClear();
+    mockOrgIdFromQuery = 'org-1';
+    useSubscriptionMock.mockReturnValue(null);
+
+    render(<ProtectedStripeOnboarding />);
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith('/dashboard');
+    });
+  });
+
+  it('redirects when account creation returns no account id', async () => {
+    useStripeOnboardingMock.mockReturnValue({ onboard: true });
+    useSubscriptionMock.mockReturnValue({
+      connectChargesEnabled: false,
+      connectAccountId: '',
+    });
+    createAccountMock.mockResolvedValue('');
+
+    render(<ProtectedStripeOnboarding />);
+
+    await waitFor(() => {
+      expect(pushMock).toHaveBeenCalledWith('/dashboard');
+    });
   });
 });

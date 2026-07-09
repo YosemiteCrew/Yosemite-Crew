@@ -4,7 +4,15 @@ import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import Modal from '@/app/ui/overlays/Modal';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 import { useAppointmentForm } from '@/app/hooks/useAppointmentForm';
@@ -57,38 +65,87 @@ const scrollModalSectionIntoView = (
   container.scrollTo({ top: nextTop, behavior: 'smooth' });
 };
 
+type AddAppointmentUiState = {
+  query: string;
+  activeStep: number | null;
+  maxUnlockedStep: number;
+  concernFocused: boolean;
+  pendingAutoSelectCompanionId: string | null;
+};
+
+type AddAppointmentUiAction =
+  | { type: 'modal-opened' }
+  | { type: 'modal-closed' }
+  | { type: 'set-query'; query: string }
+  | { type: 'set-active-step'; activeStep: number | null }
+  | { type: 'unlock-step'; step: number; activeStep?: number | null }
+  | { type: 'set-concern-focused'; concernFocused: boolean }
+  | { type: 'set-pending-auto-select'; companionId: string | null }
+  | { type: 'select-companion'; clearPendingSelection: boolean };
+
+const initialAddAppointmentUiState: AddAppointmentUiState = {
+  query: '',
+  activeStep: 1,
+  maxUnlockedStep: 1,
+  concernFocused: false,
+  pendingAutoSelectCompanionId: null,
+};
+
+const addAppointmentUiReducer = (
+  state: AddAppointmentUiState,
+  action: AddAppointmentUiAction
+): AddAppointmentUiState => {
+  switch (action.type) {
+    case 'modal-opened':
+      return { ...state, activeStep: 1, maxUnlockedStep: 1, concernFocused: false };
+    case 'modal-closed':
+      return initialAddAppointmentUiState;
+    case 'set-query':
+      return { ...state, query: action.query };
+    case 'set-active-step':
+      return { ...state, activeStep: action.activeStep };
+    case 'unlock-step':
+      return {
+        ...state,
+        activeStep: action.activeStep ?? state.activeStep,
+        maxUnlockedStep: Math.max(state.maxUnlockedStep, action.step),
+      };
+    case 'set-concern-focused':
+      return { ...state, concernFocused: action.concernFocused };
+    case 'set-pending-auto-select':
+      return { ...state, pendingAutoSelectCompanionId: action.companionId };
+    case 'select-companion':
+      return {
+        ...state,
+        activeStep: 2,
+        maxUnlockedStep: Math.max(state.maxUnlockedStep, 2),
+        pendingAutoSelectCompanionId: action.clearPendingSelection
+          ? null
+          : state.pendingAutoSelectCompanionId,
+      };
+    default:
+      return state;
+  }
+};
+
 const syncModalOpenState = ({
   showModal,
   resetForm,
-  setActiveStep,
-  setMaxUnlockedStep,
-  setConcernFocused,
-  setQuery,
-  setPendingAutoSelectCompanionId,
+  dispatchUi,
   onPrefillConsumed,
 }: {
   showModal: boolean;
   resetForm: () => void;
-  setActiveStep: React.Dispatch<React.SetStateAction<number | null>>;
-  setMaxUnlockedStep: React.Dispatch<React.SetStateAction<number>>;
-  setConcernFocused: React.Dispatch<React.SetStateAction<boolean>>;
-  setQuery: React.Dispatch<React.SetStateAction<string>>;
-  setPendingAutoSelectCompanionId: React.Dispatch<React.SetStateAction<string | null>>;
+  dispatchUi: React.Dispatch<AddAppointmentUiAction>;
   onPrefillConsumed?: () => void;
 }) => {
   if (!showModal) {
-    setActiveStep(1);
-    setMaxUnlockedStep(1);
-    setConcernFocused(false);
-    setQuery('');
-    setPendingAutoSelectCompanionId(null);
+    dispatchUi({ type: 'modal-closed' });
     resetForm();
     onPrefillConsumed?.();
     return;
   }
-  setActiveStep(1);
-  setMaxUnlockedStep(1);
-  setConcernFocused(false);
+  dispatchUi({ type: 'modal-opened' });
 };
 
 const AddAppointment = ({
@@ -109,18 +166,14 @@ const AddAppointment = ({
   const step3Ref = useRef<HTMLDivElement | null>(null);
   const step4Ref = useRef<HTMLDivElement | null>(null);
   const submitRef = useRef<HTMLDivElement | null>(null);
-  const [query, setQuery] = useState('');
-  const [activeStep, setActiveStep] = useState<number | null>(1);
-  const [maxUnlockedStep, setMaxUnlockedStep] = useState(1);
-  const [concernFocused, setConcernFocused] = useState(false);
+  const [uiState, dispatchUi] = useReducer(addAppointmentUiReducer, initialAddAppointmentUiState);
+  const { query, activeStep, maxUnlockedStep, concernFocused, pendingAutoSelectCompanionId } =
+    uiState;
   const concernBlurredRef = useRef(false);
   const setConcernBlurred = (v: boolean) => {
     concernBlurredRef.current = v;
   };
   const [showAddCompanionModal, setShowAddCompanionModal] = useState(false);
-  const [pendingAutoSelectCompanionId, setPendingAutoSelectCompanionId] = useState<string | null>(
-    null
-  );
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const {
@@ -192,11 +245,7 @@ const AddAppointment = ({
     syncModalOpenState({
       showModal,
       resetForm,
-      setActiveStep,
-      setMaxUnlockedStep,
-      setConcernFocused,
-      setQuery,
-      setPendingAutoSelectCompanionId,
+      dispatchUi,
       onPrefillConsumed,
     });
 
@@ -208,8 +257,7 @@ const AddAppointment = ({
 
   useLayoutEffect(() => {
     if (!(showModal && companionSatisfied && maxUnlockedStep < 2)) return;
-    setMaxUnlockedStep(2);
-    setActiveStep(2);
+    dispatchUi({ type: 'unlock-step', step: 2, activeStep: 2 });
     scrollToStep(step2Ref);
   }, [companionSatisfied, maxUnlockedStep, scrollToStep, showModal]);
 
@@ -233,7 +281,7 @@ const AddAppointment = ({
   );
 
   const handleCompanionSelect = useCallback(
-    (id: string) => {
+    (id: string, clearPendingSelection = false) => {
       const selected = companions.find((item) => item.companion.id === id);
       if (!selected) return;
       setFormData((prev) => ({
@@ -250,8 +298,7 @@ const AddAppointment = ({
         },
       }));
       setFormDataErrors((prev) => ({ ...prev, companionId: undefined }));
-      setMaxUnlockedStep((prev) => Math.max(prev, 2));
-      setActiveStep(2);
+      dispatchUi({ type: 'select-companion', clearPendingSelection });
       globalThis.setTimeout(() => {
         scrollToStep(step2Ref);
       }, 120);
@@ -263,8 +310,7 @@ const AddAppointment = ({
     if (!showModal || !pendingAutoSelectCompanionId) return;
     const selected = companions.find((item) => item.companion.id === pendingAutoSelectCompanionId);
     if (!selected) return;
-    handleCompanionSelect(selected.companion.id);
-    setPendingAutoSelectCompanionId(null);
+    handleCompanionSelect(selected.companion.id, true);
   }, [companions, handleCompanionSelect, pendingAutoSelectCompanionId, showModal]);
 
   const onSubmit = async () => {
@@ -276,17 +322,17 @@ const AddAppointment = ({
       dateTimeStepNumber,
     });
     if (targetStep === 1) {
-      setActiveStep(1);
+      dispatchUi({ type: 'set-active-step', activeStep: 1 });
       scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     if (targetStep === detailsStepNumber) {
-      setActiveStep(detailsStepNumber);
+      dispatchUi({ type: 'set-active-step', activeStep: detailsStepNumber });
       scrollToStep(isCalendarSlotFlow ? step3Ref : step2Ref);
       return;
     }
     if (targetStep === dateTimeStepNumber) {
-      setActiveStep(dateTimeStepNumber);
+      dispatchUi({ type: 'set-active-step', activeStep: dateTimeStepNumber });
       scrollToStep(isCalendarSlotFlow ? step2Ref : step3Ref);
       return;
     }
@@ -299,13 +345,12 @@ const AddAppointment = ({
         ...prev,
         companionId: terminologyText('Please select a companion'),
       }));
-      setActiveStep(1);
+      dispatchUi({ type: 'set-active-step', activeStep: 1 });
       scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     setFormDataErrors((prev) => ({ ...prev, companionId: undefined }));
-    setMaxUnlockedStep((prev) => Math.max(prev, 2));
-    setActiveStep(2);
+    dispatchUi({ type: 'unlock-step', step: 2, activeStep: 2 });
     globalThis.setTimeout(() => {
       scrollToStep(step2Ref);
     }, 80);
@@ -325,12 +370,11 @@ const AddAppointment = ({
       concern: nextErrors.concern,
     }));
     if (nextErrors.specialityId || nextErrors.serviceId || nextErrors.concern) {
-      setActiveStep(detailsStepNumber);
+      dispatchUi({ type: 'set-active-step', activeStep: detailsStepNumber });
       scrollToStep(step2Ref);
       return;
     }
-    setMaxUnlockedStep((prev) => Math.max(prev, dateTimeStepNumber));
-    setActiveStep(dateTimeStepNumber);
+    dispatchUi({ type: 'unlock-step', step: dateTimeStepNumber, activeStep: dateTimeStepNumber });
     globalThis.setTimeout(() => {
       scrollToStep(isCalendarSlotFlow ? step2Ref : step3Ref);
     }, 80);
@@ -355,12 +399,11 @@ const AddAppointment = ({
       leadId: nextErrors.leadId,
     }));
     if (nextErrors.slot || nextErrors.leadId) {
-      setActiveStep(dateTimeStepNumber);
+      dispatchUi({ type: 'set-active-step', activeStep: dateTimeStepNumber });
       scrollToStep(isCalendarSlotFlow ? step2Ref : step3Ref);
       return;
     }
-    setMaxUnlockedStep((prev) => Math.max(prev, 4));
-    setActiveStep(4);
+    dispatchUi({ type: 'unlock-step', step: 4, activeStep: 4 });
     globalThis.setTimeout(() => {
       scrollToStep(step4Ref);
     }, 80);
@@ -378,12 +421,11 @@ const AddAppointment = ({
       leadId: nextErrors.leadId,
     }));
     if (nextErrors.slot || nextErrors.leadId) {
-      setActiveStep(dateTimeStepNumber);
+      dispatchUi({ type: 'set-active-step', activeStep: dateTimeStepNumber });
       scrollToStep(step2Ref);
       return;
     }
-    setMaxUnlockedStep((prev) => Math.max(prev, detailsStepNumber));
-    setActiveStep(detailsStepNumber);
+    dispatchUi({ type: 'unlock-step', step: detailsStepNumber, activeStep: detailsStepNumber });
     globalThis.setTimeout(() => {
       scrollToStep(step3Ref);
     }, 80);
@@ -403,12 +445,11 @@ const AddAppointment = ({
       concern: nextErrors.concern,
     }));
     if (nextErrors.specialityId || nextErrors.serviceId || nextErrors.concern) {
-      setActiveStep(detailsStepNumber);
+      dispatchUi({ type: 'set-active-step', activeStep: detailsStepNumber });
       scrollToStep(step3Ref);
       return;
     }
-    setMaxUnlockedStep((prev) => Math.max(prev, 4));
-    setActiveStep(4);
+    dispatchUi({ type: 'unlock-step', step: 4, activeStep: 4 });
     globalThis.setTimeout(() => {
       scrollToStep(step4Ref);
     }, 80);
@@ -466,7 +507,9 @@ const AddAppointment = ({
                 title={terminologyText('Companion details')}
                 defaultOpen={true}
                 open={activeStep === 1}
-                onOpenChange={(open) => setActiveStep(open ? 1 : null)}
+                onOpenChange={(open) =>
+                  dispatchUi({ type: 'set-active-step', activeStep: open ? 1 : null })
+                }
                 showEditIcon={false}
                 isEditing={true}
               >
@@ -478,7 +521,9 @@ const AddAppointment = ({
                         options={CompanionOptions}
                         onSelect={handleCompanionSelect}
                         query={query}
-                        setQuery={setQuery}
+                        setQuery={(nextQuery) =>
+                          dispatchUi({ type: 'set-query', query: nextQuery })
+                        }
                         minChars={0}
                         error={formDataErrors.companionId}
                       />
@@ -530,26 +575,37 @@ const AddAppointment = ({
                   <AppointmentDetailsSection
                     defaultOpen={activeStep === detailsStepNumber}
                     open={activeStep === detailsStepNumber}
-                    onOpenChange={(open) => setActiveStep(open ? detailsStepNumber : null)}
+                    onOpenChange={(open) =>
+                      dispatchUi({
+                        type: 'set-active-step',
+                        activeStep: open ? detailsStepNumber : null,
+                      })
+                    }
                     specialityId={formData.appointmentType?.speciality.id}
                     specialityError={formDataErrors.specialityId}
                     specialitiesOptions={SpecialitiesOptions}
                     onSpecialitySelect={(option) => {
                       handleSpecialitySelect(option);
-                      setConcernFocused(false);
+                      dispatchUi({ type: 'set-concern-focused', concernFocused: false });
                       setConcernBlurred(false);
-                      setMaxUnlockedStep(detailsStepNumber);
-                      setActiveStep(detailsStepNumber);
+                      dispatchUi({
+                        type: 'unlock-step',
+                        step: detailsStepNumber,
+                        activeStep: detailsStepNumber,
+                      });
                     }}
                     serviceId={formData.appointmentType?.id}
                     serviceError={formDataErrors.serviceId}
                     servicesOptions={ServicesOptions}
                     onServiceSelect={(option) => {
                       handleServiceSelect(option);
-                      setConcernFocused(false);
+                      dispatchUi({ type: 'set-concern-focused', concernFocused: false });
                       setConcernBlurred(false);
-                      setMaxUnlockedStep(detailsStepNumber);
-                      setActiveStep(detailsStepNumber);
+                      dispatchUi({
+                        type: 'unlock-step',
+                        step: detailsStepNumber,
+                        activeStep: detailsStepNumber,
+                      });
                     }}
                     concern={formData.concern || ''}
                     concernError={formDataErrors.concern}
@@ -560,14 +616,13 @@ const AddAppointment = ({
                       }
                     }}
                     onConcernFocus={() => {
-                      setConcernFocused(true);
+                      dispatchUi({ type: 'set-concern-focused', concernFocused: true });
                     }}
                     onConcernBlur={() => {
                       if (concernFocused) {
                         setConcernBlurred(true);
                         if (detailsSatisfied && !isCalendarSlotFlow) {
-                          setMaxUnlockedStep((prev) => Math.max(prev, 3));
-                          setActiveStep(3);
+                          dispatchUi({ type: 'unlock-step', step: 3, activeStep: 3 });
                           globalThis.setTimeout(() => {
                             scrollToStep(step3Ref);
                           }, 80);
@@ -584,7 +639,12 @@ const AddAppointment = ({
                     title="Select date & time"
                     defaultOpen={activeStep === dateTimeStepNumber}
                     open={activeStep === dateTimeStepNumber}
-                    onOpenChange={(open) => setActiveStep(open ? dateTimeStepNumber : null)}
+                    onOpenChange={(open) =>
+                      dispatchUi({
+                        type: 'set-active-step',
+                        activeStep: open ? dateTimeStepNumber : null,
+                      })
+                    }
                     showEditIcon={false}
                     isEditing={true}
                   >
@@ -621,26 +681,37 @@ const AddAppointment = ({
                   <AppointmentDetailsSection
                     defaultOpen={activeStep === detailsStepNumber}
                     open={activeStep === detailsStepNumber}
-                    onOpenChange={(open) => setActiveStep(open ? detailsStepNumber : null)}
+                    onOpenChange={(open) =>
+                      dispatchUi({
+                        type: 'set-active-step',
+                        activeStep: open ? detailsStepNumber : null,
+                      })
+                    }
                     specialityId={formData.appointmentType?.speciality.id}
                     specialityError={formDataErrors.specialityId}
                     specialitiesOptions={SpecialitiesOptions}
                     onSpecialitySelect={(option) => {
                       handleSpecialitySelect(option);
-                      setConcernFocused(false);
+                      dispatchUi({ type: 'set-concern-focused', concernFocused: false });
                       setConcernBlurred(false);
-                      setMaxUnlockedStep(detailsStepNumber);
-                      setActiveStep(detailsStepNumber);
+                      dispatchUi({
+                        type: 'unlock-step',
+                        step: detailsStepNumber,
+                        activeStep: detailsStepNumber,
+                      });
                     }}
                     serviceId={formData.appointmentType?.id}
                     serviceError={formDataErrors.serviceId}
                     servicesOptions={ServicesOptions}
                     onServiceSelect={(option) => {
                       handleServiceSelect(option);
-                      setConcernFocused(false);
+                      dispatchUi({ type: 'set-concern-focused', concernFocused: false });
                       setConcernBlurred(false);
-                      setMaxUnlockedStep(detailsStepNumber);
-                      setActiveStep(detailsStepNumber);
+                      dispatchUi({
+                        type: 'unlock-step',
+                        step: detailsStepNumber,
+                        activeStep: detailsStepNumber,
+                      });
                     }}
                     concern={formData.concern || ''}
                     concernError={formDataErrors.concern}
@@ -651,7 +722,7 @@ const AddAppointment = ({
                       }
                     }}
                     onConcernFocus={() => {
-                      setConcernFocused(true);
+                      dispatchUi({ type: 'set-concern-focused', concernFocused: true });
                     }}
                     onConcernBlur={() => {
                       if (concernFocused) {
@@ -667,7 +738,9 @@ const AddAppointment = ({
                   <BillableServicesSection
                     defaultOpen={activeStep === 4}
                     open={activeStep === 4}
-                    onOpenChange={(open) => setActiveStep(open ? 4 : null)}
+                    onOpenChange={(open) =>
+                      dispatchUi({ type: 'set-active-step', activeStep: open ? 4 : null })
+                    }
                     serviceId={formData.appointmentType?.id}
                     serviceName={formData.appointmentType?.name}
                     serviceFields={ServiceFields}
@@ -704,7 +777,7 @@ const AddAppointment = ({
         onCompanionCreated={(companionId) => {
           const normalizedId = String(companionId ?? '').trim();
           if (!normalizedId) return;
-          setPendingAutoSelectCompanionId(normalizedId);
+          dispatchUi({ type: 'set-pending-auto-select', companionId: normalizedId });
         }}
       />
       <CenterModal showModal={showDiscardConfirm} setShowModal={setShowDiscardConfirm}>

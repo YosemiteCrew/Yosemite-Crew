@@ -14,28 +14,30 @@ type AppointmentBoardToolbarProps = {
   currentDate: Date;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   onWheelHorizontal: React.WheelEventHandler<HTMLDivElement>;
-  toggleEmergencyFilter: () => void;
-  isEmergencyActive: boolean;
-  emergencyColor: string;
-  hasEmergency: boolean;
-  canEditAppointments: boolean;
+  emergency: {
+    active: boolean;
+    color: string;
+    present: boolean;
+    onToggle: () => void;
+  };
+  permissions: {
+    editAppointments: boolean;
+  };
   onAddAppointment?: () => void;
-  showMineOnly: boolean;
-  setShowMineOnly: (value: boolean) => void;
+  scope: {
+    mineOnly: boolean;
+    onMineOnlyChange: (value: boolean) => void;
+  };
 };
 
 const AppointmentBoardToolbar = ({
   currentDate,
   setCurrentDate,
   onWheelHorizontal,
-  toggleEmergencyFilter,
-  isEmergencyActive,
-  emergencyColor,
-  hasEmergency,
-  canEditAppointments,
+  emergency,
+  permissions,
   onAddAppointment,
-  showMineOnly,
-  setShowMineOnly,
+  scope,
 }: AppointmentBoardToolbarProps) => (
   <div className="shrink-0 border-b border-grey-light bg-white px-3 py-2">
     <div className="flex w-full items-center gap-4">
@@ -84,16 +86,16 @@ const AppointmentBoardToolbar = ({
         <div className="flex w-max items-center gap-3 ml-auto">
           <button
             type="button"
-            onClick={toggleEmergencyFilter}
+            onClick={emergency.onToggle}
             className={clsx(
               'relative flex h-12 w-fit shrink-0 items-center justify-center gap-2 whitespace-nowrap text-body-4 px-3 rounded-2xl! transition-all duration-300',
-              !isEmergencyActive && 'hover:bg-card-hover!'
+              !emergency.active && 'hover:bg-card-hover!'
             )}
-            style={getEmergencyPillStyle(isEmergencyActive)}
+            style={getEmergencyPillStyle(emergency.active)}
           >
-            <IoWarning size={18} aria-hidden="true" className="shrink-0" color={emergencyColor} />
+            <IoWarning size={18} aria-hidden="true" className="shrink-0" color={emergency.color} />
             <span>Emergencies</span>
-            {hasEmergency && (
+            {emergency.present && (
               <span
                 aria-label="Emergency appointments present"
                 className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
@@ -104,7 +106,7 @@ const AppointmentBoardToolbar = ({
               />
             )}
           </button>
-          {canEditAppointments && (
+          {permissions.editAppointments && (
             <>
               <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
               <Primary
@@ -116,7 +118,10 @@ const AppointmentBoardToolbar = ({
             </>
           )}
           <div className="shrink-0">
-            <AppointmentScopeToggle showMineOnly={showMineOnly} onChange={setShowMineOnly} />
+            <AppointmentScopeToggle
+              showMineOnly={scope.mineOnly}
+              onChange={scope.onMineOnlyChange}
+            />
           </div>
         </div>
       </div>
