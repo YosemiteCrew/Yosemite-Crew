@@ -1403,13 +1403,16 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
             </LiquidGlassCard>
           </View>
         ) : (
-          <CompanionSelector
-            companions={companions}
-            selectedCompanionId={selectedCompanionIdRedux}
-            onSelect={handleSelectCompanion}
-            onAddCompanion={handleAddCompanion}
-            showAddButton={true}
-          />
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your companions</Text>
+            <CompanionSelector
+              companions={companions}
+              selectedCompanionId={selectedCompanionIdRedux}
+              onSelect={handleSelectCompanion}
+              onAddCompanion={handleAddCompanion}
+              showAddButton={true}
+            />
+          </View>
         )}
 
         <View style={styles.section}>
