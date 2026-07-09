@@ -185,39 +185,47 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           />
         </View>
 
-        <View style={styles.fieldGroup}>
-          <TouchableInput
-            label={formData.subcategory ? 'Sub category' : undefined}
-            value={subcategoryValue}
-            placeholder="Sub category"
-            onPress={() => {
-              if (formData.category) {
-                resolvedOpenSheet('subcategory');
-                subcategorySheetRef.current?.open();
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldColumn}>
+            <TouchableInput
+              label="Sub category"
+              value={subcategoryValue}
+              placeholder="Sub category"
+              onPress={() => {
+                if (formData.category) {
+                  resolvedOpenSheet('subcategory');
+                  subcategorySheetRef.current?.open();
+                }
+              }}
+              rightComponent={
+                <Image
+                  source={Images.dropdownIcon}
+                  style={styles.dropdownIcon}
+                />
               }
-            }}
-            rightComponent={
-              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-            }
-            error={errors.subcategory}
-            disabled={!formData.category}
-          />
-        </View>
+              error={errors.subcategory}
+              disabled={!formData.category}
+            />
+          </View>
 
-        <View style={styles.fieldGroup}>
-          <TouchableInput
-            label={formData.visitType ? 'Visit type' : undefined}
-            value={visitTypeValue}
-            placeholder="Visit type"
-            onPress={() => {
-              resolvedOpenSheet('visitType');
-              visitTypeSheetRef.current?.open();
-            }}
-            rightComponent={
-              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
-            }
-            error={errors.visitType}
-          />
+          <View style={styles.fieldColumn}>
+            <TouchableInput
+              label="Visit type"
+              value={visitTypeValue}
+              placeholder="Visit type"
+              onPress={() => {
+                resolvedOpenSheet('visitType');
+                visitTypeSheetRef.current?.open();
+              }}
+              rightComponent={
+                <Image
+                  source={Images.dropdownIcon}
+                  style={styles.dropdownIcon}
+                />
+              }
+              error={errors.visitType}
+            />
+          </View>
         </View>
 
         <View style={styles.fieldGroup}>
@@ -246,39 +254,45 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           </View>
         )}
 
-        <View style={styles.fieldGroup}>
-          <TouchableInput
-            label={formData.date ? 'Date' : undefined}
-            value={formData.date ? displayDate : undefined}
-            placeholder="Date"
-            onPress={() => setShowDatePicker(true)}
-            rightComponent={
-              <Image source={Images.calendarIcon} style={styles.calendarIcon} />
-            }
-            error={errors.date}
-          />
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <View style={styles.amountInputWrapper}>
-            <Input
-              label="Amount"
-              value={formData.amount}
-              onChangeText={text => {
-                const sanitized = text.replaceAll(/[^0-9.]/g, '');
-                onFormChange('amount', sanitized);
-                onErrorClear('amount');
-              }}
-              keyboardType="numeric"
-              containerStyle={styles.amountInputContainer}
-              inputStyle={styles.amountInput}
-              error={errors.amount}
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldColumn}>
+            <TouchableInput
+              label="Date"
+              value={formData.date ? displayDate : undefined}
+              placeholder="Date"
+              onPress={() => setShowDatePicker(true)}
+              rightComponent={
+                <Image
+                  source={Images.calendarIcon}
+                  style={styles.calendarIcon}
+                />
+              }
+              error={errors.date}
             />
-            <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
+          </View>
+
+          <View style={styles.fieldColumn}>
+            <View style={styles.amountInputWrapper}>
+              <Input
+                label="Amount"
+                value={formData.amount}
+                onChangeText={text => {
+                  const sanitized = text.replaceAll(/[^0-9.]/g, '');
+                  onFormChange('amount', sanitized);
+                  onErrorClear('amount');
+                }}
+                keyboardType="numeric"
+                containerStyle={styles.amountInputContainer}
+                inputStyle={styles.amountInput}
+                error={errors.amount}
+              />
+              <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
+            </View>
           </View>
         </View>
 
         <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Receipt</Text>
           <DocumentAttachmentsSection
             files={formData.attachments}
             onAddPress={() => {
@@ -446,6 +460,20 @@ const createStyles = (theme: any) =>
     },
     fieldGroup: {
       marginBottom: theme.spacing['4'],
+    },
+    fieldRow: {
+      flexDirection: 'row',
+      gap: theme.spacing['3'],
+      marginBottom: theme.spacing['4'],
+    },
+    fieldColumn: {
+      flex: 1,
+    },
+    fieldLabel: {
+      ...theme.typography.inputLabel,
+      color: theme.colors.inkBody,
+      marginBottom: theme.spacing['2'],
+      marginLeft: theme.spacing['1'],
     },
     dropdownIcon: {
       width: 16,

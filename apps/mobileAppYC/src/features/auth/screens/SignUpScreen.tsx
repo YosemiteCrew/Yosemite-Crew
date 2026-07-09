@@ -138,11 +138,10 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
             <LiquidGlassButton
               title="Sign up with Facebook"
               onPress={handleFacebookSignUp}
-              style={styles.facebookButton}
-              textStyle={styles.socialButtonText}
-              tintColor={theme.colors.primary}
+              textStyle={styles.socialButtonTextGoogle}
               height={56}
               borderRadius="lg"
+              shadowIntensity="medium"
               leftIcon={<FacebookIcon />}
               loading={activeProvider === 'facebook'}
               disabled={isSocialLoading}
@@ -151,11 +150,10 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
             <LiquidGlassButton
               title="Sign up with Apple"
               onPress={handleAppleSignUp}
-              style={styles.appleButton}
-              textStyle={styles.socialButtonText}
-              tintColor={theme.colors.secondary}
+              textStyle={styles.socialButtonTextGoogle}
               height={56}
               borderRadius="lg"
+              shadowIntensity="medium"
               leftIcon={<AppleIcon />}
               loading={activeProvider === 'apple'}
               disabled={isSocialLoading}
