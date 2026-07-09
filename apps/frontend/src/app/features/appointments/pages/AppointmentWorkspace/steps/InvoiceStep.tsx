@@ -1975,54 +1975,59 @@ const InvoiceStep = ({
       {/* The bill builder + payment controls only show while the encounter is
           editable. A completed appointment shows finalized invoices only. */}
       {canBuildBill && (
-        <>
-          <TotalBillContainer
-            items={enrichedInvoiceLineItems}
-            billableItems={billableItems}
-            incompleteItemNames={incompleteMedicationNames}
-            currency={currency}
-            depositCents={encounter.depositCents}
-            withdrawDeposit={encounter.withdrawDeposit}
-            overallDiscountPercent={encounter.overallDiscountPercent}
-            taxPercent={encounter.taxPercent}
-            onToggleWithdrawDeposit={(value) => setWithdrawDeposit(appointmentId, value)}
-            onChangeOverallDiscount={(percent) => setOverallDiscountPercent(appointmentId, percent)}
-            onAddItem={handleAddItem}
-            onUpdateItem={(id, patch) => updateInvoiceLineItem(appointmentId, id, patch)}
-            onRemoveItem={(id) => void handleRemoveBillLine(id)}
-          />
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="min-w-0 flex-1">
+            <TotalBillContainer
+              items={enrichedInvoiceLineItems}
+              billableItems={billableItems}
+              incompleteItemNames={incompleteMedicationNames}
+              currency={currency}
+              depositCents={encounter.depositCents}
+              withdrawDeposit={encounter.withdrawDeposit}
+              overallDiscountPercent={encounter.overallDiscountPercent}
+              taxPercent={encounter.taxPercent}
+              onToggleWithdrawDeposit={(value) => setWithdrawDeposit(appointmentId, value)}
+              onChangeOverallDiscount={(percent) =>
+                setOverallDiscountPercent(appointmentId, percent)
+              }
+              onAddItem={handleAddItem}
+              onUpdateItem={(id, patch) => updateInvoiceLineItem(appointmentId, id, patch)}
+              onRemoveItem={(id) => void handleRemoveBillLine(id)}
+            />
+          </div>
+          <aside className="flex w-full flex-col gap-3 lg:w-[340px] lg:shrink-0">
+            <PaymentActions
+              isInpatient={isInpatient}
+              depositDisabled={isProcessingPayment}
+              paymentDisabled={isProcessingPayment || !hasItems || !isReadyForBilling}
+              paymentDisabledReason={paymentDisabledReason}
+              onCollect={handleCollect}
+              onSendToClient={handleSendToClient}
+            />
 
-          <PaymentActions
-            isInpatient={isInpatient}
-            depositDisabled={isProcessingPayment}
-            paymentDisabled={isProcessingPayment || !hasItems || !isReadyForBilling}
-            paymentDisabledReason={paymentDisabledReason}
-            onCollect={handleCollect}
-            onSendToClient={handleSendToClient}
-          />
+            {errorMessage && (
+              <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700">
+                {errorMessage}
+              </p>
+            )}
 
-          {errorMessage && (
-            <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700">
-              {errorMessage}
-            </p>
-          )}
-
-          {confirmation && (
-            <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-text-brand">
-              <span>{confirmation}</span>
-              {confirmationLink && (
-                <a
-                  href={confirmationLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full break-all underline"
-                >
-                  {confirmationLink}
-                </a>
-              )}
-            </output>
-          )}
-        </>
+            {confirmation && (
+              <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-text-brand">
+                <span>{confirmation}</span>
+                {confirmationLink && (
+                  <a
+                    href={confirmationLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full break-all underline"
+                  >
+                    {confirmationLink}
+                  </a>
+                )}
+              </output>
+            )}
+          </aside>
+        </div>
       )}
 
       <DepositModal
