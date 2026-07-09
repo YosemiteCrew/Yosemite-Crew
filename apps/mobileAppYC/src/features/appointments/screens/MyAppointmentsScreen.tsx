@@ -291,13 +291,37 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   // The Upcoming/Past segmented control selects which set is shown; the
   // category FilterPills still narrow within it. Both data sets stay available.
-  const sections = React.useMemo(
-    () =>
-      view === 'past'
-        ? [{key: 'past', title: 'Past', data: filteredPast}]
-        : [{key: 'upcoming', title: 'Upcoming', data: filteredUpcoming}],
-    [view, filteredUpcoming, filteredPast],
-  );
+  // Upcoming appointments are grouped into "This week" / "Later" (design).
+  const sections = React.useMemo(() => {
+    if (view === 'past') {
+      return [{key: 'past', title: 'Past', data: filteredPast}];
+    }
+    const weekAhead = new Date();
+    weekAhead.setDate(weekAhead.getDate() + 7);
+    const weekAheadTime = weekAhead.getTime();
+    const aptTime = (apt: (typeof filteredUpcoming)[number]) =>
+      new Date(apt.start ?? `${apt.date}T${apt.time ?? '00:00'}:00`).getTime();
+    // Appointments with an unparseable date default to "This week" so none drop.
+    const later = filteredUpcoming.filter(a => aptTime(a) > weekAheadTime);
+    const thisWeek = filteredUpcoming.filter(
+      a => !(aptTime(a) > weekAheadTime),
+    );
+    const groups: {
+      key: string;
+      title: string;
+      data: typeof filteredUpcoming;
+    }[] = [];
+    if (thisWeek.length) {
+      groups.push({key: 'thisWeek', title: 'This week', data: thisWeek});
+    }
+    if (later.length) {
+      groups.push({key: 'later', title: 'Later', data: later});
+    }
+    if (!groups.length) {
+      groups.push({key: 'upcoming', title: 'Upcoming', data: []});
+    }
+    return groups;
+  }, [view, filteredUpcoming, filteredPast]);
 
   const renderSectionHeader = ({
     section,
@@ -305,15 +329,18 @@ export const MyAppointmentsScreen: React.FC = () => {
     section: {key: string; title: string; data: typeof filteredUpcoming};
   }) => (
     <View style={styles.sectionHeaderWrapper}>
+      {section.data.length > 0 && (
+        <Text style={styles.groupTitle}>{section.title}</Text>
+      )}
       {section.data.length === 0 &&
-        (section.key === 'upcoming'
+        (section.key === 'past'
           ? renderEmptyCard(
-              'No upcoming appointments',
-              'Book a new appointment to see it here.',
-            )
-          : renderEmptyCard(
               'No past appointments',
               'Completed appointments will appear here.',
+            )
+          : renderEmptyCard(
+              'No upcoming appointments',
+              'Book a new appointment to see it here.',
             ))}
     </View>
   );
@@ -523,7 +550,7 @@ export const MyAppointmentsScreen: React.FC = () => {
       checkInDisabled,
     } = cardData;
 
-    return section.key === 'upcoming' ? (
+    return section.key !== 'past' ? (
       renderUpcomingCard({
         item,
         cardTitle,
@@ -760,6 +787,10 @@ const createStyles = (theme: any) =>
       marginTop: theme.spacing['4'],
       marginBottom: theme.spacing['2'],
       gap: theme.spacing['2'],
+    },
+    groupTitle: {
+      ...theme.typography.eyebrow,
+      color: theme.colors.inkMuted,
     },
     segmentContainer: {
       marginTop: theme.spacing['1'],
