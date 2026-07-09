@@ -1,19 +1,18 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 // test/services/documenso.service.test.ts
 import axios from "axios";
-import OrganizationModel from "../../src/models/organization";
+import { prisma } from "src/config/prisma";
 import logger from "../../src/utils/logger";
 import { DocumensoError } from "@documenso/sdk-typescript/models/errors/index.js";
 
 // --- MOCK SETUP ---
 jest.mock("axios");
 
-jest.mock("../../src/models/organization", () => ({
-  __esModule: true,
-  default: {
-    findOne: jest.fn().mockReturnValue({
-      lean: jest.fn(),
-    }),
+jest.mock("src/config/prisma", () => ({
+  prisma: {
+    organization: {
+      findFirst: jest.fn(),
+    },
   },
 }));
 
@@ -406,43 +405,43 @@ describe("DocumensoService", () => {
       });
     });
 
-    describe("resolveOrganisationApiKey & buildOrganizationLookupQuery", () => {
-      it("generates $or query if both Types.ObjectId and regex match", async () => {
+    describe("resolveOrganisationApiKey", () => {
+      it("returns the documensoApiKey when the organisation is found", async () => {
         const mockOrgId = "507f1f77bcf86cd799439011";
-        (OrganizationModel.findOne as jest.Mock).mockReturnValueOnce({
-          lean: jest
-            .fn()
-            .mockResolvedValue({ documensoApiKey: "key_obj_regex" }),
+        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+          documensoApiKey: "key_obj_regex",
         });
 
         const key = await DocumensoService.resolveOrganisationApiKey(mockOrgId);
         expect(key).toBe("key_obj_regex");
-        expect(OrganizationModel.findOne).toHaveBeenCalledWith(
-          { $or: [{ _id: mockOrgId }, { fhirId: mockOrgId }] },
-          { documensoApiKey: 1 },
-        );
+        expect(prisma.organization.findFirst).toHaveBeenCalledWith({
+          where: { OR: [{ id: mockOrgId }, { fhirId: mockOrgId }] },
+          select: { documensoApiKey: true },
+        });
       });
 
-      it("generates single query if only regex matches", async () => {
+      it("returns null when the organisation is not found", async () => {
         const mockFhirId = "valid-fhir-id-123";
-        (OrganizationModel.findOne as jest.Mock).mockReturnValueOnce({
-          lean: jest.fn().mockResolvedValue(null),
-        });
+        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce(
+          null,
+        );
 
         const key =
           await DocumensoService.resolveOrganisationApiKey(mockFhirId);
         expect(key).toBeNull();
-        expect(OrganizationModel.findOne).toHaveBeenCalledWith(
-          { fhirId: mockFhirId },
-          { documensoApiKey: 1 },
-        );
+        expect(prisma.organization.findFirst).toHaveBeenCalledWith({
+          where: { OR: [{ id: mockFhirId }, { fhirId: mockFhirId }] },
+          select: { documensoApiKey: true },
+        });
       });
 
-      it("throws error if neither matches (empty queries array)", async () => {
-        const invalidId = "invalid id with spaces !!";
-        await expect(
-          DocumensoService.resolveOrganisationApiKey(invalidId),
-        ).rejects.toThrow("Invalid organisation id");
+      it("returns null when the organisation has no documensoApiKey", async () => {
+        (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+          documensoApiKey: null,
+        });
+
+        const key = await DocumensoService.resolveOrganisationApiKey("org-1");
+        expect(key).toBeNull();
       });
     });
 

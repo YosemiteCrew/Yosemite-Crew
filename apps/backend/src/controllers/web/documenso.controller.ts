@@ -1,14 +1,5 @@
 import { Request, Response } from "express";
 import crypto from "node:crypto";
-import { HydratedDocument, Types } from "mongoose";
-import {
-  FormModel,
-  FormSubmissionDocument,
-  FormSubmissionModel,
-} from "src/models/form";
-import OrganizationModel from "src/models/organization";
-import UserModel from "src/models/user";
-import UserOrganizationModel from "src/models/user-organization";
 import {
   DocumensoExternalRole,
   DocumensoService,
@@ -21,7 +12,6 @@ import type { AuthenticatedRequest } from "src/middlewares/auth";
 import logger from "src/utils/logger";
 import { prisma } from "src/config/prisma";
 import { Prisma } from "@prisma/client";
-import { isReadFromPostgres } from "src/config/read-switch";
 
 interface DocumensoWebhookBody {
   event?: string;
@@ -58,45 +48,22 @@ function parseWebhookEvent(body: DocumensoWebhookBody) {
   return { eventType, documentId: String(documentId) };
 }
 
-const normalizeObjectIdString = (value: unknown): string | null => {
-  if (typeof value === "string" && value.trim().length > 0) {
-    return value.trim();
-  }
-
-  if (value && typeof value === "object") {
-    const candidate = value as { toHexString?: () => string };
-    if (typeof candidate.toHexString === "function") {
-      const hex = candidate.toHexString();
-      if (typeof hex === "string" && hex.trim().length > 0) {
-        return hex.trim();
-      }
-    }
-  }
-
-  return null;
-};
-
 async function findWebhookSubmission(documentId: string) {
-  return isReadFromPostgres()
-    ? prisma.formSubmission.findFirst({
-        where: {
-          signing: {
-            path: ["documentId"],
-            equals: documentId,
-          } as Prisma.JsonFilter,
-        },
-      })
-    : FormSubmissionModel.findOne({
-        "signing.documentId": documentId,
-      });
+  return prisma.formSubmission.findFirst({
+    where: {
+      signing: {
+        path: ["documentId"],
+        equals: documentId,
+      } as Prisma.JsonFilter,
+    },
+  });
 }
 
 async function handleSubmissionEvent(
   eventType: string,
-  submission:
-    | HydratedDocument<FormSubmissionDocument>
-    | Awaited<ReturnType<typeof prisma.formSubmission.findFirst>>
-    | null,
+  submission: Awaited<
+    ReturnType<typeof prisma.formSubmission.findFirst>
+  > | null,
 ) {
   if (!submission) {
     logger.warn("[DocumensoWebhook] No submission found for document");
@@ -104,28 +71,16 @@ async function handleSubmissionEvent(
   }
 
   if (eventType === "DOCUMENT_COMPLETED") {
-    if (isReadFromPostgres()) {
-      await handleDocumentCompletedPrisma(
-        submission as Parameters<typeof handleDocumentCompletedPrisma>[0],
-      );
-    } else {
-      await handleDocumentCompleted(
-        submission as HydratedDocument<FormSubmissionDocument>,
-      );
-    }
+    await handleDocumentCompletedPrisma(
+      submission as Parameters<typeof handleDocumentCompletedPrisma>[0],
+    );
     return true;
   }
 
   if (eventType === "DOCUMENT_DELETED") {
-    if (isReadFromPostgres()) {
-      await handleDocumentDeletedPrisma(
-        submission as Parameters<typeof handleDocumentDeletedPrisma>[0],
-      );
-    } else {
-      await handleDocumentDeleted(
-        submission as HydratedDocument<FormSubmissionDocument>,
-      );
-    }
+    await handleDocumentDeletedPrisma(
+      submission as Parameters<typeof handleDocumentDeletedPrisma>[0],
+    );
   }
 
   return true;
@@ -177,32 +132,9 @@ async function persistDocumensoApiKey(
   orgId: string,
   apiToken: string,
 ): Promise<{ stored: boolean; notFound: boolean }> {
-  if (isReadFromPostgres()) {
-    const organisation = await prisma.organization.findFirst({
-      where: { OR: [{ id: orgId }, { fhirId: orgId }] },
-    });
-
-    if (!organisation) {
-      return { stored: false, notFound: true };
-    }
-
-    if (organisation.documensoApiKey) {
-      return { stored: true, notFound: false };
-    }
-
-    await prisma.organization.updateMany({
-      where: { id: organisation.id },
-      data: { documensoApiKey: apiToken },
-    });
-    return { stored: true, notFound: false };
-  }
-
-  const query = buildOrganizationLookupQuery(orgId);
-  if (!query) {
-    return { stored: false, notFound: true };
-  }
-
-  const organisation = await OrganizationModel.findOne(query).lean();
+  const organisation = await prisma.organization.findFirst({
+    where: { OR: [{ id: orgId }, { fhirId: orgId }] },
+  });
 
   if (!organisation) {
     return { stored: false, notFound: true };
@@ -212,10 +144,10 @@ async function persistDocumensoApiKey(
     return { stored: true, notFound: false };
   }
 
-  await OrganizationModel.updateOne(
-    { _id: organisation._id },
-    { $set: { documensoApiKey: apiToken } },
-  );
+  await prisma.organization.updateMany({
+    where: { id: organisation.id },
+    data: { documensoApiKey: apiToken },
+  });
   return { stored: true, notFound: false };
 }
 
@@ -239,44 +171,26 @@ const isDocumensoWebhookSignatureValid = (
 };
 
 const resolveDocumensoRedirectUser = async (userId: string) => {
-  return isReadFromPostgres()
-    ? prisma.user.findFirst({
-        where: { userId },
-        select: { email: true, firstName: true, lastName: true },
-      })
-    : UserModel.findOne(
-        { userId },
-        { email: 1, firstName: 1, lastName: 1 },
-        { sanitizeFilter: true },
-      ).lean();
+  return prisma.user.findFirst({
+    where: { userId },
+    select: { email: true, firstName: true, lastName: true },
+  });
 };
 
 const resolveDocumensoRedirectMapping = async (
   userId: string,
   orgId: string,
 ) => {
-  return isReadFromPostgres()
-    ? prisma.userOrganization.findFirst({
-        where: {
-          practitionerReference: userId,
-          OR: [
-            { organizationReference: orgId },
-            { organizationReference: `Organization/${orgId}` },
-          ],
-        },
-        select: { roleCode: true },
-      })
-    : UserOrganizationModel.findOne(
-        {
-          practitionerReference: userId,
-          $or: [
-            { organizationReference: orgId },
-            { organizationReference: `Organization/${orgId}` },
-          ],
-        },
-        { roleCode: 1 },
-        { sanitizeFilter: true },
-      ).lean();
+  return prisma.userOrganization.findFirst({
+    where: {
+      practitionerReference: userId,
+      OR: [
+        { organizationReference: orgId },
+        { organizationReference: `Organization/${orgId}` },
+      ],
+    },
+    select: { roleCode: true },
+  });
 };
 
 export const DocumensoWebhookController = {
@@ -418,23 +332,8 @@ export const DocumensoAuthController = {
   },
 };
 
-const buildOrganizationLookupQuery = (reference: string) => {
-  const queries: Array<Record<string, string>> = [];
-
-  if (Types.ObjectId.isValid(reference)) {
-    queries.push({ _id: reference });
-  }
-
-  if (/^[A-Za-z0-9\-.]{1,64}$/.test(reference)) {
-    queries.push({ fhirId: reference });
-  }
-
-  if (!queries.length) {
-    return null;
-  }
-
-  return queries.length === 1 ? queries[0] : { $or: queries };
-};
+const isValidOrganizationReference = (reference: string): boolean =>
+  typeof reference === "string" && reference.trim().length > 0;
 
 export const DocumensoKeyController = {
   async storeApiKey(req: Request<{ orgId: string }>, res: Response) {
@@ -479,7 +378,7 @@ export const DocumensoKeyController = {
       }
 
       const { orgId } = req.params;
-      if (!buildOrganizationLookupQuery(orgId)) {
+      if (!isValidOrganizationReference(orgId)) {
         logger.warn("Documenso key webhook invalid org id", { orgId });
         return res.status(400).json({ message: "Invalid organisation id." });
       }
@@ -507,81 +406,6 @@ export const DocumensoKeyController = {
     }
   },
 };
-
-async function handleDocumentCompleted(
-  submission: HydratedDocument<FormSubmissionDocument>,
-) {
-  if (!submission.signing) return;
-  if (submission.signing.status === "SIGNED") return;
-
-  const form = await FormModel.findById(submission.formId).lean();
-
-  if (!form) {
-    throw new Error("Form not found");
-  }
-
-  const documensoApiKey = await DocumensoService.resolveOrganisationApiKey(
-    form.orgId,
-  );
-
-  if (!documensoApiKey) {
-    throw new Error("Documenso API key not configured for organisation");
-  }
-
-  const signedDocument = await DocumensoService.downloadSignedDocument({
-    documentId: Number.parseInt(submission.signing.documentId!, 10),
-    apiKey: documensoApiKey,
-  });
-
-  if (signedDocument) {
-    submission.signing.pdf = {
-      url: signedDocument.downloadUrl,
-    };
-  }
-  submission.signing.status = "SIGNED";
-
-  await submission.save();
-
-  try {
-    const formId = normalizeObjectIdString(submission.formId);
-    if (!formId) {
-      throw new Error("Form id missing");
-    }
-    await FormAssignmentService.markSignedFromSubmission({
-      organisationId: String(form.orgId),
-      templateId: formId,
-      templateVersion: submission.formVersion,
-      appointmentId: submission.appointmentId ?? undefined,
-      companionId: submission.patientId ?? undefined,
-      parentId: submission.parentId ?? undefined,
-    });
-  } catch (error) {
-    logger.warn(
-      "[DocumensoWebhook] Failed to sync form assignment signed status",
-      {
-        error,
-        submissionId:
-          normalizeObjectIdString((submission as { _id?: unknown })._id) ??
-          normalizeObjectIdString((submission as { id?: unknown }).id) ??
-          "unknown",
-      },
-    );
-  }
-}
-
-async function handleDocumentDeleted(
-  submission: HydratedDocument<FormSubmissionDocument>,
-) {
-  if (!submission.signing) return;
-  if (submission.signing.status === "SIGNED") return;
-
-  submission.signing = {
-    ...submission.signing,
-    status: "NOT_STARTED",
-  };
-
-  await submission.save();
-}
 
 async function handleDocumentCompletedPrisma(submission: {
   id: string;

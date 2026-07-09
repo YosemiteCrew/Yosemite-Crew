@@ -19,13 +19,9 @@ pnpm run dev --filter backend
 
 ## Database
 
-### MongoDB
+### PostgreSQL (Prisma)
 
-The backend uses MongoDB via Mongoose. Connection setup lives in `apps/backend/src/config/db.ts` and is initialized in `apps/backend/src/main.ts` via `connectDB()`. Behavior is environment-driven:
-
-- `USE_INMEMORY_DB=true` starts an in-memory MongoDB instance (useful for tests/dev).
-- `LOCAL_DEVELOPMENT=true` connects to `mongodb://localhost:27017/yosemitecrew`.
-- Otherwise it uses `MONGODB_URI`.
+The backend uses PostgreSQL via Prisma. The Prisma schema and client live in the `@yosemite-crew/database` package (`packages/database`). Set the connection string in `DATABASE_URL`; a Supabase Postgres connection string works directly, with no Supabase-specific SDK required.
 
 ### Redis + BullMQ Workers
 

@@ -5,8 +5,7 @@ import {
   ServiceServiceError,
 } from "../../src/services/service.service";
 import { CatalogService } from "../../src/services/catalog.service";
-import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
-import { ParentModel } from "../../src/models/parent";
+import { getParentAddressForAuthUser } from "../../src/utils/location";
 import helpers from "../../src/utils/helper";
 import logger from "../../src/utils/logger";
 
@@ -48,8 +47,9 @@ jest.mock("../../src/services/catalog.service", () => ({
   },
 }));
 
-jest.mock("../../src/services/authUserMobile.service");
-jest.mock("../../src/models/parent");
+jest.mock("../../src/utils/location", () => ({
+  getParentAddressForAuthUser: jest.fn(),
+}));
 jest.mock("../../src/utils/helper", () => ({
   __esModule: true,
   default: {
@@ -125,14 +125,10 @@ describe("ServiceController", () => {
         query: { serviceName: "Vet" },
         headers: { "x-user-id": "header-user" },
       });
-      (
-        AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValueOnce(null);
+      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce(null);
 
       await ServiceController.listOrganisationByServiceName(req, res);
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
-        "header-user",
-      );
+      expect(getParentAddressForAuthUser).toHaveBeenCalledWith("header-user");
     });
 
     it("resolves userId from auth object if headers are missing", async () => {
@@ -140,14 +136,10 @@ describe("ServiceController", () => {
         query: { serviceName: "Vet" },
         userId: "auth-user", // simulated AuthenticatedRequest
       });
-      (
-        AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValueOnce(null);
+      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce(null);
 
       await ServiceController.listOrganisationByServiceName(req, res);
-      expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
-        "auth-user",
-      );
+      expect(getParentAddressForAuthUser).toHaveBeenCalledWith("auth-user");
     });
   });
 
@@ -353,11 +345,8 @@ describe("ServiceController", () => {
 
     it("returns 400 if parent address is missing/incomplete", async () => {
       req = mockRequest({ query: { serviceName: "Vet" }, userId: "auth-1" });
-      (
-        AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValueOnce({ parentId: "p1" });
-      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({
-        address: { city: "NY" },
+      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce({
+        city: "NY",
       }); // Missing postalCode
 
       await ServiceController.listOrganisationByServiceName(req, res);
@@ -369,11 +358,9 @@ describe("ServiceController", () => {
 
     it("returns 400 if geolocation from parent address fails", async () => {
       req = mockRequest({ query: { serviceName: "Vet" }, userId: "auth-1" });
-      (
-        AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValueOnce({ parentId: "p1" });
-      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({
-        address: { city: "NY", postalCode: "10001" },
+      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce({
+        city: "NY",
+        postalCode: "10001",
       });
       (helpers.getGeoLocation as jest.Mock).mockResolvedValueOnce({
         lat: null,
@@ -389,11 +376,9 @@ describe("ServiceController", () => {
 
     it("returns 200 when geolocating successfully from parent address", async () => {
       req = mockRequest({ query: { serviceName: "Vet" }, userId: "auth-1" });
-      (
-        AuthUserMobileService.getByProviderUserId as jest.Mock
-      ).mockResolvedValueOnce({ parentId: "p1" });
-      (ParentModel.findById as jest.Mock).mockResolvedValueOnce({
-        address: { city: "NY", postalCode: "10001" },
+      (getParentAddressForAuthUser as jest.Mock).mockResolvedValueOnce({
+        city: "NY",
+        postalCode: "10001",
       });
       (helpers.getGeoLocation as jest.Mock).mockResolvedValueOnce({
         lat: 40.7,

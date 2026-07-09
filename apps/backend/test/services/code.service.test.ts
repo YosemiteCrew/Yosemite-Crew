@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { CodeService } from "../../src/services/code.service";
 import { prisma } from "../../src/config/prisma";
-import CodeEntryModel from "../../src/models/code-entry";
-import CodeMappingModel from "../../src/models/code-mapping";
 
 jest.mock("../../src/config/prisma", () => ({
   prisma: {
@@ -17,40 +15,16 @@ jest.mock("../../src/config/prisma", () => ({
   },
 }));
 
-jest.mock("../../src/models/code-entry", () => ({
-  __esModule: true,
-  default: {
-    findOneAndUpdate: jest.fn(),
-    find: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/models/code-mapping", () => ({
-  __esModule: true,
-  default: {
-    findOneAndUpdate: jest.fn(),
-    find: jest.fn(),
-  },
-}));
-
-jest.mock("../../src/utils/dual-write", () => ({
-  shouldDualWrite: false,
-  isDualWriteStrict: false,
-  handleDualWriteError: jest.fn(),
-}));
-
 describe("CodeService", () => {
   const mockedPrisma = prisma as any;
-  const mockedCodeEntryModel = CodeEntryModel as any;
-  const mockedCodeMappingModel = CodeMappingModel as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("writes code entries directly to Postgres when READ_FROM_POSTGRES is enabled", async () => {
-    process.env.READ_FROM_POSTGRES = "true";
+  it("writes code entries to Postgres", async () => {
     mockedPrisma.codeEntry.upsert.mockResolvedValue({
+      id: "entry-1",
       system: "YOSEMITECODE",
       code: "YSPEC:CANINE",
       display: "Canine",
@@ -72,6 +46,7 @@ describe("CodeService", () => {
       }),
     ).resolves.toEqual(
       expect.objectContaining({
+        id: "entry-1",
         code: "YSPEC:CANINE",
       }),
     );
@@ -86,12 +61,11 @@ describe("CodeService", () => {
         },
       }),
     );
-    expect(mockedCodeEntryModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
-  it("writes code mappings directly to Postgres when READ_FROM_POSTGRES is enabled", async () => {
-    process.env.READ_FROM_POSTGRES = "true";
+  it("writes code mappings to Postgres", async () => {
     mockedPrisma.codeMapping.upsert.mockResolvedValue({
+      id: "mapping-1",
       sourceSystem: "YOSEMITECODE",
       sourceCode: "YSPEC:CANINE",
       targetSystem: "IDEXX",
@@ -111,6 +85,7 @@ describe("CodeService", () => {
       }),
     ).resolves.toEqual(
       expect.objectContaining({
+        id: "mapping-1",
         targetCode: "CANINE",
       }),
     );
@@ -127,47 +102,12 @@ describe("CodeService", () => {
         },
       }),
     );
-    expect(mockedCodeMappingModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
-  it("keeps Mongo as the write path when READ_FROM_POSTGRES is disabled", async () => {
-    process.env.READ_FROM_POSTGRES = "false";
-    mockedCodeEntryModel.findOneAndUpdate.mockResolvedValue({
-      system: "YOSEMITECODE",
-      code: "YSPEC:FELINE",
-    });
-    mockedCodeMappingModel.findOneAndUpdate.mockResolvedValue({
-      sourceSystem: "YOSEMITECODE",
-      sourceCode: "YSPEC:FELINE",
-      targetSystem: "IDEXX",
-      targetCode: "FELINE",
-    });
-
-    await CodeService.upsertEntry({
-      system: "YOSEMITECODE",
-      code: "YSPEC:FELINE",
-      display: "Feline",
-      type: "SPECIES",
-      active: true,
-    });
-    await CodeService.upsertMapping({
-      sourceSystem: "YOSEMITECODE",
-      sourceCode: "YSPEC:FELINE",
-      targetSystem: "IDEXX",
-      targetCode: "FELINE",
-      active: true,
-    });
-
-    expect(mockedCodeEntryModel.findOneAndUpdate).toHaveBeenCalled();
-    expect(mockedCodeMappingModel.findOneAndUpdate).toHaveBeenCalled();
-    expect(mockedPrisma.codeEntry.upsert).not.toHaveBeenCalled();
-    expect(mockedPrisma.codeMapping.upsert).not.toHaveBeenCalled();
-  });
-
-  it("lists entries with normalized filters in Postgres mode", async () => {
-    process.env.READ_FROM_POSTGRES = "true";
+  it("lists entries with normalized filters", async () => {
     mockedPrisma.codeEntry.findMany.mockResolvedValue([
       {
+        id: "entry-1",
         system: "YOSEMITECODE",
         code: "YSPEC:CANINE",
         display: "Canine",
@@ -200,18 +140,16 @@ describe("CodeService", () => {
     );
   });
 
-  it("lists mappings with normalized filters in Mongo mode", async () => {
-    process.env.READ_FROM_POSTGRES = "false";
-    const lean: any = jest.fn();
-    lean.mockResolvedValue([{ sourceCode: "YSPEC:CANINE" }]);
-    const mockCursor: any = {
-      sort: jest.fn().mockReturnValue({
-        setOptions: jest.fn().mockReturnValue({
-          lean,
-        }),
-      }),
-    };
-    (mockedCodeMappingModel.find as jest.Mock).mockReturnValue(mockCursor);
+  it("lists mappings with normalized filters", async () => {
+    mockedPrisma.codeMapping.findMany.mockResolvedValue([
+      {
+        id: "mapping-1",
+        sourceSystem: "YOSEMITECODE",
+        sourceCode: "YSPEC:CANINE",
+        targetSystem: "IDEXX",
+        targetCode: "CANINE",
+      },
+    ]);
 
     await expect(
       CodeService.listMappings({
@@ -223,12 +161,17 @@ describe("CodeService", () => {
       }),
     ).resolves.toHaveLength(1);
 
-    expect(mockedCodeMappingModel.find).toHaveBeenCalledWith({
-      sourceSystem: "YOSEMITECODE",
-      sourceCode: "YSPEC:CANINE",
-      targetSystem: "IDEXX",
-      targetCode: "CANINE",
-      active: true,
-    });
+    expect(mockedPrisma.codeMapping.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          sourceSystem: "YOSEMITECODE",
+          sourceCode: "YSPEC:CANINE",
+          targetSystem: "IDEXX",
+          targetCode: "CANINE",
+          active: true,
+        }),
+        orderBy: { createdAt: "desc" },
+      }),
+    );
   });
 });

@@ -1,6 +1,3 @@
-import IntegrationAccountModel, {
-  IntegrationAccountDocument,
-} from "src/models/integration-account";
 import {
   getIntegrationAdapter,
   normalizeProvider,
@@ -10,12 +7,10 @@ import {
   type IntegrationValidationResult,
 } from "src/integrations";
 import { prisma } from "src/config/prisma";
-import { handleDualWriteError, shouldDualWrite } from "src/utils/dual-write";
 import {
   Prisma,
   type IntegrationAccount as PrismaIntegrationAccount,
 } from "@prisma/client";
-import { isReadFromPostgres } from "src/config/read-switch";
 
 const prismaIntegrationAccountSelect = {
   id: true,
@@ -71,55 +66,6 @@ const requireOrganisationId = (value: string): string => {
 const isMerckProvider = (provider: IntegrationProvider) =>
   provider === "MERCK_MANUALS";
 
-const supportsPrismaProvider = (
-  provider: IntegrationProvider,
-): provider is "IDEXX" => provider === "IDEXX";
-
-const syncIntegrationAccountToPostgres = async (
-  doc: IntegrationAccountDocument,
-) => {
-  if (!shouldDualWrite) return;
-  if (!supportsPrismaProvider(doc.provider)) return;
-  try {
-    await prisma.integrationAccount.upsert({
-      where: {
-        organisationId_provider: {
-          organisationId: doc.organisationId,
-          provider: doc.provider,
-        },
-      },
-      create: {
-        organisationId: doc.organisationId,
-        provider: doc.provider,
-        status: doc.status,
-        enabledAt: doc.enabledAt ?? null,
-        disabledAt: doc.disabledAt ?? null,
-        lastSyncAt: doc.lastSyncAt ?? null,
-        lastError: doc.lastError ?? null,
-        credentialsStatus: doc.credentialsStatus ?? "missing",
-        lastValidatedAt: doc.lastValidatedAt ?? null,
-        credentials:
-          (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-        config: (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-      },
-      update: {
-        status: doc.status,
-        enabledAt: doc.enabledAt ?? null,
-        disabledAt: doc.disabledAt ?? null,
-        lastSyncAt: doc.lastSyncAt ?? null,
-        lastError: doc.lastError ?? null,
-        credentialsStatus: doc.credentialsStatus ?? "missing",
-        lastValidatedAt: doc.lastValidatedAt ?? null,
-        credentials:
-          (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-        config: (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-      },
-    });
-  } catch (err) {
-    handleDualWriteError("IntegrationAccount", err);
-  }
-};
-
 const buildEnabledIntegrationData = () => ({
   status: "enabled" as const,
   enabledAt: new Date(),
@@ -159,34 +105,6 @@ const enableMerckIntegrationInPostgres = async (organisationId: string) => {
       ...buildEnabledIntegrationData(),
     },
   });
-};
-
-const enableMerckIntegrationInMongo = async (organisationId: string) => {
-  const existing = await IntegrationAccountModel.findOne({
-    organisationId,
-    provider: "MERCK_MANUALS",
-  }).setOptions({ sanitizeFilter: true });
-
-  if (existing) {
-    existing.status = "enabled";
-    existing.enabledAt = new Date();
-    existing.disabledAt = null;
-    existing.lastError = null;
-    existing.credentialsStatus = "valid";
-    existing.lastValidatedAt = new Date();
-    await existing.save();
-    await syncIntegrationAccountToPostgres(existing);
-    return existing.toJSON();
-  }
-
-  const created = new IntegrationAccountModel({
-    organisationId,
-    provider: "MERCK_MANUALS",
-    ...buildEnabledIntegrationData(),
-  });
-  await created.save();
-  await syncIntegrationAccountToPostgres(created);
-  return created.toJSON();
 };
 
 const enableNonMerckIntegrationInPostgres = async (
@@ -230,153 +148,49 @@ const enableNonMerckIntegrationInPostgres = async (
   });
 };
 
-const enableNonMerckIntegrationInMongo = async (
-  organisationId: string,
-  provider: IntegrationProvider,
-  validateCredentials: (
-    organisationId: string,
-    provider: IntegrationProvider,
-  ) => Promise<IntegrationValidationResult>,
-) => {
-  const existing = await IntegrationAccountModel.findOne({
-    organisationId,
-    provider,
-  }).setOptions({ sanitizeFilter: true });
-
-  if (!existing) {
-    throw new IntegrationServiceError(
-      "Integration credentials must be configured before enabling.",
-      400,
-    );
-  }
-
-  ensureIntegrationCredentialsPresent(existing);
-
-  const validation = await validateCredentials(organisationId, provider);
-
-  if (!validation.ok) {
-    throw new IntegrationServiceError(
-      `Integration validation failed: ${validation.reason}`,
-      400,
-    );
-  }
-
-  existing.status = "enabled";
-  existing.enabledAt = new Date();
-  existing.disabledAt = null;
-  existing.lastError = null;
-
-  await existing.save();
-  await syncIntegrationAccountToPostgres(existing);
-
-  return existing.toJSON();
-};
-
 export const IntegrationService = {
   ensureProvider,
 
   async ensureMerckAccount(organisationId: string) {
     const safeOrganisationId = requireOrganisationId(organisationId);
-    if (isReadFromPostgres()) {
-      const existing = await prisma.integrationAccount.findFirst({
-        where: {
-          organisationId: safeOrganisationId,
-          provider: "MERCK_MANUALS",
-        },
-        select: prismaIntegrationAccountSelect,
-      });
-
-      if (existing) {
-        return existing;
-      }
-
-      return prisma.integrationAccount.create({
-        data: {
-          organisationId: safeOrganisationId,
-          provider: "MERCK_MANUALS",
-          status: "enabled",
-          enabledAt: new Date(),
-          disabledAt: null,
-          lastError: null,
-          credentialsStatus: "valid",
-          lastValidatedAt: new Date(),
-        },
-        select: prismaIntegrationAccountSelect,
-      });
-    }
-
-    const existing = await IntegrationAccountModel.findOne({
-      organisationId: safeOrganisationId,
-      provider: "MERCK_MANUALS",
-    })
-      .setOptions({ sanitizeFilter: true })
-      .select({ credentials: 0 })
-      .lean();
+    const existing = await prisma.integrationAccount.findFirst({
+      where: {
+        organisationId: safeOrganisationId,
+        provider: "MERCK_MANUALS",
+      },
+      select: prismaIntegrationAccountSelect,
+    });
 
     if (existing) {
       return existing;
     }
 
-    const created = new IntegrationAccountModel({
-      organisationId: safeOrganisationId,
-      provider: "MERCK_MANUALS",
-      status: "enabled",
-      enabledAt: new Date(),
-      disabledAt: null,
-      lastError: null,
-      credentialsStatus: "valid",
-      lastValidatedAt: new Date(),
+    return prisma.integrationAccount.create({
+      data: {
+        organisationId: safeOrganisationId,
+        provider: "MERCK_MANUALS",
+        status: "enabled",
+        enabledAt: new Date(),
+        disabledAt: null,
+        lastError: null,
+        credentialsStatus: "valid",
+        lastValidatedAt: new Date(),
+      },
+      select: prismaIntegrationAccountSelect,
     });
-
-    await created.save();
-    await syncIntegrationAccountToPostgres(created);
-    const fresh = (await IntegrationAccountModel.findOne({
-      organisationId: safeOrganisationId,
-      provider: "MERCK_MANUALS",
-    })
-      .setOptions({ sanitizeFilter: true })
-      .select({ credentials: 0 })
-      .lean()) as unknown as Record<string, unknown> | null;
-    const createdJson = created.toJSON() as unknown as Record<string, unknown>;
-    return fresh ?? createdJson;
   },
 
   async listForOrganisation(organisationId: string) {
     const safeOrganisationId = requireOrganisationId(organisationId);
-    if (isReadFromPostgres()) {
-      const list = await prisma.integrationAccount.findMany({
-        where: { organisationId: safeOrganisationId },
-        select: prismaIntegrationAccountSelect,
-        orderBy: { provider: "asc" },
-      });
-
-      const hasMerck = list.some((item) => item.provider === "MERCK_MANUALS");
-      if (!hasMerck) {
-        const merck = (await this.ensureMerckAccount(
-          safeOrganisationId,
-        )) as (typeof list)[number];
-        list.push(merck);
-        list.sort((a, b) =>
-          String(a.provider).localeCompare(String(b.provider)),
-        );
-      }
-
-      return list;
-    }
-
-    const list = await IntegrationAccountModel.find({
-      organisationId: safeOrganisationId,
-    })
-      .setOptions({ sanitizeFilter: true })
-      .select({ credentials: 0 })
-      .sort({ provider: 1 })
-      .lean();
+    const list = await prisma.integrationAccount.findMany({
+      where: { organisationId: safeOrganisationId },
+      select: prismaIntegrationAccountSelect,
+      orderBy: { provider: "asc" },
+    });
 
     const hasMerck = list.some((item) => item.provider === "MERCK_MANUALS");
     if (!hasMerck) {
-      const merck = (await this.ensureMerckAccount(
-        safeOrganisationId,
-      )) as (typeof list)[number];
+      const merck = await this.ensureMerckAccount(safeOrganisationId);
       list.push(merck);
       list.sort((a, b) => String(a.provider).localeCompare(String(b.provider)));
     }
@@ -387,19 +201,10 @@ export const IntegrationService = {
   async getForOrganisation(organisationId: string, provider: string) {
     const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
-    if (isReadFromPostgres()) {
-      return prisma.integrationAccount.findFirst({
-        where: { organisationId: safeOrganisationId, provider: normalized },
-        select: prismaIntegrationAccountSelect,
-      });
-    }
-    return IntegrationAccountModel.findOne({
-      organisationId: safeOrganisationId,
-      provider: normalized,
-    })
-      .setOptions({ sanitizeFilter: true })
-      .select({ credentials: 0 })
-      .lean();
+    return prisma.integrationAccount.findFirst({
+      where: { organisationId: safeOrganisationId, provider: normalized },
+      select: prismaIntegrationAccountSelect,
+    });
   },
 
   async upsertCredentials(
@@ -424,67 +229,36 @@ export const IntegrationService = {
       );
     }
 
-    const update = {
-      credentials,
-      config: config ?? null,
-      status: "disabled",
-      disabledAt: new Date(),
-      credentialsStatus: "valid",
-      lastValidatedAt: new Date(),
-      lastError: null,
-    };
-
     const safeOrganisationId = requireOrganisationId(organisationId);
 
-    if (isReadFromPostgres()) {
-      return prisma.integrationAccount.upsert({
-        where: {
-          organisationId_provider: {
-            organisationId: safeOrganisationId,
-            provider: normalized,
-          },
-        },
-        create: {
-          organisationId: safeOrganisationId,
-          provider: normalized,
-          status: "disabled",
-          disabledAt: new Date(),
-          credentialsStatus: "valid",
-          lastValidatedAt: new Date(),
-          lastError: null,
-          credentials: credentials as Prisma.InputJsonValue,
-          config: (config ?? null) as Prisma.InputJsonValue,
-        },
-        update: {
-          credentials: credentials as Prisma.InputJsonValue,
-          config: (config ?? null) as Prisma.InputJsonValue,
-          status: "disabled",
-          disabledAt: new Date(),
-          credentialsStatus: "valid",
-          lastValidatedAt: new Date(),
-          lastError: null,
-        },
-      });
-    }
-
-    const saved = await IntegrationAccountModel.findOneAndUpdate(
-      { organisationId: safeOrganisationId, provider: normalized },
-      {
-        $set: update,
-        $setOnInsert: {
+    return prisma.integrationAccount.upsert({
+      where: {
+        organisationId_provider: {
           organisationId: safeOrganisationId,
           provider: normalized,
         },
       },
-      { upsert: true, new: true, sanitizeFilter: true },
-    );
-
-    if (saved) {
-      await syncIntegrationAccountToPostgres(saved);
-      return saved.toJSON();
-    }
-
-    return saved;
+      create: {
+        organisationId: safeOrganisationId,
+        provider: normalized,
+        status: "disabled",
+        disabledAt: new Date(),
+        credentialsStatus: "valid",
+        lastValidatedAt: new Date(),
+        lastError: null,
+        credentials: credentials as Prisma.InputJsonValue,
+        config: (config ?? null) as Prisma.InputJsonValue,
+      },
+      update: {
+        credentials: credentials as Prisma.InputJsonValue,
+        config: (config ?? null) as Prisma.InputJsonValue,
+        status: "disabled",
+        disabledAt: new Date(),
+        credentialsStatus: "valid",
+        lastValidatedAt: new Date(),
+        lastError: null,
+      },
+    });
   },
 
   async setEnabled(organisationId: string, provider: string) {
@@ -492,20 +266,10 @@ export const IntegrationService = {
     const normalized = ensureProvider(provider);
 
     if (isMerckProvider(normalized)) {
-      return isReadFromPostgres()
-        ? enableMerckIntegrationInPostgres(safeOrganisationId)
-        : enableMerckIntegrationInMongo(safeOrganisationId);
+      return enableMerckIntegrationInPostgres(safeOrganisationId);
     }
 
-    if (isReadFromPostgres()) {
-      return enableNonMerckIntegrationInPostgres(
-        safeOrganisationId,
-        normalized,
-        this.validateCredentials.bind(this),
-      );
-    }
-
-    return enableNonMerckIntegrationInMongo(
+    return enableNonMerckIntegrationInPostgres(
       safeOrganisationId,
       normalized,
       this.validateCredentials.bind(this),
@@ -517,73 +281,23 @@ export const IntegrationService = {
     const normalized = ensureProvider(provider);
 
     if (isMerckProvider(normalized)) {
-      if (isReadFromPostgres()) {
-        const existing = await prisma.integrationAccount.findFirst({
-          where: { organisationId: safeOrganisationId, provider: normalized },
-        });
-
-        if (!existing) {
-          return prisma.integrationAccount.create({
-            data: {
-              organisationId: safeOrganisationId,
-              provider: normalized,
-              status: "disabled",
-              disabledAt: new Date(),
-              enabledAt: null,
-              lastError: null,
-              credentialsStatus: "valid",
-              lastValidatedAt: new Date(),
-            },
-          });
-        }
-
-        return prisma.integrationAccount.update({
-          where: { id: existing.id },
-          data: {
-            status: "disabled",
-            disabledAt: new Date(),
-            enabledAt: null,
-          },
-        });
-      }
-
-      const existing = await IntegrationAccountModel.findOne({
-        organisationId: safeOrganisationId,
-        provider: normalized,
-      }).setOptions({ sanitizeFilter: true });
-
-      if (!existing) {
-        const created = new IntegrationAccountModel({
-          organisationId: safeOrganisationId,
-          provider: normalized,
-          status: "disabled",
-          disabledAt: new Date(),
-          enabledAt: null,
-          lastError: null,
-          credentialsStatus: "valid",
-          lastValidatedAt: new Date(),
-        });
-        await created.save();
-        await syncIntegrationAccountToPostgres(created);
-        return created.toJSON();
-      }
-
-      existing.status = "disabled";
-      existing.disabledAt = new Date();
-      existing.enabledAt = null;
-
-      await existing.save();
-      await syncIntegrationAccountToPostgres(existing);
-      return existing.toJSON();
-    }
-
-    if (isReadFromPostgres()) {
       const existing = await prisma.integrationAccount.findFirst({
         where: { organisationId: safeOrganisationId, provider: normalized },
       });
 
       if (!existing) {
-        throw new IntegrationServiceError("Integration not found.", 404);
+        return prisma.integrationAccount.create({
+          data: {
+            organisationId: safeOrganisationId,
+            provider: normalized,
+            status: "disabled",
+            disabledAt: new Date(),
+            enabledAt: null,
+            lastError: null,
+            credentialsStatus: "valid",
+            lastValidatedAt: new Date(),
+          },
+        });
       }
 
       return prisma.integrationAccount.update({
@@ -591,26 +305,26 @@ export const IntegrationService = {
         data: {
           status: "disabled",
           disabledAt: new Date(),
+          enabledAt: null,
         },
       });
     }
 
-    const existing = await IntegrationAccountModel.findOne({
-      organisationId: safeOrganisationId,
-      provider: normalized,
-    }).setOptions({ sanitizeFilter: true });
+    const existing = await prisma.integrationAccount.findFirst({
+      where: { organisationId: safeOrganisationId, provider: normalized },
+    });
 
     if (!existing) {
       throw new IntegrationServiceError("Integration not found.", 404);
     }
 
-    existing.status = "disabled";
-    existing.disabledAt = new Date();
-
-    await existing.save();
-    await syncIntegrationAccountToPostgres(existing);
-
-    return existing.toJSON();
+    return prisma.integrationAccount.update({
+      where: { id: existing.id },
+      data: {
+        status: "disabled",
+        disabledAt: new Date(),
+      },
+    });
   },
 
   async validateCredentials(
@@ -624,16 +338,9 @@ export const IntegrationService = {
       return { ok: true };
     }
 
-    const account = isReadFromPostgres()
-      ? await prisma.integrationAccount.findFirst({
-          where: { organisationId: safeOrganisationId, provider: normalized },
-        })
-      : await IntegrationAccountModel.findOne({
-          organisationId: safeOrganisationId,
-          provider: normalized,
-        })
-          .setOptions({ sanitizeFilter: true })
-          .lean();
+    const account = await prisma.integrationAccount.findFirst({
+      where: { organisationId: safeOrganisationId, provider: normalized },
+    });
 
     if (!account?.credentials) {
       throw new IntegrationServiceError(
@@ -647,36 +354,14 @@ export const IntegrationService = {
       account.credentials as unknown as IntegrationCredentials,
     );
 
-    if (isReadFromPostgres()) {
-      await prisma.integrationAccount.updateMany({
-        where: { organisationId: safeOrganisationId, provider: normalized },
-        data: {
-          credentialsStatus: result.ok ? "valid" : "invalid",
-          lastValidatedAt: new Date(),
-          lastError: result.ok ? null : result.reason,
-        },
-      });
-    } else {
-      await IntegrationAccountModel.updateOne(
-        { organisationId: safeOrganisationId, provider: normalized },
-        {
-          $set: {
-            credentialsStatus: result.ok ? "valid" : "invalid",
-            lastValidatedAt: new Date(),
-            lastError: result.ok ? null : result.reason,
-          },
-        },
-        { sanitizeFilter: true },
-      );
-
-      const updated = await IntegrationAccountModel.findOne({
-        organisationId: safeOrganisationId,
-        provider: normalized,
-      }).setOptions({ sanitizeFilter: true });
-      if (updated) {
-        await syncIntegrationAccountToPostgres(updated);
-      }
-    }
+    await prisma.integrationAccount.updateMany({
+      where: { organisationId: safeOrganisationId, provider: normalized },
+      data: {
+        credentialsStatus: result.ok ? "valid" : "invalid",
+        lastValidatedAt: new Date(),
+        lastError: result.ok ? null : result.reason,
+      },
+    });
 
     return result;
   },
@@ -684,18 +369,13 @@ export const IntegrationService = {
   async requireAccount(
     organisationId: string,
     provider: string,
-  ): Promise<IntegrationAccountDocument | PrismaIntegrationAccount> {
+  ): Promise<PrismaIntegrationAccount> {
     const safeOrganisationId = requireOrganisationId(organisationId);
     const normalized = ensureProvider(provider);
 
-    const account = isReadFromPostgres()
-      ? await prisma.integrationAccount.findFirst({
-          where: { organisationId: safeOrganisationId, provider: normalized },
-        })
-      : await IntegrationAccountModel.findOne({
-          organisationId: safeOrganisationId,
-          provider: normalized,
-        }).setOptions({ sanitizeFilter: true });
+    const account = await prisma.integrationAccount.findFirst({
+      where: { organisationId: safeOrganisationId, provider: normalized },
+    });
 
     if (!account) {
       throw new IntegrationServiceError("Integration not found.", 404);

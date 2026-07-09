@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { Request, Response } from "express";
 import { prisma } from "../../../src/config/prisma";
-import { isReadFromPostgres } from "../../../src/config/read-switch";
 import { RenderedDocumentFhirController } from "../../../src/controllers/web/rendered-document.fhir.controller";
 import {
   getPersistedRenderedDocument,
@@ -18,20 +17,10 @@ jest.mock("../../../src/config/prisma", () => ({
     },
   },
 }));
-jest.mock("../../../src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(),
-}));
-jest.mock("../../../src/models/user", () => ({
-  __esModule: true,
-  default: {
-    findOne: jest.fn(),
-  },
-}));
 jest.mock("../../../src/services/rendered-document.service");
 jest.mock("../../../src/utils/logger");
 
 const mockedUserFindUnique = prisma.user.findUnique as jest.Mock;
-const mockedIsReadFromPostgres = jest.mocked(isReadFromPostgres);
 const mockedGetPersistedRenderedDocument = jest.mocked(
   getPersistedRenderedDocument,
 );
@@ -55,7 +44,6 @@ describe("RenderedDocumentFhirController", () => {
   let setHeaderMock: jest.Mock;
 
   beforeEach(() => {
-    mockedIsReadFromPostgres.mockReturnValue(true);
     (mockedUserFindUnique as any).mockResolvedValue({
       email: "user-1@example.com",
       firstName: "User",

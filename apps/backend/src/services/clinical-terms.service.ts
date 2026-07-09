@@ -1,12 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import CodeEntryModel, {
-  type CodeEntryMongo,
-  type CodeSystem,
-} from "src/models/code-entry";
+import { type CodeEntryMongo, type CodeSystem } from "src/models/code-entry";
 import { CodeService } from "src/services/code.service";
 import { prisma } from "src/config/prisma";
-import { isReadFromPostgres } from "src/config/read-switch";
 import { z } from "zod";
 
 export type ClinicalDomain =
@@ -261,68 +257,25 @@ export const ClinicalTermsService = {
     const query = params.q?.trim();
     const fetchLimit = Math.max(safeLimit * 10, 50);
 
-    let candidates: ClinicalTermSuggestion[];
-
-    if (isReadFromPostgres()) {
-      const rows = await prisma.codeEntry.findMany({
-        where: {
-          system: "YOSEMITECODE",
-          type: "CLINICAL_TERM",
-          active: true,
-          ...(query
-            ? {
-                OR: [
-                  { display: { contains: query, mode: "insensitive" } },
-                  { code: { contains: query, mode: "insensitive" } },
-                ],
-              }
-            : {}),
-        },
-        orderBy: { display: "asc" },
-        take: fetchLimit,
-      });
-
-      candidates = rows.map((row) => toSuggestion(row));
-    } else {
-      const filter: Record<string, unknown> = {
+    const rows = await prisma.codeEntry.findMany({
+      where: {
         system: "YOSEMITECODE",
         type: "CLINICAL_TERM",
         active: true,
-      };
+        ...(query
+          ? {
+              OR: [
+                { display: { contains: query, mode: "insensitive" } },
+                { code: { contains: query, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: { display: "asc" },
+      take: fetchLimit,
+    });
 
-      if (params.domain) {
-        filter["meta.domain"] = params.domain;
-      }
-
-      if (params.species?.length) {
-        filter["meta.species"] = { $in: params.species };
-      }
-
-      if (query) {
-        const escaped = query.replaceAll(
-          /[.*+?^${}()|[\]\\]/g,
-          String.raw`\\$&`,
-        );
-        filter.$or = [
-          { code: new RegExp(escaped, "i") },
-          { display: new RegExp(escaped, "i") },
-          { synonyms: new RegExp(escaped, "i") },
-        ];
-      }
-
-      const rows = (await CodeEntryModel.find(filter)
-        .sort({ display: 1 })
-        .limit(fetchLimit)
-        .setOptions({ sanitizeFilter: true })
-        .lean()) as unknown as Array<{
-        code: string;
-        display: string;
-        synonyms?: unknown;
-        meta?: unknown;
-      }>;
-
-      candidates = rows.map((row) => toSuggestion(row));
-    }
+    const candidates = rows.map((row) => toSuggestion(row));
 
     return candidates
       .filter((term) => !params.domain || term.domain === params.domain)

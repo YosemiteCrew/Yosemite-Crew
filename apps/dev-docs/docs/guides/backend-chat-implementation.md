@@ -559,8 +559,7 @@ STREAM_API_KEY=your_api_key_here
 STREAM_API_SECRET=your_api_secret_here
 
 # Database
-MONGODB_URI=mongodb://...
-DATABASE_NAME=yosemite_crew
+DATABASE_URL=postgresql://...
 
 # Auth
 JWT_SECRET=your_jwt_secret_here

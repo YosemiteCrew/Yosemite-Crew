@@ -16,8 +16,5 @@ COPY . .
 # Install deps
 RUN pnpm install --no-frozen-lockfile
 
-# Set test-specific env vars
-ENV USE_INMEMORY_DB=true
-
 # Run your test command (adjust if you’re using Jest, Vitest, Mocha, etc.)
 CMD ["pnpm", "run", "dev", "--filter", "backend"]

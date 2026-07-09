@@ -51,9 +51,6 @@ jest.mock("../../../src/config/prisma", () => ({
     },
   },
 }));
-jest.mock("../../../src/config/read-switch", () => ({
-  isReadFromPostgres: jest.fn(() => true),
-}));
 
 const mockedLogger = jest.mocked(logger);
 

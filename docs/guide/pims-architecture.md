@@ -86,19 +86,13 @@ Yosemite Crew is the **world's first fully open-source, AI-native, multi-species
 
 - **Primary database:** PostgreSQL via Prisma ORM (`@prisma/client@^5.22.0`)
 - **Schema file:** `apps/backend/prisma/schema.prisma` — 72 models, 50+ enums
-- **MongoDB:** Still present in codebase but bypassed with `READ_FROM_POSTGRES=true`. **Target: remove entirely after migration.**
+- **MongoDB:** Removed. PostgreSQL via Prisma is the sole datastore; the legacy Mongoose models, dual-write mirror, and read-switch have been retired.
 - **No Supabase:** PostgreSQL accessed directly. If hosting on Supabase, use the Supabase connection string in `DATABASE_URL`. No Supabase-specific SDK needed.
 - **BullMQ:** `bullmq@^5.65.1` — job queue for async processing (lab syncs, reminders, notifications)
 
-### Migration Plan (MongoDB → PostgreSQL)
+### Migration status (MongoDB to PostgreSQL)
 
-```
-1. Set READ_FROM_POSTGRES=true in all environments
-2. Remove mongoose dependency after all services ported
-3. Remove apps/backend/src/models/ Mongoose files
-4. Remove mongodb-memory-server from test dependencies
-5. Replace apps/backend/src/config/db.ts with Prisma client singleton
-```
+Complete. The Mongo to Postgres migration has been finished and the compatibility scaffold removed: the Mongoose models, the `connectDB` connection helper, the dual-write mirror, the read-switch, and the `mongoose` / `mongodb-memory-server` dependencies are all gone. PostgreSQL via Prisma is the only datastore in the backend.
 
 ### Prisma Client Singleton Pattern
 
