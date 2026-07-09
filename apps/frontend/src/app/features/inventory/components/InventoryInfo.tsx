@@ -83,6 +83,78 @@ const initialBatchEditorState: BatchEditorState = {
   editableExistingBatches: [],
 };
 
+type BatchFieldRendererProps = {
+  field: any;
+  batchIndex: number;
+  source?: BatchValues[];
+  newBatches: BatchValues[];
+  handleChange: (index: number, name: keyof BatchValues, value: string) => void;
+  changeHandler?: (index: number, name: keyof BatchValues, value: string) => void;
+};
+
+const BatchFieldRenderer = ({
+  field,
+  batchIndex,
+  source,
+  newBatches,
+  handleChange,
+  changeHandler,
+}: BatchFieldRendererProps) => {
+  const { placeholder, component, options, name } = field;
+  const typedName = name as keyof BatchValues;
+  const value = source?.[batchIndex]?.[typedName] ?? newBatches[batchIndex]?.[typedName] ?? '';
+  const onChangeHandler = changeHandler ?? handleChange;
+
+  if (component === 'date') {
+    const currentDate = parseDate(value);
+    return (
+      <Datepicker
+        currentDate={currentDate}
+        setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
+          const resolved = typeof next === 'function' ? next(currentDate) : next;
+          if (!resolved) {
+            onChangeHandler(batchIndex, typedName, '');
+            return;
+          }
+          onChangeHandler(batchIndex, typedName, formatDate(resolved));
+        }}
+        placeholder={placeholder || ''}
+        type="input"
+        className="min-h-12!"
+      />
+    );
+  }
+
+  if (component === 'dropdown') {
+    const dropdownOptions = (options || []).map((opt: any) =>
+      typeof opt === 'string' ? { label: opt, value: opt } : opt
+    );
+    return (
+      <LabelDropdown
+        placeholder={placeholder || ''}
+        defaultOption={value}
+        onSelect={(opt) => onChangeHandler(batchIndex, typedName, opt.value)}
+        options={dropdownOptions}
+      />
+    );
+  }
+
+  return (
+    <FormInput
+      intype="text"
+      inname={name}
+      value={value}
+      inlabel={placeholder || ''}
+      onChange={(e) => {
+        const raw = e.target.value;
+        const val = field.numeric ? raw.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1') : raw;
+        onChangeHandler(batchIndex, typedName, val);
+      }}
+      className="min-h-12!"
+    />
+  );
+};
+
 type BatchEditorAction = { type: 'PATCH'; payload: Partial<BatchEditorState> } | { type: 'RESET' };
 
 const batchEditorReducer = (
@@ -301,71 +373,6 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     return () => onRegisterActions?.(null);
   }, [onRegisterActions, handleSave, handleCancel, beginEditing, inventory, isEditing]);
 
-  const renderField = (
-    field: any,
-    batchIndex: number,
-    key?: React.Key,
-    source?: BatchValues[],
-    changeHandler?: (index: number, name: keyof BatchValues, value: string) => void
-  ) => {
-    const { placeholder, component, options, name } = field;
-    const typedName = name as keyof BatchValues;
-    const value = source?.[batchIndex]?.[typedName] ?? newBatches[batchIndex]?.[typedName] ?? '';
-    const onChangeHandler = changeHandler ?? handleChange;
-
-    if (component === 'date') {
-      const currentDate = parseDate(value);
-      return (
-        <Datepicker
-          key={key ?? name}
-          currentDate={currentDate}
-          setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
-            const resolved = typeof next === 'function' ? next(currentDate) : next;
-            if (!resolved) {
-              onChangeHandler(batchIndex, typedName, '');
-              return;
-            }
-            onChangeHandler(batchIndex, typedName, formatDate(resolved));
-          }}
-          placeholder={placeholder || ''}
-          type="input"
-          className="min-h-12!"
-        />
-      );
-    }
-
-    if (component === 'dropdown') {
-      const dropdownOptions = (options || []).map((opt: any) =>
-        typeof opt === 'string' ? { label: opt, value: opt } : opt
-      );
-      return (
-        <LabelDropdown
-          key={key ?? name}
-          placeholder={placeholder || ''}
-          defaultOption={value}
-          onSelect={(opt) => onChangeHandler(batchIndex, typedName, opt.value)}
-          options={dropdownOptions}
-        />
-      );
-    }
-
-    return (
-      <FormInput
-        key={key ?? name}
-        intype="text"
-        inname={name}
-        value={value}
-        inlabel={placeholder || ''}
-        onChange={(e) => {
-          const raw = e.target.value;
-          const val = field.numeric ? raw.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1') : raw;
-          onChangeHandler(batchIndex, typedName, val);
-        }}
-        className="min-h-12!"
-      />
-    );
-  };
-
   const renderItem = (
     item: ConfigItem<any>,
     index: number,
@@ -379,16 +386,31 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     if ('fields' in item && item.kind === 'row') {
       return (
         <div key={fullKey} className="grid grid-cols-2 gap-3">
-          {item.fields.map((field, i) =>
-            renderField(field, batchIndex, `${index}-${i}`, source, changeHandler)
-          )}
+          {item.fields.map((field) => (
+            <BatchFieldRenderer
+              key={field.name}
+              field={field}
+              batchIndex={batchIndex}
+              source={source}
+              newBatches={newBatches}
+              handleChange={handleChange}
+              changeHandler={changeHandler}
+            />
+          ))}
         </div>
       );
     }
 
     return (
       <div key={fullKey} className="w-full">
-        {renderField(item.field, batchIndex, index, source, changeHandler)}
+        <BatchFieldRenderer
+          field={item.field}
+          batchIndex={batchIndex}
+          source={source}
+          newBatches={newBatches}
+          handleChange={handleChange}
+          changeHandler={changeHandler}
+        />
       </div>
     );
   };

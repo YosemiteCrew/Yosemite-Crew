@@ -62,7 +62,7 @@ const OtpModal = ({
   };
 
   const [timer, setTimer] = useState(150); // 2.30 minutes in seconds
-  const [timerActive, setTimerActive] = useState(false);
+  const timerActiveRef = useRef(showVerifyModal);
   const [isVerifying, setIsVerifying] = useState(false);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
@@ -189,7 +189,7 @@ const OtpModal = ({
         setCode(new Array(6).fill('')); // Clear OTP fields on resend
         focusInput(0); // Focus first input
         setTimer(150);
-        setTimerActive(true);
+        timerActiveRef.current = true;
       }
     } catch (error: any) {
       globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -211,24 +211,24 @@ const OtpModal = ({
 
   useLayoutEffect(() => {
     let interval: NodeJS.Timeout | null = null;
-    if (showVerifyModal && timerActive && timer > 0) {
+    if (showVerifyModal && timerActiveRef.current && timer > 0) {
       interval = setInterval(() => {
         setTimer((prev) => prev - 1);
       }, 1000);
     }
     if (timer === 0 && interval) {
       clearInterval(interval);
-      setTimerActive(false);
+      timerActiveRef.current = false;
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [showVerifyModal, timerActive, timer]);
+  }, [showVerifyModal, timer]);
 
   useLayoutEffect(() => {
     if (showVerifyModal) {
       setTimer(150);
-      setTimerActive(true);
+      timerActiveRef.current = true;
     }
   }, [showVerifyModal]);
 

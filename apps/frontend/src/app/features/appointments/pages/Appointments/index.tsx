@@ -1,7 +1,7 @@
 'use client';
 import React, { Suspense, startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
@@ -92,6 +92,10 @@ const AppointmentBoard = dynamic(
   () => import('@/app/features/appointments/components/AppointmentBoard'),
   { loading: () => <PlannerViewSkeleton /> }
 );
+
+const AppointmentWorkspaceRedirect = ({ href }: { href: string }) => {
+  redirect(href);
+};
 
 // Preload all three view chunks immediately so switching views is instant.
 const preloadDynamic = (c: unknown) => (c as { preload?: () => void }).preload?.();
@@ -265,6 +269,7 @@ const Appointments = () => {
     useState<AppointmentDraftPrefill | null>(null);
   const [viewPopup, setViewPopup] = useState(false);
   const [viewIntent, setViewIntent] = useState<AppointmentViewIntent | null>(null);
+  const [deepLinkWorkspaceHref, setDeepLinkWorkspaceHref] = useState<string | null>(null);
   const [detailPopup, setDetailPopup] = useState(false);
   const [reschedulePopup, setReschedulePopup] = useState(false);
   const [changeStatusPopup, setChangeStatusPopup] = useState(false);
@@ -381,10 +386,10 @@ const Appointments = () => {
 
     setActiveAppointment(target);
     setViewIntent(initialIntent);
+    setDeepLinkWorkspaceHref(null);
     if (revampEnabled) {
       if (canEnterAppointmentWorkspace(target.status)) {
-        startRouteLoader();
-        router.push(buildWorkspaceHrefForIntent(appointmentId, initialIntent));
+        setDeepLinkWorkspaceHref(buildWorkspaceHrefForIntent(appointmentId, initialIntent));
       } else {
         setViewPopup(true);
       }
@@ -392,7 +397,7 @@ const Appointments = () => {
       setViewPopup(true);
     }
     handledDeepLinkRef.current = deepLinkKey;
-  }, [appointments, searchParams, router]);
+  }, [appointments, searchParams]);
 
   const hasEmergency = useMemo(() => {
     const now = new Date();
@@ -532,6 +537,7 @@ const Appointments = () => {
 
   return (
     <div className="flex flex-col relative min-w-0">
+      {deepLinkWorkspaceHref && <AppointmentWorkspaceRedirect href={deepLinkWorkspaceHref} />}
       <div className="flex flex-col gap-3 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-4! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-4! lg:pb-3!">
         <TitleCalendar
           title="Appointments"

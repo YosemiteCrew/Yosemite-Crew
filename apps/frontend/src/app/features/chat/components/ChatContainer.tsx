@@ -1099,7 +1099,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   const [groupModalTitle, setGroupModalTitle] = useState('');
   const [groupModalPlaceholder, setGroupModalPlaceholder] = useState('');
   const [groupModalMembers, setGroupModalMembers] = useState<string[]>([]);
-  const [groupModalBackendId, setGroupModalBackendId] = useState<string | undefined>();
+  const groupModalBackendIdRef = useRef<string | undefined>(undefined);
   const [groupModalSearch, setGroupModalSearch] = useState('');
   const [groupModalBusy, setGroupModalBusy] = useState(false);
   const groupModalOwnerRef = useRef<string | undefined>(undefined);
@@ -1325,7 +1325,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
     setGroupModalTitle('');
     setGroupModalPlaceholder('');
     setGroupModalMembers([]);
-    setGroupModalBackendId(undefined);
+    groupModalBackendIdRef.current = undefined;
     groupModalOwnerRef.current = client?.userID;
     setGroupModalSearch('');
     setGroupModalOpen(true);
@@ -1356,7 +1356,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         (chan.data as any)?.createdBy ||
         (chan as any)?.created_by?.id;
       const backendId = await resolveGroupIdForChannel(chan);
-      setGroupModalBackendId(backendId);
+      groupModalBackendIdRef.current = backendId;
       setGroupModalSearch('');
       setGroupModalOpen(true);
     },
@@ -1676,6 +1676,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
 
   const handleModalUpdateTitle = useCallback(
     async (title: string) => {
+      const groupModalBackendId = groupModalBackendIdRef.current;
       if (!groupModalBackendId) {
         console.error('Group ID not available. groupModalBackendId:', groupModalBackendId);
         notify('warning', {
@@ -1702,11 +1703,12 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalBusy(false);
       }
     },
-    [groupModalBackendId, groupModalChannel, notify]
+    [groupModalChannel, notify]
   );
 
   const handleModalAddMember = useCallback(
     async (userId: string) => {
+      const groupModalBackendId = groupModalBackendIdRef.current;
       if (!groupModalBackendId) {
         console.error(
           'Group ID not available for add member. groupModalBackendId:',
@@ -1735,11 +1737,12 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalBusy(false);
       }
     },
-    [groupModalBackendId, groupModalChannel, notify]
+    [groupModalChannel, notify]
   );
 
   const handleModalRemoveMember = useCallback(
     async (userId: string) => {
+      const groupModalBackendId = groupModalBackendIdRef.current;
       if (!groupModalBackendId) {
         console.error(
           'Group ID not available for remove member. groupModalBackendId:',
@@ -1768,10 +1771,11 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalBusy(false);
       }
     },
-    [groupModalBackendId, groupModalChannel, notify]
+    [groupModalChannel, notify]
   );
 
   const handleModalDelete = useCallback(async () => {
+    const groupModalBackendId = groupModalBackendIdRef.current;
     if (!groupModalBackendId) {
       notify('error', {
         title: 'Can’t delete group',
@@ -1809,7 +1813,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
     } finally {
       setGroupModalBusy(false);
     }
-  }, [groupModalBackendId, groupModalChannel, onChannelSelect, notify]);
+  }, [groupModalChannel, onChannelSelect, notify]);
 
   const groupModalContextValue = useMemo(
     () => ({

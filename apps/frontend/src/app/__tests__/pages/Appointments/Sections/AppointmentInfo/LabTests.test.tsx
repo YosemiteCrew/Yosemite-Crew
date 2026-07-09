@@ -3,7 +3,32 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-li
 import '@testing-library/jest-dom';
 import LabTests from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
 import { useLabTests } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
-import type { LabOrder } from '@/app/features/integrations/services/types';
+import {
+  formatCensusIvlsDevices,
+  formatOrderStatus,
+  getMeterMeta,
+  getNormalizedLifecycleStatus,
+  getOrderActionLabel,
+  getOrderActionSource,
+  getOrderResultProgressFromResults,
+  getResultOrderId,
+  listIdexxOrdersWithFallback,
+  mergeUniqueTests,
+  normalizeOrders,
+  normalizeResultProgress,
+  orderSortDate,
+  parseFloatSafe,
+  parseReferenceRange,
+  resolveLatestOrder,
+  shouldCloseOrderIframe,
+} from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests.helpers';
+import type {
+  CensusEntry,
+  IdexxTest,
+  LabOrder,
+  LabResult,
+  LabResultTest,
+} from '@/app/features/integrations/services/types';
 
 const useIntegrationByProviderForPrimaryOrgMock = jest.fn();
 const listIdexxIvlsDevicesMock = jest.fn();
@@ -142,6 +167,196 @@ describe('LabTests', () => {
     listIdexxResultsMock.mockResolvedValue([]);
   });
 
+  it('covers lab order and result helper edge cases', async () => {
+    const olderOrder = {
+      _id: 'older',
+      status: 'CREATED',
+      createdAt: '2026-06-01T09:00:00Z',
+      idexxOrderId: 'order-older',
+    } as LabOrder;
+    const newerOrder = {
+      _id: 'newer',
+      status: 'SUBMITTED',
+      externalStatus: 'IN PROCESS',
+      updatedAt: '2026-06-02T09:00:00Z',
+      idexxOrderId: 'order-newer',
+    } as LabOrder;
+    const normalized = normalizeOrders([olderOrder, newerOrder]);
+
+    expect(normalized.map((order) => order._id)).toEqual(['newer', 'older']);
+    expect(orderSortDate(olderOrder)).toBe('2026-06-01T09:00:00Z');
+    expect(resolveLatestOrder(null, normalized)).toBe(newerOrder);
+    expect(resolveLatestOrder(olderOrder, normalized)).toBe(olderOrder);
+    expect(resolveLatestOrder({ _id: 'missing' } as LabOrder, normalized)).toBe(newerOrder);
+    expect(getNormalizedLifecycleStatus({ status: 'in process' } as LabOrder)).toBe('IN_PROCESS');
+    expect(formatOrderStatus(newerOrder)).toBe('Submitted (In process)');
+    expect(formatOrderStatus({ status: '' } as LabOrder)).toBe(' ');
+    expect(getOrderActionLabel({ status: 'SUBMITTED' } as LabOrder)).toBe('Follow up');
+    expect(getOrderActionLabel({ status: 'CREATED' } as LabOrder)).toBe('Continue');
+    expect(getOrderActionLabel({ status: '' } as LabOrder)).toBe('Continue');
+    expect(getOrderActionLabel({ status: 'COMPLETE' } as LabOrder)).toBe('Open IDEXX');
+    expect(getOrderActionSource({ status: 'submitted' } as LabOrder)).toBe('followup');
+    expect(getOrderActionSource({ status: 'created' } as LabOrder)).toBe('order');
+
+    const currentTests = [{ _id: 'same-id', code: 'CHEM', display: 'Chemistry' }] as IdexxTest[];
+    const mergedTests = mergeUniqueTests(currentTests, [
+      { _id: 'same-id', code: 'CHEM', display: 'Duplicate chemistry' },
+      { _id: 'cbc-id', code: 'CBC', display: 'CBC' },
+      { _id: 'no-code-id', display: 'No code' },
+    ] as IdexxTest[]);
+    expect(mergedTests.map((test) => test.display)).toEqual(['Chemistry', 'CBC', 'No code']);
+
+    const results = [
+      {
+        orderId: 'order-1',
+        statusDetail: 'FINAL',
+        rawPayload: {},
+      },
+      {
+        requisitionId: 'order-1',
+        status: 'PARTIAL',
+        rawPayload: {},
+      },
+      {
+        rawPayload: { orderId: 'order-2', status: 'failed' },
+      },
+      {
+        rawPayload: { requisitionId: 'order-3', statusDetail: 'running' },
+      },
+    ] as LabResult[];
+    expect(getResultOrderId(results[0])).toBe('order-1');
+    expect(getResultOrderId(results[2])).toBe('order-2');
+    expect(getOrderResultProgressFromResults(results, 'order-1')).toBe('In process');
+    expect(getOrderResultProgressFromResults(results, 'order-2')).toBe('Error');
+    expect(getOrderResultProgressFromResults(results, 'missing')).toBe('');
+    expect(normalizeResultProgress(null)).toBe('');
+    expect(normalizeResultProgress('pending')).toBe('In process');
+    expect(normalizeResultProgress('COMPLETE')).toBe('Complete');
+    expect(normalizeResultProgress('failure')).toBe('Error');
+    expect(normalizeResultProgress('unknown')).toBe('');
+
+    listIdexxOrdersMock.mockRejectedValueOnce(new Error('appointment not found'));
+    listIdexxOrdersMock.mockResolvedValueOnce([olderOrder]);
+    await expect(listIdexxOrdersWithFallback('org-1', 'appt-1', 'patient-1')).resolves.toEqual([
+      olderOrder,
+    ]);
+    expect(listIdexxOrdersMock).toHaveBeenLastCalledWith({
+      organisationId: 'org-1',
+      companionId: 'patient-1',
+    });
+
+    listIdexxOrdersMock.mockRejectedValueOnce(new Error('no companion'));
+    await expect(listIdexxOrdersWithFallback('org-1', 'appt-1')).rejects.toThrow('no companion');
+  });
+
+  it('covers census device formatting, numeric parsing, and iframe close decisions', () => {
+    expect(formatCensusIvlsDevices(null)).toBe('-');
+    expect(formatCensusIvlsDevices({ ivls: [] } as unknown as CensusEntry)).toBe('-');
+    expect(
+      formatCensusIvlsDevices({
+        ivls: [
+          { displayName: 'Catalyst One', serialNumber: 'abc-123' },
+          { displayName: 'ProCyte One' },
+          { serialNumber: 'solo-serial' },
+          {},
+        ],
+      } as unknown as CensusEntry)
+    ).toBe('Catalyst One (abc-123), ProCyte One, solo-serial, -');
+
+    expect(parseFloatSafe()).toBeNull();
+    expect(parseFloatSafe('')).toBeNull();
+    expect(parseFloatSafe(' 1,25 mmol/L ')).toBe(1.25);
+    expect(parseFloatSafe('abc')).toBeNull();
+    expect(parseReferenceRange()).toBeNull();
+    expect(parseReferenceRange('5')).toBeNull();
+    expect(parseReferenceRange('10 - 5')).toBeNull();
+    expect(parseReferenceRange('1.5 - 3.5')).toEqual({ min: 1.5, max: 3.5 });
+
+    expect(getMeterMeta({ result: '2', referenceRange: '1 - 3' } as LabResultTest)).toEqual({
+      canRender: true,
+      percent: 50,
+      markerClass: 'bg-text-primary',
+    });
+    expect(getMeterMeta({ result: '4', referenceRange: '1 - 3' } as LabResultTest)).toEqual({
+      canRender: true,
+      percent: 100,
+      markerClass: 'bg-red-500',
+    });
+    expect(
+      getMeterMeta({ result: '2', referenceRange: '1 - 3', outOfRange: true } as LabResultTest)
+    ).toEqual({
+      canRender: true,
+      percent: 50,
+      markerClass: 'bg-red-500',
+    });
+    expect(getMeterMeta({ result: 'bad', referenceRange: '1 - 3' } as LabResultTest)).toEqual({
+      canRender: false,
+      percent: 0,
+      markerClass: 'bg-text-secondary',
+    });
+
+    expect(
+      shouldCloseOrderIframe({
+        source: 'order',
+        initialStatus: 'CREATED',
+        nextStatus: '',
+        nextHasAcknowledgement: true,
+        initialOrderId: 'old',
+        newestKnownOrderId: 'new',
+      })
+    ).toBe(false);
+    expect(
+      shouldCloseOrderIframe({
+        source: 'order',
+        initialStatus: 'created',
+        nextStatus: 'submitted',
+        nextHasAcknowledgement: true,
+        initialOrderId: 'old',
+        newestKnownOrderId: 'new',
+      })
+    ).toBe(true);
+    expect(
+      shouldCloseOrderIframe({
+        source: 'order',
+        initialStatus: 'complete',
+        nextStatus: 'submitted',
+        nextHasAcknowledgement: true,
+        initialOrderId: 'old',
+        newestKnownOrderId: 'new',
+      })
+    ).toBe(false);
+    expect(
+      shouldCloseOrderIframe({
+        source: 'followup',
+        initialStatus: 'submitted',
+        nextStatus: 'submitted',
+        nextHasAcknowledgement: true,
+        initialOrderId: 'old',
+        newestKnownOrderId: 'new',
+      })
+    ).toBe(true);
+    expect(
+      shouldCloseOrderIframe({
+        source: 'followup',
+        initialStatus: 'submitted',
+        nextStatus: 'submitted',
+        nextHasAcknowledgement: false,
+        initialOrderId: 'old',
+        newestKnownOrderId: 'new',
+      })
+    ).toBe(false);
+    expect(
+      shouldCloseOrderIframe({
+        source: 'followup',
+        initialStatus: 'submitted',
+        nextStatus: 'submitted',
+        nextHasAcknowledgement: true,
+        initialOrderId: 'old',
+        newestKnownOrderId: 'old',
+      })
+    ).toBe(false);
+  });
+
   it('shows integration-disabled state', async () => {
     useIntegrationByProviderForPrimaryOrgMock.mockReturnValue({ status: 'disabled' });
 
@@ -176,6 +391,12 @@ describe('LabTests', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Select Search IDEXX tests' }));
+    fireEvent.change(screen.getByTestId('lab-specimen-date'), {
+      target: { value: '2026-06-15' },
+    });
+    fireEvent.change(screen.getByTestId('lab-notes'), {
+      target: { value: 'Fasted sample' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Create IDEXX order' }));
 
     await waitFor(() => {
@@ -186,6 +407,8 @@ describe('LabTests', () => {
           appointmentId: 'appt-1',
           tests: ['9126'],
           modality: 'REFERENCE_LAB',
+          specimenCollectionDate: '2026-06-15',
+          notes: 'Fasted sample',
         }),
       });
     });
@@ -667,6 +890,7 @@ describe('LabTests', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
     const iframe = await screen.findByTitle('IDEXX order UI');
+    fireEvent.load(iframe);
     expect(iframe).toHaveAttribute('src', 'https://integration.vetconnectplus.com/order/123');
     expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
   });

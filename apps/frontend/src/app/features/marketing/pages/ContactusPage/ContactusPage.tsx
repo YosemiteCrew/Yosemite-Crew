@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { TicketCategory } from '@yosemite-crew/types';
 import Link from 'next/link';
 import { isEmail } from 'validator';
@@ -209,8 +209,7 @@ const ContactusPage = () => {
   const [confirmSelections, setConfirmSelections] = useState<string[]>([]);
   // Complaint specific fields
   const [complaintLink, setComplaintLink] = useState<string>('');
-  const [complaintImage, setComplaintImage] = useState<File | null>(null);
-  console.log(complaintImage);
+  const complaintImageRef = useRef<File | null>(null);
   const isComplaintValid =
     fullName &&
     email &&
@@ -290,7 +289,7 @@ const ContactusPage = () => {
     setSubselectedRequest('');
     setConfirmSelections([]);
     setComplaintLink('');
-    setComplaintImage(null);
+    complaintImageRef.current = null;
     setSelectedQueryType('General Enquiry');
     setErrors({});
   };
@@ -564,7 +563,9 @@ const ContactusPage = () => {
                         type="file"
                         accept="image/*"
                         aria-label="Upload Image"
-                        onChange={(e) => setComplaintImage(e.target.files?.[0] || null)}
+                        onChange={(e) => {
+                          complaintImageRef.current = e.target.files?.[0] ?? null;
+                        }}
                       />
                       <label htmlFor="complaintImage" className="UploadInner">
                         <Image

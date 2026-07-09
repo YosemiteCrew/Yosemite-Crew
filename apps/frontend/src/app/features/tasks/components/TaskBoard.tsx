@@ -190,6 +190,7 @@ const TaskCard = ({
       <GlassTooltip content="View task" side="bottom">
         <button
           type="button"
+          aria-label={`View task ${task.name || '-'}`}
           className="size-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
           onClick={(event) => {
             event.preventDefault();
@@ -204,6 +205,7 @@ const TaskCard = ({
         <GlassTooltip content="Change status" side="bottom">
           <button
             type="button"
+            aria-label={`Change status for ${task.name || '-'}`}
             className="size-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
             onClick={(event) => {
               event.preventDefault();
@@ -219,6 +221,7 @@ const TaskCard = ({
         <GlassTooltip content="Reschedule" side="bottom">
           <button
             type="button"
+            aria-label={`Reschedule ${task.name || '-'}`}
             className="size-7 rounded-full! border border-black-text! bg-white flex items-center justify-center"
             onClick={(event) => {
               event.preventDefault();

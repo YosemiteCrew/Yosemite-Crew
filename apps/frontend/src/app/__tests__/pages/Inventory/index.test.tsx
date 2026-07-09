@@ -2,8 +2,19 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import ProtectedInventory, {
+  ActiveFilterBar,
+  DispensaryFilterBar,
   DispensaryFilterModal,
   InventoryFilterBar,
+  compareInventoryRows,
+  filterAndSortInventory,
+  filterDispensaryRecords,
+  getDispenseRequestType,
+  getInventoryPageTitle,
+  getSupplierName,
+  getVisibilityLabel,
+  mapDispenseRequestToRecord,
+  toggleSetItem,
 } from '@/app/features/inventory/pages/Inventory';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useInventoryModule } from '@/app/hooks/useInventory';
@@ -427,6 +438,360 @@ describe('Inventory Page', () => {
     cleanup(); // Ensure DOM is clean
   });
 
+  describe('exported inventory helpers', () => {
+    it('compares inventory rows by name, expiry, and stock with fallback values', () => {
+      const alpha = {
+        id: 'a',
+        basicInfo: { name: 'Alpha' },
+        batch: { expiryDate: '2026-08-01' },
+        stock: { current: 10 },
+      } as any;
+      const beta = {
+        id: 'b',
+        basicInfo: { name: 'Beta' },
+        batch: {},
+        stock: {},
+      } as any;
+
+      expect(compareInventoryRows(alpha, beta, 'name')).toBeLessThan(0);
+      expect(compareInventoryRows(alpha, beta, 'expiry')).toBeGreaterThan(0);
+      expect(compareInventoryRows(alpha, beta, 'stock')).toBeGreaterThan(0);
+    });
+
+    it('filters and sorts inventory across every supported filter family', () => {
+      const inventory = [
+        {
+          id: 'match',
+          status: 'HIDDEN',
+          stockHealth: 'Low Stock',
+          stock: { stockLocation: 'Ward A', abcClass: 'Class A', current: 4 },
+          vendor: { supplierName: 'Acme Vet' },
+          batch: { batch: 'B-100', expiryDate: '2026-08-01' },
+          basicInfo: {
+            name: 'Amoxi Tabs',
+            category: 'Medicine',
+            subCategory: 'Antibiotic',
+            description: 'For post-op recovery',
+          },
+        },
+        {
+          id: 'miss',
+          status: 'ACTIVE',
+          stockHealth: 'Healthy',
+          stock: { stockLocation: 'Ward B', abcClass: 'Class B', current: 12 },
+          vendor: { vendor: 'Other Supplier' },
+          batch: { batch: 'B-200', expiryDate: '2026-09-01' },
+          basicInfo: {
+            name: 'Dental Chew',
+            category: 'Food',
+            subCategory: 'Treat',
+            description: 'Daily chew',
+          },
+        },
+      ] as any[];
+
+      expect(
+        filterAndSortInventory(
+          inventory,
+          {
+            ...defaultFilters,
+            category: 'medicine',
+            categories: ['Medicine'],
+            subCategories: ['Antibiotic'],
+            locations: ['Ward A'],
+            abcClasses: ['Class A'],
+            suppliers: ['Acme Vet'],
+            visibility: 'HIDDEN',
+            status: 'LOW_STOCK',
+          },
+          'post-op',
+          'expiry'
+        ).map((item) => item.id)
+      ).toEqual(['match']);
+      expect(
+        filterAndSortInventory(
+          inventory,
+          {
+            ...defaultFilters,
+            category: 'Food',
+            visibility: 'ALL',
+            categories: [],
+            subCategories: ['Treat'],
+            locations: ['Ward B'],
+            abcClasses: ['Class B'],
+            suppliers: ['Other Supplier'],
+          },
+          '',
+          'name'
+        ).map((item) => item.id)
+      ).toEqual(['miss']);
+
+      expect(filterAndSortInventory(inventory, defaultFilters, 'B-200', 'name')).toHaveLength(1);
+      expect(
+        filterAndSortInventory(
+          inventory,
+          { ...defaultFilters, visibility: 'ALL' },
+          'medicine',
+          'stock'
+        )
+      ).toHaveLength(1);
+      expect(
+        filterAndSortInventory(
+          inventory,
+          { ...defaultFilters, visibility: 'ALL' },
+          'antibiotic',
+          'name'
+        )
+      ).toHaveLength(1);
+      expect(getSupplierName(inventory[0])).toBe('Acme Vet');
+      expect(getSupplierName(inventory[1])).toBe('Other Supplier');
+    });
+
+    it('covers inventory helper fallback branches for sparse records and filters', () => {
+      const sparseInventory = [
+        {
+          id: 'basic-status',
+          basicInfo: { name: 'Basic Status Item', status: 'ACTIVE' },
+          batch: {},
+          stock: {},
+          vendor: {},
+        },
+        {
+          id: 'empty',
+          basicInfo: { name: 'Empty Item', category: undefined },
+          batch: {},
+          stock: {},
+        },
+      ] as any[];
+      const sparseFilters = {
+        category: 'all',
+        visibility: undefined,
+        status: 'ALL',
+        search: '',
+      } as any;
+
+      expect(filterAndSortInventory(sparseInventory, sparseFilters, '', 'name')).toHaveLength(2);
+      expect(filterAndSortInventory(sparseInventory, sparseFilters, 'basic', 'name')).toHaveLength(
+        1
+      );
+      expect(
+        filterAndSortInventory(
+          sparseInventory,
+          {
+            ...sparseFilters,
+            categories: [''],
+            subCategories: [''],
+            locations: [''],
+            abcClasses: [''],
+          },
+          '',
+          'name'
+        )
+      ).toHaveLength(2);
+      expect(getSupplierName(sparseInventory[0])).toBe('');
+      expect(compareInventoryRows(sparseInventory[0], sparseInventory[1], 'expiry')).toBe(0);
+      expect(compareInventoryRows(sparseInventory[0], sparseInventory[1], 'stock')).toBe(0);
+    });
+
+    it('maps dispense requests with patient and in-house fallback branches', () => {
+      const fullRecord = mapDispenseRequestToRecord(baseDispenseRequest() as any);
+      expect(fullRecord.patient.petBreed).toBe('Persian');
+      expect(fullRecord.patient.petAge).toBe('2');
+      expect(fullRecord.items?.[0]?.prescription?.duration).toBe('14 weeks');
+
+      const minimalRequest = baseDispenseRequest({
+        patientName: null,
+        petBreed: undefined,
+        petAge: undefined,
+        leadName: null,
+        location: null,
+        currency: null,
+        reviewedAt: '2026-07-01T10:00:00.000Z',
+        paymentStatus: 'PAID',
+        invoiceId: 'invoice-1',
+        medications: [
+          {
+            inventoryItemId: 'fallback-med',
+            medication: null,
+            medicineName: 'Fallback Medicine',
+            quantity: null,
+            priceCents: null,
+            fulfillment: undefined,
+            metadata: {},
+            durationDays: null,
+            refillsRemaining: null,
+            stockUnitQuantity: 7,
+            route: 'oral',
+          },
+        ],
+        prescription: {
+          id: 'presc-1',
+          artifactId: 'art-1',
+          artifact: {
+            id: 'art-1',
+            kind: 'PRESCRIPTION',
+            status: 'COMPLETED',
+            appointmentId: null,
+            summary: 'Fallback summary',
+          },
+        },
+      });
+
+      expect(getDispenseRequestType('IN_HOUSE', 'Catty')).toBe('IN_HOUSE');
+      expect(getDispenseRequestType(undefined, 'Catty')).toBe('PATIENT');
+      expect(getDispenseRequestType(undefined, null)).toBe('IN_HOUSE');
+
+      const record = mapDispenseRequestToRecord(minimalRequest as any);
+      expect(record.patient.name).toBe('—');
+      expect(record.patient.appointmentId).toBe('—');
+      expect(record.patient.petBreed).toBeUndefined();
+      expect(record.patient.petAge).toBeUndefined();
+      expect(record.lead).toBe('—');
+      expect(record.location).toBe('—');
+      expect(record.currency).toBeUndefined();
+      expect(record.invoiceId).toBe('invoice-1');
+      expect(record.paymentStatus).toBe('PAID');
+      expect(record.timeDispensed).toBe('2026-07-01T10:00:00.000Z');
+      expect(record.items?.[0]).toMatchObject({
+        name: 'Fallback Medicine',
+        quantity: 1,
+        priceCents: 0,
+        stockUnitQty: 7,
+        prescription: { dose: '', freq: '', duration: '', refill: '', route: 'oral' },
+      });
+
+      const summaryFallback = mapDispenseRequestToRecord(
+        baseDispenseRequest({
+          medications: [
+            {
+              inventoryItemId: 'summary-med',
+              inventoryItemName: null,
+              medication: null,
+              medicineName: null,
+              packageQuantity: 3,
+            },
+          ],
+          prescription: {
+            id: 'presc-2',
+            artifactId: 'art-2',
+            artifact: {
+              id: 'art-2',
+              kind: 'PRESCRIPTION',
+              status: 'COMPLETED',
+              appointmentId: 'appt-2',
+              summary: 'Summary fallback',
+            },
+          },
+        }) as any
+      );
+      expect(summaryFallback.items?.[0]?.name).toBe('Summary fallback');
+      expect(summaryFallback.items?.[0]?.stockUnitQty).toBe(3);
+
+      const idFallback = mapDispenseRequestToRecord(
+        baseDispenseRequest({
+          medications: [
+            {
+              inventoryItemId: 'id-med',
+              inventoryItemName: null,
+              medication: null,
+              medicineName: null,
+              unitQuantity: 2,
+            },
+          ],
+          prescription: {
+            id: 'presc-3',
+            artifactId: 'art-3',
+            artifact: {
+              id: 'art-3',
+              kind: 'PRESCRIPTION',
+              status: 'COMPLETED',
+              appointmentId: 'appt-3',
+              summary: null,
+            },
+          },
+        }) as any
+      );
+      expect(idFallback.items?.[0]?.name).toBe('id-med');
+      expect(idFallback.items?.[0]?.stockUnitQty).toBe(2);
+
+      const defaultDurationUnit = mapDispenseRequestToRecord(
+        baseDispenseRequest({
+          medications: [
+            {
+              inventoryItemId: 'duration-med',
+              inventoryItemName: 'Duration Med',
+              durationDays: 5,
+              metadata: {},
+            },
+          ],
+        }) as any
+      );
+      expect(defaultDurationUnit.items?.[0]?.prescription?.duration).toBe('5 days');
+    });
+
+    it('filters dispensary records by request type, status, lead, location, and item name', () => {
+      const records = [
+        {
+          id: 'patient',
+          requestType: 'PATIENT',
+          status: 'PENDING',
+          patient: { name: 'Catty' },
+          lead: 'Dr Lead',
+          location: 'Recovery',
+          items: [{ name: 'Amoxicillin' }],
+        },
+        {
+          id: 'house',
+          requestType: 'IN_HOUSE',
+          status: 'DISPENSED',
+          patient: { name: 'Clinic stock' },
+          lead: '',
+          location: 'Pharmacy',
+          items: [{ name: 'Bandage' }],
+        },
+        {
+          id: 'location-only',
+          requestType: 'PATIENT',
+          status: 'PENDING',
+          patient: { name: 'No match' },
+          lead: '',
+          location: 'Surgery',
+          items: undefined,
+        },
+        {
+          id: 'item-only',
+          requestType: 'PATIENT',
+          status: 'PENDING',
+          patient: { name: 'No match' },
+          lead: '',
+          location: '',
+          items: [{ name: 'Cephalexin' }],
+        },
+      ] as any[];
+
+      expect(filterDispensaryRecords(records, 'PATIENT', 'PENDING', 'lead')).toHaveLength(1);
+      expect(filterDispensaryRecords(records, 'IN_HOUSE', 'ALL', 'pharmacy')).toHaveLength(1);
+      expect(filterDispensaryRecords(records, 'ALL', 'DISPENSED', 'bandage')).toHaveLength(1);
+      expect(filterDispensaryRecords(records, 'PATIENT', 'PENDING', 'surgery')).toHaveLength(1);
+      expect(filterDispensaryRecords(records, 'PATIENT', 'PENDING', 'cephalexin')).toHaveLength(1);
+      expect(filterDispensaryRecords(records, 'PATIENT', 'DISPENSED', '')).toEqual([]);
+    });
+
+    it('returns labels and toggled set values for inventory controls', () => {
+      expect(getVisibilityLabel('ALL')).toBe('All inventory');
+      expect(getVisibilityLabel('ACTIVE')).toBe('Active');
+      expect(getVisibilityLabel('HIDDEN')).toBe('Hidden');
+      expect(getInventoryPageTitle('inventory')).toBe('Inventory');
+      expect(getInventoryPageTitle('turnover')).toBe('Dispensary');
+      expect(getInventoryPageTitle('analytics')).toBe('Turnover');
+
+      const added = toggleSetItem(new Set(['open']), 'closed');
+      expect(Array.from(added).sort()).toEqual(['closed', 'open']);
+      const removed = toggleSetItem(added, 'open');
+      expect(Array.from(removed)).toEqual(['closed']);
+    });
+  });
+
   // --- Section 1: Rendering & Initialization ---
 
   it('has no axe violations on initial render', async () => {
@@ -492,6 +857,50 @@ describe('Inventory Page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sort by' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stock level' }));
     expect(setSortMode).toHaveBeenCalledWith('stock');
+  });
+
+  it('renders the active filter bar variants directly', () => {
+    const setDispensaryStatusFilter = jest.fn();
+    const setDispensarySearch = jest.fn();
+    const commonProps = {
+      filters: { ...defaultFilters, search: '' },
+      selectedFilterChips: [],
+      sortMode: 'name' as const,
+      setFilterOpen: jest.fn(),
+      setFilters: jest.fn(),
+      setSortMode: jest.fn(),
+      dispensarySearch: '',
+      dispensaryStatusFilter: 'ALL' as const,
+      setDispensaryStatusFilter,
+      setDispensarySearch,
+    };
+
+    const { rerender } = render(<ActiveFilterBar {...commonProps} activeView="turnover" />);
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search dispensary' }), {
+      target: { value: 'needle' },
+    });
+    expect(setDispensarySearch).toHaveBeenCalledWith('needle');
+
+    rerender(<ActiveFilterBar {...commonProps} activeView="analytics" />);
+    expect(screen.queryByRole('textbox', { name: 'Search dispensary' })).not.toBeInTheDocument();
+  });
+
+  it('exercises dispensary filter bar status callback directly', () => {
+    const setDispensaryStatusFilter = jest.fn();
+    render(
+      <DispensaryFilterBar
+        dispensarySearch=""
+        dispensaryStatusFilter="ALL"
+        setDispensaryStatusFilter={setDispensaryStatusFilter}
+        setDispensarySearch={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pending' }));
+
+    expect(setDispensaryStatusFilter).toHaveBeenCalledWith('PENDING');
   });
 
   it('keeps the sort menu open when clicking its trigger or panel', () => {

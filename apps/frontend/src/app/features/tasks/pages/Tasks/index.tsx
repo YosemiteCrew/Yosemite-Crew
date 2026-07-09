@@ -1,5 +1,6 @@
 'use client';
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -67,11 +68,31 @@ const Tasks = () => {
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
   const { plannerSectionRef } = usePlannerAutoLock({ activeView });
 
-  useEffect(() => {
-    if (activeCalendar === 'week') {
-      setWeekStart(startOfDay(currentDate));
-    }
-  }, [currentDate, activeCalendar]);
+  const handleActiveCalendarChange = useCallback(
+    (next: SetStateAction<string>) => {
+      setActiveCalendar((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next;
+        if (resolved === 'week') {
+          setWeekStart(startOfDay(currentDate));
+        }
+        return resolved;
+      });
+    },
+    [currentDate]
+  );
+
+  const handleCurrentDateChange = useCallback(
+    (next: SetStateAction<Date>) => {
+      setCurrentDate((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next;
+        if (activeCalendar === 'week') {
+          setWeekStart(startOfDay(resolved));
+        }
+        return resolved;
+      });
+    },
+    [activeCalendar]
+  );
 
   useEffect(() => {
     setActiveTask((prev) => {
@@ -153,9 +174,9 @@ const Tasks = () => {
         setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
         setReschedulePopup={setReschedulePopup}
         activeCalendar={activeCalendar}
-        setActiveCalendar={setActiveCalendar}
+        setActiveCalendar={handleActiveCalendarChange}
         currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
+        setCurrentDate={handleCurrentDateChange}
         weekStart={weekStart}
         setWeekStart={setWeekStart}
         canEditTasks={canEditTasks}
@@ -167,7 +188,7 @@ const Tasks = () => {
       <TaskBoard
         tasks={filteredList}
         currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
+        setCurrentDate={handleCurrentDateChange}
         canEditTasks={canEditTasks}
         setActiveTask={setActiveTask}
         setViewPopup={setViewPopup}

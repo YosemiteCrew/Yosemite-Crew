@@ -40,7 +40,7 @@ const ModalBase = ({
   'aria-labelledby': ariaLabelledBy,
   'aria-describedby': ariaDescribedBy,
 }: ModalBaseProps) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDialogElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   // React 19 owns the inert attribute via this boolean prop (true = inert, undefined = not inert).
   // Never mix with imperative setAttribute to avoid the empty-string boolean warning.
@@ -152,9 +152,9 @@ const ModalBase = ({
       {/* Backdrop — purely visual; click-outside is handled via mousedown listener */}
       <div className={overlayClassName} style={overlayStyle} aria-hidden="true" />
 
-      <div
-        role="dialog"
+      <dialog
         ref={containerRef}
+        open={showModal || undefined}
         aria-modal={showModal ? 'true' : undefined}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
@@ -164,7 +164,7 @@ const ModalBase = ({
         className={`${containerClassName} ${showModal ? '' : 'pointer-events-none'}`}
       >
         {children}
-      </div>
+      </dialog>
     </>,
     document.body
   );

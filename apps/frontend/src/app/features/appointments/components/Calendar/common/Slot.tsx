@@ -13,9 +13,10 @@ import AppointmentContextMenu from '@/app/features/appointments/components/Calen
 import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { useNotify } from '@/app/hooks/useNotify';
-import ZoomOutMarker from '@/app/features/appointments/components/Calendar/common/ZoomOutMarker';
 import ZoomInMarker from '@/app/features/appointments/components/Calendar/common/ZoomInMarker';
 import { useSlotMarkerInteractions } from '@/app/features/appointments/components/Calendar/common/useSlotMarkerInteractions';
+import ZoomOutEventList from '@/app/features/appointments/components/Calendar/common/ZoomOutEventList';
+import DropPreviewOverlay from '@/app/features/appointments/components/Calendar/common/DropPreviewOverlay';
 
 type SlotProps = {
   slotEvents: Appointment[];
@@ -158,105 +159,20 @@ const computeAvailabilitySegments = (
   });
 };
 
-/** Compact stacked markers for the zoomed-out hour slot, packed by start minute. */
-const ZoomOutEventList = ({
-  sortedSlotEvents,
-  height,
-  activePopoverKey,
-  appointmentPopoverId,
-  draggedAppointmentId,
-  canDragAppointment,
-  onMarkerClick,
-  onMarkerDoubleClick,
-  onMarkerContextMenu,
-  onAppointmentDragStart,
-  onAppointmentDragEnd,
-  onDropPreviewClear,
-}: {
-  sortedSlotEvents: Appointment[];
-  height: number;
-  activePopoverKey: string | null;
-  appointmentPopoverId: string;
-  draggedAppointmentId?: string | null;
-  canDragAppointment?: (appointment: Appointment) => boolean;
-  onMarkerClick: React.ComponentProps<typeof ZoomOutMarker>['onMarkerClick'];
-  onMarkerDoubleClick: React.ComponentProps<typeof ZoomOutMarker>['onMarkerDoubleClick'];
-  onMarkerContextMenu: React.ComponentProps<typeof ZoomOutMarker>['onMarkerContextMenu'];
-  onAppointmentDragStart?: (appointment: Appointment) => void;
-  onAppointmentDragEnd?: () => void;
-  onDropPreviewClear: () => void;
-}) => {
-  let cursorMinute = 0;
-  return (
-    <div className="flex flex-col px-1 py-0 h-full bg-transparent overflow-visible">
-      {sortedSlotEvents.map((ev) => {
-        const itemKey = getSlotEventKey(ev);
-        const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
-        const rawDurationMinutes = Math.max(
-          5,
-          Math.round((ev.endTime.getTime() - ev.startTime.getTime()) / 60000)
-        );
-        const visibleDurationMinutes = Math.max(10, Math.min(rawDurationMinutes, 60 - startMinute));
-        const gapMinutes = Math.max(0, startMinute - cursorMinute);
-        const marginTopPx = (gapMinutes / 60) * height;
-        const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 3);
-        cursorMinute = Math.max(cursorMinute, startMinute + visibleDurationMinutes);
-        return (
-          <ZoomOutMarker
-            key={itemKey}
-            ev={ev}
-            itemKey={itemKey}
-            marginTopPx={marginTopPx}
-            blockHeightPx={blockHeightPx}
-            activePopoverKey={activePopoverKey}
-            appointmentPopoverId={appointmentPopoverId}
-            draggedAppointmentId={draggedAppointmentId}
-            canDragAppointment={canDragAppointment}
-            onMarkerClick={onMarkerClick}
-            onMarkerDoubleClick={onMarkerDoubleClick}
-            onMarkerContextMenu={onMarkerContextMenu}
-            onAppointmentDragStart={onAppointmentDragStart}
-            onAppointmentDragEnd={onAppointmentDragEnd}
-            onDropPreviewClear={onDropPreviewClear}
-          />
-        );
-      })}
-    </div>
+/** Minute-of-day under the pointer within one hour-slot container. */
+const minuteFromSlotPointer = (
+  clientY: number,
+  container: HTMLDivElement,
+  dropHour: number
+): number => {
+  const rect = container.getBoundingClientRect();
+  const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
+  const minuteWithinHour = Math.max(
+    0,
+    Math.min(59, Math.round((y / Math.max(1, rect.height)) * 60))
   );
+  return dropHour * 60 + minuteWithinHour;
 };
-
-/** Dashed ghost block previewing where the dragged appointment would land. */
-const DropPreviewOverlay = ({
-  dropPreviewMinute,
-  height,
-  draggedAppointmentDurationMinutes,
-  draggedAppointmentLabel,
-}: {
-  dropPreviewMinute: number;
-  height: number;
-  draggedAppointmentDurationMinutes?: number;
-  draggedAppointmentLabel?: string | null;
-}) => (
-  <div
-    className="pointer-events-none absolute inset-x-1 z-30 rounded-md border-2 border-dashed border-grey-light bg-calendar-preview-overlay"
-    style={{
-      top: `${((dropPreviewMinute % 60) / 60) * height}px`,
-      height: `${Math.max(
-        14,
-        (Math.min(
-          Math.max(5, draggedAppointmentDurationMinutes ?? 30),
-          60 - (dropPreviewMinute % 60)
-        ) /
-          60) *
-          height
-      )}px`,
-    }}
-  >
-    <div className="size-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
-      {draggedAppointmentLabel || 'Appointment'}
-    </div>
-  </div>
-);
 
 const buildSlotLabels = (dropDate: Date | undefined, dropHour: number) => {
   if (!dropDate) {
@@ -364,15 +280,8 @@ const SlotComponent: React.FC<SlotProps> = ({
     setContextMenu(null);
   }, [draggedAppointmentId, setActivePopoverKey, setContextMenu]);
 
-  const getMinuteFromSlotPointer = (clientY: number, container: HTMLDivElement) => {
-    const rect = container.getBoundingClientRect();
-    const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
-    const minuteWithinHour = Math.max(
-      0,
-      Math.min(59, Math.round((y / Math.max(1, rect.height)) * 60))
-    );
-    return dropHour * 60 + minuteWithinHour;
-  };
+  const getMinuteFromSlotPointer = (clientY: number, container: HTMLDivElement) =>
+    minuteFromSlotPointer(clientY, container, dropHour);
 
   const getNearestAvailableMinute = (minute: number) =>
     calcNearestAvailableMinute(minute, dropAvailabilityIntervals);

@@ -503,8 +503,8 @@ const PaymentProgressOverlay = ({
   const isConfirmed = state.status === 'confirmed';
   return (
     <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-neutral-900/48 px-4">
-      <section
-        role="alertdialog"
+      <dialog
+        open
         aria-modal="true"
         aria-labelledby="payment-progress-title"
         aria-describedby="payment-progress-description"
@@ -550,7 +550,7 @@ const PaymentProgressOverlay = ({
             <Primary text="Check again" onClick={onCheckAgain} />
           </div>
         )}
-      </section>
+      </dialog>
     </div>
   );
 };

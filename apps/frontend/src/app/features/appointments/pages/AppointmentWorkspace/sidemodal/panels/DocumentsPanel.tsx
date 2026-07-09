@@ -210,7 +210,7 @@ const ClinicalPacketSection = ({
   const openSigningOverlay = useSigningOverlayStore((s) => s.openOverlay);
   const setSigningUrl = useSigningOverlayStore((s) => s.setUrl);
   const closeSigningOverlay = useSigningOverlayStore((s) => s.close);
-  const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
+  const registerSigningCloseHandler = useSigningOverlayStore((s) => s.registerCloseHandler);
   const [packet, setPacket] = useState<PacketState | null>(null);
   const [isSigning, setIsSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
@@ -257,23 +257,9 @@ const ClinicalPacketSection = ({
     void refreshPacket();
   }, [refreshPacket]);
 
-  const signingInitiatedRef = useRef(false);
-  // The packet being signed, captured when signing starts so the post-close
-  // reconcile can resolve its signing state against Documenso directly.
-  const signingPacketIdRef = useRef<string | null>(null);
-
-  // When the signing overlay closes after a sign was started, reconcile the
-  // packet against Documenso (webhook can't reach the backend in local/dev and
-  // can lag in prod), then refetch so the Sign→Download Signed swap and the
-  // Draft→Final / Signed badges reflect the completed signature. Best-effort:
-  // if the reconcile endpoint isn't deployed yet the refetch still applies
-  // webhook truth.
-  useEffect(() => {
-    if (signingOverlayOpen || !signingInitiatedRef.current) return;
-    signingInitiatedRef.current = false;
-    const packetId = signingPacketIdRef.current;
-    void (async () => {
-      if (packetId && organisationId) {
+  const reconcilePacketAfterSigningClose = useCallback(
+    async (packetId: string) => {
+      if (organisationId) {
         try {
           const reconciled = await reconcileWorkspaceDocumentPacket(organisationId, packetId);
           if (reconciled?.signing?.status?.toUpperCase() === 'SIGNED') {
@@ -290,8 +276,9 @@ const ClinicalPacketSection = ({
         }
       }
       await refreshPacket();
-    })();
-  }, [organisationId, refreshPacket, signingOverlayOpen]);
+    },
+    [organisationId, refreshPacket]
+  );
 
   const isSigned = packet?.signingStatus === 'SIGNED';
   const isInProgress = packet?.signingStatus === 'IN_PROGRESS';
@@ -348,19 +335,20 @@ const ClinicalPacketSection = ({
       if (!packetId) {
         throw new Error('Document packet could not be created.');
       }
-      signingPacketIdRef.current = packetId;
       const signed = await signWorkspaceDocumentPacket(organisationId, packetId);
       const signingUrl = signed?.signing?.signingUrl;
       if (!signingUrl) {
         throw new Error('Signing link is not available yet.');
       }
+      registerSigningCloseHandler(`packet-${encounterId}`, () =>
+        reconcilePacketAfterSigningClose(packetId)
+      );
       setSigningUrl(signingUrl);
       setPacket({
         packetId,
         status: signed?.status ?? created?.status,
         signingStatus: signed?.signing?.status ?? 'IN_PROGRESS',
       });
-      signingInitiatedRef.current = true;
     } catch (error) {
       setSignError(error instanceof Error ? error.message : 'Unable to start signing.');
       closeSigningOverlay();
