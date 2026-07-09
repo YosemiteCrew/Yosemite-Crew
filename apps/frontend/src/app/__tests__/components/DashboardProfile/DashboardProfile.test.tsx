@@ -77,7 +77,7 @@ describe('DashboardProfile', () => {
 
     render(<DashboardProfile />);
 
-    expect(screen.getByText('Welcome')).toBeInTheDocument();
+    expect(screen.getByText('Welcome back,')).toBeInTheDocument();
     expect(screen.getByText('Alex Johnson')).toBeInTheDocument();
     expect(
       screen.getByText('Verification in progress — Limited access enabled')
@@ -85,6 +85,17 @@ describe('DashboardProfile', () => {
     expect(screen.getByText('Verify business profile')).toBeInTheDocument();
     expect(screen.getByText(/Note\s*:/)).toBeInTheDocument();
     expect(screen.getByTestId('mock-dynamic-overlay')).toHaveAttribute('data-open', 'false');
+  });
+
+  it('renders an empty name without crashing when auth attributes are missing', () => {
+    usePrimaryOrgMock.mockReturnValue({ _id: 'org1', isVerified: true });
+    usePrimaryOrgProfileMock.mockReturnValue(null);
+    useAuthStoreMock.mockReturnValue(undefined);
+
+    render(<DashboardProfile />);
+
+    expect(screen.getByText('Welcome back,')).toBeInTheDocument();
+    expect(screen.getByText('Verified clinic')).toBeInTheDocument();
   });
 
   it('opens the Cal booking overlay from the verification button', () => {
@@ -118,5 +129,6 @@ describe('DashboardProfile', () => {
     expect(
       screen.queryByText('Verification in progress — Limited access enabled')
     ).not.toBeInTheDocument();
+    expect(screen.getByText('Verified clinic')).toBeInTheDocument();
   });
 });
