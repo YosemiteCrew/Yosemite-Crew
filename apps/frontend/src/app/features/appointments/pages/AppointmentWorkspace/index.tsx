@@ -55,6 +55,7 @@ import TreatmentStep from '@/app/features/appointments/pages/AppointmentWorkspac
 import InvoiceStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep';
 import SummaryStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SummaryStep';
 import QuickActionsModal from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/QuickActionsModal';
+import WorkspaceActionRail from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceActionRail';
 import HospitalizationModal from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/HospitalizationModal';
 import {
   admitAppointment,
@@ -1412,61 +1413,64 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
         primaryCta={workspacePrimaryCta}
       />
 
-      <section aria-label="Workspace step content" className="min-h-50">
-        {activeStep === 'SOAP' && (
-          <SoapStep
-            appointmentId={appointmentId}
-            organisationId={appointment.organisationId}
-            encounterId={appointment.encounterId}
-            authorId={actor.id}
-            authorName={actor.name}
-            appointmentReason={appointmentReason}
-            appointmentService={appointment.appointmentType?.name}
-            appointmentSpeciality={appointment.appointmentType?.speciality?.name}
-            encounter={effectiveEncounter}
-            onRecordVitals={() => setActiveSideAction('RECORD')}
-            onSaveAndNext={handleSaveAndNext}
-          />
-        )}
-        {activeStep === 'DIAGNOSTICS' && (
-          <DiagnosticsStep
-            appointment={appointment}
-            readOnly={operationalEncounter.viewOnly}
-            onOpenTreatment={() => handleStepChange('TREATMENT')}
-          />
-        )}
-        {activeStep === 'TREATMENT' && (
-          <TreatmentStep
-            appointmentId={appointmentId}
-            organisationId={appointment.organisationId}
-            encounterId={appointment.encounterId}
-            authorId={actor.id}
-            encounter={operationalEncounter}
-            ensureEncounterId={ensureEncounterId}
-            onOpenInvoice={() => handleStepChange('INVOICE')}
-          />
-        )}
-        {activeStep === 'INVOICE' && (
-          <InvoiceStep
-            appointmentId={appointmentId}
-            organisationId={appointment.organisationId}
-            patientId={companion.id}
-            parentId={companion.parent.id}
-            encounter={operationalEncounter}
-            hideBillBuilder={isCompletedAppointment}
-            bookedItemName={appointment.appointmentType?.name}
-            onOpenSummary={() => handleStepChange('SUMMARY')}
-          />
-        )}
-        {activeStep === 'SUMMARY' && (
-          <SummaryStep
-            appointmentId={appointmentId}
-            appointment={appointment}
-            encounter={effectiveEncounter}
-            resolvedEncounterId={lifecycleEncounterIdRef.current ?? appointment.encounterId}
-          />
-        )}
-      </section>
+      <div className="flex items-stretch gap-4">
+        <section aria-label="Workspace step content" className="min-h-50 min-w-0 flex-1">
+          {activeStep === 'SOAP' && (
+            <SoapStep
+              appointmentId={appointmentId}
+              organisationId={appointment.organisationId}
+              encounterId={appointment.encounterId}
+              authorId={actor.id}
+              authorName={actor.name}
+              appointmentReason={appointmentReason}
+              appointmentService={appointment.appointmentType?.name}
+              appointmentSpeciality={appointment.appointmentType?.speciality?.name}
+              encounter={effectiveEncounter}
+              onRecordVitals={() => setActiveSideAction('RECORD')}
+              onSaveAndNext={handleSaveAndNext}
+            />
+          )}
+          {activeStep === 'DIAGNOSTICS' && (
+            <DiagnosticsStep
+              appointment={appointment}
+              readOnly={operationalEncounter.viewOnly}
+              onOpenTreatment={() => handleStepChange('TREATMENT')}
+            />
+          )}
+          {activeStep === 'TREATMENT' && (
+            <TreatmentStep
+              appointmentId={appointmentId}
+              organisationId={appointment.organisationId}
+              encounterId={appointment.encounterId}
+              authorId={actor.id}
+              encounter={operationalEncounter}
+              ensureEncounterId={ensureEncounterId}
+              onOpenInvoice={() => handleStepChange('INVOICE')}
+            />
+          )}
+          {activeStep === 'INVOICE' && (
+            <InvoiceStep
+              appointmentId={appointmentId}
+              organisationId={appointment.organisationId}
+              patientId={companion.id}
+              parentId={companion.parent.id}
+              encounter={operationalEncounter}
+              hideBillBuilder={isCompletedAppointment}
+              bookedItemName={appointment.appointmentType?.name}
+              onOpenSummary={() => handleStepChange('SUMMARY')}
+            />
+          )}
+          {activeStep === 'SUMMARY' && (
+            <SummaryStep
+              appointmentId={appointmentId}
+              appointment={appointment}
+              encounter={effectiveEncounter}
+              resolvedEncounterId={lifecycleEncounterIdRef.current ?? appointment.encounterId}
+            />
+          )}
+        </section>
+        <WorkspaceActionRail activeAction={activeSideAction} onSelect={setActiveSideAction} />
+      </div>
 
       <DischargeDateTimeModal
         showModal={isSummaryDischargeModalOpen}
