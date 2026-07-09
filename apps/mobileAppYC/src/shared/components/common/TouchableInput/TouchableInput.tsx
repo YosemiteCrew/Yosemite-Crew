@@ -1,11 +1,9 @@
-// src/components/common/TouchableInput/TouchableInput.tsx
-import React, {useCallback, useEffect} from 'react';
+// src/shared/components/common/TouchableInput/TouchableInput.tsx
+import React from 'react';
 import {View, Text, ViewStyle, TextStyle} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
-import Animated, {useSharedValue, withTiming} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {
-  useFloatingLabelAnimatedStyle,
   getInputContainerBaseStyle,
   getValueTextStyle,
 } from '../shared/floatingLabelStyles';
@@ -40,23 +38,7 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
   disabled = false,
 }) => {
   const {theme} = useTheme();
-  const animatedValue = useSharedValue(value ? 1 : 0);
   const hasValue = !!value;
-
-  const animateLabel = useCallback(
-    (toValue: number) => {
-      animatedValue.value = withTiming(toValue, {duration: 200});
-    },
-    [animatedValue],
-  );
-
-  useEffect(() => {
-    if (hasValue) {
-      animateLabel(1);
-    } else {
-      animateLabel(0);
-    }
-  }, [hasValue, animateLabel]);
 
   const inputContainerStyle: ViewStyle = {
     ...getInputContainerBaseStyle(theme, error),
@@ -66,9 +48,13 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
   };
 
   const valueStyle = getValueTextStyle(theme, hasValue);
-  const floatingLabelStyle = useFloatingLabelAnimatedStyle({
-    animatedValue,
-    theme,
+
+  // Static label sits above the field; it turns red to echo an error.
+  const getLabelStyle = (): TextStyle => ({
+    ...theme.typography.inputLabel,
+    color: error ? theme.colors.error : theme.colors.inkMuted,
+    marginBottom: theme.spacing['2'],
+    marginLeft: theme.spacing['1'],
   });
 
   const getErrorStyle = (): TextStyle => ({
@@ -89,18 +75,12 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
 
   return (
     <View style={containerStyle}>
+      {label && <Text style={[getLabelStyle(), labelStyle]}>{label}</Text>}
       <PressableOpacity
         onPress={onPress}
         activeOpacity={0.7}
         disabled={disabled}>
         <View style={[inputContainerStyle, inputStyle]}>
-          {/* Only show the floating label when there's a value */}
-          {label && hasValue && (
-            <Animated.Text style={[floatingLabelStyle, labelStyle]}>
-              {label}
-            </Animated.Text>
-          )}
-
           {leftComponent && (
             <View style={leftComponentWrapperStyle}>{leftComponent}</View>
           )}
