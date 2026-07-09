@@ -161,7 +161,7 @@ const createStyles = (theme: any) =>
       fontSize: 17,
       lineHeight: 22,
       fontWeight: '400',
-      color: theme.colors.text,
+      color: theme.colors.textSecondary,
       includeFontPadding: false,
     },
     inputWrapper: {
