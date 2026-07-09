@@ -11,6 +11,7 @@ import {
   FilterPills,
   type FilterOption,
 } from '@/shared/components/common/FilterPills';
+import {SegmentedControl} from '@/shared/components/common/SegmentedControl/SegmentedControl';
 import {Images} from '@/assets/images';
 import {useTheme} from '@/hooks';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -63,6 +64,13 @@ const FILTER_OPTIONS: FilterOption<BusinessFilter>[] = [
   {id: 'boarder', label: 'Boarder'},
 ];
 
+type AppointmentView = 'upcoming' | 'past';
+
+const VIEW_OPTIONS = [
+  {label: 'Upcoming', value: 'upcoming'},
+  {label: 'Past', value: 'past'},
+];
+
 const keyExtractor = (item: Appointment) => item.id;
 
 const handleEndReached = () => {
@@ -95,6 +103,7 @@ export const MyAppointmentsScreen: React.FC = () => {
   );
   const {businessMap, employeeMap, serviceMap} = useAppointmentDataMaps();
   const [filter, setFilter] = React.useState<BusinessFilter>('all');
+  const [view, setView] = React.useState<AppointmentView>('upcoming');
   const {businessFallbacks, requestBusinessPhoto, handleAvatarError} =
     useBusinessPhotoFallback();
   const [checkingIn, setCheckingIn] = React.useState<Record<string, boolean>>(
@@ -280,12 +289,14 @@ export const MyAppointmentsScreen: React.FC = () => {
 
   const handleAdd = () => navigation.navigate('BrowseBusinesses');
 
+  // The Upcoming/Past segmented control selects which set is shown; the
+  // category FilterPills still narrow within it. Both data sets stay available.
   const sections = React.useMemo(
-    () => [
-      {key: 'upcoming', title: 'Upcoming', data: filteredUpcoming},
-      {key: 'past', title: 'Past', data: filteredPast},
-    ],
-    [filteredUpcoming, filteredPast],
+    () =>
+      view === 'past'
+        ? [{key: 'past', title: 'Past', data: filteredPast}]
+        : [{key: 'upcoming', title: 'Upcoming', data: filteredUpcoming}],
+    [view, filteredUpcoming, filteredPast],
   );
 
   const renderSectionHeader = ({
@@ -294,7 +305,6 @@ export const MyAppointmentsScreen: React.FC = () => {
     section: {key: string; title: string; data: typeof filteredUpcoming};
   }) => (
     <View style={styles.sectionHeaderWrapper}>
-      <Text style={styles.sectionTitle}>{section.title}</Text>
       {section.data.length === 0 &&
         (section.key === 'upcoming'
           ? renderEmptyCard(
@@ -568,6 +578,14 @@ export const MyAppointmentsScreen: React.FC = () => {
             onRightPress={handleAdd}
             glass={false}
           />
+          <View style={styles.segmentContainer}>
+            <SegmentedControl
+              testID="appt-view-toggle"
+              options={VIEW_OPTIONS}
+              value={view}
+              onChange={next => setView(next as AppointmentView)}
+            />
+          </View>
           <View style={styles.pillContainer}>
             <FilterPills<BusinessFilter>
               options={FILTER_OPTIONS}
@@ -743,9 +761,9 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['2'],
       gap: theme.spacing['2'],
     },
-    sectionTitle: {
-      ...theme.typography.sectionHeading,
-      color: theme.colors.secondary,
+    segmentContainer: {
+      marginTop: theme.spacing['1'],
+      marginBottom: theme.spacing['2'],
     },
     pillContainer: {marginBottom: theme.spacing['3'], marginTop: 6},
     list: {gap: theme.spacing['4']},

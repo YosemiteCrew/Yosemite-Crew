@@ -378,6 +378,14 @@ describe('MyAppointmentsScreen', () => {
     );
   };
 
+  // The screen defaults to the Upcoming view; past appointments are shown
+  // after toggling the Upcoming/Past segmented control.
+  const switchToPast = () => {
+    act(() => {
+      fireEvent.press(screen.getByTestId('appt-view-toggle-past'));
+    });
+  };
+
   it('renders correctly and fetches appointments on mount', () => {
     renderScreen();
     expect(screen.getByText('My Appointments')).toBeTruthy();
@@ -475,6 +483,7 @@ describe('MyAppointmentsScreen', () => {
   describe('Past Appointments', () => {
     it('navigates to Review on press after state update', async () => {
       renderScreen();
+      switchToPast();
 
       // Trigger state update using helper to avoid nesting error S2004
       simulateOrgRatingUpdate({loading: false, isRated: false, rating: null});
@@ -489,6 +498,7 @@ describe('MyAppointmentsScreen', () => {
 
     it('shows rating score if already rated', async () => {
       renderScreen();
+      switchToPast();
 
       // Trigger state update using helper to avoid nesting error S2004
       simulateOrgRatingUpdate({loading: false, isRated: true, rating: 5});
@@ -499,6 +509,7 @@ describe('MyAppointmentsScreen', () => {
 
     it('shows a "-" placeholder when rated but no numeric rating is available', async () => {
       renderScreen();
+      switchToPast();
 
       simulateOrgRatingUpdate({loading: false, isRated: true, rating: null});
 
@@ -527,6 +538,7 @@ describe('MyAppointmentsScreen', () => {
       });
 
       renderScreen();
+      switchToPast();
 
       // NO_PAYMENT results in 'Payment pending'
       expect(screen.getAllByText('Payment pending').length).toBeGreaterThan(0);
@@ -681,6 +693,7 @@ describe('MyAppointmentsScreen', () => {
 
     it('navigates to ViewAppointment from onViewDetails and onPress (past card)', () => {
       renderScreen();
+      switchToPast();
       const viewDetailsBtns = screen.getAllByTestId('btn-view-details');
       fireEvent.press(viewDetailsBtns[viewDetailsBtns.length - 1]);
       expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
