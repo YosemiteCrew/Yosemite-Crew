@@ -1709,7 +1709,7 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.secondary,
       justifyContent: 'center',
       alignItems: 'center',
-      boxShadow: `0px 1px 3px ${theme.colors.black}`,
+      boxShadow: `0px 1px 3px ${theme.colors.neutralShadow}`,
     },
     quickActionBrandIconWrapper: {
       backgroundColor: theme.colors.cardBackground,

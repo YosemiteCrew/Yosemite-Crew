@@ -194,7 +194,7 @@ const createStyles = (theme: any) =>
     },
     noteBody: {
       ...theme.typography.inputLabel,
-      color: theme.colors.textPrimary,
+      color: theme.colors.secondary,
       textAlign: 'left',
       flex: 1,
     },

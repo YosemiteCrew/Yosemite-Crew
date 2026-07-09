@@ -1315,7 +1315,7 @@ const createStyles = (theme: any) =>
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
       borderColor: theme.colors.borderMuted,
-      boxShadow: `0px ${theme.spacing['2']}px ${theme.spacing['3']}px ${theme.colors.black}`,
+      boxShadow: `0px ${theme.spacing['2']}px ${theme.spacing['3']}px ${theme.colors.neutralShadow}`,
     },
     buttonText: {
       color: theme.colors.white,
