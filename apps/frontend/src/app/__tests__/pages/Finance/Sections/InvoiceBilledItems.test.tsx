@@ -30,6 +30,18 @@ describe('InvoiceBilledItems', () => {
     expect(screen.getByText('No billed items recorded for this invoice.')).toBeInTheDocument();
   });
 
+  it('falls back to zero for items missing unit price and total', () => {
+    render(
+      <InvoiceBilledItems
+        items={[{ name: 'Waste & sharps fee', quantity: 1 } as InvoiceItem]}
+        currency="USD"
+      />
+    );
+    expect(screen.getByText('Waste & sharps fee')).toBeInTheDocument();
+    // gross and amount both fall back to $0
+    expect(screen.getAllByText('$0').length).toBeGreaterThanOrEqual(2);
+  });
+
   it('has no axe accessibility violations', async () => {
     const { container } = render(<InvoiceBilledItems items={items} currency="USD" />);
     const results = await axe(container);

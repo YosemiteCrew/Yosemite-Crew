@@ -57,6 +57,22 @@ describe('InvoiceSummaryPanel', () => {
     expect(screen.getAllByText('$214').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('falls back to zero for missing money fields', () => {
+    render(
+      <InvoiceSummaryPanel
+        invoice={makeInvoice({
+          subtotal: undefined,
+          discountTotal: undefined,
+          taxTotal: undefined,
+          totalAmount: undefined,
+        })}
+        currency="USD"
+      />
+    );
+    // Subtotal / Discount / Tax / Total / Outstanding all resolve to $0.
+    expect(screen.getAllByText('$0').length).toBeGreaterThanOrEqual(4);
+  });
+
   it('has no axe accessibility violations', async () => {
     const { container } = render(<InvoiceSummaryPanel invoice={makeInvoice({})} currency="USD" />);
     const results = await axe(container);

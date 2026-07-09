@@ -8,12 +8,12 @@ import { Invoice } from '@yosemite-crew/types';
 expect.extend(toHaveNoViolations);
 
 jest.mock('@/app/lib/forms', () => ({
-  formatDateLabel: () => '12 Jun',
-  formatTimeLabel: () => '10:31',
+  formatDateLabel: jest.fn(() => '12 Jun'),
+  formatTimeLabel: jest.fn(() => '10:31'),
 }));
 
 jest.mock('@/app/lib/invoicePaymentMethod', () => ({
-  getInvoicePaymentMethodLabel: () => 'Online payment',
+  getInvoicePaymentMethodLabel: jest.fn(() => 'Online payment'),
 }));
 
 jest.mock('react-icons/io5', () => ({
@@ -80,6 +80,19 @@ describe('InvoicePaymentLedger', () => {
 
     expect(screen.queryByRole('link', { name: 'Receipt' })).not.toBeInTheDocument();
     expect(screen.queryByText(/Receipt sent to/)).not.toBeInTheDocument();
+  });
+
+  it('renders a bare payment row when method, timestamps and amount are unavailable', () => {
+    const { getInvoicePaymentMethodLabel } = jest.requireMock('@/app/lib/invoicePaymentMethod');
+    const forms = jest.requireMock('@/app/lib/forms');
+    (getInvoicePaymentMethodLabel as jest.Mock).mockReturnValueOnce('-');
+    (forms.formatDateLabel as jest.Mock).mockReturnValueOnce('');
+    (forms.formatTimeLabel as jest.Mock).mockReturnValueOnce('');
+    render(
+      <InvoicePaymentLedger invoice={makeInvoice({ totalAmount: undefined })} currency="USD" />
+    );
+    expect(screen.getByText('Payment recorded')).toBeInTheDocument();
+    expect(screen.getByText('$0')).toBeInTheDocument();
   });
 
   it('has no axe accessibility violations', async () => {
