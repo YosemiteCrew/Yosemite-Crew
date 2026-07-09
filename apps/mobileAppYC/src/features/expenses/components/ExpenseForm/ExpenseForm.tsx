@@ -272,7 +272,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               keyboardType="numeric"
               containerStyle={styles.amountInputContainer}
               inputStyle={styles.amountInput}
-              placeholderOffset={theme.spacing['4']}
               error={errors.amount}
             />
             <Text style={styles.currencyPrefix}>{currencySymbol}</Text>

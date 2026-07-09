@@ -1,9 +1,9 @@
 // ============================================
-// 1. Updated Input Component with Icon Support
-// src/components/common/Input/Input.tsx
+// Input component - warm-bone static label above the field.
+// src/shared/components/common/Input/Input.tsx
 // ============================================
 
-import React, {useState, useCallback} from 'react';
+import React, {useState} from 'react';
 import {
   Keyboard,
   TextInput,
@@ -16,10 +16,8 @@ import {
   useColorScheme,
 } from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
-import Animated, {useSharedValue, withTiming} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {
-  useFloatingLabelAnimatedStyle,
   getInputContainerBaseStyle,
   getValueTextStyle,
 } from '@/shared/components/common/shared/floatingLabelStyles';
@@ -33,11 +31,6 @@ interface InputProps extends TextInputProps {
   errorStyle?: TextStyle;
   icon?: React.ReactNode;
   onIconPress?: () => void;
-  /**
-   * Additional left offset applied only to the placeholder text so that
-   * the placeholder can be visually indented without shifting the entered text.
-   */
-  placeholderOffset?: number;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -53,7 +46,6 @@ export const Input: React.FC<InputProps> = ({
   onChangeText,
   icon,
   onIconPress,
-  placeholderOffset,
   ...textInputProps
 }) => {
   const {theme} = useTheme();
@@ -71,7 +63,6 @@ export const Input: React.FC<InputProps> = ({
       setHasValue(nextHasValue);
     }
   }
-  const animatedValue = useSharedValue(value ? 1 : 0);
   const {
     keyboardAppearance: keyboardAppearanceProp,
     returnKeyType: returnKeyTypeProp,
@@ -86,39 +77,20 @@ export const Input: React.FC<InputProps> = ({
   const resolvedReturnKeyType = returnKeyTypeProp ?? 'done';
   const resolvedReturnKeyLabel = returnKeyLabelProp ?? 'Done';
 
-  const animateLabel = useCallback(
-    (toValue: number) => {
-      animatedValue.value = withTiming(toValue, {duration: 200});
-    },
-    [animatedValue],
-  );
-
   const handleFocus = (e: any) => {
     setIsFocused(true);
-    animateLabel(1);
     onFocus?.(e);
   };
 
   const handleBlur = (e: any) => {
     setIsFocused(false);
-    if (!value && !hasValue) {
-      animateLabel(0);
-    }
     onBlur?.(e);
   };
 
   const handleChangeText = (text: string) => {
-    const newHasValue = !!text;
-    setHasValue(newHasValue);
-    animateLabel(newHasValue ? 1 : 0);
+    setHasValue(!!text);
     onChangeText?.(text);
   };
-
-  React.useEffect(() => {
-    const hasExternalValue =
-      value !== undefined && value !== null && `${value}`.length > 0;
-    animateLabel(hasExternalValue ? 1 : 0);
-  }, [value, animateLabel]);
 
   const getInputContainerStyle = (): ViewStyle => {
     const baseStyle = getInputContainerBaseStyle(theme, error);
@@ -159,12 +131,12 @@ export const Input: React.FC<InputProps> = ({
     };
   };
 
-  const effectivePlaceholderOffset = placeholderOffset ?? 0;
-  const floatingLabelStyle = useFloatingLabelAnimatedStyle({
-    animatedValue,
-    theme,
-    focused: isFocused,
-    placeholderOffset: effectivePlaceholderOffset,
+  // Static label sits above the field; it turns red to echo an error.
+  const getLabelStyle = (): TextStyle => ({
+    ...theme.typography.inputLabel,
+    color: error ? theme.colors.error : theme.colors.inkMuted,
+    marginBottom: theme.spacing['2'],
+    marginLeft: theme.spacing['1'],
   });
 
   const getErrorStyle = (): TextStyle => ({
@@ -182,12 +154,8 @@ export const Input: React.FC<InputProps> = ({
 
   return (
     <View style={containerStyle}>
+      {label && <Text style={[getLabelStyle(), labelStyle]}>{label}</Text>}
       <View style={getInputContainerStyle()}>
-        {label && (
-          <Animated.Text style={[floatingLabelStyle, labelStyle]}>
-            {label}
-          </Animated.Text>
-        )}
         <TextInput
           style={[getInputStyle(), inputStyle]}
           placeholderTextColor={theme.colors.placeholder}
