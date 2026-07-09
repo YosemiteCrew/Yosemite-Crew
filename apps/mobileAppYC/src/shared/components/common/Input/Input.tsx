@@ -131,10 +131,11 @@ export const Input: React.FC<InputProps> = ({
     };
   };
 
-  // Static label sits above the field; it turns red to echo an error.
+  // Static label sits above the field in dark ink; the error is carried by the
+  // red field border and the red message below (matching the design).
   const getLabelStyle = (): TextStyle => ({
     ...theme.typography.inputLabel,
-    color: error ? theme.colors.error : theme.colors.inkMuted,
+    color: theme.colors.inkBody,
     marginBottom: theme.spacing['2'],
     marginLeft: theme.spacing['1'],
   });

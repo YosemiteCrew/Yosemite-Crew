@@ -362,7 +362,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'privacy',
         label: 'Privacy Policy',
         icon: Images.privacyIcon,
-        tone: 'success',
+        tone: 'violet',
         onPress: () => {
           navigation.navigate('PrivacyPolicy');
         },
@@ -371,7 +371,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
         id: 'contact',
         label: 'Contact us',
         icon: Images.contactIcon,
-        tone: 'warning',
+        tone: 'success',
         onPress: () => {
           navigation.navigate('ContactUs');
         },
