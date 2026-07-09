@@ -1031,6 +1031,8 @@ const PaymentActions = ({
   depositDisabled,
   paymentDisabled,
   paymentDisabledReason,
+  dueCents,
+  currency,
   onCollect,
   onSendToClient,
 }: {
@@ -1038,54 +1040,72 @@ const PaymentActions = ({
   depositDisabled: boolean;
   paymentDisabled: boolean;
   paymentDisabledReason?: string;
+  dueCents: number;
+  currency: string;
   onCollect: (method: PaymentMethod) => void;
   onSendToClient: () => void;
 }) => {
-  const paymentButtons = (
-    <span className="inline-flex flex-wrap items-center gap-3">
-      {isInpatient && (
-        <Secondary
-          text="Send to Client"
-          icon={<LuUpload aria-hidden="true" />}
-          iconPosition="right"
-          onClick={onSendToClient}
-          isDisabled={paymentDisabled}
-        />
-      )}
-      <Secondary
-        text="Collect Cash"
-        icon={<LuBanknote aria-hidden="true" />}
-        iconPosition="right"
-        onClick={() => onCollect('CASH')}
-        isDisabled={paymentDisabled}
-      />
-      <Primary
-        text="Pay Online"
-        icon={<LuBanknote aria-hidden="true" />}
-        iconPosition="right"
-        onClick={() => onCollect('ONLINE')}
-        isDisabled={paymentDisabled}
-      />
-    </span>
-  );
-  const paymentControls = paymentDisabledReason ? (
-    <GlassTooltip content={paymentDisabledReason} side="top" maxWidth={320}>
-      <span className="inline-flex">{paymentButtons}</span>
-    </GlassTooltip>
-  ) : (
-    paymentButtons
+  // Online/Cash is a single method choice + one "Collect" action (design's payment-method
+  // card). Deposit and Send-to-Client remain distinct actions with their own gating.
+  const [method, setMethod] = useState<'ONLINE' | 'CASH'>('ONLINE');
+  const collectButton = (
+    <Primary
+      text={`Collect ${formatMoney(dueCents / 100, currency)}`}
+      icon={<LuBanknote aria-hidden="true" />}
+      iconPosition="right"
+      onClick={() => onCollect(method)}
+      isDisabled={paymentDisabled}
+    />
   );
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <Secondary
-        text="Collect Deposit"
-        icon={<LuCreditCard aria-hidden="true" />}
-        iconPosition="right"
-        onClick={() => onCollect('DEPOSIT')}
-        isDisabled={depositDisabled}
-      />
-      {paymentControls}
-    </div>
+    <section
+      aria-label="Payment method"
+      className="flex flex-col gap-3 rounded-[14px] border border-card-border bg-neutral-0 p-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+    >
+      <span className="text-body-3-emphasis text-text-primary">Payment method</span>
+      <div className="flex gap-1 rounded-xl bg-neutral-100 p-1">
+        {(['ONLINE', 'CASH'] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={method === option}
+            onClick={() => setMethod(option)}
+            className={`flex-1 rounded-lg py-2 text-caption-1 font-semibold transition-colors ${
+              method === option
+                ? 'bg-neutral-0 text-text-primary shadow-[0_1px_3px_var(--sh08)]'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            {option === 'ONLINE' ? 'Online' : 'Cash'}
+          </button>
+        ))}
+      </div>
+      {paymentDisabledReason ? (
+        <GlassTooltip content={paymentDisabledReason} side="top" maxWidth={320}>
+          <span className="inline-flex w-full [&>*]:w-full">{collectButton}</span>
+        </GlassTooltip>
+      ) : (
+        <span className="inline-flex w-full [&>*]:w-full">{collectButton}</span>
+      )}
+      <div className="flex flex-wrap gap-2 border-t border-card-border pt-3">
+        <Secondary
+          text="Collect Deposit"
+          icon={<LuCreditCard aria-hidden="true" />}
+          iconPosition="right"
+          onClick={() => onCollect('DEPOSIT')}
+          isDisabled={depositDisabled}
+        />
+        {isInpatient && (
+          <Secondary
+            text="Send to Client"
+            icon={<LuUpload aria-hidden="true" />}
+            iconPosition="right"
+            onClick={onSendToClient}
+            isDisabled={paymentDisabled}
+          />
+        )}
+      </div>
+    </section>
   );
 };
 
@@ -1970,6 +1990,11 @@ const InvoiceStep = ({
     ]
   );
 
+  const invoiceTotalCents = computeInvoiceTotalCents(encounter);
+  const dueCents = encounter.withdrawDeposit
+    ? Math.max(0, invoiceTotalCents - encounter.depositCents)
+    : invoiceTotalCents;
+
   return (
     <div className="flex flex-col gap-5">
       {/* The bill builder + payment controls only show while the encounter is
@@ -2001,6 +2026,8 @@ const InvoiceStep = ({
               depositDisabled={isProcessingPayment}
               paymentDisabled={isProcessingPayment || !hasItems || !isReadyForBilling}
               paymentDisabledReason={paymentDisabledReason}
+              dueCents={dueCents}
+              currency={currency}
               onCollect={handleCollect}
               onSendToClient={handleSendToClient}
             />
