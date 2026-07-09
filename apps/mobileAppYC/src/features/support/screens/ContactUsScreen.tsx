@@ -1211,7 +1211,7 @@ const createStyles = (theme: any) =>
       justifyContent: 'center',
     },
     heroTitle: {
-      ...theme.typography.h3,
+      ...theme.typography.serifTitle,
       color: theme.colors.text,
       textAlign: 'center',
     },

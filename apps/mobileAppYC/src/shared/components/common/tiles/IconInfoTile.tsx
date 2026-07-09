@@ -129,8 +129,7 @@ const createStyles = (theme: any) => {
       paddingHorizontal: theme.spacing['3'],
       paddingVertical: theme.spacing['1'],
       borderRadius: theme.borderRadius.base,
-      borderWidth: 1,
-      borderColor: theme.colors.success,
+      borderWidth: 0,
     },
     syncText: {
       ...theme.typography.labelSmall,

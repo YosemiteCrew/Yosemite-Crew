@@ -1261,7 +1261,7 @@ const createStyles = (theme: any) => {
     },
     providersTitle: {
       ...theme.typography.businessSectionTitle20,
-      color: theme.colors.black,
+      color: theme.colors.ink,
       textAlign: 'left',
     },
     nextText: {

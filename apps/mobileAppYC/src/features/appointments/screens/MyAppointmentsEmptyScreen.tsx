@@ -8,7 +8,11 @@ import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import {useDispatch, useSelector} from 'react-redux';
-import {selectCompanions, selectSelectedCompanionId, setSelectedCompanion} from '@/features/companion';
+import {
+  selectCompanions,
+  selectSelectedCompanionId,
+  setSelectedCompanion,
+} from '@/features/companion';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import type {AppDispatch} from '@/app/store';
 
@@ -55,10 +59,16 @@ export const MyAppointmentsEmptyScreen: React.FC = () => {
             </View>
           )}
           <View style={styles.contentContainer}>
-            <Image source={Images.emptyAppointments || Images.emptyTasksIllustration} style={styles.emptyImage} />
-            <Text style={styles.title}>We've dug and dug… but no appointments found.</Text>
+            <Image
+              source={Images.emptyAppointments || Images.emptyTasksIllustration}
+              style={styles.emptyImage}
+            />
+            <Text style={styles.title}>
+              We've dug and dug… but no appointments found.
+            </Text>
             <Text style={styles.subtitle}>
-              We'll save your appointment history here once you start seeing your vet.
+              We'll save your appointment history here once you start seeing
+              your vet.
             </Text>
           </View>
         </View>
@@ -99,7 +109,7 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['6'],
     },
     title: {
-      ...theme.typography.businessSectionTitle20,
+      ...theme.typography.emptyStateTitle,
       color: theme.colors.text,
       marginBottom: theme.spacing['3'],
       textAlign: 'center',

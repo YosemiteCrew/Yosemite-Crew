@@ -432,7 +432,11 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
               onPress={handleVerifyCode}
               style={styles.verifyButton}
               textStyle={styles.verifyButtonText}
-              tintColor={isVerifyDisabled ? '#A09F9F' : theme.colors.secondary}
+              tintColor={
+                isVerifyDisabled
+                  ? theme.colors.inkFaint2
+                  : theme.colors.secondary
+              }
               height={56}
               borderRadius={16}
               loading={isVerifying}
@@ -503,8 +507,8 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['5'],
     },
     subtitle: {
-      ...theme.typography.h3,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
       marginBottom: theme.spacing['4'],
       textAlign: 'center',
     },

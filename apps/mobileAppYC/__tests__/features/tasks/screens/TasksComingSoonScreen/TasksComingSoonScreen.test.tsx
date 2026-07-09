@@ -58,8 +58,8 @@ describe('EmptyTasksScreen', () => {
     const title = getByText('No tasks yet!');
     expect(title.props.style).toEqual(
       expect.objectContaining({
-        fontSize: mockTheme.typography.headlineMedium.fontSize,
-        color: mockTheme.colors.secondary,
+        fontSize: mockTheme.typography.emptyStateTitle.fontSize,
+        color: mockTheme.colors.ink,
         textAlign: 'center',
       }),
     );

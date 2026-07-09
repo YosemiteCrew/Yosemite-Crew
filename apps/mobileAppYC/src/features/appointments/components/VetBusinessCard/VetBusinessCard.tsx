@@ -222,7 +222,7 @@ const createStyles = (theme: any) =>
     },
     websiteText: {
       ...theme.typography.mobileFootnote,
-      color: theme.colors.secondary,
+      color: theme.colors.blueText,
       flex: 1,
       overflow: 'hidden',
     },

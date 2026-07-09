@@ -1215,13 +1215,13 @@ const createStyles = (theme: any) =>
       fontWeight: '500',
     },
     categoryLabelSelected: {
-      color: theme.colors.primary,
+      color: theme.colors.pink,
       fontWeight: '600',
     },
     categoryUnderline: {
       width: '100%',
       height: 3,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.pink,
       borderRadius: theme.borderRadius.xs,
       marginTop: theme.spacing['1'],
     },

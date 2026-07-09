@@ -407,7 +407,7 @@ const createStyles = (theme: any) => {
     answerText: {
       ...theme.typography.bodySmall,
       lineHeight: 21,
-      color: theme.colors.placeholder,
+      color: theme.colors.textSecondary,
     },
     helpfulSection: {
       gap: theme.spacing['2'],

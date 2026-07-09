@@ -539,7 +539,7 @@ const createStyles = (theme: any) =>
     },
     fallbackTitle: {
       ...theme.typography.titleMedium,
-      color: theme.colors.textPrimary,
+      color: theme.colors.ink,
       marginBottom: theme.spacing['2'],
     },
     fallbackText: {

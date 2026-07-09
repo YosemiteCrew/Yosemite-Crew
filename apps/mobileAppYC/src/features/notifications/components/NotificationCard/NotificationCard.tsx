@@ -247,7 +247,7 @@ const createStyles = (theme: any) =>
     },
     description: {
       ...theme.typography.bodyExtraSmall,
-      color: theme.colors.placeholder,
+      color: theme.colors.textSecondary,
       lineHeight: theme.typography.bodyExtraSmall.lineHeight,
       overflow: 'hidden',
     },
