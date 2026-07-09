@@ -20,6 +20,8 @@ export interface YearlySpendCardProps {
   companionAvatar?: ImageSourcePropType;
   onPressView?: () => void;
   disableSwipe?: boolean;
+  /** Smaller serif amount for summary contexts (e.g. the Home dashboard). */
+  compact?: boolean;
 }
 
 export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
@@ -30,6 +32,7 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
   companionAvatar,
   onPressView,
   disableSwipe = false,
+  compact = false,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -67,7 +70,10 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
         <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
           {label}
         </Text>
-        <Text style={styles.amount} numberOfLines={1} ellipsizeMode="tail">
+        <Text
+          style={compact ? styles.amountCompact : styles.amount}
+          numberOfLines={1}
+          ellipsizeMode="tail">
           {formattedAmount.replaceAll('\u00A0', ' ')}
         </Text>
       </View>
@@ -148,6 +154,12 @@ const createStyles = (theme: any) => {
     },
     amount: {
       ...theme.typography.amountHero,
+      color: theme.colors.ink,
+    },
+    amountCompact: {
+      ...theme.typography.amountHero,
+      fontSize: 24,
+      lineHeight: 30,
       color: theme.colors.ink,
     },
     companionAvatarWrapper: {

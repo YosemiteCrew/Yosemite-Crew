@@ -2,7 +2,7 @@ import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent} from '@testing-library/react-native';
 import {YearlySpendCard} from '../../../src/shared/components/common/YearlySpendCard/YearlySpendCard';
-import {Image, Pressable} from 'react-native';
+import {Image, Pressable, StyleSheet} from 'react-native';
 
 // react-native's Pressable is wrapped in React.memo; UNSAFE_getByType must
 // match against the memoized inner component, not the memo wrapper.
@@ -89,6 +89,21 @@ describe('YearlySpendCard Component', () => {
     // Default mock returns "USD 0"
     expect(getByText('USD 0')).toBeTruthy();
     expect(getByTestId('swipeable-glass-card')).toBeTruthy();
+  });
+
+  it('renders a smaller serif amount in compact mode', () => {
+    const {getByText, rerender} = render(
+      <YearlySpendCard amount={1000} currencyCode="EUR" />,
+    );
+    const heroSize = StyleSheet.flatten(getByText('EUR 1000').props.style)
+      .fontSize as number;
+
+    rerender(<YearlySpendCard amount={1000} currencyCode="EUR" compact />);
+    const compactSize = StyleSheet.flatten(getByText('EUR 1000').props.style)
+      .fontSize as number;
+
+    expect(compactSize).toBe(24);
+    expect(heroSize).toBeGreaterThan(compactSize);
   });
 
   it('renders companion avatar when provided', () => {
