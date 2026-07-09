@@ -58,7 +58,9 @@ jobs:
 
       - name: Fetch base branch
         if: github.event.pull_request.base.ref != ''
-        run: git fetch origin ${{ github.event.pull_request.base.ref }} --depth=50
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: git fetch origin $BASE_REF --depth=50
 
       # Optional: if lockfile or root package.json changed, we'll run *all* workspaces
       - name: Check lockfile/root changes

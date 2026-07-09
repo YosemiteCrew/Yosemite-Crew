@@ -35,7 +35,7 @@ describe('createKeyboardShortcutManager', () => {
     mgr.register();
 
     expect(deps.globalShortcut.register).toHaveBeenCalledTimes(SHORTCUTS.length);
-    expect(mgr.getRegistered().length).toBe(SHORTCUTS.length);
+    expect(mgr.getRegistered()).toHaveLength(SHORTCUTS.length);
   });
 
   test('does not register shortcuts that fail', () => {
@@ -44,7 +44,7 @@ describe('createKeyboardShortcutManager', () => {
     const mgr = createKeyboardShortcutManager(deps);
     mgr.register();
 
-    expect(mgr.getRegistered().length).toBe(0);
+    expect(mgr.getRegistered()).toHaveLength(0);
     expect(deps.logger.warn).toHaveBeenCalled();
   });
 
@@ -55,7 +55,7 @@ describe('createKeyboardShortcutManager', () => {
     mgr.unregister();
 
     expect(deps.globalShortcut.unregister).toHaveBeenCalledTimes(SHORTCUTS.length);
-    expect(mgr.getRegistered().length).toBe(0);
+    expect(mgr.getRegistered()).toHaveLength(0);
   });
 
   test('open-palette shortcut calls openPalette callback', () => {
