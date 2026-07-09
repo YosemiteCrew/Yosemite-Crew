@@ -275,6 +275,36 @@ describe('AppointmentBoard', () => {
     expect(setCurrentDate).toHaveBeenCalledTimes(2);
   });
 
+  it('adds an appointment from a status column footer', () => {
+    const onAddAppointment = jest.fn();
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-upcoming', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+        onAddAppointment={onAddAppointment}
+      />
+    );
+    const columnAdders = screen.getAllByRole('button', { name: /Add appointment to/i });
+    expect(columnAdders.length).toBeGreaterThan(0);
+    fireEvent.click(columnAdders[0]);
+    expect(onAddAppointment).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the column add footers when editing is disabled', () => {
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-upcoming', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments={false}
+        onAddAppointment={jest.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: /Add appointment to/i })).not.toBeInTheDocument();
+  });
+
   it('toggles the emergencies filter from the board header', () => {
     const setActiveFilter = jest.fn();
 

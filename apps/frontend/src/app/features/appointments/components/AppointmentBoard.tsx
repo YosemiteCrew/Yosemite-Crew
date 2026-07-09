@@ -833,6 +833,16 @@ const AppointmentBoardComponent = ({
                     </div>
                   )}
                 </div>
+                {canEditAppointments && onAddAppointment && (
+                  <button
+                    type="button"
+                    onClick={onAddAppointment}
+                    aria-label={`Add appointment to ${column.label}`}
+                    className="flex items-center justify-center gap-1.5 border-t border-card-border bg-neutral-0 px-3 py-2.5 text-caption-1 font-semibold text-text-secondary transition-colors hover:text-text-primary"
+                  >
+                    <span aria-hidden="true">+</span> Add
+                  </button>
+                )}
               </div>
             );
           })}
