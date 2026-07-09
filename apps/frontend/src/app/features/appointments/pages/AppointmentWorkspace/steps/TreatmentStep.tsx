@@ -4,6 +4,7 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import ServicesPackagesEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/ServicesPackagesEditor';
 import PrescriptionEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/PrescriptionEditor';
 import InpatientSchedule from '@/app/features/appointments/pages/AppointmentWorkspace/components/InpatientSchedule';
+import WorkspaceTreatmentSummary from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceTreatmentSummary';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type {
   AppointmentEncounter,
@@ -776,76 +777,93 @@ const TreatmentStep = ({
     }
   };
 
+  const treatmentCents = encounter.services.reduce((sum, item) => sum + (item.amountCents ?? 0), 0);
+  const prescriptionCents = prescriptionItems.reduce(
+    (sum, item) => sum + (item.priceCents ?? 0),
+    0
+  );
+
   return (
-    <div className="flex flex-col gap-5">
-      {isInpatient && (
-        <InpatientSchedule
-          tasks={visibleScheduleTasks}
-          templates={scheduleTemplates}
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="flex min-w-0 flex-1 flex-col gap-5">
+        {isInpatient && (
+          <InpatientSchedule
+            tasks={visibleScheduleTasks}
+            templates={scheduleTemplates}
+            readOnly={readOnly}
+            assigneeOptions={assigneeOptions}
+            // Add and View route to the Quick Actions Tasks side modal (no inline add/edit).
+            onAddTask={() => setActiveSideAction('TASKS')}
+            onViewTask={(id) => openTaskInQuickActions(id)}
+            onAssignTask={(id, option) =>
+              handleUpdateScheduleTask(id, {
+                assignedToId: option.value,
+                assignedToName: option.label,
+              })
+            }
+            onStatusChange={(id, status) => handleUpdateScheduleTask(id, { status })}
+            onAppendTemplate={handleApplyScheduleTemplate}
+          />
+        )}
+        {scheduleError && <p className="text-caption-1 text-red-600">{scheduleError}</p>}
+
+        <ServicesPackagesEditor
+          items={encounter.services}
+          catalogItems={servicePackageCatalogItems}
           readOnly={readOnly}
-          assigneeOptions={assigneeOptions}
-          // Add and View route to the Quick Actions Tasks side modal (no inline add/edit).
-          onAddTask={() => setActiveSideAction('TASKS')}
-          onViewTask={(id) => openTaskInQuickActions(id)}
-          onAssignTask={(id, option) =>
-            handleUpdateScheduleTask(id, {
-              assignedToId: option.value,
-              assignedToName: option.label,
-            })
-          }
-          onStatusChange={(id, status) => handleUpdateScheduleTask(id, { status })}
-          onAppendTemplate={handleApplyScheduleTemplate}
+          deleteLocked={billedTreatmentLocked}
+          onAddItem={(item) => addLineItem(appointmentId, item)}
+          onUpdateItem={(id, patch) => updateLineItem(appointmentId, id, patch)}
+          onRemoveItem={(id) => removeLineItem(appointmentId, id)}
         />
-      )}
-      {scheduleError && <p className="text-caption-1 text-red-600">{scheduleError}</p>}
 
-      <ServicesPackagesEditor
-        items={encounter.services}
-        catalogItems={servicePackageCatalogItems}
-        readOnly={readOnly}
-        deleteLocked={billedTreatmentLocked}
-        onAddItem={(item) => addLineItem(appointmentId, item)}
-        onUpdateItem={(id, patch) => updateLineItem(appointmentId, id, patch)}
-        onRemoveItem={(id) => removeLineItem(appointmentId, id)}
-      />
-
-      <PrescriptionEditor
-        items={prescriptionItems}
-        catalogItems={prescriptionCatalogItems}
-        templateItems={prescriptionTemplates}
-        readOnly={readOnly}
-        // A prescription can be removed unless it is actually billed/paid (handled per-row via the
-        // `billed` flag) or the encounter is view-only. Being "ready for billing" is NOT a lock —
-        // an un-dispensed, unbilled prescription must stay deletable.
-        deleteLocked={readOnly}
-        onAddItem={handleAddPrescription}
-        onApplyTemplate={handleApplyPrescriptionTemplate}
-        onUpdateItem={(id, patch) => updatePrescription(appointmentId, id, patch)}
-        onRemoveItem={(id) => void handleRemovePrescription(id)}
-        onPrint={() => void handlePrintPrescriptionLabels()}
-      />
-      {prescriptionError && <p className="text-caption-1 text-red-600">{prescriptionError}</p>}
-
-      {treatmentSaveError && (
-        <p role="alert" className="text-caption-1 text-red-600">
-          {treatmentSaveError}
-        </p>
-      )}
-
-      <div className="flex flex-wrap justify-between gap-3">
-        <Secondary
-          text={printingLabels ? 'Printing...' : 'Print Labels'}
-          icon={<LuPrinter aria-hidden="true" />}
-          onClick={() => void handlePrintPrescriptionLabels()}
-          isDisabled={printingLabels}
+        <PrescriptionEditor
+          items={prescriptionItems}
+          catalogItems={prescriptionCatalogItems}
+          templateItems={prescriptionTemplates}
+          readOnly={readOnly}
+          // A prescription can be removed unless it is actually billed/paid (handled per-row via the
+          // `billed` flag) or the encounter is view-only. Being "ready for billing" is NOT a lock —
+          // an un-dispensed, unbilled prescription must stay deletable.
+          deleteLocked={readOnly}
+          onAddItem={handleAddPrescription}
+          onApplyTemplate={handleApplyPrescriptionTemplate}
+          onUpdateItem={(id, patch) => updatePrescription(appointmentId, id, patch)}
+          onRemoveItem={(id) => void handleRemovePrescription(id)}
+          onPrint={() => void handlePrintPrescriptionLabels()}
         />
-        <Primary
-          text={isSavingTreatment ? 'Saving…' : 'Save treatment'}
-          icon={<LuSave aria-hidden="true" />}
-          onClick={() => void handleSaveTreatment()}
-          isDisabled={readOnly || isSavingTreatment}
-        />
+        {prescriptionError && <p className="text-caption-1 text-red-600">{prescriptionError}</p>}
+
+        {treatmentSaveError && (
+          <p role="alert" className="text-caption-1 text-red-600">
+            {treatmentSaveError}
+          </p>
+        )}
+
+        <div className="flex flex-wrap justify-between gap-3">
+          <Secondary
+            text={printingLabels ? 'Printing...' : 'Print Labels'}
+            icon={<LuPrinter aria-hidden="true" />}
+            onClick={() => void handlePrintPrescriptionLabels()}
+            isDisabled={printingLabels}
+          />
+          <Primary
+            text={isSavingTreatment ? 'Saving…' : 'Save treatment'}
+            icon={<LuSave aria-hidden="true" />}
+            onClick={() => void handleSaveTreatment()}
+            isDisabled={readOnly || isSavingTreatment}
+          />
+        </div>
       </div>
+      <aside className="w-full lg:w-[340px] lg:shrink-0">
+        <WorkspaceTreatmentSummary
+          treatmentCount={encounter.services.length}
+          treatmentCents={treatmentCents}
+          prescriptionCount={encounter.prescription.length}
+          prescriptionCents={prescriptionCents}
+          currency={encounter.currency}
+        />
+      </aside>
     </div>
   );
 };
