@@ -681,7 +681,7 @@ const createStyles = (theme: any) =>
       height: 40,
       paddingHorizontal: 8,
       paddingVertical: 4,
-      borderRadius: 16,
+      borderRadius: theme.borderRadius.lg,
       justifyContent: 'center',
       alignItems: 'center',
       gap: theme.spacing['2.5'],

@@ -371,7 +371,9 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   const {theme, isDark} = useTheme();
   const forceGlobalBorder = UI_FEATURE_FLAGS.forceLiquidGlassBorder;
   const forceBorderEnabled = forceBorder || forceGlobalBorder;
-  const forcedBorderColor = forceBorderEnabled ? '#EAEAEA' : borderColor;
+  const forcedBorderColor = forceBorderEnabled
+    ? theme.colors.hairline
+    : borderColor;
   const useNativeGlass =
     Platform.OS === 'ios' &&
     isLiquidGlassSupported &&
