@@ -1626,12 +1626,12 @@ const Inventory = () => {
           {canViewPrescription && activeView !== 'analytics' && (
             <fieldset
               aria-label="Inventory view"
-              className="relative flex h-10 w-[260px] items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-neutral-0 m-0 p-0"
+              className="relative flex h-10 w-[260px] items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-[var(--band)] m-0 p-0"
             >
               <legend className="sr-only">Inventory view</legend>
               <div
                 aria-hidden
-                className={`pointer-events-none absolute top-0 bottom-0 w-1/2 rounded-[999px]! transition-all duration-300 ease-in-out ${activeView === 'inventory' ? 'bg-(--color-primary-700)' : 'bg-success-800'}`}
+                className="pointer-events-none absolute top-0 bottom-0 w-1/2 rounded-[999px]! transition-all duration-300 ease-in-out bg-neutral-0 shadow-[0_1px_3px_var(--sh08)]"
                 style={{ transform: `translateX(${activeView === 'inventory' ? '0%' : '100%'})` }}
               />
               <button
@@ -1640,7 +1640,7 @@ const Inventory = () => {
                 aria-pressed={activeView === 'inventory'}
                 className={`relative z-10 flex w-1/2 items-center justify-center gap-1.5 text-body-4 transition-colors ${
                   activeView === 'inventory'
-                    ? 'text-white duration-150 delay-150'
+                    ? 'text-text-primary duration-150 delay-150'
                     : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
                 }`}
               >
@@ -1653,7 +1653,7 @@ const Inventory = () => {
                 aria-pressed={activeView === 'turnover'}
                 className={`relative z-10 flex w-1/2 items-center justify-center gap-1.5 text-body-4 transition-colors ${
                   activeView === 'turnover'
-                    ? 'text-white duration-150 delay-150'
+                    ? 'text-text-primary duration-150 delay-150'
                     : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
                 }`}
               >

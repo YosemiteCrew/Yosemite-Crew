@@ -32,8 +32,14 @@ const DeveloperPortalHome = () => {
           <div className="dev-portal-hero">
             <div className="dev-hero-copy">
               <span className="dev-badge text-caption-2">Developer</span>
-              <h2 className="text-heading-1 text-text-primary italic-newsreader">
-                Welcome back, {displayName}
+              <h2 className="text-heading-1 text-text-primary font-newsreader">
+                <span
+                  className="block text-body-2 italic-newsreader"
+                  style={{ color: 'var(--color-cyan-text)' }}
+                >
+                  Welcome back,
+                </span>
+                {displayName}
               </h2>
               <p className="text-body-3 text-text-secondary dev-hero-subtext">
                 Build, customise, and launch apps with Yosemite Crew. Access APIs, SDKs, and starter
