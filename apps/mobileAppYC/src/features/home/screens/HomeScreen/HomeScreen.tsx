@@ -1260,6 +1260,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
 
     return (
       <YearlySpendCard
+        compact
         amount={expenseSummary?.total ?? 0}
         currencyCode={expenseSummary?.currencyCode ?? userCurrencyCode}
         currencySymbol={resolveCurrencySymbol(
