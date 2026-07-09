@@ -34,6 +34,8 @@ export interface DocumentCategory {
   id: string;
   label: string;
   icon: any;
+  /** Warm-bone surface-token key for the category's pastel icon tile. */
+  iconTint?: string;
   isSynced: boolean;
   fileCount: number;
   subcategories: DocumentSubcategory[];

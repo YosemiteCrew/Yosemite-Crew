@@ -11,6 +11,7 @@ export interface CategoryTileProps {
   isSynced?: boolean;
   onPress: () => void;
   containerStyle?: any;
+  iconTint?: string;
 }
 
 export const CategoryTile: React.FC<CategoryTileProps> = ({
@@ -20,6 +21,7 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({
   isSynced = false,
   onPress,
   containerStyle,
+  iconTint,
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
@@ -39,6 +41,7 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({
       syncLabel={'Synced with\nYosemite Crew PMS'}
       rightAccessory={rightArrow}
       containerStyle={containerStyle}
+      iconTint={iconTint}
     />
   );
 };

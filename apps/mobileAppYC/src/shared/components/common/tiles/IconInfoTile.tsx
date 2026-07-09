@@ -26,6 +26,8 @@ export interface IconInfoTileProps {
   syncLabel?: string;
   containerStyle?: ViewStyle;
   rightAccessory?: React.ReactNode;
+  /** Pastel background for the icon tile (warm-bone surface token value). */
+  iconTint?: string;
 }
 
 export const IconInfoTile: React.FC<IconInfoTileProps> = ({
@@ -37,10 +39,18 @@ export const IconInfoTile: React.FC<IconInfoTileProps> = ({
   syncLabel,
   containerStyle,
   rightAccessory,
+  iconTint,
 }) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const syncedLabel = syncLabel ?? 'Synced';
+  const iconContainerStyle = useMemo(
+    () =>
+      iconTint
+        ? [styles.iconContainer, {backgroundColor: iconTint}]
+        : styles.iconContainer,
+    [styles.iconContainer, iconTint],
+  );
 
   return (
     <PressableOpacity
@@ -55,7 +65,7 @@ export const IconInfoTile: React.FC<IconInfoTileProps> = ({
           style={styles.card}
           fallbackStyle={styles.fallback}>
           <View style={styles.content}>
-            <View style={styles.iconContainer}>
+            <View style={iconContainerStyle}>
               <Image source={icon} style={styles.icon} />
             </View>
 
