@@ -59,6 +59,227 @@ const getSlotEventKey = (event: Appointment): string =>
     event.endTime.toISOString(),
   ].join('-');
 
+type LaidOutSlotEvent = {
+  ev: Appointment;
+  startMinute: number;
+  endMinute: number;
+  visibleDurationMinutes: number;
+  laneIndex: number;
+  laneCount: number;
+};
+
+/**
+ * Lay overlapping events of one hour slot out into side-by-side lanes: events are
+ * clustered by overlap, each cluster packed greedily into the fewest lanes, and
+ * every event in a cluster shares the cluster's lane count for width division.
+ */
+const layoutZoomInEvents = (sortedSlotEvents: Appointment[]): LaidOutSlotEvent[] => {
+  const base = sortedSlotEvents
+    .map((ev) => {
+      const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
+      const rawDurationMinutes = Math.max(
+        5,
+        Math.round((ev.endTime.getTime() - ev.startTime.getTime()) / 60000)
+      );
+      const visibleDurationMinutes = Math.max(10, Math.min(rawDurationMinutes, 60 - startMinute));
+      return {
+        ev,
+        startMinute,
+        endMinute: startMinute + visibleDurationMinutes,
+        visibleDurationMinutes,
+      };
+    })
+    .sort((a, b) => {
+      if (a.startMinute !== b.startMinute) return a.startMinute - b.startMinute;
+      return a.endMinute - b.endMinute;
+    });
+
+  const output: LaidOutSlotEvent[] = [];
+
+  let cursor = 0;
+  while (cursor < base.length) {
+    const cluster: typeof base = [base[cursor]];
+    let clusterEnd = base[cursor].endMinute;
+    let next = cursor + 1;
+    while (next < base.length && base[next].startMinute < clusterEnd) {
+      cluster.push(base[next]);
+      clusterEnd = Math.max(clusterEnd, base[next].endMinute);
+      next += 1;
+    }
+
+    const laneEnds: number[] = [];
+    const clusterOut: LaidOutSlotEvent[] = [];
+    cluster.forEach((item) => {
+      let laneIndex = -1;
+      for (let i = 0; i < laneEnds.length; i += 1) {
+        if (laneEnds[i] <= item.startMinute) {
+          laneIndex = i;
+          break;
+        }
+      }
+      if (laneIndex === -1) {
+        laneIndex = laneEnds.length;
+        laneEnds.push(item.endMinute);
+      } else {
+        laneEnds[laneIndex] = item.endMinute;
+      }
+      clusterOut.push({ ...item, laneIndex, laneCount: 1 });
+    });
+
+    const laneCount = Math.max(1, laneEnds.length);
+    clusterOut.forEach((item) => {
+      output.push({ ...item, laneCount });
+    });
+    cursor = next;
+  }
+
+  return output;
+};
+
+/** Availability overlay rectangles for one hour slot while a drag is in flight. */
+const computeAvailabilitySegments = (
+  dropAvailabilityIntervals: Array<{ startMinute: number; endMinute: number }>,
+  hourStart: number,
+  hourEnd: number,
+  height: number,
+  draggedAppointmentDurationMinutes?: number
+) => {
+  const effectiveDuration = Math.max(5, draggedAppointmentDurationMinutes ?? 5);
+  return dropAvailabilityIntervals.flatMap((interval) => {
+    const segmentStart = Math.max(hourStart, interval.startMinute);
+    const segmentEnd = Math.min(hourEnd, interval.endMinute + effectiveDuration);
+    if (segmentEnd <= segmentStart) return [];
+    return [
+      {
+        top: ((segmentStart - hourStart) / 60) * height,
+        segmentHeight: Math.max(4, ((segmentEnd - segmentStart) / 60) * height),
+      },
+    ];
+  });
+};
+
+/** Compact stacked markers for the zoomed-out hour slot, packed by start minute. */
+const ZoomOutEventList = ({
+  sortedSlotEvents,
+  height,
+  activePopoverKey,
+  appointmentPopoverId,
+  draggedAppointmentId,
+  canDragAppointment,
+  onMarkerClick,
+  onMarkerDoubleClick,
+  onMarkerContextMenu,
+  onAppointmentDragStart,
+  onAppointmentDragEnd,
+  onDropPreviewClear,
+}: {
+  sortedSlotEvents: Appointment[];
+  height: number;
+  activePopoverKey: string | null;
+  appointmentPopoverId: string;
+  draggedAppointmentId?: string | null;
+  canDragAppointment?: (appointment: Appointment) => boolean;
+  onMarkerClick: React.ComponentProps<typeof ZoomOutMarker>['onMarkerClick'];
+  onMarkerDoubleClick: React.ComponentProps<typeof ZoomOutMarker>['onMarkerDoubleClick'];
+  onMarkerContextMenu: React.ComponentProps<typeof ZoomOutMarker>['onMarkerContextMenu'];
+  onAppointmentDragStart?: (appointment: Appointment) => void;
+  onAppointmentDragEnd?: () => void;
+  onDropPreviewClear: () => void;
+}) => {
+  let cursorMinute = 0;
+  return (
+    <div className="flex flex-col px-1 py-0 h-full bg-transparent overflow-visible">
+      {sortedSlotEvents.map((ev) => {
+        const itemKey = getSlotEventKey(ev);
+        const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
+        const rawDurationMinutes = Math.max(
+          5,
+          Math.round((ev.endTime.getTime() - ev.startTime.getTime()) / 60000)
+        );
+        const visibleDurationMinutes = Math.max(10, Math.min(rawDurationMinutes, 60 - startMinute));
+        const gapMinutes = Math.max(0, startMinute - cursorMinute);
+        const marginTopPx = (gapMinutes / 60) * height;
+        const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 3);
+        cursorMinute = Math.max(cursorMinute, startMinute + visibleDurationMinutes);
+        return (
+          <ZoomOutMarker
+            key={itemKey}
+            ev={ev}
+            itemKey={itemKey}
+            marginTopPx={marginTopPx}
+            blockHeightPx={blockHeightPx}
+            activePopoverKey={activePopoverKey}
+            appointmentPopoverId={appointmentPopoverId}
+            draggedAppointmentId={draggedAppointmentId}
+            canDragAppointment={canDragAppointment}
+            onMarkerClick={onMarkerClick}
+            onMarkerDoubleClick={onMarkerDoubleClick}
+            onMarkerContextMenu={onMarkerContextMenu}
+            onAppointmentDragStart={onAppointmentDragStart}
+            onAppointmentDragEnd={onAppointmentDragEnd}
+            onDropPreviewClear={onDropPreviewClear}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
+/** Dashed ghost block previewing where the dragged appointment would land. */
+const DropPreviewOverlay = ({
+  dropPreviewMinute,
+  height,
+  draggedAppointmentDurationMinutes,
+  draggedAppointmentLabel,
+}: {
+  dropPreviewMinute: number;
+  height: number;
+  draggedAppointmentDurationMinutes?: number;
+  draggedAppointmentLabel?: string | null;
+}) => (
+  <div
+    className="pointer-events-none absolute inset-x-1 z-30 rounded-md border-2 border-dashed border-grey-light bg-calendar-preview-overlay"
+    style={{
+      top: `${((dropPreviewMinute % 60) / 60) * height}px`,
+      height: `${Math.max(
+        14,
+        (Math.min(
+          Math.max(5, draggedAppointmentDurationMinutes ?? 30),
+          60 - (dropPreviewMinute % 60)
+        ) /
+          60) *
+          height
+      )}px`,
+    }}
+  >
+    <div className="size-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
+      {draggedAppointmentLabel || 'Appointment'}
+    </div>
+  </div>
+);
+
+const buildSlotLabels = (dropDate: Date | undefined, dropHour: number) => {
+  if (!dropDate) {
+    return {
+      createAppointmentLabel: 'Create appointment in this calendar slot',
+      slotRegionLabel: 'Appointments slot',
+    };
+  }
+  const dayLabel = formatDateInPreferredTimeZone(dropDate, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  const timeLabel = formatDateInPreferredTimeZone(
+    new Date(dropDate.getTime() + dropHour * 60 * 60 * 1000),
+    { hour: 'numeric', minute: '2-digit' }
+  );
+  return {
+    createAppointmentLabel: `Create appointment on ${dayLabel} at ${timeLabel}`,
+    slotRegionLabel: `Appointments slot for ${dayLabel} at ${timeLabel}`,
+  };
+};
+
 const SlotComponent: React.FC<SlotProps> = ({
   slotEvents,
   height,
@@ -158,93 +379,22 @@ const SlotComponent: React.FC<SlotProps> = ({
 
   const hourStart = dropHour * 60;
   const hourEnd = hourStart + 60;
-  const availabilitySegments = useMemo(() => {
-    const effectiveDuration = Math.max(5, draggedAppointmentDurationMinutes ?? 5);
-    return dropAvailabilityIntervals.flatMap((interval) => {
-      const segmentStart = Math.max(hourStart, interval.startMinute);
-      const segmentEnd = Math.min(hourEnd, interval.endMinute + effectiveDuration);
-      if (segmentEnd <= segmentStart) return [];
-      return [
-        {
-          top: ((segmentStart - hourStart) / 60) * height,
-          segmentHeight: Math.max(4, ((segmentEnd - segmentStart) / 60) * height),
-        },
-      ];
-    });
-  }, [draggedAppointmentDurationMinutes, dropAvailabilityIntervals, height, hourEnd, hourStart]);
+  const availabilitySegments = useMemo(
+    () =>
+      computeAvailabilitySegments(
+        dropAvailabilityIntervals,
+        hourStart,
+        hourEnd,
+        height,
+        draggedAppointmentDurationMinutes
+      ),
+    [draggedAppointmentDurationMinutes, dropAvailabilityIntervals, height, hourEnd, hourStart]
+  );
 
-  const laidOutZoomInEvents = useMemo(() => {
-    const base = sortedSlotEvents
-      .map((ev) => {
-        const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
-        const rawDurationMinutes = Math.max(
-          5,
-          Math.round((ev.endTime.getTime() - ev.startTime.getTime()) / 60000)
-        );
-        const visibleDurationMinutes = Math.max(10, Math.min(rawDurationMinutes, 60 - startMinute));
-        return {
-          ev,
-          startMinute,
-          endMinute: startMinute + visibleDurationMinutes,
-          visibleDurationMinutes,
-        };
-      })
-      .sort((a, b) => {
-        if (a.startMinute !== b.startMinute) return a.startMinute - b.startMinute;
-        return a.endMinute - b.endMinute;
-      });
-
-    const output: Array<
-      (typeof base)[number] & {
-        laneIndex: number;
-        laneCount: number;
-      }
-    > = [];
-
-    let cursor = 0;
-    while (cursor < base.length) {
-      const cluster: typeof base = [base[cursor]];
-      let clusterEnd = base[cursor].endMinute;
-      let next = cursor + 1;
-      while (next < base.length && base[next].startMinute < clusterEnd) {
-        cluster.push(base[next]);
-        clusterEnd = Math.max(clusterEnd, base[next].endMinute);
-        next += 1;
-      }
-
-      const laneEnds: number[] = [];
-      const clusterOut: Array<
-        (typeof base)[number] & {
-          laneIndex: number;
-          laneCount: number;
-        }
-      > = [];
-      cluster.forEach((item) => {
-        let laneIndex = -1;
-        for (let i = 0; i < laneEnds.length; i += 1) {
-          if (laneEnds[i] <= item.startMinute) {
-            laneIndex = i;
-            break;
-          }
-        }
-        if (laneIndex === -1) {
-          laneIndex = laneEnds.length;
-          laneEnds.push(item.endMinute);
-        } else {
-          laneEnds[laneIndex] = item.endMinute;
-        }
-        clusterOut.push({ ...item, laneIndex, laneCount: 1 });
-      });
-
-      const laneCount = Math.max(1, laneEnds.length);
-      clusterOut.forEach((item) => {
-        output.push({ ...item, laneCount });
-      });
-      cursor = next;
-    }
-
-    return output;
-  }, [sortedSlotEvents]);
+  const laidOutZoomInEvents = useMemo(
+    () => layoutZoomInEvents(sortedSlotEvents),
+    [sortedSlotEvents]
+  );
 
   const tryCreateAppointmentAt = (minute: number) => {
     if (!dropDate || !onCreateAppointmentAt) return;
@@ -271,32 +421,7 @@ const SlotComponent: React.FC<SlotProps> = ({
     onCreateAppointmentAt(dropDate, snapped, dropPractitionerId);
   };
 
-  const createAppointmentLabel = dropDate
-    ? `Create appointment on ${formatDateInPreferredTimeZone(dropDate, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      })} at ${formatDateInPreferredTimeZone(
-        new Date(dropDate.getTime() + dropHour * 60 * 60 * 1000),
-        {
-          hour: 'numeric',
-          minute: '2-digit',
-        }
-      )}`
-    : 'Create appointment in this calendar slot';
-  const slotRegionLabel = dropDate
-    ? `Appointments slot for ${formatDateInPreferredTimeZone(dropDate, {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-      })} at ${formatDateInPreferredTimeZone(
-        new Date(dropDate.getTime() + dropHour * 60 * 60 * 1000),
-        {
-          hour: 'numeric',
-          minute: '2-digit',
-        }
-      )}`
-    : 'Appointments slot';
+  const { createAppointmentLabel, slotRegionLabel } = buildSlotLabels(dropDate, dropHour);
   const canPortal = typeof document !== 'undefined';
 
   return (
@@ -363,67 +488,28 @@ const SlotComponent: React.FC<SlotProps> = ({
             />
           ))}
         {draggedAppointmentId && dropPreviewMinute != null && (
-          <div
-            className="pointer-events-none absolute inset-x-1 z-30 rounded-md border-2 border-dashed border-grey-light bg-calendar-preview-overlay"
-            style={{
-              top: `${((dropPreviewMinute % 60) / 60) * height}px`,
-              height: `${Math.max(
-                14,
-                (Math.min(
-                  Math.max(5, draggedAppointmentDurationMinutes ?? 30),
-                  60 - (dropPreviewMinute % 60)
-                ) /
-                  60) *
-                  height
-              )}px`,
-            }}
-          >
-            <div className="size-full flex items-center justify-center px-2 text-caption-1 text-text-brand truncate">
-              {draggedAppointmentLabel || 'Appointment'}
-            </div>
-          </div>
+          <DropPreviewOverlay
+            dropPreviewMinute={dropPreviewMinute}
+            height={height}
+            draggedAppointmentDurationMinutes={draggedAppointmentDurationMinutes}
+            draggedAppointmentLabel={draggedAppointmentLabel}
+          />
         )}
         {isZoomOutMode ? (
-          <div className="flex flex-col px-1 py-0 h-full bg-transparent overflow-visible">
-            {(() => {
-              let cursorMinute = 0;
-              return sortedSlotEvents.map((ev) => {
-                const itemKey = getSlotEventKey(ev);
-                const startMinute = getDatePartsInPreferredTimeZone(ev.startTime).minute;
-                const rawDurationMinutes = Math.max(
-                  5,
-                  Math.round((ev.endTime.getTime() - ev.startTime.getTime()) / 60000)
-                );
-                const visibleDurationMinutes = Math.max(
-                  10,
-                  Math.min(rawDurationMinutes, 60 - startMinute)
-                );
-                const gapMinutes = Math.max(0, startMinute - cursorMinute);
-                const marginTopPx = (gapMinutes / 60) * height;
-                const blockHeightPx = Math.max((visibleDurationMinutes / 60) * height, 3);
-                cursorMinute = Math.max(cursorMinute, startMinute + visibleDurationMinutes);
-                return (
-                  <ZoomOutMarker
-                    key={itemKey}
-                    ev={ev}
-                    itemKey={itemKey}
-                    marginTopPx={marginTopPx}
-                    blockHeightPx={blockHeightPx}
-                    activePopoverKey={activePopoverKey}
-                    appointmentPopoverId={appointmentPopoverId}
-                    draggedAppointmentId={draggedAppointmentId}
-                    canDragAppointment={canDragAppointment}
-                    onMarkerClick={handleMarkerClick}
-                    onMarkerDoubleClick={handleMarkerDoubleClick}
-                    onMarkerContextMenu={handleMarkerContextMenu}
-                    onAppointmentDragStart={onAppointmentDragStart}
-                    onAppointmentDragEnd={onAppointmentDragEnd}
-                    onDropPreviewClear={() => setDropPreviewMinute(null)}
-                  />
-                );
-              });
-            })()}
-          </div>
+          <ZoomOutEventList
+            sortedSlotEvents={sortedSlotEvents}
+            height={height}
+            activePopoverKey={activePopoverKey}
+            appointmentPopoverId={appointmentPopoverId}
+            draggedAppointmentId={draggedAppointmentId}
+            canDragAppointment={canDragAppointment}
+            onMarkerClick={handleMarkerClick}
+            onMarkerDoubleClick={handleMarkerDoubleClick}
+            onMarkerContextMenu={handleMarkerContextMenu}
+            onAppointmentDragStart={onAppointmentDragStart}
+            onAppointmentDragEnd={onAppointmentDragEnd}
+            onDropPreviewClear={() => setDropPreviewMinute(null)}
+          />
         ) : (
           <div className="relative h-full bg-white overflow-visible px-1">
             {laidOutZoomInEvents.map(
