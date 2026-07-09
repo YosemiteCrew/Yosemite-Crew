@@ -48,6 +48,10 @@ describe('normalizeAppointmentId', () => {
   it('returns undefined for whitespace-only string', () => {
     expect(normalizeAppointmentId('   ')).toBeUndefined();
   });
+
+  it('returns undefined when the path has no non-empty segment', () => {
+    expect(normalizeAppointmentId('/')).toBeUndefined();
+  });
 });
 
 describe('appointmentIdsMatch', () => {
@@ -142,6 +146,31 @@ describe('getInvoiceNumberLabel', () => {
     expect(getInvoiceNumberLabel({ id: 'inv-9', metadata: {} } as unknown as Invoice)).toBe(
       '#inv-9'
     );
+  });
+
+  it('derives a short upper-cased code from an opaque UUID or ObjectId', () => {
+    expect(
+      getInvoiceNumberLabel({
+        id: 'fb880f8d-aea7-47d9-8b3a-1c2d3e4f5a6b',
+        metadata: {},
+      } as unknown as Invoice)
+    ).toBe('#4F5A6B');
+    expect(
+      getInvoiceNumberLabel({ id: '6970ca8262012cc3e1c93099', metadata: {} } as unknown as Invoice)
+    ).toBe('#C93099');
+  });
+
+  it('handles an invoice with no metadata at all', () => {
+    expect(getInvoiceNumberLabel({ id: 'inv-3' } as unknown as Invoice)).toBe('#inv-3');
+  });
+
+  it('does not shorten a long id that is not pure hex', () => {
+    expect(
+      getInvoiceNumberLabel({
+        id: 'order-2026-summer-special-abc',
+        metadata: {},
+      } as unknown as Invoice)
+    ).toBe('#order-2026-summer-special-abc');
   });
 
   it('does not double-prefix an existing hash', () => {
