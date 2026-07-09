@@ -1395,14 +1395,26 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               tintColor={theme.colors.cardBackground}
               style={styles.heroCard}
               fallbackStyle={styles.heroFallback}>
-              <PressableOpacity
-                activeOpacity={0.9}
-                onPress={handleAddCompanion}
-                style={styles.heroContent}>
-                <Image source={Images.paw} style={styles.heroPaw} />
-                <Image source={Images.plusIcon} style={styles.heroIconImage} />
+              <View style={styles.heroContent}>
+                <View style={styles.heroPawCircle}>
+                  <Image source={Images.paw} style={styles.heroPawIcon} />
+                </View>
                 <Text style={styles.heroTitle}>Add your first companion</Text>
-              </PressableOpacity>
+                <Text style={styles.heroSubtitle}>
+                  Start their record: visits, doses, documents and everyone who
+                  cares for them, on one timeline.
+                </Text>
+                <PressableOpacity
+                  activeOpacity={0.9}
+                  onPress={handleAddCompanion}
+                  style={styles.heroButton}>
+                  <Image
+                    source={Images.plusIcon}
+                    style={styles.heroButtonIcon}
+                  />
+                  <Text style={styles.heroButtonText}>Add companion</Text>
+                </PressableOpacity>
+              </View>
             </LiquidGlassCard>
           </View>
         ) : (
@@ -1633,31 +1645,55 @@ const createStyles = (theme: any) =>
       borderColor: 'transparent',
     },
     heroContent: {
-      flex: 1,
-      minHeight: theme.spacing['24'] + theme.spacing['1'],
-      justifyContent: 'space-between',
-      gap: theme.spacing['2'],
+      alignItems: 'center',
+      gap: theme.spacing['3'],
+      paddingVertical: theme.spacing['2'],
     },
-    heroPaw: {
-      position: 'absolute',
-      right: theme.spacing['-11.25'],
-      top: theme.spacing['-11.25'],
-      width: theme.spacing['40'],
-      height: theme.spacing['40'],
-      tintColor: theme.colors.pinkGlow,
-      resizeMode: 'contain',
+    heroPawCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.pinkGlow,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: theme.spacing['1'],
     },
-    heroIconImage: {
-      marginTop: theme.spacing['9'],
-      marginBottom: theme.spacing['1.25'],
-      width: theme.spacing['9'],
-      height: theme.spacing['9'],
+    heroPawIcon: {
+      width: 34,
+      height: 34,
       tintColor: theme.colors.pink,
       resizeMode: 'contain',
     },
     heroTitle: {
       ...theme.typography.serifTitle,
       color: theme.colors.ink,
+      textAlign: 'center',
+    },
+    heroSubtitle: {
+      ...theme.typography.body,
+      color: theme.colors.inkMuted,
+      textAlign: 'center',
+      paddingHorizontal: theme.spacing['3'],
+    },
+    heroButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['2'],
+      backgroundColor: theme.colors.cta,
+      borderRadius: theme.borderRadius.full,
+      paddingHorizontal: theme.spacing['6'],
+      paddingVertical: theme.spacing['3'],
+      marginTop: theme.spacing['1'],
+    },
+    heroButtonIcon: {
+      width: 16,
+      height: 16,
+      tintColor: theme.colors.ctaText,
+      resizeMode: 'contain',
+    },
+    heroButtonText: {
+      ...theme.typography.paragraphBold,
+      color: theme.colors.ctaText,
     },
     heroFallback: {
       borderRadius: theme.borderRadius.lg,

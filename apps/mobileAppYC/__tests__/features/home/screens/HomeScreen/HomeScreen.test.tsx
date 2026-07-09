@@ -652,14 +652,14 @@ describe('HomeScreen', () => {
       expect(getByText('Hello, Sky')).toBeTruthy();
     });
 
-    it('navigates to AddCompanion when the hero card is pressed', () => {
+    it('navigates to AddCompanion when the hero button is pressed', () => {
       const store = createStore({companion: {list: [], selectedId: null}});
       const {getByText} = renderAndWait(
         <Provider store={store}>
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
       );
-      fireEvent.press(getByText('Add your first companion'));
+      fireEvent.press(getByText('Add companion'));
       expect(mockNavigate).toHaveBeenCalledWith('AddCompanion');
     });
   });
