@@ -264,7 +264,7 @@ const createStyles = (theme: any) =>
       resizeMode: 'contain',
     },
     title: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.serifTitleSmall,
       color: theme.colors.secondary,
       textAlign: 'center',
     },

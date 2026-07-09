@@ -1429,7 +1429,7 @@ const createStyles = (theme: any) => {
       color: theme.colors.secondary,
     },
     stepHeading: {
-      ...theme.typography.h6Clash,
+      ...theme.typography.serifTitleSmall,
       color: theme.colors.secondary,
       textAlign: 'center',
     },
