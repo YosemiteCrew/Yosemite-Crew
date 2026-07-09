@@ -601,15 +601,15 @@ const createStyles = (theme: any) => {
       width: theme.spacing['14'],
       height: theme.spacing['14'],
       borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.lightBlueBackground,
+      backgroundColor: theme.colors.avatarVioletBg,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2,
-      borderColor: theme.colors.primary,
+      borderColor: theme.colors.avatarVioletBg,
     },
     avatarInitialsText: {
       ...theme.typography.h4,
-      color: theme.colors.secondary,
+      color: theme.colors.avatarVioletInk,
     },
     companionName: {
       ...theme.typography.h4,

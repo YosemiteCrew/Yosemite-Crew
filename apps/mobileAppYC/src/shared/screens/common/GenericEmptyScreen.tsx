@@ -71,8 +71,8 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['6'],
     },
     title: {
-      ...theme.typography.headlineMedium,
-      color: theme.colors.secondary,
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
       marginBottom: theme.spacing['3'],
       textAlign: 'center',
     },

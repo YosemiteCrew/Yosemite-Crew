@@ -347,7 +347,7 @@ const createStyles = (theme: any) =>
     },
     detailValue: {
       ...theme.typography.pillSubtitleBold15,
-      color: theme.colors.placeholder,
+      color: theme.colors.ink,
       flex: 1,
       textAlign: 'right',
     },

@@ -147,7 +147,7 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['4'],
       borderRadius: theme.borderRadius.md,
       borderWidth: 1,
-      borderColor: theme.colors.secondary,
+      borderColor: theme.colors.hairline,
       justifyContent: 'center',
       alignItems: 'center',
       flexDirection: 'row',

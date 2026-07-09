@@ -250,7 +250,7 @@ const createStyles = (theme: any) =>
     },
     specialtyName: {
       ...theme.typography.paragraphBold,
-      color: theme.colors.textSecondary,
+      color: theme.colors.secondary,
     },
     doctorCount: {
       ...theme.typography.paragraphBold,

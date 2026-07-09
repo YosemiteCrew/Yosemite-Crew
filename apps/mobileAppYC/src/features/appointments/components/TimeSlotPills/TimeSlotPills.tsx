@@ -93,20 +93,20 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['3'],
       borderRadius: theme.borderRadius.md,
       borderWidth: 1,
-      borderColor: theme.colors.text,
+      borderColor: theme.colors.hairline,
       alignItems: 'center',
       justifyContent: 'center',
     },
     active: {
-      backgroundColor: theme.colors.primaryTint,
-      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.blue,
+      borderColor: theme.colors.blue,
     },
     text: {
       ...theme.typography.labelSmall,
       color: theme.colors.text,
       textAlign: 'center',
     },
-    activeText: {color: theme.colors.primary},
+    activeText: {color: theme.colors.white},
   });
 
 export default TimeSlotPills;

@@ -102,7 +102,7 @@ describe('GenericEmptyScreen', () => {
     // Verify styles derived from useTheme mock
     expect(titleText.props.style).toEqual(
       expect.objectContaining({
-        color: mockTheme.colors.secondary,
+        color: mockTheme.colors.ink,
         textAlign: 'center',
         marginBottom: mockTheme.spacing['3'],
       }),

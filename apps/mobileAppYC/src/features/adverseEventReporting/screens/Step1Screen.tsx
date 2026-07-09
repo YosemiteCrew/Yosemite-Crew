@@ -195,7 +195,7 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['6'],
     },
     title: {
-      ...theme.typography.h4Alt,
+      ...theme.typography.serifTitleSmall,
       color: theme.colors.secondary,
       marginBottom: theme.spacing['2'],
       textAlign: 'center',

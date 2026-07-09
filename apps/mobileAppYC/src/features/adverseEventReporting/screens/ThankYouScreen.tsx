@@ -342,15 +342,14 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['2'],
     },
     title: {
-      // Clash Grotesk 20/24, 500, -0.2
-      ...theme.typography.businessSectionTitle20,
-      color: theme.colors.text,
+      // Warm-bone hero title: Newsreader serif 30.
+      ...theme.typography.serifTitle,
+      color: theme.colors.ink,
       marginBottom: theme.spacing['3'],
       alignSelf: 'center',
     },
     subtitle: {
-      // Satoshi 15 Bold, 120%
-      ...theme.typography.pillSubtitleBold15,
+      ...theme.typography.body,
       color: theme.colors.textSecondary,
       marginBottom: theme.spacing['6'],
     },

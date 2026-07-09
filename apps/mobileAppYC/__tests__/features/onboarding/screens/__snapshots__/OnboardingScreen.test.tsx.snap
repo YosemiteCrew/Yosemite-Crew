@@ -173,7 +173,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#1D1C1B",
+                    "backgroundColor": "#257BED",
                     "opacity": 1,
                   },
                 ]
@@ -341,7 +341,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#1D1C1B",
+                    "backgroundColor": "#257BED",
                     "opacity": 1,
                   },
                 ]
@@ -509,7 +509,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#1D1C1B",
+                    "backgroundColor": "#257BED",
                     "opacity": 1,
                   },
                 ]
@@ -677,7 +677,7 @@ exports[`OnboardingScreen renders matches snapshot 1`] = `
                     "width": 8,
                   },
                   {
-                    "backgroundColor": "#1D1C1B",
+                    "backgroundColor": "#257BED",
                     "opacity": 1,
                   },
                 ]
