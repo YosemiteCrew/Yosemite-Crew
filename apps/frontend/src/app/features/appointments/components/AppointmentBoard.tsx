@@ -63,6 +63,152 @@ const normalizeId = (value?: string | null) =>
     .pop()
     ?.toLowerCase() ?? '';
 
+/**
+ * Wire native dragover/drop listeners onto the board root and each column's drop
+ * and scroll elements so cards can be dragged between status columns with
+ * auto-scroll near the edges. Native listeners (not React props) because the
+ * refs are populated after render and the scroll containers are nested.
+ */
+const useBoardDropTargets = ({
+  boardRootRef,
+  columnDropRefs,
+  columnScrollRefs,
+  draggedAppointmentId,
+  canEditAppointments,
+  autoScrollBoardOnDrag,
+  onDropRef,
+}: {
+  boardRootRef: React.RefObject<HTMLDivElement | null>;
+  columnDropRefs: React.RefObject<Partial<Record<BoardStatus, HTMLDivElement | null>>>;
+  columnScrollRefs: React.RefObject<Partial<Record<BoardStatus, HTMLDivElement | null>>>;
+  draggedAppointmentId: string | null;
+  canEditAppointments: boolean;
+  autoScrollBoardOnDrag: (event: React.DragEvent<HTMLElement>, scrollElement?: HTMLElement) => void;
+  onDropRef: React.RefObject<(appointmentId: string, nextStatus: BoardStatus) => void>;
+}) => {
+  useEffect(() => {
+    const boardRoot = boardRootRef.current;
+    if (!boardRoot) return;
+
+    const handleBoardDragOver = (event: DragEvent) => {
+      if (!draggedAppointmentId || !canEditAppointments) return;
+      autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
+    };
+
+    boardRoot.addEventListener('dragover', handleBoardDragOver);
+    return () => boardRoot.removeEventListener('dragover', handleBoardDragOver);
+  }, [autoScrollBoardOnDrag, boardRootRef, canEditAppointments, draggedAppointmentId]);
+
+  useEffect(() => {
+    const cleanups = BOARD_COLUMNS.flatMap((column) => {
+      const dropElement = columnDropRefs.current?.[column.key];
+      const scrollElement = columnScrollRefs.current?.[column.key];
+      if (!dropElement || !scrollElement) return [];
+
+      const handleColumnDragOver = (event: DragEvent) => {
+        if (!draggedAppointmentId || !canEditAppointments) return;
+        event.preventDefault();
+        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
+      };
+
+      const handleColumnDrop = (event: DragEvent) => {
+        if (!draggedAppointmentId || !canEditAppointments) return;
+        event.preventDefault();
+        onDropRef.current?.(draggedAppointmentId, column.key);
+      };
+
+      const handleScrollDragOver = (event: DragEvent) => {
+        if (!draggedAppointmentId || !canEditAppointments) return;
+        event.preventDefault();
+        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>, scrollElement);
+      };
+
+      dropElement.addEventListener('dragover', handleColumnDragOver);
+      dropElement.addEventListener('drop', handleColumnDrop);
+      scrollElement.addEventListener('dragover', handleScrollDragOver);
+
+      return [
+        () => dropElement.removeEventListener('dragover', handleColumnDragOver),
+        () => dropElement.removeEventListener('drop', handleColumnDrop),
+        () => scrollElement.removeEventListener('dragover', handleScrollDragOver),
+      ];
+    });
+
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }, [
+    autoScrollBoardOnDrag,
+    canEditAppointments,
+    columnDropRefs,
+    columnScrollRefs,
+    draggedAppointmentId,
+    onDropRef,
+  ]);
+};
+
+const BoardColumn = ({
+  column,
+  appointments,
+  setDropRef,
+  setScrollRef,
+  onWheelBoundary,
+  renderCard,
+}: {
+  column: (typeof BOARD_COLUMNS)[number];
+  appointments: Appointment[];
+  setDropRef: (element: HTMLDivElement | null) => void;
+  setScrollRef: (element: HTMLDivElement | null) => void;
+  onWheelBoundary: React.WheelEventHandler<HTMLElement>;
+  renderCard: (appointment: Appointment) => React.ReactNode;
+}) => {
+  const style = getStatusStyle(column.key);
+  return (
+    <div
+      ref={setDropRef}
+      className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
+    >
+      <div
+        className="rounded-t-2xl border-b px-3 py-2"
+        style={{
+          backgroundColor: style.backgroundColor,
+          borderBottomColor: style.borderColor,
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="text-body-4-emphasis" style={{ color: style.color }}>
+            {column.label}
+          </div>
+          <div
+            className="text-caption-1 rounded-full px-2 py-0.5"
+            style={{
+              backgroundColor: style.backgroundColor,
+              borderWidth: '1px',
+              borderStyle: 'solid',
+              borderColor: style.borderColor,
+              color: style.color,
+              opacity: 0.85,
+            }}
+          >
+            {appointments.length}
+          </div>
+        </div>
+      </div>
+      <div
+        ref={setScrollRef}
+        className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
+        onWheel={onWheelBoundary}
+        data-calendar-scroll="true"
+      >
+        {appointments.map(renderCard)}
+        {appointments.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">
+            No appointments
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const AppointmentBoardComponent = ({
   appointments,
   currentDate,
@@ -256,56 +402,15 @@ const AppointmentBoardComponent = ({
   const handleDroppedAppointmentStatusRef = useRef(handleDroppedAppointmentStatus);
   handleDroppedAppointmentStatusRef.current = handleDroppedAppointmentStatus;
 
-  useEffect(() => {
-    const boardRoot = boardRootRef.current;
-    if (!boardRoot) return;
-
-    const handleBoardDragOver = (event: DragEvent) => {
-      if (!draggedAppointmentId || !canEditAppointments) return;
-      autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
-    };
-
-    boardRoot.addEventListener('dragover', handleBoardDragOver);
-    return () => boardRoot.removeEventListener('dragover', handleBoardDragOver);
-  }, [autoScrollBoardOnDrag, canEditAppointments, draggedAppointmentId]);
-
-  useEffect(() => {
-    const cleanups = BOARD_COLUMNS.flatMap((column) => {
-      const dropElement = columnDropRefs.current[column.key];
-      const scrollElement = columnScrollRefs.current[column.key];
-      if (!dropElement || !scrollElement) return [];
-
-      const handleColumnDragOver = (event: DragEvent) => {
-        if (!draggedAppointmentId || !canEditAppointments) return;
-        event.preventDefault();
-        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
-      };
-
-      const handleColumnDrop = (event: DragEvent) => {
-        if (!draggedAppointmentId || !canEditAppointments) return;
-        event.preventDefault();
-        handleDroppedAppointmentStatusRef.current(draggedAppointmentId, column.key);
-      };
-
-      const handleScrollDragOver = (event: DragEvent) => {
-        if (!draggedAppointmentId || !canEditAppointments) return;
-        event.preventDefault();
-        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>, scrollElement);
-      };
-
-      dropElement.addEventListener('dragover', handleColumnDragOver);
-      dropElement.addEventListener('drop', handleColumnDrop);
-      scrollElement.addEventListener('dragover', handleScrollDragOver);
-
-      return [
-        () => dropElement.removeEventListener('dragover', handleColumnDragOver),
-        () => dropElement.removeEventListener('drop', handleColumnDrop),
-        () => scrollElement.removeEventListener('dragover', handleScrollDragOver),
-      ];
-    });
-
-    return () => cleanups.forEach((cleanup) => cleanup());
-  }, [autoScrollBoardOnDrag, canEditAppointments, draggedAppointmentId]);
+  useBoardDropTargets({
+    boardRootRef,
+    columnDropRefs,
+    columnScrollRefs,
+    draggedAppointmentId,
+    canEditAppointments,
+    autoScrollBoardOnDrag,
+    onDropRef: handleDroppedAppointmentStatusRef,
+  });
 
   return (
     <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
@@ -331,82 +436,41 @@ const AppointmentBoardComponent = ({
         onWheel={onWheelHorizontal}
       >
         <div className="h-full min-w-max flex items-stretch gap-3">
-          {BOARD_COLUMNS.map((column) => {
-            const columnAppointments = groupedAppointments[column.key];
-            const hasAppointments = columnAppointments.length > 0;
-            const style = getStatusStyle(column.key);
-            return (
-              <div
-                key={column.key}
-                ref={(element) => {
-                  columnDropRefs.current[column.key] = element;
-                }}
-                className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
-              >
-                <div
-                  className="rounded-t-2xl border-b px-3 py-2"
-                  style={{
-                    backgroundColor: style.backgroundColor,
-                    borderBottomColor: style.borderColor,
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="text-body-4-emphasis" style={{ color: style.color }}>
-                      {column.label}
-                    </div>
-                    <div
-                      className="text-caption-1 rounded-full px-2 py-0.5"
-                      style={{
-                        backgroundColor: style.backgroundColor,
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: style.borderColor,
-                        color: style.color,
-                        opacity: 0.85,
-                      }}
-                    >
-                      {columnAppointments.length}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  ref={(element) => {
-                    columnScrollRefs.current[column.key] = element;
-                  }}
-                  className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
-                  onWheel={onWheelBoundary}
-                  data-calendar-scroll="true"
-                >
-                  {columnAppointments.map((appointment) => (
-                    <AppointmentBoardCard
-                      key={appointment.id}
-                      appointment={appointment}
-                      encountersById={encountersById}
-                      roomUnitsById={roomUnitsById}
-                      canEditAppointments={canEditAppointments}
-                      draggedAppointmentId={draggedAppointmentId}
-                      invoicesByAppointmentId={invoicesByAppointmentId}
-                      orgsById={orgsById}
-                      handleAppointmentDragStart={handleAppointmentDragStart}
-                      setDraggedAppointmentId={setDraggedAppointmentId}
-                      openAppointment={openAppointment}
-                      openAppointmentHistory={openAppointmentHistory}
-                      openChangeStatus={openChangeStatus}
-                      openReschedule={openReschedule}
-                      openChangeRoom={openChangeRoom}
-                      openAppointmentWorkspace={openAppointmentWorkspace}
-                      updatingStatusId={updatingStatusId}
-                    />
-                  ))}
-                  {!hasAppointments && (
-                    <div className="rounded-2xl border border-dashed border-card-border bg-white px-3 py-4 text-center text-caption-1 text-text-secondary">
-                      No appointments
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {BOARD_COLUMNS.map((column) => (
+            <BoardColumn
+              key={column.key}
+              column={column}
+              appointments={groupedAppointments[column.key]}
+              setDropRef={(element) => {
+                columnDropRefs.current[column.key] = element;
+              }}
+              setScrollRef={(element) => {
+                columnScrollRefs.current[column.key] = element;
+              }}
+              onWheelBoundary={onWheelBoundary}
+              renderCard={(appointment) => (
+                <AppointmentBoardCard
+                  key={appointment.id}
+                  appointment={appointment}
+                  encountersById={encountersById}
+                  roomUnitsById={roomUnitsById}
+                  canEditAppointments={canEditAppointments}
+                  draggedAppointmentId={draggedAppointmentId}
+                  invoicesByAppointmentId={invoicesByAppointmentId}
+                  orgsById={orgsById}
+                  handleAppointmentDragStart={handleAppointmentDragStart}
+                  setDraggedAppointmentId={setDraggedAppointmentId}
+                  openAppointment={openAppointment}
+                  openAppointmentHistory={openAppointmentHistory}
+                  openChangeStatus={openChangeStatus}
+                  openReschedule={openReschedule}
+                  openChangeRoom={openChangeRoom}
+                  openAppointmentWorkspace={openAppointmentWorkspace}
+                  updatingStatusId={updatingStatusId}
+                />
+              )}
+            />
+          ))}
         </div>
       </div>
     </div>

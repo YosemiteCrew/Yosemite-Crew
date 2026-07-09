@@ -458,41 +458,31 @@ const TaskCalendarBody = ({
   );
 };
 
-const TaskCalendar = ({
-  filteredList,
-  allTasks,
-  setActiveTask,
-  setViewPopup,
-  setChangeStatusPopup,
-  setChangeStatusPreferredStatus,
-  setReschedulePopup,
-  activeCalendar,
-  setActiveCalendar,
-  currentDate,
-  setCurrentDate,
-  weekStart,
-  setWeekStart,
-  canEditTasks = false,
-  onCreateFromCalendarSlot,
-}: TaskCalendarProps) => {
-  const { notify } = useNotify();
-  const allTaskItems = allTasks ?? filteredList;
-  const teams = useTeamForPrimaryOrg();
-  const { resolveMemberName } = useMemberMap();
-  const authUserId = useAuthStore(
-    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
-  );
-  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [draggedTaskLabel, setDraggedTaskLabel] = useState<string | null>(null);
-  const [dragError, setDragError] = useState<string | null>(null);
-  const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
+const TASK_BLOCK_DURATION_MINUTES = 30;
+
+/**
+ * Assignee availability for drag/drop scheduling: resolves candidate ids to team
+ * members, lazily loads + caches each assignee's base availability, and answers
+ * which minutes of a day a task may be dropped on.
+ */
+const useAssigneeAvailability = ({
+  teams,
+  authUserId,
+  allTaskItems,
+  draggedTaskId,
+  normalizeId,
+}: {
+  teams: ReturnType<typeof useTeamForPrimaryOrg>;
+  authUserId: string;
+  allTaskItems: Task[];
+  draggedTaskId: string | null;
+  normalizeId: (value?: string) => string;
+}) => {
   const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const availabilityCacheRef = useRef<Record<string, Record<string, DropAvailabilityInterval[]>>>(
     {}
   );
   const availabilityPendingRef = useRef<Partial<Record<string, Promise<void>>>>({});
-  const TASK_BLOCK_DURATION_MINUTES = 30;
-  const normalizeId = useCallback((value?: string) => normalizeCalendarId(value), []);
 
   const shiftDayKey = useCallback((dayKey: string, offset: number): string => {
     const index = WEEKDAY_ORDER.indexOf(String(dayKey || '').toUpperCase());
@@ -524,47 +514,6 @@ const TaskCalendar = ({
       );
     },
     [normalizeId, teams]
-  );
-
-  const canEditTask = useCallback(
-    (task: Task) => {
-      const normalizedCurrentUser = normalizeId(authUserId);
-      const isAssignedByCurrentUser =
-        !!normalizedCurrentUser && normalizeId(task.assignedBy) === normalizedCurrentUser;
-      return task.status !== 'COMPLETED' && task.status !== 'CANCELLED' && isAssignedByCurrentUser;
-    },
-    [authUserId, normalizeId]
-  );
-  const canDragTask = canEditTask;
-
-  const teamNameById = useMemo(() => {
-    const map: Record<string, string> = {};
-    teams.forEach((member) => {
-      const name = member.name || (member as any).displayName || '-';
-      const ids = [
-        member.practionerId,
-        member._id,
-        (member as any).userId,
-        (member as any).id,
-        (member as any).userOrganisation?.userId,
-      ];
-      ids.forEach((id) => {
-        const normalized = normalizeId(id);
-        if (normalized) map[normalized] = name;
-      });
-    });
-    return map;
-  }, [normalizeId, teams]);
-
-  const resolveDisplayName = useCallback(
-    (memberId?: string) => {
-      const raw = String(memberId ?? '').trim();
-      if (!raw) return '-';
-      const resolved = resolveMemberName(raw);
-      if (resolved && resolved !== '-') return resolved;
-      return teamNameById[normalizeId(raw)] || raw;
-    },
-    [normalizeId, resolveMemberName, teamNameById]
   );
 
   const shouldEnforceAvailability = useCallback(
@@ -657,6 +606,102 @@ const TaskCalendar = ({
       );
     },
     [ensureAssigneeAvailability, getDropAvailabilityIntervals, resolveAssigneeId]
+  );
+
+  return {
+    availabilityVersion,
+    resolveAssigneeId,
+    shouldEnforceAvailability,
+    ensureAssigneeAvailability,
+    getDropAvailabilityIntervals,
+    isMinuteAvailableForAssignee,
+  };
+};
+
+const TaskCalendar = ({
+  filteredList,
+  allTasks,
+  setActiveTask,
+  setViewPopup,
+  setChangeStatusPopup,
+  setChangeStatusPreferredStatus,
+  setReschedulePopup,
+  activeCalendar,
+  setActiveCalendar,
+  currentDate,
+  setCurrentDate,
+  weekStart,
+  setWeekStart,
+  canEditTasks = false,
+  onCreateFromCalendarSlot,
+}: TaskCalendarProps) => {
+  const { notify } = useNotify();
+  const allTaskItems = allTasks ?? filteredList;
+  const teams = useTeamForPrimaryOrg();
+  const { resolveMemberName } = useMemberMap();
+  const authUserId = useAuthStore(
+    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
+  );
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [draggedTaskLabel, setDraggedTaskLabel] = useState<string | null>(null);
+  const [dragError, setDragError] = useState<string | null>(null);
+  const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
+  const normalizeId = useCallback((value?: string) => normalizeCalendarId(value), []);
+
+  const {
+    availabilityVersion,
+    resolveAssigneeId,
+    shouldEnforceAvailability,
+    ensureAssigneeAvailability,
+    getDropAvailabilityIntervals,
+    isMinuteAvailableForAssignee,
+  } = useAssigneeAvailability({
+    teams,
+    authUserId,
+    allTaskItems,
+    draggedTaskId,
+    normalizeId,
+  });
+
+  const canEditTask = useCallback(
+    (task: Task) => {
+      const normalizedCurrentUser = normalizeId(authUserId);
+      const isAssignedByCurrentUser =
+        !!normalizedCurrentUser && normalizeId(task.assignedBy) === normalizedCurrentUser;
+      return task.status !== 'COMPLETED' && task.status !== 'CANCELLED' && isAssignedByCurrentUser;
+    },
+    [authUserId, normalizeId]
+  );
+  const canDragTask = canEditTask;
+
+  const teamNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    teams.forEach((member) => {
+      const name = member.name || (member as any).displayName || '-';
+      const ids = [
+        member.practionerId,
+        member._id,
+        (member as any).userId,
+        (member as any).id,
+        (member as any).userOrganisation?.userId,
+      ];
+      ids.forEach((id) => {
+        const normalized = normalizeId(id);
+        if (normalized) map[normalized] = name;
+      });
+    });
+    return map;
+  }, [normalizeId, teams]);
+
+  const resolveDisplayName = useCallback(
+    (memberId?: string) => {
+      const raw = String(memberId ?? '').trim();
+      if (!raw) return '-';
+      const resolved = resolveMemberName(raw);
+      if (resolved && resolved !== '-') return resolved;
+      return teamNameById[normalizeId(raw)] || raw;
+    },
+    [normalizeId, resolveMemberName, teamNameById]
   );
 
   const moveTask = useCallback(
