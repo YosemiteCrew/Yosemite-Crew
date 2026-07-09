@@ -172,7 +172,9 @@ const handleError = (error: unknown, res: Response) => {
   return res.status(500).json({ message: "Internal Server Error" });
 };
 
-const resolveUserId = (req: Request<unknown, unknown, unknown, unknown>): string => {
+const resolveUserId = (
+  req: Request<unknown, unknown, unknown, unknown>,
+): string => {
   const authReq = req as AuthenticatedRequest;
   return typeof authReq.userId === "string" ? authReq.userId : "";
 };
@@ -297,13 +299,30 @@ export const TaskController = {
       const task = await TaskService.getById(req.params.taskId, organisationId);
       if (!task) return res.status(404).json({ message: "Task not found" });
 
-      // PMS context (org membership resolved): callers without tasks:view:any
-      // may only read tasks they created or are assigned to.
-      if (organisationId && !hasPermission(req, "tasks:view:any")) {
+      if (organisationId) {
+        // PMS context (org membership resolved): callers without tasks:view:any
+        // may only read tasks they created or are assigned to.
+        if (!hasPermission(req, "tasks:view:any")) {
+          const actorId = resolveUserId(req);
+          const isOwner =
+            !!actorId &&
+            (task.createdBy === actorId || task.assignedTo === actorId);
+          if (!isOwner) {
+            return res.status(404).json({ message: "Task not found" });
+          }
+        }
+      } else {
+        // Mobile context (no PMS org): resolve the authenticated parent and only
+        // return a task they created or are assigned to, so a signed-in parent
+        // cannot read another parent's task by guessing its ID.
         const actorId = resolveUserId(req);
+        const authUser = actorId
+          ? await AuthUserMobileService.getByProviderUserId(actorId)
+          : null;
+        const parentId = authUser?.parentId?.toString();
         const isOwner =
-          !!actorId &&
-          (task.createdBy === actorId || task.assignedTo === actorId);
+          !!parentId &&
+          (task.createdBy === parentId || task.assignedTo === parentId);
         if (!isOwner) {
           return res.status(404).json({ message: "Task not found" });
         }
