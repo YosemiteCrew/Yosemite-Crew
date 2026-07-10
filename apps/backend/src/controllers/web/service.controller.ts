@@ -10,6 +10,7 @@ import {
 } from "../../services/catalog.service";
 import logger from "../../utils/logger";
 import { ServiceRequestDTO } from "@yosemite-crew/types";
+import type { OrgRequest } from "src/middlewares/rbac";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 type BookableSlotsPayload = {
@@ -242,7 +243,12 @@ export const ServiceController = {
     try {
       const { id } = req.params;
       const serviceRequest = req.body;
-      const updated = await ServiceService.update(id, serviceRequest);
+      const organisationId = (req as OrgRequest).organisationId;
+      const updated = await ServiceService.update(
+        id,
+        serviceRequest,
+        organisationId,
+      );
       return res.status(200).json(updated);
     } catch (error: unknown) {
       return handleError(error, res, "Unable to update service.");
@@ -252,7 +258,8 @@ export const ServiceController = {
   deleteService: async (req: Request<{ id: string }>, res: Response) => {
     try {
       const { id } = req.params;
-      await ServiceService.delete(id);
+      const organisationId = (req as OrgRequest).organisationId;
+      await ServiceService.delete(id, organisationId);
       return res.status(204).send();
     } catch (error: unknown) {
       return handleError(error, res, "Unable to delete service.");

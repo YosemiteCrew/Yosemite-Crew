@@ -247,14 +247,43 @@ export class FormSigningService {
     }
   }
 
+  /**
+   * Authorise a PMS (non-parent) signing request. The acting user (derived from
+   * the verified token) must be the user who submitted the form, and the form
+   * must belong to the organisation the caller is authorised for. This prevents
+   * any PMS user who merely knows a submissionId from minting a Documenso signing
+   * token for another user's submission (cross-user / cross-tenant).
+   */
+  private static ensurePmsUserCanSign({
+    formOrgId,
+    organisationId,
+    submittedBy,
+    initiatedBy,
+  }: {
+    formOrgId?: string;
+    organisationId?: string;
+    submittedBy?: string;
+    initiatedBy?: string;
+  }) {
+    if (organisationId && formOrgId && formOrgId !== organisationId) {
+      throw new Error("Unauthorized to sign this submission");
+    }
+
+    if (!submittedBy || !initiatedBy || submittedBy !== initiatedBy) {
+      throw new Error("Unauthorized to sign this submission");
+    }
+  }
+
   static async startSigning({
     isParent,
     submissionId,
     initiatedBy,
+    organisationId,
   }: {
     isParent?: boolean;
     submissionId: string;
     initiatedBy?: string;
+    organisationId?: string;
   }) {
     if (isReadFromPostgres()) {
       const submission =
@@ -273,6 +302,16 @@ export class FormSigningService {
 
       const formId = submission.formId;
       const form = await FormSigningService.loadFormOrThrowPrisma(formId);
+
+      if (!isParent) {
+        FormSigningService.ensurePmsUserCanSign({
+          formOrgId: form.orgId,
+          organisationId,
+          submittedBy: submission.submittedBy ?? undefined,
+          initiatedBy,
+        });
+      }
+
       FormSigningService.ensureRequiredSignerMatches(
         form.requiredSigner ?? undefined,
         isParent,
@@ -377,6 +416,16 @@ export class FormSigningService {
     })();
 
     const form = await FormSigningService.loadFormOrThrow(formId);
+
+    if (!isParent) {
+      FormSigningService.ensurePmsUserCanSign({
+        formOrgId: form.orgId,
+        organisationId,
+        submittedBy: submission.submittedBy,
+        initiatedBy,
+      });
+    }
+
     FormSigningService.ensureRequiredSignerMatches(
       form.requiredSigner,
       isParent,

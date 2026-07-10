@@ -38,8 +38,9 @@ jest.mock('@/assets/images', () => ({
   },
 }));
 
+const mockResolveCurrencySymbol = jest.fn(() => '$');
 jest.mock('@/shared/utils/currency', () => ({
-  resolveCurrencySymbol: () => '$',
+  resolveCurrencySymbol: (...args: any[]) => mockResolveCurrencySymbol(...args),
 }));
 
 // --- Test Data ---
@@ -80,6 +81,36 @@ const mockPackageNoCurrency: VetPackage = {
 
 const onSelectService = jest.fn();
 const onSelectPackage = jest.fn();
+
+const mockServiceNoCurrency = {
+  id: 'svc-nc',
+  name: 'X-Ray',
+  basePrice: 45,
+};
+
+const specialtyWithServiceNoCurrency = [
+  {
+    name: 'General',
+    serviceCount: 1,
+    services: [mockServiceNoCurrency],
+    packages: [],
+  },
+];
+
+const mockServiceWithKinds = {
+  id: 'svc-kinds',
+  name: 'Surgery',
+  appointmentKinds: ['INPATIENT', 'CUSTOM_KIND'],
+};
+
+const specialtyWithKindBadges = [
+  {
+    name: 'General',
+    serviceCount: 1,
+    services: [mockServiceWithKinds],
+    packages: [],
+  },
+];
 
 const singleSpecialty = [
   {
@@ -126,6 +157,31 @@ describe('SpecialtyAccordion', () => {
         />,
       );
       expect(getByText('Specialties')).toBeTruthy();
+    });
+
+    it('resolves the currency symbol using USD when the service has no currency', () => {
+      render(
+        <SpecialtyAccordion
+          title="Specialties"
+          specialties={specialtyWithServiceNoCurrency}
+          onSelectService={onSelectService}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      expect(mockResolveCurrencySymbol).toHaveBeenCalledWith('USD');
+    });
+
+    it('renders an appointment-kind badge for each kind, using the label map and falling back to the raw kind', () => {
+      const {getByText} = render(
+        <SpecialtyAccordion
+          title="Specialties"
+          specialties={specialtyWithKindBadges}
+          onSelectService={onSelectService}
+          onSelectPackage={onSelectPackage}
+        />,
+      );
+      expect(getByText('Inpatient')).toBeTruthy();
+      expect(getByText('CUSTOM_KIND')).toBeTruthy();
     });
 
     it('renders icon when provided', () => {
@@ -499,7 +555,11 @@ describe('SpecialtyAccordion', () => {
       );
       fireEvent.press(getByText('Canine Bundle'));
       fireEvent.press(getAllByText('Select package')[0]);
-      expect(onSelectPackage).toHaveBeenCalledWith('pkg-1', 'Canine Bundle');
+      expect(onSelectPackage).toHaveBeenCalledWith(
+        'pkg-1',
+        'Canine Bundle',
+        'Canine',
+      );
     });
 
     it('uses USD symbol fallback when package has no currency', () => {

@@ -3,16 +3,15 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Alert,
   ActivityIndicator,
   StyleSheet,
   KeyboardAvoidingView,
-  TouchableWithoutFeedback,
   Keyboard,
   Platform,
   Linking,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
@@ -271,9 +270,7 @@ export const AppointmentFormScreen: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!entry) {
-      return;
-    }
+    const activeEntry = entry as NonNullable<typeof entry>;
     const valid = validateForm();
     if (!valid) {
       return;
@@ -282,14 +279,14 @@ export const AppointmentFormScreen: React.FC = () => {
       const result = await dispatch(
         submitAppointmentForm({
           appointmentId,
-          form: entry.form,
+          form: activeEntry.form,
           answers: values,
-          formVersion: entry.formVersion,
+          formVersion: activeEntry.formVersion,
           companionId: appointment?.companionId ?? null,
         }),
       ).unwrap();
 
-      if (entry.signingRequired && result.submission?._id) {
+      if (activeEntry.signingRequired && result.submission?._id) {
         try {
           const signResult = await dispatch(
             startFormSigning({
@@ -303,7 +300,7 @@ export const AppointmentFormScreen: React.FC = () => {
               appointmentId,
               submissionId: result.submission._id,
               signingUrl: signResult.signingUrl,
-              formTitle: entry.form.name,
+              formTitle: activeEntry.form.name,
             });
             return;
           }
@@ -360,15 +357,12 @@ export const AppointmentFormScreen: React.FC = () => {
   };
 
   const handleOpenSignedPdf = React.useCallback(() => {
-    if (!signedPdfUrl) {
-      return;
-    }
-    Linking.openURL(signedPdfUrl).catch(() => {
+    Linking.openURL(signedPdfUrl as string).catch(() => {
       Alert.alert('Unable to open PDF', 'Please try again in a moment.');
     });
   }, [signedPdfUrl]);
 
-  const renderChoiceOptions = (
+  const buildChoiceOptions = (
     field: FormField & {options?: any[]},
     multiple: boolean,
   ) => {
@@ -389,6 +383,7 @@ export const AppointmentFormScreen: React.FC = () => {
                 key={`${field.id}-${value}`}
                 value={isSelected}
                 onValueChange={() => {
+                  /* istanbul ignore next -- read-only checkboxes render through renderReadOnlyCheckbox instead. */
                   if (isReadOnly) return;
                   const next = Array.isArray(selected) ? [...selected] : [];
                   const idx = next.indexOf(value);
@@ -405,7 +400,7 @@ export const AppointmentFormScreen: React.FC = () => {
           }
 
           return (
-            <TouchableOpacity
+            <PressableOpacity
               key={`${field.id}-${value}`}
               style={[
                 styles.optionItem,
@@ -428,7 +423,7 @@ export const AppointmentFormScreen: React.FC = () => {
                 ]}>
                 {option.label ?? option.display ?? value}
               </Text>
-            </TouchableOpacity>
+            </PressableOpacity>
           );
         })}
       </View>
@@ -530,7 +525,7 @@ export const AppointmentFormScreen: React.FC = () => {
         return (
           <View key={field.id} style={styles.fieldContainer}>
             <Text style={styles.label}>{labelText}</Text>
-            {renderChoiceOptions(field as any, false)}
+            {buildChoiceOptions(field as any, false)}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         );
@@ -538,7 +533,7 @@ export const AppointmentFormScreen: React.FC = () => {
         return (
           <View key={field.id} style={styles.fieldContainer}>
             <Text style={styles.label}>{labelText}</Text>
-            {renderChoiceOptions(field as any, true)}
+            {buildChoiceOptions(field as any, true)}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         );
@@ -551,7 +546,6 @@ export const AppointmentFormScreen: React.FC = () => {
               editable={false}
               placeholder="Select date"
             />
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
           </View>
         );
       case 'signature':
@@ -650,7 +644,10 @@ export const AppointmentFormScreen: React.FC = () => {
       style={styles.keyboardAvoidingView}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <PressableOpacity
+        activeOpacity={1}
+        onPress={Keyboard.dismiss}
+        accessible={false}>
         <LiquidGlassHeaderScreen
           header={
             <Header
@@ -675,7 +672,7 @@ export const AppointmentFormScreen: React.FC = () => {
                 ) : null}
 
                 <View style={styles.fieldsContainer}>
-                  {entry.form.schema.map(field => renderField(field))}
+                  {(entry.form.schema ?? []).map(field => renderField(field))}
                 </View>
 
                 {isReadOnly ? null : (
@@ -731,7 +728,7 @@ export const AppointmentFormScreen: React.FC = () => {
             </ScrollView>
           )}
         </LiquidGlassHeaderScreen>
-      </TouchableWithoutFeedback>
+      </PressableOpacity>
     </KeyboardAvoidingView>
   );
 };

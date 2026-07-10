@@ -646,6 +646,44 @@ const consumePendingDeepLink = (): void => {
   void activeContents()?.loadURL(href);
 };
 
+const vaultCompletedDownload = (item: Electron.DownloadItem): void => {
+  const vault = documentVault;
+  if (!vault) return;
+  const filename = item.getFilename();
+  // Vaulting reads the whole file into memory, which would spike or exhaust
+  // main-process memory on a multi-GB download, so skip very large files.
+  const MAX_VAULT_BYTES = 25 * 1024 * 1024;
+  if (item.getReceivedBytes() > MAX_VAULT_BYTES) {
+    logger.warn('download_vault_skipped_too_large', {
+      filename,
+      bytes: item.getReceivedBytes(),
+    });
+    return;
+  }
+  // getSavePath() is the absolute path Electron just wrote the completed download
+  // to; refuse any path-traversal sequence before reading the file back in.
+  const savePath = item.getSavePath();
+  if (savePath.includes('..')) {
+    logger.warn('download_vault_skipped_invalid_path', { filename });
+    return;
+  }
+  try {
+    const mimeType = item.getMimeType() || 'application/octet-stream';
+    const isText = /^text\/|^application\/(json|xml|javascript)$/.test(mimeType);
+    const saved = isText
+      ? vault.saveDocument(filename, fs.readFileSync(savePath, 'utf8'), mimeType)
+      : vault.saveDocumentBuffer(filename, fs.readFileSync(savePath), mimeType);
+    if ('error' in saved) {
+      // e.g. OS encryption unavailable — never vault PHI in cleartext.
+      logger.warn('download_vault_skipped', { filename, reason: saved.error });
+    } else {
+      logger.debug('download_vaulted', { filename });
+    }
+  } catch {
+    logger.warn('download_vault_failed', { filename });
+  }
+};
+
 const configureDownloads = (ses: Session): void => {
   if (downloadsConfigured) return;
   downloadsConfigured = true;
@@ -659,45 +697,9 @@ const configureDownloads = (ses: Session): void => {
       logger.info('download_finished', { filename: item.getFilename(), state });
       if (state === 'completed') {
         shell.showItemInFolder(item.getSavePath());
-        // Auto-save completed downloads into the document vault. Skip very large
-        // files — vaulting reads the whole file into memory, which would spike or
-        // exhaust main-process memory on a multi-GB download.
-        const MAX_VAULT_BYTES = 25 * 1024 * 1024;
-        if (documentVault && item.getReceivedBytes() > MAX_VAULT_BYTES) {
-          logger.warn('download_vault_skipped_too_large', {
-            filename: item.getFilename(),
-            bytes: item.getReceivedBytes(),
-          });
-        } else if (documentVault) {
-          try {
-            const mimeType = item.getMimeType() || 'application/octet-stream';
-            const isText = /^text\/|^application\/(json|xml|javascript)$/.test(mimeType);
-            const saved = isText
-              ? documentVault.saveDocument(
-                  item.getFilename(),
-                  fs.readFileSync(item.getSavePath(), 'utf8'),
-                  mimeType
-                )
-              : documentVault.saveDocumentBuffer(
-                  item.getFilename(),
-                  fs.readFileSync(item.getSavePath()),
-                  mimeType
-                );
-            if ('error' in saved) {
-              // e.g. OS encryption unavailable — never vault PHI in cleartext.
-              logger.warn('download_vault_skipped', {
-                filename: item.getFilename(),
-                reason: saved.error,
-              });
-            } else {
-              logger.debug('download_vaulted', { filename: item.getFilename() });
-            }
-          } catch {
-            logger.warn('download_vault_failed', {
-              filename: item.getFilename(),
-            });
-          }
-        }
+        // Auto-save completed downloads into the document vault (skips very large
+        // files and cleartext-only environments — see vaultCompletedDownload).
+        vaultCompletedDownload(item);
       } else if (state === 'interrupted') {
         dialog.showErrorBox('Download failed', `${item.getFilename()} could not be downloaded.`);
       }
@@ -1487,6 +1489,54 @@ if (gotSingleInstanceLock) {
     if (link) handleDeepLink(link);
   });
 
+  const buildMainWindowOptions = (): Parameters<typeof createMainWindow>[0] => ({
+    config,
+    logger,
+    productName: PRODUCT_NAME,
+    brandPrefix: BRAND_PREFIX,
+    windowStateStore,
+    tabMode: () => tabMode,
+    attachedTabId: () => attachedTabId,
+    splitId: () => splitId,
+    tabOrientation: () => tabOrientation,
+    setTabSearch,
+    setSplitTab,
+    setTabOrientation,
+    activeContents,
+    enterTabMode,
+    layoutTabChrome,
+    loadStartUrl,
+    showOfflinePage,
+    consumePendingDeepLink,
+    trackAuthNavigation,
+    configureDownloads,
+    configureOfflineServe,
+    offlineCache: offlineCache,
+    settingsStore,
+    signedInBefore,
+    reloadGuard,
+    clearUnread,
+    openCommandPalette,
+    createSettingsWindow,
+    newTab,
+    closeActiveTab,
+    reopenClosedTab,
+    openTabSearch,
+    verifyAuditTrail: statusDlg.verifyAuditTrail,
+    exportCsDailyLog: statusDlg.exportCsDailyLog,
+    showDeaStatus: statusDlg.showDeaStatus,
+    generateDeaReportAction: statusDlg.generateDeaReportAction,
+    showPmpStatus: statusDlg.showPmpStatus,
+    openVaultWindow,
+    showVaultInfo: statusDlg.showVaultInfo,
+    backUpNow: statusDlg.backUpNow,
+    savePageAsPdf: statusDlg.savePageAsPdf,
+    openOnSecondScreen: statusDlg.openOnSecondScreen,
+    showPrintStatus: statusDlg.showPrintStatus,
+    startTelehealth,
+    exportDiagnostics: statusDlg.exportDiagnostics,
+  });
+
   void app.whenReady().then(
     async () => {
       logger = createLogger({ logDir: app.getPath('logs') });
@@ -1653,53 +1703,7 @@ if (gotSingleInstanceLock) {
         saveSession,
         coldStartWatchdog,
         enterTabModeUrl: pendingTabModeUrl,
-      } = await createMainWindow({
-        config,
-        logger,
-        productName: PRODUCT_NAME,
-        brandPrefix: BRAND_PREFIX,
-        windowStateStore,
-        tabMode: () => tabMode,
-        attachedTabId: () => attachedTabId,
-        splitId: () => splitId,
-        tabOrientation: () => tabOrientation,
-        setTabSearch,
-        setSplitTab,
-        setTabOrientation,
-        activeContents,
-        enterTabMode,
-        layoutTabChrome,
-        loadStartUrl,
-        showOfflinePage,
-        consumePendingDeepLink,
-        trackAuthNavigation,
-        configureDownloads,
-        configureOfflineServe,
-        offlineCache: offlineCache,
-        settingsStore,
-        signedInBefore,
-        reloadGuard,
-        clearUnread,
-        openCommandPalette,
-        createSettingsWindow,
-        newTab,
-        closeActiveTab,
-        reopenClosedTab,
-        openTabSearch,
-        verifyAuditTrail: statusDlg.verifyAuditTrail,
-        exportCsDailyLog: statusDlg.exportCsDailyLog,
-        showDeaStatus: statusDlg.showDeaStatus,
-        generateDeaReportAction: statusDlg.generateDeaReportAction,
-        showPmpStatus: statusDlg.showPmpStatus,
-        openVaultWindow,
-        showVaultInfo: statusDlg.showVaultInfo,
-        backUpNow: statusDlg.backUpNow,
-        savePageAsPdf: statusDlg.savePageAsPdf,
-        openOnSecondScreen: statusDlg.openOnSecondScreen,
-        showPrintStatus: statusDlg.showPrintStatus,
-        startTelehealth,
-        exportDiagnostics: statusDlg.exportDiagnostics,
-      }));
+      } = await createMainWindow(buildMainWindowOptions()));
       // enterTabMode reads the module window/tab globals assigned just above, so
       // it must run here (not inside createMainWindow) to actually take effect.
       if (pendingTabModeUrl) {
@@ -1842,53 +1846,7 @@ if (gotSingleInstanceLock) {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      void createMainWindow({
-        config,
-        logger,
-        productName: PRODUCT_NAME,
-        brandPrefix: BRAND_PREFIX,
-        windowStateStore,
-        tabMode: () => tabMode,
-        attachedTabId: () => attachedTabId,
-        splitId: () => splitId,
-        tabOrientation: () => tabOrientation,
-        setTabSearch,
-        setSplitTab,
-        setTabOrientation,
-        activeContents,
-        enterTabMode,
-        layoutTabChrome,
-        loadStartUrl,
-        showOfflinePage,
-        consumePendingDeepLink,
-        trackAuthNavigation,
-        configureDownloads,
-        configureOfflineServe,
-        offlineCache: offlineCache,
-        settingsStore,
-        signedInBefore,
-        reloadGuard,
-        clearUnread,
-        openCommandPalette,
-        createSettingsWindow,
-        newTab,
-        closeActiveTab,
-        reopenClosedTab,
-        openTabSearch,
-        verifyAuditTrail: statusDlg.verifyAuditTrail,
-        exportCsDailyLog: statusDlg.exportCsDailyLog,
-        showDeaStatus: statusDlg.showDeaStatus,
-        generateDeaReportAction: statusDlg.generateDeaReportAction,
-        showPmpStatus: statusDlg.showPmpStatus,
-        openVaultWindow,
-        showVaultInfo: statusDlg.showVaultInfo,
-        backUpNow: statusDlg.backUpNow,
-        savePageAsPdf: statusDlg.savePageAsPdf,
-        openOnSecondScreen: statusDlg.openOnSecondScreen,
-        showPrintStatus: statusDlg.showPrintStatus,
-        startTelehealth,
-        exportDiagnostics: statusDlg.exportDiagnostics,
-      }).then((output) => {
+      void createMainWindow(buildMainWindowOptions()).then((output) => {
         mainWindow = output.mainWindow;
         tabManager = output.tabManager;
         tabViewHost = output.tabViewHost;

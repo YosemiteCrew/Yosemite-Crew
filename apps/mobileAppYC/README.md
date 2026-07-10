@@ -30,13 +30,15 @@ Current production releases:
 
 | Platform | Store Version | Build |
 | -------- | ------------- | ----- |
-| Android  | v1.0.10       | 12    |
-| iOS      | v1.2          | 12    |
+| Android  | v1.0.11       | 13    |
+| iOS      | v1.0.5        | 9     |
 
 Release history:
 
 | Platform | Version | Notes                                                                                                                                                                                                    |
 | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Android  | v1.0.11 | Booking specialty resolved correctly from selected package; removed redundant GPS retry on business search; fixed flaky test mock leakage; Sonar maintainability fixes                                   |
+| iOS      | v1.0.5  | Booking specialty resolved correctly from selected package; removed redundant GPS retry on business search; fixed flaky test mock leakage; Sonar maintainability fixes                                   |
 | Android  | v1.0.10 | Map-based vet business discovery with full-screen interactive map; appointment packages during booking; unified clinical packet (SOAP, prescriptions, discharge); bug fixes and performance improvements |
 | iOS      | v1.2    | Map-based vet business discovery with full-screen interactive map; appointment packages during booking; unified clinical packet (SOAP, prescriptions, discharge); bug fixes and performance improvements |
 | Android  | v1.0.6  | Tasks module GA (calendar sync, observational tools); liquid glass UI polish; appointment consent e-signing                                                                                              |

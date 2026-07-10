@@ -1,10 +1,4 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, {useImperativeHandle, useMemo, useRef, useState} from 'react';
 import {
   Image,
   ScrollView,
@@ -12,8 +6,8 @@ import {
   Text,
   View,
   Keyboard,
-  TouchableWithoutFeedback,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
 import {LiquidGlassIconButton} from '@/shared/components/common/LiquidGlassIconButton/LiquidGlassIconButton';
@@ -43,10 +37,11 @@ export interface AddressBottomSheetProps {
   onSave: (address: Address) => void;
 }
 
-export const AddressBottomSheet = forwardRef<
-  AddressBottomSheetRef,
-  AddressBottomSheetProps
->(({selectedAddress, onSave}, ref) => {
+export const AddressBottomSheet = ({
+  selectedAddress,
+  onSave,
+  ref,
+}: AddressBottomSheetProps & {ref?: React.Ref<AddressBottomSheetRef>}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const closeButtonSize = theme.spacing['9'];
@@ -141,12 +136,14 @@ export const AddressBottomSheet = forwardRef<
       onAnimate={() => {
         Keyboard.dismiss();
       }}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      enableContentPanningGesture={false}
-      enableHandlePanningGesture
-      enableOverDrag
-      enableBackdrop={isSheetVisible}
+      behavior={{
+        panDownToClose: true,
+        dynamicSizing: false,
+        contentPanningGesture: false,
+        handlePanningGesture: true,
+        overDrag: true,
+        backdrop: isSheetVisible,
+      }}
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       backdropPressBehavior="close"
@@ -157,7 +154,10 @@ export const AddressBottomSheet = forwardRef<
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
       android_keyboardInputMode="adjustResize">
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <PressableOpacity
+        activeOpacity={1}
+        onPress={Keyboard.dismiss}
+        accessible={false}>
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.title}>Address</Text>
@@ -196,10 +196,10 @@ export const AddressBottomSheet = forwardRef<
             cancelTintColor={theme.colors.surface}
           />
         </View>
-      </TouchableWithoutFeedback>
+      </PressableOpacity>
     </CustomBottomSheet>
   );
-});
+};
 
 AddressBottomSheet.displayName = 'AddressBottomSheet';
 

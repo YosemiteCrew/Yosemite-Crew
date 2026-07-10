@@ -1,13 +1,13 @@
-import React, {useMemo} from 'react';
+import React, {useCallback, useMemo} from 'react';
 import {
+  FlatList,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 
@@ -47,39 +47,66 @@ export function SearchDropdownOverlay<T = unknown>({
   initials,
 }: Readonly<SearchDropdownOverlayProps<T>>) {
   const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme, top, maxHeight), [maxHeight, theme, top]);
-
-  if (!visible || items.length === 0) return null;
+  const styles = useMemo(
+    () => createStyles(theme, top, maxHeight),
+    [maxHeight, theme, top],
+  );
 
   const scrollViewStyle = useGlassCard
     ? styles.glassScrollContainer
     : styles.dropdownContainer;
+  const renderItem = useCallback(
+    (renderItemInfo: {item: T}) => (
+      <PressableOpacity
+        style={styles.item}
+        onPress={() => onPress(renderItemInfo.item)}>
+        <View style={styles.itemAvatar}>
+          <Text style={styles.itemAvatarText}>
+            {(
+              initials?.(renderItemInfo.item) ||
+              title(renderItemInfo.item) ||
+              ' '
+            )
+              ?.charAt(0)
+              ?.toUpperCase()}
+          </Text>
+        </View>
+        <View style={styles.itemInfo}>
+          <Text style={styles.itemTitle}>{title(renderItemInfo.item)}</Text>
+          {subtitle ? (
+            <Text style={styles.itemSubtitle}>
+              {subtitle(renderItemInfo.item)}
+            </Text>
+          ) : null}
+        </View>
+      </PressableOpacity>
+    ),
+    [
+      initials,
+      onPress,
+      styles.item,
+      styles.itemAvatar,
+      styles.itemAvatarText,
+      styles.itemInfo,
+      styles.itemSubtitle,
+      styles.itemTitle,
+      subtitle,
+      title,
+    ],
+  );
+
+  if (!visible || items.length === 0) return null;
 
   const scrollView = (
-    <ScrollView
+    <FlatList
+      data={items}
+      keyExtractor={keyExtractor}
+      renderItem={renderItem}
       style={scrollViewStyle}
       scrollEnabled={items.length > scrollEnabledThreshold}
       showsVerticalScrollIndicator
-      nestedScrollEnabled>
-      {items.map(item => (
-        <TouchableOpacity
-          key={keyExtractor(item)}
-          style={styles.item}
-          onPress={() => onPress(item)}>
-          <View style={styles.itemAvatar}>
-            <Text style={styles.itemAvatarText}>
-              {(initials?.(item) || title(item) || ' ')?.charAt(0)?.toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.itemInfo}>
-            <Text style={styles.itemTitle}>{title(item)}</Text>
-            {subtitle ? (
-              <Text style={styles.itemSubtitle}>{subtitle(item)}</Text>
-            ) : null}
-          </View>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
+      nestedScrollEnabled
+    />
   );
 
   return (

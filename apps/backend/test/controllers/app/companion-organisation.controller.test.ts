@@ -705,17 +705,51 @@ describe("CompanionOrganisationController", () => {
   });
 
   describe("revokeLink", () => {
-    it("should success (200)", async () => {
+    it("should 401 when no authenticated parent", async () => {
+      req.params = { linkId: "l1" };
+      await CompanionOrganisationController.revokeLink(
+        req as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(mockedCompanionService.revokeLink).not.toHaveBeenCalled();
+    });
+
+    it("should 401 when authenticated user is not a parent", async () => {
+      (req as any).userId = "u1";
+      mockedParentService.findByLinkedUserId.mockResolvedValue(null);
+      req.params = { linkId: "l1" };
+      await CompanionOrganisationController.revokeLink(
+        req as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(mockedCompanionService.revokeLink).not.toHaveBeenCalled();
+    });
+
+    it("should success (200), scoped to the authenticated parent", async () => {
+      (req as any).userId = "u1";
+      mockedParentService.findByLinkedUserId.mockResolvedValue({
+        _id: validObjectId,
+      } as any);
       req.params = { linkId: "l1" };
       mockedCompanionService.revokeLink.mockResolvedValue({} as any);
       await CompanionOrganisationController.revokeLink(
         req as Request,
         res as Response,
       );
+      expect(mockedCompanionService.revokeLink).toHaveBeenCalledWith(
+        "l1",
+        validObjectId,
+      );
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
     it("should handle service error", async () => {
+      (req as any).userId = "u1";
+      mockedParentService.findByLinkedUserId.mockResolvedValue({
+        _id: validObjectId,
+      } as any);
       req.params = { linkId: "l1" };
       mockServiceError("revokeLink", 400);
       await CompanionOrganisationController.revokeLink(
@@ -726,6 +760,10 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should handle generic error", async () => {
+      (req as any).userId = "u1";
+      mockedParentService.findByLinkedUserId.mockResolvedValue({
+        _id: validObjectId,
+      } as any);
       req.params = { linkId: "l1" };
       mockGenericError("revokeLink");
       await CompanionOrganisationController.revokeLink(
@@ -781,7 +819,39 @@ describe("CompanionOrganisationController", () => {
   });
 
   describe("getLinksForCompanionByOrganisationType", () => {
+    it("should 401 when no authenticated parent", async () => {
+      req.params = { patientId: "c1" };
+      req.query = { type: "HOSPITAL" };
+      await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
+        req as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(
+        mockedCompanionService.getLinksForCompanionByOrganisationTye,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("should 401 when authenticated user is not a parent", async () => {
+      (req as any).userId = "u1";
+      mockedParentService.findByLinkedUserId.mockResolvedValue(null);
+      req.params = { patientId: "c1" };
+      req.query = { type: "HOSPITAL" };
+      await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
+        req as Request,
+        res as Response,
+      );
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(
+        mockedCompanionService.getLinksForCompanionByOrganisationTye,
+      ).not.toHaveBeenCalled();
+    });
+
     it("should 400 if patientId missing", async () => {
+      (req as any).userId = "u1";
+      mockedParentService.findByLinkedUserId.mockResolvedValue({
+        _id: validObjectId,
+      } as any);
       req.params = {};
       req.query = { type: "HOSPITAL" };
       await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
@@ -792,6 +862,10 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should 400 if type invalid", async () => {
+      (req as any).userId = "u1";
+      mockedParentService.findByLinkedUserId.mockResolvedValue({
+        _id: validObjectId,
+      } as any);
       req.params = { patientId: "c1" };
       req.query = { type: "INVALID" };
       await CompanionOrganisationController.getLinksForCompanionByOrganisationType(
@@ -801,7 +875,11 @@ describe("CompanionOrganisationController", () => {
       expect(statusMock).toHaveBeenCalledWith(400);
     });
 
-    it("should success", async () => {
+    it("should success, scoped to the authenticated parent", async () => {
+      (req as any).userId = "u1";
+      mockedParentService.findByLinkedUserId.mockResolvedValue({
+        _id: validObjectId,
+      } as any);
       req.params = { patientId: "c1" };
       req.query = { type: "HOSPITAL" };
       // Note: Typo in mocked method matches controller usage
@@ -815,11 +893,15 @@ describe("CompanionOrganisationController", () => {
       );
       expect(
         mockedCompanionService.getLinksForCompanionByOrganisationTye,
-      ).toHaveBeenCalledWith("c1", "HOSPITAL");
+      ).toHaveBeenCalledWith("c1", "HOSPITAL", validObjectId);
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
     it("should handle service error", async () => {
+      (req as any).userId = "u1";
+      mockedParentService.findByLinkedUserId.mockResolvedValue({
+        _id: validObjectId,
+      } as any);
       req.params = { patientId: "c1" };
       req.query = { type: "HOSPITAL" };
       mockServiceError("getLinksForCompanionByOrganisationTye", 400);
@@ -831,6 +913,10 @@ describe("CompanionOrganisationController", () => {
     });
 
     it("should handle generic error", async () => {
+      (req as any).userId = "u1";
+      mockedParentService.findByLinkedUserId.mockResolvedValue({
+        _id: validObjectId,
+      } as any);
       req.params = { patientId: "c1" };
       req.query = { type: "HOSPITAL" };
       mockGenericError("getLinksForCompanionByOrganisationTye");

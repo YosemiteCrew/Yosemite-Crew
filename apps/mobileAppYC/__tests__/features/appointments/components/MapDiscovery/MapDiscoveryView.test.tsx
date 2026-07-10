@@ -225,6 +225,7 @@ const defaultProps: MapDiscoveryViewProps = {
   onCategoryChange: jest.fn(),
   onOpenNowChange: jest.fn(),
   onBack: jest.fn(),
+  onMapUserLocationChange: jest.fn(),
 };
 
 const renderView = (props: Partial<MapDiscoveryViewProps> = {}) =>
@@ -390,6 +391,33 @@ describe('MapDiscoveryView', () => {
         userLocation: {latitude: 48.85, longitude: 2.35},
       }),
     ).not.toThrow();
+  });
+
+  it('passes native map user location changes to the parent', () => {
+    const onMapUserLocationChange = jest.fn();
+    const {getByTestId} = renderView({
+      onMapUserLocationChange,
+      hasLocationPermission: true,
+    });
+
+    getByTestId('map-view').props.onUserLocationChange({
+      nativeEvent: {
+        coordinate: {
+          latitude: 39.7392,
+          longitude: -104.9903,
+          altitude: 0,
+          timestamp: Date.now(),
+          accuracy: 10,
+          speed: 0,
+          heading: 0,
+        },
+      },
+    });
+
+    expect(onMapUserLocationChange).toHaveBeenCalledWith({
+      latitude: 39.7392,
+      longitude: -104.9903,
+    });
   });
 
   it('renders without error when onSearchBarLayout prop is provided', () => {

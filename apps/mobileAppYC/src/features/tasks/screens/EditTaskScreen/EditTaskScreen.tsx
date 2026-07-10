@@ -61,7 +61,6 @@ export const EditTaskScreen: React.FC = () => {
     errors,
     isMedicationForm,
     isObservationalToolForm,
-    isSimpleForm,
     sheetHandlers,
     validateForm,
     showErrorAlert,
@@ -71,6 +70,18 @@ export const EditTaskScreen: React.FC = () => {
     openSheet,
     companions,
   } = hookData;
+  const taskFormMode = useMemo(():
+    | 'medication'
+    | 'observationalTool'
+    | 'simple' => {
+    if (isMedicationForm) {
+      return 'medication';
+    }
+    if (isObservationalToolForm) {
+      return 'observationalTool';
+    }
+    return 'simple';
+  }, [isMedicationForm, isObservationalToolForm]);
 
   const confirmDeleteSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
 
@@ -248,9 +259,7 @@ export const EditTaskScreen: React.FC = () => {
               errors={errors}
               theme={theme}
               updateField={updateField}
-              isMedicationForm={isMedicationForm}
-              isObservationalToolForm={isObservationalToolForm}
-              isSimpleForm={isSimpleForm}
+              taskFormMode={taskFormMode}
               reminderOptions={REMINDER_OPTIONS}
               styles={styles}
               sheetHandlers={sheetHandlers}

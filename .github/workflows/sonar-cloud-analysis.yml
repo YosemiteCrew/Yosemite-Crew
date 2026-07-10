@@ -12,12 +12,14 @@ concurrency:
   group: sonar-${{ github.ref }}
   cancel-in-progress: true
 
-permissions: read-all
+permissions: {}
 
 jobs:
   changes:
     name: Detect workspace changes
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     if: github.repository_owner == 'YosemiteCrew' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
@@ -32,7 +34,7 @@ jobs:
           fetch-depth: 0
       - name: Filter paths
         id: filter
-        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3
+        uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
         with:
           filters: |
             frontend:
@@ -135,6 +137,10 @@ jobs:
     name: SonarQube Analysis - ${{ matrix.app }}
     runs-on: ubuntu-latest
     needs: changes
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
 
     strategy:
       fail-fast: false

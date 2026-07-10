@@ -5,9 +5,9 @@ name: Desktop Release
 #       1) bump "version" in apps/desktop/package.json
 #       2) git tag desktop-v<version> && git push origin desktop-v<version>
 #   • Run manually (Actions → "Desktop Release" → Run workflow / workflow_dispatch)
-#       → builds + signs, then uploads the signed installers as workflow ARTIFACTS
-#         (NO Release). Use this to collect signed mac/Windows builds for a
-#         coordinated joint release (alongside mobile + PIMS) later.
+#       → builds + signs, uploads workflow ARTIFACTS, then creates a draft
+#         GitHub Release with the same assets. Use this to share download links
+#         without requiring the Actions artifact UI.
 #
 # Windows is signed via Azure Artifact Signing (formerly Trusted Signing).
 #   AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET
@@ -27,12 +27,18 @@ on:
       - 'desktop-v*'
   workflow_dispatch: {}
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
+    # Gates the Azure signing secrets behind the protected `release` environment.
+    # Configure required reviewers and a deployment tag rule (desktop-v*) on this
+    # environment in repo settings so pushing a `desktop-v*` tag cannot reach
+    # signing credentials without an explicit approval.
+    environment: release
     steps:
       - uses: actions/checkout@v4
 
@@ -68,6 +74,10 @@ jobs:
 
   macos:
     runs-on: macos-14
+    permissions:
+      contents: write
+    # Same protected `release` environment gate for the Apple signing/notarization secrets.
+    environment: release
     steps:
       - uses: actions/checkout@v4
 
@@ -103,3 +113,46 @@ jobs:
             apps/desktop/dist/*.blockmap
             apps/desktop/dist/latest-mac.yml
           if-no-files-found: warn
+
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    needs:
+      - windows
+      - macos
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Read desktop version
+        id: version
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create draft GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          draft: true
+          tag_name: desktop-manual-v${{ steps.version.outputs.version }}-${{ github.run_id }}
+          target_commitish: ${{ github.sha }}
+          name: Yosemite Crew PIMS Desktop manual v${{ steps.version.outputs.version }}-${{ github.run_id }}
+          generate_release_notes: true
+          files: |
+            release-assets/*.exe
+            release-assets/*.dmg
+            release-assets/*.zip
+            release-assets/*.blockmap
+            release-assets/latest.yml
+            release-assets/latest-mac.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

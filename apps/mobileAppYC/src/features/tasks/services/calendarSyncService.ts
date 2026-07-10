@@ -238,19 +238,15 @@ const createDosageCalendarEvents = async (
   companionName?: string,
   assignedToName?: string,
 ): Promise<string | null> => {
-  if (
-    !task.details ||
-    !('dosages' in task.details) ||
-    !Array.isArray(task.details.dosages)
-  ) {
-    return null;
-  }
-
-  const dosages = task.details.dosages as Array<{
-    id: string;
-    label: string;
-    time: string;
-  }>;
+  const dosages = (
+    task.details as {
+      dosages: Array<{
+        id: string;
+        label: string;
+        time: string;
+      }>;
+    }
+  ).dosages;
   const eventIds: string[] = [];
 
   const recurrenceParams = buildRecurrenceParams(task);
@@ -262,16 +258,20 @@ const createDosageCalendarEvents = async (
   }
 
   try {
-    for (const dosage of dosages) {
-      const eventId = await createSingleDosageEvent(
-        task,
-        dosage,
-        alarms,
-        recurrenceParams,
-        companionName,
-        assignedToName,
-      );
+    const eventResults = await Promise.all(
+      dosages.map(dosage =>
+        createSingleDosageEvent(
+          task,
+          dosage,
+          alarms,
+          recurrenceParams,
+          companionName,
+          assignedToName,
+        ),
+      ),
+    );
 
+    for (const eventId of eventResults) {
       if (eventId) {
         eventIds.push(eventId);
       }
@@ -374,16 +374,6 @@ export const createCalendarEventForTask = async (
         if ('medicineType' in task.details && task.details.medicineType) {
           medicationParts.push(`   Type: ${task.details.medicineType}`);
         }
-        if (
-          'dosages' in task.details &&
-          task.details.dosages &&
-          task.details.dosages.length > 0
-        ) {
-          medicationParts.push(`   Dosage Schedule:`);
-          task.details.dosages.forEach((d: any) => {
-            medicationParts.push(`      • ${d.label} at ${d.time}`);
-          });
-        }
         medicationParts.push('');
         parts.push(...medicationParts);
       }
@@ -472,8 +462,8 @@ export const removeCalendarEvents = async (
     ids: eventIds,
   });
 
-  try {
-    for (const eventId of eventIds) {
+  await Promise.all(
+    eventIds.map(async eventId => {
       try {
         await RNCalendarEvents.removeEvent(eventId);
         console.log('[Calendar] Removed event:', eventId);
@@ -481,10 +471,8 @@ export const removeCalendarEvents = async (
         console.warn('[Calendar] Failed to remove event:', eventId, error);
         // Continue removing other events even if one fails
       }
-    }
-  } catch (error) {
-    console.error('[Calendar] Failed to remove calendar events:', error);
-  }
+    }),
+  );
 };
 
 export const openCalendarEvent = async (

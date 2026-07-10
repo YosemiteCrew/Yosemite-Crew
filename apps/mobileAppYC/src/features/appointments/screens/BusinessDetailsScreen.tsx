@@ -144,11 +144,18 @@ export const BusinessDetailsScreen: React.FC = () => {
     }));
   }, [services, packages]);
 
-  const handleSelectPackage = (packageId: string, packageName: string) => {
+  const handleSelectPackage = (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => {
+    const pkg = packages.find(p => p.id === packageId);
     navigation.navigate('BookingForm', {
       businessId,
       serviceId: packageId,
       serviceName: packageName,
+      serviceSpecialty: specialtyName ?? pkg?.specialty ?? undefined,
+      serviceSpecialtyId: pkg?.specialityId ?? undefined,
     });
   };
 

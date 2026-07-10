@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect, useRef} from 'react';
 import {Appearance} from 'react-native';
 
 import {useAppDispatch, useAppSelector} from '@/app/hooks';
@@ -10,60 +10,70 @@ const resolveScheme = (value: string | null | undefined): 'light' | 'dark' =>
 
 export const DARK_MODE_ENABLED = false;
 
-export const useTheme = () => {
-  const dispatch = useAppDispatch();
-  const themeState = useAppSelector(state => state.theme);
-  const {theme: storedThemeMode, isDark: storedIsDark} = themeState;
+export const createThemeHook =
+  (darkModeEnabled = DARK_MODE_ENABLED) =>
+  () => {
+    const dispatch = useAppDispatch();
+    const themeState = useAppSelector(state => state.theme);
+    const {theme: storedThemeMode, isDark: storedIsDark} = themeState;
+    // darkModeEnabled is fixed for the lifetime of a given hook instance
+    // (bound once via createThemeHook's factory parameter), so it can never
+    // go stale within this effect. Routed through a ref so the static
+    // exhaustive-deps check can see that stability.
+    const darkModeEnabledRef = useRef(darkModeEnabled);
+    darkModeEnabledRef.current = darkModeEnabled;
 
-  useEffect(() => {
-    if (!DARK_MODE_ENABLED) {
-      if (storedThemeMode !== 'light' || storedIsDark) {
-        dispatch(setTheme('light'));
+    useEffect(() => {
+      if (!darkModeEnabledRef.current) {
+        if (storedThemeMode !== 'light' || storedIsDark) {
+          dispatch(setTheme('light'));
+        }
+        return;
       }
-      return;
-    }
 
-    dispatch(updateSystemTheme(resolveScheme(Appearance.getColorScheme())));
+      dispatch(updateSystemTheme(resolveScheme(Appearance.getColorScheme())));
 
-    const subscription = Appearance.addChangeListener(({colorScheme}) => {
-      dispatch(updateSystemTheme(resolveScheme(colorScheme)));
-    });
+      const subscription = Appearance.addChangeListener(({colorScheme}) => {
+        dispatch(updateSystemTheme(resolveScheme(colorScheme)));
+      });
 
-    return () => {
-      subscription.remove();
+      return () => {
+        subscription.remove();
+      };
+    }, [dispatch, storedIsDark, storedThemeMode]);
+
+    const effectiveThemeMode = darkModeEnabled ? storedThemeMode : 'light';
+    const effectiveIsDark = darkModeEnabled ? storedIsDark : false;
+
+    const currentTheme = effectiveIsDark ? darkTheme : lightTheme;
+
+    const safeSetTheme = (mode: 'light' | 'dark' | 'system') => {
+      if (!darkModeEnabled) {
+        if (storedThemeMode !== 'light') {
+          dispatch(setTheme('light'));
+        }
+        return;
+      }
+
+      dispatch(setTheme(mode));
     };
-  }, [dispatch, storedIsDark, storedThemeMode]);
 
-  const effectiveThemeMode = DARK_MODE_ENABLED ? storedThemeMode : 'light';
-  const effectiveIsDark = DARK_MODE_ENABLED ? storedIsDark : false;
-
-  const currentTheme = effectiveIsDark ? darkTheme : lightTheme;
-
-  const safeSetTheme = (mode: 'light' | 'dark' | 'system') => {
-    if (!DARK_MODE_ENABLED) {
-      if (storedThemeMode !== 'light') {
-        dispatch(setTheme('light'));
+    const safeToggleTheme = () => {
+      if (!darkModeEnabled) {
+        return;
       }
-      return;
-    }
 
-    dispatch(setTheme(mode));
+      dispatch(toggleTheme());
+    };
+
+    return {
+      theme: currentTheme,
+      isDark: effectiveIsDark,
+      themeMode: effectiveThemeMode,
+      darkModeLocked: !darkModeEnabled,
+      setTheme: safeSetTheme,
+      toggleTheme: safeToggleTheme,
+    };
   };
 
-  const safeToggleTheme = () => {
-    if (!DARK_MODE_ENABLED) {
-      return;
-    }
-
-    dispatch(toggleTheme());
-  };
-
-  return {
-    theme: currentTheme,
-    isDark: effectiveIsDark,
-    themeMode: effectiveThemeMode,
-    darkModeLocked: !DARK_MODE_ENABLED,
-    setTheme: safeSetTheme,
-    toggleTheme: safeToggleTheme,
-  };
-};
+export const useTheme = createThemeHook();

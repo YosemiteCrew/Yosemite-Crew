@@ -25,6 +25,13 @@ describe('useLocationStore', () => {
     expect(result.current).toEqual({latitude: 37.77, longitude: -122.43});
   });
 
+  it('does not start LocationService when disabled', () => {
+    const {result} = renderHook(() => useLocationStore(false));
+
+    expect(result.current).toBeNull();
+    expect(mockGetLocation).not.toHaveBeenCalled();
+  });
+
   it('returns the same value from concurrent hook consumers', () => {
     const {result: r1} = renderHook(() => useLocationStore());
     const {result: r2} = renderHook(() => useLocationStore());

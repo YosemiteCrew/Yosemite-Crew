@@ -1,7 +1,6 @@
 // src/components/common/Checkbox/Checkbox.tsx
 import React from 'react';
 import {
-  TouchableOpacity,
   View,
   Text,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   StyleProp,
   Image,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 
@@ -27,30 +27,27 @@ export const Checkbox: React.FC<CheckboxProps> = ({
   error,
   labelStyle,
 }) => {
-  const { theme } = useTheme();
+  const {theme} = useTheme();
   const styles = createStyles(theme);
   const checkboxIcon = value ? Images.checkFill : Images.checkEmpty;
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.checkboxContainer}
         onPress={() => onValueChange(!value)}
         activeOpacity={0.7}
         accessibilityRole="checkbox"
         accessibilityState={{checked: value}}
-        accessibilityHint={typeof label === 'string' ? label : undefined}
-      >
+        accessibilityHint={typeof label === 'string' ? label : undefined}>
         <View style={[styles.checkboxWrapper, error && styles.checkboxError]}>
           <Image source={checkboxIcon} style={styles.checkboxIcon} />
         </View>
         {label ? (
           <Text style={[styles.label, labelStyle as any]}>{label}</Text>
         ) : null}
-      </TouchableOpacity>
-      {error && (
-        <Text style={styles.errorText}>{error}</Text>
-      )}
+      </PressableOpacity>
+      {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 };

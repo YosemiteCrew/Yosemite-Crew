@@ -1,4 +1,10 @@
-import React, {useMemo, useState, useEffect, useRef, useCallback} from 'react';
+import React, {
+  useMemo,
+  useState,
+  useEffect as useReactEffect,
+  useRef,
+  useCallback,
+} from 'react';
 import {
   ScrollView,
   View,
@@ -616,13 +622,13 @@ const BreakdownCard = ({
         ))}
         {Array.isArray(effectiveInvoice?.totalPriceComponent) &&
         effectiveInvoice.totalPriceComponent.length > 0 ? (
-          effectiveInvoice.totalPriceComponent
-            .filter((pc: any) => {
+          effectiveInvoice.totalPriceComponent.flatMap(
+            (pc: InvoicePriceComponent, idx: number) => {
               const codeText = (pc?.code?.text ?? '').toLowerCase();
               const typeText = (pc?.type ?? '').toString().toLowerCase();
-              return codeText !== 'grand-total' && typeText !== 'informational';
-            })
-            .map((pc: InvoicePriceComponent, idx: number) => {
+              if (codeText === 'grand-total' || typeText === 'informational') {
+                return [];
+              }
               const rawLabel =
                 pc.code?.text ??
                 pc.type?.toString().replaceAll('_', ' ').replaceAll('-', ' ') ??
@@ -635,15 +641,16 @@ const BreakdownCard = ({
                 typeof pc.amount?.value === 'number'
                   ? `${resolveCurrencySymbol(pc.amount?.currency ?? currency ?? 'USD')}${pc.amount.value.toFixed(2)}`
                   : '—';
-              return (
+              return [
                 <BreakdownRow
                   key={buildPriceComponentKey(pc)}
                   label={label}
                   value={value}
                   subtle={label.toLowerCase().includes('discount')}
-                />
-              );
-            })
+                />,
+              ];
+            },
+          )
         ) : (
           <>
             <BreakdownRow
@@ -814,7 +821,7 @@ const useFetchAppointmentById = ({
   apt?: any;
   dispatch: AppDispatch;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (!apt && appointmentId) {
       dispatch(fetchAppointmentById({appointmentId}));
     }
@@ -830,7 +837,7 @@ const useBusinessPhoto = ({
   dispatch: AppDispatch;
   setFallbackPhoto: (value: string | null) => void;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (!googlePlacesId) return;
     const fetchPhoto = async () => {
       try {
@@ -880,7 +887,7 @@ const useEnsurePaymentData = ({
   isInvoiceBasedFlow: boolean;
   setInvoiceLoading: (value: boolean) => void;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (isInvoiceBasedFlow) {
       return;
     }
@@ -1376,7 +1383,7 @@ export const PaymentInvoiceScreen: React.FC = () => {
     setInvoiceLoading,
   });
 
-  useEffect(() => {
+  useReactEffect(() => {
     // Always ensure we have a payment intent when opening from Pay Now.
     // Also re-fetch when connectedAccountId is missing — it only comes from the
     // sessions endpoint, so existing appointments with a stored clientSecret but

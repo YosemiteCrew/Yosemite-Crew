@@ -1,7 +1,7 @@
 import React from 'react';
 import {View, Image} from 'react-native';
 import {TouchableInput} from '@/shared/components/common';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {formatTimeForDisplay} from '@/shared/utils/timeHelpers';
 import {Images} from '@/assets/images';
 import {createIconStyles} from '@/shared/utils/iconStyles';
@@ -33,7 +33,10 @@ export const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
   onOpenTaskFrequencySheet,
   theme,
 }) => {
-  const styles = React.useMemo(() => createTaskFormSectionStyles(theme), [theme]);
+  const styles = React.useMemo(
+    () => createTaskFormSectionStyles(theme),
+    [theme],
+  );
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
 
   return (
@@ -41,7 +44,9 @@ export const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
       <View style={styles.fieldGroup}>
         <TouchableInput
           label={formData.date ? 'Date' : undefined}
-          value={formData.date ? formatDateForDisplay(formData.date) : undefined}
+          value={
+            formData.date ? formatDateForDisplay(formData.date) : undefined
+          }
           placeholder="Date"
           onPress={onOpenDatePicker}
           rightComponent={
@@ -57,7 +62,9 @@ export const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
           value={formatTimeForDisplay(formData.time)}
           placeholder="Time"
           onPress={onOpenTimePicker}
-          rightComponent={<Image source={Images.clockIcon} style={styles.calendarIcon} />}
+          rightComponent={
+            <Image source={Images.clockIcon} style={styles.calendarIcon} />
+          }
           error={errors.time}
         />
       </View>
@@ -69,7 +76,10 @@ export const TaskFormFields: React.FC<TaskFormFieldsProps> = ({
           placeholder="Task frequency"
           onPress={onOpenTaskFrequencySheet}
           rightComponent={
-            <Image source={Images.dropdownIcon} style={iconStyles.dropdownIcon} />
+            <Image
+              source={Images.dropdownIcon}
+              style={iconStyles.dropdownIcon}
+            />
           }
           error={errors.frequency}
         />

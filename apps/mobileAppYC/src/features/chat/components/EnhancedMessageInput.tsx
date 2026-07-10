@@ -12,7 +12,6 @@
 import React, {useState} from 'react';
 import {
   View,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   Platform,
@@ -20,6 +19,7 @@ import {
   ActivityIndicator,
   Text,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {MessageInput, useChannelContext} from 'stream-chat-react-native';
 import Sound from 'react-native-nitro-sound';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
@@ -33,6 +33,30 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {useTheme} from '@/hooks';
 
+// Request audio recording permission (Android)
+const requestAudioPermission = async () => {
+  if (Platform.OS === 'android') {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+        {
+          title: 'Audio Recording Permission',
+          message:
+            'This app needs access to your microphone to record voice messages.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
+        },
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    } catch (err) {
+      console.warn(err);
+      return false;
+    }
+  }
+  return true;
+};
+
 export const EnhancedMessageInput: React.FC = () => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
@@ -42,34 +66,14 @@ export const EnhancedMessageInput: React.FC = () => {
   const [isRecordingLoading, setIsRecordingLoading] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
 
-  // Request audio recording permission (Android)
-  const requestAudioPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-          {
-            title: 'Audio Recording Permission',
-            message: 'This app needs access to your microphone to record voice messages.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
-
   // Start voice recording
   const startVoiceRecording = async () => {
     const hasPermission = await requestAudioPermission();
     if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Please grant microphone permission to record voice messages.');
+      Alert.alert(
+        'Permission Denied',
+        'Please grant microphone permission to record voice messages.',
+      );
       return;
     }
 
@@ -78,7 +82,7 @@ export const EnhancedMessageInput: React.FC = () => {
 
     try {
       // Set up recording progress listener
-      Sound.addRecordBackListener((e) => {
+      Sound.addRecordBackListener(e => {
         setRecordingDuration(Math.floor(e.currentPosition / 1000));
       });
 
@@ -106,7 +110,11 @@ export const EnhancedMessageInput: React.FC = () => {
 
       if (audioPath && channel) {
         // Upload audio file to Stream
-        const response = await channel.sendFile(audioPath, 'voice-message.m4a', 'audio/m4a');
+        const response = await channel.sendFile(
+          audioPath,
+          'voice-message.m4a',
+          'audio/m4a',
+        );
 
         // Send message with audio attachment
         await channel.sendMessage({
@@ -158,13 +166,16 @@ export const EnhancedMessageInput: React.FC = () => {
       if (result.assets && result.assets.length > 0 && channel) {
         ReactNativeHapticFeedback.trigger('impactMedium');
 
-        for (const asset of result.assets) {
-          if (asset.uri) {
-            // Upload and send each image
-            await channel.sendImage(asset.uri);
-            ReactNativeHapticFeedback.trigger('notificationSuccess');
-          }
+        const imageUris = result.assets
+          .map(asset => asset.uri)
+          .filter((uri): uri is string => Boolean(uri));
+
+        if (imageUris.length === 0) {
+          return;
         }
+
+        await Promise.all(imageUris.map(uri => channel.sendImage(uri)));
+        ReactNativeHapticFeedback.trigger('notificationSuccess');
       }
     } catch (error) {
       console.error('Failed to pick image:', error);
@@ -207,31 +218,40 @@ export const EnhancedMessageInput: React.FC = () => {
       if (result && result.length > 0 && channel) {
         ReactNativeHapticFeedback.trigger('impactMedium');
 
-        for (const file of result) {
-          if (!file.uri) {
-            continue;
-          }
+        await Promise.all(
+          result.flatMap(file => {
+            if (!file.uri) {
+              return [];
+            }
 
-          const fileName = file.name ?? 'Document';
-          const mimeType = file.type ?? 'application/octet-stream';
+            const fileUri = file.uri;
+            return [
+              (async () => {
+                const fileName = file.name ?? 'Document';
+                const mimeType = file.type ?? 'application/octet-stream';
 
-          // Upload file to Stream
-          const response = await channel.sendFile(file.uri, fileName, mimeType);
+                const response = await channel.sendFile(
+                  fileUri,
+                  fileName,
+                  mimeType,
+                );
 
-          // Send message with file attachment
-          await channel.sendMessage({
-            text: `📎 ${fileName}`,
-            attachments: [
-              {
-                type: 'file',
-                asset_url: response.file,
-                title: fileName,
-                mime_type: mimeType,
-                file_size: file.size ?? undefined,
-              },
-            ],
-          });
-        }
+                await channel.sendMessage({
+                  text: `📎 ${fileName}`,
+                  attachments: [
+                    {
+                      type: 'file',
+                      asset_url: response.file,
+                      title: fileName,
+                      mime_type: mimeType,
+                      file_size: file.size ?? undefined,
+                    },
+                  ],
+                });
+              })(),
+            ];
+          }),
+        );
 
         ReactNativeHapticFeedback.trigger('notificationSuccess');
       }
@@ -290,19 +310,20 @@ export const EnhancedMessageInput: React.FC = () => {
         <View style={styles.recordingInfo}>
           <View style={styles.recordingDot} />
           <Text style={styles.recordingText}>
-            Recording... {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, '0')}
+            Recording... {Math.floor(recordingDuration / 60)}:
+            {(recordingDuration % 60).toString().padStart(2, '0')}
           </Text>
         </View>
         <View style={styles.recordingActions}>
-          <TouchableOpacity
+          <PressableOpacity
             onPress={() => {
               cancelVoiceRecording();
             }}
             style={[styles.recordButton, styles.cancelButton]}
             disabled={isRecordingLoading}>
             <Icon name="close" size={24} color={theme.colors.white} />
-          </TouchableOpacity>
-          <TouchableOpacity
+          </PressableOpacity>
+          <PressableOpacity
             onPress={() => {
               stopVoiceRecording();
             }}
@@ -313,7 +334,7 @@ export const EnhancedMessageInput: React.FC = () => {
             ) : (
               <Icon name="send" size={24} color={theme.colors.white} />
             )}
-          </TouchableOpacity>
+          </PressableOpacity>
         </View>
       </View>
     );
@@ -323,7 +344,7 @@ export const EnhancedMessageInput: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.actionsRow}>
         {/* Voice Message Button */}
-        <TouchableOpacity
+        <PressableOpacity
           onPress={() => {
             startVoiceRecording();
           }}
@@ -334,12 +355,14 @@ export const EnhancedMessageInput: React.FC = () => {
           ) : (
             <Icon name="mic" size={24} color={theme.colors.primary} />
           )}
-        </TouchableOpacity>
+        </PressableOpacity>
 
         {/* Attachment Button */}
-        <TouchableOpacity onPress={showAttachmentOptions} style={styles.actionButton}>
+        <PressableOpacity
+          onPress={showAttachmentOptions}
+          style={styles.actionButton}>
           <Icon name="attach-file" size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
+        </PressableOpacity>
       </View>
 
       {/* Default Stream Message Input */}

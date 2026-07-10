@@ -1,5 +1,8 @@
-import React, {forwardRef, useImperativeHandle, useRef, useMemo} from 'react';
-import {GenericSelectBottomSheet, type SelectItem} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
+import React, {useImperativeHandle, useRef, useMemo} from 'react';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import type {TaskFrequency} from '@/features/tasks/types';
 import {resolveTaskFrequencyLabel} from '@/features/tasks/utils/taskLabels';
 
@@ -16,23 +19,31 @@ interface TaskFrequencyBottomSheetProps {
 
 const frequencies: TaskFrequency[] = ['once', 'daily', 'weekly', 'monthly'];
 
-export const TaskFrequencyBottomSheet = forwardRef<
-  TaskFrequencyBottomSheetRef,
-  TaskFrequencyBottomSheetProps
->(({selectedFrequency, onSelect, onSheetChange}, ref) => {
+export const TaskFrequencyBottomSheet = ({
+  selectedFrequency,
+  onSelect,
+  onSheetChange,
+  ref,
+}: TaskFrequencyBottomSheetProps & {
+  ref?: React.Ref<TaskFrequencyBottomSheetRef>;
+}) => {
   const bottomSheetRef = useRef<any>(null);
 
-  const frequencyItems: SelectItem[] = useMemo(() =>
-    frequencies.map(frequency => ({
-      id: frequency,
-      label: resolveTaskFrequencyLabel(frequency),
-    })), []
+  const frequencyItems: SelectItem[] = useMemo(
+    () =>
+      frequencies.map(frequency => ({
+        id: frequency,
+        label: resolveTaskFrequencyLabel(frequency),
+      })),
+    [],
   );
 
-  const selectedItem = selectedFrequency ? {
-    id: selectedFrequency,
-    label: resolveTaskFrequencyLabel(selectedFrequency),
-  } : null;
+  const selectedItem = selectedFrequency
+    ? {
+        id: selectedFrequency,
+        label: resolveTaskFrequencyLabel(selectedFrequency),
+      }
+    : null;
 
   useImperativeHandle(ref, () => ({
     open: () => {
@@ -63,7 +74,7 @@ export const TaskFrequencyBottomSheet = forwardRef<
       onSheetChange={onSheetChange}
     />
   );
-});
+};
 
 TaskFrequencyBottomSheet.displayName = 'TaskFrequencyBottomSheet';
 

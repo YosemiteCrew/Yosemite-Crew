@@ -1,9 +1,4 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-} from 'react';
+import React, {useImperativeHandle, useMemo, useRef} from 'react';
 import {StyleSheet} from 'react-native';
 
 import ConfirmActionBottomSheet, {
@@ -22,10 +17,14 @@ interface DeleteProfileBottomSheetProps {
   onDelete: () => void;
 }
 
-export const DeleteProfileBottomSheet = forwardRef<
-  DeleteProfileBottomSheetRef,
-  DeleteProfileBottomSheetProps
->(({companionName, onCancel, onDelete}, ref) => {
+export const DeleteProfileBottomSheet = ({
+  companionName,
+  onCancel,
+  onDelete,
+  ref,
+}: DeleteProfileBottomSheetProps & {
+  ref?: React.Ref<DeleteProfileBottomSheetRef>;
+}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -81,7 +80,7 @@ export const DeleteProfileBottomSheet = forwardRef<
       messageStyle={styles.subtitle}
     />
   );
-});
+};
 
 DeleteProfileBottomSheet.displayName = 'DeleteProfileBottomSheet';
 
@@ -108,7 +107,7 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       gap: theme.spacing['4'],
-            marginBottom: theme.spacing['4'],
+      marginBottom: theme.spacing['4'],
     },
     button: {
       flex: 1,
