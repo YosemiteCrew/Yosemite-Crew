@@ -258,16 +258,20 @@ export const getOrderStatusBadgeClass = (
   order: LabOrder,
   resultProgressByOrderId: Map<string, string>
 ) => {
+  // Aligned to the shared design-system status-pill tokens (warm-bone, light + dark)
+  // instead of hardcoded Tailwind colours, matching the IDEXX hub pills.
+  const completeClass = 'bg-pill-success-bg text-pill-success-text';
+  const progressClass = 'bg-pill-progress-bg text-pill-progress-text';
+  const errorClass = 'bg-pill-warning-bg text-pill-warning-text';
   const resultProgress = resultProgressByOrderId.get(String(order.idexxOrderId ?? '').trim());
-  if (resultProgress === 'Complete') return 'bg-green-50 text-green-800';
-  if (resultProgress === 'In process') return 'bg-amber-50 text-amber-700';
-  if (resultProgress === 'Error') return 'bg-red-50 text-red-700';
+  if (resultProgress === 'Complete') return completeClass;
+  if (resultProgress === 'In process') return progressClass;
+  if (resultProgress === 'Error') return errorClass;
   const key = String(order.status ?? '').toLowerCase();
   if (key.includes('submitted') || key.includes('complete') || key.includes('final'))
-    return 'bg-green-50 text-green-800';
-  if (key.includes('created') || key.includes('pending')) return 'bg-amber-50 text-amber-700';
-  if (key.includes('error') || key.includes('failed') || key.includes('cancel'))
-    return 'bg-red-50 text-red-700';
+    return completeClass;
+  if (key.includes('created') || key.includes('pending')) return progressClass;
+  if (key.includes('error') || key.includes('failed') || key.includes('cancel')) return errorClass;
   return 'bg-card-hover text-text-secondary';
 };
 
