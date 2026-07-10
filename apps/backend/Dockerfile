@@ -9,6 +9,8 @@ RUN pnpm add --global turbo \
 &&  pnpm install --frozen-lockfile
 # RUN pnpm run build --filter api
 EXPOSE ${PORT}
+RUN chown -R 1000:1000 /app
+USER 1000
 CMD ["pnpm", "run", "dev", "--filter", "api"]
 
 # FROM node:18 AS dev
