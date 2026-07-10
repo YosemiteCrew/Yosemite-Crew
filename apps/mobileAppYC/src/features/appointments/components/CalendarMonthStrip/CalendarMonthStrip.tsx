@@ -34,7 +34,9 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dateListRef = useRef<FlatList>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
+  const [currentMonth, setCurrentMonth] = useState(
+    () => new Date(selectedDate),
+  );
   const markerSet = useMemo(() => {
     if (!datesWithMarkers) return new Set<string>();
     return Array.isArray(datesWithMarkers)

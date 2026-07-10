@@ -854,6 +854,9 @@ importers:
       redux-persist:
         specifier: ^6.0.0
         version: 6.0.0(react@19.1.0)(redux@5.0.1)
+      semver:
+        specifier: ^7.7.4
+        version: 7.7.4
       stream-chat-react-native:
         specifier: ^8.8.0
         version: 8.12.4(@react-native-clipboard/clipboard@1.16.3)(@react-native-community/netinfo@11.5.2)(@react-native-documents/picker@11.0.4)(@types/react@19.2.11)(react-native-blob-util@0.23.2)(react-native-gesture-handler@2.30.0)(react-native-haptic-feedback@2.3.3)(react-native-image-picker@8.2.1)(react-native-nitro-sound@0.2.10)(react-native-reanimated@4.2.1)(react-native-safe-area-context@5.6.2)(react-native-share@12.2.5)(react-native-svg@15.15.2)(react-native-video@6.19.0)(react-native@0.81.4)(react@19.1.0)(typescript@5.9.3)
@@ -10577,7 +10580,7 @@ packages:
       fs-extra: 8.1.0
       graceful-fs: 4.2.11
       prompts: 2.4.2
-      semver: 7.7.3
+      semver: 7.7.4
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -28183,7 +28186,7 @@ packages:
       react-refresh: 0.14.2
       regenerator-runtime: 0.13.11
       scheduler: 0.26.0
-      semver: 7.7.3
+      semver: 7.7.4
       stacktrace-parser: 0.1.11
       whatwg-fetch: 3.6.20
       ws: 6.2.4

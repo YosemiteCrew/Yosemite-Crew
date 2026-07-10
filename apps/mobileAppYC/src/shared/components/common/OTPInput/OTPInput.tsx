@@ -165,8 +165,9 @@ const createStyles = (theme: any) =>
     },
     inputContainer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      width: 240,
+      justifyContent: 'center',
+      width: '100%',
+      gap: theme.spacing['2'] * 2,
       paddingHorizontal: theme.spacing['2.5'],
     },
     input: {
@@ -178,7 +179,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.h4,
       fontWeight: 'bold',
       lineHeight: theme.typography.h4.fontSize + 3,
-      marginHorizontal: theme.spacing['2'],
       ...(Platform.OS === 'android'
         ? {textAlignVertical: 'center', includeFontPadding: false}
         : {includeFontPadding: false}),
