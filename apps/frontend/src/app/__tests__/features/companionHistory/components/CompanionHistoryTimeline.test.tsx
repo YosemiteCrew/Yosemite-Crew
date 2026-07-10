@@ -25,9 +25,12 @@ jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
     open ? <div data-testid="pdf-preview">{`${title}-${pdfUrl}`}</div> : null,
 }));
 
+let mockOrgState: any = {
+  primaryOrgId: 'org-1',
+  orgsById: { 'org-1': { type: 'HOSPITAL' } },
+};
 jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: (selector: any) =>
-    selector({ primaryOrgId: 'org-1', orgsById: { 'org-1': { type: 'HOSPITAL' } } }),
+  useOrgStore: (selector: any) => selector(mockOrgState),
 }));
 
 const mockAppointmentsById: Record<string, any> = {};
@@ -228,6 +231,7 @@ describe('CompanionHistoryTimeline', () => {
       .mockClear()
       .mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' }));
     mockNotify.mockClear();
+    mockOrgState = { primaryOrgId: 'org-1', orgsById: { 'org-1': { type: 'HOSPITAL' } } };
     mockGetSafeSameOriginPath.mockClear().mockImplementation((_path: string) => '');
     Object.keys(mockAppointmentsById).forEach((key) => delete mockAppointmentsById[key]);
     Object.keys(mockTasksById).forEach((key) => delete mockTasksById[key]);
@@ -1305,5 +1309,709 @@ describe('CompanionHistoryTimeline', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Audit trail' }));
 
     expect(await screen.findByText('Updated by: Pet parent')).toBeInTheDocument();
+  });
+
+  it('falls back to the generic message when a rejection object carries no message', async () => {
+    mockAppointmentsById['a-1'] = {
+      id: 'a-1',
+      organisationId: 'org-1',
+      status: 'UPCOMING',
+      companion: { id: 'c-1', name: 'Milo' },
+      patient: { id: 'c-1', name: 'Milo' },
+    };
+    (changeAppointmentStatus as jest.Mock).mockRejectedValueOnce({ code: 'ERR_UNKNOWN' });
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[0], status: 'UPCOMING' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { APPOINTMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Recheck visit');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Status update failed',
+        text: 'Please try again.',
+      });
+    });
+  });
+
+  it('falls back to the generic message when a rejection message is only whitespace', async () => {
+    mockAppointmentsById['a-1'] = {
+      id: 'a-1',
+      organisationId: 'org-1',
+      status: 'UPCOMING',
+      companion: { id: 'c-1', name: 'Milo' },
+      patient: { id: 'c-1', name: 'Milo' },
+    };
+    (changeAppointmentStatus as jest.Mock).mockRejectedValueOnce({ message: '   ' });
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[0], status: 'UPCOMING' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { APPOINTMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Recheck visit');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Status update failed',
+        text: 'Please try again.',
+      });
+    });
+  });
+
+  it('assigns the same-origin path when a linked entry resolves to a safe route', async () => {
+    mockGetSafeSameOriginPath.mockImplementation((path: string) => path);
+    let assignSpy: jest.Mock | null = null;
+    try {
+      assignSpy = jest.fn();
+      Object.defineProperty(globalThis.window.location, 'assign', {
+        configurable: true,
+        value: assignSpy,
+      });
+    } catch {
+      assignSpy = null;
+    }
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[1], id: 'nav-task-safe' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { TASK: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open task' }));
+
+    expect(mockGetSafeSameOriginPath).toHaveBeenCalledWith('/tasks?taskId=t-1');
+    if (assignSpy) {
+      expect(assignSpy).toHaveBeenCalledWith('/tasks?taskId=t-1');
+    }
+  });
+
+  it('renders a dash status pill for an appointment with an empty status', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[0], status: '' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { APPOINTMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Recheck visit');
+    expect(screen.getAllByTitle('-').length).toBeGreaterThan(0);
+  });
+
+  it('renders the compact "Awaiting" label for an awaiting-payment status pill', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[0], status: 'AWAITING_PAYMENT' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { APPOINTMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Recheck visit');
+    expect(screen.getByText('Awaiting')).toBeInTheDocument();
+  });
+
+  it('renders audit rows for mixed event types, connectors, and unknown actor types', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+    (getCompanionAuditTrail as jest.Mock).mockResolvedValue([
+      {
+        eventType: 'INVOICE_PAID',
+        entityType: 'INVOICE',
+        actorType: 'ROBOT',
+        actorName: 'Bot 9000',
+        occurredAt: '2026-03-20T10:00:00.000Z',
+      },
+      {
+        id: 'audit-empty',
+        eventType: '',
+        actorType: 'SYSTEM',
+        actorName: '',
+        occurredAt: '2026-03-19T10:00:00.000Z',
+      },
+    ]);
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Audit trail' }));
+
+    expect(await screen.findByText('Updated by: Bot 9000 • System')).toBeInTheDocument();
+    expect(screen.getByText('Updated by: System')).toBeInTheDocument();
+  });
+
+  it('shows the empty audit state when the audit response is not an array', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+    (getCompanionAuditTrail as jest.Mock).mockResolvedValue(null);
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Audit trail' }));
+
+    expect(await screen.findByText('No audit entries found.')).toBeInTheDocument();
+  });
+
+  it('skips the audit fetch and shows an empty state without a companion id', async () => {
+    render(<CompanionHistoryTimeline companionId="" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Audit trail' }));
+
+    expect(await screen.findByText('No audit entries found.')).toBeInTheDocument();
+    expect(getCompanionAuditTrail).not.toHaveBeenCalled();
+  });
+
+  it('opens a document by link id and revokes a stale blob preview', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        baseEntries[4],
+        {
+          ...baseEntries[3],
+          id: 'doc-link-id',
+          link: { kind: 'document', id: 'd-9' },
+          payload: {},
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 2, countsByType: { LAB_RESULT: 1, DOCUMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Result PDF' }));
+    expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(
+      'IDEXX Result PDF #l-1-blob:lab-result'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open file' }));
+
+    await waitFor(() => {
+      expect(loadDocumentDownloadURL).toHaveBeenCalledWith('d-9');
+    });
+    await waitFor(() => {
+      expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:lab-result');
+    });
+    expect(screen.getByTestId('pdf-preview')).toHaveTextContent(
+      'Blood panel PDF-https://example.com/file.pdf'
+    );
+  });
+
+  it('logs when opening a document fails', async () => {
+    (loadDocumentDownloadURL as jest.Mock).mockRejectedValueOnce(new Error('download failed'));
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [baseEntries[3]],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open file' }));
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to open document:', expect.any(Error));
+    });
+  });
+
+  it('navigates to the diagnostics route for a non-active linked lab result', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [baseEntries[4]],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open result' }));
+
+    expect(mockGetSafeSameOriginPath).toHaveBeenCalledWith(
+      '/appointments?appointmentId=a-1&open=labs&subLabel=idexx-labs'
+    );
+  });
+
+  it('does nothing when a linked medical entry resolves to no appointment', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[2],
+          id: 'form-no-appt',
+          link: { kind: 'form_submission', id: 'f-9', patientId: 'c-1' },
+          payload: {},
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { FORM_SUBMISSION: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open submission' }));
+
+    expect(mockGetSafeSameOriginPath).not.toHaveBeenCalled();
+    expect(windowOpenSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores a medical primary click while its document preview is still loading', async () => {
+    (loadDocumentDownloadURL as jest.Mock).mockReturnValue(new Promise(() => {}));
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [baseEntries[3]],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open file' }));
+    await waitFor(() => {
+      expect(loadDocumentDownloadURL).toHaveBeenCalledTimes(1);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Open file' }));
+
+    expect(loadDocumentDownloadURL).toHaveBeenCalledTimes(1);
+  });
+
+  it('collapses expanded diagnostic results on a second toggle click', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[4],
+          payload: {
+            ...baseEntries[4].payload,
+            results: [{ test: 'WBC', value: '6.1', unit: 'k/uL' }],
+          },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View IDEXX Result' }));
+    expect(await screen.findByText('WBC')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide IDEXX Result' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('WBC')).not.toBeInTheDocument();
+    });
+  });
+
+  it('revokes an earlier result-PDF blob when opening a second result PDF', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        baseEntries[4],
+        {
+          ...baseEntries[4],
+          id: 'entry-lab-2',
+          title: 'IDEXX Result 2',
+          link: { kind: 'lab_result', id: 'l-2', appointmentId: 'a-1', patientId: 'c-1' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 2, countsByType: { LAB_RESULT: 2 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    const resultButtons = await screen.findAllByRole('button', { name: 'Result PDF' });
+    fireEvent.click(resultButtons[0]);
+    await screen.findByTestId('pdf-preview');
+
+    fireEvent.click(resultButtons[1]);
+
+    await waitFor(() => {
+      expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:lab-result');
+    });
+  });
+
+  it('renders a disabled status pill for a task that is not loaded', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[1], status: 'PENDING' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { TASK: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Give medication');
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Status' })).not.toBeInTheDocument();
+  });
+
+  it('resolves linked appointment and task ids from link and payload fallbacks', async () => {
+    mockAppointmentsById['a-1'] = {
+      id: 'a-1',
+      organisationId: 'org-1',
+      status: 'UPCOMING',
+      companion: { id: 'c-1', name: 'Milo' },
+      patient: { id: 'c-1', name: 'Milo' },
+    };
+    mockTasksById['t-1'] = {
+      _id: 't-1',
+      organisationId: 'org-1',
+      assignedTo: 'team-1',
+      audience: 'PARENT_TASK',
+      source: 'CUSTOM',
+      category: 'Care',
+      name: 'Give medication',
+      dueAt: new Date('2026-03-19T10:00:00.000Z'),
+      status: 'PENDING',
+    };
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[0],
+          id: 'appt-fallback',
+          status: 'UPCOMING',
+          link: { kind: 'other', id: 'x', appointmentId: 'a-1', patientId: 'c-1' },
+          payload: {},
+        },
+        {
+          ...baseEntries[1],
+          id: 'task-fallback',
+          status: 'PENDING',
+          link: { kind: 'task', id: '', appointmentId: 'a-9', patientId: 'c-1' },
+          payload: { taskId: 't-1' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 2, countsByType: {} },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Recheck visit');
+    expect(screen.getAllByRole('button', { name: 'Status' })).toHaveLength(2);
+  });
+
+  it('notifies when an appointment is unloaded before its status persists', async () => {
+    mockAppointmentsById['a-1'] = {
+      id: 'a-1',
+      organisationId: 'org-1',
+      status: 'UPCOMING',
+      companion: { id: 'c-1', name: 'Milo' },
+      patient: { id: 'c-1', name: 'Milo' },
+    };
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[0], status: 'UPCOMING' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { APPOINTMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Recheck visit');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
+    delete mockAppointmentsById['a-1'];
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Open appointment to change status' })
+      );
+    });
+    expect(changeAppointmentStatus).not.toHaveBeenCalled();
+  });
+
+  it('notifies when a task is unloaded before its status persists', async () => {
+    mockTasksById['t-1'] = {
+      _id: 't-1',
+      organisationId: 'org-1',
+      assignedTo: 'team-1',
+      audience: 'PARENT_TASK',
+      source: 'CUSTOM',
+      category: 'Care',
+      name: 'Give medication',
+      dueAt: new Date('2026-03-19T10:00:00.000Z'),
+      status: 'PENDING',
+    };
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[1], status: 'PENDING' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { TASK: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Give medication');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
+    delete mockTasksById['t-1'];
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'In progress' }));
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Open task to change status' })
+      );
+    });
+    expect(changeTaskStatus).not.toHaveBeenCalled();
+  });
+
+  it('hides the acknowledgment chip for a lab result without a fallback URL', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[4],
+          payload: { status: 'Final' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    expect(await screen.findByRole('button', { name: 'Result PDF' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Acknowledgment PDF' })).not.toBeInTheDocument();
+  });
+
+  it('shows only the acknowledgment chip for a lab result without a result id', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[4],
+          link: { kind: 'other', id: 'x', appointmentId: 'a-1', patientId: 'c-1' },
+          payload: { pdfUrl: 'https://example.com/ack-only.pdf' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    expect(await screen.findByRole('button', { name: 'Acknowledgment PDF' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Result PDF' })).not.toBeInTheDocument();
+  });
+
+  it('matches the search query against actor name and tags', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        ...baseEntries,
+        {
+          ...baseEntries[0],
+          id: 'entry-tagged',
+          title: 'Tagged visit',
+          actor: { id: 'u-1', name: 'Dr House', role: 'VET' },
+          tags: ['urgent', 'recheck'],
+          payload: { appointmentId: 'a-1' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 7, countsByType: {} },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Tagged visit');
+    fireEvent.change(screen.getByLabelText('Search overview records'), {
+      target: { value: 'urgent' },
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Give medication')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Tagged visit')).toBeInTheDocument();
+  });
+
+  it('renders positional labels and dashes for sparse structured results', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[4],
+          payload: {
+            ...baseEntries[4].payload,
+            results: [{ value: '' }, 'not-an-object', { test: 'WBC', value: '6.1' }],
+          },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'View IDEXX Result' }));
+
+    expect(await screen.findByText('Result 1')).toBeInTheDocument();
+    expect(screen.getByText('WBC')).toBeInTheDocument();
+  });
+
+  it('renders an empty overview and skips fetching when there is no primary org', async () => {
+    mockOrgState = { primaryOrgId: null, orgsById: {} };
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    expect(await screen.findByText('No overview entries found.')).toBeInTheDocument();
+    expect(fetchCompanionHistory).not.toHaveBeenCalled();
+  });
+
+  it('keeps every row when a stale status filter lingers after the companion changes', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+
+    const { rerender } = render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Recheck visit');
+    fireEvent.click(screen.getByRole('tab', { name: 'Appointments' }));
+    await screen.findByText('Recheck visit');
+
+    // Pick a specific appointment status filter, then switch companions. The
+    // companion-change layout effect resets the active tab to "All" but leaves
+    // the status filter in place, so matchesStatusFilter runs against a tab that
+    // has no status options at all.
+    fireEvent.click(screen.getByRole('button', { name: 'Status: All statuses' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Requested' }));
+
+    rerender(<CompanionHistoryTimeline companionId="c-2" />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true');
+    });
+    // The stale "requested" filter must not hide the non-appointment rows.
+    expect(await screen.findByText('Give medication')).toBeInTheDocument();
+  });
+
+  it('closes the appointment status menu when the trigger loses focus', async () => {
+    mockAppointmentsById['a-1'] = {
+      id: 'a-1',
+      organisationId: 'org-1',
+      status: 'UPCOMING',
+      companion: { id: 'c-1', name: 'Milo' },
+      patient: { id: 'c-1', name: 'Milo' },
+    };
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[0], status: 'UPCOMING' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { APPOINTMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Recheck visit');
+    const statusButton = screen.getAllByRole('button', { name: 'Status' }).at(-1)!;
+    fireEvent.click(statusButton);
+    expect(screen.getByRole('menuitem', { name: 'Checked-in' })).toBeInTheDocument();
+
+    fireEvent.blur(statusButton);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitem', { name: 'Checked-in' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('resolves the appointment id from payload when the link kind or id is missing', async () => {
+    mockAppointmentsById['a-1'] = {
+      id: 'a-1',
+      organisationId: 'org-1',
+      status: 'UPCOMING',
+      companion: { id: 'c-1', name: 'Milo' },
+      patient: { id: 'c-1', name: 'Milo' },
+    };
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[0],
+          id: 'appt-kind-missing',
+          status: 'UPCOMING',
+          link: { id: 'a-1', patientId: 'c-1' },
+          payload: { appointmentId: 'a-1' },
+        },
+        {
+          ...baseEntries[0],
+          id: 'appt-id-missing',
+          status: 'UPCOMING',
+          link: { kind: 'appointment', patientId: 'c-1' },
+          payload: { appointmentId: 'a-1' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 2, countsByType: { APPOINTMENT: 2 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: 'Status' })).toHaveLength(2);
+    });
+  });
+
+  it('renders audit rows with missing actor and event fields via system fallbacks', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+    (getCompanionAuditTrail as jest.Mock).mockResolvedValue([
+      { id: 'audit-actorless', eventType: 'NOTE_ADDED', occurredAt: '2026-03-20T10:00:00.000Z' },
+      { id: 'audit-eventless', occurredAt: '2026-03-19T10:00:00.000Z' },
+    ]);
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Audit trail' }));
+
+    expect(await screen.findAllByText('Updated by: System')).toHaveLength(2);
+  });
+
+  it('falls back to the default preview title when a document entry has no title', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[3], title: '', payload: { documentId: 'd-1' } }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open file' }));
+
+    expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(
+      'Medical record preview-https://example.com/file.pdf'
+    );
+  });
+
+  it('falls back to the default preview title when previewing a bundled PDF without a title', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[3],
+          title: '',
+          payload: { documentId: 'd-1', pdfUrl: 'https://example.com/no-title.pdf' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Open file' }));
+
+    expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(
+      'Medical record preview-https://example.com/no-title.pdf'
+    );
+    expect(loadDocumentDownloadURL).not.toHaveBeenCalled();
   });
 });

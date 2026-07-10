@@ -274,7 +274,10 @@ const AddForm = ({
                 <Details
                   formData={formData}
                   setFormData={setFormData}
-                  onNext={() => setShowDetails(false)}
+                  onNext={
+                    /* v8 ignore next -- dead no-op leftover from the old wizard: Details renders with hideNext, so onNext is never invoked */ () =>
+                      setShowDetails(false)
+                  }
                   serviceOptions={serviceOptions}
                   registerValidator={(fn) => {
                     detailValidatorRef.current = fn;
@@ -287,7 +290,10 @@ const AddForm = ({
                 <Build
                   formData={formData}
                   setFormData={setFormData}
-                  onNext={() => undefined}
+                  onNext={
+                    /* v8 ignore next -- dead no-op leftover from the old wizard: single-screen Build never invokes onNext */ () =>
+                      undefined
+                  }
                   serviceOptions={serviceOptions}
                   registerValidator={(fn) => {
                     buildValidatorRef.current = fn;

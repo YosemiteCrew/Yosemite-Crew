@@ -446,9 +446,11 @@ const getLinkedEntryIntent = (
   subLabel?: string;
   open?: 'finance' | 'labs';
 } | null => {
+  /* v8 ignore next -- unreachable: INVOICE is handled in handleOpenEntry before openAppointmentLinkedEntry (the only caller) runs, so it never reaches here */
   if (type === 'INVOICE') return { label: 'finance', subLabel: 'summary', open: 'finance' };
   if (type === 'FORM_SUBMISSION') return { label: 'prescription', subLabel: 'forms' };
   if (type === 'APPOINTMENT') return { label: 'info', subLabel: 'appointment' };
+  /* v8 ignore next -- unreachable: TASK is handled in handleOpenEntry before openAppointmentLinkedEntry (the only caller) runs, so it never reaches here */
   if (type === 'TASK') return { label: 'tasks', subLabel: 'task' };
   return null;
 };
@@ -926,6 +928,7 @@ const getPersistStatusAction = (
 ): ((entry: HistoryEntry, nextStatus: string) => Promise<void>) | null => {
   if (entryType === 'APPOINTMENT') return persistAppointmentStatus;
   if (entryType === 'TASK') return persistTaskStatus;
+  /* v8 ignore next -- unreachable: handleStatusChange only fires from StatusPillSelect, which renders for APPOINTMENT/TASK rows only */
   return null;
 };
 
@@ -1150,6 +1153,7 @@ const CompanionHistoryTimeline = ({
   const openAppointmentLinkedEntry = useCallback(
     (entry: HistoryEntry) => {
       const intent = getLinkedEntryIntent(entry.type);
+      /* v8 ignore next -- unreachable: only APPOINTMENT/FORM_SUBMISSION reach this callback, and both yield a non-null intent */
       if (!intent) return;
       const appointmentId = resolveEntryAppointmentId(entry);
       if (!appointmentId) return;
@@ -1340,6 +1344,7 @@ const CompanionHistoryTimeline = ({
         persistAppointmentStatus,
         persistTaskStatus
       );
+      /* v8 ignore next -- unreachable: getPersistStatusAction returns null only for non-APPOINTMENT/TASK, but this handler only fires for those rows */
       if (!persistStatus) return;
       persistStatus(entry, status).catch((statusError) => {
         console.error('Failed to update history row status:', statusError);
@@ -1355,6 +1360,7 @@ const CompanionHistoryTimeline = ({
   const handleOpenResultPdf = useCallback(
     (entry: HistoryEntry) => {
       const resultId = resolveLabResultId(entry);
+      /* v8 ignore next 4 -- unreachable: the Result PDF chip only renders when resolveLabResultId is truthy and a primary org is present, so this fallback never runs */
       if (!organisationId || !resultId) {
         handleOpenEntry(entry);
         return;
