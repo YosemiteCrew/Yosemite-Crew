@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CompanionHistoryTimeline from '@/app/features/companionHistory/components/CompanionHistoryTimeline';
 import { fetchCompanionHistory } from '@/app/features/companionHistory/services/companionHistoryService';
@@ -2013,5 +2013,133 @@ describe('CompanionHistoryTimeline', () => {
       'Medical record preview-https://example.com/no-title.pdf'
     );
     expect(loadDocumentDownloadURL).not.toHaveBeenCalled();
+  });
+
+  it('opens the record detail drawer from the row chevron and wires its actions', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[4],
+          title: 'Catalyst Chem 17',
+          summary: 'Mild ALP elevation.',
+          payload: {
+            ...baseEntries[4].payload,
+            results: [{ test: 'ALP', value: '212', unit: 'U/L' }],
+          },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open record detail for Catalyst Chem 17' })
+    );
+
+    const drawer = await screen.findByRole('dialog', { name: /Catalyst Chem 17/ });
+    expect(within(drawer).getByText('Record detail')).toBeInTheDocument();
+    expect(within(drawer).getByText('ALP')).toBeInTheDocument();
+    expect(within(drawer).getByText('212 / U/L')).toBeInTheDocument();
+    expect(within(drawer).getByText('Mild ALP elevation.')).toBeInTheDocument();
+    expect(within(drawer).getByText('Linked to')).toBeInTheDocument();
+
+    // Linked navigation reuses the preserved appointment routing
+    fireEvent.click(within(drawer).getByText('Linked appointment'));
+    expect(mockGetSafeSameOriginPath).toHaveBeenCalledWith(
+      '/appointments?appointmentId=a-1&subLabel=appointment'
+    );
+
+    // Share / Discuss surface notifications
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Share to app' }));
+    expect(mockNotify).toHaveBeenCalledWith(
+      'info',
+      expect.objectContaining({ title: 'Share to app' })
+    );
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Discuss in chat' }));
+    expect(mockNotify).toHaveBeenCalledWith(
+      'info',
+      expect.objectContaining({ title: 'Discuss in chat' })
+    );
+
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Close record detail' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('downloads the record PDF from the drawer using the preserved open behaviour', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[3],
+          title: 'Referral letter',
+          payload: { documentId: 'd-1', pdfUrl: 'https://example.com/referral.pdf' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { DOCUMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open record detail for Referral letter' })
+    );
+    const drawer = await screen.findByRole('dialog', { name: /Referral letter/ });
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Download PDF' }));
+
+    expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(
+      'Referral letter-https://example.com/referral.pdf'
+    );
+  });
+
+  it('uses the in-page callback and loaded appointment name for the drawer linked row', async () => {
+    mockAppointmentsById['a-1'] = {
+      id: 'a-1',
+      organisationId: 'org-1',
+      status: 'IN_PROGRESS',
+      appointmentType: 'Annual check-up',
+      companion: { id: 'c-1', name: 'Milo' },
+      patient: { id: 'c-1', name: 'Milo' },
+    };
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[4], title: 'Chem panel' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+    const onOpenAppointmentView = jest.fn();
+
+    render(
+      <CompanionHistoryTimeline
+        companionId="c-1"
+        activeAppointmentId="a-1"
+        onOpenAppointmentView={onOpenAppointmentView}
+      />
+    );
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open record detail for Chem panel' })
+    );
+    const drawer = await screen.findByRole('dialog', { name: /Chem panel/ });
+    fireEvent.click(within(drawer).getByText('Annual check-up'));
+
+    expect(onOpenAppointmentView).toHaveBeenCalledWith({ label: 'info', subLabel: 'appointment' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('omits the linked-to row for appointment records in the drawer', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[0], title: 'Annual check-up' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { APPOINTMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open record detail for Annual check-up' })
+    );
+    const drawer = await screen.findByRole('dialog', { name: /Annual check-up/ });
+    expect(within(drawer).queryByText('Linked to')).not.toBeInTheDocument();
   });
 });

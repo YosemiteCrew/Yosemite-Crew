@@ -235,4 +235,24 @@ describe('HistoryEntryCard', () => {
     // No meta span rendered at all (empty timestamp + no contributor)
     expect(screen.queryByText(/formatted-datetime/)).not.toBeInTheDocument();
   });
+
+  it('renders a detail chevron that opens the record drawer when onOpenDetail is provided', () => {
+    const onOpenDetail = jest.fn();
+    renderCard(
+      <HistoryEntryCard entry={baseEntry} onOpen={jest.fn()} onOpenDetail={onOpenDetail} active />
+    );
+
+    const chevron = screen.getByRole('button', {
+      name: 'Open record detail for Medication reminder',
+    });
+    fireEvent.click(chevron);
+    expect(onOpenDetail).toHaveBeenCalledWith(baseEntry);
+  });
+
+  it('does not render the detail chevron when onOpenDetail is absent', () => {
+    renderCard(<HistoryEntryCard entry={baseEntry} onOpen={jest.fn()} />);
+    expect(
+      screen.queryByRole('button', { name: 'Open record detail for Medication reminder' })
+    ).not.toBeInTheDocument();
+  });
 });

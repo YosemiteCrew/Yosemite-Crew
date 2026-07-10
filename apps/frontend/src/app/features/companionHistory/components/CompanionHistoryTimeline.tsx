@@ -30,6 +30,7 @@ import { loadDocumentDownloadURL } from '@/app/features/companions/services/comp
 import HistoryEmptyState from '@/app/features/companionHistory/components/HistoryEmptyState';
 import HistoryDocumentUpload from '@/app/features/companionHistory/components/HistoryDocumentUpload';
 import HistoryEntryCard from '@/app/features/companionHistory/components/HistoryEntryCard';
+import HistoryRecordDrawer from '@/app/features/companionHistory/components/HistoryRecordDrawer';
 import {
   CompanionHistoryResponse,
   HISTORY_FILTER_TYPE_MAP,
@@ -464,6 +465,27 @@ const resolveEntryAppointmentId = (entry: HistoryEntry): string | null => {
   return null;
 };
 
+// Label for the record drawer's "Linked to" row: the parent appointment's
+// service/type name (from the loaded appointment or the entry payload), or a
+// neutral fallback. Returns null for appointment rows and unlinked records.
+const getLinkedAppointmentLabel = (
+  entry: HistoryEntry,
+  appointmentsById: Record<string, unknown>
+): string | null => {
+  if (entry.type === 'APPOINTMENT') return null;
+  const appointmentId = resolveEntryAppointmentId(entry);
+  if (!appointmentId) return null;
+  const appointment = appointmentsById[appointmentId];
+  const appointmentRecord =
+    appointment && typeof appointment === 'object' && !Array.isArray(appointment)
+      ? (appointment as Record<string, unknown>)
+      : null;
+  const appointmentName = appointmentRecord
+    ? getPayloadString(appointmentRecord, ['appointmentType', 'serviceName', 'title', 'name'])
+    : null;
+  return appointmentName || 'Linked appointment';
+};
+
 const getSearchableText = (entry: HistoryEntry): string => {
   const payloadText = Object.values(entry.payload)
     .filter((value) => ['string', 'number'].includes(typeof value))
@@ -623,7 +645,9 @@ type TimelineEntryProps = {
   isLast: boolean;
   expandedId: string | null;
   pdfLoadingId: string | null;
+  selectedId: string | null;
   onOpen: (entry: HistoryEntry) => void;
+  onOpenDetail: (entry: HistoryEntry) => void;
   onStatusChange: (entry: HistoryEntry, status: string) => void;
   canEditStatus: (entry: HistoryEntry) => boolean;
   onToggle: (id: string) => void;
@@ -749,13 +773,15 @@ const getEntryActions = ({
 };
 
 const TimelineEntry = (props: TimelineEntryProps) => {
-  const { entry, isLast, expandedId, onOpen } = props;
+  const { entry, isLast, expandedId, selectedId, onOpen, onOpenDetail } = props;
   const results = getLabResults(entry);
   const expanded = expandedId === entry.id;
   return (
     <HistoryEntryCard
       entry={entry}
       onOpen={onOpen}
+      onOpenDetail={onOpenDetail}
+      active={selectedId === entry.id}
       isLast={isLast}
       statusSlot={getEntryStatusSlot(props)}
       actions={getEntryActions(props)}
@@ -772,7 +798,9 @@ type TimelineListProps = {
   entries: HistoryEntry[];
   expandedId: string | null;
   pdfLoadingId: string | null;
+  selectedId: string | null;
   onOpen: (entry: HistoryEntry) => void;
+  onOpenDetail: (entry: HistoryEntry) => void;
   onStatusChange: (entry: HistoryEntry, status: string) => void;
   canEditStatus: (entry: HistoryEntry) => boolean;
   onToggle: (id: string) => void;
@@ -872,10 +900,12 @@ type TimelineBodyProps = {
   filteredEntries: HistoryEntry[];
   expandedId: string | null;
   pdfLoadingId: string | null;
+  selectedId: string | null;
   onStatusChange: (entry: HistoryEntry, nextStatus: string) => void;
   canEditStatus: (entry: HistoryEntry) => boolean;
   onToggle: (entryId: string) => void;
   onOpen: (entry: HistoryEntry) => void;
+  onOpenDetail: (entry: HistoryEntry) => void;
   onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
   onOpenResultPdf: (entry: HistoryEntry) => void;
 };
@@ -890,10 +920,12 @@ const getTimelineBody = ({
   filteredEntries,
   expandedId,
   pdfLoadingId,
+  selectedId,
   onStatusChange,
   canEditStatus,
   onToggle,
   onOpen,
+  onOpenDetail,
   onPreviewPdf,
   onOpenResultPdf,
 }: TimelineBodyProps) => {
@@ -914,10 +946,12 @@ const getTimelineBody = ({
       entries={filteredEntries}
       expandedId={expandedId}
       pdfLoadingId={pdfLoadingId}
+      selectedId={selectedId}
       onStatusChange={onStatusChange}
       canEditStatus={canEditStatus}
       onToggle={onToggle}
       onOpen={onOpen}
+      onOpenDetail={onOpenDetail}
       onPreviewPdf={onPreviewPdf}
       onOpenResultPdf={onOpenResultPdf}
     />
@@ -972,6 +1006,7 @@ const CompanionHistoryTimeline = ({
   const [statusOverrides, setStatusOverrides] = useState<StatusOverrides>({});
   const [pdfPreview, setPdfPreview] = useState<PdfPreviewState | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<HistoryEntry | null>(null);
   const historyFilters = useMemo(() => getHistoryFilters(orgType), [orgType]);
   const statusFilterOptions = useMemo(() => getStatusFilterOptions(activeFilter), [activeFilter]);
 
@@ -1406,6 +1441,50 @@ const CompanionHistoryTimeline = ({
     });
   }, []);
 
+  const handleOpenLinkedFromDrawer = useCallback(
+    (entry: HistoryEntry) => {
+      const appointmentId = resolveEntryAppointmentId(entry);
+      /* v8 ignore next -- unreachable: the "Linked to" button only renders when getLinkedAppointmentLabel resolves an appointment id, so this guard never triggers from the UI */
+      if (!appointmentId) return;
+      if (appointmentId === activeAppointmentId && onOpenAppointmentView) {
+        onOpenAppointmentView({ label: 'info', subLabel: 'appointment' });
+        setSelectedEntry(null);
+        return;
+      }
+      navigateSameOrigin(buildAppointmentsLink(appointmentId, undefined, 'appointment'));
+    },
+    [activeAppointmentId, onOpenAppointmentView]
+  );
+
+  const handleShareRecord = useCallback(
+    (entry: HistoryEntry) => {
+      notify('info', {
+        title: 'Share to app',
+        text: `“${entry.title}” will be shared to the pet parent app.`,
+      });
+    },
+    [notify]
+  );
+
+  const handleDiscussRecord = useCallback(
+    (entry: HistoryEntry) => {
+      notify('info', {
+        title: 'Discuss in chat',
+        text: `Start a chat about “${entry.title}”.`,
+      });
+    },
+    [notify]
+  );
+
+  const selectedResults = useMemo(
+    () => (selectedEntry ? getLabResults(selectedEntry) : []),
+    [selectedEntry]
+  );
+  const selectedLinkedLabel = useMemo(
+    () => (selectedEntry ? getLinkedAppointmentLabel(selectedEntry, appointmentsById) : null),
+    [selectedEntry, appointmentsById]
+  );
+
   return (
     <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
       <div className="flex w-full flex-col gap-5">
@@ -1506,10 +1585,12 @@ const CompanionHistoryTimeline = ({
             filteredEntries,
             expandedId,
             pdfLoadingId,
+            selectedId: selectedEntry?.id ?? null,
             onStatusChange: handleStatusChange,
             canEditStatus,
             onToggle: handleToggleExpanded,
             onOpen: handleTimelineOpen,
+            onOpenDetail: setSelectedEntry,
             onPreviewPdf: handlePreviewPdf,
             onOpenResultPdf: handleOpenResultPdf,
           })}
@@ -1542,6 +1623,17 @@ const CompanionHistoryTimeline = ({
           pdfUrl={pdfPreview?.url ?? null}
           title={pdfPreview?.title ?? 'Medical record preview'}
           onClose={handleClosePdfPreview}
+        />
+
+        <HistoryRecordDrawer
+          entry={selectedEntry}
+          results={selectedResults}
+          linkedLabel={selectedLinkedLabel}
+          onClose={() => setSelectedEntry(null)}
+          onDownload={handleTimelineOpen}
+          onOpenLinked={handleOpenLinkedFromDrawer}
+          onShare={handleShareRecord}
+          onDiscuss={handleDiscussRecord}
         />
       </div>
     </PermissionGate>

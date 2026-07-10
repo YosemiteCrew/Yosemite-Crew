@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import {
+  IoChevronForwardOutline,
   IoClipboardOutline,
   IoDocumentTextOutline,
   IoFlaskOutline,
@@ -28,6 +29,10 @@ type HistoryEntryCardProps = {
   actions?: React.ReactNode;
   /** Expanded detail region (e.g. structured lab results). */
   expandedContent?: React.ReactNode;
+  /** When provided, renders a trailing chevron that opens the record detail drawer. */
+  onOpenDetail?: (entry: HistoryEntry) => void;
+  /** Marks the row as the record currently open in the detail drawer. */
+  active?: boolean;
 };
 
 type AttachmentChip = {
@@ -183,6 +188,8 @@ const HistoryEntryCard = ({
   statusSlot,
   actions,
   expandedContent,
+  onOpenDetail,
+  active = false,
 }: HistoryEntryCardProps) => {
   const actionLabel = useMemo(() => getPrimaryActionLabel(entry), [entry]);
   const statusLabel = useMemo(() => formatStatusLabel(entry.status), [entry.status]);
@@ -193,7 +200,11 @@ const HistoryEntryCard = ({
   const tags = entry.tags ?? [];
 
   return (
-    <li className="flex gap-[14px] font-satoshi">
+    <li
+      className={`flex gap-[14px] font-satoshi ${
+        active ? 'rounded-[14px] bg-[var(--surface-soft)] px-2 py-1.5' : ''
+      }`}
+    >
       <span className="flex flex-none flex-col items-center">
         <span
           aria-hidden="true"
@@ -272,6 +283,17 @@ const HistoryEntryCard = ({
           </span>
         ) : null}
       </div>
+
+      {onOpenDetail ? (
+        <button
+          type="button"
+          aria-label={`Open record detail for ${entry.title}`}
+          onClick={() => onOpenDetail(entry)}
+          className="flex size-7 flex-none items-center justify-center self-center rounded-full text-[var(--ink-faint)] transition-colors hover:bg-[var(--card-hover)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+        >
+          <IoChevronForwardOutline size={15} aria-hidden="true" />
+        </button>
+      ) : null}
     </li>
   );
 };
