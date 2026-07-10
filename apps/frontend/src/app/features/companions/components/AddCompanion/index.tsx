@@ -67,8 +67,14 @@ const AddCompanion = ({
       : terminologyText('Step 2 of 2 · patient details');
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="flex flex-col h-full gap-6">
+    <Modal
+      showModal={showModal}
+      setShowModal={setShowModal}
+      variant="centered"
+      size="md"
+      aria-label={terminologyText('Add companion')}
+    >
+      <div className="flex flex-col flex-auto min-h-0 gap-6">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <span className="text-body-1 text-text-primary">
@@ -79,13 +85,10 @@ const AddCompanion = ({
           <Close onClick={() => setShowModal(false)} />
         </div>
 
-        {/* Progress dots — mirror the two-step flow */}
+        {/* Progress dots — mirror the two-step flow. Step 1 is always reached, so the
+            first dot is always active; the second lights up on the companion step. */}
         <div className="flex items-center gap-1.5" aria-hidden="true">
-          <span
-            className={`h-[5px] w-[22px] rounded-full ${
-              stepIndex >= 1 ? 'bg-[var(--cta)]' : 'bg-[var(--divider)]'
-            }`}
-          />
+          <span className="h-[5px] w-[22px] rounded-full bg-[var(--cta)]" />
           <span
             className={`h-[5px] w-[22px] rounded-full ${
               stepIndex >= 2 ? 'bg-[var(--cta)]' : 'bg-[var(--divider)]'
@@ -99,7 +102,7 @@ const AddCompanion = ({
           setActiveLabel={handleLabelChange}
         />
 
-        <div ref={scrollRef} className="flex overflow-y-auto flex-1 scrollbar-hidden">
+        <div ref={scrollRef} className="flex overflow-y-auto flex-auto min-h-0 scrollbar-hidden">
           {activeLabel === 'parents' && (
             <Parent
               ref={parentSectionRef}

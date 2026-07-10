@@ -18,11 +18,22 @@ type Column<T> = {
   render?: (item: T) => React.ReactNode;
 };
 
+/** Minimal shape needed to resolve a linked service id to a display name. */
+type LinkedServiceOption = { label: string; value: string };
+
 type FormsTableProps = {
   filteredList: FormsProps[];
   setActiveForm: (companion: FormsProps) => void;
   setViewPopup: (open: boolean) => void;
   loading?: boolean;
+  /**
+   * Opt-in: when true, renders a "Linked services" chips column resolving each template's
+   * `services` ids via `serviceOptions`. Defaults to false so other callers of this shared
+   * table render the exact same columns as before.
+   */
+  showLinkedServices?: boolean;
+  /** Service id -> label source used only when `showLinkedServices` is true. */
+  serviceOptions?: LinkedServiceOption[];
 };
 
 const FormsTable = ({
@@ -30,6 +41,8 @@ const FormsTable = ({
   setActiveForm,
   setViewPopup,
   loading = false,
+  showLinkedServices = false,
+  serviceOptions,
 }: FormsTableProps) => {
   const { teamsById } = useTeamStore();
   const orgType = useOrgStore((s) =>
@@ -54,6 +67,15 @@ const FormsTable = ({
   const getUserName = (userId: string) => {
     return userIdToName[userId] || userId;
   };
+
+  // Resolve linked-service ids to display names (opt-in column only).
+  const serviceNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const option of serviceOptions ?? []) {
+      if (option?.value) map.set(String(option.value), option.label);
+    }
+    return map;
+  }, [serviceOptions]);
 
   const handleViewForm = (companion: FormsProps) => {
     setActiveForm(companion);
@@ -126,6 +148,34 @@ const FormsTable = ({
       ),
     },
   ];
+
+  // Opt-in only: insert the linked-service chips column after "Category" so the templates
+  // list mirrors the design. Other callers leave `showLinkedServices` off → columns unchanged.
+  if (showLinkedServices) {
+    columns.splice(2, 0, {
+      label: 'Linked services',
+      key: 'linkedServices',
+      width: '190px',
+      render: (item: FormsProps) => {
+        const serviceIds = item.services ?? [];
+        if (serviceIds.length === 0) {
+          return <span className="text-body-4 text-text-tertiary">-</span>;
+        }
+        return (
+          <div className="flex flex-wrap gap-1.5">
+            {serviceIds.map((id) => (
+              <span
+                key={id}
+                className="inline-flex items-center rounded-full! bg-[var(--inset)] px-2.5 py-[3px] text-[11px] font-semibold text-[var(--ink-body)]"
+              >
+                {serviceNameById.get(id) ?? id}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    });
+  }
 
   return (
     <div className="table-wrapper forms-scroll-x h-full min-h-0 overflow-hidden">

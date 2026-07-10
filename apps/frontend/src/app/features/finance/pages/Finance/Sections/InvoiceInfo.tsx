@@ -136,8 +136,14 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
   };
 
   return (
-    <Modal showModal={showModal} setShowModal={setShowModal}>
-      <div className="flex flex-col h-full gap-4">
+    <Modal
+      showModal={showModal}
+      setShowModal={setShowModal}
+      variant="centered"
+      size="lg"
+      aria-labelledby={titleId}
+    >
+      <div className="flex flex-col flex-auto min-h-0 gap-4">
         {/* Header */}
         {activeInvoice && (
           <InvoiceDetailHeader
@@ -186,7 +192,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
         </div>
 
         {/* Content */}
-        <div className="flex overflow-y-auto flex-1 flex-col gap-6 scrollbar-hidden">
+        <div className="flex overflow-y-auto flex-auto min-h-0 flex-col gap-6 scrollbar-hidden">
           {activeTab === 'details' && (
             <div
               id={detailsPanelId}
@@ -195,7 +201,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
               className="flex flex-col gap-6"
             >
               {activeInvoice && (
-                <div className="flex flex-col gap-5">
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.7fr_1fr] lg:items-start">
                   <div className="flex flex-col gap-5">
                     <InvoiceBilledItems items={activeInvoice.items ?? []} currency={currency} />
                     <InvoicePaymentLedger

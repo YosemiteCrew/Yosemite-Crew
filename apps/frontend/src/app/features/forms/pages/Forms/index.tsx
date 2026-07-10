@@ -253,6 +253,8 @@ const Forms = () => {
               setActiveForm={handleSelectForm}
               setViewPopup={setViewPopup}
               loading={loading}
+              showLinkedServices
+              serviceOptions={serviceOptions}
             />
           </div>
         </div>
