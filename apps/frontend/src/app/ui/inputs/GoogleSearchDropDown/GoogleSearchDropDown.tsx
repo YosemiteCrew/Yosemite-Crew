@@ -350,6 +350,12 @@ const GoogleSearchDropDown = ({
 
   return (
     <div className="w-full relative" ref={dropdownRef}>
+      <label
+        htmlFor={uid}
+        className="mb-1.5 block truncate text-[12.5px] font-semibold text-neutral-800"
+      >
+        {inlabel}
+      </label>
       <div className={`relative`}>
         <input
           type={intype}
@@ -361,7 +367,6 @@ const GoogleSearchDropDown = ({
           autoComplete="off"
           readOnly={readonly}
           required
-          placeholder=" "
           onFocus={() => {
             if (suppressNextOpenRef.current) return;
             onFocus();
@@ -373,37 +378,22 @@ const GoogleSearchDropDown = ({
             setOpen(false);
           }}
           className={`
-            peer w-full min-h-12 bg-transparent px-6 py-2.5
-            text-body-4 text-text-primary
-            outline-none border
-            ${error && 'border-input-border-error'}
-            focus:border-input-border-active!
-            ${isDropdownOpen ? 'border-input-border-active! rounded-t-2xl!' : 'border-input-border-default! rounded-2xl!'}
+            h-[42px] w-full border-[1.5px] bg-[var(--field-bg)] px-3.5
+            text-[14px] text-text-primary outline-none transition-colors
+            placeholder:text-input-text-placeholder
+            disabled:cursor-not-allowed disabled:opacity-60
+            focus:border-input-border-active! focus:shadow-[0_0_0_3px_var(--glow-b10)]
+            ${(() => {
+              if (isDropdownOpen) return 'border-input-border-active! rounded-t-xl!';
+              if (error) return 'border-input-border-error! rounded-xl!';
+              return 'border-input-border-default! rounded-xl!';
+            })()}
           `}
         />
-        <label
-          htmlFor={uid}
-          className={`
-            pointer-events-none absolute left-6
-            top-1/2 -translate-y-1/2
-            text-body-4 text-input-text-placeholder
-            transition-all duration-200
-            peer-focus:-top-[11px] peer-focus:translate-y-0
-            peer-focus:text-sm!
-            peer-focus:text-input-text-placeholder-active
-            peer-focus:bg-(--whitebg)
-            peer-focus:px-1 peer-not-placeholder-shown:px-1
-            peer-not-placeholder-shown:-top-[11px] peer-not-placeholder-shown:translate-y-0
-            peer-not-placeholder-shown:text-sm!
-            peer-not-placeholder-shown:bg-(--whitebg)
-          `}
-        >
-          {inlabel}
-        </label>
       </div>
       {isDropdownOpen && (
         <div
-          className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-2xl border-l border-r border-b bg-neutral-0 flex flex-col items-center w-full px-[12px] py-[10px]"
+          className="border-input-border-active max-h-[200px] overflow-y-auto scrollbar-hidden z-99 absolute top-[100%] left-0 rounded-b-xl border-l border-r border-b bg-neutral-0 flex flex-col items-center w-full px-[12px] py-[10px]"
           onPointerDown={(e) => e.preventDefault()}
         >
           {predictions?.map((pred, index: number) => (
@@ -437,12 +427,7 @@ const GoogleSearchDropDown = ({
         </div>
       )}
       {error && (
-        <div
-          className={`
-            mt-1.5 flex items-center gap-1 px-4
-            text-caption-2 text-text-error
-          `}
-        >
+        <div className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">
           <IoIosWarning className="text-text-error" size={14} />
           <span>{error}</span>
         </div>

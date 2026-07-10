@@ -173,6 +173,88 @@ describe('GoogleSearchDropDown Component', () => {
     expect(screen.getByText('NY, USA')).toBeInTheDocument();
   });
 
+  it('renders query predictions that have no place id', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        suggestions: [
+          {
+            queryPrediction: {
+              text: { text: 'coffee near me' },
+              structuredFormat: {
+                mainText: { text: 'coffee' },
+                secondaryText: { text: 'near me' },
+              },
+            },
+          },
+        ],
+      }),
+    });
+
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+      />
+    );
+
+    fireEvent.focus(screen.getByRole('textbox'));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'cof' } });
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText('coffee')).toBeInTheDocument();
+    expect(screen.getByText('near me')).toBeInTheDocument();
+  });
+
+  it('does not fetch again when the query is unchanged', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        suggestions: [{ placePrediction: { text: { text: 'Result' } } }],
+      }),
+    });
+
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+      />
+    );
+
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Repeat' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Same trimmed query again should be short-circuited by lastQueriedRef.
+    fireEvent.change(input, { target: { value: 'Repeat ' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
   it('handles autocomplete API failure gracefully', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,

@@ -159,6 +159,53 @@ describe('Dropdown Component', () => {
     expect(mockOnChange).toHaveBeenCalledWith('Option B');
   });
 
+  it('supports Home, End and Space keys', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Option A', 'Option B', 'Option C']}
+      />
+    );
+
+    const trigger = screen.getByRole('button');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' }); // opens
+    fireEvent.keyDown(trigger, { key: 'End' });
+    fireEvent.keyDown(trigger, { key: 'Home' });
+    fireEvent.keyDown(trigger, { key: ' ' }); // confirm first option
+
+    expect(mockOnChange).toHaveBeenCalledWith('Option A');
+  });
+
+  it('closes on Escape key', () => {
+    render(
+      <Dropdown placeholder="Select" value="" onChange={mockOnChange} options={['Option A']} />
+    );
+
+    const trigger = screen.getByRole('button');
+    fireEvent.click(trigger);
+    expect(screen.getByText('Option A')).toBeInTheDocument();
+
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(screen.queryByText('Option A')).not.toBeInTheDocument();
+  });
+
+  it('ignores keyboard input while disabled', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Option A']}
+        disabled
+      />
+    );
+
+    fireEvent.keyDown(screen.getByRole('button'), { key: 'ArrowDown' });
+    expect(screen.queryByText('Option A')).not.toBeInTheDocument();
+  });
+
   it('handles object options ({ label, value }) selection', () => {
     const options = [
       { label: 'Label 1', value: 'val1' },

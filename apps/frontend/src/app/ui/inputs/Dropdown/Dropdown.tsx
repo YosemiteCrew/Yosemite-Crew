@@ -183,7 +183,6 @@ const Dropdown = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open]);
 
-  const isActive = open || !!value;
   const selected = list.find((opt: any) => opt.value === value);
 
   useEffect(() => {
@@ -334,15 +333,13 @@ const Dropdown = ({
 
   return (
     <div className="select-wrapper">
-      <div
-        className={classNames('select-container floating-input', { focused: isActive })}
-        ref={dropdownRef}
-      >
+      <span className="select-top-label">{placeholder}</span>
+      <div className={classNames('select-container', { 'select-open': open })} ref={dropdownRef}>
         <button
           type="button"
           className={classNames(
             'select-input-container',
-            { blueborder: value, 'pointer-events-none opacity-70': disabled },
+            { 'select-error': error, 'pointer-events-none opacity-60': disabled },
             className
           )}
           onClick={() => {
@@ -357,14 +354,11 @@ const Dropdown = ({
           disabled={disabled}
           onKeyDown={handleKeyDown}
         >
-          {selected && <div className="select-input-selected">{selected.label}</div>}
-          <div className="select-input-drop-icon" aria-hidden="true">
-            <FaSortDown color="var(--color-neutral-600)" size={20} />
-          </div>
+          <span className="select-input-selected">{selected ? selected.label : ''}</span>
+          <span className="select-input-drop-icon" aria-hidden="true">
+            <FaSortDown color="var(--color-neutral-600)" size={16} />
+          </span>
         </button>
-        <label className="select-floating-label" aria-hidden="true">
-          {placeholder}
-        </label>
 
         {open && !disabled && shouldPortal && portalStyle && createPortal(panel, document.body)}
         {open && !disabled && !shouldPortal && panel}
