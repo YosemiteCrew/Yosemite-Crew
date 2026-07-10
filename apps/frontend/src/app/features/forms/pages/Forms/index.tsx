@@ -230,6 +230,9 @@ const Forms = () => {
               </button>
             </GlassTooltip>
           </h1>
+          <p className="text-body-4 text-text-secondary">
+            Build and reuse templates, link them to services and packages
+          </p>
         </div>
       </div>
 

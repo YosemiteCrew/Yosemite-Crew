@@ -224,7 +224,7 @@ const AddForm = ({
           </div>
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">
-              {isEditing ? 'Edit form' : 'Add form'}
+              {isEditing ? 'Edit template' : 'Add template'}
             </div>
           </div>
           <Close onClick={closeModal} />

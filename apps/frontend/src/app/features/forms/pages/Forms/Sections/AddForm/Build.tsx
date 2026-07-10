@@ -1569,7 +1569,7 @@ const Build = ({
 
           {/* Add Field Button at bottom */}
           {!structureLocked && (
-            <div className="flex flex-col items-center gap-2 py-4 border-2 border-dashed border-grey-light rounded-2xl hover:border-grey-noti transition-colors">
+            <div className="flex flex-col items-center gap-2 py-4 border border-dashed border-[var(--divider)] rounded-[18px] hover:border-[var(--hairline)] transition-colors">
               <div className="flex flex-col items-center gap-1">
                 <AddFieldDropdown
                   onSelect={addField}

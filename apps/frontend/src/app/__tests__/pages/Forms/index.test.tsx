@@ -250,6 +250,9 @@ describe('Forms Page', () => {
   it('renders h1 page heading', () => {
     render(<ProtectedForms />);
     expect(screen.getByRole('heading', { level: 1, name: /Templates/ })).toBeInTheDocument();
+    expect(
+      screen.getByText('Build and reuse templates, link them to services and packages')
+    ).toBeInTheDocument();
   });
 
   it('renders structure, guards, and fetches data on mount if list is empty', async () => {

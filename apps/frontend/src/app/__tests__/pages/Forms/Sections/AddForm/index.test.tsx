@@ -146,6 +146,7 @@ describe('AddForm modal', () => {
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
     expect(screen.getByText('Details Step')).toBeInTheDocument();
+    expect(screen.getByText('Add template')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Next Details'));
     expect(screen.getByText('Build Step')).toBeInTheDocument();
@@ -242,5 +243,28 @@ describe('AddForm modal', () => {
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
     expect(screen.queryByRole('tab', { name: 'MSD Veterinary Manual' })).not.toBeInTheDocument();
+  });
+
+  it('shows the edit-template header when editing an existing template', () => {
+    render(
+      <AddForm
+        showModal
+        setShowModal={jest.fn()}
+        serviceOptions={serviceOptions}
+        initialForm={
+          {
+            _id: 'tpl-9',
+            name: 'Existing template',
+            category: 'SOAP',
+            usage: 'Internal',
+            updatedBy: '',
+            lastUpdated: '',
+            schema: [],
+          } as any
+        }
+      />
+    );
+
+    expect(screen.getByText('Edit template')).toBeInTheDocument();
   });
 });

@@ -398,4 +398,40 @@ describe('Integrations settings', () => {
       expect(screen.queryByText('RadAnalyzer')).not.toBeInTheDocument();
     });
   });
+
+  it('renders the workspace subtitle under the Integrations heading', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'Integrations' });
+    expect(
+      screen.getByText('Connect labs, references and devices to the workspace')
+    ).toBeInTheDocument();
+  });
+
+  it('renders the live status pill (dot branch) for an enabled integration', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'Integrations' });
+    // Enabled IDEXX + enabled MSD both render the "Enabled" status pill, exercising the
+    // isLive === true branch that adds the success indicator dot.
+    expect(screen.getAllByText('Enabled').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders the status pill without the live dot when the integration is disabled', async () => {
+    const disabledIntegration = {
+      _id: 'int-1',
+      organisationId: 'org-1',
+      provider: 'IDEXX',
+      status: 'disabled',
+      credentialsStatus: 'missing',
+      enabledAt: null,
+      lastValidatedAt: null,
+    };
+    useIntegrationsForPrimaryOrgMock.mockReturnValue([disabledIntegration]);
+    useIntegrationByProviderForPrimaryOrgMock.mockReturnValue(disabledIntegration);
+
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'Integrations' });
+    // The disabled IDEXX pill (plus other providers defaulting to disabled) exercises the
+    // isLive === false branch (no indicator dot).
+    expect(screen.getAllByText('Disabled').length).toBeGreaterThanOrEqual(1);
+  });
 });
