@@ -197,7 +197,7 @@ const baseFormData = (overrides: Partial<FormsProps> = {}): FormsProps => ({
   ...overrides,
 });
 
-let capturedValidator: (() => boolean) | undefined;
+let stepRef: React.RefObject<{ validate: () => boolean } | null>;
 
 const renderBuild = (
   initialFormData: FormsProps,
@@ -216,9 +216,7 @@ const renderBuild = (
           setFormData={setFormData}
           onNext={jest.fn()}
           serviceOptions={serviceOptions}
-          registerValidator={(fn) => {
-            capturedValidator = fn;
-          }}
+          ref={stepRef}
         />
         <pre data-testid="schema-state">{JSON.stringify(formData.schema)}</pre>
       </>
@@ -238,7 +236,7 @@ const selectAddOption = (optionLabel: string) => {
 
 describe('Build form step', () => {
   beforeEach(() => {
-    capturedValidator = undefined;
+    stepRef = React.createRef<{ validate: () => boolean }>();
     jest.clearAllMocks();
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
       selector({ primaryOrgId: undefined })
@@ -259,10 +257,10 @@ describe('Build form step', () => {
   it('registers validator and fails validation when no fields are present', () => {
     renderBuild(baseFormData());
 
-    expect(capturedValidator).toBeDefined();
+    expect(stepRef.current).not.toBeNull();
     let result = true;
     act(() => {
-      result = Boolean(capturedValidator?.());
+      result = Boolean(stepRef.current?.validate());
     });
     expect(result).toBe(false);
     expect(screen.getByText('Add at least one field to continue.')).toBeInTheDocument();
@@ -668,7 +666,7 @@ describe('Build form step', () => {
 
       let result = false;
       act(() => {
-        result = Boolean(capturedValidator?.());
+        result = Boolean(stepRef.current?.validate());
       });
       expect(result).toBe(true);
       expect(screen.queryByTestId('warning-icon')).not.toBeInTheDocument();

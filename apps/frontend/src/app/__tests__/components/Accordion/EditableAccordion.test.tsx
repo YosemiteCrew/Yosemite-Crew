@@ -364,18 +364,23 @@ describe('EditableAccordion Component', () => {
     expect(screen.getByText('123 Main St')).toBeInTheDocument();
   });
 
-  it('registers and clears external actions', () => {
-    const onRegisterActions = jest.fn();
+  it('exposes and clears external actions through the ref', () => {
+    const actionsRef = React.createRef<{
+      save: () => Promise<void>;
+      cancel: () => void;
+      startEditing: () => void;
+      isEditing: () => boolean;
+    } | null>();
     const { unmount } = render(
       <EditableAccordion
         title="Profile"
         fields={[{ label: 'Name', key: 'name', type: 'text' }]}
         data={{ name: 'Rex' }}
-        onRegisterActions={onRegisterActions}
+        ref={actionsRef}
       />
     );
 
-    expect(onRegisterActions).toHaveBeenCalledWith(
+    expect(actionsRef.current).toEqual(
       expect.objectContaining({
         save: expect.any(Function),
         cancel: expect.any(Function),
@@ -385,7 +390,7 @@ describe('EditableAccordion Component', () => {
     );
 
     unmount();
-    expect(onRegisterActions).toHaveBeenLastCalledWith(null);
+    expect(actionsRef.current).toBeNull();
   });
 
   describe('numeric field guard', () => {
@@ -1128,18 +1133,22 @@ describe('EditableAccordion Component', () => {
 
   describe('registered startEditing action', () => {
     it('enters edit mode when the registered startEditing action is invoked', () => {
-      let actions: any = null;
+      const actionsRef = React.createRef<{
+        save: () => Promise<void>;
+        cancel: () => void;
+        startEditing: () => void;
+        isEditing: () => boolean;
+      } | null>();
       render(
         <EditableAccordion
           title="Profile"
           fields={[{ label: 'Name', key: 'name', type: 'text' }]}
           data={{ name: 'Rex' }}
-          onRegisterActions={(a) => {
-            if (a) actions = a;
-          }}
+          ref={actionsRef}
         />
       );
 
+      const actions = actionsRef.current!;
       expect(actions.isEditing()).toBe(false);
       act(() => {
         actions.startEditing();

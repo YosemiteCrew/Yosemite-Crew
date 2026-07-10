@@ -1,5 +1,5 @@
 import React, {
-  useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useState,
@@ -184,14 +184,12 @@ type BatchEditorProps = {
   disableEditing?: boolean;
   onSave: (values: { newBatches: BatchValues[]; updatedBatches: BatchValues[] }) => Promise<void>;
   onEditingChange?: (editing: boolean) => void;
-  onRegisterActions?: (
-    actions: {
-      save: () => Promise<void>;
-      cancel: () => void;
-      startEditing?: () => void;
-      isEditing?: () => boolean;
-    } | null
-  ) => void;
+  ref?: React.Ref<{
+    save: () => Promise<void>;
+    cancel: () => void;
+    startEditing?: () => void;
+    isEditing?: () => boolean;
+  } | null>;
 };
 
 const BatchEditor: React.FC<BatchEditorProps> = ({
@@ -200,7 +198,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
   disableEditing,
   onSave,
   onEditingChange,
-  onRegisterActions,
+  ref,
 }) => {
   const existingBatches = useMemo<BatchValues[]>(
     () =>
@@ -363,15 +361,12 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
     onEditingChange?.(false);
   }, [onEditingChange]);
 
-  useEffect(() => {
-    onRegisterActions?.({
-      save: handleSave,
-      cancel: handleCancel,
-      startEditing: beginEditing,
-      isEditing: () => isEditing,
-    });
-    return () => onRegisterActions?.(null);
-  }, [onRegisterActions, handleSave, handleCancel, beginEditing, inventory, isEditing]);
+  useImperativeHandle(ref, () => ({
+    save: handleSave,
+    cancel: handleCancel,
+    startEditing: beginEditing,
+    isEditing: () => isEditing,
+  }));
 
   const renderItem = (
     item: ConfigItem<any>,
@@ -815,9 +810,7 @@ const InventoryInfo = ({
                     onSave={(vals) => handleSectionSave('batch', vals)}
                     disableEditing={!canEdit || isUpdating || isHiding}
                     onEditingChange={setIsSectionEditing}
-                    onRegisterActions={(actions) => {
-                      batchActions.current = actions;
-                    }}
+                    ref={batchActions}
                   />
                 ) : (
                   <InfoSection
@@ -830,9 +823,7 @@ const InventoryInfo = ({
                     onEditingChange={setIsSectionEditing}
                     stockLocationOptions={stockLocationOptions}
                     organisationId={organisationId}
-                    onRegisterActions={(actions) => {
-                      sectionActions.current = actions;
-                    }}
+                    ref={sectionActions}
                   />
                 )}
                 {activeLabel === 'pricing' && (

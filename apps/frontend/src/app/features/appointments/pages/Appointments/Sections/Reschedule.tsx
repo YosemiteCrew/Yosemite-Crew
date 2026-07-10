@@ -262,17 +262,6 @@ const Reschedule = ({ showModal, setShowModal, activeAppointment }: ReschedulePr
   }, [formData.appointmentType?.id, selectedDate, patchState]);
 
   useEffect(() => {
-    if (!showModal) return;
-    if (allowReschedule(activeAppointment.status as any)) return;
-
-    notify('warning', {
-      title: 'Reschedule blocked',
-      text: 'Checked-in, in-progress, completed, cancelled, and no-show appointments cannot be rescheduled.',
-    });
-    setShowModal(false);
-  }, [activeAppointment.status, notify, setShowModal, showModal]);
-
-  useEffect(() => {
     if (!selectedSlot || !selectedDate) return;
     patchState({
       formData: {

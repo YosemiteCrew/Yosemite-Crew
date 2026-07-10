@@ -255,9 +255,11 @@ const Tasks = () => {
 
           <AddTask
             showModal={addPopup}
-            setShowModal={setAddPopup}
+            setShowModal={(value) => {
+              setAddPopup(value);
+              if (value === false) setAddTaskPrefill(null);
+            }}
             prefill={addTaskPrefill}
-            onPrefillConsumed={() => setAddTaskPrefill(null)}
           />
           {activeTask && viewPopup && (
             <TaskInfo

@@ -1,8 +1,11 @@
 import Modal from '@/app/ui/overlays/Modal';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import Details from '@/app/features/forms/pages/Forms/Sections/AddForm/Details';
+import Details, {
+  AddFormStepHandle,
+} from '@/app/features/forms/pages/Forms/Sections/AddForm/Details';
 import Build from '@/app/features/forms/pages/Forms/Sections/AddForm/Build';
+import { normalizeServiceGroups } from '@/app/features/forms/pages/Forms/Sections/AddForm/serviceGroupHelpers';
 import Review from '@/app/features/forms/pages/Forms/Sections/AddForm/Review';
 import AppointmentMerckSearch from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch';
 import { FormsCategory, FormsProps } from '@/app/features/forms/types/forms';
@@ -92,8 +95,16 @@ const AddForm = ({
   const [activeLabel, setActiveLabel] = useState('form-details');
   const [formData, setFormData] = useState<FormsProps>(draft ?? initialForm ?? defaultForm());
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const detailValidatorRef = useRef<() => boolean>(() => true);
-  const buildValidatorRef = useRef<() => boolean>(() => true);
+  // Keep the last non-null handle so validation still applies while the step
+  // is unmounted (e.g. checking Details validity from the Merck tab).
+  const detailStepRef = useRef<AddFormStepHandle | null>(null);
+  const buildStepRef = useRef<AddFormStepHandle | null>(null);
+  const setDetailStepHandle = (handle: AddFormStepHandle | null) => {
+    if (handle) detailStepRef.current = handle;
+  };
+  const setBuildStepHandle = (handle: AddFormStepHandle | null) => {
+    if (handle) buildStepRef.current = handle;
+  };
   const [isSaving, setIsSaving] = useState(false);
   const wasOpenRef = useRef(false);
   const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
@@ -158,10 +169,10 @@ const AddForm = ({
 
   const goToNextStep = () => {
     if (visibleActiveLabel === 'form-details') {
-      if (!detailValidatorRef.current()) return;
+      if (!(detailStepRef.current?.validate() ?? true)) return;
       selectActiveLabel('build-form');
     } else if (visibleActiveLabel === 'build-form') {
-      if (!buildValidatorRef.current()) return;
+      if (!(buildStepRef.current?.validate() ?? true)) return;
       selectActiveLabel('review');
     }
   };
@@ -169,10 +180,10 @@ const AddForm = ({
   const handleLabelClick = (target: string) => {
     if (target === visibleActiveLabel) return;
     if (target === 'build-form' || target === 'review') {
-      if (!detailValidatorRef.current()) return;
+      if (!(detailStepRef.current?.validate() ?? true)) return;
     }
     if (target === 'review') {
-      if (!buildValidatorRef.current()) return;
+      if (!(buildStepRef.current?.validate() ?? true)) return;
     }
     selectActiveLabel(target);
   };
@@ -182,6 +193,7 @@ const AddForm = ({
     try {
       const draftData = {
         ...formData,
+        schema: normalizeServiceGroups(formData.schema ?? [], serviceOptions),
         status: 'Draft' as const,
       };
       const saved =
@@ -203,10 +215,14 @@ const AddForm = ({
   const handlePublish = async () => {
     setIsSaving(true);
     try {
+      const publishData = {
+        ...formData,
+        schema: normalizeServiceGroups(formData.schema ?? [], serviceOptions),
+      };
       const saved =
-        shouldUseTemplateApi(formData) && primaryOrgId
-          ? await saveTemplateFormDraft(formData, primaryOrgId)
-          : await saveFormDraft(formData);
+        shouldUseTemplateApi(publishData) && primaryOrgId
+          ? await saveTemplateFormDraft(publishData, primaryOrgId)
+          : await saveFormDraft(publishData);
       if (saved._id) {
         const published =
           saved.isTemplateBacked && primaryOrgId
@@ -257,9 +273,7 @@ const AddForm = ({
               setFormData={updateFormData}
               onNext={goToNextStep}
               serviceOptions={serviceOptions}
-              registerValidator={(fn) => {
-                detailValidatorRef.current = fn;
-              }}
+              ref={setDetailStepHandle}
             />
           )}
           {visibleActiveLabel === 'build-form' && (
@@ -268,9 +282,7 @@ const AddForm = ({
               setFormData={updateFormData}
               onNext={goToNextStep}
               serviceOptions={serviceOptions}
-              registerValidator={(fn) => {
-                buildValidatorRef.current = fn;
-              }}
+              ref={setBuildStepHandle}
             />
           )}
           {visibleActiveLabel === 'review' && (

@@ -302,7 +302,7 @@ describe('Companion Component', () => {
       render(<Companion {...defaultProps} />);
     });
     const dateInput = screen.getByTestId('datepicker');
-    fireEvent.change(dateInput, { target: { value: '2023-01-01' } });
+    fireEvent.change(dateInput, { target: { value: '2024-06-15' } });
     expect(mockSetFormData).toHaveBeenCalled();
   });
 

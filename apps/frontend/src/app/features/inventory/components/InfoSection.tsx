@@ -47,14 +47,12 @@ type InfoSectionProps = {
   onSaveSection?: (section: InventorySectionKey, values: Record<string, any>) => Promise<void>;
   disableEditing?: boolean;
   onEditingChange?: (editing: boolean) => void;
-  onRegisterActions?: (
-    actions: {
-      save: () => Promise<void>;
-      cancel: () => void;
-      startEditing: () => void;
-      isEditing: () => boolean;
-    } | null
-  ) => void;
+  ref?: React.Ref<{
+    save: () => Promise<void>;
+    cancel: () => void;
+    startEditing: () => void;
+    isEditing: () => boolean;
+  } | null>;
   stockLocationOptions?: string[];
   organisationId?: string;
 };
@@ -149,7 +147,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   onSaveSection,
   disableEditing = false,
   onEditingChange,
-  onRegisterActions,
+  ref,
   stockLocationOptions,
   organisationId,
 }) => {
@@ -257,7 +255,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
                 }
               : undefined
           }
-          onRegisterActions={onRegisterActions}
+          ref={ref}
           dynamicFooter={sectionKey === 'stock' ? makeStockFooter(data?.current) : undefined}
           footer={makeUploadFooter(uploadFields, organisationId)}
         />

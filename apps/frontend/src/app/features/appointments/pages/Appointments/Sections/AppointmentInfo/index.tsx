@@ -233,6 +233,183 @@ const getFormBadge = (
   return { label, badgeClass };
 };
 
+type SubmittedFormEntryProps = {
+  entry: AppointmentFormEntry;
+  idx: number;
+  canEdit: boolean;
+  activeAppointment: Appointment | null;
+  attributes: ReturnType<typeof useAuthStore.getState>['attributes'];
+  valuesByForm: Record<string, Record<string, any>>;
+  setValuesByForm: React.Dispatch<React.SetStateAction<Record<string, Record<string, any>>>>;
+  submittingId: string | null;
+  setSubmittingId: React.Dispatch<React.SetStateAction<string | null>>;
+  setSubmitError: React.Dispatch<React.SetStateAction<string | null>>;
+  onSubmission?: (entry: AppointmentFormEntry) => void;
+  onSubmissionUpdate?: (
+    submissionId: string,
+    updates: Partial<FormSubmission> & { signatureRequired?: boolean }
+  ) => void;
+};
+
+const SubmittedFormEntry = ({
+  entry,
+  idx,
+  canEdit,
+  activeAppointment,
+  attributes,
+  valuesByForm,
+  setValuesByForm,
+  submittingId,
+  setSubmittingId,
+  setSubmitError,
+  onSubmission,
+  onSubmissionUpdate,
+}: SubmittedFormEntryProps) => {
+  const answers = entry.submission?.answers ?? {};
+  const requiredSigner = entry.form.requiredSigner ?? '';
+  const isClientSigner = requiredSigner === 'CLIENT';
+  const isExplicitNone = requiredSigner === '';
+  const signatureRequired =
+    !isClientSigner &&
+    !isExplicitNone &&
+    requiredSigner === 'VET' &&
+    hasSignatureField(entry.form.schema ?? []);
+  const formId = entry.form._id ?? entry.form.name;
+  const formValues = valuesByForm[formId] ?? buildInitialValues(entry.form.schema ?? []);
+  const key = entry.submission?._id ?? `${formId}-${idx}`;
+  const submissionWithMeta = entry.submission
+    ? ({
+        ...entry.submission,
+        signatureRequired,
+      } satisfies FormSubmission & { signatureRequired?: boolean })
+    : null;
+  const signingStatus = submissionWithMeta?.signing?.status;
+  const isSigned = signingStatus === 'SIGNED' || Boolean(submissionWithMeta?.signing?.pdf?.url);
+  const needsSignature = submissionWithMeta?.signatureRequired;
+  const { label, badgeClass } = getFormBadge(entry, needsSignature, isSigned, isClientSigner);
+  const shouldOpenByDefault = label === 'Signature Pending';
+  const signatureActions = submissionWithMeta?.signatureRequired ? (
+    <SignatureActions
+      submission={submissionWithMeta}
+      onStatusChange={(submissionId, updates) => onSubmissionUpdate?.(submissionId, updates)}
+    />
+  ) : null;
+  return (
+    <Accordion
+      key={key}
+      title={entry.form.name}
+      defaultOpen={shouldOpenByDefault}
+      showEditIcon={false}
+      isEditing
+      rightElement={signatureActions ?? <FormBadge label={label} badgeClass={badgeClass} />}
+    >
+      {entry.submission ? (
+        <div className="border border-card-border rounded-2xl p-4 flex flex-col gap-2">
+          <FormRenderer
+            fields={entry.form.schema ?? []}
+            values={answers as Record<string, unknown>}
+            onChange={() => {}}
+            readOnly
+          />
+          {submissionWithMeta?.signatureRequired ? (
+            <div className="mt-3">
+              <FormBadge label={label} badgeClass={badgeClass} />
+            </div>
+          ) : null}
+          {isClientSigner ? (
+            <div className="text-xs text-text-secondary">
+              {isSigned
+                ? 'Signed by pet parent.'
+                : 'Sent to pet parent. It will update when they sign the document.'}
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div className="border border-card-border rounded-2xl p-4">
+            <FormRenderer
+              fields={entry.form.schema ?? []}
+              values={formValues}
+              onChange={(id, value) =>
+                setValuesByForm((prev) => ({
+                  ...prev,
+                  [formId]: { ...(prev[formId] ?? formValues), [id]: value },
+                }))
+              }
+              readOnly={!canEdit || isClientSigner}
+            />
+          </div>
+          {canEdit && !isClientSigner && (
+            <Primary
+              href="#"
+              text={submittingId === formId ? 'Saving...' : 'Save'}
+              onClick={async () => {
+                if (!activeAppointment?.id || !attributes?.sub) return;
+                setSubmitError(null);
+                setSubmittingId(formId);
+                try {
+                  const requiresSignature = signatureRequired;
+                  const companion = activeAppointment?.companion;
+                  const valuesToSubmit = valuesByForm[formId] ?? formValues;
+                  const missingRequired = collectMissingRequiredFields(
+                    entry.form.schema ?? [],
+                    valuesToSubmit
+                  );
+                  if (missingRequired.length > 0) {
+                    setSubmitError(
+                      `Please complete the required field(s): ${missingRequired.join(', ')}`
+                    );
+                    setSubmittingId(null);
+                    return;
+                  }
+                  const submission: FormSubmission = {
+                    _id: '',
+                    formVersion: entry.submission?.formVersion ?? 1,
+                    submittedAt: createSubmissionTimestamp(),
+                    formId: entry.form._id,
+                    appointmentId: activeAppointment.id,
+                    companionId: companion?.id ?? '',
+                    parentId: companion?.parent?.id ?? '',
+                    answers: valuesToSubmit,
+                    submittedBy: attributes.sub,
+                  };
+                  const created = await createSubmission(submission);
+                  const submissionWithSigning = requiresSignature
+                    ? {
+                        ...created,
+                        signatureRequired: true,
+                        signing: created.signing ?? {
+                          required: true,
+                          status: 'NOT_STARTED',
+                          provider: 'DOCUMENSO',
+                        },
+                      }
+                    : created;
+                  onSubmission?.({
+                    form: entry.form,
+                    submission: submissionWithSigning,
+                    status: 'completed',
+                  });
+                } catch (e) {
+                  console.error('Failed to submit form', e);
+                  setSubmitError('Failed to submit form. Please try again.');
+                } finally {
+                  setSubmittingId(null);
+                }
+              }}
+            />
+          )}
+          {isClientSigner ? (
+            <div className="text-xs text-text-secondary">
+              Sent to pet parent. It will update when they sign the document.
+            </div>
+          ) : null}
+        </div>
+      )}
+    </Accordion>
+  );
+};
+
 const CustomFormsView = ({
   forms,
   loading,
@@ -441,156 +618,24 @@ const CustomFormsView = ({
         ) : null}
 
         {forms.map((entry, idx) => {
-          const answers = entry.submission?.answers ?? {};
-          const requiredSigner = entry.form.requiredSigner ?? '';
-          const isClientSigner = requiredSigner === 'CLIENT';
-          const isExplicitNone = requiredSigner === '';
-          const signatureRequired =
-            !isClientSigner &&
-            !isExplicitNone &&
-            requiredSigner === 'VET' &&
-            hasSignatureField(entry.form.schema ?? []);
           const formId = entry.form._id ?? entry.form.name;
-          const formValues = valuesByForm[formId] ?? buildInitialValues(entry.form.schema ?? []);
           const key = entry.submission?._id ?? `${formId}-${idx}`;
-          const submissionWithMeta = entry.submission
-            ? ({
-                ...entry.submission,
-                signatureRequired,
-              } satisfies FormSubmission & { signatureRequired?: boolean })
-            : null;
-          const signingStatus = submissionWithMeta?.signing?.status;
-          const isSigned =
-            signingStatus === 'SIGNED' || Boolean(submissionWithMeta?.signing?.pdf?.url);
-          const needsSignature = submissionWithMeta?.signatureRequired;
-          const { label, badgeClass } = getFormBadge(
-            entry,
-            needsSignature,
-            isSigned,
-            isClientSigner
-          );
-          const shouldOpenByDefault = label === 'Signature Pending';
-          const signatureActions = submissionWithMeta?.signatureRequired ? (
-            <SignatureActions
-              submission={submissionWithMeta}
-              onStatusChange={(submissionId, updates) =>
-                onSubmissionUpdate?.(submissionId, updates)
-              }
-            />
-          ) : null;
           return (
-            <Accordion
+            <SubmittedFormEntry
               key={key}
-              title={entry.form.name}
-              defaultOpen={shouldOpenByDefault}
-              showEditIcon={false}
-              isEditing
-              rightElement={signatureActions ?? <FormBadge label={label} badgeClass={badgeClass} />}
-            >
-              {entry.submission ? (
-                <div className="border border-card-border rounded-2xl p-4 flex flex-col gap-2">
-                  <FormRenderer
-                    fields={entry.form.schema ?? []}
-                    values={answers as Record<string, unknown>}
-                    onChange={() => {}}
-                    readOnly
-                  />
-                  {submissionWithMeta?.signatureRequired ? (
-                    <div className="mt-3">
-                      <FormBadge label={label} badgeClass={badgeClass} />
-                    </div>
-                  ) : null}
-                  {isClientSigner ? (
-                    <div className="text-xs text-text-secondary">
-                      {isSigned
-                        ? 'Signed by pet parent.'
-                        : 'Sent to pet parent. It will update when they sign the document.'}
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <div className="border border-card-border rounded-2xl p-4">
-                    <FormRenderer
-                      fields={entry.form.schema ?? []}
-                      values={formValues}
-                      onChange={(id, value) =>
-                        setValuesByForm((prev) => ({
-                          ...prev,
-                          [formId]: { ...(prev[formId] ?? formValues), [id]: value },
-                        }))
-                      }
-                      readOnly={!canEdit || isClientSigner}
-                    />
-                  </div>
-                  {canEdit && !isClientSigner && (
-                    <Primary
-                      href="#"
-                      text={submittingId === formId ? 'Saving...' : 'Save'}
-                      onClick={async () => {
-                        if (!activeAppointment?.id || !attributes?.sub) return;
-                        setSubmitError(null);
-                        setSubmittingId(formId);
-                        try {
-                          const requiresSignature = signatureRequired;
-                          const companion = activeAppointment?.companion;
-                          const valuesToSubmit = valuesByForm[formId] ?? formValues;
-                          const missingRequired = collectMissingRequiredFields(
-                            entry.form.schema ?? [],
-                            valuesToSubmit
-                          );
-                          if (missingRequired.length > 0) {
-                            setSubmitError(
-                              `Please complete the required field(s): ${missingRequired.join(', ')}`
-                            );
-                            setSubmittingId(null);
-                            return;
-                          }
-                          const submission: FormSubmission = {
-                            _id: '',
-                            formVersion: entry.submission?.formVersion ?? 1,
-                            submittedAt: createSubmissionTimestamp(),
-                            formId: entry.form._id,
-                            appointmentId: activeAppointment.id,
-                            companionId: companion?.id ?? '',
-                            parentId: companion?.parent?.id ?? '',
-                            answers: valuesToSubmit,
-                            submittedBy: attributes.sub,
-                          };
-                          const created = await createSubmission(submission);
-                          const submissionWithSigning = requiresSignature
-                            ? {
-                                ...created,
-                                signatureRequired: true,
-                                signing: created.signing ?? {
-                                  required: true,
-                                  status: 'NOT_STARTED',
-                                  provider: 'DOCUMENSO',
-                                },
-                              }
-                            : created;
-                          onSubmission?.({
-                            form: entry.form,
-                            submission: submissionWithSigning,
-                            status: 'completed',
-                          });
-                        } catch (e) {
-                          console.error('Failed to submit form', e);
-                          setSubmitError('Failed to submit form. Please try again.');
-                        } finally {
-                          setSubmittingId(null);
-                        }
-                      }}
-                    />
-                  )}
-                  {isClientSigner ? (
-                    <div className="text-xs text-text-secondary">
-                      Sent to pet parent. It will update when they sign the document.
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </Accordion>
+              entry={entry}
+              idx={idx}
+              canEdit={canEdit}
+              activeAppointment={activeAppointment}
+              attributes={attributes}
+              valuesByForm={valuesByForm}
+              setValuesByForm={setValuesByForm}
+              submittingId={submittingId}
+              setSubmittingId={setSubmittingId}
+              setSubmitError={setSubmitError}
+              onSubmission={onSubmission}
+              onSubmissionUpdate={onSubmissionUpdate}
+            />
           );
         })}
         {forms.length === 0 ? (
@@ -781,24 +826,29 @@ const COMPONENT_MAP: Record<string, Record<string, React.FC<any>>> = {
   },
 };
 
-const AppoitmentInfo = ({
-  showModal,
-  setShowModal,
-  activeAppointment,
-  initialViewIntent,
-  canEditAppointments = false,
-  onReschedule,
-}: AppoitmentInfoProps) => {
-  const router = useRouter();
-  const { can } = usePermissions();
-  const appointmentStatus = normalizeAppointmentStatus(activeAppointment?.status);
-  const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN) && appointmentStatus !== 'COMPLETED';
-  const services = useServicesForPrimaryOrgSpecialities();
-  const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key as LabelKey);
-  const [activeSubLabel, setActiveSubLabel] = useState<string>(hospitalLabels[0].labels[0].key);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const lastOpenedAppointmentIdRef = useRef<string | null>(null);
+const buildInfoLabels = (orgType: string | undefined, merckEnabled: boolean) => {
+  const base = getLabelsForOrgType(orgType, hospitalLabels).map((label: any) => {
+    if (orgType === 'HOSPITAL' && label.key === 'prescription') {
+      return {
+        ...label,
+        labels: (label.labels ?? []).map((subLabel: any) =>
+          subLabel.key === 'forms' ? { ...subLabel, name: 'SOAP' } : subLabel
+        ),
+      };
+    }
+    return label;
+  });
+  if (merckEnabled) return base;
+  return base.map((label: any) => {
+    if (label.key !== 'prescription') return label;
+    return {
+      ...label,
+      labels: (label.labels ?? []).filter((item: { key: string }) => item.key !== 'merck-manuals'),
+    };
+  });
+};
 
+const useAppointmentCustomForms = (appointmentId?: string | null) => {
   const [customForms, setCustomForms] = useState<AppointmentFormEntry[]>([]);
   const [customFormsLoading, setCustomFormsLoading] = useState(false);
   const [customFormsError, setCustomFormsError] = useState<string | null>(null);
@@ -829,146 +879,8 @@ const AppoitmentInfo = ({
       )
     );
   };
-
-  const orgsById = useOrgStore((s) => s.orgsById);
-  const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE;
-  const orgType =
-    (orgTypeOverride as Organisation['type'] | undefined) ||
-    (activeAppointment?.organisationId && orgsById[activeAppointment.organisationId]?.type) ||
-    'HOSPITAL';
-  const statusSummary = getAppointmentStateSummary(activeAppointment?.status);
-  const statusLabel = toStatusLabel(activeAppointment?.status);
-  const clinicalWorkspaceIntent = getClinicalNotesIntent(orgType);
-  const openWorkspaceIntent = useCallback(
-    (intent: AppointmentViewIntent) => {
-      if (!activeAppointment?.id) return;
-      router.push(buildWorkspaceHrefForIntent(activeAppointment.id, intent));
-      setShowModal(false);
-    },
-    [activeAppointment?.id, router, setShowModal]
-  );
-  const formsById = useFormsStore((s) => s.formsById);
-  useLoadFormsForPrimaryOrg();
-  const formIds = useFormsStore((s) => s.formIds);
-  const allForms = formIds.flatMap((id) => {
-    const form = formsById[id];
-    return form ? [form] : [];
-  });
-  const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
-  const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
-  const templatesForOrg = useMemo(() => {
-    const trimPrefix = (text?: string | null) =>
-      (text ?? '').replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, '');
-    const matchesAllowed = (category: string, allowed: string[]) => {
-      const normalized = trimPrefix(category);
-      return allowed.includes(category) || allowed.includes(normalized);
-    };
-    const allowedCategories = getAllowedCategories(orgType);
-    return allForms.flatMap((f) =>
-      matchesAllowed(f.category, allowedCategories)
-        ? [{ value: f._id ?? f.name, label: trimPrefix(f.name), schema: f.schema ?? [], form: f }]
-        : []
-    );
-  }, [allForms, orgType]);
-
-  const labels = useMemo(() => {
-    const base = getLabelsForOrgType(orgType, hospitalLabels).map((label: any) => {
-      if (orgType === 'HOSPITAL' && label.key === 'prescription') {
-        return {
-          ...label,
-          labels: (label.labels ?? []).map((subLabel: any) =>
-            subLabel.key === 'forms' ? { ...subLabel, name: 'SOAP' } : subLabel
-          ),
-        };
-      }
-      return label;
-    });
-    if (merckEnabled) return base;
-    return base.map((label: any) => {
-      if (label.key !== 'prescription') return label;
-      return {
-        ...label,
-        labels: (label.labels ?? []).filter(
-          (item: { key: string }) => item.key !== 'merck-manuals'
-        ),
-      };
-    });
-  }, [orgType, merckEnabled]);
-  const resolveTabSelection = useCallback(
-    (labelKey: string, requestedSubLabel?: string | null) => {
-      const resolvedLabelKey = resolveIntentLabel(labels, labelKey);
-      if (!resolvedLabelKey) return null;
-      const targetLabel = labels.find((label) => label.key === resolvedLabelKey);
-      if (!targetLabel) return null;
-      const normalizedSubLabel = normalizeInfoSubLabel(
-        resolvedLabelKey,
-        requestedSubLabel ?? undefined
-      );
-      const hasTargetSubLabel = normalizedSubLabel
-        ? targetLabel.labels.some((label: { key: string }) => label.key === normalizedSubLabel)
-        : false;
-      return {
-        label: targetLabel.key as LabelKey,
-        subLabel: hasTargetSubLabel
-          ? (normalizedSubLabel as string)
-          : (targetLabel.labels[0]?.key ?? ''),
-      };
-    },
-    [labels]
-  );
-  const applyTabSelection = useCallback((selection: { label: LabelKey; subLabel: string }) => {
-    setActiveLabel(selection.label);
-    setActiveSubLabel(selection.subLabel);
-  }, []);
-  const handleActiveLabelChange = useCallback(
-    (label: LabelKey) => {
-      const selection = resolveTabSelection(label);
-      if (selection) applyTabSelection(selection);
-    },
-    [applyTabSelection, resolveTabSelection]
-  );
-  const handleHistoryOpenAppointmentView = useCallback(
-    (intent: AppointmentViewIntent) => {
-      const selection = resolveTabSelection(intent.label, intent.subLabel);
-      if (selection) applyTabSelection(selection);
-    },
-    [applyTabSelection, resolveTabSelection]
-  );
-
-  useEffect(() => {
-    if (!showModal || !initialViewIntent) return;
-    const selection = resolveTabSelection(initialViewIntent.label);
-    if (selection) applyTabSelection(selection);
-  }, [showModal, initialViewIntent, applyTabSelection, resolveTabSelection]);
-
-  useEffect(() => {
-    if (!showModal) return;
-    const currentAppointmentId = activeAppointment?.id ?? null;
-    const lastAppointmentId = lastOpenedAppointmentIdRef.current;
-    const isDifferentAppointment =
-      !!currentAppointmentId && !!lastAppointmentId && currentAppointmentId !== lastAppointmentId;
-
-    if (isDifferentAppointment && !initialViewIntent) {
-      const selection = resolveTabSelection(labels[0].key);
-      if (selection) applyTabSelection(selection);
-    }
-
-    if (currentAppointmentId) {
-      lastOpenedAppointmentIdRef.current = currentAppointmentId;
-    }
-  }, [
-    showModal,
-    activeAppointment?.id,
-    initialViewIntent,
-    labels,
-    applyTabSelection,
-    resolveTabSelection,
-  ]);
-
-  const [formData, setFormData] = useState<FormDataProps>(() => createEmptyFormData());
-
   const loadAppointmentForms = useCallback(async () => {
-    if (!activeAppointment?.id) {
+    if (!appointmentId) {
       setCustomForms([]);
       setCustomFormsError(null);
       setCustomFormsLoading(false);
@@ -977,7 +889,7 @@ const AppoitmentInfo = ({
     setCustomFormsLoading(true);
     setCustomFormsError(null);
     try {
-      const res = await fetchAppointmentForms(activeAppointment.id);
+      const res = await fetchAppointmentForms(appointmentId);
       setCustomForms(res.forms);
     } catch (e) {
       console.error('Failed to load appointment forms:', e);
@@ -986,8 +898,21 @@ const AppoitmentInfo = ({
     } finally {
       setCustomFormsLoading(false);
     }
-  }, [activeAppointment?.id]);
+  }, [appointmentId]);
+  return {
+    customForms,
+    customFormsLoading,
+    customFormsError,
+    upsertCustomForm,
+    updateCustomFormSubmission,
+    loadAppointmentForms,
+  };
+};
 
+const useSubmissionSignatureMeta = (
+  customForms: AppointmentFormEntry[],
+  formsById: Record<string, { schema?: FormField[]; requiredSigner?: string }>
+) => {
   const resolveAppointmentFormEntry = useCallback(
     (submission: SoapNoteSubmission | FormSubmission | undefined) => {
       if (!submission) return undefined;
@@ -1053,6 +978,266 @@ const AppoitmentInfo = ({
   useEffect(() => {
     withSignatureMetaRef.current = withSignatureMeta;
   }, [withSignatureMeta]);
+  return { withSignatureMeta, withSignatureMetaRef };
+};
+
+type AppointmentInfoModalHeaderProps = {
+  companionImageSrc: string;
+  companion: NonNullable<Appointment['companion']>;
+  activeAppointment: Appointment | null;
+  canEditAppointments: boolean;
+  statusLabel: string;
+  statusSummary: string;
+  router: ReturnType<typeof useRouter>;
+  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  openWorkspaceIntent: (intent: AppointmentViewIntent) => void;
+  clinicalWorkspaceIntent: AppointmentViewIntent;
+  labels: typeof hospitalLabels;
+  resolvedActiveLabel: LabelKey;
+  handleActiveLabelChange: (label: LabelKey) => void;
+  resolvedActiveSubLabel: string;
+  setActiveSubLabel: React.Dispatch<React.SetStateAction<string>>;
+};
+
+const AppointmentInfoModalHeader = ({
+  companionImageSrc,
+  companion,
+  activeAppointment,
+  canEditAppointments,
+  statusLabel,
+  statusSummary,
+  router,
+  setShowModal,
+  openWorkspaceIntent,
+  clinicalWorkspaceIntent,
+  labels,
+  resolvedActiveLabel,
+  handleActiveLabelChange,
+  resolvedActiveSubLabel,
+  setActiveSubLabel,
+}: AppointmentInfoModalHeaderProps) => (
+  <div className="flex flex-col gap-3">
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0 flex items-start gap-3">
+        <Image
+          alt="pet image"
+          src={companionImageSrc}
+          className="size-10 shrink-0 rounded-full object-cover border border-card-border bg-white"
+          height={40}
+          width={40}
+        />
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="text-body-1 text-text-primary cursor-pointer text-left hover:underline underline-offset-2"
+              onClick={() => {
+                router.push(
+                  buildAppointmentCompanionHistoryHref(
+                    activeAppointment?.id,
+                    companion.id,
+                    '/appointments'
+                  )
+                );
+                setShowModal(false);
+              }}
+            >
+              {formatCompanionNameWithOwnerLastName(companion.name, companion.parent)}
+            </button>
+            {activeAppointment ? (
+              <AppointmentStatusPill
+                appointment={activeAppointment}
+                canEdit={canEditAppointments}
+              />
+            ) : null}
+          </div>
+          <div className="text-body-4 text-text-primary mt-1">{companion.breed}</div>
+          <div className="mt-2 max-w-3xl rounded-2xl border border-card-border bg-card-bg px-3 py-2 text-caption-1 text-text-secondary">
+            <span className="font-medium text-text-primary">{statusLabel}:</span> {statusSummary}
+          </div>
+        </div>
+      </div>
+      <Close onClick={() => setShowModal(false)} />
+    </div>
+
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        aria-label="Open medical records in workspace"
+        onClick={() => openWorkspaceIntent(clinicalWorkspaceIntent)}
+        className="inline-flex h-9 items-center gap-2 rounded-2xl border border-card-border px-3 text-caption-1 font-medium text-text-primary hover:bg-card-hover"
+      >
+        <IoDocumentTextOutline size={16} aria-hidden="true" />
+        <span>Medical records</span>
+      </button>
+      <button
+        type="button"
+        aria-label="Open finance in workspace"
+        onClick={() => openWorkspaceIntent({ label: 'finance', subLabel: 'summary' })}
+        className="inline-flex h-9 items-center gap-2 rounded-2xl border border-card-border px-3 text-caption-1 font-medium text-text-primary hover:bg-card-hover"
+      >
+        <IoCardOutline size={16} aria-hidden="true" />
+        <span>Finance</span>
+      </button>
+      <button
+        type="button"
+        aria-label="Open labs in workspace"
+        onClick={() => openWorkspaceIntent({ label: 'labs', subLabel: 'idexx-labs' })}
+        className="inline-flex h-9 items-center gap-2 rounded-2xl border border-card-border px-3 text-caption-1 font-medium text-text-primary hover:bg-card-hover"
+      >
+        <IoFlaskOutline size={16} aria-hidden="true" />
+        <span>Labs</span>
+      </button>
+    </div>
+
+    <Labels
+      labels={labels}
+      activeLabel={resolvedActiveLabel}
+      setActiveLabel={handleActiveLabelChange}
+      activeSubLabel={resolvedActiveSubLabel}
+      setActiveSubLabel={setActiveSubLabel}
+    />
+  </div>
+);
+
+const AppoitmentInfo = ({
+  showModal,
+  setShowModal,
+  activeAppointment,
+  initialViewIntent,
+  canEditAppointments = false,
+  onReschedule,
+}: AppoitmentInfoProps) => {
+  const router = useRouter();
+  const { can } = usePermissions();
+  const appointmentStatus = normalizeAppointmentStatus(activeAppointment?.status);
+  const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN) && appointmentStatus !== 'COMPLETED';
+  const services = useServicesForPrimaryOrgSpecialities();
+  const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key as LabelKey);
+  const [activeSubLabel, setActiveSubLabel] = useState<string>(hospitalLabels[0].labels[0].key);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [appliedIntent, setAppliedIntent] = useState<AppointmentViewIntent | null>(null);
+  const [lastOpenedAppointmentId, setLastOpenedAppointmentId] = useState<string | null>(null);
+
+  const {
+    customForms,
+    customFormsLoading,
+    customFormsError,
+    upsertCustomForm,
+    updateCustomFormSubmission,
+    loadAppointmentForms,
+  } = useAppointmentCustomForms(activeAppointment?.id);
+
+  const orgsById = useOrgStore((s) => s.orgsById);
+  const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE;
+  const orgType =
+    (orgTypeOverride as Organisation['type'] | undefined) ||
+    (activeAppointment?.organisationId && orgsById[activeAppointment.organisationId]?.type) ||
+    'HOSPITAL';
+  const statusSummary = getAppointmentStateSummary(activeAppointment?.status);
+  const statusLabel = toStatusLabel(activeAppointment?.status);
+  const clinicalWorkspaceIntent = getClinicalNotesIntent(orgType);
+  const openWorkspaceIntent = useCallback(
+    (intent: AppointmentViewIntent) => {
+      if (!activeAppointment?.id) return;
+      router.push(buildWorkspaceHrefForIntent(activeAppointment.id, intent));
+      setShowModal(false);
+    },
+    [activeAppointment?.id, router, setShowModal]
+  );
+  const formsById = useFormsStore((s) => s.formsById);
+  useLoadFormsForPrimaryOrg();
+  const formIds = useFormsStore((s) => s.formIds);
+  const allForms = formIds.flatMap((id) => {
+    const form = formsById[id];
+    return form ? [form] : [];
+  });
+  const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
+  const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
+  const templatesForOrg = useMemo(() => {
+    const trimPrefix = (text?: string | null) =>
+      (text ?? '').replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, '');
+    const matchesAllowed = (category: string, allowed: string[]) => {
+      const normalized = trimPrefix(category);
+      return allowed.includes(category) || allowed.includes(normalized);
+    };
+    const allowedCategories = getAllowedCategories(orgType);
+    return allForms.flatMap((f) =>
+      matchesAllowed(f.category, allowedCategories)
+        ? [{ value: f._id ?? f.name, label: trimPrefix(f.name), schema: f.schema ?? [], form: f }]
+        : []
+    );
+  }, [allForms, orgType]);
+
+  const labels = useMemo(() => buildInfoLabels(orgType, merckEnabled), [orgType, merckEnabled]);
+  const resolveTabSelection = useCallback(
+    (labelKey: string, requestedSubLabel?: string | null) => {
+      const resolvedLabelKey = resolveIntentLabel(labels, labelKey);
+      if (!resolvedLabelKey) return null;
+      const targetLabel = labels.find((label) => label.key === resolvedLabelKey);
+      if (!targetLabel) return null;
+      const normalizedSubLabel = normalizeInfoSubLabel(
+        resolvedLabelKey,
+        requestedSubLabel ?? undefined
+      );
+      const hasTargetSubLabel = normalizedSubLabel
+        ? targetLabel.labels.some((label: { key: string }) => label.key === normalizedSubLabel)
+        : false;
+      return {
+        label: targetLabel.key as LabelKey,
+        subLabel: hasTargetSubLabel
+          ? (normalizedSubLabel as string)
+          : (targetLabel.labels[0]?.key ?? ''),
+      };
+    },
+    [labels]
+  );
+  const applyTabSelection = useCallback((selection: { label: LabelKey; subLabel: string }) => {
+    setActiveLabel(selection.label);
+    setActiveSubLabel(selection.subLabel);
+  }, []);
+  const handleActiveLabelChange = useCallback(
+    (label: LabelKey) => {
+      const selection = resolveTabSelection(label);
+      if (selection) applyTabSelection(selection);
+    },
+    [applyTabSelection, resolveTabSelection]
+  );
+  const handleHistoryOpenAppointmentView = useCallback(
+    (intent: AppointmentViewIntent) => {
+      const selection = resolveTabSelection(intent.label, intent.subLabel);
+      if (selection) applyTabSelection(selection);
+    },
+    [applyTabSelection, resolveTabSelection]
+  );
+
+  // Render-phase adjustment: reset the active tab when the modal opens with a
+  // view intent or with a different appointment than last time.
+  if (showModal) {
+    if (initialViewIntent && initialViewIntent !== appliedIntent) {
+      setAppliedIntent(initialViewIntent);
+      const selection = resolveTabSelection(initialViewIntent.label);
+      if (selection) applyTabSelection(selection);
+    }
+    const currentAppointmentId = activeAppointment?.id ?? null;
+    if (currentAppointmentId && currentAppointmentId !== lastOpenedAppointmentId) {
+      if (lastOpenedAppointmentId && !initialViewIntent) {
+        const selection = resolveTabSelection(labels[0].key);
+        if (selection) applyTabSelection(selection);
+      }
+      setLastOpenedAppointmentId(currentAppointmentId);
+    }
+  } else if (appliedIntent) {
+    // Allow the same intent object to re-apply on the next open.
+    setAppliedIntent(null);
+  }
+
+  const [formData, setFormData] = useState<FormDataProps>(() => createEmptyFormData());
+
+  const { withSignatureMeta, withSignatureMetaRef } = useSubmissionSignatureMeta(
+    customForms,
+    formsById
+  );
 
   const activeLabelConfig = labels.find((label) => label.key === activeLabel) ?? labels[0];
   const resolvedActiveLabel = activeLabelConfig.key as LabelKey;
@@ -1125,7 +1310,7 @@ const AppoitmentInfo = ({
     return () => {
       cancelled = true;
     };
-  }, [activeAppointment?.id, resolvedActiveLabel, resolvedActiveSubLabel]);
+  }, [activeAppointment?.id, resolvedActiveLabel, resolvedActiveSubLabel, withSignatureMetaRef]);
 
   useEffect(() => {
     void loadAppointmentForms();
@@ -1169,89 +1354,23 @@ const AppoitmentInfo = ({
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <SigningOverlay />
       <div className={`flex flex-col h-full ${resolvedActiveLabel === 'labs' ? 'gap-1' : 'gap-3'}`}>
-        <div className="flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex items-start gap-3">
-              <Image
-                alt="pet image"
-                src={companionImageSrc}
-                className="size-10 shrink-0 rounded-full object-cover border border-card-border bg-white"
-                height={40}
-                width={40}
-              />
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    className="text-body-1 text-text-primary cursor-pointer text-left hover:underline underline-offset-2"
-                    onClick={() => {
-                      router.push(
-                        buildAppointmentCompanionHistoryHref(
-                          activeAppointment?.id,
-                          companion.id,
-                          '/appointments'
-                        )
-                      );
-                      setShowModal(false);
-                    }}
-                  >
-                    {formatCompanionNameWithOwnerLastName(companion.name, companion.parent)}
-                  </button>
-                  {activeAppointment ? (
-                    <AppointmentStatusPill
-                      appointment={activeAppointment}
-                      canEdit={canEditAppointments}
-                    />
-                  ) : null}
-                </div>
-                <div className="text-body-4 text-text-primary mt-1">{companion.breed}</div>
-                <div className="mt-2 max-w-3xl rounded-2xl border border-card-border bg-card-bg px-3 py-2 text-caption-1 text-text-secondary">
-                  <span className="font-medium text-text-primary">{statusLabel}:</span>{' '}
-                  {statusSummary}
-                </div>
-              </div>
-            </div>
-            <Close onClick={() => setShowModal(false)} />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              aria-label="Open medical records in workspace"
-              onClick={() => openWorkspaceIntent(clinicalWorkspaceIntent)}
-              className="inline-flex h-9 items-center gap-2 rounded-2xl border border-card-border px-3 text-caption-1 font-medium text-text-primary hover:bg-card-hover"
-            >
-              <IoDocumentTextOutline size={16} aria-hidden="true" />
-              <span>Medical records</span>
-            </button>
-            <button
-              type="button"
-              aria-label="Open finance in workspace"
-              onClick={() => openWorkspaceIntent({ label: 'finance', subLabel: 'summary' })}
-              className="inline-flex h-9 items-center gap-2 rounded-2xl border border-card-border px-3 text-caption-1 font-medium text-text-primary hover:bg-card-hover"
-            >
-              <IoCardOutline size={16} aria-hidden="true" />
-              <span>Finance</span>
-            </button>
-            <button
-              type="button"
-              aria-label="Open labs in workspace"
-              onClick={() => openWorkspaceIntent({ label: 'labs', subLabel: 'idexx-labs' })}
-              className="inline-flex h-9 items-center gap-2 rounded-2xl border border-card-border px-3 text-caption-1 font-medium text-text-primary hover:bg-card-hover"
-            >
-              <IoFlaskOutline size={16} aria-hidden="true" />
-              <span>Labs</span>
-            </button>
-          </div>
-
-          <Labels
-            labels={labels}
-            activeLabel={resolvedActiveLabel}
-            setActiveLabel={handleActiveLabelChange}
-            activeSubLabel={resolvedActiveSubLabel}
-            setActiveSubLabel={setActiveSubLabel}
-          />
-        </div>
+        <AppointmentInfoModalHeader
+          companionImageSrc={companionImageSrc}
+          companion={companion}
+          activeAppointment={activeAppointment}
+          canEditAppointments={canEditAppointments}
+          statusLabel={statusLabel}
+          statusSummary={statusSummary}
+          router={router}
+          setShowModal={setShowModal}
+          openWorkspaceIntent={openWorkspaceIntent}
+          clinicalWorkspaceIntent={clinicalWorkspaceIntent}
+          labels={labels}
+          resolvedActiveLabel={resolvedActiveLabel}
+          handleActiveLabelChange={handleActiveLabelChange}
+          resolvedActiveSubLabel={resolvedActiveSubLabel}
+          setActiveSubLabel={setActiveSubLabel}
+        />
 
         <div ref={scrollRef} className="flex flex-1 min-h-0 scrollbar-custom overflow-y-auto">
           {Content ? (

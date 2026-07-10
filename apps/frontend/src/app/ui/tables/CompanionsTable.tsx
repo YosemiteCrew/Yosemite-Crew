@@ -65,6 +65,255 @@ const formatAgeWithUnit = (dateOfBirth: Date | string) => {
   return `${age} ${age === 1 ? 'Yr' : 'Yrs'}`;
 };
 
+type CompanionColumnDeps = {
+  handleViewCompanion: (item: CompanionParent) => void;
+  handleBookAppointment: (item: CompanionParent) => void;
+  handleAddTask: (item: CompanionParent) => void;
+  handleChangeStatus: (item: CompanionParent) => void;
+  canEditAppointments: boolean;
+  canEditTasks: boolean;
+  canEditCompanions: boolean;
+  terminologyText: ReturnType<typeof useCompanionTerminologyText>;
+  getUpcomingAppointmentForCompanion: (companionId?: string) => Appointment | null;
+  goToAppointment: (appointment: Appointment) => void;
+  handleViewHistory: (companion: CompanionParent) => void;
+  handleOpenCompanionHistoryPage: (companion: CompanionParent) => void;
+};
+
+const buildCompanionColumns = ({
+  handleViewCompanion,
+  handleBookAppointment,
+  handleAddTask,
+  handleChangeStatus,
+  canEditAppointments,
+  canEditTasks,
+  canEditCompanions,
+  terminologyText,
+  getUpcomingAppointmentForCompanion,
+  goToAppointment,
+  handleViewHistory,
+  handleOpenCompanionHistoryPage,
+}: CompanionColumnDeps): Column<CompanionParent>[] => [
+  {
+    label: '',
+    key: 'image',
+    width: '56px',
+    render: (item: CompanionParent) => (
+      <div className="appointment-profile size-10">
+        <Image
+          src={getSafeImageUrl(
+            item.companion.photoUrl,
+            item.companion.type.toLowerCase() as ImageType
+          )}
+          alt=""
+          height={40}
+          width={40}
+          style={{
+            borderRadius: '50%',
+            objectFit: 'cover',
+            maxWidth: '40px',
+            minWidth: '40px',
+            maxHeight: '40px',
+          }}
+        />
+      </div>
+    ),
+  },
+  {
+    label: 'Name',
+    key: 'name',
+    width: '220px',
+    render: (item: CompanionParent) => (
+      <div className="appointment-profile">
+        <div className="appointment-profile-two min-w-0">
+          <button
+            type="button"
+            onClick={() => handleOpenCompanionHistoryPage(item)}
+            className="appointment-profile-title cursor-pointer hover:underline underline-offset-2 text-left"
+            title={terminologyText('Open companion history')}
+          >
+            {formatCompanionNameWithOwnerLastName(item.companion.name, item.parent)}
+          </button>
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+            <div className="appointment-profile-sub min-w-0">
+              {formatDisplayValue(item.companion.breed)}
+            </div>
+            <div className="appointment-profile-sub shrink-0 whitespace-nowrap">
+              {`/ ${SPECIES_LABEL[item.companion.type?.toLowerCase()] ?? toTitleCase(item.companion.type)}`}
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    label: 'Parent',
+    key: 'parent',
+    width: '130px',
+    render: (item: CompanionParent) => (
+      <div className="appointment-profile-title">{formatDisplayValue(item.parent.firstName)}</div>
+    ),
+  },
+  {
+    label: 'Gender/Age',
+    key: 'gender/age',
+    width: '100px',
+    render: (item: CompanionParent) => (
+      <div className="appointment-profile-two">
+        <div className="appointment-profile-title">{formatDisplayValue(item.companion.gender)}</div>
+        <div className="appointment-profile-title">
+          {formatAgeWithUnit(item.companion.dateOfBirth)}
+        </div>
+      </div>
+    ),
+  },
+  {
+    label: 'Allergy',
+    key: 'allergy',
+    width: '110px',
+    render: (item: CompanionParent) => (
+      <div className="appointment-profile-title">{formatDisplayValue(item.companion.allergy)}</div>
+    ),
+  },
+  {
+    label: 'Upcoming Appointment',
+    key: 'Upcoming Appointment',
+    width: '170px',
+    render: (item: CompanionParent) => {
+      const upcoming = getUpcomingAppointmentForCompanion(item.companion.id);
+      if (!upcoming) {
+        return (
+          <div className="appointment-profile-two">
+            <div className="appointment-profile-title">-</div>
+            <div className="appointment-profile-sub" />
+          </div>
+        );
+      }
+
+      return (
+        <GlassTooltip
+          content="Open appointment"
+          side="bottom"
+          className="table-action-tooltip w-full"
+        >
+          <button
+            type="button"
+            onClick={() => goToAppointment(upcoming)}
+            className="w-full text-left rounded-xl! border border-card-border px-2 py-1.5 hover:bg-card-hover transition-colors"
+            title="Open appointment"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="appointment-profile-two min-w-0">
+                <div className="appointment-profile-title">
+                  {formatDateLabel(upcoming.appointmentDate)}
+                </div>
+                <div className="appointment-profile-sub">{formatTimeLabel(upcoming.startTime)}</div>
+              </div>
+              <IoOpenOutline size={15} color="var(--color-neutral-900)" />
+            </div>
+          </button>
+        </GlassTooltip>
+      );
+    },
+  },
+  {
+    label: 'Status',
+    key: 'status',
+    width: '110px',
+    render: (item: CompanionParent) => (
+      <div
+        className="appointment-status"
+        style={getCompanionStatusStyle(item.companion.status || 'inactive')}
+      >
+        {toTitleCase(item.companion.status || 'inactive')}
+      </div>
+    ),
+  },
+  {
+    label: 'Actions',
+    key: 'actions',
+    width: '200px',
+    render: (item: CompanionParent) => {
+      const companionName = item.companion.name || 'companion';
+      return (
+        <div className="action-btn-col">
+          <div className="action-btn-grid action-btn-grid-capped">
+            <GlassTooltip
+              content={terminologyText('View companion')}
+              side="bottom"
+              className="table-action-tooltip"
+            >
+              <button
+                type="button"
+                onClick={() => handleViewCompanion(item)}
+                aria-label={`${terminologyText('View companion')} ${companionName}`}
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title={terminologyText('View companion')}
+              >
+                <IoEye size={20} color="var(--color-neutral-900)" />
+              </button>
+            </GlassTooltip>
+            <GlassTooltip content="View history" side="bottom" className="table-action-tooltip">
+              <button
+                type="button"
+                onClick={() => handleViewHistory(item)}
+                aria-label={`View history for ${companionName}`}
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                title="View history"
+              >
+                <RiHistoryLine size={16} color="var(--color-neutral-900)" />
+              </button>
+            </GlassTooltip>
+            {canEditCompanions && (
+              <GlassTooltip content="Change status" side="bottom" className="table-action-tooltip">
+                <button
+                  type="button"
+                  onClick={() => handleChangeStatus(item)}
+                  aria-label={`Change status for ${companionName}`}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Change status"
+                >
+                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+                </button>
+              </GlassTooltip>
+            )}
+            {canEditAppointments && (
+              <GlassTooltip
+                content="Book appointment"
+                side="bottom"
+                className="table-action-tooltip"
+              >
+                <button
+                  type="button"
+                  onClick={() => handleBookAppointment(item)}
+                  aria-label={`Book appointment for ${companionName}`}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Book appointment"
+                >
+                  <FaCalendar size={14} color="var(--color-neutral-900)" />
+                </button>
+              </GlassTooltip>
+            )}
+            {canEditTasks && (
+              <GlassTooltip content="Add task" side="bottom" className="table-action-tooltip">
+                <button
+                  type="button"
+                  onClick={() => handleAddTask(item)}
+                  aria-label={`Add task for ${companionName}`}
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  title="Add task"
+                >
+                  <FaTasks size={14} color="var(--color-neutral-900)" />
+                </button>
+              </GlassTooltip>
+            )}
+          </div>
+        </div>
+      );
+    },
+  },
+];
+
 const CompanionsTable = ({
   filteredList,
   setActiveCompanion,
@@ -152,236 +401,20 @@ const CompanionsTable = ({
     );
   };
 
-  const columns: Column<CompanionParent>[] = [
-    {
-      label: '',
-      key: 'image',
-      width: '56px',
-      render: (item: CompanionParent) => (
-        <div className="appointment-profile size-10">
-          <Image
-            src={getSafeImageUrl(
-              item.companion.photoUrl,
-              item.companion.type.toLowerCase() as ImageType
-            )}
-            alt=""
-            height={40}
-            width={40}
-            style={{
-              borderRadius: '50%',
-              objectFit: 'cover',
-              maxWidth: '40px',
-              minWidth: '40px',
-              maxHeight: '40px',
-            }}
-          />
-        </div>
-      ),
-    },
-    {
-      label: 'Name',
-      key: 'name',
-      width: '220px',
-      render: (item: CompanionParent) => (
-        <div className="appointment-profile">
-          <div className="appointment-profile-two min-w-0">
-            <button
-              type="button"
-              onClick={() => handleOpenCompanionHistoryPage(item)}
-              className="appointment-profile-title cursor-pointer hover:underline underline-offset-2 text-left"
-              title={terminologyText('Open companion history')}
-            >
-              {formatCompanionNameWithOwnerLastName(item.companion.name, item.parent)}
-            </button>
-            <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
-              <div className="appointment-profile-sub min-w-0">
-                {formatDisplayValue(item.companion.breed)}
-              </div>
-              <div className="appointment-profile-sub shrink-0 whitespace-nowrap">
-                {`/ ${SPECIES_LABEL[item.companion.type?.toLowerCase()] ?? toTitleCase(item.companion.type)}`}
-              </div>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      label: 'Parent',
-      key: 'parent',
-      width: '130px',
-      render: (item: CompanionParent) => (
-        <div className="appointment-profile-title">{formatDisplayValue(item.parent.firstName)}</div>
-      ),
-    },
-    {
-      label: 'Gender/Age',
-      key: 'gender/age',
-      width: '100px',
-      render: (item: CompanionParent) => (
-        <div className="appointment-profile-two">
-          <div className="appointment-profile-title">
-            {formatDisplayValue(item.companion.gender)}
-          </div>
-          <div className="appointment-profile-title">
-            {formatAgeWithUnit(item.companion.dateOfBirth)}
-          </div>
-        </div>
-      ),
-    },
-    {
-      label: 'Allergy',
-      key: 'allergy',
-      width: '110px',
-      render: (item: CompanionParent) => (
-        <div className="appointment-profile-title">
-          {formatDisplayValue(item.companion.allergy)}
-        </div>
-      ),
-    },
-    {
-      label: 'Upcoming Appointment',
-      key: 'Upcoming Appointment',
-      width: '170px',
-      render: (item: CompanionParent) => {
-        const upcoming = getUpcomingAppointmentForCompanion(item.companion.id);
-        if (!upcoming) {
-          return (
-            <div className="appointment-profile-two">
-              <div className="appointment-profile-title">-</div>
-              <div className="appointment-profile-sub" />
-            </div>
-          );
-        }
-
-        return (
-          <GlassTooltip
-            content="Open appointment"
-            side="bottom"
-            className="table-action-tooltip w-full"
-          >
-            <button
-              type="button"
-              onClick={() => goToAppointment(upcoming)}
-              className="w-full text-left rounded-xl! border border-card-border px-2 py-1.5 hover:bg-card-hover transition-colors"
-              title="Open appointment"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="appointment-profile-two min-w-0">
-                  <div className="appointment-profile-title">
-                    {formatDateLabel(upcoming.appointmentDate)}
-                  </div>
-                  <div className="appointment-profile-sub">
-                    {formatTimeLabel(upcoming.startTime)}
-                  </div>
-                </div>
-                <IoOpenOutline size={15} color="var(--color-neutral-900)" />
-              </div>
-            </button>
-          </GlassTooltip>
-        );
-      },
-    },
-    {
-      label: 'Status',
-      key: 'status',
-      width: '110px',
-      render: (item: CompanionParent) => (
-        <div
-          className="appointment-status"
-          style={getCompanionStatusStyle(item.companion.status || 'inactive')}
-        >
-          {toTitleCase(item.companion.status || 'inactive')}
-        </div>
-      ),
-    },
-    {
-      label: 'Actions',
-      key: 'actions',
-      width: '200px',
-      render: (item: CompanionParent) => {
-        const companionName = item.companion.name || 'companion';
-        return (
-          <div className="action-btn-col">
-            <div className="action-btn-grid action-btn-grid-capped">
-              <GlassTooltip
-                content={terminologyText('View companion')}
-                side="bottom"
-                className="table-action-tooltip"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleViewCompanion(item)}
-                  aria-label={`${terminologyText('View companion')} ${companionName}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                  title={terminologyText('View companion')}
-                >
-                  <IoEye size={20} color="var(--color-neutral-900)" />
-                </button>
-              </GlassTooltip>
-              <GlassTooltip content="View history" side="bottom" className="table-action-tooltip">
-                <button
-                  type="button"
-                  onClick={() => handleViewHistory(item)}
-                  aria-label={`View history for ${companionName}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                  title="View history"
-                >
-                  <RiHistoryLine size={16} color="var(--color-neutral-900)" />
-                </button>
-              </GlassTooltip>
-              {canEditCompanions && (
-                <GlassTooltip
-                  content="Change status"
-                  side="bottom"
-                  className="table-action-tooltip"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleChangeStatus(item)}
-                    aria-label={`Change status for ${companionName}`}
-                    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                    title="Change status"
-                  >
-                    <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
-                  </button>
-                </GlassTooltip>
-              )}
-              {canEditAppointments && (
-                <GlassTooltip
-                  content="Book appointment"
-                  side="bottom"
-                  className="table-action-tooltip"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleBookAppointment(item)}
-                    aria-label={`Book appointment for ${companionName}`}
-                    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                    title="Book appointment"
-                  >
-                    <FaCalendar size={14} color="var(--color-neutral-900)" />
-                  </button>
-                </GlassTooltip>
-              )}
-              {canEditTasks && (
-                <GlassTooltip content="Add task" side="bottom" className="table-action-tooltip">
-                  <button
-                    type="button"
-                    onClick={() => handleAddTask(item)}
-                    aria-label={`Add task for ${companionName}`}
-                    className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
-                    title="Add task"
-                  >
-                    <FaTasks size={14} color="var(--color-neutral-900)" />
-                  </button>
-                </GlassTooltip>
-              )}
-            </div>
-          </div>
-        );
-      },
-    },
-  ];
+  const columns = buildCompanionColumns({
+    handleViewCompanion,
+    handleBookAppointment,
+    handleAddTask,
+    handleChangeStatus,
+    canEditAppointments,
+    canEditTasks,
+    canEditCompanions,
+    terminologyText,
+    getUpcomingAppointmentForCompanion,
+    goToAppointment,
+    handleViewHistory,
+    handleOpenCompanionHistoryPage,
+  });
 
   return (
     <div className="table-wrapper companions-scroll-x h-full min-h-0 overflow-hidden">

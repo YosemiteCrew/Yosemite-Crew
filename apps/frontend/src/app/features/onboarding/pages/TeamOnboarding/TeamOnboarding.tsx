@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { FaUser, FaCalendar } from 'react-icons/fa';
 import { IoDocument } from 'react-icons/io5';
@@ -138,31 +138,27 @@ const TeamOnboarding = () => {
     availabilityRef,
   ];
 
-  const applyLoadedProfile = useCallback(() => {
+  // Render-phase hydration: adjust local editable state when the store data
+  // changes. isReady can flip false again when a save triggers a store reload —
+  // the hydrated markers keep us from re-applying the same snapshot.
+  const [hydratedProfile, setHydratedProfile] = useState<UserProfile | null>(null);
+  const [hydratedSlots, setHydratedSlots] = useState<typeof storeSlots | null>(null);
+  if (isReady) {
     if (!initialStepApplied) {
       setInitialStepApplied(true);
       if (computedStep >= 0 && computedStep <= 2) {
         setActiveStep(computedStep);
       }
     }
-    if (profile) {
+    if (profile && profile !== hydratedProfile) {
+      setHydratedProfile(profile);
       setFormData(profile);
     }
-    if (storeSlots.length > 0) {
-      const temp = convertFromGetApi(storeSlots);
-      setAvailability(temp);
+    if (storeSlots.length > 0 && storeSlots !== hydratedSlots) {
+      setHydratedSlots(storeSlots);
+      setAvailability(convertFromGetApi(storeSlots));
     }
-  }, [computedStep, initialStepApplied, profile, storeSlots]);
-
-  useEffect(() => {
-    // Once the page has initialised, don't let store loading states cause a blank screen.
-    // isReady can flip false again when a save triggers a store reload — we stay visible.
-    if (!isReady && initialStepApplied) return;
-
-    if (!isReady) return;
-
-    applyLoadedProfile();
-  }, [isReady, initialStepApplied, applyLoadedProfile]);
+  }
 
   // Show initial load spinner (first page load, before store is ready)
   if (!isReady && !initialStepApplied) {

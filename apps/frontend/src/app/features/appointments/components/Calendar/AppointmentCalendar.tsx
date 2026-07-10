@@ -137,6 +137,13 @@ const hasAppointmentConflict = (
   });
 };
 
+const INITIAL_DRAG_UI = {
+  draggedAppointmentId: null,
+  draggedAppointmentLabel: null,
+  dragError: null,
+  dragContext: null,
+};
+
 const AppointmentCalendar = ({
   filteredList,
   allAppointments,
@@ -174,12 +181,51 @@ const AppointmentCalendar = ({
     );
   }, []);
 
-  const [draggedAppointmentId, setDraggedAppointmentId] = useState<string | null>(null);
-  const [draggedAppointmentLabel, setDraggedAppointmentLabel] = useState<string | null>(null);
-  const [dragError, setDragError] = useState<string | null>(null);
-  const [dragContext, setDragContext] = useState<DragContext | null>(null);
+  const [dragUi, setDragUi] = useState<{
+    draggedAppointmentId: string | null;
+    draggedAppointmentLabel: string | null;
+    dragError: string | null;
+    dragContext: DragContext | null;
+  }>(INITIAL_DRAG_UI);
+  const { draggedAppointmentId, draggedAppointmentLabel, dragError, dragContext } = dragUi;
+  const setDragError = (message: string | null) =>
+    setDragUi((ui) => ({ ...ui, dragError: message }));
   const [suppressAutoScroll, setSuppressAutoScroll] = useState(false);
   const suppressAutoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const beginAppointmentDrag = (appointment: Appointment) => {
+    if (!isAppointmentDraggable(appointment)) return;
+    dragAvailabilityCacheRef.current = {};
+    dragAvailabilityPendingRef.current = {};
+    setAvailabilityVersion((version) => version + 1);
+    setDragUi({
+      draggedAppointmentId: appointment.id ?? null,
+      draggedAppointmentLabel: formatCompanionNameWithOwnerLastName(
+        appointment.companion?.name,
+        appointment.companion?.parent,
+        'Appointment'
+      ),
+      dragError: null,
+      dragContext: {
+        appointmentId: appointment.id ?? '',
+        serviceId: appointment.appointmentType?.id,
+        durationMinutes: Math.max(
+          5,
+          Math.round(
+            (new Date(appointment.endTime).getTime() - new Date(appointment.startTime).getTime()) /
+              60000
+          )
+        ),
+      },
+    });
+  };
+  const endAppointmentDrag = () =>
+    setDragUi((ui) => ({
+      ...ui,
+      draggedAppointmentId: null,
+      draggedAppointmentLabel: null,
+      dragContext: null,
+    }));
+
   const markDropped = () => {
     if (suppressAutoScrollTimerRef.current) clearTimeout(suppressAutoScrollTimerRef.current);
     setSuppressAutoScroll(true);
@@ -771,38 +817,8 @@ const AppointmentCalendar = ({
           draggedAppointmentId={draggedAppointmentId}
           draggedAppointmentLabel={draggedAppointmentLabel}
           canDragAppointment={isAppointmentDraggable}
-          onAppointmentDragStart={(appointment) => {
-            if (!isAppointmentDraggable(appointment)) return;
-            setDraggedAppointmentId(appointment.id ?? null);
-            setDraggedAppointmentLabel(
-              formatCompanionNameWithOwnerLastName(
-                appointment.companion?.name,
-                appointment.companion?.parent,
-                'Appointment'
-              )
-            );
-            setDragError(null);
-            dragAvailabilityCacheRef.current = {};
-            dragAvailabilityPendingRef.current = {};
-            setAvailabilityVersion((version) => version + 1);
-            setDragContext({
-              appointmentId: appointment.id ?? '',
-              serviceId: appointment.appointmentType?.id,
-              durationMinutes: Math.max(
-                5,
-                Math.round(
-                  (new Date(appointment.endTime).getTime() -
-                    new Date(appointment.startTime).getTime()) /
-                    60000
-                )
-              ),
-            });
-          }}
-          onAppointmentDragEnd={() => {
-            setDraggedAppointmentId(null);
-            setDraggedAppointmentLabel(null);
-            setDragContext(null);
-          }}
+          onAppointmentDragStart={beginAppointmentDrag}
+          onAppointmentDragEnd={endAppointmentDrag}
           onDragHoverTarget={(dropDate, targetLeadId) => {
             ensureDragAvailability(dropDate, targetLeadId).catch(() => undefined);
           }}
@@ -813,9 +829,7 @@ const AppointmentCalendar = ({
           onAppointmentDropAt={(dropDate, minute) => {
             markDropped();
             moveAppointment(dropDate, minute).catch(() => undefined);
-            setDraggedAppointmentId(null);
-            setDraggedAppointmentLabel(null);
-            setDragContext(null);
+            endAppointmentDrag();
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
           slotStepMinutes={15}
@@ -838,38 +852,8 @@ const AppointmentCalendar = ({
           draggedAppointmentId={draggedAppointmentId}
           draggedAppointmentLabel={draggedAppointmentLabel}
           canDragAppointment={isAppointmentDraggable}
-          onAppointmentDragStart={(appointment) => {
-            if (!isAppointmentDraggable(appointment)) return;
-            setDraggedAppointmentId(appointment.id ?? null);
-            setDraggedAppointmentLabel(
-              formatCompanionNameWithOwnerLastName(
-                appointment.companion?.name,
-                appointment.companion?.parent,
-                'Appointment'
-              )
-            );
-            setDragError(null);
-            dragAvailabilityCacheRef.current = {};
-            dragAvailabilityPendingRef.current = {};
-            setAvailabilityVersion((version) => version + 1);
-            setDragContext({
-              appointmentId: appointment.id ?? '',
-              serviceId: appointment.appointmentType?.id,
-              durationMinutes: Math.max(
-                5,
-                Math.round(
-                  (new Date(appointment.endTime).getTime() -
-                    new Date(appointment.startTime).getTime()) /
-                    60000
-                )
-              ),
-            });
-          }}
-          onAppointmentDragEnd={() => {
-            setDraggedAppointmentId(null);
-            setDraggedAppointmentLabel(null);
-            setDragContext(null);
-          }}
+          onAppointmentDragStart={beginAppointmentDrag}
+          onAppointmentDragEnd={endAppointmentDrag}
           onDragHoverTarget={(dropDate, targetLeadId) => {
             ensureDragAvailability(dropDate, targetLeadId).catch(() => undefined);
           }}
@@ -880,9 +864,7 @@ const AppointmentCalendar = ({
           onAppointmentDropAt={(dropDate, minute) => {
             markDropped();
             moveAppointment(dropDate, minute).catch(() => undefined);
-            setDraggedAppointmentId(null);
-            setDraggedAppointmentLabel(null);
-            setDragContext(null);
+            endAppointmentDrag();
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
           slotStepMinutes={15}
@@ -905,38 +887,8 @@ const AppointmentCalendar = ({
           draggedAppointmentId={draggedAppointmentId}
           draggedAppointmentLabel={draggedAppointmentLabel}
           canDragAppointment={isAppointmentDraggable}
-          onAppointmentDragStart={(appointment) => {
-            if (!isAppointmentDraggable(appointment)) return;
-            setDraggedAppointmentId(appointment.id ?? null);
-            setDraggedAppointmentLabel(
-              formatCompanionNameWithOwnerLastName(
-                appointment.companion?.name,
-                appointment.companion?.parent,
-                'Appointment'
-              )
-            );
-            setDragError(null);
-            dragAvailabilityCacheRef.current = {};
-            dragAvailabilityPendingRef.current = {};
-            setAvailabilityVersion((version) => version + 1);
-            setDragContext({
-              appointmentId: appointment.id ?? '',
-              serviceId: appointment.appointmentType?.id,
-              durationMinutes: Math.max(
-                5,
-                Math.round(
-                  (new Date(appointment.endTime).getTime() -
-                    new Date(appointment.startTime).getTime()) /
-                    60000
-                )
-              ),
-            });
-          }}
-          onAppointmentDragEnd={() => {
-            setDraggedAppointmentId(null);
-            setDraggedAppointmentLabel(null);
-            setDragContext(null);
-          }}
+          onAppointmentDragStart={beginAppointmentDrag}
+          onAppointmentDragEnd={endAppointmentDrag}
           onDragHoverTarget={(dropDate, targetLeadId) => {
             ensureDragAvailability(dropDate, targetLeadId).catch(() => undefined);
           }}
@@ -947,9 +899,7 @@ const AppointmentCalendar = ({
           onAppointmentDropAt={(dropDate, minute, targetLeadId) => {
             markDropped();
             moveAppointment(dropDate, minute, targetLeadId).catch(() => undefined);
-            setDraggedAppointmentId(null);
-            setDraggedAppointmentLabel(null);
-            setDragContext(null);
+            endAppointmentDrag();
           }}
           onCreateAppointmentAt={handleCreateFromCalendarSlot}
           slotStepMinutes={15}

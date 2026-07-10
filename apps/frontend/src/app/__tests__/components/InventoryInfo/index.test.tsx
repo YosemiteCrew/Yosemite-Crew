@@ -193,41 +193,34 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
 
 jest.mock('@/app/features/inventory/components/InfoSection', () => ({
   __esModule: true,
-  default: function MockInfoSection({
-    onRegisterActions,
-    onEditingChange,
-    onSaveSection,
-    sectionKey,
-  }: any) {
+  default: function MockInfoSection({ ref, onEditingChange, onSaveSection, sectionKey }: any) {
     const [editing, setEditing] = React.useState(false);
 
-    React.useEffect(() => {
-      onRegisterActions({
-        save: async () => {
-          let data = {};
-          if (sectionKey === 'basicInfo')
-            data = {
-              name: 'Updated Name',
-              category: 'Cat',
-              subCategory: 'Sub',
-            };
-          if (sectionKey === 'pricing') data = { purchaseCost: '10', selling: '20' };
-          if (sectionKey === 'stock') data = { current: '5', reorderLevel: '2' };
-          if (sectionKey === 'basicInfo_fail') data = { name: '' };
+    React.useImperativeHandle(ref, () => ({
+      save: async () => {
+        let data = {};
+        if (sectionKey === 'basicInfo')
+          data = {
+            name: 'Updated Name',
+            category: 'Cat',
+            subCategory: 'Sub',
+          };
+        if (sectionKey === 'pricing') data = { purchaseCost: '10', selling: '20' };
+        if (sectionKey === 'stock') data = { current: '5', reorderLevel: '2' };
+        if (sectionKey === 'basicInfo_fail') data = { name: '' };
 
-          await onSaveSection(sectionKey === 'basicInfo_fail' ? 'basicInfo' : sectionKey, data);
-        },
-        cancel: () => {
-          setEditing(false);
-          onEditingChange(false);
-        },
-        startEditing: () => {
-          setEditing(true);
-          onEditingChange(true);
-        },
-        isEditing: () => editing,
-      });
-    }, [editing, onRegisterActions, onSaveSection, sectionKey, onEditingChange]);
+        await onSaveSection(sectionKey === 'basicInfo_fail' ? 'basicInfo' : sectionKey, data);
+      },
+      cancel: () => {
+        setEditing(false);
+        onEditingChange(false);
+      },
+      startEditing: () => {
+        setEditing(true);
+        onEditingChange(true);
+      },
+      isEditing: () => editing,
+    }));
 
     return (
       <div data-testid="info-section">

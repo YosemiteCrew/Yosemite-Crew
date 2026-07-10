@@ -18,7 +18,7 @@ import {
   hasSignatureField,
   removeSignatureFields,
 } from '@/app/lib/forms';
-import React, { useMemo, useState } from 'react';
+import React, { useImperativeHandle, useMemo, useState } from 'react';
 import { Organisation } from '@yosemite-crew/types';
 import { useOrgStore } from '@/app/stores/orgStore';
 
@@ -27,8 +27,10 @@ type DetailsProps = {
   setFormData: React.Dispatch<React.SetStateAction<FormsProps>>;
   onNext: () => void;
   serviceOptions: { label: string; value: string; badge?: string; isInpatient?: boolean }[];
-  registerValidator?: (fn: () => boolean) => void;
+  ref?: React.Ref<AddFormStepHandle>;
 };
+
+export type AddFormStepHandle = { validate: () => boolean };
 
 const YC_DEFAULT_CATEGORIES = new Set<FormsCategory>([
   'SOAP',
@@ -207,13 +209,7 @@ const FormUsageFields = ({
   </div>
 );
 
-const Details = ({
-  formData,
-  setFormData,
-  onNext,
-  serviceOptions,
-  registerValidator,
-}: DetailsProps) => {
+const Details = ({ formData, setFormData, onNext, serviceOptions, ref }: DetailsProps) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
     category?: string;
@@ -360,9 +356,7 @@ const Details = ({
     onNext();
   };
 
-  React.useEffect(() => {
-    registerValidator?.(validate);
-  }, [registerValidator, validate]);
+  useImperativeHandle(ref, () => ({ validate }), [validate]);
 
   return (
     <div className="flex flex-col gap-6 w-full flex-1 justify-between">

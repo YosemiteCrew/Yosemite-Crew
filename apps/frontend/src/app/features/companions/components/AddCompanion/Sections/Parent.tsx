@@ -234,9 +234,14 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
     state?: string;
     postalCode?: string;
   }>({});
-  const [currentDate, setCurrentDate] = useState<Date | null>(
-    formData.birthDate ? new Date(formData.birthDate) : null
-  );
+  const currentDate = formData.birthDate ? new Date(formData.birthDate) : null;
+  const setCurrentDate: Dispatch<SetStateAction<Date | null>> = (value) => {
+    setFormData((prev) => {
+      const prevDate = prev.birthDate ? new Date(prev.birthDate) : null;
+      const next = typeof value === 'function' ? value(prevDate) : value;
+      return { ...prev, birthDate: next ?? undefined };
+    });
+  };
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<StoredParent[]>([]);
   const [selectedCountryCode, setSelectedCountryCode] = useState<CountryDialCodeOption>(
@@ -277,13 +282,6 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
     }, 300);
     return () => globalThis.clearTimeout(t);
   }, [query]);
-
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      birthDate: currentDate ?? undefined,
-    }));
-  }, [currentDate, setFormData]);
 
   const validateStep = () => {
     const errors: {

@@ -21,6 +21,12 @@ import {
   inventoryToPrescriptionItem,
 } from '@/app/features/appointments/lib/inventoryPrescription';
 import React, { use, useEffect, useRef, useState } from 'react';
+import type { AddFormStepHandle } from '@/app/features/forms/pages/Forms/Sections/AddForm/Details';
+import {
+  ensureServiceCheckbox,
+  getServiceCheckbox,
+  isServiceGroup,
+} from '@/app/features/forms/pages/Forms/Sections/AddForm/serviceGroupHelpers';
 import { IoIosAddCircleOutline, IoIosWarning } from 'react-icons/io';
 import TextBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextBuilder';
 import RichTextBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/RichText/RichTextBuilder';
@@ -56,7 +62,7 @@ type BuildProps = {
   setFormData: React.Dispatch<React.SetStateAction<FormsProps>>;
   onNext: () => void;
   serviceOptions: { label: string; value: string; badge?: string }[];
-  registerValidator?: (fn: () => boolean) => void;
+  ref?: React.Ref<AddFormStepHandle>;
 };
 
 type OptionKey = FormFieldType | 'medication' | 'service-group' | 'task-group';
@@ -340,56 +346,8 @@ const isTreatmentPlanGroup = (field: FormField): field is FormField & { type: 'g
 const isMedicationGroup = (field: FormField): field is FormField & { type: 'group' } =>
   field.type === 'group' && Boolean(field.meta?.medicationGroup);
 
-const isServiceGroup = (field: FormField): field is FormField & { type: 'group' } =>
-  field.type === 'group' && Boolean(field.meta?.serviceGroup);
-
 const isTaskGroup = (field: FormField): field is FormField & { type: 'group' } =>
   field.type === 'group' && Boolean(field.meta?.taskGroup);
-
-const getServiceCheckbox = (
-  field: FormField & { type: 'group'; fields?: FormField[] }
-): (FormField & { type: 'checkbox'; options?: { label: string; value: string }[] }) | undefined =>
-  (field.fields ?? []).find(
-    (f): f is FormField & { type: 'checkbox'; options?: { label: string; value: string }[] } =>
-      f.type === 'checkbox'
-  );
-
-const ensureServiceCheckbox = (
-  field: FormField & { type: 'group' },
-  serviceOptions: { label: string; value: string; badge?: string }[]
-): { group: FormField & { type: 'group' }; selected: string[] } => {
-  const existingCheckbox = getServiceCheckbox(field);
-  const selected = existingCheckbox?.options?.map((opt) => opt.value) ?? [];
-
-  const nextMeta = field.meta
-    ? { ...field.meta, serviceGroup: true, serviceIds: selected }
-    : { serviceGroup: true, serviceIds: selected };
-
-  const checkbox: FormField = {
-    id: existingCheckbox?.id || `${field.id}_services`,
-    type: 'checkbox',
-    label: '', // Empty label to avoid duplicate "Services" text
-    options: selected.map((val) => {
-      const match = serviceOptions.find((o) => o.value === val);
-      return match ?? { label: val, value: val };
-    }),
-    multiple: true,
-    meta: existingCheckbox?.meta
-      ? { ...existingCheckbox.meta, serviceIds: selected }
-      : { serviceIds: selected },
-  };
-
-  const otherFields = (field.fields ?? []).filter((f) => f.id !== checkbox.id);
-
-  return {
-    group: {
-      ...field,
-      meta: nextMeta,
-      fields: [...otherFields, checkbox],
-    },
-    selected,
-  };
-};
 
 const buildLabeledMedication = (fields: FormField[] | undefined, baseMedication: FormField) => {
   const medCount = (fields ?? []).filter(isMedicationGroup).length;
@@ -1221,13 +1179,7 @@ const removeFieldById = (form: FormsProps, id: string): FormsProps => ({
   schema: (form.schema || []).filter((field) => field.id !== id),
 });
 
-const Build = ({
-  formData,
-  setFormData,
-  onNext,
-  serviceOptions,
-  registerValidator,
-}: BuildProps) => {
+const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProps) => {
   const [buildError, setBuildError] = useState<string>('');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const builderRef = React.useRef<HTMLDivElement | null>(null);
@@ -1444,16 +1396,6 @@ const Build = ({
     }
   };
 
-  useEffect(() => {
-    if (!serviceOptions.length) return;
-    setFormData((prev) => ({
-      ...prev,
-      schema: (prev.schema ?? []).map((field) =>
-        isServiceGroup(field) ? ensureServiceCheckbox(field, serviceOptions).group : field
-      ),
-    }));
-  }, [serviceOptions, setFormData]);
-
   const validate = React.useCallback(() => {
     if (!formData.schema || formData.schema.length === 0) {
       setBuildError('Add at least one field to continue.');
@@ -1463,9 +1405,7 @@ const Build = ({
     return true;
   }, [formData.schema]);
 
-  React.useEffect(() => {
-    registerValidator?.(validate);
-  }, [registerValidator, validate]);
+  React.useImperativeHandle(ref, () => ({ validate }), [validate]);
 
   return (
     <StructureLockContext.Provider value={structureLocked}>

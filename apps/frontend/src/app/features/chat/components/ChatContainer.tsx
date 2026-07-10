@@ -1061,6 +1061,28 @@ const ScopeChangeChannelReset: FC<{ scope?: ChatScope }> = ({ scope }) => {
   return null;
 };
 
+type GroupModalState = {
+  open: boolean;
+  mode: 'create' | 'edit';
+  channel: StreamChannel | null;
+  title: string;
+  placeholder: string;
+  members: string[];
+  search: string;
+  busy: boolean;
+};
+
+const INITIAL_GROUP_MODAL: GroupModalState = {
+  open: false,
+  mode: 'create',
+  channel: null,
+  title: '',
+  placeholder: '',
+  members: [],
+  search: '',
+  busy: false,
+};
+
 export const ChatContainer: FC<ChatContainerProps> = ({
   appointmentId,
   onChannelSelect,
@@ -1097,15 +1119,46 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   const [creatingChat, setCreatingChat] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [directListHover, setDirectListHover] = useState(false);
-  const [groupModalOpen, setGroupModalOpen] = useState(false);
-  const [groupModalMode, setGroupModalMode] = useState<'create' | 'edit'>('create');
-  const [groupModalChannel, setGroupModalChannel] = useState<StreamChannel | null>(null);
-  const [groupModalTitle, setGroupModalTitle] = useState('');
-  const [groupModalPlaceholder, setGroupModalPlaceholder] = useState('');
-  const [groupModalMembers, setGroupModalMembers] = useState<string[]>([]);
+  const [groupModal, setGroupModal] = useState<GroupModalState>(INITIAL_GROUP_MODAL);
+  const {
+    open: groupModalOpen,
+    mode: groupModalMode,
+    channel: groupModalChannel,
+    title: groupModalTitle,
+    placeholder: groupModalPlaceholder,
+    members: groupModalMembers,
+    search: groupModalSearch,
+    busy: groupModalBusy,
+  } = groupModal;
+  const patchGroupModal = useCallback(
+    (patch: Partial<GroupModalState>) => setGroupModal((state) => ({ ...state, ...patch })),
+    []
+  );
+  const setGroupModalOpen = useCallback(
+    (open: boolean) => patchGroupModal({ open }),
+    [patchGroupModal]
+  );
+  const setGroupModalTitle = useCallback(
+    (title: string) => patchGroupModal({ title }),
+    [patchGroupModal]
+  );
+  const setGroupModalSearch = useCallback(
+    (search: string) => patchGroupModal({ search }),
+    [patchGroupModal]
+  );
+  const setGroupModalBusy = useCallback(
+    (busy: boolean) => patchGroupModal({ busy }),
+    [patchGroupModal]
+  );
+  const setGroupModalMembers = useCallback(
+    (value: string[] | ((prev: string[]) => string[])) =>
+      setGroupModal((state) => ({
+        ...state,
+        members: typeof value === 'function' ? value(state.members) : value,
+      })),
+    []
+  );
   const groupModalBackendIdRef = useRef<string | undefined>(undefined);
-  const [groupModalSearch, setGroupModalSearch] = useState('');
-  const [groupModalBusy, setGroupModalBusy] = useState(false);
   const groupModalOwnerRef = useRef<string | undefined>(undefined);
   const orgUsersRequestKeyRef = useRef<string | null>(null);
 
@@ -1324,21 +1377,14 @@ export const ChatContainer: FC<ChatContainerProps> = ({
   }, [scope, primaryOrgId]);
 
   const openCreateGroupModal = useCallback(() => {
-    setGroupModalMode('create');
-    setGroupModalChannel(null);
-    setGroupModalTitle('');
-    setGroupModalPlaceholder('');
-    setGroupModalMembers([]);
     groupModalBackendIdRef.current = undefined;
     groupModalOwnerRef.current = client?.userID;
-    setGroupModalSearch('');
-    setGroupModalOpen(true);
+    setGroupModal({ ...INITIAL_GROUP_MODAL, mode: 'create', open: true });
   }, [client]);
 
   const openEditGroupModal = useCallback(
     async (chan: StreamChannel) => {
-      setGroupModalMode('edit');
-      setGroupModalChannel(chan);
+      patchGroupModal({ mode: 'edit', channel: chan });
       const placeholder =
         normalizeName(
           typeof (chan.data as any)?.title === 'string' ? (chan.data as any).title : undefined
@@ -1347,8 +1393,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
           typeof (chan.data as any)?.name === 'string' ? (chan.data as any).name : undefined
         ) ||
         '';
-      setGroupModalPlaceholder(placeholder);
-      setGroupModalTitle('');
+      patchGroupModal({ placeholder, title: '' });
       const memberIds = chan.state?.members ? Object.keys(chan.state.members) : [];
       setGroupModalMembers(memberIds);
       // Find owner from members array (role: "owner") or fallback to created_by
@@ -1361,10 +1406,9 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         (chan as any)?.created_by?.id;
       const backendId = await resolveGroupIdForChannel(chan);
       groupModalBackendIdRef.current = backendId;
-      setGroupModalSearch('');
-      setGroupModalOpen(true);
+      patchGroupModal({ search: '', open: true });
     },
-    [resolveGroupIdForChannel]
+    [resolveGroupIdForChannel, patchGroupModal, setGroupModalMembers]
   );
 
   const previewComponent = useMemo(
@@ -1675,7 +1719,15 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalBusy(false);
       }
     },
-    [primaryOrgId, client, activateChannelById, onChannelSelect, notify]
+    [
+      primaryOrgId,
+      client,
+      activateChannelById,
+      onChannelSelect,
+      notify,
+      setGroupModalBusy,
+      setGroupModalOpen,
+    ]
   );
 
   const handleModalUpdateTitle = useCallback(
@@ -1695,8 +1747,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         if (groupModalChannel) {
           await groupModalChannel.update({ title } as Record<string, unknown>, {});
         }
-        setGroupModalPlaceholder(title);
-        setGroupModalTitle('');
+        patchGroupModal({ placeholder: title, title: '' });
       } catch (err) {
         console.error('Failed to update group title', err);
         notify('error', {
@@ -1707,7 +1758,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalBusy(false);
       }
     },
-    [groupModalChannel, notify]
+    [groupModalChannel, notify, patchGroupModal, setGroupModalBusy]
   );
 
   const handleModalAddMember = useCallback(
@@ -1741,7 +1792,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalBusy(false);
       }
     },
-    [groupModalChannel, notify]
+    [groupModalChannel, notify, setGroupModalBusy, setGroupModalMembers]
   );
 
   const handleModalRemoveMember = useCallback(
@@ -1775,7 +1826,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
         setGroupModalBusy(false);
       }
     },
-    [groupModalChannel, notify]
+    [groupModalChannel, notify, setGroupModalBusy, setGroupModalMembers]
   );
 
   const handleModalDelete = useCallback(async () => {
@@ -1817,7 +1868,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
     } finally {
       setGroupModalBusy(false);
     }
-  }, [groupModalChannel, onChannelSelect, notify]);
+  }, [groupModalChannel, onChannelSelect, notify, setGroupModalBusy, setGroupModalOpen]);
 
   const groupModalContextValue = useMemo(
     () => ({

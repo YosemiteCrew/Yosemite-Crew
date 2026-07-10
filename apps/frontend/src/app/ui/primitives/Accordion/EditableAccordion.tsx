@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useImperativeHandle, useMemo, useState, useCallback, useRef } from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -46,14 +46,12 @@ type EditableAccordionProps = {
     key: string,
     formValues: FormValues
   ) => Array<string | { label: string; value: string }> | undefined;
-  onRegisterActions?: (
-    actions: {
-      save: () => Promise<void>;
-      cancel: () => void;
-      startEditing: () => void;
-      isEditing: () => boolean;
-    } | null
-  ) => void;
+  ref?: React.Ref<{
+    save: () => Promise<void>;
+    cancel: () => void;
+    startEditing: () => void;
+    isEditing: () => boolean;
+  } | null>;
 };
 
 type FormValues = Record<string, any>;
@@ -448,7 +446,7 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
   dynamicFooter,
   fieldResets,
   optionsResolver,
-  onRegisterActions,
+  ref,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -551,17 +549,14 @@ const EditableAccordion: React.FC<EditableAccordionProps> = ({
     }
   }, [formValues, isSaving, onSave, readOnly, setEditingState, validate]);
 
-  useEffect(() => {
-    onRegisterActions?.({
-      save: handleSave,
-      cancel: handleCancel,
-      startEditing: () => {
-        setEditingState(true);
-      },
-      isEditing: () => effectiveEditing,
-    });
-    return () => onRegisterActions?.(null);
-  }, [onRegisterActions, handleSave, handleCancel, effectiveEditing, setEditingState]);
+  useImperativeHandle(ref, () => ({
+    save: handleSave,
+    cancel: handleCancel,
+    startEditing: () => {
+      setEditingState(true);
+    },
+    isEditing: () => effectiveEditing,
+  }));
 
   const displayValues: FormValues = useMemo(() => ({ ...data, ...formValues }), [data, formValues]);
   const renderedFooter =

@@ -281,13 +281,14 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
   );
   useFullscreenLoader('org-guard', !isAuthGuardDisabled && !checked);
 
-  useEffect(() => {
-    if (primaryOrgId && readOrgGuardPassed(primaryOrgId)) {
-      setChecked(true);
-    } else {
-      setChecked(false);
-    }
-  }, [primaryOrgId]);
+  // Render-phase adjustment: re-evaluate the cached guard pass whenever the
+  // primary org changes (sentinel forces one evaluation on first render, matching
+  // the previous mount-time effect).
+  const [syncedOrgId, setSyncedOrgId] = useState<string | null | undefined>('__unsynced__');
+  if (syncedOrgId !== primaryOrgId) {
+    setSyncedOrgId(primaryOrgId);
+    setChecked(Boolean(primaryOrgId && readOrgGuardPassed(primaryOrgId)));
+  }
 
   useEffect(() => {
     if (isAuthGuardDisabled) {

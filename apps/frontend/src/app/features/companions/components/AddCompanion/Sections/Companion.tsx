@@ -126,9 +126,14 @@ const Companion = ({
     insuranceNumber?: string;
     insuranceCompany?: string;
   }>({});
-  const [currentDate, setCurrentDate] = useState<Date | null>(
-    formData.dateOfBirth ? new Date(formData.dateOfBirth) : null
-  );
+  const currentDate = formData.dateOfBirth ? new Date(formData.dateOfBirth) : null;
+  const setCurrentDate: React.Dispatch<React.SetStateAction<Date | null>> = (value) => {
+    setFormData((prev) => {
+      const prevDate = prev.dateOfBirth ? new Date(prev.dateOfBirth) : null;
+      const next = typeof value === 'function' ? value(prevDate) : value;
+      return { ...prev, dateOfBirth: next ?? new Date() };
+    });
+  };
   const [query, setQuery] = useState('');
   const { notify } = useNotify();
   const [results, setResults] = useState<StoredCompanion[]>([]);
@@ -165,13 +170,6 @@ const Companion = ({
       mounted = false;
     };
   }, [parentFormData.id]);
-
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      dateOfBirth: currentDate ?? new Date(),
-    }));
-  }, [currentDate, setFormData]);
 
   useEffect(() => {
     let mounted = true;

@@ -1,13 +1,5 @@
 'use client';
-import React, {
-  Suspense,
-  startTransition,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { Suspense, startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -71,7 +63,8 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { resolveDefaultAppointmentsView } from '@/app/lib/defaultAppointmentsView';
-import { normalizeAppointmentStatus } from '@/app/lib/appointments';
+import { allowReschedule, normalizeAppointmentStatus } from '@/app/lib/appointments';
+import { useNotify } from '@/app/hooks/useNotify';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
@@ -241,6 +234,7 @@ const mergeCompanionMeta = (
 
 const Appointments = () => {
   const router = useRouter();
+  const { notify } = useNotify();
   useLoadAppointmentsForPrimaryOrg();
   const rawAppointments = useAppointmentsForPrimaryOrg();
   useLoadCompanionsForPrimaryOrg();
@@ -296,7 +290,7 @@ const Appointments = () => {
 
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
-  const handledDeepLinkRef = useRef<string | null>(null);
+  const [handledDeepLink, setHandledDeepLink] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -372,7 +366,6 @@ const Appointments = () => {
   useOnValueChange(`${viewPopup}:${detailPopup}`, () => {
     if (!viewPopup && !detailPopup) {
       setViewIntent(null);
-      handledDeepLinkRef.current = null;
     }
   });
 
@@ -387,44 +380,41 @@ const Appointments = () => {
     setActiveAppointment((prev) => getNextSelectedAppointment(prev, appointments));
   });
 
-  const applyDeepLinkAppointment = useCallback(
-    (target: Appointment, appointmentId: string, initialIntent: AppointmentViewIntent | null) => {
-      setActiveAppointment(target);
-      setViewIntent(initialIntent);
-      const workspaceHref =
-        revampEnabled && canEnterAppointmentWorkspace(target.status)
-          ? buildWorkspaceHrefForIntent(appointmentId, initialIntent)
-          : null;
-      setDeepLinkWorkspaceHref(workspaceHref);
-      if (!workspaceHref) setViewPopup(true);
-    },
-    []
-  );
-
-  useEffect(() => {
+  // Render-phase adjustment: open the deep-linked appointment once per
+  // deep-link key; a new searchParams instance (fresh navigation) re-arms it.
+  useOnValueChange(searchParams, () => {
+    setHandledDeepLink(null);
+  });
+  {
     const appointmentId = String(searchParams.get('appointmentId') ?? '').trim();
-    const open = String(searchParams.get('open') ?? '')
-      .trim()
-      .toLowerCase();
-    const subLabelRaw = String(searchParams.get('subLabel') ?? '')
-      .trim()
-      .toLowerCase();
-    if (!appointmentId) return;
-
-    const normalizedSubLabel = subLabelRaw === 'overview' ? 'history' : subLabelRaw;
-    const initialIntent = resolveInitialIntent(open, normalizedSubLabel);
-
-    const resolvedSubLabel = initialIntent?.subLabel ?? normalizedSubLabel;
-
-    const deepLinkKey = `${appointmentId}:${open || 'details'}:${resolvedSubLabel}`;
-    if (handledDeepLinkRef.current === deepLinkKey) return;
-
-    const target = appointments.find((appointment) => appointment.id === appointmentId);
-    if (!target) return;
-
-    applyDeepLinkAppointment(target, appointmentId, initialIntent);
-    handledDeepLinkRef.current = deepLinkKey;
-  }, [appointments, searchParams, applyDeepLinkAppointment]);
+    if (appointmentId) {
+      const open = String(searchParams.get('open') ?? '')
+        .trim()
+        .toLowerCase();
+      const subLabelRaw = String(searchParams.get('subLabel') ?? '')
+        .trim()
+        .toLowerCase();
+      const normalizedSubLabel = subLabelRaw === 'overview' ? 'history' : subLabelRaw;
+      const initialIntent = resolveInitialIntent(open, normalizedSubLabel);
+      const resolvedSubLabel = initialIntent?.subLabel ?? normalizedSubLabel;
+      const deepLinkKey = `${appointmentId}:${open || 'details'}:${resolvedSubLabel}`;
+      const target =
+        handledDeepLink === deepLinkKey
+          ? undefined
+          : appointments.find((appointment) => appointment.id === appointmentId);
+      if (target) {
+        setHandledDeepLink(deepLinkKey);
+        setActiveAppointment(target);
+        setViewIntent(initialIntent);
+        const workspaceHref =
+          revampEnabled && canEnterAppointmentWorkspace(target.status)
+            ? buildWorkspaceHrefForIntent(appointmentId, initialIntent)
+            : null;
+        setDeepLinkWorkspaceHref(workspaceHref);
+        if (!workspaceHref) setViewPopup(true);
+      }
+    }
+  }
 
   const hasEmergency = useMemo(() => {
     const now = new Date();
@@ -645,6 +635,13 @@ const Appointments = () => {
                   setActiveAppointment(appointment);
                   if (revampEnabled) setDetailPopup(false);
                   else setViewPopup(false);
+                  if (!allowReschedule(appointment.status as any)) {
+                    notify('warning', {
+                      title: 'Reschedule blocked',
+                      text: 'Checked-in, in-progress, completed, cancelled, and no-show appointments cannot be rescheduled.',
+                    });
+                    return;
+                  }
                   setReschedulePopup(true);
                 }}
               />

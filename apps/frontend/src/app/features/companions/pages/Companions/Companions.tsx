@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -55,7 +55,6 @@ const Companions = () => {
   const canEditTasks = permissions.can(PERMISSIONS.TASKS_EDIT_ANY);
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
-  const handledDeepLinkRef = useRef<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -82,23 +81,19 @@ const Companions = () => {
     });
   }, [companions]);
 
-  const applyDeepLinkCompanion = useCallback((target: CompanionParent, companionId: string) => {
-    setActiveCompanion(target);
-    setCompanionInfoInitialLabel('info');
-    setViewCompanion(true);
-    handledDeepLinkRef.current = companionId;
-  }, []);
-
-  useEffect(() => {
-    const companionId = String(searchParams.get('companionId') ?? '').trim();
-    if (!companionId) return;
-    if (handledDeepLinkRef.current === companionId) return;
-
-    const target = companions.find((item) => item.companion.id === companionId);
-    if (!target) return;
-
-    applyDeepLinkCompanion(target, companionId);
-  }, [companions, searchParams, applyDeepLinkCompanion]);
+  // Render-phase adjustment: open the companion view when a deep link points
+  // at a companion we have loaded, once per companion id.
+  const [handledDeepLink, setHandledDeepLink] = useState<string | null>(null);
+  const deepLinkCompanionId = String(searchParams.get('companionId') ?? '').trim();
+  if (deepLinkCompanionId && deepLinkCompanionId !== handledDeepLink) {
+    const target = companions.find((item) => item.companion.id === deepLinkCompanionId);
+    if (target) {
+      setHandledDeepLink(deepLinkCompanionId);
+      setActiveCompanion(target);
+      setCompanionInfoInitialLabel('info');
+      setViewCompanion(true);
+    }
+  }
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();

@@ -187,6 +187,337 @@ const isValidEmail = (email: string): boolean => isEmail(email);
 const getDsarLawBasis = (selectedArea: string): DsraLawBasis =>
   (areaOptions.find((option) => option.value === selectedArea)?.value as DsraLawBasis) || 'OTHER';
 
+type DsarRequestFieldsProps = {
+  message: string;
+  setMessage: (value: string) => void;
+  submitting: boolean;
+  errors: { [key: string]: string };
+  subselectedRequest: DsraRequesterType | '';
+  setSubselectedRequest: (value: DsraRequesterType | '') => void;
+  selectedRequest: string;
+  setSelectedRequest: (value: string) => void;
+  area: string;
+  setArea: (value: string) => void;
+  confirmSelections: string[];
+  isDSARValid: boolean | string;
+  toggleConfirmOption: (option: string) => void;
+  handleContectSubmit: () => Promise<void> | void;
+};
+
+const DsarRequestFields = ({
+  message,
+  setMessage,
+  submitting,
+  errors,
+  subselectedRequest,
+  setSubselectedRequest,
+  selectedRequest,
+  setSelectedRequest,
+  area,
+  setArea,
+  confirmSelections,
+  isDSARValid,
+  toggleConfirmOption,
+  handleContectSubmit,
+}: DsarRequestFieldsProps) => (
+  <div className="DataServiceAccessFields">
+    <div className="SetSubmitted">
+      <div className="text-body-4-emphasis text-text-primary">
+        You are submitting this request as
+      </div>
+      {subrequestOptions.map((option) => (
+        <label key={option.value}>
+          <input
+            type="radio"
+            name="dsarSubmitAs"
+            aria-label={`Submit data service access request as ${option.label}`}
+            value={option.value}
+            checked={subselectedRequest === option.value}
+            onChange={() => setSubselectedRequest(option.value)}
+          />
+          {option.label}
+        </label>
+      ))}
+    </div>
+
+    <div className="SetSubmitted">
+      <div className="text-body-4-emphasis text-text-primary">
+        Under the rights of which law are you making this request?
+      </div>
+      <DynamicSelect
+        options={areaOptions}
+        value={area}
+        onChange={setArea}
+        inname="area"
+        placeholder="Select one"
+      />
+    </div>
+
+    <div className="SetSubmitted">
+      <div className="text-body-4-emphasis text-text-primary">
+        You are submitting this request to
+      </div>
+      {requestOptions.map((option) => (
+        <label key={option.label}>
+          <input
+            type="radio"
+            name="dsarRequestTo"
+            aria-label={`Submit data service access request to ${option.label}`}
+            value={option.value}
+            checked={selectedRequest === option.label}
+            onChange={() => setSelectedRequest(option.label)}
+          />
+          {option.label}
+        </label>
+      ))}
+    </div>
+
+    <div className="QueryDetailsFields">
+      <label htmlFor="dsar-message">
+        Please leave details regarding your action request or question
+      </label>
+      <textarea
+        rows={3}
+        id="dsar-message"
+        aria-label="Data service access request details"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Your Message"
+      ></textarea>
+      {errors?.message && (
+        <div
+          style={{
+            color: 'var(--color-danger-600)',
+            fontSize: '14px',
+            marginTop: '4px',
+          }}
+        >
+          {errors?.message ?? ''}
+        </div>
+      )}
+    </div>
+
+    <div className="SetSubmitted">
+      <div className="text-body-4-emphasis text-text-primary">I confirm that</div>
+      {confirmOptions.map((option) => (
+        <label key={option}>
+          <input
+            type="checkbox"
+            name="confirmDsar"
+            aria-label={`Confirm ${option}`}
+            value={option}
+            checked={confirmSelections.includes(option)}
+            onChange={() => toggleConfirmOption(option)}
+          />
+          {option}
+        </label>
+      ))}
+    </div>
+
+    <button
+      type="button"
+      className="SendBtn"
+      onClick={handleContectSubmit}
+      disabled={submitting || !isDSARValid}
+      style={{
+        opacity: isDSARValid ? 1 : 0.5,
+        pointerEvents: isDSARValid ? 'auto' : 'none',
+      }}
+    >
+      {submitting ? 'submitting...' : 'Send message'}
+    </button>
+  </div>
+);
+
+type ComplaintFieldsProps = {
+  message: string;
+  setMessage: (value: string) => void;
+  submitting: boolean;
+  errors: { [key: string]: string };
+  subselectedRequest: DsraRequesterType | '';
+  setSubselectedRequest: (value: DsraRequesterType | '') => void;
+  confirmSelections: string[];
+  complaintLink: string;
+  setComplaintLink: (value: string) => void;
+  complaintImageRef: React.RefObject<File | null>;
+  isComplaintValid: boolean | string;
+  toggleConfirmOption: (option: string) => void;
+  handleContectSubmit: () => Promise<void> | void;
+};
+
+const ComplaintFields = ({
+  message,
+  setMessage,
+  submitting,
+  errors,
+  subselectedRequest,
+  setSubselectedRequest,
+  confirmSelections,
+  complaintLink,
+  setComplaintLink,
+  complaintImageRef,
+  isComplaintValid,
+  toggleConfirmOption,
+  handleContectSubmit,
+}: ComplaintFieldsProps) => (
+  <div className="DataServiceAccessFields">
+    <div className="SetSubmitted" style={{ gap: '16px' }}>
+      <div className="text-body-4-emphasis text-text-primary">
+        You are submitting this complaint as
+      </div>
+      {subrequestOptions.map((option) => (
+        <label key={option.value}>
+          <input
+            type="radio"
+            name="complaintSubmitAs"
+            aria-label={`Submit complaint as ${option.label}`}
+            value={option.value}
+            checked={subselectedRequest === option.value}
+            onChange={() => setSubselectedRequest(option.value)}
+          />
+          {option.label}
+        </label>
+      ))}
+    </div>
+
+    <div className="QueryDetailsFields">
+      <label htmlFor="complaint-message">Please leave details regarding your complaint.</label>
+      <textarea
+        rows={3}
+        id="complaint-message"
+        aria-label="Complaint details"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder="Your Message"
+      ></textarea>
+      {errors?.message && (
+        <div
+          style={{
+            color: 'var(--color-danger-600)',
+            fontSize: '14px',
+            marginTop: '4px',
+          }}
+        >
+          {errors?.message ?? ''}
+        </div>
+      )}
+    </div>
+
+    <div className="SetSubmitted">
+      <div className="text-body-4-emphasis text-text-primary">
+        Please add link regarding your complaint (optional)
+      </div>
+      <FormInput
+        intype="text"
+        inname="complaintLink"
+        value={complaintLink}
+        inlabel="Paste link (optional)"
+        onChange={(e) => setComplaintLink(e.target.value)}
+      />
+    </div>
+
+    <div className="SetSubmitted">
+      <div className="text-body-4-emphasis text-text-primary">
+        Please add image regarding your complaint (optional)
+      </div>
+      <div className="UploadBox">
+        <input
+          id="complaintImage"
+          type="file"
+          accept="image/*"
+          aria-label="Upload Image"
+          onChange={(e) => {
+            complaintImageRef.current = e.target.files?.[0] ?? null;
+          }}
+        />
+        <label htmlFor="complaintImage" className="UploadInner">
+          <Image
+            src={MEDIA_SOURCES.contactUs.uploadIcon}
+            alt="Upload Icon"
+            height={40}
+            width={40}
+          />
+        </label>
+      </div>
+    </div>
+
+    <div className="SetSubmitted">
+      <div className="text-body-4-emphasis text-text-primary">I confirm that</div>
+      {confirmOptions.map((option) => (
+        <label key={option}>
+          <input
+            type="checkbox"
+            name="confirmComplaint"
+            aria-label={`Confirm ${option}`}
+            value={option}
+            checked={confirmSelections.includes(option)}
+            onChange={() => toggleConfirmOption(option)}
+          />
+          {option}
+        </label>
+      ))}
+    </div>
+
+    <button
+      type="button"
+      className="SendBtn"
+      onClick={handleContectSubmit}
+      disabled={submitting || !isComplaintValid}
+      style={{
+        opacity: isComplaintValid ? 1 : 0.5,
+        pointerEvents: isComplaintValid ? 'auto' : 'none',
+      }}
+    >
+      {submitting ? 'submitting...' : 'Send message'}
+    </button>
+  </div>
+);
+
+const ContactInfoSection = () => (
+  <section className="ContactInfoSec">
+    <div className="ContactWrapper">
+      <div className="ContactInfoData">
+        <div className="LeftContInfo">
+          <div className="text-body-4-emphasis text-text-brand">Contact Info</div>
+          <h2 className="text-display-2 text-text-primary">We are happy to assist you</h2>
+        </div>
+        <div className="ContactInfoDetail">
+          <div className="LeftDetails">
+            <div className="detailitem">
+              <div className="text-body-3-emphasis text-text-primary">Email Address</div>
+            </div>
+            <div className="detailTexed">
+              <Link
+                href="mailto:support@yosemitecrew.com"
+                className="text-body-3-emphasis text-text-brand"
+              >
+                support@yosemitecrew.com
+              </Link>
+              <div className="text-body-3 text-text-primary">
+                Assistance hours: Monday - Friday 9 am to 5 pm EST
+              </div>
+            </div>
+          </div>
+
+          <div className="LeftDetails">
+            <div className="detailitem">
+              <div className="text-body-3-emphasis text-text-primary">Phone</div>
+            </div>
+            <div className="detailTexed">
+              <Link href="tel:+49 152 277 63275" className="text-body-3-emphasis text-text-brand">
+                +49 152 277 63275
+              </Link>
+              <div className="text-body-3 text-text-primary">
+                Assistance hours: Monday - Friday 9 am to 5 pm EST
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
 const ContactusPage = () => {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState<string>('');
@@ -385,229 +716,40 @@ const ContactusPage = () => {
 
               {/* One clear block per query type */}
               {selectedQueryType === 'Data Service Access Request' && (
-                <div className="DataServiceAccessFields">
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">
-                      You are submitting this request as
-                    </div>
-                    {subrequestOptions.map((option) => (
-                      <label key={option.value}>
-                        <input
-                          type="radio"
-                          name="dsarSubmitAs"
-                          aria-label={`Submit data service access request as ${option.label}`}
-                          value={option.value}
-                          checked={subselectedRequest === option.value}
-                          onChange={() => setSubselectedRequest(option.value)}
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">
-                      Under the rights of which law are you making this request?
-                    </div>
-                    <DynamicSelect
-                      options={areaOptions}
-                      value={area}
-                      onChange={setArea}
-                      inname="area"
-                      placeholder="Select one"
-                    />
-                  </div>
-
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">
-                      You are submitting this request to
-                    </div>
-                    {requestOptions.map((option) => (
-                      <label key={option.label}>
-                        <input
-                          type="radio"
-                          name="dsarRequestTo"
-                          aria-label={`Submit data service access request to ${option.label}`}
-                          value={option.value}
-                          checked={selectedRequest === option.label}
-                          onChange={() => setSelectedRequest(option.label)}
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-
-                  <div className="QueryDetailsFields">
-                    <label htmlFor="dsar-message">
-                      Please leave details regarding your action request or question
-                    </label>
-                    <textarea
-                      rows={3}
-                      id="dsar-message"
-                      aria-label="Data service access request details"
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Your Message"
-                    ></textarea>
-                    {errors?.message && (
-                      <div
-                        style={{
-                          color: 'var(--color-danger-600)',
-                          fontSize: '14px',
-                          marginTop: '4px',
-                        }}
-                      >
-                        {errors?.message ?? ''}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">I confirm that</div>
-                    {confirmOptions.map((option) => (
-                      <label key={option}>
-                        <input
-                          type="checkbox"
-                          name="confirmDsar"
-                          aria-label={`Confirm ${option}`}
-                          value={option}
-                          checked={confirmSelections.includes(option)}
-                          onChange={() => toggleConfirmOption(option)}
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="SendBtn"
-                    onClick={handleContectSubmit}
-                    disabled={submitting || !isDSARValid}
-                    style={{
-                      opacity: isDSARValid ? 1 : 0.5,
-                      pointerEvents: isDSARValid ? 'auto' : 'none',
-                    }}
-                  >
-                    {submitting ? 'submitting...' : 'Send message'}
-                  </button>
-                </div>
+                <DsarRequestFields
+                  message={message}
+                  setMessage={setMessage}
+                  submitting={submitting}
+                  errors={errors}
+                  subselectedRequest={subselectedRequest}
+                  setSubselectedRequest={setSubselectedRequest}
+                  selectedRequest={selectedRequest}
+                  setSelectedRequest={setSelectedRequest}
+                  area={area}
+                  setArea={setArea}
+                  confirmSelections={confirmSelections}
+                  isDSARValid={isDSARValid}
+                  toggleConfirmOption={toggleConfirmOption}
+                  handleContectSubmit={handleContectSubmit}
+                />
               )}
 
               {selectedQueryType === 'Complaint' && (
-                <div className="DataServiceAccessFields">
-                  <div className="SetSubmitted" style={{ gap: '16px' }}>
-                    <div className="text-body-4-emphasis text-text-primary">
-                      You are submitting this complaint as
-                    </div>
-                    {subrequestOptions.map((option) => (
-                      <label key={option.value}>
-                        <input
-                          type="radio"
-                          name="complaintSubmitAs"
-                          aria-label={`Submit complaint as ${option.label}`}
-                          value={option.value}
-                          checked={subselectedRequest === option.value}
-                          onChange={() => setSubselectedRequest(option.value)}
-                        />
-                        {option.label}
-                      </label>
-                    ))}
-                  </div>
-
-                  <div className="QueryDetailsFields">
-                    <label htmlFor="complaint-message">
-                      Please leave details regarding your complaint.
-                    </label>
-                    <textarea
-                      rows={3}
-                      id="complaint-message"
-                      aria-label="Complaint details"
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Your Message"
-                    ></textarea>
-                    {errors?.message && (
-                      <div
-                        style={{
-                          color: 'var(--color-danger-600)',
-                          fontSize: '14px',
-                          marginTop: '4px',
-                        }}
-                      >
-                        {errors?.message ?? ''}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">
-                      Please add link regarding your complaint (optional)
-                    </div>
-                    <FormInput
-                      intype="text"
-                      inname="complaintLink"
-                      value={complaintLink}
-                      inlabel="Paste link (optional)"
-                      onChange={(e) => setComplaintLink(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">
-                      Please add image regarding your complaint (optional)
-                    </div>
-                    <div className="UploadBox">
-                      <input
-                        id="complaintImage"
-                        type="file"
-                        accept="image/*"
-                        aria-label="Upload Image"
-                        onChange={(e) => {
-                          complaintImageRef.current = e.target.files?.[0] ?? null;
-                        }}
-                      />
-                      <label htmlFor="complaintImage" className="UploadInner">
-                        <Image
-                          src={MEDIA_SOURCES.contactUs.uploadIcon}
-                          alt="Upload Icon"
-                          height={40}
-                          width={40}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="SetSubmitted">
-                    <div className="text-body-4-emphasis text-text-primary">I confirm that</div>
-                    {confirmOptions.map((option) => (
-                      <label key={option}>
-                        <input
-                          type="checkbox"
-                          name="confirmComplaint"
-                          aria-label={`Confirm ${option}`}
-                          value={option}
-                          checked={confirmSelections.includes(option)}
-                          onChange={() => toggleConfirmOption(option)}
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="SendBtn"
-                    onClick={handleContectSubmit}
-                    disabled={submitting || !isComplaintValid}
-                    style={{
-                      opacity: isComplaintValid ? 1 : 0.5,
-                      pointerEvents: isComplaintValid ? 'auto' : 'none',
-                    }}
-                  >
-                    {submitting ? 'submitting...' : 'Send message'}
-                  </button>
-                </div>
+                <ComplaintFields
+                  message={message}
+                  setMessage={setMessage}
+                  submitting={submitting}
+                  errors={errors}
+                  subselectedRequest={subselectedRequest}
+                  setSubselectedRequest={setSubselectedRequest}
+                  confirmSelections={confirmSelections}
+                  complaintLink={complaintLink}
+                  setComplaintLink={setComplaintLink}
+                  complaintImageRef={complaintImageRef}
+                  isComplaintValid={isComplaintValid}
+                  toggleConfirmOption={toggleConfirmOption}
+                  handleContectSubmit={handleContectSubmit}
+                />
               )}
 
               {(selectedQueryType === 'General Enquiry' ||
@@ -656,51 +798,7 @@ const ContactusPage = () => {
         </div>
       </section>
 
-      <section className="ContactInfoSec">
-        <div className="ContactWrapper">
-          <div className="ContactInfoData">
-            <div className="LeftContInfo">
-              <div className="text-body-4-emphasis text-text-brand">Contact Info</div>
-              <h2 className="text-display-2 text-text-primary">We are happy to assist you</h2>
-            </div>
-            <div className="ContactInfoDetail">
-              <div className="LeftDetails">
-                <div className="detailitem">
-                  <div className="text-body-3-emphasis text-text-primary">Email Address</div>
-                </div>
-                <div className="detailTexed">
-                  <Link
-                    href="mailto:support@yosemitecrew.com"
-                    className="text-body-3-emphasis text-text-brand"
-                  >
-                    support@yosemitecrew.com
-                  </Link>
-                  <div className="text-body-3 text-text-primary">
-                    Assistance hours: Monday - Friday 9 am to 5 pm EST
-                  </div>
-                </div>
-              </div>
-
-              <div className="LeftDetails">
-                <div className="detailitem">
-                  <div className="text-body-3-emphasis text-text-primary">Phone</div>
-                </div>
-                <div className="detailTexed">
-                  <Link
-                    href="tel:+49 152 277 63275"
-                    className="text-body-3-emphasis text-text-brand"
-                  >
-                    +49 152 277 63275
-                  </Link>
-                  <div className="text-body-3 text-text-primary">
-                    Assistance hours: Monday - Friday 9 am to 5 pm EST
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <ContactInfoSection />
 
       <Footer />
     </>
