@@ -18,11 +18,10 @@ import Next from '@/app/ui/primitives/Icons/Next';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
-import { IoAdd, IoEyeOutline } from 'react-icons/io5';
+import { IoAdd, IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
-import { MdOutlineAutorenew } from 'react-icons/md';
 import { IoIosCalendar } from 'react-icons/io';
 import { useNotify } from '@/app/hooks/useNotify';
 import {
@@ -253,7 +252,7 @@ const TaskCard = ({
                 onChangeStatus(task);
               }}
             >
-              <MdOutlineAutorenew size={13} color="var(--color-neutral-900)" />
+              <IoSyncOutline size={13} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}

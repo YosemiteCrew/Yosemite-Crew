@@ -21,7 +21,7 @@ import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import Close from '@/app/ui/primitives/Icons/Close';
 import Timepicker from '@/app/ui/inputs/Timepicker';
 import { useNotify } from '@/app/hooks/useNotify';
-import { FiCheck, FiChevronDown, FiPlus } from 'react-icons/fi';
+import { IoAddOutline, IoCheckmarkOutline, IoChevronDownOutline } from 'react-icons/io5';
 
 type AddRoomProps = {
   showModal: boolean;
@@ -131,7 +131,7 @@ const SectionHeader = ({
       className="flex min-w-0 items-center gap-3 text-left text-body-3-emphasis text-text-primary"
       aria-expanded={open}
     >
-      <FiChevronDown
+      <IoChevronDownOutline
         size={18}
         aria-hidden="true"
         className={`shrink-0 transition-transform ${open ? '' : '-rotate-90'}`}
@@ -522,7 +522,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
                       onClick={addUnitDraft}
                       className="flex h-8 w-8 items-center justify-center rounded-full bg-text-primary text-white"
                     >
-                      <FiPlus size={16} aria-hidden="true" />
+                      <IoAddOutline size={16} aria-hidden="true" />
                     </button>
                   ) : null
                 }
@@ -600,7 +600,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
                       onClick={addCustomEquipment}
                       className="mt-0 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-text-primary text-white"
                     >
-                      <FiPlus size={18} aria-hidden="true" />
+                      <IoAddOutline size={18} aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -613,7 +613,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
               href="#"
               text={saving ? 'Adding room...' : 'Add room'}
               onClick={handleSave}
-              icon={<FiCheck size={16} aria-hidden="true" />}
+              icon={<IoCheckmarkOutline size={16} aria-hidden="true" />}
             />
           </div>
         </div>

@@ -1,7 +1,6 @@
 import React from 'react';
 import { IoIosArrowBack } from 'react-icons/io';
-import { LuPlus } from 'react-icons/lu';
-import { HiBolt } from 'react-icons/hi2';
+import { IoAddOutline, IoFlash } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
@@ -121,7 +120,7 @@ const WorkspaceHeader = ({
                   onClick={onAddAlert}
                   className="flex size-6 shrink-0 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors duration-150 hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
                 >
-                  <LuPlus size={14} aria-hidden="true" />
+                  <IoAddOutline size={14} aria-hidden="true" />
                 </button>
               </GlassTooltip>
             )}
@@ -149,7 +148,7 @@ const WorkspaceHeader = ({
         <Secondary
           text="Quick Actions"
           onClick={onQuickActions}
-          icon={<HiBolt aria-hidden="true" />}
+          icon={<IoFlash aria-hidden="true" />}
           className="bg-neutral-0!"
         />
       </div>

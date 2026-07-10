@@ -1,7 +1,11 @@
 import React from 'react';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import { MdOutlineCalendarMonth, MdTableRows, MdViewKanban } from 'react-icons/md';
-import { IoInformationCircleOutline } from 'react-icons/io5';
+import {
+  IoCalendarOutline,
+  IoGridOutline,
+  IoInformationCircleOutline,
+  IoReorderFourOutline,
+} from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 type TitleCalendarProps = {
@@ -17,9 +21,9 @@ type TitleCalendarProps = {
 };
 
 const VIEW_OPTION_CONFIG = {
-  calendar: { label: 'Calendar', tooltip: 'Calendar view', Icon: MdOutlineCalendarMonth },
-  board: { label: 'Board', tooltip: 'Status board view', Icon: MdViewKanban },
-  list: { label: 'Table', tooltip: 'Table view', Icon: MdTableRows },
+  calendar: { label: 'Calendar', tooltip: 'Calendar view', Icon: IoCalendarOutline },
+  board: { label: 'Board', tooltip: 'Status board view', Icon: IoGridOutline },
+  list: { label: 'Table', tooltip: 'Table view', Icon: IoReorderFourOutline },
 } as const;
 
 const SEGMENT_WIDTH: Record<number, string> = {

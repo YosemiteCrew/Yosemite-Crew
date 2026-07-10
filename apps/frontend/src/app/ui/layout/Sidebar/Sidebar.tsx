@@ -5,23 +5,21 @@ import Image from 'next/image';
 import { IconType } from 'react-icons';
 import {
   IoBookOutline,
+  IoBusinessOutline,
   IoCalendarOutline,
   IoChatbubbleEllipsesOutline,
+  IoChevronBackOutline,
+  IoChevronForwardOutline,
+  IoCubeOutline,
   IoExtensionPuzzleOutline,
   IoGitNetworkOutline,
   IoGlobeOutline,
+  IoGridOutline,
   IoKeyOutline,
+  IoListOutline,
+  IoPaw,
   IoWalletOutline,
 } from 'react-icons/io5';
-import {
-  MdDashboard,
-  MdInventory2,
-  MdOutlineChecklist,
-  MdOutlineCorporateFare,
-  MdOutlineKeyboardDoubleArrowLeft,
-  MdOutlineKeyboardDoubleArrowRight,
-} from 'react-icons/md';
-import { FaPaw } from 'react-icons/fa6';
 
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -41,14 +39,14 @@ import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenSc
 import './Sidebar.css';
 
 const ROUTE_ICONS: Record<string, IconType> = {
-  Dashboard: MdDashboard,
-  Organization: MdOutlineCorporateFare,
+  Dashboard: IoGridOutline,
+  Organization: IoBusinessOutline,
   Appointments: IoCalendarOutline,
-  Tasks: MdOutlineChecklist,
+  Tasks: IoListOutline,
   Chat: IoChatbubbleEllipsesOutline,
   Finance: IoWalletOutline,
-  Companions: FaPaw,
-  Inventory: MdInventory2,
+  Companions: IoPaw,
+  Inventory: IoCubeOutline,
   Integrations: IoGitNetworkOutline,
   Templates: IoBookOutline,
   'API Keys': IoKeyOutline,
@@ -249,9 +247,9 @@ const Sidebar = () => {
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? (
-              <MdOutlineKeyboardDoubleArrowRight size={17} />
+              <IoChevronForwardOutline size={17} />
             ) : (
-              <MdOutlineKeyboardDoubleArrowLeft size={17} />
+              <IoChevronBackOutline size={17} />
             )}
           </button>
         </GlassTooltip>

@@ -2,11 +2,17 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
 import Image from 'next/image';
-import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle, IoIosCalendar } from 'react-icons/io';
-import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/io5';
-import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
-import { RiHistoryLine } from 'react-icons/ri';
+import {
+  IoBusinessOutline,
+  IoCardOutline,
+  IoCheckmarkCircle,
+  IoDocumentTextOutline,
+  IoEyeOutline,
+  IoFlaskOutline,
+  IoSyncOutline,
+  IoTimeOutline,
+} from 'react-icons/io5';
 import AppointmentCard from '@/app/ui/cards/AppointmentCard';
 import { Appointment } from '@yosemite-crew/types';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
@@ -376,7 +382,7 @@ const AppointmentsComponent = ({
                     style={{ background: 'var(--color-success-100)' }}
                     onClick={() => handleChangeStatusAppointment(item)}
                   >
-                    <FaCheckCircle size={22} color="var(--color-success-400)" />
+                    <IoCheckmarkCircle size={22} color="var(--color-success-400)" />
                   </button>
                 </GlassTooltip>
                 <GlassTooltip
@@ -421,7 +427,7 @@ const AppointmentsComponent = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Appointment overview"
                 >
-                  <RiHistoryLine size={18} color="var(--color-neutral-900)" />
+                  <IoTimeOutline size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
               {canEditAppointments && canShowStatusChangeAction(item.status) && (
@@ -435,7 +441,7 @@ const AppointmentsComponent = ({
                     onClick={() => handleChangeStatusAppointment(item)}
                     className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   >
-                    <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+                    <IoSyncOutline size={18} color="var(--color-neutral-900)" />
                   </button>
                 </GlassTooltip>
               )}
@@ -457,7 +463,7 @@ const AppointmentsComponent = ({
                     onClick={() => handleChangeRoomAppointment(item)}
                     className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   >
-                    <MdMeetingRoom size={18} color="var(--color-neutral-900)" />
+                    <IoBusinessOutline size={18} color="var(--color-neutral-900)" />
                   </button>
                 </GlassTooltip>
               )}
@@ -504,7 +510,7 @@ const AppointmentsComponent = ({
                   }
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 >
-                  <MdScience size={18} color="var(--color-neutral-900)" />
+                  <IoFlaskOutline size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             </div>

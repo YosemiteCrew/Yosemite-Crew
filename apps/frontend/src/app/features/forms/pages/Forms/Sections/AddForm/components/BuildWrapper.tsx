@@ -1,6 +1,6 @@
 import React from 'react';
 import { FormField } from '@/app/features/forms/types/forms';
-import { MdDeleteForever, MdDragIndicator } from 'react-icons/md';
+import { IoReorderThreeOutline, IoTrash } from 'react-icons/io5';
 import { IoMdArrowUp, IoMdArrowDown } from 'react-icons/io';
 
 /**
@@ -116,7 +116,7 @@ const BuilderWrapper: React.FC<{
     >
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <MdDragIndicator
+          <IoReorderThreeOutline
             size={20}
             color="var(--color-muted-999)"
             className={`cursor-grab ${canDrag ? 'opacity-100' : 'opacity-50'}`}
@@ -155,7 +155,7 @@ const BuilderWrapper: React.FC<{
             )}
             {/* Delete stays available for content items (medications/tasks) even when locked. */}
             <button type="button" onClick={onDelete} className="hover:bg-red-50 rounded p-1">
-              <MdDeleteForever size={20} color="var(--color-danger-600)" />
+              <IoTrash size={20} color="var(--color-danger-600)" />
             </button>
           </div>
         )}

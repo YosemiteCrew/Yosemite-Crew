@@ -27,7 +27,13 @@ import {
 import { OrganisationRoom, RoomReferenceMapping, RoomUnitGroup } from '@yosemite-crew/types';
 import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import React, { useMemo, useRef, useState } from 'react';
-import { FiCheck, FiChevronDown, FiEdit2, FiPlus, FiTrash2 } from 'react-icons/fi';
+import {
+  IoAddOutline,
+  IoCheckmarkOutline,
+  IoChevronDownOutline,
+  IoCreateOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
 
 type RoomUnitDetails = {
   id: string;
@@ -244,7 +250,7 @@ const SectionHeader = ({
       aria-expanded={open}
       className="flex min-w-0 items-center gap-3 text-left text-body-3-emphasis text-text-primary"
     >
-      <FiChevronDown
+      <IoChevronDownOutline
         size={18}
         aria-hidden="true"
         className={`shrink-0 transition-transform ${open ? '' : '-rotate-90'}`}
@@ -631,7 +637,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
             <div className="flex items-center gap-3">
               {canEditRoom && mode === 'view' && (
                 <IconCircleButton label="Edit room" onClick={() => setMode('edit')}>
-                  <FiEdit2 size={15} aria-hidden="true" />
+                  <IoCreateOutline size={15} aria-hidden="true" />
                 </IconCircleButton>
               )}
               {canEditRoom && (
@@ -640,7 +646,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
                   onClick={() => setShowDeleteModal(true)}
                   danger
                 >
-                  <FiTrash2 size={15} aria-hidden="true" />
+                  <IoTrashOutline size={15} aria-hidden="true" />
                 </IconCircleButton>
               )}
               <Close onClick={closeDrawer} />
@@ -812,7 +818,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
                       onClick={addUnitDraft}
                       className="flex h-8 w-8 items-center justify-center rounded-full bg-text-primary text-white"
                     >
-                      <FiPlus size={16} aria-hidden="true" />
+                      <IoAddOutline size={16} aria-hidden="true" />
                     </button>
                   ) : null
                 }
@@ -907,7 +913,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
                       onClick={addCustomEquipment}
                       className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-text-primary text-white"
                     >
-                      <FiPlus size={18} aria-hidden="true" />
+                      <IoAddOutline size={18} aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -922,7 +928,7 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
                 href="#"
                 text={saving ? 'Saving...' : 'Save'}
                 onClick={handleUpdate}
-                icon={<FiCheck size={16} aria-hidden="true" />}
+                icon={<IoCheckmarkOutline size={16} aria-hidden="true" />}
               />
             </div>
           )}

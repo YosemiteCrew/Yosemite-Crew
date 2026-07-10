@@ -1,7 +1,6 @@
 import React, { useEffect, useId, useState } from 'react';
 import Image from 'next/image';
-import { IoCamera } from 'react-icons/io5';
-import { FiMinusCircle } from 'react-icons/fi';
+import { IoCamera, IoRemoveCircleOutline } from 'react-icons/io5';
 import { postData } from '@/app/services/axios';
 import axios from 'axios';
 import { sanitizeUrl } from '@braintree/sanitize-url';
@@ -100,7 +99,11 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
               onClick={handleRemoveImage}
               aria-label="Remove uploaded logo"
             >
-              <FiMinusCircle color="var(--color-primary-500)" size={16} aria-hidden="true" />
+              <IoRemoveCircleOutline
+                color="var(--color-primary-500)"
+                size={16}
+                aria-hidden="true"
+              />
             </button>
           </>
         ) : (

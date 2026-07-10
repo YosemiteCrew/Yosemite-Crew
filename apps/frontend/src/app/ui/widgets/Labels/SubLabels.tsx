@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { MdOpenInNew } from 'react-icons/md';
+import { IoOpenOutline } from 'react-icons/io5';
 
 type SubLabelItem = {
   key: string;
@@ -150,7 +150,7 @@ const SubLabels = ({
                 aria-label={label.redirectLabel ?? 'Open linked page'}
                 className={redirectClassName}
               >
-                <MdOpenInNew size={13} />
+                <IoOpenOutline size={13} />
               </Link>
             )}
           </div>

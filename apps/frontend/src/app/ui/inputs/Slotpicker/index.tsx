@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { GrNext, GrPrevious } from 'react-icons/gr';
+import { IoChevronBackOutline, IoChevronForwardOutline } from 'react-icons/io5';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
 import { Slot } from '@/app/features/appointments/types/appointments';
@@ -165,7 +165,7 @@ const Slotpicker = ({
           disabled={isAtTodayMonth}
           className={isAtTodayMonth ? 'cursor-not-allowed text-neutral-200' : 'cursor-pointer'}
         >
-          <GrPrevious size={16} />
+          <IoChevronBackOutline size={16} />
         </button>
         <div className="text-body-3 text-text-primary">
           {monthNames[viewMonth]} {viewYear}
@@ -176,7 +176,7 @@ const Slotpicker = ({
           onClick={handleNextMonth}
           className="cursor-pointer text-text-primary"
         >
-          <GrNext size={16} />
+          <IoChevronForwardOutline size={16} />
         </button>
       </div>
 
@@ -193,7 +193,7 @@ const Slotpicker = ({
               : 'cursor-not-allowed text-neutral-200'
           }
         >
-          <GrPrevious size={16} />
+          <IoChevronBackOutline size={16} />
         </button>
         <div
           ref={dateStripRef}
@@ -237,7 +237,7 @@ const Slotpicker = ({
               : 'cursor-not-allowed text-neutral-200'
           }
         >
-          <GrNext size={16} />
+          <IoChevronForwardOutline size={16} />
         </button>
       </div>
 

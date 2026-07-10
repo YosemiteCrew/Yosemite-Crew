@@ -1,6 +1,6 @@
 'use client';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { LuCheck, LuEye, LuEyeOff } from 'react-icons/lu';
+import { IoCheckmarkOutline, IoEyeOffOutline, IoEyeOutline } from 'react-icons/io5';
 import Search from '@/app/ui/inputs/Search';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
@@ -282,9 +282,9 @@ const VitalRow = ({
           <CircleIconButton
             icon={
               open ? (
-                <LuEyeOff size={16} aria-hidden="true" />
+                <IoEyeOffOutline size={16} aria-hidden="true" />
               ) : (
-                <LuEye size={16} aria-hidden="true" />
+                <IoEyeOutline size={16} aria-hidden="true" />
               )
             }
             label={open ? `Hide ${entry.code}` : `View ${entry.code}`}
@@ -528,7 +528,7 @@ const VitalsForm = ({
         {saveError && <p className="text-caption-1 text-red-600">{saveError}</p>}
         <Primary
           text={isSaving ? 'Saving...' : 'Save vitals'}
-          icon={<LuCheck aria-hidden="true" />}
+          icon={<IoCheckmarkOutline aria-hidden="true" />}
           onClick={handleSave}
           isDisabled={isSaving}
         />

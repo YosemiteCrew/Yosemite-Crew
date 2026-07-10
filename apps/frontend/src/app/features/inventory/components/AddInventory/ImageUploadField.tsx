@@ -1,8 +1,7 @@
 'use client';
 import React, { useEffect, useId, useState } from 'react';
 import Image from 'next/image';
-import { RiUploadCloud2Fill } from 'react-icons/ri';
-import { FiX } from 'react-icons/fi';
+import { IoCloudUpload, IoClose } from 'react-icons/io5';
 import {
   getInventoryItemImagePresignedUrl,
   uploadFileToS3,
@@ -92,7 +91,7 @@ const ImageUploadField = ({ label, value, organisationId, onChange }: Props) => 
               aria-label="Remove image"
               className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-neutral-0/90 shadow hover:bg-neutral-0 transition-colors"
             >
-              <FiX size={14} />
+              <IoClose size={14} />
             </button>
           )}
           {isUploading && (
@@ -108,7 +107,7 @@ const ImageUploadField = ({ label, value, organisationId, onChange }: Props) => 
           onClick={() => document.getElementById(inputId)?.click()}
           className="flex min-h-35 w-full flex-col items-center justify-center rounded-2xl border border-input-border-default bg-neutral-0 px-4 py-5 text-center text-text-primary disabled:opacity-60"
         >
-          <RiUploadCloud2Fill size={34} className="text-blue-text" aria-hidden="true" />
+          <IoCloudUpload size={34} className="text-blue-text" aria-hidden="true" />
           <span className="mt-2 text-body-4-emphasis">
             {isUploading ? 'Uploading…' : 'Upload image'}
           </span>

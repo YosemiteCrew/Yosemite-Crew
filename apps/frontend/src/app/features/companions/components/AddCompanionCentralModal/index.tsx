@@ -9,11 +9,16 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { IoClose, IoPencilOutline, IoInformationCircleOutline } from 'react-icons/io5';
+import {
+  IoAddOutline,
+  IoCheckmarkOutline,
+  IoClose,
+  IoInformationCircleOutline,
+  IoPawOutline,
+  IoPencilOutline,
+  IoPersonOutline,
+} from 'react-icons/io5';
 import { IoIosWarning } from 'react-icons/io';
-import { FiPlus, FiCheck } from 'react-icons/fi';
-import { MdPets } from 'react-icons/md';
-import { FaUser } from 'react-icons/fa';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import AppointmentCentralModalShell from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentCentralModalShell';
@@ -1248,7 +1253,7 @@ const AddCompanionCentralModal = ({
                 {/* Left — Patient */}
                 <div className="flex flex-col gap-3">
                   <SectionHeading
-                    icon={<MdPets size={16} />}
+                    icon={<IoPawOutline size={16} />}
                     title={terminologyText('Patient Details')}
                   />
 
@@ -1315,7 +1320,7 @@ const AddCompanionCentralModal = ({
 
                 {/* Right — Client */}
                 <div className="flex flex-col gap-3 lg:pl-8">
-                  <SectionHeading icon={<FaUser size={14} />} title="Client Details" />
+                  <SectionHeading icon={<IoPersonOutline size={14} />} title="Client Details" />
                   <div className="flex flex-col">
                     <InfoRow
                       label="Name"
@@ -1385,7 +1390,7 @@ const AddCompanionCentralModal = ({
                 {/* ══ LEFT: Patient ══════════════════════════════════ */}
                 <div className="flex flex-col gap-3">
                   <SectionHeading
-                    icon={<MdPets size={16} />}
+                    icon={<IoPawOutline size={16} />}
                     title={terminologyText('Patient Details')}
                   />
 
@@ -1511,7 +1516,7 @@ const AddCompanionCentralModal = ({
                             : 'border-card-border text-text-tertiary opacity-40 cursor-not-allowed'
                         )}
                       >
-                        <FiPlus size={16} />
+                        <IoAddOutline size={16} />
                       </button>
                     </fieldset>
 
@@ -1691,7 +1696,7 @@ const AddCompanionCentralModal = ({
 
                 {/* ══ RIGHT: Client ══════════════════════════════════ */}
                 <div className="flex flex-col gap-3 lg:pl-8">
-                  <SectionHeading icon={<FaUser size={14} />} title="Client Details" />
+                  <SectionHeading icon={<IoPersonOutline size={14} />} title="Client Details" />
 
                   {/* Name fields — First name drives the client search dropdown */}
                   <div className="grid grid-cols-2 gap-3">
@@ -1864,7 +1869,7 @@ const AddCompanionCentralModal = ({
                             : 'border-card-border text-text-tertiary opacity-40 cursor-not-allowed'
                         )}
                       >
-                        <FiPlus size={16} />
+                        <IoAddOutline size={16} />
                       </button>
                     </fieldset>
                     {clientAlerts.length > 0 && (
@@ -1893,7 +1898,7 @@ const AddCompanionCentralModal = ({
                 <Primary
                   type="button"
                   text={mode === 'edit' ? 'Save changes' : 'Save Patient Info'}
-                  icon={<FiCheck size={15} />}
+                  icon={<IoCheckmarkOutline size={15} />}
                   onClick={handleSubmit}
                 />
               </div>

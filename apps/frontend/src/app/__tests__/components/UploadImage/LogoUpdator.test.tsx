@@ -31,13 +31,24 @@ jest.mock('axios', () => ({
   put: jest.fn(),
 }));
 
-jest.mock('react-icons/md', () => ({
-  MdArrowRightAlt: () => <span>arrow</span>,
-}));
-
-jest.mock('react-icons/io5', () => ({
-  IoCamera: () => <span>camera</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 describe('LogoUpdator', () => {
   it('falls back when imageUrl is not https', () => {
@@ -92,6 +103,6 @@ describe('LogoUpdator', () => {
     expect(
       screen.getByText('Please choose a valid image file (PNG, JPG, or WEBP).')
     ).toBeInTheDocument();
-    expect(screen.getByText('camera')).toBeInTheDocument();
+    expect(screen.getByTestId('IoCamera')).toBeInTheDocument();
   });
 });

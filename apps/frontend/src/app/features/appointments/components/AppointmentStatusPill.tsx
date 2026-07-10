@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FaCaretDown } from 'react-icons/fa';
+import { IoCaretDown } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 import {
   canShowStatusChangeAction,
@@ -146,7 +146,7 @@ const AppointmentStatusPill = ({
         style={triggerStyle}
       >
         <span>{saving ? 'Saving…' : toStatusLabel(appointment.status)}</span>
-        <FaCaretDown
+        <IoCaretDown
           size={8}
           className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
         />

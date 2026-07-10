@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { IoIosArrowBack } from 'react-icons/io';
-import { LuCheck, LuPlus } from 'react-icons/lu';
+import { IoAddOutline, IoCheckmarkOutline } from 'react-icons/io5';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -209,7 +209,7 @@ const ParentProfilePanel = ({
         <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
           <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-3xl border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-3 py-1 text-caption-1 font-medium text-[var(--status-completed-text)]">
             Dues cleared
-            <LuCheck size={13} aria-hidden="true" />
+            <IoCheckmarkOutline size={13} aria-hidden="true" />
           </span>
           <div className="flex flex-col items-start gap-1.5 md:items-end">
             {alerts.map((alert) => (
@@ -228,7 +228,7 @@ const ParentProfilePanel = ({
                 onClick={onAddAlert}
                 className="flex size-6 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
               >
-                <LuPlus size={14} aria-hidden="true" />
+                <IoAddOutline size={14} aria-hidden="true" />
               </button>
             </GlassTooltip>
           </div>
@@ -416,7 +416,7 @@ const CompanionHistoryPageInner = () => {
                         onClick={() => setAlertTarget('companion')}
                         className="flex size-6 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
                       >
-                        <LuPlus size={14} aria-hidden="true" />
+                        <IoAddOutline size={14} aria-hidden="true" />
                       </button>
                     </GlassTooltip>
                   ) : null}
@@ -425,7 +425,7 @@ const CompanionHistoryPageInner = () => {
 
               <div className="flex items-center gap-3">
                 <Primary
-                  icon={<LuPlus size={18} aria-hidden="true" />}
+                  icon={<IoAddOutline size={18} aria-hidden="true" />}
                   text="Add appointment"
                   onClick={() => setAddAppointmentOpen(true)}
                 />

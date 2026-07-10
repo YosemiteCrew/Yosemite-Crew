@@ -9,11 +9,9 @@ import React, {
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { getMonthYear } from '@/app/features/appointments/components/Calendar/helpers';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
-import { FiZoomIn, FiZoomOut } from 'react-icons/fi';
 import Datepicker from '@/app/ui/inputs/Datepicker';
-import { IoAdd, IoWarning } from 'react-icons/io5';
+import { IoAdd, IoAddOutline, IoCaretDown, IoRemoveOutline, IoWarning } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
 import { createPortal } from 'react-dom';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -293,7 +291,7 @@ const Header = ({
                 <span>
                   {selectedStatus?.key === 'all' ? 'Status' : (selectedStatus?.name ?? 'Status')}
                 </span>
-                <FaCaretDown
+                <IoCaretDown
                   size={14}
                   className={clsx('shrink-0 transition-transform', statusOpen && 'rotate-180')}
                 />
@@ -378,7 +376,7 @@ const Header = ({
                 <span>
                   {CALENDAR_OPTIONS.find((o) => o.key === activeCalendar)?.label ?? 'View'}
                 </span>
-                <FaCaretDown
+                <IoCaretDown
                   size={14}
                   className={clsx('shrink-0 transition-transform', calendarOpen && 'rotate-180')}
                 />
@@ -428,7 +426,7 @@ const Header = ({
                     : 'text-text-secondary hover:bg-card-hover border border-transparent'
                 }`}
               >
-                <FiZoomIn size={18} />
+                <IoAddOutline size={18} />
               </button>
               <button
                 type="button"
@@ -440,7 +438,7 @@ const Header = ({
                     : 'text-text-secondary hover:bg-card-hover border border-transparent'
                 }`}
               >
-                <FiZoomOut size={18} />
+                <IoRemoveOutline size={18} />
               </button>
             </div>
           )}

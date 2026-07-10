@@ -1,8 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { IoEye } from 'react-icons/io5';
-import { LuPackagePlus } from 'react-icons/lu';
+import { IoCubeOutline, IoEye } from 'react-icons/io5';
 import InventoryCard from '@/app/ui/cards/InventoryCard';
 import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
@@ -183,7 +182,7 @@ const InventoryRow = ({
                   : 'border border-card-border text-text-secondary hover:bg-card-hover'
               }`}
             >
-              <LuPackagePlus size={16} />
+              <IoCubeOutline size={16} />
             </button>
           </GlassTooltip>
         )}

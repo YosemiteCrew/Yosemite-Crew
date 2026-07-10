@@ -1,7 +1,4 @@
 import React, { useCallback, useEffect, useId, useState } from 'react';
-import { MdDeleteForever } from 'react-icons/md';
-import { FiCheck } from 'react-icons/fi';
-import { LuBedSingle, LuCheck } from 'react-icons/lu';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
@@ -18,6 +15,7 @@ import { useNotify } from '@/app/hooks/useNotify';
 import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoney } from '@/app/lib/money';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
+import { IoBedOutline, IoCheckmarkOutline, IoTrash } from 'react-icons/io5';
 
 const TYPE_OPTIONS = [
   { value: 'CONSULTATION', label: 'Consultation' },
@@ -188,13 +186,13 @@ const ServiceFormDraft = ({
       )}
       {isBookable && (
         <Badge tone="brand">
-          <LuCheck size={14} aria-hidden="true" />
+          <IoCheckmarkOutline size={14} aria-hidden="true" />
           Bookable
         </Badge>
       )}
       {isInpatient && (
         <Badge tone="brand">
-          <LuBedSingle size={14} aria-hidden="true" />
+          <IoBedOutline size={14} aria-hidden="true" />
           In-patient
         </Badge>
       )}
@@ -332,7 +330,7 @@ const ServiceFormDraft = ({
             href="#"
             danger
             text="Delete Service"
-            icon={<MdDeleteForever size={16} />}
+            icon={<IoTrash size={16} />}
             onClick={() => setConfirmDelete(true)}
           />
         ) : (
@@ -343,7 +341,7 @@ const ServiceFormDraft = ({
           <Primary
             href="#"
             text="Save Service"
-            icon={<FiCheck size={16} />}
+            icon={<IoCheckmarkOutline size={16} />}
             onClick={() => {
               Promise.resolve(handleSave()).catch(() => undefined);
             }}

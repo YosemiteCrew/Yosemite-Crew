@@ -179,28 +179,100 @@ jest.mock('next/image', () => ({
   default: ({ alt }: any) => <span data-testid="next-image" role="img" aria-label={alt} />,
 }));
 
-jest.mock('react-icons/io5', () => ({
-  IoClose: () => <span data-testid="icon-io-close" />,
-  IoPencilOutline: () => <span data-testid="icon-io-pencil" />,
-  IoInformationCircleOutline: () => <span data-testid="icon-io-info" />,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/io', () => ({
-  IoIosWarning: () => <span data-testid="icon-warning" />,
-}));
+jest.mock(
+  'react-icons/io',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/fi', () => ({
-  FiPlus: () => <span data-testid="icon-fi-plus" />,
-  FiCheck: () => <span data-testid="icon-fi-check" />,
-}));
+jest.mock(
+  'react-icons/fi',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdPets: () => <span data-testid="icon-md-pets" />,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/fa', () => ({
-  FaUser: () => <span data-testid="icon-fa-user" />,
-}));
+jest.mock(
+  'react-icons/fa',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 jest.mock('@/app/hooks/useDropdown', () => ({
   useFilteredOptions: (options: any[], value: string) => {
@@ -1983,9 +2055,9 @@ describe('AddCompanionCentralModal', () => {
       });
 
       // The InputWithDropdown shows errors as a plain span containing the error text
-      // The IoIosWarning icon mock renders as data-testid="icon-warning"
+      // The IoIosWarning icon mock renders as data-testid="IoIosWarning"
       // Verify error spans appear (companion name and parent first name errors)
-      const warnIcons = screen.getAllByTestId('icon-warning');
+      const warnIcons = screen.getAllByTestId('IoIosWarning');
       expect(warnIcons.length).toBeGreaterThan(0);
     });
   });

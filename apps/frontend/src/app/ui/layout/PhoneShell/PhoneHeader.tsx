@@ -3,9 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { FaCaretDown } from 'react-icons/fa6';
-import { IoSearchOutline } from 'react-icons/io5';
-import { MdNotificationsActive } from 'react-icons/md';
+import { IoCaretDown, IoNotifications, IoSearchOutline } from 'react-icons/io5';
 
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getSafeImageUrl } from '@/app/lib/urls';
@@ -46,7 +44,7 @@ const PhoneHeader = () => {
             className="yc-phone-org-avatar"
           />
           <span className="yc-phone-org-name">{primaryOrg.name}</span>
-          <FaCaretDown size={13} aria-hidden />
+          <IoCaretDown size={13} aria-hidden />
         </button>
       ) : (
         <span className="yc-phone-brand">
@@ -71,7 +69,7 @@ const PhoneHeader = () => {
           <IoSearchOutline size={19} aria-hidden />
         </button>
         <button type="button" className="yc-phone-iconbtn yc-phone-bell" aria-label="Notifications">
-          <MdNotificationsActive size={18} aria-hidden />
+          <IoNotifications size={18} aria-hidden />
           <span className="yc-phone-bell-dot" aria-hidden />
         </button>
       </div>

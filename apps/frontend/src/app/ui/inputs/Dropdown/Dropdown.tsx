@@ -8,8 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { FaSortDown } from 'react-icons/fa';
-import { IoSearch } from 'react-icons/io5';
+import { IoCaretDown, IoSearch } from 'react-icons/io5';
 import classNames from 'classnames';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
@@ -356,7 +355,7 @@ const Dropdown = ({
         >
           <span className="select-input-selected">{selected ? selected.label : ''}</span>
           <span className="select-input-drop-icon" aria-hidden="true">
-            <FaSortDown color="var(--color-neutral-600)" size={16} />
+            <IoCaretDown color="var(--color-neutral-600)" size={16} />
           </span>
         </button>
 

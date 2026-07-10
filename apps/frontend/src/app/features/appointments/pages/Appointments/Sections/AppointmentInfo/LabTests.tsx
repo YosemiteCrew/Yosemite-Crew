@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
-import { MdOpenInNew } from 'react-icons/md';
+import { IoOpenOutline } from 'react-icons/io5';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
@@ -1437,7 +1437,7 @@ const LabResultsList = ({ s }: { s: UseLabTestsReturn }) => (
             aria-label="Open IDEXX Hub"
             className="size-8 rounded-full border border-card-border bg-neutral-0 text-text-secondary hover:text-text-brand hover:border-text-brand transition-colors inline-flex items-center justify-center"
           >
-            <MdOpenInNew size={16} />
+            <IoOpenOutline size={16} />
           </Link>
         </div>
       </div>

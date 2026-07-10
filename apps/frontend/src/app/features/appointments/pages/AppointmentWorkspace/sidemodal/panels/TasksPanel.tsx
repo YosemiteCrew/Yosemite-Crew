@@ -1,6 +1,12 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
-import { LuArrowLeft, LuEye, LuEyeOff, LuPencil, LuPlus } from 'react-icons/lu';
+import {
+  IoAddOutline,
+  IoArrowBackOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoPencilOutline,
+} from 'react-icons/io5';
 import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -227,9 +233,9 @@ const TaskRow = ({
         <CircleIconButton
           icon={
             expanded ? (
-              <LuEyeOff size={16} aria-hidden="true" />
+              <IoEyeOffOutline size={16} aria-hidden="true" />
             ) : (
-              <LuEye size={16} aria-hidden="true" />
+              <IoEyeOutline size={16} aria-hidden="true" />
             )
           }
           label={expanded ? `Hide details for ${task.description}` : `View ${task.description}`}
@@ -237,7 +243,7 @@ const TaskRow = ({
           onClick={onToggleView}
         />
         <CircleIconButton
-          icon={<LuPencil size={16} aria-hidden="true" />}
+          icon={<IoPencilOutline size={16} aria-hidden="true" />}
           label={`Edit ${task.description}`}
           onClick={onEdit}
           disabled={actionsDisabled}
@@ -346,7 +352,7 @@ const PanelTaskForm = ({
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <CircleIconButton
-          icon={<LuArrowLeft size={16} aria-hidden="true" />}
+          icon={<IoArrowBackOutline size={16} aria-hidden="true" />}
           label="Back to tasks"
           onClick={onBack}
         />
@@ -589,7 +595,7 @@ const TasksPanel = ({ appointmentId, companionId, parentOptions = [] }: TasksPan
       )}
       <div className="flex justify-center">
         {saveError && <p className="text-caption-1 text-red-600">{saveError}</p>}
-        <Primary text="New Task" icon={<LuPlus aria-hidden="true" />} onClick={openNew} />
+        <Primary text="New Task" icon={<IoAddOutline aria-hidden="true" />} onClick={openNew} />
       </div>
     </div>
   );

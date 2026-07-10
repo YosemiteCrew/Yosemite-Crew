@@ -9,7 +9,13 @@
  */
 
 import { useMemo, useState } from 'react';
-import { LuSearch, LuStethoscope, LuCalendar, LuX, LuShare2 } from 'react-icons/lu';
+import {
+  IoCalendarOutline,
+  IoClose,
+  IoMedkitOutline,
+  IoSearchOutline,
+  IoShareSocialOutline,
+} from 'react-icons/io5';
 import clsx from 'clsx';
 import type { Appointment } from '@yosemite-crew/types';
 import Text from '@/app/ui/Text';
@@ -101,10 +107,10 @@ export function ShareEntityModal({
   const tabs: ReadonlyArray<{
     key: 'COMPANION' | 'APPOINTMENT';
     label: string;
-    icon: typeof LuStethoscope;
+    icon: typeof IoMedkitOutline;
   }> = [
-    { key: 'COMPANION', label: rewrite('Companions'), icon: LuStethoscope },
-    { key: 'APPOINTMENT', label: 'Appointments', icon: LuCalendar },
+    { key: 'COMPANION', label: rewrite('Companions'), icon: IoMedkitOutline },
+    { key: 'APPOINTMENT', label: 'Appointments', icon: IoCalendarOutline },
   ];
 
   return (
@@ -122,7 +128,7 @@ export function ShareEntityModal({
       <div className="relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 shadow-2xl">
         <div className="flex items-center justify-between border-b border-chat-divider px-4 py-3">
           <span className="flex items-center gap-2">
-            <LuShare2 className="h-4 w-4 text-primary-600" />
+            <IoShareSocialOutline className="h-4 w-4 text-primary-600" />
             <Text as="span" variant="body-3-emphasis" className="text-neutral-900">
               Share from PIMS
             </Text>
@@ -133,7 +139,7 @@ export function ShareEntityModal({
             onClick={onClose}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-chat-surface-soft"
           >
-            <LuX className="h-4 w-4" />
+            <IoClose className="h-4 w-4" />
           </button>
         </div>
 
@@ -157,7 +163,7 @@ export function ShareEntityModal({
         </div>
 
         <div className="flex items-center gap-2 border-b border-chat-divider px-4 py-2">
-          <LuSearch className="h-4 w-4 shrink-0 text-neutral-400" />
+          <IoSearchOutline className="h-4 w-4 shrink-0 text-neutral-400" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}

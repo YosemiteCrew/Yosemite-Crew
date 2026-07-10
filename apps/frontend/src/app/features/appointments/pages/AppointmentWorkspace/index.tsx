@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Appointment } from '@yosemite-crew/types';
-import { LuBedSingle, LuCheckCircle } from 'react-icons/lu';
+import { IoBedOutline, IoCheckmarkCircleOutline } from 'react-icons/io5';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useAuthStore } from '@/app/stores/authStore';
 import {
@@ -1333,7 +1333,11 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       label,
       onClick: handleSummaryTerminalAction,
       isDisabled: alreadyDischarged || isFinalizing,
-      icon: isInpatient ? <LuBedSingle aria-hidden="true" /> : <LuCheckCircle aria-hidden="true" />,
+      icon: isInpatient ? (
+        <IoBedOutline aria-hidden="true" />
+      ) : (
+        <IoCheckmarkCircleOutline aria-hidden="true" />
+      ),
     };
   }, [activeStep, effectiveEncounter, handleSummaryTerminalAction, isFinalizing]);
 

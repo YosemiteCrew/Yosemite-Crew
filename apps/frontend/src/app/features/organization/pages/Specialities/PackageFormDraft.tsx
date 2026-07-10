@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
-import { MdDeleteForever } from 'react-icons/md';
-import { FiCheck } from 'react-icons/fi';
 import { IoIosSearch } from 'react-icons/io';
-import { LuBedSingle, LuCheck } from 'react-icons/lu';
+import { IoBedOutline, IoCheckmarkOutline, IoTrash } from 'react-icons/io5';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
@@ -419,13 +417,13 @@ const PackageFormDraft = ({
       )}
       {effectiveBookable && (
         <Badge tone="brand">
-          <LuCheck size={14} aria-hidden="true" />
+          <IoCheckmarkOutline size={14} aria-hidden="true" />
           Bookable
         </Badge>
       )}
       {effectiveInpatientPreferred && (
         <Badge tone="brand">
-          <LuBedSingle size={14} aria-hidden="true" />
+          <IoBedOutline size={14} aria-hidden="true" />
           In-patient
         </Badge>
       )}
@@ -611,7 +609,7 @@ const PackageFormDraft = ({
             href="#"
             danger
             text="Delete Package"
-            icon={<MdDeleteForever size={16} />}
+            icon={<IoTrash size={16} />}
             onClick={() => setConfirmDelete(true)}
           />
         ) : (
@@ -622,7 +620,7 @@ const PackageFormDraft = ({
           <Primary
             href="#"
             text="Save Package"
-            icon={<FiCheck size={16} />}
+            icon={<IoCheckmarkOutline size={16} />}
             onClick={() => {
               Promise.resolve(handleSave()).catch(() => undefined);
             }}

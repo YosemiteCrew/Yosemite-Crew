@@ -2,9 +2,13 @@ import React, { useId, useRef, useState } from 'react';
 import type { ServicesTabHandle } from '@/app/features/organization/pages/Specialities/ServicesTab';
 import type { PackagesTabHandle } from '@/app/features/organization/pages/Specialities/PackagesTab';
 import { IoIosArrowDown, IoIosSearch } from 'react-icons/io';
-import { RiEdit2Line } from 'react-icons/ri';
-import { MdOutlineArchive, MdDeleteForever } from 'react-icons/md';
-import { FiCheck, FiX } from 'react-icons/fi';
+import {
+  IoArchiveOutline,
+  IoCheckmarkOutline,
+  IoClose,
+  IoCreateOutline,
+  IoTrash,
+} from 'react-icons/io5';
 import TabToggle, { TabOption } from '@/app/ui/primitives/TabToggle/TabToggle';
 import ServicesTab from '@/app/features/organization/pages/Specialities/ServicesTab';
 import PackagesTab from '@/app/features/organization/pages/Specialities/PackagesTab';
@@ -30,7 +34,7 @@ type ActiveTab = 'services' | 'packages' | 'archive';
 const TABS: TabOption[] = [
   { key: 'services', label: 'Services' },
   { key: 'packages', label: 'Packages' },
-  { key: 'archive', label: 'Archive', icon: <MdOutlineArchive size={14} aria-hidden="true" /> },
+  { key: 'archive', label: 'Archive', icon: <IoArchiveOutline size={14} aria-hidden="true" /> },
 ];
 
 const panelId = (key: string) => `panel-${key}`;
@@ -274,7 +278,7 @@ const SpecialityAccordionRevamp = ({
                   }}
                   className="flex items-center justify-center size-8 rounded-full bg-text-brand text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand shrink-0"
                 >
-                  <FiCheck size={14} aria-hidden="true" />
+                  <IoCheckmarkOutline size={14} aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -282,7 +286,7 @@ const SpecialityAccordionRevamp = ({
                   onClick={handleCancelName}
                   className="flex items-center justify-center size-8 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors shrink-0"
                 >
-                  <FiX size={14} color="var(--color-danger-600)" aria-hidden="true" />
+                  <IoClose size={14} color="var(--color-danger-600)" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -293,7 +297,7 @@ const SpecialityAccordionRevamp = ({
                   }}
                   className="flex items-center justify-center size-8 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors shrink-0"
                 >
-                  <MdDeleteForever size={16} color="var(--color-danger-600)" aria-hidden="true" />
+                  <IoTrash size={16} color="var(--color-danger-600)" aria-hidden="true" />
                 </button>
               </div>
             ) : (
@@ -314,7 +318,7 @@ const SpecialityAccordionRevamp = ({
                   onClick={handleEditClick}
                   className="flex items-center justify-center size-9 rounded-full border border-transparent hover:border-card-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors shrink-0"
                 >
-                  <RiEdit2Line size={18} color="var(--color-neutral-700)" aria-hidden="true" />
+                  <IoCreateOutline size={18} color="var(--color-neutral-700)" aria-hidden="true" />
                 </button>
               </>
             )}
@@ -373,7 +377,7 @@ const SpecialityAccordionRevamp = ({
                     }}
                     className="shrink-0 focus-visible:outline-none"
                   >
-                    <FiX size={12} color="var(--color-text-secondary)" />
+                    <IoClose size={12} color="var(--color-text-secondary)" />
                   </button>
                 )}
                 <IoIosSearch

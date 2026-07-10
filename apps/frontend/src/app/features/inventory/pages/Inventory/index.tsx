@@ -39,7 +39,21 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoInformationCircleOutline } from 'react-icons/io5';
+import {
+  IoAddOutline,
+  IoCaretDown,
+  IoCheckmarkOutline,
+  IoChevronDownOutline,
+  IoChevronUpOutline,
+  IoClose,
+  IoDocumentTextOutline,
+  IoFilterOutline,
+  IoGridOutline,
+  IoInformationCircleOutline,
+  IoMedkitOutline,
+  IoOptionsOutline,
+  IoSearchOutline,
+} from 'react-icons/io5';
 import {
   listDispenseRequests,
   DispenseRequestApi,
@@ -51,19 +65,6 @@ import Modal from '@/app/ui/overlays/Modal';
 import Filters from '@/app/ui/filters/Filters';
 import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import {
-  FiCheck,
-  FiChevronDown,
-  FiChevronUp,
-  FiFilter,
-  FiPlus,
-  FiSearch,
-  FiSliders,
-  FiX,
-} from 'react-icons/fi';
-import { TbLayoutGrid, TbPill } from 'react-icons/tb';
-import { LuFileText } from 'react-icons/lu';
-import { FaCaretDown } from 'react-icons/fa6';
 
 const INVENTORY_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -340,14 +341,14 @@ const InventoryFilterBar = ({
           onClick={() => setFilterOpen(true)}
           className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-neutral-0 px-4 text-body-4 text-text-primary"
         >
-          <FiSliders size={18} aria-hidden="true" />
+          <IoOptionsOutline size={18} aria-hidden="true" />
           <span>Filter</span>
           {selectedFilterChips.length > 0 ? (
             <span className="rounded-full bg-badge-blue-bg px-2 text-caption-1 text-badge-blue-text">
               {selectedFilterChips.length}
             </span>
           ) : (
-            <FiChevronDown size={16} aria-hidden="true" className="text-text-secondary" />
+            <IoChevronDownOutline size={16} aria-hidden="true" className="text-text-secondary" />
           )}
         </button>
         <button
@@ -356,9 +357,9 @@ const InventoryFilterBar = ({
           onClick={() => setSortOpen((v) => !v)}
           className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-neutral-0 px-4 text-body-4 text-text-primary"
         >
-          <FiFilter size={18} aria-hidden="true" />
+          <IoFilterOutline size={18} aria-hidden="true" />
           <span>Sort by</span>
-          <FaCaretDown
+          <IoCaretDown
             size={13}
             aria-hidden="true"
             className={`text-text-secondary transition-transform ${sortOpen ? 'rotate-180' : ''}`}
@@ -392,7 +393,7 @@ const InventoryFilterBar = ({
             document.body
           )}
         <div className="relative w-full sm:w-auto sm:min-w-72">
-          <FiSearch
+          <IoSearchOutline
             size={18}
             aria-hidden="true"
             className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
@@ -468,7 +469,7 @@ const DispensaryFilterBar = ({
       />
     </div>
     <div className="relative w-full sm:w-auto sm:min-w-72">
-      <FiSearch
+      <IoSearchOutline
         size={18}
         aria-hidden="true"
         className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
@@ -687,7 +688,7 @@ const InventoryFilterModal = ({
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between pb-4 shrink-0">
           <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
-            <FiSliders size={18} aria-hidden="true" />
+            <IoOptionsOutline size={18} aria-hidden="true" />
             <span>Filter</span>
           </div>
           <div className="flex items-center gap-2">
@@ -706,7 +707,7 @@ const InventoryFilterModal = ({
               aria-label="Close"
               className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors"
             >
-              <FiX size={18} />
+              <IoClose size={18} />
             </button>
           </div>
         </div>
@@ -724,7 +725,7 @@ const InventoryFilterModal = ({
                   onClick={chip.onRemove}
                   className="inline-flex size-4 items-center justify-center rounded-full hover:bg-badge-blue-text/15 transition-colors"
                 >
-                  <FiX size={12} aria-hidden="true" />
+                  <IoClose size={12} aria-hidden="true" />
                 </button>
               </span>
             ))}
@@ -746,9 +747,9 @@ const InventoryFilterModal = ({
                 )}
               </div>
               {filterOpenSections.has('stock-status') ? (
-                <FiChevronUp size={16} className="text-text-secondary" />
+                <IoChevronUpOutline size={16} className="text-text-secondary" />
               ) : (
-                <FiChevronDown size={16} className="text-text-secondary" />
+                <IoChevronDownOutline size={16} className="text-text-secondary" />
               )}
             </button>
             {filterOpenSections.has('stock-status') && (
@@ -787,9 +788,9 @@ const InventoryFilterModal = ({
                   )}
                 </div>
                 {filterOpenSections.has('location') ? (
-                  <FiChevronUp size={16} className="text-text-secondary" />
+                  <IoChevronUpOutline size={16} className="text-text-secondary" />
                 ) : (
-                  <FiChevronDown size={16} className="text-text-secondary" />
+                  <IoChevronDownOutline size={16} className="text-text-secondary" />
                 )}
               </button>
               {filterOpenSections.has('location') && (
@@ -827,9 +828,9 @@ const InventoryFilterModal = ({
                 )}
               </div>
               {filterOpenSections.has('category') ? (
-                <FiChevronUp size={16} className="text-text-secondary" />
+                <IoChevronUpOutline size={16} className="text-text-secondary" />
               ) : (
-                <FiChevronDown size={16} className="text-text-secondary" />
+                <IoChevronDownOutline size={16} className="text-text-secondary" />
               )}
             </button>
             {filterOpenSections.has('category') && (
@@ -860,7 +861,11 @@ const InventoryFilterModal = ({
                             onClick={() => toggleExpandedCategory(category)}
                             className="text-text-secondary"
                           >
-                            {isExpanded ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                            {isExpanded ? (
+                              <IoChevronUpOutline size={14} />
+                            ) : (
+                              <IoChevronDownOutline size={14} />
+                            )}
                           </button>
                         )}
                       </div>
@@ -903,9 +908,9 @@ const InventoryFilterModal = ({
                 )}
               </div>
               {filterOpenSections.has('abc') ? (
-                <FiChevronUp size={16} className="text-text-secondary" />
+                <IoChevronUpOutline size={16} className="text-text-secondary" />
               ) : (
-                <FiChevronDown size={16} className="text-text-secondary" />
+                <IoChevronDownOutline size={16} className="text-text-secondary" />
               )}
             </button>
             {filterOpenSections.has('abc') && (
@@ -943,9 +948,9 @@ const InventoryFilterModal = ({
                   )}
                 </div>
                 {filterOpenSections.has('supplier') ? (
-                  <FiChevronUp size={16} className="text-text-secondary" />
+                  <IoChevronUpOutline size={16} className="text-text-secondary" />
                 ) : (
-                  <FiChevronDown size={16} className="text-text-secondary" />
+                  <IoChevronDownOutline size={16} className="text-text-secondary" />
                 )}
               </button>
               {filterOpenSections.has('supplier') && (
@@ -975,7 +980,7 @@ const InventoryFilterModal = ({
             onClick={() => setFilterOpen(false)}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-text-primary px-4 text-body-3-emphasis text-white hover:opacity-90 transition-opacity"
           >
-            <FiCheck size={18} aria-hidden="true" />
+            <IoCheckmarkOutline size={18} aria-hidden="true" />
             Apply
           </button>
           <button
@@ -1020,7 +1025,7 @@ const DispensaryFilterModal = ({
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between pb-4 shrink-0">
           <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
-            <FiSliders size={18} aria-hidden="true" />
+            <IoOptionsOutline size={18} aria-hidden="true" />
             <span>Filter</span>
           </div>
           <div className="flex items-center gap-2">
@@ -1042,7 +1047,7 @@ const DispensaryFilterModal = ({
               aria-label="Close"
               className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors"
             >
-              <FiX size={18} />
+              <IoClose size={18} />
             </button>
           </div>
         </div>
@@ -1062,9 +1067,9 @@ const DispensaryFilterModal = ({
                 )}
               </div>
               {filterOpenSections.has('disp-status') ? (
-                <FiChevronUp size={16} className="text-text-secondary" />
+                <IoChevronUpOutline size={16} className="text-text-secondary" />
               ) : (
-                <FiChevronDown size={16} className="text-text-secondary" />
+                <IoChevronDownOutline size={16} className="text-text-secondary" />
               )}
             </button>
             {filterOpenSections.has('disp-status') && (
@@ -1109,9 +1114,9 @@ const DispensaryFilterModal = ({
                 )}
               </div>
               {filterOpenSections.has('disp-type') ? (
-                <FiChevronUp size={16} className="text-text-secondary" />
+                <IoChevronUpOutline size={16} className="text-text-secondary" />
               ) : (
-                <FiChevronDown size={16} className="text-text-secondary" />
+                <IoChevronDownOutline size={16} className="text-text-secondary" />
               )}
             </button>
             {filterOpenSections.has('disp-type') && (
@@ -1148,7 +1153,7 @@ const DispensaryFilterModal = ({
             onClick={() => setDispensaryFilterOpen(false)}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-text-primary px-4 text-body-3-emphasis text-white hover:opacity-90 transition-opacity"
           >
-            <FiCheck size={18} aria-hidden="true" />
+            <IoCheckmarkOutline size={18} aria-hidden="true" />
             Apply
           </button>
           <button
@@ -1599,7 +1604,7 @@ const Inventory = () => {
               text={savingItem ? 'Saving...' : 'Add product'}
               onClick={() => setAddPopup(true)}
               isDisabled={savingItem || !primaryOrgId}
-              icon={<FiPlus size={18} aria-hidden="true" />}
+              icon={<IoAddOutline size={18} aria-hidden="true" />}
               className="h-11!"
             />
           )}
@@ -1619,7 +1624,7 @@ const Inventory = () => {
                 onClick={() => setActiveView('analytics')}
                 className="inline-flex size-11 items-center justify-center rounded-full border border-card-border bg-neutral-0 text-text-primary hover:bg-card-hover transition-colors"
               >
-                <LuFileText size={20} aria-hidden="true" />
+                <IoDocumentTextOutline size={20} aria-hidden="true" />
               </button>
             </GlassTooltip>
           )}
@@ -1644,7 +1649,7 @@ const Inventory = () => {
                     : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
                 }`}
               >
-                <TbLayoutGrid size={15} aria-hidden="true" className="shrink-0" />
+                <IoGridOutline size={15} aria-hidden="true" className="shrink-0" />
                 <span>Catalog</span>
               </button>
               <button
@@ -1657,7 +1662,7 @@ const Inventory = () => {
                     : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
                 }`}
               >
-                <TbPill size={15} aria-hidden="true" className="shrink-0" />
+                <IoMedkitOutline size={15} aria-hidden="true" className="shrink-0" />
                 <span>Dispensary</span>
               </button>
             </fieldset>

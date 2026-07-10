@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { usePopoverManager } from '@/app/hooks/usePopoverManager';
-import { IoEyeOutline } from 'react-icons/io5';
+import { IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import { Task } from '@/app/features/tasks/types/task';
 import {
   autoScrollCalendarHorizontally,
@@ -11,7 +11,6 @@ import { formatDateInPreferredTimeZone, getDatePartsInPreferredTimeZone } from '
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { createPortal } from 'react-dom';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { MdOutlineAutorenew } from 'react-icons/md';
 import { IoIosCalendar } from 'react-icons/io';
 import {
   canRescheduleTask,
@@ -581,7 +580,7 @@ const TaskSlot = ({
                           setActivePopoverKey(null);
                         }}
                       >
-                        <MdOutlineAutorenew size={16} aria-hidden="true" />
+                        <IoSyncOutline size={16} aria-hidden="true" />
                       </button>
                     </GlassTooltip>
                   )}

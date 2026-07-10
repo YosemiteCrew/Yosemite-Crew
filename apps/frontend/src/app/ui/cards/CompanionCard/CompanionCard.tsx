@@ -1,8 +1,6 @@
 import Image from 'next/image';
 import React from 'react';
-import { FaCalendar, FaTasks } from 'react-icons/fa';
-import { IoEye } from 'react-icons/io5';
-import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoCalendarOutline, IoEye, IoListOutline, IoSyncOutline } from 'react-icons/io5';
 import { getCompanionStatusStyle } from '@/app/ui/tables/tableUtils';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 import { getAgeInYears } from '@/app/lib/date';
@@ -117,7 +115,7 @@ const CompanionCard = ({
               onClick={() => handleChangeStatus(companion)}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
-              <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+              <IoSyncOutline size={18} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}
@@ -128,7 +126,7 @@ const CompanionCard = ({
               onClick={() => handleBookAppointment(companion)}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
-              <FaCalendar size={14} color="var(--color-neutral-900)" />
+              <IoCalendarOutline size={14} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}
@@ -139,7 +137,7 @@ const CompanionCard = ({
               onClick={() => handleAddTask(companion)}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
-              <FaTasks size={14} color="var(--color-neutral-900)" />
+              <IoListOutline size={14} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}

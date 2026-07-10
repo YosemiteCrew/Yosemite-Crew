@@ -27,7 +27,6 @@ import { EmploymentTypes, RoleOptions } from '@/app/features/organization/pages/
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
 import { GenderOptions } from '@/app/features/companions/types/companion';
-import { MdDeleteForever } from 'react-icons/md';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
@@ -36,6 +35,7 @@ import { upsertTeamAvailability } from '@/app/features/organization/services/ava
 import { useNotify } from '@/app/hooks/useNotify';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
 import { UserProfile } from '@/app/features/users/types/profile';
+import { IoTrash } from 'react-icons/io5';
 
 type TeamInfoProps = {
   showModal: boolean;
@@ -509,7 +509,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
               <div className="flex items-center justify-between w-full">
                 <div className="text-body-2 text-text-primary">{activeTeam.name || '-'}</div>
                 {canDeleteMember && (
-                  <MdDeleteForever
+                  <IoTrash
                     className="cursor-pointer"
                     onClick={() => setShowDeleteModal(true)}
                     size={26}

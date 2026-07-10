@@ -15,8 +15,7 @@ import { useLoadTeam, useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 import { resolveEncounterMode } from '@/app/lib/appointmentWorkspace';
 import type { EncounterMode } from '@/app/features/appointments/types/workspace';
-import { LuFootprints } from 'react-icons/lu';
-import { TbBed } from 'react-icons/tb';
+import { IoBedOutline, IoFootstepsOutline } from 'react-icons/io5';
 
 type AppointmentCardContentProps = {
   appointment: Appointment;
@@ -146,9 +145,9 @@ export const AppointmentModePill = ({
       style={modeStyle}
     >
       {isInpatient ? (
-        <TbBed size={iconSize} aria-hidden="true" />
+        <IoBedOutline size={iconSize} aria-hidden="true" />
       ) : (
-        <LuFootprints size={iconSize} aria-hidden="true" />
+        <IoFootstepsOutline size={iconSize} aria-hidden="true" />
       )}
       <span className="whitespace-nowrap" style={{ color: 'inherit', opacity: 1 }}>
         {isInpatient ? 'Inpatient' : 'Outpatient'}

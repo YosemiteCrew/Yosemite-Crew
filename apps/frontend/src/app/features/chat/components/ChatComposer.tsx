@@ -18,7 +18,14 @@ import {
   TextareaComposer,
   AttachmentPreviewList,
 } from 'stream-chat-react';
-import { LuPlus, LuImage, LuFileText, LuSmile, LuSendHorizonal, LuShare2 } from 'react-icons/lu';
+import {
+  IoAddOutline,
+  IoDocumentTextOutline,
+  IoHappyOutline,
+  IoImageOutline,
+  IoSendOutline,
+  IoShareSocialOutline,
+} from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { useChatShare } from './chatShareContext';
@@ -133,7 +140,7 @@ export function ChatComposer() {
               setAttachOpen((o) => !o);
             }}
           >
-            <LuPlus className="h-5 w-5" />
+            <IoAddOutline className="h-5 w-5" />
           </ComposerIconButton>
           {attachOpen && (
             <>
@@ -149,7 +156,7 @@ export function ChatComposer() {
                   onClick={() => imageInputRef.current?.click()}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
                 >
-                  <LuImage className="h-4 w-4 shrink-0 text-primary-600" />
+                  <IoImageOutline className="h-4 w-4 shrink-0 text-primary-600" />
                   <Text as="span" variant="body-4" className="text-neutral-900">
                     Photo
                   </Text>
@@ -159,7 +166,7 @@ export function ChatComposer() {
                   onClick={() => fileInputRef.current?.click()}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
                 >
-                  <LuFileText className="h-4 w-4 shrink-0 text-primary-600" />
+                  <IoDocumentTextOutline className="h-4 w-4 shrink-0 text-primary-600" />
                   <Text as="span" variant="body-4" className="text-neutral-900">
                     Document
                   </Text>
@@ -172,7 +179,7 @@ export function ChatComposer() {
                   }}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
                 >
-                  <LuShare2 className="h-4 w-4 shrink-0 text-primary-600" />
+                  <IoShareSocialOutline className="h-4 w-4 shrink-0 text-primary-600" />
                   <Text as="span" variant="body-4" className="text-neutral-900">
                     Share from PIMS
                   </Text>
@@ -201,7 +208,7 @@ export function ChatComposer() {
               setEmojiOpen((o) => !o);
             }}
           >
-            <LuSmile className="h-5 w-5" />
+            <IoHappyOutline className="h-5 w-5" />
           </ComposerIconButton>
           {emojiOpen && (
             <>
@@ -237,7 +244,7 @@ export function ChatComposer() {
           disabled={Boolean(cooldownRemaining)}
           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <LuSendHorizonal className="h-5 w-5" />
+          <IoSendOutline className="h-5 w-5" />
         </button>
       </div>
 

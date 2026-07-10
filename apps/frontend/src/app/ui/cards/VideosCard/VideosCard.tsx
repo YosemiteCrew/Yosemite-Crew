@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { FaCirclePlay } from 'react-icons/fa6';
+import { IoPlayCircle } from 'react-icons/io5';
 
 import Close from '@/app/ui/primitives/Icons/Close';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -63,7 +63,7 @@ const VideosCard = () => {
             >
               <div className="absolute inset-0 bg-black/40 rounded-t-2xl"></div>
               <div className="relative">
-                <FaCirclePlay size={50} color="var(--color-neutral-0)" />
+                <IoPlayCircle size={50} color="var(--color-neutral-0)" />
               </div>
             </div>
             <div className="px-3 py-[20px] text-body-2 text-text-primary">{video.title}</div>

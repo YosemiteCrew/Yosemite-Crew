@@ -33,8 +33,7 @@ import AppointmentAvatar from '@/app/features/appointments/components/Appointmen
 import AppointmentEstimatePanel from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentEstimatePanel';
 import { hasUnsavedCentralChanges } from '@/app/features/appointments/components/AppointmentCentralModal/appointmentCentralModalUtils';
 import { IoIosWarning } from 'react-icons/io';
-import { IoPaw, IoPerson, IoChevronDown } from 'react-icons/io5';
-import { TiPlus } from 'react-icons/ti';
+import { IoAdd, IoChevronDown, IoPaw, IoPerson } from 'react-icons/io5';
 import clsx from 'clsx';
 import type { AppointmentKind } from '@yosemite-crew/types';
 
@@ -1090,7 +1089,7 @@ const AddAppointmentCentralModal = ({
                 error={showError('specialityId')}
                 searchable
                 portal
-                icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+                icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
               />
 
               {/* Service / Package */}
@@ -1102,7 +1101,7 @@ const AddAppointmentCentralModal = ({
                 error={showError('serviceId')}
                 searchable
                 portal
-                icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+                icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
               />
 
               {/* Chief Complaint */}

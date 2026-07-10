@@ -9,7 +9,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { StreamChat, Channel, ChannelFilters, ChannelSort } from 'stream-chat';
-import { LuSearch, LuCornerDownLeft, LuCommand } from 'react-icons/lu';
+import { LuCommand } from 'react-icons/lu';
+import { IoReturnDownBackOutline, IoSearchOutline } from 'react-icons/io5';
 import Text from '@/app/ui/Text';
 import { ChatAvatar } from './ChatAvatar';
 
@@ -99,7 +100,7 @@ export function ChatCommandPalette({
       />
       <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 shadow-2xl">
         <div className="flex items-center gap-2 border-b border-chat-divider px-4 py-3">
-          <LuSearch className="h-4 w-4 shrink-0 text-neutral-400" />
+          <IoSearchOutline className="h-4 w-4 shrink-0 text-neutral-400" />
           <input
             autoFocus
             value={query}
@@ -140,7 +141,7 @@ export function ChatCommandPalette({
                     >
                       {title}
                     </Text>
-                    <LuCornerDownLeft className="h-3.5 w-3.5 shrink-0 text-neutral-300" />
+                    <IoReturnDownBackOutline className="h-3.5 w-3.5 shrink-0 text-neutral-300" />
                   </button>
                 </li>
               );

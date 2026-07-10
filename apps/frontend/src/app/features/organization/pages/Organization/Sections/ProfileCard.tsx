@@ -16,9 +16,9 @@ import { UserProfile } from '@/app/features/users/types/profile';
 import { getSafeImageUrl } from '@/app/lib/urls';
 import { Organisation } from '@yosemite-crew/types';
 import React, { useMemo, useState, useRef } from 'react';
-import { RiEdit2Fill } from 'react-icons/ri';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import dynamic from 'next/dynamic';
+import { IoCreate } from 'react-icons/io5';
 const CalBookingOverlay = dynamic(() => import('@/app/ui/overlays/CalBookingOverlay'), {
   ssr: false,
 });
@@ -402,7 +402,7 @@ const ProfileCard = ({
             onClick={() => setIsEditing(true)}
             className="flex items-center justify-center size-[38px] shrink-0 rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] hover:border-[var(--blue)] hover:text-[var(--blue-text)] transition-colors cursor-pointer"
           >
-            <RiEdit2Fill size={16} />
+            <IoCreate size={16} />
           </button>
         )}
       </div>

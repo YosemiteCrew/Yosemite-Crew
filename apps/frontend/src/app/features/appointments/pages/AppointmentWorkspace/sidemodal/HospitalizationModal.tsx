@@ -1,8 +1,6 @@
 'use client';
 import React, { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { LuCheck } from 'react-icons/lu';
-import { TiPlus } from 'react-icons/ti';
-import { HiUser } from 'react-icons/hi2';
+import { IoAdd, IoCheckmarkOutline, IoPerson } from 'react-icons/io5';
 import AppointmentCentralModalShell from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentCentralModalShell';
 import AppointmentEstimatePanel from '@/app/features/appointments/components/AppointmentCentralModal/AppointmentEstimatePanel';
 import StaffField from '@/app/features/appointments/pages/AppointmentWorkspace/components/StaffField';
@@ -276,14 +274,14 @@ const HospitalizationModal = ({
               placeholder="Assigned Support"
               options={supportOptions}
               defaultOption={supportStaffId}
-              icon={<HiUser size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+              icon={<IoPerson size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
               onSelect={(option: DropdownOption) => setSupportStaffId(option.value)}
             />
             <MultiSelectDropdown
               placeholder="Additional Service / Package"
               options={servicePackageOptions}
               value={servicePackageIds}
-              icon={<TiPlus size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
+              icon={<IoAdd size={13} style={{ color: NEUTRAL_900 }} aria-hidden="true" />}
               onChange={setServicePackageIds}
               searchable
               portal
@@ -328,7 +326,7 @@ const HospitalizationModal = ({
               e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
             }}
           >
-            <LuCheck aria-hidden="true" />
+            <IoCheckmarkOutline aria-hidden="true" />
             {isConverting ? 'Converting' : 'Convert to Inpatient'}
           </button>
         </div>

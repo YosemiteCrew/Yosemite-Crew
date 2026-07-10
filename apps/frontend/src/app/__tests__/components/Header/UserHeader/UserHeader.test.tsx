@@ -41,9 +41,24 @@ jest.mock('next/image', () => ({
 }));
 
 // Mock Icons
-jest.mock('react-icons/md', () => ({
-  MdNotificationsActive: () => <svg data-testid="notification-icon" />,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 jest.mock('@/app/hooks/useMerckIntegration', () => ({
   useResolvedMerckIntegrationForPrimaryOrg: jest.fn(() => ({ isEnabled: true })),
 }));
@@ -77,7 +92,7 @@ describe('UserHeader Component', () => {
     expect(screen.getByTestId('next-link')).toHaveAttribute('href', '/dashboard');
 
     // Notification Icon
-    expect(screen.getByTestId('notification-icon')).toBeInTheDocument();
+    expect(screen.getByTestId('IoNotifications')).toBeInTheDocument();
 
     // Menu Toggle Button (Hamburger)
     expect(screen.getByLabelText('Open menu')).toBeInTheDocument();

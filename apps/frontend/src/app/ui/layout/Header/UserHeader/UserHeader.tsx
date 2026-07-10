@@ -1,26 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
-  MdDashboard,
-  MdInventory2,
-  MdNotificationsActive,
-  MdOutlineChecklist,
-  MdOutlineCorporateFare,
-} from 'react-icons/md';
-import {
   IoBookOutline,
+  IoBusinessOutline,
   IoCalendarOutline,
+  IoCaretDown,
   IoChatbubbleEllipsesOutline,
+  IoCubeOutline,
   IoExtensionPuzzleOutline,
   IoGitNetworkOutline,
   IoGlobeOutline,
+  IoGridOutline,
   IoHelpCircleOutline,
   IoKeyOutline,
+  IoListOutline,
   IoLogOutOutline,
+  IoNotifications,
+  IoPaw,
   IoSettingsOutline,
   IoWalletOutline,
 } from 'react-icons/io5';
-import { FaPaw, FaCaretDown } from 'react-icons/fa6';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSignOut } from '@/app/hooks/useAuth';
 import { removeStorageItem } from '@/app/lib/browserStorage';
@@ -49,14 +48,14 @@ import { ThemeToggle } from '@/app/ui/theme';
 import './UserHeader.css';
 
 const ROUTE_ICONS = {
-  Dashboard: MdDashboard,
-  Organization: MdOutlineCorporateFare,
+  Dashboard: IoGridOutline,
+  Organization: IoBusinessOutline,
   Appointments: IoCalendarOutline,
-  Tasks: MdOutlineChecklist,
+  Tasks: IoListOutline,
   Chat: IoChatbubbleEllipsesOutline,
   Finance: IoWalletOutline,
-  Companions: FaPaw,
-  Inventory: MdInventory2,
+  Companions: IoPaw,
+  Inventory: IoCubeOutline,
   Integrations: IoGitNetworkOutline,
   Templates: IoBookOutline,
   'API Keys': IoKeyOutline,
@@ -374,7 +373,7 @@ const UserHeader = () => {
                   <span className="yc-header-kicker">Organization</span>
                   <span className="yc-header-primary-text">{primaryOrg?.name}</span>
                 </span>
-                <FaCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={16} />
+                <IoCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={16} />
               </button>
               {selectOrg && (
                 <div id={orgMenuId} className="yc-mobile-dropdown-list" role="menu">
@@ -479,7 +478,7 @@ const UserHeader = () => {
                 <span className="yc-header-kicker">Organization</span>
                 <span className="yc-header-primary-text">{primaryOrg?.name}</span>
               </span>
-              <FaCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={15} />
+              <IoCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={15} />
             </button>
             {selectOrg && (
               <div
@@ -544,7 +543,7 @@ const UserHeader = () => {
         <ThemeToggle />
 
         <button type="button" className="yc-icon-button" aria-label="Notifications">
-          <MdNotificationsActive size={19} />
+          <IoNotifications size={19} />
         </button>
 
         <div className="yc-profile-wrap" ref={profileDropdownRef}>
@@ -564,7 +563,7 @@ const UserHeader = () => {
               className="yc-header-avatar"
             />
             <span className="yc-profile-name">{displayName}</span>
-            <FaCaretDown className={selectProfile ? 'yc-chevron-open' : ''} size={15} />
+            <IoCaretDown className={selectProfile ? 'yc-chevron-open' : ''} size={15} />
           </button>
           {selectProfile && (
             <div

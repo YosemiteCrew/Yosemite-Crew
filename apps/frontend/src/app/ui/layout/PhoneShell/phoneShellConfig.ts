@@ -1,17 +1,19 @@
 import type { IconType } from 'react-icons';
 import {
   IoBookOutline,
+  IoBusinessOutline,
   IoCalendarOutline,
   IoChatbubbleEllipsesOutline,
   IoCodeSlashOutline,
+  IoCubeOutline,
   IoEllipsisHorizontal,
   IoGitNetworkOutline,
   IoHomeOutline,
+  IoListOutline,
+  IoPaw,
   IoSettingsOutline,
   IoWalletOutline,
 } from 'react-icons/io5';
-import { MdInventory2, MdOutlineChecklist, MdOutlineCorporateFare } from 'react-icons/md';
-import { FaPaw } from 'react-icons/fa6';
 
 /**
  * Static definition of the phone shell navigation. All hrefs and route names
@@ -57,7 +59,7 @@ export const PHONE_TABS: PhoneTabConfig[] = [
   {
     key: 'patients',
     label: 'Patients',
-    icon: FaPaw,
+    icon: IoPaw,
     href: '/companions',
     routeName: 'Companions',
     activePrefixes: ['/companions'],
@@ -157,7 +159,7 @@ export const PHONE_MORE_SECTIONS: MoreSectionConfig[] = [
     context: 'Team to-dos and follow-ups',
     href: '/tasks',
     routeName: 'Tasks',
-    icon: MdOutlineChecklist,
+    icon: IoListOutline,
   },
   {
     key: 'finance',
@@ -173,7 +175,7 @@ export const PHONE_MORE_SECTIONS: MoreSectionConfig[] = [
     context: 'Stock, dispensary and restock',
     href: '/inventory',
     routeName: 'Inventory',
-    icon: MdInventory2,
+    icon: IoCubeOutline,
   },
   {
     key: 'templates',
@@ -197,7 +199,7 @@ export const PHONE_MORE_SECTIONS: MoreSectionConfig[] = [
     context: 'Profile, team and rooms',
     href: '/organization',
     routeName: 'Organization',
-    icon: MdOutlineCorporateFare,
+    icon: IoBusinessOutline,
   },
 ];
 

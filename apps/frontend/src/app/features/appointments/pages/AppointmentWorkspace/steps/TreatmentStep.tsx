@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { LuPrinter, LuSave } from 'react-icons/lu';
+import { IoPrintOutline, IoSaveOutline } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import ServicesPackagesEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/ServicesPackagesEditor';
 import PrescriptionEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/PrescriptionEditor';
@@ -843,13 +843,13 @@ const TreatmentStep = ({
         <div className="flex flex-wrap justify-between gap-3">
           <Secondary
             text={printingLabels ? 'Printing...' : 'Print Labels'}
-            icon={<LuPrinter aria-hidden="true" />}
+            icon={<IoPrintOutline aria-hidden="true" />}
             onClick={() => void handlePrintPrescriptionLabels()}
             isDisabled={printingLabels}
           />
           <Primary
             text={isSavingTreatment ? 'Saving…' : 'Save treatment'}
-            icon={<LuSave aria-hidden="true" />}
+            icon={<IoSaveOutline aria-hidden="true" />}
             onClick={() => void handleSaveTreatment()}
             isDisabled={readOnly || isSavingTreatment}
           />

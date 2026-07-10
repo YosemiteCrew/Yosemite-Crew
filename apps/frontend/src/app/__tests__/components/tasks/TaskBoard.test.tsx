@@ -108,18 +108,43 @@ jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: jest.fn(),
 }));
 
-jest.mock('react-icons/io5', () => ({
-  IoAdd: () => <span>add</span>,
-  IoEyeOutline: () => <span>view</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdOutlineAutorenew: () => <span>renew</span>,
-}));
-
-jest.mock('react-icons/io', () => ({
-  IoIosCalendar: () => <span>calendar</span>,
-}));
+jest.mock(
+  'react-icons/io',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 const makeDataTransfer = () => ({
   effectAllowed: '',

@@ -1,7 +1,6 @@
 import React from 'react';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
-import { IoEyeOutline } from 'react-icons/io5';
-import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import { IoIosCalendar } from 'react-icons/io';
 import TaskCard from '@/app/ui/cards/TaskCard';
 import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
@@ -150,7 +149,7 @@ const Tasks = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Change status"
                 >
-                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+                  <IoSyncOutline size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}

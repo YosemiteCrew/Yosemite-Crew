@@ -1,6 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { LuPlus, LuTrash2 } from 'react-icons/lu';
-import { AiOutlineInfoCircle } from 'react-icons/ai';
+import { IoAddOutline, IoInformationCircleOutline, IoTrashOutline } from 'react-icons/io5';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
@@ -52,7 +51,7 @@ const InfoTooltipIcon = ({
       aria-label={label}
       className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
     >
-      <AiOutlineInfoCircle aria-hidden="true" size={14} />
+      <IoInformationCircleOutline aria-hidden="true" size={14} />
     </button>
   </GlassTooltip>
 );
@@ -303,7 +302,7 @@ const BillRow = ({
         <span aria-hidden="true" className="inline-block size-9" />
       ) : (
         <CircleIconButton
-          icon={<LuTrash2 aria-hidden="true" />}
+          icon={<IoTrashOutline aria-hidden="true" />}
           label={`Remove ${item.name}`}
           variant="danger"
           onClick={() => onRemoveItem(item.id)}
@@ -530,7 +529,7 @@ const TotalBillContainer = ({
           match the other steps' search bars (SOAP / Services / Prescription). */}
         <div className="relative flex items-center justify-end gap-3">
           <CircleIconButton
-            icon={<LuPlus aria-hidden="true" />}
+            icon={<IoAddOutline aria-hidden="true" />}
             label="Add invoice item"
             variant="dark"
             onClick={() => {

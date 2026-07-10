@@ -1,5 +1,5 @@
 import React from 'react';
-import { LuActivity, LuChevronRight } from 'react-icons/lu';
+import { IoChevronForwardOutline, IoPulseOutline } from 'react-icons/io5';
 import type { ObservationRecord, Vitals } from '@/app/features/appointments/types/workspace';
 import { formatStampTime } from '@/app/lib/appointmentWorkspace';
 
@@ -148,7 +148,7 @@ const WorkspaceVitalsPanel = ({
                 className="flex items-center gap-3 border-b border-card-border px-4 py-3 last:border-b-0"
               >
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-primary-100 text-text-brand">
-                  <LuActivity size={16} aria-hidden="true" />
+                  <IoPulseOutline size={16} aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-body-4 font-bold text-text-primary">
@@ -160,7 +160,7 @@ const WorkspaceVitalsPanel = ({
                     {obs.recordedAt ? ` · ${formatStampTime(obs.recordedAt)}` : ''}
                   </span>
                 </span>
-                <LuChevronRight
+                <IoChevronForwardOutline
                   size={14}
                   aria-hidden="true"
                   className="shrink-0 text-text-tertiary"

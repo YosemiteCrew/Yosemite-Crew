@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { HistoryEntry } from '@/app/features/companionHistory/types/history';
 import { Badge, Card } from '@/app/ui';
-import { RiExternalLinkLine } from 'react-icons/ri';
+import { IoOpenOutline } from 'react-icons/io5';
 import {
   formatCurrency,
   formatHistoryDate,
@@ -281,7 +281,7 @@ const HistoryEntryCard = ({ entry, onOpen }: HistoryEntryCardProps) => {
             {entry.title}
           </span>
           <span className="inline-flex items-center justify-center rounded-r-2xl pl-1 pr-0.5 text-text-secondary transition-colors group-hover:text-text-brand">
-            <RiExternalLinkLine size={12} />
+            <IoOpenOutline size={12} />
           </span>
         </button>
         {subtitle ? <div className="text-caption-1 text-text-secondary">{subtitle}</div> : null}

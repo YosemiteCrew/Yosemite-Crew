@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { LuDownload } from 'react-icons/lu';
+import { IoDownloadOutline } from 'react-icons/io5';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { getSafePdfPreviewUrl } from '@/app/lib/urls';
@@ -48,7 +48,7 @@ const PdfPreviewOverlay = ({
                 aria-label={downloadLabel}
                 style={{ pointerEvents: 'auto' }}
               >
-                <LuDownload aria-hidden="true" />
+                <IoDownloadOutline aria-hidden="true" />
                 <span>Download</span>
               </button>
             )}

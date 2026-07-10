@@ -2,10 +2,9 @@
 import React, { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { FilterOption, StatusOption } from '@/app/features/companions/pages/Companions/types';
-import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import { IoAdd, IoWarning } from 'react-icons/io5';
+import { IoAdd, IoCaretDown, IoWarning } from 'react-icons/io5';
 const getDropdownStatusTextColor = (status: StatusOption): string =>
   status.dropdownText ?? status.text ?? 'var(--color-text-primary)';
 
@@ -201,7 +200,7 @@ const Filters = ({
                   ? 'Status'
                   : (selectedStatus?.name ?? 'Status')}
               </span>
-              <FaCaretDown
+              <IoCaretDown
                 size={14}
                 className={clsx('shrink-0 transition-transform', open && 'rotate-180')}
               />

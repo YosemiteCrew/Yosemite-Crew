@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  LuArrowRight,
-  LuBanknote,
-  LuCheck,
-  LuCreditCard,
-  LuDownload,
-  LuEye,
-  LuEyeOff,
-  LuShare,
-  LuUpload,
-} from 'react-icons/lu';
+  IoArrowForwardOutline,
+  IoCardOutline,
+  IoCashOutline,
+  IoCheckmarkOutline,
+  IoCloudUploadOutline,
+  IoDownloadOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoShareOutline,
+} from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import TotalBillContainer from '@/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer';
@@ -735,7 +735,7 @@ const PaymentProgressOverlay = ({
           <YosemiteLoader size={64} testId="invoice-payment-progress-loader" />
         ) : (
           <span className="flex size-14 items-center justify-center rounded-full bg-success-100 text-success-600">
-            <LuCheck size={26} aria-hidden="true" />
+            <IoCheckmarkOutline size={26} aria-hidden="true" />
           </span>
         )}
         <div className="flex flex-col gap-2">
@@ -782,7 +782,7 @@ const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-3xl bg-[#15803D] px-3 py-1 text-caption-1 font-medium text-white">
       {label}
-      <LuCheck aria-hidden="true" />
+      <IoCheckmarkOutline aria-hidden="true" />
     </span>
   );
 };
@@ -928,21 +928,27 @@ const InvoiceRow = ({
         </div>
         <div className="flex justify-end gap-2">
           <CircleIconButton
-            icon={expanded ? <LuEyeOff aria-hidden="true" /> : <LuEye aria-hidden="true" />}
+            icon={
+              expanded ? (
+                <IoEyeOffOutline aria-hidden="true" />
+              ) : (
+                <IoEyeOutline aria-hidden="true" />
+              )
+            }
             label={expanded ? `Hide invoice ${invoice.id}` : `View invoice ${invoice.id}`}
             variant="dark"
             onClick={() => onToggle(invoice.id)}
           />
           {settled && (
             <CircleIconButton
-              icon={<LuDownload aria-hidden="true" />}
+              icon={<IoDownloadOutline aria-hidden="true" />}
               label={`Download invoice ${invoice.id}`}
               onClick={() => onDownload(invoice)}
             />
           )}
           {settled && !readOnly && (
             <CircleIconButton
-              icon={<LuShare aria-hidden="true" />}
+              icon={<IoShareOutline aria-hidden="true" />}
               label={`Share invoice ${invoice.id}`}
               onClick={() => onShare(invoice)}
             />
@@ -965,7 +971,7 @@ const InvoiceRow = ({
           {invoice.paymentMethod && (
             <span className="inline-flex items-center gap-2 rounded-3xl bg-[#15803D] px-4 py-2 text-body-4 font-medium text-white">
               {PAYMENT_LABELS[invoice.paymentMethod]}
-              <LuCheck aria-hidden="true" />
+              <IoCheckmarkOutline aria-hidden="true" />
             </span>
           )}
         </div>
@@ -1051,7 +1057,7 @@ export const PaymentActions = ({
   const collectButton = (
     <Primary
       text={`Collect ${formatMoney(dueCents / 100, currency)}`}
-      icon={<LuBanknote aria-hidden="true" />}
+      icon={<IoCashOutline aria-hidden="true" />}
       iconPosition="right"
       onClick={() => onCollect(method)}
       isDisabled={paymentDisabled}
@@ -1090,7 +1096,7 @@ export const PaymentActions = ({
       <div className="flex flex-wrap gap-2 border-t border-card-border pt-3">
         <Secondary
           text="Collect Deposit"
-          icon={<LuCreditCard aria-hidden="true" />}
+          icon={<IoCardOutline aria-hidden="true" />}
           iconPosition="right"
           onClick={() => onCollect('DEPOSIT')}
           isDisabled={depositDisabled}
@@ -1098,7 +1104,7 @@ export const PaymentActions = ({
         {isInpatient && (
           <Secondary
             text="Send to Client"
-            icon={<LuUpload aria-hidden="true" />}
+            icon={<IoCloudUploadOutline aria-hidden="true" />}
             iconPosition="right"
             onClick={onSendToClient}
             isDisabled={paymentDisabled}
@@ -2089,7 +2095,7 @@ const InvoiceStep = ({
           )}
           <Primary
             text="Summary"
-            icon={<LuArrowRight aria-hidden="true" />}
+            icon={<IoArrowForwardOutline aria-hidden="true" />}
             iconPosition="right"
             onClick={handleFinishInvoice}
             isDisabled={hasIncompleteMedications}

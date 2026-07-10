@@ -1,8 +1,7 @@
 'use client';
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { FaUser, FaCalendar } from 'react-icons/fa';
-import { IoDocument } from 'react-icons/io5';
+import { IoCalendarOutline, IoDocument, IoPersonOutline } from 'react-icons/io5';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import { StepContent } from '@/app/features/onboarding/components/Steps/types';
@@ -23,7 +22,7 @@ import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 const TeamSteps: StepContent[] = [
   {
     title: 'Personal',
-    logo: <FaUser size={17} />,
+    logo: <IoPersonOutline size={17} />,
   },
   {
     title: 'Professional',
@@ -31,7 +30,7 @@ const TeamSteps: StepContent[] = [
   },
   {
     title: 'Availability & consultation',
-    logo: <FaCalendar size={16} />,
+    logo: <IoCalendarOutline size={16} />,
   },
 ];
 

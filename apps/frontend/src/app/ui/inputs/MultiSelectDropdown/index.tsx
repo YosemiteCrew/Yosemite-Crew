@@ -2,8 +2,7 @@ import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef 
 import { createPortal } from 'react-dom';
 import { IoIosWarning } from 'react-icons/io';
 import { Option } from '@/app/features/companions/types/companion';
-import { IoChevronDown } from 'react-icons/io5';
-import { FiCheck } from 'react-icons/fi';
+import { IoCheckmarkOutline, IoChevronDown } from 'react-icons/io5';
 import { useDropdown, useFilteredOptions } from '@/app/hooks/useDropdown';
 
 type DropdownProps = {
@@ -243,7 +242,11 @@ const MultiSelectPanel = ({
               )}
             </span>
             {isSelected && (
-              <FiCheck size={14} className="shrink-0 text-text-brand" aria-hidden="true" />
+              <IoCheckmarkOutline
+                size={14}
+                className="shrink-0 text-text-brand"
+                aria-hidden="true"
+              />
             )}
           </button>
         );

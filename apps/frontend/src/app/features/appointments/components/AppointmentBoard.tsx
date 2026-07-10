@@ -28,16 +28,19 @@ import {
 } from '@/app/lib/paymentStatus';
 import {
   IoAdd,
+  IoBusinessOutline,
   IoCardOutline,
+  IoCheckmarkCircle,
   IoDocumentTextOutline,
   IoEyeOutline,
+  IoFlaskOutline,
+  IoSyncOutline,
+  IoTimeOutline,
   IoWarning,
 } from 'react-icons/io5';
-import { RiHistoryLine } from 'react-icons/ri';
 import Image from 'next/image';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCalendar, IoIosCloseCircle } from 'react-icons/io';
 import {
   allowCalendarDrag,
@@ -53,7 +56,6 @@ import {
   isRequestedLikeStatus,
   normalizeAppointmentStatus,
 } from '@/app/lib/appointments';
-import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useNotify } from '@/app/hooks/useNotify';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
@@ -662,7 +664,7 @@ const AppointmentBoardComponent = ({
                                   openChangeStatus(appointment);
                                 }}
                               >
-                                <FaCheckCircle size={14} color="var(--color-success-400)" />
+                                <IoCheckmarkCircle size={14} color="var(--color-success-400)" />
                               </button>
                             </GlassTooltip>
                             <GlassTooltip content="Decline request" side="bottom">
@@ -708,7 +710,7 @@ const AppointmentBoardComponent = ({
                                 }}
                                 title="Appointment overview"
                               >
-                                <RiHistoryLine size={15} color="var(--color-neutral-900)" />
+                                <IoTimeOutline size={15} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                             {canEditAppointments &&
@@ -723,10 +725,7 @@ const AppointmentBoardComponent = ({
                                       openChangeStatus(appointment);
                                     }}
                                   >
-                                    <MdOutlineAutorenew
-                                      size={15}
-                                      color="var(--color-neutral-900)"
-                                    />
+                                    <IoSyncOutline size={15} color="var(--color-neutral-900)" />
                                   </button>
                                 </GlassTooltip>
                               )}
@@ -757,7 +756,7 @@ const AppointmentBoardComponent = ({
                                       openChangeRoom(appointment);
                                     }}
                                   >
-                                    <MdMeetingRoom size={15} color="var(--color-neutral-900)" />
+                                    <IoBusinessOutline size={15} color="var(--color-neutral-900)" />
                                   </button>
                                 </GlassTooltip>
                               )}
@@ -814,7 +813,7 @@ const AppointmentBoardComponent = ({
                                   });
                                 }}
                               >
-                                <MdScience size={15} color="var(--color-neutral-900)" />
+                                <IoFlaskOutline size={15} color="var(--color-neutral-900)" />
                               </button>
                             </GlassTooltip>
                           </div>

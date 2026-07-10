@@ -34,16 +34,15 @@ import {
   canEnterAppointmentWorkspace,
 } from '@/app/lib/appointmentWorkspace';
 import {
-  IoCalendarOutline,
-  IoDocumentTextOutline,
-  IoCardOutline,
-  IoFlaskOutline,
   IoArrowForward,
+  IoBusinessOutline,
+  IoCalendarOutline,
+  IoCardOutline,
+  IoCheckmarkCircle,
+  IoDocumentTextOutline,
+  IoFlaskOutline,
   IoTimeOutline,
 } from 'react-icons/io5';
-import { MdMeetingRoom } from 'react-icons/md';
-import { RiHistoryLine } from 'react-icons/ri';
-import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCloseCircle } from 'react-icons/io';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { getAppointmentRoomDisplay } from '@/app/lib/appointmentRoomDisplay';
@@ -330,7 +329,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                   onClose();
                 }}
               >
-                <FaCheckCircle size={18} color="var(--color-success-400)" aria-hidden="true" />
+                <IoCheckmarkCircle size={18} color="var(--color-success-400)" aria-hidden="true" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Decline request" side="top">
@@ -371,7 +370,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                   onClose();
                 }}
               >
-                <RiHistoryLine size={20} aria-hidden="true" />
+                <IoTimeOutline size={20} aria-hidden="true" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Finance summary" side="top">
@@ -428,7 +427,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
                     onClose();
                   }}
                 >
-                  <MdMeetingRoom size={20} aria-hidden="true" />
+                  <IoBusinessOutline size={20} aria-hidden="true" />
                 </button>
               </GlassTooltip>
             )}

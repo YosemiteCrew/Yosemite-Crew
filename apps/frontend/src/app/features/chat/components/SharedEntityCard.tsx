@@ -10,13 +10,12 @@
 import clsx from 'clsx';
 import type { IconType } from 'react-icons';
 import {
-  LuStethoscope,
-  LuCalendar,
-  LuReceipt,
-  LuClipboardList,
-  LuPill,
-  LuFileText,
-} from 'react-icons/lu';
+  IoCalendarOutline,
+  IoClipboardOutline,
+  IoDocumentTextOutline,
+  IoMedkitOutline,
+  IoReceiptOutline,
+} from 'react-icons/io5';
 import Text from '@/app/ui/Text';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
@@ -28,12 +27,12 @@ export type SharedEntityData = {
 };
 
 const ICONS: Record<string, IconType> = {
-  COMPANION: LuStethoscope,
-  APPOINTMENT: LuCalendar,
-  INVOICE: LuReceipt,
-  FORM: LuClipboardList,
-  PRESCRIPTION: LuPill,
-  DOCUMENT: LuFileText,
+  COMPANION: IoMedkitOutline,
+  APPOINTMENT: IoCalendarOutline,
+  INVOICE: IoReceiptOutline,
+  FORM: IoClipboardOutline,
+  PRESCRIPTION: IoMedkitOutline,
+  DOCUMENT: IoDocumentTextOutline,
 };
 
 const LABELS: Record<string, string> = {
@@ -50,7 +49,7 @@ export function SharedEntityCard({
   mine,
 }: Readonly<{ entity: SharedEntityData; mine?: boolean }>) {
   const rewrite = useCompanionTerminologyText();
-  const Icon = ICONS[entity.entityType] ?? LuFileText;
+  const Icon = ICONS[entity.entityType] ?? IoDocumentTextOutline;
   const baseLabel = LABELS[entity.entityType] ?? 'Shared item';
   const label = entity.entityType === 'COMPANION' ? rewrite(baseLabel) : baseLabel;
   const subtitle =

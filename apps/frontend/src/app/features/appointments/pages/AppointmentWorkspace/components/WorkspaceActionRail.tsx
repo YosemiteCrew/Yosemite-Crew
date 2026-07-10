@@ -1,14 +1,13 @@
 import React from 'react';
 import type { IconType } from 'react-icons';
 import {
-  LuActivity,
-  LuActivitySquare,
-  LuBookOpen,
-  LuCalculator,
-  LuClipboardList,
-  LuFileText,
-  LuMessageSquare,
-} from 'react-icons/lu';
+  IoBookOutline,
+  IoCalculatorOutline,
+  IoChatboxOutline,
+  IoClipboardOutline,
+  IoDocumentTextOutline,
+  IoPulseOutline,
+} from 'react-icons/io5';
 import type { SideAction } from '@/app/features/appointments/types/workspace';
 
 type WorkspaceActionRailProps = {
@@ -17,13 +16,13 @@ type WorkspaceActionRailProps = {
 };
 
 const RAIL_ITEMS: { key: SideAction; label: string; icon: IconType }[] = [
-  { key: 'RECORD', label: 'Record vitals', icon: LuActivitySquare },
-  { key: 'TASKS', label: 'Tasks', icon: LuClipboardList },
-  { key: 'DOCUMENTS', label: 'Documents', icon: LuFileText },
-  { key: 'CHAT', label: 'Chat', icon: LuMessageSquare },
-  { key: 'ACTIVITY', label: 'Activity', icon: LuActivity },
-  { key: 'MSD', label: 'MSD Manual', icon: LuBookOpen },
-  { key: 'CALCULATORS', label: 'Calculators', icon: LuCalculator },
+  { key: 'RECORD', label: 'Record vitals', icon: IoPulseOutline },
+  { key: 'TASKS', label: 'Tasks', icon: IoClipboardOutline },
+  { key: 'DOCUMENTS', label: 'Documents', icon: IoDocumentTextOutline },
+  { key: 'CHAT', label: 'Chat', icon: IoChatboxOutline },
+  { key: 'ACTIVITY', label: 'Activity', icon: IoPulseOutline },
+  { key: 'MSD', label: 'MSD Manual', icon: IoBookOutline },
+  { key: 'CALCULATORS', label: 'Calculators', icon: IoCalculatorOutline },
 ];
 
 /**

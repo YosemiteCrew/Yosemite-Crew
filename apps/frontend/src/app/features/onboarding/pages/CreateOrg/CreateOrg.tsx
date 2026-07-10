@@ -1,8 +1,7 @@
 'use client';
 import React, { Suspense, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { HiShoppingBag } from 'react-icons/hi2';
-import { IoLocationSharp } from 'react-icons/io5';
+import { IoBag, IoLocationSharp } from 'react-icons/io5';
 
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import { Organisation } from '@yosemite-crew/types';
@@ -18,7 +17,7 @@ import './CreateOrg.css';
 const OrgSteps = [
   {
     title: 'Organization',
-    logo: <HiShoppingBag size={18} />,
+    logo: <IoBag size={18} />,
   },
   {
     title: 'Address',

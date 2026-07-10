@@ -2,7 +2,7 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import { LuCopy, LuPlus, LuTrash2 } from 'react-icons/lu';
+import { IoAddOutline, IoCopyOutline, IoTrashOutline } from 'react-icons/io5';
 import {
   FormField,
   FormFieldType,
@@ -711,7 +711,7 @@ const MedicineCard: React.FC<{
           {summary && <span className="text-caption-2 text-text-secondary">{summary}</span>}
         </div>
         <CircleIconButton
-          icon={<LuTrash2 size={16} aria-hidden="true" />}
+          icon={<IoTrashOutline size={16} aria-hidden="true" />}
           label={`Remove ${name}`}
           onClick={onRemove}
         />
@@ -1044,12 +1044,12 @@ const TaskBlockCard: React.FC<{
         <p className="text-body-3-emphasis text-text-primary">Task {index + 1}</p>
         <div className="flex items-center gap-2">
           <CircleIconButton
-            icon={<LuCopy size={16} aria-hidden="true" />}
+            icon={<IoCopyOutline size={16} aria-hidden="true" />}
             label={`Duplicate task ${index + 1}`}
             onClick={onDuplicate}
           />
           <CircleIconButton
-            icon={<LuTrash2 size={16} aria-hidden="true" />}
+            icon={<IoTrashOutline size={16} aria-hidden="true" />}
             label={`Remove task ${index + 1}`}
             onClick={onRemove}
           />
@@ -1172,7 +1172,7 @@ const TaskGroupBuilder: React.FC<TaskGroupBuilderProps> = ({ field, onChange }) 
           className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-card-border bg-neutral-0 p-6 text-body-3-emphasis text-text-primary"
         >
           <span className="flex size-6 items-center justify-center rounded-full bg-neutral-900 text-neutral-0">
-            <LuPlus size={14} aria-hidden="true" />
+            <IoAddOutline size={14} aria-hidden="true" />
           </span>
           <span>Add task block</span>
         </button>
@@ -1196,7 +1196,7 @@ const TaskGroupBuilder: React.FC<TaskGroupBuilderProps> = ({ field, onChange }) 
           className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-card-border bg-neutral-0 p-4 text-body-3-emphasis text-text-primary"
         >
           <span className="flex size-6 items-center justify-center rounded-full bg-neutral-900 text-neutral-0">
-            <LuPlus size={14} aria-hidden="true" />
+            <IoAddOutline size={14} aria-hidden="true" />
           </span>
           <span>Add another task</span>
         </button>

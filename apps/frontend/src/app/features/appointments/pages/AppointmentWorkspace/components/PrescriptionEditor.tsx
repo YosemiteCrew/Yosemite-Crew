@@ -1,5 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { LuChevronDown, LuCopy, LuPrinter, LuShield, LuTrash2 } from 'react-icons/lu';
+import {
+  IoChevronDownOutline,
+  IoCopyOutline,
+  IoPrintOutline,
+  IoShieldOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
@@ -101,7 +107,7 @@ const FulfillmentDropdown = ({
           </option>
         ))}
       </select>
-      <LuChevronDown
+      <IoChevronDownOutline
         size={16}
         aria-hidden="true"
         className={`pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 transition-transform ${open ? 'rotate-180' : ''}`}
@@ -124,7 +130,7 @@ const FactChip = ({ label, value }: { label: string; value?: string }) => {
 /** Amber controlled-drug pill, optionally annotated with the DEA schedule. */
 const ControlledPill = ({ schedule }: { schedule?: string }) => (
   <span className="inline-flex items-center gap-1 rounded-2xl border border-pill-warning-text bg-pill-warning-bg px-2 py-0.5 text-caption-2 font-medium text-pill-warning-text">
-    <LuShield size={12} aria-hidden="true" />
+    <IoShieldOutline size={12} aria-hidden="true" />
     {schedule ? `Controlled · ${schedule}` : 'Controlled'}
   </span>
 );
@@ -203,7 +209,7 @@ const InstructionsField = ({
       onClick={() => copyValue(value)}
       className="absolute top-1/2 right-3 -translate-y-1/2 text-text-secondary hover:text-text-brand focus-visible:outline-none"
     >
-      <LuCopy size={16} aria-hidden="true" />
+      <IoCopyOutline size={16} aria-hidden="true" />
     </button>
   </div>
 );
@@ -262,7 +268,7 @@ const PrescriptionRow = ({
           />
           {isBilled ? null : (
             <CircleIconButton
-              icon={<LuTrash2 aria-hidden="true" />}
+              icon={<IoTrashOutline aria-hidden="true" />}
               label={`Remove ${item.medicineName}`}
               variant="danger"
               disabled={deleteLocked}
@@ -410,7 +416,7 @@ const PrescriptionEditor = ({
           steps); results surface as a dropdown on type. */}
       <div className="relative z-50 flex items-center justify-end gap-3">
         <CircleIconButton
-          icon={<LuPrinter aria-hidden="true" />}
+          icon={<IoPrintOutline aria-hidden="true" />}
           label="Print Labels"
           onClick={onPrint}
         />

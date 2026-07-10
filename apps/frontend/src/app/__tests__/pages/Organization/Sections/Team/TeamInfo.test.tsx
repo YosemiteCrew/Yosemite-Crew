@@ -172,13 +172,24 @@ jest.mock('@/app/hooks/useOrgSelectors', () => ({
   usePrimaryOrgWithMembership: jest.fn(),
 }));
 
-jest.mock('react-icons/md', () => ({
-  MdDeleteForever: ({ onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      delete-icon
-    </button>
-  ),
-}));
+jest.mock('react-icons/io5', () => {
+  const cache: Record<string, any> = {};
+  return new Proxy(
+    { __esModule: true },
+    {
+      get: (_t, name) => {
+        if (name === '__esModule') return true;
+        const key = String(name);
+        if (!cache[key]) {
+          const Icon = (props: any) => <span data-testid={key} onClick={props.onClick} />;
+          Icon.displayName = key;
+          cache[key] = Icon;
+        }
+        return cache[key];
+      },
+    }
+  );
+});
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick, isDisabled }: any) => (
@@ -300,7 +311,7 @@ describe('TeamInfo', () => {
     );
 
     await screen.findByText(/FULL_TIME/);
-    expect(screen.queryByRole('button', { name: 'delete-icon' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('IoTrash')).not.toBeInTheDocument();
   });
 
   it('deletes a member and closes both modals on success', async () => {
@@ -309,7 +320,7 @@ describe('TeamInfo', () => {
     );
 
     await screen.findByText(/FULL_TIME/);
-    fireEvent.click(await screen.findByRole('button', { name: 'delete-icon' }));
+    fireEvent.click(await screen.findByTestId('IoTrash'));
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => {
@@ -331,7 +342,7 @@ describe('TeamInfo', () => {
     );
 
     await screen.findByText(/FULL_TIME/);
-    fireEvent.click(await screen.findByRole('button', { name: 'delete-icon' }));
+    fireEvent.click(await screen.findByTestId('IoTrash'));
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => {

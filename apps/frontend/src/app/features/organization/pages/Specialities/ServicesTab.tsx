@@ -1,8 +1,4 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import { RiEdit2Line } from 'react-icons/ri';
-import { MdOutlineArchive } from 'react-icons/md';
-import { LuBedSingle, LuCheck } from 'react-icons/lu';
-import { AiOutlineInfoCircle, AiOutlinePlus } from 'react-icons/ai';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { ServiceRevamp } from '@/app/features/organization/types/revamp';
@@ -20,6 +16,14 @@ import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoney } from '@/app/lib/money';
 import YosemiteLoader from '@/app/ui/overlays/Loader/YosemiteLoader';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
+import {
+  IoAddOutline,
+  IoArchiveOutline,
+  IoBedOutline,
+  IoCheckmarkOutline,
+  IoCreateOutline,
+  IoInformationCircleOutline,
+} from 'react-icons/io5';
 
 export type ServicesTabHandle = { openAdd: () => void };
 
@@ -66,13 +70,13 @@ const ServiceRow = ({
             <div className="flex items-center gap-2">
               {service.isBookable && (
                 <Badge tone="brand">
-                  <LuCheck size={14} aria-hidden="true" />
+                  <IoCheckmarkOutline size={14} aria-hidden="true" />
                   Bookable
                 </Badge>
               )}
               {service.isInpatientPreferred && (
                 <Badge tone="brand">
-                  <LuBedSingle size={14} aria-hidden="true" />
+                  <IoBedOutline size={14} aria-hidden="true" />
                   In-patient
                 </Badge>
               )}
@@ -89,14 +93,14 @@ const ServiceRow = ({
               label={`Edit ${service.name}`}
               tooltip="Edit"
               onClick={onEdit}
-              icon={<RiEdit2Line size={20} aria-hidden="true" />}
+              icon={<IoCreateOutline size={20} aria-hidden="true" />}
             />
             <CircleIconButton
               label={`Archive ${service.name}`}
               tooltip="Archive"
               onClick={onArchive}
               variant="danger"
-              icon={<MdOutlineArchive size={20} aria-hidden="true" />}
+              icon={<IoArchiveOutline size={20} aria-hidden="true" />}
             />
           </div>
 
@@ -232,13 +236,13 @@ const ServiceRow = ({
               <CircleIconButton
                 label={`Edit ${service.name}`}
                 onClick={onEdit}
-                icon={<RiEdit2Line size={20} aria-hidden="true" />}
+                icon={<IoCreateOutline size={20} aria-hidden="true" />}
               />
               <CircleIconButton
                 label={`Archive ${service.name}`}
                 onClick={onArchive}
                 variant="danger"
-                icon={<MdOutlineArchive size={20} aria-hidden="true" />}
+                icon={<IoArchiveOutline size={20} aria-hidden="true" />}
               />
             </div>
           </div>
@@ -337,7 +341,7 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
 
       {!loading && services.length === 0 && !draftOpen && (
         <div className="flex items-center justify-center gap-2 py-8 text-body-4 text-text-secondary">
-          <AiOutlineInfoCircle size={16} aria-hidden="true" />
+          <IoInformationCircleOutline size={16} aria-hidden="true" />
           You haven&apos;t added any services yet.
         </div>
       )}
@@ -379,7 +383,7 @@ function ServicesTab({ specialityId, organisationId, ref }: ServicesTabProps) {
           onClick={handleAddClick}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-dashed border-input-border-active text-body-4 text-text-brand hover:bg-primary-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
         >
-          <AiOutlinePlus size={16} aria-hidden="true" />
+          <IoAddOutline size={16} aria-hidden="true" />
           Click to add service
         </button>
       )}

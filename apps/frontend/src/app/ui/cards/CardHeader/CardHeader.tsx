@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useRef, useState } from 'react';
-import { FaAngleDown } from 'react-icons/fa';
+import { IoChevronDownOutline } from 'react-icons/io5';
 
 type CardHeaderProps = {
   title: string;
@@ -52,7 +52,7 @@ const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => 
           <span className="text-body-4 text-text-primary" aria-hidden="true">
             {selectedValue}
           </span>
-          <FaAngleDown
+          <IoChevronDownOutline
             color="var(--color-neutral-900)"
             size={14}
             className="mt-0.5"

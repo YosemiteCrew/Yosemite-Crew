@@ -2,14 +2,62 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-jest.mock('react-icons/md', () => ({
-  MdDeleteForever: () => <span data-testid="icon-delete" />,
-  MdOutlineUnarchive: () => <span data-testid="icon-restore" />,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/ai', () => ({
-  AiOutlineInfoCircle: () => <span data-testid="icon-info" />,
-}));
+jest.mock(
+  'react-icons/ai',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
+
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 const mockRestoreService = jest.fn();
 const mockDeleteService = jest.fn();
@@ -106,7 +154,7 @@ describe('ArchiveTab', () => {
   it('shows empty state when no archived items', () => {
     render(<ArchiveTab specialityId={SPEC_ID} organisationId="org-1" />);
     expect(screen.getByText('No archived services or packages.')).toBeInTheDocument();
-    expect(screen.getByTestId('icon-info')).toBeInTheDocument();
+    expect(screen.getByTestId('IoInformationCircleOutline')).toBeInTheDocument();
   });
 
   it('filters services by specialityId and ARCHIVED status', () => {

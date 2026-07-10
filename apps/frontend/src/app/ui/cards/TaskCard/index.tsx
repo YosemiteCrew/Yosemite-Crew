@@ -4,8 +4,7 @@ import { getFormattedDate } from '@/app/features/appointments/components/Calenda
 import { Task } from '@/app/features/tasks/types/task';
 import { toTitleCase } from '@/app/lib/validators';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoEyeOutline } from 'react-icons/io5';
-import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import { IoIosCalendar } from 'react-icons/io';
 import {
   canRescheduleTask,
@@ -84,7 +83,7 @@ const TaskCard = ({
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
               title="Change status"
             >
-              <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+              <IoSyncOutline size={18} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         )}

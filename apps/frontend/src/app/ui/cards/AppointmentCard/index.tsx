@@ -11,10 +11,16 @@ import {
 import AppointmentCardContent from '@/app/features/appointments/components/AppointmentCardContent';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { IoIosCalendar, IoIosCloseCircle } from 'react-icons/io';
-import { IoEyeOutline, IoCardOutline, IoDocumentTextOutline } from 'react-icons/io5';
-import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
+import {
+  IoBusinessOutline,
+  IoCardOutline,
+  IoCheckmarkCircle,
+  IoDocumentTextOutline,
+  IoEyeOutline,
+  IoFlaskOutline,
+  IoSyncOutline,
+} from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { FaCheckCircle } from 'react-icons/fa';
 import { rejectAppointment } from '@/app/features/appointments/services/appointmentService';
 import { useOrgStore } from '@/app/stores/orgStore';
 
@@ -58,7 +64,7 @@ const AppointmentCard = ({
                 style={{ background: 'var(--color-success-100)' }}
                 onClick={() => handleChangeStatusAppointment?.(appointment)}
               >
-                <FaCheckCircle size={22} color="var(--color-success-400)" />
+                <IoCheckmarkCircle size={22} color="var(--color-success-400)" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Decline request" side="bottom">
@@ -92,7 +98,7 @@ const AppointmentCard = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Change status"
                 >
-                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+                  <IoSyncOutline size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -116,7 +122,7 @@ const AppointmentCard = ({
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Assign room"
                 >
-                  <MdMeetingRoom size={18} color="var(--color-neutral-900)" />
+                  <IoBusinessOutline size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -162,7 +168,7 @@ const AppointmentCard = ({
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Lab tests"
               >
-                <MdScience size={18} color="var(--color-neutral-900)" />
+                <IoFlaskOutline size={18} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
           </div>

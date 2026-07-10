@@ -15,16 +15,16 @@
 import { useState, type MouseEvent, type ReactNode, type SyntheticEvent } from 'react';
 import { useMessageContext, useChannelActionContext, Attachment } from 'stream-chat-react';
 import {
-  LuSmile,
-  LuCornerUpLeft,
-  LuMoreVertical,
-  LuCheck,
-  LuCheckCheck,
-  LuClock,
-  LuPencilLine,
-  LuTrash2,
-  LuX,
-} from 'react-icons/lu';
+  IoCheckmarkDoneOutline,
+  IoCheckmarkOutline,
+  IoClose,
+  IoCreateOutline,
+  IoEllipsisVertical,
+  IoHappyOutline,
+  IoReturnUpBackOutline,
+  IoTimeOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { ChatAvatar } from './ChatAvatar';
@@ -93,9 +93,11 @@ function MsgIconButton({
 
 /** Read-receipt indicator for an outgoing message. */
 function MessageStatusIcon({ sending, seen }: Readonly<{ sending: boolean; seen: boolean }>) {
-  if (sending) return <LuClock aria-label="Sending" className="h-3.5 w-3.5 text-neutral-400" />;
-  if (seen) return <LuCheckCheck aria-label="Seen" className="h-3.5 w-3.5 text-primary-500" />;
-  return <LuCheck aria-label="Sent" className="h-3.5 w-3.5 text-neutral-400" />;
+  if (sending)
+    return <IoTimeOutline aria-label="Sending" className="h-3.5 w-3.5 text-neutral-400" />;
+  if (seen)
+    return <IoCheckmarkDoneOutline aria-label="Seen" className="h-3.5 w-3.5 text-primary-500" />;
+  return <IoCheckmarkOutline aria-label="Sent" className="h-3.5 w-3.5 text-neutral-400" />;
 }
 
 /** Hover actions: react and reply, plus edit/delete for the user's own messages. */
@@ -128,10 +130,10 @@ function MessageActions({
           setPickerOpen(true);
         }}
       >
-        <LuSmile className="h-4 w-4" />
+        <IoHappyOutline className="h-4 w-4" />
       </MsgIconButton>
       <MsgIconButton label="Reply" onClick={(e) => onReply(e as unknown as SyntheticEvent)}>
-        <LuCornerUpLeft className="h-4 w-4" />
+        <IoReturnUpBackOutline className="h-4 w-4" />
       </MsgIconButton>
       {mine && (
         <MsgIconButton
@@ -141,7 +143,7 @@ function MessageActions({
             setMenuOpen(true);
           }}
         >
-          <LuMoreVertical className="h-4 w-4" />
+          <IoEllipsisVertical className="h-4 w-4" />
         </MsgIconButton>
       )}
       {pickerOpen && (
@@ -196,7 +198,7 @@ function MessageActions({
               }}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
             >
-              <LuPencilLine className="h-4 w-4 text-neutral-500" />
+              <IoCreateOutline className="h-4 w-4 text-neutral-500" />
               <Text as="span" variant="body-4" className="text-neutral-900">
                 Edit
               </Text>
@@ -209,7 +211,7 @@ function MessageActions({
               }}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
             >
-              <LuTrash2 className="h-4 w-4 text-danger-600" />
+              <IoTrashOutline className="h-4 w-4 text-danger-600" />
               <Text as="span" variant="body-4" className="text-danger-600">
                 Delete
               </Text>
@@ -250,10 +252,10 @@ function MessageEditor({
         className="w-48 bg-transparent font-satoshi text-sm text-neutral-900 outline-none"
       />
       <MsgIconButton label="Save edit" onClick={save}>
-        <LuCheck className="h-4 w-4 text-primary-600" />
+        <IoCheckmarkOutline className="h-4 w-4 text-primary-600" />
       </MsgIconButton>
       <MsgIconButton label="Cancel edit" onClick={onCancel}>
-        <LuX className="h-4 w-4" />
+        <IoClose className="h-4 w-4" />
       </MsgIconButton>
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { FaClock } from 'react-icons/fa6';
+import { IoTimeOutline } from 'react-icons/io5';
 
 import { Primary } from '@/app/ui/primitives/Buttons';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
@@ -65,7 +65,7 @@ const DashboardProfile = () => {
           <div className="flex w-full flex-col gap-2">
             <div className="flex w-full flex-wrap items-center justify-between gap-2">
               <div className="flex items-center justify-center gap-2 rounded-2xl bg-card-warning px-6 py-3">
-                <FaClock color="var(--color-warning-600)" size={16} />
+                <IoTimeOutline color="var(--color-warning-600)" size={16} />
                 <span className="text-body-4-emphasis text-pending-text">
                   Verification in progress. Limited access enabled
                 </span>

@@ -8,14 +8,14 @@ import type {
   WorkspaceDocumentRow,
 } from '@yosemite-crew/types';
 import {
-  LuDownload,
-  LuEye,
-  LuFileSignature,
-  LuPencil,
-  LuPrinter,
-  LuSave,
-  LuSearch,
-} from 'react-icons/lu';
+  IoDocumentTextOutline,
+  IoDownloadOutline,
+  IoEyeOutline,
+  IoPencilOutline,
+  IoPrintOutline,
+  IoSaveOutline,
+  IoSearchOutline,
+} from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import Search from '@/app/ui/inputs/Search';
@@ -302,13 +302,13 @@ const AllDocumentsTable = ({
                   {canView && (
                     <>
                       <CircleIconButton
-                        icon={<LuEye aria-hidden="true" />}
+                        icon={<IoEyeOutline aria-hidden="true" />}
                         label={`View ${document.title}`}
                         variant="dark"
                         onClick={() => void handleDocumentAction(document)}
                       />
                       <CircleIconButton
-                        icon={<LuDownload aria-hidden="true" />}
+                        icon={<IoDownloadOutline aria-hidden="true" />}
                         label={`Download ${document.title}`}
                         onClick={() => void handleDocumentAction(document)}
                       />
@@ -762,7 +762,7 @@ const SummaryStep = ({
                   <WorkspaceSearchResultRow
                     key={template.id}
                     name={template.name}
-                    leadingIcon={<LuSearch aria-hidden="true" className="shrink-0" />}
+                    leadingIcon={<IoSearchOutline aria-hidden="true" className="shrink-0" />}
                     onSelect={() => handleTemplateSelect(template)}
                   />
                 ))}
@@ -791,7 +791,7 @@ const SummaryStep = ({
             {!encounter.viewOnly && (
               <div className="absolute top-0 right-0 z-10">
                 <CircleIconButton
-                  icon={<LuPencil aria-hidden="true" />}
+                  icon={<IoPencilOutline aria-hidden="true" />}
                   label="Edit discharge summary"
                   variant="dark"
                   onClick={() => reopenDischargeSummary(appointmentId)}
@@ -866,7 +866,7 @@ const SummaryStep = ({
           {showDocumentActions && (
             <Secondary
               text={isPrinting ? 'Preparing…' : 'Print All'}
-              icon={<LuPrinter aria-hidden="true" />}
+              icon={<IoPrintOutline aria-hidden="true" />}
               onClick={handlePrint}
               isDisabled={isPrinting}
             />
@@ -874,7 +874,7 @@ const SummaryStep = ({
           {!dischargeSaved && (
             <Secondary
               text="Save"
-              icon={<LuSave aria-hidden="true" />}
+              icon={<IoSaveOutline aria-hidden="true" />}
               onClick={handleSave}
               isDisabled={encounter.viewOnly || isSaving}
             />
@@ -882,7 +882,7 @@ const SummaryStep = ({
           {showDocumentActions && isPacketSigned && (
             <Secondary
               text="Download Signed"
-              icon={<LuDownload aria-hidden="true" />}
+              icon={<IoDownloadOutline aria-hidden="true" />}
               onClick={handleDownloadSigned}
               isDisabled={isPrinting}
             />
@@ -891,7 +891,7 @@ const SummaryStep = ({
             <GlassTooltip content={signDisabledReason} side="top">
               <Secondary
                 text={isSigning ? 'Signing…' : 'Sign'}
-                icon={<LuFileSignature aria-hidden="true" />}
+                icon={<IoDocumentTextOutline aria-hidden="true" />}
                 onClick={handleSign}
                 isDisabled={signDisabled}
               />
@@ -900,7 +900,7 @@ const SummaryStep = ({
           {showDocumentActions && !isPacketSigned && !signDisabledReason && (
             <Secondary
               text={isSigning ? 'Signing…' : 'Sign'}
-              icon={<LuFileSignature aria-hidden="true" />}
+              icon={<IoDocumentTextOutline aria-hidden="true" />}
               onClick={handleSign}
               isDisabled={signDisabled}
             />

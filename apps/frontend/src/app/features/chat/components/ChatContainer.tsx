@@ -30,7 +30,13 @@ import {
 import { StreamChat } from 'stream-chat';
 import type { Channel as StreamChannel } from 'stream-chat';
 import type { ChannelPreviewUIComponentProps, ChannelListProps } from 'stream-chat-react';
-import { LuSearch, LuCommand, LuMessageSquarePlus, LuArchive, LuGlobe } from 'react-icons/lu';
+import { LuCommand } from 'react-icons/lu';
+import {
+  IoArchiveOutline,
+  IoChatboxOutline,
+  IoGlobeOutline,
+  IoSearchOutline,
+} from 'react-icons/io5';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import Text from '@/app/ui/Text';
 import { Badge } from '@/app/ui';
@@ -887,7 +893,7 @@ const RegularChannelWindow: FC<{ currentUserId?: string | null }> = ({ currentUs
 const ChatEmptyThread: FC = () => (
   <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
     <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-chat-panel text-primary-600">
-      <LuMessageSquarePlus className="h-6 w-6" />
+      <IoChatboxOutline className="h-6 w-6" />
     </span>
     <Text as="p" variant="body-3-emphasis" className="text-neutral-700">
       No messages yet
@@ -1942,7 +1948,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
                     : 'border-chat-divider text-neutral-500 hover:bg-chat-surface-soft hover:text-neutral-900'
                 )}
               >
-                <LuArchive className="h-3.5 w-3.5" />
+                <IoArchiveOutline className="h-3.5 w-3.5" />
                 Archived
               </button>
             </div>
@@ -1951,7 +1957,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
             </div>
             <div className="border-b border-chat-divider p-3">
               <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) px-4 py-2.5 transition-colors focus-within:border-input-border-active">
-                <LuSearch className="h-4 w-4 shrink-0 text-input-text-placeholder" />
+                <IoSearchOutline className="h-4 w-4 shrink-0 text-input-text-placeholder" />
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -1974,7 +1980,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
                         onClick={() => setNetworkModalOpen(true)}
                         className="flex cursor-pointer items-center gap-2 rounded-2xl border border-chat-divider bg-neutral-0 px-3 py-2.5 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft"
                       >
-                        <LuGlobe className="size-4 shrink-0 text-primary-600" />
+                        <IoGlobeOutline className="size-4 shrink-0 text-primary-600" />
                         <Text as="span" variant="body-4" className="text-neutral-900">
                           Message a colleague at another clinic
                         </Text>

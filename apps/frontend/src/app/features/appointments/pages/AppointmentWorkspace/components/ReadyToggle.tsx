@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaCheck } from 'react-icons/fa6';
+import { IoCheckmarkOutline } from 'react-icons/io5';
 import type { ReadyState } from '@/app/features/appointments/types/workspace';
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
 
@@ -51,7 +51,7 @@ const ReadyToggle = ({ label, state, disabled = false, onToggle }: ReadyTogglePr
               : 'border-neutral-400'
           }`}
         >
-          {checked && <FaCheck size={9} />}
+          {checked && <IoCheckmarkOutline size={9} />}
         </span>
         <span className="text-body-4 font-medium">{label}</span>
       </button>

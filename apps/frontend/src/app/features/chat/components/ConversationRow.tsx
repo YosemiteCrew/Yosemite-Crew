@@ -2,15 +2,14 @@
 
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import {
-  LuGlobe,
-  LuSmartphone,
-  LuBellOff,
-  LuBell,
-  LuMoreVertical,
-  LuAlarmClock,
-  LuArchive,
-  LuArchiveRestore,
-} from 'react-icons/lu';
+  IoAlarmOutline,
+  IoArchiveOutline,
+  IoEllipsisVertical,
+  IoGlobeOutline,
+  IoNotificationsOffOutline,
+  IoNotificationsOutline,
+  IoPhonePortraitOutline,
+} from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { Badge } from '@/app/ui';
@@ -110,13 +109,13 @@ export function ConversationRow({
               {name}
             </Text>
             {viaApp && (
-              <LuSmartphone
+              <IoPhonePortraitOutline
                 aria-label="Messages via pet parent app"
                 className="h-3.5 w-3.5 shrink-0 text-neutral-400"
               />
             )}
             {network && (
-              <LuGlobe
+              <IoGlobeOutline
                 aria-label="Across the network"
                 className="h-3.5 w-3.5 shrink-0 text-neutral-500"
               />
@@ -139,7 +138,10 @@ export function ConversationRow({
               {preview}
             </Text>
             {muted && (
-              <LuBellOff aria-label="Muted" className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
+              <IoNotificationsOffOutline
+                aria-label="Muted"
+                className="h-3.5 w-3.5 shrink-0 text-neutral-500"
+              />
             )}
             {unread ? <Badge tone="brand">{unread}</Badge> : null}
           </span>
@@ -159,7 +161,7 @@ export function ConversationRow({
                 : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100'
             )}
           >
-            <LuMoreVertical className="h-4 w-4" />
+            <IoEllipsisVertical className="h-4 w-4" />
           </button>
           {menuOpen && (
             <>
@@ -173,7 +175,7 @@ export function ConversationRow({
                 {muted
                   ? onUnmute && (
                       <MenuItem
-                        icon={<LuBell className="h-4 w-4 text-neutral-500" />}
+                        icon={<IoNotificationsOutline className="h-4 w-4 text-neutral-500" />}
                         label="Unmute"
                         onClick={() => {
                           onUnmute();
@@ -183,7 +185,7 @@ export function ConversationRow({
                     )
                   : onMute && (
                       <MenuItem
-                        icon={<LuBellOff className="h-4 w-4 text-neutral-500" />}
+                        icon={<IoNotificationsOffOutline className="h-4 w-4 text-neutral-500" />}
                         label="Mute"
                         onClick={() => {
                           onMute();
@@ -193,7 +195,7 @@ export function ConversationRow({
                     )}
                 {onSnooze && (
                   <MenuItem
-                    icon={<LuAlarmClock className="h-4 w-4 text-neutral-500" />}
+                    icon={<IoAlarmOutline className="h-4 w-4 text-neutral-500" />}
                     label="Snooze 1 hour"
                     onClick={() => {
                       onSnooze(HOUR_MS);
@@ -203,7 +205,7 @@ export function ConversationRow({
                 )}
                 {onSnooze && (
                   <MenuItem
-                    icon={<LuAlarmClock className="h-4 w-4 text-neutral-500" />}
+                    icon={<IoAlarmOutline className="h-4 w-4 text-neutral-500" />}
                     label="Snooze 1 day"
                     onClick={() => {
                       onSnooze(24 * HOUR_MS);
@@ -213,7 +215,7 @@ export function ConversationRow({
                 )}
                 {onArchive && (
                   <MenuItem
-                    icon={<LuArchive className="h-4 w-4 text-neutral-500" />}
+                    icon={<IoArchiveOutline className="h-4 w-4 text-neutral-500" />}
                     label="Archive"
                     onClick={() => {
                       onArchive();
@@ -223,7 +225,7 @@ export function ConversationRow({
                 )}
                 {onUnarchive && (
                   <MenuItem
-                    icon={<LuArchiveRestore className="h-4 w-4 text-neutral-500" />}
+                    icon={<IoArchiveOutline className="h-4 w-4 text-neutral-500" />}
                     label="Unarchive"
                     onClick={() => {
                       onUnarchive();

@@ -1,4 +1,4 @@
-import { LuShieldAlert } from 'react-icons/lu';
+import { IoShieldOutline } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 import Text from '@/app/ui/Text';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
@@ -75,7 +75,7 @@ export function ChatHeaderContext({
     <div className="shrink-0">
       {flags.length > 0 && (
         <div className="flex items-center gap-2 border-b border-danger-200 bg-danger-soft px-4 py-2">
-          <LuShieldAlert className="h-4 w-4 shrink-0 text-danger-600" />
+          <IoShieldOutline className="h-4 w-4 shrink-0 text-danger-600" />
           <Text as="span" variant="caption-1" className="font-semibold text-danger-600">
             {flags.join(' · ')}
           </Text>

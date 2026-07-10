@@ -8,13 +8,26 @@ jest.mock('next/image', () => ({
   default: ({ alt, src }: any) => React.createElement('img', { alt, src }),
 }));
 
-// Include the pagination chevrons so the Back/Next primitives can render when
-// the list spans more than one page.
-jest.mock('react-icons/io5', () => ({
-  IoEye: () => <span data-testid="icon-eye" />,
-  IoChevronBack: () => <span data-testid="icon-back" />,
-  IoChevronForward: () => <span data-testid="icon-forward" />,
-}));
+// Auto-stub every io5 icon so any icon the source imports (and the pagination
+// chevrons the Back/Next primitives render) resolves to a testable span.
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 jest.mock('@/app/lib/urls', () => ({
   getSafeOrgImageUrl: jest.fn((src: string) =>
@@ -134,7 +147,7 @@ describe('InventoryTable', () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId('icon-eye').closest('button')!);
+    fireEvent.click(screen.getByTestId('IoEye').closest('button')!);
     expect(setActiveInventory).toHaveBeenCalledWith(item);
     expect(setViewInventory).toHaveBeenCalledWith(true);
   });
@@ -153,7 +166,7 @@ describe('InventoryTable', () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId('icon-eye').closest('button')!);
+    fireEvent.click(screen.getByTestId('IoEye').closest('button')!);
     expect(onView).toHaveBeenCalledWith(item);
     expect(setViewInventory).not.toHaveBeenCalled();
   });

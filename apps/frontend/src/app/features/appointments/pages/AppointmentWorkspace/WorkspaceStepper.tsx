@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaCheck } from 'react-icons/fa6';
+import { IoCheckmarkOutline } from 'react-icons/io5';
 import {
   WORKSPACE_STEPS,
   WORKSPACE_STEP_LABELS,
@@ -32,7 +32,7 @@ const StepMarker = ({ isActive, status }: { isActive: boolean; status: StepStatu
         <span
           className={`flex size-2 items-center justify-center rounded-full text-neutral-0 ${fill}`}
         >
-          <FaCheck size={6} />
+          <IoCheckmarkOutline size={6} />
         </span>
       ) : (
         <span className={`size-2 rounded-full transition-colors duration-150 ${fill}`} />

@@ -10,7 +10,7 @@ import {
   generateTimeOptions,
 } from '@/app/features/appointments/components/Availability/utils';
 import TimeSlot from '@/app/features/appointments/components/Availability/TimeSlot';
-import { FaCirclePlus, FaCircleMinus } from 'react-icons/fa6';
+import { IoAddCircle, IoRemoveCircle } from 'react-icons/io5';
 import Dublicate from '@/app/features/appointments/components/Availability/Dublicate';
 
 type AvailabilityProps = {
@@ -120,14 +120,14 @@ const Availability: React.FC<AvailabilityProps> = ({
                 {!readOnly && (
                   <div className="border-none outline-none bg-neutral-0 flex items-center justify-center shrink-0">
                     {i === 0 ? (
-                      <FaCirclePlus
+                      <IoAddCircle
                         color="var(--color-neutral-900)"
                         size={20}
                         onClick={() => addInterval(day)}
                         className="cursor-pointer"
                       />
                     ) : (
-                      <FaCircleMinus
+                      <IoRemoveCircle
                         color="var(--color-neutral-900)"
                         size={20}
                         onClick={() => deleteInterval(day, i)}

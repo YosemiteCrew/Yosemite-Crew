@@ -23,9 +23,24 @@ jest.mock('@/app/features/organization/services/serviceService', () => ({
   deleteService: (...args: any[]) => deleteServiceMock(...args),
 }));
 
-jest.mock('react-icons/md', () => ({
-  MdDeleteForever: () => <span>delete</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
@@ -149,7 +164,7 @@ describe('SpecialityInfo modal', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('delete'));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete speciality' }));
     fireEvent.click(screen.getByText('Delete'));
     await accordionCalls[0].onSave({
       name: 'Updated',

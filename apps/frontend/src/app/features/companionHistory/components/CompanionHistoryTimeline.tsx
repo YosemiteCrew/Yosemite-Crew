@@ -1,21 +1,21 @@
 import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import {
-  LuArrowRight,
-  LuCalendarPlus,
-  LuCheck,
-  LuChevronDown,
-  LuClipboardCheck,
-  LuExternalLink,
-  LuEye,
-  LuEyeOff,
-  LuFileText,
-  LuFlaskConical,
-  LuListFilter,
-  LuLoader,
-  LuStethoscope,
-  LuWalletCards,
-  LuX,
-} from 'react-icons/lu';
+  IoArrowForwardOutline,
+  IoCalendarOutline,
+  IoCheckmarkOutline,
+  IoChevronDownOutline,
+  IoClipboardOutline,
+  IoClose,
+  IoDocumentTextOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoFilterOutline,
+  IoFlaskOutline,
+  IoMedkitOutline,
+  IoOpenOutline,
+  IoReloadOutline,
+  IoWalletOutline,
+} from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
@@ -163,8 +163,8 @@ const getTimelineBody = ({
 
 const getTimelineActionIcon = (loadingPdf: boolean, expanded: boolean): React.ReactNode => {
   if (loadingPdf) return <LoadingIcon />;
-  if (expanded) return <LuEyeOff aria-hidden="true" />;
-  return <LuEye aria-hidden="true" />;
+  if (expanded) return <IoEyeOffOutline aria-hidden="true" />;
+  return <IoEyeOutline aria-hidden="true" />;
 };
 
 const getTimelineActionLabel = (
@@ -193,12 +193,12 @@ const COMPACT_MAX_ENTRIES = 8;
 const MEDICAL_RECORD_TYPES = new Set<HistoryEntryType>(['FORM_SUBMISSION', 'DOCUMENT']);
 
 const TAB_ICONS: Record<HistoryFilterKey, React.ReactNode> = {
-  APPOINTMENT: <LuCalendarPlus size={15} aria-hidden="true" />,
-  LAB_RESULT: <LuFlaskConical size={15} aria-hidden="true" />,
-  MEDICAL_RECORDS: <LuFileText size={15} aria-hidden="true" />,
-  TASK: <LuClipboardCheck size={15} aria-hidden="true" />,
-  INVOICE: <LuWalletCards size={15} aria-hidden="true" />,
-  AUDIT_TRAIL: <LuListFilter size={15} aria-hidden="true" />,
+  APPOINTMENT: <IoCalendarOutline size={15} aria-hidden="true" />,
+  LAB_RESULT: <IoFlaskOutline size={15} aria-hidden="true" />,
+  MEDICAL_RECORDS: <IoDocumentTextOutline size={15} aria-hidden="true" />,
+  TASK: <IoClipboardOutline size={15} aria-hidden="true" />,
+  INVOICE: <IoWalletOutline size={15} aria-hidden="true" />,
+  AUDIT_TRAIL: <IoFilterOutline size={15} aria-hidden="true" />,
 };
 
 const SORT_OPTIONS: Array<{ label: string; value: SortKey }> = [
@@ -449,7 +449,7 @@ const StatusPillSelect = ({
         title={formatStatusLabel(status)}
       >
         <span className="whitespace-nowrap">{label}</span>
-        <LuChevronDown
+        <IoChevronDownOutline
           size={10}
           aria-hidden="true"
           className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
@@ -552,7 +552,7 @@ const MoneyText = ({ value, tone }: { value: string; tone: MoneyTone }) => {
   return <span className={`font-bold ${classNameByTone[tone]}`}>{value}</span>;
 };
 
-const LoadingIcon = () => <LuLoader className="animate-spin" aria-hidden="true" />;
+const LoadingIcon = () => <IoReloadOutline className="animate-spin" aria-hidden="true" />;
 
 const TimelineMarker = ({ active }: { active: boolean }) => {
   const ring = active ? 'border-text-brand' : 'border-neutral-300';
@@ -659,9 +659,9 @@ const getRecordCategory = (entry: HistoryEntry): string => {
 
 const getRecordIcon = (entry: HistoryEntry) =>
   entry.type === 'DOCUMENT' ? (
-    <LuFileText size={14} aria-hidden="true" />
+    <IoDocumentTextOutline size={14} aria-hidden="true" />
   ) : (
-    <LuStethoscope size={14} aria-hidden="true" />
+    <IoMedkitOutline size={14} aria-hidden="true" />
   );
 
 const getCreatedBy = (entry: HistoryEntry): string =>
@@ -776,14 +776,16 @@ const RowActions = ({ entry, expanded, canExpand, onOpen, onToggle }: RowActionP
   <div className="flex items-center justify-end gap-2">
     {canExpand ? (
       <CircleIconButton
-        icon={expanded ? <LuEyeOff aria-hidden="true" /> : <LuEye aria-hidden="true" />}
+        icon={
+          expanded ? <IoEyeOffOutline aria-hidden="true" /> : <IoEyeOutline aria-hidden="true" />
+        }
         label={expanded ? `Hide ${entry.title}` : `View ${entry.title}`}
         variant="dark"
         onClick={() => onToggle(entry.id)}
       />
     ) : null}
     <CircleIconButton
-      icon={<LuExternalLink aria-hidden="true" />}
+      icon={<IoOpenOutline aria-hidden="true" />}
       label={getPrimaryActionLabel(entry)}
       variant={canExpand ? 'outline' : 'dark'}
       onClick={() => onOpen(entry)}
@@ -810,7 +812,7 @@ const RequestedAppointmentActions = ({
       <div className="flex justify-end">
         <Primary
           text={getRequestedButtonLabel(status)}
-          icon={<LuArrowRight size={17} aria-hidden="true" />}
+          icon={<IoArrowForwardOutline size={17} aria-hidden="true" />}
           iconPosition="right"
           onClick={() => onOpen(entry)}
         />
@@ -820,13 +822,13 @@ const RequestedAppointmentActions = ({
   return (
     <div className="flex justify-end gap-2">
       <CircleIconButton
-        icon={<LuCheck aria-hidden="true" />}
+        icon={<IoCheckmarkOutline aria-hidden="true" />}
         label={`Accept ${entry.title}`}
         variant="dark"
         onClick={() => onStatusChange(entry, 'upcoming')}
       />
       <CircleIconButton
-        icon={<LuX aria-hidden="true" />}
+        icon={<IoClose aria-hidden="true" />}
         label={`Reject ${entry.title}`}
         variant="danger"
         onClick={() => onStatusChange(entry, 'cancelled')}
@@ -957,7 +959,7 @@ const DiagnosticsRows = ({
               {getPayloadString(entry.payload, ['orderId', 'accessionId']) || entry.title}
             </div>
             <CategoryPill
-              icon={<LuFlaskConical size={14} aria-hidden="true" />}
+              icon={<IoFlaskOutline size={14} aria-hidden="true" />}
               label={getPayloadString(entry.payload, ['provider', 'type']) || 'IDEXX'}
             />
             <div className="whitespace-normal text-body-4 font-medium text-pill-success-text">
@@ -973,7 +975,7 @@ const DiagnosticsRows = ({
               {resultId ? (
                 <Secondary
                   text={loadingPdf ? 'Loading…' : 'Result PDF'}
-                  icon={loadingPdf ? <LoadingIcon /> : <LuEye aria-hidden="true" />}
+                  icon={loadingPdf ? <LoadingIcon /> : <IoEyeOutline aria-hidden="true" />}
                   isDisabled={loadingPdf}
                   onClick={() => onOpenResultPdf(entry)}
                 />
@@ -981,7 +983,7 @@ const DiagnosticsRows = ({
               {acknowledgementPdfUrl ? (
                 <Secondary
                   text="Acknowledgment PDF"
-                  icon={<LuEye aria-hidden="true" />}
+                  icon={<IoEyeOutline aria-hidden="true" />}
                   onClick={() => onPreviewPdf(entry, acknowledgementPdfUrl)}
                 />
               ) : null}
@@ -1227,14 +1229,14 @@ const BillingRows = ({
             <div className="flex items-center justify-end gap-2">
               {isPaidInvoice(entry) && pdfUrl ? (
                 <CircleIconButton
-                  icon={<LuEye aria-hidden="true" />}
+                  icon={<IoEyeOutline aria-hidden="true" />}
                   label={`Preview ${entry.title}`}
                   variant="dark"
                   onClick={() => onPreviewPdf(entry, pdfUrl)}
                 />
               ) : null}
               <CircleIconButton
-                icon={<LuExternalLink aria-hidden="true" />}
+                icon={<IoOpenOutline aria-hidden="true" />}
                 label={getPrimaryActionLabel(entry)}
                 variant={isPaidInvoice(entry) && pdfUrl ? 'outline' : 'dark'}
                 onClick={() => onOpen(entry)}

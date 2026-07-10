@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import axios from 'axios';
-import { FaCloudUploadAlt, FaFilePdf, FaTrashAlt } from 'react-icons/fa';
+import { IoCloudUploadOutline, IoDocumentTextOutline, IoTrashOutline } from 'react-icons/io5';
 
 import './UploadImage.css';
 
@@ -76,7 +76,7 @@ const PdfDocUploader = ({
         aria-label={placeholder}
       >
         <div className="upldCont">
-          <FaCloudUploadAlt className="upload-cloud" />
+          <IoCloudUploadOutline className="upload-cloud" />
           <h6>{placeholder}</h6>
           <p>
             Only PDF
@@ -100,7 +100,7 @@ const PdfDocUploader = ({
           key={`file-${file.name}`}
         >
           <div className="flex flex-col gap-2 items-center">
-            <FaFilePdf className="file-icon pdf" />
+            <IoDocumentTextOutline className="file-icon pdf" />
             <span className="max-w-[150px] text-[15px] font-satoshi font-medium text-grey-noti text-center truncate">
               {file.name}
             </span>
@@ -111,7 +111,7 @@ const PdfDocUploader = ({
             onClick={handleRemove}
             aria-label={`Remove ${file.name}`}
           >
-            <FaTrashAlt color="#ff3b30" />
+            <IoTrashOutline color="#ff3b30" />
           </button>
         </div>
       )}
