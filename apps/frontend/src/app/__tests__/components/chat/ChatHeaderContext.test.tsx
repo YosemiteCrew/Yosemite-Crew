@@ -142,4 +142,30 @@ describe('ChatHeaderContext', () => {
     expect(screen.getByText(/Allergy: Penicillin/)).toBeInTheDocument();
     expect(screen.getByText('Appointment')).toBeInTheDocument();
   });
+
+  it('shows the time-only label when the appointment has a start time but no name', () => {
+    const timedOnly = {
+      startTime: new Date('2026-06-25T15:00:00Z'),
+      status: 'UPCOMING',
+    } as unknown as Appointment;
+    render(<ChatHeaderContext appointment={timedOnly} onAction={jest.fn()} />);
+    // apptLabel is truthy, apptName is undefined -> join keeps only the label.
+    expect(screen.queryByText('Linked appointment')).not.toBeInTheDocument();
+    expect(screen.getByText('Appointment')).toBeInTheDocument();
+  });
+
+  it('keeps a titled critical alert while skipping a high alert with no title', () => {
+    render(
+      <ChatHeaderContext
+        alerts={[
+          { severity: 'high' },
+          { severity: 'critical', title: 'Anaphylaxis' },
+          { severity: 'medium', title: 'Mild' },
+        ]}
+        onAction={jest.fn()}
+      />
+    );
+    expect(screen.getByText('Anaphylaxis')).toBeInTheDocument();
+    expect(screen.queryByText(/Mild/)).not.toBeInTheDocument();
+  });
 });

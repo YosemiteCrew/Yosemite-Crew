@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import SpecialitiesRevamp from '@/app/features/organization/pages/Specialities/SpecialitiesRevamp';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -232,5 +232,38 @@ describe('SpecialitiesRevamp', () => {
     render(<SpecialitiesRevamp />);
     expect(screen.getByTestId('accordion-spec-2')).toHaveAttribute('data-default-open', 'true');
     expect(screen.getByTestId('accordion-spec-1')).toHaveAttribute('data-default-open', 'false');
+  });
+
+  // --- Section 6: catalog loading ---
+
+  it('loads the organisation catalog for the primary org on mount', () => {
+    render(<SpecialitiesRevamp />);
+    // useEffect happy path: primaryOrgId present → loadOrganisationCatalog invoked
+    expect(mockLoadOrganisationCatalog).toHaveBeenCalledWith('org-1');
+  });
+
+  it('swallows a rejected catalog load without surfacing an error', async () => {
+    mockLoadOrganisationCatalog.mockReturnValueOnce(Promise.reject(new Error('load failed')));
+    render(<SpecialitiesRevamp />);
+    // `.catch(() => undefined)` handles the rejection — page still renders.
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: /Specialities/ })).toBeInTheDocument()
+    );
+    expect(mockLoadOrganisationCatalog).toHaveBeenCalledWith('org-1');
+  });
+
+  it('shows the loading message and hides the empty-state add button while loading', () => {
+    (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({
+        specialities: [],
+        status: 'loading',
+        loadOrganisationCatalog: mockLoadOrganisationCatalog,
+      })
+    );
+    render(<SpecialitiesRevamp />);
+    // getSpecialitiesEmptyMessage: status === 'loading' branch
+    expect(screen.getByText('Loading specialities...')).toBeInTheDocument();
+    // `status !== 'loading'` false → only the header add button remains
+    expect(screen.getAllByRole('button', { name: 'Add Speciality' })).toHaveLength(1);
   });
 });

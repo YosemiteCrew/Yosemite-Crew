@@ -259,4 +259,42 @@ describe('ChatMessage', () => {
     setup({ isMyMessage: true, readBy: undefined });
     expect(screen.getByLabelText('Sent')).toBeInTheDocument();
   });
+
+  it('falls back to empty collections when reaction fields are null', () => {
+    setup({ message: { reaction_counts: null, own_reactions: null, reaction_groups: null } });
+    expect(screen.getByText('Hello there')).toBeInTheDocument();
+    // No chips because there are no reactions once the nullish fallbacks apply.
+    expect(screen.queryByLabelText(/reaction$/)).not.toBeInTheDocument();
+  });
+
+  it('ignores an empty reaction_groups object and reads from reaction_counts', () => {
+    setup({
+      message: { reaction_groups: {}, reaction_counts: { '👍': 2 }, own_reactions: [] },
+    });
+    expect(screen.getByLabelText('2 👍 reaction')).toBeInTheDocument();
+  });
+
+  it('treats a reaction group with no count as zero and filters it out', () => {
+    setup({
+      message: {
+        reaction_groups: { '🎉': { count: 5 }, '🔥': {} },
+        own_reactions: [],
+      },
+    });
+    expect(screen.getByLabelText('5 🎉 reaction')).toBeInTheDocument();
+    expect(screen.queryByLabelText('0 🔥 reaction')).not.toBeInTheDocument();
+  });
+
+  it('uses the generic User avatar when the sender has neither name nor id', () => {
+    setup({ message: { user: undefined } });
+    expect(screen.getByText('U')).toBeInTheDocument();
+    expect(screen.getByText('Hello there')).toBeInTheDocument();
+  });
+
+  it('edits a message that has no text and null attachments', () => {
+    setup({ isMyMessage: true, message: { text: undefined, attachments: undefined } });
+    fireEvent.click(screen.getByLabelText('More'));
+    fireEvent.click(screen.getByText('Edit'));
+    expect(screen.getByLabelText('Edit message')).toHaveValue('');
+  });
 });

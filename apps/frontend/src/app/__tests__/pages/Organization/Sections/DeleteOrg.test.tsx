@@ -63,6 +63,17 @@ describe('DeleteOrg section', () => {
     expect(screen.getByText('Delete…')).toBeInTheDocument();
   });
 
+  it('opens the confirmation modal with the org-specific copy', () => {
+    render(<DeleteOrg />);
+
+    fireEvent.click(screen.getByText('Delete…'));
+
+    expect(
+      screen.getByText('Are you sure you want to delete this organization?')
+    ).toBeInTheDocument();
+    expect(screen.getByText('All organization settings')).toBeInTheDocument();
+  });
+
   it('opens modal and deletes when email is provided', async () => {
     render(<DeleteOrg />);
 
