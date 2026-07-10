@@ -1,6 +1,12 @@
 'use client';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { IoCheckmarkOutline, IoEyeOffOutline, IoEyeOutline } from 'react-icons/io5';
+import {
+  IoCheckmarkOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoTrendingDownOutline,
+  IoTrendingUpOutline,
+} from 'react-icons/io5';
 import Search from '@/app/ui/inputs/Search';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
@@ -225,6 +231,96 @@ const VitalsField = ({
   </label>
 );
 
+// The observation controls are rendered as segmented pickers below the grid, so
+// they must be excluded from the numeric-input grid to avoid duplicate controls.
+const OBSERVATION_GRID_KEYS: ReadonlyArray<keyof DraftVitals> = [
+  'bcs',
+  'painScore',
+  'mucousMembrane',
+];
+
+// BCS uses the app's full 1..9 scale; pain uses the app's full 0..10 scale — the
+// design shows narrower windows, but the app's real ranges keep validation/data intact.
+const BCS_OPTIONS: string[] = Array.from({ length: 9 }, (_, index) => String(index + 1));
+const PAIN_OPTIONS: string[] = Array.from({ length: 11 }, (_, index) => String(index));
+const MUCOUS_OPTIONS = ['Pink', 'Pale', 'Cyanotic'] as const;
+
+const segmentClass = (selected: boolean, shape: 'square' | 'pill') => {
+  const base =
+    shape === 'square'
+      ? 'flex size-[26px] items-center justify-center rounded-lg text-[11.5px] font-semibold transition-colors'
+      : 'rounded-full px-3 py-1 text-[11px] font-semibold transition-colors';
+  const skin = selected
+    ? 'bg-neutral-900 text-neutral-0'
+    : 'border border-input-border-default text-text-secondary';
+  return `${base} ${skin}`;
+};
+
+const SegmentedPicker = ({
+  label,
+  options,
+  value,
+  shape,
+  onSelect,
+  error,
+}: {
+  label: string;
+  options: readonly string[];
+  value: string;
+  shape: 'square' | 'pill';
+  onSelect: (value: string) => void;
+  error?: string;
+}) => (
+  <div className="flex flex-col gap-1">
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-body-4 font-medium text-text-secondary">{label}</span>
+      <div
+        className="flex flex-wrap items-center justify-end gap-1"
+        role="group"
+        aria-label={label}
+      >
+        {options.map((option) => {
+          const selected = value === option;
+          return (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={selected}
+              aria-label={`${label} ${option}`}
+              onClick={() => onSelect(option)}
+              className={segmentClass(selected, shape)}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+    {error ? <p className="text-caption-1 text-danger-600">{error}</p> : null}
+  </div>
+);
+
+type WeightTrend = { delta: number; sinceDate: string };
+
+// Vitals are stored newest-first; the trend compares the two most recent records
+// that carry a weight so a missing weight in between never breaks the delta.
+const computeWeightTrend = (records: Vitals[]): WeightTrend | null => {
+  const withWeight = records.filter(
+    (entry): entry is Vitals & { weightLbs: number } => typeof entry.weightLbs === 'number'
+  );
+  if (withWeight.length < 2) return null;
+  const [newest, previous] = withWeight;
+  return {
+    delta: newest.weightLbs - previous.weightLbs,
+    sinceDate: formatStampDate(previous.recordedAt),
+  };
+};
+
+const formatWeightDelta = (delta: number) => {
+  const rounded = Math.round(delta * 10) / 10;
+  return `${rounded > 0 ? '+' : ''}${rounded} lbs`;
+};
+
 const parseNumber = (value: string): number | undefined => {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
@@ -295,7 +391,7 @@ const VitalRow = ({
       </div>
       {open && (
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-2xl border border-card-border p-3 text-body-4 text-text-primary">
-          <span>Weight: {entry.weightLbs ?? '-'} kg</span>
+          <span>Weight: {entry.weightLbs ?? '-'} lbs</span>
           <span>Temp: {entry.tempF ?? '-'} °F</span>
           <span>Heart rate: {entry.heartRateBpm ?? '-'} bpm</span>
           <span>Resp. rate: {entry.respRateBpm ?? '-'} bpm</span>
@@ -374,6 +470,8 @@ const VitalsForm = ({
       template.name.toLowerCase().includes(query)
     );
   }, [templateQuery, templateState.templates]);
+
+  const weightTrend = useMemo(() => computeWeightTrend(vitals), [vitals]);
 
   const updateField = (key: keyof DraftVitals, value: string) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -501,18 +599,61 @@ const VitalsForm = ({
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        {activeFields.map((field) => (
-          <div key={field.key} className="flex flex-col gap-1">
-            <VitalsField
-              field={field}
-              value={draft[field.key]}
-              onChange={(value) => updateField(field.key, value)}
-            />
-            {fieldErrors[field.key] ? (
-              <p className="text-caption-1 text-danger-600">{fieldErrors[field.key]}</p>
-            ) : null}
-          </div>
-        ))}
+        {activeFields
+          .filter((field) => !OBSERVATION_GRID_KEYS.includes(field.key))
+          .map((field) => (
+            <div key={field.key} className="flex flex-col gap-1">
+              <VitalsField
+                field={field}
+                value={draft[field.key]}
+                onChange={(value) => updateField(field.key, value)}
+              />
+              {fieldErrors[field.key] ? (
+                <p className="text-caption-1 text-danger-600">{fieldErrors[field.key]}</p>
+              ) : null}
+            </div>
+          ))}
+      </div>
+      {weightTrend ? (
+        <div className="flex items-center gap-2 rounded-2xl bg-primary-100 px-3 py-2 text-caption-1 text-text-brand">
+          {weightTrend.delta >= 0 ? (
+            <IoTrendingUpOutline size={14} aria-hidden="true" />
+          ) : (
+            <IoTrendingDownOutline size={14} aria-hidden="true" />
+          )}
+          <span>
+            {formatWeightDelta(weightTrend.delta)} since {weightTrend.sinceDate}
+          </span>
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-3">
+        <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-text-tertiary">
+          Observation tools
+        </span>
+        <SegmentedPicker
+          label="Body condition score"
+          options={BCS_OPTIONS}
+          value={draft.bcs}
+          shape="square"
+          onSelect={(value) => updateField('bcs', value)}
+          error={fieldErrors.bcs}
+        />
+        <SegmentedPicker
+          label="Pain score"
+          options={PAIN_OPTIONS}
+          value={draft.painScore}
+          shape="square"
+          onSelect={(value) => updateField('painScore', value)}
+          error={fieldErrors.painScore}
+        />
+        <SegmentedPicker
+          label="Mucous membranes"
+          options={MUCOUS_OPTIONS}
+          value={draft.mucousMembrane}
+          shape="pill"
+          onSelect={(value) => updateField('mucousMembrane', value)}
+          error={fieldErrors.mucousMembrane}
+        />
       </div>
       <label className="flex flex-col gap-1">
         <span className="text-[12px] font-medium text-neutral-700">Notes (optional)</span>

@@ -142,6 +142,7 @@ const reset = () => {
     encountersById: {},
     activeStep: 'SUMMARY',
     activeSideAction: null,
+    saveStatusByAppointmentId: {},
   });
   useSigningOverlayStore.setState({
     open: false,
@@ -847,6 +848,30 @@ describe('SummaryStep', () => {
     await waitFor(() =>
       expect(listEncounterWorkspaceDocuments).toHaveBeenCalledWith('org-1', 'enc-bootstrap')
     );
+  });
+
+  it('shows the autosave indicator after saving the discharge summary', async () => {
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+    expect(screen.queryByTestId('autosave-indicator')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByTestId('autosave-indicator')).toHaveTextContent('Autosaved');
+  });
+
+  it('colours the document signing pills by state', async () => {
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ documentId: 'd1', title: 'Labs', signingStatus: 'ATTACHED' }),
+      makeDocumentRow({ documentId: 'd2', title: 'Consent', signingStatus: 'IN_PROGRESS' }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
+    expect(await screen.findByText('Attached')).toBeInTheDocument();
+    expect(screen.getByText('In progress')).toBeInTheDocument();
   });
 
   it('keeps discharge date/time out of the summary body once discharged', () => {

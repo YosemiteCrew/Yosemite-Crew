@@ -10,6 +10,12 @@ import SoapNotesList, {
   type SoapNoteListItem,
 } from '@/app/features/appointments/pages/AppointmentWorkspace/components/SoapNotesList';
 import WorkspaceVitalsPanel from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceVitalsPanel';
+import SoapTemplateChip from '@/app/features/appointments/pages/AppointmentWorkspace/components/SoapTemplateChip';
+import AutosaveIndicator from '@/app/features/appointments/pages/AppointmentWorkspace/components/AutosaveIndicator';
+import {
+  buildSoapTemplateOptions,
+  findSoapPreset,
+} from '@/app/features/appointments/lib/soapTemplatePresets';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type {
   AppointmentEncounter,
@@ -131,11 +137,14 @@ const SoapStep = ({
   const upsertSoap = useAppointmentWorkspaceStore((s) => s.upsertSoap);
   const applySoapTemplate = useAppointmentWorkspaceStore((s) => s.applySoapTemplate);
   const signSoap = useAppointmentWorkspaceStore((s) => s.signSoap);
+  const setSaveStatus = useAppointmentWorkspaceStore((s) => s.setSaveStatus);
+  const saveState = useAppointmentWorkspaceStore((s) => s.saveStatusByAppointmentId[appointmentId]);
   const [templateQuery, setTemplateQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [persistedDraftId, setPersistedDraftId] = useState<string | undefined>(undefined);
+  const [activeTemplateName, setActiveTemplateName] = useState<string | undefined>(undefined);
 
   // Work on the active draft (first not-yet-signed note); once a note is signed
   // it moves to "All SOAP notes" history and the form clears for a new entry.
@@ -207,12 +216,36 @@ const SoapStep = ({
           ? selectedTemplate
           : templateToSoapTemplate(await getWorkspaceTemplateById(organisationId, templateId));
       applySoapTemplate(appointmentId, fullTemplate, { replaceContent: true });
+      setActiveTemplateName(selectedTemplate?.name ?? fullTemplate.name);
       setTemplateQuery('');
     } catch (error) {
       console.error('Unable to apply SOAP template:', error);
     } finally {
       setIsApplyingTemplate(false);
     }
+  };
+
+  // The template chip surfaces the org's real SOAP templates, or a built-in clinical
+  // preset set (Wellness / Sick visit / Recheck / Dental) when the org has none. Real
+  // templates apply through the backend-backed path; presets only pre-fill the empty
+  // S/O/A/P sections so a clinician's existing text is never overwritten.
+  const { options: chipTemplateOptions } = buildSoapTemplateOptions(encounter.soapTemplates);
+  const resolvedTemplateName =
+    activeTemplateName ?? encounter.soapTemplates.find((tpl) => tpl.id === note.templateId)?.name;
+
+  const handleTemplateChipSelect = (templateId: string) => {
+    const preset = findSoapPreset(templateId);
+    if (!preset) {
+      void applySelectedTemplate(templateId);
+      return;
+    }
+    const patch: Partial<SoapNoteEntry> = {};
+    if (isRichTextEmpty(note.subjective)) patch.subjective = preset.content.subjective;
+    if (isRichTextEmpty(note.objective)) patch.objective = preset.content.objective;
+    if (isRichTextEmpty(note.assessment)) patch.assessment = preset.content.assessment;
+    if (isRichTextEmpty(note.plan)) patch.plan = preset.content.plan;
+    if (Object.keys(patch).length > 0) upsertSoap(appointmentId, patch);
+    setActiveTemplateName(preset.name);
   };
 
   const pastNotes: SoapNoteListItem[] = useMemo(
@@ -267,6 +300,9 @@ const SoapStep = ({
     }
     setIsSaving(true);
     setSaveError(null);
+    // Drive the autosave indicator off this explicit save (no separate autosave
+    // engine): "Saving…" now, then "Autosaved" on success or "Offline" on failure.
+    setSaveStatus(appointmentId, 'saving');
     let persistedId: string | undefined;
     try {
       if (organisationId) {
@@ -303,10 +339,12 @@ const SoapStep = ({
       setSaveError(
         error instanceof Error ? error.message : 'Unable to save the SOAP note. Please try again.'
       );
+      setSaveStatus(appointmentId, 'offline');
       setIsSaving(false);
       return;
     }
     // Only reached when the save succeeded (or there was nothing to persist).
+    setSaveStatus(appointmentId, 'saved');
     setIsSaving(false);
     onSaveAndNext();
   };
@@ -331,6 +369,14 @@ const SoapStep = ({
         <div className="flex min-w-0 flex-1 flex-col gap-7">
           {!readOnly && (
             <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <SoapTemplateChip
+                  templates={chipTemplateOptions}
+                  activeName={resolvedTemplateName}
+                  onSelect={handleTemplateChipSelect}
+                />
+                <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
+              </div>
               <div className="relative flex justify-end">
                 <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
                   <Search

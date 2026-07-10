@@ -7,6 +7,7 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import AlertPill from '@/app/features/appointments/pages/AppointmentWorkspace/components/AlertPill';
 import AppointmentStatusPill from '@/app/features/appointments/components/AppointmentStatusPill';
 import EmergencyBadge from '@/app/features/appointments/components/EmergencyBadge';
+import VisitTimer from '@/app/features/appointments/pages/AppointmentWorkspace/components/VisitTimer';
 import type { CompanionAlert } from '@/app/features/appointments/types/workspace';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
@@ -27,6 +28,10 @@ type WorkspaceHeaderProps = {
   onAdmit?: () => void;
   onAddAlert?: () => void;
   onRemoveAlert?: (id: string) => void;
+  /** Best-available visit start for the "In room" timer (encounter check-in, else booked start). */
+  visitStartAt?: string | Date;
+  /** Booked slot end; the timer turns amber past it. */
+  bookedEndAt?: string | Date;
 };
 
 const HospitalizeIcon = () => (
@@ -68,6 +73,8 @@ const WorkspaceHeader = ({
   onAdmit,
   onAddAlert,
   onRemoveAlert,
+  visitStartAt,
+  bookedEndAt,
 }: WorkspaceHeaderProps) => {
   const terminologyText = useCompanionTerminologyText();
   const hasAlerts = alerts.length > 0 || clientAlerts.length > 0 || Boolean(onAddAlert);
@@ -128,6 +135,7 @@ const WorkspaceHeader = ({
         )}
       </div>
       <div className="flex shrink-0 items-center gap-3">
+        <VisitTimer startAt={visitStartAt} bookedEndAt={bookedEndAt} />
         {canAdmit && onAdmit && (
           <Primary
             text={isAdmitting ? 'Admitting' : 'Admit'}

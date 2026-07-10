@@ -37,8 +37,10 @@ jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Tasks/Chat',
   () => ({ __esModule: true, default: () => <div>ChatStub</div> })
 );
+// ActivityPanel now renders its own audit timeline (it no longer wraps the shared
+// Audit component), so stub the panel itself to keep this a pure wrapper test.
 jest.mock(
-  '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Audit',
+  '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/panels/ActivityPanel',
   () => ({ __esModule: true, default: () => <div>AuditStub</div> })
 );
 jest.mock(
@@ -356,14 +358,17 @@ describe('RecordPanel', () => {
     fireEvent.change(screen.getByLabelText('Temperature'), { target: { value: '101' } });
     fireEvent.change(screen.getByLabelText('Heart rate'), { target: { value: '88' } });
     fireEvent.change(screen.getByLabelText('Respiratory rate'), { target: { value: '22' } });
-    fireEvent.change(screen.getByLabelText('Pain score'), { target: { value: '4' } });
-    fireEvent.change(screen.getByLabelText('BCS'), { target: { value: '5' } });
+    // Pain / BCS are now segmented pickers (design's Observation tools).
+    fireEvent.click(screen.getByRole('button', { name: 'Pain score 4' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Body condition score 5' }));
     fireEvent.click(screen.getByRole('button', { name: /save vitals/i }));
 
     await waitFor(() => expect(saveVitalRecord).toHaveBeenCalled());
     const vitals = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!.vitals;
     expect(vitals[0].heartRateBpm).toBe(88);
     expect(vitals[0].weightLbs).toBe(55);
+    expect(vitals[0].painScore).toBe(4);
+    expect(vitals[0].bcs).toBe(5);
     expect(screen.getByText('VT-001')).toBeInTheDocument();
   });
 
@@ -384,8 +389,8 @@ describe('RecordPanel', () => {
     fireEvent.change(screen.getByLabelText('Temperature'), { target: { value: '101' } });
     fireEvent.change(screen.getByLabelText('Heart rate'), { target: { value: '88' } });
     fireEvent.change(screen.getByLabelText('Respiratory rate'), { target: { value: '22' } });
-    fireEvent.change(screen.getByLabelText('Pain score'), { target: { value: '4' } });
-    fireEvent.change(screen.getByLabelText('BCS'), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Pain score 4' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Body condition score 5' }));
     fireEvent.click(screen.getByRole('button', { name: /save vitals/i }));
 
     await waitFor(() => expect(saveVitalRecord).toHaveBeenCalled());
@@ -396,16 +401,16 @@ describe('RecordPanel', () => {
     expect(vital.recordedById).toBe('usr-logged-in');
   });
 
-  it('blocks save when numeric vitals are out of range or invalid', () => {
+  it('blocks save when required vitals are missing', () => {
     render(<RecordPanel appointmentId={APPT} organisationId="org-1" encounterId="enc-1" />);
     fireEvent.click(screen.getByRole('button', { name: /new vital/i }));
-    fireEvent.change(screen.getByLabelText('Pain score'), { target: { value: '11' } });
-    fireEvent.change(screen.getByLabelText('BCS'), { target: { value: '0' } });
+    // The segmented pickers only offer in-range values, so the blocking case is now
+    // an unset required field. Save with nothing filled surfaces required errors.
     fireEvent.click(screen.getByRole('button', { name: /save vitals/i }));
 
     expect(saveVitalRecord).not.toHaveBeenCalled();
-    expect(screen.getByText('Pain score must be 10 or less.')).toBeInTheDocument();
-    expect(screen.getByText('BCS must be at least 1.')).toBeInTheDocument();
+    expect(screen.getByText('Pain score is required.')).toBeInTheDocument();
+    expect(screen.getByText('BCS is required.')).toBeInTheDocument();
     expect(screen.getByText(/please fix the highlighted vitals fields/i)).toBeInTheDocument();
   });
 
@@ -438,11 +443,12 @@ describe('RecordPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: /post-op vitals/i }));
 
     expect(screen.getByLabelText('Post-op temperature')).toBeInTheDocument();
-    expect(screen.getByLabelText('Pain score')).toBeInTheDocument();
+    // Pain score is now the always-present segmented Observation-tools picker.
+    expect(screen.getByRole('group', { name: 'Pain score' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Heart rate')).not.toBeInTheDocument();
   });
 
-  it('keeps mucous membrane as plain text without a suffix unit', async () => {
+  it('renders mucous membranes as a segmented picker without a unit suffix', async () => {
     (listVitalsTemplates as jest.Mock).mockResolvedValue([
       {
         id: 'tpl-vitals-2',
@@ -467,8 +473,10 @@ describe('RecordPanel', () => {
     });
     fireEvent.click(await screen.findByRole('button', { name: /clinical vitals/i }));
 
-    const mucousLabel = screen.getByText('Mucous membrane');
-    expect(mucousLabel.parentElement).not.toHaveTextContent('mm');
+    // Mucous membranes render as Pink/Pale/Cyanotic pills (design), never a unit-suffixed input.
+    const group = screen.getByRole('group', { name: 'Mucous membranes' });
+    expect(screen.getByRole('button', { name: 'Mucous membranes Pink' })).toBeInTheDocument();
+    expect(group).not.toHaveTextContent('mm');
   });
 
   it('discards a draft vital without recording', () => {
@@ -486,12 +494,13 @@ describe('RecordPanel', () => {
     fireEvent.change(screen.getByLabelText('Temperature'), { target: { value: '101' } });
     fireEvent.change(screen.getByLabelText('Heart rate'), { target: { value: '90' } });
     fireEvent.change(screen.getByLabelText('Respiratory rate'), { target: { value: '20' } });
-    fireEvent.change(screen.getByLabelText('Pain score'), { target: { value: '3' } });
-    fireEvent.change(screen.getByLabelText('BCS'), { target: { value: '6' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Pain score 3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Body condition score 6' }));
     fireEvent.click(screen.getByRole('button', { name: /save vitals/i }));
     await waitFor(() => expect(saveVitalRecord).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: /view vt-001/i }));
     expect(screen.getByText(/Temp: 101 °F/)).toBeInTheDocument();
+    expect(screen.getByText(/Weight: 60 lbs/)).toBeInTheDocument();
     // Collapsing hides the detail grid again.
     fireEvent.click(screen.getByRole('button', { name: /hide vt-001/i }));
     expect(screen.queryByText(/Temp: 101 °F/)).not.toBeInTheDocument();

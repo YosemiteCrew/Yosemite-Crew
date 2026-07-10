@@ -572,3 +572,17 @@ export type SideAction =
   | 'ACTIVITY'
   | 'MSD'
   | 'CALCULATORS';
+
+/**
+ * Autosave lifecycle state for a workspace section. Driven off the existing
+ * explicit-save lifecycle (there is no separate autosave engine): `saving` while a
+ * save is in flight, `saved` after it succeeds, `offline` when it fails on a network
+ * error. `idle` renders nothing.
+ */
+export type WorkspaceSaveStatus = 'idle' | 'saving' | 'saved' | 'offline';
+
+export type WorkspaceSaveState = {
+  status: WorkspaceSaveStatus;
+  /** ISO timestamp of the last successful save, shown as "Autosaved HH:MM". */
+  at?: string;
+};

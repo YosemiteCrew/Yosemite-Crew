@@ -209,6 +209,33 @@ describe('WorkspaceHeader', () => {
     );
     expect(screen.getByText('Emergency')).toBeInTheDocument();
   });
+
+  it('renders the visit timer in a resting state when no start is available', () => {
+    render(
+      <WorkspaceHeader
+        appointment={headerAppointment}
+        companionName="Gigi"
+        alerts={[]}
+        onBack={jest.fn()}
+        onQuickActions={jest.fn()}
+      />
+    );
+    expect(screen.getByTestId('visit-timer')).toHaveTextContent('Not started');
+  });
+
+  it('runs the visit timer from a supplied start', () => {
+    render(
+      <WorkspaceHeader
+        appointment={headerAppointment}
+        companionName="Gigi"
+        alerts={[]}
+        onBack={jest.fn()}
+        onQuickActions={jest.fn()}
+        visitStartAt={new Date(Date.now() - 5000)}
+      />
+    );
+    expect(screen.getByTestId('visit-timer')).toHaveAttribute('data-state', 'running');
+  });
 });
 
 describe('CompanionContextCard', () => {

@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { IoPrintOutline, IoSaveOutline } from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import ServicesPackagesEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/ServicesPackagesEditor';
 import PrescriptionEditor from '@/app/features/appointments/pages/AppointmentWorkspace/components/PrescriptionEditor';
 import InpatientSchedule from '@/app/features/appointments/pages/AppointmentWorkspace/components/InpatientSchedule';
+import OutpatientSchedule from '@/app/features/appointments/pages/AppointmentWorkspace/components/OutpatientSchedule';
 import WorkspaceTreatmentSummary from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceTreatmentSummary';
+import { buildOutpatientSchedule } from '@/app/features/appointments/lib/outpatientSchedule';
+import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import type {
   AppointmentEncounter,
@@ -55,6 +59,8 @@ import {
   resolveScheduleTasksFromTemplate,
 } from '@/app/features/appointments/services/workspaceTemplateService';
 import { formatStampTime } from '@/app/lib/appointmentWorkspace';
+import { getAppointmentCompanion } from '@/app/lib/appointments';
+import { startRouteLoader } from '@/app/lib/routeLoader';
 import type { PrescriptionTemplateOption } from '@/app/features/appointments/services/workspaceTemplateService';
 import type { TemplateLike } from '@yosemite-crew/types';
 import type {
@@ -228,6 +234,8 @@ const TreatmentStep = ({
   const mergeEncounterData = useAppointmentWorkspaceStore((s) => s.mergeEncounterData);
   const setActiveSideAction = useAppointmentWorkspaceStore((s) => s.setActiveSideAction);
   const openTaskInQuickActions = useAppointmentWorkspaceStore((s) => s.openTaskInQuickActions);
+  const router = useRouter();
+  const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
   const itemIdsByOrgId = useInventoryStore((s) => s.itemIdsByOrgId);
   const inventoryById = useInventoryStore((s) => s.itemsById);
   const setInventoryForOrg = useInventoryStore((s) => s.setInventoryForOrg);
@@ -256,6 +264,22 @@ const TreatmentStep = ({
   // -only + "Billed" badge + no delete); adding new items always stays allowed.
   const billedTreatmentLocked = readOnly || encounter.readyForBilling.value;
   const isInpatient = encounter.mode === 'INPATIENT';
+  // The outpatient visit schedule is built from the companion's real upcoming
+  // appointments already in the store (there is no dedicated outpatient "series" data
+  // model). It degrades to an empty state when no future visits are available — e.g. on
+  // a direct deep-link where the appointment list has not been loaded.
+  const outpatientCompanionId = useMemo(() => {
+    const current = appointmentsById[appointmentId];
+    return current ? getAppointmentCompanion(current).id : undefined;
+  }, [appointmentsById, appointmentId]);
+  const outpatientSchedule = useMemo(
+    () =>
+      buildOutpatientSchedule(Object.values(appointmentsById), {
+        companionId: outpatientCompanionId,
+        excludeAppointmentId: appointmentId,
+      }),
+    [appointmentsById, outpatientCompanionId, appointmentId]
+  );
   const inventoryIds = useMemo(
     () => (organisationId ? (itemIdsByOrgId[organisationId] ?? []) : []),
     [itemIdsByOrgId, organisationId]
@@ -786,7 +810,7 @@ const TreatmentStep = ({
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
       <div className="flex min-w-0 flex-1 flex-col gap-5">
-        {isInpatient && (
+        {isInpatient ? (
           <InpatientSchedule
             tasks={visibleScheduleTasks}
             templates={scheduleTemplates}
@@ -803,6 +827,15 @@ const TreatmentStep = ({
             }
             onStatusChange={(id, status) => handleUpdateScheduleTask(id, { status })}
             onAppendTemplate={handleApplyScheduleTemplate}
+          />
+        ) : (
+          <OutpatientSchedule
+            schedule={outpatientSchedule}
+            readOnly={readOnly}
+            onAddVisit={() => {
+              startRouteLoader();
+              router.push('/appointments');
+            }}
           />
         )}
         {scheduleError && <p className="text-caption-1 text-red-600">{scheduleError}</p>}

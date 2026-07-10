@@ -1379,6 +1379,12 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
           canHospitalize={encounterMode !== 'INPATIENT'}
           onAddAlert={() => setIsAddAlertOpen(true)}
           onRemoveAlert={handleRemovePatientAlert}
+          // The data model has no room-entry timestamp, so the "In room" timer counts
+          // up from the best available start: the encounter check-in (admittedAt) when
+          // present, otherwise the booked appointment start. It turns amber past the
+          // booked end and never gates any action.
+          visitStartAt={effectiveEncounter.admittedAt ?? appointment.startTime}
+          bookedEndAt={appointment.endTime}
         />
 
         <CompanionContextCard

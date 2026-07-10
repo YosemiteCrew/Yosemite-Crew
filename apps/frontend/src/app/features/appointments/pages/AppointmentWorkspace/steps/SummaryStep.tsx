@@ -23,6 +23,7 @@ import Datepicker from '@/app/ui/inputs/Datepicker';
 import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
+import AutosaveIndicator from '@/app/features/appointments/pages/AppointmentWorkspace/components/AutosaveIndicator';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
@@ -31,6 +32,7 @@ import { isRichTextEmpty, sanitizeRichText } from '@/app/lib/richText';
 import type { AppointmentEncounter } from '@/app/features/appointments/types/workspace';
 import { formatStampDate, formatStampTime } from '@/app/lib/appointmentWorkspace';
 import { usePermissions } from '@/app/hooks/usePermissions';
+import { getStatusStyle } from '@/app/config/statusConfig';
 import {
   getRenderedDocument,
   saveDischargeSummaryArtifact,
@@ -199,6 +201,37 @@ const DocumentSourcePill = ({ source }: { source: string }) => (
   </span>
 );
 
+/** Map a signing/attachment state to a shared status-pill token key (design: SIGNED /
+ *  ATTACHED / PAID coloured pills), reusing the same colour source as the appointment
+ *  status pill. */
+const signingStatusStyleKey = (signingStatus?: string | null): string => {
+  const key = String(signingStatus ?? '')
+    .trim()
+    .toUpperCase();
+  if (key === 'SIGNED' || key === 'PAID') return 'completed';
+  if (key === 'ATTACHED') return 'upcoming';
+  if (key === 'IN_PROGRESS' || key === 'PENDING') return 'checked_in';
+  return 'requested';
+};
+
+const SigningStatusPill = ({ signingStatus }: { signingStatus?: string | null }) => {
+  const style = getStatusStyle(signingStatusStyleKey(signingStatus));
+  return (
+    <span
+      className="text-caption-3 inline-flex w-fit items-center rounded-full! border px-2.5 py-1"
+      style={{
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        borderColor: style.borderColor,
+        borderWidth: '1px',
+        borderStyle: 'solid',
+      }}
+    >
+      {humanizeToken(signingStatus)}
+    </span>
+  );
+};
+
 /** Shared column template (mirrors the Invoice table) so the heading and row
  *  grids resolve to identical track widths. The Actions track is fixed. */
 const DOCUMENT_COLS =
@@ -295,8 +328,8 @@ const AllDocumentsTable = ({
                 <span className="truncate text-body-4 text-text-primary">
                   {humanizeToken(document.status)}
                 </span>
-                <span className="truncate text-body-4 text-text-secondary">
-                  {humanizeToken(document.signingStatus)}
+                <span className="truncate">
+                  <SigningStatusPill signingStatus={document.signingStatus} />
                 </span>
                 <div className="flex justify-end gap-2">
                   {canView && (
@@ -345,6 +378,10 @@ const SummaryStep = ({
 }: SummaryStepProps) => {
   const setDischargeSummary = useAppointmentWorkspaceStore((s) => s.setDischargeSummary);
   const saveDischargeSummary = useAppointmentWorkspaceStore((s) => s.saveDischargeSummary);
+  const setSaveStatus = useAppointmentWorkspaceStore((s) => s.setSaveStatus);
+  const saveState = useAppointmentWorkspaceStore(
+    (s) => s.saveStatusByAppointmentId?.[appointmentId]
+  );
   const reopenDischargeSummary = useAppointmentWorkspaceStore((s) => s.reopenDischargeSummary);
   const setFollowUp = useAppointmentWorkspaceStore((s) => s.setFollowUp);
   const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
@@ -656,7 +693,11 @@ const SummaryStep = ({
   const handleSave = async () => {
     if (isSaving) return;
     setIsSaving(true);
+    // Drive the autosave indicator off this explicit save (no separate autosave
+    // engine): "Saving…" now, "Autosaved" on success, "Offline" on failure.
+    setSaveStatus(appointmentId, 'saving');
     let persistedId: string | undefined;
+    let saveFailed = false;
     try {
       if (appointment?.organisationId) {
         const saved = await saveDischargeSummaryArtifact(
@@ -676,8 +717,10 @@ const SummaryStep = ({
       }
     } catch (error) {
       console.error('Unable to persist discharge summary:', error);
+      saveFailed = true;
     } finally {
       saveDischargeSummary(appointmentId, encounter.leadName ?? 'Clinician', persistedId);
+      setSaveStatus(appointmentId, saveFailed ? 'offline' : 'saved');
       setIsSaving(false);
     }
   };
@@ -740,180 +783,193 @@ const SummaryStep = ({
         onClose={closePacketPreview}
       />
 
-      {/* Discharge-template search sits above the container (like the SOAP step's
-          template search) — selecting a template fills the editor. */}
-      <div className="relative flex justify-end">
-        <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
-          <Search
-            value={templateQuery}
-            setSearch={setTemplateQuery}
-            placeholder="Search discharge templates"
-            label="Search discharge templates"
-            className="w-full!"
-          />
-          <SearchResultsDropdown
-            anchorRef={templateSearchRef}
-            open={Boolean(templateQuery.trim()) && !templateState.error}
-            onClose={() => setTemplateQuery('')}
-          >
-            {templateMatches.length > 0 ? (
-              <ul>
-                {templateMatches.map((template) => (
-                  <WorkspaceSearchResultRow
-                    key={template.id}
-                    name={template.name}
-                    leadingIcon={<IoSearchOutline aria-hidden="true" className="shrink-0" />}
-                    onSelect={() => handleTemplateSelect(template)}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p className="px-4 py-3 text-body-4 text-text-secondary">
-                No discharge templates match this search.
-              </p>
-            )}
-          </SearchResultsDropdown>
-          {templateState.error && (
-            <p className="mt-2 text-caption-1 text-danger-600">{templateState.error}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Mirrors the SOAP step sections: title + inset rich-text editor only.
-          Once saved, the editor is replaced by a read-only render of the summary
-          with a fixed follow-up date and a "Saved on … by …" stamp. */}
-      <SectionContainer titleClassName="text-yc-20-b-primary" title="Discharge Summary" compactTop>
-        {dischargeSaved ? (
-          <div className="relative">
-            {/* Editable until the encounter is locked (window closed / completed /
-                discharged). Absolutely positioned so it overlays the top-right
-                without pushing the summary down a row. */}
-            {!encounter.viewOnly && (
-              <div className="absolute top-0 right-0 z-10">
-                <CircleIconButton
-                  icon={<IoPencilOutline aria-hidden="true" />}
-                  label="Edit discharge summary"
-                  variant="dark"
-                  onClick={() => reopenDischargeSummary(appointmentId)}
-                />
-              </div>
-            )}
-            <div
-              className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
-              dangerouslySetInnerHTML={{
-                __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
-              }}
-            />
-            <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-              {/* Same Datepicker container as edit mode, rendered non-interactive. */}
-              <div
-                className="pointer-events-none w-full select-none sm:max-w-72"
-                aria-disabled="true"
+      {/* Two-pane discharge layout (design): the summary editor + follow-up + actions
+          on the left, the clinical-packet documents on the right. */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-5">
+          {/* Discharge-template search sits above the container (like the SOAP step's
+          template search) — selecting a template fills the editor. The autosave
+          indicator (design micro-state) sits to its left, driven off the save. */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
+            <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
+              <Search
+                value={templateQuery}
+                setSearch={setTemplateQuery}
+                placeholder="Search discharge templates"
+                label="Search discharge templates"
+                className="w-full!"
+              />
+              <SearchResultsDropdown
+                anchorRef={templateSearchRef}
+                open={Boolean(templateQuery.trim()) && !templateState.error}
+                onClose={() => setTemplateQuery('')}
               >
-                <Datepicker
-                  type="input"
-                  currentDate={followUpDate}
-                  setCurrentDate={() => undefined}
-                  placeholder="Follow up date"
-                />
-              </div>
-              <div className="flex flex-col items-end leading-[120%]">
-                <span className="text-[12px] font-bold text-neutral-900">
-                  Saved by {encounter.dischargeSavedByName}
-                </span>
-                <span className="text-[12px] font-medium text-text-brand">
-                  {formatDateTime(encounter.dischargeSavedAt ?? '')}
-                </span>
-              </div>
+                {templateMatches.length > 0 ? (
+                  <ul>
+                    {templateMatches.map((template) => (
+                      <WorkspaceSearchResultRow
+                        key={template.id}
+                        name={template.name}
+                        leadingIcon={<IoSearchOutline aria-hidden="true" className="shrink-0" />}
+                        onSelect={() => handleTemplateSelect(template)}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-4 py-3 text-body-4 text-text-secondary">
+                    No discharge templates match this search.
+                  </p>
+                )}
+              </SearchResultsDropdown>
+              {templateState.error && (
+                <p className="mt-2 text-caption-1 text-danger-600">{templateState.error}</p>
+              )}
             </div>
           </div>
-        ) : (
-          <>
-            <RichTextEditor
-              ariaLabel="Discharge summary"
-              value={encounter.dischargeSummary}
-              readOnly={readOnly}
-              toolbarPlacement="inset"
-              onChange={(html) => setDischargeSummary(appointmentId, html)}
-              placeholder="Discharge instructions and follow-up care"
-            />
-            <div className="mt-3 flex justify-end">
-              <div
-                className={`w-full sm:max-w-72 ${readOnly ? 'pointer-events-none opacity-60' : ''}`}
-                aria-disabled={readOnly}
-              >
-                <Datepicker
-                  type="input"
-                  currentDate={followUpDate}
-                  setCurrentDate={
-                    handleFollowUpChange as React.Dispatch<React.SetStateAction<Date | null>>
-                  }
-                  placeholder="Follow up date"
+
+          {/* Mirrors the SOAP step sections: title + inset rich-text editor only.
+          Once saved, the editor is replaced by a read-only render of the summary
+          with a fixed follow-up date and a "Saved on … by …" stamp. */}
+          <SectionContainer
+            titleClassName="text-yc-20-b-primary"
+            title="Discharge Summary"
+            compactTop
+          >
+            {dischargeSaved ? (
+              <div className="relative">
+                {/* Editable until the encounter is locked (window closed / completed /
+                discharged). Absolutely positioned so it overlays the top-right
+                without pushing the summary down a row. */}
+                {!encounter.viewOnly && (
+                  <div className="absolute top-0 right-0 z-10">
+                    <CircleIconButton
+                      icon={<IoPencilOutline aria-hidden="true" />}
+                      label="Edit discharge summary"
+                      variant="dark"
+                      onClick={() => reopenDischargeSummary(appointmentId)}
+                    />
+                  </div>
+                )}
+                <div
+                  className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
+                  }}
                 />
+                <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+                  {/* Same Datepicker container as edit mode, rendered non-interactive. */}
+                  <div
+                    className="pointer-events-none w-full select-none sm:max-w-72"
+                    aria-disabled="true"
+                  >
+                    <Datepicker
+                      type="input"
+                      currentDate={followUpDate}
+                      setCurrentDate={() => undefined}
+                      placeholder="Follow up date"
+                    />
+                  </div>
+                  <div className="flex flex-col items-end leading-[120%]">
+                    <span className="text-[12px] font-bold text-neutral-900">
+                      Saved by {encounter.dischargeSavedByName}
+                    </span>
+                    <span className="text-[12px] font-medium text-text-brand">
+                      {formatDateTime(encounter.dischargeSavedAt ?? '')}
+                    </span>
+                  </div>
+                </div>
               </div>
+            ) : (
+              <>
+                <RichTextEditor
+                  ariaLabel="Discharge summary"
+                  value={encounter.dischargeSummary}
+                  readOnly={readOnly}
+                  toolbarPlacement="inset"
+                  onChange={(html) => setDischargeSummary(appointmentId, html)}
+                  placeholder="Discharge instructions and follow-up care"
+                />
+                <div className="mt-3 flex justify-end">
+                  <div
+                    className={`w-full sm:max-w-72 ${readOnly ? 'pointer-events-none opacity-60' : ''}`}
+                    aria-disabled={readOnly}
+                  >
+                    <Datepicker
+                      type="input"
+                      currentDate={followUpDate}
+                      setCurrentDate={
+                        handleFollowUpChange as React.Dispatch<React.SetStateAction<Date | null>>
+                      }
+                      placeholder="Follow up date"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </SectionContainer>
+
+          <div className="flex flex-col items-end gap-2">
+            {signError && (
+              <p role="alert" className="text-body-4 text-danger-700">
+                {signError}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {showDocumentActions && (
+                <Secondary
+                  text={isPrinting ? 'Preparing…' : 'Print All'}
+                  icon={<IoPrintOutline aria-hidden="true" />}
+                  onClick={handlePrint}
+                  isDisabled={isPrinting}
+                />
+              )}
+              {!dischargeSaved && (
+                <Secondary
+                  text="Save"
+                  icon={<IoSaveOutline aria-hidden="true" />}
+                  onClick={handleSave}
+                  isDisabled={encounter.viewOnly || isSaving}
+                />
+              )}
+              {showDocumentActions && isPacketSigned && (
+                <Secondary
+                  text="Download Signed"
+                  icon={<IoDownloadOutline aria-hidden="true" />}
+                  onClick={handleDownloadSigned}
+                  isDisabled={isPrinting}
+                />
+              )}
+              {showDocumentActions && !isPacketSigned && signDisabledReason && (
+                <GlassTooltip content={signDisabledReason} side="top">
+                  <Secondary
+                    text={isSigning ? 'Signing…' : 'Sign'}
+                    icon={<IoDocumentTextOutline aria-hidden="true" />}
+                    onClick={handleSign}
+                    isDisabled={signDisabled}
+                  />
+                </GlassTooltip>
+              )}
+              {showDocumentActions && !isPacketSigned && !signDisabledReason && (
+                <Secondary
+                  text={isSigning ? 'Signing…' : 'Sign'}
+                  icon={<IoDocumentTextOutline aria-hidden="true" />}
+                  onClick={handleSign}
+                  isDisabled={signDisabled}
+                />
+              )}
             </div>
-          </>
-        )}
-      </SectionContainer>
-
-      <div className="flex flex-col items-end gap-2">
-        {signError && (
-          <p role="alert" className="text-body-4 text-danger-700">
-            {signError}
-          </p>
-        )}
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {showDocumentActions && (
-            <Secondary
-              text={isPrinting ? 'Preparing…' : 'Print All'}
-              icon={<IoPrintOutline aria-hidden="true" />}
-              onClick={handlePrint}
-              isDisabled={isPrinting}
-            />
-          )}
-          {!dischargeSaved && (
-            <Secondary
-              text="Save"
-              icon={<IoSaveOutline aria-hidden="true" />}
-              onClick={handleSave}
-              isDisabled={encounter.viewOnly || isSaving}
-            />
-          )}
-          {showDocumentActions && isPacketSigned && (
-            <Secondary
-              text="Download Signed"
-              icon={<IoDownloadOutline aria-hidden="true" />}
-              onClick={handleDownloadSigned}
-              isDisabled={isPrinting}
-            />
-          )}
-          {showDocumentActions && !isPacketSigned && signDisabledReason && (
-            <GlassTooltip content={signDisabledReason} side="top">
-              <Secondary
-                text={isSigning ? 'Signing…' : 'Sign'}
-                icon={<IoDocumentTextOutline aria-hidden="true" />}
-                onClick={handleSign}
-                isDisabled={signDisabled}
-              />
-            </GlassTooltip>
-          )}
-          {showDocumentActions && !isPacketSigned && !signDisabledReason && (
-            <Secondary
-              text={isSigning ? 'Signing…' : 'Sign'}
-              icon={<IoDocumentTextOutline aria-hidden="true" />}
-              onClick={handleSign}
-              isDisabled={signDisabled}
-            />
-          )}
+          </div>
         </div>
+        <aside className="w-full lg:w-[400px] lg:shrink-0">
+          <AllDocumentsTable
+            documents={documents}
+            organisationId={organisationId}
+            canView={canViewDocuments}
+            error={documentsError}
+          />
+        </aside>
       </div>
-
-      <AllDocumentsTable
-        documents={documents}
-        organisationId={organisationId}
-        canView={canViewDocuments}
-        error={documentsError}
-      />
     </div>
   );
 };

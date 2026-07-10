@@ -8,6 +8,7 @@ const reset = () =>
     encountersById: {},
     activeStep: 'SOAP',
     activeSideAction: null,
+    saveStatusByAppointmentId: {},
   });
 
 const seed = (mode: 'OUTPATIENT' | 'INPATIENT' = 'OUTPATIENT') => {
@@ -918,5 +919,34 @@ describe('appointmentWorkspaceStore', () => {
     expect(enc.prescription[0].billed).toBe(true);
     // A saved service that was NOT on the paid bill stays unbilled/billable.
     expect(enc.services.find((s) => s.name === 'Nail trim')!.billed).toBeFalsy();
+  });
+
+  describe('autosave lifecycle (setSaveStatus)', () => {
+    it('stamps the save time on a successful save and clears it otherwise', () => {
+      getStore().setSaveStatus(APPT, 'saving');
+      expect(getStore().saveStatusByAppointmentId[APPT]).toEqual({
+        status: 'saving',
+        at: undefined,
+      });
+
+      getStore().setSaveStatus(APPT, 'saved');
+      const saved = getStore().saveStatusByAppointmentId[APPT];
+      expect(saved.status).toBe('saved');
+      expect(saved.at).toBeTruthy();
+
+      getStore().setSaveStatus(APPT, 'offline');
+      expect(getStore().saveStatusByAppointmentId[APPT]).toEqual({
+        status: 'offline',
+        at: undefined,
+      });
+    });
+
+    it('honours an explicit saved-at timestamp', () => {
+      getStore().setSaveStatus(APPT, 'saved', '2026-07-10T09:31:00.000Z');
+      expect(getStore().saveStatusByAppointmentId[APPT]).toEqual({
+        status: 'saved',
+        at: '2026-07-10T09:31:00.000Z',
+      });
+    });
   });
 });
