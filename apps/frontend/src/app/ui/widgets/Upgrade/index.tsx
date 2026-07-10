@@ -72,7 +72,7 @@ const Upgrade = () => {
             <div className="text-caption-1 text-text-secondary">Price in EUR</div>
           </div>
         </div>
-        <div className="p-3 flex flex-col items-center justify-center gap-3 w-full rounded-2xl! border border-grey-light!">
+        <div className="p-3 flex flex-col items-center justify-center gap-3 w-full rounded-2xl! border border-card-border!">
           <div className={`text-body-4 text-text-primary`}>Business plan</div>
           <div className="flex gap-2 items-end">
             <p className={`text-display-1 text-text-primary`}>

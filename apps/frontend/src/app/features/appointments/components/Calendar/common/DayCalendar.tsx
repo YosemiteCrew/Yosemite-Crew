@@ -534,7 +534,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between p-2 border-b border-grey-light shrink-0">
+      <div className="flex items-center justify-between p-2 border-b border-card-border shrink-0">
         <Back onClick={handlePrevDay} />
         <div className="flex items-center gap-2 text-center">
           <div className="text-body-4 text-(--color-primary-700)">{weekday}</div>
@@ -545,7 +545,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
         <Next onClick={handleNextDay} />
       </div>
       {allDayEvents.length > 0 && (
-        <div className="p-2 border-b border-grey-light bg-slate-50 shrink-0">
+        <div className="p-2 border-b border-card-border bg-slate-50 shrink-0">
           <div className="text-xs font-satoshi text-grey-text mb-1">All-day</div>
           <div className="flex flex-wrap gap-2">
             {allDayEvents.map((ev, idx) => {
@@ -672,7 +672,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
                 return (
                   <div
                     key={`drag-availability-${interval.startMinute}-${interval.endMinute}-${index}`}
-                    className="pointer-events-none absolute left-1 right-1 z-20 rounded-xl border border-grey-light bg-calendar-availability-overlay"
+                    className="pointer-events-none absolute left-1 right-1 z-20 rounded-xl border border-card-border bg-calendar-availability-overlay"
                     style={{ top, height }}
                   />
                 );
@@ -685,7 +685,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
                 }}
               >
                 <div
-                  className="rounded-xl border-2 border-dashed border-grey-light bg-calendar-preview-overlay"
+                  className="rounded-xl border-2 border-dashed border-card-border bg-calendar-preview-overlay"
                   style={{
                     height: Math.max(
                       12,

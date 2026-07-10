@@ -469,7 +469,7 @@ const FormSection: React.FC<FormSectionProps> = ({
               ).map((batch, batchIdx) => (
                 <div
                   key={batch._id ?? `batch-${batchIdx}`}
-                  className="flex flex-col gap-3 border border-grey-light rounded-xl p-3"
+                  className="flex flex-col gap-3 border border-card-border rounded-xl p-3"
                 >
                   <div className="flex items-center justify-between">
                     <div className="font-satoshi font-semibold text-black-text">

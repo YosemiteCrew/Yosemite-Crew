@@ -244,7 +244,7 @@ const Header = ({
   });
 
   return (
-    <div className="sticky top-0 z-140 shrink-0 flex w-full items-center gap-4 border-b border-grey-light bg-neutral-0 px-3 py-2">
+    <div className="sticky top-0 z-140 shrink-0 flex w-full items-center gap-4 border-b border-card-border bg-neutral-0 px-3 py-2">
       <div className="flex shrink-0 items-center gap-3">
         <GlassTooltip content="Select date" side="bottom">
           <div className="relative z-150">

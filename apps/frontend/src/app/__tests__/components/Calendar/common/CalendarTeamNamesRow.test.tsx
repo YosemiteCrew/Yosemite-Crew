@@ -27,11 +27,12 @@ describe('CalendarTeamNamesRow', () => {
     );
   });
 
-  it('paints the header band with a theme-aware surface, not hardcoded white', () => {
+  it('paints the header band with the warm --screen-2 surface, not a blue tint or white', () => {
     const { container } = render(<CalendarTeamNamesRow team={team} teamColumnsStyle={{}} />);
 
     const band = container.firstChild as HTMLElement;
-    expect(band.style.background).toContain('var(--screen)');
+    expect(band.style.background).toContain('var(--screen-2)');
     expect(band.style.background).not.toContain('white');
+    expect(band.style.background).not.toContain('brand');
   });
 });

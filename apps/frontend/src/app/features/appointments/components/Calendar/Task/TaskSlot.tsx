@@ -255,7 +255,7 @@ const TaskSlot = ({
     <>
       <section
         aria-label={taskSlotLabel}
-        className={`relative bg-neutral-0 border-l border-grey-light ${
+        className={`relative bg-neutral-0 border-l border-card-border ${
           resolvedDayIndex === length ? 'border-r' : ''
         }`}
         style={{ height: `${height}px` }}
@@ -323,7 +323,7 @@ const TaskSlot = ({
           availabilitySegments.map((segment, index) => (
             <div
               key={`task-drop-availability-${index}-${segment.top}`}
-              className="pointer-events-none absolute left-1 right-1 z-10 rounded-xl border border-grey-light bg-[var(--color-calendar-availability-overlay)]"
+              className="pointer-events-none absolute left-1 right-1 z-10 rounded-xl border border-card-border bg-[var(--color-calendar-availability-overlay)]"
               style={{
                 top: segment.top,
                 height: segment.height,
@@ -338,7 +338,7 @@ const TaskSlot = ({
             }}
           >
             <div
-              className="rounded-xl border-2 border-dashed border-grey-light bg-[var(--color-calendar-preview-overlay)]"
+              className="rounded-xl border-2 border-dashed border-card-border bg-[var(--color-calendar-preview-overlay)]"
               style={{
                 height: Math.max(12, (Math.max(5, draggedTaskDurationMinutes) / 60) * height),
               }}

@@ -96,7 +96,7 @@ const PdfDocUploader = ({
 
       {file && (
         <div
-          className="flex items-center justify-center w-full rounded-2xl border border-grey-light relative px-2! py-6!"
+          className="flex items-center justify-center w-full rounded-2xl border border-card-border relative px-2! py-6!"
           key={`file-${file.name}`}
         >
           <div className="flex flex-col gap-2 items-center">

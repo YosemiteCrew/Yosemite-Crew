@@ -732,7 +732,7 @@ const AppointmentCalendar = ({
   );
 
   return (
-    <div className="h-full min-h-0 border border-grey-light rounded-2xl overflow-hidden w-full flex flex-col">
+    <div className="h-full min-h-0 border border-card-border rounded-2xl overflow-hidden w-full flex flex-col">
       <Header
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}

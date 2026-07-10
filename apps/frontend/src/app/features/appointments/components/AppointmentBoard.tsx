@@ -403,8 +403,8 @@ const AppointmentBoardComponent = ({
   }, [autoScrollBoardOnDrag, canEditAppointments, draggedAppointmentId]);
 
   return (
-    <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-neutral-0 overflow-hidden flex flex-col">
-      <div className="shrink-0 border-b border-grey-light bg-neutral-0 px-3 py-2">
+    <div className="h-full min-h-0 rounded-2xl border border-card-border bg-neutral-0 overflow-hidden flex flex-col">
+      <div className="shrink-0 border-b border-card-border bg-neutral-0 px-3 py-2">
         <div className="flex w-full items-center gap-4">
           <div className="flex shrink-0 items-center gap-2 text-body-4-emphasis text-text-primary">
             <GlassTooltip content="Select date" side="bottom">

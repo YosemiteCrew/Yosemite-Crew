@@ -70,7 +70,7 @@ const getGroupContainerClass = (level: number, medicationGroup: boolean): string
     return 'rounded-xl border border-card-border bg-neutral-0 p-3';
   }
   if (level === 1) {
-    return 'rounded-xl border border-grey-light bg-neutral-0 p-3';
+    return 'rounded-xl border border-card-border bg-neutral-0 p-3';
   }
   return 'rounded-lg border-l-2 border-card-border bg-neutral-0 px-3 py-2';
 };

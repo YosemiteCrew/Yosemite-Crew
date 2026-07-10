@@ -488,7 +488,7 @@ const SlotComponent: React.FC<SlotProps> = ({
     <>
       <section
         aria-label={slotRegionLabel}
-        className={`relative overflow-auto scrollbar-hidden border-l border-grey-light ${dayIndex === length && 'border-r'}`}
+        className={`relative overflow-auto scrollbar-hidden border-l border-card-border ${dayIndex === length && 'border-r'}`}
         style={{ height: `${height}px` }}
         onDragOver={(event) => {
           if (!draggedAppointmentId) return;
@@ -543,13 +543,13 @@ const SlotComponent: React.FC<SlotProps> = ({
           availabilitySegments.map((segment, index) => (
             <div
               key={`drop-availability-${index}-${segment.top}`}
-              className="pointer-events-none absolute inset-x-1 z-20 rounded-md border border-grey-light bg-calendar-availability-overlay"
+              className="pointer-events-none absolute inset-x-1 z-20 rounded-md border border-card-border bg-calendar-availability-overlay"
               style={{ top: segment.top, height: segment.segmentHeight }}
             />
           ))}
         {draggedAppointmentId && dropPreviewMinute != null && (
           <div
-            className="pointer-events-none absolute inset-x-1 z-30 rounded-md border-2 border-dashed border-grey-light bg-calendar-preview-overlay"
+            className="pointer-events-none absolute inset-x-1 z-30 rounded-md border-2 border-dashed border-card-border bg-calendar-preview-overlay"
             style={{
               top: `${((dropPreviewMinute % 60) / 60) * height}px`,
               height: `${Math.max(

@@ -547,7 +547,7 @@ const TaskBoard = ({
   }, [autoScrollBoardOnDrag, canEditTasks, draggedTaskId]);
 
   return (
-    <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-neutral-0 overflow-hidden flex flex-col">
+    <div className="h-full min-h-0 rounded-2xl border border-card-border bg-neutral-0 overflow-hidden flex flex-col">
       <div className="border-b border-card-border bg-neutral-0 px-3 py-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[340px]">

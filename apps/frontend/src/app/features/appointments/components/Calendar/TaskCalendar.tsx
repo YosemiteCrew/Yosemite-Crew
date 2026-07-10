@@ -764,7 +764,7 @@ const TaskCalendar = ({
   );
 
   return (
-    <div className="border border-grey-light rounded-2xl size-full min-h-0 flex flex-col overflow-hidden">
+    <div className="border border-card-border rounded-2xl size-full min-h-0 flex flex-col overflow-hidden">
       <Header
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}

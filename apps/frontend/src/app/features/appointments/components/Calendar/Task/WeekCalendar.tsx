@@ -166,7 +166,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       >
         <div className="min-w-max h-full flex flex-col relative">
           <div className="z-30 bg-neutral-0">
-            <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-neutral-0">
+            <div className="grid border-b border-card-border py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-neutral-0">
               <div className="sticky left-0 z-40 bg-neutral-0 flex items-center justify-center">
                 <Back onClick={handlePrevWeek} />
               </div>

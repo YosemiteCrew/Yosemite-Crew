@@ -319,7 +319,7 @@ const Dropdown = ({
             key={valueToSend || label}
             id={`${listboxId}-option-${valueToSend}`}
             type="button"
-            className={`select-input-dropdown-item ${index === list.length - 1 ? '' : 'border-b border-grey-light'} ${
+            className={`select-input-dropdown-item ${index === list.length - 1 ? '' : 'border-b border-card-border'} ${
               activeOptionId === `${listboxId}-option-${valueToSend}` ? 'bg-card-hover' : ''
             }`}
             onMouseEnter={() => setActiveIndex(index)}

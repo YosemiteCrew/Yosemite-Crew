@@ -69,37 +69,37 @@ const Details = ({ activeAppointment }: DetailsProps) => {
                 isEditing={true}
               >
                 <div className="flex flex-col">
-                  <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
                     <div className="text-body-4-emphasis text-text-tertiary">Appointment ID: </div>
                     <div className="text-body-4 text-text-primary text-right">
                       {payment.appointmentId}
                     </div>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
                     <div className="text-body-4-emphasis text-text-tertiary">Date: </div>
                     <div className="text-body-4 text-text-primary text-right">
                       {formatDateLabel(payment.createdAt)}
                     </div>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-grey-light  justify-between">
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border  justify-between">
                     <div className="text-body-4-emphasis text-text-tertiary">Subtotal: </div>
                     <div className="text-body-4 text-text-primary text-right">
                       {formatMoney(payment.subtotal, currency)}
                     </div>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-grey-light  justify-between">
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border  justify-between">
                     <div className="text-body-4-emphasis text-text-tertiary">Discount: </div>
                     <div className="text-body-4 text-text-primary text-right">
                       {formatMoney(payment.discountTotal ?? 0, currency)}
                     </div>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
                     <div className="text-body-4-emphasis text-text-tertiary">Tax: </div>
                     <div className="text-body-4 text-text-primary text-right">
                       {formatMoney(payment.taxTotal ?? 0, currency)}
                     </div>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-b border-grey-light justify-between">
+                  <div className="py-2! flex items-center gap-2 border-b border-card-border justify-between">
                     <div className="text-body-4-emphasis text-text-tertiary">Amount: </div>
                     <div className="text-body-4 text-text-primary text-right">
                       {formatMoney(payment.totalAmount, currency)}
@@ -117,7 +117,7 @@ const Details = ({ activeAppointment }: DetailsProps) => {
                       {toTitle(payment.status)}
                     </span>
                   </div>
-                  <div className="py-2! flex items-center gap-2 border-t border-grey-light justify-between">
+                  <div className="py-2! flex items-center gap-2 border-t border-card-border justify-between">
                     <div className="text-body-4-emphasis text-text-tertiary">Payment method: </div>
                     <div className="text-body-4 text-text-primary text-right">
                       {getInvoicePaymentMethodLabel(payment)}
