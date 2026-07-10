@@ -5,6 +5,7 @@ import Header from '@/app/ui/layout/Header/Header';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useAuthStore } from '@/app/stores/authStore';
 import Sidebar from '@/app/ui/layout/Sidebar/Sidebar';
+import PhoneShell from '@/app/ui/layout/PhoneShell/PhoneShell';
 import UniversalSearchPalette from '@/app/ui/layout/UniversalSearch/UniversalSearchPalette';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useLoadOrg } from '@/app/hooks/useLoadOrg';
@@ -203,6 +204,8 @@ const SessionInitializer = ({ children }: { children: React.ReactNode }) => {
           {isChecking ? null : children}
         </main>
       </div>
+
+      <PhoneShell />
     </div>
   );
 };
