@@ -13,6 +13,19 @@ const wrapActiveIndex = (current: number, optionCount: number, delta: 1 | -1): n
   return current <= 0 ? optionCount - 1 : current - 1;
 };
 
+/** Compute the active option index when the open/options/selection context changes. */
+const resolveActiveIndex = (
+  open: boolean,
+  options: Option[],
+  activeIndex: number,
+  selectedKey?: string
+): number => {
+  if (!open || options.length === 0) return -1;
+  if (activeIndex >= 0 && activeIndex < options.length) return activeIndex;
+  const selectedIndex = options.findIndex((option) => option.key === selectedKey);
+  return Math.max(selectedIndex, 0);
+};
+
 type DropdownProps = {
   placeholder: string;
   options: Option[];
@@ -71,12 +84,7 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
     selected?.key !== activeIndexDeps.selectedKey
   ) {
     setActiveIndexDeps({ options, open, selectedKey: selected?.key });
-    if (!open || options.length === 0) {
-      setActiveIndex(-1);
-    } else if (activeIndex < 0 || activeIndex >= options.length) {
-      const selectedIndex = options.findIndex((option) => option.key === selected?.key);
-      setActiveIndex(Math.max(selectedIndex, 0));
-    }
+    setActiveIndex(resolveActiveIndex(open, options, activeIndex, selected?.key));
   }
 
   useEffect(() => {

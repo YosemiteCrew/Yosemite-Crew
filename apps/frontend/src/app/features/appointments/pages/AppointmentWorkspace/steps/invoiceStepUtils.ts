@@ -166,6 +166,67 @@ const inventoryToInvoiceCandidate = (item: InventoryItem): BillableCandidate => 
   return candidate;
 };
 
+const buildServiceCandidates = (
+  encounter: AppointmentEncounter,
+  existingNames: Set<string>
+): BillableCandidate[] =>
+  encounter.services
+    .filter(
+      (item) =>
+        !item.billed && item.amountCents > 0 && !existingNames.has(item.name.trim().toLowerCase())
+    )
+    .map((item) => toInvoiceCandidate(item.name, item.amountCents, 'EXISTING_TREATMENT'));
+
+// In-house medications prescribed this visit. Their price comes from the linked
+// inventory item; when it is missing we still surface them at 0 so they can be
+// added and priced inline rather than silently dropped from the bill.
+const buildPrescriptionCandidates = (
+  encounter: AppointmentEncounter,
+  existingNames: Set<string>
+): BillableCandidate[] =>
+  encounter.prescription
+    .filter(
+      (item) =>
+        !item.billed &&
+        item.fulfillment === 'IN_HOUSE' &&
+        !existingNames.has(item.medicineName.trim().toLowerCase())
+    )
+    .map((item) =>
+      toInvoiceCandidate(
+        item.medicineName,
+        Math.max(0, item.priceCents ?? 0),
+        'IN_HOUSE_PRESCRIPTION'
+      )
+    );
+
+const buildCatalogCandidates = (
+  catalogServices: ServiceRevamp[],
+  catalogPackages: PackageRevamp[],
+  organisationId?: string
+): BillableCandidate[] => {
+  if (!organisationId) return [];
+  const isActiveForOrg = (entry: { organisationId?: string; status?: string }): boolean =>
+    entry.organisationId === organisationId && entry.status === 'ACTIVE';
+  return [
+    ...catalogServices.filter(isActiveForOrg).map(serviceToInvoiceCandidate),
+    ...catalogPackages.filter(isActiveForOrg).map(packageToInvoiceCandidate),
+  ];
+};
+
+// Inventory/stock items (drugs, consumables) so they can be charged directly.
+const buildInventoryCandidates = (
+  inventoryItems: InventoryItem[],
+  existingNames: Set<string>
+): BillableCandidate[] =>
+  inventoryItems
+    .filter(
+      (item) =>
+        Boolean(item.basicInfo?.name) &&
+        item.status !== 'HIDDEN' &&
+        !existingNames.has((item.basicInfo?.name ?? '').trim().toLowerCase())
+    )
+    .map(inventoryToInvoiceCandidate);
+
 export const buildBillableItems = (
   encounter: AppointmentEncounter,
   catalogServices: ServiceRevamp[],
@@ -176,63 +237,15 @@ export const buildBillableItems = (
   const existingNames = new Set(
     encounter.invoiceLineItems.map((item) => item.name.trim().toLowerCase())
   );
-  const serviceItems: BillableCandidate[] = [];
-  for (const item of encounter.services) {
-    if (
-      !item.billed &&
-      item.amountCents > 0 &&
-      !existingNames.has(item.name.trim().toLowerCase())
-    ) {
-      serviceItems.push(toInvoiceCandidate(item.name, item.amountCents, 'EXISTING_TREATMENT'));
-    }
-  }
-  // In-house medications prescribed this visit. Their price comes from the linked
-  // inventory item; when it is missing we still surface them at 0 so they can be
-  // added and priced inline rather than silently dropped from the bill.
-  const prescriptionItems: BillableCandidate[] = [];
-  for (const item of encounter.prescription) {
-    if (
-      !item.billed &&
-      item.fulfillment === 'IN_HOUSE' &&
-      !existingNames.has(item.medicineName.trim().toLowerCase())
-    ) {
-      prescriptionItems.push(
-        toInvoiceCandidate(
-          item.medicineName,
-          Math.max(0, item.priceCents ?? 0),
-          'IN_HOUSE_PRESCRIPTION'
-        )
-      );
-    }
-  }
-  const catalogItems: BillableCandidate[] = [];
-  if (organisationId) {
-    for (const service of catalogServices) {
-      if (service.organisationId === organisationId && service.status === 'ACTIVE') {
-        catalogItems.push(serviceToInvoiceCandidate(service));
-      }
-    }
-    for (const pkg of catalogPackages) {
-      if (pkg.organisationId === organisationId && pkg.status === 'ACTIVE') {
-        catalogItems.push(packageToInvoiceCandidate(pkg));
-      }
-    }
-  }
-  // Inventory/stock items (drugs, consumables) so they can be charged directly.
-  const inventoryCandidates: BillableCandidate[] = [];
-  for (const item of inventoryItems) {
-    if (
-      item.basicInfo?.name &&
-      item.status !== 'HIDDEN' &&
-      !existingNames.has(item.basicInfo.name.trim().toLowerCase())
-    ) {
-      inventoryCandidates.push(inventoryToInvoiceCandidate(item));
-    }
-  }
   const visitItems = uniqueByName(
-    [...serviceItems, ...prescriptionItems, ...inventoryCandidates],
+    [
+      ...buildServiceCandidates(encounter, existingNames),
+      ...buildPrescriptionCandidates(encounter, existingNames),
+      ...buildInventoryCandidates(inventoryItems, existingNames),
+    ],
     new Set()
   );
+  const catalogItems = buildCatalogCandidates(catalogServices, catalogPackages, organisationId);
   return uniqueByName([...visitItems, ...catalogItems], existingNames);
 };
 
