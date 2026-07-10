@@ -497,7 +497,10 @@ const getRecordArray = (
   for (const key of keys) {
     const value = payload[key];
     if (!Array.isArray(value)) continue;
-    return value.map(asRecord).filter(Boolean) as Record<string, unknown>[];
+    return value.flatMap((item) => {
+      const record = asRecord(item);
+      return record ? [record] : [];
+    });
   }
   return [];
 };
@@ -1066,13 +1069,14 @@ const CompanionHistoryTimeline = ({
 
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const requestedTypeSet = requestedTypes ? new Set(requestedTypes) : null;
     let byTab: HistoryEntry[];
     if (activeFilter === 'ALL') {
       byTab = entries;
     } else if (activeFilter === 'MEDICAL_RECORDS') {
       byTab = entries.filter((entry) => MEDICAL_RECORD_TYPES.has(entry.type));
     } else {
-      byTab = entries.filter((entry) => requestedTypes?.includes(entry.type));
+      byTab = entries.filter((entry) => requestedTypeSet?.has(entry.type) ?? false);
     }
     const bySearch = normalizedQuery
       ? byTab.filter((entry) => getSearchableText(entry).includes(normalizedQuery))
