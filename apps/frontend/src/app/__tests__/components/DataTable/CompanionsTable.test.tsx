@@ -6,7 +6,6 @@ import CompanionsTable from '@/app/ui/tables/CompanionsTable';
 
 const useAppointmentsForPrimaryOrgMock = jest.fn();
 const pushMock = jest.fn();
-const genericTableSpy = jest.fn();
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -28,7 +27,7 @@ jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
 }));
 
 jest.mock('@/app/lib/date', () => ({
-  getAgeInYears: jest.fn(() => '2y'),
+  getAgeInYears: jest.fn(() => 2),
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -41,25 +40,7 @@ jest.mock('@/app/lib/urls', () => ({
 }));
 
 jest.mock('@/app/lib/validators', () => ({
-  toTitleCase: (value: string) => value.toUpperCase(),
-}));
-
-jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => ({
-  __esModule: true,
-  default: ({ data, columns }: any) => {
-    genericTableSpy({ data, columns });
-    return (
-      <div data-testid="table">
-        {data.map((item: any) => (
-          <div key={item.companion.name}>
-            {columns.map((col: any) => (
-              <div key={col.key || col.label}>{col.render ? col.render(item) : item[col.key]}</div>
-            ))}
-          </div>
-        ))}
-      </div>
-    );
-  },
+  toTitleCase: (value: string) => value,
 }));
 
 jest.mock('@/app/ui/cards/CompanionCard/CompanionCard', () => ({
@@ -69,18 +50,14 @@ jest.mock('@/app/ui/cards/CompanionCard/CompanionCard', () => ({
   ),
 }));
 
-jest.mock('react-icons/fa', () => ({
-  FaCalendar: () => <span>calendar-icon</span>,
-  FaTasks: () => <span>task-icon</span>,
-}));
-
 jest.mock('react-icons/io5', () => ({
-  IoEye: () => <span>view-icon</span>,
+  IoCalendarOutline: () => <span>calendar-icon</span>,
+  IoCheckmarkDoneOutline: () => <span>task-icon</span>,
+  IoEllipsisHorizontal: () => <span>kebab-icon</span>,
   IoOpenOutline: () => <span>open-icon</span>,
-}));
-
-jest.mock('react-icons/md', () => ({
-  MdOutlineAutorenew: () => <span>status-icon</span>,
+  IoPersonOutline: () => <span>person-icon</span>,
+  IoReaderOutline: () => <span>reader-icon</span>,
+  IoSwapHorizontalOutline: () => <span>swap-icon</span>,
 }));
 
 describe('CompanionsTable', () => {
@@ -89,15 +66,18 @@ describe('CompanionsTable', () => {
       id: 'c1',
       name: 'Buddy',
       breed: 'Labrador',
-      type: 'Dog',
+      type: 'dog',
       gender: 'Male',
       dateOfBirth: '2023-01-01',
       allergy: 'None',
       status: 'active',
       photoUrl: 'photo',
     },
-    parent: { firstName: 'Sam' },
+    parent: { firstName: 'Sam', lastName: 'Owner' },
   };
+
+  const openRowMenu = () =>
+    fireEvent.click(screen.getByRole('button', { name: 'Companion row actions' }));
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -112,7 +92,7 @@ describe('CompanionsTable', () => {
     ]);
   });
 
-  it('handles view, history, schedule, and task actions', () => {
+  it('opens overview, profile, appointment, task, and status actions from the row menu', () => {
     const setActiveCompanion = jest.fn();
     const setViewCompanion = jest.fn();
     const setCompanionInfoInitialLabel = jest.fn();
@@ -135,13 +115,26 @@ describe('CompanionsTable', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('view-icon').closest('button')!);
+    // Patient name link opens the companion overview/history page.
     fireEvent.click(screen.getByTitle('Open companion history'));
-    fireEvent.click(screen.getByTitle('View history'));
+    // Upcoming visit cell opens the linked appointment.
     fireEvent.click(screen.getByTitle('Open appointment'));
-    fireEvent.click(screen.getByText('status-icon').closest('button')!);
-    fireEvent.click(screen.getByText('calendar-icon').closest('button')!);
-    fireEvent.click(screen.getByText('task-icon').closest('button')!);
+
+    // Row overflow menu carries every companion action.
+    openRowMenu();
+    fireEvent.click(screen.getByText('Open overview'));
+
+    openRowMenu();
+    fireEvent.click(screen.getByText('View profile'));
+
+    openRowMenu();
+    fireEvent.click(screen.getByText('Book appointment'));
+
+    openRowMenu();
+    fireEvent.click(screen.getByText('Add task'));
+
+    openRowMenu();
+    fireEvent.click(screen.getByText('Change status'));
 
     expect(setActiveCompanion).toHaveBeenCalledWith(companion);
     expect(setViewCompanion).toHaveBeenCalledWith(true);
@@ -153,6 +146,47 @@ describe('CompanionsTable', () => {
     expect(pushMock).toHaveBeenCalledWith(
       '/companions/history?companionId=c1&source=companions&backTo=%2Fcompanions'
     );
+  });
+
+  it('hides edit-gated actions when the user lacks permissions', () => {
+    render(
+      <CompanionsTable
+        filteredList={[companion]}
+        setActiveCompanion={jest.fn()}
+        setViewCompanion={jest.fn()}
+        setBookAppointment={jest.fn()}
+        setAddTask={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        canEditAppointments={false}
+        canEditTasks={false}
+        canEditCompanions={false}
+      />
+    );
+
+    openRowMenu();
+    expect(screen.getByText('Open overview')).toBeInTheDocument();
+    expect(screen.getByText('View profile')).toBeInTheDocument();
+    expect(screen.queryByText('Book appointment')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add task')).not.toBeInTheDocument();
+    expect(screen.queryByText('Change status')).not.toBeInTheDocument();
+  });
+
+  it('renders the species sub-line for the patient cell', () => {
+    render(
+      <CompanionsTable
+        filteredList={[companion]}
+        setActiveCompanion={jest.fn()}
+        setViewCompanion={jest.fn()}
+        setBookAppointment={jest.fn()}
+        setAddTask={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        canEditAppointments={false}
+        canEditTasks={false}
+        canEditCompanions={false}
+      />
+    );
+
+    expect(screen.getByText(/Canine/)).toBeInTheDocument();
   });
 
   it('shows empty state for mobile list', () => {
@@ -170,40 +204,6 @@ describe('CompanionsTable', () => {
       />
     );
 
-    expect(screen.getByText('No data available')).toBeInTheDocument();
-  });
-
-  it('keeps the species label readable when the breed wraps', () => {
-    render(
-      <CompanionsTable
-        filteredList={[
-          {
-            ...companion,
-            companion: {
-              ...companion.companion,
-              name: 'Shiro',
-              breed: 'Japanese shiba inu',
-              type: 'Dog',
-            },
-            parent: { firstName: 'Nohara' },
-          },
-        ]}
-        setActiveCompanion={jest.fn()}
-        setViewCompanion={jest.fn()}
-        setBookAppointment={jest.fn()}
-        setAddTask={jest.fn()}
-        setChangeStatusPopup={jest.fn()}
-        canEditAppointments={false}
-        canEditTasks={false}
-        canEditCompanions={false}
-      />
-    );
-
-    expect(screen.getByText('/ Canine')).toHaveClass('whitespace-nowrap');
-    expect(genericTableSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        columns: expect.arrayContaining([expect.objectContaining({ key: 'name', width: '220px' })]),
-      })
-    );
+    expect(screen.getAllByText('No data available').length).toBeGreaterThan(0);
   });
 });

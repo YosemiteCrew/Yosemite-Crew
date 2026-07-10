@@ -60,17 +60,37 @@ const AddCompanion = ({
     setActiveLabel(label);
   };
 
+  const stepIndex = activeLabel === 'parents' ? 1 : 2;
+  const stepSubtitle =
+    activeLabel === 'parents'
+      ? 'Step 1 of 2 · parent details'
+      : terminologyText('Step 2 of 2 · patient details');
+
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
-            <div className="text-body-1 text-text-primary">{terminologyText('Add companion')}</div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-body-1 text-text-primary">
+              {terminologyText('Add companion')}
+            </span>
+            <span className="text-[12.5px] text-[var(--ink-muted)]">{stepSubtitle}</span>
           </div>
           <Close onClick={() => setShowModal(false)} />
+        </div>
+
+        {/* Progress dots — mirror the two-step flow */}
+        <div className="flex items-center gap-1.5" aria-hidden="true">
+          <span
+            className={`h-[5px] w-[22px] rounded-full ${
+              stepIndex >= 1 ? 'bg-[var(--cta)]' : 'bg-[var(--divider)]'
+            }`}
+          />
+          <span
+            className={`h-[5px] w-[22px] rounded-full ${
+              stepIndex >= 2 ? 'bg-[var(--cta)]' : 'bg-[var(--divider)]'
+            }`}
+          />
         </div>
 
         <Labels

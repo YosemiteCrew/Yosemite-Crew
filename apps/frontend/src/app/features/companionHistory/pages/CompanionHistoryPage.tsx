@@ -140,7 +140,7 @@ const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
   return (
     <section
       aria-label="Companion profile"
-      className="flex min-h-36 flex-col gap-4 rounded-2xl border border-card-border bg-neutral-0 p-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
+      className="flex min-h-36 flex-col gap-4 rounded-[18px] border border-card-border bg-neutral-0 p-5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
     >
       <Image
         alt={record.companion.name}
@@ -189,7 +189,7 @@ const ParentProfilePanel = ({
   return (
     <section
       aria-label="Parent profile"
-      className="flex min-h-36 flex-col gap-3 rounded-2xl border border-card-border bg-neutral-0 p-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
+      className="flex min-h-36 flex-col gap-3 rounded-[18px] border border-card-border bg-neutral-0 p-5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
     >
       <div className="flex w-16 shrink-0 items-start">
         <Image
@@ -383,10 +383,7 @@ const CompanionHistoryPageInner = () => {
     <ProtectedRoute skeleton={PAGE_SKELETON}>
       <OrgGuard skeleton={PAGE_SKELETON}>
         <div className="flex w-full flex-col gap-6 px-4 py-5 md:px-8">
-          <div
-            className="-mx-4 -mt-5 flex flex-col gap-6 px-4 pt-5 pb-5 md:-mx-8 md:px-8"
-            style={{ background: 'var(--color-neutral-100)' }}
-          >
+          <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 flex-wrap items-center gap-3">
                 <button

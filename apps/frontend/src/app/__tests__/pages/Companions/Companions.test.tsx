@@ -163,7 +163,7 @@ describe('Companions page', () => {
       })
     );
 
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByRole('button', { name: /Add companion/i }));
     expect(screen.getByTestId('add-companion')).toBeInTheDocument();
   });
 });

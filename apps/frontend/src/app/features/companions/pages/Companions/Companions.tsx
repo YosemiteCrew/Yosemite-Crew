@@ -21,7 +21,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoInformationCircleOutline } from 'react-icons/io5';
+import { IoAdd, IoInformationCircleOutline } from 'react-icons/io5';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
@@ -126,7 +126,7 @@ const Companions = () => {
 
   return (
     <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
-      <div className="flex justify-between items-center w-full flex-wrap gap-2">
+      <div className="flex justify-between items-end w-full flex-wrap gap-3">
         <div className="flex flex-col gap-1">
           <h1 className="text-text-primary text-heading-2 font-newsreader flex items-center gap-2">
             <span>
@@ -148,7 +148,20 @@ const Companions = () => {
               </button>
             </GlassTooltip>
           </h1>
+          <p className="text-[13.5px] text-[var(--ink-muted)]">
+            {terminologyText('Every patient linked to the clinic, with their parents')}
+          </p>
         </div>
+        {canEditCompanions && (
+          <button
+            type="button"
+            onClick={() => setAddPopup((e) => !e)}
+            className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[var(--cta)] px-[18px] text-[13.5px] font-semibold text-[var(--cta-text)] transition-opacity hover:opacity-90"
+          >
+            <IoAdd size={17} aria-hidden="true" />
+            {terminologyText('Add companion')}
+          </button>
+        )}
       </div>
       <MobileSearchBar placeholder={terminologyText('Search companions')} />
       <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
@@ -160,9 +173,7 @@ const Companions = () => {
             activeStatus={activeStatus}
             setActiveFilter={setActiveFilter}
             setActiveStatus={setActiveStatus}
-            showAddButton={canEditCompanions}
-            onAddButtonClick={() => setAddPopup((e) => !e)}
-            addButtonText="Add"
+            showAddButton={false}
             compactFilterPills
           />
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
