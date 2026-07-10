@@ -42,17 +42,6 @@ type ProfileCardProps = {
   onSave?: (values: Record<string, string>) => Promise<void> | void;
 };
 
-const getStatusStyle = (status: string) => {
-  switch (status?.toLowerCase()) {
-    case 'active':
-      return { color: 'var(--color-success-600)', backgroundColor: 'var(--color-success-100)' };
-    case 'pending':
-      return { color: 'var(--color-warning-600)', backgroundColor: 'var(--color-card-warning)' };
-    default:
-      return { color: '', backgroundColor: '' };
-  }
-};
-
 type FormValues = Record<string, any>;
 
 const resolveLabel = (options: Array<{ label: string; value: string }>, value: string) =>
@@ -212,10 +201,10 @@ const FieldValueRow: React.FC<{
   showDivider: boolean;
 }> = ({ label, value, showDivider }) => (
   <div
-    className={`px-3! sm:px-6! py-[10px]! flex items-center justify-between gap-2 ${showDivider ? 'border-b border-b-card-border' : ''}`}
+    className={`px-3! sm:px-5! py-[11px]! flex items-center justify-between gap-3 ${showDivider ? 'border-b border-[var(--hairline)]' : ''}`}
   >
-    <div className="text-body-4 text-text-tertiary">{label}</div>
-    <div className="text-body-4 text-text-primary text-right">{value ?? '-'}</div>
+    <div className="text-[13px] text-[var(--ink-faint)]">{label}</div>
+    <div className="text-[13px] font-medium text-[var(--ink-body)] text-right">{value ?? '-'}</div>
   </div>
 );
 
@@ -403,21 +392,23 @@ const ProfileCard = ({
   };
 
   return (
-    <div className="border border-card-border rounded-2xl">
-      <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-        <div className="text-body-3 text-text-primary">{title}</div>
+    <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between gap-3">
+        <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">{title}</div>
         {isActuallyEditable && !isEditing && (
-          <RiEdit2Fill
-            size={18}
-            color="var(--color-neutral-900)"
-            className="cursor-pointer"
+          <button
+            type="button"
+            aria-label={`Edit ${title}`}
             onClick={() => setIsEditing(true)}
-          />
+            className="flex items-center justify-center size-[38px] shrink-0 rounded-full border border-[var(--hairline)] text-[var(--ink-soft)] hover:border-[var(--blue)] hover:text-[var(--blue-text)] transition-colors cursor-pointer"
+          >
+            <RiEdit2Fill size={16} />
+          </button>
         )}
       </div>
-      <div className={`px-3! py-2! flex flex-col`}>
+      <div className={`px-2! pt-1! pb-3! flex flex-col`}>
         {showProfileUser && (
-          <div className="px-3! sm:px-6! py-2! flex gap-2 items-center">
+          <div className="px-3! sm:px-5! py-3! flex gap-3 items-center">
             <LogoUpdator
               imageUrl={getSafeImageUrl(profile?.personalDetails?.profilePictureUrl, 'person')}
               title="Update Profile Picture"
@@ -425,15 +416,15 @@ const ProfileCard = ({
               onSave={updateProfilePicture}
               disabled={isDisabled}
             />
-            <div className="text-body-3 text-text-primary">
+            <div className="text-[16px] font-bold text-[var(--ink)]">
               {(attributes?.given_name || '') + ' ' + (attributes?.family_name || '')}
             </div>
           </div>
         )}
         {showProfile && (
-          <div className="px-3! sm:px-6! py-2! flex flex-col gap-2">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2">
+          <div className="px-3! sm:px-5! py-3! flex flex-col gap-2">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
                 <LogoUpdator
                   imageUrl={getSafeImageUrl(primaryOrg?.imageURL, 'business')}
                   title="Update logo"
@@ -441,13 +432,18 @@ const ProfileCard = ({
                   onSave={updateOrgLogo}
                   disabled={isDisabled}
                 />
-                <div className="text-body-3 text-text-primary">{org.name}</div>
-                <div
-                  className="px-3! py-1! rounded-2xl w-fit text-caption-1"
-                  style={getStatusStyle(org.isVerified ? 'Active' : 'Pending')}
+                <div className="text-[20px] font-newsreader tracking-[-0.015em] text-[var(--ink)]">
+                  {org.name}
+                </div>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.04em] ${
+                    org.isVerified
+                      ? 'bg-[var(--status-completed-bg)] text-[var(--status-completed-text)] border-[var(--status-completed-border)]'
+                      : 'bg-[var(--status-requested-bg)] text-[var(--status-requested-text)] border-[var(--status-requested-border)]'
+                  }`}
                 >
                   {org.isVerified ? 'Verified' : 'Pending'}
-                </div>
+                </span>
               </div>
               {!org?.isVerified && (
                 <Primary
@@ -498,7 +494,7 @@ const ProfileCard = ({
         })}
       </div>
       {isEditing && (
-        <div className="px-6! py-3! flex items-center justify-end w-full gap-3">
+        <div className="px-5! py-4! flex items-center justify-end w-full gap-3 border-t border-[var(--hairline)]">
           <Secondary text="Cancel" href="#" onClick={handleCancel} />
           <Primary text="Save" href="#" onClick={handleSave} />
         </div>

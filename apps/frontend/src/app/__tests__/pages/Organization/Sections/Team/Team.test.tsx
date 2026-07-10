@@ -1,29 +1,14 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import Team from '@/app/features/organization/pages/Organization/Sections/Team/Team';
 
 const useTeamMock = jest.fn();
 const usePermissionsMock = jest.fn();
-const accordionButtonSpy = jest.fn();
 
 jest.mock('@/app/hooks/useTeam', () => ({
   useTeamForPrimaryOrg: () => useTeamMock(),
-}));
-
-jest.mock('@/app/stores/orgStore', () => ({
-  useOrgStore: (selector: any) => selector({ primaryOrgId: 'org-1' }),
-}));
-
-jest.mock('@/app/stores/availabilityStore', () => ({
-  useAvailabilityStore: (selector: any) =>
-    selector({ availabilityIdsByOrgId: {}, availabilitiesById: {} }),
-}));
-
-jest.mock('@/app/lib/timezone', () => ({
-  formatDateInPreferredTimeZone: () => 'Monday',
-  getPreferredTimeZone: () => 'UTC',
 }));
 
 jest.mock('@/app/hooks/usePermissions', () => ({
@@ -33,11 +18,6 @@ jest.mock('@/app/hooks/usePermissions', () => ({
 jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
   PermissionGate: ({ children }: any) => <div>{children}</div>,
 }));
-
-jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => (props: any) => {
-  accordionButtonSpy(props);
-  return <div data-testid="accordion-button">{props.children}</div>;
-});
 
 jest.mock('@/app/ui/tables/AvailabilityTable', () => () => (
   <div data-testid="availability-table" />
@@ -58,17 +38,33 @@ describe('Team section', () => {
     usePermissionsMock.mockReturnValue({ can: jest.fn(() => true) });
   });
 
-  it('renders team table and add button when verified', () => {
+  it('renders the team table and member count', () => {
     render(<Team isVerified={true} />);
 
     expect(screen.getByTestId('availability-table')).toBeInTheDocument();
-    expect(accordionButtonSpy).toHaveBeenCalledWith(expect.objectContaining({ showButton: true }));
+    expect(screen.getByRole('heading', { name: /Team/ })).toHaveTextContent('(1)');
   });
 
-  it('hides add button when not verified', () => {
+  it('shows the invite button when verified and permitted', () => {
+    render(<Team isVerified={true} />);
+
+    const invite = screen.getByRole('button', { name: /Invite member/ });
+    expect(invite).toBeInTheDocument();
+    fireEvent.click(invite);
+    expect(screen.getByTestId('add-team')).toBeInTheDocument();
+  });
+
+  it('hides the invite button when not verified', () => {
     render(<Team isVerified={false} />);
 
     expect(screen.getByTestId('availability-table')).toBeInTheDocument();
-    expect(accordionButtonSpy).toHaveBeenCalledWith(expect.objectContaining({ showButton: false }));
+    expect(screen.queryByRole('button', { name: /Invite member/ })).not.toBeInTheDocument();
+  });
+
+  it('hides the invite button when the user cannot edit the team', () => {
+    usePermissionsMock.mockReturnValue({ can: jest.fn(() => false) });
+    render(<Team isVerified={true} />);
+
+    expect(screen.queryByRole('button', { name: /Invite member/ })).not.toBeInTheDocument();
   });
 });

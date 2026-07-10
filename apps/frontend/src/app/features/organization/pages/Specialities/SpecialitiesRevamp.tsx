@@ -61,7 +61,7 @@ const SpecialitiesRevamp = () => {
           <Link
             href="/organization"
             aria-label="Back to Organisation"
-            className="flex items-center justify-center size-9 rounded-full border border-card-border hover:border-text-brand transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+            className="flex items-center justify-center size-9 rounded-full border border-[var(--hairline)] hover:border-text-brand transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
           >
             <IoChevronBack size={18} color="var(--color-neutral-900)" aria-hidden="true" />
           </Link>
@@ -91,7 +91,7 @@ const SpecialitiesRevamp = () => {
           />
         ))}
         {filteredSpecialities.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-2xl border border-card-border text-text-secondary">
+          <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-[18px] border border-[var(--hairline)] text-text-secondary">
             <p className="text-body-3">{getSpecialitiesEmptyMessage(status, searchQuery)}</p>
             {!searchQuery && status !== 'loading' && (
               <Primary

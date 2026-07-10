@@ -227,7 +227,7 @@ const SpecialityAccordionRevamp = ({
   };
 
   return (
-    <div className="flex flex-col w-full rounded-2xl border border-card-border">
+    <div className="flex flex-col w-full rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
       {/* Accordion Header — two rows on mobile, single row on sm+ */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 sm:px-5 py-3 sm:py-3.5">
         {/* Row 1 (always): chevron + name + rename icon */}
@@ -416,7 +416,7 @@ const SpecialityAccordionRevamp = ({
 
       {/* Expanded content */}
       {open && (
-        <div className="border-t border-card-border">
+        <div className="border-t border-[var(--hairline)]">
           <TabToggle
             tabs={TABS}
             activeKey={activeTab}
