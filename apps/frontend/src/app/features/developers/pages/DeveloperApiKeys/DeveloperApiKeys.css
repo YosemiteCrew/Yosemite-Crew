@@ -30,10 +30,10 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  background: linear-gradient(160deg, var(--color-neutral-950) 0%, var(--color-neutral-900) 100%);
+  background: var(--color-ink);
   border-radius: 16px;
   padding: 16px 20px;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 12px 34px rgba(29, 28, 27, 0.2);
 }
 
 .dev-key-reveal-icon {
@@ -59,7 +59,7 @@
 .dev-key-reveal-title {
   font-size: 13px;
   font-weight: 700;
-  color: var(--color-neutral-0);
+  color: #f4efe6;
 }
 
 .dev-key-reveal-value {
@@ -94,7 +94,7 @@
   border-radius: 9999px;
   border: none;
   background: transparent;
-  color: var(--color-neutral-200);
+  color: rgba(244, 239, 230, 0.6);
   cursor: pointer;
   flex-shrink: 0;
 }

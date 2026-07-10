@@ -61,27 +61,30 @@ const DeveloperPortalHome = () => {
   return (
     <DevRouteGuard>
       <div className="OperationsWrapper">
-        <div className="TitleContainer">
-          <h1 className="text-heading-1 text-text-primary font-newsreader">Developer Home</h1>
-          <Primary text="View docs" href="/developers/documentation" style={{ maxWidth: 180 }} />
-        </div>
-
-        <section className="DevPortalHome">
+        <div className="TitleContainer dev-home-head">
           <div className="dev-portal-intro">
-            <h2 className="text-heading-1 text-text-primary font-newsreader">
+            <h1 className="dev-greet-name text-text-primary font-newsreader">
               <span
-                className="block text-body-2 italic-newsreader"
+                className="block text-body-2 italic-newsreader dev-greet-eyebrow"
                 style={{ color: 'var(--color-cyan-text)' }}
               >
                 Welcome back,
               </span>
               {displayName}
-            </h2>
+            </h1>
             <p className="text-body-3 text-text-secondary dev-hero-subtext">
               Build, customise, and launch apps for the animal health ecosystem.
             </p>
           </div>
+          <Primary
+            text="View docs"
+            href="/developers/documentation"
+            icon={<Icon icon="mdi:book-outline" width={16} height={16} aria-hidden="true" />}
+            style={{ maxWidth: 180 }}
+          />
+        </div>
 
+        <section className="DevPortalHome">
           <div className="dev-portal-hero">
             <div className="dev-hero-copy">
               <span className="dev-badge text-caption-2">FHIR-NATIVE API</span>
@@ -98,28 +101,26 @@ const DeveloperPortalHome = () => {
               </div>
             </div>
             <div className="dev-hero-card">
-              <h3 className="text-heading-3 text-neutral-0">Quick status</h3>
+              <h2 className="dev-status-title">Quick status</h2>
               <ul>
                 <li>
-                  <span className="text-body-4 text-neutral-200">Portal access</span>
-                  <strong className="text-body-4-emphasis dev-status-active">
+                  <span className="dev-status-label">Portal access</span>
+                  <strong className="dev-status-active">
                     <span className="dev-dot" aria-hidden="true" />
                     Active
                   </strong>
                 </li>
                 <li>
-                  <span className="text-body-4 text-neutral-200">Environment</span>
-                  <strong className="text-body-4-emphasis text-neutral-0">Dev</strong>
+                  <span className="dev-status-label">Environment</span>
+                  <strong className="dev-status-value">Dev</strong>
                 </li>
                 <li>
-                  <span className="text-body-4 text-neutral-200">Requests · 24h</span>
-                  <strong className="text-body-4-emphasis text-neutral-0 dev-tabular">4,218</strong>
+                  <span className="dev-status-label">Requests · 24h</span>
+                  <strong className="dev-status-value dev-tabular">4,218</strong>
                 </li>
                 <li>
-                  <span className="text-body-4 text-neutral-200">Next step</span>
-                  <strong className="text-body-4-emphasis text-neutral-0">
-                    Browse Documentation
-                  </strong>
+                  <span className="dev-status-label">Next step</span>
+                  <strong className="dev-status-next">Browse documentation →</strong>
                 </li>
               </ul>
             </div>
@@ -128,7 +129,7 @@ const DeveloperPortalHome = () => {
           <div className="dev-portal-grid">
             <div className="dev-portal-card">
               <div className="dev-card-head">
-                <h3 className="text-heading-3 text-text-primary">Quick links</h3>
+                <h2 className="text-heading-3 text-text-primary">Quick links</h2>
                 <span className="dev-card-pill secondary text-caption-2">Resources</span>
               </div>
               <div className="dev-links">
@@ -173,7 +174,7 @@ const DeveloperPortalHome = () => {
 
             <div className="dev-portal-card">
               <div className="dev-card-head">
-                <h3 className="text-heading-3 text-text-primary">Your plugin</h3>
+                <h2 className="text-heading-3 text-text-primary">Your plugin</h2>
                 <span className="dev-status-badge in-review text-caption-2">In review</span>
               </div>
               <div className="dev-plugin-row">
@@ -200,13 +201,13 @@ const DeveloperPortalHome = () => {
 
             <div className="dev-portal-card">
               <div className="dev-card-head">
-                <h3 className="text-heading-3 text-text-primary">Recent activity</h3>
+                <h2 className="text-heading-3 text-text-primary">Recent activity</h2>
                 <span className="dev-card-pill secondary text-caption-2">Sandbox</span>
               </div>
               <ul className="dev-activity">
                 {RECENT_ACTIVITY.map((entry) => (
                   <li key={`${entry.method}-${entry.path}`}>
-                    <span className="dev-req-path text-body-4 text-text-secondary">
+                    <span className="dev-req-path text-body-4-emphasis text-text-primary">
                       {entry.method} {entry.path}
                     </span>
                     <span className={`dev-req-status dev-tabular ${entry.ok ? 'ok' : 'err'}`}>

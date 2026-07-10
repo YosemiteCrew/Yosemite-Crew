@@ -59,7 +59,6 @@ describe('DeveloperPortalHome page', () => {
     render(<DeveloperPortalHome />);
 
     expect(screen.getByTestId('dev-guard')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Developer Home/i })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: /Welcome back, Ada Lovelace/i })
     ).toBeInTheDocument();
@@ -103,13 +102,26 @@ describe('DeveloperPortalHome page', () => {
     expect(results).toHaveNoViolations();
   });
 
-  test('Developer Home uses h1 and Welcome back uses h2', () => {
+  test('the Welcome back greeting is the page h1 and no Developer Home heading remains', () => {
     useAuthStoreMock.mockReturnValue({
       session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     render(<DeveloperPortalHome />);
-    expect(screen.getByRole('heading', { level: 1, name: /Developer Home/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: /Welcome back/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /Welcome back, Ada Lovelace/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Developer Home/i })).not.toBeInTheDocument();
+  });
+
+  test('quick status card shows the Next step and Portal access rows', () => {
+    useAuthStoreMock.mockReturnValue({
+      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+    });
+    render(<DeveloperPortalHome />);
+    expect(screen.getByText('Quick status')).toBeInTheDocument();
+    expect(screen.getByText('Portal access')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Browse documentation →')).toBeInTheDocument();
   });
 
   test('renders the FHIR-native hero card with a Create an API key action', () => {
