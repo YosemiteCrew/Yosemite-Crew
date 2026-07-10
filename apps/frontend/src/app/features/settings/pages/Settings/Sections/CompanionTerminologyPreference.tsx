@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
-import { Primary } from '@/app/ui/primitives/Buttons';
+import SegmentedPill, {
+  SegmentedPillOption,
+} from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 import { useNotify } from '@/app/hooks/useNotify';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useRouter } from 'next/navigation';
@@ -16,6 +17,19 @@ import {
   isValidAnimalTerminology,
   normalizePmsPreferences,
 } from '@/app/features/settings/utils/pmsPreferences';
+
+// Short single-word (plural) labels for the inline pill, derived from the shared
+// "Singular / Plural" option labels (e.g. "Companion / Companions" -> "Companions").
+const toShortLabel = (label: string): string => {
+  const plural = label.split('/').at(-1)?.trim();
+  return plural && plural.length > 0 ? plural : label;
+};
+
+const TERMINOLOGY_PILL_OPTIONS: ReadonlyArray<SegmentedPillOption<CompanionTerminologyOption>> =
+  getCompanionTerminologyOptions().map((option) => ({
+    value: option.value as CompanionTerminologyOption,
+    label: toShortLabel(option.label),
+  }));
 
 const CompanionTerminologyPreference = () => {
   const router = useRouter();
@@ -42,7 +56,10 @@ const CompanionTerminologyPreference = () => {
     setSelection(profileTerminology);
   }
 
-  const handleSave = async () => {
+  const handleSelect = async (next: CompanionTerminologyOption) => {
+    if (next === selection) return;
+    setSelection(next);
+
     if (!primaryOrgId) {
       notify('error', {
         title: 'Organization not selected',
@@ -51,28 +68,23 @@ const CompanionTerminologyPreference = () => {
       return;
     }
 
-    const localSaved = setCompanionTerminologyForOrg(primaryOrgId, selection);
+    const localSaved = setCompanionTerminologyForOrg(primaryOrgId, next);
     try {
       await patchUserProfile(primaryOrgId, {
         personalDetails: {
           ...profile?.personalDetails,
           pmsPreferences: {
             ...pmsPreferences,
-            animalTerminology: selection,
+            animalTerminology: next,
           },
         },
       });
-      if (localSaved) {
-        notify('success', {
-          title: 'Terminology updated',
-          text: 'Animal terminology preference has been saved.',
-        });
-      } else {
-        notify('success', {
-          title: 'Terminology updated',
-          text: 'Saved to profile. Local cache refresh may require reloading.',
-        });
-      }
+      notify('success', {
+        title: 'Terminology updated',
+        text: localSaved
+          ? 'Animal terminology preference has been saved.'
+          : 'Saved to profile. Local cache refresh may require reloading.',
+      });
       router.refresh();
       return;
     } catch {
@@ -90,17 +102,17 @@ const CompanionTerminologyPreference = () => {
           Companion terminology
         </div>
       </div>
-      <div className="flex flex-col gap-3 px-5! py-5!">
-        <div data-terminology-lock="true">
-          <LabelDropdown
-            placeholder="How should pets be named?"
-            options={getCompanionTerminologyOptions()}
-            defaultOption={selection}
-            onSelect={(option) => setSelection(option.value as CompanionTerminologyOption)}
-          />
+      <div className="flex items-center justify-between gap-4 px-5! py-5!">
+        <div className="text-[12.5px] text-[var(--ink-faint)]">
+          How companions are named across the app.
         </div>
-        <div className="w-full flex justify-end!">
-          <Primary href="#" text="Save terminology" onClick={handleSave} />
+        <div data-terminology-lock="true">
+          <SegmentedPill
+            options={TERMINOLOGY_PILL_OPTIONS}
+            value={selection}
+            onChange={handleSelect}
+            ariaLabel="Companion terminology"
+          />
         </div>
       </div>
     </div>

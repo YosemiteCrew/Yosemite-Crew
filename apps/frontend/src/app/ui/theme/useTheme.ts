@@ -4,6 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type Theme = 'light' | 'dark';
 
+/**
+ * Three-way appearance preference exposed to settings UIs. `auto` means "no explicit
+ * choice stored — follow the OS"; `light`/`dark` are explicit, persisted choices.
+ */
+export type Appearance = 'auto' | 'light' | 'dark';
+
 const STORAGE_KEY = 'yc-theme';
 const THEME_CHANGE_EVENT = 'yc-theme-change';
 
@@ -12,6 +18,20 @@ const readTheme = (): Theme => {
   const attr = globalThis.document?.documentElement.dataset.theme;
   return attr === 'dark' ? 'dark' : 'light';
 };
+
+/** The current appearance preference, derived from the presence of an explicit stored choice. */
+const readAppearance = (): Appearance => {
+  try {
+    const saved = globalThis.localStorage?.getItem(STORAGE_KEY);
+    return saved === 'dark' || saved === 'light' ? saved : 'auto';
+  } catch {
+    return 'auto';
+  }
+};
+
+/** The theme the OS currently prefers. */
+const osTheme = (): Theme =>
+  globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
 /** Keep the browser-chrome color (mobile address bar) in step with the page surface. */
 const syncMetaThemeColor = () => {
@@ -53,9 +73,11 @@ const applyTheme = (theme: Theme, persist: boolean) => {
  */
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>('light');
+  const [appearance, setAppearanceState] = useState<Appearance>('auto');
 
   useEffect(() => {
     setTheme(readTheme());
+    setAppearanceState(readAppearance());
     syncMetaThemeColor();
 
     // Enable the flip transition after first paint so the initial paint never animates.
@@ -67,6 +89,7 @@ export function useTheme() {
     const onThemeChange = (event: Event) => {
       const next = (event as CustomEvent<{ theme: Theme }>).detail?.theme ?? readTheme();
       setTheme(next);
+      setAppearanceState(readAppearance());
     };
     globalThis.addEventListener(THEME_CHANGE_EVENT, onThemeChange);
 
@@ -82,6 +105,7 @@ export function useTheme() {
       if (!saved) {
         applyTheme(event.matches ? 'dark' : 'light', false);
         setTheme(event.matches ? 'dark' : 'light');
+        setAppearanceState('auto');
       }
     };
     mq?.addEventListener('change', onOSChange);
@@ -99,5 +123,27 @@ export function useTheme() {
     setTheme(next);
   }, []);
 
-  return { theme, toggle };
+  /**
+   * Set the three-way appearance preference. `auto` clears the stored choice and
+   * follows the OS from now on; `light`/`dark` persist an explicit choice. The change
+   * is broadcast via the shared `yc-theme-change` event so every theme surface reacts.
+   */
+  const setAppearance = useCallback((next: Appearance) => {
+    if (next === 'auto') {
+      try {
+        globalThis.localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* private mode: nothing persisted to clear */
+      }
+      const resolved = osTheme();
+      applyTheme(resolved, false);
+      setTheme(resolved);
+    } else {
+      applyTheme(next, true);
+      setTheme(next);
+    }
+    setAppearanceState(next);
+  }, []);
+
+  return { theme, toggle, appearance, setAppearance };
 }

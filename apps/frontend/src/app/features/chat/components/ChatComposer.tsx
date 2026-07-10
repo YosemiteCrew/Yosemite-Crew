@@ -19,7 +19,7 @@ import {
   AttachmentPreviewList,
 } from 'stream-chat-react';
 import {
-  IoAddOutline,
+  IoAttachOutline,
   IoDocumentTextOutline,
   IoHappyOutline,
   IoImageOutline,
@@ -140,7 +140,7 @@ export function ChatComposer() {
               setAttachOpen((o) => !o);
             }}
           >
-            <IoAddOutline className="h-5 w-5" />
+            <IoAttachOutline className="h-5 w-5" />
           </ComposerIconButton>
           {attachOpen && (
             <>
@@ -189,7 +189,7 @@ export function ChatComposer() {
           )}
         </div>
 
-        <div className="flex min-h-10 flex-1 items-center rounded-2xl border border-input-border-default bg-(--whitebg) px-4 py-2 transition-colors focus-within:border-input-border-active">
+        <div className="flex min-h-11 flex-1 items-center rounded-full border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-4 transition-colors focus-within:border-input-border-active">
           <TextareaComposer
             placeholder="Write a message…"
             minRows={1}

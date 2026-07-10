@@ -20,19 +20,19 @@ const TEMPLATES: Template[] = [
     id: 'alpine-clinic',
     name: 'Alpine Clinic',
     description: 'Warm editorial layout with a hero booking pill and services grid.',
-    icon: 'mdi:home-heart',
+    icon: 'ion:home-outline',
   },
   {
     id: 'city-vets',
     name: 'City Vets',
     description: 'Compact single-page site tuned for urban multi-doctor practices.',
-    icon: 'mdi:city-variant-outline',
+    icon: 'ion:business-outline',
   },
   {
     id: 'equine-estate',
     name: 'Equine Estate',
     description: 'Wide imagery layout for large-animal and mobile practices.',
-    icon: 'mdi:horse-variant',
+    icon: 'ion:paw-outline',
   },
 ];
 
@@ -49,7 +49,9 @@ const DeveloperWebsiteBuilder = () => {
           </div>
           <Primary
             text="Open builder"
-            icon={<Icon icon="mdi:palette-outline" width={16} height={16} aria-hidden="true" />}
+            icon={
+              <Icon icon="ion:color-palette-outline" width={16} height={16} aria-hidden="true" />
+            }
             href="/contact-us"
             style={{ maxWidth: 200 }}
           />

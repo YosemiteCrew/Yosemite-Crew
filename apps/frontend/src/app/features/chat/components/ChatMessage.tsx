@@ -352,6 +352,7 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
   const seen = mine && (readBy?.length ?? 0) > 0;
   const sending = message.status === 'sending';
   const counterpartName = message.user?.name || message.user?.id || 'User';
+  const senderName = message.user?.name;
   const sharedEntity = (message as unknown as { sharedEntity?: SharedEntityData }).sharedEntity;
 
   const actions = (
@@ -415,7 +416,7 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
         <span className="flex items-center gap-2 px-1">
           <MessageReactions reactions={reactions} onToggle={handleReaction} />
           <Text as="span" variant="caption-2" className="text-neutral-500">
-            {time}
+            {mine && senderName ? `${time} · ${senderName}` : time}
           </Text>
           {mine && <MessageStatusIcon sending={sending} seen={seen} />}
         </span>

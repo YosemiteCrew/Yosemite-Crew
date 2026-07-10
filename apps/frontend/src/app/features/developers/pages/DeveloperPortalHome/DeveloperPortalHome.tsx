@@ -28,14 +28,14 @@ const QUICK_LINKS: QuickLink[] = [
   {
     label: 'Quickstart · first request in 5 minutes',
     href: '/developers/documentation',
-    icon: 'mdi:rocket-launch-outline',
+    icon: 'ion:rocket-outline',
   },
-  { label: 'Partner with Yosemite Crew', href: '/contact-us', icon: 'mdi:account-group-outline' },
-  { label: 'Security & compliance', href: '/privacy-policy', icon: 'mdi:shield-check-outline' },
+  { label: 'Partner with Yosemite Crew', href: '/contact-us', icon: 'ion:people-outline' },
+  { label: 'Security & compliance', href: '/privacy-policy', icon: 'ion:shield-checkmark-outline' },
   {
     label: 'github.com/YosemiteCrew',
     href: 'https://github.com/YosemiteCrew',
-    icon: 'mdi:github',
+    icon: 'ion:logo-github',
     external: true,
   },
 ];
@@ -79,7 +79,7 @@ const DeveloperPortalHome = () => {
           <Primary
             text="View docs"
             href="/developers/documentation"
-            icon={<Icon icon="mdi:book-outline" width={16} height={16} aria-hidden="true" />}
+            icon={<Icon icon="ion:book-outline" width={16} height={16} aria-hidden="true" />}
             style={{ maxWidth: 180 }}
           />
         </div>
@@ -179,7 +179,7 @@ const DeveloperPortalHome = () => {
               </div>
               <div className="dev-plugin-row">
                 <span className="dev-plugin-icon" aria-hidden="true">
-                  <Icon icon="mdi:pulse" width={18} height={18} />
+                  <Icon icon="ion:pulse-outline" width={18} height={18} />
                 </span>
                 <span className="dev-plugin-titles">
                   <span className="dev-plugin-name text-body-4-emphasis text-text-primary">
@@ -195,7 +195,7 @@ const DeveloperPortalHome = () => {
               </p>
               <Link href="/developers/plugins" className="dev-card-action text-body-4-emphasis">
                 Review status
-                <Icon icon="mdi:arrow-right" width={14} height={14} aria-hidden="true" />
+                <Icon icon="ion:arrow-forward" width={14} height={14} aria-hidden="true" />
               </Link>
             </div>
 

@@ -15,7 +15,7 @@ const DeveloperDocs = () => {
       <section className="DocsWrapper">
         <div className="DocsHeader">
           <Link href="/developers/home" className="DocsBackLink text-body-4-emphasis">
-            <Icon icon="mdi:arrow-left" width={18} height={18} />
+            <Icon icon="ion:arrow-back" width={18} height={18} />
             <span>Back to portal</span>
           </Link>
           <a

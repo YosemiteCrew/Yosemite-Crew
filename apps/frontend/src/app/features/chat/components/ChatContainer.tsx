@@ -616,9 +616,16 @@ const ChannelHeaderWithCounterpart: FC<{
               </span>
             )}
           </span>
-          <Text as="span" variant="caption-2" className="truncate text-neutral-500">
-            {statusText}
-          </Text>
+          {online && !isGroupChat && !hasSessionClosed ? (
+            <span className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-[var(--success)]">
+              <span className="chat-presence-dot h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--success)]" />
+              <span className="truncate">{statusText}</span>
+            </span>
+          ) : (
+            <Text as="span" variant="caption-2" className="truncate text-neutral-500">
+              {statusText}
+            </Text>
+          )}
         </div>
         {/* No phone/video calling in chat. */}
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">

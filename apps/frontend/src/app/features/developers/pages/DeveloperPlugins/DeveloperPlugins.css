@@ -279,6 +279,13 @@
   color: var(--color-text-tertiary);
 }
 
+.dev-site-species-photo {
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
 .dev-site-status {
   display: inline-flex;
   align-items: center;

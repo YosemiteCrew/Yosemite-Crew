@@ -10,6 +10,9 @@ const SettingsSectionSkeleton = () => (
   <div className="min-h-40 rounded-2xl bg-card-hover animate-pulse" aria-hidden="true" />
 );
 
+const Personal = dynamic(() => import('@/app/features/settings/pages/Settings/Sections/Personal'), {
+  loading: () => <SettingsSectionSkeleton />,
+});
 const OrgSection = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/OrgSection'),
   {
@@ -36,6 +39,10 @@ const CrossClinicMessagingPreference = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/CrossClinicMessagingPreference'),
   { loading: () => <SettingsSectionSkeleton /> }
 );
+const AppearancePreference = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/AppearancePreference'),
+  { loading: () => <SettingsSectionSkeleton /> }
+);
 const DeleteProfile = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/DeleteProfile'),
   {
@@ -46,6 +53,7 @@ const DeleteProfile = dynamic(
 const Settings = () => {
   return (
     <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+      <Personal />
       <OrgSection />
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <DefaultOpenScreenPreference />
@@ -55,7 +63,10 @@ const Settings = () => {
         <CompanionTerminologyPreference />
         <AppointmentLockWindowPreference />
       </div>
-      <CrossClinicMessagingPreference />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <CrossClinicMessagingPreference />
+        <AppearancePreference />
+      </div>
       <DeleteProfile />
     </div>
   );

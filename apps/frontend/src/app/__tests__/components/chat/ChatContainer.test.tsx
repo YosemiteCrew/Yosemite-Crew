@@ -730,6 +730,29 @@ describe('ChatContainer', () => {
     expect(streamChatService.endChatChannel).not.toHaveBeenCalled();
   });
 
+  it('renders the online presence status for an active client counterpart', async () => {
+    const onlineClientChannel = {
+      ...defaultMockChannel,
+      data: { appointmentId: '123', chatCategory: 'clients' },
+      state: {
+        members: {
+          'user-1': { user: { id: 'user-1', name: 'Me' }, role: 'owner' },
+          'user-2': { user: { id: 'user-2', name: 'Other', online: true } },
+        },
+      },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: onlineClientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(onlineClientChannel);
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText('Active now · via pet parent app')).toBeInTheDocument()
+    );
+  });
+
   it('ProtectedChatContainer wraps with guards', async () => {
     await act(async () => {
       render(<ProtectedChatContainer />);

@@ -24,6 +24,13 @@ jest.mock('@iconify/react', () => ({
   Icon: ({ icon }: any) => <span data-testid={`icon-${icon}`} />,
 }));
 
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: ({ src, alt }: any) => (
+    <span data-testid="species-photo" data-src={src} data-alt={alt} />
+  ),
+}));
+
 import DeveloperPlugins from '@/app/features/developers/pages/DeveloperPlugins/DeveloperPlugins';
 
 describe('DeveloperPlugins page', () => {

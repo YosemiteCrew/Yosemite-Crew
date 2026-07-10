@@ -10,27 +10,6 @@ import { patchUserProfile } from '@/app/features/organization/services/profileSe
 import { setCompanionTerminologyForOrg } from '@/app/lib/companionTerminology';
 import { useRouter } from 'next/navigation';
 
-jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
-  __esModule: true,
-  default: ({ options, onSelect }: any) => (
-    <div>
-      {options.map((option: any) => (
-        <button key={option.value} type="button" onClick={() => onSelect(option)}>
-          {option.label}
-        </button>
-      ))}
-    </div>
-  ),
-}));
-
-jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
-      {text}
-    </button>
-  ),
-}));
-
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn(),
 }));
@@ -82,11 +61,10 @@ describe('CompanionTerminologyPreference', () => {
     (patchUserProfile as jest.Mock).mockResolvedValue({});
   });
 
-  it('saves terminology and refreshes router on success', async () => {
+  it('saves terminology and refreshes router when a new option is picked', async () => {
     render(<CompanionTerminologyPreference />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Patient / Patients' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save terminology' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Patients' }));
 
     await waitFor(() => {
       expect(setCompanionTerminologyForOrg).toHaveBeenCalledWith('org-1', 'PATIENT');
@@ -106,11 +84,20 @@ describe('CompanionTerminologyPreference', () => {
     expect(refreshMock).toHaveBeenCalled();
   });
 
+  it('does nothing when the already-active option is clicked', () => {
+    render(<CompanionTerminologyPreference />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Companions' }));
+
+    expect(setCompanionTerminologyForOrg).not.toHaveBeenCalled();
+    expect(patchUserProfile).not.toHaveBeenCalled();
+  });
+
   it('shows missing-org error and does not patch profile', async () => {
     orgState.primaryOrgId = undefined;
 
     render(<CompanionTerminologyPreference />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save terminology' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Patients' }));
 
     await waitFor(() => {
       expect(notifyMock).toHaveBeenCalledWith(
@@ -127,7 +114,7 @@ describe('CompanionTerminologyPreference', () => {
     (patchUserProfile as jest.Mock).mockRejectedValue(new Error('boom'));
 
     render(<CompanionTerminologyPreference />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save terminology' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Patients' }));
 
     await waitFor(() => {
       expect(notifyMock).toHaveBeenCalledWith(
@@ -137,48 +124,38 @@ describe('CompanionTerminologyPreference', () => {
     });
   });
 
-  // isValidAnimalTerminology(undefined) === false -> profileTerminology falls back to the
-  // org-type default. For a HOSPITAL org that default is 'PATIENT', which seeds the selection.
-  it('falls back to the org-type default when the profile terminology is missing', async () => {
+  // isValidAnimalTerminology(undefined) === false -> selection falls back to the
+  // org-type default. For a HOSPITAL org that default is 'PATIENT'.
+  it('seeds the selection from the org-type default when the profile terminology is missing', () => {
     setProfile({});
 
     render(<CompanionTerminologyPreference />);
-    // save without picking anything: selection was seeded from the fallback
-    fireEvent.click(screen.getByRole('button', { name: 'Save terminology' }));
 
-    await waitFor(() => {
-      expect(setCompanionTerminologyForOrg).toHaveBeenCalledWith('org-1', 'PATIENT');
-    });
-    expect(patchUserProfile).toHaveBeenCalledWith(
-      'org-1',
-      expect.objectContaining({
-        personalDetails: expect.objectContaining({
-          pmsPreferences: expect.objectContaining({ animalTerminology: 'PATIENT' }),
-        }),
-      })
+    expect(screen.getByRole('button', { name: 'Patients' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
     );
   });
 
   // Non-hospital org type -> fallback is 'COMPANION' (invalid stored value routed to fallback).
-  it('falls back to companion terminology for a non-hospital org type', async () => {
+  it('falls back to companion terminology for a non-hospital org type', () => {
     orgState.orgsById = { 'org-1': { type: 'GROOMER' } };
     setProfile({ animalTerminology: 'NOT_A_REAL_OPTION' });
 
     render(<CompanionTerminologyPreference />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save terminology' }));
 
-    await waitFor(() => {
-      // getFallbackAnimalTerminology returns COMPANION for any non-HOSPITAL org type.
-      expect(setCompanionTerminologyForOrg).toHaveBeenCalledWith('org-1', 'COMPANION');
-    });
+    expect(screen.getByRole('button', { name: 'Companions' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   });
 
-  // localSaved === false -> the else branch success notification ("Saved to profile...").
+  // localSaved === false -> the profile-only success notification.
   it('shows the profile-only success message when the local cache does not persist', async () => {
     (setCompanionTerminologyForOrg as jest.Mock).mockReturnValue(false);
 
     render(<CompanionTerminologyPreference />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save terminology' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Patients' }));
 
     await waitFor(() => {
       expect(notifyMock).toHaveBeenCalledWith(
@@ -191,29 +168,35 @@ describe('CompanionTerminologyPreference', () => {
     expect(refreshMock).toHaveBeenCalled();
   });
 
-  // Reconcile branch: profileTerminology changes between renders -> selection re-syncs to it.
-  it('re-syncs the selection when the profile terminology changes', async () => {
+  // Reconcile branch: profileTerminology changes between renders -> selection re-syncs.
+  it('re-syncs the selection when the profile terminology changes', () => {
     const { rerender } = render(<CompanionTerminologyPreference />);
 
     setProfile({ animalTerminology: 'ANIMAL' });
     rerender(<CompanionTerminologyPreference />);
 
-    // saving now uses the re-synced 'ANIMAL' selection without any click
-    fireEvent.click(screen.getByRole('button', { name: 'Save terminology' }));
-    await waitFor(() => {
-      expect(setCompanionTerminologyForOrg).toHaveBeenCalledWith('org-1', 'ANIMAL');
-    });
+    expect(screen.getByRole('button', { name: 'Animals' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  // profile null -> optional chaining resolves to the fallback terminology.
+  // profile null -> optional chaining resolves to the fallback terminology and the
+  // save still runs (spread of an absent personalDetails).
   it('handles an absent profile via the fallback terminology', async () => {
     (usePrimaryOrgProfile as jest.Mock).mockReturnValue(null);
 
     render(<CompanionTerminologyPreference />);
-    fireEvent.click(screen.getByRole('button', { name: 'Save terminology' }));
+    // fallback for HOSPITAL is PATIENT, so pick a different option to trigger a save
+    fireEvent.click(screen.getByRole('button', { name: 'Companions' }));
 
     await waitFor(() => {
-      expect(setCompanionTerminologyForOrg).toHaveBeenCalledWith('org-1', 'PATIENT');
+      expect(setCompanionTerminologyForOrg).toHaveBeenCalledWith('org-1', 'COMPANION');
     });
+    expect(patchUserProfile).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({
+        personalDetails: expect.objectContaining({
+          pmsPreferences: expect.objectContaining({ animalTerminology: 'COMPANION' }),
+        }),
+      })
+    );
   });
 });

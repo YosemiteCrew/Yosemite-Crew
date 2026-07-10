@@ -91,7 +91,7 @@ const DeveloperApiKeys = () => {
           </div>
           <Primary
             text="Create key"
-            icon={<Icon icon="mdi:plus" width={16} height={16} aria-hidden="true" />}
+            icon={<Icon icon="ion:add" width={16} height={16} aria-hidden="true" />}
             onClick={() => setShowReveal(true)}
             style={{ maxWidth: 180 }}
           />
@@ -105,7 +105,7 @@ const DeveloperApiKeys = () => {
           {showReveal && (
             <div className="dev-key-reveal" data-testid="dev-key-reveal">
               <span className="dev-key-reveal-icon" aria-hidden="true">
-                <Icon icon="mdi:key" width={18} height={18} />
+                <Icon icon="ion:key-outline" width={18} height={18} />
               </span>
               <span className="dev-key-reveal-body">
                 <span className="dev-key-reveal-title">
@@ -119,7 +119,7 @@ const DeveloperApiKeys = () => {
                 className="dev-key-copy"
                 onClick={() => copyToClipboard(REVEALED_KEY)}
               >
-                <Icon icon="mdi:content-copy" width={14} height={14} aria-hidden="true" />
+                <Icon icon="ion:copy-outline" width={14} height={14} aria-hidden="true" />
                 Copy key
               </button>
               <button
@@ -128,7 +128,7 @@ const DeveloperApiKeys = () => {
                 aria-label="Dismiss new key banner"
                 onClick={() => setShowReveal(false)}
               >
-                <Icon icon="mdi:close" width={16} height={16} aria-hidden="true" />
+                <Icon icon="ion:close" width={16} height={16} aria-hidden="true" />
               </button>
             </div>
           )}
@@ -170,7 +170,12 @@ const DeveloperApiKeys = () => {
                     className="dev-key-action-btn"
                     aria-label={`Actions for ${row.name}`}
                   >
-                    <Icon icon="mdi:dots-horizontal" width={16} height={16} aria-hidden="true" />
+                    <Icon
+                      icon="ion:ellipsis-horizontal"
+                      width={16}
+                      height={16}
+                      aria-hidden="true"
+                    />
                   </button>
                 </span>
               </div>

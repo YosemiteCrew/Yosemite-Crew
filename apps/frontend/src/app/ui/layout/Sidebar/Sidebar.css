@@ -66,12 +66,38 @@
   height: 30px;
 }
 
+.sidebar-wordmark-group {
+  display: flex;
+  flex-direction: column;
+}
+
 .sidebar-wordmark {
   font-size: 14.5px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--ink);
   white-space: nowrap;
+}
+
+/* ---- developer portal cyan accent (gated to /developers routes) ---- */
+.sidebar-dev-sublabel {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--color-cyan-text);
+  white-space: nowrap;
+}
+
+.sidebar-dev .route-active,
+.sidebar-dev .route-active:hover {
+  color: var(--color-cyan-text);
+}
+
+.sidebar-dev .route-active .route-icon,
+.sidebar-dev .route-active:hover .route-icon {
+  color: var(--color-cyan-text);
 }
 
 /* ---- route groups ---- */

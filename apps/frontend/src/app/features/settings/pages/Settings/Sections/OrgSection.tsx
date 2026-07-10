@@ -373,14 +373,19 @@ const OrgSection = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProfileCard
-        title="User profile"
-        fields={UserOrgProfileFields}
-        org={userOrgProfileData}
-        showProfileUser
-        onSave={updateUserOrgProfileFields}
-      />
-      <div className="bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div id="settings-user-profile" className="scroll-mt-24">
+        <ProfileCard
+          title="User profile"
+          fields={UserOrgProfileFields}
+          org={userOrgProfileData}
+          showProfileUser
+          onSave={updateUserOrgProfileFields}
+        />
+      </div>
+      <div
+        id="settings-availability"
+        className="scroll-mt-24 bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+      >
         <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
           <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">
             Availability

@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Icon } from '@iconify/react';
 
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -27,7 +28,7 @@ const PLUGINS: PluginCard[] = [
     id: 'idexx-lab-bridge',
     title: 'IDEXX lab bridge',
     description: 'Order and result IDEXX lab work inside the appointment workspace.',
-    icon: 'mdi:flask-outline',
+    icon: 'ion:flask-outline',
     badge: 'Installed · 412 clinics',
     status: 'installed',
     author: 'by Yosemite Crew · v2.3',
@@ -37,7 +38,7 @@ const PLUGINS: PluginCard[] = [
     id: 'msd-vet-manual',
     title: 'MSD Vet Manual',
     description: 'Reference the veterinary manual from the workspace side rail.',
-    icon: 'mdi:book-outline',
+    icon: 'ion:book-outline',
     badge: 'Installed · 1,208 clinics',
     status: 'installed',
     author: 'by Yosemite Crew · v1.8',
@@ -47,7 +48,7 @@ const PLUGINS: PluginCard[] = [
     id: 'anesthesia-monitor-sync',
     title: 'Anesthesia monitor sync',
     description: 'Your submission. It streams Mindray vitals into the workspace.',
-    icon: 'mdi:pulse',
+    icon: 'ion:pulse-outline',
     badge: 'In review',
     status: 'in-review',
     author: 'by Jonas Timm · v0.4.1',
@@ -55,7 +56,11 @@ const PLUGINS: PluginCard[] = [
   },
 ];
 
-const SITE_SPECIES = ['mdi:dog', 'mdi:cat', 'mdi:horse'];
+const SITE_SPECIES = [
+  { src: '/images/developers/species-dog.png', key: 'dog' },
+  { src: '/images/developers/species-cat.png', key: 'cat' },
+  { src: '/images/developers/species-horse.png', key: 'horse' },
+];
 
 const DeveloperPlugins = () => {
   return (
@@ -71,7 +76,7 @@ const DeveloperPlugins = () => {
           <Primary
             text="Submit a plugin"
             icon={
-              <Icon icon="mdi:cloud-upload-outline" width={16} height={16} aria-hidden="true" />
+              <Icon icon="ion:cloud-upload-outline" width={16} height={16} aria-hidden="true" />
             }
             href="/contact-us"
             style={{ maxWidth: 200 }}
@@ -146,9 +151,15 @@ const DeveloperPlugins = () => {
                   Care for the animals of Garmisch
                 </p>
                 <div className="dev-site-species">
-                  {SITE_SPECIES.map((icon) => (
-                    <span key={icon} className="dev-site-species-tile" aria-hidden="true">
-                      <Icon icon={icon} width={22} height={22} />
+                  {SITE_SPECIES.map((species) => (
+                    <span key={species.key} className="dev-site-species-tile" aria-hidden="true">
+                      <Image
+                        src={species.src}
+                        alt=""
+                        width={26}
+                        height={26}
+                        className="dev-site-species-photo"
+                      />
                     </span>
                   ))}
                 </div>

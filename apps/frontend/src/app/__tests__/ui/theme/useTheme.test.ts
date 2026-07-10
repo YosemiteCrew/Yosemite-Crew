@@ -147,4 +147,78 @@ describe('useTheme', () => {
     expect(meta?.getAttribute('content')).toBe('#201c18');
     document.documentElement.style.removeProperty('--page');
   });
+
+  it('reports auto appearance when no explicit choice is stored', () => {
+    const { result } = renderHook(() => useTheme());
+    expect(result.current.appearance).toBe('auto');
+  });
+
+  it('reports the stored explicit appearance', () => {
+    localStorage.setItem('yc-theme', 'dark');
+    const { result } = renderHook(() => useTheme());
+    expect(result.current.appearance).toBe('dark');
+  });
+
+  it('setAppearance to an explicit theme persists and applies it', () => {
+    document.documentElement.setAttribute('data-theme', 'light');
+    const { result } = renderHook(() => useTheme());
+
+    act(() => result.current.setAppearance('dark'));
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(localStorage.getItem('yc-theme')).toBe('dark');
+    expect(result.current.appearance).toBe('dark');
+    expect(result.current.theme).toBe('dark');
+  });
+
+  it('setAppearance to auto clears the stored choice and follows the OS', () => {
+    localStorage.setItem('yc-theme', 'dark');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    mockMatchMedia(false); // OS prefers light
+    const { result } = renderHook(() => useTheme());
+
+    act(() => result.current.setAppearance('auto'));
+
+    expect(localStorage.getItem('yc-theme')).toBeNull();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(result.current.appearance).toBe('auto');
+    expect(result.current.theme).toBe('light');
+  });
+
+  it('setAppearance to auto resolves dark when the OS prefers dark', () => {
+    localStorage.setItem('yc-theme', 'light');
+    document.documentElement.setAttribute('data-theme', 'light');
+    mockMatchMedia(true); // OS prefers dark
+    const { result } = renderHook(() => useTheme());
+
+    act(() => result.current.setAppearance('auto'));
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(result.current.theme).toBe('dark');
+  });
+
+  it('keeps setAppearance working when clearing the stored choice throws', () => {
+    localStorage.setItem('yc-theme', 'dark');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    mockMatchMedia(false);
+    const { result } = renderHook(() => useTheme());
+    const spy = jest.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+
+    act(() => result.current.setAppearance('auto'));
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(result.current.appearance).toBe('auto');
+    spy.mockRestore();
+  });
+
+  it('reports auto appearance when reading the stored choice throws', () => {
+    const spy = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    const { result } = renderHook(() => useTheme());
+    expect(result.current.appearance).toBe('auto');
+    spy.mockRestore();
+  });
 });

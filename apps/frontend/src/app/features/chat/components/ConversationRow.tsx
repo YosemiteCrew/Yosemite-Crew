@@ -88,8 +88,8 @@ export function ConversationRow({
   return (
     <div
       className={clsx(
-        'group relative flex items-center rounded-2xl pr-1',
-        active ? 'bg-chat-panel' : 'hover:bg-chat-surface-soft'
+        'group relative flex items-center pr-1',
+        active ? 'chat-conversation-row--active' : 'rounded-2xl hover:bg-chat-surface-soft'
       )}
     >
       <button

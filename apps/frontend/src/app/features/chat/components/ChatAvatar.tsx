@@ -65,7 +65,7 @@ export function ChatAvatar({ name, online, group, size = 'md', className }: Chat
         {group ? <IoPeopleOutline className="h-5 w-5" /> : initialsOf(name)}
       </span>
       {online && (
-        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-neutral-0 bg-success-bright" />
+        <span className="chat-presence-dot absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-neutral-0 bg-success-bright" />
       )}
     </span>
   );

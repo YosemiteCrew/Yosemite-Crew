@@ -146,7 +146,9 @@ const Sidebar = () => {
   const orgVerified = !!primaryOrg?.isVerified;
 
   return (
-    <div className={`sidebar ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
+    <div
+      className={`sidebar ${isCollapsed ? 'sidebar-collapsed' : ''} ${isDevPortal ? 'sidebar-dev' : ''}`}
+    >
       <div className={`sidebar-top ${isCollapsed ? 'sidebar-top-collapsed' : ''}`}>
         <Link
           href={authenticatedLogoHref}
@@ -154,7 +156,12 @@ const Sidebar = () => {
           aria-label="Yosemite Crew dashboard"
         >
           <Image src="/icon.svg" alt="Yosemite Crew" width={30} height={30} priority />
-          {!isCollapsed && <span className="sidebar-wordmark">Yosemite Crew</span>}
+          {!isCollapsed && (
+            <span className="sidebar-wordmark-group">
+              <span className="sidebar-wordmark">Yosemite Crew</span>
+              {isDevPortal && <span className="sidebar-dev-sublabel">Developers</span>}
+            </span>
+          )}
         </Link>
       </div>
       <div className="sidebar-routes">

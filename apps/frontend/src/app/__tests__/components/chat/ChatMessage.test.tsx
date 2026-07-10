@@ -88,6 +88,17 @@ describe('ChatMessage', () => {
     expect(screen.getByLabelText('Sending')).toBeInTheDocument();
   });
 
+  it('appends the staff sender name to an outgoing message meta', () => {
+    setup({ isMyMessage: true, message: { user: { id: 'staff', name: 'Ruth Baumann' } } });
+    expect(screen.getByText(/· Ruth Baumann/)).toBeInTheDocument();
+  });
+
+  it('omits the separator for an outgoing message whose sender has no name', () => {
+    setup({ isMyMessage: true, message: { user: { id: 'staff' } } });
+    expect(screen.queryByText(/·/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Sent')).toBeInTheDocument();
+  });
+
   it('renders a reaction chip and toggles it', () => {
     const { handleReaction } = setup({
       message: { reaction_counts: { '👍': 2 }, own_reactions: [{ type: '👍' }] },
