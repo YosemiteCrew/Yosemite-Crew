@@ -1,8 +1,27 @@
-import { Primary } from '@/app/ui/primitives/Buttons';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import FormDesc from '@/app/ui/inputs/FormDesc/FormDesc';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
-import { IoAddOutline, IoCopyOutline, IoTrashOutline } from 'react-icons/io5';
+import {
+  IoAddOutline,
+  IoCopyOutline,
+  IoTrashOutline,
+  IoReorderTwoOutline,
+  IoTextOutline,
+  IoReaderOutline,
+  IoCheckboxOutline,
+  IoRadioButtonOnOutline,
+  IoCalendarOutline,
+  IoCreateOutline,
+  IoRemoveOutline,
+  IoListOutline,
+  IoMedkitOutline,
+  IoBriefcaseOutline,
+  IoCheckmarkDoneOutline,
+  IoLayersOutline,
+  IoEllipsisHorizontal,
+  IoChevronUp,
+  IoChevronDown,
+} from 'react-icons/io5';
 import {
   FormField,
   FormFieldType,
@@ -1219,15 +1238,225 @@ const removeFieldById = (form: FormsProps, id: string): FormsProps => ({
   schema: (form.schema || []).filter((field) => field.id !== id),
 });
 
-const Build = ({
-  formData,
-  setFormData,
-  onNext,
-  serviceOptions,
-  registerValidator,
-}: BuildProps) => {
+// ---- Single-screen builder pieces -------------------------------------------------
+
+/** Palette icon per add-option key (design's field tiles). */
+const paletteIconFor = (key: OptionKey): React.ReactNode => {
+  const map: Partial<Record<OptionKey, React.ReactNode>> = {
+    input: <IoTextOutline size={15} aria-hidden="true" />,
+    textarea: <IoReaderOutline size={15} aria-hidden="true" />,
+    richtext: <IoReaderOutline size={15} aria-hidden="true" />,
+    number: <IoTextOutline size={15} aria-hidden="true" />,
+    dropdown: <IoListOutline size={15} aria-hidden="true" />,
+    radio: <IoRadioButtonOnOutline size={15} aria-hidden="true" />,
+    checkbox: <IoCheckboxOutline size={15} aria-hidden="true" />,
+    boolean: <IoCheckboxOutline size={15} aria-hidden="true" />,
+    date: <IoCalendarOutline size={15} aria-hidden="true" />,
+    signature: <IoCreateOutline size={15} aria-hidden="true" />,
+    group: <IoRemoveOutline size={15} aria-hidden="true" />,
+    medication: <IoMedkitOutline size={15} aria-hidden="true" />,
+    'service-group': <IoBriefcaseOutline size={15} aria-hidden="true" />,
+    'task-group': <IoCheckmarkDoneOutline size={15} aria-hidden="true" />,
+  };
+  return map[key] ?? <IoLayersOutline size={15} aria-hidden="true" />;
+};
+
+/** Human display name for a field, used in the canvas row summary. */
+const fieldTypeName = (field: FormField): string => {
+  if (field.type === 'group') {
+    if (field.meta?.medicationGroup) return 'Medications';
+    if (field.meta?.serviceGroup) return 'Services / Packages';
+    if (field.meta?.taskGroup) return 'Tasks';
+    return 'Section';
+  }
+  const names: Record<string, string> = {
+    input: 'Short text',
+    number: 'Number',
+    textarea: 'Paragraph',
+    richtext: 'Rich text',
+    dropdown: 'Select list',
+    radio: 'Single choice',
+    checkbox: 'Checkbox',
+    boolean: 'Yes / No',
+    date: 'Date',
+    signature: 'Signature',
+  };
+  return names[field.type] ?? field.type;
+};
+
+/** "Checkbox · required"-style summary line for a canvas row. */
+const fieldRowSummary = (field: FormField, selected: boolean): string => {
+  const parts = [fieldTypeName(field)];
+  if (field.required) parts.push('required');
+  if (field.type === 'signature') parts.push('signed in the pet-parent app');
+  if (selected) parts.push('selected');
+  return parts.join(' · ');
+};
+
+/** Recursively clone a field with fresh ids so duplicates edit independently. */
+const cloneFieldWithNewIds = (field: FormField): FormField => {
+  const nested = (field as FormField & { fields?: FormField[] }).fields;
+  return {
+    ...field,
+    id: crypto.randomUUID(),
+    ...(nested ? { fields: nested.map(cloneFieldWithNewIds) } : {}),
+  } as FormField;
+};
+
+/** Pill switch used in the Field settings panel (Required / Show in summary PDF). */
+const SettingToggle: React.FC<{
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+}> = ({ label, checked, onChange }) => (
+  <div className="flex items-center justify-between">
+    <span className="text-[13px] font-semibold text-[var(--ink-body)]">{label}</span>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={onChange}
+      className={`relative h-6 w-10 rounded-full transition-colors ${
+        checked ? 'bg-[var(--blue)]' : 'bg-[var(--divider)]'
+      }`}
+    >
+      <span
+        className={`absolute top-[3px] size-[18px] rounded-full bg-white transition-all ${
+          checked ? 'right-[3px]' : 'left-[3px]'
+        }`}
+      />
+    </button>
+  </div>
+);
+
+/** Left-palette tile that adds a field of the given type to the canvas. */
+const PaletteTile: React.FC<{ option: OptionProp; onAdd: (key: OptionKey) => void }> = ({
+  option,
+  onAdd,
+}) => (
+  <button
+    type="button"
+    onClick={() => onAdd(option.key)}
+    className="flex items-center gap-2.5 rounded-xl border border-[var(--hairline)] bg-[var(--screen)] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--ink-body)] transition-colors hover:border-[var(--blue)]"
+  >
+    <span className={option.key === 'signature' ? 'text-[var(--pink)]' : 'text-[var(--blue-text)]'}>
+      {paletteIconFor(option.key)}
+    </span>
+    {option.name}
+  </button>
+);
+
+/** Compact, selectable canvas row (drag handle + label + type/required summary + actions). */
+const CanvasRow: React.FC<{
+  field: FormField;
+  selected: boolean;
+  locked: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
+  isDragging?: boolean;
+}> = ({
+  field,
+  selected,
+  locked,
+  onSelect,
+  onDelete,
+  onDuplicate,
+  onMoveUp,
+  onMoveDown,
+  draggable,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragging,
+}) => {
+  const isSignature = field.type === 'signature';
+  const title = field.label || fieldTypeName(field);
+  const borderClass = (() => {
+    if (selected) return 'border-[1.5px] border-[var(--blue)] shadow-[0_0_0_3px_var(--glow-b10)]';
+    if (isSignature) return 'border border-dashed border-[var(--pink)]';
+    return 'border border-[var(--hairline)]';
+  })();
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      aria-label={`${fieldTypeName(field)} field`}
+      data-testid={`canvas-row-${field.id}`}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      className={`flex cursor-pointer items-center gap-2.5 rounded-[13px] bg-[var(--screen)] px-4 py-3 transition-shadow ${borderClass} ${
+        isDragging ? 'opacity-60' : ''
+      }`}
+    >
+      <span data-drag-handle className={draggable ? 'cursor-grab' : ''}>
+        {isSignature ? (
+          <IoCreateOutline size={15} className="text-[var(--pink)]" aria-hidden="true" />
+        ) : (
+          <IoReorderTwoOutline size={15} className="text-[var(--ink-faint2)]" aria-hidden="true" />
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-bold text-[var(--ink)]">{title}</span>
+        <span className="block text-[11px] text-[var(--ink-faint)]">
+          {fieldRowSummary(field, selected)}
+        </span>
+      </span>
+      {selected && !locked ? (
+        <span
+          className="flex items-center gap-1.5"
+          onClick={(e) => e.stopPropagation()}
+          role="presentation"
+        >
+          {onMoveUp && (
+            <button type="button" title="Move up" onClick={onMoveUp}>
+              <IoChevronUp size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
+            </button>
+          )}
+          {onMoveDown && (
+            <button type="button" title="Move down" onClick={onMoveDown}>
+              <IoChevronDown size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
+            </button>
+          )}
+          <button type="button" aria-label={`Duplicate ${title}`} onClick={onDuplicate}>
+            <IoCopyOutline size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
+          </button>
+          <button type="button" aria-label={`delete-${field.id}`} onClick={onDelete}>
+            <IoTrashOutline size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
+          </button>
+        </span>
+      ) : (
+        <IoEllipsisHorizontal size={15} className="text-[var(--ink-faint)]" aria-hidden="true" />
+      )}
+    </div>
+  );
+};
+
+const Build = ({ formData, setFormData, serviceOptions, registerValidator }: BuildProps) => {
   const [buildError, setBuildError] = useState<string>('');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [showServicePicker, setShowServicePicker] = useState(false);
   const builderRef = React.useRef<HTMLDivElement | null>(null);
   const scrollVelocityRef = React.useRef<number>(0);
   const scrollAnimRef = React.useRef<number | null>(null);
@@ -1317,7 +1546,21 @@ const Build = ({
           ? ensureSingleSignatureAtEnd([...(prev.schema ?? []), newField])
           : [...(prev.schema ?? []), newField],
     }));
+    setSelectedFieldId(newField.id);
     setBuildError('');
+  };
+
+  // Duplicate a top-level field (with fresh ids) directly below the original.
+  const duplicateField = (index: number) => {
+    if (structureLocked) return;
+    setFormData((prev) => {
+      const schema = [...(prev.schema ?? [])];
+      if (index < 0 || index >= schema.length) return prev;
+      const clone = cloneFieldWithNewIds(schema[index]);
+      schema.splice(index + 1, 0, clone);
+      setSelectedFieldId(clone.id);
+      return { ...prev, schema };
+    });
   };
 
   const moveField = (index: number, direction: 'up' | 'down') => {
@@ -1465,124 +1708,211 @@ const Build = ({
     registerValidator?.(validate);
   }, [registerValidator, validate]);
 
+  // Keep a valid selection: default to the first field, and re-point if the
+  // currently-selected field was removed from the schema.
+  React.useEffect(() => {
+    const ids = (formData.schema ?? []).map((f) => f.id);
+    if (ids.length === 0) {
+      if (selectedFieldId !== null) setSelectedFieldId(null);
+      return;
+    }
+    if (!selectedFieldId || !ids.includes(selectedFieldId)) {
+      setSelectedFieldId(ids[0]);
+    }
+  }, [formData.schema, selectedFieldId]);
+
+  const schema = formData.schema ?? [];
+  const selectedField = schema.find((f) => f.id === selectedFieldId) ?? null;
+
+  const toggleRequired = (field: FormField) =>
+    handleFieldChange(field.id, { ...field, required: !field.required });
+
+  const toggleSummary = (field: FormField) =>
+    handleFieldChange(field.id, {
+      ...field,
+      meta: { ...(field.meta ?? {}), showInSummaryPdf: field.meta?.showInSummaryPdf === false },
+    });
+
+  const linkedServices = (formData.services ?? []).map(
+    (value) => serviceOptions.find((o) => o.value === value) ?? { label: value, value }
+  );
+
+  // Render the existing builder for the selected field in the right settings panel.
+  // Every field type (simple leaves + medication/task/service/generic groups) reuses
+  // its original builder component, so all per-field configuration is preserved.
+  const renderSelectedBuilder = (field: FormField): React.ReactNode => {
+    const fieldId = field.id; // Capture before group type-guards narrow `field` to never.
+    if (field.type === 'group') {
+      const ensured = isServiceGroup(field)
+        ? ensureServiceCheckbox(field, serviceOptions).group
+        : field;
+      if (isMedicationGroup(field)) {
+        return (
+          <MedicationGroupBuilder
+            field={field}
+            onChange={(updated) => handleFieldChange(fieldId, updated)}
+          />
+        );
+      }
+      if (isTaskGroup(field)) {
+        return (
+          <TaskGroupBuilder
+            field={field}
+            onChange={(updated) => handleFieldChange(fieldId, updated)}
+          />
+        );
+      }
+      return (
+        <GroupBuilder
+          field={ensured}
+          onChange={(updated) => handleFieldChange(fieldId, updated)}
+          createField={createField}
+          serviceOptions={serviceOptions}
+        />
+      );
+    }
+    const Component = builderComponentMap[field.type];
+    return (
+      <Component
+        field={field}
+        onChange={(updated) => handleFieldChange(field.id, updated)}
+        createField={createField}
+      />
+    );
+  };
+
   return (
     <StructureLockContext.Provider value={structureLocked}>
-      <div className="flex flex-col gap-6 w-full flex-1 justify-between" ref={builderRef}>
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <div className="font-satoshi text-black-text text-[23px] font-medium">Build form</div>
-            {!structureLocked && (
-              <AddFieldDropdown
-                onSelect={addField}
-                buttonClassName="w-fit"
-                options={addOptionsForContext}
-              />
-            )}
-          </div>
+      <div ref={builderRef} className="flex h-full min-h-0 w-full flex-1 overflow-hidden">
+        {/* LEFT · field palette */}
+        <div className="flex w-[250px] flex-none flex-col gap-2 overflow-y-auto border-r border-[var(--hairline)] bg-[var(--screen-2)] p-4 scrollbar-hidden">
+          <span className="px-1 pb-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+            Add a field
+          </span>
+          {structureLocked ? (
+            <p className="rounded-xl bg-[var(--inset)] p-3 text-[11.5px] leading-relaxed text-[var(--ink-muted)]">
+              This template has a locked structure. Field content stays editable, but fields cannot
+              be added, removed, or reordered.
+            </p>
+          ) : (
+            <>
+              {addOptionsForContext.map((option) => (
+                <PaletteTile key={option.key} option={option} onAdd={addField} />
+              ))}
+              <div className="mt-auto rounded-xl bg-[var(--inset)] p-3 text-[11.5px] leading-relaxed text-[var(--ink-muted)]">
+                <span className="font-bold text-[var(--blue-text)]">Tip</span> · click a field to
+                add it to the canvas. Signature fields make the template signable in the parent app.
+              </div>
+            </>
+          )}
+        </div>
 
-          {formData.schema?.map((field, index) => {
-            const fieldId = field.id; // Store ID to avoid TypeScript narrowing issues
-            const canMoveUp = index > 0;
-            const canMoveDown = index < (formData.schema?.length ?? 0) - 1;
-
-            if (field.type === 'group') {
-              const isDragging = dragIndex === index;
-              // Service groups seed a checkbox first; every other group kind renders
-              // the field as-is. All kinds share the same draggable wrapper, so only
-              // the inner builder differs.
-              const ensured = isServiceGroup(field)
-                ? ensureServiceCheckbox(field, serviceOptions).group
-                : field;
-
-              let groupBuilder: React.ReactNode;
-              if (isMedicationGroup(field)) {
-                groupBuilder = (
-                  <MedicationGroupBuilder
-                    field={field}
-                    onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
-                  />
-                );
-              } else if (isTaskGroup(field)) {
-                groupBuilder = (
-                  <TaskGroupBuilder
-                    field={field}
-                    onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
-                  />
-                );
-              } else {
-                groupBuilder = (
-                  <GroupBuilder
-                    field={ensured}
-                    onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
-                    createField={createField}
-                    serviceOptions={serviceOptions}
-                  />
-                );
-              }
-
-              return (
-                <BuilderWrapper
-                  key={ensured.id}
-                  field={ensured}
-                  onDelete={() => handleDeleteField(fieldId)}
-                  onMoveUp={() => moveField(index, 'up')}
-                  onMoveDown={() => moveField(index, 'down')}
-                  canMoveUp={canMoveUp}
-                  canMoveDown={canMoveDown}
-                  draggable
-                  onDragStart={handleDragStart(index)}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop(index)}
-                  onDragEnd={handleDragEnd}
-                  isDragging={isDragging}
-                >
-                  {groupBuilder}
-                </BuilderWrapper>
-              );
-            }
-            return (
-              <FieldBuilder
-                key={fieldId}
-                field={field}
-                onChange={(updatedField) => handleFieldChange(fieldId, updatedField)}
-                onDelete={() => handleDeleteField(fieldId)}
-                onMoveUp={() => moveField(index, 'up')}
-                onMoveDown={() => moveField(index, 'down')}
-                canMoveUp={canMoveUp}
-                canMoveDown={canMoveDown}
-                createField={createField}
-                draggable
-                onDragStart={handleDragStart(index)}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop(index)}
-                onDragEnd={handleDragEnd}
-                isDragging={dragIndex === index}
-              />
-            );
-          })}
+        {/* CENTER · canvas */}
+        <div className="flex min-w-0 flex-[1.3] flex-col gap-2.5 overflow-y-auto bg-[var(--inset)] p-5">
+          {schema.length === 0 && (
+            <p className="text-[12.5px] text-[var(--ink-faint)]">
+              No fields yet. Add a field from the palette to start building.
+            </p>
+          )}
+          {schema.map((field, index) => (
+            <CanvasRow
+              key={field.id}
+              field={field}
+              selected={field.id === selectedFieldId}
+              locked={structureLocked}
+              onSelect={() => setSelectedFieldId(field.id)}
+              onDelete={() => handleDeleteField(field.id)}
+              onDuplicate={() => duplicateField(index)}
+              onMoveUp={() => moveField(index, 'up')}
+              onMoveDown={() => moveField(index, 'down')}
+              draggable={!structureLocked}
+              onDragStart={handleDragStart(index)}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop(index)}
+              onDragEnd={handleDragEnd}
+              isDragging={dragIndex === index}
+            />
+          ))}
           {buildError && (
-            <div className="mt-1.5 flex items-center gap-1 px-2 text-caption-2 text-text-error">
+            <div className="mt-1 flex items-center gap-1 px-1 text-caption-2 text-text-error">
               <IoIosWarning className="text-text-error" size={14} />
               <span>{buildError}</span>
             </div>
           )}
-
-          {/* Add Field Button at bottom */}
           {!structureLocked && (
-            <div className="flex flex-col items-center gap-2 py-4 border border-dashed border-[var(--divider)] rounded-[18px] hover:border-[var(--hairline)] transition-colors">
-              <div className="flex flex-col items-center gap-1">
-                <AddFieldDropdown
-                  onSelect={addField}
-                  buttonClassName="w-fit"
-                  options={addOptionsForContext}
-                />
-                <span className="text-sm font-satoshi font-medium text-grey-noti">Add Field</span>
-              </div>
-            </div>
+            <span className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--divider)] p-3 text-[12.5px] font-semibold text-[var(--ink-faint)]">
+              <IoAddOutline size={14} aria-hidden="true" />
+              Drop a field here
+            </span>
           )}
         </div>
-        <div className="px-3 pb-3 flex justify-center">
-          <Primary href="#" text="Next" onClick={onNext} className="w-fit" />
+
+        {/* RIGHT · field settings */}
+        <div className="flex w-[320px] max-w-[320px] flex-none flex-col gap-3.5 overflow-y-auto border-l border-[var(--hairline)] p-5 scrollbar-hidden">
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+            Field settings
+          </span>
+          {selectedField ? (
+            <>
+              {renderSelectedBuilder(selectedField)}
+              {selectedField.type !== 'group' && (
+                <>
+                  <SettingToggle
+                    label="Required"
+                    checked={Boolean(selectedField.required)}
+                    onChange={() => toggleRequired(selectedField)}
+                  />
+                  <SettingToggle
+                    label="Show in summary PDF"
+                    checked={selectedField.meta?.showInSummaryPdf !== false}
+                    onChange={() => toggleSummary(selectedField)}
+                  />
+                </>
+              )}
+              <span className="h-px bg-[var(--hairline)]" />
+              <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+                Linked services
+              </span>
+              <div className="flex flex-col gap-2">
+                {linkedServices.length === 0 && (
+                  <span className="text-[12px] text-[var(--ink-faint)]">
+                    No linked services yet.
+                  </span>
+                )}
+                {linkedServices.map((service) => (
+                  <span
+                    key={service.value}
+                    className="flex items-center justify-between rounded-[11px] border border-[var(--hairline)] px-3 py-2 text-[12.5px] font-semibold text-[var(--ink-body)]"
+                  >
+                    {service.label}
+                    <span className="rounded-full border border-[var(--status-in-progress-border)] bg-[var(--status-in-progress-bg)] px-2 py-0.5 text-[10px] font-bold text-[var(--status-in-progress-text)]">
+                      {((service as { badge?: string }).badge ?? 'SERVICE').toUpperCase()}
+                    </span>
+                  </span>
+                ))}
+                {showServicePicker && (
+                  <MultiSelectDropdown
+                    placeholder="Link services / packages"
+                    value={formData.services ?? []}
+                    onChange={(values) => setFormData((prev) => ({ ...prev, services: values }))}
+                    options={serviceOptions}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowServicePicker((v) => !v)}
+                  className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--blue-text)]"
+                >
+                  <IoAddOutline size={13} aria-hidden="true" />
+                  Link another service
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="text-[12.5px] text-[var(--ink-faint)]">
+              Select a field in the canvas to edit its settings, or add one from the palette.
+            </p>
+          )}
         </div>
       </div>
     </StructureLockContext.Provider>

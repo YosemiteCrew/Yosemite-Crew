@@ -28,6 +28,8 @@ type DetailsProps = {
   onNext: () => void;
   serviceOptions: { label: string; value: string; badge?: string; isInpatient?: boolean }[];
   registerValidator?: (fn: () => boolean) => void;
+  /** Single-screen builder hides the step "Next" button; saving happens from the modal footer. */
+  hideNext?: boolean;
 };
 
 const YC_DEFAULT_CATEGORIES = new Set<FormsCategory>([
@@ -47,6 +49,7 @@ const Details = ({
   onNext,
   serviceOptions,
   registerValidator,
+  hideNext = false,
 }: DetailsProps) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
@@ -356,9 +359,11 @@ const Details = ({
           </div>
         </Accordion>
       </div>
-      <div className="px-3 pb-3 flex justify-center">
-        <Primary href="#" text="Next" onClick={handleNext} className="w-fit" />
-      </div>
+      {!hideNext && (
+        <div className="px-3 pb-3 flex justify-center">
+          <Primary href="#" text="Next" onClick={handleNext} className="w-fit" />
+        </div>
+      )}
     </div>
   );
 };

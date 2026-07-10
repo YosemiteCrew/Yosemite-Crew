@@ -509,6 +509,22 @@ describe('Details Component', () => {
     expect(mockRegisterValidator).toHaveBeenCalledWith(expect.any(Function));
   });
 
+  it('hides the Next button when hideNext is set (single-screen builder)', () => {
+    render(
+      <Details
+        formData={defaultFormData}
+        setFormData={mockSetFormData}
+        onNext={mockOnNext}
+        serviceOptions={serviceOptions}
+        hideNext
+      />
+    );
+
+    expect(screen.queryByTestId('next-btn')).not.toBeInTheDocument();
+    // All the detail fields still render — only the step Next button is removed.
+    expect(screen.getByTestId('input-Form name')).toBeInTheDocument();
+  });
+
   it('allows parent to trigger validation via registered validator', () => {
     let capturedValidator: (data: FormsProps) => boolean = () => false; // Initialize explicitly
     mockRegisterValidator.mockImplementation((fn) => {

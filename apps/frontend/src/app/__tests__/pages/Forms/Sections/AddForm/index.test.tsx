@@ -12,6 +12,16 @@ jest.mock('@/app/ui/overlays/Modal', () => ({
   default: ({ children }: any) => <div data-testid="modal">{children}</div>,
 }));
 
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: ({ alt }: any) => <span data-testid="next-image" aria-label={alt} />,
+}));
+
+jest.mock('react-icons/io5', () => ({
+  IoCreateOutline: () => <span data-testid="icon-create" />,
+  IoEyeOutline: () => <span data-testid="icon-eye" />,
+}));
+
 jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
@@ -21,16 +31,27 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   ),
 }));
 
+jest.mock('@/app/ui/primitives/Buttons', () => ({
+  Primary: ({ text, onClick, isDisabled }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled}>
+      {text}
+    </button>
+  ),
+  Secondary: ({ text, onClick, isDisabled }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled}>
+      {text}
+    </button>
+  ),
+}));
+
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/Details', () => ({
   __esModule: true,
-  default: ({ onNext, registerValidator }: any) => {
+  default: ({ registerValidator, hideNext }: any) => {
     registerValidator(() => isDetailValid);
     return (
       <div>
         <div>Details Step</div>
-        <button type="button" onClick={onNext}>
-          Next Details
-        </button>
+        <div>hideNext:{String(hideNext)}</div>
       </div>
     );
   },
@@ -38,16 +59,9 @@ jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/Details', () => ({
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/Build', () => ({
   __esModule: true,
-  default: ({ onNext, registerValidator }: any) => {
+  default: ({ registerValidator }: any) => {
     registerValidator(() => isBuildValid);
-    return (
-      <div>
-        <div>Build Step</div>
-        <button type="button" onClick={onNext}>
-          Next Build
-        </button>
-      </div>
-    );
+    return <div>Build Step</div>;
   },
 }));
 
@@ -119,7 +133,7 @@ jest.mock('@/app/stores/orgStore', () => ({
 const formService = jest.requireMock('@/app/features/forms/services/formService');
 const templateFormsService = jest.requireMock('@/app/features/forms/services/templateFormsService');
 
-describe('AddForm modal', () => {
+describe('AddForm single-screen builder', () => {
   const serviceOptions = [{ label: 'Checkup', value: 'serv-1' }];
 
   beforeEach(() => {
@@ -142,19 +156,23 @@ describe('AddForm modal', () => {
     });
   });
 
-  it('navigates through steps and publishes', async () => {
+  it('renders the builder view with palette/canvas Build and the details fold by default', () => {
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
-    expect(screen.getByText('Details Step')).toBeInTheDocument();
     expect(screen.getByText('Add template')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Next Details'));
     expect(screen.getByText('Build Step')).toBeInTheDocument();
+    // Details is always mounted (hidden) so its validator is registered; it is passed hideNext.
+    expect(screen.getByText('Details Step')).toBeInTheDocument();
+    expect(screen.getByText('hideNext:true')).toBeInTheDocument();
+    // Footer save actions.
+    expect(screen.getByText('Save template')).toBeInTheDocument();
+    expect(screen.getByText('Save as draft')).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByText('Next Build'));
-    expect(screen.getByText('Review Step')).toBeInTheDocument();
+  it('publishes from the footer once details and schema validate', async () => {
+    render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
-    fireEvent.click(screen.getByText('Publish'));
+    fireEvent.click(screen.getByText('Save template'));
 
     // New forms default to YC-default (template-backed), so publishing routes through the
     // template API rather than the legacy FHIR form service.
@@ -164,12 +182,10 @@ describe('AddForm modal', () => {
     });
   });
 
-  it('saves a draft from review', async () => {
+  it('saves a draft from the footer', async () => {
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
-    fireEvent.click(screen.getByText('Next Details'));
-    fireEvent.click(screen.getByText('Next Build'));
-    fireEvent.click(screen.getByText('Save Draft'));
+    fireEvent.click(screen.getByText('Save as draft'));
 
     await waitFor(() => {
       expect(templateFormsService.saveTemplateFormDraft).toHaveBeenCalled();
@@ -195,9 +211,7 @@ describe('AddForm modal', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Next Details'));
-    fireEvent.click(screen.getByText('Next Build'));
-    fireEvent.click(screen.getByText('Publish'));
+    fireEvent.click(screen.getByText('Save template'));
 
     await waitFor(() => {
       expect(templateFormsService.saveTemplateFormDraft).toHaveBeenCalledWith(
@@ -213,36 +227,70 @@ describe('AddForm modal', () => {
     expect(formService.publishForm).not.toHaveBeenCalled();
   });
 
-  it('allows opening merck any time but blocks build/review when details is invalid', () => {
+  it('blocks publishing and reveals details when the details validator fails', () => {
     isDetailValid = false;
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
-    fireEvent.click(screen.getByRole('tab', { name: 'MSD Veterinary Manual' }));
-    expect(screen.getByText('Search Manuals')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Save template'));
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Build form' }));
-    expect(screen.getByText('Search Manuals')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Review' }));
-    expect(screen.getByText('Search Manuals')).toBeInTheDocument();
+    expect(templateFormsService.saveTemplateFormDraft).not.toHaveBeenCalled();
+    // The details fold is revealed so inline errors become visible.
+    expect(screen.getByText('Hide details')).toBeInTheDocument();
   });
 
-  it('blocks review when build validator fails', () => {
+  it('blocks publishing when the build validator fails', () => {
     isBuildValid = false;
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Build form' }));
-    expect(screen.getByText('Build Step')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Save template'));
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Review' }));
+    expect(templateFormsService.saveTemplateFormDraft).not.toHaveBeenCalled();
+  });
+
+  it('toggles the preview (reusing the Review renderer) and back to the builder', () => {
+    render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
+
+    fireEvent.click(screen.getByText('Preview as parent'));
+    expect(screen.getByText('Review Step')).toBeInTheDocument();
+    // Footer is hidden in preview; Review supplies its own actions.
+    expect(screen.queryByText('Save template')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Back to builder'));
     expect(screen.getByText('Build Step')).toBeInTheDocument();
   });
 
-  it('hides merck tab when merck integration is disabled', () => {
-    isMerckEnabled = false;
+  it('publishes from the Review preview action', async () => {
     render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
 
-    expect(screen.queryByRole('tab', { name: 'MSD Veterinary Manual' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Preview as parent'));
+    fireEvent.click(screen.getByText('Publish'));
+
+    await waitFor(() => {
+      expect(templateFormsService.saveTemplateFormDraft).toHaveBeenCalled();
+    });
+  });
+
+  it('opens the MSD Veterinary Manual and hides it when the integration is disabled', () => {
+    const { rerender } = render(
+      <AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />
+    );
+
+    fireEvent.click(screen.getByText('MSD Veterinary Manual'));
+    expect(screen.getByText('Search Manuals')).toBeInTheDocument();
+
+    isMerckEnabled = false;
+    rerender(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
+    expect(screen.queryByText('MSD Veterinary Manual')).not.toBeInTheDocument();
+  });
+
+  it('expands and collapses the template details fold', () => {
+    render(<AddForm showModal setShowModal={jest.fn()} serviceOptions={serviceOptions} />);
+
+    fireEvent.click(screen.getByText('Edit details'));
+    expect(screen.getByText('Hide details')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Hide details'));
+    expect(screen.getByText('Edit details')).toBeInTheDocument();
   });
 
   it('shows the edit-template header when editing an existing template', () => {
@@ -265,6 +313,15 @@ describe('AddForm modal', () => {
       />
     );
 
-    expect(screen.getByText('Edit template')).toBeInTheDocument();
+    expect(screen.getByText(/Edit template/)).toBeInTheDocument();
+    expect(screen.getByText('Update & publish')).toBeInTheDocument();
+  });
+
+  it('closes the modal from the header close button', () => {
+    const setShowModal = jest.fn();
+    render(<AddForm showModal setShowModal={setShowModal} serviceOptions={serviceOptions} />);
+
+    fireEvent.click(screen.getByText('Close'));
+    expect(setShowModal).toHaveBeenCalledWith(false);
   });
 });
