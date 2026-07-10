@@ -113,9 +113,9 @@ interface ChatContainerProps {
 // Active-pill colour per position mirrors the Calendar / Board / Table view
 // switcher (TitleCalendar): primary, success, then the dark text colour.
 const SCOPE_TABS: ReadonlyArray<{ key: ChatScope; label: string; slider: string }> = [
-  // "Pet parents" is the designated owner term (matches the per-chat badge);
-  // avoids the old "Clients" tab vs "Pet parent" badge collision on this screen.
-  { key: 'clients', label: 'Pet parents', slider: 'bg-(--color-primary-700)' },
+  // Design labels this audience tab "Clients"; the per-chat "Pet parent" badge is
+  // kept as the fixed owner term on the individual client conversation header.
+  { key: 'clients', label: 'Clients', slider: 'bg-(--color-primary-700)' },
   { key: 'colleagues', label: 'Colleagues', slider: 'bg-success-700' },
   { key: 'groups', label: 'Groups', slider: 'bg-text-primary' },
 ];
@@ -1929,7 +1929,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
           <>
             <div className="flex items-center justify-between px-3 pt-3">
               <Text as="h2" variant="heading-3" className="text-neutral-900">
-                Messages
+                Chat
               </Text>
               <button
                 type="button"
@@ -1955,7 +1955,7 @@ export const ChatContainer: FC<ChatContainerProps> = ({
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search conversations…"
+                  placeholder="Search conversations"
                   aria-label="Search conversations"
                   className="w-full bg-transparent font-satoshi text-body-4 text-text-primary outline-none placeholder:text-input-text-placeholder"
                 />

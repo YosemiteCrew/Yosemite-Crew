@@ -960,7 +960,7 @@ const AddAppointmentCentralModal = ({
       <AppointmentCentralModalShell
         showModal={showModal}
         setShowModal={setShowModal}
-        title="Appointment details"
+        title="New appointment"
         canClose={canCloseModal}
         isLoading={isLoading}
       >
@@ -1132,7 +1132,7 @@ const AddAppointmentCentralModal = ({
                   }
                   className="size-4 cursor-pointer shrink-0"
                 />
-                <span style={text14M}>Is this an Emergency?</span>
+                <span style={text14M}>Mark as emergency</span>
               </label>
             </div>
           </div>
@@ -1180,7 +1180,7 @@ const AddAppointmentCentralModal = ({
                 e.currentTarget.style.setProperty('--yc-button-y', `${e.clientY - r.top}px`);
               }}
             >
-              + Add Appointment
+              Book appointment
             </button>
           </div>
         </div>

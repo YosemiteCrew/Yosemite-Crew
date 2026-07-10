@@ -237,9 +237,9 @@ describe('AddAppointmentCentralModal', () => {
     expect(screen.getByLabelText('Client')).toBeInTheDocument();
   });
 
-  it('renders the Add Appointment submit button', () => {
+  it('renders the Book appointment submit button', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
-    expect(screen.getByRole('button', { name: /add appointment/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /book appointment/i })).toBeInTheDocument();
   });
 
   it('renders notify checkboxes', () => {
@@ -284,7 +284,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add appointment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /book appointment/i }));
     });
 
     // submitAttempted becomes true, booking error should show
@@ -298,7 +298,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add appointment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /book appointment/i }));
       await Promise.resolve();
     });
 
@@ -319,7 +319,7 @@ describe('AddAppointmentCentralModal', () => {
 
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
-    expect(screen.getByRole('button', { name: /add appointment/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /book appointment/i })).toBeDisabled();
   });
 
   it('closes modal directly when no unsaved changes', async () => {
@@ -519,7 +519,7 @@ describe('AddAppointmentCentralModal', () => {
   it('shows loading indicator on submit button when isLoading', () => {
     mockAppointmentForm.isLoading = true;
     render(<AddAppointmentCentralModal {...defaultProps} />);
-    expect(screen.getByRole('button', { name: /add appointment/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /book appointment/i })).toBeDisabled();
   });
 
   it('prefill active state is set when prefill prop is provided', async () => {
@@ -660,7 +660,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /add appointment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /book appointment/i }));
       await Promise.resolve();
     });
 

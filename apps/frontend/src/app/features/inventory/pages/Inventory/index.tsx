@@ -1120,7 +1120,7 @@ const DispensaryFilterModal = ({
                   [
                     { value: 'ALL', label: 'All requests' },
                     { value: 'PATIENT', label: 'Patient' },
-                    { value: 'IN_HOUSE', label: 'Inhouse' },
+                    { value: 'IN_HOUSE', label: 'In-house' },
                   ] as const
                 ).map(({ value, label }) => (
                   <label
@@ -1596,7 +1596,7 @@ const Inventory = () => {
           {canEditInventory && activeView !== 'turnover' && (
             <Primary
               href="#"
-              text={savingItem ? 'Saving...' : 'Add item'}
+              text={savingItem ? 'Saving...' : 'Add product'}
               onClick={() => setAddPopup(true)}
               isDisabled={savingItem || !primaryOrgId}
               icon={<FiPlus size={18} aria-hidden="true" />}
@@ -1609,7 +1609,7 @@ const Inventory = () => {
               onClick={() => setActiveView('inventory')}
               className="inline-flex h-11 items-center justify-center rounded-2xl border border-text-primary bg-neutral-0 px-5 text-body-4-emphasis text-text-primary hover:bg-card-hover transition-colors"
             >
-              Inventory
+              Catalog
             </button>
           ) : (
             <GlassTooltip content="Turnover analytics" side="bottom">
@@ -1645,7 +1645,7 @@ const Inventory = () => {
                 }`}
               >
                 <TbLayoutGrid size={15} aria-hidden="true" className="shrink-0" />
-                <span>Inventory</span>
+                <span>Catalog</span>
               </button>
               <button
                 type="button"

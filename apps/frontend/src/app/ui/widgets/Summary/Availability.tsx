@@ -40,7 +40,7 @@ const AvailabilityLabels = [
     border: 'var(--color-pill-neutral-border)',
   },
   {
-    name: 'Off-Duty',
+    name: 'Off-duty',
     value: 'off-duty',
     background: 'var(--color-card-warning)',
     color: 'var(--color-warning-600)',

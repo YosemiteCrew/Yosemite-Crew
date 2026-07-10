@@ -290,7 +290,7 @@ describe('WorkspaceMetaBar', () => {
   it('renders consultation type for outpatient and fires Save & Next', () => {
     const props = baseProps('OUTPATIENT');
     render(<WorkspaceMetaBar {...props} />);
-    expect(screen.getByText('Ready for Billing')).toBeInTheDocument();
+    expect(screen.getByText('Ready for billing')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Diagnostics'));
     expect(props.onSaveAndNext).toHaveBeenCalled();
   });
@@ -314,12 +314,12 @@ describe('WorkspaceMetaBar', () => {
   it('labels the support staff field and keeps the lead field', () => {
     const props = baseProps('INPATIENT');
     render(<WorkspaceMetaBar {...props} />);
-    expect(screen.getByText('Assigned Lead')).toBeInTheDocument();
-    expect(screen.getByText('Support Staff')).toBeInTheDocument();
+    expect(screen.getByText('Assigned lead')).toBeInTheDocument();
+    expect(screen.getByText('Support staff')).toBeInTheDocument();
     expect(screen.queryByText('Assigned Nurse')).not.toBeInTheDocument();
     // Inpatient still surfaces the Ready toggles and the advance button.
-    expect(screen.getByText('Ready for Billing')).toBeInTheDocument();
-    expect(screen.getByText('Ready for Discharge')).toBeInTheDocument();
+    expect(screen.getByText('Ready for billing')).toBeInTheDocument();
+    expect(screen.getByText('Ready for discharge')).toBeInTheDocument();
   });
 
   it('renders lead and support profile photos when appointment metadata provides them', () => {
@@ -374,7 +374,7 @@ describe('WorkspaceMetaBar', () => {
       />
     );
 
-    expect(screen.getByText('Ready for Discharge')).toBeInTheDocument();
+    expect(screen.getByText('Ready for discharge')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^discharge$/i }));
     expect(onClick).toHaveBeenCalledTimes(1);
   });

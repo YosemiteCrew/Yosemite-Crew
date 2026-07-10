@@ -359,7 +359,7 @@ const Header = ({
             <>
               <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
               <Primary
-                text="Add Appointment"
+                text="New appointment"
                 onClick={onAddButtonClick}
                 icon={<IoAdd size={18} aria-hidden="true" />}
                 className="h-12 w-fit shrink-0 justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"

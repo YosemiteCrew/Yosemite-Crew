@@ -194,7 +194,7 @@ describe('TaskBoard', () => {
 
     expect(screen.getAllByText('Pending').length).toBeGreaterThan(0);
     expect(screen.getAllByText('In progress').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Add task' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New task' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'back' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'next' })).toBeInTheDocument();
   });
@@ -522,7 +522,7 @@ describe('TaskBoard', () => {
   it('hides both add affordances when the user cannot edit tasks', () => {
     renderBoard({ canEditTasks: false });
     expect(screen.queryByRole('button', { name: 'Add task to Pending' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Add task' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New task' })).not.toBeInTheDocument();
   });
 
   it('shows an empty-state placeholder for columns without tasks', () => {

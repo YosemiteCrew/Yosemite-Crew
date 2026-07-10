@@ -865,23 +865,27 @@ const IdexxIntegrationCard = ({
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
-            <div className={INTEGRATION_CARD_TITLE_CLASS}>IDEXX</div>
+            <div className={INTEGRATION_CARD_TITLE_CLASS}>IDEXX VetConnect PLUS</div>
             <StatusPill status={s.idexxIntegration?.status} />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
-            Yosemite Crew integrates with IDEXX Reference Laboratories and their point-of-care
-            diagnostics for a seamless workflow.
+            Order in-house and reference lab work from the appointment workspace; results file to
+            the patient automatically.
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 w-full items-center">
           <Secondary
             href="#"
-            text="Settings"
+            text="Manage credentials"
             onClick={() => s.setShowSettings(true)}
             className="w-full px-4"
           />
           {s.idexxEnabled ? (
-            <Primary href="/appointments/idexx-workspace" text="View" className="w-full px-4" />
+            <Primary
+              href="/appointments/idexx-workspace"
+              text="Open workspace"
+              className="w-full px-4"
+            />
           ) : (
             <Primary
               href="#"
@@ -939,8 +943,8 @@ const MerckIntegrationCard = ({
             <StatusPill status={s.merckIntegration?.status} />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
-            Veterinary manuals search and reader experience with professional and consumer content
-            modes.
+            Search the veterinary manual from the workspace side rail without leaving the visit.
+            Free for every clinic.
           </div>
         </div>
         <div className="flex flex-col gap-2">
@@ -948,7 +952,7 @@ const MerckIntegrationCard = ({
             {s.merckEnabled ? (
               <Primary
                 href="/integrations/merck-manuals"
-                text="View"
+                text="Open manuals"
                 className="w-full max-w-[160px] px-4"
               />
             ) : (

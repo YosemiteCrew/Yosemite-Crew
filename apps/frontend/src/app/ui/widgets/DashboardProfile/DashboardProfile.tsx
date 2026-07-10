@@ -67,14 +67,14 @@ const DashboardProfile = () => {
               <div className="flex items-center justify-center gap-2 rounded-2xl bg-card-warning px-6 py-3">
                 <FaClock color="var(--color-warning-600)" size={16} />
                 <span className="text-body-4-emphasis text-pending-text">
-                  Verification in progress — Limited access enabled
+                  Verification in progress. Limited access enabled
                 </span>
               </div>
               <Primary text="Verify business profile" href="#" onClick={() => setCalOpen(true)} />
             </div>
             <div className="text-caption-1 text-text-primary w-full sm:max-w-125">
-              <span className="text-text-brand">Note : </span>This short chat helps us confirm your
-              business and add you to our trusted network of verified pet professionals - so you can
+              <span className="text-text-brand">Note: </span>This short chat helps us confirm your
+              business and add you to our trusted network of verified pet professionals, so you can
               start connecting with clients faster.
             </div>
           </div>

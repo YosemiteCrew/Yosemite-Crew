@@ -187,10 +187,10 @@ describe('Integrations settings', () => {
     render(<ProtectedIntegrations />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Manage credentials' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
     fireEvent.change(screen.getByTestId('idexx-username'), { target: { value: 'user-a' } });
     fireEvent.change(screen.getByTestId('idexx-password'), { target: { value: 'pass-a' } });
     fireEvent.click(screen.getByRole('button', { name: /Store credentials|Update credentials/ }));
@@ -224,10 +224,10 @@ describe('Integrations settings', () => {
     render(<ProtectedIntegrations />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Manage credentials' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
     fireEvent.click(screen.getByRole('button', { name: 'Disable IDEXX' }));
 
     await waitFor(() => {
@@ -258,7 +258,7 @@ describe('Integrations settings', () => {
       expect(screen.getByRole('button', { name: 'Enable' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
 
     const enableInSettingsButton = await screen.findByRole('button', { name: 'Enable IDEXX' });
     expect(enableInSettingsButton).not.toBeDisabled();
@@ -361,8 +361,8 @@ describe('Integrations settings', () => {
 
   it('shows validated successfully message after validate click', async () => {
     render(<ProtectedIntegrations />);
-    await screen.findByRole('button', { name: 'Settings' });
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    await screen.findByRole('button', { name: 'Manage credentials' });
+    fireEvent.click(screen.getByRole('button', { name: 'Manage credentials' }));
     fireEvent.click(screen.getByRole('button', { name: 'Validate' }));
     await screen.findByText('Credentials validated successfully.');
   });

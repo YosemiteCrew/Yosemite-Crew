@@ -56,7 +56,7 @@ const Filters = ({
   hasEmergency = false,
   showAddButton = false,
   onAddButtonClick,
-  addButtonText = 'Add Appointment',
+  addButtonText = 'New appointment',
   className,
   compactFilterPills = false,
 }: FiltersProps) => {

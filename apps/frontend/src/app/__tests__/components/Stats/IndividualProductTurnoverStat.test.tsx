@@ -28,7 +28,7 @@ describe('IndividualProductTurnoverStat', () => {
 
     render(<IndividualProductTurnoverStat />);
 
-    expect(screen.getByTestId('card-header')).toHaveTextContent('Individual product turnover');
+    expect(screen.getByTestId('card-header')).toHaveTextContent('Product turnover');
     expect(screen.getByText('No data available')).toBeInTheDocument();
   });
 

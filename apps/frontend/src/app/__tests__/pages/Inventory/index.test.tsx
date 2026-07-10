@@ -386,7 +386,7 @@ describe('Inventory Page', () => {
     expect(screen.getByRole('button', { name: 'Dispensary' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sort by' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add item' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add product' })).toBeInTheDocument();
     expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
     expect(screen.queryByTestId('dispensary-table')).not.toBeInTheDocument();
 
@@ -529,7 +529,7 @@ describe('Inventory Page', () => {
   it('opens add modal on button click', () => {
     render(<ProtectedInventory />);
     expect(screen.queryByTestId('add-modal')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
     expect(screen.getByTestId('add-modal')).toBeInTheDocument();
   });
 
@@ -585,7 +585,7 @@ describe('Inventory Page', () => {
     });
     render(<ProtectedInventory />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
     fireEvent.click(screen.getByTestId('submit-add'));
 
     await waitFor(() => {
@@ -603,7 +603,7 @@ describe('Inventory Page', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<ProtectedInventory />);
-    const btn = screen.getByRole('button', { name: 'Add item' });
+    const btn = screen.getByRole('button', { name: 'Add product' });
     expect(btn).toBeDisabled();
 
     // Cleanup before re-rendering for the error test part
@@ -619,7 +619,7 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     mockCreateItem.mockRejectedValue(new Error('API Fail'));
-    fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
     fireEvent.click(screen.getByTestId('submit-add'));
 
     await waitFor(() => {

@@ -593,7 +593,7 @@ describe('TasksPanel', () => {
     // Shared task form: pick an assignee, set the title, save.
     fireEvent.click(screen.getAllByRole('button', { name: /assigned to/i })[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Dr. Tim Apple' }));
-    fireEvent.change(screen.getByLabelText('Task title'), {
+    fireEvent.change(screen.getByLabelText('Task'), {
       target: { value: 'Recheck incision' },
     });
     fireEvent.click(screen.getByRole('button', { name: /save task/i }));
@@ -618,7 +618,7 @@ describe('TasksPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /new task/i }));
     fireEvent.click(screen.getAllByRole('button', { name: /assigned to/i })[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Yasmin Hadid' }));
-    fireEvent.change(screen.getByLabelText('Task title'), {
+    fireEvent.change(screen.getByLabelText('Task'), {
       target: { value: 'Give meds at 8pm' },
     });
     fireEvent.click(screen.getByRole('button', { name: /save task/i }));
@@ -643,7 +643,7 @@ describe('TasksPanel', () => {
     // Editing a real backing task PATCHes it (no duplicate row created) — the same
     // task the Schedule timeline renders, so both surfaces stay consistent.
     fireEvent.click(screen.getByRole('button', { name: /edit record observation for analgesic/i }));
-    const title = screen.getByLabelText('Task title');
+    const title = screen.getByLabelText('Task');
     fireEvent.change(title, { target: { value: 'Edited task body' } });
     fireEvent.click(screen.getByRole('button', { name: /save task/i }));
     await waitFor(() => expect(updateTask).toHaveBeenCalled());

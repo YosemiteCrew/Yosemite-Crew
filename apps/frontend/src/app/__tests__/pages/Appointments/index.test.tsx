@@ -140,7 +140,7 @@ jest.mock('@/app/ui/filters/Filters', () => (props: any) => (
   <div data-testid="filters">
     {props.showAddButton ? (
       <button type="button" onClick={props.onAddButtonClick}>
-        Add Appointment
+        New appointment
       </button>
     ) : null}
   </div>
@@ -288,7 +288,7 @@ describe('Appointments page', () => {
     await renderAppointments();
 
     fireEvent.click(screen.getByText('List'));
-    fireEvent.click(screen.getByRole('button', { name: 'Add Appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New appointment' }));
     expect(addAppointmentSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
   });
 
@@ -584,7 +584,7 @@ describe('Appointments page', () => {
     );
   });
 
-  it('openAddAppointment: clicking Add Appointment from calendar opens modal', async () => {
+  it('openAddAppointment: clicking New appointment from calendar opens modal', async () => {
     await renderAppointments();
 
     const calendarProps = calendarSpy.mock.calls[0][0];

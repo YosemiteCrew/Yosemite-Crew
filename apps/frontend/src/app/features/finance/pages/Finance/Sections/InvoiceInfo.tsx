@@ -34,7 +34,7 @@ const tabs: { key: ActiveTab; label: string }[] = [
 ];
 
 const InvoiceFields = [
-  { label: 'Sub-total', key: 'subTotal', type: 'text' },
+  { label: 'Subtotal', key: 'subTotal', type: 'text' },
   { label: 'Discount', key: 'discount', type: 'text' },
   { label: 'Tax', key: 'tax', type: 'text' },
   { label: 'Total', key: 'total', type: 'text' },

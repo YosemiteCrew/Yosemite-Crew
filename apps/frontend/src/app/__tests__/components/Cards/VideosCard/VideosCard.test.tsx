@@ -21,7 +21,7 @@ describe('VideosCard', () => {
     render(<VideosCard />);
 
     expect(
-      screen.getByText('Make the most of your wait — Start exploring instead.')
+      screen.getByText('Make the most of your wait, start exploring instead')
     ).toBeInTheDocument();
     expect(screen.getByText('Invite your team')).toBeInTheDocument();
     expect(screen.getByText('Add companions')).toBeInTheDocument();
@@ -33,7 +33,7 @@ describe('VideosCard', () => {
 
     fireEvent.click(screen.getAllByText('close')[0]);
     expect(
-      screen.queryByText('Make the most of your wait — Start exploring instead.')
+      screen.queryByText('Make the most of your wait, start exploring instead')
     ).not.toBeInTheDocument();
   });
 

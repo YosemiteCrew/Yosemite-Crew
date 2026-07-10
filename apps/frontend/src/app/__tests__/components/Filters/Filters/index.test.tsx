@@ -96,7 +96,7 @@ describe('Filters', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add Appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New appointment' }));
     expect(onAddButtonClick).toHaveBeenCalledTimes(1);
   });
 

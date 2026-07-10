@@ -37,10 +37,10 @@ const VideosCard = () => {
       <div className="flex flex-col gap-0">
         <div className="flex items-center justify-between w-full gap-3">
           <div className="text-body-1 text-text-primary">
-            {'Make the most of your wait — Start exploring instead.'}
+            {'Make the most of your wait, start exploring instead'}
           </div>
           <div className="flex items-center gap-2">
-            <Primary text="View More" href="/guides" className="px-5! py-2! text-body-4" />
+            <Primary text="View more" href="/guides" className="px-5! py-2! text-body-4" />
             <Close onClick={handleClose} />
           </div>
         </div>

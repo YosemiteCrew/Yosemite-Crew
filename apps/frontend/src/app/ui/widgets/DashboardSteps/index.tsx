@@ -48,7 +48,7 @@ const DashboardSteps = () => {
     const nextSteps: Step[] = [
       {
         key: 'services',
-        title: 'Step 1 - Add services',
+        title: 'Step 1 · Add services',
         description: 'Create services with price & duration that will be visible to parents',
         buttonSrc: '/organization/specialities',
         buttonText: hasServices ? 'View services' : 'Add services',
@@ -57,7 +57,7 @@ const DashboardSteps = () => {
       },
       {
         key: 'team',
-        title: 'Step 2 - Invite team',
+        title: 'Step 2 · Invite team',
         description: 'You can easily invite all your team members with just a few clicks',
         buttonSrc: '/organization',
         buttonText: hasTeam ? 'View team' : 'Invite team',
@@ -66,7 +66,7 @@ const DashboardSteps = () => {
       },
       {
         key: 'stripe',
-        title: 'Step 3 - Connect Stripe',
+        title: 'Step 3 · Connect Stripe',
         description: 'Configure Stripe to ensure a seamless booking experience',
         buttonSrc: `/stripe-onboarding?orgId=${primaryOrg._id}`,
         buttonText: stripeButtonText,

@@ -157,7 +157,7 @@ const TaskCard = ({
           </div>
         </div>
         <div
-          className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em]"
+          className="shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em]"
           style={{
             ...getColumnBadgeStyle(task.status),
             borderColor: columnStyle.color,
@@ -590,8 +590,8 @@ const TaskBoard = ({
           <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
             {canEditTasks && (
               <Primary
-                text="Add"
-                ariaLabel="Add task"
+                text="New task"
+                ariaLabel="New task"
                 onClick={onAddTask}
                 icon={<IoAdd size={18} aria-hidden="true" />}
                 className="gap-2 px-4 whitespace-nowrap hover:scale-100"

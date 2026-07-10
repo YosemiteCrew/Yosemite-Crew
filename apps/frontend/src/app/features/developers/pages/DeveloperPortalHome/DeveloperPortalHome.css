@@ -189,6 +189,8 @@
   background: var(--color-inset);
   color: var(--color-text-secondary);
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .dev-links {

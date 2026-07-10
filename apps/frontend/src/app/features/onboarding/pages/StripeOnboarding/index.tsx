@@ -138,10 +138,10 @@ const StripeOnboarding = () => {
       </div>
 
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-heading-1 text-text-primary font-newsreader">Stripe Onboarding</h1>
+        <h1 className="text-heading-1 text-text-primary font-newsreader">Stripe onboarding</h1>
         <p className="max-w-[460px] text-body-3 text-text-secondary">
-          Complete your Stripe setup to accept card payments, verify tax details, and review
-          payout-related information for your organisation.
+          Complete your Stripe setup to accept card payments, verify tax details, and review payout
+          information for your organization.
         </p>
       </div>
 
@@ -174,12 +174,12 @@ const StripeOnboarding = () => {
               <ConnectAccountOnboarding onExit={handleExit} onStepChange={handleStepChange} />
               <div className="flex flex-col gap-3">
                 <h2 className="text-center text-heading-2 text-text-primary">
-                  Tax Business Details
+                  Tax business details
                 </h2>
                 <ConnectTaxSettings />
               </div>
               <div className="flex flex-col gap-3">
-                <h2 className="text-center text-heading-2 text-text-primary">Tax Registrations</h2>
+                <h2 className="text-center text-heading-2 text-text-primary">Tax registrations</h2>
                 <ConnectTaxRegistrations />
               </div>
             </div>

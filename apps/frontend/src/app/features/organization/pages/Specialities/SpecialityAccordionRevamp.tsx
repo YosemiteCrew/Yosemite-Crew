@@ -28,8 +28,8 @@ type SpecialityAccordionRevampProps = {
 type ActiveTab = 'services' | 'packages' | 'archive';
 
 const TABS: TabOption[] = [
-  { key: 'services', label: 'All Services' },
-  { key: 'packages', label: 'All Packages' },
+  { key: 'services', label: 'Services' },
+  { key: 'packages', label: 'Packages' },
   { key: 'archive', label: 'Archive', icon: <MdOutlineArchive size={14} aria-hidden="true" /> },
 ];
 

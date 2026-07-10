@@ -86,7 +86,7 @@ const DeveloperApiKeys = () => {
           <div className="dev-keys-heading">
             <h1 className="text-heading-1 text-text-primary font-newsreader">API keys</h1>
             <p className="text-body-3 text-text-secondary">
-              Keys are scoped per environment and shown only once.
+              Keys are scoped per environment and shown only once
             </p>
           </div>
           <Primary
@@ -110,7 +110,7 @@ const DeveloperApiKeys = () => {
               <span className="dev-key-reveal-body">
                 <span className="dev-key-reveal-title">
                   &quot;Monitor sync · sandbox&quot; created. Copy it now, it won&apos;t be shown
-                  again.
+                  again
                 </span>
                 <span className="dev-key-reveal-value">{REVEALED_KEY}</span>
               </span>

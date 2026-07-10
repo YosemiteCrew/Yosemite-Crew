@@ -73,7 +73,7 @@ const DeveloperPortalHome = () => {
               {displayName}
             </h1>
             <p className="text-body-3 text-text-secondary dev-hero-subtext">
-              Build, customise, and launch apps for the animal health ecosystem.
+              Build, customise, and launch apps for the animal health ecosystem
             </p>
           </div>
           <Primary
@@ -112,7 +112,7 @@ const DeveloperPortalHome = () => {
                 </li>
                 <li>
                   <span className="dev-status-label">Environment</span>
-                  <strong className="dev-status-value">Dev</strong>
+                  <strong className="dev-status-value">Sandbox</strong>
                 </li>
                 <li>
                   <span className="dev-status-label">Requests · 24h</span>

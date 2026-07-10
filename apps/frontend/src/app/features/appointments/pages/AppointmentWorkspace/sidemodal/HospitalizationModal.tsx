@@ -271,7 +271,7 @@ const HospitalizationModal = ({
 
           {/* Right column: lead/support + service package + estimate */}
           <div className="flex flex-col gap-5">
-            <StaffField label="Assigned Lead" name={leadName} />
+            <StaffField label="Assigned lead" name={leadName} />
             <LabelDropdown
               placeholder="Assigned Support"
               options={supportOptions}

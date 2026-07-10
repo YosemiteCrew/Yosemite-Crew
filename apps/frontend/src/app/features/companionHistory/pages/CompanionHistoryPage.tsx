@@ -274,8 +274,8 @@ const CompanionHistoryPageInner = () => {
   const historyTitle = useMemo(
     () =>
       activeCompanion
-        ? `${activeCompanion.companion.name.split(' ')[0]}'s Overview`
-        : replaceCompanionText('Companion Overview'),
+        ? `${activeCompanion.companion.name.split(' ')[0]}'s overview`
+        : replaceCompanionText('Companion overview'),
     [activeCompanion, replaceCompanionText]
   );
   const companionAlerts = useMemo<CompanionAlert[]>(

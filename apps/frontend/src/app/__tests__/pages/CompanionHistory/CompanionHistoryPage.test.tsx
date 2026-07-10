@@ -141,7 +141,7 @@ describe('CompanionHistoryPage', () => {
   it('shows missing companion notice and uses fallback back path', () => {
     render(<CompanionHistoryPage />);
 
-    expect(screen.getByText('Companion Overview')).toBeInTheDocument();
+    expect(screen.getByText('Companion overview')).toBeInTheDocument();
     expect(
       screen.getByText(
         'Companion id is missing. Please open overview from Appointments or Companions.'
@@ -162,7 +162,7 @@ describe('CompanionHistoryPage', () => {
     render(<CompanionHistoryPage />);
 
     // Loading state renders PageSkeleton — heading must not appear yet
-    expect(screen.queryByText('Companion Overview')).not.toBeInTheDocument();
+    expect(screen.queryByText('Companion overview')).not.toBeInTheDocument();
     // Skeleton container is present
     expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
   });
@@ -204,7 +204,7 @@ describe('CompanionHistoryPage', () => {
     render(<CompanionHistoryPage />);
 
     expect(screen.getByTestId('timeline')).toHaveTextContent('c-1-true');
-    expect(screen.getByText("Buddy's Overview")).toBeInTheDocument();
+    expect(screen.getByText("Buddy's overview")).toBeInTheDocument();
     expect(screen.getByText('Labrador / Canine')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Go back' }));
@@ -318,7 +318,7 @@ describe('CompanionHistoryPage', () => {
 
   it('has no axe violations on initial render', async () => {
     const { container } = render(<CompanionHistoryPage />);
-    await screen.findByRole('heading', { level: 1, name: 'Companion Overview' });
+    await screen.findByRole('heading', { level: 1, name: 'Companion overview' });
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });

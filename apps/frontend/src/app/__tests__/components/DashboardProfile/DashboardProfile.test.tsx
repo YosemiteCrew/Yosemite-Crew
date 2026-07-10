@@ -80,7 +80,7 @@ describe('DashboardProfile', () => {
     expect(screen.getByText('Welcome back,')).toBeInTheDocument();
     expect(screen.getByText('Alex Johnson')).toBeInTheDocument();
     expect(
-      screen.getByText('Verification in progress — Limited access enabled')
+      screen.getByText('Verification in progress. Limited access enabled')
     ).toBeInTheDocument();
     expect(screen.getByText('Verify business profile')).toBeInTheDocument();
     expect(screen.getByText(/Note\s*:/)).toBeInTheDocument();
@@ -127,7 +127,7 @@ describe('DashboardProfile', () => {
     render(<DashboardProfile />);
 
     expect(
-      screen.queryByText('Verification in progress — Limited access enabled')
+      screen.queryByText('Verification in progress. Limited access enabled')
     ).not.toBeInTheDocument();
     expect(screen.getByText('Verified clinic')).toBeInTheDocument();
   });

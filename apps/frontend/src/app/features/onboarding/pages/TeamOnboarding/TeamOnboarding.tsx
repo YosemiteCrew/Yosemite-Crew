@@ -22,15 +22,15 @@ import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 
 const TeamSteps: StepContent[] = [
   {
-    title: 'Personal details',
+    title: 'Personal',
     logo: <FaUser size={17} />,
   },
   {
-    title: 'Professional details',
+    title: 'Professional',
     logo: <IoDocument size={18} />,
   },
   {
-    title: 'Availability and consultation',
+    title: 'Availability & consultation',
     logo: <FaCalendar size={16} />,
   },
 ];

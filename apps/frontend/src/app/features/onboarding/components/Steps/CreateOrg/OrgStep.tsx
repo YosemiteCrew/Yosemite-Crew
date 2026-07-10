@@ -141,7 +141,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
         />
 
         <div className="step-type">
-          <div className="step-type-title">Select your organisation type</div>
+          <div className="step-type-title">Type</div>
           <div className="step-type-options">
             {BusinessTypes.map((type) => (
               <button
@@ -169,7 +169,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
               intype="text"
               inname="name"
               value={formData.name}
-              inlabel="Organisation name"
+              inlabel="Organization name"
               onChange={(e: any) => {
                 setFormData({ ...formData, name: e.target.value });
                 setFormDataErrors((prev) => ({ ...prev, name: undefined }));
@@ -181,7 +181,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
               intype="text"
               inname="website"
               value={formData.website || ''}
-              inlabel="Website"
+              inlabel="Website · optional"
               onChange={(e) => {
                 setFormData({ ...formData, website: e.target.value });
                 setFormDataErrors((prev) => ({ ...prev, website: undefined }));
@@ -222,7 +222,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
               intype="text"
               inname="duns"
               value={formData.DUNSNumber || ''}
-              inlabel="DUNS number (optional)"
+              inlabel="DUNS number · optional"
               onChange={(e) => {
                 setFormData({ ...formData, DUNSNumber: e.target.value });
                 setFormDataErrors((prev) => ({ ...prev, dunsNumber: undefined }));
@@ -246,7 +246,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
           <Secondary href="/organizations" text="Back" />
           <Primary
             href="#"
-            text="Continue"
+            text="Address"
             icon={<IoArrowForward aria-hidden="true" />}
             iconPosition="right"
             onClick={handleNext}

@@ -124,10 +124,10 @@ const WorkspaceMetaBar = ({
   const staffFields = (
     <>
       <div className="w-52">
-        <StaffField label="Assigned Lead" name={encounter.leadName} photoUrl={leadPhotoUrl} />
+        <StaffField label="Assigned lead" name={encounter.leadName} photoUrl={leadPhotoUrl} />
       </div>
       <div className="w-52">
-        <StaffField label="Support Staff" name={encounter.nurseName} photoUrl={supportPhotoUrl} />
+        <StaffField label="Support staff" name={encounter.nurseName} photoUrl={supportPhotoUrl} />
       </div>
       <div className="w-52">
         <ConsultationTypeField mode={encounter.mode} />
@@ -174,13 +174,13 @@ const WorkspaceMetaBar = ({
   const readyToggles = (
     <>
       <ReadyToggle
-        label="Ready for Billing"
+        label="Ready for billing"
         state={encounter.readyForBilling}
         disabled={billingTogglesLocked}
         onToggle={onToggleReadyForBilling}
       />
       <ReadyToggle
-        label="Ready for Discharge"
+        label="Ready for discharge"
         state={encounter.readyForDischarge}
         disabled={dischargeTogglesLocked}
         onToggle={onToggleReadyForDischarge}

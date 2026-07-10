@@ -198,7 +198,7 @@ const Tasks = () => {
       <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
         <TitleCalendar
           title="Tasks"
-          description="Track to-dos with calendar views, assign pet parents and due dates, and open each task to review details and update status."
+          description="Track to-dos, assign the team or pet parents, follow through"
           setAddPopup={(next) => {
             setAddTaskPrefill(null);
             setAddPopup(next);
@@ -223,7 +223,7 @@ const Tasks = () => {
                 setActiveStatus={setActiveStatus}
                 showAddButton={canEditTasks}
                 onAddButtonClick={openAddTask}
-                addButtonText="Add"
+                addButtonText="New task"
                 compactFilterPills
               />
             )}

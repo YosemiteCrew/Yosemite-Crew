@@ -65,7 +65,7 @@ const DeveloperPlugins = () => {
           <div className="dev-plugins-heading">
             <h1 className="text-heading-1 text-text-primary font-newsreader">Plugins</h1>
             <p className="text-body-3 text-text-secondary">
-              Extend every clinic on the platform. The WordPress model, for animal health.
+              Extend every clinic on the platform. The WordPress model, for animal health
             </p>
           </div>
           <Primary

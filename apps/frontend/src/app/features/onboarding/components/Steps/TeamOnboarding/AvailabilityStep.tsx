@@ -72,7 +72,7 @@ function AvailabilityStep({
       <div className="mx-auto flex w-full max-w-[820px] flex-col gap-5 rounded-[22px] border border-[var(--hairline)] bg-[var(--screen)] px-[30px] py-[28px] shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[17px] font-bold leading-tight tracking-[-0.34px] text-[var(--ink)]">
-            Availability
+            Weekly availability
           </span>
         </div>
 
@@ -86,7 +86,7 @@ function AvailabilityStep({
           <Secondary href="#" text="Back" onClick={prevStep} />
           <Primary
             href="#"
-            text={isSaving ? 'Saving...' : 'Finish'}
+            text={isSaving ? 'Saving...' : 'Finish · open dashboard'}
             icon={<IoArrowForward aria-hidden="true" />}
             iconPosition="right"
             onClick={handleSaveAvailability}

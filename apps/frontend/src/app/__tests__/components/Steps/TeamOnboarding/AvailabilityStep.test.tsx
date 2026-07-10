@@ -66,7 +66,7 @@ describe('AvailabilityStep Component', () => {
       />
     );
 
-    expect(screen.getByText('Availability')).toBeInTheDocument();
+    expect(screen.getByText('Weekly availability')).toBeInTheDocument();
     expect(screen.getByTestId('availability-component')).toBeInTheDocument();
     expect(screen.getByTestId('btn-finish')).toBeInTheDocument();
     expect(screen.getByTestId('btn-back')).toBeInTheDocument();
