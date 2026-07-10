@@ -48,6 +48,7 @@ import AllDayEventsRow from '@/app/features/appointments/components/Calendar/com
 import TimedEventMarker from '@/app/features/appointments/components/Calendar/common/TimedEventMarker';
 import { getEventKey } from '@/app/features/appointments/components/Calendar/common/dayCalendarHelpers';
 import { useDayCalendarMarkerInteractions } from '@/app/features/appointments/components/Calendar/common/useDayCalendarMarkerInteractions';
+import { useHasMounted } from '@/app/hooks/useHasMounted';
 
 type DayCalendarProps = {
   events: Appointment[];
@@ -502,7 +503,6 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
   const { notify } = useNotify();
   const onWheelBoundary = useScrollBoundaryWheel();
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
   const {
     activePopoverKey,
@@ -566,9 +566,7 @@ const DayCalendarComponent: React.FC<DayCalendarProps> = ({
     // Availability changes (windowStart/windowEnd) must NOT trigger another scroll.
   }, [date, skipAutoScroll]);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = useHasMounted();
 
   const activeEvent = useMemo(() => {
     if (!activePopoverKey) return null;

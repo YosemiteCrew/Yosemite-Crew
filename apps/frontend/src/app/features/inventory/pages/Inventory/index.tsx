@@ -49,6 +49,7 @@ import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/useP
 import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
 import Modal from '@/app/ui/overlays/Modal';
 import Filters from '@/app/ui/filters/Filters';
+import type { InventoryTurnoverFilterState } from '@/app/ui/filters/InventoryTurnoverFilters';
 import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import {
@@ -559,8 +560,8 @@ export const filterDispensaryRecords = (
 
 type InventoryTableContentProps = {
   activeView: InventoryView;
-  turnover: InventoryTurnoverItem[];
-  setFilteredTurnoverList: React.Dispatch<React.SetStateAction<InventoryTurnoverItem[]>>;
+  turnoverFilters: InventoryTurnoverFilterState;
+  setTurnoverFilters: React.Dispatch<React.SetStateAction<InventoryTurnoverFilterState>>;
   turnoverCategoryOptions: string[];
   filteredTurnoverList: InventoryTurnoverItem[];
   filteredInventory: InventoryItem[];
@@ -576,8 +577,8 @@ type InventoryTableContentProps = {
 
 export const InventoryTableContent = ({
   activeView,
-  turnover,
-  setFilteredTurnoverList,
+  turnoverFilters,
+  setTurnoverFilters,
   turnoverCategoryOptions,
   filteredTurnoverList,
   filteredInventory,
@@ -594,8 +595,8 @@ export const InventoryTableContent = ({
     return (
       <div className="flex flex-col gap-4 pt-3">
         <InventoryTurnoverFilters
-          list={turnover}
-          setFilteredList={setFilteredTurnoverList}
+          filters={turnoverFilters}
+          setFilters={setTurnoverFilters}
           categories={turnoverCategoryOptions}
         />
         <InventoryTurnoverTable filteredList={filteredTurnoverList} />
@@ -865,7 +866,10 @@ const Inventory = () => {
 
   const inventoryModule = useInventoryModule(resolvedBusinessType);
   const { inventory, turnover, status, error: loadError } = inventoryModule;
-  const [filteredTurnoverList, setFilteredTurnoverList] = useState<InventoryTurnoverItem[]>([]);
+  const [turnoverFilters, setTurnoverFilters] = useState<InventoryTurnoverFilterState>({
+    status: 'ALL',
+    category: 'all',
+  });
 
   const [filters, setFilters] = useState<InventoryFiltersState>(defaultFilters);
   const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
@@ -904,9 +908,9 @@ const Inventory = () => {
   );
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterOpenSections, setFilterOpenSections] = useState<Set<string>>(
-    new Set(['stock-status'])
+    () => new Set(['stock-status'])
   );
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => new Set());
   const toggleFilterSection = (key: string) =>
     setFilterOpenSections((prev) => toggleSetItem(prev, key));
   const toggleExpandedCategory = (cat: string) =>
@@ -940,12 +944,25 @@ const Inventory = () => {
     [turnover]
   );
 
-  // Reset the (child-owned, further-filterable) turnover list whenever the
-  // source `turnover` data changes. Render-time prev-comparison instead of an
-  // effect — same [turnover] dependency semantics, one fewer render.
-  useOnValueChange(turnover, () => {
-    setFilteredTurnoverList(turnover);
-  });
+  const effectiveTurnoverCategory =
+    turnoverFilters.category !== 'all' &&
+    !turnoverCategoryOptions.includes(turnoverFilters.category)
+      ? 'all'
+      : turnoverFilters.category;
+
+  const filteredTurnoverList = useMemo(
+    () =>
+      turnover.filter((item) => {
+        const categoryMatch =
+          effectiveTurnoverCategory === 'all' ||
+          (item.category || '').toLowerCase() === effectiveTurnoverCategory.toLowerCase();
+        const statusMatch =
+          turnoverFilters.status === 'ALL' ||
+          (item.status || '').toUpperCase() === turnoverFilters.status;
+        return categoryMatch && statusMatch;
+      }),
+    [effectiveTurnoverCategory, turnover, turnoverFilters.status]
+  );
 
   const stockLocationOptions = useMemo(() => {
     const roomNames = rooms
@@ -1353,8 +1370,8 @@ const Inventory = () => {
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
             <InventoryTableContent
               activeView={activeView}
-              turnover={turnover}
-              setFilteredTurnoverList={setFilteredTurnoverList}
+              turnoverFilters={turnoverFilters}
+              setTurnoverFilters={setTurnoverFilters}
               turnoverCategoryOptions={turnoverCategoryOptions}
               filteredTurnoverList={filteredTurnoverList}
               filteredInventory={filteredInventory}

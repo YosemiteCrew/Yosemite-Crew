@@ -121,8 +121,10 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
   const { membership } = usePrimaryOrgWithMembership();
   const { notify } = useNotify();
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
-  const [perms, setPerms] = React.useState<Permission[]>([]);
-  const [role, setRole] = useState<RoleCode | null>(null);
+  const [permissionOverride, setPermissionOverride] = React.useState<{
+    teamId: string;
+    permissions: Permission[];
+  } | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [availability, setAvailability] = useState<AvailabilityState>(() =>
     daysOfWeek.reduce<AvailabilityState>((acc, day) => {
@@ -159,13 +161,12 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
   const canEditAvailability = isSelfMember;
   const canEditOrgDetails = canEditRole || canEditEmploymentType || canEditDepartment;
   const canDeleteMember = canEditTeam && activeTeam.role !== 'OWNER';
-
-  useEffect(() => {
-    if (activeTeam) {
-      setPerms(activeTeam.effectivePermissions);
-      setRole(activeTeam.role as RoleCode);
-    }
-  }, [activeTeam]);
+  const role = activeTeam.role as RoleCode;
+  const activeTeamId = activeTeam._id ?? '';
+  const perms =
+    permissionOverride?.teamId === activeTeamId
+      ? permissionOverride.permissions
+      : activeTeam.effectivePermissions;
 
   useEffect(() => {
     if (profile) {
@@ -434,22 +435,20 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     revokedPermissions: Permission[];
   }) => {
     try {
-      if (!role) {
-        throw new Error('ROle undeifned');
-      }
       const member: Team = {
         ...activeTeam,
         extraPerissions,
         revokedPermissions,
       };
       await updateMember(member);
-      setPerms(
-        computeEffectivePermissions({
+      setPermissionOverride({
+        teamId: activeTeamId,
+        permissions: computeEffectivePermissions({
           role,
           extraPerissions,
           revokedPermissions,
-        })
-      );
+        }),
+      });
       notify('success', {
         title: 'Team member updated',
         text: 'Team member has been updated successfully.',

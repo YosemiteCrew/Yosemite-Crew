@@ -17,48 +17,42 @@ jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
 }));
 
 describe('<InventoryTurnoverFilters />', () => {
-  const list = [
-    { name: 'Med A', category: 'Medicine', status: 'Excellent' },
-    { name: 'Supply', category: 'Consumable', status: 'Low' },
-  ];
-
   test('filters by status pills and category dropdown', () => {
-    const setFilteredList = jest.fn();
+    const setFilters = jest.fn();
     render(
       <InventoryTurnoverFilters
-        list={list as any}
-        setFilteredList={setFilteredList}
+        filters={{ status: 'ALL', category: 'all' }}
+        setFilters={setFilters}
         categories={['Medicine', 'Consumable']}
       />
     );
-
-    expect(setFilteredList).toHaveBeenCalled();
-    expect(setFilteredList.mock.calls.at(-1)?.[0]).toEqual(list);
 
     // Open the status dropdown then click Excellent from the portal
     act(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Status' }));
     });
     fireEvent.click(screen.getByRole('button', { name: 'Excellent' }));
-    expect(setFilteredList.mock.calls.at(-1)?.[0]).toEqual([list[0]]);
-
-    // Open again and reset to All
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Excellent' }));
+    expect(setFilters).toHaveBeenCalledWith(expect.any(Function));
+    expect(setFilters.mock.calls.at(-1)?.[0]({ status: 'ALL', category: 'all' })).toEqual({
+      status: 'EXCELLENT',
+      category: 'all',
     });
-    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+
     fireEvent.click(screen.getByRole('button', { name: 'pick-category' }));
-    expect(setFilteredList.mock.calls.at(-1)?.[0]).toEqual([list[1]]);
+    expect(setFilters.mock.calls.at(-1)?.[0]({ status: 'ALL', category: 'all' })).toEqual({
+      status: 'ALL',
+      category: 'Consumable',
+    });
   });
 
   test('resets an invalid category to all and closes the status menu on outside click and scroll', () => {
-    const setFilteredList = jest.fn();
+    const setFilters = jest.fn();
     const { rerender } = render(
       <div>
         <button type="button">outside</button>
         <InventoryTurnoverFilters
-          list={list as any}
-          setFilteredList={setFilteredList}
+          filters={{ status: 'ALL', category: 'all' }}
+          setFilters={setFilters}
           categories={['Medicine', 'Consumable']}
         />
       </div>
@@ -72,13 +66,13 @@ describe('<InventoryTurnoverFilters />', () => {
 
     rerender(
       <InventoryTurnoverFilters
-        list={list as any}
-        setFilteredList={setFilteredList}
+        filters={{ status: 'ALL', category: 'Medicine' }}
+        setFilters={setFilters}
         categories={['Unknown']}
       />
     );
 
-    expect(setFilteredList.mock.calls.at(-1)?.[0]).toEqual(list);
+    expect(screen.getByText('Category')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Status' }));
     expect(screen.getByRole('button', { name: 'Excellent' })).toBeInTheDocument();

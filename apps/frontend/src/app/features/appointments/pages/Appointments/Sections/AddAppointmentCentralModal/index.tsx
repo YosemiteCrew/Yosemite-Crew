@@ -290,24 +290,21 @@ const PersonRow = ({
     return () => document.removeEventListener('mousedown', handler);
   }, [selectedName, setQuery]);
 
-  useLayoutEffect(() => {
-    if (selectedName) setOpen(false);
-  }, [selectedName]);
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return options.filter((o) => !q || o.label.toLowerCase().includes(q));
   }, [options, query]);
 
   const hasValue = Boolean(selectedName);
-  const isFloated = hasValue || open;
-  const inputValue = hasValue && !open ? selectedName! : query;
+  const visibleOpen = open && !hasValue;
+  const isFloated = hasValue || visibleOpen;
+  const inputValue = hasValue ? selectedName! : query;
 
   // Read position synchronously from the DOM at render time — no state delay
-  const portalStyle = open ? getPortalStyle(triggerRef.current) : null;
+  const portalStyle = visibleOpen ? getPortalStyle(triggerRef.current) : null;
 
   const dropdownMenu =
-    open && portalStyle && typeof document !== 'undefined'
+    visibleOpen && portalStyle && typeof document !== 'undefined'
       ? createPortal(
           <div
             data-portal-dropdown
@@ -358,7 +355,7 @@ const PersonRow = ({
         ref={triggerRef}
         className={clsx(
           'relative flex items-center min-h-12 border bg-white transition-colors duration-150 cursor-text',
-          open
+          visibleOpen
             ? 'rounded-t-2xl border-input-border-active border-b-0'
             : 'rounded-2xl border-input-border-default',
           error ? 'border-input-border-error!' : ''

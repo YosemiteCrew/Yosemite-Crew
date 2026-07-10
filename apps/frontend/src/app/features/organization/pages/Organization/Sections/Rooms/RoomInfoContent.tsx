@@ -46,25 +46,31 @@ type RoomInfoContentProps = {
     species: string;
     time: string;
   };
-  canEditRoom: boolean;
+  permissions: {
+    canEditRoom: boolean;
+  };
   customEquipmentName: string;
   equipmentLabel: string;
   formData: ManagedRoom;
-  isDirty: boolean;
+  state: {
+    isDirty: boolean;
+    saving: boolean;
+    supportsUnits: boolean;
+  };
   mode: Mode;
   openSections: OpenSections;
   roomTypeLabel: string;
-  saving: boolean;
   setMode: Dispatch<SetStateAction<Mode>>;
   setShowDeleteModal: Dispatch<SetStateAction<boolean>>;
   setShowDiscardConfirm: Dispatch<SetStateAction<boolean>>;
   setShowModal: Dispatch<SetStateAction<boolean>>;
-  showDeleteModal: boolean;
-  showDiscardConfirm: boolean;
-  showModal: boolean;
+  visibility: {
+    showDeleteModal: boolean;
+    showDiscardConfirm: boolean;
+    showModal: boolean;
+  };
   specialityLabel: string;
   staffLabel: string;
-  supportsUnits: boolean;
   totalUnits: number;
   options: {
     equipment: string[];
@@ -89,25 +95,21 @@ type RoomInfoContentProps = {
 const RoomInfoContent = ({
   activeRoom,
   availabilityLabels,
-  canEditRoom,
+  permissions,
   customEquipmentName,
   equipmentLabel,
   formData,
-  isDirty,
+  state,
   mode,
   openSections,
   roomTypeLabel,
-  saving,
   setMode,
   setShowDeleteModal,
   setShowDiscardConfirm,
   setShowModal,
-  showDeleteModal,
-  showDiscardConfirm,
-  showModal,
+  visibility,
   specialityLabel,
   staffLabel,
-  supportsUnits,
   totalUnits,
   options,
   onAddCustomEquipment,
@@ -126,10 +128,10 @@ const RoomInfoContent = ({
 }: RoomInfoContentProps) => (
   <>
     <Modal
-      showModal={showModal}
+      showModal={visibility.showModal}
       setShowModal={setShowModal}
       canClose={() => {
-        if (mode === 'edit' && isDirty) {
+        if (mode === 'edit' && state.isDirty) {
           setShowDiscardConfirm(true);
           return false;
         }
@@ -142,12 +144,12 @@ const RoomInfoContent = ({
             {mode === 'edit' ? 'Edit room' : formData.name}
           </h2>
           <div className="flex items-center gap-3">
-            {canEditRoom && mode === 'view' && (
+            {permissions.canEditRoom && mode === 'view' && (
               <IconCircleButton label="Edit room" onClick={() => setMode('edit')}>
                 <FiEdit2 size={15} aria-hidden="true" />
               </IconCircleButton>
             )}
-            {canEditRoom && (
+            {permissions.canEditRoom && (
               <IconCircleButton label="Delete room" onClick={() => setShowDeleteModal(true)} danger>
                 <FiTrash2 size={15} aria-hidden="true" />
               </IconCircleButton>
@@ -157,7 +159,7 @@ const RoomInfoContent = ({
         </div>
 
         <RoomInfoSections
-          canEditRoom={canEditRoom}
+          canEditRoom={permissions.canEditRoom}
           customEquipmentName={customEquipmentName}
           equipmentLabel={equipmentLabel}
           formData={formData}
@@ -166,7 +168,7 @@ const RoomInfoContent = ({
           roomTypeLabel={roomTypeLabel}
           specialityLabel={specialityLabel}
           staffLabel={staffLabel}
-          supportsUnits={supportsUnits}
+          supportsUnits={state.supportsUnits}
           totalUnits={totalUnits}
           availabilityLabels={availabilityLabels}
           options={options}
@@ -186,7 +188,7 @@ const RoomInfoContent = ({
             <Secondary href="#" text="Discard" onClick={onDiscardChanges} />
             <Primary
               href="#"
-              text={saving ? 'Saving...' : 'Save'}
+              text={state.saving ? 'Saving...' : 'Save'}
               onClick={onSave}
               icon={<FiCheck size={16} aria-hidden="true" />}
             />
@@ -195,7 +197,7 @@ const RoomInfoContent = ({
       </div>
     </Modal>
 
-    <CenterModal showModal={showDiscardConfirm} setShowModal={setShowDiscardConfirm}>
+    <CenterModal showModal={visibility.showDiscardConfirm} setShowModal={setShowDiscardConfirm}>
       <ModalHeader title="Discard changes?" onClose={() => setShowDiscardConfirm(false)} />
       <p className="text-body-4 text-text-primary">
         You have unsaved room changes. Are you sure you want to discard them?
@@ -206,7 +208,7 @@ const RoomInfoContent = ({
       </div>
     </CenterModal>
 
-    <CenterModal showModal={showDeleteModal} setShowModal={setShowDeleteModal}>
+    <CenterModal showModal={visibility.showDeleteModal} setShowModal={setShowDeleteModal}>
       <ModalHeader title="Delete room?" onClose={() => setShowDeleteModal(false)} />
       <p className="text-body-4 text-text-primary">
         Are you sure you want to delete <strong>{activeRoom.name}</strong>? This action cannot be

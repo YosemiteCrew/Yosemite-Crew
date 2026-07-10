@@ -359,7 +359,11 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
 
   const reactions = getReactionChips(message as ReactionSource);
   const time = message.created_at
-    ? new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    ? new Date(message.created_at).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: 'UTC',
+      })
     : '';
   const seen = mine && (readBy?.length ?? 0) > 0;
   const sending = message.status === 'sending';

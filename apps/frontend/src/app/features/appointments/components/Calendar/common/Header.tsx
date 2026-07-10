@@ -17,6 +17,7 @@ import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
 import { createPortal } from 'react-dom';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import { useHasMounted } from '@/app/hooks/useHasMounted';
 
 type FilterOption = { key: string; name: string };
 type StatusOption = {
@@ -417,11 +418,7 @@ const Header = ({
 }: Headerprops) => {
   const showCalendarTypeSelector = !!activeCalendar && !!setActiveCalendar;
   const onWheelHorizontal = useWheelToHorizontalScroll();
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = useHasMounted();
 
   const handleFilterToggle = (filterKey: string) => {
     if (!setActiveFilter) return;

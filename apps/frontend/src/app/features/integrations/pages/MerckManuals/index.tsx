@@ -593,10 +593,8 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
 
   // recentSearchesKey is a counter; bumping it re-reads recentSearches from storage on save.
   const [recentSearchesKey, setRecentSearchesKey] = useState(0);
-  const [recentSearches, setRecentSearches] = useState<ReturnType<typeof getRecentSearches>>([]);
-  useEffect(() => {
-    setRecentSearches(primaryOrgId ? getRecentSearches(primaryOrgId, audience) : []);
-  }, [primaryOrgId, audience, recentSearchesKey]);
+  const recentSearches =
+    recentSearchesKey >= 0 && primaryOrgId ? getRecentSearches(primaryOrgId, audience) : [];
 
   useEffect(() => {
     if (!copied) return;

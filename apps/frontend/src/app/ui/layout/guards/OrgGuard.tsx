@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { redirect, usePathname } from 'next/navigation';
 
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -203,7 +203,6 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
   useLoadFormsForPrimaryOrg();
   useLoadIntegrationsForPrimaryOrg();
 
-  const router = useRouter();
   const pathname = usePathname();
 
   const isAuthGuardDisabled = isLocalGuardBypassEnabled();
@@ -228,6 +227,52 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
     primaryOrgId ? (s.profilesByOrgId[primaryOrgId] ?? null) : null
   );
   const profileStatus = useUserProfileStore((s) => s.status);
+  const hasTeamDataForOrg =
+    !teamIdsByOrgId || (primaryOrgId ? Object.hasOwn(teamIdsByOrgId, primaryOrgId) : false);
+  const shouldWaitForData =
+    primaryOrgId !== null &&
+    shouldWaitForOrgGuardData(availabilityStatus, profileStatus, teamStatus, hasTeamDataForOrg);
+
+  let guardRedirect: string | null = null;
+  if (!isAuthGuardDisabled && !isStatusPending(orgStatus)) {
+    if (!primaryOrgId) {
+      guardRedirect = getOrgFallbackRedirect(pathname);
+    } else if (!shouldWaitForData) {
+      if (!primaryOrg || !membership) {
+        guardRedirect = getOrgFallbackRedirect(pathname);
+      } else {
+        const role = membership.roleDisplay ?? membership.roleCode;
+        const availabilities = getAvailabilitiesByOrgId(primaryOrgId);
+        const orgRedirect = resolveOrgRedirect({
+          pathname,
+          primaryOrgId,
+          primaryOrg,
+          membership,
+          profile,
+          availabilities,
+        });
+        if (orgRedirect && orgRedirect !== pathname) {
+          guardRedirect = orgRedirect;
+        } else {
+          const effectivePermissions = membership.effectivePermissions ?? [];
+          const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
+            pathname,
+            effectivePermissions
+          );
+          if (permissionsFallbackRedirect) {
+            guardRedirect = permissionsFallbackRedirect;
+          } else {
+            const preferredLanding = resolveDefaultOpenScreenRouteForProfile({
+              profile,
+              orgType: primaryOrg.type,
+              role,
+            });
+            guardRedirect = applyDefaultLandingRedirect(pathname, primaryOrgId, preferredLanding);
+          }
+        }
+      }
+    }
+  }
 
   const [checked, setChecked] = useState(
     () =>
@@ -253,26 +298,14 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
       return;
     }
     if (!primaryOrgId) {
-      const orgFallbackRedirect = getOrgFallbackRedirect(pathname);
-      if (orgFallbackRedirect) {
-        router.replace(orgFallbackRedirect);
-        return;
-      }
       setChecked(true);
       return;
     }
-    const hasTeamDataForOrg = !teamIdsByOrgId || Object.hasOwn(teamIdsByOrgId, primaryOrgId);
-    if (
-      shouldWaitForOrgGuardData(availabilityStatus, profileStatus, teamStatus, hasTeamDataForOrg)
-    ) {
+    if (shouldWaitForData) {
       return;
     }
 
     if (!primaryOrg || !membership) {
-      const orgFallbackRedirect = getOrgFallbackRedirect(pathname);
-      if (orgFallbackRedirect) {
-        router.replace(orgFallbackRedirect);
-      }
       return;
     }
 
@@ -287,20 +320,14 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
       availabilities,
     });
 
-    if (redirectTo && redirectTo !== pathname) {
-      router.replace(redirectTo);
-      return;
-    }
+    if (redirectTo && redirectTo !== pathname) return;
 
     const effectivePermissions = membership.effectivePermissions ?? [];
     const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
       pathname,
       effectivePermissions
     );
-    if (permissionsFallbackRedirect) {
-      router.replace(permissionsFallbackRedirect);
-      return;
-    }
+    if (permissionsFallbackRedirect) return;
 
     const preferredLanding = resolveDefaultOpenScreenRouteForProfile({
       profile,
@@ -308,16 +335,12 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
       role,
     });
     const landingRedirect = applyDefaultLandingRedirect(pathname, primaryOrgId, preferredLanding);
-    if (landingRedirect) {
-      router.replace(landingRedirect);
-      return;
-    }
+    if (landingRedirect) return;
 
     writeOrgGuardPassed(primaryOrgId);
     setChecked(true);
   }, [
     isAuthGuardDisabled,
-    router,
     primaryOrgId,
     primaryOrg,
     pathname,
@@ -328,8 +351,12 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
     profileStatus,
     membership,
     teamStatus,
-    teamIdsByOrgId,
+    shouldWaitForData,
   ]);
+
+  if (guardRedirect) {
+    redirect(guardRedirect);
+  }
 
   if (!checked) return <>{skeleton}</>;
 

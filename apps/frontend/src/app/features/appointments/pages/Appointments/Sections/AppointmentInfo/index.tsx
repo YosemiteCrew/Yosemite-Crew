@@ -894,47 +894,52 @@ const AppoitmentInfo = ({
       };
     });
   }, [orgType, merckEnabled]);
-  const formsAccordionTitle =
-    orgType === 'HOSPITAL' && activeLabel === 'prescription' ? 'SOAP' : 'Templates';
-  const handleHistoryOpenAppointmentView = useCallback(
-    (intent: AppointmentViewIntent) => {
-      const resolvedLabelKey = resolveIntentLabel(labels, intent.label);
-      if (!resolvedLabelKey) return;
+  const resolveTabSelection = useCallback(
+    (labelKey: string, requestedSubLabel?: string | null) => {
+      const resolvedLabelKey = resolveIntentLabel(labels, labelKey);
+      if (!resolvedLabelKey) return null;
       const targetLabel = labels.find((label) => label.key === resolvedLabelKey);
-      if (!targetLabel) return;
-      setActiveLabel(targetLabel.key as LabelKey);
-
-      const preferredSubLabel = normalizeInfoSubLabel(resolvedLabelKey, intent.subLabel);
-      if (!preferredSubLabel) {
-        setActiveSubLabel(targetLabel.labels[0]?.key ?? '');
-        return;
-      }
-
-      const hasPreferredSubLabel = targetLabel.labels.some(
-        (label: { key: string }) => label.key === preferredSubLabel
+      if (!targetLabel) return null;
+      const normalizedSubLabel = normalizeInfoSubLabel(
+        resolvedLabelKey,
+        requestedSubLabel ?? undefined
       );
-      setActiveSubLabel(
-        hasPreferredSubLabel ? preferredSubLabel : (targetLabel.labels[0]?.key ?? '')
-      );
+      const hasTargetSubLabel = normalizedSubLabel
+        ? targetLabel.labels.some((label: { key: string }) => label.key === normalizedSubLabel)
+        : false;
+      return {
+        label: targetLabel.key as LabelKey,
+        subLabel: hasTargetSubLabel
+          ? (normalizedSubLabel as string)
+          : (targetLabel.labels[0]?.key ?? ''),
+      };
     },
     [labels]
+  );
+  const applyTabSelection = useCallback((selection: { label: LabelKey; subLabel: string }) => {
+    setActiveLabel(selection.label);
+    setActiveSubLabel(selection.subLabel);
+  }, []);
+  const handleActiveLabelChange = useCallback(
+    (label: LabelKey) => {
+      const selection = resolveTabSelection(label);
+      if (selection) applyTabSelection(selection);
+    },
+    [applyTabSelection, resolveTabSelection]
+  );
+  const handleHistoryOpenAppointmentView = useCallback(
+    (intent: AppointmentViewIntent) => {
+      const selection = resolveTabSelection(intent.label, intent.subLabel);
+      if (selection) applyTabSelection(selection);
+    },
+    [applyTabSelection, resolveTabSelection]
   );
 
   useEffect(() => {
     if (!showModal || !initialViewIntent) return;
-    const resolvedLabelKey = resolveIntentLabel(labels, initialViewIntent.label);
-    if (!resolvedLabelKey) return;
-    const targetLabel = labels.find((label) => label.key === resolvedLabelKey);
-    if (!targetLabel) return;
-    setActiveLabel(targetLabel.key as LabelKey);
-    const normalizedSubLabel = normalizeInfoSubLabel(resolvedLabelKey, initialViewIntent.subLabel);
-    const hasTargetSubLabel = normalizedSubLabel
-      ? targetLabel.labels.some((label: { key: string }) => label.key === normalizedSubLabel)
-      : false;
-    setActiveSubLabel(
-      hasTargetSubLabel ? (normalizedSubLabel as string) : (targetLabel.labels[0]?.key ?? '')
-    );
-  }, [showModal, initialViewIntent, labels]);
+    const selection = resolveTabSelection(initialViewIntent.label);
+    if (selection) applyTabSelection(selection);
+  }, [showModal, initialViewIntent, applyTabSelection, resolveTabSelection]);
 
   useEffect(() => {
     if (!showModal) return;
@@ -944,17 +949,22 @@ const AppoitmentInfo = ({
       !!currentAppointmentId && !!lastAppointmentId && currentAppointmentId !== lastAppointmentId;
 
     if (isDifferentAppointment && !initialViewIntent) {
-      const defaultLabel = labels[0];
-      setActiveLabel(defaultLabel.key as LabelKey);
-      setActiveSubLabel(defaultLabel.labels[0]?.key ?? '');
+      const selection = resolveTabSelection(labels[0].key);
+      if (selection) applyTabSelection(selection);
     }
 
     if (currentAppointmentId) {
       lastOpenedAppointmentIdRef.current = currentAppointmentId;
     }
-  }, [showModal, activeAppointment?.id, initialViewIntent, labels]);
+  }, [
+    showModal,
+    activeAppointment?.id,
+    initialViewIntent,
+    labels,
+    applyTabSelection,
+    resolveTabSelection,
+  ]);
 
-  const Content = COMPONENT_MAP[activeLabel]?.[activeSubLabel];
   const [formData, setFormData] = useState<FormDataProps>(() => createEmptyFormData());
 
   const loadAppointmentForms = useCallback(async () => {
@@ -1044,25 +1054,16 @@ const AppoitmentInfo = ({
     withSignatureMetaRef.current = withSignatureMeta;
   }, [withSignatureMeta]);
 
-  useEffect(() => {
-    const current = labels.find((l) => l.key === activeLabel);
-    if (!current) {
-      setActiveLabel(labels[0].key as LabelKey);
-      setActiveSubLabel(labels[0].labels[0].key);
-      return;
-    }
-    const hasSub = current.labels.some((l: { key: string }) => l.key === activeSubLabel);
-    if (!hasSub) {
-      setActiveSubLabel(current.labels[0].key);
-    }
-  }, [labels, activeLabel, activeSubLabel]);
-
-  useEffect(() => {
-    const current = labels.find((l) => l.key === activeLabel);
-    if (current && current.labels.length > 0) {
-      setActiveSubLabel(current.labels[0].key);
-    }
-  }, [activeLabel, labels]);
+  const activeLabelConfig = labels.find((label) => label.key === activeLabel) ?? labels[0];
+  const resolvedActiveLabel = activeLabelConfig.key as LabelKey;
+  const resolvedActiveSubLabel = activeLabelConfig.labels.some(
+    (label: { key: string }) => label.key === activeSubLabel
+  )
+    ? activeSubLabel
+    : (activeLabelConfig.labels[0]?.key ?? '');
+  const formsAccordionTitle =
+    orgType === 'HOSPITAL' && resolvedActiveLabel === 'prescription' ? 'SOAP' : 'Templates';
+  const Content = COMPONENT_MAP[resolvedActiveLabel]?.[resolvedActiveSubLabel];
 
   useEffect(() => {
     const appointmentId = activeAppointment?.id;
@@ -1094,7 +1095,7 @@ const AppoitmentInfo = ({
         setFormData(createEmptyFormData());
         return;
       }
-      if (activeLabel !== 'prescription' || !SOAP_SUB_LABELS.has(activeSubLabel)) {
+      if (resolvedActiveLabel !== 'prescription' || !SOAP_SUB_LABELS.has(resolvedActiveSubLabel)) {
         return;
       }
       try {
@@ -1124,7 +1125,7 @@ const AppoitmentInfo = ({
     return () => {
       cancelled = true;
     };
-  }, [activeAppointment?.id, activeLabel, activeSubLabel]);
+  }, [activeAppointment?.id, resolvedActiveLabel, resolvedActiveSubLabel]);
 
   useEffect(() => {
     void loadAppointmentForms();
@@ -1152,7 +1153,7 @@ const AppoitmentInfo = ({
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-  }, [activeLabel, activeSubLabel]);
+  }, [resolvedActiveLabel, resolvedActiveSubLabel]);
 
   if (!activeAppointment) {
     return null;
@@ -1167,7 +1168,7 @@ const AppoitmentInfo = ({
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <SigningOverlay />
-      <div className={`flex flex-col h-full ${activeLabel === 'labs' ? 'gap-1' : 'gap-3'}`}>
+      <div className={`flex flex-col h-full ${resolvedActiveLabel === 'labs' ? 'gap-1' : 'gap-3'}`}>
         <div className="flex flex-col gap-3">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex items-start gap-3">
@@ -1245,9 +1246,9 @@ const AppoitmentInfo = ({
 
           <Labels
             labels={labels}
-            activeLabel={activeLabel}
-            setActiveLabel={setActiveLabel}
-            activeSubLabel={activeSubLabel}
+            activeLabel={resolvedActiveLabel}
+            setActiveLabel={handleActiveLabelChange}
+            activeSubLabel={resolvedActiveSubLabel}
             setActiveSubLabel={setActiveSubLabel}
           />
         </div>

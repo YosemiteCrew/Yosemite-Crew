@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { FaUser, FaCalendar } from 'react-icons/fa';
 import { IoDocument } from 'react-icons/io5';
@@ -9,7 +9,7 @@ import { StepContent } from '@/app/features/onboarding/components/Steps/types';
 import type { StepHandle } from '@/app/features/onboarding/components/Steps/TeamOnboarding/PersonalStep';
 
 import './TeamOnboarding.css';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { redirect, useSearchParams } from 'next/navigation';
 import { useTeamOnboarding } from '@/app/hooks/useTeamOnboarding';
 import { UserProfile } from '@/app/features/users/types/profile';
 import {
@@ -90,7 +90,6 @@ const EMPTY_PROFILE: UserProfile = {
 
 const TeamOnboarding = () => {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const orgIdFromQuery = searchParams.get('orgId');
 
   const {
@@ -139,23 +138,7 @@ const TeamOnboarding = () => {
     availabilityRef,
   ];
 
-  useEffect(() => {
-    // Once the page has initialised, don't let store loading states cause a blank screen.
-    // isReady can flip false again when a save triggers a store reload — we stay visible.
-    if (!isReady && initialStepApplied) return;
-
-    if (!isReady) return;
-
-    if (shouldRedirectToOrganizations) {
-      setIsRedirecting(true);
-      router.replace('/organizations');
-      return;
-    }
-    if (computedStep === 3) {
-      setIsRedirecting(true);
-      router.replace('/dashboard');
-      return;
-    }
+  const applyLoadedProfile = useCallback(() => {
     if (!initialStepApplied) {
       setInitialStepApplied(true);
       if (computedStep >= 0 && computedStep <= 2) {
@@ -169,15 +152,17 @@ const TeamOnboarding = () => {
       const temp = convertFromGetApi(storeSlots);
       setAvailability(temp);
     }
-  }, [
-    profile,
-    computedStep,
-    shouldRedirectToOrganizations,
-    isReady,
-    router,
-    storeSlots,
-    initialStepApplied,
-  ]);
+  }, [computedStep, initialStepApplied, profile, storeSlots]);
+
+  useEffect(() => {
+    // Once the page has initialised, don't let store loading states cause a blank screen.
+    // isReady can flip false again when a save triggers a store reload — we stay visible.
+    if (!isReady && initialStepApplied) return;
+
+    if (!isReady) return;
+
+    applyLoadedProfile();
+  }, [isReady, initialStepApplied, applyLoadedProfile]);
 
   // Show initial load spinner (first page load, before store is ready)
   if (!isReady && !initialStepApplied) {
@@ -192,7 +177,7 @@ const TeamOnboarding = () => {
   }
 
   if (shouldBlockForRedirect) {
-    return null;
+    redirect(shouldRedirectToOrganizations ? '/organizations' : '/dashboard');
   }
 
   const nextStep = () => setActiveStep((s) => Math.min(s + 1, TeamSteps.length - 1));

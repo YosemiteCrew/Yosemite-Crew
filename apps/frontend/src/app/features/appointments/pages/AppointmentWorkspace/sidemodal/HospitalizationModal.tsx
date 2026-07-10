@@ -109,7 +109,7 @@ const HospitalizationModal = ({
   const defaultSupportId = supportOptions.find((option) => option.label === supportName)?.value;
   const [supportStaffId, setSupportStaffId] = useState<string | undefined>(defaultSupportId);
   const [servicePackageIds, setServicePackageIds] = useState<string[]>([]);
-  const [notifyChannels, setNotifyChannels] = useState<Set<NotifyChannel>>(new Set(['app']));
+  const [notifyChannels, setNotifyChannels] = useState<Set<NotifyChannel>>(() => new Set(['app']));
   const [isConverting, setIsConverting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 

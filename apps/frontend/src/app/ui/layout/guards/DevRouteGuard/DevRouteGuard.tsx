@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { redirect, usePathname } from 'next/navigation';
 import { getStorageItem } from '@/app/lib/browserStorage';
 import { useAuthStore } from '@/app/stores/authStore';
 
@@ -16,48 +16,44 @@ const isLocalDeveloperFallbackEnabled = () => {
  * Blocks access to developer routes unless authenticated with developer role.
  */
 const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
-  const router = useRouter();
   const pathname = usePathname();
   const authStore = useAuthStore();
   const { status, role } = authStore;
   const [allowed, setAllowed] = useState(false);
+  const isPending = status === 'idle' || status === 'checking';
+  const isDevPath = pathname?.startsWith('/developers');
+  const devFlag =
+    isLocalDeveloperFallbackEnabled() && getStorageItem('session', 'devAuth') === 'true';
+  const isDevRole = role === 'developer' || devFlag;
+  const isAuthenticated = status === 'authenticated' || status === 'signin-authenticated';
 
   useEffect(() => {
     // Wait for auth status to be determined
-    if (status === 'idle' || status === 'checking') return;
-
-    const isDevPath = pathname?.startsWith('/developers');
-
-    const devFlag =
-      isLocalDeveloperFallbackEnabled() && getStorageItem('session', 'devAuth') === 'true';
-
-    const isDevRole = role === 'developer' || devFlag;
+    if (isPending) return;
 
     if (!isDevPath) {
       setAllowed(true);
       return;
     }
 
-    // Allow authenticated developers (both "authenticated" and "signin-authenticated" statuses)
-    const isAuthenticated = status === 'authenticated' || status === 'signin-authenticated';
-
     if (isAuthenticated && isDevRole) {
       setAllowed(true);
-      return;
-    }
-
-    // Not authenticated - redirect to signin
-    if (status === 'unauthenticated') {
-      router.replace('/developers/signin');
       return;
     }
 
     // Authenticated but not a developer - sign out and redirect
     if (isAuthenticated && !isDevRole) {
       authStore.signout();
-      router.replace('/developers/signin');
     }
-  }, [status, role, pathname, router, authStore]);
+  }, [isPending, isDevPath, isAuthenticated, isDevRole, authStore]);
+
+  if (
+    !isPending &&
+    isDevPath &&
+    (status === 'unauthenticated' || (isAuthenticated && !isDevRole))
+  ) {
+    redirect('/developers/signin');
+  }
 
   if (!allowed) return null;
 

@@ -34,7 +34,7 @@ const formatStars = (n: number) =>
 
 const Github = () => {
   const [isOpen, setIsOpen] = useState(true);
-  const [stars, setStars] = useState<number | null>(null);
+  const [stars, setStars] = useState<number | null>(() => readCache(owner, repo));
   const [error, setError] = useState<string | null>(null);
   const pathname = usePathname();
 
@@ -44,8 +44,6 @@ const Github = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const cached = readCache(owner, repo);
-    if (cached !== null) setStars(cached);
 
     async function loadStars() {
       setError(null);

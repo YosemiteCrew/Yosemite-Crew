@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 
 // 1. Mock dependencies
-import { useRouter, usePathname } from 'next/navigation';
+import { redirect, useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 
@@ -11,6 +11,7 @@ import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   usePathname: jest.fn(),
+  redirect: jest.fn(),
 }));
 
 // Mock the auth store
@@ -77,18 +78,15 @@ describe('ProtectedRoute Component', () => {
       selector({ status: 'unauthenticated' })
     );
 
-    const { container } = render(
+    render(
       <ProtectedRoute>
         <div data-testid="child">Protected Content</div>
       </ProtectedRoute>
     );
 
-    // Assert: Renders nothing
-    expect(container).toBeEmptyDOMElement();
-
     // Assert: Redirect is triggered with the correct encoded URL
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith(`/signin?next=${encodeURIComponent(mockPathname)}`);
+      expect(redirect).toHaveBeenCalledWith(`/signin?next=${encodeURIComponent(mockPathname)}`);
     });
   });
 
@@ -152,15 +150,14 @@ describe('ProtectedRoute Component', () => {
       selector({ status: 'unauthenticated' })
     );
 
-    const { container } = render(
+    render(
       <ProtectedRoute>
         <div data-testid="child">Protected Content</div>
       </ProtectedRoute>
     );
 
-    expect(container).toBeEmptyDOMElement();
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith(`/signin?next=${encodeURIComponent(mockPathname)}`);
+      expect(redirect).toHaveBeenCalledWith(`/signin?next=${encodeURIComponent(mockPathname)}`);
     });
   });
 
@@ -171,15 +168,14 @@ describe('ProtectedRoute Component', () => {
       selector({ status: 'unauthenticated' })
     );
 
-    const { container } = render(
+    render(
       <ProtectedRoute>
         <div data-testid="child">Protected Content</div>
       </ProtectedRoute>
     );
 
-    expect(container).toBeEmptyDOMElement();
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith(`/signin?next=${encodeURIComponent(mockPathname)}`);
+      expect(redirect).toHaveBeenCalledWith(`/signin?next=${encodeURIComponent(mockPathname)}`);
     });
   });
 

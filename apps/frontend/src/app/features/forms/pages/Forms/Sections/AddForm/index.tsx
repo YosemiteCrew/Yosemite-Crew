@@ -1,5 +1,5 @@
 import Modal from '@/app/ui/overlays/Modal';
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Details from '@/app/features/forms/pages/Forms/Sections/AddForm/Details';
 import Build from '@/app/features/forms/pages/Forms/Sections/AddForm/Build';
@@ -77,6 +77,9 @@ const defaultForm = (): FormsProps => {
   };
 };
 
+const resolveActiveLabel = (label: string, merckEnabled: boolean) =>
+  !merckEnabled && label === 'merck-manuals' ? 'form-details' : label;
+
 const AddForm = ({
   showModal,
   setShowModal,
@@ -102,10 +105,31 @@ const AddForm = ({
       merckEnabled ? LabelOptions : LabelOptions.filter((label) => label.key !== 'merck-manuals'),
     [merckEnabled]
   );
+  const visibleActiveLabel = resolveActiveLabel(activeLabel, merckEnabled);
+
+  const selectActiveLabel = useCallback(
+    (label: string) => {
+      setActiveLabel(resolveActiveLabel(label, merckEnabled));
+    },
+    [merckEnabled]
+  );
+  const updateFormData = useCallback<React.Dispatch<React.SetStateAction<FormsProps>>>(
+    (nextFormData) => {
+      setFormData((previousFormData) => {
+        const resolvedFormData =
+          typeof nextFormData === 'function' ? nextFormData(previousFormData) : nextFormData;
+        if (!initialForm) {
+          onDraftChange?.(resolvedFormData);
+        }
+        return resolvedFormData;
+      });
+    },
+    [initialForm, onDraftChange]
+  );
 
   useLayoutEffect(() => {
     if (showModal && !wasOpenRef.current) {
-      setActiveLabel('form-details');
+      selectActiveLabel('form-details');
       const next = {
         ...(initialForm ?? draft ?? defaultForm()),
         businessType:
@@ -114,47 +138,43 @@ const AddForm = ({
           useOrgStore.getState().getPrimaryOrg?.()?.type,
       };
       setFormData(next);
+      if (!initialForm) {
+        onDraftChange?.(next);
+      }
       wasOpenRef.current = true;
     }
     if (!showModal) {
       wasOpenRef.current = false;
     }
-  }, [showModal, initialForm, draft]);
-
-  useEffect(() => {
-    if (!initialForm) {
-      onDraftChange?.(formData);
-    }
-  }, [formData, onDraftChange, initialForm]);
+  }, [showModal, initialForm, draft, selectActiveLabel, onDraftChange]);
 
   const closeModal = () => {
     setFormData(defaultForm());
-    setActiveLabel('form-details');
     onDraftChange?.(null);
-    setActiveLabel('form-details');
+    selectActiveLabel('form-details');
     setShowModal(false);
     onClose?.();
   };
 
   const goToNextStep = () => {
-    if (activeLabel === 'form-details') {
+    if (visibleActiveLabel === 'form-details') {
       if (!detailValidatorRef.current()) return;
-      setActiveLabel('build-form');
-    } else if (activeLabel === 'build-form') {
+      selectActiveLabel('build-form');
+    } else if (visibleActiveLabel === 'build-form') {
       if (!buildValidatorRef.current()) return;
-      setActiveLabel('review');
+      selectActiveLabel('review');
     }
   };
 
   const handleLabelClick = (target: string) => {
-    if (target === activeLabel) return;
+    if (target === visibleActiveLabel) return;
     if (target === 'build-form' || target === 'review') {
       if (!detailValidatorRef.current()) return;
     }
     if (target === 'review') {
       if (!buildValidatorRef.current()) return;
     }
-    setActiveLabel(target);
+    selectActiveLabel(target);
   };
 
   const handleSaveDraft = async () => {
@@ -171,7 +191,7 @@ const AddForm = ({
       setFormData(saved);
       onDraftChange?.(null);
       setFormData(defaultForm());
-      setActiveLabel('form-details');
+      selectActiveLabel('form-details');
       closeModal();
     } catch (err) {
       console.error('Failed to save draft', err);
@@ -196,7 +216,7 @@ const AddForm = ({
       }
       onDraftChange?.(null);
       setFormData(defaultForm());
-      setActiveLabel('form-details');
+      selectActiveLabel('form-details');
       closeModal();
     } catch (err) {
       console.error('Failed to publish form', err);
@@ -207,13 +227,7 @@ const AddForm = ({
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-  }, [activeLabel]);
-
-  useEffect(() => {
-    if (!merckEnabled && activeLabel === 'merck-manuals') {
-      setActiveLabel('form-details');
-    }
-  }, [merckEnabled, activeLabel]);
+  }, [visibleActiveLabel]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
@@ -230,13 +244,17 @@ const AddForm = ({
           <Close onClick={closeModal} />
         </div>
 
-        <Labels labels={labelOptions} activeLabel={activeLabel} setActiveLabel={handleLabelClick} />
+        <Labels
+          labels={labelOptions}
+          activeLabel={visibleActiveLabel}
+          setActiveLabel={handleLabelClick}
+        />
 
         <div ref={scrollRef} className="flex flex-1 min-h-0 scrollbar-hidden overflow-y-auto">
-          {activeLabel === 'form-details' && (
+          {visibleActiveLabel === 'form-details' && (
             <Details
               formData={formData}
-              setFormData={setFormData}
+              setFormData={updateFormData}
               onNext={goToNextStep}
               serviceOptions={serviceOptions}
               registerValidator={(fn) => {
@@ -244,10 +262,10 @@ const AddForm = ({
               }}
             />
           )}
-          {activeLabel === 'build-form' && (
+          {visibleActiveLabel === 'build-form' && (
             <Build
               formData={formData}
-              setFormData={setFormData}
+              setFormData={updateFormData}
               onNext={goToNextStep}
               serviceOptions={serviceOptions}
               registerValidator={(fn) => {
@@ -255,7 +273,7 @@ const AddForm = ({
               }}
             />
           )}
-          {activeLabel === 'review' && (
+          {visibleActiveLabel === 'review' && (
             <Review
               formData={formData}
               onPublish={handlePublish}
@@ -265,7 +283,7 @@ const AddForm = ({
               isEditing={isEditing}
             />
           )}
-          {merckEnabled && activeLabel === 'merck-manuals' && (
+          {merckEnabled && visibleActiveLabel === 'merck-manuals' && (
             <AppointmentMerckSearch activeAppointment={null} />
           )}
         </div>

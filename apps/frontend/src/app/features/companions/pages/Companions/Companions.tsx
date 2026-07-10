@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useState, useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -82,6 +82,13 @@ const Companions = () => {
     });
   }, [companions]);
 
+  const applyDeepLinkCompanion = useCallback((target: CompanionParent, companionId: string) => {
+    setActiveCompanion(target);
+    setCompanionInfoInitialLabel('info');
+    setViewCompanion(true);
+    handledDeepLinkRef.current = companionId;
+  }, []);
+
   useEffect(() => {
     const companionId = String(searchParams.get('companionId') ?? '').trim();
     if (!companionId) return;
@@ -90,11 +97,8 @@ const Companions = () => {
     const target = companions.find((item) => item.companion.id === companionId);
     if (!target) return;
 
-    setActiveCompanion(target);
-    setCompanionInfoInitialLabel('info');
-    setViewCompanion(true);
-    handledDeepLinkRef.current = companionId;
-  }, [companions, searchParams]);
+    applyDeepLinkCompanion(target, companionId);
+  }, [companions, searchParams, applyDeepLinkCompanion]);
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();

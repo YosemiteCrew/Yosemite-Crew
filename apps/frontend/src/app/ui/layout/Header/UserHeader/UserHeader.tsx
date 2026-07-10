@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   MdDashboard,
@@ -190,6 +190,12 @@ const UserHeader = () => {
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 
   const logoutRedirect = pathname.startsWith('/developers') ? '/developers/signin' : '/signin';
+  const closeTransientHeaderUi = useCallback(() => {
+    clear();
+    setMenuOpen(false);
+    setSelectOrg(false);
+    setSelectProfile(false);
+  }, [clear]);
 
   // Reset transient header UI (search + open menus) when the route changes.
   // `clear()` mutates the external search store, so it must run in an effect —
@@ -197,12 +203,8 @@ const UserHeader = () => {
   // render and triggers React's "Cannot update a component while rendering a
   // different component" warning.
   useEffect(() => {
-    clear();
-    setMenuOpen(false);
-    setSelectOrg(false);
-    setSelectProfile(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+    closeTransientHeaderUi();
+  }, [pathname, closeTransientHeaderUi]);
 
   useEffect(() => {
     const closeMenuOnDesktop = () => {

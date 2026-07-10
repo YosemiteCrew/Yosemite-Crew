@@ -54,11 +54,12 @@ export function ShareEntityModal({
     return Object.entries(appointments).map(([id, raw]) => {
       const a = raw as Appointment;
       const when = a.startTime
-        ? new Date(a.startTime).toLocaleString(undefined, {
+        ? new Date(a.startTime).toLocaleString('en-US', {
             month: 'short',
             day: 'numeric',
             hour: 'numeric',
             minute: '2-digit',
+            timeZone: 'UTC',
           })
         : undefined;
       return {

@@ -218,7 +218,9 @@ type TaskSlotProps = {
   handleViewTask: (task: Task) => void;
   handleChangeStatusTask?: (task: Task) => void;
   handleRescheduleTask?: (task: Task) => void;
-  canEditTasks?: boolean;
+  permissions?: {
+    canEditTasks?: boolean;
+  };
   index?: number;
   dayIndex?: number;
   length?: number;
@@ -237,9 +239,11 @@ type TaskSlotProps = {
   dropAvailabilityIntervals?: DropAvailabilityInterval[];
   draggedTaskDurationMinutes?: number;
   zoomMode?: CalendarZoomMode;
-  showGridLines?: boolean;
-  slotOffsetMinutes?: number[];
-  isLastVisibleHour?: boolean;
+  layout?: {
+    showGridLines?: boolean;
+    slotOffsetMinutes?: number[];
+    isLastVisibleHour?: boolean;
+  };
   resolveDisplayName?: (memberId?: string) => string;
 };
 
@@ -248,7 +252,7 @@ const TaskSlot = ({
   handleViewTask,
   handleChangeStatusTask,
   handleRescheduleTask,
-  canEditTasks = false,
+  permissions,
   index,
   dayIndex = 0,
   length = 0,
@@ -267,11 +271,13 @@ const TaskSlot = ({
   dropAvailabilityIntervals = DEFAULT_DROP_AVAILABILITY_INTERVALS,
   draggedTaskDurationMinutes = 30,
   zoomMode = 'in',
-  showGridLines = false,
-  slotOffsetMinutes = DEFAULT_SLOT_OFFSET_MINUTES,
-  isLastVisibleHour = false,
+  layout,
   resolveDisplayName,
 }: TaskSlotProps) => {
+  const canEditTasks = permissions?.canEditTasks ?? false;
+  const showGridLines = layout?.showGridLines ?? false;
+  const slotOffsetMinutes = layout?.slotOffsetMinutes ?? DEFAULT_SLOT_OFFSET_MINUTES;
+  const isLastVisibleHour = layout?.isLastVisibleHour ?? false;
   const isZoomOutMode = zoomMode === 'out';
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
   const {

@@ -18,25 +18,29 @@ const RoomInfo = ({ showModal, setShowModal, activeRoom, canEditRoom }: RoomInfo
     <RoomInfoContent
       activeRoom={activeRoom}
       availabilityLabels={roomInfo.availabilityLabels}
-      canEditRoom={canEditRoom}
+      permissions={{ canEditRoom }}
       customEquipmentName={roomInfo.customEquipmentName}
       equipmentLabel={roomInfo.equipmentLabel}
       formData={roomInfo.formData}
-      isDirty={roomInfo.isDirty}
+      state={{
+        isDirty: roomInfo.isDirty,
+        saving: roomInfo.saving,
+        supportsUnits: roomInfo.supportsUnits,
+      }}
       mode={roomInfo.mode}
       openSections={roomInfo.openSections}
       roomTypeLabel={roomInfo.roomTypeLabel}
-      saving={roomInfo.saving}
       setMode={roomInfo.setMode}
       setShowDeleteModal={roomInfo.setShowDeleteModal}
       setShowDiscardConfirm={roomInfo.setShowDiscardConfirm}
       setShowModal={setShowModal}
-      showDeleteModal={roomInfo.showDeleteModal}
-      showDiscardConfirm={roomInfo.showDiscardConfirm}
-      showModal={showModal}
+      visibility={{
+        showDeleteModal: roomInfo.showDeleteModal,
+        showDiscardConfirm: roomInfo.showDiscardConfirm,
+        showModal,
+      }}
       specialityLabel={roomInfo.specialityLabel}
       staffLabel={roomInfo.staffLabel}
-      supportsUnits={roomInfo.supportsUnits}
       totalUnits={roomInfo.totalUnits}
       options={roomInfo.options}
       onAddCustomEquipment={roomInfo.addCustomEquipment}

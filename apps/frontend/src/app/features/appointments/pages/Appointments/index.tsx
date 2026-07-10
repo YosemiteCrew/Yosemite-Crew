@@ -1,5 +1,13 @@
 'use client';
-import React, { Suspense, startTransition, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  Suspense,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import dynamic from 'next/dynamic';
 import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -379,6 +387,20 @@ const Appointments = () => {
     setActiveAppointment((prev) => getNextSelectedAppointment(prev, appointments));
   });
 
+  const applyDeepLinkAppointment = useCallback(
+    (target: Appointment, appointmentId: string, initialIntent: AppointmentViewIntent | null) => {
+      setActiveAppointment(target);
+      setViewIntent(initialIntent);
+      const workspaceHref =
+        revampEnabled && canEnterAppointmentWorkspace(target.status)
+          ? buildWorkspaceHrefForIntent(appointmentId, initialIntent)
+          : null;
+      setDeepLinkWorkspaceHref(workspaceHref);
+      if (!workspaceHref) setViewPopup(true);
+    },
+    []
+  );
+
   useEffect(() => {
     const appointmentId = String(searchParams.get('appointmentId') ?? '').trim();
     const open = String(searchParams.get('open') ?? '')
@@ -400,16 +422,9 @@ const Appointments = () => {
     const target = appointments.find((appointment) => appointment.id === appointmentId);
     if (!target) return;
 
-    setActiveAppointment(target);
-    setViewIntent(initialIntent);
-    const workspaceHref =
-      revampEnabled && canEnterAppointmentWorkspace(target.status)
-        ? buildWorkspaceHrefForIntent(appointmentId, initialIntent)
-        : null;
-    setDeepLinkWorkspaceHref(workspaceHref);
-    if (!workspaceHref) setViewPopup(true);
+    applyDeepLinkAppointment(target, appointmentId, initialIntent);
     handledDeepLinkRef.current = deepLinkKey;
-  }, [appointments, searchParams]);
+  }, [appointments, searchParams, applyDeepLinkAppointment]);
 
   const hasEmergency = useMemo(() => {
     const now = new Date();

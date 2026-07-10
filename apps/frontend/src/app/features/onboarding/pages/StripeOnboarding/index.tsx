@@ -6,7 +6,7 @@ import {
   createConnectedAccount,
   onBoardConnectedAccount,
 } from '@/app/features/billing/services/stripeService';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import React, { Suspense, useCallback, useEffect, useReducer } from 'react';
 import { loadConnectAndInitialize, StripeConnectInstance } from '@stripe/connect-js/pure';
 import {
@@ -105,28 +105,13 @@ const StripeOnboarding = () => {
 
   useEffect(() => {
     dispatchSetup({ type: 'prepare' });
-    if (!onboard) {
-      router.push('/dashboard');
-      return;
-    }
-    if (!orgIdFromQuery) {
-      router.push('/dashboard');
-      return;
-    }
-    if (!subscription) {
-      router.push('/dashboard');
-      return;
-    }
-    if (subscription.connectChargesEnabled) {
-      router.push('/dashboard');
-      return;
-    }
+    if (!subscription) return;
     if (subscription.connectAccountId) {
       dispatchSetup({ type: 'account-ready', accountId: subscription.connectAccountId });
       return;
     }
     createAccountIfNeeded();
-  }, [onboard, orgIdFromQuery, subscription, createAccountIfNeeded, router]);
+  }, [subscription, createAccountIfNeeded]);
 
   useEffect(() => {
     if (!orgIdFromQuery || !accountId || !PUBLISHABE_KEY || !subscription) return;
@@ -163,8 +148,8 @@ const StripeOnboarding = () => {
     [subscriptionCounterUpdate]
   );
 
-  if (!onboard) {
-    return null;
+  if (!onboard || !orgIdFromQuery || !subscription || subscription.connectChargesEnabled) {
+    redirect('/dashboard');
   }
 
   const canRetrySetup = Boolean(orgIdFromQuery) && !subscription?.connectAccountId;

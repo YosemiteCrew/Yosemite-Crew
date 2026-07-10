@@ -223,6 +223,7 @@ const InpatientSchedule = ({
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Kolkata',
     });
     return isSameDay(selectedDate, todayAtMidnight) ? `Today ${formatted}` : formatted;
   }, [selectedDate, todayAtMidnight]);

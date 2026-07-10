@@ -4,10 +4,12 @@ import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 import { useAuthStore } from '@/app/stores/authStore';
 
 const mockReplace = jest.fn();
+const mockRedirect = jest.fn();
 const mockUsePathname = jest.fn(() => '/developers/home');
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
   usePathname: () => mockUsePathname(),
+  redirect: (...args: string[]) => mockRedirect(...args),
 }));
 
 jest.mock('@/app/stores/authStore', () => ({
@@ -60,7 +62,7 @@ describe('DevRouteGuard', () => {
         <div>child</div>
       </DevRouteGuard>
     );
-    expect(mockReplace).toHaveBeenCalledWith('/developers/signin');
+    expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 
   it('signs out and redirects if authenticated without developer role', () => {
@@ -77,7 +79,7 @@ describe('DevRouteGuard', () => {
       </DevRouteGuard>
     );
     expect(signout).toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith('/developers/signin');
+    expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 
   it('only trusts devAuth on localhost when the local bypass flag is enabled', () => {
@@ -116,6 +118,6 @@ describe('DevRouteGuard', () => {
     );
 
     expect(signout).toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith('/developers/signin');
+    expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 });

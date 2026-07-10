@@ -99,8 +99,11 @@ jest.mock('@/app/ui/tables/InventoryTurnoverTable', () => ({
 
 jest.mock('@/app/ui/filters/InventoryTurnoverFilters', () => ({
   __esModule: true,
-  default: ({ list, setFilteredList }: any) => (
-    <button data-testid="turnover-filters-mock" onClick={() => setFilteredList(list.slice(0, 1))}>
+  default: ({ setFilters }: any) => (
+    <button
+      data-testid="turnover-filters-mock"
+      onClick={() => setFilters((current: any) => ({ ...current, status: 'LOW' }))}
+    >
       Filter turnover
     </button>
   ),
@@ -216,7 +219,7 @@ describe('Inventory page inner components', () => {
   });
 
   it('routes inventory table content interactions for analytics, inventory, and dispensary views', () => {
-    const setFilteredTurnoverList = jest.fn();
+    const setTurnoverFilters = jest.fn();
     const setActiveInventory = jest.fn();
     const setViewInventory = jest.fn();
     const setInfoInitialSection = jest.fn();
@@ -228,8 +231,8 @@ describe('Inventory page inner components', () => {
     const { rerender } = render(
       <InventoryTableContent
         activeView="analytics"
-        turnover={[{ id: 't1' }, { id: 't2' }] as any}
-        setFilteredTurnoverList={setFilteredTurnoverList}
+        turnoverFilters={{ status: 'ALL', category: 'all' }}
+        setTurnoverFilters={setTurnoverFilters}
         turnoverCategoryOptions={['Medicine']}
         filteredTurnoverList={[{ id: 't1' }] as any}
         filteredInventory={[inventoryItem]}
@@ -245,13 +248,13 @@ describe('Inventory page inner components', () => {
     );
 
     fireEvent.click(screen.getByTestId('turnover-filters-mock'));
-    expect(setFilteredTurnoverList).toHaveBeenCalled();
+    expect(setTurnoverFilters).toHaveBeenCalled();
 
     rerender(
       <InventoryTableContent
         activeView="inventory"
-        turnover={[{ id: 't1' }] as any}
-        setFilteredTurnoverList={setFilteredTurnoverList}
+        turnoverFilters={{ status: 'ALL', category: 'all' }}
+        setTurnoverFilters={setTurnoverFilters}
         turnoverCategoryOptions={['Medicine']}
         filteredTurnoverList={[{ id: 't1' }] as any}
         filteredInventory={[inventoryItem]}
@@ -277,8 +280,8 @@ describe('Inventory page inner components', () => {
     rerender(
       <InventoryTableContent
         activeView="turnover"
-        turnover={[{ id: 't1' }] as any}
-        setFilteredTurnoverList={setFilteredTurnoverList}
+        turnoverFilters={{ status: 'ALL', category: 'all' }}
+        setTurnoverFilters={setTurnoverFilters}
         turnoverCategoryOptions={['Medicine']}
         filteredTurnoverList={[{ id: 't1' }] as any}
         filteredInventory={[inventoryItem]}

@@ -11,7 +11,6 @@ import { Organisation } from '@yosemite-crew/types';
 import './Step.css';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import {
-  CountryDialCodeOption,
   CountryDialCodeOptions,
   findPhoneData,
   getDigitsOnly,
@@ -47,24 +46,18 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
     taxId?: string;
     website?: string;
   }>({});
-  const [companionTerminology, setCompanionTerminology] = useState<CompanionTerminologyOption>(() =>
-    getCompanionTerminologyForOrg(undefined, formData.type)
-  );
-  const initialPhoneData = findPhoneData(formData.phoneNo || '', formData.address?.country);
-  const [selectedCountryCode, setSelectedCountryCode] = useState<CountryDialCodeOption>(
-    initialPhoneData.selectedCode
-  );
-  const [localPhoneNumber, setLocalPhoneNumber] = useState(initialPhoneData.localNumber);
-
-  useEffect(() => {
-    setCompanionTerminology(getCompanionTerminologyForOrg(undefined, formData.type));
-  }, [formData.type]);
-
-  useEffect(() => {
-    const nextPhoneData = findPhoneData(formData.phoneNo || '', formData.address?.country);
-    setSelectedCountryCode(nextPhoneData.selectedCode);
-    setLocalPhoneNumber(nextPhoneData.localNumber);
-  }, [formData.phoneNo, formData.address?.country]);
+  const [companionTerminologyOverride, setCompanionTerminologyOverride] = useState<{
+    orgType: Organisation['type'] | undefined;
+    value: CompanionTerminologyOption;
+  } | null>(null);
+  const defaultCompanionTerminology = getCompanionTerminologyForOrg(undefined, formData.type);
+  const companionTerminology =
+    companionTerminologyOverride && companionTerminologyOverride.orgType === formData.type
+      ? companionTerminologyOverride.value
+      : defaultCompanionTerminology;
+  const phoneData = findPhoneData(formData.phoneNo || '', formData.address?.country);
+  const selectedCountryCode = phoneData.selectedCode;
+  const localPhoneNumber = phoneData.localNumber;
 
   useEffect(() => {
     if (!errors) {
@@ -90,7 +83,6 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
 
   const handlePhoneChange = (value: string) => {
     const sanitized = getDigitsOnly(value).slice(0, 15);
-    setLocalPhoneNumber(sanitized);
     setFormDataErrors((prev) => ({ ...prev, number: undefined }));
     setFormData((prev) => ({
       ...prev,
@@ -103,7 +95,6 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
     if (!selected) {
       return;
     }
-    setSelectedCountryCode(selected);
     setFormDataErrors((prev) => ({ ...prev, country: undefined, number: undefined }));
     setFormData((prev) => ({
       ...prev,
@@ -219,7 +210,10 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
             <LabelDropdown
               placeholder="What would you like to call pets?"
               onSelect={(option) =>
-                setCompanionTerminology(option.value as CompanionTerminologyOption)
+                setCompanionTerminologyOverride({
+                  orgType: formData.type,
+                  value: option.value as CompanionTerminologyOption,
+                })
               }
               defaultOption={companionTerminology}
               options={getCompanionTerminologyOptions()}
