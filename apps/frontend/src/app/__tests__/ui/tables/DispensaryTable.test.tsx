@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import DispensaryTable from '@/app/ui/tables/DispensaryTable';
@@ -149,8 +149,9 @@ describe('DispensaryTable', () => {
     const user = userEvent.setup();
     const onDispense = jest.fn();
     render(<DispensaryTable filteredList={[baseRecord]} onDispense={onDispense} />);
+    // The desktop row button appears first; the mobile card button is last in the DOM.
     const dispenseTextButtons = screen.getAllByText('Dispense');
-    await user.click(dispenseTextButtons[0]);
+    await user.click(dispenseTextButtons[dispenseTextButtons.length - 1]);
     expect(onDispense).toHaveBeenCalledWith(baseRecord);
   });
 
@@ -179,5 +180,46 @@ describe('DispensaryTable', () => {
     render(<DispensaryTable filteredList={[baseRecord]} />);
     expect(screen.getByText('appt-1')).toBeInTheDocument();
     expect(screen.getByText('Paracetamol, Calpol')).toBeInTheDocument();
+  });
+
+  it('renders pagination controls and navigates between pages', () => {
+    const many = Array.from({ length: 11 }, (_, i) => ({
+      ...baseRecord,
+      id: `rec-${i}`,
+      patient: { ...baseRecord.patient, name: `Pat ${i}` },
+    }));
+
+    render(<DispensaryTable filteredList={many} />);
+
+    expect(screen.getByText('Showing 1–10 of 11 requests')).toBeInTheDocument();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+
+    const prev = screen.getByRole('button', { name: 'Previous' });
+    const next = screen.getByRole('button', { name: 'Next' });
+    expect(prev).toBeDisabled();
+    expect(next).not.toBeDisabled();
+
+    fireEvent.click(next);
+    expect(screen.getByText('Showing 11–11 of 11 requests')).toBeInTheDocument();
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    expect(screen.getByText('Showing 1–10 of 11 requests')).toBeInTheDocument();
+  });
+
+  it('clamps the current page when the list shrinks below it', () => {
+    const many = Array.from({ length: 11 }, (_, i) => ({
+      ...baseRecord,
+      id: `rec-${i}`,
+      patient: { ...baseRecord.patient, name: `Pat ${i}` },
+    }));
+
+    const { rerender } = render(<DispensaryTable filteredList={many} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+
+    rerender(<DispensaryTable filteredList={[baseRecord]} />);
+    expect(screen.getByText('Showing 1–1 of 1 requests')).toBeInTheDocument();
   });
 });

@@ -6,6 +6,9 @@ import CompanionsTable from '@/app/ui/tables/CompanionsTable';
 
 const useAppointmentsForPrimaryOrgMock = jest.fn();
 const pushMock = jest.fn();
+// Driven per-test so the species line can exercise its singular / plural /
+// missing-age branches instead of always returning the same constant.
+const getAgeInYearsMock = jest.fn();
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -27,7 +30,7 @@ jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
 }));
 
 jest.mock('@/app/lib/date', () => ({
-  getAgeInYears: jest.fn(() => 2),
+  getAgeInYears: (dateOfBirth?: string) => getAgeInYearsMock(dateOfBirth),
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -81,6 +84,7 @@ describe('CompanionsTable', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    getAgeInYearsMock.mockReturnValue(2);
     useAppointmentsForPrimaryOrgMock.mockReturnValue([
       {
         id: 'appt-1',
@@ -205,5 +209,245 @@ describe('CompanionsTable', () => {
     );
 
     expect(screen.getAllByText('No data available').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the row menu open on inside interaction and closes it on outside click / scroll / resize', () => {
+    render(
+      <CompanionsTable
+        filteredList={[companion]}
+        setActiveCompanion={jest.fn()}
+        setViewCompanion={jest.fn()}
+        setBookAppointment={jest.fn()}
+        setAddTask={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        canEditAppointments
+        canEditTasks
+        canEditCompanions
+      />
+    );
+
+    openRowMenu();
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    // A pointer-down on the trigger button itself is ignored (contains → return).
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Companion row actions' }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    // A pointer-down inside the panel is ignored too.
+    fireEvent.mouseDown(screen.getByText('Open overview'));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+
+    // A pointer-down outside closes the menu.
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+    // Scrolling closes it.
+    openRowMenu();
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.scroll(window);
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+    // Resizing closes it.
+    openRowMenu();
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent(window, new Event('resize'));
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('sorts multiple upcoming appointments and links to the earliest future one', () => {
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([
+      {
+        id: 'a-late',
+        status: 'UPCOMING',
+        appointmentDate: new Date('2999-02-01T10:00:00.000Z'),
+        startTime: new Date('2999-02-01T10:00:00.000Z'),
+        companion: { id: 'c1' },
+      },
+      {
+        // No startTime → the sort/find fall back to appointmentDate.
+        id: 'a-early',
+        status: 'REQUESTED',
+        appointmentDate: new Date('2999-01-01T09:00:00.000Z'),
+        companion: { id: 'c1' },
+      },
+    ]);
+
+    render(
+      <CompanionsTable
+        filteredList={[companion]}
+        setActiveCompanion={jest.fn()}
+        setViewCompanion={jest.fn()}
+        setBookAppointment={jest.fn()}
+        setAddTask={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        canEditAppointments={false}
+        canEditTasks={false}
+        canEditCompanions={false}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Open appointment'));
+    expect(pushMock).toHaveBeenCalledWith('/appointments?appointmentId=a-early');
+  });
+
+  it('falls back to the first related appointment when none are in the future', () => {
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([
+      {
+        id: 'past-late',
+        status: 'UPCOMING',
+        appointmentDate: new Date('2000-01-02T10:00:00.000Z'),
+        startTime: new Date('2000-01-02T10:00:00.000Z'),
+        companion: { id: 'c1' },
+      },
+      {
+        id: 'past-early',
+        status: 'UPCOMING',
+        appointmentDate: new Date('2000-01-01T10:00:00.000Z'),
+        startTime: new Date('2000-01-01T10:00:00.000Z'),
+        companion: { id: 'c1' },
+      },
+    ]);
+
+    render(
+      <CompanionsTable
+        filteredList={[companion]}
+        setActiveCompanion={jest.fn()}
+        setViewCompanion={jest.fn()}
+        setBookAppointment={jest.fn()}
+        setAddTask={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        canEditAppointments={false}
+        canEditTasks={false}
+        canEditCompanions={false}
+      />
+    );
+
+    // No future match → find returns undefined → falls back to the earliest (sorted first).
+    fireEvent.click(screen.getByTitle('Open appointment'));
+    expect(pushMock).toHaveBeenCalledWith('/appointments?appointmentId=past-early');
+  });
+
+  it('renders a fallback species, no gender, and a singular year in the sub-line', () => {
+    getAgeInYearsMock.mockReturnValue(1);
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([]);
+
+    const oddCompanion: any = {
+      companion: {
+        id: 'rx',
+        name: 'Thumper',
+        breed: 'Lop',
+        type: 'rabbit',
+        dateOfBirth: '2024-01-01',
+        status: 'active',
+        photoUrl: 'photo',
+      },
+      parent: { firstName: 'A', lastName: 'B' },
+    };
+
+    render(
+      <CompanionsTable
+        filteredList={[oddCompanion]}
+        setActiveCompanion={jest.fn()}
+        setViewCompanion={jest.fn()}
+        setBookAppointment={jest.fn()}
+        setAddTask={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        canEditAppointments={false}
+        canEditTasks={false}
+        canEditCompanions={false}
+      />
+    );
+
+    // Unknown species falls through to toTitleCase; no gender segment; singular "Yr".
+    expect(screen.getByText('rabbit · 1 Yr')).toBeInTheDocument();
+  });
+
+  it('handles missing age, breed, parent name, status, and companion id', () => {
+    getAgeInYearsMock.mockReturnValue(Number.NaN);
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([]);
+
+    const sparse: any = {
+      companion: {
+        name: 'Ghost',
+        breed: '',
+        type: 'dog',
+        gender: 'Male',
+        dateOfBirth: 'not-a-date',
+        photoUrl: 'photo',
+      },
+      parent: {},
+    };
+
+    render(
+      <CompanionsTable
+        filteredList={[sparse]}
+        setActiveCompanion={jest.fn()}
+        setViewCompanion={jest.fn()}
+        setBookAppointment={jest.fn()}
+        setAddTask={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        canEditAppointments={false}
+        canEditTasks={false}
+        canEditCompanions={false}
+      />
+    );
+
+    // Empty breed and parent both render the "-" placeholder; missing upcoming too.
+    expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+    // Missing status falls back to "inactive".
+    expect(screen.getByText('inactive')).toBeInTheDocument();
+
+    // Clicking the name link with a blank id is a no-op (guard returns early).
+    fireEvent.click(screen.getByTitle('Open companion history'));
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it('renders pagination controls and navigates between pages', () => {
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([]);
+
+    const many = Array.from({ length: 11 }, (_, i) => ({
+      companion: {
+        id: `id-${i}`,
+        name: `Pet ${i}`,
+        breed: 'Mix',
+        type: 'dog',
+        gender: 'Male',
+        dateOfBirth: '2023-01-01',
+        status: 'active',
+        photoUrl: 'photo',
+      },
+      parent: { firstName: 'Sam', lastName: 'Owner' },
+    }));
+
+    render(
+      <CompanionsTable
+        filteredList={many as any}
+        setActiveCompanion={jest.fn()}
+        setViewCompanion={jest.fn()}
+        setBookAppointment={jest.fn()}
+        setAddTask={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        canEditAppointments={false}
+        canEditTasks={false}
+        canEditCompanions={false}
+      />
+    );
+
+    // Page 1: previous disabled, page 1 marked current.
+    expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Page 1' })).toHaveAttribute('aria-current', 'page');
+
+    // Jump to page 2 via the numbered button.
+    fireEvent.click(screen.getByRole('button', { name: 'Page 2' }));
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page');
+
+    // Back to page 1 via the previous arrow.
+    fireEvent.click(screen.getByRole('button', { name: 'Previous page' }));
+    expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
+
+    // Forward again via the next arrow.
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
   });
 });

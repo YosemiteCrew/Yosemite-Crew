@@ -8,8 +8,12 @@ jest.mock('next/image', () => ({
   default: ({ alt, src }: any) => React.createElement('img', { alt, src }),
 }));
 
+// Include the pagination chevrons so the Back/Next primitives can render when
+// the list spans more than one page.
 jest.mock('react-icons/io5', () => ({
   IoEye: () => <span data-testid="icon-eye" />,
+  IoChevronBack: () => <span data-testid="icon-back" />,
+  IoChevronForward: () => <span data-testid="icon-forward" />,
 }));
 
 jest.mock('@/app/lib/urls', () => ({
@@ -30,13 +34,20 @@ jest.mock('@/app/ui/cards/InventoryCard', () => ({
   ),
 }));
 
+// These helpers are mocked to COMPUTE from their input rather than return
+// constants, so different row data drives the component's per-status branches
+// (expired / low-stock styling, undefined margin, missing numeric fields).
 jest.mock('@/app/features/inventory/pages/Inventory/utils', () => ({
-  displayStatusLabel: () => 'Healthy',
-  formatCurrencyValue: (value: string | number) => `$ ${value}`,
-  formatDisplayDate: () => '01 Jan 2025',
-  formatPercentValue: () => '50%',
-  getAvailableStock: () => 2,
-  getMarginPercent: () => 50,
+  displayStatusLabel: (item: any) => item?.basicInfo?.status ?? 'Healthy',
+  formatCurrencyValue: (value: string | number | undefined | null) =>
+    value === undefined || value === null || value === '' ? '—' : `$ ${value}`,
+  formatDisplayDate: (value?: string) => (value ? '01 Jan 2025' : ''),
+  formatPercentValue: (value?: number) => (value === undefined ? '—' : `${value}%`),
+  getAvailableStock: (item: any) => item?.stock?.available ?? item?.stock?.current,
+  getMarginPercent: (item: any) => {
+    const selling = item?.pricing?.selling;
+    return selling === undefined || selling === null || selling === '' ? undefined : 50;
+  },
   getStatusBadgeStyle: () => ({ backgroundColor: '#000', color: '#fff' }),
 }));
 
@@ -46,7 +57,7 @@ describe('InventoryTable', () => {
     basicInfo: {
       name: 'Vaccine',
       category: 'Medicine',
-      status: 'ACTIVE',
+      status: 'Healthy',
     },
     stock: {
       current: 2,
@@ -60,6 +71,15 @@ describe('InventoryTable', () => {
       expiryDate: '2025-01-01',
     },
   } as any;
+
+  const makeItem = (overrides: any = {}): any => ({
+    ...item,
+    ...overrides,
+    basicInfo: { ...item.basicInfo, ...(overrides.basicInfo ?? {}) },
+    stock: { ...item.stock, ...(overrides.stock ?? {}) },
+    pricing: { ...item.pricing, ...(overrides.pricing ?? {}) },
+    batch: { ...item.batch, ...(overrides.batch ?? {}) },
+  });
 
   it('renders the card-table columns and the mobile cards', () => {
     render(
@@ -153,6 +173,8 @@ describe('InventoryTable', () => {
     const restockBtn = screen.getByRole('button', { name: 'Restock Vaccine' });
     fireEvent.click(restockBtn);
     expect(onRestock).toHaveBeenCalledWith(item);
+    // A healthy item keeps the neutral (non-highlighted) restock treatment.
+    expect(restockBtn.className).toContain('border-card-border');
   });
 
   it('exposes accessible labels for the action icons (tooltip triggers)', () => {
@@ -190,5 +212,290 @@ describe('InventoryTable', () => {
       'src',
       'https://cdn.example.com/inventory/org-1/vaccine.jpg'
     );
+  });
+
+  it('resolves the image from the top-level imageUrl when basicInfo lacks one', () => {
+    const topImg = makeItem({ imageUrl: 'inventory/top.jpg' });
+
+    render(
+      <InventoryTable
+        filteredList={[topImg]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByAltText('')).toHaveAttribute(
+      'src',
+      'https://cdn.example.com/inventory/top.jpg'
+    );
+  });
+
+  it('applies expired styling (row tint + danger expiry) when the status is expired', () => {
+    const expiredItem = makeItem({ basicInfo: { status: 'Expired' } });
+
+    const { container } = render(
+      <InventoryTable
+        filteredList={[expiredItem]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('Expired')).toBeInTheDocument();
+    // The expiry cell switches to the danger colour only for expired rows.
+    expect(container.querySelector('.text-\\[var\\(--color-danger-600\\)\\]')).toBeInTheDocument();
+  });
+
+  it('applies low-stock styling and the restock highlight when the status is low stock', () => {
+    const lowItem = makeItem({ basicInfo: { status: 'Low stock' } });
+    const onRestock = jest.fn();
+
+    const { container } = render(
+      <InventoryTable
+        filteredList={[lowItem]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+        onRestock={onRestock}
+      />
+    );
+
+    expect(screen.getByText('Low stock')).toBeInTheDocument();
+    // The available column emphasises low stock with the warning colour.
+    expect(
+      container.querySelector('.text-\\[var\\(--color-pill-warning-text\\)\\]')
+    ).toBeInTheDocument();
+    // The restock button gains the active-nav highlight for low-stock rows.
+    const restockBtn = screen.getByRole('button', { name: 'Restock Vaccine' });
+    expect(restockBtn.className).toContain('bg-[var(--nav-active-bg)]');
+  });
+
+  it('renders the margin placeholder when the margin is undefined', () => {
+    const noMargin = makeItem({ pricing: { purchaseCost: 5, selling: undefined } });
+
+    render(
+      <InventoryTable
+        filteredList={[noMargin]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    // Both the selling and margin cells collapse to the em-dash placeholder.
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('renders the subcategory suffix when present', () => {
+    const withSub = makeItem({ basicInfo: { subCategory: 'Antibiotic' } });
+
+    render(
+      <InventoryTable
+        filteredList={[withSub]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Antibiotic/)).toBeInTheDocument();
+  });
+
+  it('falls back to an em dash for a missing category', () => {
+    const noCat = makeItem({ basicInfo: { category: '' } });
+
+    render(
+      <InventoryTable
+        filteredList={[noCat]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('renders the ABC class letter when present', () => {
+    const withAbc = makeItem({ stock: { abcClass: 'Class B' } });
+
+    render(
+      <InventoryTable
+        filteredList={[withAbc]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('B')).toBeInTheDocument();
+  });
+
+  it('renders dashes for missing on-hand, available, expiry, and location values', () => {
+    // undefined stockLocation exercises the `val === undefined` guard, null the
+    // `val === null` guard; an absent expiry date trips the `|| "—"` fallback.
+    const noStock = makeItem({
+      id: 'a',
+      stock: { current: undefined, available: undefined, stockLocation: undefined },
+      batch: { expiryDate: undefined },
+    });
+    const nullLoc = makeItem({ id: 'b', stock: { stockLocation: null } });
+
+    render(
+      <InventoryTable
+        filteredList={[noStock, nullLoc]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('renders an em dash for an empty (blank string) stock location', () => {
+    const emptyLoc = makeItem({ stock: { stockLocation: '' } });
+
+    render(
+      <InventoryTable
+        filteredList={[emptyLoc]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('renders the skuCode when present', () => {
+    const withSku = makeItem({ basicInfo: { skuCode: 'SKU-123' } });
+
+    render(
+      <InventoryTable
+        filteredList={[withSku]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('SKU-123')).toBeInTheDocument();
+  });
+
+  it('falls back to the top-level sku when skuCode is absent', () => {
+    const withSku = makeItem({ sku: 'TOP-SKU' });
+
+    render(
+      <InventoryTable
+        filteredList={[withSku]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('TOP-SKU')).toBeInTheDocument();
+  });
+
+  it('renders category-specific image fallbacks when no image is present', () => {
+    const items = [
+      makeItem({ id: 's', basicInfo: { name: 'Surg', category: 'Surgical supply' } }),
+      makeItem({ id: 'c', basicInfo: { name: 'Cons', category: 'Consumable' } }),
+      makeItem({ id: 'f', basicInfo: { name: 'FoodItem', category: 'Food' } }),
+      makeItem({ id: 'e', basicInfo: { name: 'Equip', category: 'Equipment' } }),
+      makeItem({ id: 'm', basicInfo: { name: 'Med', category: 'Medicine' } }),
+    ];
+
+    render(
+      <InventoryTable
+        filteredList={items}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    // Surgical + consumable both map to the gloves fallback.
+    expect(screen.getAllByText('🧤').length).toBe(2);
+    expect(screen.getByText('🥫')).toBeInTheDocument();
+    expect(screen.getByText('🧰')).toBeInTheDocument();
+    expect(screen.getAllByText('💊').length).toBeGreaterThan(0);
+  });
+
+  it('renders rows and cards for items without an id (key fallback to name)', () => {
+    const noId = makeItem({ id: undefined, basicInfo: { name: 'NoId' } });
+
+    render(
+      <InventoryTable
+        filteredList={[noId]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getAllByText('NoId').length).toBeGreaterThan(0);
+  });
+
+  it('renders the empty states for the table, footer, and card list', () => {
+    render(
+      <InventoryTable
+        filteredList={[]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('Looks like a quiet day… for now.')).toBeInTheDocument();
+    expect(screen.getByText('No items')).toBeInTheDocument();
+    expect(screen.getByText('No data available')).toBeInTheDocument();
+  });
+
+  it('paginates when there is more than one page of items', () => {
+    const many = Array.from({ length: 9 }, (_, i) =>
+      makeItem({ id: `p${i}`, basicInfo: { name: `Item ${i + 1}` } })
+    );
+
+    render(
+      <InventoryTable
+        filteredList={many}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('Showing 1–8 of 9 items')).toBeInTheDocument();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+
+    const prev = screen.getByRole('button', { name: 'Previous' });
+    const next = screen.getByRole('button', { name: 'Next' });
+    expect(prev).toBeDisabled();
+    expect(next).not.toBeDisabled();
+
+    fireEvent.click(next);
+    expect(screen.getByText('Showing 9–9 of 9 items')).toBeInTheDocument();
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    expect(screen.getByText('Showing 1–8 of 9 items')).toBeInTheDocument();
+  });
+
+  it('clamps the current page when the list shrinks below it', () => {
+    const many = Array.from({ length: 9 }, (_, i) =>
+      makeItem({ id: `p${i}`, basicInfo: { name: `Item ${i + 1}` } })
+    );
+
+    const { rerender } = render(
+      <InventoryTable
+        filteredList={many}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+
+    rerender(
+      <InventoryTable
+        filteredList={[makeItem({ id: 'solo', basicInfo: { name: 'Solo' } })]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('Showing 1–1 of 1 items')).toBeInTheDocument();
   });
 });
