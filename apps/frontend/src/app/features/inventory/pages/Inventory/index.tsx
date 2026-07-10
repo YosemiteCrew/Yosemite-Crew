@@ -824,6 +824,25 @@ export const DispensaryFilterModal = ({
   );
 };
 
+const resolveActiveInventory = (
+  filteredInventory: InventoryItem[],
+  activeInventory: InventoryItem | null
+): InventoryItem | null => {
+  if (filteredInventory.length === 0) return null;
+  return filteredInventory.find((item) => item.id === activeInventory?.id) ?? filteredInventory[0];
+};
+
+// Runs `onChange` during render on the commit where `value` first differs from
+// its previous value — the null-sentinel derived-state pattern factored out so
+// each call site stays a single statement rather than an inline prev-compare.
+const useOnValueChange = <T,>(value: T, onChange: () => void): void => {
+  const prevRef = useRef<{ value: T }>(undefined);
+  if (prevRef.current?.value !== value) {
+    prevRef.current = { value };
+    onChange();
+  }
+};
+
 const Inventory = () => {
   useLoadOrg();
 
@@ -924,11 +943,9 @@ const Inventory = () => {
   // Reset the (child-owned, further-filterable) turnover list whenever the
   // source `turnover` data changes. Render-time prev-comparison instead of an
   // effect — same [turnover] dependency semantics, one fewer render.
-  const [prevTurnover, setPrevTurnover] = useState<typeof turnover | null>(null);
-  if (prevTurnover === null || turnover !== prevTurnover) {
-    setPrevTurnover(turnover);
+  useOnValueChange(turnover, () => {
     setFilteredTurnoverList(turnover);
-  }
+  });
 
   const stockLocationOptions = useMemo(() => {
     const roomNames = rooms
@@ -981,35 +998,23 @@ const Inventory = () => {
     [inventory, filters, debouncedSearch, sortMode]
   );
 
-  const [prevFilteredInventory, setPrevFilteredInventory] = useState<InventoryItem[] | null>(null);
-  if (prevFilteredInventory === null || prevFilteredInventory !== filteredInventory) {
-    setPrevFilteredInventory(filteredInventory);
-    const nextActiveInventory =
-      filteredInventory.length === 0
-        ? null
-        : (filteredInventory.find((item) => item.id === activeInventory?.id) ??
-          filteredInventory[0]);
-    if (nextActiveInventory !== activeInventory) {
-      setActiveInventory(nextActiveInventory);
-    }
+  useOnValueChange(filteredInventory, () => {
+    setActiveInventory(resolveActiveInventory(filteredInventory, activeInventory));
     if (filteredInventory.length === 0 && viewInventory) {
       setViewInventory(false);
     }
-  }
+  });
 
   const deepLinkedInventoryId = String(searchParams.get('inventoryId') ?? '').trim();
-  if (deepLinkedInventoryId && handledDeepLinkRef.current !== deepLinkedInventoryId) {
-    const target = inventory.find((item) => item.id === deepLinkedInventoryId);
-    if (target !== undefined) {
-      handledDeepLinkRef.current = deepLinkedInventoryId;
-      if (activeInventory !== target) {
-        setActiveInventory(target);
-      }
-      if (viewInventory !== true) {
-        setViewInventory(true);
-      }
-      setInfoInitialSection(undefined);
-    }
+  const deepLinkTarget =
+    deepLinkedInventoryId && handledDeepLinkRef.current !== deepLinkedInventoryId
+      ? inventory.find((item) => item.id === deepLinkedInventoryId)
+      : undefined;
+  if (deepLinkTarget !== undefined) {
+    handledDeepLinkRef.current = deepLinkedInventoryId;
+    setActiveInventory(deepLinkTarget);
+    setViewInventory(true);
+    setInfoInitialSection(undefined);
   }
 
   const handleCreateInventory = useCallback(

@@ -1019,6 +1019,24 @@ const DiscardConfirmationModal = ({
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
+const toIsoOrValue = (value: Date | string | undefined): string | undefined =>
+  value instanceof Date ? value.toISOString() : value;
+
+const computePrefillKey = (prefill: AppointmentDraftPrefill | null | undefined): string | null => {
+  const prefillForKey = prefill as
+    | (AppointmentDraftPrefill & { assignedTo?: string; startTime?: Date | string })
+    | null
+    | undefined;
+  if (!prefillForKey) return null;
+  return JSON.stringify({
+    date: toIsoOrValue(prefillForKey.date),
+    minuteOfDay: prefillForKey.minuteOfDay,
+    leadId: prefillForKey.leadId,
+    assignedTo: prefillForKey.assignedTo,
+    startTime: toIsoOrValue(prefillForKey.startTime),
+  });
+};
+
 const AddAppointmentCentralModal = ({
   showModal,
   setShowModal,
@@ -1116,25 +1134,7 @@ const AddAppointmentCentralModal = ({
     setFormDataErrors(errors);
   }, [formData, selectedSlot, setFormDataErrors, uiState.submitAttempted, validateForm]);
 
-  const prefillForKey = prefill as
-    | (AppointmentDraftPrefill & { assignedTo?: string; startTime?: Date | string })
-    | null
-    | undefined;
-  const prefillKey = prefillForKey
-    ? JSON.stringify({
-        date:
-          prefillForKey.date instanceof Date
-            ? prefillForKey.date.toISOString()
-            : prefillForKey.date,
-        minuteOfDay: prefillForKey.minuteOfDay,
-        leadId: prefillForKey.leadId,
-        assignedTo: prefillForKey.assignedTo,
-        startTime:
-          prefillForKey.startTime instanceof Date
-            ? prefillForKey.startTime.toISOString()
-            : prefillForKey.startTime,
-      })
-    : null;
+  const prefillKey = computePrefillKey(prefill);
   if (prefillKey !== prevPrefillKeyRef.current) {
     prevPrefillKeyRef.current = prefillKey;
     dispatchUi({ type: 'reset' });
@@ -1195,23 +1195,26 @@ const AddAppointmentCentralModal = ({
     [companions, setFormData, setFormDataErrors, uiState.submitAttempted]
   );
 
+  const applyAutoSelectKey = (autoSelectKey: string | null) => {
+    if (!autoSelectKey) {
+      if (!showModal) dispatchUi({ type: 'setPendingAutoSelectCompanionId', value: null });
+      return;
+    }
+    const found = companions.find((c) => c.companion.id === autoSelectKey);
+    if (!found) {
+      dispatchUi({ type: 'setPendingAutoSelectCompanionId', value: autoSelectKey });
+      return;
+    }
+    handlePatientSelect(found.companion.id);
+    dispatchUi({
+      type: 'setPatientQuery',
+      value: formatCompanionNameWithOwnerLastName(found.companion.name, found.parent),
+    });
+  };
   const autoSelectKey = showModal ? (initialCompanionId ?? null) : null;
   if (autoSelectKey !== autoSelectKeyRef.current) {
     autoSelectKeyRef.current = autoSelectKey;
-    if (autoSelectKey) {
-      const found = companions.find((c) => c.companion.id === autoSelectKey);
-      if (found) {
-        handlePatientSelect(found.companion.id);
-        dispatchUi({
-          type: 'setPatientQuery',
-          value: formatCompanionNameWithOwnerLastName(found.companion.name, found.parent),
-        });
-      } else {
-        dispatchUi({ type: 'setPendingAutoSelectCompanionId', value: autoSelectKey });
-      }
-    } else if (!showModal) {
-      dispatchUi({ type: 'setPendingAutoSelectCompanionId', value: null });
-    }
+    applyAutoSelectKey(autoSelectKey);
   }
 
   const pendingCompanion = uiState.pendingAutoSelectCompanionId

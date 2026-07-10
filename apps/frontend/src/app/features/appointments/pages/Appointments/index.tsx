@@ -170,6 +170,67 @@ const resolveInitialIntent = (
   return null;
 };
 
+// Runs `onChange` during render on the commit where `value` first differs from
+// its previous value — the null-sentinel derived-state pattern, factored out so
+// each call site stays a single statement rather than an inline prev-compare.
+const useOnValueChange = <T,>(value: T, onChange: () => void): void => {
+  const prevRef = useRef<{ value: T }>(undefined);
+  if (prevRef.current?.value !== value) {
+    prevRef.current = { value };
+    onChange();
+  }
+};
+
+type StoredCompanionMeta = {
+  photoUrl: string;
+  parentFirstName: string;
+  parentLastName: string;
+  parentFullName: string;
+  parentId: string;
+  gender: unknown;
+  dateOfBirth: unknown;
+  isneutered: unknown;
+};
+
+const mergeCompanionMeta = (
+  appointment: Appointment,
+  companionMeta: StoredCompanionMeta | undefined
+): Appointment => {
+  const { companion } = appointment;
+  if (!companionMeta || !companion) return appointment;
+  const existingPhotoUrl = (companion as Appointment['companion'] & { photoUrl?: string }).photoUrl;
+  const existingParent = (companion.parent ?? {}) as {
+    id?: string;
+    name?: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  const isSamePhoto = (existingPhotoUrl?.trim() || '') === companionMeta.photoUrl;
+  const isSameParent =
+    (existingParent.id || '') === companionMeta.parentId &&
+    (existingParent.firstName || '') === companionMeta.parentFirstName &&
+    (existingParent.lastName || '') === companionMeta.parentLastName &&
+    (existingParent.name || '') === companionMeta.parentFullName;
+  if (isSamePhoto && isSameParent) return appointment;
+  return {
+    ...appointment,
+    companion: {
+      ...companion,
+      photoUrl: companionMeta.photoUrl,
+      gender: companionMeta.gender,
+      dateOfBirth: companionMeta.dateOfBirth,
+      isneutered: companionMeta.isneutered,
+      parent: {
+        ...existingParent,
+        id: companionMeta.parentId || existingParent.id || '',
+        firstName: companionMeta.parentFirstName,
+        lastName: companionMeta.parentLastName,
+        name: companionMeta.parentFullName || existingParent.name || '',
+      },
+    } as Appointment['companion'],
+  };
+};
+
 const Appointments = () => {
   const router = useRouter();
   useLoadAppointmentsForPrimaryOrg();
@@ -200,43 +261,9 @@ const Appointments = () => {
   }, [companions]);
   const appointments = useMemo(
     () =>
-      rawAppointments.map((appointment) => {
-        const companionMeta = companionMetaById.get(appointment.companion.id);
-        if (!companionMeta) return appointment;
-        const existingPhotoUrl = (
-          appointment.companion as Appointment['companion'] & { photoUrl?: string }
-        ).photoUrl;
-        const existingParent = (appointment.companion.parent ?? {}) as {
-          id?: string;
-          name?: string;
-          firstName?: string;
-          lastName?: string;
-        };
-        const isSamePhoto = (existingPhotoUrl?.trim() || '') === companionMeta.photoUrl;
-        const isSameParent =
-          (existingParent.id || '') === companionMeta.parentId &&
-          (existingParent.firstName || '') === companionMeta.parentFirstName &&
-          (existingParent.lastName || '') === companionMeta.parentLastName &&
-          (existingParent.name || '') === companionMeta.parentFullName;
-        if (isSamePhoto && isSameParent) return appointment;
-        return {
-          ...appointment,
-          companion: {
-            ...appointment.companion,
-            photoUrl: companionMeta.photoUrl,
-            gender: companionMeta.gender,
-            dateOfBirth: companionMeta.dateOfBirth,
-            isneutered: companionMeta.isneutered,
-            parent: {
-              ...existingParent,
-              id: companionMeta.parentId || existingParent.id || '',
-              firstName: companionMeta.parentFirstName,
-              lastName: companionMeta.parentLastName,
-              name: companionMeta.parentFullName || existingParent.name || '',
-            },
-          } as Appointment['companion'],
-        };
-      }),
+      rawAppointments.map((appointment) =>
+        mergeCompanionMeta(appointment, companionMetaById.get(appointment.companion?.id ?? ''))
+      ),
     [rawAppointments, companionMetaById]
   );
   const permissions = usePermissions();
@@ -325,43 +352,32 @@ const Appointments = () => {
   // Derive weekStart from currentDate whenever the team-week calendar is active.
   // Render-time prev-comparison (see the null-sentinel note above) instead of an
   // effect, so the derived value is correct on the same commit as the change.
-  const [prevWeekKey, setPrevWeekKey] = useState<string | null>(null);
   const weekKey = `${activeCalendar}:${currentDate.getTime()}`;
-  if (prevWeekKey === null || weekKey !== prevWeekKey) {
-    setPrevWeekKey(weekKey);
-    if (activeCalendar === 'week') {
-      const nextWeekStart = startOfDay(currentDate);
-      if (nextWeekStart.getTime() !== weekStart.getTime()) {
-        setWeekStart(nextWeekStart);
-      }
+  useOnValueChange(weekKey, () => {
+    const nextWeekStart = activeCalendar === 'week' ? startOfDay(currentDate) : weekStart;
+    if (nextWeekStart.getTime() !== weekStart.getTime()) {
+      setWeekStart(nextWeekStart);
     }
-  }
+  });
 
   // Clear the deep-link view intent once both popups are closed.
-  const [prevPopupKey, setPrevPopupKey] = useState<string | null>(null);
-  const popupKey = `${viewPopup}:${detailPopup}`;
-  if (prevPopupKey === null || popupKey !== prevPopupKey) {
-    setPrevPopupKey(popupKey);
+  useOnValueChange(`${viewPopup}:${detailPopup}`, () => {
     if (!viewPopup && !detailPopup) {
       setViewIntent(null);
       handledDeepLinkRef.current = null;
     }
-  }
+  });
 
   // Clear the preferred status once the change-status popup closes.
-  const [prevChangeStatusPopup, setPrevChangeStatusPopup] = useState<boolean | null>(null);
-  if (prevChangeStatusPopup === null || changeStatusPopup !== prevChangeStatusPopup) {
-    setPrevChangeStatusPopup(changeStatusPopup);
+  useOnValueChange(changeStatusPopup, () => {
     if (!changeStatusPopup) {
       setChangeStatusPreferredStatus(null);
     }
-  }
+  });
 
-  const prevAppointmentsRef = useRef(appointments);
-  if (prevAppointmentsRef.current !== appointments) {
-    prevAppointmentsRef.current = appointments;
+  useOnValueChange(appointments, () => {
     setActiveAppointment((prev) => getNextSelectedAppointment(prev, appointments));
-  }
+  });
 
   useEffect(() => {
     const appointmentId = String(searchParams.get('appointmentId') ?? '').trim();
@@ -386,16 +402,12 @@ const Appointments = () => {
 
     setActiveAppointment(target);
     setViewIntent(initialIntent);
-    setDeepLinkWorkspaceHref(null);
-    if (revampEnabled) {
-      if (canEnterAppointmentWorkspace(target.status)) {
-        setDeepLinkWorkspaceHref(buildWorkspaceHrefForIntent(appointmentId, initialIntent));
-      } else {
-        setViewPopup(true);
-      }
-    } else {
-      setViewPopup(true);
-    }
+    const workspaceHref =
+      revampEnabled && canEnterAppointmentWorkspace(target.status)
+        ? buildWorkspaceHrefForIntent(appointmentId, initialIntent)
+        : null;
+    setDeepLinkWorkspaceHref(workspaceHref);
+    if (!workspaceHref) setViewPopup(true);
     handledDeepLinkRef.current = deepLinkKey;
   }, [appointments, searchParams]);
 

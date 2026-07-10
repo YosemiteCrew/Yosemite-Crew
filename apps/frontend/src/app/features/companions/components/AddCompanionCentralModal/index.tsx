@@ -360,33 +360,10 @@ const AddCompanionCentralModal = ({
     });
   }, [clearParentSearchTimeout, defaultPhoneData.selectedCode, initialMode]);
 
-  const modalSyncRef = useRef<ModalSyncState>({ initialMode, showModal });
-  if (
-    modalSyncRef.current.initialMode !== initialMode ||
-    modalSyncRef.current.showModal !== showModal
-  ) {
-    modalSyncRef.current = { initialMode, showModal };
-    if (!showModal) {
-      resetAll();
-    }
-    if (mode !== initialMode) {
-      setMode(initialMode);
-    }
-    if (pendingStatus !== null) {
-      setPendingStatus(null);
-    }
-  }
-
-  // ── Populate edit form from viewCompanion ──
-  const prevEditSyncRef = useRef({ mode, viewCompanion });
-  if (
-    prevEditSyncRef.current.mode !== mode ||
-    prevEditSyncRef.current.viewCompanion !== viewCompanion
-  ) {
-    prevEditSyncRef.current = { mode, viewCompanion };
-    if (mode === 'edit' && viewCompanion) {
-      const c = viewCompanion.companion;
-      const p = viewCompanion.parent;
+  const populateEditForm = useCallback(
+    (source: CompanionParent) => {
+      const c = source.companion;
+      const p = source.parent;
       setCompanionFormData({ ...c, alerts: fromStoredCompanionAlerts((c as any).alerts ?? []) });
       setCompanionDOB(c.dateOfBirth ? new Date(c.dateOfBirth) : null);
       setParentFormData(p);
@@ -404,9 +381,47 @@ const AddCompanionCentralModal = ({
         email: p.email ?? '',
         phone: pd.localNumber,
       };
+    },
+    [
+      setCompanionFormData,
+      setCompanionDOB,
+      setParentFormData,
+      setClientAlerts,
+      setParentDOB,
+      setSelectedCountryCode,
+      setLocalPhoneNumber,
+    ]
+  );
+
+  const syncModalOpenState = () => {
+    if (!showModal) resetAll();
+    if (mode !== initialMode) setMode(initialMode);
+    if (pendingStatus !== null) setPendingStatus(null);
+  };
+  const syncEditForm = () => {
+    if (mode === 'edit' && viewCompanion) {
+      populateEditForm(viewCompanion);
     } else if (mode !== 'edit') {
       editSnapshotRef.current = null;
     }
+  };
+  const modalSyncRef = useRef<ModalSyncState>({ initialMode, showModal });
+  if (
+    modalSyncRef.current.initialMode !== initialMode ||
+    modalSyncRef.current.showModal !== showModal
+  ) {
+    modalSyncRef.current = { initialMode, showModal };
+    syncModalOpenState();
+  }
+
+  // ── Populate edit form from viewCompanion ──
+  const prevEditSyncRef = useRef({ mode, viewCompanion });
+  if (
+    prevEditSyncRef.current.mode !== mode ||
+    prevEditSyncRef.current.viewCompanion !== viewCompanion
+  ) {
+    prevEditSyncRef.current = { mode, viewCompanion };
+    syncEditForm();
   }
 
   // ── Companion search — load all companions when a parent is selected ──
