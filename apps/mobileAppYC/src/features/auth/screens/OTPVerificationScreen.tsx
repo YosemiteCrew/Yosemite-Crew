@@ -53,6 +53,20 @@ const resolveOtpError = (formatted: string): string =>
     ? 'The code you entered is incorrect. Please try again.'
     : formatted;
 
+const buildUserPayload = (
+  completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
+): User => {
+  const baseUser: User = {
+    id: completion.userId,
+    parentId: completion.profile.parent?.id ?? undefined,
+    email: completion.email,
+    profileToken: completion.profile.profileToken,
+    profileCompleted: completion.profile.isComplete,
+  };
+
+  return mergeUserWithParentProfile(baseUser, completion.profile.parent);
+};
+
 type OTPVerificationScreenProps = NativeStackScreenProps<
   AuthStackParamList,
   'OTPVerification'
@@ -133,19 +147,6 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
     }
   };
 
-  const buildUserPayload = (
-    completion: Awaited<ReturnType<typeof completePasswordlessSignIn>>,
-  ): User => {
-    const baseUser: User = {
-      id: completion.userId,
-      parentId: completion.profile.parent?.id ?? undefined,
-      email: completion.email,
-      profileToken: completion.profile.profileToken,
-      profileCompleted: completion.profile.isComplete,
-    };
-
-    return mergeUserWithParentProfile(baseUser, completion.profile.parent);
-  };
   const validateCode = (code: string): boolean => {
     const trimmed = code.trim();
     if (isDemoLogin && trimmed.length === 0) {

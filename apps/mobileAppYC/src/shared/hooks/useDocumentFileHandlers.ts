@@ -620,7 +620,8 @@ export const useDocumentFileHandlers = <T extends DocumentFile>({
   const removeFilesByIds = useCallback(
     (ids: string[]) => {
       if (ids.length) {
-        const next = filesRef.current.filter(file => !ids.includes(file.id));
+        const idsToRemove = new Set(ids);
+        const next = filesRef.current.filter(file => !idsToRemove.has(file.id));
         commitFiles(next);
       }
     },

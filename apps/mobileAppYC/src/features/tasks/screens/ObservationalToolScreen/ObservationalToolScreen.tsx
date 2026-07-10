@@ -65,11 +65,12 @@ const findMatchingField = (
   step: ObservationalToolStep,
 ): ObservationToolField | null => {
   const stepTokens = [step.id, step.title].map(normalizeToken).filter(Boolean);
+  const stepTokenSet = new Set(stepTokens);
   const exactMatch = fields.find(field => {
     const fieldTokens = [field.key, field.label]
       .map(normalizeToken)
       .filter(Boolean);
-    return fieldTokens.some(token => stepTokens.includes(token));
+    return fieldTokens.some(token => stepTokenSet.has(token));
   });
   if (exactMatch) return exactMatch;
   const fuzzyMatch = fields.find(field => {
@@ -473,6 +474,7 @@ export const ObservationalToolScreen: React.FC = () => {
     if (Array.isArray(value)) return value;
     return value ? [value] : [];
   })();
+  const selectionsForStepSet = new Set(selectionsForStep);
   const isStepCompleted = currentStep
     ? !currentStep.required || selectionsForStep.length > 0
     : false;
@@ -781,7 +783,7 @@ export const ObservationalToolScreen: React.FC = () => {
 
   const renderImageOptions = () =>
     currentStep.options.map((option: ObservationalToolOption) => {
-      const selected = selectionsForStep.includes(option.id);
+      const selected = selectionsForStepSet.has(option.id);
       return (
         <Pressable
           key={option.id}
@@ -812,7 +814,7 @@ export const ObservationalToolScreen: React.FC = () => {
   const renderTextOptions = () =>
     currentStep.options.map(
       (option: ObservationalToolOption, index: number) => {
-        const selected = selectionsForStep.includes(option.id);
+        const selected = selectionsForStepSet.has(option.id);
         const showDivider = index < currentStep.options.length - 1;
         return (
           <View key={option.id}>

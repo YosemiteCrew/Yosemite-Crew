@@ -653,9 +653,6 @@ importers:
 
   apps/mobileAppYC:
     dependencies:
-      '@bottom-tabs/react-navigation':
-        specifier: ^1.1.0
-        version: 1.4.0(@react-navigation/native@7.1.28)(react-native-bottom-tabs@1.1.0)(react-native@0.81.4)(react@19.1.0)
       '@callstack/liquid-glass':
         specifier: ^0.7.0
         version: 0.7.0(react-native@0.81.4)(react@19.1.0)
@@ -866,15 +863,9 @@ importers:
       toastify-react-native:
         specifier: ^7.2.3
         version: 7.2.3(react-native@0.81.4)(react@19.1.0)
-      use-sync-external-store:
-        specifier: ^1.6.0
-        version: 1.6.0(react@19.1.0)
       uuid:
         specifier: 11.1.1
         version: 11.1.1
-      yup:
-        specifier: ^1.7.0
-        version: 1.7.1
     devDependencies:
       '@babel/core':
         specifier: ^7.29.6
@@ -4667,21 +4658,6 @@ packages:
   /@bcoe/v8-coverage@0.2.3:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: true
-
-  /@bottom-tabs/react-navigation@1.4.0(@react-navigation/native@7.1.28)(react-native-bottom-tabs@1.1.0)(react-native@0.81.4)(react@19.1.0):
-    resolution: {integrity: sha512-EeOCrecZ4YiVmFASKtoLyQFFFBjbmkV6FBD4Oxyjs9aSexuX4jYbC8yapfnevqyMnYINz0qYTvpUEILciNL+nQ==}
-    peerDependencies:
-      '@react-navigation/native': '>=7'
-      react: '*'
-      react-native: '*'
-      react-native-bottom-tabs: '*'
-    dependencies:
-      '@react-navigation/native': 7.1.28(react-native@0.81.4)(react@19.1.0)
-      color: 5.0.3
-      react: 19.1.0
-      react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
-      react-native-bottom-tabs: 1.1.0(react-native@0.81.4)(react@19.1.0)
-    dev: false
 
   /@braintree/sanitize-url@6.0.4:
     resolution: {integrity: sha512-s3jaWicZd0pkP0jf5ysyHUI/RE7MHos6qlToFcGWXVp+ykHOy77OUMrfbgJ9it2C5bow7OIQwYYaHjk9XlBQ2A==}
@@ -27197,10 +27173,6 @@ packages:
       signal-exit: 3.0.7
     dev: true
 
-  /property-expr@2.0.6:
-    resolution: {integrity: sha512-SVtmxhRE/CGkn3eZY1T6pC8Nln6Fr/lu1mKSgRud0eC73whjGfoAogbn78LkD8aFL0zz3bAFerKSnOl7NlErBA==}
-    dev: false
-
   /property-information@7.1.0:
     resolution: {integrity: sha512-TwEZ+X+yCJmYfL7TPUOcvBZ4QfoT5YenQiJuX//0th53DE6w0xxLEtfK3iyryQFddXuvkIk51EEgrJQ0WJkOmQ==}
     dev: false
@@ -30878,10 +30850,6 @@ packages:
       semver: 5.7.2
     dev: true
 
-  /tiny-case@1.0.3:
-    resolution: {integrity: sha512-Eet/eeMhkO6TX8mnUteS9zgPbUMQa4I6Kkp5ORiBD5476/m+PIRiumP5tmh5ioJpH7k51Kehawy2UDfsnxxY8Q==}
-    dev: false
-
   /tiny-inflate@1.0.3:
     resolution: {integrity: sha512-pkY1fj1cKHb2seWDy0B16HeWyczlJA9/WW3u3c4z/NiWDsO3DOU5D7nhTLE9CF0yXv/QZFY7sEJmj24dK+Rrqw==}
     dev: false
@@ -30981,10 +30949,6 @@ packages:
     resolution: {integrity: sha512-EBJnVBr3dTXdA89WVFoAIPUqkBjxPMwRqsfuo1r240tKFHXv3zgca4+NJib/h6TyvGF7vOawz0jGuryJCdNHrw==}
     engines: {node: '>=20'}
     dev: true
-
-  /toposort@2.0.2:
-    resolution: {integrity: sha512-0a5EOkAUp8D4moMi2W8ZF8jcga7BgZd91O/yabJCFY8az+XSzeGyTKs0Aoo897iV1Nj6guFq8orWDS96z91oGg==}
-    dev: false
 
   /totalist@3.0.1:
     resolution: {integrity: sha512-sf4i37nQ2LBx4m3wB74y+ubopq6W/dIzXg0FDGjsYnZHVa1Da8FH853wlL2gtUhg+xJXjfk3kUZS3BRoQeoQBQ==}
@@ -32935,15 +32899,6 @@ packages:
   /yocto-queue@1.2.2:
     resolution: {integrity: sha512-4LCcse/U2MHZ63HAJVE+v71o7yOdIe4cZ70Wpf8D/IyjDKYQLV5GD46B+hSTjJsvV5PztjvHoU580EftxjDZFQ==}
     engines: {node: '>=12.20'}
-
-  /yup@1.7.1:
-    resolution: {integrity: sha512-GKHFX2nXul2/4Dtfxhozv701jLQHdf6J34YDh2cEkpqoo8le5Mg6/LrdseVLrFarmFygZTlfIhHx/QKfb/QWXw==}
-    dependencies:
-      property-expr: 2.0.6
-      tiny-case: 1.0.3
-      toposort: 2.0.2
-      type-fest: 2.19.0
-    dev: false
 
   /zip-stream@6.0.1:
     resolution: {integrity: sha512-zK7YHHz4ZXpW89AHXUPbQVGKI7uvkd3hzusTdotCg1UxyaVtg0zFJSTfW/Dq5f7OBBVnq6cZIaC8Ti4hb6dtCA==}
