@@ -33,7 +33,7 @@ import type { ChannelPreviewUIComponentProps, ChannelListProps } from 'stream-ch
 import { LuCommand } from 'react-icons/lu';
 import {
   IoArchiveOutline,
-  IoChatboxOutline,
+  IoChatbubbleEllipsesOutline,
   IoGlobeOutline,
   IoSearchOutline,
 } from 'react-icons/io5';
@@ -900,7 +900,7 @@ const RegularChannelWindow: FC<{ currentUserId?: string | null }> = ({ currentUs
 const ChatEmptyThread: FC = () => (
   <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
     <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-chat-panel text-primary-600">
-      <IoChatboxOutline className="h-6 w-6" />
+      <IoChatbubbleEllipsesOutline className="h-6 w-6" />
     </span>
     <Text as="p" variant="body-3-emphasis" className="text-neutral-700">
       No messages yet

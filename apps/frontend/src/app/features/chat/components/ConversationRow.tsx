@@ -2,10 +2,10 @@
 
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import {
-  IoAlarmOutline,
   IoArchiveOutline,
   IoEllipsisVertical,
   IoGlobeOutline,
+  IoMoonOutline,
   IoNotificationsOffOutline,
   IoNotificationsOutline,
   IoPhonePortraitOutline,
@@ -44,16 +44,32 @@ export type ConversationRowProps = Readonly<{
 
 const HOUR_MS = 60 * 60 * 1000;
 
+/** Unread count pill — blue for across-the-network rows, pink brand otherwise. */
+function UnreadBadge({ count, network }: Readonly<{ count: number; network?: boolean }>) {
+  if (network) {
+    return (
+      <span className="inline-flex min-w-[17px] items-center justify-center rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
+        {count}
+      </span>
+    );
+  }
+  return <Badge tone="brand">{count}</Badge>;
+}
+
 function MenuItem({
   icon,
   label,
+  active,
   onClick,
-}: Readonly<{ icon: ReactNode; label: string; onClick: () => void }>) {
+}: Readonly<{ icon: ReactNode; label: string; active?: boolean; onClick: () => void }>) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
+      className={clsx(
+        'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft',
+        active && 'bg-chat-surface-soft'
+      )}
     >
       {icon}
       <Text as="span" variant="body-4" className="text-neutral-900">
@@ -89,7 +105,8 @@ export function ConversationRow({
     <div
       className={clsx(
         'group relative flex items-center pr-1',
-        active ? 'chat-conversation-row--active' : 'rounded-2xl hover:bg-chat-surface-soft'
+        active ? 'chat-conversation-row--active' : 'rounded-2xl hover:bg-chat-surface-soft',
+        muted && !active && 'opacity-[0.62]'
       )}
     >
       <button
@@ -108,6 +125,12 @@ export function ConversationRow({
             >
               {name}
             </Text>
+            {muted && (
+              <IoNotificationsOffOutline
+                aria-label="Muted"
+                className="h-3 w-3 shrink-0 text-neutral-500"
+              />
+            )}
             {viaApp && (
               <IoPhonePortraitOutline
                 aria-label="Messages via pet parent app"
@@ -137,13 +160,7 @@ export function ConversationRow({
             >
               {preview}
             </Text>
-            {muted && (
-              <IoNotificationsOffOutline
-                aria-label="Muted"
-                className="h-3.5 w-3.5 shrink-0 text-neutral-500"
-              />
-            )}
-            {unread ? <Badge tone="brand">{unread}</Badge> : null}
+            {unread ? <UnreadBadge count={unread} network={network} /> : null}
           </span>
         </span>
       </button>
@@ -171,51 +188,10 @@ export function ConversationRow({
                 className="fixed inset-0 z-10 cursor-default"
                 onClick={close}
               />
-              <div className="absolute right-0 top-9 z-20 w-44 rounded-2xl border border-chat-divider bg-neutral-0 p-1.5 shadow-lg">
-                {muted
-                  ? onUnmute && (
-                      <MenuItem
-                        icon={<IoNotificationsOutline className="h-4 w-4 text-neutral-500" />}
-                        label="Unmute"
-                        onClick={() => {
-                          onUnmute();
-                          close();
-                        }}
-                      />
-                    )
-                  : onMute && (
-                      <MenuItem
-                        icon={<IoNotificationsOffOutline className="h-4 w-4 text-neutral-500" />}
-                        label="Mute"
-                        onClick={() => {
-                          onMute();
-                          close();
-                        }}
-                      />
-                    )}
-                {onSnooze && (
-                  <MenuItem
-                    icon={<IoAlarmOutline className="h-4 w-4 text-neutral-500" />}
-                    label="Snooze 1 hour"
-                    onClick={() => {
-                      onSnooze(HOUR_MS);
-                      close();
-                    }}
-                  />
-                )}
-                {onSnooze && (
-                  <MenuItem
-                    icon={<IoAlarmOutline className="h-4 w-4 text-neutral-500" />}
-                    label="Snooze 1 day"
-                    onClick={() => {
-                      onSnooze(24 * HOUR_MS);
-                      close();
-                    }}
-                  />
-                )}
+              <div className="absolute right-0 top-9 z-20 w-[190px] rounded-2xl border border-chat-divider bg-neutral-0 p-1.5 shadow-lg">
                 {onArchive && (
                   <MenuItem
-                    icon={<IoArchiveOutline className="h-4 w-4 text-neutral-500" />}
+                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-neutral-500" />}
                     label="Archive"
                     onClick={() => {
                       onArchive();
@@ -225,13 +201,59 @@ export function ConversationRow({
                 )}
                 {onUnarchive && (
                   <MenuItem
-                    icon={<IoArchiveOutline className="h-4 w-4 text-neutral-500" />}
+                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-neutral-500" />}
                     label="Unarchive"
                     onClick={() => {
                       onUnarchive();
                       close();
                     }}
                   />
+                )}
+                {muted
+                  ? onUnmute && (
+                      <MenuItem
+                        active
+                        icon={<IoNotificationsOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                        label="Unmute"
+                        onClick={() => {
+                          onUnmute();
+                          close();
+                        }}
+                      />
+                    )
+                  : onMute && (
+                      <MenuItem
+                        active
+                        icon={
+                          <IoNotificationsOffOutline className="h-3.5 w-3.5 text-neutral-500" />
+                        }
+                        label="Mute"
+                        onClick={() => {
+                          onMute();
+                          close();
+                        }}
+                      />
+                    )}
+                {onSnooze && (
+                  <>
+                    <div className="my-1 h-px bg-chat-divider" role="separator" />
+                    <MenuItem
+                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                      label="Snooze · 1 hour"
+                      onClick={() => {
+                        onSnooze(HOUR_MS);
+                        close();
+                      }}
+                    />
+                    <MenuItem
+                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                      label="Snooze · 1 day"
+                      onClick={() => {
+                        onSnooze(24 * HOUR_MS);
+                        close();
+                      }}
+                    />
+                  </>
                 )}
               </div>
             </>

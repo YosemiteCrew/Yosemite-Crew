@@ -167,7 +167,7 @@ export const GroupModal: FC<GroupModalProps> = ({
       <div className="flex flex-col h-full gap-6">
         <div className="flex items-center justify-between">
           <div className="text-body-1 text-text-primary">
-            {mode === 'create' ? 'Create group' : 'Group info'}
+            {mode === 'create' ? 'Create group' : `Group chat · ${placeholder.trim() || 'group'}`}
           </div>
           <Close onClick={handleClose} />
         </div>

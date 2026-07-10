@@ -15,7 +15,7 @@
 import { useState, type MouseEvent, type ReactNode, type SyntheticEvent } from 'react';
 import { useMessageContext, useChannelActionContext, Attachment } from 'stream-chat-react';
 import {
-  IoCheckmarkDoneOutline,
+  IoCheckmarkDone,
   IoCheckmarkOutline,
   IoClose,
   IoCreateOutline,
@@ -95,8 +95,7 @@ function MsgIconButton({
 function MessageStatusIcon({ sending, seen }: Readonly<{ sending: boolean; seen: boolean }>) {
   if (sending)
     return <IoTimeOutline aria-label="Sending" className="h-3.5 w-3.5 text-neutral-400" />;
-  if (seen)
-    return <IoCheckmarkDoneOutline aria-label="Seen" className="h-3.5 w-3.5 text-primary-500" />;
+  if (seen) return <IoCheckmarkDone aria-label="Seen" className="h-3.5 w-3.5 text-[var(--blue)]" />;
   return <IoCheckmarkOutline aria-label="Sent" className="h-3.5 w-3.5 text-neutral-400" />;
 }
 

@@ -1,10 +1,9 @@
 /* Stream Chat - Clean Default UI */
 
-/* Selected conversation row reads as a raised white card (warm-bone handoff). */
+/* Selected conversation row: soft warm-bone card with a pink left-stripe. */
 .chat-conversation-row--active {
-  background: var(--screen);
-  border: 1px solid var(--hairline);
-  box-shadow: 0 1px 3px var(--sh05);
+  background: var(--surface-soft);
+  box-shadow: inset 3px 0 0 var(--pink);
   border-radius: 14px;
 }
 

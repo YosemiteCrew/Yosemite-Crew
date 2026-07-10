@@ -23,7 +23,8 @@ import {
   IoDocumentTextOutline,
   IoHappyOutline,
   IoImageOutline,
-  IoSendOutline,
+  IoMicOutline,
+  IoSend,
   IoShareSocialOutline,
 } from 'react-icons/io5';
 import clsx from 'clsx';
@@ -239,12 +240,22 @@ export function ChatComposer() {
 
         <button
           type="button"
+          aria-label="Voice message"
+          title="Voice messages are coming soon"
+          disabled
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-neutral-400 disabled:cursor-not-allowed"
+        >
+          <IoMicOutline className="h-5 w-5" />
+        </button>
+
+        <button
+          type="button"
           aria-label="Send message"
           onClick={send}
           disabled={Boolean(cooldownRemaining)}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white transition-colors hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--cta)] text-[var(--cta-text)] transition-colors hover:bg-[var(--cta-hover)] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <IoSendOutline className="h-5 w-5" />
+          <IoSend className="h-5 w-5" />
         </button>
       </div>
 
