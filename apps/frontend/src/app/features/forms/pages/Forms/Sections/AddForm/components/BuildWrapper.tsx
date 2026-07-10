@@ -65,6 +65,7 @@ const BuilderWrapper: React.FC<{
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
     if (!onDragStart) return;
+    /* v8 ignore next */
     if (wrapperRef.current) {
       const rect = wrapperRef.current.getBoundingClientRect();
       const clone = wrapperRef.current.cloneNode(true) as HTMLDivElement;

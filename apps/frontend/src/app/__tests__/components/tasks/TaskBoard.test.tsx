@@ -221,6 +221,18 @@ describe('TaskBoard', () => {
     expect(setReschedulePopup).toHaveBeenCalledWith(true);
   });
 
+  it('opens the task from the dedicated view (eye) action button', () => {
+    renderBoard();
+
+    // The eye button lives in its own "View task" tooltip; its onClick calls
+    // preventDefault/stopPropagation before opening the task (Build.tsx L236-240).
+    const viewAction = within(screen.getAllByTestId('tooltip-View task')[0]).getByRole('button');
+    fireEvent.click(viewAction);
+
+    expect(setActiveTask).toHaveBeenCalledWith(expect.objectContaining({ _id: 'task-1' }));
+    expect(setViewPopup).toHaveBeenCalledWith(true);
+  });
+
   it('renders computed quick-details and the category value', () => {
     renderBoard();
     // getTaskQuickDetails(task).slice(0,2) → Category + Description
@@ -429,6 +441,23 @@ describe('TaskBoard', () => {
     expect(screen.getByRole('button', { name: 'Open task -' })).toBeInTheDocument();
   });
 
+  it('renders a dash identity when a task has no assignee ids at all', () => {
+    renderBoard({
+      tasks: [
+        {
+          _id: 'na',
+          name: 'Unassigned',
+          status: 'PENDING',
+          dueAt: new Date('2026-03-31T10:00:00Z'),
+        },
+      ] as any,
+    });
+
+    // assignedBy / assignedTo are undefined → resolveMemberIdentity hits `memberId ?? ''`.
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+    expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+  });
+
   it('renders member avatars for members with images and initials otherwise', () => {
     teamMock.mockReturnValue([
       { _id: 'team-1', practionerId: 'user-1', name: 'Dr One', image: 'http://img/u1.png' },
@@ -572,9 +601,11 @@ describe('TaskBoard', () => {
     const columnScroll = firstColumn.querySelector('[data-calendar-scroll="true"]') as HTMLElement;
     const dataTransfer = makeDataTransfer();
 
-    // Before any drag starts, listeners early-return (draggedTaskId is null).
+    // Before any drag starts, listeners early-return (draggedTaskId is null) — including the
+    // per-column scroll-area drag-over handler.
     fireEvent.dragOver(boardRoot, { dataTransfer });
     fireEvent.dragOver(firstColumn, { dataTransfer });
+    fireEvent.dragOver(columnScroll, { dataTransfer });
     fireEvent.drop(firstColumn, { dataTransfer });
     expect(changeTaskStatus).not.toHaveBeenCalled();
 

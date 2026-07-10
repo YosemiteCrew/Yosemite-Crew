@@ -75,8 +75,28 @@ jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWra
   // Real context so Build's <StructureLockContext.Provider> renders; the stub wrapper
   // below ignores the lock (BuilderWrapper's own lock behaviour is covered in its own test).
   StructureLockContext: jest.requireActual('react').createContext(false),
-  default: ({ field, onDelete, onMoveUp, onMoveDown, children }: any) => (
-    <section aria-label={`${field.type.charAt(0).toUpperCase()}${field.type.slice(1)} field`}>
+  default: ({
+    field,
+    onDelete,
+    onMoveUp,
+    onMoveDown,
+    onDragStart,
+    onDragOver,
+    onDrop,
+    onDragEnd,
+    draggable,
+    children,
+  }: any) => (
+    <section
+      aria-label={`${field.type.charAt(0).toUpperCase()}${field.type.slice(1)} field`}
+      data-testid={`wrapper-${field.id}`}
+      data-draggable={draggable ? 'true' : undefined}
+      // Forward Build's drag handlers so reorder/auto-scroll logic is exercisable.
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
       {onMoveUp ? (
         <button type="button" title="Move up" onClick={onMoveUp}>
           up
@@ -243,6 +263,17 @@ describe('Build form step', () => {
     });
     expect(result).toBe(false);
     expect(screen.getByText('Add at least one field to continue.')).toBeInTheDocument();
+  });
+
+  it('passes validation once at least one field exists', () => {
+    renderBuild(baseFormData({ schema: [{ id: 'f-1', type: 'input', label: 'A' } as FormField] }));
+
+    let result = false;
+    act(() => {
+      result = Boolean(capturedValidator?.());
+    });
+    expect(result).toBe(true);
+    expect(screen.queryByText('Add at least one field to continue.')).not.toBeInTheDocument();
   });
 
   it('adds a short text field to schema', () => {
@@ -535,5 +566,519 @@ describe('Build form step', () => {
         'durationDays',
       ]);
     });
+  });
+
+  describe('reorder, delete and move controls', () => {
+    const dragData = () => ({ effectAllowed: '', dropEffect: '', setData: jest.fn() });
+
+    it('reorders a field when it is dragged onto an earlier row', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'number', label: 'B' } as FormField,
+            { id: 'f-3', type: 'input', label: 'C' } as FormField,
+          ],
+        })
+      );
+
+      const dataTransfer = dragData();
+      // Drag the last row and drop it onto the first: jsdom drop events carry no clientY,
+      // so `isAfter` is false and the row lands at the target index (0) — a deterministic move.
+      fireEvent.dragStart(screen.getByTestId('wrapper-f-3'), { dataTransfer });
+      // dragOver runs the auto-scroll path (scrollable resolution + velocity + rAF loop).
+      fireEvent.dragOver(screen.getByTestId('wrapper-f-1'), { dataTransfer });
+      fireEvent.drop(screen.getByTestId('wrapper-f-1'), { dataTransfer });
+
+      expect(readSchema().map((field) => field.id)).toEqual(['f-3', 'f-1', 'f-2']);
+    });
+
+    it('ignores drag-over and drop while nothing is being dragged', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'input', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      const dataTransfer = dragData();
+      fireEvent.dragOver(screen.getByTestId('wrapper-f-2'), { dataTransfer });
+      fireEvent.drop(screen.getByTestId('wrapper-f-2'), { dataTransfer });
+
+      expect(readSchema().map((field) => field.id)).toEqual(['f-1', 'f-2']);
+    });
+
+    it('clears drag state on drag end', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'input', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      const dataTransfer = dragData();
+      fireEvent.dragStart(screen.getByTestId('wrapper-f-1'), { dataTransfer });
+      fireEvent.dragEnd(screen.getByTestId('wrapper-f-1'));
+      // A drop after drag-end is a no-op because the drag index was reset.
+      fireEvent.drop(screen.getByTestId('wrapper-f-2'), { dataTransfer, clientY: 40 });
+
+      expect(readSchema().map((field) => field.id)).toEqual(['f-1', 'f-2']);
+    });
+
+    it('deletes a non-signature field from the schema', () => {
+      renderBuild(
+        baseFormData({ schema: [{ id: 'f-1', type: 'input', label: 'A' } as FormField] })
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'delete-f-1' }));
+
+      expect(readSchema()).toHaveLength(0);
+    });
+
+    it('ignores delete requests while the structure is locked', () => {
+      renderBuild(
+        baseFormData({
+          templateSource: 'YC_LIBRARY',
+          schema: [{ id: 'f-1', type: 'input', label: 'A' } as FormField],
+        })
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'delete-f-1' }));
+
+      expect(readSchema()).toHaveLength(1);
+    });
+
+    it('moves a field up and no-ops at the top boundary', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'number', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      fireEvent.click(within(screen.getByLabelText('Number field')).getByTitle('Move up'));
+      expect(readSchema().map((field) => field.id)).toEqual(['f-2', 'f-1']);
+
+      // f-2 is now at the top; moving up again computes a negative index and bails.
+      fireEvent.click(within(screen.getByLabelText('Number field')).getByTitle('Move up'));
+      expect(readSchema().map((field) => field.id)).toEqual(['f-2', 'f-1']);
+    });
+
+    it('no-ops when moving the last field down past the boundary', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'number', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      fireEvent.click(within(screen.getByLabelText('Number field')).getByTitle('Move down'));
+      expect(readSchema().map((field) => field.id)).toEqual(['f-1', 'f-2']);
+    });
+
+    it('runs the drag auto-scroll machinery when a scroll container is present', () => {
+      // jsdom leaves document.scrollingElement null, which short-circuits the auto-scroll
+      // path; provide a stand-in so handleDragOver resolves a scrollable and schedules a frame.
+      const scroller = document.createElement('div');
+      const original = Object.getOwnPropertyDescriptor(document, 'scrollingElement');
+      Object.defineProperty(document, 'scrollingElement', {
+        configurable: true,
+        get: () => scroller,
+      });
+
+      try {
+        renderBuild(
+          baseFormData({
+            schema: [
+              { id: 'f-1', type: 'input', label: 'A' } as FormField,
+              { id: 'f-2', type: 'input', label: 'B' } as FormField,
+            ],
+          })
+        );
+
+        const dataTransfer = dragData();
+        // First drag ends in a drop → handleDrop cancels the pending animation frame.
+        fireEvent.dragStart(screen.getByTestId('wrapper-f-1'), { dataTransfer });
+        fireEvent.dragOver(screen.getByTestId('wrapper-f-2'), { dataTransfer });
+        fireEvent.drop(screen.getByTestId('wrapper-f-2'), { dataTransfer });
+
+        // Second drag ends without a drop → handleDragEnd cancels the pending frame instead.
+        fireEvent.dragStart(screen.getByTestId('wrapper-f-1'), { dataTransfer });
+        fireEvent.dragOver(screen.getByTestId('wrapper-f-2'), { dataTransfer });
+        fireEvent.dragEnd(screen.getByTestId('wrapper-f-2'));
+
+        expect(screen.getByTestId('wrapper-f-1')).toBeInTheDocument();
+      } finally {
+        if (original) {
+          Object.defineProperty(document, 'scrollingElement', original);
+        } else {
+          delete (document as unknown as { scrollingElement?: unknown }).scrollingElement;
+        }
+      }
+    });
+
+    it('is a no-op when a field is dropped onto itself', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'input', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      const dataTransfer = dragData();
+      // Dropping onto the same row makes from === to → reorderField early-returns.
+      fireEvent.dragStart(screen.getByTestId('wrapper-f-1'), { dataTransfer });
+      fireEvent.drop(screen.getByTestId('wrapper-f-1'), { dataTransfer });
+
+      expect(readSchema().map((field) => field.id)).toEqual(['f-1', 'f-2']);
+    });
+  });
+
+  it('creates each simple field type from the add menu', () => {
+    renderBuild(baseFormData());
+
+    ['Select List', 'Single Choice', 'Multiple Choice', 'Yes / No', 'Date', 'Tasks'].forEach(
+      (label) => selectAddOption(label)
+    );
+
+    expect(readSchema().map((field) => field.type)).toEqual([
+      'dropdown',
+      'radio',
+      'checkbox',
+      'boolean',
+      'date',
+      'group',
+    ]);
+  });
+
+  it('closes the add-field menu when clicking outside it', () => {
+    renderBuild(baseFormData());
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'toggle-add-field' })[0]);
+    expect(screen.getByRole('button', { name: 'Short Text' })).toBeInTheDocument();
+
+    // useOutsideClick: a mousedown outside the open dropdown closes it.
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('button', { name: 'Short Text' })).not.toBeInTheDocument();
+  });
+
+  it('falls back to default option sets for task-block dropdowns without options', () => {
+    const leaf = (key: string, type: string): FormField =>
+      ({
+        id: `tbx_${key}`,
+        type,
+        label: key,
+        meta: { taskBlockKey: key },
+      }) as unknown as FormField;
+
+    const taskGroup: FormField = {
+      id: 'task_blocks',
+      type: 'group',
+      label: 'Tasks',
+      meta: { taskGroup: true } as any,
+      fields: [
+        {
+          id: 'tbx',
+          type: 'group',
+          label: 'Task 1',
+          meta: { taskBlock: true } as any,
+          fields: [
+            leaf('name', 'input'),
+            leaf('category', 'dropdown'),
+            leaf('additionalNotes', 'textarea'),
+            leaf('recurrence.type', 'dropdown'),
+            leaf('reminderOffsetMinutes', 'dropdown'),
+            leaf('durationDays', 'number'),
+          ],
+        } as unknown as FormField,
+      ],
+    } as FormField;
+
+    renderBuild(baseFormData({ schema: [taskGroup] }));
+
+    // The category/repeat/reminder dropdowns have no options → each ternary falls back
+    // to its TASK_*_FIELD_OPTIONS constant.
+    expect(screen.getByText('Task 1')).toBeInTheDocument();
+  });
+
+  it('treats an undefined signer as not signature-eligible', () => {
+    renderBuild(baseFormData({ requiredSigner: undefined }));
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'toggle-add-field' })[0]);
+    expect(screen.queryByRole('button', { name: 'Signature' })).not.toBeInTheDocument();
+  });
+
+  it('re-seeds service groups already present in the schema on mount', () => {
+    const serviceGroup: FormField = {
+      id: 'svc-group',
+      type: 'group',
+      label: 'Services',
+      meta: { serviceGroup: true } as any,
+      fields: [],
+    } as FormField;
+
+    renderBuild(baseFormData({ schema: [serviceGroup] }));
+
+    // ensureServiceCheckbox seeds a checkbox child via the mount effect.
+    const schema = readSchema();
+    const seeded = schema[0] as FormField & { fields?: FormField[] };
+    expect(seeded.fields?.some((field) => field.type === 'checkbox')).toBe(true);
+  });
+
+  it('skips the service-seed effect when there are no service options', () => {
+    const serviceGroup: FormField = {
+      id: 'svc-group',
+      type: 'group',
+      label: 'Services',
+      meta: { serviceGroup: true } as any,
+      fields: [],
+    } as FormField;
+
+    renderBuild(baseFormData({ schema: [serviceGroup] }), []);
+
+    // No service options → the seeding effect early-returns, group stays childless.
+    const schema = readSchema();
+    const seeded = schema[0] as FormField & { fields?: FormField[] };
+    expect(seeded.fields ?? []).toHaveLength(0);
+  });
+
+  it('renders every nested field kind inside a generic group and removes a nested field', () => {
+    const group: FormField = {
+      id: 'grp-1',
+      type: 'group',
+      label: 'Section',
+      fields: [
+        { id: 'n-1', type: 'input', label: 'Nested input' } as FormField,
+        { id: 'sub-1', type: 'group', label: 'Sub', fields: [] } as FormField,
+        {
+          id: 'med-n',
+          type: 'group',
+          label: 'Meds',
+          meta: { medicationGroup: true } as any,
+          fields: [],
+        } as FormField,
+        {
+          id: 'task-n',
+          type: 'group',
+          label: 'Tasks',
+          meta: { taskGroup: true } as any,
+          fields: [],
+        } as FormField,
+      ],
+    } as FormField;
+
+    renderBuild(baseFormData({ schema: [group] }));
+
+    // FieldBuilder (nested input), TaskGroupBuilder and MedicationGroupBuilder all render.
+    expect(screen.getByTestId('builder-n-1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Add task block/i })).toBeInTheDocument();
+    expect(screen.getByTestId('medicine-dropdown')).toBeInTheDocument();
+
+    // Deleting the nested input runs removeNestedField on the group.
+    fireEvent.click(screen.getByRole('button', { name: 'delete-n-1' }));
+    expect(screen.queryByTestId('builder-n-1')).not.toBeInTheDocument();
+  });
+
+  it('adds a nested field inside a generic group via its own add dropdown', () => {
+    const group: FormField = {
+      id: 'grp-1',
+      type: 'group',
+      label: 'Section',
+      fields: [],
+    } as FormField;
+
+    renderBuild(baseFormData({ schema: [group] }));
+
+    // The group renders its own add dropdown (second toggle-add-field button).
+    const toggles = screen.getAllByRole('button', { name: 'toggle-add-field' });
+    fireEvent.click(toggles[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Short Text' })[0]);
+
+    const schema = readSchema();
+    const updatedGroup = schema[0] as FormField & { fields?: FormField[] };
+    expect(updatedGroup.fields).toHaveLength(1);
+    expect(updatedGroup.fields?.[0].type).toBe('input');
+  });
+
+  it('edits the group name of a generic group', () => {
+    const group: FormField = {
+      id: 'grp-1',
+      type: 'group',
+      label: 'Section',
+      fields: [],
+    } as FormField;
+
+    renderBuild(baseFormData({ schema: [group] }));
+
+    fireEvent.change(screen.getByTestId('group-grp-1-label'), { target: { value: 'Vitals' } });
+
+    const schema = readSchema();
+    expect(schema[0].label).toBe('Vitals');
+  });
+
+  it('edits a medicine card field, writing back into the prescription leaf field', async () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: 'org-1' })
+    );
+    (fetchInventoryItems as jest.Mock).mockResolvedValue([
+      {
+        _id: 'med-1',
+        name: 'Amoxicillin',
+        itemType: 'DRUG',
+        strength: '250 mg',
+        dosageForm: 'Tablet',
+        routeOfAdministration: 'Oral',
+        sellingPrice: 25,
+      },
+    ]);
+
+    renderBuild(
+      baseFormData({
+        schema: [
+          {
+            id: 'mg-1',
+            type: 'group',
+            label: 'Medication',
+            meta: { medicationGroup: true } as any,
+            fields: [],
+          } as FormField,
+        ],
+      })
+    );
+
+    fireEvent.click(await screen.findByRole('option', { name: 'Amoxicillin (250 mg • Oral)' }));
+
+    // The added medicine renders a MedicineCard whose Duration input writes 'durationDays'.
+    const durationInput = await screen.findByTestId('mg-1_med_1_group-duration');
+    fireEvent.change(durationInput, { target: { value: '7' } });
+
+    await waitFor(() => {
+      const medGroup = readSchema()[0] as any;
+      const durationLeaf = medGroup.fields[0].fields.find(
+        (f: any) => f.meta?.prescriptionField === 'durationDays'
+      );
+      expect(durationLeaf.defaultValue).toBe('7');
+    });
+  });
+
+  it('adds, edits, duplicates and removes task blocks in a task group', () => {
+    const taskField = (key: string, type: string, extra: Record<string, unknown> = {}): FormField =>
+      ({
+        id: `tb_${key}`,
+        type,
+        label: key,
+        meta: { taskBlockKey: key },
+        ...extra,
+      }) as unknown as FormField;
+
+    const block: FormField = {
+      id: 'tb-1',
+      type: 'group',
+      label: 'Task 1',
+      meta: { taskBlock: true, taskBlockId: 'tb-1' } as any,
+      fields: [
+        taskField('name', 'input', { defaultValue: 'Vitals' }),
+        taskField('category', 'dropdown', {
+          defaultValue: 'CARE',
+          options: [{ label: 'CategoryCare', value: 'CARE' }],
+        }),
+        taskField('additionalNotes', 'textarea'),
+        taskField('recurrence.type', 'dropdown', {
+          defaultValue: 'EVERY_6_HOURS',
+          options: [{ label: 'Repeat6h', value: 'EVERY_6_HOURS' }],
+        }),
+        taskField('reminderOffsetMinutes', 'dropdown', {
+          defaultValue: '5',
+          options: [{ label: 'Remind5', value: '5' }],
+        }),
+        taskField('durationDays', 'number', { defaultValue: '3' }),
+      ],
+    } as FormField;
+
+    const taskGroup: FormField = {
+      id: 'task_blocks',
+      type: 'group',
+      label: 'Tasks',
+      meta: { taskGroup: true } as any,
+      fields: [block],
+    } as FormField;
+
+    renderBuild(baseFormData({ schema: [taskGroup] }));
+
+    // Existing block renders as a TaskBlockCard with header actions.
+    expect(screen.getByText('Task 1')).toBeInTheDocument();
+
+    // Edit the title → setKeyValue('name') rewrites the leaf defaultValue.
+    fireEvent.change(screen.getByTestId('tb-1-title'), { target: { value: 'Record vitals' } });
+    expect(
+      (readSchema()[0] as any).fields[0].fields.find((f: any) => f.meta?.taskBlockKey === 'name')
+        .defaultValue
+    ).toBe('Record vitals');
+
+    // Pick a category option → setKeyValue('category').
+    fireEvent.click(screen.getByRole('option', { name: 'CategoryCare' }));
+    expect(
+      (readSchema()[0] as any).fields[0].fields.find(
+        (f: any) => f.meta?.taskBlockKey === 'category'
+      ).defaultValue
+    ).toBe('CARE');
+
+    // "Add another task" is shown because a block already exists (blocks.length > 0).
+    fireEvent.click(screen.getByRole('button', { name: /Add another task/i }));
+    expect((readSchema()[0] as any).fields).toHaveLength(2);
+
+    // Duplicate then remove the first task block.
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate task 1' }));
+    expect((readSchema()[0] as any).fields).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove task 1' }));
+    expect((readSchema()[0] as any).fields).toHaveLength(2);
+  });
+
+  it('removes a medicine from a medication group', async () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: 'org-1' })
+    );
+    (fetchInventoryItems as jest.Mock).mockResolvedValue([
+      {
+        _id: 'med-1',
+        name: 'Amoxicillin',
+        itemType: 'DRUG',
+        strength: '250 mg',
+        dosageForm: 'Tablet',
+        routeOfAdministration: 'Oral',
+        sellingPrice: 25,
+      },
+    ]);
+
+    renderBuild(
+      baseFormData({
+        schema: [
+          {
+            id: 'mg-1',
+            type: 'group',
+            label: 'Medication',
+            meta: { medicationGroup: true } as any,
+            fields: [],
+          } as FormField,
+        ],
+      })
+    );
+
+    fireEvent.click(await screen.findByRole('option', { name: 'Amoxicillin (250 mg • Oral)' }));
+    await waitFor(() => expect((readSchema()[0] as any).fields).toHaveLength(1));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Amoxicillin' }));
+    await waitFor(() => expect((readSchema()[0] as any).fields).toHaveLength(0));
   });
 });

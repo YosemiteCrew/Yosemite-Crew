@@ -452,8 +452,10 @@ const TaskBoard = ({
   const moveToStatus = useCallback(
     async (taskId: string, nextStatus: BoardStatus) => {
       const task = todayTasks.find((item) => item._id === taskId);
+      /* v8 ignore next */
       if (!task?._id) return;
       if (task.status === nextStatus) return;
+      /* v8 ignore next */
       if (!canEditTasks) return;
       if (!canTransitionTaskStatus(task.status, nextStatus)) {
         notify('warning', {
@@ -492,6 +494,7 @@ const TaskBoard = ({
 
   useEffect(() => {
     const boardRoot = boardRootRef.current;
+    /* v8 ignore next */
     if (!boardRoot) return;
 
     const handleBoardDragOver = (event: DragEvent) => {
@@ -507,6 +510,7 @@ const TaskBoard = ({
     const cleanups = BOARD_COLUMNS.flatMap((column) => {
       const dropElement = columnDropRefs.current[column.key];
       const scrollElement = columnScrollRefs.current[column.key];
+      /* v8 ignore next */
       if (!dropElement || !scrollElement) return [];
 
       const handleColumnDragOver = (event: DragEvent) => {

@@ -23,8 +23,9 @@ jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
   useCompanionTerminologyText: () => (text: string) => text,
 }));
 
+const mockGetParentById = jest.fn(() => null as any);
 jest.mock('@/app/stores/parentStore', () => ({
-  useParentStore: (selector: any) => selector({ getParentById: () => null }),
+  useParentStore: (selector: any) => selector({ getParentById: mockGetParentById }),
 }));
 
 jest.mock('@/app/ui/overlays/Modal', () => ({
@@ -68,7 +69,12 @@ jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceBilledTo', () =>
 
 jest.mock('@/app/features/finance/pages/Finance/Sections/InvoicePaymentLedger', () => ({
   __esModule: true,
-  default: () => <div data-testid="payment-ledger" />,
+  default: ({ payerName, payerEmail }: any) => (
+    <div data-testid="payment-ledger">
+      <span data-testid="ledger-payer-name">{payerName}</span>
+      <span data-testid="ledger-payer-email">{payerEmail}</span>
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
@@ -127,9 +133,10 @@ jest.mock('@/app/lib/appointments', () => ({
   }),
 }));
 
+const mockGetOwnerFirstName = jest.fn(() => 'Lena' as string);
 jest.mock('@/app/lib/companionName', () => ({
   formatCompanionNameWithOwnerLastName: () => 'Lena Hartmann / Poppy',
-  getOwnerFirstName: () => 'Lena',
+  getOwnerFirstName: () => mockGetOwnerFirstName(),
 }));
 
 jest.mock('@/app/lib/validators', () => ({
@@ -145,6 +152,10 @@ describe('InvoiceInfo', () => {
     const invoiceLib = jest.requireMock('@/app/lib/invoice');
     (invoiceLib.getAppointmentByIdFromList as jest.Mock).mockReturnValue(undefined);
     mockPush.mockClear();
+    mockGetParentById.mockReset();
+    mockGetParentById.mockReturnValue(null);
+    mockGetOwnerFirstName.mockReset();
+    mockGetOwnerFirstName.mockReturnValue('Lena');
   });
 
   it('renders modal with enriched header and tabs', () => {
@@ -273,6 +284,99 @@ describe('InvoiceInfo', () => {
     expect(mockPush).toHaveBeenCalledTimes(1);
     expect(mockPush.mock.calls[0][0]).toContain('appointmentId=appt-1');
     expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('composes the payer name from a stored parent, tolerating a missing surname', () => {
+    // parentId present → useParentStore returns a stored parent → the storedParent
+    // branch (InvoiceInfo L85-91) runs: firstName trims, undefined lastName short-circuits
+    // the optional chain, and the non-empty composed value is returned as payerName.
+    mockGetParentById.mockReturnValue({
+      firstName: 'Lena',
+      lastName: undefined,
+      email: 'lena@x.com',
+    });
+    const setShowModal = jest.fn();
+    render(
+      <InvoiceInfo
+        showModal
+        setShowModal={setShowModal}
+        activeInvoice={{ ...baseInvoice, parentId: 'p1' }}
+      />
+    );
+
+    expect(screen.getByTestId('ledger-payer-name')).toHaveTextContent('Lena');
+    expect(screen.getByTestId('ledger-payer-email')).toHaveTextContent('lena@x.com');
+  });
+
+  it('skips a stored parent whose name parts are all blank and clears the payer email', () => {
+    // storedParent is truthy but every name part trims to empty → composed collapses to ''
+    // → the `if (composed)` arm is skipped and payerName falls through to '' (no appointment).
+    mockGetParentById.mockReturnValue({ firstName: '  ', lastName: '', email: '' });
+    const setShowModal = jest.fn();
+    render(
+      <InvoiceInfo
+        showModal
+        setShowModal={setShowModal}
+        activeInvoice={{ ...baseInvoice, parentId: 'p1' }}
+      />
+    );
+
+    expect(screen.getByTestId('ledger-payer-name').textContent).toBe('');
+    expect(screen.getByTestId('ledger-payer-email').textContent).toBe('');
+  });
+
+  it('renders the shell without an active invoice, skipping every invoice-gated block', () => {
+    // activeInvoice=null exercises the falsy arm of the header / details-billing / ledger guards
+    // and the `activeInvoice?.x ?? default` nullish fallbacks throughout.
+    const setShowModal = jest.fn();
+    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={null} />);
+
+    expect(screen.getByTestId('modal')).toBeInTheDocument();
+    expect(screen.queryByTestId('invoice-header')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('billed-items')).not.toBeInTheDocument();
+    // The static accordions still render even without an invoice.
+    expect(screen.getByText('Appointment details')).toBeInTheDocument();
+
+    // Payment tab: no ledger (invoice-gated) but the Pay card status falls back to '-'.
+    fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
+    expect(screen.queryByTestId('payment-ledger')).not.toBeInTheDocument();
+    expect(screen.getByText('-')).toBeInTheDocument();
+  });
+
+  it('falls back the status label arms when the invoice status is empty', () => {
+    const setShowModal = jest.fn();
+    render(
+      <InvoiceInfo
+        showModal
+        setShowModal={setShowModal}
+        activeInvoice={{ ...baseInvoice, status: '' }}
+      />
+    );
+
+    // Empty status → invoiceStatusLabel is '' → the accordion rightElement is omitted (details tab).
+    expect(screen.queryByText('PAID')).not.toBeInTheDocument();
+
+    // Payment tab: the status pill uses the `|| '-'` fallback.
+    fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
+    expect(screen.getByText('-')).toBeInTheDocument();
+  });
+
+  it('falls back to a dash when a linked appointment has no owner first name', () => {
+    const invoiceLib = jest.requireMock('@/app/lib/invoice');
+    (invoiceLib.getAppointmentByIdFromList as jest.Mock).mockReturnValue({
+      id: 'appt-1',
+      appointmentType: { name: 'Rabies booster' },
+      organisationId: 'org-1',
+    });
+    mockGetOwnerFirstName.mockReturnValue('');
+
+    const setShowModal = jest.fn();
+    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
+
+    // getOwnerFirstName() → '' exercises the `|| '-'` arm in appointmentInfoData and the
+    // empty payer-name path (storedParent absent, appointment present).
+    expect(screen.getByTestId('ledger-payer-name').textContent).toBe('');
+    expect(screen.getByText('Appointment details')).toBeInTheDocument();
   });
 
   it('has no axe accessibility violations', async () => {
