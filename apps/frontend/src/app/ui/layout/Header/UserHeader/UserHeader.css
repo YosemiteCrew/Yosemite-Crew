@@ -1,11 +1,12 @@
 .yc-user-header-shell {
-  min-height: 80px;
+  min-height: 64px;
 }
 
 /* App (signed-in) header: a SUBTLE warm frosted-glass bar — the marketing shell's
    heavy brand-glow frost is neutralised here for a calm chrome. Sticky, so content
    scrolls under it. Two-class selector guarantees it beats .yc-liquid-header-shell. */
 .yc-user-header-shell.yc-liquid-header-shell {
+  min-height: 64px;
   background: var(--glass-93);
   border-bottom: 1px solid var(--hairline-soft);
   box-shadow:
@@ -30,11 +31,11 @@
 .yc-user-header {
   display: grid;
   width: 100%;
-  height: 80px;
+  height: 64px;
   grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
   align-items: center;
   gap: 18px;
-  padding: 0 24px;
+  padding: 0 26px;
 }
 
 .yc-header-left,
@@ -184,6 +185,16 @@
   white-space: nowrap;
 }
 
+.yc-header-primary-text {
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.yc-profile-name {
+  font-weight: 600;
+}
+
 .yc-chevron-open {
   transform: rotate(180deg);
 }
@@ -298,10 +309,10 @@
 .yc-command-button {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   border-radius: 16px;
   color: var(--color-text-secondary);
-  padding: 0 11px;
+  padding: 0 13px;
   /* Warm-glass command pill. */
   border: 1px solid var(--hairline-soft);
   background: var(--glass-93);
@@ -313,35 +324,62 @@
 }
 
 .yc-command-key {
-  display: inline-flex;
-  min-width: 22px;
-  height: 22px;
-  align-items: center;
-  justify-content: center;
-  /* Glass keycap — material only (no nested backdrop-filter: it already sits on
-     two frosted layers, so the sheen + translucency carry the glass read). */
-  border: 1px solid var(--hairline-soft);
-  border-radius: 16px;
-  background: var(--glass-93);
-  box-shadow: inset 0 1px 0 var(--glass-inset-hi);
-  color: var(--color-text-primary);
-  font-size: 11px;
-  font-weight: 650;
+  color: var(--color-text-tertiary);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0;
   line-height: 1;
 }
 
-.yc-command-divider {
+.yc-command-label {
   color: var(--color-text-tertiary);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
 .yc-icon-button {
+  position: relative;
   display: inline-flex;
   width: 42px;
   align-items: center;
   justify-content: center;
   border-radius: 16px;
+}
+
+/* Unread notifications badge — a small pulsing pink dot with a screen-coloured
+   ring, pinned to the top-right of the bell button. */
+.yc-notification-dot {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--pink);
+  border: 1.5px solid var(--screen);
+  animation: ycPulsePink 3.4s cubic-bezier(0.4, 0, 0.2, 1) 1s infinite;
+}
+
+@keyframes ycPulsePink {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 144, 212, 0.45);
+  }
+
+  60% {
+    box-shadow: 0 0 0 6px rgba(255, 144, 212, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 144, 212, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yc-notification-dot {
+    animation: none;
+  }
 }
 
 .yc-profile-wrap {

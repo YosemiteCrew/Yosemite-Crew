@@ -533,17 +533,15 @@ const UserHeader = () => {
           className="yc-command-button"
           aria-label="Open universal search"
         >
-          <span className="yc-command-key">⌘</span>
-          <span className="yc-command-divider">/</span>
-          <span className="yc-command-key">Ctrl</span>
-          <span className="yc-command-divider">+</span>
-          <span className="yc-command-key">K</span>
+          <span className="yc-command-key">⌘K</span>
+          <span className="yc-command-label">Universal search</span>
         </button>
 
         <ThemeToggle />
 
         <button type="button" className="yc-icon-button" aria-label="Notifications">
           <IoNotifications size={19} />
+          <span className="yc-notification-dot" aria-hidden />
         </button>
 
         <div className="yc-profile-wrap" ref={profileDropdownRef}>

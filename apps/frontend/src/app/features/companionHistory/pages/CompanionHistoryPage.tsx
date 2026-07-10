@@ -394,7 +394,7 @@ const CompanionHistoryPageInner = () => {
                 >
                   <IoIosArrowBack size={22} aria-hidden="true" />
                 </button>
-                <h1 className="text-heading-2 font-newsreader text-text-primary">{historyTitle}</h1>
+                <h1 className="text-page-title text-text-primary">{historyTitle}</h1>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {companionAlerts.map((alert) => (
                     <AlertPill

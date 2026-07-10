@@ -138,7 +138,7 @@ const StripeOnboarding = () => {
       </div>
 
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-heading-1 text-text-primary font-newsreader">Stripe onboarding</h1>
+        <h1 className="text-page-title text-text-primary">Stripe onboarding</h1>
         <p className="max-w-[460px] text-body-3 text-text-secondary">
           Complete your Stripe setup to accept card payments, verify tax details, and review payout
           information for your organization.

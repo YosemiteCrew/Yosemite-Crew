@@ -49,7 +49,7 @@ const TitleCalendar = ({
   return (
     <div className="flex w-full flex-wrap items-center justify-between gap-x-6 gap-y-2">
       <div className="flex min-w-0 items-center gap-2">
-        <h1 className="flex min-w-0 items-center gap-2 text-heading-2 font-newsreader text-text-primary">
+        <h1 className="flex min-w-0 items-center gap-2 text-page-title text-text-primary">
           <span>
             {title}
             <span className="text-body-2 text-text-secondary">{` (${count})`}</span>

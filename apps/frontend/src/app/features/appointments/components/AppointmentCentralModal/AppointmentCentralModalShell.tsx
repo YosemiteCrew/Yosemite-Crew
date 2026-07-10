@@ -77,12 +77,10 @@ const AppointmentCentralModalShell = ({
         {/* Header */}
         <div
           className="flex items-center justify-between px-4 py-3 sm:px-6 shrink-0 border-b border-card-border"
-          style={{ background: 'var(--color-neutral-100)' }}
+          style={{ background: 'var(--screen)' }}
         >
-          <div className="flex-1" />
           <h2
             id={titleId}
-            className="flex-1 text-center"
             style={{
               fontFamily: 'var(--font-satoshi), sans-serif',
               fontSize: 24,
@@ -94,20 +92,18 @@ const AppointmentCentralModalShell = ({
           >
             {title}
           </h2>
-          <div className="flex-1 flex justify-end">
-            <button
-              type="button"
-              aria-label="Close"
-              className="flex items-center justify-center size-8 rounded-full hover:bg-card-hover transition-colors"
-              onClick={() => {
-                if (canClose && !canClose()) return;
-                setShowModal(false);
-                onClose?.();
-              }}
-            >
-              <IoClose size={20} aria-hidden="true" />
-            </button>
-          </div>
+          <button
+            type="button"
+            aria-label="Close"
+            className="flex items-center justify-center size-8 shrink-0 rounded-full border border-[var(--hairline)] hover:border-[var(--hairline-hover)] transition-colors"
+            onClick={() => {
+              if (canClose && !canClose()) return;
+              setShowModal(false);
+              onClose?.();
+            }}
+          >
+            <IoClose size={16} color="var(--ink-faint)" aria-hidden="true" />
+          </button>
         </div>
 
         {/* Body */}

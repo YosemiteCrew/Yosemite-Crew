@@ -42,7 +42,7 @@ const DeveloperWebsiteBuilder = () => {
       <div className="OperationsWrapper">
         <div className="TitleContainer">
           <div className="dev-wb-heading">
-            <h1 className="text-heading-1 text-text-primary font-newsreader">Website builder</h1>
+            <h1 className="text-page-title text-text-primary">Website builder</h1>
             <p className="text-body-3 text-text-secondary">
               A clinic website with booking built in, live in an afternoon.
             </p>
