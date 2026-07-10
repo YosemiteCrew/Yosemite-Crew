@@ -211,7 +211,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
       id={popoverId}
       ref={popoverDialogRef}
       open
-      className="fixed z-[1000] w-[440px] rounded-3xl border border-card-border bg-neutral-0 p-5 shadow-[0_18px_45px_rgba(0,0,0,0.14)]"
+      className="yc-glass-overlay fixed z-[1000] w-[440px] rounded-3xl p-5"
       style={popoverStyle}
       aria-labelledby={titleId}
       aria-modal="false"

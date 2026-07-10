@@ -2,6 +2,31 @@
   min-height: 80px;
 }
 
+/* App (signed-in) header: a SUBTLE warm frosted-glass bar — the marketing shell's
+   heavy brand-glow frost is neutralised here for a calm chrome. Sticky, so content
+   scrolls under it. Two-class selector guarantees it beats .yc-liquid-header-shell. */
+.yc-user-header-shell.yc-liquid-header-shell {
+  background: var(--glass-93);
+  border-bottom: 1px solid var(--hairline-soft);
+  box-shadow:
+    inset 0 1px 0 var(--glass-inset-hi),
+    0 8px 24px var(--sh08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+}
+
+.yc-user-header-shell.yc-liquid-header-shell::before,
+.yc-user-header-shell.yc-liquid-header-shell::after {
+  display: none;
+  content: none;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .yc-user-header-shell.yc-liquid-header-shell {
+    background: var(--screen);
+  }
+}
+
 .yc-user-header {
   display: grid;
   width: 100%;
@@ -85,6 +110,14 @@
   gap: 9px;
   border-radius: 16px;
   padding: 4px 10px 4px 5px;
+  /* Warm-glass chrome pill — translucent cream/espresso with a top sheen. */
+  border: 1px solid var(--hairline-soft);
+  background: var(--glass-93);
+  box-shadow:
+    inset 0 1px 0 var(--glass-inset-hi),
+    0 8px 22px var(--sh05);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
 }
 
 .yc-header-org-trigger {
@@ -165,19 +198,16 @@
   min-width: 220px;
   flex-direction: column;
   gap: 5px;
-  border: 1px solid color-mix(in srgb, var(--color-card-border) 88%, transparent);
+  /* Warm liquid-glass popover — unified with the shared overlay recipe. */
+  border: 1px solid var(--hairline-soft);
   border-radius: 16px;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-neutral-0) 94%, transparent),
-      color-mix(in srgb, var(--color-neutral-0) 82%, transparent)
-    ),
-    var(--color-surface-card);
-  box-shadow: 0 18px 44px color-mix(in srgb, var(--color-neutral-950) 12%, transparent);
+  background: var(--glass-93);
+  box-shadow:
+    0 18px 44px var(--sh12),
+    inset 0 1px 0 var(--glass-inset-hi);
   padding: 8px;
-  backdrop-filter: blur(20px) saturate(165%);
-  -webkit-backdrop-filter: blur(20px) saturate(165%);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
 }
 
 .yc-profile-panel {
@@ -247,10 +277,15 @@
   height: 42px !important;
   width: min(280px, 22vw) !important;
   border-radius: 16px !important;
-  border: 1px solid color-mix(in srgb, var(--color-card-border) 78%, transparent);
-  background: color-mix(in srgb, var(--color-neutral-0) 76%, transparent);
+  /* Warm-glass search pill. */
+  border: 1px solid var(--hairline-soft);
+  background: var(--glass-93);
   padding: 0 14px !important;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-neutral-0) 72%, transparent);
+  box-shadow:
+    inset 0 1px 0 var(--glass-inset-hi),
+    0 8px 22px var(--sh05);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
 }
 
 .yc-header-search input {
@@ -267,6 +302,14 @@
   border-radius: 16px;
   color: var(--color-text-secondary);
   padding: 0 11px;
+  /* Warm-glass command pill. */
+  border: 1px solid var(--hairline-soft);
+  background: var(--glass-93);
+  box-shadow:
+    inset 0 1px 0 var(--glass-inset-hi),
+    0 8px 22px var(--sh05);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
 }
 
 .yc-command-key {
@@ -275,9 +318,12 @@
   height: 22px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-card-border);
+  /* Glass keycap — material only (no nested backdrop-filter: it already sits on
+     two frosted layers, so the sheen + translucency carry the glass read). */
+  border: 1px solid var(--hairline-soft);
   border-radius: 16px;
-  background: color-mix(in srgb, var(--color-neutral-0) 82%, transparent);
+  background: var(--glass-93);
+  box-shadow: inset 0 1px 0 var(--glass-inset-hi);
   color: var(--color-text-primary);
   font-size: 11px;
   font-weight: 650;

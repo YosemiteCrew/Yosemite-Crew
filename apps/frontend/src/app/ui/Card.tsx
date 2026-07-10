@@ -7,8 +7,8 @@ export type CardProps = {
 } & HTMLAttributes<HTMLDivElement>;
 
 const variantClassMap: Record<NonNullable<CardProps['variant']>, string> = {
-  default: 'bg-neutral-0 border border-card-border',
-  bordered: 'bg-neutral-0 border border-card-border',
+  default: 'bg-neutral-0 border border-card-border yc-card-elevated',
+  bordered: 'bg-neutral-0 border border-card-border yc-card-elevated',
   subtle: 'bg-card-bg border border-card-border',
 };
 

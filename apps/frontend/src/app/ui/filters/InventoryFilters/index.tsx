@@ -233,7 +233,7 @@ const InventoryFilters = ({
           createPortal(
             <div
               ref={panelRef}
-              className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              className="yc-glass-overlay rounded-2xl overflow-hidden"
               style={dropdownStyle}
             >
               {StockHealthOptions.map((option) => {

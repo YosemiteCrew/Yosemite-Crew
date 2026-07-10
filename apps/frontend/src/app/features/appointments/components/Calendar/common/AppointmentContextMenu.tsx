@@ -396,14 +396,14 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
         role="menu"
         aria-label="Appointment context actions"
         data-context-menu="true"
-        className="fixed z-[1001] overflow-hidden rounded-[22px] border border-white/45 bg-neutral-0/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
+        className="fixed z-[1001] overflow-hidden rounded-[22px] yc-glass-overlay px-1.5 py-2"
         style={menuPositionStyle}
       >
         <div className="flex flex-col gap-0.5">
           {actions.map((action, index) => (
             <React.Fragment key={action.key}>
               {index > 0 ? (
-                <div className="mx-1 border-t border-white/30" aria-hidden="true" />
+                <div className="mx-1 border-t border-[var(--hairline-soft)]" aria-hidden="true" />
               ) : null}
               <button
                 ref={(element) => {
@@ -441,7 +441,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
           ))}
         </div>
         {menuError ? (
-          <div className="mt-0.5 border-t border-white/30 px-1.5 py-1 text-[9px] leading-3.5 text-text-error">
+          <div className="mt-0.5 border-t border-[var(--hairline-soft)] px-1.5 py-1 text-[9px] leading-3.5 text-text-error">
             {menuError}
           </div>
         ) : null}
@@ -453,14 +453,14 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
           role="menu"
           aria-label="Change appointment status"
           data-context-menu="true"
-          className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-neutral-0/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
+          className="fixed z-[1002] overflow-hidden rounded-[22px] yc-glass-overlay px-1.5 py-2"
           style={submenuStyle}
         >
           <div className="flex flex-col gap-0.5">
             {statusOptions.map((status, index) => (
               <React.Fragment key={status}>
                 {index > 0 ? (
-                  <div className="mx-1 border-t border-white/30" aria-hidden="true" />
+                  <div className="mx-1 border-t border-[var(--hairline-soft)]" aria-hidden="true" />
                 ) : null}
                 <button
                   type="button"
@@ -488,7 +488,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
           role="menu"
           aria-label="Assign appointment room"
           data-context-menu="true"
-          className="fixed z-[1002] overflow-hidden rounded-[22px] border border-white/45 bg-neutral-0/36 px-1.5 py-2 shadow-[0_20px_60px_rgba(16,24,40,0.18)] backdrop-blur-2xl"
+          className="fixed z-[1002] overflow-hidden rounded-[22px] yc-glass-overlay px-1.5 py-2"
           style={submenuStyle}
         >
           <div className="flex max-h-[260px] flex-col gap-0.5 overflow-y-auto">
@@ -500,7 +500,10 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
                 return (
                   <React.Fragment key={room.key}>
                     {index > 0 ? (
-                      <div className="mx-1 border-t border-white/30" aria-hidden="true" />
+                      <div
+                        className="mx-1 border-t border-[var(--hairline-soft)]"
+                        aria-hidden="true"
+                      />
                     ) : null}
                     <button
                       type="button"

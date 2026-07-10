@@ -64,7 +64,7 @@ const Modal = ({
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         ignoreOutsideClick={isIgnoredOutsideTarget}
-        overlayClassName={`fixed backdrop-blur-[2px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out ${
+        overlayClassName={`fixed backdrop-blur-[6px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out ${
           showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         overlayStyle={{ backgroundColor: 'var(--sh55)' }}

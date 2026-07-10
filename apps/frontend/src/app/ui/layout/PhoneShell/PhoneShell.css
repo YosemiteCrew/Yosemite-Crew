@@ -28,8 +28,9 @@
     justify-content: space-between;
     gap: 10px;
     padding: 0 14px;
-    border-bottom: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline-soft);
     background: var(--glass-93);
+    box-shadow: inset 0 1px 0 var(--glass-inset-hi);
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
   }
@@ -120,8 +121,9 @@
     right: 0;
     bottom: 0;
     z-index: 850;
-    border-top: 1px solid var(--hairline);
+    border-top: 1px solid var(--hairline-soft);
     background: var(--glass-93);
+    box-shadow: inset 0 1px 0 var(--glass-inset-hi);
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -218,12 +220,15 @@
     justify-content: center;
     border: none;
     border-radius: 999px;
+    /* CTA fill kept opaque for affordance/contrast; the liquid-glass read comes
+       from a specular top highlight + warm float, matching the primary button. */
     background: var(--cta);
     color: var(--cta-text);
     cursor: pointer;
     box-shadow:
-      0 4px 12px var(--sh10),
-      0 12px 28px var(--sh10);
+      inset 0 1px 0 var(--glass-inset-hi),
+      0 6px 16px var(--sh12),
+      0 14px 34px var(--sh12);
   }
 
   .yc-phone-fab:active {
@@ -246,6 +251,9 @@
     border: none;
     padding: 0;
     background: var(--sh55);
+    /* Frost the dimmed page behind the sheet. */
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
     cursor: pointer;
   }
 
@@ -256,10 +264,21 @@
     max-height: 86vh;
     flex-direction: column;
     border-radius: 24px 24px 0 0;
-    background: var(--screen);
-    box-shadow: 0 -18px 60px var(--sh55);
+    /* Warm frosted-glass sheet with a top sheen. */
+    background: var(--glass-93);
+    box-shadow:
+      0 -18px 60px var(--sh55),
+      inset 0 1px 0 var(--glass-inset-hi);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    backdrop-filter: blur(24px) saturate(1.4);
     padding: 8px 18px calc(18px + env(safe-area-inset-bottom, 0px));
     animation: ycPhoneSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .yc-phone-sheet {
+      background: var(--screen);
+    }
   }
 
   .yc-phone-sheet-grabber {

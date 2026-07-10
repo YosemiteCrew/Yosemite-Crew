@@ -151,7 +151,7 @@ const RowMenu = ({ actions, label }: { actions: RowMenuAction[]; label: string }
               ref={panelRef}
               role="menu"
               style={style}
-              className="flex flex-col gap-px rounded-[15px] border border-[var(--hairline)] bg-[var(--screen)] p-[7px] shadow-[0_24px_60px_var(--sh28)]"
+              className="yc-glass-overlay flex flex-col gap-px rounded-[15px] p-[7px]"
             >
               {actions.map((action, index) => {
                 const dividerBefore = action.key === 'change-status' && index > 0;

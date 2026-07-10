@@ -1233,3 +1233,66 @@ html[data-theme='dark'] [data-yc-app] ::selection {
   font-family: var(--font-newsreader);
   font-style: italic;
 }
+
+/* ------------------------------------------------------------------ *
+ * Warm liquid-glass floating surfaces
+ *
+ * The shared warm-glass recipe for FLOATING/OVERLAY chrome only — command
+ * palette, dropdown/popover menus, toasts, floating action surfaces. Apply
+ * once per floating surface (never per child) so backdrop-filter stays cheap.
+ * All tokens are theme-aware: warm cream frost in light, warm espresso in
+ * dark. A solid --screen fallback keeps text off bare page content wherever
+ * backdrop-filter is unsupported. Unlayered so it beats Tailwind's layered
+ * bg/border/shadow utilities on the same element.
+ * ------------------------------------------------------------------ */
+.yc-glass-overlay {
+  background: var(--glass-93);
+  border: 1px solid var(--hairline-soft);
+  box-shadow:
+    0 12px 34px var(--sh12),
+    inset 0 1px 0 var(--glass-inset-hi);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .yc-glass-overlay {
+    background: var(--screen);
+  }
+}
+
+/* Material-luxury edge for ELEVATED in-flow cards & stat tiles. NOT a frost:
+   a bright top specular hairline + a soft warm two-stop depth shadow over the
+   near-opaque surface, so body text and figures stay crisp. Pair with the
+   card's own --screen/--neutral-0 background + hairline border. */
+.yc-card-elevated {
+  box-shadow:
+    inset 0 1px 0 var(--glass-inset-hi),
+    0 1px 2px var(--sh03),
+    0 10px 30px var(--sh08);
+}
+
+/* App runtime toasts (react-toastify) — warm liquid-glass surface. The compound
+   selector beats the library's single-class defaults regardless of import order;
+   react-toastify keeps its own layout, positioning, and progress bar. */
+.Toastify .Toastify__toast {
+  background: var(--glass-93);
+  border: 1px solid var(--hairline-soft);
+  border-radius: 14px;
+  box-shadow:
+    0 12px 34px var(--sh12),
+    inset 0 1px 0 var(--glass-inset-hi);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  color: var(--ink);
+}
+
+.Toastify .Toastify__close-button {
+  color: var(--ink);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .Toastify .Toastify__toast {
+    background: var(--screen);
+  }
+}
