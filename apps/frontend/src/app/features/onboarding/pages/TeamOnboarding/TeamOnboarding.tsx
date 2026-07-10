@@ -23,15 +23,15 @@ import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
 const TeamSteps: StepContent[] = [
   {
     title: 'Personal details',
-    logo: <FaUser color="var(--color-neutral-0)" size={20} />,
+    logo: <FaUser size={17} />,
   },
   {
     title: 'Professional details',
-    logo: <IoDocument color="var(--color-neutral-0)" size={20} />,
+    logo: <IoDocument size={18} />,
   },
   {
     title: 'Availability and consultation',
-    logo: <FaCalendar color="var(--color-neutral-0)" size={18} />,
+    logo: <FaCalendar size={16} />,
   },
 ];
 
@@ -231,7 +231,7 @@ const TeamOnboarding = () => {
         canSelectStep={canSelectStep}
         onStepSelect={handleStepSelect}
       />
-      <div className="flex flex-col gap-6">
+      <div className="flex w-full flex-col items-center gap-7">
         <h1 className="create-profile-title">Create organization profile</h1>
         {activeStep === 0 && (
           <PersonalStep

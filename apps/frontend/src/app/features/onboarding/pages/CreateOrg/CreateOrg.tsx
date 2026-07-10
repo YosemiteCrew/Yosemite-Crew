@@ -18,11 +18,11 @@ import './CreateOrg.css';
 const OrgSteps = [
   {
     title: 'Organization',
-    logo: <HiShoppingBag color="var(--color-neutral-0)" size={20} />,
+    logo: <HiShoppingBag size={18} />,
   },
   {
     title: 'Address',
-    logo: <IoLocationSharp color="var(--color-neutral-0)" size={20} />,
+    logo: <IoLocationSharp size={18} />,
   },
 ];
 
@@ -205,7 +205,7 @@ const CreateOrg = () => {
         onStepSelect={handleStepSelect}
         steps={OrgSteps}
       />
-      <div className="flex flex-col gap-6">
+      <div className="flex w-full flex-col items-center gap-7">
         <h1 className="create-org-title">Create organization</h1>
         {activeStep === 0 && (
           <OrgStep

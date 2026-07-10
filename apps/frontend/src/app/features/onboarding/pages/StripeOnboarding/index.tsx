@@ -17,7 +17,7 @@ import {
 } from '@stripe/react-connect-js';
 import { useSubscriptionByOrgId } from '@/app/hooks/useBilling';
 import { Secondary } from '@/app/ui/primitives/Buttons';
-import { IoArrowBack } from 'react-icons/io5';
+import { IoArrowBack, IoLockClosed } from 'react-icons/io5';
 
 const StripeOnboarding = () => {
   const searchParams = useSearchParams();
@@ -124,25 +124,30 @@ const StripeOnboarding = () => {
   const canRetrySetup = Boolean(orgIdFromQuery) && !subscription?.connectAccountId;
 
   return (
-    <div className="flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
-      <div className="relative flex w-full items-center justify-center">
+    <div className="mx-auto flex w-full max-w-[720px] flex-col gap-6 px-4 py-6 md:py-10">
+      <div className="flex w-full items-center justify-between gap-3">
         <Secondary
           text="Back"
           icon={<IoArrowBack aria-hidden="true" />}
           onClick={() => router.back()}
-          className="absolute left-0 top-1/2 -translate-y-1/2"
         />
-        <h1 className="px-24 text-center text-heading-1 text-text-primary font-newsreader">
-          Stripe Onboarding
-        </h1>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--divider)] bg-[var(--screen)] px-3 py-1.5 text-caption-2 text-text-secondary">
+          <IoLockClosed aria-hidden="true" className="text-[var(--success)]" />
+          Secure · Powered by Stripe
+        </span>
       </div>
-      <div className="mx-auto max-w-3xl text-center text-body-3 text-text-secondary">
-        Complete your Stripe setup to accept card payments, verify tax details, and review
-        payout-related information for your organisation.
+
+      <div className="flex flex-col items-center gap-2 text-center">
+        <h1 className="text-heading-1 text-text-primary font-newsreader">Stripe Onboarding</h1>
+        <p className="max-w-[460px] text-body-3 text-text-secondary">
+          Complete your Stripe setup to accept card payments, verify tax details, and review
+          payout-related information for your organisation.
+        </p>
       </div>
+
       {setupError && (
         <div
-          className="mx-auto w-full max-w-3xl rounded-2xl border border-card-border bg-card-bg px-4 py-3 text-center text-body-4 text-text-primary"
+          className="w-full rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 text-center text-body-4 text-text-primary shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]"
           role="alert"
         >
           <div>{setupError}</div>
@@ -155,7 +160,7 @@ const StripeOnboarding = () => {
       )}
       {!setupError && !connectInstance && (
         <output
-          className="mx-auto w-full max-w-3xl rounded-2xl border border-card-border bg-card-bg px-4 py-3 text-center text-body-4 text-text-primary"
+          className="w-full rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-5 py-4 text-center text-body-4 text-text-secondary shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]"
           aria-live="polite"
           aria-busy={isPreparing}
         >
@@ -163,19 +168,23 @@ const StripeOnboarding = () => {
         </output>
       )}
       {connectInstance && (
-        <ConnectComponentsProvider connectInstance={connectInstance}>
-          <div className="flex flex-col gap-5" aria-label="Stripe onboarding steps">
-            <ConnectAccountOnboarding onExit={handleExit} onStepChange={handleStepChange} />
-            <div className="flex flex-col gap-3">
-              <h2 className="text-center text-heading-2 text-text-primary">Tax Business Details</h2>
-              <ConnectTaxSettings />
+        <div className="w-full rounded-[20px] border border-[var(--hairline)] bg-[var(--screen)] px-6 py-6 shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]">
+          <ConnectComponentsProvider connectInstance={connectInstance}>
+            <div className="flex flex-col gap-5" aria-label="Stripe onboarding steps">
+              <ConnectAccountOnboarding onExit={handleExit} onStepChange={handleStepChange} />
+              <div className="flex flex-col gap-3">
+                <h2 className="text-center text-heading-2 text-text-primary">
+                  Tax Business Details
+                </h2>
+                <ConnectTaxSettings />
+              </div>
+              <div className="flex flex-col gap-3">
+                <h2 className="text-center text-heading-2 text-text-primary">Tax Registrations</h2>
+                <ConnectTaxRegistrations />
+              </div>
             </div>
-            <div className="flex flex-col gap-3">
-              <h2 className="text-center text-heading-2 text-text-primary">Tax Registrations</h2>
-              <ConnectTaxRegistrations />
-            </div>
-          </div>
-        </ConnectComponentsProvider>
+          </ConnectComponentsProvider>
+        </div>
       )}
     </div>
   );

@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import classNames from 'classnames';
+import {
+  IoArrowForward,
+  IoBusinessOutline,
+  IoCutOutline,
+  IoHomeOutline,
+  IoPawOutline,
+} from 'react-icons/io5';
 
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import LogoUploader from '@/app/ui/widgets/UploadImage/LogoUploader';
-import { BusinessTypes } from '@/app/features/organization/types/org';
+import { BusinessType, BusinessTypes } from '@/app/features/organization/types/org';
 import { Organisation } from '@yosemite-crew/types';
 
 import './Step.css';
@@ -36,6 +43,13 @@ type OrgStepProps = {
   nextStep: () => void;
   formData: Organisation;
   setFormData: React.Dispatch<React.SetStateAction<Organisation>>;
+};
+
+const TYPE_ICONS: Record<BusinessType, React.ReactNode> = {
+  HOSPITAL: <IoBusinessOutline size={14} aria-hidden="true" />,
+  BREEDER: <IoPawOutline size={14} aria-hidden="true" />,
+  BOARDER: <IoHomeOutline size={14} aria-hidden="true" />,
+  GROOMER: <IoCutOutline size={14} aria-hidden="true" />,
 };
 
 const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
@@ -116,8 +130,8 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
   };
 
   return (
-    <div className="step-container">
-      <div className="flex flex-col gap-6">
+    <div className="onb-step">
+      <div className="onb-card">
         <LogoUploader
           title="Add logo (optional)"
           apiUrl="/fhir/v1/organization/logo/presigned-url"
@@ -138,6 +152,7 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
                 })}
                 onClick={() => setFormData({ ...formData, type: type })}
               >
+                {TYPE_ICONS[type]}
                 {type.charAt(0) + type.toLowerCase().slice(1)}
               </button>
             ))}
@@ -226,11 +241,17 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
             />
           </div>
         </div>
-      </div>
 
-      <div className="step-buttons">
-        <Secondary href="/organizations" text="Back" style={{ width: '160px' }} />
-        <Primary href="#" text="Next" style={{ width: '160px' }} onClick={handleNext} />
+        <div className="onb-footer">
+          <Secondary href="/organizations" text="Back" />
+          <Primary
+            href="#"
+            text="Continue"
+            icon={<IoArrowForward aria-hidden="true" />}
+            iconPosition="right"
+            onClick={handleNext}
+          />
+        </div>
       </div>
     </div>
   );
