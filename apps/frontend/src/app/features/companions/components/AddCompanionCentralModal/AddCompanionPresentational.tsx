@@ -1,8 +1,10 @@
 import React from 'react';
 import { IoClose } from 'react-icons/io5';
 import { Secondary } from '@/app/ui/primitives/Buttons';
-import { CompanionAlert } from '@/app/features/companions/components/AddCompanion/type';
-import { ALERT_PRIORITY_CONFIG } from '@/app/features/companions/components/AddCompanion/type';
+import {
+  CompanionAlert,
+  ALERT_PRIORITY_CONFIG,
+} from '@/app/features/companions/components/AddCompanion/type';
 import type { ModalMode } from './addCompanionCentralModalHelpers';
 
 export const SectionHeading = ({ icon, title }: { icon: React.ReactNode; title: string }) => (

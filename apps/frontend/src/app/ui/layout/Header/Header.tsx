@@ -14,7 +14,7 @@ const getHeaderDockThreshold = () => Math.round(globalThis.window.innerHeight * 
 
 const Header = ({ user = false }: { user?: boolean }) => {
   const [dockPublicHeader, setDockPublicHeader] = useState(() =>
-    typeof globalThis.window === 'undefined'
+    globalThis.window === undefined
       ? false
       : Math.max(globalThis.window.scrollY, 0) >= getHeaderDockThreshold()
   );

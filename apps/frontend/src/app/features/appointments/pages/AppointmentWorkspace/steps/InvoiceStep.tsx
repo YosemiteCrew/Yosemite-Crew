@@ -1266,9 +1266,7 @@ const InvoiceStep = ({
   // skipped, and billed/paid items are excluded upstream by the !billed filter.
   const seededBillNamesRef = useRef<Set<string> | null>(null);
   const getSeededBillNames = () => {
-    if (seededBillNamesRef.current === null) {
-      seededBillNamesRef.current = new Set();
-    }
+    seededBillNamesRef.current ??= new Set();
     return seededBillNamesRef.current;
   };
   useEffect(() => {

@@ -377,9 +377,7 @@ const TreatmentStep = ({
   // service/package context is known and the prescription section is still empty. Track attempts by
   // service/package key so an initial blank encounter cannot block the later linked-template load.
   const autoResolvedRxKeysRef = React.useRef<Set<string> | null>(null);
-  if (autoResolvedRxKeysRef.current === null) {
-    autoResolvedRxKeysRef.current = new Set();
-  }
+  autoResolvedRxKeysRef.current ??= new Set();
   const prescriptionCount = encounter.prescription.length;
   const encounterServicesForRx = encounter.services;
   const encounterModeForRx = encounter.mode;

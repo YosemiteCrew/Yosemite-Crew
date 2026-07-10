@@ -214,6 +214,14 @@ interface ChatMainPanelProps {
   showEmpty?: boolean;
 }
 
+const getChatPanelMode = (
+  isMobile: boolean,
+  isChannelSelected: boolean
+): ChatMainPanelProps['mode'] => {
+  if (!isMobile) return 'desktop';
+  return isChannelSelected ? 'mobile-chat' : 'mobile-list';
+};
+
 interface ChatSidebarHeaderProps {
   showArchived: boolean;
   onToggleArchived: () => void;
@@ -780,11 +788,7 @@ const ChatLayout: FC<ChatLayoutProps> = ({
   channelListHeader,
 }) => {
   const shouldShowChannelList = !isMobile || !isChannelSelected;
-  const panelMode: ChatMainPanelProps['mode'] = !isMobile
-    ? 'desktop'
-    : isChannelSelected
-      ? 'mobile-chat'
-      : 'mobile-list';
+  const panelMode = getChatPanelMode(isMobile, isChannelSelected);
 
   return (
     <div className="str-chat__container">
@@ -858,7 +862,7 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
       const keyId = user.userId ?? user.id;
       if (keyId === currentUserId) return results;
       results.push({ ...user, keyId });
-      return results.length === 8 ? results : results;
+      return results;
     }, [])
     .slice(0, 8);
   const hasNoDirectMatches =

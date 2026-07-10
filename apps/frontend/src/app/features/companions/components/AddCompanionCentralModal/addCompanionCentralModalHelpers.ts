@@ -4,6 +4,7 @@ import {
   CompanionFormData,
   AlertPriority,
   CountryDialCodeOption,
+  toStoredCompanionAlerts,
 } from '@/app/features/companions/components/AddCompanion/type';
 import { getEmailValidationError, validatePhone, toTitleCase } from '@/app/lib/validators';
 import { CompanionType, RecordStatus } from '@yosemite-crew/types';
@@ -20,7 +21,6 @@ import {
   updateParent,
 } from '@/app/features/companions/services/companionService';
 import { StoredCompanion, StoredParent } from '@/app/features/companions/pages/Companions/types';
-import { toStoredCompanionAlerts } from '@/app/features/companions/components/AddCompanion/type';
 
 export type SpeciesOption = {
   value: string;

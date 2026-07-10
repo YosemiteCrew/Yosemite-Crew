@@ -1,5 +1,3 @@
-import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
-
 export type MenuAction = {
   key: string;
   label: string;
@@ -53,4 +51,4 @@ export const getRoomStatusLabel = (selected: boolean, saving: boolean) => {
 };
 
 // Re-exported for consumers that only need the status-label typing without pulling in React.
-export type { AppointmentStatus };
+export type { AppointmentStatus } from '@/app/features/appointments/types/appointments';

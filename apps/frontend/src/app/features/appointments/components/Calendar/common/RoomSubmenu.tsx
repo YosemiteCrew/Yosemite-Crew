@@ -39,7 +39,7 @@ const RoomSubmenu = ({ submenuRef, submenuStyle, roomOptions, savingKey }: RoomS
                 aria-checked={room.selected}
                 className={getMenuItemClassName(false, room.selected)}
                 onClick={() => {
-                  void room.onSelect();
+                  room.onSelect();
                 }}
                 disabled={isSaving}
               >

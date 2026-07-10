@@ -140,6 +140,11 @@ type RoomInfoSectionsProps = {
   onUpdateUnit: (id: string, patch: Partial<RoomUnitDetails>) => void;
 };
 
+const getRoomSpeciesValue = (species: string | string[] | undefined): string[] => {
+  if (Array.isArray(species)) return species;
+  return species ? [species] : [];
+};
+
 const RoomInfoSections = ({
   canEditRoom,
   customEquipmentName,
@@ -266,13 +271,7 @@ const RoomInfoSections = ({
           />
           <MultiSelectDropdown
             placeholder="Species"
-            value={
-              Array.isArray(formData.availability?.species)
-                ? formData.availability.species
-                : formData.availability?.species
-                  ? [formData.availability.species]
-                  : []
-            }
+            value={getRoomSpeciesValue(formData.availability?.species)}
             onChange={(value) => onUpdateAvailability({ species: value })}
             options={RoomSpeciesOptions}
           />

@@ -26,8 +26,8 @@ type RichTextEditorProps = {
 
 const stripRichTextMarkup = (html: string): string =>
   html
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
+    .replaceAll(/<[^<>]*>/g, '')
+    .replaceAll('&nbsp;', ' ')
     .trim();
 
 /**

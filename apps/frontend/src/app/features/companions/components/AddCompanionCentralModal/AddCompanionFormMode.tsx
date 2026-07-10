@@ -83,7 +83,7 @@ type AddCompanionFormModeProps = {
   parentErrors: Partial<Record<string, string>>;
   parentFormData: StoredParent;
   parentSearchOptions: SelectOption[];
-  pendingGoToAppointmentRef: React.MutableRefObject<boolean>;
+  pendingGoToAppointmentRef: React.RefObject<boolean>;
   scheduleParentSearch: (query: string) => void;
   selectedCountryCode: CountryDialCodeOption;
   setAlertInput: React.Dispatch<React.SetStateAction<string>>;

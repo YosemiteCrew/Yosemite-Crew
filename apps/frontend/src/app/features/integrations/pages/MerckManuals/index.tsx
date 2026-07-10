@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createPortal } from 'react-dom';
@@ -591,11 +591,11 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
     null
   );
 
+  // recentSearchesKey is a counter; bumping it re-reads recentSearches from storage on save.
   const [recentSearchesKey, setRecentSearchesKey] = useState(0);
-  // recentSearchesKey is a counter; incrementing it forces recentSearches to recompute on save
-  const recentSearches = useMemo(() => {
-    void recentSearchesKey;
-    return primaryOrgId ? getRecentSearches(primaryOrgId, audience) : [];
+  const [recentSearches, setRecentSearches] = useState<ReturnType<typeof getRecentSearches>>([]);
+  useEffect(() => {
+    setRecentSearches(primaryOrgId ? getRecentSearches(primaryOrgId, audience) : []);
   }, [primaryOrgId, audience, recentSearchesKey]);
 
   useEffect(() => {
