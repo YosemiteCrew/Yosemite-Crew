@@ -327,7 +327,7 @@ const InventoryFilterBar = ({
               key={vis}
               type="button"
               onClick={() => setFilters((prev) => ({ ...prev, visibility: vis }))}
-              className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-blue-text text-blue-text bg-blue-light' : 'border-card-border text-text-primary hover:bg-card-hover bg-neutral-0'}`}
+              className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-[var(--divider)] bg-[var(--inset)] text-[var(--ink)] font-semibold' : 'border-[var(--hairline)] text-[var(--ink-muted)] hover:bg-card-hover'}`}
             >
               {label}
             </button>

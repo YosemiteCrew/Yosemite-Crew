@@ -50,4 +50,28 @@ describe('TabToggle', () => {
     );
     expect(container.firstChild).toHaveAttribute('role', 'tablist');
   });
+
+  it('wires aria-controls from the panelId resolver when provided', () => {
+    render(
+      <TabToggle
+        tabs={TABS}
+        activeKey="services"
+        onChange={jest.fn()}
+        panelId={(key) => `panel-${key}`}
+      />
+    );
+    expect(screen.getByRole('tab', { name: 'All Services' })).toHaveAttribute(
+      'aria-controls',
+      'panel-services'
+    );
+  });
+
+  it('styles the active tab with the blue design tokens, not the inactive tab', () => {
+    render(<TabToggle tabs={TABS} activeKey="services" onChange={jest.fn()} />);
+    const active = screen.getByRole('tab', { name: 'All Services' });
+    expect(active.className).toContain('border-[var(--blue)]');
+    expect(active.className).toContain('text-[var(--blue-text)]');
+    const inactive = screen.getByRole('tab', { name: 'Archive' });
+    expect(inactive.className).not.toContain('var(--blue)');
+  });
 });

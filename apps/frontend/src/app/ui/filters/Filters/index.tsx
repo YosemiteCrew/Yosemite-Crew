@@ -12,13 +12,13 @@ const getDropdownStatusTextColor = (status: StatusOption): string =>
 const getFilterClassName = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'text-text-tertiary hover:bg-card-hover!';
   if (filterKey === 'emergencies') return 'text-danger-500!';
-  return 'bg-blue-light text-blue-text!';
+  return 'bg-[var(--inset)] text-[var(--ink)]! font-semibold';
 };
 
 const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'var(--color-card-border)';
   if (filterKey === 'emergencies') return 'var(--color-danger-500)';
-  return 'var(--color-text-brand)';
+  return 'var(--divider)';
 };
 
 const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
