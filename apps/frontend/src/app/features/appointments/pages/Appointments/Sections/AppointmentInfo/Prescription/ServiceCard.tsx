@@ -67,7 +67,6 @@ const ServiceCard = ({ service, setFormData, edit = true }: ServiceCardProps) =>
               value={service.discount}
               inlabel="Discount (%)"
               onChange={(e) => setDiscount(e.target.value)}
-              className="min-h-12!"
             />
           </div>
         ) : (

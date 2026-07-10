@@ -348,7 +348,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
               inlabel="Search manuals"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="min-h-12! h-12! px-4"
+              className="h-12! px-4"
             />
           </div>
           <div className="flex items-center gap-2 shrink-0">

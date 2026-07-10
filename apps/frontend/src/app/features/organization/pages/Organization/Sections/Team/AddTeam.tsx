@@ -113,7 +113,6 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                   setFormDataErrors((prev) => ({ ...prev, email: undefined }));
                 }}
                 error={formDataErrors.email}
-                className="min-h-12!"
               />
               <MultiSelectDropdown
                 placeholder="Speciality"

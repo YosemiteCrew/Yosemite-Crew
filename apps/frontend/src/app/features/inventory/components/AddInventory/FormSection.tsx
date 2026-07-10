@@ -247,7 +247,6 @@ const renderTextInventoryField = ({
         handleChange(field, val, index);
       }}
       error={error}
-      className="min-h-12!"
     />
   );
 };
@@ -300,7 +299,6 @@ const renderInventoryField = ({
           }}
           placeholder={placeholder || ''}
           type="input"
-          className="min-h-12!"
           error={error}
         />
       </div>

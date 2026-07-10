@@ -42,7 +42,6 @@ const AddAppointment = () => {
             value={formData.speciality}
             onChange={(e) => setFormData({ ...formData, speciality: e })}
             error={formDataErrors.speciality}
-            className="min-h-12!"
             options={SpecialityOptions}
             dropdownClassName="h-fit!"
           />
@@ -51,7 +50,6 @@ const AddAppointment = () => {
             value={formData.service}
             onChange={(e) => setFormData({ ...formData, service: e })}
             error={formDataErrors.service}
-            className="min-h-12!"
             options={SpecialityOptions}
             dropdownClassName="h-fit!"
           />
@@ -75,7 +73,6 @@ const AddAppointment = () => {
             value={formData.lead}
             onChange={(e) => setFormData({ ...formData, lead: e })}
             error={formDataErrors.lead}
-            className="min-h-12!"
             options={LeadOptions}
             dropdownClassName="h-fit!"
           />

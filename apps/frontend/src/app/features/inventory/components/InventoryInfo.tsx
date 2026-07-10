@@ -361,7 +361,6 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
           }}
           placeholder={placeholder || ''}
           type="input"
-          className="min-h-12!"
         />
       );
     }
@@ -393,7 +392,6 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
           const val = field.numeric ? raw.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1') : raw;
           onChangeHandler(batchIndex, typedName, val);
         }}
-        className="min-h-12!"
       />
     );
   };

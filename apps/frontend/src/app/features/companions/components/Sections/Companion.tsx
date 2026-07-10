@@ -396,7 +396,6 @@ const CompanionEditSection = ({
       currentDate={currentDate}
       setCurrentDate={setCurrentDate}
       type="input"
-      className="min-h-12!"
       containerClassName="w-full"
       placeholder="Date of birth"
       error={formErrors.dateOfBirth}
@@ -434,7 +433,6 @@ const CompanionEditSection = ({
             ageWhenNeutered: e.target.value.replaceAll('-', ''),
           }))
         }
-        className="min-h-12!"
       />
     ) : null}
 
@@ -445,7 +443,6 @@ const CompanionEditSection = ({
         value={formData.colour || ''}
         inlabel="Color (optional)"
         onChange={(e) => setFormData((prev) => ({ ...prev, colour: e.target.value }))}
-        className="min-h-12!"
       />
       <LabelDropdown
         placeholder="Blood group (optional)"
@@ -466,7 +463,6 @@ const CompanionEditSection = ({
           currentWeight: toNonNegativeNumber(e.target.value),
         }))
       }
-      className="min-h-12!"
     />
 
     <LabelDropdown
@@ -490,7 +486,6 @@ const CompanionEditSection = ({
       value={formData.microchipNumber || ''}
       inlabel="Microchip number (optional)"
       onChange={(e) => setFormData((prev) => ({ ...prev, microchipNumber: e.target.value }))}
-      className="min-h-12!"
     />
 
     <FormInput
@@ -504,7 +499,6 @@ const CompanionEditSection = ({
           passportNumber: e.target.value.replaceAll(/[^0-9a-zA-Z-]/g, ''),
         }))
       }
-      className="min-h-12!"
     />
 
     <SelectLabel
@@ -544,7 +538,6 @@ const CompanionEditSection = ({
             }))
           }
           error={formErrors.insuranceCompany}
-          className="min-h-12!"
         />
         <FormInput
           intype="text"
@@ -562,7 +555,6 @@ const CompanionEditSection = ({
             }))
           }
           error={formErrors.insuranceNumber}
-          className="min-h-12!"
         />
       </>
     ) : null}

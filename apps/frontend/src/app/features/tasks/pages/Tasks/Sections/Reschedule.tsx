@@ -101,7 +101,6 @@ const RescheduleTask = ({ showModal, setShowModal, activeTask }: RescheduleTaskP
             label="Due time"
             name="dueTime"
             onChange={setDueTimeValue}
-            className="min-h-12!"
           />
         </div>
         <div className="flex items-center justify-center gap-2 w-full pb-3 flex-wrap">

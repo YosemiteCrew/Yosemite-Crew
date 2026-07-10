@@ -97,7 +97,6 @@ const FieldComponents: Record<
       inlabel={field.label}
       error={error}
       onChange={(e) => onChange(e.target.value)}
-      className="min-h-12!"
     />
   ),
   number: ({ field, value, onChange, error }) => (
@@ -108,7 +107,6 @@ const FieldComponents: Record<
       inlabel={field.label}
       error={error}
       onChange={(e) => onChange(e.target.value)}
-      className="min-h-12!"
     />
   ),
   select: ({ field, value, onChange, error }) => (

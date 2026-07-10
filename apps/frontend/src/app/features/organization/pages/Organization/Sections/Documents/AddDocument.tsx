@@ -92,7 +92,6 @@ const AddDocument = ({ showModal, setShowModal }: AddDocumentProps) => {
                 inlabel="Document title"
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 error={formDataErrors.title}
-                className="min-h-12!"
               />
               <LabelDropdown
                 placeholder="Type"

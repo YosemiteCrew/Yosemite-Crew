@@ -1455,7 +1455,6 @@ const AddCompanionCentralModal = ({
                       currentDate={companionDOB}
                       setCurrentDate={setCompanionDOB}
                       type="input"
-                      className="min-h-12!"
                       containerClassName="w-full"
                       placeholder="DOB"
                       error={companionErrors.dateOfBirth}
@@ -1495,7 +1494,6 @@ const AddCompanionCentralModal = ({
                         value={alertInput}
                         inlabel="e.g. Diabetic, May bite…"
                         onChange={(e) => setAlertInput(e.target.value)}
-                        className="min-h-12!"
                       />
                       <LabelDropdown
                         placeholder="Priority"
@@ -1547,7 +1545,6 @@ const AddCompanionCentralModal = ({
                           onChange={(e) =>
                             setCompanionFormData((prev) => ({ ...prev, colour: e.target.value }))
                           }
-                          className="min-h-12!"
                         />
                         <LabelDropdown
                           placeholder="Blood group"
@@ -1575,7 +1572,6 @@ const AddCompanionCentralModal = ({
                               currentWeight: toNonNegativeNumber(e.target.value),
                             }))
                           }
-                          className="min-h-12!"
                         />
                         <LabelDropdown
                           placeholder="Country of origin"
@@ -1599,7 +1595,6 @@ const AddCompanionCentralModal = ({
                               microchipNumber: e.target.value,
                             }))
                           }
-                          className="min-h-12!"
                         />
                         <FormInput
                           intype="text"
@@ -1612,7 +1607,6 @@ const AddCompanionCentralModal = ({
                               passportNumber: e.target.value.replaceAll(/[^0-9a-zA-Z-]/g, ''),
                             }))
                           }
-                          className="min-h-12!"
                         />
                       </div>
                       <LabelDropdown
@@ -1658,7 +1652,6 @@ const AddCompanionCentralModal = ({
                               }))
                             }
                             error={companionErrors.insuranceCompany}
-                            className="min-h-12!"
                           />
                           <FormInput
                             intype="text"
@@ -1676,7 +1669,6 @@ const AddCompanionCentralModal = ({
                               }))
                             }
                             error={companionErrors.insuranceNumber}
-                            className="min-h-12!"
                           />
                         </div>
                       )}
@@ -1725,7 +1717,6 @@ const AddCompanionCentralModal = ({
                         setParentErrors((prev) => ({ ...prev, lastName: undefined }));
                       }}
                       error={parentErrors.lastName}
-                      className="min-h-12!"
                     />
                   </div>
 
@@ -1740,14 +1731,12 @@ const AddCompanionCentralModal = ({
                         setParentErrors((prev) => ({ ...prev, email: undefined }));
                       }}
                       error={parentErrors.email}
-                      className="min-h-12!"
                     />
                     <div className="flex items-start gap-1.5">
                       <Datepicker
                         currentDate={parentDOB}
                         setCurrentDate={setParentDOB}
                         type="input"
-                        className="min-h-12!"
                         containerClassName="w-full"
                         placeholder="DOB"
                         error={parentErrors.dateOfBirth}
@@ -1787,7 +1776,6 @@ const AddCompanionCentralModal = ({
                         inlabel="Phone number"
                         onChange={(e) => handlePhoneChange(e.target.value)}
                         error={parentErrors.phoneNumber}
-                        className="min-h-12!"
                       />
                     </div>
                   </div>
@@ -1811,7 +1799,6 @@ const AddCompanionCentralModal = ({
                       inlabel="City"
                       onChange={(e) => updateAddressField('city', e.target.value)}
                       error={parentErrors.city}
-                      className="min-h-12!"
                     />
                     <FormInput
                       intype="text"
@@ -1820,7 +1807,6 @@ const AddCompanionCentralModal = ({
                       inlabel="State / Province"
                       onChange={(e) => updateAddressField('state', e.target.value)}
                       error={parentErrors.state}
-                      className="min-h-12!"
                     />
                   </div>
 
@@ -1831,7 +1817,6 @@ const AddCompanionCentralModal = ({
                     inlabel="ZIP"
                     onChange={(e) => updateAddressField('postalCode', e.target.value)}
                     error={parentErrors.postalCode}
-                    className="min-h-12!"
                   />
 
                   {/* Client alerts */}
@@ -1848,7 +1833,6 @@ const AddCompanionCentralModal = ({
                         value={clientAlertInput}
                         inlabel="e.g. Outstanding balance, VIP…"
                         onChange={(e) => setClientAlertInput(e.target.value)}
-                        className="min-h-12!"
                       />
                       <LabelDropdown
                         placeholder="Priority"

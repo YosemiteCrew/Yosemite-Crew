@@ -551,7 +551,6 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
             value={group.label || ''}
             inlabel="Group name"
             onChange={(e) => onChange({ ...group, label: e.target.value })}
-            className="min-h-12!"
           />
         )}
         <MultiSelectDropdown
@@ -596,7 +595,6 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
           value={groupField.label || ''}
           inlabel="Group name"
           onChange={(e) => onChange({ ...groupField, label: e.target.value })}
-          className="min-h-12!"
         />
       )}
 
@@ -972,7 +970,6 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
           value={field.label || ''}
           inlabel="Group name"
           onChange={(e) => onChange({ ...field, label: e.target.value })}
-          className="min-h-12!"
         />
       )}
 

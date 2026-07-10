@@ -60,7 +60,7 @@ const DateInput = ({ selectedDate, hideDateSlotPicker }: DateInputProps) => (
     onClick={hideDateSlotPicker ? (event) => event.preventDefault() : undefined}
     onChange={() => {}}
     inlabel="Date"
-    className={`min-h-12! ${hideDateSlotPicker ? 'cursor-default' : ''}`}
+    className={hideDateSlotPicker ? 'cursor-default' : ''}
   />
 );
 
@@ -81,7 +81,7 @@ const TimeInput = ({ selectedSlot, slotError, isLoadingSlot }: TimeInputProps) =
       error={slotError}
       onChange={() => {}}
       inlabel="Time"
-      className="min-h-12! cursor-default"
+      className="cursor-default"
     />
   );
 };

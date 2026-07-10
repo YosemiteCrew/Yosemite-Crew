@@ -31,7 +31,6 @@ const RichTextBuilder: React.FC<{
           value={field.label || ''}
           inlabel="Label"
           onChange={(e) => onChange({ ...field, label: e.target.value })}
-          className="min-h-12!"
         />
       )}
       <p className="text-caption-2 text-text-secondary">

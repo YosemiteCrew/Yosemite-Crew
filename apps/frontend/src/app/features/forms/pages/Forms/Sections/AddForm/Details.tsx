@@ -221,7 +221,6 @@ const Details = ({
                 });
               }}
               error={formDataErrors.name}
-              className="min-h-12!"
             />
             <FormInput
               intype="text"
@@ -238,7 +237,6 @@ const Details = ({
                 setFormData((prev) => ({ ...prev, description: e.target.value }));
               }}
               error={formDataErrors.description}
-              className="min-h-12!"
             />
             <LabelDropdown
               placeholder="Template Source"

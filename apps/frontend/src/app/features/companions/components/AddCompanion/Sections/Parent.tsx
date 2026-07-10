@@ -254,7 +254,6 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
                 inlabel="Parent's name"
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 error={formDataErrors.firstName}
-                className="min-h-12!"
               />
               <FormInput
                 intype="text"
@@ -263,7 +262,6 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
                 inlabel="Last name"
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 error={formDataErrors.lastName}
-                className="min-h-12!"
               />
             </div>
             <FormInput
@@ -276,7 +274,6 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
                 setFormDataErrors((prev) => ({ ...prev, email: undefined }));
               }}
               error={formDataErrors.email}
-              className="min-h-12!"
             />
             <div className="grid grid-cols-12 gap-3">
               <div className="col-span-5">
@@ -297,7 +294,6 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
                   inlabel="Phone number"
                   onChange={(e) => handlePhoneChange(e.target.value)}
                   error={formDataErrors.phoneNumber}
-                  className="min-h-12!"
                 />
               </div>
             </div>
@@ -306,7 +302,6 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
                 currentDate={currentDate}
                 setCurrentDate={setCurrentDate}
                 type="input"
-                className="min-h-12!"
                 containerClassName="w-full"
                 placeholder="Date of birth"
                 error={formDataErrors.dateOfBirth}
@@ -343,7 +338,6 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
                 inlabel="City"
                 onChange={(e) => updateAddressField('city', e.target.value)}
                 error={formDataErrors.city}
-                className="min-h-12!"
               />
               <FormInput
                 intype="text"
@@ -352,7 +346,6 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
                 inlabel="State/Province"
                 onChange={(e) => updateAddressField('state', e.target.value)}
                 error={formDataErrors.state}
-                className="min-h-12!"
               />
             </div>
             <FormInput
@@ -362,7 +355,6 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
               inlabel="Postal code"
               onChange={(e) => updateAddressField('postalCode', e.target.value)}
               error={formDataErrors.postalCode}
-              className="min-h-12!"
             />
           </div>
         </Accordion>
