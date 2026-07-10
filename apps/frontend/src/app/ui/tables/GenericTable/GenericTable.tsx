@@ -3,6 +3,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 
 import Next from '@/app/ui/primitives/Icons/Next';
 import Back from '@/app/ui/primitives/Icons/Back';
+import { NoDataMessage } from '@/app/ui/tables/common';
 
 import './Generictable.css';
 
@@ -153,9 +154,7 @@ const GenericTable = <T extends object>({
               ) : (
                 <tr>
                   <td colSpan={columns.length}>
-                    <div className="w-full py-2.5 flex items-center justify-center text-body-4 text-text-primary">
-                      Looks like a quiet day… for now.
-                    </div>
+                    <NoDataMessage title="Looks like a quiet day… for now." />
                   </td>
                 </tr>
               )}

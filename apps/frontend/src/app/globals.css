@@ -744,13 +744,14 @@ input[type='number'] {
   letter-spacing: -0.24px;
 }
 
-/* Caption - 10px/0.625rem - Status pills, compact labels. */
+/* Caption - 10px/0.625rem - DS micro-badge type: status pills, compact labels.
+   ALL-CAPS 10px / 700 / 0.08em per the design system Badge convention. */
 .text-caption-3 {
   font-family: var(--font-satoshi);
-  font-size: 0.6875rem !important;
+  font-size: 0.625rem !important;
   font-weight: 700 !important;
-  line-height: 1rem;
-  letter-spacing: -0.22px;
+  line-height: 1;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 

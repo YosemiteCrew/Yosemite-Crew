@@ -99,7 +99,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       ),
     },
     {
-      label: 'Parent / Patient',
+      label: 'Parent / patient',
       key: 'appointment-id',
       width: '200px',
       render: (item: Invoice) => {
@@ -154,7 +154,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       },
     },
     {
-      label: 'Service',
+      label: 'Services',
       key: 'service',
       width: '180px',
       render: (item: Invoice) => (
@@ -196,7 +196,7 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       },
     },
     {
-      label: 'Sub-total',
+      label: 'Subtotal',
       key: 'sub-total',
       width: '90px',
       render: (item: Invoice) => (

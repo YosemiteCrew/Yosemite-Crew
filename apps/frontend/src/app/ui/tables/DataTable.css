@@ -234,25 +234,30 @@
   line-height: 120%;
   letter-spacing: -0.32px;
 }
+/* DS status micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 4px 10px, fully round.
+   Per-status bg/text/border are supplied inline via getStatusStyle(...). */
 .appointment-status {
-  display: flex;
-  padding: 6px 14px;
+  display: inline-flex;
+  width: fit-content;
+  align-self: flex-start;
+  padding: 4px 10px;
   justify-content: center;
   align-items: center;
-  gap: 10px;
-  align-self: stretch;
-  border-radius: 16px;
+  gap: 6px;
+  border-radius: 999px;
   border-width: 1px;
   border-style: solid;
   background: var(--status-requested-bg);
   border-color: var(--status-requested-border);
   color: var(--status-requested-text);
   text-align: center;
-  font-size: 13px;
+  font-size: 10px;
   font-style: normal;
-  font-weight: 500;
-  line-height: 150%;
-  letter-spacing: -0.16px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
   font-family: var(--font-satoshi);
 }
 .appointment-emergency-label {

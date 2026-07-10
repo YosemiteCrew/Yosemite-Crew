@@ -426,17 +426,17 @@ const StatusPillSelect = ({
   if (locked || disabled || menuOptions.length === 0) {
     return (
       <span
-        className="inline-flex h-8 w-30 items-center justify-center rounded-2xl border px-2 text-caption-1 font-medium"
-        style={statusPillStyle(normalizedStatus)}
+        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1"
+        style={{ ...statusPillStyle(normalizedStatus), borderWidth: '1px', borderStyle: 'solid' }}
         title={formatStatusLabel(status)}
       >
-        <span className="truncate whitespace-nowrap">{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
       </span>
     );
   }
 
   return (
-    <div className="relative w-30">
+    <div className="relative w-fit">
       <button
         type="button"
         aria-label="Status"
@@ -444,13 +444,13 @@ const StatusPillSelect = ({
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         onBlur={() => setOpen(false)}
-        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-2xl border px-2 text-caption-1 font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        style={statusPillStyle(normalizedStatus)}
+        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+        style={{ ...statusPillStyle(normalizedStatus), borderWidth: '1px', borderStyle: 'solid' }}
         title={formatStatusLabel(status)}
       >
-        <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
         <LuChevronDown
-          size={12}
+          size={10}
           aria-hidden="true"
           className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
         />

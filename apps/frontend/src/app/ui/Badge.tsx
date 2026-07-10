@@ -18,7 +18,8 @@ const Badge = ({ tone = 'neutral', className, ...props }: BadgeProps) => {
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-0.5 rounded-full px-4 py-2 text-[12px] font-bold leading-[1.2]',
+        // DS micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 4px 10px, fully round.
+        'inline-flex items-center justify-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em]',
         toneClassMap[tone],
         className
       )}

@@ -877,7 +877,7 @@ const AppointmentInfo = ({
                     >
                       <div className="text-body-4-emphasis text-text-secondary">{field.label}</div>
                       <span
-                        className="text-caption-2 font-medium px-2.5 py-1 rounded-2xl! whitespace-nowrap"
+                        className="text-caption-3 inline-flex items-center justify-center border px-2.5 py-1 rounded-full! whitespace-nowrap"
                         style={{
                           backgroundColor: statusStyle.backgroundColor,
                           color: statusStyle.color,

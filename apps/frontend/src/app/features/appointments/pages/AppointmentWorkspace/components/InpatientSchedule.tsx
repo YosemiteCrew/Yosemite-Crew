@@ -85,8 +85,8 @@ const StatusPillSelect = ({
   if (locked) {
     return (
       <span
-        className="flex h-8 w-full items-center justify-center rounded-2xl border px-3 text-caption-1"
-        style={statusPillStyle(status)}
+        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1"
+        style={{ ...statusPillStyle(status), borderWidth: '1px', borderStyle: 'solid' }}
       >
         {formatStatusLabel(status)}
       </span>
@@ -102,12 +102,12 @@ const StatusPillSelect = ({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         onBlur={() => setOpen(false)}
-        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-2xl border px-3 text-caption-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-        style={statusPillStyle(status)}
+        className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+        style={{ ...statusPillStyle(status), borderWidth: '1px', borderStyle: 'solid' }}
       >
         {formatStatusLabel(status)}
         <LuChevronDown
-          size={12}
+          size={10}
           aria-hidden="true"
           className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
         />

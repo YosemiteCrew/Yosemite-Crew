@@ -113,12 +113,12 @@ export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps)
 export const AppointmentStatusBadge = ({ appointment }: AppointmentCardContentProps) => {
   const displayStatus = normalizeAppointmentStatus(appointment.status) ?? 'REQUESTED';
   return (
-    <div
-      style={getStatusStyle(displayStatus)}
-      className="w-full rounded-2xl h-12 flex items-center justify-center text-body-4"
+    <span
+      style={{ ...getStatusStyle(displayStatus), borderWidth: '1px', borderStyle: 'solid' }}
+      className="text-caption-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-full! border px-2.5 py-1 whitespace-nowrap"
     >
       {toTitle(displayStatus)}
-    </div>
+    </span>
   );
 };
 
