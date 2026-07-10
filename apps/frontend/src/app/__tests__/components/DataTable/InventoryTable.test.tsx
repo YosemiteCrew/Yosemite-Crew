@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InventoryTable from '@/app/ui/tables/InventoryTable';
 
@@ -27,23 +27,6 @@ jest.mock('@/app/ui/cards/InventoryCard', () => ({
         View Mobile
       </button>
     </div>
-  ),
-}));
-
-jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => ({
-  __esModule: true,
-  default: ({ data, columns }: any) => (
-    <table data-testid="generic-table">
-      <tbody>
-        {data.map((row: any) => (
-          <tr key={row.id} data-testid="table-row">
-            {columns.map((col: any) => (
-              <td key={col.key}>{col.render ? col.render(row) : row[col.key]}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
   ),
 }));
 
@@ -78,7 +61,7 @@ describe('InventoryTable', () => {
     },
   } as any;
 
-  it('renders table data and mobile cards', () => {
+  it('renders the card-table columns and the mobile cards', () => {
     render(
       <InventoryTable
         filteredList={[item]}
@@ -87,20 +70,36 @@ describe('InventoryTable', () => {
       />
     );
 
-    const table = screen.getByTestId('generic-table');
-    const tableScope = within(table);
-    expect(tableScope.getByText('Vaccine')).toBeInTheDocument();
-    expect(tableScope.getByText('Medicine')).toBeInTheDocument();
-    expect(tableScope.getByText('2 units')).toBeInTheDocument();
-    expect(tableScope.getByText('$ 5')).toBeInTheDocument();
-    expect(tableScope.getByText('$ 10')).toBeInTheDocument();
-    expect(tableScope.getByText('50%')).toBeInTheDocument();
-    expect(tableScope.getByText('01 Jan 2025')).toBeInTheDocument();
-    expect(tableScope.getByText('Shelf A')).toBeInTheDocument();
-    expect(tableScope.getByText('Healthy')).toBeInTheDocument();
+    // The name appears in both the desktop row and the mobile card.
+    expect(screen.getAllByText('Vaccine').length).toBeGreaterThan(0);
+    // The rest of the columns only render in the desktop card-table.
+    expect(screen.getByText('Medicine')).toBeInTheDocument();
+    expect(screen.getByText('2 units')).toBeInTheDocument();
+    expect(screen.getByText('$ 5')).toBeInTheDocument();
+    expect(screen.getByText('$ 10')).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('01 Jan 2025')).toBeInTheDocument();
+    expect(screen.getByText('Shelf A')).toBeInTheDocument();
+    expect(screen.getByText('Healthy')).toBeInTheDocument();
+
+    // Column headers describe the catalog.
+    expect(screen.getByText('Stock health')).toBeInTheDocument();
+    expect(screen.getByText('On hand')).toBeInTheDocument();
 
     const cards = screen.getAllByTestId('mobile-card');
     expect(cards).toHaveLength(1);
+  });
+
+  it('renders the footer summary', () => {
+    render(
+      <InventoryTable
+        filteredList={[item]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('Showing 1–1 of 1 items')).toBeInTheDocument();
   });
 
   it('handles view action', () => {
