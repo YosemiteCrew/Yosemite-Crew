@@ -59,4 +59,13 @@ describe('Secondary button', () => {
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
     expect(screen.getByTestId('secondary-icon')).toBeInTheDocument();
   });
+
+  test('applies the danger outline variant when danger is set', () => {
+    render(<Secondary text="Remove" danger />);
+
+    const button = screen.getByRole('button', { name: 'Remove' });
+    expect(button.className).toContain('border-[var(--danger-border)]!');
+    expect(button.className).toContain('text-[var(--danger-text)]!');
+    expect(button.className).not.toContain('border-[var(--divider)]!');
+  });
 });

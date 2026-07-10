@@ -7,16 +7,16 @@ type SecondaryProps = Omit<BaseButtonProps, 'sizeClasses' | 'baseClasses'> & {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  default: 'py-[11px]',
-  large: 'py-[11px]',
+  default: 'min-h-10',
+  large: 'min-h-11',
 };
 
 const commonClasses =
-  'px-4 gap-2 flex items-center justify-center rounded-2xl! transition-all duration-300 ease-in-out text-body-3-emphasis text-center font-satoshi border';
+  'px-5 gap-2 flex items-center justify-center rounded-full! transition-all duration-200 ease-out text-[14px] font-semibold text-center font-satoshi border';
 
-const defaultClasses = `${commonClasses} border-text-primary! text-text-primary! hover:text-text-brand! hover:border-text-brand!`;
+const defaultClasses = `${commonClasses} border-[var(--divider)]! text-[var(--ink)]! hover:text-[var(--blue)]! hover:border-[var(--blue)]!`;
 
-const dangerClasses = `${commonClasses} border-text-error! text-text-error! hover:border-text-error! hover:text-text-error! hover:bg-danger-50!`;
+const dangerClasses = `${commonClasses} border-[var(--danger-border)]! text-[var(--danger-text)]! hover:border-[var(--danger)]! hover:text-[var(--danger)]! hover:bg-[var(--danger-bg)]!`;
 
 const Secondary = ({ danger, ...props }: Readonly<SecondaryProps>) => (
   <BaseButton

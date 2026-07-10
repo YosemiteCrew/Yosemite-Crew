@@ -4,14 +4,15 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-text-primary) 86%, var(--color-neutral-0));
-  background: var(--color-text-primary);
+  border: 1px solid var(--cta);
+  border-radius: 9999px;
+  background: var(--cta);
   box-shadow: none !important;
   font-family: 'Satoshi Variable', 'Satoshi', sans-serif !important;
-  font-size: 1rem !important;
-  font-weight: 500 !important;
-  line-height: 1.5rem !important;
-  color: var(--color-neutral-0) !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  line-height: 1.25rem !important;
+  color: var(--cta-text) !important;
   transition:
     background-color 200ms ease-out,
     border-color 200ms ease-out,
