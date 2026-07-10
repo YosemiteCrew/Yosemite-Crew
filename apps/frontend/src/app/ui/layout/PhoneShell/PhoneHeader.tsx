@@ -3,13 +3,14 @@
 import React from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { IoCaretDown, IoNotifications, IoSearchOutline } from 'react-icons/io5';
+import { IoCaretDown, IoSearchOutline } from 'react-icons/io5';
 
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getSafeImageUrl } from '@/app/lib/urls';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { useUniversalSearchStore } from '@/app/stores/universalSearchStore';
+import NotificationsBell from '@/app/ui/layout/Notifications/NotificationsBell';
 
 /**
  * 54px phone header: org switcher (short name, tapping opens the org picker),
@@ -68,10 +69,7 @@ const PhoneHeader = () => {
         >
           <IoSearchOutline size={19} aria-hidden />
         </button>
-        <button type="button" className="yc-phone-iconbtn yc-phone-bell" aria-label="Notifications">
-          <IoNotifications size={18} aria-hidden />
-          <span className="yc-phone-bell-dot" aria-hidden />
-        </button>
+        <NotificationsBell variant="phone" />
       </div>
     </header>
   );

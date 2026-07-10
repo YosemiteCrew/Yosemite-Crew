@@ -15,7 +15,6 @@ import {
   IoKeyOutline,
   IoListOutline,
   IoLogOutOutline,
-  IoNotifications,
   IoPaw,
   IoSettingsOutline,
   IoWalletOutline,
@@ -45,6 +44,7 @@ import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
 import { ThemeToggle } from '@/app/ui/theme';
+import NotificationsBell from '@/app/ui/layout/Notifications/NotificationsBell';
 import './UserHeader.css';
 
 const ROUTE_ICONS = {
@@ -539,10 +539,7 @@ const UserHeader = () => {
 
         <ThemeToggle />
 
-        <button type="button" className="yc-icon-button" aria-label="Notifications">
-          <IoNotifications size={19} />
-          <span className="yc-notification-dot" aria-hidden />
-        </button>
+        <NotificationsBell />
 
         <div className="yc-profile-wrap" ref={profileDropdownRef}>
           <button

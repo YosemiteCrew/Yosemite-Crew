@@ -55,6 +55,7 @@ const config: Config = {
     '!<rootDir>/src/app/services/http/types.ts',
     '!<rootDir>/src/app/features/integrations/services/types.ts',
     '!<rootDir>/src/app/features/onboarding/components/Steps/types.ts',
+    '!<rootDir>/src/app/ui/layout/Notifications/notificationTypes.ts',
     '!<rootDir>/src/app/loading.tsx',
     '!<rootDir>/src/app/not-found.tsx',
     '!<rootDir>/src/app/(routes)/**/layout.tsx',

@@ -3,6 +3,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
+import {
+  IoAdd,
+  IoCalendarOutline,
+  IoCheckmarkDoneOutline,
+  IoCubeOutline,
+  IoDocumentTextOutline,
+  IoGridOutline,
+  IoPaw,
+  IoReceiptOutline,
+  IoSearchOutline,
+  IoWalletOutline,
+} from 'react-icons/io5';
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { useInvoicesForPrimaryOrg } from '@/app/hooks/useInvoices';
@@ -12,9 +24,11 @@ import { useInventoryStore } from '@/app/stores/inventoryStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useSearchStore } from '@/app/stores/searchStore';
 import { useUniversalSearchStore } from '@/app/stores/universalSearchStore';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import { formatCompanionNameWithOwnerLastName, getOwnerFirstName } from '@/app/lib/companionName';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
+import './UniversalSearch.css';
 
 type SearchModule =
   | 'appointments'
@@ -25,34 +39,88 @@ type SearchModule =
   | 'finance'
   | 'idexx';
 
+type SearchGroupKey = SearchModule | 'jump';
+
+type IconKey =
+  | 'paw'
+  | 'calendar'
+  | 'tasks'
+  | 'receipt'
+  | 'form'
+  | 'cube'
+  | 'add'
+  | 'dashboard'
+  | 'wallet';
+
 type SearchItem = {
   id: string;
   module: SearchModule;
+  groupKey: SearchGroupKey;
+  iconKey: IconKey;
   title: string;
   subtitle: string;
   keywords: string;
   href: string;
-  isQuick?: boolean;
+  keycap?: string;
   onSelect?: () => void;
 };
 
-const moduleLabels: Record<SearchModule, string> = {
-  appointments: 'Appointments',
-  tasks: 'Tasks',
-  companions: 'Companions',
-  forms: 'Forms',
-  inventory: 'Inventory',
-  finance: 'Finance',
-  idexx: 'IDEXX Hub',
+const ICONS: Record<IconKey, React.ComponentType<{ size?: number }>> = {
+  paw: IoPaw,
+  calendar: IoCalendarOutline,
+  tasks: IoCheckmarkDoneOutline,
+  receipt: IoReceiptOutline,
+  form: IoDocumentTextOutline,
+  cube: IoCubeOutline,
+  add: IoAdd,
+  dashboard: IoGridOutline,
+  wallet: IoWalletOutline,
 };
 
-const quickLinks: Array<{ module: SearchModule; title: string; href: string }> = [
-  { module: 'appointments', title: 'Open Appointments', href: '/appointments' },
-  { module: 'tasks', title: 'Open Tasks', href: '/tasks' },
-  { module: 'companions', title: 'Open Companions', href: '/companions' },
-  { module: 'forms', title: 'Open Forms', href: '/forms' },
-  { module: 'inventory', title: 'Open Inventory', href: '/inventory' },
-  { module: 'finance', title: 'Open Finance', href: '/finance' },
+const MODULE_ICON: Record<SearchModule, IconKey> = {
+  appointments: 'calendar',
+  tasks: 'tasks',
+  companions: 'paw',
+  forms: 'form',
+  inventory: 'cube',
+  finance: 'receipt',
+  idexx: 'add',
+};
+
+// Fixed section order + eyebrow copy. "Patients" = companions, "Invoices" =
+// finance, "Actions" = the IDEXX quick action, per the design spec.
+const GROUP_ORDER: SearchModule[] = [
+  'companions',
+  'appointments',
+  'tasks',
+  'finance',
+  'forms',
+  'inventory',
+  'idexx',
+];
+
+const GROUP_LABELS: Record<SearchGroupKey, string> = {
+  companions: 'Patients',
+  appointments: 'Appointments',
+  tasks: 'Tasks',
+  finance: 'Invoices',
+  forms: 'Forms',
+  inventory: 'Inventory',
+  idexx: 'Actions',
+  jump: 'Jump to',
+};
+
+// Empty-query state. Real recent searches are not tracked, so the design's
+// "Recent" list is omitted rather than faked; these "Jump to" entries are all
+// real routes. Dashboard + Appointments carry the spec's G-D / G-A keycaps.
+const JUMP_LINKS: Array<{ title: string; href: string; iconKey: IconKey; keycap?: string }> = [
+  { title: 'Dashboard', href: '/dashboard', iconKey: 'dashboard', keycap: 'G D' },
+  { title: 'Appointments', href: '/appointments', iconKey: 'calendar', keycap: 'G A' },
+  { title: 'Tasks', href: '/tasks', iconKey: 'tasks' },
+  { title: 'Companions', href: '/companions', iconKey: 'paw' },
+  { title: 'Finance', href: '/finance', iconKey: 'wallet' },
+  { title: 'Inventory', href: '/inventory', iconKey: 'cube' },
+  { title: 'Forms', href: '/forms', iconKey: 'form' },
 ];
 
 const getParentName = (firstName?: string) =>
@@ -83,6 +151,9 @@ const buildSearchItems = (
     moduleItems.push({
       id: `appointments:${appointmentId}`,
       module: 'appointments',
+      groupKey: 'appointments',
+      iconKey: MODULE_ICON.appointments,
+      /* v8 ignore next -- formatCompanionNameWithOwnerLastName never returns an empty string */
       title: companionDisplayName || 'Appointment',
       subtitle: `${appointment.status} • ${appointment.concern || 'No concern'} • ${appointmentId}`,
       keywords: `${companionDisplayName} ${getOwnerFirstName(getAppointmentCompanion(appointment).parent)} ${appointment.status || ''} ${appointment.concern || ''} ${appointmentId}`,
@@ -96,6 +167,8 @@ const buildSearchItems = (
     moduleItems.push({
       id: `tasks:${taskId}`,
       module: 'tasks',
+      groupKey: 'tasks',
+      iconKey: MODULE_ICON.tasks,
       title: task.name || 'Task',
       subtitle: `${task.status || 'UNKNOWN'} • ${task.category || 'General'} • ${taskId}`,
       keywords: `${task.name || ''} ${task.description || ''} ${task.status || ''} ${task.category || ''} ${taskId}`,
@@ -113,6 +186,9 @@ const buildSearchItems = (
     moduleItems.push({
       id: `companions:${companionId}`,
       module: 'companions',
+      groupKey: 'companions',
+      iconKey: MODULE_ICON.companions,
+      /* v8 ignore next -- formatCompanionNameWithOwnerLastName never returns an empty string */
       title: companionDisplayName || 'Companion',
       subtitle: `${companionParent.companion.type || 'Unknown species'} • Parent: ${getParentName(companionParent.parent.firstName)} • ${companionId}`,
       keywords: `${companionDisplayName} ${getParentName(companionParent.parent.firstName)} ${companionParent.companion.type || ''} ${companionParent.companion.status || ''} ${companionId}`,
@@ -126,6 +202,8 @@ const buildSearchItems = (
     moduleItems.push({
       id: `forms:${formId}`,
       module: 'forms',
+      groupKey: 'forms',
+      iconKey: MODULE_ICON.forms,
       title: form.name || 'Form',
       subtitle: `${form.category || 'Custom'} • ${form.status || 'Draft'} • ${formId}`,
       keywords: `${form.name || ''} ${form.description || ''} ${form.category || ''} ${form.status || ''} ${formId}`,
@@ -139,6 +217,8 @@ const buildSearchItems = (
     moduleItems.push({
       id: `inventory:${inventoryId}`,
       module: 'inventory',
+      groupKey: 'inventory',
+      iconKey: MODULE_ICON.inventory,
       title: item.basicInfo.name || 'Inventory item',
       subtitle: `${item.basicInfo.category || 'Uncategorized'} • ${item.status || 'ACTIVE'} • ${inventoryId}`,
       keywords: `${item.basicInfo.name || ''} ${item.basicInfo.description || ''} ${item.basicInfo.category || ''} ${item.status || ''} ${inventoryId}`,
@@ -152,6 +232,8 @@ const buildSearchItems = (
     moduleItems.push({
       id: `finance:${invoiceId}`,
       module: 'finance',
+      groupKey: 'finance',
+      iconKey: MODULE_ICON.finance,
       title: `Invoice ${invoiceId}`,
       subtitle: `${invoice.status || 'PENDING'} • Appointment ${invoice.appointmentId || '-'}`,
       keywords: `${invoiceId} ${invoice.status || ''} ${invoice.appointmentId || ''}`,
@@ -162,9 +244,23 @@ const buildSearchItems = (
   return moduleItems;
 };
 
+const RowIcon = ({ item }: { item: SearchItem }) => {
+  const Icon = ICONS[item.iconKey];
+  const isPatient = item.groupKey === 'companions';
+  const isAction = item.groupKey === 'idexx';
+  const shapeClass = isPatient ? 'yc-usp-icon--avatar' : 'yc-usp-icon--tile';
+  const toneClass = isAction ? 'yc-usp-icon--neutral' : 'yc-usp-icon--blue';
+  return (
+    <span className={`yc-usp-icon ${shapeClass} ${toneClass}`} aria-hidden>
+      <Icon size={16} />
+    </span>
+  );
+};
+
 const UniversalSearchPalette = () => {
   const router = useRouter();
   const pathname = usePathname();
+  const isPhone = useIsPhone();
   const isOpen = useUniversalSearchStore((s) => s.isOpen);
   const open = useUniversalSearchStore((s) => s.open);
   const close = useUniversalSearchStore((s) => s.close);
@@ -210,18 +306,22 @@ const UniversalSearchPalette = () => {
     [appointments, tasks, companions, forms, inventory, invoices]
   );
 
+  const hasQuery = query.trim().length > 0;
+
   const resultItems = useMemo<SearchItem[]>(() => {
     const q = query.trim().toLowerCase();
     if (!q) {
-      return quickLinks.map(
+      return JUMP_LINKS.map(
         (link): SearchItem => ({
-          id: `quick:${link.href}`,
-          module: link.module,
+          id: `jump:${link.href}`,
+          module: 'appointments',
+          groupKey: 'jump',
+          iconKey: link.iconKey,
           title: link.title,
           subtitle: '',
           keywords: link.title,
           href: link.href,
-          isQuick: true,
+          keycap: link.keycap,
         })
       );
     }
@@ -234,6 +334,7 @@ const UniversalSearchPalette = () => {
         if (!allTokensMatch) return [];
         const score = tokens.reduce((total, token) => {
           const idx = haystack.indexOf(token);
+          /* v8 ignore next -- token is guaranteed present by the allTokensMatch filter above */
           return total + (idx === -1 ? 9999 : idx);
         }, 0);
         return [{ item, score }];
@@ -242,23 +343,43 @@ const UniversalSearchPalette = () => {
       .slice(0, 40)
       .map((entry) => entry.item);
 
-    const idexxAction: SearchItem[] = [
-      {
-        id: `idexx:search:${q}`,
-        module: 'idexx',
-        title: `Search "${query.trim()}" in IDEXX Hub`,
-        subtitle: 'Open IDEXX Hub with header search query',
-        keywords: `idexx ${q}`,
-        href: '/appointments/idexx-workspace',
-        onSelect: () => setHeaderSearchQuery(query.trim()),
-      },
-    ];
+    const idexxAction: SearchItem = {
+      id: `idexx:search:${q}`,
+      module: 'idexx',
+      groupKey: 'idexx',
+      iconKey: MODULE_ICON.idexx,
+      title: `Search "${query.trim()}" in IDEXX Hub`,
+      subtitle: 'Open IDEXX Hub with header search query',
+      keywords: `idexx ${q}`,
+      href: '/appointments/idexx-workspace',
+      onSelect: () => setHeaderSearchQuery(query.trim()),
+    };
 
-    return [...scored, ...idexxAction];
+    // Reorder into fixed group order so keyboard navigation follows the grouped
+    // visual order; the IDEXX action lands last in "Actions".
+    const combined = [...scored, idexxAction];
+    return GROUP_ORDER.flatMap((mod) => combined.filter((item) => item.groupKey === mod));
   }, [items, query, setHeaderSearchQuery]);
+
+  const renderGroups = useMemo(() => {
+    const indexed = resultItems.map((item, index) => ({ item, index }));
+    if (!hasQuery) {
+      return [{ key: 'jump' as SearchGroupKey, label: GROUP_LABELS.jump, rows: indexed }];
+    }
+    return GROUP_ORDER.reduce<
+      Array<{ key: SearchGroupKey; label: string; rows: typeof indexed }>
+    >((groups, mod) => {
+      const rows = indexed.filter((entry) => entry.item.groupKey === mod);
+      if (rows.length > 0) {
+        groups.push({ key: mod, label: GROUP_LABELS[mod], rows });
+      }
+      return groups;
+    }, []);
+  }, [resultItems, hasQuery]);
 
   const selectItem = useCallback(
     (item?: SearchItem) => {
+      /* v8 ignore next -- selectItem is only ever invoked with a defined row */
       if (!item) return;
       item.onSelect?.();
       close();
@@ -356,71 +477,115 @@ const UniversalSearchPalette = () => {
 
   if (!isOpen || globalThis.document === undefined) return null;
 
+  const results = (
+    <div className="yc-usp-results scrollbar-custom">
+      {renderGroups.map((group) => (
+        <div key={group.key} className="yc-usp-group">
+          <div className="yc-usp-eyebrow">{group.label}</div>
+          {group.rows.map(({ item, index }) => {
+            const isActive = index === activeIndex;
+            const keycap = item.keycap ?? (isActive ? '↵' : undefined);
+            return (
+              <button
+                key={item.id}
+                ref={isActive ? activeRowRef : null}
+                type="button"
+                onMouseEnter={() => setActiveIndex(index)}
+                onClick={() => selectItem(item)}
+                className={`yc-usp-row ${isActive ? 'yc-usp-row--active' : ''}`}
+              >
+                <RowIcon item={item} />
+                <span className="yc-usp-row-body">
+                  <span className="yc-usp-row-title">{item.title}</span>
+                  {item.subtitle ? (
+                    <span className="yc-usp-row-sub">{item.subtitle}</span>
+                  ) : null}
+                </span>
+                {keycap ? <span className="yc-usp-keycap">{keycap}</span> : null}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+
+  const inputRow = (
+    <div className="yc-usp-input-row">
+      <IoSearchOutline className="yc-usp-search-icon" size={18} aria-hidden />
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search anything…"
+        className="yc-usp-input"
+        aria-label="Universal search input"
+      />
+      {isPhone ? (
+        <button type="button" className="yc-usp-cancel" onClick={close}>
+          Cancel
+        </button>
+      ) : (
+        <button type="button" className="yc-usp-esc" onClick={close} aria-label="Close search">
+          ESC
+        </button>
+      )}
+    </div>
+  );
+
+  const desktopFooter = (
+    <div className="yc-usp-foot">
+      <div className="yc-usp-foot-hints">
+        <span className="yc-usp-keyhint">
+          <span className="yc-usp-keycap">↑↓</span> Navigate
+        </span>
+        <span className="yc-usp-keyhint">
+          <span className="yc-usp-keycap">↵</span> Open
+        </span>
+        <span className="yc-usp-keyhint">
+          <span className="yc-usp-keycap">⌘↵</span> Open in workspace
+        </span>
+      </div>
+      <span className="yc-usp-foot-scope">Searches patients, visits, invoices, team, pages</span>
+    </div>
+  );
+
+  const phoneFooter = (
+    <div className="yc-usp-foot yc-usp-foot--phone">
+      <span className="yc-usp-foot-scope">Searches patients, visits, invoices, team</span>
+      <button type="button" className="yc-usp-filters">
+        Filters
+      </button>
+    </div>
+  );
+
+  if (isPhone) {
+    return createPortal(
+      <div className="yc-usp-overlay yc-usp-overlay--phone">
+        <div className="yc-usp-panel yc-usp-panel--phone" role="dialog" aria-label="Universal search">
+          <div className="yc-usp-statusbar" aria-hidden />
+          {inputRow}
+          {results}
+          {phoneFooter}
+          <span className="yc-usp-home-indicator" aria-hidden />
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
   return createPortal(
-    <div className="fixed inset-0 z-[1200] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.25),_rgba(48,47,46,0.45))] backdrop-blur-[8px] p-2 sm:p-6">
+    <div className="yc-usp-overlay">
       <button
         type="button"
         aria-label="Close universal search"
-        className="absolute inset-0"
+        className="yc-usp-backdrop"
         onClick={close}
       />
-      <section className="yc-glass-overlay mx-auto mt-2 sm:mt-8 w-full max-w-2xl overflow-hidden rounded-2xl!">
-        <div className="border-b border-[var(--hairline-soft)] p-3 sm:px-4">
-          <div className="flex items-center gap-2 rounded-2xl! border border-[var(--hairline-soft)] bg-[var(--field-bg)] px-3 py-2 shadow-[inset_0_1px_0_var(--glass-inset-hi)]">
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search appointments, tasks, companions, forms, inventory, finance..."
-              className="w-full border-0 bg-transparent font-satoshi text-body-4 text-text-primary outline-none placeholder:text-input-text-placeholder"
-              aria-label="Universal search input"
-            />
-          </div>
-        </div>
-
-        <div className="max-h-[60vh] overflow-y-auto p-2.5 scrollbar-custom sm:p-3">
-          {resultItems.length === 0 ? (
-            <div className="px-4 py-7 text-center font-satoshi text-body-4 text-text-secondary">
-              No matches found. Try a broader keyword.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {resultItems.map((item, index) => {
-                const isActive = index === activeIndex;
-                return (
-                  <button
-                    key={item.id}
-                    ref={isActive ? activeRowRef : null}
-                    type="button"
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => selectItem(item)}
-                    className={`flex w-full min-h-[64px] items-center rounded-2xl! px-3 py-2.5 text-left transition-all duration-150 ${
-                      isActive
-                        ? 'border border-brand-500/35 bg-[var(--nav-active-bg)] shadow-[0_6px_18px_var(--glow-b10)]'
-                        : 'border border-[var(--hairline-soft)] bg-[var(--screen-2)]/60 hover:border-brand-500/25 hover:bg-[var(--screen-2)]'
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="truncate pr-2 font-satoshi text-body-4 text-text-primary">
-                          {item.title}
-                        </div>
-                        <div className="shrink-0 rounded-xl border border-[var(--hairline-soft)] bg-[var(--screen)]/70 px-2 py-0.5 font-satoshi text-[0.65rem] font-medium uppercase tracking-[-0.22px] text-text-secondary">
-                          {moduleLabels[item.module]}
-                        </div>
-                      </div>
-                      {item.subtitle && !item.isQuick ? (
-                        <div className="truncate pt-0.5 font-satoshi text-caption-1 text-text-secondary">
-                          {item.subtitle}
-                        </div>
-                      ) : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+      <section className="yc-usp-panel" role="dialog" aria-label="Universal search">
+        {inputRow}
+        {results}
+        {desktopFooter}
       </section>
     </div>,
     document.body

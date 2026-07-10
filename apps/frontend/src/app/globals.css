@@ -991,6 +991,23 @@ input[type='number'] {
   }
 }
 
+/* Full-page loading skeleton shimmer — opacity oscillates 1 ↔ 0.45 over 1.6s.
+   Reused by PageSkeleton's fills via the .yc-shimmer class. Respects the global
+   prefers-reduced-motion rule, which flattens the animation duration. */
+@keyframes ycShimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.yc-shimmer {
+  animation: ycShimmer 1.6s ease-in-out infinite;
+}
+
 /* ==========================================================================
    Warm-bone + dark theme tokens — shared design-system layer.
    Token VALUES are kept identical to the marketing surface (PR #1773) so the two
@@ -1071,6 +1088,16 @@ input[type='number'] {
   --glass-93: rgba(239, 232, 220, 0.93);
   /* form inputs */
   --field-bg: #fafafa;
+  /* Semantic tinted surfaces for chrome + global-state components (notifications
+     rows, permission-denied, filtered-empty). Values mirror the danger/warning
+     ramps and the pink accent so tinted discs read consistently in light mode. */
+  --danger-bg: #fdebea;
+  --danger-text: #d53225;
+  --warn-bg: #fef3e9;
+  --warn-text: #af5e19;
+  --warn-border: #f9ad6c;
+  --pink-soft: #ffe8f6;
+  --pink-text: #c43d94;
 }
 
 html[data-theme='dark'] {
@@ -1134,6 +1161,14 @@ html[data-theme='dark'] {
   --pill-raised: #383026;
   --glass-93: rgba(34, 29, 23, 0.92);
   --field-bg: #241f18;
+  /* Dark tint-on-dark equivalents for the chrome/state semantic surfaces. */
+  --danger-bg: rgba(234, 55, 41, 0.18);
+  --danger-text: #f2938a;
+  --warn-bg: rgba(245, 168, 60, 0.16);
+  --warn-text: #f2b56b;
+  --warn-border: rgba(249, 173, 108, 0.5);
+  --pink-soft: rgba(255, 144, 212, 0.16);
+  --pink-text: #ff9dd8;
 }
 
 /* Dark overrides for coloured ramps, status chips, and semantic one-offs so tinted
