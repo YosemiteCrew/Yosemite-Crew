@@ -70,7 +70,7 @@ const InvoicePaymentLedger = ({
         </div>
       </div>
       {email && (
-        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-card-hover text-caption-1 text-text-secondary">
+        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-[var(--inset)] text-caption-1 text-text-secondary">
           <IoCheckmarkCircle
             size={14}
             aria-hidden="true"

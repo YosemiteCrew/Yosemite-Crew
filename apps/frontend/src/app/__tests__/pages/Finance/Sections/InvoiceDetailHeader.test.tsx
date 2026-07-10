@@ -14,6 +14,7 @@ jest.mock('next/image', () => ({
 
 jest.mock('react-icons/io5', () => ({
   IoDownloadOutline: () => <span data-testid="download-icon" />,
+  IoOpenOutline: () => <span data-testid="open-icon" />,
 }));
 
 jest.mock('@/app/ui/primitives/Icons/Close', () => ({
@@ -89,6 +90,41 @@ describe('InvoiceDetailHeader', () => {
       'href',
       'https://cdn.test/inv.pdf'
     );
+  });
+
+  it('renders an Open appointment action and invokes the handler when clicked', () => {
+    const onOpenAppointment = jest.fn();
+    render(
+      <InvoiceDetailHeader
+        titleId="title"
+        invoice={makeInvoice({})}
+        appointment={appointment}
+        statusLabel="Paid"
+        statusStyle={statusStyle}
+        onClose={jest.fn()}
+        onOpenAppointment={onOpenAppointment}
+      />
+    );
+
+    const openButton = screen.getByRole('button', { name: /Open appointment/ });
+    fireEvent.click(openButton);
+    expect(onOpenAppointment).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits the Open appointment action when there is no appointment', () => {
+    const onOpenAppointment = jest.fn();
+    render(
+      <InvoiceDetailHeader
+        titleId="title"
+        invoice={makeInvoice({})}
+        statusLabel="Paid"
+        statusStyle={statusStyle}
+        onClose={jest.fn()}
+        onOpenAppointment={onOpenAppointment}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /Open appointment/ })).not.toBeInTheDocument();
   });
 
   it('omits the PDF link and subtitle when there is no pdf url or appointment', () => {

@@ -4,8 +4,10 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import InvoiceInfo from '@/app/features/finance/pages/Finance/Sections/InvoiceInfo';
 
+const mockPush = jest.fn();
+
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
+  useRouter: () => ({ push: mockPush }),
 }));
 
 jest.mock('next/image', () => ({
@@ -33,13 +35,18 @@ jest.mock('@/app/ui/overlays/Modal', () => ({
 
 jest.mock('@/app/features/finance/pages/Finance/Sections/InvoiceDetailHeader', () => ({
   __esModule: true,
-  default: ({ titleId, invoice, statusLabel, onClose }: any) => (
+  default: ({ titleId, invoice, statusLabel, onClose, onOpenAppointment }: any) => (
     <div data-testid="invoice-header">
       <h2 id={titleId}>{invoice?.id}</h2>
       <span>{statusLabel}</span>
       <button type="button" onClick={onClose}>
         close
       </button>
+      {onOpenAppointment && (
+        <button type="button" onClick={onOpenAppointment}>
+          open-appointment
+        </button>
+      )}
     </div>
   ),
 }));
@@ -109,7 +116,20 @@ jest.mock('@/app/hooks/useBilling', () => ({
 }));
 
 jest.mock('@/app/lib/invoice', () => ({
-  getAppointmentByIdFromList: () => undefined,
+  getAppointmentByIdFromList: jest.fn(() => undefined),
+}));
+
+jest.mock('@/app/lib/appointments', () => ({
+  getAppointmentCompanion: () => ({
+    name: 'Poppy',
+    species: 'dog',
+    parent: { id: 'p1', firstName: 'Lena', lastName: 'Hartmann' },
+  }),
+}));
+
+jest.mock('@/app/lib/companionName', () => ({
+  formatCompanionNameWithOwnerLastName: () => 'Lena Hartmann / Poppy',
+  getOwnerFirstName: () => 'Lena',
 }));
 
 jest.mock('@/app/lib/validators', () => ({
@@ -121,6 +141,12 @@ const baseInvoice = { id: 'inv-1', status: 'PAID', items: [], metadata: {} } as 
 expect.extend(toHaveNoViolations);
 
 describe('InvoiceInfo', () => {
+  beforeEach(() => {
+    const invoiceLib = jest.requireMock('@/app/lib/invoice');
+    (invoiceLib.getAppointmentByIdFromList as jest.Mock).mockReturnValue(undefined);
+    mockPush.mockClear();
+  });
+
   it('renders modal with enriched header and tabs', () => {
     const setShowModal = jest.fn();
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
@@ -210,9 +236,43 @@ describe('InvoiceInfo', () => {
     render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
-    expect(screen.getByText('Status:')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
     // Status value rendered as badge in Pay card
     expect(screen.getAllByText('PAID').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders the payment ledger on the payment tab', () => {
+    const setShowModal = jest.fn();
+    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Payment' }));
+    expect(screen.getByTestId('payment-ledger')).toBeInTheDocument();
+  });
+
+  it('ignores the open-appointment action when no appointment is linked', () => {
+    const setShowModal = jest.fn();
+    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
+
+    fireEvent.click(screen.getByText('open-appointment'));
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('opens the linked appointment from the header action', () => {
+    const invoiceLib = jest.requireMock('@/app/lib/invoice');
+    (invoiceLib.getAppointmentByIdFromList as jest.Mock).mockReturnValue({
+      id: 'appt-1',
+      appointmentType: { name: 'Rabies booster' },
+      organisationId: 'org-1',
+    });
+
+    const setShowModal = jest.fn();
+    render(<InvoiceInfo showModal setShowModal={setShowModal} activeInvoice={baseInvoice} />);
+
+    fireEvent.click(screen.getByText('open-appointment'));
+
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(mockPush.mock.calls[0][0]).toContain('appointmentId=appt-1');
+    expect(setShowModal).toHaveBeenCalledWith(false);
   });
 
   it('has no axe accessibility violations', async () => {

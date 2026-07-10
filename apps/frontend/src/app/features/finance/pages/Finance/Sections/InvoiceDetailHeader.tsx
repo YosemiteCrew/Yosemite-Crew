@@ -1,7 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Appointment, Invoice } from '@yosemite-crew/types';
-import { IoDownloadOutline } from 'react-icons/io5';
+import { IoDownloadOutline, IoOpenOutline } from 'react-icons/io5';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { getInvoiceNumberLabel } from '@/app/lib/invoice';
 import { formatDateLabel } from '@/app/lib/forms';
@@ -16,6 +16,7 @@ type InvoiceDetailHeaderProps = {
   statusLabel: string;
   statusStyle: React.CSSProperties;
   onClose: () => void;
+  onOpenAppointment?: () => void;
 };
 
 const buildSubtitle = (appointment?: Appointment): string => {
@@ -37,6 +38,7 @@ const InvoiceDetailHeader = ({
   statusLabel,
   statusStyle,
   onClose,
+  onOpenAppointment,
 }: InvoiceDetailHeaderProps) => {
   const numberLabel = getInvoiceNumberLabel(invoice) || 'Invoice';
   const subtitle = buildSubtitle(appointment);
@@ -61,7 +63,10 @@ const InvoiceDetailHeader = ({
         </span>
         <span className="flex flex-col gap-0.5 min-w-0">
           <span className="flex items-center gap-2">
-            <h2 id={titleId} className="text-body-1 text-text-primary truncate">
+            <h2
+              id={titleId}
+              className="text-[17px] font-bold leading-tight tracking-[-0.02em] text-text-primary truncate"
+            >
               {numberLabel}
             </h2>
             {statusLabel && (
@@ -92,6 +97,16 @@ const InvoiceDetailHeader = ({
             <IoDownloadOutline size={14} aria-hidden="true" />
             PDF
           </a>
+        )}
+        {appointment && onOpenAppointment && (
+          <button
+            type="button"
+            onClick={onOpenAppointment}
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-card-border text-body-4 text-text-secondary hover:bg-card-hover transition-colors"
+          >
+            <IoOpenOutline size={14} aria-hidden="true" />
+            Open appointment
+          </button>
         )}
         <Close onClick={onClose} />
       </div>
