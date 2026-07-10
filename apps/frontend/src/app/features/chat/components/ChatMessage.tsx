@@ -62,7 +62,10 @@ const renderText = (body: string, mine: boolean) =>
     part.startsWith('@') ? (
       <span
         key={`${part}-${i}`}
-        className={clsx('font-semibold', mine ? 'text-white underline' : 'text-primary-700')}
+        className={clsx(
+          'font-semibold',
+          mine ? 'text-[var(--cta-text)] underline' : 'text-primary-700'
+        )}
       >
         {part}
       </span>
@@ -274,11 +277,15 @@ function MessageBubble({
           className={clsx(
             'px-4 py-2.5',
             mine
-              ? 'rounded-2xl rounded-br-md bg-primary-500 text-white'
-              : 'rounded-2xl rounded-bl-md bg-neutral-100 text-neutral-900'
+              ? 'rounded-2xl rounded-br-md bg-[var(--cta)] text-[var(--cta-text)]'
+              : 'rounded-2xl rounded-bl-md border border-[var(--hairline)] bg-neutral-100 text-neutral-900'
           )}
         >
-          <Text as="p" variant="body-4" className={mine ? 'text-white' : 'text-neutral-900'}>
+          <Text
+            as="p"
+            variant="body-4"
+            className={mine ? 'text-[var(--cta-text)]' : 'text-neutral-900'}
+          >
             {renderText(text, mine)}
           </Text>
         </div>

@@ -13,10 +13,19 @@ describe('Tasks AddTask', () => {
   it('shows validation errors when saving empty form', () => {
     render(<AddTask showModal setShowModal={jest.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create task' }));
 
     expect(screen.getByText('Please select a companion or staff')).toBeInTheDocument();
     expect(screen.getByText('Name is required')).toBeInTheDocument();
+  });
+
+  it('closes the modal from the footer Cancel button', () => {
+    const setShowModal = jest.fn();
+    render(<AddTask showModal setShowModal={setShowModal} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(setShowModal).toHaveBeenCalledWith(false);
   });
 
   it('creates only after save when opened with reused task prefill', async () => {
@@ -45,7 +54,7 @@ describe('Tasks AddTask', () => {
 
     expect(createTask).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create task' }));
 
     await waitFor(() => {
       expect(createTask).toHaveBeenCalledWith(

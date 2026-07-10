@@ -24,34 +24,45 @@ import { DropAvailabilityInterval } from '@/app/features/appointments/components
 const DEFAULT_DROP_AVAILABILITY_INTERVALS: DropAvailabilityInterval[] = [];
 const DEFAULT_SLOT_OFFSET_MINUTES: number[] = [];
 
-const TASK_MARKER_STYLES: Record<
-  string,
-  { backgroundColor: string; borderColor: string; color: string }
-> = {
+type MarkerStyle = { backgroundColor: string; borderColor: string; color: string };
+
+// Warm-bone status tokens — the week calendar markers read as soft status pills,
+// matching the board and the design handoff (no saturated solid blocks).
+const TASK_STATUS_MARKER_STYLES: Record<string, MarkerStyle> = {
   PENDING: {
-    backgroundColor: 'rgba(37, 99, 235, 0.92)',
-    borderColor: 'rgba(29, 78, 216, 1)',
-    color: '#ffffff',
+    backgroundColor: 'var(--status-requested-bg)',
+    borderColor: 'var(--status-requested-border)',
+    color: 'var(--status-requested-text)',
   },
   IN_PROGRESS: {
-    backgroundColor: 'rgba(14, 116, 144, 0.94)',
-    borderColor: 'rgba(8, 145, 178, 1)',
-    color: '#ffffff',
+    backgroundColor: 'var(--status-in-progress-bg)',
+    borderColor: 'var(--status-in-progress-border)',
+    color: 'var(--status-in-progress-text)',
   },
   COMPLETED: {
-    backgroundColor: 'rgba(22, 163, 74, 0.92)',
-    borderColor: 'rgba(21, 128, 61, 1)',
-    color: '#ffffff',
+    backgroundColor: 'var(--status-completed-bg)',
+    borderColor: 'var(--status-completed-border)',
+    color: 'var(--status-completed-text)',
   },
   CANCELLED: {
-    backgroundColor: 'rgba(185, 28, 28, 0.92)',
-    borderColor: 'rgba(153, 27, 27, 1)',
-    color: '#ffffff',
+    backgroundColor: 'var(--status-cancelled-bg)',
+    borderColor: 'var(--status-cancelled-border)',
+    color: 'var(--status-cancelled-text)',
   },
 };
 
-const getTaskMarkerStyle = (status: string) =>
-  TASK_MARKER_STYLES[status.toUpperCase()] ?? TASK_MARKER_STYLES.PENDING;
+// Pink is reserved on this screen for pet-parent tasks only.
+const PARENT_MARKER_STYLE: MarkerStyle = {
+  backgroundColor: 'var(--screen)',
+  borderColor: 'var(--pink)',
+  color: 'var(--ink)',
+};
+
+const getTaskStatusColors = (status: string): MarkerStyle =>
+  TASK_STATUS_MARKER_STYLES[status.toUpperCase()] ?? TASK_STATUS_MARKER_STYLES.PENDING;
+
+const getTaskMarkerStyle = (task: Pick<Task, 'status' | 'audience'>): MarkerStyle =>
+  task.audience === 'PARENT_TASK' ? PARENT_MARKER_STYLE : getTaskStatusColors(task.status);
 
 type TaskSlotProps = {
   slotEvents: Task[];
@@ -356,6 +367,9 @@ const TaskSlot = ({
             minute: '2-digit',
           });
           const markerTitle = `${task.name || 'Task'} • Due ${dueTimeLabel}`;
+          const markerStyle = getTaskMarkerStyle(task);
+          const isParentTask = task.audience === 'PARENT_TASK';
+          const isCompletedTask = task.status.toUpperCase() === 'COMPLETED';
 
           return (
             <div
@@ -375,9 +389,11 @@ const TaskSlot = ({
                 aria-expanded={activePopoverKey === taskKey}
                 aria-controls={taskPopoverId}
                 style={{
-                  ...getTaskMarkerStyle(task.status),
+                  backgroundColor: markerStyle.backgroundColor,
+                  border: `1px solid ${markerStyle.borderColor}`,
+                  color: markerStyle.color,
                   borderRadius: isZoomOutMode ? 9999 : 16,
-                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.16)',
+                  boxShadow: isParentTask ? '0 4px 12px var(--glow-p12)' : '0 1px 2px var(--sh05)',
                 }}
                 title={markerTitle}
                 onClick={() => handleViewTask(task)}
@@ -409,14 +425,23 @@ const TaskSlot = ({
                 {isZoomOutMode ? null : (
                   <>
                     <div
-                      className={`text-caption-1 truncate ${isCompact ? 'text-center' : ''}`}
-                      style={{ color: '#ffffff' }}
+                      className={`text-caption-1 truncate ${isCompact ? 'text-center' : ''} ${
+                        isCompletedTask ? 'line-through' : ''
+                      }`}
+                      style={{ color: markerStyle.color }}
                     >
+                      {isParentTask && (
+                        <span
+                          aria-hidden="true"
+                          className="mr-1 inline-block size-1.5 rounded-full align-middle"
+                          style={{ backgroundColor: 'var(--pink)' }}
+                        />
+                      )}
                       {task.name || '-'}
                     </div>
                     <div
                       className={`text-[10px] truncate ${isCompact ? 'text-center' : ''}`}
-                      style={{ color: 'rgba(255,255,255,0.92)' }}
+                      style={{ color: markerStyle.color, opacity: 0.8 }}
                     >
                       Due: {dueTimeLabel}
                     </div>
@@ -491,10 +516,11 @@ const TaskSlot = ({
                     </div>
                   </div>
                   <span
-                    className="shrink-0 rounded-full px-2 py-0.5 text-[10px] leading-4 font-medium text-white whitespace-nowrap"
+                    className="shrink-0 rounded-full px-2 py-0.5 text-[10px] leading-4 font-semibold whitespace-nowrap"
                     style={{
-                      backgroundColor: getTaskMarkerStyle(activeTask.status).backgroundColor,
-                      border: `1px solid ${getTaskMarkerStyle(activeTask.status).borderColor}`,
+                      backgroundColor: getTaskStatusColors(activeTask.status).backgroundColor,
+                      border: `1px solid ${getTaskStatusColors(activeTask.status).borderColor}`,
+                      color: getTaskStatusColors(activeTask.status).color,
                     }}
                   >
                     {getTaskStatusLabel(activeTask.status)}

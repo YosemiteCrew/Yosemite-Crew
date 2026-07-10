@@ -134,6 +134,52 @@ describe('TaskSlot', () => {
     expect(onTaskDropAt).toHaveBeenCalledWith(expect.any(Date), 625, undefined);
   });
 
+  it('paints the pink pet-parent accent and strikes completed markers', () => {
+    const slotEvents: Task[] = [
+      {
+        name: 'Parent Visit',
+        dueAt: new Date('2025-01-06T10:05:00Z'),
+        status: 'PENDING',
+        assignedTo: 'user-1',
+        _id: 'parent-1',
+        audience: 'PARENT_TASK',
+        source: 'CUSTOM',
+        category: '',
+      } as Task,
+      {
+        name: 'Wrap Up',
+        dueAt: new Date('2025-01-06T10:35:00Z'),
+        status: 'COMPLETED',
+        assignedTo: 'user-1',
+        _id: 'done-1',
+        audience: 'EMPLOYEE_TASK',
+        source: 'CUSTOM',
+        category: '',
+      } as Task,
+    ];
+
+    render(
+      <TaskSlot
+        slotEvents={slotEvents}
+        handleViewTask={handleViewTask}
+        index={0}
+        length={1}
+        height={200}
+      />
+    );
+
+    const parentMarker = screen.getByRole('button', { name: /Parent Visit/i });
+    const parentStyle = parentMarker.getAttribute('style') ?? '';
+    expect(parentStyle).toContain('var(--pink)');
+    expect(parentStyle).toContain('var(--screen)');
+
+    // Employee tasks keep the warm-bone status tokens (no pink).
+    const employeeMarker = screen.getByRole('button', { name: /Wrap Up/i });
+    expect(employeeMarker.getAttribute('style') ?? '').not.toContain('var(--pink)');
+    expect(screen.getByText('Wrap Up')).toHaveClass('line-through');
+    expect(screen.getByText('Parent Visit')).not.toHaveClass('line-through');
+  });
+
   it('has no axe accessibility violations when the task popover is open', async () => {
     const slotEvents: Task[] = [
       {

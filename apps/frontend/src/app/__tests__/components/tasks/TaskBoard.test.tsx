@@ -279,4 +279,83 @@ describe('TaskBoard', () => {
     });
     expect(changeTaskStatus).not.toHaveBeenCalled();
   });
+
+  it('renders the pink pet-parent accent only for parent tasks', () => {
+    renderBoard({
+      tasks: [
+        {
+          _id: 'p1',
+          name: 'Parent Care',
+          status: 'PENDING',
+          audience: 'PARENT_TASK',
+          dueAt: new Date('2026-03-31T10:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+        {
+          _id: 'e1',
+          name: 'Team Care',
+          status: 'PENDING',
+          audience: 'EMPLOYEE_TASK',
+          dueAt: new Date('2026-03-31T10:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-2',
+        },
+      ] as any,
+    });
+
+    expect(screen.getByText('Parent task')).toBeInTheDocument();
+
+    const parentCard = screen
+      .getByRole('button', { name: 'Open task Parent Care' })
+      .closest('article');
+    expect(parentCard).toHaveClass('border-[var(--pink)]');
+
+    const teamCard = screen.getByRole('button', { name: 'Open task Team Care' }).closest('article');
+    expect(teamCard).not.toHaveClass('border-[var(--pink)]');
+    expect(teamCard).toHaveClass('border-card-border');
+  });
+
+  it('mutes completed and cancelled task titles with a strike-through', () => {
+    renderBoard({
+      tasks: [
+        {
+          _id: 'c1',
+          name: 'Done Task',
+          status: 'COMPLETED',
+          audience: 'EMPLOYEE_TASK',
+          dueAt: new Date('2026-03-31T10:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+        {
+          _id: 'x1',
+          name: 'Void Task',
+          status: 'CANCELLED',
+          audience: 'EMPLOYEE_TASK',
+          dueAt: new Date('2026-03-31T10:00:00Z'),
+          assignedBy: 'user-1',
+          assignedTo: 'user-1',
+        },
+      ] as any,
+    });
+
+    expect(screen.getByText('Done Task')).toHaveClass('line-through');
+    expect(screen.getByText('Void Task')).toHaveClass('line-through');
+
+    const doneCard = screen.getByRole('button', { name: 'Open task Done Task' }).closest('article');
+    expect(doneCard).toHaveClass('opacity-70');
+  });
+
+  it('adds a task from the Pending column quick-add affordance', () => {
+    renderBoard();
+    fireEvent.click(screen.getByRole('button', { name: 'Add task to Pending' }));
+    expect(onAddTask).toHaveBeenCalled();
+  });
+
+  it('hides both add affordances when the user cannot edit tasks', () => {
+    renderBoard({ canEditTasks: false });
+    expect(screen.queryByRole('button', { name: 'Add task to Pending' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add task' })).not.toBeInTheDocument();
+  });
 });

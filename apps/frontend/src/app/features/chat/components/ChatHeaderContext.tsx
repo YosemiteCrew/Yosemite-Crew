@@ -1,7 +1,8 @@
-import { LuShieldAlert, LuCalendar } from 'react-icons/lu';
+import { LuShieldAlert } from 'react-icons/lu';
 import type { Appointment } from '@yosemite-crew/types';
 import Text from '@/app/ui/Text';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
+import { ChatAvatar } from './ChatAvatar';
 import { allowReschedule, canTransitionAppointmentStatus } from '@/app/lib/appointments';
 
 /**
@@ -82,19 +83,22 @@ export function ChatHeaderContext({
       )}
       {appointment && (
         <div className="flex flex-col gap-2.5 border-b border-chat-divider bg-chat-surface px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-0 text-primary-600">
-              <LuCalendar className="h-5 w-5" />
-            </span>
-            <div className="flex min-w-0 flex-col">
-              <Text as="span" variant="body-4-emphasis" className="text-neutral-900">
+          {/* Compact appointment context chip that sits above the message thread. */}
+          <span className="inline-flex min-w-0 items-center gap-2.5 self-start rounded-full border border-[var(--hairline)] bg-[var(--pill-raised)] py-1.5 pl-1.5 pr-3.5 sm:self-auto">
+            <ChatAvatar name={apptName || 'Appointment'} size="sm" />
+            <span className="flex min-w-0 flex-col">
+              <Text
+                as="span"
+                variant="caption-2"
+                className="font-bold uppercase tracking-[0.08em] text-neutral-500"
+              >
                 Appointment
               </Text>
-              <Text as="span" variant="caption-1" className="truncate text-neutral-600">
+              <Text as="span" variant="caption-1" className="truncate text-neutral-900">
                 {[apptLabel, apptName].filter(Boolean).join(' · ') || 'Linked appointment'}
               </Text>
-            </div>
-          </div>
+            </span>
+          </span>
           <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 sm:mx-0 sm:flex-wrap sm:justify-end sm:overflow-visible sm:px-0">
             {visibleActions.map((a) => (
               <Secondary key={a} text={a} onClick={() => onAction(a)} className="shrink-0" />

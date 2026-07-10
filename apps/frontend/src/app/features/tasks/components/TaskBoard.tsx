@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import clsx from 'clsx';
 import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
@@ -110,145 +111,175 @@ const TaskCard = ({
   onReschedule,
   onDragStart,
   onDragEnd,
-}: TaskCardProps) => (
-  <article
-    aria-label={`Open task ${task.name || '-'}`}
-    className={`relative w-full min-h-[112px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-gradient-to-b from-neutral-0 to-card-hover px-3 py-2.5 text-left transition-colors flex flex-col items-stretch justify-start ${
-      draggedTaskId === (task._id ?? null)
-        ? 'opacity-60 shadow-none'
-        : 'hover:border-input-border-active! hover:bg-card-hover!'
-    }`}
-    draggable={canEditTasks && canShowTaskStatusChangeAction(task.status)}
-    onDragStart={(event) => onDragStart(event, task)}
-    onDragEnd={onDragEnd}
-  >
-    <button
-      type="button"
-      aria-label={`Open task ${task.name || '-'}`}
-      className="absolute inset-0 rounded-2xl!"
-      onClick={() => onOpen(task)}
-    />
-    <div className="relative z-10 flex items-start justify-between gap-2">
-      <div className="truncate text-[12px] leading-4 font-semibold text-text-primary">
-        {task.name || '-'}
-      </div>
-      <div
-        className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-        style={{
-          ...getColumnBadgeStyle(task.status),
-          borderColor: columnStyle.color,
-        }}
-      >
-        {columnLabel}
-      </div>
-    </div>
+}: TaskCardProps) => {
+  // Pink is reserved on this screen for pet-parent tasks only.
+  const isParentTask = task.audience === 'PARENT_TASK';
+  const isDone = task.status === 'COMPLETED';
+  const isCancelled = task.status === 'CANCELLED';
+  const isMuted = isDone || isCancelled;
+  const isDragging = draggedTaskId === (task._id ?? null);
 
-    <div className="relative z-10 mt-1.5 grid grid-cols-1 gap-1">
-      {getTaskQuickDetails(task)
-        .slice(0, 2)
-        .map((item) => (
-          <div
-            key={item.label}
-            className="flex items-start gap-1.5 text-[10px] leading-4 text-text-secondary"
-          >
-            <span className="shrink-0 font-medium text-text-primary">{item.label}:</span>
-            <span className="line-clamp-1 min-w-0">{item.value}</span>
-          </div>
-        ))}
-      {[
-        { label: 'From', value: assignedBy },
-        { label: 'To', value: assignedTo },
-      ].map((item) => (
-        <div key={item.label} className="flex items-center gap-1.5">
-          {item.value.imageUrl ? (
-            <Image
-              src={item.value.imageUrl}
-              alt={item.value.name}
-              width={18}
-              height={18}
-              className="size-[18px] rounded-full border border-card-border object-cover"
-            />
-          ) : (
-            <div className="size-[18px] rounded-full border border-card-border bg-neutral-0 text-[8px] font-semibold text-text-secondary flex items-center justify-center">
-              {getInitialsStatic(item.value.name)}
-            </div>
+  return (
+    <article
+      aria-label={`Open task ${task.name || '-'}`}
+      className={clsx(
+        'group/card relative w-full min-h-[104px] shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-3.5 py-3 text-left transition-colors flex flex-col items-stretch justify-start border',
+        isParentTask
+          ? 'border-[var(--pink)] shadow-[0_4px_12px_var(--glow-p12)]'
+          : 'border-card-border shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]',
+        isMuted && 'opacity-70',
+        isDragging
+          ? 'opacity-60 shadow-none'
+          : !isParentTask && 'hover:border-input-border-active! hover:bg-card-hover!'
+      )}
+      draggable={canEditTasks && canShowTaskStatusChangeAction(task.status)}
+      onDragStart={(event) => onDragStart(event, task)}
+      onDragEnd={onDragEnd}
+    >
+      <button
+        type="button"
+        aria-label={`Open task ${task.name || '-'}`}
+        className="absolute inset-0 rounded-[13px]!"
+        onClick={() => onOpen(task)}
+      />
+      <div className="relative z-10 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {isParentTask && (
+            <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-[var(--pink)]" />
           )}
-          <div className="min-w-0 flex items-center gap-1.5">
-            <span className="text-[10px] text-text-secondary">{item.label}</span>
-            <span className="truncate text-[10px] text-text-primary">{item.value.name}</span>
+          <div
+            className={clsx(
+              'truncate text-[13px] leading-4 font-bold',
+              isMuted ? 'text-text-tertiary line-through' : 'text-text-primary'
+            )}
+          >
+            {task.name || '-'}
           </div>
         </div>
-      ))}
-    </div>
-
-    <div className="relative z-10 mt-1.5 rounded-xl border border-card-border bg-neutral-0/80 px-2 py-1">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] text-text-secondary">Due</span>
-        <span className="text-[10px] text-text-primary">
-          {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          })}
-          {' \u2022 '}
-          {formatDateInPreferredTimeZone(new Date(task.dueAt), {
-            hour: 'numeric',
-            minute: '2-digit',
-          })}
-        </span>
-      </div>
-    </div>
-    <div className="relative z-10 mt-1.5 flex items-center gap-1.5 flex-wrap max-w-[168px]">
-      <GlassTooltip content="View task" side="bottom">
-        <button
-          type="button"
-          className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onOpen(task);
+        <div
+          className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em]"
+          style={{
+            ...getColumnBadgeStyle(task.status),
+            borderColor: columnStyle.color,
           }}
         >
-          <IoEyeOutline size={14} color="var(--color-neutral-900)" />
-        </button>
-      </GlassTooltip>
-      {canEditTasks && canShowTaskStatusChangeAction(task.status) && (
-        <GlassTooltip content="Change status" side="bottom">
-          <button
-            type="button"
-            className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onChangeStatus(task);
-            }}
-          >
-            <MdOutlineAutorenew size={13} color="var(--color-neutral-900)" />
-          </button>
-        </GlassTooltip>
-      )}
-      {canEditTasks && canRescheduleTask(task.status) && (
-        <GlassTooltip content="Reschedule" side="bottom">
-          <button
-            type="button"
-            className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onReschedule(task);
-            }}
-          >
-            <IoIosCalendar size={13} color="var(--color-neutral-900)" />
-          </button>
-        </GlassTooltip>
-      )}
-    </div>
+          {columnLabel}
+        </div>
+      </div>
 
-    {updatingStatusId === task._id && (
-      <div className="relative z-10 mt-1 text-[10px] text-text-secondary">Updating...</div>
-    )}
-  </article>
-);
+      {isParentTask && (
+        <div className="relative z-10 mt-1 text-[10.5px] font-semibold text-[var(--pink)]">
+          Parent task
+        </div>
+      )}
+
+      <div className="relative z-10 mt-1.5 grid grid-cols-1 gap-1">
+        {getTaskQuickDetails(task)
+          .slice(0, 2)
+          .map((item) => (
+            <div
+              key={item.label}
+              className="flex items-start gap-1.5 text-[10px] leading-4 text-text-secondary"
+            >
+              <span className="shrink-0 font-medium text-text-primary">{item.label}:</span>
+              <span className="line-clamp-1 min-w-0">{item.value}</span>
+            </div>
+          ))}
+        {[
+          { label: 'From', value: assignedBy },
+          { label: 'To', value: assignedTo },
+        ].map((item) => (
+          <div key={item.label} className="flex items-center gap-1.5">
+            {item.value.imageUrl ? (
+              <Image
+                src={item.value.imageUrl}
+                alt={item.value.name}
+                width={18}
+                height={18}
+                className="size-[18px] rounded-full border border-card-border object-cover"
+              />
+            ) : (
+              <div className="size-[18px] rounded-full border border-card-border bg-neutral-0 text-[8px] font-semibold text-text-secondary flex items-center justify-center">
+                {getInitialsStatic(item.value.name)}
+              </div>
+            )}
+            <div className="min-w-0 flex items-center gap-1.5">
+              <span className="text-[10px] text-text-secondary">{item.label}</span>
+              <span className="truncate text-[10px] text-text-primary">{item.value.name}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="relative z-10 mt-1.5 rounded-xl border border-card-border bg-[var(--field-bg)] px-2 py-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] text-text-secondary">Due</span>
+          <span className="text-[10px] text-text-primary">
+            {formatDateInPreferredTimeZone(new Date(task.dueAt), {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+            {' \u2022 '}
+            {formatDateInPreferredTimeZone(new Date(task.dueAt), {
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
+          </span>
+        </div>
+      </div>
+      <div className="relative z-10 mt-1.5 flex items-center gap-1.5 flex-wrap max-w-[168px]">
+        <GlassTooltip content="View task" side="bottom">
+          <button
+            type="button"
+            className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onOpen(task);
+            }}
+          >
+            <IoEyeOutline size={14} color="var(--color-neutral-900)" />
+          </button>
+        </GlassTooltip>
+        {canEditTasks && canShowTaskStatusChangeAction(task.status) && (
+          <GlassTooltip content="Change status" side="bottom">
+            <button
+              type="button"
+              className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onChangeStatus(task);
+              }}
+            >
+              <MdOutlineAutorenew size={13} color="var(--color-neutral-900)" />
+            </button>
+          </GlassTooltip>
+        )}
+        {canEditTasks && canRescheduleTask(task.status) && (
+          <GlassTooltip content="Reschedule" side="bottom">
+            <button
+              type="button"
+              className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onReschedule(task);
+              }}
+            >
+              <IoIosCalendar size={13} color="var(--color-neutral-900)" />
+            </button>
+          </GlassTooltip>
+        )}
+      </div>
+
+      {updatingStatusId === task._id && (
+        <div className="relative z-10 mt-1 text-[10px] text-text-secondary">Updating...</div>
+      )}
+    </article>
+  );
+};
 
 type TaskBoardProps = {
   tasks: Task[];
@@ -590,30 +621,24 @@ const TaskBoard = ({
                 ref={(element) => {
                   columnDropRefs.current[column.key] = element;
                 }}
-                className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-neutral-0 overflow-hidden flex flex-col min-h-0"
+                className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl bg-[var(--inset)] overflow-hidden flex flex-col min-h-0"
               >
-                <div
-                  className="rounded-t-2xl border-b px-3 py-2"
-                  style={{
-                    backgroundColor: style.backgroundColor,
-                    borderBottomColor: style.borderColor,
-                  }}
-                >
+                <div className="px-3.5 pt-3.5 pb-2.5">
                   <div className="flex items-center justify-between">
-                    <div className="text-body-4-emphasis" style={{ color: style.color }}>
-                      {column.label}
+                    <div className="flex items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ backgroundColor: style.borderColor }}
+                      />
+                      <div
+                        className="text-[12px] font-bold uppercase tracking-[0.04em]"
+                        style={{ color: style.color }}
+                      >
+                        {column.label}
+                      </div>
                     </div>
-                    <div
-                      className="text-caption-1 rounded-full px-2 py-0.5"
-                      style={{
-                        backgroundColor: style.backgroundColor,
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: style.borderColor,
-                        color: style.color,
-                        opacity: 0.85,
-                      }}
-                    >
+                    <div className="text-[11.5px] font-bold text-text-tertiary">
                       {columnTasks.length}
                     </div>
                   </div>
@@ -622,7 +647,7 @@ const TaskBoard = ({
                   ref={(element) => {
                     columnScrollRefs.current[column.key] = element;
                   }}
-                  className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-neutral-0 overflow-y-auto"
+                  className="flex-1 min-h-0 h-0 flex flex-col gap-2.5 px-2.5 pb-3 overflow-y-auto"
                   onWheel={onWheelBoundary}
                   data-calendar-scroll="true"
                 >
@@ -645,9 +670,20 @@ const TaskBoard = ({
                     />
                   ))}
                   {!hasTasks && (
-                    <div className="rounded-2xl border border-dashed border-card-border bg-neutral-0 px-3 py-4 text-center text-caption-1 text-text-secondary">
+                    <div className="rounded-[13px] border border-dashed border-card-border bg-neutral-0 px-3 py-4 text-center text-caption-1 text-text-secondary">
                       No tasks
                     </div>
+                  )}
+                  {canEditTasks && column.key === 'PENDING' && (
+                    <button
+                      type="button"
+                      aria-label="Add task to Pending"
+                      onClick={onAddTask}
+                      className="mt-auto flex items-center justify-center gap-1.5 rounded-[11px] border border-dashed border-[var(--divider)] px-3 py-2.5 text-[12px] font-semibold text-text-tertiary transition-colors hover:border-input-border-active hover:text-text-primary"
+                    >
+                      <IoAdd size={14} aria-hidden="true" />
+                      Add
+                    </button>
                   )}
                 </div>
               </div>
