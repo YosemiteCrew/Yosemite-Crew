@@ -812,6 +812,10 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
         .filter((value): value is string => Boolean(value)),
     [field.fields]
   );
+  const selectedMedicineSet = React.useMemo(
+    () => new Set(selectedMedicines),
+    [selectedMedicines]
+  );
 
   useEffect(() => {
     if (!primaryOrgId) return;
@@ -837,7 +841,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
   });
 
   const handleMedicineSelect = (medicineId: string) => {
-    if (!medicineId || selectedMedicines.includes(medicineId)) return;
+    if (!medicineId || selectedMedicineSet.has(medicineId)) return;
 
     const medicine = medicines.find((m) => m._id === medicineId);
     if (!medicine) return;
@@ -977,7 +981,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
           even on YC-default (structure-locked) templates. */}
       <LabelDropdown
         placeholder={loadingMedicines ? 'Loading medicines…' : 'Add medicine from inventory'}
-        options={medicineOptions.filter((opt) => !selectedMedicines.includes(opt.value))}
+        options={medicineOptions.filter((opt) => !selectedMedicineSet.has(opt.value))}
         onSelect={(option) => handleMedicineSelect(option.value)}
         noOptionsMessage={loadingMedicines ? 'Loading medicines…' : 'No medicines available'}
       />
@@ -1426,12 +1430,12 @@ const CanvasRow: React.FC<{
           role="presentation"
         >
           {onMoveUp && (
-            <button type="button" title="Move up" onClick={onMoveUp}>
+            <button type="button" title="Move up" aria-label="Move up" onClick={onMoveUp}>
               <IoChevronUp size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
             </button>
           )}
           {onMoveDown && (
-            <button type="button" title="Move down" onClick={onMoveDown}>
+            <button type="button" title="Move down" aria-label="Move down" onClick={onMoveDown}>
               <IoChevronDown size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
             </button>
           )}
