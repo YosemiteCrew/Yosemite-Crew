@@ -857,7 +857,11 @@ describe('SummaryStep', () => {
     });
     expect(screen.queryByTestId('autosave-indicator')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    expect(await screen.findByTestId('autosave-indicator')).toHaveTextContent('Autosaved');
+    // The indicator first renders "Saving…" then flips to "Autosaved" once the
+    // save resolves — wait for the final text rather than the element existing.
+    await waitFor(() =>
+      expect(screen.getByTestId('autosave-indicator')).toHaveTextContent('Autosaved')
+    );
   });
 
   it('colours the document signing pills by state', async () => {
