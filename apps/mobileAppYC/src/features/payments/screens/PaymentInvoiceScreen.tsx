@@ -42,6 +42,7 @@ import {
   fetchGooglePlacesImage,
 } from '@/features/linkedBusinesses';
 import {usePaymentHandler} from '@/features/payments/hooks/usePaymentHandler';
+import {PaymentsEmptyState} from '@/features/payments/components';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import {
   resolveCurrencyForBusiness,
@@ -52,6 +53,8 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {AvatarGroup} from '@/shared/components/common/AvatarGroup/AvatarGroup';
+import {Badge, type BadgeTone} from '@/shared/components/common/Badge/Badge';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import i18n from '@/localization/i18n';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
@@ -396,6 +399,22 @@ const resolveInvoicePaymentStatusLabel = (invoice: Invoice | null) => {
   return toFriendlyInvoiceStatus(invoice.status);
 };
 
+const resolveInvoiceStatusBadge = (
+  paymentStatusLabel: string,
+): {label: string; tone: BadgeTone} => {
+  const normalized = paymentStatusLabel.toLowerCase();
+  if (normalized.includes('paid')) {
+    return {label: 'Paid', tone: 'success'};
+  }
+  if (normalized.includes('refund')) {
+    return {label: 'Refunded', tone: 'info'};
+  }
+  if (normalized.includes('cancel')) {
+    return {label: 'Cancelled', tone: 'danger'};
+  }
+  return {label: 'Due', tone: 'warning'};
+};
+
 const DEFAULT_CASH_CANCELLATION_NOTICE_TITLE = 'Important';
 const DEFAULT_CASH_CANCELLATION_NOTICE_BODY =
   'This appointment was paid in cash and has been cancelled. If a refund is needed, it must be handled directly by the service provider.';
@@ -454,7 +473,14 @@ const InvoiceDetailsCard = ({
       style={styles.glassCard}
       fallbackStyle={styles.cardFallback}>
       <View style={styles.cardContent}>
-        <Text style={styles.metaTitle}>Invoice details</Text>
+        <View style={styles.cardHeaderRow}>
+          <Text style={styles.metaTitle}>Invoice details</Text>
+          <Badge
+            label={resolveInvoiceStatusBadge(paymentStatusLabel).label}
+            tone={resolveInvoiceStatusBadge(paymentStatusLabel).tone}
+            size="sm"
+          />
+        </View>
         <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
         <MetaRow
           label="Appointment ID"
@@ -786,6 +812,7 @@ const PayButton = ({
   clientSecret,
   theme,
   handlePayNow,
+  payLabel,
   styles,
 }: {
   shouldShowPay: boolean;
@@ -793,21 +820,32 @@ const PayButton = ({
   clientSecret: string | null;
   theme: any;
   handlePayNow: () => void;
+  payLabel: string;
   styles: any;
 }) => {
   if (!shouldShowPay) return null;
   return (
     <View style={styles.buttonContainer}>
       <LiquidGlassButton
-        title="Pay now"
+        title={payLabel}
         onPress={handlePayNow}
         height={56}
-        borderRadius={16}
+        borderRadius={theme.borderRadius.button}
         disabled={presentingSheet || !clientSecret}
-        tintColor={theme.colors.secondary}
+        tintColor={theme.colors.cta}
         shadowIntensity="medium"
         textStyle={styles.confirmPrimaryButtonText}
       />
+      <View style={styles.securityNote}>
+        <Ionicons
+          name="lock-closed-outline"
+          size={14}
+          color={theme.colors.inkFaint}
+        />
+        <Text style={styles.securityNoteText}>
+          Processed securely by Stripe. The provider never sees your card.
+        </Text>
+      </View>
     </View>
   );
 };
@@ -1212,6 +1250,7 @@ const buildInvoiceContent = ({
           clientSecret={clientSecret}
           theme={theme}
           handlePayNow={handlePayNow}
+          payLabel={`Pay ${formatMoney(total)}`}
           styles={styles}
         />
       </>
@@ -1219,10 +1258,11 @@ const buildInvoiceContent = ({
   }
 
   return (
-    <Text style={styles.warningText}>
-      No invoice found for this booking. Please retry booking or contact
-      support.
-    </Text>
+    <PaymentsEmptyState
+      testID="payment-invoice-empty"
+      title="Nothing due"
+      description="Invoices from your linked practices appear here the moment they are issued."
+    />
   );
 };
 
@@ -1621,17 +1661,25 @@ const BreakdownRow = ({
 }) => {
   const {theme} = useTheme();
   const styles = breakdownStyles(theme);
+  const isCredit =
+    !highlight &&
+    (value.trim().startsWith('-') || value.trim().startsWith('−'));
   return (
-    <View
-      style={[
-        styles.row,
-        highlight && styles.rowHighlight,
-        subtle && styles.rowSubtle,
-      ]}>
-      <Text style={[styles.label, highlight && styles.labelHighlight]}>
+    <View style={[styles.row, highlight && styles.rowHighlight]}>
+      <Text
+        style={[
+          styles.label,
+          highlight && styles.labelHighlight,
+          subtle && !highlight && styles.labelSubtle,
+        ]}>
         {label}
       </Text>
-      <Text style={[styles.value, highlight && styles.valueHighlight]}>
+      <Text
+        style={[
+          styles.value,
+          highlight && styles.valueHighlight,
+          isCredit && styles.valueCredit,
+        ]}>
         {value}
       </Text>
     </View>
@@ -1650,14 +1698,14 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['1'],
     },
     cardShadowWrapper: {
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.card,
       backgroundColor: theme.colors.cardBackground,
-      boxShadow: `0px 10px 15px ${theme.colors.neutralShadow}`,
+      ...theme.shadows.card,
       overflow: 'visible',
     },
     glassCard: {
       backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.card,
       padding: 0,
       gap: theme.spacing['2'],
     },
@@ -1668,23 +1716,29 @@ const createStyles = (theme: any) =>
     },
     cardFallback: {
       backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+    },
+    cardHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.spacing['2'],
     },
     loadingBox: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing['2'],
-      padding: theme.spacing['3'],
-      borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.cardBackground,
+      padding: theme.spacing['4'],
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.screen2,
       borderWidth: 1,
-      borderColor: theme.colors.borderMuted ?? theme.colors.border,
+      borderColor: theme.colors.hairline,
     },
     loadingText: {
       ...theme.typography.body14,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     metaCard: {
       borderRadius: theme.borderRadius.lg,
@@ -1697,11 +1751,7 @@ const createStyles = (theme: any) =>
     },
     metaTitle: {
       ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
-    },
-    warningText: {
-      ...theme.typography.body12,
-      color: theme.colors.warning,
+      color: theme.colors.ink,
     },
     missingContainer: {
       flex: 1,
@@ -1767,25 +1817,25 @@ const createStyles = (theme: any) =>
       width: theme.spacing['4.5'],
       height: theme.spacing['4.5'],
       resizeMode: 'contain',
-      tintColor: theme.colors.secondary,
+      tintColor: theme.colors.inkMuted,
     },
     invoiceContactText: {
       ...theme.typography.body14,
-      color: theme.colors.secondary,
+      color: theme.colors.ink,
     },
     invoiceAddressText: {
       ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
       flex: 1,
     },
     appointmentForText: {
       ...theme.typography.body14,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
       marginTop: theme.spacing['2'],
     },
     appointmentForName: {
       ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
+      color: theme.colors.ink,
     },
     breakdownCard: {
       borderRadius: theme.borderRadius.lg,
@@ -1797,8 +1847,8 @@ const createStyles = (theme: any) =>
     },
     breakdownNote: {
       ...theme.typography.body12,
-      color: theme.colors.textSecondary,
-      marginTop: theme.spacing['1'],
+      color: theme.colors.inkFaint,
+      marginTop: theme.spacing['2'],
     },
     termsCard: {
       borderRadius: theme.borderRadius.lg,
@@ -1810,7 +1860,7 @@ const createStyles = (theme: any) =>
     },
     termsLine: {
       ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
       lineHeight: theme.spacing['4.5'],
     },
     refundLinkRow: {
@@ -1823,8 +1873,21 @@ const createStyles = (theme: any) =>
     },
     confirmPrimaryButtonText: {
       ...theme.typography.button,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
+    },
+    securityNote: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing['1.5'],
+      paddingHorizontal: theme.spacing['4'],
+    },
+    securityNoteText: {
+      ...theme.typography.body12,
+      color: theme.colors.inkFaint,
+      textAlign: 'center',
+      flexShrink: 1,
     },
   });
 
@@ -1833,21 +1896,24 @@ const metaStyles = (theme: any) =>
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: theme.spacing['2'],
+      paddingVertical: theme.spacing['2.5'],
       gap: theme.spacing['2'],
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.hairline,
     },
     label: {
       ...theme.typography.labelSmall,
-      color: theme.colors.placeholder,
+      color: theme.colors.inkMuted,
       flexShrink: 0,
     },
     value: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.secondary,
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.ink,
       flex: 1,
       flexShrink: 1,
       minWidth: 0,
       textAlign: 'right',
+      fontVariant: ['tabular-nums'],
     },
   });
 
@@ -1857,30 +1923,41 @@ const breakdownStyles = (theme: any) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: theme.spacing['2'],
+      paddingVertical: theme.spacing['3'],
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.hairline,
     },
     rowHighlight: {
-      backgroundColor: theme.colors.primary,
-      borderRadius: theme.borderRadius.md,
-      paddingHorizontal: theme.spacing['3'],
-      paddingVertical: theme.spacing['2.5'],
-    },
-    rowSubtle: {
-      opacity: 0.8,
+      alignItems: 'baseline',
+      paddingTop: theme.spacing['4'],
+      paddingBottom: theme.spacing['1'],
+      borderBottomWidth: 0,
     },
     label: {
       ...theme.typography.labelSmall,
-      color: theme.colors.secondary,
+      color: theme.colors.inkBody,
+    },
+    labelSubtle: {
+      color: theme.colors.inkFaint,
     },
     labelHighlight: {
-      color: theme.colors.white,
+      ...theme.typography.titleSmall,
+      color: theme.colors.ink,
     },
     value: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.secondary,
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.ink,
+      fontVariant: ['tabular-nums'],
+    },
+    valueCredit: {
+      color: theme.colors.success,
     },
     valueHighlight: {
-      color: theme.colors.white,
+      ...theme.typography.amountHero,
+      fontSize: 24,
+      lineHeight: 28,
+      color: theme.colors.ink,
+      fontVariant: ['tabular-nums'],
     },
   });
 

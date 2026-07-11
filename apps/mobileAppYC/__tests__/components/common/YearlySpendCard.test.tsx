@@ -152,6 +152,18 @@ describe('YearlySpendCard Component', () => {
     expect(getByText('$ 123')).toBeTruthy();
   });
 
+  it('falls back to resolveCurrencySymbol when currencySymbol is empty', () => {
+    // Passing an empty string keeps `currencySymbol` falsy so the default '$'
+    // never applies, forcing the right-hand side of `currencySymbol ||
+    // resolveCurrencySymbol(...)` (line 36 branch) to execute.
+    const {getByText} = render(
+      <YearlySpendCard amount={99} currencyCode="FAIL" currencySymbol="" />,
+    );
+
+    // resolveCurrencySymbol('FAIL', '$') -> '$', catch block -> '$ 99'
+    expect(getByText('$ 99')).toBeTruthy();
+  });
+
   // ===========================================================================
   // 3. Interaction
   // ===========================================================================

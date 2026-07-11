@@ -20,11 +20,14 @@ import {
 } from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useForm, Controller} from 'react-hook-form';
-import {Input, Header} from '@/shared/components/common';
+import {Input} from '@/shared/components/common';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
 import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
-import {ProfileImagePicker} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
+import {
+  ProfileImagePicker,
+  type ProfileImagePickerRef,
+} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 import {
   CountryMobileBottomSheet,
   CountryMobileBottomSheetRef,
@@ -39,8 +42,9 @@ import {
 } from '@/shared/components/forms/AddressFields';
 import {useTheme, useAddressAutocomplete} from '@/hooks';
 import {createFormScreenStyles} from '@/shared/utils/formScreenStyles';
+import type {Theme} from '@/theme';
 import {Images} from '@/assets/images';
-import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
+import {normalizeImageUri} from '@/shared/utils/imageUri';
 import COUNTRIES from '@/shared/utils/countryList.json';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import {useAuth, type User} from '@/features/auth/context/AuthContext';
@@ -161,6 +165,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   const countryMobileRef = useRef<CountryMobileBottomSheetRef>(null);
   const successBottomSheetRef = useRef<BottomSheetRef>(null);
   const ageVerificationInfoBottomSheetRef = useRef<BottomSheetRef>(null);
+  const profileImagePickerRef = useRef<ProfileImagePickerRef>(null);
 
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [selectedCountry, setSelectedCountry] =
@@ -428,6 +433,66 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     },
     [setValue],
   );
+
+  // Presentation-only: drive the existing ProfileImagePicker (camera/gallery
+  // permission + Alert flow) from the restyled avatar block and "Add photo"
+  // link. No picker behaviour changes.
+  const handleAvatarPress = useCallback(() => {
+    profileImagePickerRef.current?.triggerPicker();
+  }, []);
+
+  const renderAvatarBlock = () => {
+    const firstInitial = step1Data.firstName.trim().charAt(0);
+    const lastInitial = step1Data.lastName.trim().charAt(0);
+    const initials = `${firstInitial}${lastInitial}`.toUpperCase();
+    const photoUri = normalizeImageUri(step1Data.profileImage ?? null);
+
+    let avatarInner: React.ReactNode;
+    if (photoUri) {
+      avatarInner = (
+        <Image source={{uri: photoUri}} style={styles.avatarImage} />
+      );
+    } else if (initials) {
+      avatarInner = <Text style={styles.avatarInitials}>{initials}</Text>;
+    } else {
+      avatarInner = (
+        <Image
+          source={Images.cameraIcon}
+          style={styles.avatarPlaceholderIcon}
+        />
+      );
+    }
+
+    return (
+      <View style={styles.avatarBlock}>
+        <PressableOpacity
+          onPress={handleAvatarPress}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Add photo"
+          style={styles.avatarTouchable}>
+          <View style={styles.avatarCircle}>{avatarInner}</View>
+          <View style={styles.avatarBadge} pointerEvents="none">
+            <Image source={Images.cameraIcon} style={styles.avatarBadgeIcon} />
+          </View>
+        </PressableOpacity>
+        <PressableOpacity
+          onPress={handleAvatarPress}
+          accessibilityRole="button"
+          style={styles.addPhotoButton}>
+          <Text style={styles.addPhotoText}>Add photo</Text>
+        </PressableOpacity>
+        <View style={styles.hiddenPicker}>
+          <ProfileImagePicker
+            ref={profileImagePickerRef}
+            imageUri={step1Data.profileImage}
+            onImageSelected={handleProfileImageChange}
+            pressable={false}
+          />
+        </View>
+      </View>
+    );
+  };
 
   const handleCountryMobilePress = useCallback(() => {
     setOpenBottomSheet('countryMobile');
@@ -880,69 +945,68 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
   const renderStep1 = () => (
     <>
-      <ProfileImagePicker
-        imageUri={step1Data.profileImage}
-        onImageSelected={handleProfileImageChange}
-      />
+      {renderAvatarBlock()}
 
       <View style={styles.formSection}>
-        <Controller
-          control={control}
-          name="firstName"
-          rules={{
-            required: 'First name is required',
-            minLength: {
-              value: 2,
-              message: 'First name must be at least 2 characters',
-            },
-            pattern: {
-              value: /^[A-Za-z\s]+$/,
-              message: 'First name can only contain letters and spaces',
-            },
-          }}
-          render={({field: {onChange}}) => (
-            <Input
-              label="First name"
-              value={step1Data.firstName}
-              onChangeText={text => {
-                handleStep1FieldChange('firstName', text);
-                onChange(text);
-              }}
-              error={errors.firstName?.message}
-              maxLength={50}
-              containerStyle={styles.inputContainer}
-            />
-          )}
-        />
+        <View style={styles.nameRow}>
+          <Controller
+            control={control}
+            name="firstName"
+            rules={{
+              required: 'First name is required',
+              minLength: {
+                value: 2,
+                message: 'First name must be at least 2 characters',
+              },
+              pattern: {
+                value: /^[A-Za-z\s]+$/,
+                message: 'First name can only contain letters and spaces',
+              },
+            }}
+            render={({field: {onChange}}) => (
+              <Input
+                label="First name"
+                value={step1Data.firstName}
+                onChangeText={text => {
+                  handleStep1FieldChange('firstName', text);
+                  onChange(text);
+                }}
+                error={errors.firstName?.message}
+                maxLength={50}
+                containerStyle={styles.nameColumn}
+              />
+            )}
+          />
 
-        <Controller
-          control={control}
-          name="lastName"
-          rules={{
-            required: 'Last name is required',
-            minLength: {
-              value: 2,
-              message: 'Last name must be at least 2 characters',
-            },
-            pattern: {
-              value: /^[A-Za-z\s]+$/,
-              message: 'Last name can only contain letters and spaces',
-            },
-          }}
-          render={({field: {onChange}}) => (
-            <Input
-              label="Last name"
-              value={step1Data.lastName}
-              onChangeText={text => {
-                handleStep1FieldChange('lastName', text);
-                onChange(text);
-              }}
-              error={errors.lastName?.message}
-              maxLength={50}
-              containerStyle={styles.inputContainer}
-            />
-          )}
-        />
+          <Controller
+            control={control}
+            name="lastName"
+            rules={{
+              required: 'Last name is required',
+              minLength: {
+                value: 2,
+                message: 'Last name must be at least 2 characters',
+              },
+              pattern: {
+                value: /^[A-Za-z\s]+$/,
+                message: 'Last name can only contain letters and spaces',
+              },
+            }}
+            render={({field: {onChange}}) => (
+              <Input
+                label="Last name"
+                value={step1Data.lastName}
+                onChangeText={text => {
+                  handleStep1FieldChange('lastName', text);
+                  onChange(text);
+                }}
+                error={errors.lastName?.message}
+                maxLength={50}
+                containerStyle={styles.nameColumn}
+              />
+            )}
+          />
+        </View>
 
         <Controller
           control={control}
@@ -1056,10 +1120,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
 
     return (
       <>
-        <ProfileImagePicker
-          imageUri={step1Data.profileImage}
-          onImageSelected={handleProfileImageChange}
-        />
+        {renderAvatarBlock()}
 
         <View style={styles.formSection}>
           <AddressFields
@@ -1089,19 +1150,32 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                 control={control}
                 name="acceptTerms"
                 render={() => (
-                  <Checkbox
-                    value={step2Data.acceptTerms}
-                    onValueChange={checked => {
+                  <PressableOpacity
+                    onPress={() => {
+                      const checked = !step2Data.acceptTerms;
                       handleStep2FieldChange('acceptTerms', checked);
                       if (checked) {
                         clearErrors('acceptTerms');
                       }
                     }}
-                  />
+                    accessibilityRole="checkbox"
+                    accessibilityState={{checked: step2Data.acceptTerms}}
+                    style={[
+                      styles.termsCheckbox,
+                      step2Data.acceptTerms
+                        ? styles.termsCheckboxChecked
+                        : styles.termsCheckboxUnchecked,
+                    ]}>
+                    {step2Data.acceptTerms ? (
+                      <View style={styles.termsCheckmark} />
+                    ) : null}
+                  </PressableOpacity>
                 )}
               />
               <View style={styles.termsTextContainer}>
-                <Text style={styles.checkboxText}>I agree to the </Text>
+                <Text style={styles.checkboxText}>
+                  I agree to Yosemite Crew's{' '}
+                </Text>
                 <PressableOpacity onPress={handleOpenTerms}>
                   <Text style={styles.linkText}>terms and conditions</Text>
                 </PressableOpacity>
@@ -1111,7 +1185,6 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                 </PressableOpacity>
               </View>
             </View>
-            {/* NEW: Error message below the row */}
             {errors.acceptTerms?.message && (
               <Text style={styles.errorText}>{errors.acceptTerms.message}</Text>
             )}
@@ -1124,12 +1197,19 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   return (
     <LiquidGlassHeaderScreen
       header={
-        <Header
-          title="Create account"
-          showBackButton
-          onBack={handleGoBack}
-          glass={false}
-        />
+        <View style={styles.headerRow}>
+          <PressableOpacity
+            onPress={handleGoBack}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={styles.headerBackButton}>
+            <Image source={Images.backIcon} style={styles.headerBackIcon} />
+          </PressableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            Create account
+          </Text>
+          <View style={styles.headerSpacer} />
+        </View>
       }
       cardGap={theme.spacing['3']}
       contentPadding={theme.spacing['1']}
@@ -1167,12 +1247,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                 onPress={currentStep === 1 ? handleNext : handleSignUp}
                 style={styles.button}
                 textStyle={styles.buttonText}
-                tintColor={theme.colors.secondary}
+                tintColor={theme.colors.cta}
                 shadowIntensity="medium"
                 forceBorder
                 borderColor={theme.colors.borderMuted}
                 height={theme.spacing['14']}
-                borderRadius={theme.borderRadius.lg}
+                borderRadius={theme.borderRadius.button}
                 loading={currentStep === 2 && isSubmitting}
                 disabled={currentStep === 2 && isSubmitting}
               />
@@ -1325,15 +1405,119 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     ...createFormScreenStyles(theme),
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['2'],
+      paddingBottom: theme.spacing['3'],
+    },
+    headerBackButton: {
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerBackIcon: {
+      width: theme.spacing['5'],
+      height: theme.spacing['5'],
+      resizeMode: 'contain',
+      tintColor: theme.colors.inkBody,
+    },
+    headerTitle: {
+      flex: 1,
+      textAlign: 'center',
+      ...theme.typography.screenTitle,
+      color: theme.colors.ink,
+    },
+    headerSpacer: {
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+    },
+    avatarBlock: {
+      alignItems: 'center',
+      marginTop: theme.spacing['2'],
+      marginBottom: theme.spacing['6'],
+    },
+    avatarTouchable: {
+      width: 92,
+      height: 92,
+      alignSelf: 'center',
+    },
+    avatarCircle: {
+      width: 92,
+      height: 92,
+      borderRadius: 46,
+      backgroundColor: theme.colors.avatarVioletBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    avatarImage: {
+      width: 92,
+      height: 92,
+      borderRadius: 46,
+    },
+    avatarInitials: {
+      ...theme.typography.serifTitle,
+      color: theme.colors.avatarVioletInk,
+    },
+    avatarPlaceholderIcon: {
+      width: theme.spacing['8'],
+      height: theme.spacing['8'],
+      resizeMode: 'contain',
+      tintColor: theme.colors.avatarVioletInk,
+    },
+    avatarBadge: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: theme.colors.cta,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2.5,
+      borderColor: theme.colors.screen,
+    },
+    avatarBadgeIcon: {
+      width: theme.spacing['3.5'],
+      height: theme.spacing['3.5'],
+      resizeMode: 'contain',
+      tintColor: theme.colors.ctaText,
+    },
+    addPhotoButton: {
+      marginTop: theme.spacing['3'],
+      alignSelf: 'center',
+    },
+    addPhotoText: {
+      ...theme.typography.bodyMedium,
+      color: theme.colors.blueText,
+    },
+    hiddenPicker: {
+      display: 'none',
+    },
+    nameRow: {
+      flexDirection: 'row',
+      gap: theme.spacing['2.5'],
+    },
+    nameColumn: {
+      flex: 1,
+    },
     countrySection: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingRight: theme.spacing['3'],
       borderRightWidth: 1,
-      borderRightColor: theme.colors.border,
+      borderRightColor: theme.colors.divider,
     },
     flagText: {
       fontSize: theme.spacing['6'],
@@ -1341,38 +1525,64 @@ const createStyles = (theme: any) =>
     },
     dialCodeText: {
       ...theme.typography.body,
-      color: theme.colors.text,
-      fontWeight: '500',
+      color: theme.colors.inkMuted,
+      fontWeight: '600',
     },
     checkboxWrapper: {
+      marginTop: theme.spacing['2'],
       marginBottom: theme.spacing['5'],
     },
     checkboxContainer: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      marginVertical: theme.spacing['5'],
+      marginVertical: theme.spacing['4'],
       paddingRight: theme.spacing['2'],
+    },
+    termsCheckbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 7,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    termsCheckboxChecked: {
+      backgroundColor: theme.colors.blue,
+      borderWidth: 1.5,
+      borderColor: theme.colors.blue,
+    },
+    termsCheckboxUnchecked: {
+      backgroundColor: theme.colors.fieldBg,
+      borderWidth: 1.5,
+      borderColor: theme.colors.hairline,
+    },
+    termsCheckmark: {
+      width: 6,
+      height: 11,
+      borderRightWidth: 2,
+      borderBottomWidth: 2,
+      borderColor: theme.colors.ctaText,
+      transform: [{rotate: '45deg'}],
+      marginTop: -2,
     },
     checkboxText: {
       ...theme.typography.body,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkBody,
     },
     errorText: {
-      ...theme.typography.caption,
+      ...theme.typography.labelXxsBold,
       color: theme.colors.error,
-      marginTop: theme.spacing['1'],
+      marginTop: theme.spacing['2'],
       marginLeft: theme.spacing['8'],
     },
     termsTextContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       flex: 1,
-      marginLeft: theme.spacing['2'],
+      marginLeft: theme.spacing['3'],
     },
     linkText: {
       ...theme.typography.body,
-      color: theme.colors.primary,
-      textDecorationLine: 'underline',
+      color: theme.colors.blueText,
     },
     dobInfoButton: {
       marginTop: theme.spacing['1'],
@@ -1380,9 +1590,20 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['1'],
     },
     dobInfoButtonText: {
-      ...theme.typography.caption,
-      color: theme.colors.primary,
-      textDecorationLine: 'underline',
+      ...theme.typography.bodySmall,
+      color: theme.colors.blueText,
+    },
+    button: {
+      width: '100%',
+      backgroundColor: theme.colors.cta,
+      borderRadius: theme.borderRadius.button,
+      borderWidth: 1,
+      borderColor: theme.colors.borderMuted,
+      ...theme.shadows.cta,
+    },
+    buttonText: {
+      color: theme.colors.ctaText,
+      ...theme.typography.buttonLarge,
     },
     buttonContainer: {
       position: 'absolute',

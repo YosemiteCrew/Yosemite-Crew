@@ -97,6 +97,7 @@ export const EditTaskScreen: React.FC = () => {
   }, [navigation, source]);
 
   const performSave = async () => {
+    /* istanbul ignore next -- unreachable: screen renders the not-found UI when task is null, so this defensive guard is never hit */
     if (!task) return;
 
     let preparedAttachments = formData.attachments;
@@ -172,6 +173,7 @@ export const EditTaskScreen: React.FC = () => {
 
   const handleSave = () => {
     if (!validateForm(formData)) return;
+    /* istanbul ignore next -- unreachable: save action only renders when task is present */
     if (!task) return;
     performSave().catch(error =>
       showErrorAlert('Unable to update task', error),
@@ -179,11 +181,13 @@ export const EditTaskScreen: React.FC = () => {
   };
 
   const handleDeletePress = () => {
+    /* istanbul ignore next -- unreachable: delete control only renders when task is present */
     if (!task) return;
     confirmDeleteSheetRef.current?.open();
   };
 
   const handleDeleteTask = async () => {
+    /* istanbul ignore next -- unreachable: confirm sheet only renders when task is present */
     if (!task) return;
     if (task.calendarEventId) {
       await removeCalendarEvents(task.calendarEventId);
@@ -294,6 +298,7 @@ export const EditTaskScreen: React.FC = () => {
 
       <ConfirmActionBottomSheet
         ref={confirmDeleteSheetRef}
+        destructive
         title="Delete task"
         message={
           task ? `Are you sure you want to delete "${task.title}"?` : undefined

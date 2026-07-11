@@ -1,63 +1,78 @@
 import React from 'react';
-import {render} from '@testing-library/react-native';
+import {render, fireEvent} from '@testing-library/react-native';
 // Path: 5 levels up from __tests__/features/tasks/screens/EmptyTasksScreen/ to project root
 import {EmptyTasksScreen} from '../../../../../src/features/tasks/screens/EmptyTasksScreen/EmptyTasksScreen';
-import {Images} from '@/assets/images';
+import {mockTheme} from '../../../../setup/mockTheme';
 
 // --- Mocks ---
 
-// 1. Mock Images
-jest.mock('@/assets/images', () => ({
-  Images: {
-    emptyDocuments: {uri: 'test-empty-image-uri'},
-  },
+const mockNavigate = jest.fn();
+
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
-// 2. Mock GenericEmptyScreen
-// We use a mock function to verify props passed to it
-const MockGenericEmptyScreen = jest.fn(
-  ({title, subtitle, headerTitle}: any) => {
-    const {View, Text} = require('react-native');
-    return (
-      <View testID="generic-empty-screen">
-        <Text>{headerTitle}</Text>
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({navigate: mockNavigate}),
+}));
+
+jest.mock('@/shared/components/common/Header/Header', () => {
+  const {View, Text} = require('react-native');
+  return {
+    Header: ({title, showBackButton}: any) => (
+      <View testID="header">
         <Text>{title}</Text>
-        <Text>{subtitle}</Text>
+        {showBackButton ? <Text>Back</Text> : null}
       </View>
-    );
+    ),
+  };
+});
+
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const {View} = require('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({header, children}: any) => (
+        <View testID="screen-layout">
+          {header}
+          {typeof children === 'function' ? children({}) : children}
+        </View>
+      ),
+    };
   },
 );
 
-jest.mock('@/shared/screens/common/GenericEmptyScreen', () => ({
-  GenericEmptyScreen: (props: any) => MockGenericEmptyScreen(props),
-}));
-
 describe('EmptyTasksScreen', () => {
   beforeEach(() => {
-    MockGenericEmptyScreen.mockClear();
+    jest.clearAllMocks();
   });
 
-  it('renders correctly using GenericEmptyScreen', () => {
-    const {getByTestId, getByText} = render(<EmptyTasksScreen />);
+  it('renders the warm-bone empty state with the design copy', () => {
+    const {getByText, getByTestId} = render(<EmptyTasksScreen />);
 
-    // Verify the wrapper component is rendered
-    expect(getByTestId('generic-empty-screen')).toBeTruthy();
+    expect(getByText('Tasks')).toBeTruthy();
+    expect(getByTestId('empty-tasks')).toBeTruthy();
+    expect(getByText('Nothing on the list')).toBeTruthy();
+    expect(
+      getByText(
+        'Doses, grooming and feeding plans will land here, with reminders that arrive on time.',
+      ),
+    ).toBeTruthy();
+    expect(getByText('Add first task')).toBeTruthy();
+  });
 
-    // Verify visible text content
-    expect(getByText('Tasks')).toBeTruthy(); // headerTitle
-    expect(getByText('No tasks yet!')).toBeTruthy(); // title
+  it('does not render a back button (tab root)', () => {
+    const {queryByText} = render(<EmptyTasksScreen />);
+    expect(queryByText('Back')).toBeNull();
+  });
 
-    // Verify exact props passed to the component
-    // This ensures image, subtitle logic, and flags are correct
-    expect(MockGenericEmptyScreen).toHaveBeenCalledWith(
-      expect.objectContaining({
-        headerTitle: 'Tasks',
-        emptyImage: Images.emptyDocuments,
-        title: 'No tasks yet!',
-        // Verify the raw string exactly as defined in the component
-        subtitle: String.raw`Add a companion first to start creating tasks\nfor their health, hygiene, and care!`,
-        showBackButton: false,
-      }),
-    );
+  it('navigates to add a task when the CTA is pressed', () => {
+    const {getByTestId} = render(<EmptyTasksScreen />);
+
+    fireEvent.press(getByTestId('empty-tasks-action'));
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('AddTask');
   });
 });

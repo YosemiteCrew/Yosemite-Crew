@@ -77,6 +77,10 @@ const palette = {
   // --- Warm glass (floating tab bar / headers) ---
   glassPill: ['rgba(239, 232, 220, 0.93)', 'rgba(34, 29, 23, 0.92)'],
   glassPillBorder: ['rgba(29, 28, 27, 0.09)', 'rgba(255, 255, 255, 0.09)'],
+  // Translucent warm tint laid over a real BlurView so the frosted glass reads
+  // warm and keeps ink legible (light / dark). More see-through than glassPill.
+  glassSurface: ['rgba(247, 243, 236, 0.55)', 'rgba(41, 35, 28, 0.6)'],
+  glassSurfaceStrong: ['rgba(247, 243, 236, 0.72)', 'rgba(41, 35, 28, 0.74)'],
 
   // --- Fixed / overlays ---
   white: ['#FFFFFF', '#FFFFFF'],

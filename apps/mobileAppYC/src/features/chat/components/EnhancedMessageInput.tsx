@@ -321,7 +321,7 @@ export const EnhancedMessageInput: React.FC = () => {
             }}
             style={[styles.recordButton, styles.cancelButton]}
             disabled={isRecordingLoading}>
-            <Icon name="close" size={24} color={theme.colors.white} />
+            <Icon name="close" size={24} color={theme.colors.inkBody} />
           </PressableOpacity>
           <PressableOpacity
             onPress={() => {
@@ -330,9 +330,9 @@ export const EnhancedMessageInput: React.FC = () => {
             style={[styles.recordButton, styles.stopButton]}
             disabled={isRecordingLoading}>
             {isRecordingLoading ? (
-              <ActivityIndicator color={theme.colors.white} />
+              <ActivityIndicator color={theme.colors.ctaText} />
             ) : (
-              <Icon name="send" size={24} color={theme.colors.white} />
+              <Icon name="send" size={24} color={theme.colors.ctaText} />
             )}
           </PressableOpacity>
         </View>
@@ -351,9 +351,9 @@ export const EnhancedMessageInput: React.FC = () => {
           style={styles.actionButton}
           disabled={isRecordingLoading}>
           {isRecordingLoading ? (
-            <ActivityIndicator size="small" color={theme.colors.primary} />
+            <ActivityIndicator size="small" color={theme.colors.blueText} />
           ) : (
-            <Icon name="mic" size={24} color={theme.colors.primary} />
+            <Icon name="mic" size={24} color={theme.colors.blueText} />
           )}
         </PressableOpacity>
 
@@ -361,7 +361,7 @@ export const EnhancedMessageInput: React.FC = () => {
         <PressableOpacity
           onPress={showAttachmentOptions}
           style={styles.actionButton}>
-          <Icon name="attach-file" size={24} color={theme.colors.primary} />
+          <Icon name="attach-file" size={24} color={theme.colors.blueText} />
         </PressableOpacity>
       </View>
 
@@ -374,21 +374,23 @@ export const EnhancedMessageInput: React.FC = () => {
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     actionsRow: {
       flexDirection: 'row',
       paddingHorizontal: theme.spacing['3'],
       paddingVertical: theme.spacing['2'],
       borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
+      borderTopColor: theme.colors.hairline,
       gap: theme.spacing['3'],
     },
     actionButton: {
       width: theme.spacing['10'],
       height: theme.spacing['10'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.primaryTint,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -397,9 +399,9 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: theme.spacing['4'],
-      backgroundColor: theme.colors.backgroundSecondary,
+      backgroundColor: theme.colors.screen2,
       borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
+      borderTopColor: theme.colors.hairline,
     },
     recordingInfo: {
       flexDirection: 'row',
@@ -409,12 +411,12 @@ const createStyles = (theme: any) =>
     recordingDot: {
       width: theme.spacing['3'],
       height: theme.spacing['3'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.error,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.danger,
     },
     recordingText: {
       ...theme.typography.subtitleBold14,
-      color: theme.colors.text,
+      color: theme.colors.ink,
     },
     recordingActions: {
       flexDirection: 'row',
@@ -423,15 +425,17 @@ const createStyles = (theme: any) =>
     recordButton: {
       width: theme.spacing['12'],
       height: theme.spacing['12'],
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.full,
       justifyContent: 'center',
       alignItems: 'center',
     },
     cancelButton: {
-      backgroundColor: theme.colors.textSecondary,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
     },
     stopButton: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.cta,
     },
   });
 

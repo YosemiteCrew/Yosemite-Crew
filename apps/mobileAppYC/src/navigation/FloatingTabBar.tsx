@@ -17,6 +17,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import {LiquidGlassView, isLiquidGlassSupported} from '@callstack/liquid-glass';
+import {BlurView} from '@react-native-community/blur';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {RootState, AppDispatch} from '@/app/store';
@@ -273,6 +274,23 @@ export const FloatingTabBar: React.FC<BottomTabBarProps> = props => {
                   interactive: false,
                 }
               : {})}>
+            {!useGlass && (
+              <>
+                <BlurView
+                  style={StyleSheet.absoluteFill}
+                  blurType="light"
+                  blurAmount={22}
+                  reducedTransparencyFallbackColor={theme.colors.glassPill}
+                />
+                <View
+                  pointerEvents="none"
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {backgroundColor: theme.colors.glassSurfaceStrong},
+                  ]}
+                />
+              </>
+            )}
             {buildSlidingPill()}
             {buildTabs()}
           </BarComponent>
@@ -320,7 +338,7 @@ const createStyles = (theme: any) =>
       backgroundColor: 'transparent',
     },
     barSolid: {
-      backgroundColor: theme.colors.glassPill,
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.colors.glassPillBorder,
     },

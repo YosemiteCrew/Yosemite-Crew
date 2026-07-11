@@ -24,7 +24,6 @@ jest.mock('@/navigation/AuthNavigator', () => ({
 // Mock Assets
 jest.mock('@/assets/images', () => ({
   Images: {
-    welcomeIllustration: 'welcomeIllustration.png',
     emailIcon: 'emailIcon.png',
     googleIcon: 'googleIcon.png',
     facebookIcon: 'facebookIcon.png',
@@ -91,47 +90,6 @@ jest.mock('@/shared/components/common', () => {
   };
 });
 
-// Mock LiquidGlassButton
-jest.mock(
-  '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
-  () => {
-    const {TouchableOpacity, Text, View} = jest.requireActual('react-native');
-    return {
-      __esModule: true,
-      LiquidGlassButton: jest.fn(
-        ({onPress, title, disabled, loading, leftIcon}) => {
-          let content;
-          if (loading) {
-            content = <Text>Loading...</Text>;
-          } else {
-            content = (
-              <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                {leftIcon}
-                {title && (
-                  <Text style={{marginLeft: leftIcon ? 8 : 0}}>{title}</Text>
-                )}
-              </View>
-            );
-          }
-
-          const testIdSuffix = title
-            ? title.toLowerCase().replaceAll(/\s+/g, '-')
-            : 'icon-button';
-
-          return (
-            <TouchableOpacity
-              testID={`button-${testIdSuffix}`}
-              onPress={onPress}
-              disabled={disabled}>
-              {content}
-            </TouchableOpacity>
-          );
-        },
-      ),
-    };
-  },
-);
-
 // --- END MOCKS ---
 
 const mockedUseSocialAuth = useSocialAuth as jest.Mock;
@@ -170,18 +128,21 @@ describe('SignUpScreen', () => {
   it('renders correctly', () => {
     const {getByText} = renderComponent();
 
-    expect(getByText('All companions, one place')).toBeTruthy();
+    expect(getByText('Create your account')).toBeTruthy();
+    expect(getByText(/Free for pet parents/)).toBeTruthy();
     expect(getByText('Sign up with email')).toBeTruthy();
     expect(getByText('Sign up with Google')).toBeTruthy();
     expect(getByText('Sign up with Facebook')).toBeTruthy();
     expect(getByText('Sign up with Apple')).toBeTruthy();
-    expect(getByText('Already a member?')).toBeTruthy();
+    expect(getByText('terms and conditions')).toBeTruthy();
+    expect(getByText('privacy policy')).toBeTruthy();
+    expect(getByText(/Already have an account/)).toBeTruthy();
     expect(getByText('Sign in')).toBeTruthy();
   });
 
   it('navigates to SignIn when "Sign up with email" is pressed', () => {
-    const {getByTestId} = renderComponent();
-    fireEvent.press(getByTestId('button-sign-up-with-email'));
+    const {getByText} = renderComponent();
+    fireEvent.press(getByText('Sign up with email'));
     expect(mockNavigation.navigate).toHaveBeenCalledWith('SignIn');
   });
 
@@ -192,38 +153,46 @@ describe('SignUpScreen', () => {
   });
 
   it('calls handleSocialAuth with "google" when Google button is pressed', () => {
-    const {getByTestId} = renderComponent();
-    fireEvent.press(getByTestId('button-sign-up-with-google'));
+    const {getByText} = renderComponent();
+    fireEvent.press(getByText('Sign up with Google'));
     expect(mockHandleSocialAuth).toHaveBeenCalledWith('google');
   });
 
   it('calls handleSocialAuth with "facebook" when Facebook button is pressed', () => {
-    const {getByTestId} = renderComponent();
-    fireEvent.press(getByTestId('button-sign-up-with-facebook'));
+    const {getByText} = renderComponent();
+    fireEvent.press(getByText('Sign up with Facebook'));
     expect(mockHandleSocialAuth).toHaveBeenCalledWith('facebook');
   });
 
   it('calls handleSocialAuth with "apple" when Apple button is pressed', () => {
-    const {getByTestId} = renderComponent();
-    fireEvent.press(getByTestId('button-sign-up-with-apple'));
+    const {getByText} = renderComponent();
+    fireEvent.press(getByText('Sign up with Apple'));
     expect(mockHandleSocialAuth).toHaveBeenCalledWith('apple');
   });
 
-  it('shows loading state for the correct social provider', () => {
+  it('shows the waiting label for the active social provider', () => {
     mockedUseSocialAuth.mockReturnValue({
       activeProvider: 'google',
       isSocialLoading: true,
       handleSocialAuth: mockHandleSocialAuth,
     });
+
+    const {getByText, queryByText} = renderComponent();
+
+    expect(getByText('Please wait…')).toBeTruthy();
+    expect(queryByText('Sign up with Google')).toBeNull();
+    // The other social providers keep their labels.
+    expect(getByText('Sign up with Facebook')).toBeTruthy();
+    expect(getByText('Sign up with Apple')).toBeTruthy();
   });
 
   it('displays social error message when social auth fails with an Error', async () => {
     const errorMessage = 'Google Sign-In failed.';
     mockHandleSocialAuth.mockRejectedValue(new Error(errorMessage));
 
-    const {getByTestId, findByText} = renderComponent();
+    const {getByText, findByText} = renderComponent();
     await act(async () => {
-      fireEvent.press(getByTestId('button-sign-up-with-google'));
+      fireEvent.press(getByText('Sign up with Google'));
       await Promise.resolve().catch(() => {});
     });
 
@@ -234,9 +203,9 @@ describe('SignUpScreen', () => {
     const genericMessage = 'We couldn’t complete the sign up. Kindly retry.';
     mockHandleSocialAuth.mockRejectedValue('Some string error');
 
-    const {getByTestId, findByText} = renderComponent();
+    const {getByText, findByText} = renderComponent();
     await act(async () => {
-      fireEvent.press(getByTestId('button-sign-up-with-google'));
+      fireEvent.press(getByText('Sign up with Google'));
       await Promise.resolve().catch(() => {});
     });
 
@@ -246,9 +215,9 @@ describe('SignUpScreen', () => {
   it('clears social error when social auth starts (onStart callback)', async () => {
     const errorMessage = 'Previous error';
     mockHandleSocialAuth.mockRejectedValueOnce(new Error(errorMessage));
-    const {getByTestId, findByText, queryByText} = renderComponent();
+    const {getByText, findByText, queryByText} = renderComponent();
     await act(async () => {
-      fireEvent.press(getByTestId('button-sign-up-with-google'));
+      fireEvent.press(getByText('Sign up with Google'));
       await Promise.resolve().catch(() => {});
     });
     expect(await findByText(errorMessage)).toBeTruthy();

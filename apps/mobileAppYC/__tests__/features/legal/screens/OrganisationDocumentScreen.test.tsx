@@ -1,7 +1,8 @@
 import React from 'react';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import OrganisationDocumentScreen from '../../../../src/features/legal/screens/OrganisationDocumentScreen';
 import {organisationDocumentService} from '../../../../src/features/legal/services/organisationDocumentService';
+import {exportLegalDocument} from '../../../../src/features/legal/services/legalExportService';
 import {mockTheme} from '../../../setup/mockTheme';
 
 // --- Mocks ---
@@ -30,6 +31,11 @@ jest.mock(
     },
   }),
 );
+
+// 3b. Mock the export service (invoked by the Download action)
+jest.mock('../../../../src/features/legal/services/legalExportService', () => ({
+  exportLegalDocument: jest.fn(),
+}));
 
 // 4. Mock Child Components
 jest.mock(
@@ -241,15 +247,19 @@ describe('OrganisationDocumentScreen', () => {
       mockDocs,
     );
 
-    const {findByText} = render(
+    const {findAllByText} = render(
       <OrganisationDocumentScreen
         navigation={{goBack: mockGoBack} as any}
         route={mockRoute as any}
       />,
     );
 
-    // Should use the screen's base title ('Terms & Conditions') as section title
-    await findByText('Terms & Conditions');
+    // Should use the screen's base title ('Terms & Conditions') as section title.
+    // It now appears in more than one place (paper-sheet title + section title),
+    // so assert at least one match rather than a unique one.
+    expect((await findAllByText('Terms & Conditions')).length).toBeGreaterThan(
+      0,
+    );
   });
 
   it('generates ID if document ID is missing', async () => {
@@ -363,5 +373,144 @@ describe('OrganisationDocumentScreen', () => {
 
     fireEvent.press(getByTestId('header-back'));
     expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  // ===========================================================================
+  // 5. Document actions (Download & Acknowledge)
+  // ===========================================================================
+
+  it('exports the document when the download action is pressed', async () => {
+    const mockDocs = [
+      {id: 'doc-1', title: 'Section 1', description: 'Body text.'},
+    ];
+    (organisationDocumentService.fetchDocuments as jest.Mock).mockResolvedValue(
+      mockDocs,
+    );
+
+    const {getByTestId, findByTestId} = render(
+      <OrganisationDocumentScreen
+        navigation={{goBack: mockGoBack} as any}
+        route={mockRoute as any}
+      />,
+    );
+
+    await findByTestId('organisation-document-download');
+
+    fireEvent.press(getByTestId('organisation-document-download'));
+
+    expect(exportLegalDocument).toHaveBeenCalledTimes(1);
+    expect(exportLegalDocument).toHaveBeenCalledWith(
+      'Test Clinic Terms & Conditions',
+      expect.arrayContaining([
+        expect.objectContaining({id: 'doc-1', title: 'Section 1'}),
+      ]),
+    );
+  });
+
+  it('navigates back when the acknowledge action is pressed', async () => {
+    const mockDocs = [
+      {id: 'doc-1', title: 'Section 1', description: 'Body text.'},
+    ];
+    (organisationDocumentService.fetchDocuments as jest.Mock).mockResolvedValue(
+      mockDocs,
+    );
+
+    const {getByTestId, findByTestId} = render(
+      <OrganisationDocumentScreen
+        navigation={{goBack: mockGoBack} as any}
+        route={mockRoute as any}
+      />,
+    );
+
+    await findByTestId('organisation-document-acknowledge');
+
+    fireEvent.press(getByTestId('organisation-document-acknowledge'));
+
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  // ===========================================================================
+  // 6. Category fallback + empty-state clinic fallback
+  // ===========================================================================
+
+  it('falls back to the generic title and clinic label for an unknown category', async () => {
+    (organisationDocumentService.fetchDocuments as jest.Mock).mockResolvedValue(
+      [],
+    );
+
+    const {findByText} = render(
+      <OrganisationDocumentScreen
+        navigation={{goBack: mockGoBack} as any}
+        route={
+          {
+            params: {
+              organisationId: 'org-123',
+              organisationName: undefined,
+              category: 'UNKNOWN_CATEGORY',
+            },
+          } as any
+        }
+      />,
+    );
+
+    // Unknown category -> baseTitle 'Document'; undefined org -> 'This clinic'
+    await findByText('Document');
+    await findByText('This clinic has not shared a document yet.');
+  });
+
+  // ===========================================================================
+  // 7. Effect cancellation (unmount before the request settles)
+  // ===========================================================================
+
+  it('ignores a resolved request after the screen unmounts', async () => {
+    let resolveFetch: (value: unknown) => void = () => {};
+    (organisationDocumentService.fetchDocuments as jest.Mock).mockReturnValue(
+      new Promise(resolve => {
+        resolveFetch = resolve;
+      }),
+    );
+
+    const {unmount} = render(
+      <OrganisationDocumentScreen
+        navigation={{goBack: mockGoBack} as any}
+        route={mockRoute as any}
+      />,
+    );
+
+    unmount();
+
+    await act(async () => {
+      resolveFetch([{id: 'late', title: 'Late', description: 'Late body.'}]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(organisationDocumentService.fetchDocuments).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a rejected request after the screen unmounts', async () => {
+    let rejectFetch: (reason: unknown) => void = () => {};
+    (organisationDocumentService.fetchDocuments as jest.Mock).mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectFetch = reject;
+      }),
+    );
+
+    const {unmount} = render(
+      <OrganisationDocumentScreen
+        navigation={{goBack: mockGoBack} as any}
+        route={mockRoute as any}
+      />,
+    );
+
+    unmount();
+
+    await act(async () => {
+      rejectFetch(new Error('Too late'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(organisationDocumentService.fetchDocuments).toHaveBeenCalledTimes(1);
   });
 });

@@ -82,7 +82,7 @@ jest.mock('@/shared/components/common/Header/Header', () => {
 jest.mock('@/shared/components/common', () => {
   const {View} = require('react-native');
   return {
-    GifLoader: () => <View testID="gif-loader" />,
+    SkeletonList: () => <View testID="skeleton-list" />,
   };
 });
 
@@ -169,12 +169,12 @@ describe('CoParentsScreen', () => {
     };
   });
 
-  it('shows the loader while co-parents are loading', () => {
+  it('shows the skeleton loader while co-parents are loading', () => {
     mockState.coParent.loading = true;
 
     render(<CoParentsScreen navigation={mockNavigation} route={{} as any} />);
 
-    expect(screen.getByTestId('gif-loader')).toBeTruthy();
+    expect(screen.getByTestId('skeleton-list')).toBeTruthy();
   });
 
   it('shows the empty state when there are no co-parents', () => {
@@ -401,5 +401,55 @@ describe('CoParentsScreen', () => {
     render(<CoParentsScreen navigation={mockNavigation} route={{} as any} />);
 
     expect(screen.queryByTestId('header-add-btn')).toBeNull();
+  });
+
+  it('renders the personalised intro with the companion name', () => {
+    mockState.coParent.coParents = [
+      {id: 'cp-1', parentId: 'p-1', firstName: 'Jane', role: 'CO_PARENT'},
+    ];
+
+    render(<CoParentsScreen navigation={mockNavigation} route={{} as any} />);
+
+    expect(screen.getByText(/Everyone who cares for Buddy/i)).toBeTruthy();
+  });
+
+  it('falls back to a generic name in the intro when the companion has no name', () => {
+    mockState.coParent.coParents = [
+      {id: 'cp-1', parentId: 'p-1', firstName: 'Jane', role: 'CO_PARENT'},
+    ];
+    mockState.companion.companions = [{id: 'comp-1'}];
+
+    render(<CoParentsScreen navigation={mockNavigation} route={{} as any} />);
+
+    expect(
+      screen.getByText(/Everyone who cares for your companion/i),
+    ).toBeTruthy();
+  });
+
+  it('renders the invite button and info banner in the footer when the user can add', () => {
+    mockState.coParent.coParents = [
+      {id: 'cp-1', parentId: 'p-1', firstName: 'Jane', role: 'CO_PARENT'},
+    ];
+
+    render(<CoParentsScreen navigation={mockNavigation} route={{} as any} />);
+
+    expect(screen.getByText('Invite a co-parent')).toBeTruthy();
+    expect(
+      screen.getByText(/Co-parents sign in with their own account/i),
+    ).toBeTruthy();
+  });
+
+  it('hides the invite button in the footer when the user cannot add', () => {
+    mockState.coParent.coParents = [
+      {id: 'cp-1', parentId: 'p-1', firstName: 'Jane', role: 'CO_PARENT'},
+    ];
+    mockState.coParent.accessByCompanionId = {'comp-1': {role: 'CO_PARENT'}};
+
+    render(<CoParentsScreen navigation={mockNavigation} route={{} as any} />);
+
+    expect(screen.queryByText('Invite a co-parent')).toBeNull();
+    expect(
+      screen.getByText(/Co-parents sign in with their own account/i),
+    ).toBeTruthy();
   });
 });

@@ -1,11 +1,13 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Image, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {ScrollView, StyleSheet, Text, View} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import {YearlySpendCard} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {ViewMoreButton} from '@/shared/components/common/ViewMoreButton/ViewMoreButton';
 import {
@@ -184,19 +186,23 @@ export const ExpensesMainScreen: React.FC = () => {
             <ScrollView
               contentContainerStyle={[styles.emptyState, contentPaddingStyle]}
               showsVerticalScrollIndicator={false}>
-              <Image
-                source={Images.emptyExpenseIllustration}
-                style={styles.emptyIllustration}
+              <EmptyState
+                testID="expenses-empty"
+                icon={
+                  <Ionicons
+                    name="wallet-outline"
+                    size={42}
+                    color={theme.colors.blueText}
+                  />
+                }
+                title="No expenses yet"
+                description="Vet bills, food and insurance will add up here, so the year's spend is a number, not a shoebox."
+                actionLabel="Add first expense"
+                actionIcon={
+                  <Ionicons name="add" size={18} color={theme.colors.ctaText} />
+                }
+                onAction={handleAddExpense}
               />
-              <Text style={styles.emptyTitle}>Zero bucks spent!</Text>
-              <Text style={styles.emptySubtitle}>
-                It seems like you and your buddy are in saving mode!
-              </Text>
-              <PressableOpacity
-                style={styles.emptyButton}
-                onPress={handleAddExpense}>
-                <Text style={styles.emptyButtonText}>Add expense</Text>
-              </PressableOpacity>
             </ScrollView>
           ) : (
             <ScrollView
@@ -332,7 +338,7 @@ const createStyles = (theme: any) =>
     },
     sectionTitle: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkMuted,
+      color: theme.colors.inkFaint,
     },
     cardsContainer: {
       gap: theme.spacing['3'],
@@ -342,50 +348,21 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: theme.spacing['6'],
       paddingVertical: theme.spacing['10'],
-      gap: theme.spacing['3'],
-    },
-    emptyIllustration: {
-      width: 220,
-      height: 220,
-      resizeMode: 'contain',
-    },
-    emptyTitle: {
-      ...theme.typography.emptyStateTitle,
-      color: theme.colors.ink,
-      textAlign: 'center',
-      marginBottom: theme.spacing['3'],
-    },
-    emptySubtitle: {
-      ...theme.typography.paragraph,
-      color: theme.colors.inkMuted,
-      textAlign: 'center',
-      marginBottom: theme.spacing['6'],
-    },
-    emptyButton: {
-      paddingHorizontal: theme.spacing['6'],
-      paddingVertical: theme.spacing['3'],
-      backgroundColor: theme.colors.cta,
-      borderRadius: theme.borderRadius.button,
-    },
-    emptyButtonText: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.ctaText,
     },
     emptySection: {
       paddingVertical: theme.spacing['6'],
       paddingHorizontal: theme.spacing['4'],
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.cardSmall,
+      backgroundColor: theme.colors.screen2,
       borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
+      borderColor: theme.colors.hairline,
     },
     emptySectionText: {
       ...theme.typography.paragraph,
-      color: theme.colors.secondary,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
     },
     loadingOverlay: {

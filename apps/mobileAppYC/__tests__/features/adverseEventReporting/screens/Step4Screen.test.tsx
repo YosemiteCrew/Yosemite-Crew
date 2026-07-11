@@ -1,5 +1,5 @@
 import React from 'react';
-import {render, fireEvent} from '@testing-library/react-native';
+import {render, fireEvent, within} from '@testing-library/react-native';
 import {Step4Screen} from '../../../../src/features/adverseEventReporting/screens/Step4Screen';
 import {mockTheme} from '../../../setup/mockTheme';
 
@@ -16,8 +16,7 @@ const mockNavigation = {
   getParent: jest.fn(() => ({navigate: mockParentNavigate})),
 } as any;
 
-// 2. Redux
-// We mock the hook implementation to return what we want in each test
+// 2. Redux — the selector implementation is provided per-test.
 const mockUseSelector = jest.fn();
 jest.mock('react-redux', () => ({
   useSelector: (selector: any) => mockUseSelector(selector),
@@ -28,20 +27,26 @@ jest.mock('../../../../src/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
-// 4. Utils
-jest.mock('../../../../src/shared/utils/commonHelpers', () => ({
-  capitalize: (str: string) => str?.toUpperCase() || '',
-}));
-
-// 5. Child Components
-// Mock AERLayout
+// 4. Components — mock AERLayout so the step label, back/next controls and
+// children surface for assertions. The real layout pulls in the liquid-glass
+// header stack which is irrelevant to Step4's own logic.
 jest.mock(
   '../../../../src/features/adverseEventReporting/components/AERLayout',
   () => {
     const {View, Text, TouchableOpacity} = require('react-native');
-    return ({children, onBack, bottomButton, stepLabel}: any) => (
+    return ({
+      children,
+      onBack,
+      bottomButton,
+      stepLabel,
+      currentStep,
+      totalSteps,
+    }: any) => (
       <View testID="aer-layout">
         <Text>{stepLabel}</Text>
+        {currentStep != null ? (
+          <Text testID="aer-step-counter">{`${currentStep}/${totalSteps}`}</Text>
+        ) : null}
         <TouchableOpacity onPress={onBack} testID="layout-back">
           <Text>Back</Text>
         </TouchableOpacity>
@@ -56,32 +61,6 @@ jest.mock(
   },
 );
 
-// Mock AERInfoSection
-jest.mock(
-  '../../../../src/features/adverseEventReporting/components/AERInfoSection',
-  () => {
-    const {View, Text, TouchableOpacity} = require('react-native');
-    return ({title, onEdit, rows}: any) => (
-      <View testID="aer-info-section">
-        <Text>{title}</Text>
-        <TouchableOpacity onPress={onEdit} testID="section-edit-btn">
-          <Text>Edit Section</Text>
-        </TouchableOpacity>
-        {rows.map((row: any, index: number) => (
-          <TouchableOpacity
-            key={row.label}
-            onPress={row.onPress}
-            testID={`row-${index}`}>
-            <Text>
-              {row.label}: {row.value}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
-  },
-);
-
 // --- Test Suite ---
 
 describe('Step4Screen', () => {
@@ -89,7 +68,7 @@ describe('Step4Screen', () => {
     id: 'c1',
     name: 'Buddy',
     breed: {breedName: 'Golden Retriever'},
-    dateOfBirth: '2020-01-01T00:00:00.000Z',
+    dateOfBirth: '2020-06-15T12:00:00.000Z',
     gender: 'male',
     currentWeight: 25,
     color: 'Golden',
@@ -112,92 +91,152 @@ describe('Step4Screen', () => {
     );
   };
 
+  const renderScreen = () =>
+    render(<Step4Screen navigation={mockNavigation} route={{} as any} />);
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockNavigation.getParent.mockReturnValue({navigate: mockParentNavigate});
   });
 
-  it('renders "Companion not found" view when no companion is selected', () => {
+  it('renders the "Companion not found" view when no companion is selected', () => {
     setupState([], null);
 
-    const {getByText, queryByTestId} = render(
-      <Step4Screen navigation={mockNavigation} route={{} as any} />,
-    );
+    const {getByText, queryByTestId} = renderScreen();
 
     expect(getByText('Companion not found')).toBeTruthy();
     expect(getByText('Step 4 of 5')).toBeTruthy();
-    // Should NOT render the info section or next button logic when missing companion
-    expect(queryByTestId('aer-info-section')).toBeNull();
+    // The progress counter and summary rows are only in the populated layout.
+    expect(queryByTestId('aer-step-counter')).toBeNull();
+    expect(queryByTestId('aer-summary-row-0')).toBeNull();
   });
 
-  it('renders correctly with full companion data', () => {
+  it('renders the "Companion not found" view when the selected id has no match', () => {
+    // selectedCompanionId is set (truthy) but not present in the list, so
+    // `.find()` returns undefined -> the empty branch is taken.
+    setupState([{id: 'other'}], 'c1');
+
+    const {getByText, queryByTestId} = renderScreen();
+
+    expect(getByText('Companion not found')).toBeTruthy();
+    expect(queryByTestId('aer-summary-row-0')).toBeNull();
+  });
+
+  it('navigates back from the "Companion not found" view when Back is pressed', () => {
+    setupState([], null);
+
+    const {getByText, getByTestId} = renderScreen();
+
+    expect(getByText('Companion not found')).toBeTruthy();
+    fireEvent.press(getByTestId('layout-back'));
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the title, subtitle, progress counter and all summary rows for a full companion', () => {
     setupState([mockCompanion], 'c1');
 
-    const {getByText} = render(
-      <Step4Screen navigation={mockNavigation} route={{} as any} />,
-    );
+    const {getByText, getByTestId} = renderScreen();
 
-    expect(getByText('Companion Information')).toBeTruthy();
-    expect(getByText('Name: Buddy')).toBeTruthy();
-    expect(getByText('Breed: Golden Retriever')).toBeTruthy();
-    expect(getByText('Gender: MALE')).toBeTruthy(); // mocked capitalize
-    expect(getByText('Current weight: 25 kg')).toBeTruthy();
-    expect(getByText('Color: Golden')).toBeTruthy();
+    expect(getByText('About Buddy at the time')).toBeTruthy();
+    expect(
+      getByText(
+        'From their record. Correct anything that was different when the event happened.',
+      ),
+    ).toBeTruthy();
+    // currentStep/totalSteps wired into the layout.
+    expect(getByTestId('aer-step-counter')).toHaveTextContent('4/5');
 
-    // Verify Date Formatting logic
-    expect(getByText(/Date of birth:/)).toBeTruthy();
+    // Row labels.
+    expect(getByText('Name')).toBeTruthy();
+    expect(getByText('Breed')).toBeTruthy();
+    expect(getByText('Date of birth')).toBeTruthy();
+    expect(getByText('Gender')).toBeTruthy();
+    expect(getByText('Current weight')).toBeTruthy();
+    expect(getByText('Color')).toBeTruthy();
+    expect(getByText('Allergies')).toBeTruthy();
+    expect(getByText('Neutered status')).toBeTruthy();
+    expect(getByText('Blood group')).toBeTruthy();
+    expect(getByText('Microchip number')).toBeTruthy();
+    expect(getByText('Passport number')).toBeTruthy();
+    expect(getByText('Insurance status')).toBeTruthy();
+
+    // Row values (capitalize + weight/date formatting from the real helpers).
+    expect(getByText('Buddy')).toBeTruthy();
+    expect(getByText('Golden Retriever')).toBeTruthy();
+    expect(getByText('Male')).toBeTruthy();
+    expect(getByText('25 kg')).toBeTruthy();
+    expect(getByText('Golden')).toBeTruthy();
+    expect(getByText('None')).toBeTruthy();
+    expect(getByText('Neutered')).toBeTruthy();
+    expect(getByText('DEA 1.1')).toBeTruthy();
+    expect(getByText('123456789')).toBeTruthy();
+    expect(getByText('PASS-001')).toBeTruthy();
+    expect(getByText('Insured')).toBeTruthy();
+
+    // Date of birth is formatted (mid-day UTC keeps it stable across TZ).
+    const dobRow = getByTestId('aer-summary-row-2');
+    expect(within(dobRow).getByText(/2020/)).toBeTruthy();
+    expect(within(dobRow).getByText(/Jun/)).toBeTruthy();
   });
 
-  it('renders correctly with partial/missing companion data (Fallbacks)', () => {
-    // Companion with missing optional fields
-    const partialCompanion = {
-      id: 'c2',
-      name: 'Mittens',
-      // Missing breed, dob, weight, etc.
-    };
+  it('shows the em-dash fallback for every missing optional field', () => {
+    const partialCompanion = {id: 'c2', name: 'Mittens'};
     setupState([partialCompanion], 'c2');
 
-    const {getByText} = render(
-      <Step4Screen navigation={mockNavigation} route={{} as any} />,
-    );
+    const {getByText, getAllByText} = renderScreen();
 
-    expect(getByText('Name: Mittens')).toBeTruthy();
+    expect(getByText('About Mittens at the time')).toBeTruthy();
+    expect(getByText('Mittens')).toBeTruthy();
 
-    // Fallback checks
-    expect(getByText('Breed: ')).toBeTruthy();
-    expect(getByText('Date of birth: ')).toBeTruthy();
-    expect(getByText('Current weight: ')).toBeTruthy(); // No 'kg' suffix if value missing? actually logic is `${val} kg` if exists, else ''
-    expect(getByText('Color: ')).toBeTruthy();
-    expect(getByText('Neutered status: ')).toBeTruthy();
+    // Name has a value; the other 11 rows fall back to the em-dash.
+    expect(getAllByText('—')).toHaveLength(11);
   });
 
-  it('navigates back when layout Back button is pressed', () => {
+  it('shows the em-dash fallback for a whitespace-only value', () => {
+    // color is truthy but trims to empty -> the trim().length > 0 branch is false.
+    setupState([{...mockCompanion, color: '   '}], 'c1');
+
+    const {getByTestId} = renderScreen();
+
+    const colorRow = getByTestId('aer-summary-row-5');
+    expect(within(colorRow).getByText('Color')).toBeTruthy();
+    expect(within(colorRow).getByText('—')).toBeTruthy();
+  });
+
+  it('renders a divider after every row except the last', () => {
     setupState([mockCompanion], 'c1');
-    const {getByTestId} = render(
-      <Step4Screen navigation={mockNavigation} route={{} as any} />,
-    );
+
+    const {getByTestId} = renderScreen();
+
+    // 12 rows -> rows 0..11 exist, the last row is index 11.
+    expect(getByTestId('aer-summary-row-0')).toBeTruthy();
+    expect(getByTestId('aer-summary-row-11')).toBeTruthy();
+  });
+
+  it('navigates back when the layout Back button is pressed', () => {
+    setupState([mockCompanion], 'c1');
+
+    const {getByTestId} = renderScreen();
 
     fireEvent.press(getByTestId('layout-back'));
     expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
 
-  it('navigates to "Step5" when layout Next button is pressed', () => {
+  it('navigates to "Step5" when the layout Next button is pressed', () => {
     setupState([mockCompanion], 'c1');
-    const {getByTestId} = render(
-      <Step4Screen navigation={mockNavigation} route={{} as any} />,
-    );
+
+    const {getByTestId} = renderScreen();
 
     fireEvent.press(getByTestId('layout-next'));
     expect(mockNavigate).toHaveBeenCalledWith('Step5');
   });
 
-  it('navigates to Edit Companion when "Edit" is pressed on section header', () => {
+  it('navigates to Edit Companion when a summary row is pressed', () => {
     setupState([mockCompanion], 'c1');
-    const {getByTestId} = render(
-      <Step4Screen navigation={mockNavigation} route={{} as any} />,
-    );
 
-    fireEvent.press(getByTestId('section-edit-btn'));
+    const {getByTestId} = renderScreen();
+
+    fireEvent.press(getByTestId('aer-summary-row-0'));
 
     expect(mockNavigation.getParent).toHaveBeenCalled();
     expect(mockParentNavigate).toHaveBeenCalledWith('HomeStack', {
@@ -206,34 +245,14 @@ describe('Step4Screen', () => {
     });
   });
 
-  it('navigates to Edit Companion when an individual row is pressed', () => {
-    setupState([mockCompanion], 'c1');
-    const {getByTestId} = render(
-      <Step4Screen navigation={mockNavigation} route={{} as any} />,
-    );
-
-    // Press the Name row
-    fireEvent.press(getByTestId('row-0'));
-
-    expect(mockParentNavigate).toHaveBeenCalledWith('HomeStack', {
-      screen: 'EditCompanionOverview',
-      params: {companionId: 'c1'},
-    });
-  });
-
-  it('handles safe navigation when getParent() returns undefined', () => {
-    // Edge case: getParent() returns undefined
+  it('does not crash or navigate when getParent() returns undefined', () => {
     mockNavigation.getParent.mockReturnValueOnce(undefined);
     setupState([mockCompanion], 'c1');
 
-    const {getByTestId} = render(
-      <Step4Screen navigation={mockNavigation} route={{} as any} />,
-    );
+    const {getByTestId} = renderScreen();
 
-    // Trigger edit
-    fireEvent.press(getByTestId('section-edit-btn'));
+    fireEvent.press(getByTestId('aer-summary-row-3'));
 
-    // Should call getParent but not crash or call navigate
     expect(mockNavigation.getParent).toHaveBeenCalled();
     expect(mockParentNavigate).not.toHaveBeenCalled();
   });

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   ScrollView,
   ActivityIndicator,
   BackHandler,
@@ -15,7 +14,7 @@ import {PressableOpacity} from '@/shared/components/common/PressableOpacity/Pres
 import {OTPInput, Header, Input} from '@/shared/components/common';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useTheme} from '@/hooks';
-import {Images} from '@/assets/images';
+import type {Theme} from '@/theme';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
@@ -371,13 +370,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
             style={styles.scrollView}
             contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}>
             <View style={styles.content}>
-              <Image
-                source={Images.catLaptop}
-                style={styles.illustration}
-                resizeMode="contain"
-              />
-
-              <Text style={styles.subtitle}>Check your email</Text>
+              <Text style={styles.subtitle}>Check your inbox</Text>
 
               {isDemoLogin ? (
                 <>
@@ -408,7 +401,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
               ) : (
                 <>
                   <Text style={styles.description}>
-                    We've sent a {expectedLength}-digit login code to{' '}
+                    We sent a login code to{' '}
                     <Text style={styles.emailText}>{email}</Text>.
                     {isNewUser
                       ? ' Enter the code to create your Yosemite Crew account.'
@@ -433,12 +426,10 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
               style={styles.verifyButton}
               textStyle={styles.verifyButtonText}
               tintColor={
-                isVerifyDisabled
-                  ? theme.colors.inkFaint2
-                  : theme.colors.secondary
+                isVerifyDisabled ? theme.colors.inkFaint2 : theme.colors.cta
               }
               height={56}
-              borderRadius={16}
+              borderRadius={theme.borderRadius.button}
               loading={isVerifying}
               disabled={isVerifyDisabled}
             />
@@ -458,7 +449,7 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
                     {isResending ? (
                       <ActivityIndicator
                         size="small"
-                        color={theme.colors.primary}
+                        color={theme.colors.blueText}
                       />
                     ) : (
                       <Text style={styles.resendLink}>Resend</Text>
@@ -478,11 +469,11 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     keyboardView: {
       flex: 1,
@@ -501,41 +492,37 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       paddingBottom: theme.spacing['5'],
     },
-    illustration: {
-      width: '80%',
-      height: '30%',
-      marginBottom: theme.spacing['5'],
-    },
     subtitle: {
-      ...theme.typography.serifTitle,
+      ...theme.typography.serifTitleSmall,
       color: theme.colors.ink,
-      marginBottom: theme.spacing['4'],
+      marginBottom: theme.spacing['3'],
       textAlign: 'center',
     },
     description: {
-      ...theme.typography.paragraph,
-      color: theme.colors.textSecondary,
+      ...theme.typography.body,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
       lineHeight: 22.4,
       marginBottom: theme.spacing['4'],
     },
     emailText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.inkBody,
     },
     bottomSection: {
       paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['10'],
       paddingTop: theme.spacing['5'],
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     verifyButton: {
       width: '100%',
       marginBottom: theme.spacing['6'],
+      ...theme.shadows.cta,
     },
     verifyButtonText: {
-      ...theme.typography.cta,
-      color: theme.colors.white,
+      ...theme.typography.buttonLarge,
+      color: theme.colors.ctaText,
     },
     resendContainer: {
       flexDirection: 'row',
@@ -544,20 +531,20 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['1'],
     },
     resendText: {
-      ...theme.typography.paragraph,
-      color: theme.colors.textSecondary,
+      ...theme.typography.bodySmall,
+      color: theme.colors.inkFaint,
     },
     resendButton: {
       paddingHorizontal: theme.spacing['2'],
       paddingVertical: theme.spacing['1'],
     },
     resendLink: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.primary,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.blueText,
     },
     countdownText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.primary,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.inkFaint2,
     },
     demoInputContainer: {
       width: '100%',
@@ -568,8 +555,8 @@ const createStyles = (theme: any) =>
       paddingHorizontal: theme.spacing['3'],
     },
     prefillText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.primary,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.blueText,
       textAlign: 'center',
     },
   });

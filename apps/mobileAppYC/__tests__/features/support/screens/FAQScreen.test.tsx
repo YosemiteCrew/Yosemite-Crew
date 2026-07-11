@@ -121,7 +121,9 @@ jest.mock('../../../../src/features/support/data/faqData', () => ({
       categoryIds: ['cat1'],
       question: 'Question 1',
       answer: 'Answer 1 contains keyword.',
-      relatedIds: ['faq2'],
+      // 'ghost' has no matching entry -> exercises the not-found (`[]`) arm of the
+      // related-entry flatMap; 'faq2' resolves -> exercises the found (`[entry]`) arm.
+      relatedIds: ['faq2', 'ghost'],
     },
     {
       id: 'faq2',
@@ -135,7 +137,7 @@ jest.mock('../../../../src/features/support/data/faqData', () => ({
       categoryIds: ['cat2'],
       question: 'Question 3',
       answer: 'Answer 3',
-      relatedIds: [],
+      // relatedIds intentionally omitted -> exercises the `?? []` fallback.
     },
   ],
 }));
@@ -332,5 +334,13 @@ describe('FAQScreen', () => {
 
     // Restore Platform to avoid side effects
     Platform.OS = 'ios';
+  });
+
+  it('shows the empty-category state when the selected category has no entries', () => {
+    render(<FAQScreen navigation={mockNavigation} route={mockRoute} />);
+    // 'Empty Category' (empty_cat) has no matching FAQ entries, so selecting it
+    // renders the category empty-state.
+    fireEvent.press(screen.getByTestId('pill-empty_cat'));
+    expect(screen.getByText('No FAQs available in this category')).toBeTruthy();
   });
 });

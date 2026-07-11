@@ -8,6 +8,10 @@ import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHea
 export interface AERLayoutProps {
   children: React.ReactNode;
   stepLabel?: string; // e.g., "Step 1 of 5" or any top small label
+  // Warm-bone AER step progress. When both are provided, the layout renders a
+  // segmented progress bar + "N/M" counter instead of the plain text label.
+  currentStep?: number;
+  totalSteps?: number;
   bottomButton?: {
     title: string;
     onPress: () => void;
@@ -22,6 +26,8 @@ export interface AERLayoutProps {
 export const AERLayout: React.FC<AERLayoutProps> = ({
   children,
   stepLabel,
+  currentStep,
+  totalSteps,
   bottomButton,
   headerTitle = 'Adverse event reporting',
   showBackButton = true,
@@ -48,7 +54,28 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
         <ScrollView
           contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
           showsVerticalScrollIndicator={false}>
-          {stepLabel ? <Text style={styles.stepLabel}>{stepLabel}</Text> : null}
+          {currentStep != null && totalSteps ? (
+            <View style={styles.progressRow}>
+              <View style={styles.progressTrack}>
+                {Array.from({length: totalSteps}).map((_, index) => (
+                  <View
+                    key={`aer-progress-segment-${index}`}
+                    style={[
+                      styles.progressSegment,
+                      index < currentStep
+                        ? styles.progressSegmentActive
+                        : styles.progressSegmentInactive,
+                    ]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.progressCounter}>
+                {`${currentStep}/${totalSteps}`}
+              </Text>
+            </View>
+          ) : stepLabel ? (
+            <Text style={styles.stepLabel}>{stepLabel}</Text>
+          ) : null}
           {children}
           {bottomButton ? (
             <View style={styles.buttonContainer}>
@@ -82,6 +109,33 @@ const createStyles = (theme: any) =>
       color: theme.colors.placeholder,
       marginBottom: theme.spacing['4'],
       textAlign: 'center',
+    },
+    progressRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['3'],
+      marginTop: theme.spacing['1'],
+      marginBottom: theme.spacing['6'],
+    },
+    progressTrack: {
+      flex: 1,
+      flexDirection: 'row',
+      gap: theme.spacing['1.25'],
+    },
+    progressSegment: {
+      flex: 1,
+      height: 4,
+      borderRadius: theme.borderRadius.full,
+    },
+    progressSegmentActive: {
+      backgroundColor: theme.colors.blue,
+    },
+    progressSegmentInactive: {
+      backgroundColor: theme.colors.inset,
+    },
+    progressCounter: {
+      ...theme.typography.subtitleBold12,
+      color: theme.colors.inkFaint,
     },
     buttonContainer: {
       marginTop: theme.spacing['4'],

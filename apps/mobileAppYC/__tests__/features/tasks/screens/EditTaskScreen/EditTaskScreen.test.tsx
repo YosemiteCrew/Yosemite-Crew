@@ -185,9 +185,15 @@ jest.mock(
 );
 
 jest.mock('@/shared/components/common', () => ({
-  Input: ({label, value}: any) => {
-    const {Text} = require('react-native');
-    return <Text>{`${label}:${value}`}</Text>;
+  Input: ({label, value, onChangeText}: any) => {
+    const {Text, TouchableOpacity} = require('react-native');
+    return (
+      <TouchableOpacity
+        testID={`input-${label}`}
+        onPress={() => onChangeText?.('changed')}>
+        <Text>{`${label}:${value}`}</Text>
+      </TouchableOpacity>
+    );
   },
 }));
 
@@ -209,52 +215,6 @@ jest.mock('@/shared/components/common/Header/Header', () => ({
     );
   },
 }));
-
-jest.mock(
-  '@/features/tasks/components/TaskDeleteBottomSheet/TaskDeleteBottomSheet',
-  () => ({
-    TaskDeleteBottomSheet: require('react').forwardRef(
-      ({onDeleteAll, onDeleteForDay}: any, _ref: any) => {
-        const {View, Text, TouchableOpacity} = require('react-native');
-        return (
-          <View>
-            <TouchableOpacity
-              testID="confirm-delete-all-btn"
-              onPress={onDeleteAll}>
-              <Text>Delete All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              testID="confirm-delete-day-btn"
-              onPress={onDeleteForDay}>
-              <Text>Delete For Day</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      },
-    ),
-  }),
-);
-
-jest.mock(
-  '@/features/tasks/components/TaskSaveOptionsBottomSheet/TaskSaveOptionsBottomSheet',
-  () => ({
-    TaskSaveOptionsBottomSheet: require('react').forwardRef(
-      ({onSaveAll, onSaveForDay}: any, _ref: any) => {
-        const {View, Text, TouchableOpacity} = require('react-native');
-        return (
-          <View>
-            <TouchableOpacity testID="save-all-btn" onPress={onSaveAll}>
-              <Text>Save All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity testID="save-for-day-btn" onPress={onSaveForDay}>
-              <Text>Save For Day</Text>
-            </TouchableOpacity>
-          </View>
-        );
-      },
-    ),
-  }),
-);
 
 jest.mock(
   '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet',
@@ -1092,6 +1052,30 @@ describe('EditTaskScreen — additional coverage', () => {
     it('uses the provided numeric paddingTop when available', () => {
       renderScreen();
       expect(() => lastContentPaddingChildren({paddingTop: 25})).not.toThrow();
+    });
+
+    it('falls back to the default paddingTop when none is provided', () => {
+      renderScreen();
+      expect(() => lastContentPaddingChildren(undefined)).not.toThrow();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Locked category input — no-op onChangeText
+  // -------------------------------------------------------------------------
+
+  describe('locked category input', () => {
+    it('renders the resolved category label for the read-only Task type field', () => {
+      const {getByText} = renderScreen();
+      expect(getByText('Task type:HEALTH')).toBeTruthy();
+    });
+
+    it('invokes the read-only onChangeText no-op without side effects', () => {
+      const {getByTestId} = renderScreen();
+      expect(() =>
+        fireEvent.press(getByTestId('input-Task type')),
+      ).not.toThrow();
+      expect(mockUpdateTask).not.toHaveBeenCalled();
     });
   });
 });

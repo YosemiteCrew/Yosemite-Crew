@@ -1,12 +1,20 @@
 import React from 'react';
-import {ActivityIndicator, ScrollView, Text, View} from 'react-native';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {Header} from '@/shared/components/common';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {LegalContentRenderer} from '../components/LegalContentRenderer';
-import {createLegalStyles} from '../styles/legalStyles';
+import {exportLegalDocument} from '../services/legalExportService';
 import type {LegalSection, LegalContentBlock} from '../data/legalContentTypes';
 import {
   organisationDocumentService,
@@ -14,7 +22,6 @@ import {
   type OrganisationDocument,
 } from '../services/organisationDocumentService';
 import type {AppointmentStackParamList} from '@/navigation/types';
-import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Props = NativeStackScreenProps<
@@ -86,8 +93,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
 }) => {
   const {organisationId, organisationName, category} = route.params;
   const {theme} = useTheme();
-  const baseStyles = React.useMemo(() => createLegalStyles(theme), [theme]);
-  const styles = useCommonScreenStyles(theme);
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [error, setError] = React.useState<string | null>(null);
   const [sections, setSections] = React.useState<LegalSection[] | null>(null);
   const [retryCount, setRetryCount] = React.useState(0);
@@ -98,11 +104,22 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
     ? `${organisationName} ${baseTitle}`
     : baseTitle;
 
+  const orgLabel = organisationName?.trim() || baseTitle;
+  const badgeLetter = orgLabel.charAt(0).toUpperCase();
+
   const handleRetry = React.useCallback(() => {
     setSections(null);
     setError(null);
     setRetryCount(n => n + 1);
   }, []);
+
+  const handleDownload = React.useCallback(() => {
+    exportLegalDocument(screenTitle, sections ?? []);
+  }, [screenTitle, sections]);
+
+  const handleAcknowledge = React.useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -132,10 +149,10 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
 
   const hasContent = sections !== null && sections.length > 0;
 
-  let content: React.ReactNode;
+  let stateContent: React.ReactNode;
 
   if (loading) {
-    content = (
+    stateContent = (
       <View style={[styles.statusCard, styles.centerContent]}>
         <ActivityIndicator size="small" color={theme.colors.primary} />
         <Text style={styles.statusTitle}>
@@ -147,7 +164,7 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
       </View>
     );
   } else if (error) {
-    content = (
+    stateContent = (
       <LiquidGlassCard
         glassEffect="clear"
         padding="4"
@@ -165,10 +182,8 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
         />
       </LiquidGlassCard>
     );
-  } else if (hasContent) {
-    content = <LegalContentRenderer sections={sections} />;
   } else {
-    content = (
+    stateContent = (
       <LiquidGlassCard
         glassEffect="clear"
         padding="4"
@@ -198,20 +213,238 @@ export const OrganisationDocumentScreen: React.FC<Props> = ({
       contentPadding={theme.spacing['1']}
       useSafeAreaView
       showBottomFade={false}>
-      {contentPaddingStyle => (
-        <ScrollView
-          style={baseStyles.container}
-          contentContainerStyle={[
-            baseStyles.contentContainer,
-            contentPaddingStyle,
-            !hasContent && !error && !loading ? styles.centerContent : null,
-          ]}
-          showsVerticalScrollIndicator={false}>
-          {content}
-        </ScrollView>
-      )}
+      {contentPaddingStyle =>
+        hasContent ? (
+          <View style={[styles.contentRoot, contentPaddingStyle]}>
+            <View style={styles.sheet}>
+              <View style={styles.sheetHeaderRow}>
+                <View style={styles.sheetBrand}>
+                  <View style={styles.sheetBadge}>
+                    <Text style={styles.sheetBadgeText}>{badgeLetter}</Text>
+                  </View>
+                  <Text style={styles.sheetOrgName} numberOfLines={1}>
+                    {orgLabel.toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={styles.sheetPageIndicator}>Page 1 / 1</Text>
+              </View>
+
+              <Text style={styles.sheetDocTitle}>{baseTitle}</Text>
+
+              <View style={styles.sheetDivider} />
+
+              <ScrollView
+                style={styles.sheetBodyScroll}
+                contentContainerStyle={styles.sheetBodyContent}
+                showsVerticalScrollIndicator={false}>
+                <LegalContentRenderer sections={sections} />
+              </ScrollView>
+            </View>
+
+            <View style={styles.actionBar}>
+              <PressableOpacity
+                testID="organisation-document-download"
+                accessibilityRole="button"
+                accessibilityLabel="Download"
+                onPress={handleDownload}
+                style={styles.downloadAction}>
+                <Ionicons
+                  name="download-outline"
+                  size={18}
+                  color={theme.colors.inkBody}
+                />
+                <Text style={styles.downloadActionText}>Download</Text>
+              </PressableOpacity>
+
+              <PressableOpacity
+                testID="organisation-document-acknowledge"
+                accessibilityRole="button"
+                accessibilityLabel="Acknowledge"
+                onPress={handleAcknowledge}
+                style={styles.acknowledgeAction}>
+                <Ionicons
+                  name="checkmark"
+                  size={18}
+                  color={theme.colors.ctaText}
+                />
+                <Text style={styles.acknowledgeActionText}>Acknowledge</Text>
+              </PressableOpacity>
+            </View>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.container}
+            contentContainerStyle={[
+              styles.stateContent,
+              contentPaddingStyle,
+              !error && !loading ? styles.centerContent : null,
+            ]}
+            showsVerticalScrollIndicator={false}>
+            {stateContent}
+          </ScrollView>
+        )
+      }
     </LiquidGlassHeaderScreen>
   );
 };
+
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    stateContent: {
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['10'],
+      gap: theme.spacing['4'],
+    },
+    centerContent: {
+      flexGrow: 1,
+      justifyContent: 'center',
+    },
+    statusCard: {
+      gap: theme.spacing['2'],
+      padding: theme.spacing['5'],
+      alignItems: 'center',
+    },
+    statusTitle: {
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.ink,
+      textAlign: 'center',
+    },
+    statusText: {
+      ...theme.typography.subtitleRegular14,
+      color: theme.colors.inkMuted,
+      textAlign: 'center',
+    },
+    cardFallback: {
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.screen,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      ...theme.shadows.card,
+    },
+    // --- Paper "sheet" document viewer ---
+    contentRoot: {
+      flex: 1,
+    },
+    sheet: {
+      flex: 1,
+      minHeight: 0,
+      marginTop: theme.spacing['4'],
+      marginHorizontal: theme.spacing['5'],
+      backgroundColor: theme.colors.fieldBg,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.cardSmall,
+      paddingHorizontal: 22,
+      paddingVertical: theme.spacing['6'],
+      overflow: 'hidden',
+      boxShadow: `inset 0px 1px 4px ${theme.colors.neutralShadow}`,
+    },
+    sheetHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.spacing['2'],
+    },
+    sheetBrand: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['2'],
+      flexShrink: 1,
+    },
+    sheetBadge: {
+      width: 28,
+      height: 28,
+      borderRadius: 9,
+      backgroundColor: theme.colors.blueSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    sheetBadgeText: {
+      fontFamily: theme.typography.SATOSHI_BOLD,
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.colors.blueText,
+    },
+    sheetOrgName: {
+      fontFamily: theme.typography.SATOSHI_BOLD,
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 0.4,
+      color: theme.colors.inkBody,
+      flexShrink: 1,
+    },
+    sheetPageIndicator: {
+      fontFamily: theme.typography.SATOSHI_MEDIUM,
+      fontSize: 10.5,
+      color: theme.colors.inkFaint2,
+    },
+    sheetDocTitle: {
+      fontFamily: theme.typography.SATOSHI_BOLD,
+      fontSize: 16.5,
+      fontWeight: '700',
+      letterSpacing: -0.2,
+      color: theme.colors.ink,
+      marginTop: theme.spacing['3.5'],
+    },
+    sheetDivider: {
+      height: 1,
+      backgroundColor: theme.colors.hairline,
+      marginTop: theme.spacing['3'],
+      marginBottom: theme.spacing['2'],
+    },
+    sheetBodyScroll: {
+      flex: 1,
+    },
+    sheetBodyContent: {
+      paddingTop: theme.spacing['1'],
+      paddingBottom: theme.spacing['2'],
+    },
+    // --- Bottom action bar ---
+    actionBar: {
+      flexDirection: 'row',
+      gap: theme.spacing['2.5'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['3.5'],
+      paddingBottom: theme.spacing['6'],
+    },
+    downloadAction: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing['2'],
+      height: 50,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.divider,
+      backgroundColor: 'transparent',
+    },
+    downloadActionText: {
+      fontFamily: theme.typography.SATOSHI_MEDIUM,
+      fontSize: 15.5,
+      fontWeight: '500',
+      color: theme.colors.inkBody,
+    },
+    acknowledgeAction: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing['2'],
+      height: 50,
+      borderRadius: 16,
+      backgroundColor: theme.colors.cta,
+      ...theme.shadows.cta,
+    },
+    acknowledgeActionText: {
+      fontFamily: theme.typography.SATOSHI_MEDIUM,
+      fontSize: 15.5,
+      fontWeight: '500',
+      color: theme.colors.ctaText,
+    },
+  });
 
 export default OrganisationDocumentScreen;

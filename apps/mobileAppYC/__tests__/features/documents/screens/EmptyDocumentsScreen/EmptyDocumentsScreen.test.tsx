@@ -1,44 +1,80 @@
 import React from 'react';
-import {render} from '@testing-library/react-native';
+import {render, fireEvent} from '@testing-library/react-native';
 import {EmptyDocumentsScreen} from '@/features/documents/screens/EmptyDocumentsScreen/EmptyDocumentsScreen';
-import {GenericEmptyScreen} from '@/shared/screens/common/GenericEmptyScreen';
-import {Images} from '@/assets/images';
+import {mockTheme} from '../../../../setup/mockTheme';
 
 // --- Mocks ---
 
-// 1. Mock Assets
-jest.mock('@/assets/images', () => ({
-  Images: {
-    emptyDocuments: {uri: 'test_empty_docs_image.png'},
-  },
+const mockHandleAddDocument = jest.fn();
+
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
-// 2. Mock Shared Component
-// We mock this component to verify the props passed to it
-jest.mock('@/shared/screens/common/GenericEmptyScreen', () => ({
-  GenericEmptyScreen: jest.fn(() => null),
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({navigate: jest.fn()}),
 }));
+
+jest.mock('@/features/documents/hooks/useDocumentNavigation', () => ({
+  useDocumentNavigation: () => ({handleAddDocument: mockHandleAddDocument}),
+}));
+
+jest.mock('@/shared/components/common/Header/Header', () => {
+  const {View, Text} = require('react-native');
+  return {
+    Header: ({title, showBackButton}: any) => (
+      <View testID="header">
+        <Text>{title}</Text>
+        {showBackButton ? <Text>Back</Text> : null}
+      </View>
+    ),
+  };
+});
+
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const {View} = require('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({header, children}: any) => (
+        <View testID="screen-layout">
+          {header}
+          {typeof children === 'function' ? children({}) : children}
+        </View>
+      ),
+    };
+  },
+);
 
 describe('EmptyDocumentsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  // --- 1. Rendering & Prop Verification ---
+  it('renders the warm-bone empty state with the design copy', () => {
+    const {getByText, getByTestId} = render(<EmptyDocumentsScreen />);
 
-  it('renders GenericEmptyScreen with the correct configuration', () => {
-    render(<EmptyDocumentsScreen />);
+    expect(getByText('Documents')).toBeTruthy();
+    expect(getByTestId('empty-documents')).toBeTruthy();
+    expect(getByText('Nothing in the drawer yet')).toBeTruthy();
+    expect(
+      getByText(
+        'Insurance papers, lab results and adoption records will live here, together and searchable.',
+      ),
+    ).toBeTruthy();
+    expect(getByText('Add first document')).toBeTruthy();
+  });
 
-    // Verify GenericEmptyScreen was called with the specific props defined in the component
-    expect(GenericEmptyScreen).toHaveBeenCalledWith(
-      expect.objectContaining({
-        headerTitle: 'Documents',
-        emptyImage: Images.emptyDocuments,
-        title: 'Meow-nothing here.',
-        subtitle: expect.stringContaining('vaccine or\nmedical reports'),
-        showBackButton: false,
-      }),
-      undefined, // The second argument (context) is undefined in this test environment
-    );
+  it('does not render a back button (tab root)', () => {
+    const {queryByText} = render(<EmptyDocumentsScreen />);
+    expect(queryByText('Back')).toBeNull();
+  });
+
+  it('navigates to add a document when the CTA is pressed', () => {
+    const {getByTestId} = render(<EmptyDocumentsScreen />);
+
+    fireEvent.press(getByTestId('empty-documents-action'));
+
+    expect(mockHandleAddDocument).toHaveBeenCalledTimes(1);
   });
 });

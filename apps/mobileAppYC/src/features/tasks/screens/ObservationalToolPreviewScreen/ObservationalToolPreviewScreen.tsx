@@ -1,22 +1,15 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  Platform,
-} from 'react-native';
+import {ScrollView, StyleSheet, Text, View, Platform} from 'react-native';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RouteProp} from '@react-navigation/native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import type {TaskStackParamList} from '@/navigation/types';
-import {Images} from '@/assets/images';
 import {observationalToolDefinitions} from '@/features/observationalTools/data';
 import {
   getCachedObservationTool,
@@ -163,13 +156,17 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
     );
   const overviewTitle = staticDefinition?.overviewTitle ?? toolLabel;
   const overviewParagraph = staticDefinition?.overviewParagraphs?.[0];
-  const heroImage = staticDefinition?.heroImage ?? Images.otNoProviders;
+  const heroSubtitle = submissionDateLabel
+    ? `Pain assessment · Submitted on ${submissionDateLabel}`
+    : 'Pain assessment';
+  const instructionText = staticDefinition?.steps?.[0]?.subtitle;
+  const attribution = staticDefinition?.steps?.[0]?.footerNote;
 
   return (
     <LiquidGlassHeaderScreen
       header={
         <Header
-          title="OT Submission"
+          title="Observational tool"
           showBackButton
           onBack={() => navigation.goBack()}
           glass={false}
@@ -186,45 +183,75 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
           {!loading && error && <Text style={styles.errorText}>{error}</Text>}
           {!loading && !error && submission && (
             <>
-              <LiquidGlassCard
-                glassEffect="clear"
-                padding="4"
-                shadow="sm"
-                style={styles.summaryCard}
-                fallbackStyle={styles.glassFallback}>
-                <Image source={heroImage} style={styles.heroImage} />
-                <Text style={styles.title}>{overviewTitle}</Text>
-                {overviewParagraph ? (
+              <View style={styles.hero}>
+                <View style={styles.heroTile}>
+                  <Ionicons
+                    name="pulse-outline"
+                    size={24}
+                    color={theme.colors.avatarVioletInk}
+                  />
+                </View>
+                <View style={styles.heroText}>
+                  <Text style={styles.heroTitle}>{toolLabel}</Text>
+                  <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
+                </View>
+              </View>
+
+              {submission.summary ? (
+                <Text style={styles.summary}>{submission.summary}</Text>
+              ) : null}
+
+              {overviewParagraph ? (
+                <LiquidGlassCard
+                  glassEffect="clear"
+                  padding="4"
+                  shadow="sm"
+                  style={styles.explainerCard}
+                  fallbackStyle={styles.glassFallback}>
+                  <Text style={styles.explainerHeading}>{overviewTitle}</Text>
                   <Text style={styles.overviewText}>{overviewParagraph}</Text>
-                ) : null}
-                {submissionDateLabel ? (
-                  <Text style={styles.subtitle}>
-                    Submitted on {submissionDateLabel}
-                  </Text>
-                ) : null}
-                {submission.summary ? (
-                  <Text style={styles.summary}>{submission.summary}</Text>
-                ) : null}
-              </LiquidGlassCard>
+                </LiquidGlassCard>
+              ) : null}
+
+              {instructionText ? (
+                <View style={styles.callout}>
+                  <Ionicons
+                    name="eye-outline"
+                    size={17}
+                    color={theme.colors.navActive}
+                    style={styles.calloutIcon}
+                  />
+                  <Text style={styles.calloutText}>{instructionText}</Text>
+                </View>
+              ) : null}
 
               <LiquidGlassCard
                 glassEffect="clear"
                 padding="4"
                 shadow="sm"
-                style={styles.answersCard}
+                style={styles.responsesCard}
                 fallbackStyle={styles.glassFallback}>
                 <Text style={styles.sectionTitle}>Responses</Text>
                 {answerItems.length ? (
-                  answerItems.map(item => (
+                  answerItems.map((item, index) => (
                     <View key={item.key} style={styles.answerRow}>
-                      <Text style={styles.answerLabel}>{item.label}</Text>
-                      <Text style={styles.answerValue}>{item.value}</Text>
+                      <View style={styles.answerNumber}>
+                        <Text style={styles.answerNumberText}>{index + 1}</Text>
+                      </View>
+                      <View style={styles.answerBody}>
+                        <Text style={styles.answerLabel}>{item.label}</Text>
+                        <Text style={styles.answerValue}>{item.value}</Text>
+                      </View>
                     </View>
                   ))
                 ) : (
                   <Text style={styles.statusText}>No responses available.</Text>
                 )}
               </LiquidGlassCard>
+
+              {attribution ? (
+                <Text style={styles.footer}>{attribution}</Text>
+              ) : null}
             </>
           )}
           {!loading && !error && !submission && (
@@ -240,71 +267,129 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       paddingBottom: theme.spacing['24'],
-      paddingHorizontal: theme.spacing['4'],
-      gap: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['5'],
+      gap: theme.spacing['3.5'],
     },
-    summaryCard: {
-      gap: theme.spacing['2'],
+    hero: {
+      flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: theme.colors.cardBackground,
+      gap: theme.spacing['3.5'],
     },
-    answersCard: {
-      gap: theme.spacing['3'],
-      backgroundColor: theme.colors.cardBackground,
+    heroTile: {
+      width: 54,
+      height: 54,
+      borderRadius: theme.borderRadius.cardSmall,
+      backgroundColor: theme.colors.avatarVioletBg,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    glassFallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderWidth: Platform.OS === 'android' ? 1 : 0,
-      borderColor: theme.colors.borderMuted,
-      boxShadow: `0px 1px 6px ${theme.colors.neutralShadow}`,
+    heroText: {
+      flex: 1,
+      gap: theme.spacing['1'],
     },
-    heroImage: {
-      width: theme.spacing['28'],
-      height: theme.spacing['28'],
-      resizeMode: 'contain',
-    },
-    title: {
+    heroTitle: {
       ...theme.typography.serifTitleSmall,
-      color: theme.colors.secondary,
-      textAlign: 'center',
+      color: theme.colors.ink,
     },
-    subtitle: {
-      ...theme.typography.body12,
-      color: theme.colors.textSecondary,
-      textAlign: 'center',
+    heroSubtitle: {
+      ...theme.typography.subtitleRegular14,
+      color: theme.colors.inkFaint,
     },
     summary: {
       ...theme.typography.body14,
-      color: theme.colors.secondary,
+      color: theme.colors.inkBody,
+    },
+    explainerCard: {
+      gap: theme.spacing['2'],
+      backgroundColor: theme.colors.screen,
+    },
+    explainerHeading: {
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.ink,
     },
     overviewText: {
-      ...theme.typography.subtitleRegular14,
-      color: theme.colors.secondary,
-      textAlign: 'center',
+      ...theme.typography.body14,
+      color: theme.colors.inkMuted,
+    },
+    callout: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: theme.spacing['2.5'],
+      backgroundColor: theme.colors.blueSoft,
+      borderRadius: theme.borderRadius.field,
+      paddingVertical: theme.spacing['3.5'],
+      paddingHorizontal: theme.spacing['3.5'],
+    },
+    calloutIcon: {
+      marginTop: 1,
+    },
+    calloutText: {
+      ...theme.typography.body13,
+      color: theme.colors.navActive,
+      flex: 1,
+    },
+    responsesCard: {
+      gap: theme.spacing['2.5'],
+      backgroundColor: theme.colors.screen,
     },
     sectionTitle: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.ink,
     },
     answerRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: theme.spacing['3'],
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.field,
+      paddingVertical: theme.spacing['2.5'],
+      paddingHorizontal: theme.spacing['3.5'],
+    },
+    answerNumber: {
+      width: theme.spacing['6'],
+      height: theme.spacing['6'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blueSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    answerNumberText: {
+      ...theme.typography.subtitleBold12,
+      color: theme.colors.navActive,
+    },
+    answerBody: {
+      flex: 1,
       gap: theme.spacing['1'],
     },
     answerLabel: {
-      ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.inkBody,
       textTransform: 'capitalize',
     },
     answerValue: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
+      ...theme.typography.body14,
+      color: theme.colors.inkMuted,
+    },
+    footer: {
+      ...theme.typography.caption,
+      color: theme.colors.inkFaint2,
+      textAlign: 'center',
+      paddingTop: theme.spacing['1'],
+      paddingBottom: theme.spacing['5'],
     },
     statusText: {
       ...theme.typography.body14,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     errorText: {
       ...theme.typography.body14,
       color: theme.colors.error,
+    },
+    glassFallback: {
+      backgroundColor: theme.colors.screen,
+      borderWidth: Platform.OS === 'android' ? 1 : 0,
+      borderColor: theme.colors.hairline,
+      boxShadow: `0px 1px 6px ${theme.colors.neutralShadow}`,
     },
   });
 

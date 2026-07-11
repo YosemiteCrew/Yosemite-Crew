@@ -8,6 +8,7 @@ import {useSelector} from 'react-redux';
 import {useRoute} from '@react-navigation/native';
 import {setSelectedCompanion} from '@/features/companion';
 import {markInAppExpenseStatus} from '@/features/expenses';
+import {fetchInvoiceForAppointment} from '@/features/appointments/appointmentsSlice';
 import {Linking} from 'react-native';
 // --- Mocks ---
 
@@ -51,16 +52,9 @@ jest.mock('@/features/appointments/appointmentsSlice', () => ({
   })),
 }));
 
-// 4. Mock Theme & Assets
+// 4. Mock Theme
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
-}));
-
-jest.mock('@/assets/images', () => ({
-  Images: {
-    successPayment: {uri: 'success-img'},
-    downloadInvoice: {uri: 'download-icon'},
-  },
 }));
 
 // 5. Mock Components to avoid hoisting issues
@@ -109,6 +103,26 @@ const mockState = {
         date: '2025-08-15',
         time: '10:30',
       },
+      {
+        // Invalid `start` (NaN) and no date/time -> appointmentDateTime null
+        id: 'apt-bad-start',
+        companionId: 'comp-1',
+        start: 'not-a-real-date',
+      },
+      {
+        // Full-length time string (length !== 5) -> ternary false branch
+        id: 'apt-time-long',
+        companionId: 'comp-1',
+        date: '2025-08-15',
+        time: '10:30:00',
+      },
+      {
+        // Valid-length time but unparseable date -> second NaN guard false branch
+        id: 'apt-bad-dt',
+        companionId: 'comp-1',
+        date: 'not-a-date',
+        time: '10:30',
+      },
     ],
     invoices: [
       {
@@ -148,7 +162,7 @@ describe('PaymentSuccessScreen', () => {
     it('renders the success message and invoice details correctly', () => {
       render(<PaymentSuccessScreen />);
 
-      expect(screen.getByText('Thank you')).toBeTruthy();
+      expect(screen.getByText('Paid. All settled.')).toBeTruthy();
       expect(
         screen.getByText('You have Successfully made Payment'),
       ).toBeTruthy();
@@ -302,7 +316,7 @@ describe('PaymentSuccessScreen', () => {
       });
 
       render(<PaymentSuccessScreen />);
-      fireEvent.press(screen.getByText('View invoice'));
+      fireEvent.press(screen.getByText('View receipt'));
 
       expect(openURLSpy).toHaveBeenCalledWith(
         'https://example.com/invoice.pdf',
@@ -322,7 +336,7 @@ describe('PaymentSuccessScreen', () => {
       });
 
       render(<PaymentSuccessScreen />);
-      fireEvent.press(screen.getByText('View invoice'));
+      fireEvent.press(screen.getByText('View receipt'));
 
       await new Promise(resolve => setTimeout(resolve, 0));
 
@@ -332,6 +346,78 @@ describe('PaymentSuccessScreen', () => {
       );
       openURLSpy.mockRestore();
       consoleWarnSpy.mockRestore();
+    });
+
+    // Branch (line 86 false): no appointmentId -> effect skips fetching
+    it('does not fetch the invoice when no appointmentId is provided', () => {
+      (useRoute as jest.Mock).mockReturnValue({params: {}});
+
+      render(<PaymentSuccessScreen />);
+
+      expect(fetchInvoiceForAppointment).not.toHaveBeenCalled();
+      expect(screen.getByText('Paid. All settled.')).toBeTruthy();
+    });
+
+    // Branch (line 53 false): invalid "start" and no date/time -> null date
+    it('shows placeholder dates when "start" is invalid and no date/time exists', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-bad-start'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.getByText('Paid. All settled.')).toBeTruthy();
+      // Invoice number/date/id + appointment date/time all fall back to '—'
+      expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+    });
+
+    // Branch (line 59 false): time length !== 5 -> used as-is, no ':00' appended
+    it('formats the appointment date from a full-length time string', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-time-long'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.queryByText(/Aug.*2025/)).toBeTruthy();
+    });
+
+    // Branch (line 61 false): combined date/time is unparseable -> null date
+    it('shows placeholder dates when the combined date/time is invalid', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-bad-dt'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.getByText('Paid. All settled.')).toBeTruthy();
+      expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+    });
+
+    // Branch (line 114 true / stmt 115): guard returns early when no receipt URL.
+    // The button is disabled in this state, so fireEvent.press cannot reach the
+    // handler; invoke the receipt button's onPress prop directly to drive the guard.
+    it('does not attempt to open a URL when no receipt is available', () => {
+      const openURLSpy = jest
+        .spyOn(Linking, 'openURL')
+        .mockResolvedValue(undefined as any);
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-2'}, // no invoice -> receiptUrl is null
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.getByText('Receipt unavailable')).toBeTruthy();
+
+      let node: any = screen.getByText('Receipt unavailable');
+      while (node && typeof node.props?.onPress !== 'function') {
+        node = node.parent;
+      }
+      expect(node).toBeTruthy();
+      node.props.onPress();
+
+      expect(openURLSpy).not.toHaveBeenCalled();
+      openURLSpy.mockRestore();
     });
   });
 });

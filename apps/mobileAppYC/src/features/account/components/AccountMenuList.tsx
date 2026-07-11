@@ -68,20 +68,20 @@ const createStyles = (theme: any) =>
     row: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingVertical: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: theme.spacing['3.5'],
+      paddingHorizontal: theme.spacing['4'],
     },
     divider: {
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
+      borderBottomColor: theme.colors.hairline,
     },
     iconTile: {
-      marginRight: theme.spacing['4'],
+      marginRight: theme.spacing['3'],
     },
     label: {
       flex: 1,
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
+      ...theme.typography.titleSmall,
+      color: theme.colors.inkBody,
     },
     labelDanger: {
       color: theme.colors.error,
@@ -89,7 +89,7 @@ const createStyles = (theme: any) =>
     arrow: {
       width: theme.spacing['4'],
       height: theme.spacing['4'],
-      tintColor: theme.colors.secondary,
+      tintColor: theme.colors.inkFaint2,
       resizeMode: 'contain',
     },
     arrowDanger: {

@@ -628,6 +628,8 @@ export const createMockTheme = () => ({
     avatarGreenInk: '#006642',
     glassPill: 'rgba(239, 232, 220, 0.93)',
     glassPillBorder: 'rgba(29, 28, 27, 0.09)',
+    glassSurface: 'rgba(247, 243, 236, 0.55)',
+    glassSurfaceStrong: 'rgba(247, 243, 236, 0.72)',
   },
 });
 

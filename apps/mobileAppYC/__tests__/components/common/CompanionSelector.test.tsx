@@ -190,6 +190,24 @@ describe('CompanionSelector Component', () => {
     expect(names[2].props.children).toBe('Buddy');
   });
 
+  it('sorts companions that are missing every id using the missing-id fallbacks', () => {
+    // Two companions with no id/_id/companionId at all. With 2+ items the sort
+    // comparator actually runs; both resolve to priority 2 (equal), so the
+    // comparator falls into the "__missingA__"/"__missingB__" id fallbacks and
+    // resolveRolePriority's empty-string companionId fallback.
+    (Redux.useSelector as unknown as jest.Mock).mockReturnValue(null);
+
+    const noIdCompanions = [{name: 'NoIdOne'}, {name: 'NoIdTwo'}];
+
+    const {getByText} = render(
+      // @ts-ignore
+      <CompanionSelector companions={noIdCompanions} onSelect={mockOnSelect} />,
+    );
+
+    expect(getByText('NoIdOne')).toBeTruthy();
+    expect(getByText('NoIdTwo')).toBeTruthy();
+  });
+
   // ===========================================================================
   // 3. Interaction & Permissions Logic
   // ===========================================================================
@@ -317,6 +335,118 @@ describe('CompanionSelector Component', () => {
 
     fireEvent.press(getByText('Buddy'));
     expect(mockOnSelect).toHaveBeenCalledWith('1');
+  });
+
+  it('denies selection and uses empty role/permission fallbacks when no access data exists', () => {
+    // Default mock returns null for every selector, so accessMap/defaultAccess/
+    // globalRole/globalPermissions are all null. In the onPress permission block
+    // this falls through every `??` to an empty role and undefined permissions,
+    // landing on the ternary's `: false` arm and blocking selection.
+    Platform.OS = 'android';
+    (Redux.useSelector as unknown as jest.Mock).mockReturnValue(null);
+
+    const {getByText} = render(
+      <CompanionSelector
+        companions={[mockCompanions[0]]}
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+        requiredPermission="canViewVet"
+      />,
+    );
+
+    fireEvent.press(getByText('Buddy'));
+
+    expect(mockOnSelect).not.toHaveBeenCalled();
+    expect(ToastAndroid.show).toHaveBeenCalledWith(
+      expect.stringContaining('canViewVet'),
+      expect.anything(),
+    );
+  });
+
+  it('grants selection using globally fetched permissions when the companion has none of its own', () => {
+    // Access exists (non-null) but carries no permissions object, so the lookup
+    // skips `access?.permissions` and resolves via globalPermissions (the middle
+    // arm of the `?? ... ?? ...` chain).
+    (Redux.useSelector as unknown as jest.Mock).mockImplementation(selector =>
+      selector({
+        coParent: {
+          accessByCompanionId: {'1': {role: 'VIEWER'}},
+          defaultAccess: null,
+          lastFetchedRole: null,
+          lastFetchedPermissions: {canViewVet: true},
+        },
+      }),
+    );
+
+    const {getByText} = render(
+      <CompanionSelector
+        companions={[mockCompanions[0]]}
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+        requiredPermission="canViewVet"
+      />,
+    );
+
+    fireEvent.press(getByText('Buddy'));
+    expect(mockOnSelect).toHaveBeenCalledWith('1');
+  });
+
+  it('falls back to defaultAccess for both the access and its permissions lookup', () => {
+    // accessMap has no entry for this companion, so access resolves from
+    // defaultAccess. That defaultAccess carries no permissions and none are
+    // globally fetched, so the chain reaches `defaultAccess?.permissions`
+    // (non-null defaultAccess) which yields undefined -> denied.
+    Platform.OS = 'android';
+    (Redux.useSelector as unknown as jest.Mock).mockImplementation(selector =>
+      selector({
+        coParent: {
+          accessByCompanionId: {},
+          defaultAccess: {role: 'VIEWER'},
+          lastFetchedRole: null,
+          lastFetchedPermissions: null,
+        },
+      }),
+    );
+
+    const {getByText} = render(
+      <CompanionSelector
+        companions={[mockCompanions[0]]}
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+        requiredPermission="canViewVet"
+      />,
+    );
+
+    fireEvent.press(getByText('Buddy'));
+
+    expect(mockOnSelect).not.toHaveBeenCalled();
+    expect(ToastAndroid.show).toHaveBeenCalled();
+  });
+
+  it('shows the generic permission message when the permission label is an empty string', () => {
+    // permissionLabel="" is not nullish, so `permissionLabel ?? requiredPermission`
+    // resolves to the empty string. showPermissionToast then takes its falsy-label
+    // branch and emits the generic "this companion" copy.
+    Platform.OS = 'ios';
+    (Redux.useSelector as unknown as jest.Mock).mockReturnValue(null);
+
+    const {getByText} = render(
+      <CompanionSelector
+        companions={[mockCompanions[0]]}
+        selectedCompanionId={null}
+        onSelect={mockOnSelect}
+        requiredPermission="canViewVet"
+        permissionLabel=""
+      />,
+    );
+
+    fireEvent.press(getByText('Buddy'));
+
+    expect(mockOnSelect).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Permission needed',
+      expect.stringContaining('this companion'),
+    );
   });
 
   // ===========================================================================

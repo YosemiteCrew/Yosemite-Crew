@@ -322,4 +322,28 @@ describe('DocumentsScreen', () => {
       categoryId: catId,
     });
   });
+
+  it('renders a category missing description and iconTint using fallbacks', () => {
+    // All real DOCUMENT_CATEGORIES define description + iconTint, so the
+    // `description ?? ''` fallback and the `iconTint ? ... : undefined` else
+    // branch are only reachable via a category lacking those optional fields.
+    mockState([{id: 'c1'}], 'c1', []);
+
+    const edgeCategory = {
+      id: 'edge-cat',
+      label: 'EdgeCat',
+      icon: 'edge-icon',
+      isSynced: false,
+      fileCount: 0,
+      subcategories: [],
+    };
+    DOCUMENT_CATEGORIES.push(edgeCategory as any);
+
+    try {
+      const {getByTestId} = render(<DocumentsScreen />);
+      expect(getByTestId('cat-EdgeCat')).toBeTruthy();
+    } finally {
+      DOCUMENT_CATEGORIES.pop();
+    }
+  });
 });

@@ -9,7 +9,7 @@ import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import {Images} from '@/assets/images';
 import type {AdverseEventStackParamList} from '@/navigation/types';
-import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
+import {SegmentedControl} from '@/shared/components/common/SegmentedControl/SegmentedControl';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
 import {type UploadDocumentBottomSheetRef} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
 import {type DeleteDocumentBottomSheetRef} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
@@ -26,8 +26,19 @@ import {
 import type {DocumentFile} from '@/features/documents/types';
 import {createCommonFormStyles} from '@/shared/styles/commonFormStyles';
 import {useAdverseEventReport} from '@/features/adverseEventReporting/state/AdverseEventReportContext';
-import type {AdverseEventProductInfo} from '@/features/adverseEventReporting/types';
+import type {
+  AdverseEventProductInfo,
+  QuantityUnit,
+} from '@/features/adverseEventReporting/types';
 import {SUPPORTED_ADVERSE_EVENT_COUNTRIES} from '@/features/adverseEventReporting/content/supportedCountries';
+
+// Final step of the AER flow: all five progress segments read as complete.
+const AER_PROGRESS_SEGMENTS = ['seg-1', 'seg-2', 'seg-3', 'seg-4', 'seg-5'];
+
+const QUANTITY_UNIT_OPTIONS: {label: string; value: QuantityUnit}[] = [
+  {label: 'Tablet · piece', value: 'tablet'},
+  {label: 'Liquid · ml', value: 'liquid'},
+];
 
 const createInitialFormData = (): AdverseEventProductInfo => ({
   productName: '',
@@ -275,32 +286,60 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
   return (
     <>
       <AERLayout
-        stepLabel="Step 5 of 5"
         onBack={() => navigation.goBack()}
-        bottomButton={{title: 'Next', onPress: handleSubmit}}>
-        <Text style={styles.sectionTitle}>Product Information</Text>
+        bottomButton={{title: 'Submit report', onPress: handleSubmit}}>
+        <View style={styles.progressBar}>
+          {AER_PROGRESS_SEGMENTS.map(key => (
+            <View key={key} style={styles.progressSegment} />
+          ))}
+        </View>
 
-        <Input
-          label="Product name"
-          value={formData.productName}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, productName: text}));
-            clearFieldError('productName');
-          }}
-          containerStyle={styles.input}
-          error={formErrors.productName}
-        />
+        <Text style={styles.sectionTitle}>The product and what happened</Text>
 
-        <Input
-          label="Brand name"
-          value={formData.brandName}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, brandName: text}));
-            clearFieldError('brandName');
-          }}
-          containerStyle={styles.input}
-          error={formErrors.brandName}
-        />
+        <View style={styles.twoUpRow}>
+          <Input
+            label="Product name"
+            value={formData.productName}
+            onChangeText={text => {
+              setFormData(prev => ({...prev, productName: text}));
+              clearFieldError('productName');
+            }}
+            containerStyle={styles.fieldHalf}
+            error={formErrors.productName}
+          />
+          <Input
+            label="Brand name"
+            value={formData.brandName}
+            onChangeText={text => {
+              setFormData(prev => ({...prev, brandName: text}));
+              clearFieldError('brandName');
+            }}
+            containerStyle={styles.fieldHalf}
+            error={formErrors.brandName}
+          />
+        </View>
+
+        <View style={styles.twoUpRow}>
+          <Input
+            label="Batch number"
+            value={formData.batchNumber}
+            onChangeText={text => {
+              setFormData(prev => ({...prev, batchNumber: text}));
+              clearFieldError('batchNumber');
+            }}
+            containerStyle={styles.fieldHalf}
+            error={formErrors.batchNumber}
+          />
+          <TouchableInput
+            label="Event date"
+            value={formatDateForDisplay(formData.eventDate)}
+            onPress={() => setShowDatePicker(true)}
+            rightComponent={
+              <Image source={Images.calendarIcon} style={common.calendarIcon} />
+            }
+            containerStyle={styles.fieldHalf}
+          />
+        </View>
 
         <TouchableInput
           label="Manufacturing country"
@@ -315,17 +354,6 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
           }
           containerStyle={styles.input}
           error={formErrors.manufacturingCountry}
-        />
-
-        <Input
-          label="Batch number"
-          value={formData.batchNumber}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, batchNumber: text}));
-            clearFieldError('batchNumber');
-          }}
-          containerStyle={styles.input}
-          error={formErrors.batchNumber}
         />
 
         <Input
@@ -351,25 +379,18 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
           error={formErrors.quantityUsed}
         />
 
-        <View style={styles.checkboxRow}>
-          <Checkbox
-            value={formData.quantityUnit === 'tablet'}
-            onValueChange={val =>
-              val && setFormData(prev => ({...prev, quantityUnit: 'tablet'}))
-            }
-            label="Tablet - Piece"
-            labelStyle={styles.checkboxLabelInline}
-          />
-          <View style={{width: theme.spacing['4']}} />
-          <Checkbox
-            value={formData.quantityUnit === 'liquid'}
-            onValueChange={val =>
-              val && setFormData(prev => ({...prev, quantityUnit: 'liquid'}))
-            }
-            label="Liquid - ML"
-            labelStyle={styles.checkboxLabelInline}
-          />
-        </View>
+        <SegmentedControl
+          testID="quantity-unit"
+          options={QUANTITY_UNIT_OPTIONS}
+          value={formData.quantityUnit}
+          onChange={value =>
+            setFormData(prev => ({
+              ...prev,
+              quantityUnit: value as QuantityUnit,
+            }))
+          }
+          style={styles.segmented}
+        />
 
         <TouchableInput
           label="How was the product administered?"
@@ -435,20 +456,10 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
             }}
             onRequestRemove={file => handleRemoveFile(file.id)}
             emptyTitle="Upload image"
-            emptySubtitle={'Only PNG, JPEG, PDF\nmax size 5 MB'}
+            emptySubtitle={'Only PNG, JPEG, PDF · max size 5 MB'}
             error={formErrors.files}
           />
         </View>
-
-        <TouchableInput
-          label="Event date"
-          value={formatDateForDisplay(formData.eventDate)}
-          onPress={() => setShowDatePicker(true)}
-          rightComponent={
-            <Image source={Images.calendarIcon} style={common.calendarIcon} />
-          }
-          containerStyle={styles.input}
-        />
       </AERLayout>
 
       <SimpleDatePicker
@@ -501,59 +512,49 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
+    // AER progress: five equal segments, all blue on the final step.
+    progressBar: {
+      flexDirection: 'row',
+      gap: theme.spacing['1.25'],
+      marginTop: theme.spacing['2'],
+      marginBottom: theme.spacing['6'],
+    },
+    progressSegment: {
+      flex: 1,
+      height: theme.spacing['1'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blue,
+    },
     sectionTitle: {
-      ...theme.typography.h6Clash,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitle,
+      fontSize: 26,
+      lineHeight: 30,
+      color: theme.colors.ink,
+      marginBottom: theme.spacing['5'],
+    },
+    twoUpRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: theme.spacing['3'],
       marginBottom: theme.spacing['4'],
+    },
+    fieldHalf: {
+      flex: 1,
     },
     input: {
       marginBottom: theme.spacing['4'],
     },
-    checkboxRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingLeft: 10,
-      marginBottom: theme.spacing['2'],
-      marginTop: theme.spacing['1'],
-    },
-    checkboxLabel: {
-      ...theme.typography.body,
-      color: theme.colors.secondary,
-    },
-    checkboxLabelInline: {
-      ...theme.typography.body,
-      color: theme.colors.secondary,
-      flex: 0,
+    segmented: {
+      marginBottom: theme.spacing['4'],
     },
     uploadSection: {
       marginBottom: theme.spacing['6'],
     },
     uploadLabel: {
-      // Satoshi 14 Bold, 120% line-height
-      ...theme.typography.subtitleBold14,
-      color: theme.colors.secondary,
-      opacity: 1,
+      ...theme.typography.inputLabel,
+      color: theme.colors.inkBody,
       marginBottom: theme.spacing['3'],
-    },
-    uploadButton: {
-      borderWidth: 2,
-      borderColor: theme.colors.primary,
-      borderStyle: 'dashed',
-      borderRadius: theme.borderRadius.lg,
-      paddingVertical: theme.spacing['8'],
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    uploadIcon: {
-      width: 40,
-      height: 40,
-      resizeMode: 'contain',
-      marginBottom: theme.spacing['2'],
-      tintColor: theme.colors.primary,
-    },
-    uploadText: {
-      ...theme.typography.labelMdBold,
-      color: theme.colors.primary,
+      marginLeft: theme.spacing['1'],
     },
     // icon styles moved to shared createCommonFormStyles
   });

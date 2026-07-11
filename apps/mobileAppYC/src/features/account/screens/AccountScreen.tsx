@@ -35,7 +35,6 @@ import DeleteAccountBottomSheet, {
 import {AccountMenuList} from '@/features/account/components/AccountMenuList';
 import type {IconTileTone} from '@/shared/components/common/IconTile/IconTile';
 import {Header} from '@/shared/components/common/Header/Header';
-import {AppearanceSelector} from '@/shared/components/common/AppearanceSelector/AppearanceSelector';
 import {
   calculateAgeFromDateOfBirth,
   truncateText,
@@ -330,6 +329,15 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const menuItems = React.useMemo<MenuItem[]>(
     () => [
       {
+        id: 'preferences',
+        label: 'Preferences',
+        icon: Images.editIconSlide,
+        tone: 'info',
+        onPress: () => {
+          navigation.navigate('Preferences');
+        },
+      },
+      {
         id: 'faqs',
         label: 'FAQs',
         icon: Images.faqIcon,
@@ -408,14 +416,13 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
             <ScrollView
               contentContainerStyle={[styles.content, contentPaddingStyle]}
               showsVerticalScrollIndicator={false}>
-              {/* Appearance (light / dark / system) */}
-              <AppearanceSelector />
               {/* Companion/Profile Card - Now uses 'profiles' from Redux data */}
               <View style={styles.cardShadowWrapper}>
                 <LiquidGlassCard
                   glassEffect="clear"
                   interactive
-                  shadow="base"
+                  shadow="none"
+                  borderRadius="card"
                   style={styles.companionsCard}
                   fallbackStyle={styles.companionsCardFallback}>
                   {profiles.map((profile, index) => (
@@ -428,9 +435,12 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                       ]}>
                       <View style={styles.companionInfo}>
                         {buildProfileAvatar(profile, index)}
-                        <View>
+                        <View style={styles.companionText}>
                           <Text
-                            style={styles.companionName}
+                            style={[
+                              styles.companionName,
+                              index === 0 && styles.companionNamePrimary,
+                            ]}
                             numberOfLines={1}
                             ellipsizeMode="tail">
                             {truncateText(profile.name, 18)}{' '}
@@ -501,7 +511,8 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                 <LiquidGlassCard
                   glassEffect="clear"
                   interactive
-                  shadow="base"
+                  shadow="none"
+                  borderRadius="card"
                   style={styles.menuContainer}
                   fallbackStyle={styles.menuContainerFallback}>
                   <AccountMenuList
@@ -516,14 +527,17 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
               </View>
 
               <LiquidGlassButton
-                title="Logout"
+                title="Log out"
                 onPress={handleLogoutPress}
                 glassEffect="clear"
                 interactive
-                borderRadius="lg"
+                borderRadius="button"
                 forceBorder
-                borderColor={theme.colors.secondary}
-                shadowIntensity="strong"
+                borderColor={theme.colors.divider}
+                shadowIntensity="none"
+                leftIcon={
+                  <Image source={Images.logoutIcon} style={styles.logoutIcon} />
+                }
                 style={styles.logoutButton}
                 textStyle={styles.logoutText}
               />
@@ -562,35 +576,41 @@ const createStyles = (theme: any) => {
       gap: theme.spacing['4'],
     },
     companionsCard: {
-      backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing['4'],
-      gap: theme.spacing['4'],
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['1'],
+      overflow: 'hidden',
     },
     companionsCardFallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       overflow: 'hidden',
     },
     companionRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: theme.spacing['2'],
+      paddingVertical: theme.spacing['3.5'],
       gap: theme.spacing['3'],
     },
     companionRowDivider: {
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
-      paddingBottom: theme.spacing['4'],
-      marginBottom: theme.spacing['2'],
+      borderBottomColor: theme.colors.hairline,
     },
     companionInfo: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing['3'],
       flex: 1,
+    },
+    companionText: {
+      flex: 1,
+      minWidth: 0,
     },
     companionAvatar: {
       width: theme.spacing['14'],
@@ -604,64 +624,78 @@ const createStyles = (theme: any) => {
       backgroundColor: theme.colors.avatarVioletBg,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: theme.colors.avatarVioletBg,
     },
     avatarInitialsText: {
       ...theme.typography.h4,
       color: theme.colors.avatarVioletInk,
     },
     companionName: {
-      ...theme.typography.h4,
-      color: theme.colors.secondary,
+      ...theme.typography.titleSmall,
+      color: theme.colors.inkBody,
+    },
+    companionNamePrimary: {
+      ...theme.typography.serifTitleSmall,
+      color: theme.colors.ink,
     },
     companionMeta: {
-      ...theme.typography.caption,
-      color: theme.colors.textSecondary,
+      ...theme.typography.body13,
+      color: theme.colors.inkFaint,
     },
     editButton: {
-      width: theme.spacing['8'],
-      height: theme.spacing['8'],
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
       borderRadius: theme.borderRadius.full,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: 'rgba(48, 47, 46, 0.12)',
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
     },
     editIcon: {
-      width: theme.spacing['4'],
-      height: theme.spacing['4'],
+      width: theme.spacing['4.5'],
+      height: theme.spacing['4.5'],
       resizeMode: 'contain',
+      tintColor: theme.colors.inkBody,
     },
     menuContainer: {
-      backgroundColor: theme.colors.cardBackground,
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       overflow: 'hidden',
     },
     menuContainerFallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       overflow: 'hidden',
     },
     logoutButton: {
       width: '100%',
       height: theme.spacing['14'],
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.button,
+    },
+    logoutIcon: {
+      width: theme.spacing['4.5'],
+      height: theme.spacing['4.5'],
+      resizeMode: 'contain',
+      tintColor: theme.colors.inkBody,
     },
     logoutText: {
       ...theme.typography.button,
-      color: theme.colors.secondary,
+      color: theme.colors.inkBody,
     },
     versionText: {
-      ...theme.typography.bodySmall,
-      color: theme.colors.textSecondary,
+      ...theme.typography.body12,
+      color: theme.colors.inkFaint2,
       textAlign: 'center',
       marginTop: theme.spacing['2'],
     },
     cardShadowWrapper: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      boxShadow: `0px 10px 15px ${theme.colors.neutralShadow}`,
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.screen2,
+      ...theme.shadows.card,
       overflow: 'visible',
     },
   });

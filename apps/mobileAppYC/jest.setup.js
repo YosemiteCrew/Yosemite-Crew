@@ -194,6 +194,7 @@ jest.mock('react-native-reanimated', () => {
     interpolate: interpolateValue,
     interpolateColor: interpolateValue,
     runOnJS: fn => fn,
+    useReducedMotion: () => false,
     FadeIn: transitionBuilder,
     FadeOut: transitionBuilder,
     LinearTransition: transitionBuilder,
@@ -715,6 +716,16 @@ jest.mock('react-native-linear-gradient', () => {
   return {__esModule: true, default: Mock};
 });
 
+jest.mock('react-native-video', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  return {
+    __esModule: true,
+    default: ({children, ...props}) =>
+      React.createElement(View, {testID: 'rn-video', ...props}, children),
+  };
+});
+
 jest.mock('react-native-localize', () => ({
   getLocales: () => [
     {languageTag: 'en-US', languageCode: 'en', countryCode: 'US', isRTL: false},
@@ -786,6 +797,50 @@ jest.mock('@d11/react-native-fast-image', () => {
   return {
     __esModule: true,
     default: FastImage,
+  };
+});
+
+// Mock react-native-vector-icons so icon sets render as a queryable Text node
+// (the real createIconSet component trips React 19's duplicate-copy check under
+// pnpm). Covers the sets the app uses (Ionicons, MaterialIcons) plus the generic
+// factory, exposing the glyph name via accessibilityLabel/testID for assertions.
+jest.mock('react-native-vector-icons/Ionicons', () => {
+  const React = require('react');
+  const {Text} = require('react-native');
+  const Icon = ({name, ...props}) =>
+    React.createElement(
+      Text,
+      {accessibilityLabel: name, testID: `icon-${name}`, ...props},
+      name,
+    );
+  Icon.displayName = 'Ionicons';
+  return {__esModule: true, default: Icon};
+});
+
+jest.mock('react-native-vector-icons/MaterialIcons', () => {
+  const React = require('react');
+  const {Text} = require('react-native');
+  const Icon = ({name, ...props}) =>
+    React.createElement(
+      Text,
+      {accessibilityLabel: name, testID: `icon-${name}`, ...props},
+      name,
+    );
+  Icon.displayName = 'MaterialIcons';
+  return {__esModule: true, default: Icon};
+});
+
+// Mock @react-native-community/blur (native frosted-glass) as a plain View so
+// the warm-glass surfaces render in jest without the native module.
+jest.mock('@react-native-community/blur', () => {
+  const React = require('react');
+  const {View} = require('react-native');
+  const Passthrough = ({children, ...props}) =>
+    React.createElement(View, props, children);
+  return {
+    __esModule: true,
+    BlurView: Passthrough,
+    VibrancyView: Passthrough,
   };
 });
 

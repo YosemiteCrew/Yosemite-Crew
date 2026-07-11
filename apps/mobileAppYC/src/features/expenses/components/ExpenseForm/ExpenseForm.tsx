@@ -159,15 +159,17 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         style={styles.container}
         contentContainerStyle={[styles.contentContainer, contentContainerStyle]}
         showsVerticalScrollIndicator={false}>
-        <CompanionSelector
-          companions={companions}
-          selectedCompanionId={selectedCompanionId}
-          onSelect={onCompanionSelect}
-          showAddButton={false}
-          containerStyle={styles.companionSelector}
-          requiredPermission="expenses"
-          permissionLabel="expenses"
-        />
+        <View style={styles.companionGroup}>
+          <Text style={styles.fieldLabel}>Companion</Text>
+          <CompanionSelector
+            companions={companions}
+            selectedCompanionId={selectedCompanionId}
+            onSelect={onCompanionSelect}
+            showAddButton={false}
+            requiredPermission="expenses"
+            permissionLabel="expenses"
+          />
+        </View>
 
         <View style={styles.fieldGroup}>
           <TouchableInput
@@ -320,7 +322,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           borderColor={theme.colors.borderMuted}
           shadowIntensity="medium"
           height={56}
-          borderRadius={16}
+          borderRadius={theme.borderRadius.button}
         />
       </View>
 
@@ -452,19 +454,19 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     contentContainer: {
-      paddingHorizontal: theme.spacing['6'],
+      paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['24'],
     },
-    companionSelector: {
-      marginBottom: theme.spacing['4'],
+    companionGroup: {
+      marginBottom: theme.spacing['3.5'],
     },
     fieldGroup: {
-      marginBottom: theme.spacing['4'],
+      marginBottom: theme.spacing['3.5'],
     },
     fieldRow: {
       flexDirection: 'row',
-      gap: theme.spacing['3'],
-      marginBottom: theme.spacing['4'],
+      gap: theme.spacing['2.5'],
+      marginBottom: theme.spacing['3.5'],
     },
     fieldColumn: {
       flex: 1,
@@ -497,16 +499,18 @@ const createStyles = (theme: any) =>
       left: theme.spacing['5'],
       top: 16,
       ...theme.typography.label,
-      color: theme.colors.secondary,
+      color: theme.colors.ink,
+      fontVariant: ['tabular-nums'],
       zIndex: 1,
       pointerEvents: 'none',
     },
     amountInput: {
       paddingLeft: theme.spacing['4'],
-      color: theme.colors.secondary,
+      color: theme.colors.ink,
+      fontVariant: ['tabular-nums'],
     },
     footer: {
-      paddingHorizontal: theme.spacing['6'],
+      paddingHorizontal: theme.spacing['5'],
       paddingBottom: theme.spacing['10'],
       zIndex: 2,
       paddingTop: theme.spacing['2'],
@@ -517,8 +521,8 @@ const createStyles = (theme: any) =>
       marginTop: theme.spacing['4'],
     },
     saveButtonText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.white,
+      ...theme.typography.button,
+      color: theme.colors.ctaText,
     },
   });
 
