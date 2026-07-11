@@ -600,20 +600,22 @@ const VitalsForm = ({
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        {activeFields
-          .filter((field) => !OBSERVATION_GRID_KEYS.has(field.key))
-          .map((field) => (
-            <div key={field.key} className="flex flex-col gap-1">
-              <VitalsField
-                field={field}
-                value={draft[field.key]}
-                onChange={(value) => updateField(field.key, value)}
-              />
-              {fieldErrors[field.key] ? (
-                <p className="text-caption-1 text-danger-600">{fieldErrors[field.key]}</p>
-              ) : null}
-            </div>
-          ))}
+        {activeFields.flatMap((field) =>
+          OBSERVATION_GRID_KEYS.has(field.key)
+            ? []
+            : [
+                <div key={field.key} className="flex flex-col gap-1">
+                  <VitalsField
+                    field={field}
+                    value={draft[field.key]}
+                    onChange={(value) => updateField(field.key, value)}
+                  />
+                  {fieldErrors[field.key] ? (
+                    <p className="text-caption-1 text-danger-600">{fieldErrors[field.key]}</p>
+                  ) : null}
+                </div>,
+              ]
+        )}
       </div>
       {weightTrend ? (
         <div className="flex items-center gap-2 rounded-2xl bg-primary-100 px-3 py-2 text-caption-1 text-text-brand">

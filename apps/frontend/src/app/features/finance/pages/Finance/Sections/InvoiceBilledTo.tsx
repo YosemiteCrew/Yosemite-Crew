@@ -25,8 +25,10 @@ type ParentLike = Partial<{
 
 const joinTruthy = (parts: Array<string | undefined>, separator: string): string =>
   parts
-    .map((part) => part?.trim())
-    .filter(Boolean)
+    .flatMap((part) => {
+      const trimmed = part?.trim();
+      return trimmed ? [trimmed] : [];
+    })
     .join(separator);
 
 const InvoiceBilledTo = ({ parentId, appointment }: InvoiceBilledToProps) => {

@@ -1,9 +1,8 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import VisitTimer, {
-  formatElapsed,
-} from '@/app/features/appointments/pages/AppointmentWorkspace/components/VisitTimer';
+import VisitTimer from '@/app/features/appointments/pages/AppointmentWorkspace/components/VisitTimer';
+import { formatElapsed } from '@/app/lib/appointmentWorkspace';
 
 const NOW = new Date('2026-07-10T10:00:00.000Z').getTime();
 

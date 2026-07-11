@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { IoTimeOutline } from 'react-icons/io5';
+import { formatElapsed } from '@/app/lib/appointmentWorkspace';
 
 type VisitTimerProps = {
   /**
@@ -22,17 +23,6 @@ const toMs = (value?: string | Date): number | undefined => {
   return Number.isNaN(ms) ? undefined : ms;
 };
 
-const pad2 = (value: number): string => String(value).padStart(2, '0');
-
-/** Format a positive elapsed millisecond span as HH:MM:SS. */
-export const formatElapsed = (elapsedMs: number): string => {
-  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
-};
-
 /**
  * "In room HH:MM:SS" visit timer pill for the workspace header. Counts up once per
  * second from the best-available start. Three states, per the design's micro-states:
@@ -43,9 +33,16 @@ const VisitTimer = ({ startAt, bookedEndAt, className = '' }: VisitTimerProps) =
   const startMs = toMs(startAt);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
+  // Re-sync immediately when the start changes, at render time rather than in an
+  // effect, so the displayed elapsed value never lags a frame behind the prop.
+  const [prevStartMs, setPrevStartMs] = useState(startMs);
+  if (startMs !== prevStartMs) {
+    setPrevStartMs(startMs);
+    setNowMs(Date.now());
+  }
+
   useEffect(() => {
     if (startMs === undefined) return;
-    setNowMs(Date.now());
     const interval = globalThis.setInterval(() => setNowMs(Date.now()), 1000);
     return () => globalThis.clearInterval(interval);
   }, [startMs]);

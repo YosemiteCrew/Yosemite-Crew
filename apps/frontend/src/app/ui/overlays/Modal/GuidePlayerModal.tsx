@@ -10,6 +10,7 @@ import {
   IoVolumeHighOutline,
 } from 'react-icons/io5';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
+import { buildGuideDeepLink, copyToClipboard } from '@/app/ui/overlays/Modal/guideDeepLink';
 import { GuideVideo } from '@/app/features/guides/types/guides';
 
 type GuidePlayerModalProps = {
@@ -18,29 +19,6 @@ type GuidePlayerModalProps = {
   guide: GuideVideo | null;
   nextGuide: GuideVideo | null;
   onNext: () => void;
-};
-
-/**
- * Build the shareable deep link for a guide. Falls back to a relative path when
- * there is no window (SSR / tests without jsdom origin).
- */
-export const buildGuideDeepLink = (guideId: string): string => {
-  /* v8 ignore next 2 -- SSR/empty-origin fallback; window.location.origin is always defined and not redefinable under jsdom */
-  const origin =
-    typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
-  return `${origin}/guides?guide=${guideId}`;
-};
-
-const copyToClipboard = async (text: string): Promise<boolean> => {
-  try {
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // fall through to the graceful failure below
-  }
-  return false;
 };
 
 const GuidePlayerModal = ({
@@ -58,10 +36,14 @@ const GuidePlayerModal = ({
     return () => clearTimeout(timer);
   }, [copied]);
 
-  // Reset the "Copied" affordance whenever the modal closes or the guide changes.
-  useEffect(() => {
+  // Reset the "Copied" affordance whenever the modal closes or the guide changes,
+  // at render time via the prev-prop pattern rather than in an effect.
+  const [prevKey, setPrevKey] = useState(`${guide?.id}|${showModal}`);
+  const key = `${guide?.id}|${showModal}`;
+  if (key !== prevKey) {
+    setPrevKey(key);
     setCopied(false);
-  }, [guide?.id, showModal]);
+  }
 
   const handleClose = () => setShowModal(false);
 

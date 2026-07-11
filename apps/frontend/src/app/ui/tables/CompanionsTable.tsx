@@ -203,14 +203,13 @@ const CompanionsTable = ({
   const [page, setPage] = useState(1);
 
   const totalPages = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
-
-  useEffect(() => {
-    setPage((prev) => Math.min(prev, totalPages));
-  }, [totalPages]);
+  // Clamp the effective page during render instead of correcting it in an effect,
+  // so the list never flashes an out-of-range (empty) slice after the list shrinks.
+  const safePage = Math.min(page, totalPages);
 
   const pageItems = useMemo(
-    () => filteredList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filteredList, page]
+    () => filteredList.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filteredList, safePage]
   );
 
   const getUpcomingAppointmentForCompanion = (companionId?: string) => {
@@ -322,8 +321,8 @@ const CompanionsTable = ({
     return actions;
   };
 
-  const rangeStart = filteredList.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, filteredList.length);
+  const rangeStart = filteredList.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * PAGE_SIZE, filteredList.length);
 
   return (
     <div className="table-wrapper companions-scroll-x h-full min-h-0 overflow-hidden">
@@ -450,8 +449,8 @@ const CompanionsTable = ({
                   <button
                     type="button"
                     aria-label="Previous page"
-                    disabled={page === 1}
-                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    disabled={safePage === 1}
+                    onClick={() => setPage(Math.max(1, safePage - 1))}
                     className="flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
                   >
                     ‹
@@ -461,10 +460,10 @@ const CompanionsTable = ({
                       key={pageNumber}
                       type="button"
                       aria-label={`Page ${pageNumber}`}
-                      aria-current={pageNumber === page ? 'page' : undefined}
+                      aria-current={pageNumber === safePage ? 'page' : undefined}
                       onClick={() => setPage(pageNumber)}
                       className={`flex size-7 items-center justify-center rounded-[9px] text-[12px] transition-colors ${
-                        pageNumber === page
+                        pageNumber === safePage
                           ? 'bg-[var(--nav-active-bg)] font-bold text-[var(--nav-active)]'
                           : 'font-semibold text-[var(--ink-muted)] hover:bg-[var(--surface-soft)]'
                       }`}
@@ -475,8 +474,8 @@ const CompanionsTable = ({
                   <button
                     type="button"
                     aria-label="Next page"
-                    disabled={page === totalPages}
-                    onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={safePage === totalPages}
+                    onClick={() => setPage(Math.min(totalPages, safePage + 1))}
                     className="flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
                   >
                     ›

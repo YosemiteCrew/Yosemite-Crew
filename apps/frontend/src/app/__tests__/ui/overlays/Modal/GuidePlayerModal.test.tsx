@@ -2,9 +2,8 @@ import React from 'react';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-import GuidePlayerModal, {
-  buildGuideDeepLink,
-} from '@/app/ui/overlays/Modal/GuidePlayerModal';
+import GuidePlayerModal from '@/app/ui/overlays/Modal/GuidePlayerModal';
+import { buildGuideDeepLink } from '@/app/ui/overlays/Modal/guideDeepLink';
 import { GuideVideo } from '@/app/features/guides/types/guides';
 
 jest.mock('@/app/ui/overlays/Modal/ModalBase', () => ({
