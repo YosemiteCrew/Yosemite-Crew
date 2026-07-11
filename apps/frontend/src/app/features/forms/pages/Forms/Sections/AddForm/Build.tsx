@@ -1386,8 +1386,7 @@ const CanvasRow: React.FC<{
     return 'border border-[var(--hairline)]';
   })();
   return (
-    // NOSONAR: draggable card row that wraps action <button>s; a native <button> cannot nest interactive buttons or act as a drag row, so role="button" + tabIndex + onKeyDown provide the equivalent keyboard access
-    <div
+    <div /* NOSONAR: draggable selection row that wraps action <button>s; a native <button> would nest interactive buttons (forbidden), so role="button" + tabIndex + onKeyDown provide equivalent keyboard access */
       role="button"
       tabIndex={0}
       aria-pressed={selected}

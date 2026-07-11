@@ -263,6 +263,11 @@
     display: flex;
     max-height: 86vh;
     flex-direction: column;
+    /* Reset native <dialog> UA styles (margin/border/color/width fit-content). */
+    margin: 0;
+    border: 0;
+    width: auto;
+    color: inherit;
     border-radius: 24px 24px 0 0;
     /* Warm frosted-glass sheet with a top sheen. */
     background: var(--glass-93);

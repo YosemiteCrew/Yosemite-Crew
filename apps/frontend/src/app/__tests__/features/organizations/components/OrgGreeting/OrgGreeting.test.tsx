@@ -1,9 +1,8 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import OrgGreeting, {
-  getTimeGreeting,
-} from '@/app/features/organizations/components/OrgGreeting/OrgGreeting';
+import OrgGreeting from '@/app/features/organizations/components/OrgGreeting/OrgGreeting';
+import { getTimeGreeting } from '@/app/features/organizations/components/OrgGreeting/orgGreeting.utils';
 import { useAuthStore } from '@/app/stores/authStore';
 
 jest.mock('@/app/stores/authStore', () => ({

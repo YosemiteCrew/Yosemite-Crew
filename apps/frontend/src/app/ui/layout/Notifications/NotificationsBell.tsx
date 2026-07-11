@@ -24,6 +24,12 @@ const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
   const isPhone = variant === 'phone';
 
   const close = useCallback(() => setOpen(false), []);
+  // Keep the latest `close` in a ref so the listener effects can subscribe with
+  // stable deps and never re-attach on re-render.
+  const closeRef = useRef(close);
+  useEffect(() => {
+    closeRef.current = close;
+  }, [close]);
 
   // Escape closes either surface.
   useEffect(() => {
@@ -31,24 +37,24 @@ const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        close();
+        closeRef.current();
       }
     };
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  }, [open, close]);
+  }, [open]);
 
   // Desktop dropdown closes on outside click (the phone sheet uses its backdrop).
   useEffect(() => {
     if (!open || isPhone) return undefined;
     const onMouseDown = (event: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
-        close();
+        closeRef.current();
       }
     };
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
-  }, [open, isPhone, close]);
+  }, [open, isPhone]);
 
   const goToSettings = () => {
     close();
@@ -103,17 +109,17 @@ const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
                   aria-label="Close notifications"
                   onClick={close}
                 />
-                <div /* NOSONAR: custom-positioned bottom-sheet overlay; native <dialog> adds UA margin/border that break the design-system sheet positioning */
+                <dialog
+                  open
                   id={panelId}
                   className="yc-noti-sheet"
-                  role="dialog"
                   aria-modal="true"
                   aria-label="Notifications"
                 >
                   <span className="yc-noti-sheet-grabber" aria-hidden />
                   {panel}
                   <span className="yc-noti-home-indicator" aria-hidden />
-                </div>
+                </dialog>
               </div>,
               document.body
             )
@@ -126,9 +132,9 @@ const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
     <div className="yc-noti-wrap" ref={wrapRef}>
       {trigger}
       {open ? (
-        <div id={panelId} className="yc-noti-panel" role="dialog" aria-label="Notifications" /* NOSONAR: custom-positioned dropdown overlay; native <dialog> adds UA padding/margin that break the panel layout */>
+        <dialog open id={panelId} className="yc-noti-panel" aria-label="Notifications">
           {panel}
-        </div>
+        </dialog>
       ) : null}
     </div>
   );

@@ -1058,23 +1058,24 @@ type ModalityPillsProps = {
   onToggleNeedsAck: () => void;
 };
 
+const MODALITY_PILL_ACTIVE_STYLE: React.CSSProperties = {
+  background: 'var(--inset)',
+  borderColor: 'var(--divider)',
+  color: 'var(--ink)',
+  fontWeight: 700,
+};
+const MODALITY_PILL_IDLE_STYLE: React.CSSProperties = {
+  borderColor: 'var(--hairline)',
+  color: 'var(--ink-muted)',
+  fontWeight: 600,
+};
+
 const ModalityPills = ({
   modalityFilter,
   needsAckOnly,
   onSelectModality,
   onToggleNeedsAck,
 }: ModalityPillsProps) => {
-  const activeStyle: React.CSSProperties = {
-    background: 'var(--inset)',
-    borderColor: 'var(--divider)',
-    color: 'var(--ink)',
-    fontWeight: 700,
-  };
-  const idleStyle: React.CSSProperties = {
-    borderColor: 'var(--hairline)',
-    color: 'var(--ink-muted)',
-    fontWeight: 600,
-  };
   return (
     // Phone: a single horizontally scrollable row. Tablet / desktop: wraps.
     <div className="scrollbar-x-float flex items-center gap-2 overflow-x-auto md:flex-wrap md:overflow-visible">
@@ -1087,7 +1088,7 @@ const ModalityPills = ({
             aria-pressed={active}
             onClick={() => onSelectModality(filter.value as ModalityFilter)}
             className="inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-caption-1 whitespace-nowrap transition-colors"
-            style={active ? activeStyle : idleStyle}
+            style={active ? MODALITY_PILL_ACTIVE_STYLE : MODALITY_PILL_IDLE_STYLE}
           >
             {filter.label}
           </button>
@@ -1103,13 +1104,13 @@ const ModalityPills = ({
         aria-pressed={needsAckOnly}
         onClick={onToggleNeedsAck}
         className="inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-caption-1 whitespace-nowrap transition-colors"
-        style={needsAckOnly ? activeStyle : idleStyle}
+        style={needsAckOnly ? MODALITY_PILL_ACTIVE_STYLE : MODALITY_PILL_IDLE_STYLE}
       >
         Needs acknowledgement
       </button>
       <span
         className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-caption-1 whitespace-nowrap md:ml-auto"
-        style={idleStyle}
+        style={MODALITY_PILL_IDLE_STYLE}
       >
         <IoCalendarClearOutline size={12} aria-hidden="true" />
         Last 7 days
@@ -1411,14 +1412,17 @@ const useIdexxWorkspacePage = () => {
 
   const totalPages = Math.max(1, Math.ceil(filteredResults.length / pageSize));
 
+  // When the result set shrinks below the current page (filters, page size, or a
+  // background refresh), clamp during render rather than paying an extra render
+  // through an effect. The condition converges, so it never loops.
+  if (page > totalPages) {
+    setPage(totalPages);
+  }
+
   const paginatedResults = useMemo(() => {
     const start = (page - 1) * pageSize;
     return filteredResults.slice(start, start + pageSize);
   }, [filteredResults, page, pageSize]);
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
 
   useEffect(() => {
     setPage(1);

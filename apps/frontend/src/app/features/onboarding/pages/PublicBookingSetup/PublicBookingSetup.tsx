@@ -16,17 +16,11 @@ import { usePrimaryOrg } from '@/app/hooks/useOrgSelectors';
 import { useNotify } from '@/app/hooks/useNotify';
 import type { ServiceRevamp } from '@/app/features/organization/types/revamp';
 
+import { slugify } from './publicBookingSetup.utils';
+
 const WINDOW_OPTIONS = ['Up to 2 weeks ahead', 'Up to 4 weeks ahead', 'Up to 8 weeks ahead'];
 const BUFFER_OPTIONS = ['0 minutes', '10 minutes', '15 minutes', '30 minutes'];
 const CURRENCY_SYMBOLS: Record<string, string> = { EUR: '€', USD: '$', GBP: '£' };
-
-export const slugify = (value: string): string => {
-  const slug = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-  return slug || 'your-clinic';
-};
 
 const formatPrice = (amount: number, currency?: string): string => {
   const code = String(currency ?? 'EUR').toUpperCase();
@@ -70,10 +64,16 @@ const PublicBookingSetup = () => {
     () => services.filter((s) => s.isBookable && s.status === 'ACTIVE'),
     [services]
   );
+  const allBookableIds = useMemo(
+    () => new Set(bookableServices.map((s) => s.id)),
+    [bookableServices]
+  );
 
   const [step, setStep] = useState<1 | 2>(1);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [seeded, setSeeded] = useState(false);
+  // Every bookable service starts selected; `selectionOverride` holds the user's
+  // explicit choices once they toggle, so selection derives from render, not an effect.
+  const [selectionOverride, setSelectionOverride] = useState<Set<string> | null>(null);
+  const selected = selectionOverride ?? allBookableIds;
   const [bookingWindow, setBookingWindow] = useState(WINDOW_OPTIONS[1]);
   const [buffer, setBuffer] = useState(BUFFER_OPTIONS[1]);
   const [needsConfirmation, setNeedsConfirmation] = useState(true);
@@ -87,16 +87,9 @@ const PublicBookingSetup = () => {
     }
   }, [primaryOrgId, loadOrganisationCatalog]);
 
-  useEffect(() => {
-    if (!seeded && bookableServices.length > 0) {
-      setSelected(new Set(bookableServices.map((s) => s.id)));
-      setSeeded(true);
-    }
-  }, [bookableServices, seeded]);
-
   const toggleService = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
+    setSelectionOverride((prev) => {
+      const next = new Set(prev ?? allBookableIds);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;

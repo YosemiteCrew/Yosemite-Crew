@@ -39,6 +39,11 @@
   max-width: 640px;
   max-height: min(78vh, 620px);
   flex-direction: column;
+  /* Reset native <dialog> UA styles (margin/padding/color) so the palette is
+     top-aligned and unpadded; the phone modifier layers on top of this base. */
+  margin: 0;
+  padding: 0;
+  color: inherit;
   overflow: hidden;
   border: 1px solid var(--hairline);
   border-radius: 22px;

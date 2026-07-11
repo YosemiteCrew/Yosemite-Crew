@@ -257,6 +257,32 @@ const RowIcon = ({ item }: { item: SearchItem }) => {
   );
 };
 
+const DESKTOP_FOOTER = (
+  <div className="yc-usp-foot">
+    <div className="yc-usp-foot-hints">
+      <span className="yc-usp-keyhint">
+        <span className="yc-usp-keycap">↑↓</span> Navigate
+      </span>
+      <span className="yc-usp-keyhint">
+        <span className="yc-usp-keycap">↵</span> Open
+      </span>
+      <span className="yc-usp-keyhint">
+        <span className="yc-usp-keycap">⌘↵</span> Open in workspace
+      </span>
+    </div>
+    <span className="yc-usp-foot-scope">Searches patients, visits, invoices, team, pages</span>
+  </div>
+);
+
+const PHONE_FOOTER = (
+  <div className="yc-usp-foot yc-usp-foot--phone">
+    <span className="yc-usp-foot-scope">Searches patients, visits, invoices, team</span>
+    <button type="button" className="yc-usp-filters">
+      Filters
+    </button>
+  </div>
+);
+
 const UniversalSearchPalette = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -533,42 +559,16 @@ const UniversalSearchPalette = () => {
     </div>
   );
 
-  const desktopFooter = (
-    <div className="yc-usp-foot">
-      <div className="yc-usp-foot-hints">
-        <span className="yc-usp-keyhint">
-          <span className="yc-usp-keycap">↑↓</span> Navigate
-        </span>
-        <span className="yc-usp-keyhint">
-          <span className="yc-usp-keycap">↵</span> Open
-        </span>
-        <span className="yc-usp-keyhint">
-          <span className="yc-usp-keycap">⌘↵</span> Open in workspace
-        </span>
-      </div>
-      <span className="yc-usp-foot-scope">Searches patients, visits, invoices, team, pages</span>
-    </div>
-  );
-
-  const phoneFooter = (
-    <div className="yc-usp-foot yc-usp-foot--phone">
-      <span className="yc-usp-foot-scope">Searches patients, visits, invoices, team</span>
-      <button type="button" className="yc-usp-filters">
-        Filters
-      </button>
-    </div>
-  );
-
   if (isPhone) {
     return createPortal(
       <div className="yc-usp-overlay yc-usp-overlay--phone">
-        <div className="yc-usp-panel yc-usp-panel--phone" role="dialog" aria-label="Universal search" /* NOSONAR: custom-positioned search overlay; native <dialog> adds UA padding/margin that break the palette layout */>
+        <dialog open className="yc-usp-panel yc-usp-panel--phone" aria-label="Universal search">
           <div className="yc-usp-statusbar" aria-hidden />
           {inputRow}
           {results}
-          {phoneFooter}
+          {PHONE_FOOTER}
           <span className="yc-usp-home-indicator" aria-hidden />
-        </div>
+        </dialog>
       </div>,
       document.body
     );
@@ -582,11 +582,11 @@ const UniversalSearchPalette = () => {
         className="yc-usp-backdrop"
         onClick={close}
       />
-      <section className="yc-usp-panel" role="dialog" aria-label="Universal search" /* NOSONAR: custom-positioned search overlay; native <dialog> adds UA padding/margin that break the palette layout */>
+      <dialog open className="yc-usp-panel" aria-label="Universal search">
         {inputRow}
         {results}
-        {desktopFooter}
-      </section>
+        {DESKTOP_FOOTER}
+      </dialog>
     </div>,
     document.body
   );

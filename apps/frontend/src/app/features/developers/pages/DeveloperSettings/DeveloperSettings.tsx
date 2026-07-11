@@ -10,6 +10,9 @@ import './DeveloperSettings.css';
 
 const WEBHOOK_ENDPOINT = 'https://api.timmdevices.de/yc/hooks';
 
+/** Read an ID-token claim as a string; non-string claims collapse to ''. */
+const claimString = (value: unknown): string => (typeof value === 'string' ? value : '');
+
 const getInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -40,9 +43,10 @@ const DeveloperSettings = () => {
   const payload: Record<string, unknown> = session?.getIdToken?.()?.decodePayload?.() ?? {};
 
   const displayName = useMemo(() => {
-    const name = `${String(payload?.given_name ?? '')} ${String(payload?.family_name ?? '')}`.trim();
+    const name = `${claimString(payload?.given_name)} ${claimString(payload?.family_name)}`.trim();
     if (name) return name;
-    if (payload?.email) return String(payload.email);
+    const claimEmail = claimString(payload?.email);
+    if (claimEmail) return claimEmail;
     return user?.getUsername?.() || 'Developer';
   }, [payload?.email, payload?.family_name, payload?.given_name, user]);
 

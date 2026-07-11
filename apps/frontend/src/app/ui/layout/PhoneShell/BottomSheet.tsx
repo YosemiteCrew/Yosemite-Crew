@@ -31,8 +31,14 @@ const FOCUSABLE_SELECTOR = [
  * least one focusable element, so the trap never operates on an empty set.
  */
 const BottomSheet = ({ open, title, onClose, children, footer, className }: BottomSheetProps) => {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
+  // Keep the latest `onClose` in a ref so the focus-trap effect can depend only
+  // on `open` and never re-run (re-attach listeners) when the parent re-renders.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -49,7 +55,7 @@ const BottomSheet = ({ open, title, onClose, children, footer, className }: Bott
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -74,7 +80,7 @@ const BottomSheet = ({ open, title, onClose, children, footer, className }: Bott
       /* v8 ignore next -- best-effort focus restoration */
       previouslyFocused?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -87,10 +93,10 @@ const BottomSheet = ({ open, title, onClose, children, footer, className }: Bott
         tabIndex={-1}
         onClick={onClose}
       />
-      <div /* NOSONAR: custom-positioned bottom-sheet overlay; native <dialog> adds UA margin/border that break the design-system sheet positioning */
+      <dialog
+        open
         ref={panelRef}
         className={`yc-phone-sheet ${className ?? ''}`.trim()}
-        role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
@@ -111,7 +117,7 @@ const BottomSheet = ({ open, title, onClose, children, footer, className }: Bott
         </div>
         <div className="yc-phone-sheet-body">{children}</div>
         {footer ? <div className="yc-phone-sheet-footer">{footer}</div> : null}
-      </div>
+      </dialog>
     </div>
   );
 };

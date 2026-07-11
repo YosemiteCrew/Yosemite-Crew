@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
 import PhoneHeader from './PhoneHeader';
 import PhoneTabBar, { type PhoneTabItem } from './PhoneTabBar';
@@ -22,6 +22,14 @@ import './PhoneShell.css';
 /** Custom event the FAB dispatches so the active page can open its create flow. */
 export const PHONE_PRIMARY_ACTION_EVENT = 'yc:phone-primary-action';
 
+const handleFabAction = (action: FabAction) => {
+  globalThis.window.dispatchEvent(
+    new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+      detail: { key: action.key, href: action.matchHref },
+    })
+  );
+};
+
 /**
  * The phone (< 768px) app shell: 54px header, bottom tab bar, floating action
  * button and the More bottom sheet. Renders nothing on tablet/desktop (guarded
@@ -33,10 +41,13 @@ const PhoneShell = () => {
   const { pathname, isRouteEnabled, isActive, navigate } = usePhoneNavGate();
   const chatUnread = usePhoneShellStore((s) => s.chatUnread);
 
-  // Close the More sheet whenever the route changes.
-  useEffect(() => {
+  // Close the More sheet whenever the route changes, adjusting state during render
+  // (tracking the previous pathname) instead of via an effect.
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setMoreOpen(false);
-  }, [pathname]);
+  }
 
   if (!isPhone) return null;
 
@@ -53,14 +64,6 @@ const PhoneShell = () => {
 
   const candidateFab = resolveFabAction(pathname);
   const fabAction = candidateFab && isRouteEnabled(candidateFab.routeName) ? candidateFab : null;
-
-  const handleFabAction = (action: FabAction) => {
-    globalThis.window.dispatchEvent(
-      new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
-        detail: { key: action.key, href: action.matchHref },
-      })
-    );
-  };
 
   const moreSections: PhoneMoreSection[] = PHONE_MORE_SECTIONS.map((section) => ({
     key: section.key,

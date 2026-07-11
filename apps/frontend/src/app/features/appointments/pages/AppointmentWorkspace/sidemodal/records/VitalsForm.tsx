@@ -274,10 +274,8 @@ const SegmentedPicker = ({
   <div className="flex flex-col gap-1">
     <div className="flex items-center justify-between gap-3">
       <span className="text-body-4 font-medium text-text-secondary">{label}</span>
-      {/* NOSONAR: segmented control; native <fieldset> breaks the flex layout and the group role is asserted by the tests */}
-      <div
-        className="flex flex-wrap items-center justify-end gap-1"
-        role="group"
+      <fieldset
+        className="m-0 flex min-w-0 flex-wrap items-center justify-end gap-1 border-0 p-0"
         aria-label={label}
       >
         {options.map((option) => {
@@ -295,7 +293,7 @@ const SegmentedPicker = ({
             </button>
           );
         })}
-      </div>
+      </fieldset>
     </div>
     {error ? <p className="text-caption-1 text-danger-600">{error}</p> : null}
   </div>

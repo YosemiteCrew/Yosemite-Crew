@@ -13,6 +13,11 @@
   position: absolute;
   top: calc(100% + 9px);
   right: 0;
+  /* Reset native <dialog> UA styles (inset-inline-start/margin/padding/color). */
+  left: auto;
+  margin: 0;
+  padding: 0;
+  color: inherit;
   z-index: 1200;
   width: min(420px, calc(100vw - 32px));
   overflow: hidden;
@@ -310,6 +315,11 @@
   display: flex;
   max-height: 86vh;
   flex-direction: column;
+  /* Reset native <dialog> UA styles (margin/border/color/width fit-content). */
+  margin: 0;
+  border: 0;
+  width: auto;
+  color: inherit;
   border-radius: 24px 24px 0 0;
   background: var(--screen);
   box-shadow:

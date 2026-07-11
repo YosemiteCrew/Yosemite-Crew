@@ -3,14 +3,10 @@ import React from 'react';
 
 import { useAuthStore } from '@/app/stores/authStore';
 
+import { getTimeGreeting } from './orgGreeting.utils';
+
 type OrgGreetingProps = {
   orgCount: number;
-};
-
-export const getTimeGreeting = (hour: number): string => {
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
 };
 
 const OrgGreeting = ({ orgCount }: OrgGreetingProps) => {

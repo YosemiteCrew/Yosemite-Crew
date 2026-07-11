@@ -36,9 +36,8 @@ jest.mock('react-icons/io5', () => ({
   IoRocketOutline: () => <span data-testid="i-rocket" />,
 }));
 
-import PublicBookingSetup, {
-  slugify,
-} from '@/app/features/onboarding/pages/PublicBookingSetup/PublicBookingSetup';
+import PublicBookingSetup from '@/app/features/onboarding/pages/PublicBookingSetup/PublicBookingSetup';
+import { slugify } from '@/app/features/onboarding/pages/PublicBookingSetup/publicBookingSetup.utils';
 
 const svc = (over: Partial<Record<string, unknown>> = {}) => ({
   id: 's1',

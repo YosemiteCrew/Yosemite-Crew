@@ -20,7 +20,7 @@ describe('SoapTemplateChip', () => {
   it('shows the active template name on the closed chip', () => {
     renderChip({ activeName: 'Annual wellness' });
     expect(screen.getByRole('button', { name: /Template: Annual wellness/ })).toBeInTheDocument();
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Search SOAP templates')).not.toBeInTheDocument();
   });
 
   it('falls back to "None" when no template is active', () => {
@@ -31,9 +31,9 @@ describe('SoapTemplateChip', () => {
   it('opens the popover and lists every template', () => {
     renderChip();
     fireEvent.click(screen.getByRole('button', { name: /Template:/ }));
-    expect(screen.getByRole('listbox')).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /Annual wellness/ })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /Dermatology work-up/ })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search SOAP templates')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Annual wellness/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Dermatology work-up/ })).toBeInTheDocument();
   });
 
   it('filters the list by the search query', () => {
@@ -42,8 +42,8 @@ describe('SoapTemplateChip', () => {
     fireEvent.change(screen.getByLabelText('Search SOAP templates'), {
       target: { value: 'dent' },
     });
-    expect(screen.getByRole('option', { name: /Dental \+ anaesthesia/ })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: /Annual wellness/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Dental \+ anaesthesia/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Annual wellness/ })).not.toBeInTheDocument();
   });
 
   it('shows an empty message when nothing matches', () => {
@@ -55,22 +55,22 @@ describe('SoapTemplateChip', () => {
     expect(screen.getByText('No SOAP templates match this search.')).toBeInTheDocument();
   });
 
-  it('marks the active template with aria-selected', () => {
+  it('marks the active template with aria-pressed', () => {
     renderChip({ activeName: 'Annual wellness' });
     fireEvent.click(screen.getByRole('button', { name: /Template:/ }));
-    expect(screen.getByRole('option', { name: /Annual wellness/ })).toHaveAttribute(
-      'aria-selected',
-      'true'
-    );
+    // The trigger also contains "Annual wellness"; scope to the pressed option row.
+    expect(
+      screen.getByRole('button', { name: /Annual wellness/, pressed: true })
+    ).toBeInTheDocument();
   });
 
   it('selects a template and closes', () => {
     const onSelect = jest.fn();
     renderChip({ onSelect });
     fireEvent.click(screen.getByRole('button', { name: /Template:/ }));
-    fireEvent.click(screen.getByRole('option', { name: /Dermatology work-up/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dermatology work-up/ }));
     expect(onSelect).toHaveBeenCalledWith('t2');
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Search SOAP templates')).not.toBeInTheDocument();
   });
 
   it('renders and fires the Manage templates action', () => {
@@ -79,15 +79,15 @@ describe('SoapTemplateChip', () => {
     fireEvent.click(screen.getByRole('button', { name: /Template:/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Manage templates' }));
     expect(onManage).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Search SOAP templates')).not.toBeInTheDocument();
   });
 
   it('closes when clicking outside the chip', () => {
     renderChip();
     fireEvent.click(screen.getByRole('button', { name: /Template:/ }));
-    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search SOAP templates')).toBeInTheDocument();
     fireEvent.mouseDown(document.body);
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Search SOAP templates')).not.toBeInTheDocument();
   });
 
   it('does not open when disabled', () => {

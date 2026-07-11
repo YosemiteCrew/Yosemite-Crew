@@ -85,9 +85,7 @@ const SoapTemplateChip = ({
       </button>
 
       {open && (
-        /* NOSONAR: custom searchable popover; native <select>/<datalist> cannot hold the search box and rich option rows, and the role is required by the listbox/option semantics */
         <div
-          role="listbox"
           aria-label="SOAP templates"
           className="absolute right-0 top-full z-30 mt-2 w-[330px] max-w-[80vw] overflow-hidden rounded-2xl border border-card-border bg-neutral-0 shadow-[0_4px_12px_var(--sh08),0_18px_44px_var(--sh10)]"
         >
@@ -116,8 +114,7 @@ const SoapTemplateChip = ({
                   <li key={template.id}>
                     <button
                       type="button"
-                      role="option"
-                      aria-selected={isActive}
+                      aria-pressed={isActive}
                       onClick={() => handleSelect(template.id)}
                       className={`flex w-full items-center gap-2 border-t border-card-border px-3.5 py-2.5 text-left first:border-t-0 hover:bg-neutral-100 ${
                         isActive ? 'bg-primary-100/40' : ''

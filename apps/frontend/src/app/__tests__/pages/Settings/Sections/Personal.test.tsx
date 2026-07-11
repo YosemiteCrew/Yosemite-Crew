@@ -2,9 +2,8 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import Personal, {
-  summarizeAvailability,
-} from '@/app/features/settings/pages/Settings/Sections/Personal';
+import Personal from '@/app/features/settings/pages/Settings/Sections/Personal';
+import { summarizeAvailability } from '@/app/features/settings/pages/Settings/Sections/personal.utils';
 import type { AvailabilityState } from '@/app/features/appointments/components/Availability/utils';
 
 const useAuthStoreMock = jest.fn();
