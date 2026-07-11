@@ -1,12 +1,18 @@
 import React from 'react';
-import {Animated, StyleSheet} from 'react-native';
-import {act, render} from '@testing-library/react-native';
+import {StyleSheet} from 'react-native';
+import {render} from '@testing-library/react-native';
+import * as Reanimated from 'react-native-reanimated';
 import {mockTheme} from '../../../../setup/mockTheme';
 import {SkeletonBlock} from '@/shared/components/common/Skeleton/SkeletonBlock';
 
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
+
+// react-native-reanimated is globally mocked in jest.setup.js (useSharedValue ->
+// {value}, useAnimatedStyle runs the updater, withTiming/withDelay/withSequence/
+// withRepeat pass through). We spy on that shared namespace to assert the pulse
+// wiring without running a real UI-thread animation.
 
 // Static tint / pulse constants mirrored from the source.
 const PULSE_STATIC = 0.75;
@@ -16,26 +22,7 @@ const PULSE_MAX = 1;
 const rootStyleOf = (tree: any) => StyleSheet.flatten(tree?.props?.style) ?? {};
 
 describe('SkeletonBlock', () => {
-  let startMock: jest.Mock;
-  let stopMock: jest.Mock;
-  let loopSpy: jest.SpyInstance;
-  let setValueSpy: jest.SpyInstance;
-
-  beforeEach(() => {
-    jest.useFakeTimers();
-    startMock = jest.fn();
-    stopMock = jest.fn();
-    // Replace the pulse loop with an inspectable handle so we can assert
-    // start/stop without running a real native-driver animation.
-    loopSpy = jest
-      .spyOn(Animated, 'loop')
-      .mockReturnValue({start: startMock, stop: stopMock} as never);
-    setValueSpy = jest.spyOn(Animated.Value.prototype, 'setValue');
-  });
-
   afterEach(() => {
-    jest.clearAllTimers();
-    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -67,71 +54,40 @@ describe('SkeletonBlock', () => {
   });
 
   it('shows a static tint and skips the pulse loop when reduceMotion is true', () => {
-    render(<SkeletonBlock reduceMotion />);
+    const repeatSpy = jest.spyOn(Reanimated, 'withRepeat');
+    const cancelSpy = jest.spyOn(Reanimated, 'cancelAnimation');
 
-    // Early-return branch: no animation loop is ever constructed.
-    expect(loopSpy).not.toHaveBeenCalled();
-    expect(setValueSpy).toHaveBeenCalledWith(PULSE_STATIC);
+    const {toJSON} = render(<SkeletonBlock reduceMotion />);
 
-    // Even after time passes nothing starts pulsing.
-    act(() => {
-      jest.advanceTimersByTime(1000);
-    });
-    expect(startMock).not.toHaveBeenCalled();
+    // Early-return branch: no pulse animation is ever constructed, the driver
+    // is cancelled and held at the static tint.
+    expect(repeatSpy).not.toHaveBeenCalled();
+    expect(cancelSpy).toHaveBeenCalled();
+    expect(rootStyleOf(toJSON()).opacity).toBe(PULSE_STATIC);
   });
 
-  it('builds the pulse loop and starts it only after the delay elapses', () => {
-    render(<SkeletonBlock delay={200} />);
+  it('builds the staggered pulse loop when reduceMotion is off', () => {
+    const repeatSpy = jest.spyOn(Reanimated, 'withRepeat');
+    const sequenceSpy = jest.spyOn(Reanimated, 'withSequence');
+    const delaySpy = jest.spyOn(Reanimated, 'withDelay');
 
-    // Loop is constructed at mount and the opacity is reset to the max.
-    expect(loopSpy).toHaveBeenCalledTimes(1);
-    expect(setValueSpy).toHaveBeenCalledWith(PULSE_MAX);
-    expect(startMock).not.toHaveBeenCalled();
+    const {toJSON} = render(<SkeletonBlock delay={200} />);
 
-    // Nothing starts before the stagger delay.
-    act(() => {
-      jest.advanceTimersByTime(100);
-    });
-    expect(startMock).not.toHaveBeenCalled();
-
-    // Once the full delay passes the loop starts exactly once.
-    act(() => {
-      jest.advanceTimersByTime(100);
-    });
-    expect(startMock).toHaveBeenCalledTimes(1);
+    // A repeating (-1) sequence is scheduled behind the per-block stagger delay.
+    expect(sequenceSpy).toHaveBeenCalledTimes(1);
+    expect(repeatSpy).toHaveBeenCalledWith(expect.anything(), -1);
+    expect(delaySpy).toHaveBeenCalledWith(200, expect.anything());
+    // The driver starts from the max-opacity end of the pulse.
+    expect(rootStyleOf(toJSON()).opacity).toBe(PULSE_MAX);
   });
 
-  it('starts the pulse loop promptly with the default zero delay', () => {
-    render(<SkeletonBlock />);
+  it('cancels the running pulse on unmount', () => {
+    const cancelSpy = jest.spyOn(Reanimated, 'cancelAnimation');
+    const {unmount} = render(<SkeletonBlock />);
 
-    act(() => {
-      jest.advanceTimersByTime(1);
-    });
-    expect(startMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('clears the pending timer and stops the loop on unmount', () => {
-    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
-    const {unmount} = render(<SkeletonBlock delay={50} />);
-
-    act(() => {
-      jest.advanceTimersByTime(50);
-    });
-    expect(startMock).toHaveBeenCalledTimes(1);
-
+    cancelSpy.mockClear();
     unmount();
 
-    expect(clearTimeoutSpy).toHaveBeenCalled();
-    expect(stopMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('lazily builds the pulse driver once and reuses it across re-renders', () => {
-    const {rerender, toJSON} = render(<SkeletonBlock />);
-
-    // Re-render: the lazy-init guard sees an existing Value and takes its
-    // already-initialised branch instead of allocating a new driver.
-    rerender(<SkeletonBlock width={220} />);
-
-    expect(rootStyleOf(toJSON()).width).toBe(220);
+    expect(cancelSpy).toHaveBeenCalledTimes(1);
   });
 });

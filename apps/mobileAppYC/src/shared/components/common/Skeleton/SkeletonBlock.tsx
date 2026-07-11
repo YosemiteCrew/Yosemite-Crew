@@ -1,16 +1,26 @@
-import React, {useEffect, useMemo, useRef} from 'react';
+import React, {useEffect, useMemo} from 'react';
 import {
-  Animated,
-  Easing,
   type DimensionValue,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import Animated, {
+  Easing,
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 
 // Shimmer pulse: opacity 1 -> 0.45 -> 1 over ~1.4s (two 700ms halves), matching
 // the warm-bone `ycPulse` keyframe. A per-block start delay staggers a group of
 // blocks into a wave. When reduced motion is on the block holds a static tint.
+// Runs on the UI thread via reanimated so the pulse never stutters on the JS
+// thread while lists are scrolling.
 const PULSE_MIN = 0.45;
 const PULSE_MAX = 1;
 const PULSE_STATIC = 0.75;
@@ -36,40 +46,34 @@ export const SkeletonBlock: React.FC<SkeletonBlockProps> = ({
   style,
 }) => {
   const {theme} = useTheme();
-  // Lazily construct the driver once instead of `useRef(new Animated.Value())`,
-  // which would allocate a throwaway Value on every render.
-  const opacityRef = useRef<Animated.Value | null>(null);
-  opacityRef.current ??= new Animated.Value(PULSE_MAX);
-  const opacity = opacityRef.current;
+  const opacity = useSharedValue(reduceMotion ? PULSE_STATIC : PULSE_MAX);
 
   useEffect(() => {
     if (reduceMotion) {
-      opacity.setValue(PULSE_STATIC);
+      cancelAnimation(opacity);
+      opacity.value = PULSE_STATIC;
       return;
     }
 
-    opacity.setValue(PULSE_MAX);
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: PULSE_MIN,
-          duration: HALF_CYCLE_MS,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: PULSE_MAX,
-          duration: HALF_CYCLE_MS,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(PULSE_MIN, {
+            duration: HALF_CYCLE_MS,
+            easing: Easing.inOut(Easing.ease),
+          }),
+          withTiming(PULSE_MAX, {
+            duration: HALF_CYCLE_MS,
+            easing: Easing.inOut(Easing.ease),
+          }),
+        ),
+        -1,
+      ),
     );
 
-    const timer = setTimeout(() => loop.start(), delay);
     return () => {
-      clearTimeout(timer);
-      loop.stop();
+      cancelAnimation(opacity);
     };
   }, [opacity, delay, reduceMotion]);
 
@@ -83,5 +87,7 @@ export const SkeletonBlock: React.FC<SkeletonBlockProps> = ({
     [width, height, radius, theme.colors.inset],
   );
 
-  return <Animated.View style={[fillStyle, {opacity}, style]} />;
+  const animatedStyle = useAnimatedStyle(() => ({opacity: opacity.value}));
+
+  return <Animated.View style={[fillStyle, animatedStyle, style]} />;
 };
