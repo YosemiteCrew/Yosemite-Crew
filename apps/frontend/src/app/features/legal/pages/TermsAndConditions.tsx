@@ -2,6 +2,7 @@ import React from 'react';
 
 import { NeedHealp } from '@/app/features/marketing/pages/PricingPage/PricingPage';
 
+import './legalShared.css';
 import './TermsAndConditions.css';
 
 const SupportContactTableHead = () => (
@@ -990,60 +991,64 @@ const TermsPart4 = () => (
   </>
 );
 
+const ExhibitADefinitions = () => (
+  <div className="doc-box">
+    <h3 className="doc-subtitle">EXHIBIT A</h3>
+    <h2 className="doc-title">SUPPORT SERVICES AND SERVICE LEVEL POLICY</h2>
+
+    <h3 className="doc-section-title">1. DEFINITIONS</h3>
+
+    <p>
+      <span className="doc-clause">1.1. Emergency Downtime</span> means such time as the SaaS
+      Service is offline due to a short-term emergency condition, provided that: (a) the incident
+      lasts less than three (3) hours; and (b) there have been no prior Emergency Downtime incidents
+      within 90 days before the incident.
+    </p>
+
+    <p>
+      <span className="doc-clause">1.2. Excused Downtime</span> means any downtime that is
+      Maintenance Downtime or Emergency Downtime or that is caused by the failure of any third party
+      vendors, the Internet in general, or any event beyond the reasonable control of the party,
+      including force of nature, war, riot, civil action, terrorism, labor dispute, malicious acts
+      or denial of service by a third party, or failure of telecommunication systems or utilities
+      (“Force Majeure Event”).
+    </p>
+
+    <p>
+      <span className="doc-clause">1.3. Error</span> means a failure of the SaaS Service to conform
+      to the specifications set forth in the Documentation, resulting in the inability to use, or
+      material restriction in the use of the SaaS Service.
+    </p>
+
+    <p>
+      <span className="doc-clause">1.4. Maintenance Downtime</span> means such time as the SaaS
+      Service is offline for maintenance or backup purposes, provided that the incident is scheduled
+      with Customer at least 24 hours in advance.
+    </p>
+
+    <p>
+      <span className="doc-clause">1.5. Monthly Availability Percentage</span> means the percentage
+      of time over the course of each calendar month during the Subscription Term, excluding Excused
+      Downtime, that the SaaS Service is available for use by Customer.
+    </p>
+
+    <p>
+      <span className="doc-clause">1.6. Start Time</span> means the time at which DuneXploration
+      first becomes aware of an Error.
+    </p>
+
+    <p>
+      <span className="doc-clause">1.7. Update</span> is a SaaS Service release that DuneXploration
+      makes generally available to all DuneXploration customers, along with any corresponding
+      changes to Documentation. An Update may be an error correction or bug fix; or it may be
+      enhancement, new feature, or new functionality.
+    </p>
+  </div>
+);
+
 const TermsPart5 = () => (
   <>
-    <div className="doc-box">
-      <h3 className="doc-subtitle">EXHIBIT A</h3>
-      <h2 className="doc-title">SUPPORT SERVICES AND SERVICE LEVEL POLICY</h2>
-
-      <h3 className="doc-section-title">1. DEFINITIONS</h3>
-
-      <p>
-        <span className="doc-clause">1.1. Emergency Downtime</span> means such time as the SaaS
-        Service is offline due to a short-term emergency condition, provided that: (a) the incident
-        lasts less than three (3) hours; and (b) there have been no prior Emergency Downtime
-        incidents within 90 days before the incident.
-      </p>
-
-      <p>
-        <span className="doc-clause">1.2. Excused Downtime</span> means any downtime that is
-        Maintenance Downtime or Emergency Downtime or that is caused by the failure of any third
-        party vendors, the Internet in general, or any event beyond the reasonable control of the
-        party, including force of nature, war, riot, civil action, terrorism, labor dispute,
-        malicious acts or denial of service by a third party, or failure of telecommunication
-        systems or utilities (“Force Majeure Event”).
-      </p>
-
-      <p>
-        <span className="doc-clause">1.3. Error</span> means a failure of the SaaS Service to
-        conform to the specifications set forth in the Documentation, resulting in the inability to
-        use, or material restriction in the use of the SaaS Service.
-      </p>
-
-      <p>
-        <span className="doc-clause">1.4. Maintenance Downtime</span> means such time as the SaaS
-        Service is offline for maintenance or backup purposes, provided that the incident is
-        scheduled with Customer at least 24 hours in advance.
-      </p>
-
-      <p>
-        <span className="doc-clause">1.5. Monthly Availability Percentage</span> means the
-        percentage of time over the course of each calendar month during the Subscription Term,
-        excluding Excused Downtime, that the SaaS Service is available for use by Customer.
-      </p>
-
-      <p>
-        <span className="doc-clause">1.6. Start Time</span> means the time at which DuneXploration
-        first becomes aware of an Error.
-      </p>
-
-      <p>
-        <span className="doc-clause">1.7. Update</span> is a SaaS Service release that
-        DuneXploration makes generally available to all DuneXploration customers, along with any
-        corresponding changes to Documentation. An Update may be an error correction or bug fix; or
-        it may be enhancement, new feature, or new functionality.
-      </p>
-    </div>
+    <ExhibitADefinitions />
     {/* 2. SUPPORT SERVICES */}
     <div className="doc-box">
       <h3 className="doc-section-title">2. SUPPORT SERVICES</h3>
@@ -1272,58 +1277,7 @@ const TermsPart6 = () => (
     </div>
 
     {/* EXHIBIT A */}
-    <div className="doc-box">
-      <h3 className="doc-subtitle">EXHIBIT A</h3>
-      <h2 className="doc-title">SUPPORT SERVICES AND SERVICE LEVEL POLICY</h2>
-
-      <h3 className="doc-section-title">1. DEFINITIONS</h3>
-
-      <p>
-        <span className="doc-clause">1.1. Emergency Downtime</span> means such time as the SaaS
-        Service is offline due to a short-term emergency condition, provided that: (a) the incident
-        lasts less than three (3) hours; and (b) there have been no prior Emergency Downtime
-        incidents within 90 days before the incident.
-      </p>
-
-      <p>
-        <span className="doc-clause">1.2. Excused Downtime</span> means any downtime that is
-        Maintenance Downtime or Emergency Downtime or that is caused by the failure of any third
-        party vendors, the Internet in general, or any event beyond the reasonable control of the
-        party, including force of nature, war, riot, civil action, terrorism, labor dispute,
-        malicious acts or denial of service by a third party, or failure of telecommunication
-        systems or utilities (“Force Majeure Event”).
-      </p>
-
-      <p>
-        <span className="doc-clause">1.3. Error</span> means a failure of the SaaS Service to
-        conform to the specifications set forth in the Documentation, resulting in the inability to
-        use, or material restriction in the use of the SaaS Service.
-      </p>
-
-      <p>
-        <span className="doc-clause">1.4. Maintenance Downtime</span> means such time as the SaaS
-        Service is offline for maintenance or backup purposes, provided that the incident is
-        scheduled with Customer at least 24 hours in advance.
-      </p>
-
-      <p>
-        <span className="doc-clause">1.5. Monthly Availability Percentage </span> means the
-        percentage of time over the course of each calendar month during the Subscription Term,
-        excluding Excused Downtime, that the SaaS Service is available for use by Customer.
-      </p>
-
-      <p>
-        <span className="doc-clause">1.6. Start Time</span> means the time at which DuneXploration
-        first becomes aware of an Error.
-      </p>
-
-      <p>
-        <span className="doc-clause">1.7. Update</span> is a SaaS Service release that
-        DuneXploration makes generally available to all DuneXploration customers, along with any
-        corresponding changes to Documentation. An Update may be an error correction or bug fix; or
-        it may be enhancement, new feature, or new functionality.
-      </p>
-    </div>
+    <ExhibitADefinitions />
   </>
 );
 

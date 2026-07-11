@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Footer from '@/app/ui/widgets/Footer/Footer';
 import { NeedHealp } from '@/app/features/marketing/pages/PricingPage/PricingPage';
 
+import './legalShared.css';
 import './PrivacyPolicy.css';
 
 const PrivacyPart1 = () => (
