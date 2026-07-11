@@ -11,78 +11,13 @@ import {
   RoomUnitSizeOptions,
 } from '@/app/features/organization/pages/Organization/types';
 import { OrganisationRoom } from '@yosemite-crew/types';
-import { FiChevronDown, FiPlus } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 import type { ManagedRoom, RoomUnitDetails } from './RoomInfo.types';
+import { SectionHeader, ToggleSwitch } from './roomSectionPrimitives';
 
 type SelectOption = { label: string; value: string };
 type OpenSections = Record<'details' | 'availability' | 'units' | 'equipment', boolean>;
 type Mode = 'view' | 'edit';
-
-const SectionHeader = ({
-  title,
-  open,
-  onToggle,
-  meta,
-  action,
-}: {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  meta?: ReactNode;
-  action?: ReactNode;
-}) => (
-  <div className="flex items-center justify-between gap-3">
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={open}
-      className="flex min-w-0 items-center gap-3 text-left text-body-3-emphasis text-text-primary"
-    >
-      <FiChevronDown
-        size={18}
-        aria-hidden="true"
-        className={`shrink-0 transition-transform ${open ? '' : '-rotate-90'}`}
-      />
-      <span>{title}</span>
-    </button>
-    <div className="flex shrink-0 items-center gap-3">
-      {meta}
-      {action}
-    </div>
-  </div>
-);
-
-const ToggleSwitch = ({
-  checked,
-  disabled,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (checked: boolean) => void;
-  label: string;
-}) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    aria-label={label}
-    disabled={disabled}
-    onClick={() => onChange(!checked)}
-    className="inline-flex h-6 w-12 shrink-0 items-center rounded-full p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-    style={{
-      backgroundColor: checked ? 'var(--color-success-bright)' : 'var(--color-neutral-300)',
-    }}
-  >
-    <span
-      aria-hidden="true"
-      className={`block size-4 rounded-full bg-white shadow-sm transition-transform ${
-        checked ? 'translate-x-6' : 'translate-x-0'
-      }`}
-    />
-  </button>
-);
 
 const DetailRows = ({
   rows,
