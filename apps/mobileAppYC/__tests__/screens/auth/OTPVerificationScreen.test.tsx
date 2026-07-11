@@ -1,6 +1,11 @@
 import React from 'react';
 import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
-import {DeviceEventEmitter, View as MockView} from 'react-native';
+import {
+  DeviceEventEmitter,
+  View as MockView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import {OTPVerificationScreen} from '@/features/auth/screens/OTPVerificationScreen';
 import * as passwordlessAuth from '@/features/auth/services/passwordlessAuth';
 import {useAuth} from '@/features/auth/context/AuthContext';
@@ -196,7 +201,7 @@ describe('OTPVerificationScreen', () => {
 
   it('renders correctly for a new user', () => {
     const {getByText, getByTestId} = renderComponent(true);
-    expect(getByText('Check your email')).toBeTruthy();
+    expect(getByText('Check your inbox')).toBeTruthy();
     expect(getByText('test@example.com')).toBeTruthy();
     expect(
       getByText(/Enter the code to create your Yosemite Crew account./),
@@ -617,6 +622,136 @@ describe('OTPVerificationScreen', () => {
     });
   });
 
+  it('falls back to the account username when the completion has no email', async () => {
+    const mockTokens = {accessToken: 'abc', idToken: 'def'};
+    mockedCompleteSignIn.mockResolvedValue({
+      user: {userId: 'user-xyz', username: 'username-fallback@example.com'},
+      attributes: {},
+      profile: {
+        exists: true,
+        isComplete: true,
+        profileToken: 'token-abc',
+        parent: {id: 'parent-xyz'} as any,
+      },
+      tokens: mockTokens,
+      parentLinked: true,
+    });
+
+    const {getByTestId} = renderComponent(false);
+    const otpInput = getByTestId('mock-otp-input');
+
+    await act(async () => {
+      fireEvent.changeText(otpInput, '1234');
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockedLogin).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'user-xyz',
+          email: 'username-fallback@example.com',
+        }),
+        mockTokens,
+      );
+    });
+  });
+
+  it('shows the digit-count error when the entered code trims below the expected length', () => {
+    const {getByTestId} = renderComponent();
+    const otpInput = getByTestId('mock-otp-input');
+
+    // A four-character value that trims to two triggers auto-verify but fails
+    // the length check inside validateCode.
+    act(() => {
+      fireEvent.changeText(otpInput, '  12');
+    });
+
+    expect(getByTestId('mock-otp-input').props.accessibilityLabel).toBe(
+      'Error: Please enter the 4-digit code.',
+    );
+    expect(mockedCompleteSignIn).not.toHaveBeenCalled();
+  });
+
+  it('ignores a resend request once cancellation has started', async () => {
+    const {getByText, getByTestId} = renderComponent();
+
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+
+    await act(async () => {
+      fireEvent.press(getByTestId('mock-header'));
+      await Promise.resolve();
+    });
+    await waitFor(() => {
+      expect(mockedSignOutEverywhere).toHaveBeenCalled();
+    });
+
+    fireEvent.press(getByText('Resend'));
+    expect(mockedRequestCode).not.toHaveBeenCalled();
+  });
+
+  it('does not clear the resending flag when cancelled during a resend', async () => {
+    let resolveResend: () => void = () => {};
+    mockedRequestCode.mockReturnValue(
+      new Promise<void>(resolve => {
+        resolveResend = resolve;
+      }),
+    );
+
+    const {getByText, getByTestId} = renderComponent();
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+
+    await act(async () => {
+      fireEvent.press(getByText('Resend'));
+      await Promise.resolve();
+    });
+
+    // Cancel while the resend request is still in flight.
+    await act(async () => {
+      fireEvent.press(getByTestId('mock-header'));
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      resolveResend();
+      await Promise.resolve();
+    });
+
+    expect(mockedRequestCode).toHaveBeenCalledWith('test@example.com');
+  });
+
+  it('shows a loading spinner while a resend request is pending', async () => {
+    mockedRequestCode.mockReturnValue(new Promise<void>(() => {}));
+    const {getByText, queryByText, UNSAFE_getByType} = renderComponent();
+
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+
+    await act(async () => {
+      fireEvent.press(getByText('Resend'));
+      await Promise.resolve();
+    });
+
+    expect(queryByText('Resend')).toBeNull();
+    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+  });
+
+  it('renders with the android keyboard-avoiding behavior', () => {
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    try {
+      const {getByText} = renderComponent();
+      expect(getByText('Check your inbox')).toBeTruthy();
+    } finally {
+      Platform.OS = originalOS;
+    }
+  });
+
   describe('Demo/Review login mode', () => {
     const originalEnableReviewLogin = AUTH_FEATURE_FLAGS.enableReviewLogin;
     const originalApiBaseUrl = API_CONFIG.baseUrl;
@@ -733,6 +868,81 @@ describe('OTPVerificationScreen', () => {
       });
 
       expect(API_CONFIG.baseUrl).toBe(expectedBaseUrl);
+    });
+
+    it('treats the demo login email as review login without a demo challenge type', () => {
+      const route = {
+        params: {
+          email: 'demo@yosemitecrew.com',
+          isNewUser: false,
+        },
+      };
+      const {getByText, queryByTestId} = render(
+        <OTPVerificationScreen
+          navigation={mockNavigation as any}
+          route={route as any}
+        />,
+      );
+
+      expect(getByText(/This is the App Review login/)).toBeTruthy();
+      expect(queryByTestId('mock-otp-input')).toBeNull();
+    });
+
+    it('restores the production API base URL when dev API is disabled on demo failure', async () => {
+      const originalUseDevApi = MOBILE_CONFIG_BEHAVIOR.useDevApi;
+      const originalOverride = MOBILE_CONFIG_BEHAVIOR.overrides?.apiBaseUrl;
+      MOBILE_CONFIG_BEHAVIOR.useDevApi = false;
+      if (MOBILE_CONFIG_BEHAVIOR.overrides) {
+        MOBILE_CONFIG_BEHAVIOR.overrides.apiBaseUrl = undefined;
+      }
+      mockedCompleteSignIn.mockRejectedValue(new Error('bad demo password'));
+      mockedFormatError.mockReturnValue('bad demo password');
+
+      try {
+        const {getByTestId, getByText} = renderDemoComponent();
+        fireEvent.changeText(getByTestId('mock-demo-input'), 'demoPass123');
+
+        await act(async () => {
+          fireEvent.press(getByText('Sign in with password'));
+          await Promise.resolve();
+        });
+
+        await waitFor(() => {
+          expect(getByTestId('mock-demo-input').props.accessibilityLabel).toBe(
+            'Error: bad demo password',
+          );
+        });
+
+        expect(API_CONFIG.baseUrl).toBe(PRODUCTION_API_BASE_URL);
+        expect(API_CONFIG.pmsBaseUrl).toBe(PRODUCTION_API_BASE_URL);
+      } finally {
+        MOBILE_CONFIG_BEHAVIOR.useDevApi = originalUseDevApi;
+        if (MOBILE_CONFIG_BEHAVIOR.overrides) {
+          MOBILE_CONFIG_BEHAVIOR.overrides.apiBaseUrl = originalOverride;
+        }
+      }
+    });
+
+    it('does not re-verify when submit fires after cancellation', async () => {
+      const {getByTestId} = renderDemoComponent();
+      fireEvent.changeText(getByTestId('mock-demo-input'), 'demoPass123');
+
+      // Cancel the flow via the header back button.
+      await act(async () => {
+        fireEvent.press(getByTestId('mock-header'));
+        await Promise.resolve();
+      });
+      await waitFor(() => {
+        expect(mockedSignOutEverywhere).toHaveBeenCalled();
+      });
+
+      // Submitting now is a no-op because cancellation already started.
+      await act(async () => {
+        fireEvent(getByTestId('mock-demo-input'), 'submitEditing');
+        await Promise.resolve();
+      });
+
+      expect(mockedCompleteSignIn).not.toHaveBeenCalled();
     });
   });
 

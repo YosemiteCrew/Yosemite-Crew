@@ -30,15 +30,22 @@ jest.mock('react-native/Libraries/Lists/FlatList', () => {
   // hoisting placing this factory above any local variable's initialization.
   const MockFlatList = ReactActual.forwardRef((props: any, ref: any) => {
     const {data, renderItem, keyExtractor, getItemLayout} = props;
-    ReactActual.useImperativeHandle(ref, () => ({
-      scrollToIndex: () => {
-        if ((globalThis as any).__calendarStripScrollShouldThrow) {
-          throw new Error('scrollToIndex failed');
-        }
-        (globalThis as any).__calendarStripScrollCalls =
-          ((globalThis as any).__calendarStripScrollCalls || 0) + 1;
-      },
-    }));
+    ReactActual.useImperativeHandle(ref, () => {
+      // When the flag is set, expose a null handle so dateListRef.current is
+      // falsy — this drives the component's `!dateListRef.current` guards.
+      if ((globalThis as any).__calendarStripNullRef) {
+        return null;
+      }
+      return {
+        scrollToIndex: () => {
+          if ((globalThis as any).__calendarStripScrollShouldThrow) {
+            throw new Error('scrollToIndex failed');
+          }
+          (globalThis as any).__calendarStripScrollCalls =
+            ((globalThis as any).__calendarStripScrollCalls || 0) + 1;
+        },
+      };
+    });
     (globalThis as any).__calendarStripGetItemLayout = getItemLayout;
     return (
       <RNView testID="flatlist">
@@ -67,6 +74,7 @@ describe('CalendarMonthStrip', () => {
     (globalThis as any).__calendarStripScrollShouldThrow = false;
     (globalThis as any).__calendarStripScrollCalls = 0;
     (globalThis as any).__calendarStripGetItemLayout = undefined;
+    (globalThis as any).__calendarStripNullRef = false;
   });
 
   afterEach(() => {
@@ -221,5 +229,46 @@ describe('CalendarMonthStrip', () => {
       offset: 3 * (70.5 + 8),
       index: 3,
     });
+  });
+
+  it('bails out of the scroll effect when the list ref is unavailable', () => {
+    // Null handle from mount => dateListRef.current is falsy, so the effect
+    // hits the early `!dateListRef.current` guard and never schedules a scroll.
+    (globalThis as any).__calendarStripNullRef = true;
+    render(<CalendarMonthStrip selectedDate={TODAY} onChange={onChange} />);
+
+    jest.runAllTimers();
+    expect((globalThis as any).__calendarStripScrollCalls).toBe(0);
+  });
+
+  it('skips scrolling when the list ref is cleared before the scroll timer fires', () => {
+    const {rerender} = render(
+      <CalendarMonthStrip selectedDate={TODAY} onChange={onChange} />,
+    );
+
+    // The effect has already scheduled the scroll timers against a valid ref.
+    // Clear the handle, then re-render via a prop that does NOT change the
+    // effect deps (weekDates/selectedDate), so the pending timers survive but
+    // scrollTo now sees a null ref and returns early.
+    (globalThis as any).__calendarStripNullRef = true;
+    rerender(
+      <CalendarMonthStrip
+        selectedDate={TODAY}
+        onChange={onChange}
+        markerColor="#123456"
+      />,
+    );
+
+    jest.runAllTimers();
+    expect((globalThis as any).__calendarStripScrollCalls).toBe(0);
+  });
+
+  it('applies the today style to the cell matching the real current date', () => {
+    // Rendering with the real current date makes one cell isToday=true, driving
+    // the `item.isToday && styles.dateItemToday` branch in renderDateItem.
+    const realToday = new Date();
+    render(<CalendarMonthStrip selectedDate={realToday} onChange={onChange} />);
+
+    expect(screen.getByText(formatMonthYear(realToday))).toBeTruthy();
   });
 });

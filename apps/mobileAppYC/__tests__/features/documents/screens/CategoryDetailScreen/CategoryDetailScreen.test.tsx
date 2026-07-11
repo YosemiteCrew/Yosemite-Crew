@@ -38,7 +38,13 @@ jest.mock('@/shared/utils/screenStyles', () => ({
     topGlassCard: {},
     topGlassFallback: {},
   }),
-  useCommonScreenStyles: () => ({container: {}, contentContainer: {}}),
+  // Invoke the custom-styles callback so the screen's inline extend function
+  // (source line 37) is exercised for coverage.
+  useCommonScreenStyles: (theme: any, extend?: (t: any) => any) => ({
+    container: {},
+    contentContainer: {},
+    ...(extend ? extend(theme) : {}),
+  }),
 }));
 
 // Mock Hooks
@@ -319,6 +325,19 @@ describe('CategoryDetailScreen', () => {
   describe('Navigation', () => {
     it('navigates back when header back button is pressed', () => {
       const {getByTestId} = renderWithRedux();
+      fireEvent.press(getByTestId('header-back-btn'));
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+
+    it('navigates back from the error view when its header back button is pressed', () => {
+      jest
+        .spyOn(require('@react-navigation/native'), 'useRoute')
+        .mockReturnValue({
+          params: {categoryId: 'invalid-id'},
+        });
+
+      const {getByTestId, getByText} = renderWithRedux();
+      expect(getByText('Category not found')).toBeTruthy();
       fireEvent.press(getByTestId('header-back-btn'));
       expect(mockGoBack).toHaveBeenCalled();
     });

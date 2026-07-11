@@ -3,6 +3,11 @@ import {mockTheme} from '../../../setup/mockTheme';
 import {Text} from 'react-native';
 import {render, fireEvent} from '@testing-library/react-native';
 import {LegalScreen} from '../../../../src/features/legal/components/LegalScreen';
+import {exportLegalDocument} from '../../../../src/features/legal/services/legalExportService';
+
+jest.mock('../../../../src/features/legal/services/legalExportService', () => ({
+  exportLegalDocument: jest.fn(),
+}));
 
 // --- Mocks ---
 
@@ -176,6 +181,92 @@ describe('LegalScreen', () => {
       {padding: 16},
       {paddingTop: 90 + mockTheme.spacing['3']},
     ]);
+  });
+
+  // --- 5. Document meta (serif title + last-updated pill) ---
+
+  it('renders the serif display title and last-updated pill from meta', () => {
+    const {getByText} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Terms & Conditions"
+        sections={mockSections}
+        meta={{
+          displayTitle: 'Terms of service',
+          lastUpdated: '10 Jul 2026',
+          version: 'v1.0',
+        }}
+      />,
+    );
+
+    expect(getByText('Terms of service')).toBeTruthy();
+    expect(getByText('Last updated 10 Jul 2026 · v1.0')).toBeTruthy();
+  });
+
+  it('falls back to the plain title when no meta is provided', () => {
+    const {getAllByText, queryByText} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Privacy Policy"
+        sections={mockSections}
+      />,
+    );
+
+    // Display title falls back to the title prop (also shown in the header),
+    // and there is no "Last updated" pill.
+    expect(getAllByText('Privacy Policy').length).toBeGreaterThan(0);
+    expect(queryByText(/Last updated/)).toBeNull();
+  });
+
+  // --- 6. On-page nav chips ---
+
+  it('renders nav chips and switches the active chip on press', () => {
+    const {getByText} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Privacy Policy"
+        sections={mockSections}
+        navChips={['What we collect', 'Your rights']}
+      />,
+    );
+
+    expect(getByText('What we collect')).toBeTruthy();
+    // Pressing the second chip drives the active-chip state branch.
+    fireEvent.press(getByText('Your rights'));
+    expect(getByText('Your rights')).toBeTruthy();
+  });
+
+  // --- 7. Download as PDF ---
+
+  it('exports the document when the download button is pressed', () => {
+    const meta = {
+      displayTitle: 'Terms of service',
+      lastUpdated: '10 Jul 2026',
+      version: 'v1.0',
+    };
+    const {getByLabelText} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Terms & Conditions"
+        sections={mockSections}
+        meta={meta}
+      />,
+    );
+
+    fireEvent.press(getByLabelText('Download as PDF'));
+    expect(exportLegalDocument).toHaveBeenCalledWith(
+      'Terms & Conditions',
+      mockSections,
+      meta,
+    );
   });
 
   it('does not re-measure when the layout height is unchanged', () => {

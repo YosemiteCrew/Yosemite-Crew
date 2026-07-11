@@ -73,12 +73,12 @@ export const CustomAttachment: React.FC = () => {
         {videoPaused && (
           <View style={styles.playOverlay}>
             <View style={styles.playButton}>
-              <Icon name="play-arrow" size={40} color={theme.colors.white} />
+              <Icon name="play-arrow" size={40} color={theme.colors.ink} />
             </View>
           </View>
         )}
         <View style={styles.videoInfo}>
-          <Icon name="videocam" size={16} color={theme.colors.white} />
+          <Icon name="videocam" size={16} color={theme.colors.inkMuted} />
           <Text style={styles.videoText}>{attachment.title || 'Video'}</Text>
         </View>
       </PressableOpacity>
@@ -104,7 +104,7 @@ export const CustomAttachment: React.FC = () => {
           <Icon
             name="insert-drive-file"
             size={32}
-            color={theme.colors.primary}
+            color={theme.colors.blueText}
           />
         </View>
         <View style={styles.fileInfo}>
@@ -113,7 +113,7 @@ export const CustomAttachment: React.FC = () => {
           </Text>
           {fileSize ? <Text style={styles.fileSize}>{fileSize}</Text> : null}
         </View>
-        <Icon name="download" size={24} color={theme.colors.primary} />
+        <Icon name="download" size={24} color={theme.colors.blueText} />
       </PressableOpacity>
     );
   }
@@ -130,9 +130,11 @@ const createStyles = (theme: any, maxWidth: number) =>
     videoContainer: {
       width: maxWidth,
       height: maxWidth * 0.75,
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.cardSmall,
       overflow: 'hidden',
-      backgroundColor: theme.colors.black,
+      backgroundColor: theme.colors.inset,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       position: 'relative',
     },
     video: {
@@ -148,8 +150,8 @@ const createStyles = (theme: any, maxWidth: number) =>
     playButton: {
       width: theme.spacing['14'],
       height: theme.spacing['14'],
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: 'rgba(255,255,255,0.3)',
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.glassSurfaceStrong,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -160,21 +162,23 @@ const createStyles = (theme: any, maxWidth: number) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing['1'],
-      backgroundColor: 'rgba(0,0,0,0.6)',
+      backgroundColor: theme.colors.screen2,
       paddingHorizontal: theme.spacing['2'],
       paddingVertical: theme.spacing['1'],
       borderRadius: theme.borderRadius.md,
     },
     videoText: {
-      color: theme.colors.white,
+      color: theme.colors.inkMuted,
       ...theme.typography.labelSmall,
     },
     fileContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       padding: theme.spacing['3'],
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.cardSmall,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
       gap: theme.spacing['3'],
       maxWidth,
     },
@@ -182,7 +186,7 @@ const createStyles = (theme: any, maxWidth: number) =>
       width: theme.spacing['12'],
       height: theme.spacing['12'],
       borderRadius: theme.borderRadius.base,
-      backgroundColor: theme.colors.primaryTint,
+      backgroundColor: theme.colors.blueSoft,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -193,11 +197,11 @@ const createStyles = (theme: any, maxWidth: number) =>
     fileName: {
       ...theme.typography.bodySmall,
       fontWeight: '600',
-      color: theme.colors.secondary,
+      color: theme.colors.ink,
     },
     fileSize: {
       ...theme.typography.labelSmall,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
   });
 

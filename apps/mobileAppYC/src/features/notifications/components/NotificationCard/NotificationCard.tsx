@@ -142,10 +142,16 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
   }, []);
 
   const avatarInitial = companion?.name?.charAt(0).toUpperCase() || 'P';
+  const isUnread = notification.status === 'unread';
 
   return (
     <GestureDetector gesture={panGesture}>
-      <Reanimated.View style={[styles.container, animatedStyle]}>
+      <Reanimated.View
+        style={[
+          styles.container,
+          isUnread && styles.containerUnread,
+          animatedStyle,
+        ]}>
         <PressableOpacity
           activeOpacity={0.85}
           onPress={onPress}
@@ -162,14 +168,19 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
               <IconTile
                 icon={getIconFromImages(notification.icon)}
                 tone={CATEGORY_TONE[notification.category] ?? 'neutral'}
-                size={theme.spacing['11']}
-                iconSize={theme.spacing['6']}
+                size={theme.spacing['10']}
+                iconSize={theme.spacing['4.5']}
                 style={isDragging ? styles.iconDragging : undefined}
               />
 
               {/* Main content */}
               <View style={styles.mainContent}>
-                <Text style={styles.title} numberOfLines={2}>
+                <Text
+                  style={[
+                    styles.title,
+                    isUnread ? styles.titleUnread : styles.titleRead,
+                  ]}
+                  numberOfLines={2}>
                   {notification.title}
                 </Text>
                 {!!notification.description && (
@@ -184,7 +195,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
                 </View>
               </View>
 
-              {/* Avatar */}
+              {/* Avatar + unread accent */}
               <View style={styles.avatarContainer}>
                 {notification.avatarUrl && companionAvatarUri ? (
                   <Image
@@ -196,6 +207,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
                     <Text style={styles.avatarText}>{avatarInitial}</Text>
                   </View>
                 )}
+                {isUnread && <View style={styles.unreadDot} />}
               </View>
             </View>
           </LiquidGlassCard>
@@ -210,20 +222,23 @@ const createStyles = (theme: any) =>
     container: {
       position: 'relative',
       marginBottom: theme.spacing['3'],
-      overflow: 'hidden',
+      borderRadius: theme.borderRadius.cardSmall,
+    },
+    containerUnread: {
+      ...theme.shadows.card,
     },
     card: {
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.cardSmall,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.hairline,
       backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing['3'],
+      padding: theme.spacing['3.5'],
       overflow: 'hidden',
     },
     cardFallback: {
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.cardSmall,
       backgroundColor: theme.colors.cardBackground,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.hairline,
     },
     content: {
       flexDirection: 'row',
@@ -241,13 +256,20 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['1'],
     },
     title: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
+      ...theme.typography.labelSmall,
+      color: theme.colors.inkBody,
       flex: 1,
+    },
+    titleUnread: {
+      fontFamily: fonts.SATOSHI_BOLD,
+      fontWeight: '700',
+    },
+    titleRead: {
+      fontWeight: '600',
     },
     description: {
       ...theme.typography.bodyExtraSmall,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
       lineHeight: theme.typography.bodyExtraSmall.lineHeight,
       overflow: 'hidden',
     },
@@ -258,29 +280,38 @@ const createStyles = (theme: any) =>
       marginTop: theme.spacing['1'],
     },
     time: {
-      fontFamily: fonts.SATOSHI_BOLD,
-      fontSize: theme.typography.bodyExtraSmall.fontSize,
-      lineHeight: theme.typography.bodyExtraSmall.fontSize * 1.2,
-      fontWeight: '700',
-      color: theme.colors.textSecondary,
+      ...theme.typography.body12,
+      color: theme.colors.inkFaint2,
     },
     avatarContainer: {
       flexShrink: 0,
+      position: 'relative',
     },
     avatar: {
       width: theme.spacing['8'],
       height: theme.spacing['8'],
       borderRadius: theme.borderRadius.lg,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.hairline,
     },
     avatarFallback: {
-      backgroundColor: theme.colors.border,
+      backgroundColor: theme.colors.screen2,
       justifyContent: 'center',
       alignItems: 'center',
     },
     avatarText: {
       ...theme.typography.labelSmallBold,
-      color: theme.colors.text,
+      color: theme.colors.inkBody,
+    },
+    unreadDot: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      width: theme.spacing['2'],
+      height: theme.spacing['2'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.pink,
+      borderWidth: 2,
+      borderColor: theme.colors.cardBackground,
     },
   });

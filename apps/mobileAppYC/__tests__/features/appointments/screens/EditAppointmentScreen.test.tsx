@@ -140,6 +140,11 @@ jest.mock('@/features/appointments/components/AppointmentFormContent', () => {
           title="Change Concern"
           onPress={() => props.onConcernChange('New Concern')}
         />
+        <Button
+          testID="SelectCompanionBtn"
+          title="Select Companion"
+          onPress={() => props.onSelectCompanion('comp-2')}
+        />
         {/* Render Agreements */}
         {props.agreements?.map((ag: any) => (
           <View key={ag.id}>{ag.label}</View>
@@ -308,6 +313,29 @@ describe('EditAppointmentScreen', () => {
       type: 'appointments/reschedule',
       unwrap: jest.fn().mockResolvedValue(true),
     });
+
+    // Restore selector + availability util defaults so per-test overrides
+    // (service missing, null slot windows, etc.) never leak across tests.
+    const {selectServiceById} = require('@/features/appointments/selectors');
+    (selectServiceById as unknown as jest.Mock).mockImplementation(
+      () => () => mockService,
+    );
+    const {
+      findSlotByLabel,
+      parseSlotLabel,
+      getSlotsForDate,
+    } = require('@/features/appointments/utils/availability');
+    (findSlotByLabel as unknown as jest.Mock).mockReturnValue({
+      startTimeUtc: 'iso-start',
+      endTimeUtc: 'iso-end',
+    });
+    (parseSlotLabel as unknown as jest.Mock).mockReturnValue({
+      startTime: '10:00',
+      endTime: '11:00',
+    });
+    (getSlotsForDate as unknown as jest.Mock).mockReturnValue([
+      '09:00 - 10:00',
+    ]);
   });
 
   // --- Tests ---
@@ -617,6 +645,208 @@ describe('EditAppointmentScreen', () => {
     getSlotsForDate.mockReturnValue([]);
 
     const {getByTestId} = setup();
+    expect(getByTestId('FormContent')).toBeTruthy();
+  });
+
+  // --- Reschedule ISO time resolution branches ---
+
+  it('reschedules using computed ISO times when the slot window is missing', async () => {
+    const {
+      findSlotByLabel,
+    } = require('@/features/appointments/utils/availability');
+    (findSlotByLabel as unknown as jest.Mock).mockReturnValue(null);
+
+    const {getByTestId} = setup();
+    fireEvent.press(getByTestId('SelectSlotBtn'));
+
+    await act(async () => {
+      fireEvent(getByTestId('SubmitButton'), 'touchEnd');
+    });
+
+    const {
+      rescheduleAppointment,
+    } = require('@/features/appointments/appointmentsSlice');
+    await waitFor(() => {
+      expect(rescheduleAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appointmentId: 'apt-123',
+          startTime: expect.any(String),
+          endTime: expect.any(String),
+        }),
+      );
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+  });
+
+  it('reschedules using the selected label when parsed slot times are null', async () => {
+    const {
+      parseSlotLabel,
+    } = require('@/features/appointments/utils/availability');
+    (parseSlotLabel as unknown as jest.Mock).mockReturnValue({
+      startTime: null,
+      endTime: null,
+    });
+
+    const {getByTestId} = setup();
+    fireEvent.press(getByTestId('SelectSlotBtn'));
+
+    await act(async () => {
+      fireEvent(getByTestId('SubmitButton'), 'touchEnd');
+    });
+
+    const {
+      rescheduleAppointment,
+    } = require('@/features/appointments/appointmentsSlice');
+    await waitFor(() => {
+      expect(rescheduleAppointment).toHaveBeenCalled();
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+  });
+
+  it('reschedules falling back end time to start time when end is null', async () => {
+    const {
+      parseSlotLabel,
+    } = require('@/features/appointments/utils/availability');
+    (parseSlotLabel as unknown as jest.Mock).mockReturnValue({
+      startTime: '10:00',
+      endTime: null,
+    });
+
+    const {getByTestId} = setup();
+    fireEvent.press(getByTestId('SelectSlotBtn'));
+
+    await act(async () => {
+      fireEvent(getByTestId('SubmitButton'), 'touchEnd');
+    });
+
+    const {
+      rescheduleAppointment,
+    } = require('@/features/appointments/appointmentsSlice');
+    await waitFor(() => {
+      expect(rescheduleAppointment).toHaveBeenCalled();
+    });
+  });
+
+  // --- Photo fallback: resolved but no photoUrl ---
+
+  it('does not set fallback photo when business details returns no photoUrl', async () => {
+    mockFetchBusinessDetails.mockResolvedValue({photoUrl: undefined});
+
+    const state = {
+      ...initialState,
+      businesses: {
+        ...initialState.businesses,
+        businesses: [
+          {...initialState.businesses.businesses[0], photo: 'dummy-url'},
+        ],
+      },
+    };
+
+    setup(state);
+
+    await waitFor(() => {
+      expect(mockFetchBusinessDetails).toHaveBeenCalledWith('google-id-123');
+    });
+    expect(mockFetchGooglePlacesImage).not.toHaveBeenCalled();
+  });
+
+  it('does not set fallback photo when google places image returns no photoUrl', async () => {
+    mockFetchBusinessDetails.mockRejectedValue(new Error('Failed'));
+    mockFetchGooglePlacesImage.mockResolvedValue({photoUrl: null});
+
+    const state = {
+      ...initialState,
+      businesses: {
+        ...initialState.businesses,
+        businesses: [{...initialState.businesses.businesses[0], photo: ''}],
+      },
+    };
+
+    setup(state);
+
+    await waitFor(() => {
+      expect(mockFetchGooglePlacesImage).toHaveBeenCalledWith('google-id-123');
+    });
+  });
+
+  // --- Service card build branches ---
+
+  it('builds a service card from the appointment serviceName when the service is missing', () => {
+    const {selectServiceById} = require('@/features/appointments/selectors');
+    (selectServiceById as unknown as jest.Mock).mockImplementation(
+      () => () => null,
+    );
+
+    const state = {
+      ...initialState,
+      appointments: {
+        ...initialState.appointments,
+        items: [
+          {
+            ...initialState.appointments.items[0],
+            serviceId: 'unknown',
+            serviceName: 'Requested Service',
+            employeeId: null,
+          } as any,
+        ],
+      },
+    };
+
+    const {getByTestId, getByText} = setup(state);
+    expect(getByTestId('FormContent')).toBeTruthy();
+    expect(getByText('Requested Service')).toBeTruthy();
+  });
+
+  it('renders no service card when neither service nor serviceName exist', () => {
+    const {selectServiceById} = require('@/features/appointments/selectors');
+    (selectServiceById as unknown as jest.Mock).mockImplementation(
+      () => () => null,
+    );
+
+    const state = {
+      ...initialState,
+      appointments: {
+        ...initialState.appointments,
+        items: [
+          {...initialState.appointments.items[0], serviceId: 'unknown'} as any,
+        ],
+      },
+    };
+
+    const {getByTestId} = setup(state);
+    expect(getByTestId('FormContent')).toBeTruthy();
+  });
+
+  it('uses the default service title when the service has no name or price', () => {
+    const namelessService = {id: 'svc-x'};
+    const {selectServiceById} = require('@/features/appointments/selectors');
+    (selectServiceById as unknown as jest.Mock).mockImplementation(
+      () => () => namelessService,
+    );
+
+    const {getByTestId, getByText} = setup();
+    expect(getByTestId('FormContent')).toBeTruthy();
+    expect(getByText('Requested service')).toBeTruthy();
+  });
+
+  it('resolves the availability employee from the service default when the appointment has none', () => {
+    const state = {
+      ...initialState,
+      appointments: {
+        ...initialState.appointments,
+        items: [
+          {...initialState.appointments.items[0], employeeId: null} as any,
+        ],
+      },
+    };
+
+    const {getByTestId} = setup(state);
+    expect(getByTestId('FormContent')).toBeTruthy();
+  });
+
+  it('invokes the companion selection handler', () => {
+    const {getByTestId} = setup();
+    fireEvent.press(getByTestId('SelectCompanionBtn'));
     expect(getByTestId('FormContent')).toBeTruthy();
   });
 });

@@ -1,13 +1,18 @@
 import React, {useMemo, useState} from 'react';
-import {View, ScrollView, StyleSheet, Text, Image, Linking} from 'react-native';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  ActivityIndicator,
+  Linking,
+} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useTheme} from '@/hooks';
-import {Images} from '@/assets/images';
 import {SafeArea} from '@/shared/components/common';
-import {Header} from '@/shared/components/common/Header/Header';
 import {Checkbox} from '@/shared/components/common/Checkbox/Checkbox';
-import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import type {AdverseEventStackParamList} from '@/navigation/types';
 import {useSelector} from 'react-redux';
 import type {RootState} from '@/app/store';
@@ -218,21 +223,21 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
 
   return (
     <SafeArea>
-      <Header
-        title="Adverse event reporting"
-        showBackButton
-        onBack={handleBack}
-      />
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        <Image source={Images.adverse3} style={styles.heroImage} />
+        <View style={styles.hero}>
+          <View style={styles.medallion}>
+            <Ionicons name="heart" size={46} color={theme.colors.pink} />
+          </View>
 
-        <Text style={styles.title}>Thank you for reaching out to us</Text>
-        <Text style={styles.subtitle}>
-          By submitting a report, you agree to be contacted by the company if
-          needed to obtain further details regarding your report.
-        </Text>
+          <Text style={styles.title}>Thank you for reaching out to us</Text>
+          <Text style={styles.subtitle}>
+            By submitting a report, you agree to be contacted by the company if
+            needed to obtain further details regarding your report.
+          </Text>
+        </View>
 
         <View style={styles.checkboxSection}>
           <Checkbox
@@ -253,46 +258,76 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
         </View>
 
         <View style={styles.actionsContainer}>
-          <LiquidGlassButton
-            title="Send report to drug manufacturer"
+          <PressableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Send report to drug manufacturer"
+            accessibilityState={{
+              disabled: submitLoading !== null,
+              busy: submitLoading === 'manufacturer',
+            }}
+            testID="btn-Send report to drug manufacturer"
+            style={[
+              styles.primaryButton,
+              submitLoading === 'hospital' && styles.buttonDisabled,
+            ]}
             onPress={handleSendToManufacturer}
-            glassEffect="clear"
-            interactive
-            borderRadius="lg"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={theme.spacing['14']}
-            style={styles.button}
-            textStyle={styles.buttonText}
-            tintColor={theme.colors.secondary}
-            shadowIntensity="medium"
-            loading={submitLoading === 'manufacturer'}
-            disabled={submitLoading !== null}
-          />
-
-          <LiquidGlassButton
-            title="Send report to hospital"
-            onPress={handleSendToHospital}
-            glassEffect="clear"
-            interactive
-            borderRadius="lg"
-            forceBorder
-            borderColor={theme.colors.borderMuted}
-            height={theme.spacing['14']}
-            style={[styles.button, styles.lightButton]}
-            textStyle={styles.lightButtonText}
-            tintColor={theme.colors.white}
-            shadowIntensity="light"
-            loading={submitLoading === 'hospital'}
-            disabled={submitLoading !== null}
-          />
+            disabled={submitLoading !== null}>
+            {submitLoading === 'manufacturer' ? (
+              <ActivityIndicator color={theme.colors.ctaText} />
+            ) : (
+              <>
+                <Ionicons
+                  name="flask-outline"
+                  size={18}
+                  color={theme.colors.ctaText}
+                />
+                <Text style={styles.primaryButtonText}>
+                  Send report to drug manufacturer
+                </Text>
+              </>
+            )}
+          </PressableOpacity>
 
           <PressableOpacity
-            style={styles.phoneAction}
+            accessibilityRole="button"
+            accessibilityLabel="Send report to hospital"
+            accessibilityState={{
+              disabled: submitLoading !== null,
+              busy: submitLoading === 'hospital',
+            }}
+            testID="btn-Send report to hospital"
+            style={[
+              styles.secondaryButton,
+              submitLoading === 'manufacturer' && styles.buttonDisabled,
+            ]}
+            onPress={handleSendToHospital}
+            disabled={submitLoading !== null}>
+            {submitLoading === 'hospital' ? (
+              <ActivityIndicator color={theme.colors.inkBody} />
+            ) : (
+              <>
+                <Ionicons
+                  name="business-outline"
+                  size={18}
+                  color={theme.colors.inkBody}
+                />
+                <Text style={styles.secondaryButtonText}>
+                  Send report to hospital
+                </Text>
+              </>
+            )}
+          </PressableOpacity>
+
+          <PressableOpacity
+            style={styles.callAuthorityAction}
             onPress={regulatoryLoading ? undefined : handleCallAuthority}
             disabled={regulatoryLoading}>
-            <Image source={Images.phone} style={styles.phoneIcon} />
-            <Text style={styles.phoneText}>
+            <Ionicons
+              name="call-outline"
+              size={17}
+              color={theme.colors.blueText}
+            />
+            <Text style={styles.callAuthorityText}>
               {regulatoryLoading
                 ? 'Fetching authority contact...'
                 : 'Call regulatory authority'}
@@ -323,111 +358,163 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
           ) : null}
         </View>
       </ScrollView>
+
+      <View style={styles.footer}>
+        <PressableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Back to home"
+          testID="back-to-home"
+          style={styles.backHomeButton}
+          onPress={handleBack}>
+          <Text style={styles.backHomeText}>Back to home</Text>
+        </PressableOpacity>
+      </View>
     </SafeArea>
   );
 };
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
-    scrollContent: {
-      paddingHorizontal: theme.spacing['4'],
-      paddingTop: theme.spacing['6'],
-      paddingBottom: theme.spacing['24'],
+    scroll: {
+      flex: 1,
     },
-    heroImage: {
-      width: theme.spacing['56'],
-      height: theme.spacing['56'],
-      resizeMode: 'contain',
-      alignSelf: 'center',
-      marginBottom: theme.spacing['2'],
+    scrollContent: {
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['10'],
+      paddingBottom: theme.spacing['6'],
+    },
+    // Emotional payoff: pink heart medallion mirrors the payment-success check.
+    hero: {
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing['3'],
+      marginBottom: theme.spacing['7'],
+    },
+    medallion: {
+      width: 100,
+      height: 100,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.pinkGlow,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: theme.spacing['5'],
+      ...theme.shadows.companion,
     },
     title: {
-      // Warm-bone hero title: Newsreader serif 30.
+      // Warm-bone hero title: Newsreader serif, thank-you headline.
       ...theme.typography.serifTitle,
+      fontSize: 29,
+      lineHeight: 34,
       color: theme.colors.ink,
+      textAlign: 'center',
       marginBottom: theme.spacing['3'],
-      alignSelf: 'center',
     },
     subtitle: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
-      marginBottom: theme.spacing['6'],
+      ...theme.typography.subtitleRegular14,
+      fontSize: 14.5,
+      lineHeight: 23,
+      color: theme.colors.inkMuted,
+      textAlign: 'center',
     },
     checkboxSection: {
-      // Increased space before buttons group
-      marginBottom: theme.spacing['8'],
+      marginBottom: theme.spacing['6'],
     },
     checkboxLabel: {
-      // Satoshi 15 Bold, 120%
-      ...theme.typography.pillSubtitleBold15,
-      color: theme.colors.text,
+      ...theme.typography.subtitleRegular14,
+      fontSize: 13.5,
+      lineHeight: 20,
+      color: theme.colors.inkMuted,
     },
     errorText: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.error,
+      color: theme.colors.danger,
       marginTop: theme.spacing['2'],
-      marginLeft: theme.spacing['1'],
+      marginLeft: theme.spacing['7'],
     },
     actionsContainer: {
-      // Slightly larger gap between buttons
-      gap: theme.spacing['5'],
+      gap: theme.spacing['2.5'],
     },
-    button: {
+    // Primary send action: solid charcoal CTA fill with a leading flask icon.
+    primaryButton: {
       width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      ...theme.shadows.lg,
-    },
-    buttonText: {
-      // CTA Clash Grotesk 18/18, 500, -0.18, white
-      ...theme.typography.button,
-      color: theme.colors.white,
-      textAlign: 'center',
-    },
-    lightButton: {
-      backgroundColor: theme.colors.surface,
-      borderColor: theme.colors.borderMuted,
-    },
-    lightButtonText: {
-      // CTA Clash Grotesk 18/18, 500, -0.18, Jet-500
-      ...theme.typography.button,
-      color: theme.colors.text,
-      textAlign: 'center',
-    },
-    phoneAction: {
+      height: 54,
+      borderRadius: theme.borderRadius.button,
+      backgroundColor: theme.colors.cta,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: theme.spacing['8'],
-      gap: theme.spacing['3'],
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.borderMuted,
-      marginTop: theme.spacing['2'],
+      gap: theme.spacing['2'],
+      ...theme.shadows.cta,
     },
-    phoneIcon: {
-      width: theme.spacing['5'],
-      height: theme.spacing['5'],
-      resizeMode: 'contain',
-    },
-    phoneText: {
-      // CTA Clash Grotesk 18/18, 500, -0.18, Jet-500
+    primaryButtonText: {
       ...theme.typography.button,
-      color: theme.colors.text,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
+    // Secondary send action: outlined button with a leading business icon.
+    secondaryButton: {
+      width: '100%',
+      height: 54,
+      borderRadius: theme.borderRadius.button,
+      backgroundColor: theme.colors.transparent,
+      borderWidth: 1,
+      borderColor: theme.colors.divider,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing['2'],
+    },
+    secondaryButtonText: {
+      ...theme.typography.button,
+      color: theme.colors.inkBody,
+      textAlign: 'center',
+    },
+    buttonDisabled: {
+      opacity: 0.5,
+    },
+    callAuthorityAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing['2'],
+      paddingVertical: theme.spacing['3'],
+      marginTop: theme.spacing['1'],
+    },
+    callAuthorityText: {
+      ...theme.typography.subtitleBold14,
+      fontSize: 15,
+      color: theme.colors.blueText,
+    },
     authorityDetails: {
-      marginTop: theme.spacing['2'],
+      marginTop: theme.spacing['1'],
       alignItems: 'center',
       gap: theme.spacing['1'],
+      backgroundColor: theme.colors.screen2,
+      borderRadius: theme.borderRadius.cardSmall,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      padding: theme.spacing['4'],
     },
     authorityName: {
       ...theme.typography.subtitleBold14,
-      color: theme.colors.secondary,
+      color: theme.colors.ink,
     },
     authorityMeta: {
-      ...theme.typography.paragraph,
-      color: theme.colors.textSecondary,
+      ...theme.typography.body13,
+      color: theme.colors.inkMuted,
+    },
+    footer: {
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['2'],
+      paddingBottom: theme.spacing['6'],
+    },
+    backHomeButton: {
+      height: 48,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backHomeText: {
+      ...theme.typography.subtitleBold14,
+      fontSize: 15,
+      color: theme.colors.blueText,
     },
   });

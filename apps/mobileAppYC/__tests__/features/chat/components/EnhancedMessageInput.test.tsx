@@ -457,4 +457,87 @@ describe('EnhancedMessageInput', () => {
       'application/octet-stream',
     );
   });
+
+  // --- Guard / else-path coverage ---
+
+  it('stops recording without sending when audio path is empty', async () => {
+    const {getByText, queryByText} = render(<EnhancedMessageInput />);
+
+    await act(async () => {
+      fireEvent.press(getByText('mic'));
+    });
+
+    (Sound.stopRecorder as jest.Mock).mockResolvedValue('');
+
+    await act(async () => {
+      fireEvent.press(getByText('send'));
+    });
+
+    expect(Sound.stopRecorder).toHaveBeenCalled();
+    expect(mockSendFile).not.toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(queryByText(/Recording.../)).toBeNull();
+  });
+
+  it('ignores gallery result with no assets', async () => {
+    (launchImageLibrary as jest.Mock).mockResolvedValue({});
+
+    await triggerAttachmentOption(0);
+
+    expect(mockSendImage).not.toHaveBeenCalled();
+  });
+
+  it('returns early when gallery assets have no valid uris', async () => {
+    (launchImageLibrary as jest.Mock).mockResolvedValue({
+      assets: [{uri: null}, {uri: undefined}],
+    });
+
+    await triggerAttachmentOption(0);
+
+    expect(mockSendImage).not.toHaveBeenCalled();
+  });
+
+  it('ignores camera result with no assets', async () => {
+    (launchCamera as jest.Mock).mockResolvedValue({});
+
+    await triggerAttachmentOption(1);
+
+    expect(mockSendImage).not.toHaveBeenCalled();
+  });
+
+  it('ignores document result when empty', async () => {
+    (pickDocuments as jest.Mock).mockResolvedValue([]);
+
+    await triggerAttachmentOption(2);
+
+    expect(mockSendFile).not.toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+
+  it('shows loading indicator while stopping recording', async () => {
+    let resolveStop: (value: string) => void = () => {};
+    (Sound.stopRecorder as jest.Mock).mockReturnValue(
+      new Promise<string>(resolve => {
+        resolveStop = resolve;
+      }),
+    );
+
+    const {getByText, queryByText} = render(<EnhancedMessageInput />);
+
+    await act(async () => {
+      fireEvent.press(getByText('mic'));
+    });
+
+    await act(async () => {
+      fireEvent.press(getByText('send'));
+    });
+
+    // While the stop is in flight, the send icon is swapped for the spinner
+    expect(queryByText(/Recording.../)).toBeTruthy();
+    expect(queryByText('send')).toBeNull();
+
+    await act(async () => {
+      resolveStop('path/to/audio.m4a');
+    });
+  });
 });

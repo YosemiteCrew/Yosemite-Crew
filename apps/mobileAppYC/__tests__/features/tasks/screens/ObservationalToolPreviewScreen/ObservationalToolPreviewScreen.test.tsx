@@ -1,5 +1,6 @@
 import React from 'react';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {Platform} from 'react-native';
+import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import {ObservationalToolPreviewScreen} from '../../../../../src/features/tasks/screens/ObservationalToolPreviewScreen/ObservationalToolPreviewScreen';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import {
@@ -70,6 +71,18 @@ jest.mock('../../../../../src/features/observationalTools/data', () => ({
       overviewTitle: 'Test Overview',
       overviewParagraphs: ['Intro text'],
       heroImage: {uri: 'http://hero.jpg'},
+    },
+    'stepped-tool': {
+      name: 'Stepped Tool',
+      shortName: 'Stepped',
+      overviewTitle: 'Stepped Overview',
+      overviewParagraphs: ['Stepped intro'],
+      steps: [{subtitle: 'Watch closely', footerNote: 'Attribution note'}],
+    },
+    // No shortName: exercises the `?? ''` fallback in normalizeToken when the
+    // find() arrow evaluates normalizeToken(def.shortName) with an undefined value.
+    'plain-tool': {
+      name: 'Plain Tool',
     },
   },
 }));
@@ -301,7 +314,7 @@ describe('ObservationalToolPreviewScreen', () => {
 
     it('shows "No submission found" if load returns null', async () => {
       (observationToolApi.getSubmission as jest.Mock).mockResolvedValue(null);
-        });
+    });
   });
 
   describe('Navigation', () => {
@@ -312,6 +325,171 @@ describe('ObservationalToolPreviewScreen', () => {
       fireEvent(backBtn, 'onTouchEnd');
 
       expect(mockGoBack).toHaveBeenCalled();
+    });
+  });
+
+  describe('Static definition resolution', () => {
+    it('resolves a static definition by tool name when the id is not a known key', async () => {
+      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
+        ...mockSubmission,
+        toolId: 'unknown-key',
+        toolName: 'Test Tool',
+      });
+
+      const {findByText} = renderScreen();
+
+      // Matched by name -> static overview heading is rendered.
+      expect(await findByText('Test Overview')).toBeTruthy();
+    });
+
+    it('resolves a static definition by short name when the id is not a known key', async () => {
+      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
+        ...mockSubmission,
+        toolId: 'unknown-key',
+        toolName: 'Test',
+      });
+
+      const {findByText} = renderScreen();
+
+      // Matched by shortName -> static overview heading is rendered.
+      expect(await findByText('Test Overview')).toBeTruthy();
+    });
+
+    it('renders no static overview when neither name nor short name matches', async () => {
+      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
+        ...mockSubmission,
+        toolId: 'unknown-key',
+        toolName: 'zzz',
+        summary: undefined,
+      });
+
+      const {findByText, queryByText} = renderScreen();
+
+      // No static match -> falls through the find() (evaluating the shortName-less
+      // definition) and renders no explainer heading; summary is also absent.
+      expect(await findByText('Responses')).toBeTruthy();
+      expect(queryByText('Test Overview')).toBeNull();
+      expect(queryByText('Good result')).toBeNull();
+    });
+
+    it('renders with no tool identity and no answers', async () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {submissionId: 'sub-9'},
+      });
+      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
+        id: 'sub-9',
+        createdAt: '2025-02-02T09:00:00Z',
+      });
+
+      const {findByText} = renderScreen();
+
+      // No toolId/toolName -> toolKey is falsy (definition never fetched),
+      // normalizedName is empty (static lookup returns null), answers are nullish.
+      expect(await findByText('No responses available.')).toBeTruthy();
+      expect(observationToolApi.get).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Additional rendering branches', () => {
+    it('falls back to the field key when a definition field has no label', async () => {
+      (getCachedObservationTool as jest.Mock).mockReturnValue({
+        id: 'test-tool',
+        name: 'Test Tool',
+        fields: [{key: 'q1'}],
+      });
+      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
+        ...mockSubmission,
+        answers: {q1: 'Answer one'},
+      });
+
+      const {findByText} = renderScreen();
+
+      expect(await findByText('Answer one')).toBeTruthy();
+      // labelMap falls back to the key when field.label is undefined.
+      expect(await findByText('q1')).toBeTruthy();
+    });
+
+    it('renders the instruction callout and attribution footer from static steps', async () => {
+      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue({
+        ...mockSubmission,
+        toolId: 'stepped-tool',
+        toolName: 'Stepped Tool',
+      });
+
+      const {findByText} = renderScreen();
+
+      expect(await findByText('Watch closely')).toBeTruthy();
+      expect(await findByText('Attribution note')).toBeTruthy();
+      expect(await findByText('Stepped Overview')).toBeTruthy();
+    });
+
+    it('applies the android fallback border style', async () => {
+      const originalOS = Platform.OS;
+      Platform.OS = 'android';
+      try {
+        const {findByText} = renderScreen();
+        expect(await findByText('Good result')).toBeTruthy();
+      } finally {
+        Platform.OS = originalOS;
+      }
+    });
+  });
+
+  describe('Unmount guards', () => {
+    it('ignores a resolved submission after unmount', async () => {
+      let resolveSubmission: (value: unknown) => void = () => {};
+      (observationToolApi.getSubmission as jest.Mock).mockReturnValue(
+        new Promise(resolvePromise => {
+          resolveSubmission = resolvePromise;
+        }),
+      );
+
+      const {unmount} = renderScreen();
+      unmount();
+      await act(async () => {
+        resolveSubmission(mockSubmission);
+      });
+
+      expect(observationToolApi.getSubmission).toHaveBeenCalledWith('sub-1');
+    });
+
+    it('ignores a rejected submission after unmount', async () => {
+      let rejectSubmission: (error: unknown) => void = () => {};
+      (observationToolApi.getSubmission as jest.Mock).mockReturnValue(
+        new Promise((_resolvePromise, rejectPromise) => {
+          rejectSubmission = rejectPromise;
+        }),
+      );
+
+      const {unmount} = renderScreen();
+      unmount();
+      await act(async () => {
+        rejectSubmission(new Error('too late'));
+      });
+
+      expect(observationToolApi.getSubmission).toHaveBeenCalled();
+    });
+
+    it('ignores a resolved definition after unmount', async () => {
+      let resolveDef: (value: unknown) => void = () => {};
+      (observationToolApi.getSubmission as jest.Mock).mockResolvedValue(
+        mockSubmission,
+      );
+      (getCachedObservationTool as jest.Mock).mockReturnValue(null);
+      (observationToolApi.get as jest.Mock).mockReturnValue(
+        new Promise(resolvePromise => {
+          resolveDef = resolvePromise;
+        }),
+      );
+
+      const {unmount} = renderScreen();
+      await waitFor(() => expect(observationToolApi.get).toHaveBeenCalled());
+      unmount();
+      await act(async () => {
+        resolveDef(mockDefinition);
+      });
+
+      expect(observationToolApi.get).toHaveBeenCalledWith('test-tool');
     });
   });
 });

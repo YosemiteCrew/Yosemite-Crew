@@ -5,6 +5,7 @@ import {
   View,
   StyleSheet,
   Text,
+  Image,
   Platform,
 } from 'react-native';
 import {useDispatch, useSelector} from 'react-redux';
@@ -38,6 +39,7 @@ import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {convertDistance} from '@/shared/utils/measurementSystem';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {TabParamList} from '@/navigation/types';
+import type {Theme} from '@/theme';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 
@@ -282,13 +284,19 @@ export const BusinessDetailsScreen: React.FC = () => {
                 }
               }}
               height={theme.spacing['14']}
-              borderRadius={theme.borderRadius.lg}
-              tintColor={theme.colors.secondary}
+              borderRadius={theme.borderRadius.button}
+              tintColor={theme.colors.transparent}
+              leftIcon={
+                <Image
+                  source={Images.getDirection}
+                  style={styles.directionsIcon}
+                />
+              }
               textStyle={styles.buttonText}
               glassEffect="clear"
               shadowIntensity="none"
               forceBorder
-              borderColor={theme.colors.borderMuted}
+              borderColor={theme.colors.divider}
             />
           </View>
         </ScrollView>
@@ -297,43 +305,51 @@ export const BusinessDetailsScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     scrollView: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     container: {
       paddingHorizontal: theme.spacing['5'],
-      paddingTop: theme.spacing['6'],
+      paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],
-      gap: theme.spacing['6'],
+      gap: theme.spacing['4'],
     },
     footer: {
       marginTop: theme.spacing['2'],
       marginBottom: theme.spacing['4'],
     },
     buttonText: {
-      ...theme.typography.cta,
-      color: theme.colors.white,
+      ...theme.typography.bodyMedium,
+      color: theme.colors.inkBody,
+    },
+    directionsIcon: {
+      width: theme.spacing['4'],
+      height: theme.spacing['4'],
+      resizeMode: 'contain',
+      tintColor: theme.colors.inkBody,
     },
     emptyServicesCard: {
-      backgroundColor: theme.colors.cardBackground,
+      backgroundColor: theme.colors.screen,
+      borderRadius: theme.borderRadius.card,
       gap: theme.spacing['2'],
     },
     emptyServicesCardFallback: {
-      backgroundColor: theme.colors.cardBackground,
+      backgroundColor: theme.colors.screen,
+      borderRadius: theme.borderRadius.card,
       borderWidth: Platform.OS === 'android' ? 1 : 0,
-      borderColor: theme.colors.borderMuted,
+      borderColor: theme.colors.hairline,
       boxShadow: `0px 1px 6px ${theme.colors.neutralShadow}`,
     },
     emptyServicesTitle: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
+      ...theme.typography.sectionHeading,
+      color: theme.colors.ink,
     },
     emptyServicesSubtitle: {
-      ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      ...theme.typography.bodySmall,
+      color: theme.colors.inkMuted,
     },
   });
 

@@ -41,14 +41,20 @@ jest.mock('../../../../src/features/chat/services/streamChatService', () => ({
   getAppointmentChannel: jest.fn(),
 }));
 
-// 4. Stream Chat Components
+// 4. Stream Chat Components.
+// The mocked Channel invokes the EmptyStateIndicator / TypingIndicator render
+// props so the screen's renderEmptyState / renderTypingIndicator callbacks run.
 jest.mock('stream-chat-react-native', () => {
   const {View, Button} = require('react-native');
   return {
     OverlayProvider: ({children}: any) => <View>{children}</View>,
     Chat: ({children}: any) => <View testID="StreamChat">{children}</View>,
-    Channel: ({children}: any) => (
-      <View testID="StreamChannel">{children}</View>
+    Channel: ({children, EmptyStateIndicator, TypingIndicator}: any) => (
+      <View testID="StreamChannel">
+        {EmptyStateIndicator ? <EmptyStateIndicator /> : null}
+        {TypingIndicator ? <TypingIndicator /> : null}
+        {children}
+      </View>
     ),
     MessageList: ({onThreadSelect}: any) => (
       <View testID="MessageList">
@@ -57,31 +63,39 @@ jest.mock('stream-chat-react-native', () => {
           onPress={() => onThreadSelect({id: 'thread-123'})}
           testID="ThreadSelectBtn"
         />
+        <Button
+          title="Select Thread No Id"
+          onPress={() => onThreadSelect(null)}
+          testID="ThreadSelectBtnNoId"
+        />
       </View>
     ),
     MessageInput: () => <View testID="MessageInput" />,
   };
 });
 
-// 5. Common Components & Hooks
+// 5. Theme hook
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
-// Mock Header specifically
-jest.mock('@/shared/components/common/Header/Header', () => ({
-  Header: ({title, onBack}: any) => {
-    const {TouchableOpacity, Text, View} = require('react-native');
-    return (
-      <View testID="Header">
-        <Text>{title}</Text>
-        <TouchableOpacity onPress={onBack} testID="HeaderBackButton" />
-      </View>
-    );
-  },
-}));
+// 6. Liquid glass header shell — render the header + children render-prop only.
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => ({
+    LiquidGlassHeaderScreen: ({children, header}: any) => {
+      const {View} = require('react-native');
+      return (
+        <View testID="screen-layout">
+          {header}
+          {children({paddingBottom: 0})}
+        </View>
+      );
+    },
+  }),
+);
 
-// Mock GifLoader via the common index to ensure it renders text for the test
+// 7. GifLoader (loading state) via the common index barrel
 jest.mock('@/shared/components/common', () => {
   const {View, Text} = require('react-native');
   return {
@@ -93,15 +107,55 @@ jest.mock('@/shared/components/common', () => {
   };
 });
 
+// 8. Chat sub-components rendered inside the Channel
 jest.mock('../../../../src/features/chat/components/CustomAttachment', () => ({
   CustomAttachment: () => null,
 }));
 
-// 6. Safe Area
-jest.mock('react-native-safe-area-context', () => ({
-  SafeAreaView: ({children}: any) => <>{children}</>,
-  useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0}),
+jest.mock('../../../../src/features/chat/components/ChatEmptyState', () => ({
+  ChatEmptyState: ({petName}: any) => {
+    const {View, Text} = require('react-native');
+    return (
+      <View testID="empty-state">
+        <Text>{petName ?? 'no-pet'}</Text>
+      </View>
+    );
+  },
 }));
+
+jest.mock(
+  '../../../../src/features/chat/components/ChatTypingIndicator',
+  () => ({
+    ChatTypingIndicator: () => {
+      const {View} = require('react-native');
+      return <View testID="typing-indicator-stub" />;
+    },
+  }),
+);
+
+// A Stream channel stub that records `on` subscriptions so tests can emit
+// typing events and assert unsubscribe on cleanup.
+const createMockChannel = () => {
+  const listeners: Record<string, Array<(event: any) => void>> = {};
+  return {
+    id: 'channel-123',
+    cid: 'messaging:channel-123',
+    on: jest.fn((eventType: string, handler: (event: any) => void) => {
+      listeners[eventType] = listeners[eventType] ?? [];
+      listeners[eventType].push(handler);
+      return {
+        unsubscribe: jest.fn(() => {
+          listeners[eventType] = (listeners[eventType] ?? []).filter(
+            h => h !== handler,
+          );
+        }),
+      };
+    }),
+    __emit: (eventType: string, payload: any) => {
+      (listeners[eventType] ?? []).forEach(handler => handler(payload));
+    },
+  };
+};
 
 describe('ChatChannelScreen', () => {
   const mockRouteParams = {
@@ -120,11 +174,13 @@ describe('ChatChannelScreen', () => {
     profilePicture: 'avatar-url',
   };
 
-  const mockChannel = {id: 'channel-123', cid: 'messaging:channel-123'};
   const mockClient = {userID: 'user-123'};
+  let mockChannel: ReturnType<typeof createMockChannel>;
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockChannel = createMockChannel();
 
     (useRoute as jest.Mock).mockReturnValue({params: mockRouteParams});
     (useSelector as unknown as jest.Mock).mockReturnValue(mockUser);
@@ -158,10 +214,23 @@ describe('ChatChannelScreen', () => {
       expect(getByTestId('StreamChat')).toBeTruthy();
       expect(getByTestId('StreamChannel')).toBeTruthy();
     });
+    expect(getByTestId('MessageInput')).toBeTruthy();
+    // The Channel render props for empty/typing state are wired up.
+    expect(getByTestId('empty-state')).toBeTruthy();
+    expect(getByTestId('typing-indicator-stub')).toBeTruthy();
     expect(connectStreamUser).toHaveBeenCalledWith(
       'user-123',
       'John Doe',
       'avatar-url',
+    );
+    // Subscribes to both typing events on the live channel.
+    expect(mockChannel.on).toHaveBeenCalledWith(
+      'typing.start',
+      expect.any(Function),
+    );
+    expect(mockChannel.on).toHaveBeenCalledWith(
+      'typing.stop',
+      expect.any(Function),
     );
   });
 
@@ -276,6 +345,17 @@ describe('ChatChannelScreen', () => {
     });
   });
 
+  it('renders error fallback when the chat client is unavailable', async () => {
+    (getChatClient as jest.Mock).mockReturnValue(null);
+    const {getByText} = render(<ChatChannelScreen />);
+    await waitFor(() => {
+      expect(getByText('Unable to load chat')).toBeTruthy();
+    });
+    expect(
+      getByText('Please check your connection and try again'),
+    ).toBeTruthy();
+  });
+
   // --- Retry Logic ---
 
   it('retries initialization on Alert Retry press', async () => {
@@ -363,5 +443,137 @@ describe('ChatChannelScreen', () => {
       '[Chat] Thread selected:',
       'thread-123',
     );
+  });
+
+  it('does not log thread selection when the message has no id', async () => {
+    const {getByTestId} = render(<ChatChannelScreen />);
+    await waitFor(() => {
+      expect(getByTestId('MessageList')).toBeTruthy();
+    });
+    (console.log as jest.Mock).mockClear();
+    fireEvent.press(getByTestId('ThreadSelectBtnNoId'));
+    expect(console.log).not.toHaveBeenCalled();
+  });
+
+  // --- Header Rendering Branches ---
+
+  it('renders the doctor name and pet subtitle in the header', async () => {
+    const {getByText} = render(<ChatChannelScreen />);
+    await waitFor(() => {
+      expect(getByText('Dr. Smith')).toBeTruthy();
+    });
+    expect(getByText('About Rex')).toBeTruthy();
+    // Initials derived from the doctor name (title prefix stripped).
+    expect(getByText('S')).toBeTruthy();
+  });
+
+  it('renders fallback initials and omits subtitle when name is blank and petName missing', async () => {
+    (useRoute as jest.Mock).mockReturnValue({
+      params: {...mockRouteParams, doctorName: '   ', petName: undefined},
+    });
+    const {getByText, queryByText} = render(<ChatChannelScreen />);
+    await waitFor(() => {
+      expect(getByText('?')).toBeTruthy();
+    });
+    expect(queryByText(/^About/)).toBeNull();
+  });
+
+  // --- Live Typing Indicator ---
+
+  it('shows the typing status when the other participant starts typing', async () => {
+    const {getByText, queryByText} = render(<ChatChannelScreen />);
+    await waitFor(() => expect(getByText('About Rex')).toBeTruthy());
+    // The typing listener registers only once the channel is ready; wait for it
+    // before emitting so the event is not dropped.
+    await waitFor(() =>
+      expect(mockChannel.on).toHaveBeenCalledWith(
+        'typing.start',
+        expect.any(Function),
+      ),
+    );
+
+    act(() => {
+      mockChannel.__emit('typing.start', {user: {id: 'vet-456'}});
+    });
+
+    await waitFor(() => expect(getByText('typing...')).toBeTruthy());
+    expect(queryByText('About Rex')).toBeNull();
+  });
+
+  it('clears the typing status when the other participant stops typing', async () => {
+    const {getByText, queryByText} = render(<ChatChannelScreen />);
+    await waitFor(() => expect(getByText('About Rex')).toBeTruthy());
+    // The typing listener registers only once the channel is ready; wait for it
+    // before emitting so the event is not dropped.
+    await waitFor(() =>
+      expect(mockChannel.on).toHaveBeenCalledWith(
+        'typing.start',
+        expect.any(Function),
+      ),
+    );
+
+    act(() => {
+      mockChannel.__emit('typing.start', {user: {id: 'vet-456'}});
+    });
+    await waitFor(() => expect(getByText('typing...')).toBeTruthy());
+
+    act(() => {
+      mockChannel.__emit('typing.stop', {user: {id: 'vet-456'}});
+    });
+    await waitFor(() => expect(getByText('About Rex')).toBeTruthy());
+    expect(queryByText('typing...')).toBeNull();
+  });
+
+  it('ignores typing events from the current user', async () => {
+    const {getByText, queryByText} = render(<ChatChannelScreen />);
+    await waitFor(() => expect(getByText('About Rex')).toBeTruthy());
+
+    act(() => {
+      mockChannel.__emit('typing.start', {user: {id: 'user-123'}});
+      mockChannel.__emit('typing.stop', {user: {id: 'user-123'}});
+    });
+
+    expect(queryByText('typing...')).toBeNull();
+    expect(getByText('About Rex')).toBeTruthy();
+  });
+
+  it('ignores typing events that have no user id', async () => {
+    const {getByText, queryByText} = render(<ChatChannelScreen />);
+    await waitFor(() => expect(getByText('About Rex')).toBeTruthy());
+
+    act(() => {
+      mockChannel.__emit('typing.start', {user: {}});
+      mockChannel.__emit('typing.stop', {});
+    });
+
+    expect(queryByText('typing...')).toBeNull();
+    expect(getByText('About Rex')).toBeTruthy();
+  });
+
+  it('unsubscribes from typing events on unmount', async () => {
+    const {getByTestId, unmount} = render(<ChatChannelScreen />);
+    await waitFor(() => expect(getByTestId('StreamChat')).toBeTruthy());
+
+    const subscriptions = (mockChannel.on as jest.Mock).mock.results;
+    expect(subscriptions.length).toBe(2);
+
+    unmount();
+
+    subscriptions.forEach(result => {
+      expect(result.value.unsubscribe).toHaveBeenCalled();
+    });
+  });
+
+  // --- Error State Fallback Copy ---
+
+  it('shows generic fallback copy when channel is null without an error', async () => {
+    (getAppointmentChannel as jest.Mock).mockResolvedValue(null);
+    const {getByText} = render(<ChatChannelScreen />);
+    await waitFor(() => {
+      expect(getByText('Unable to load chat')).toBeTruthy();
+    });
+    expect(
+      getByText('Please check your connection and try again'),
+    ).toBeTruthy();
   });
 });

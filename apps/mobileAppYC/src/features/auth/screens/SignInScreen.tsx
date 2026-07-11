@@ -8,7 +8,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   Keyboard,
-  useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SafeArea, Input} from '@/shared/components/common';
@@ -28,11 +28,12 @@ import type {NativeStackScreenProps} from '@react-navigation/native-stack';
 import type {AuthStackParamList} from '@/navigation/AuthNavigator';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {isValidEmail} from '@/shared/constants/constants';
+import type {Theme} from '@/theme';
 
 const socialIconStyles = StyleSheet.create({
   icon: {
-    width: 24,
-    height: 24,
+    width: 22,
+    height: 22,
   },
 });
 
@@ -204,43 +205,8 @@ const useOTPHandler = (
   return {handleSendOTP};
 };
 
-const getKeyboardVisibleIllustrationHeight = (screenHeight: number) => {
-  return Math.min(screenHeight * 0.22, 180);
-};
-
-const getKeyboardHiddenIllustrationHeight = (screenHeight: number) => {
-  return Math.min(screenHeight * 0.32, 260);
-};
-
-const useIllustrationHeight = (
-  isKeyboardVisible: boolean,
-  screenHeight: number,
-) => {
-  return React.useMemo(() => {
-    return isKeyboardVisible
-      ? getKeyboardVisibleIllustrationHeight(screenHeight)
-      : getKeyboardHiddenIllustrationHeight(screenHeight);
-  }, [isKeyboardVisible, screenHeight]);
-};
-
-const getSocialButtonTintColor = (theme: any, color: string) => {
-  return Platform.OS === 'ios' ? color : undefined;
-};
-
-const getSocialButtonStyle = (
-  styles: any,
-  theme: any,
-  backgroundColor: string,
-) => {
-  const baseStyle = styles.socialButton;
-  if (Platform.OS === 'ios') {
-    return baseStyle;
-  }
-  return {...baseStyle, backgroundColor};
-};
-
 const SocialAuthSection: React.FC<{
-  theme: any;
+  theme: Theme;
   styles: any;
   isSocialLoading: boolean;
   activeProvider: SocialProvider | null;
@@ -248,6 +214,7 @@ const SocialAuthSection: React.FC<{
   onGooglePress: () => void;
   onFacebookPress: () => void;
   onApplePress: () => void;
+  onCreateAccountPress: () => void;
 }> = ({
   theme,
   styles,
@@ -257,54 +224,63 @@ const SocialAuthSection: React.FC<{
   onGooglePress,
   onFacebookPress,
   onApplePress,
+  onCreateAccountPress,
 }) => (
   <View style={styles.bottomSection}>
     <View style={styles.divider}>
       <View style={styles.dividerLine} />
-      <Text style={styles.dividerText}>Login via</Text>
+      <Text style={styles.dividerText}>or</Text>
       <View style={styles.dividerLine} />
     </View>
 
     <View style={styles.socialButtons}>
-      <LiquidGlassButton
+      <PressableOpacity
         onPress={onGooglePress}
-        customContent={<GoogleIcon />}
         disabled={isSocialLoading}
-        loading={activeProvider === 'google'}
-        tintColor={getSocialButtonTintColor(theme, theme.colors.cardBackground)}
-        height={60}
-        width={112}
-        borderRadius={16}
-        forceBorder
-        borderColor={theme.colors.border}
-        style={getSocialButtonStyle(styles, theme, theme.colors.cardBackground)}
-      />
-      <LiquidGlassButton
+        style={styles.socialButton}
+        accessibilityRole="button"
+        accessibilityLabel="Continue with Google">
+        {activeProvider === 'google' ? (
+          <ActivityIndicator size="small" color={theme.colors.inkMuted} />
+        ) : (
+          <GoogleIcon />
+        )}
+      </PressableOpacity>
+      <PressableOpacity
         onPress={onFacebookPress}
-        customContent={<FacebookIcon />}
         disabled={isSocialLoading}
-        loading={activeProvider === 'facebook'}
-        tintColor={getSocialButtonTintColor(theme, theme.colors.primary)}
-        height={60}
-        width={112}
-        borderRadius={16}
-        style={getSocialButtonStyle(styles, theme, theme.colors.primary)}
-      />
-      <LiquidGlassButton
+        style={styles.socialButton}
+        accessibilityRole="button"
+        accessibilityLabel="Continue with Facebook">
+        {activeProvider === 'facebook' ? (
+          <ActivityIndicator size="small" color={theme.colors.inkMuted} />
+        ) : (
+          <FacebookIcon />
+        )}
+      </PressableOpacity>
+      <PressableOpacity
         onPress={onApplePress}
-        customContent={<AppleIcon />}
         disabled={isSocialLoading}
-        loading={activeProvider === 'apple'}
-        tintColor={getSocialButtonTintColor(theme, theme.colors.secondary)}
-        height={60}
-        width={112}
-        borderRadius={16}
-        style={getSocialButtonStyle(styles, theme, theme.colors.secondary)}
-      />
+        style={styles.socialButton}
+        accessibilityRole="button"
+        accessibilityLabel="Continue with Apple">
+        {activeProvider === 'apple' ? (
+          <ActivityIndicator size="small" color={theme.colors.inkMuted} />
+        ) : (
+          <AppleIcon />
+        )}
+      </PressableOpacity>
     </View>
     {socialError ? (
       <Text style={styles.socialErrorText}>{socialError}</Text>
     ) : null}
+
+    <View style={styles.footerContainer}>
+      <Text style={styles.footerText}>New here? </Text>
+      <PressableOpacity onPress={onCreateAccountPress}>
+        <Text style={styles.signUpLink}>Create an account</Text>
+      </PressableOpacity>
+    </View>
   </View>
 );
 
@@ -323,11 +299,6 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [socialError, setSocialError] = useState('');
   const isKeyboardVisible = useKeyboardVisibility();
-  const {height: screenHeight} = useWindowDimensions();
-  const illustrationHeight = useIllustrationHeight(
-    isKeyboardVisible,
-    screenHeight,
-  );
 
   const clearAllErrors = React.useCallback(() => {
     setEmailError('');
@@ -385,6 +356,10 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
     navigation.navigate('SignUp');
   }, [navigation]);
 
+  const handleGoBack = React.useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+
   const handleEmailChange = React.useCallback(
     (text: string) => {
       setEmailValue(text);
@@ -412,6 +387,20 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+        <View style={styles.header}>
+          <PressableOpacity
+            onPress={handleGoBack}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back">
+            <Image
+              source={Images.backIcon}
+              style={styles.backIcon}
+              resizeMode="contain"
+            />
+          </PressableOpacity>
+        </View>
+
         <ScrollView
           style={styles.scrollView}
           keyboardShouldPersistTaps="handled"
@@ -422,13 +411,12 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             isKeyboardVisible && styles.scrollContentKeyboard,
           ]}>
           <View style={styles.content}>
-            <Image
-              source={Images.authIllustration}
-              style={[styles.illustration, {height: illustrationHeight}]}
-              resizeMode="contain"
-            />
-
-            <Text style={styles.title}>Tail-wagging welcome!</Text>
+            <View style={styles.titleBlock}>
+              <Text style={styles.title}>Welcome back</Text>
+              <Text style={styles.subtitle}>
+                We'll email you a login code. No password to remember.
+              </Text>
+            </View>
 
             <View style={styles.formContainer}>
               <View style={styles.inputContainer}>
@@ -450,21 +438,14 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
                 textStyle={styles.sendButtonText}
                 loading={isSubmitting}
                 disabled={isSubmitting}
-                tintColor={theme.colors.secondary}
+                tintColor={theme.colors.cta}
                 height={56}
-                borderRadius="lg"
+                borderRadius="button"
               />
 
               {statusMessage ? (
                 <Text style={styles.statusMessage}>{statusMessage}</Text>
               ) : null}
-
-              <View style={styles.footerContainer}>
-                <Text style={styles.footerText}>Not a member? </Text>
-                <PressableOpacity onPress={navigateToSignUp}>
-                  <Text style={styles.signUpLink}>Sign up</Text>
-                </PressableOpacity>
-              </View>
             </View>
           </View>
         </ScrollView>
@@ -479,6 +460,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
             onGooglePress={handleGoogleSignIn}
             onFacebookPress={handleFacebookSignIn}
             onApplePress={handleAppleSignIn}
+            onCreateAccountPress={navigateToSignUp}
           />
         )}
       </KeyboardAvoidingView>
@@ -486,112 +468,95 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     keyboardView: {
       flex: 1,
+    },
+    header: {
+      paddingHorizontal: theme.spacing['6'],
+      paddingTop: theme.spacing['2'],
+      paddingBottom: theme.spacing['1'],
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    backIcon: {
+      width: 20,
+      height: 20,
+      tintColor: theme.colors.inkBody,
     },
     scrollView: {
       flex: 1,
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: theme.spacing['5'],
+      paddingHorizontal: theme.spacing['6'],
       paddingTop: theme.spacing['6'],
       paddingBottom: theme.spacing['14'],
     },
     scrollContentKeyboard: {
-      paddingBottom: theme.spacing['26'],
+      paddingBottom: theme.spacing['16'],
     },
     content: {
-      alignItems: 'center',
+      alignItems: 'stretch',
       justifyContent: 'flex-start',
       width: '100%',
       paddingBottom: theme.spacing['5'],
     },
-    illustration: {
-      width: '100%',
-      maxHeight: 260,
-      minHeight: 140,
-      marginBottom: theme.spacing['4'],
+    titleBlock: {
+      marginBottom: theme.spacing['7'],
     },
     title: {
       ...theme.typography.serifTitle,
       color: theme.colors.ink,
-      marginBottom: theme.spacing['6'],
-      textAlign: 'center',
+      marginBottom: theme.spacing['2'],
+    },
+    subtitle: {
+      ...theme.typography.body,
+      color: theme.colors.inkMuted,
     },
     formContainer: {
       width: '100%',
     },
     inputContainer: {
-      minHeight: 70,
       marginBottom: theme.spacing['5'],
     },
     input: {
       flex: 1,
     },
     sendButton: {
-      marginBottom: theme.spacing['6'],
-      height: 52,
-      borderRadius: theme.borderRadius.lg,
+      marginTop: theme.spacing['1'],
+      ...theme.shadows.cta,
     },
     sendButtonText: {
-      ...theme.typography.cta,
-      color: theme.colors.white,
+      ...theme.typography.buttonLarge,
+      fontSize: 16.5,
+      lineHeight: 20,
+      color: theme.colors.ctaText,
     },
     statusMessage: {
-      ...theme.typography.paragraph,
+      ...theme.typography.bodySmall,
       color: theme.colors.success,
       textAlign: 'center',
-      marginBottom: theme.spacing['4'],
-    },
-    demoBox: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.md,
-      padding: theme.spacing['4'],
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    demoHeader: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.secondary,
-    },
-    demoText: {
-      ...theme.typography.paragraph,
-      color: theme.colors.textSecondary,
-    },
-    demoButton: {
-      marginTop: theme.spacing['1'],
-      backgroundColor: theme.colors.white,
-    },
-    demoButtonText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.primary,
-    },
-    footerContainer: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: theme.spacing['7'],
-    },
-    footerText: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.textSecondary,
-    },
-    signUpLink: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.primary,
+      marginTop: theme.spacing['4'],
     },
     bottomSection: {
-      paddingHorizontal: theme.spacing['14'],
+      paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['10'],
-      paddingTop: theme.spacing['5'],
-      backgroundColor: theme.colors.background,
+      paddingTop: theme.spacing['4'],
+      backgroundColor: theme.colors.screen,
     },
     divider: {
       flexDirection: 'row',
@@ -601,27 +566,47 @@ const createStyles = (theme: any) =>
     dividerLine: {
       flex: 1,
       height: 1,
-      backgroundColor: theme.colors.border,
+      backgroundColor: theme.colors.hairline,
     },
     dividerText: {
       marginHorizontal: theme.spacing['4'],
-      ...theme.typography.screenTitle,
-      color: theme.colors.textSecondary,
+      ...theme.typography.bodySmall,
+      color: theme.colors.inkFaint2,
     },
     socialButtons: {
       flexDirection: 'row',
-      justifyContent: 'center',
       alignItems: 'center',
       gap: theme.spacing['3'],
     },
     socialButton: {
-      justifyContent: 'center',
+      flex: 1,
+      height: 52,
+      borderRadius: theme.borderRadius.field,
+      borderWidth: 1,
+      borderColor: theme.colors.divider,
+      backgroundColor: theme.colors.screen,
+      flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
     },
     socialErrorText: {
-      ...theme.typography.paragraph,
+      ...theme.typography.bodySmall,
       color: theme.colors.error,
       textAlign: 'center',
       marginTop: theme.spacing['4'],
+    },
+    footerContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: theme.spacing['7'],
+    },
+    footerText: {
+      ...theme.typography.body,
+      color: theme.colors.inkMuted,
+    },
+    signUpLink: {
+      ...theme.typography.bodyMedium,
+      color: theme.colors.blueText,
     },
   });

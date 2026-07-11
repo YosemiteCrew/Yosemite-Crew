@@ -11,11 +11,11 @@ import {
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {AppointmentStackParamList} from '@/navigation/types';
 import RatingStars from '@/shared/components/common/RatingStars/RatingStars';
-import {SummaryCards} from '@/features/appointments/components/SummaryCards/SummaryCards';
 import {useDispatch, useSelector} from 'react-redux';
 import type {AppDispatch, RootState} from '@/app/store';
 import {appointmentApi} from '@/features/appointments/services/appointmentsService';
@@ -28,11 +28,19 @@ import {
   fetchGooglePlacesImage,
 } from '@/features/linkedBusinesses';
 import {fetchBusinesses} from '@/features/appointments/businessesSlice';
-import {Images} from '@/assets/images';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
+
+const formatVisitDate = (value?: string | null): string => {
+  if (!value) return '';
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${parsed.getDate()} ${parsed.toLocaleString('en-US', {
+    month: 'short',
+  })}`;
+};
 
 export const ReviewScreen: React.FC = () => {
   const {theme} = useTheme();
@@ -50,6 +58,9 @@ export const ReviewScreen: React.FC = () => {
   );
   const business = useSelector((s: RootState) =>
     s.businesses.businesses.find(b => b.id === apt?.businessId),
+  );
+  const companion = useSelector((s: RootState) =>
+    s.companion?.companions?.find(c => c.id === apt?.companionId),
   );
 
   useEffect(() => {
@@ -124,6 +135,23 @@ export const ReviewScreen: React.FC = () => {
     }
   };
 
+  const avatarPhoto = displayBusiness.photo ?? fallbackPhoto ?? null;
+  const hasAvatarPhoto =
+    typeof avatarPhoto === 'string' &&
+    avatarPhoto.length > 0 &&
+    !isDummyPhoto(avatarPhoto);
+  const subjectName = companion?.name ?? null;
+  const avatarInitial = (subjectName ?? displayBusiness.name ?? 'C')
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+  const visitTitle = subjectName
+    ? `How was ${subjectName}'s visit?`
+    : 'How was your visit?';
+  const metaLine = [apt?.type, apt?.employeeName, formatVisitDate(apt?.date)]
+    .filter(Boolean)
+    .join('  ·  ');
+
   return (
     <LiquidGlassHeaderScreen
       header={
@@ -140,58 +168,50 @@ export const ReviewScreen: React.FC = () => {
         <ScrollView
           contentContainerStyle={[styles.container, contentPaddingStyle]}
           showsVerticalScrollIndicator={false}>
-          {apt && (
-            <View style={styles.businessCardContainer}>
-              <SummaryCards
-                businessSummary={{
-                  name: displayBusiness.name,
-                  address: displayBusiness.address,
-                  description: undefined,
-                  photo: displayBusiness.photo ?? fallbackPhoto ?? undefined,
-                }}
-                cardStyle={styles.summaryCard}
+          <View style={styles.avatarTile}>
+            {hasAvatarPhoto ? (
+              <Image
+                source={{uri: avatarPhoto as string}}
+                style={styles.avatarImage}
+                resizeMode="cover"
               />
-            </View>
-          )}
-
-          <View style={styles.headerSection}>
-            <View style={styles.checkmarkContainer}>
-              <Image source={Images.tickGreen} style={styles.checkmarkIcon} />
-            </View>
-            <Text style={styles.title}>Consultation Complete</Text>
-            <Text style={styles.subtitle}>Share feedback</Text>
+            ) : (
+              <Text style={styles.avatarInitial}>{avatarInitial}</Text>
+            )}
           </View>
+
+          <Text style={styles.title}>{visitTitle}</Text>
+          {metaLine.length > 0 && (
+            <Text style={styles.subtitle}>{metaLine}</Text>
+          )}
 
           {apt && (
             <View style={styles.ratingSection}>
-              <RatingStars value={rating} onChange={setRating} size={28} />
+              <RatingStars value={rating} onChange={setRating} size={34} />
             </View>
           )}
 
-          <View style={styles.reviewSection}>
-            <Text style={styles.reviewLabel}>Review</Text>
-            <View style={styles.textArea}>
-              <TextInput
-                value={review}
-                onChangeText={setReview}
-                multiline={false}
-                placeholder="Your review"
-                placeholderTextColor={theme.colors.textSecondary + '80'}
-                style={styles.input}
-                textAlignVertical="top"
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
-            </View>
+          <View style={styles.textArea}>
+            <TextInput
+              value={review}
+              onChangeText={setReview}
+              multiline={false}
+              placeholder="Your review"
+              placeholderTextColor={theme.colors.inkFaint}
+              style={styles.input}
+              textAlignVertical="top"
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+            />
           </View>
 
           <View style={styles.buttonContainer}>
             <LiquidGlassButton
-              title="Submit Feedback"
+              title="Submit feedback"
               onPress={handleSubmit}
-              height={56}
-              borderRadius={16}
-              tintColor={theme.colors.secondary}
+              height={54}
+              borderRadius={theme.borderRadius.button}
+              tintColor={theme.colors.cta}
               shadowIntensity="medium"
               disabled={submitting}
             />
@@ -202,75 +222,70 @@ export const ReviewScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) => {
+const createStyles = (theme: Theme) => {
   return StyleSheet.create({
     container: {
-      padding: theme.spacing['4'],
-      paddingBottom: theme.spacing['24'],
-      gap: theme.spacing['3'],
-    },
-    headerSection: {
       alignItems: 'center',
-      marginBottom: theme.spacing['5'],
+      paddingHorizontal: theme.spacing['6'],
+      paddingTop: theme.spacing['6'],
+      paddingBottom: theme.spacing['24'],
     },
-    checkmarkContainer: {
-      width: 72,
-      height: 72,
-      borderRadius: theme.borderRadius.lg,
+    avatarTile: {
+      width: 64,
+      height: 64,
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.blueSoft,
       justifyContent: 'center',
       alignItems: 'center',
-      marginTop: theme.spacing['6'],
-      marginBottom: theme.spacing['12'],
+      overflow: 'hidden',
     },
-    checkmarkIcon: {
-      width: 100,
-      height: 100,
+    avatarImage: {
+      width: 64,
+      height: 64,
+      borderRadius: theme.borderRadius.card,
+    },
+    avatarInitial: {
+      ...theme.typography.serifTitleSmall,
+      fontSize: 21,
+      color: theme.colors.blueText,
     },
     title: {
       ...theme.typography.emptyStateTitle,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['2'],
+      color: theme.colors.ink,
       textAlign: 'center',
+      marginTop: theme.spacing['2'],
     },
     subtitle: {
-      ...theme.typography.body14,
-      color: theme.colors.textSecondary,
+      ...theme.typography.bodySmall,
+      color: theme.colors.inkMuted,
       textAlign: 'center',
-    },
-    businessCardContainer: {
-      // Spacing handled by container gap
-    },
-    summaryCard: {
-      // Spacing handled by container gap
+      marginTop: theme.spacing['1'],
     },
     ratingSection: {
       alignItems: 'center',
-      // Spacing handled by container gap
-    },
-    reviewSection: {
-      // Spacing handled by container gap
-    },
-    reviewLabel: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['3'],
+      marginTop: theme.spacing['4'],
+      marginBottom: theme.spacing['1'],
     },
     textArea: {
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      paddingHorizontal: theme.spacing['3'],
-      paddingVertical: theme.spacing['3'],
-      minHeight: 140,
-      backgroundColor: theme.colors.inputBackground,
+      width: '100%',
+      backgroundColor: theme.colors.fieldBg,
+      borderWidth: 1.5,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.field,
+      paddingTop: theme.spacing['3.5'],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['10'],
+      minHeight: 96,
+      marginTop: theme.spacing['3'],
     },
     input: {
-      ...theme.typography.body14,
-      color: theme.colors.text,
-      minHeight: 120,
+      ...theme.typography.body,
+      color: theme.colors.ink,
+      padding: 0,
     },
     buttonContainer: {
-      marginTop: theme.spacing['2'],
+      width: '100%',
+      marginTop: theme.spacing['3'],
     },
   });
 };

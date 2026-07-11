@@ -1,188 +1,107 @@
 import React, {useEffect} from 'react';
-import {
-  View,
-  Image,
-  useWindowDimensions,
-  StyleSheet,
-  StatusBar,
-} from 'react-native';
+import {View, Text, StyleSheet, StatusBar} from 'react-native';
 import {scheduleOnRN} from 'react-native-worklets';
 import Animated, {
   cancelAnimation,
   Easing,
-  interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withRepeat,
-  withSequence,
   withSpring,
   withTiming,
-  type SharedValue,
 } from 'react-native-reanimated';
 import BootSplash from 'react-native-bootsplash';
 import LinearGradient from 'react-native-linear-gradient';
-import {InkEncircle} from '@/shared/components/common/InkEncircle/InkEncircle';
+import Video from 'react-native-video';
 
 type Props = {
   onAnimationEnd: () => void;
 };
 
-const STAR_IMAGE = require('../../../../assets/splash/star1.png');
 const MAIN_LOGO = require('../../../../assets/splash/logo.png');
-const CERTIFICATION_LOGOS = [
-  {id: 'soc', source: require('../../../../assets/splash/soc.png')},
-  {id: 'fhir', source: require('../../../../assets/splash/fhir.png')},
-  {id: 'gdpr', source: require('../../../../assets/splash/gdpr.png')},
-  {id: 'iso', source: require('../../../../assets/splash/iso.png')},
-  {id: 'fda', source: require('../../../../assets/splash/fda.png')},
-];
+const SPLASH_VIDEO = require('../../../../assets/video/loop-dog.mp4');
 
-const SplashStar = ({
-  positionStyle,
-  opacity,
-  rotate,
-  clockwise,
-}: {
-  positionStyle: {top: number; left?: number; right?: number};
-  opacity: SharedValue<number>;
-  rotate: SharedValue<number>;
-  clockwise: boolean;
-}) => {
-  const starAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [
-      {
-        rotate: `${interpolate(
-          rotate.value,
-          [0, 1],
-          [0, clockwise ? 360 : -360],
-        )}deg`,
-      },
-    ],
-  }));
-
-  return (
-    <Animated.View
-      style={[styles.starContainer, positionStyle, starAnimatedStyle]}>
-      <Image
-        source={STAR_IMAGE}
-        style={styles.starSmall}
-        resizeMode="contain"
-      />
-    </Animated.View>
-  );
+// Warm-bone + over-video values (splash renders before the theme resolves).
+const C = {
+  screen: '#F7F3EC',
+  inset: '#EAE2D5',
+  ink: '#1D1C1B',
+  inkMuted: '#5C5956',
+  inkFaint2: '#A9A39E',
+  pink: '#FF90D4',
+  blue: '#257BED',
+  hairline: '#E5DCCF',
+  onVideo: '#F7F3EC',
 };
 
+// Cinematic scrim over the video: dark enough for the white lockup up top,
+// fading to the warm screen at the bottom where the compliance pills sit.
+const SCRIM_COLORS = [
+  'rgba(29,28,27,0.42)',
+  'rgba(29,28,27,0.14)',
+  'rgba(29,28,27,0.06)',
+  'rgba(29,28,27,0.12)',
+  'rgba(29,28,27,0.32)',
+  'rgba(29,28,27,0.46)',
+  '#F7F3EC',
+];
+const SCRIM_LOCATIONS = [0, 0.14, 0.28, 0.44, 0.6, 0.74, 0.98];
+
+const COMPLIANCE = [
+  'AICPA SOC 2',
+  'HL7 FHIR',
+  'GDPR',
+  'ISO 27001',
+  'FDA 21 CFR Part 11',
+];
+
+const NEWSREADER = 'Newsreader-Regular';
+const NEWSREADER_ITALIC = 'Newsreader-Italic';
+
+const LOAD_TRACK_WIDTH = 122;
+const LOAD_SEG_WIDTH = 48;
+
 const CustomSplashScreen = ({onAnimationEnd}: Props) => {
-  const {width: screenWidth, height: screenHeight} = useWindowDimensions();
-  const fadeAnim = useSharedValue(1);
-  const scaleAnim = useSharedValue(0.8);
-  const star1Anim = useSharedValue(1);
-  const star2Anim = useSharedValue(1);
-  const certAnim = useSharedValue(0);
-  const star1RotateAnim = useSharedValue(0);
-  const star2RotateAnim = useSharedValue(0);
+  const fade = useSharedValue(1);
+  const logoScale = useSharedValue(0.86);
+  const loadX = useSharedValue(-LOAD_SEG_WIDTH);
 
   useEffect(() => {
-    // Hide native splash immediately with no fade
     BootSplash.hide({fade: false});
 
-    star1RotateAnim.value = withRepeat(
-      withTiming(1, {duration: 4000, easing: Easing.linear}),
+    logoScale.value = withSpring(1, {damping: 13, stiffness: 120});
+    loadX.value = withRepeat(
+      withTiming(LOAD_TRACK_WIDTH, {
+        duration: 1300,
+        easing: Easing.bezier(0.45, 0.05, 0.55, 0.95),
+      }),
       -1,
       false,
     );
-
-    star2RotateAnim.value = withRepeat(
-      withTiming(1, {duration: 5000, easing: Easing.linear}),
-      -1,
-      false,
-    );
-
-    scaleAnim.value = withSpring(1, {damping: 12, stiffness: 120});
-    certAnim.value = withDelay(600, withTiming(1, {duration: 800}));
-
-    const floatingTimer = setTimeout(() => {
-      star1Anim.value = withRepeat(
-        withSequence(
-          withTiming(0.6, {duration: 2500}),
-          withTiming(1, {duration: 2500}),
-        ),
-        -1,
-        false,
-      );
-      star2Anim.value = withRepeat(
-        withSequence(
-          withTiming(0.7, {duration: 3000}),
-          withTiming(1, {duration: 3000}),
-        ),
-        -1,
-        false,
-      );
-    }, 1500);
 
     const exitTimer = setTimeout(() => {
-      fadeAnim.value = withTiming(0, {duration: 1000}, finished => {
+      fade.value = withTiming(0, {duration: 700}, finished => {
         if (finished) {
           scheduleOnRN(onAnimationEnd);
         }
       });
-      scaleAnim.value = withTiming(0.3, {duration: 1000});
-      star1Anim.value = withTiming(0, {duration: 1000});
-      star2Anim.value = withTiming(0, {duration: 1000});
-      certAnim.value = withTiming(0, {duration: 1000});
-    }, 4000);
+    }, 3600);
 
     return () => {
-      clearTimeout(floatingTimer);
       clearTimeout(exitTimer);
-      cancelAnimation(fadeAnim);
-      cancelAnimation(scaleAnim);
-      cancelAnimation(star1Anim);
-      cancelAnimation(star2Anim);
-      cancelAnimation(certAnim);
-      cancelAnimation(star1RotateAnim);
-      cancelAnimation(star2RotateAnim);
+      cancelAnimation(fade);
+      cancelAnimation(logoScale);
+      cancelAnimation(loadX);
     };
-  }, [
-    scaleAnim,
-    star1Anim,
-    star2Anim,
-    certAnim,
-    fadeAnim,
-    star1RotateAnim,
-    star2RotateAnim,
-    onAnimationEnd,
-  ]);
+  }, [fade, logoScale, loadX, onAnimationEnd]);
 
-  const containerAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: fadeAnim.value,
+  const containerStyle = useAnimatedStyle(() => ({opacity: fade.value}));
+  const logoStyle = useAnimatedStyle(() => ({
+    transform: [{scale: logoScale.value}],
   }));
-
-  const logoAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{scale: scaleAnim.value}],
+  const loadSegStyle = useAnimatedStyle(() => ({
+    transform: [{translateX: loadX.value}],
   }));
-
-  const certificationsAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: certAnim.value,
-    transform: [
-      {
-        translateY: interpolate(certAnim.value, [0, 1], [30, 0]),
-      },
-    ],
-  }));
-
-  // Better random positions for stars
-  const star1Position = {
-    top: screenHeight * 0.3,
-    left: screenWidth * 0.2,
-  };
-
-  const star2Position = {
-    top: screenHeight * 0.7,
-    right: screenWidth * 0.2,
-  };
 
   return (
     <>
@@ -191,66 +110,55 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
         backgroundColor="transparent"
         translucent
       />
-      <Animated.View style={[styles.container, containerAnimatedStyle]}>
-        {/* Background Gradient - Fixed smooth gradient */}
+      <Animated.View style={[styles.container, containerStyle]}>
+        <Video
+          source={SPLASH_VIDEO}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+          repeat
+          muted
+          paused={false}
+          playInBackground={false}
+          disableFocus
+          ignoreSilentSwitch="obey"
+        />
         <LinearGradient
-          colors={[
-            '#87CEEB', // Light blue at top
-            '#E6F3FF', // Sky blue
-            '#F8FBFF', // Very light blue
-            '#F8FBFF', // Almost white
-            '#FFFFFF', // Pure white at bottom
-          ]}
-          locations={[0, 0.25, 0.5, 0.75, 1]}
-          style={styles.gradient}
+          colors={SCRIM_COLORS}
+          locations={SCRIM_LOCATIONS}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
         />
 
-        <SplashStar
-          positionStyle={star1Position}
-          opacity={star1Anim}
-          rotate={star1RotateAnim}
-          clockwise
-        />
-        <SplashStar
-          positionStyle={star2Position}
-          opacity={star2Anim}
-          rotate={star2RotateAnim}
-          clockwise={false}
-        />
-
-        {/* Main Logo - Center, with the hand-drawn ink encircle brand moment */}
-        <View style={styles.logoContainer}>
-          <Animated.View style={logoAnimatedStyle}>
-            <Image
-              source={MAIN_LOGO}
-              style={styles.mainLogo}
-              resizeMode="contain"
-            />
-            <InkEncircle
-              width={230}
-              height={180}
-              style={styles.logoEncircle}
-              testID="splash-encircle"
-            />
-          </Animated.View>
+        {/* Brand lockup */}
+        <View style={styles.center}>
+          <Animated.Image
+            source={MAIN_LOGO}
+            style={[styles.logo, logoStyle]}
+            resizeMode="contain"
+          />
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>Yosemite Crew</Text>
+            <View style={styles.betaPill}>
+              <Text style={styles.betaText}>BETA</Text>
+            </View>
+          </View>
+          <Text style={styles.tagline}>Every companion has a story.</Text>
         </View>
 
-        {/* Bottom Certifications Row */}
-        <Animated.View
-          style={[styles.certificationsContainer, certificationsAnimatedStyle]}>
-          {CERTIFICATION_LOGOS.map(({id, source}) => (
-            <View
-              key={id}
-              testID="certification-logo"
-              style={styles.certificationWrapper}>
-              <Image
-                source={source}
-                style={styles.certificationLogo}
-                resizeMode="contain"
-              />
-            </View>
-          ))}
-        </Animated.View>
+        {/* Loader + compliance */}
+        <View style={styles.bottom}>
+          <View style={styles.loadTrack}>
+            <Animated.View style={[styles.loadSeg, loadSegStyle]} />
+          </View>
+          <Text style={styles.compliantLabel}>Compliant &amp; secure</Text>
+          <View style={styles.pillRow}>
+            {COMPLIANCE.map(label => (
+              <View key={label} testID="compliance-pill" style={styles.pill}>
+                <Text style={styles.pillText}>{label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
       </Animated.View>
     </>
   );
@@ -259,65 +167,111 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    position: 'relative',
+    backgroundColor: C.screen,
   },
-  gradient: {
+  center: {
+    position: 'absolute',
+    top: '34%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  logo: {
+    width: 102,
+    height: 102,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 22,
+  },
+  name: {
+    fontFamily: NEWSREADER,
+    fontSize: 34,
+    letterSpacing: -0.6,
+    color: C.onVideo,
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: {width: 0, height: 2},
+    textShadowRadius: 22,
+  },
+  betaPill: {
+    marginLeft: 11,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(29,28,27,0.32)',
+    borderWidth: 1,
+    borderColor: 'rgba(247,243,236,0.28)',
+    transform: [{translateY: -6}],
+  },
+  betaText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: C.pink,
+  },
+  tagline: {
+    fontFamily: NEWSREADER_ITALIC,
+    fontStyle: 'italic',
+    fontSize: 17.5,
+    letterSpacing: -0.1,
+    color: C.pink,
+    marginTop: 10,
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 16,
+  },
+  bottom: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 46,
+    alignItems: 'center',
+    paddingHorizontal: 30,
+  },
+  loadTrack: {
+    width: LOAD_TRACK_WIDTH,
+    height: 4,
+    borderRadius: 9999,
+    backgroundColor: C.inset,
+    overflow: 'hidden',
+    marginBottom: 18,
+  },
+  loadSeg: {
     position: 'absolute',
     top: 0,
     left: 0,
-    right: 0,
-    bottom: 0,
+    width: LOAD_SEG_WIDTH,
+    height: 4,
+    borderRadius: 9999,
+    backgroundColor: C.blue,
   },
-  logoContainer: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginLeft: -88, // Half of logo width (176/2)
-    marginTop: -88, // Half of logo height (176/2)
-    alignItems: 'center',
-    justifyContent: 'center',
+  compliantLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: C.inkFaint2,
+    marginBottom: 13,
   },
-  mainLogo: {
-    width: 176,
-    height: 176,
-  },
-  logoEncircle: {
-    top: (176 - 180) / 2,
-    left: (176 - 230) / 2,
-  },
-  starContainer: {
-    position: 'absolute',
-    zIndex: 10,
-  },
-  starSmall: {
-    width: 15,
-    height: 15,
-    opacity: 1,
-  },
-  certificationsContainer: {
-    position: 'absolute',
-    bottom: 64,
-    left: 0,
-    right: 0,
+  pillRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
     flexWrap: 'wrap',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    zIndex: 100, // Ensure they appear on top
-  },
-  certificationWrapper: {
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    minWidth: 72,
-    minHeight: 56,
+    gap: 7,
   },
-  certificationLogo: {
-    width: 58,
-    height: 42,
-    opacity: 1, // Full opacity for real colors
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 9999,
+    backgroundColor: C.screen,
+    borderWidth: 1,
+    borderColor: C.hairline,
+  },
+  pillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.inkMuted,
   },
 });
 

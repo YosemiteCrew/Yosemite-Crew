@@ -10,6 +10,7 @@ import {
 import {AppointmentFormContent} from '@/features/appointments/components/AppointmentFormContent';
 import {BookingSummaryCard} from '@/features/appointments/components/BookingSummaryCard/BookingSummaryCard';
 import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
 import {Images} from '@/assets/images';
 import type {RootState, AppDispatch} from '@/app/store';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -363,7 +364,7 @@ export const EditAppointmentScreen: React.FC = () => {
   );
   const [date, setDate] = useState<string>(apt?.date ?? firstAvailableDate);
   const [dateObj, setDateObj] = useState<Date>(
-    new Date(apt?.date ?? firstAvailableDate),
+    () => new Date(apt?.date ?? firstAvailableDate),
   );
   const initialTimeLabel = getInitialTimeLabel(apt);
   const [time, setTime] = useState<string | null>(initialTimeLabel);
@@ -571,10 +572,10 @@ export const EditAppointmentScreen: React.FC = () => {
                   title={submitLabel}
                   onPress={handleSubmit}
                   height={56}
-                  borderRadius={16}
+                  borderRadius={theme.borderRadius.button}
                   disabled={submitState.disabled}
                   loading={submitState.loading}
-                  tintColor={theme.colors.secondary}
+                  tintColor={theme.colors.cta}
                   shadowIntensity="medium"
                   textStyle={styles.confirmPrimaryButtonText}
                 />
@@ -594,24 +595,24 @@ export const EditAppointmentScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     scrollView: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     container: {
       paddingHorizontal: theme.spacing['5'],
-      paddingTop: theme.spacing['6'],
+      paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],
-      gap: theme.spacing['6'],
+      gap: theme.spacing['3.5'],
     },
     summaryCard: {
-      marginBottom: theme.spacing['1'],
+      marginBottom: theme.spacing['0'],
     },
     confirmPrimaryButtonText: {
       ...theme.typography.button,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
   });

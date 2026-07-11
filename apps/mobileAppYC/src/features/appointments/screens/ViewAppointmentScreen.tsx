@@ -14,6 +14,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
 import type {RootState, AppDispatch} from '@/app/store';
 import {
   useNavigation,
@@ -649,9 +650,9 @@ const ActionButtons = ({
               key={action.kind}
               title="Check in"
               onPress={action.onPress}
-              height={56}
-              borderRadius={16}
-              tintColor={theme.colors.secondary}
+              height={54}
+              borderRadius={theme.borderRadius.button}
+              tintColor={theme.colors.cta}
               shadowIntensity="medium"
               textStyle={styles.confirmPrimaryButtonText}
               disabled={checkInDisabled}
@@ -665,9 +666,9 @@ const ActionButtons = ({
               key={action.kind}
               title={action.kind === 'payNow' ? 'Pay Now' : 'View Invoice'}
               onPress={action.onPress}
-              height={56}
-              borderRadius={16}
-              tintColor={theme.colors.secondary}
+              height={54}
+              borderRadius={theme.borderRadius.button}
+              tintColor={theme.colors.cta}
               shadowIntensity="medium"
               textStyle={styles.confirmPrimaryButtonText}
             />
@@ -680,13 +681,13 @@ const ActionButtons = ({
               key={action.kind}
               title="Edit Appointment"
               onPress={action.onPress}
-              height={theme.spacing['14']}
-              borderRadius={theme.borderRadius.lg}
+              height={52}
+              borderRadius={theme.borderRadius.button}
               glassEffect="clear"
               forceBorder
-              borderColor={theme.colors.secondary}
+              borderColor={theme.colors.divider}
               textStyle={styles.secondaryButtonText}
-              shadowIntensity="medium"
+              shadowIntensity="none"
               interactive
             />
           );
@@ -697,11 +698,9 @@ const ActionButtons = ({
             key={action.kind}
             title="Cancel Appointment"
             onPress={action.onPress}
-            height={theme.spacing['14']}
-            borderRadius={theme.borderRadius.lg}
-            tintColor={theme.colors.errorSurface}
-            forceBorder
-            borderColor={theme.colors.error}
+            height={46}
+            borderRadius={theme.borderRadius.button}
+            glassEffect="none"
             textStyle={styles.alertButtonText}
             shadowIntensity="none"
           />
@@ -1313,7 +1312,7 @@ export const ViewAppointmentScreen: React.FC = () => {
             </View>
 
             <View style={styles.detailsCard}>
-              <Text style={styles.sectionTitle}>Forms / Prescription</Text>
+              <Text style={styles.sectionTitle}>Forms / prescription</Text>
               {(() => {
                 if (formsLoading) {
                   return <ActivityIndicator />;
@@ -1435,35 +1434,35 @@ export const ViewAppointmentScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     root: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.screen,
     },
     container: {
       paddingHorizontal: theme.spacing['5'],
-      paddingTop: theme.spacing['6'],
+      paddingTop: theme.spacing['4'],
       paddingBottom: theme.spacing['24'],
-      gap: theme.spacing['4'],
+      gap: theme.spacing['3.5'],
     },
     statusShadowWrapper: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      boxShadow: `0px 10px 15px ${theme.colors.neutralShadow}`,
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.screen,
+      boxShadow: `0px 8px 22px ${theme.colors.neutralShadow}`,
       overflow: 'visible',
     },
     statusCard: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.screen,
+      borderRadius: theme.borderRadius.card,
       padding: 0,
       gap: theme.spacing['2'],
     },
     statusCardFallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      backgroundColor: theme.colors.screen,
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
     },
     statusContainer: {
       gap: theme.spacing['3'],
@@ -1471,18 +1470,18 @@ const createStyles = (theme: any) =>
       backgroundColor: 'transparent',
     },
     statusNote: {
-      ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      ...theme.typography.body13,
+      color: theme.colors.inkMuted,
     },
     statusLabel: {
-      ...theme.typography.paragraphBold,
-      color: theme.colors.textSecondary,
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.inkMuted,
     },
     statusBadge: {
       alignSelf: 'flex-start',
-      paddingHorizontal: theme.spacing['2.5'],
+      paddingHorizontal: theme.spacing['3'],
       paddingVertical: 6,
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.full,
     },
     statusText: {
       ...theme.typography.labelSmallBold,
@@ -1491,17 +1490,12 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['1'],
     },
     detailsCard: {
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      backgroundColor: theme.colors.cardBackground,
-      padding: theme.spacing['4'],
-      gap: theme.spacing['2'],
+      gap: theme.spacing['2.5'],
     },
     sectionTitle: {
-      ...theme.typography.titleMedium,
-      color: theme.colors.secondary,
-      marginBottom: theme.spacing['3'],
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.ink,
+      letterSpacing: -0.15,
     },
     attachmentRow: {
       flexDirection: 'row',
@@ -1509,16 +1503,16 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       paddingVertical: theme.spacing['2'],
       borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border + '40',
+      borderBottomColor: theme.colors.hairline,
     },
     attachmentName: {
       ...theme.typography.body14,
-      color: theme.colors.secondary,
+      color: theme.colors.inkBody,
       flex: 1,
     },
     attachmentLink: {
       ...theme.typography.body14,
-      color: theme.colors.primary,
+      color: theme.colors.blueText,
       marginLeft: theme.spacing['2'],
     },
     attachmentPreview: {
@@ -1526,68 +1520,68 @@ const createStyles = (theme: any) =>
     },
     emptyDocsText: {
       ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint,
     },
     actionsContainer: {
-      gap: theme.spacing['3'],
-      marginTop: theme.spacing['2'],
+      gap: theme.spacing['2.5'],
+      marginTop: theme.spacing['1'],
     },
     loadingContainer: {
       padding: theme.spacing['4'],
     },
     loadingText: {
       ...theme.typography.body14,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     confirmPrimaryButtonText: {
       ...theme.typography.button,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
       textAlign: 'center',
     },
     secondaryButtonText: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
+      ...theme.typography.button,
+      color: theme.colors.inkBody,
       textAlign: 'center',
     },
     alertButtonText: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.error,
+      ...theme.typography.button,
+      color: theme.colors.danger,
       textAlign: 'center',
     },
     formCardShadowWrapper: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      boxShadow: `0px 10px 15px ${theme.colors.neutralShadow}`,
+      borderRadius: theme.borderRadius.field,
+      backgroundColor: theme.colors.screen,
+      boxShadow: `0px 1px 2px ${theme.colors.neutralShadow}`,
       overflow: 'visible',
-      marginBottom: theme.spacing['3'],
+      marginBottom: theme.spacing['2.5'],
     },
     formCard: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
+      backgroundColor: theme.colors.screen,
+      borderRadius: theme.borderRadius.field,
       padding: 0,
       gap: theme.spacing['2'],
     },
     formCardFallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 0,
-      borderColor: 'transparent',
+      backgroundColor: theme.colors.screen,
+      borderRadius: theme.borderRadius.field,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
     },
     formCardContent: {
-      gap: theme.spacing['2'],
+      gap: theme.spacing['3'],
       padding: theme.spacing['4'],
       backgroundColor: 'transparent',
     },
     glassCard: {
-      backgroundColor: theme.colors.cardBackground,
+      backgroundColor: theme.colors.screen,
       marginBottom: theme.spacing['2'],
     },
     cardFallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: Platform.OS === 'android' ? 1 : 0,
-      borderColor: theme.colors.borderMuted,
-      boxShadow: `0px 4px 6px ${theme.colors.neutralShadow}`,
+      backgroundColor: theme.colors.screen,
+      borderRadius: theme.borderRadius.field,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      boxShadow: `0px 1px 2px ${theme.colors.neutralShadow}`,
     },
     formHeader: {
       flexDirection: 'row',
@@ -1600,31 +1594,31 @@ const createStyles = (theme: any) =>
       gap: theme.spacing['1'],
     },
     formTitle: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.inkBody,
     },
     formMeta: {
       ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint,
     },
     formStatusBadge: {
-      paddingHorizontal: theme.spacing['2.5'],
+      paddingHorizontal: theme.spacing['3'],
       paddingVertical: 6,
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.full,
     },
     formStatusText: {
       ...theme.typography.labelXxsBold,
     },
     formDescription: {
       ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint,
     },
     formAnswers: {
       gap: theme.spacing['2'],
     },
     formButtonText: {
       ...theme.typography.button,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
     },
     formAccordionContent: {
       gap: theme.spacing['2'],
@@ -1634,11 +1628,11 @@ const createStyles = (theme: any) =>
     },
     answerLabel: {
       ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkFaint,
     },
     answerValue: {
-      ...theme.typography.body14,
-      color: theme.colors.secondary,
+      ...theme.typography.body13,
+      color: theme.colors.inkBody,
     },
   });
 

@@ -64,12 +64,14 @@ export const CancelAppointmentBottomSheet = ({
   return (
     <ConfirmActionBottomSheet
       ref={sheetRef}
+      destructive
+      destructiveIcon="close-circle-outline"
       title={title}
       message={message}
       primaryButton={{
         label: isLoading ? 'Cancelling...' : confirmLabel,
         onPress: handleConfirm,
-        tintColor: theme.colors.secondary,
+        tintColor: theme.colors.danger,
         textStyle: [buttonStyles.confirmText, {color: theme.colors.white}],
         style: {flex: 1},
         disabled: isLoading,

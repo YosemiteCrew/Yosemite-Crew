@@ -1,19 +1,32 @@
 import React, {useMemo} from 'react';
-import {View, Text, ScrollView, StyleSheet} from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  Share,
+  Platform,
+  PermissionsAndroid,
+} from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import RNFS from 'react-native-fs';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
-import {Images} from '@/assets/images';
+import type {DocumentFile} from '@/features/documents/types';
 import {createAllCommonStyles} from '@/shared/utils/screenStyles';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {fetchDocumentView} from '@/features/documents/documentSlice';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {DOCUMENT_CATEGORIES, VISIT_TYPES} from '@/features/documents/constants';
+import {DOCUMENT_CATEGORIES} from '@/features/documents/constants';
+import {parseISODate} from '@/shared/utils/dateHelpers';
 
 const resolveCategoryLabel = (categoryId?: string | null): string =>
   DOCUMENT_CATEGORIES.find(c => c.id === categoryId)?.label ?? categoryId ?? '';
@@ -30,14 +43,34 @@ const resolveSubcategoryLabel = (
   );
 };
 
-const resolveVisitTypeLabel = (visitTypeId?: string | null): string =>
-  VISIT_TYPES.find(v => v.id === visitTypeId)?.label ?? visitTypeId ?? '';
-import {
-  DetailsCard,
-  type DetailItem,
-  type DetailBadge,
-} from '@/shared/components/common/DetailsCard';
-import {parseISODate} from '@/shared/utils/dateHelpers';
+const resolveFileUri = (file?: DocumentFile): string | null =>
+  file
+    ? (file.viewUrl ?? file.downloadUrl ?? file.s3Url ?? file.uri ?? null)
+    : null;
+
+const resolveFileTypeLabel = (file?: DocumentFile): string => {
+  if (!file) {
+    return '';
+  }
+  const fromName =
+    file.name && file.name.includes('.') ? file.name.split('.').pop() : '';
+  const fromMime =
+    file.type && file.type.includes('/')
+      ? file.type.split('/').pop()
+      : file.type;
+  return (fromName || fromMime || '').toUpperCase();
+};
+
+const formatFileSize = (bytes?: number): string => {
+  if (!bytes || bytes <= 0) {
+    return '';
+  }
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) {
+    return `${mb.toFixed(1)} MB`;
+  }
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+};
 
 type DocumentPreviewNavigationProp =
   NativeStackNavigationProp<DocumentStackParamList>;
@@ -145,100 +178,230 @@ export const DocumentPreviewScreen: React.FC = () => {
     );
   }
 
-  // Sharing is handled inside AttachmentPreview for individual files
   const handleEdit = () => {
     navigation.navigate('EditDocument', {documentId});
   };
 
   // Only allow edit/delete for documents added by user from app, not from PMS
   const canEdit = document.isUserAdded && !document.uploadedByPmsUserId;
+  const isSynced = !!document.uploadedByPmsUserId;
 
-  const detailItems: DetailItem[] = [
-    {label: 'Title', value: document.title},
-    {label: 'Companion', value: companion?.name || 'Unknown'},
-    {label: 'Business', value: document.businessName || '—'},
-    {label: 'Category', value: resolveCategoryLabel(document.category)},
-    {
-      label: 'Sub category',
-      value: resolveSubcategoryLabel(document.category, document.subcategory),
-      hidden: !document.subcategory || document.subcategory === 'none',
-    },
-    {
-      label: 'Visit type',
-      value: resolveVisitTypeLabel(document.visitType),
-      hidden: !document.visitType || document.visitType === 'other',
-    },
-    {label: 'Issue Date', value: formattedIssueDate},
-    {
-      label: 'Appointment ID',
-      value: document.appointmentId || '',
-      hidden: !document.appointmentId,
-    },
-    {label: 'Files', value: document.files?.length || 0},
-    {
-      label: 'Created',
-      value: new Date(document.createdAt).toLocaleDateString('en-US', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
-    },
-  ];
+  const primaryFile = document.files?.[0];
+  const primaryUri = resolveFileUri(primaryFile);
+  const fileMeta = [
+    resolveFileTypeLabel(primaryFile),
+    formatFileSize(primaryFile?.size),
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
-  const badges: DetailBadge[] = [];
-  if (document.uploadedByPmsUserId) {
-    badges.push({
-      text: 'Synced from PMS',
-      backgroundColor: theme.colors.infoSurface,
-      textColor: theme.colors.primary,
-    });
-  } else if (document.isUserAdded) {
-    badges.push({
-      text: 'User Added',
-      backgroundColor: theme.colors.successSurface,
-      textColor: theme.colors.success,
-    });
-  }
+  const subtitleType =
+    document.subcategory && document.subcategory !== 'none'
+      ? resolveSubcategoryLabel(document.category, document.subcategory)
+      : resolveCategoryLabel(document.category);
+  const subtitle = [subtitleType, formattedIssueDate]
+    .filter(Boolean)
+    .join(' · ');
+
+  const shareLabel = companion?.name
+    ? `${document.title} for ${companion.name}`
+    : document.title;
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        title: shareLabel,
+        message: primaryUri ? `${shareLabel}\n\n${primaryUri}` : shareLabel,
+        url: primaryUri ?? '',
+      });
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to share',
+      );
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!primaryUri) {
+      Alert.alert(
+        'Unavailable',
+        'We could not find a download link for this file. Please try again later.',
+      );
+      return;
+    }
+    try {
+      if (Platform.OS === 'android' && Number(Platform.Version) < 33) {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert(
+            'Permission needed',
+            'Please grant storage permission to download files.',
+          );
+          return;
+        }
+      }
+      const dir = RNFS.DownloadDirectoryPath ?? RNFS.DocumentDirectoryPath;
+      const safeName = (primaryFile?.name || 'document').replace(
+        /[\\/:]/g,
+        '_',
+      );
+      const target = `${dir}/${safeName}`;
+      await RNFS.mkdir(dir);
+      await RNFS.downloadFile({
+        fromUrl: primaryUri,
+        toFile: target,
+        discretionary: true,
+      }).promise;
+      Alert.alert('Download complete', `Saved to:\n${target}`);
+    } catch {
+      Alert.alert(
+        'Download failed',
+        'Unable to download the file. Please check your connection and try again.',
+      );
+    }
+  };
+
+  const headerNode = (
+    <View style={styles.header} testID="document-preview-header">
+      <PressableOpacity
+        testID="header-back-btn"
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        style={styles.circleButton}
+        onPress={() => navigation.goBack()}>
+        <Ionicons name="chevron-back" size={18} color={theme.colors.inkBody} />
+      </PressableOpacity>
+
+      <View style={styles.headerTitleBlock}>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {document.title}
+        </Text>
+        {!!subtitle && (
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        )}
+      </View>
+
+      {canEdit ? (
+        <PressableOpacity
+          testID="header-right-btn"
+          accessibilityRole="button"
+          accessibilityLabel="Document options"
+          style={styles.circleButton}
+          onPress={handleEdit}>
+          <Ionicons
+            name="ellipsis-horizontal"
+            size={17}
+            color={theme.colors.inkBody}
+          />
+        </PressableOpacity>
+      ) : (
+        <View style={styles.circleButton} />
+      )}
+    </View>
+  );
 
   return (
     <LiquidGlassHeaderScreen
-      header={
-        <Header
-          title={document.title}
-          showBackButton={true}
-          onBack={() => navigation.goBack()}
-          onRightPress={canEdit ? handleEdit : undefined}
-          rightIcon={canEdit ? Images.blackEdit : undefined}
-          glass={false}
-        />
-      }
+      header={headerNode}
       contentPadding={theme.spacing['4']}
       showBottomFade={false}>
       {contentPaddingStyle => (
-        <ScrollView
-          style={styles.container}
-          nestedScrollEnabled
-          scrollEnabled={!isPdfInteracting}
-          contentContainerStyle={[
-            styles.contentContainer,
-            contentPaddingStyle,
-          ]}>
-          <DetailsCard
-            title="Document Details"
-            items={detailItems}
-            badges={badges}
-          />
+        <View style={styles.flex}>
+          <ScrollView
+            style={styles.container}
+            nestedScrollEnabled
+            scrollEnabled={!isPdfInteracting}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.contentContainer,
+              contentPaddingStyle,
+            ]}>
+            <View style={styles.documentPage}>
+              <DocumentAttachmentViewer
+                attachments={document.files}
+                documentTitle={document.title}
+                companionName={companion?.name}
+                onPdfTouchStart={() => setIsPdfInteracting(true)}
+                onPdfTouchEnd={() => setIsPdfInteracting(false)}
+              />
+            </View>
+          </ScrollView>
 
-          <View style={styles.documentPreview}>
-            <DocumentAttachmentViewer
-              attachments={document.files}
-              documentTitle={document.title}
-              companionName={companion?.name}
-              onPdfTouchStart={() => setIsPdfInteracting(true)}
-              onPdfTouchEnd={() => setIsPdfInteracting(false)}
-            />
+          <View style={styles.footer}>
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <Ionicons
+                  name="business-outline"
+                  size={14}
+                  color={theme.colors.inkFaint}
+                />
+                <Text style={styles.metaText} numberOfLines={1}>
+                  {document.businessName || '—'}
+                </Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Ionicons
+                  name="paw-outline"
+                  size={14}
+                  color={theme.colors.inkFaint}
+                />
+                <Text style={styles.metaText} numberOfLines={1}>
+                  {companion?.name || 'Unknown'}
+                </Text>
+              </View>
+              {!!fileMeta && (
+                <View style={styles.metaItem}>
+                  <Ionicons
+                    name="document-outline"
+                    size={14}
+                    color={theme.colors.inkFaint}
+                  />
+                  <Text style={styles.metaText} numberOfLines={1}>
+                    {fileMeta}
+                  </Text>
+                </View>
+              )}
+              {isSynced && (
+                <View style={styles.syncedPill}>
+                  <View style={styles.syncedDot} />
+                  <Text style={styles.syncedText}>SYNCED</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.actionRow}>
+              <PressableOpacity
+                style={[styles.actionButton, styles.actionPrimary]}
+                accessibilityRole="button"
+                accessibilityLabel="Share document"
+                onPress={handleShare}>
+                <Ionicons
+                  name="share-outline"
+                  size={17}
+                  color={theme.colors.ctaText}
+                />
+                <Text style={styles.actionPrimaryText}>Share</Text>
+              </PressableOpacity>
+              <PressableOpacity
+                style={[styles.actionButton, styles.actionSecondary]}
+                accessibilityRole="button"
+                accessibilityLabel="Download document"
+                onPress={handleDownload}>
+                <Ionicons
+                  name="download-outline"
+                  size={17}
+                  color={theme.colors.inkBody}
+                />
+                <Text style={styles.actionSecondaryText}>Download</Text>
+              </PressableOpacity>
+            </View>
           </View>
-        </ScrollView>
+        </View>
       )}
     </LiquidGlassHeaderScreen>
   );
@@ -248,13 +411,133 @@ const createStyles = (theme: any) => {
   const commonStyles = createAllCommonStyles(theme);
   return StyleSheet.create({
     ...commonStyles,
+    flex: {
+      flex: 1,
+    },
     contentContainer: {
       ...commonStyles.contentContainer,
-      paddingHorizontal: theme.spacing['6'],
-      gap: theme.spacing['4'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingBottom: theme.spacing['4'],
     },
-    documentPreview: {
-      gap: theme.spacing['4'],
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingVertical: theme.spacing['2'],
+    },
+    circleButton: {
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitleBlock: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    headerTitle: {
+      ...theme.typography.labelSmall,
+      fontSize: 15.5,
+      letterSpacing: -0.2,
+      color: theme.colors.ink,
+      textAlign: 'center',
+    },
+    headerSubtitle: {
+      ...theme.typography.body12,
+      color: theme.colors.inkFaint,
+      textAlign: 'center',
+      marginTop: 1,
+    },
+    documentPage: {
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.cardSmall,
+      padding: theme.spacing['4'],
+      boxShadow: `inset 0px 1px 4px ${theme.colors.neutralShadow}`,
+    },
+    footer: {
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['3.5'],
+      paddingBottom: theme.spacing['6'],
+      gap: theme.spacing['3'],
+      backgroundColor: theme.colors.background,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: theme.spacing['2.5'],
+    },
+    metaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['1'],
+    },
+    metaText: {
+      ...theme.typography.body12,
+      color: theme.colors.inkFaint,
+    },
+    syncedPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['1'],
+      paddingHorizontal: theme.spacing['2'],
+      paddingVertical: 3,
+      borderRadius: theme.borderRadius.pill,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+    },
+    syncedDot: {
+      width: 5,
+      height: 5,
+      borderRadius: 2.5,
+      backgroundColor: theme.colors.success,
+    },
+    syncedText: {
+      ...theme.typography.labelXxsBold,
+      fontSize: 10.5,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: theme.colors.inkMuted,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      gap: theme.spacing['2.5'],
+    },
+    actionButton: {
+      flex: 1,
+      height: 50,
+      borderRadius: theme.borderRadius.field,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing['2'],
+    },
+    actionPrimary: {
+      backgroundColor: theme.colors.cta,
+      boxShadow: theme.shadows.cta.boxShadow,
+    },
+    actionPrimaryText: {
+      ...theme.typography.buttonSmall,
+      fontSize: 14.5,
+      color: theme.colors.ctaText,
+    },
+    actionSecondary: {
+      borderWidth: 1,
+      borderColor: theme.colors.divider,
+      backgroundColor: theme.colors.transparent,
+    },
+    actionSecondaryText: {
+      ...theme.typography.buttonSmall,
+      fontSize: 14.5,
+      color: theme.colors.inkBody,
     },
   });
 };

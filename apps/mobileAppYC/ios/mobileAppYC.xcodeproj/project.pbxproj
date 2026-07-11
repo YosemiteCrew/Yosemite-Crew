@@ -31,6 +31,8 @@
 		E606C93345D04B8A9337E586 /* Satoshi-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 3A036FB79F8A4C37B13EA70F /* Satoshi-Regular.otf */; };
 		E6A943B3E225420BA9785A03 /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 471A248EB57E4E549A9FCD5B /* BootSplash.storyboard */; };
 		EB918EA2F3434CE285FC714D /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 42635969955E4156B6472E3C /* Colors.xcassets */; };
+		DE06AFB86A0F434485CA8DB9 /* Newsreader-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3D614F803DB84EDC8E843231 /* Newsreader-Regular.ttf */; };
+		CA3524178EF34A1685826155 /* Newsreader-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B65C712C98FF43F8A6656D1C /* Newsreader-Italic.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -66,6 +68,8 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		FD410C24CA4B417686DFF96F /* Satoshi-Black.otf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Satoshi-Black.otf"; path = "../assets/fonts/Satoshi-Black.otf"; sourceTree = "<group>"; };
 		FF77E6C36DA410A675140BBA /* Pods-mobileAppYC.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-mobileAppYC.release.xcconfig"; path = "Target Support Files/Pods-mobileAppYC/Pods-mobileAppYC.release.xcconfig"; sourceTree = "<group>"; };
+		3D614F803DB84EDC8E843231 /* Newsreader-Regular.ttf */ = {isa = PBXFileReference; name = "Newsreader-Regular.ttf"; path = "../assets/fonts/Newsreader-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		B65C712C98FF43F8A6656D1C /* Newsreader-Italic.ttf */ = {isa = PBXFileReference; name = "Newsreader-Italic.ttf"; path = "../assets/fonts/Newsreader-Italic.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +102,8 @@
 				28D2C7847A484697B1AF1F8E /* ClashDisplay-Variable.ttf */,
 				28621C890A9E481DB0D9B6D6 /* SFProText-regular.ttf */,
 				6635D2D3DB7B494180948B38 /* SFProText-semibold.ttf */,
+				3D614F803DB84EDC8E843231 /* Newsreader-Regular.ttf */,
+				B65C712C98FF43F8A6656D1C /* Newsreader-Italic.ttf */,
 			);
 			name = Resources;
 			sourceTree = "<group>";
@@ -252,6 +258,8 @@
 				53B74F3B2EA2CDCF0004CD51 /* GoogleService-Info.plist in Resources */,
 				8CDF7234D58144ABAB092E35 /* SFProText-regular.ttf in Resources */,
 				604359F293D642278FF2C9F8 /* SFProText-semibold.ttf in Resources */,
+				DE06AFB86A0F434485CA8DB9 /* Newsreader-Regular.ttf in Resources */,
+				CA3524178EF34A1685826155 /* Newsreader-Italic.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

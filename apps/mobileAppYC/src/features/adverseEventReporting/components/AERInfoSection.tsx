@@ -65,21 +65,22 @@ const createStyles = (theme: any) =>
       marginBottom: theme.spacing['4'],
     },
     sectionTitle: {
-      ...theme.typography.h6Clash,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitleSmall,
+      color: theme.colors.ink,
       marginHorizontal: theme.spacing['2'],
+      flex: 1,
     },
     infoCard: {
-      borderRadius: theme.borderRadius.lg,
+      borderRadius: theme.borderRadius.card,
       borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen,
       marginBottom: theme.spacing['6'],
-      ...theme.shadows.sm,
+      ...theme.shadows.card,
     },
     infoCardFallback: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.screen,
     },
     cardContent: {
       paddingVertical: 0,
@@ -89,6 +90,7 @@ const createStyles = (theme: any) =>
       height: 20,
       resizeMode: 'contain',
       marginHorizontal: theme.spacing['2'],
+      tintColor: theme.colors.inkMuted,
     },
   });
 

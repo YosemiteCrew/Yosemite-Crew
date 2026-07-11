@@ -354,4 +354,103 @@ describe('LinkedBusinessCard', () => {
       });
     });
   });
+
+  describe('category metadata', () => {
+    const categories = [
+      {category: 'hospital', label: 'Hospital'},
+      {category: 'groomer', label: 'Groomer'},
+      {category: 'boarder', label: 'Boarder'},
+      {category: 'breeder', label: 'Breeder'},
+    ];
+
+    it.each(categories)(
+      'prepends the "$label" label to the meta line for the $category category',
+      ({category, label}) => {
+        render(
+          <LinkedBusinessCard
+            // @ts-ignore - exercising each known category branch
+            business={{
+              ...mockBusiness,
+              category,
+              photo: undefined,
+              placeId: undefined,
+            }}
+          />,
+        );
+
+        // No placeId => no Google Places fetch for these cases.
+        expect(mockDispatch).not.toHaveBeenCalled();
+        // The category label is prepended to the address in the meta line.
+        expect(screen.getByText(new RegExp(`^${label}`))).toBeTruthy();
+      },
+    );
+  });
+
+  describe('photo resolution', () => {
+    it('renders a string photo directly as the tile image', () => {
+      render(
+        <LinkedBusinessCard
+          business={{
+            ...mockBusiness,
+            photo: 'https://cdn.example.com/pic.jpg',
+            placeId: undefined,
+          }}
+        />,
+      );
+
+      const stringPhoto = screen
+        .UNSAFE_getAllByType(Image)
+        .find(
+          (img: any) =>
+            img.props.source &&
+            img.props.source.uri === 'https://cdn.example.com/pic.jpg',
+        );
+      expect(stringPhoto).toBeDefined();
+    });
+
+    it('prefers the fetched Google Places photo over the business photo', async () => {
+      (fetchGooglePlacesImage as unknown as jest.Mock).mockReturnValue({
+        unwrap: jest
+          .fn()
+          .mockResolvedValue({photoUrl: 'http://google-places.com/photo.jpg'}),
+      });
+
+      render(
+        <LinkedBusinessCard business={{...mockBusiness, photo: undefined}} />,
+      );
+
+      await waitFor(() => {
+        const googlePhoto = screen
+          .UNSAFE_getAllByType(Image)
+          .find(
+            (img: any) =>
+              img.props.source &&
+              img.props.source.uri === 'http://google-places.com/photo.jpg',
+          );
+        expect(googlePhoto).toBeDefined();
+      });
+    });
+  });
+
+  describe('footer chips', () => {
+    it('shows only the rating chip when distance is missing', () => {
+      render(
+        <LinkedBusinessCard
+          business={{...mockBusiness, distance: undefined}}
+        />,
+      );
+
+      expect(screen.getByText('4.8')).toBeTruthy();
+      expect(screen.queryByText('5.2mi')).toBeNull();
+    });
+
+    it('shows only the distance chip when rating is missing', () => {
+      render(
+        <LinkedBusinessCard business={{...mockBusiness, rating: undefined}} />,
+      );
+
+      expect(screen.getByText('5.2mi')).toBeTruthy();
+      expect(screen.queryByText('4.8')).toBeNull();
+    });
+  });
 });

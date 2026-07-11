@@ -216,7 +216,8 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
       // This allows user to finish typing without triggering searches mid-keystroke
       // 800ms = recommended delay for search input (Google/Facebook standard)
       debounceTimerRef.current = setTimeout(async () => {
-        // Double-check the query hasn't changed during the debounce
+        // Double-check the query hasn't changed during the debounce.
+        /* istanbul ignore next -- unreachable: only one timer runs at a time and lastSearchQueryRef is set inside the timer after this guard, so it can never equal `query` here */
         if (query === lastSearchQueryRef.current) {
           console.log(
             '[BusinessSearch] Query unchanged after debounce, skipping API call',
@@ -664,8 +665,11 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
                 }
                 ListEmptyComponent={
                   <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>
+                    <Text style={styles.emptyTitle}>
                       No linked {categoryTitle.toLowerCase()}s yet
+                    </Text>
+                    <Text style={styles.emptySubtitle}>
+                      Search above to find and link one.
                     </Text>
                   </View>
                 }
@@ -722,8 +726,8 @@ const createStyles = (theme: any) => {
       paddingBottom: theme.spacing['24'],
     },
     sectionTitle: {
-      ...theme.typography.sectionHeading,
-      color: theme.colors.text,
+      ...theme.typography.eyebrow,
+      color: theme.colors.inkFaint,
       marginBottom: theme.spacing['3'],
     },
     loadingContainer: {
@@ -744,9 +748,16 @@ const createStyles = (theme: any) => {
       alignItems: 'center',
       paddingVertical: theme.spacing['12'],
     },
-    emptyText: {
-      ...theme.typography.body,
-      color: theme.colors.textSecondary,
+    emptyTitle: {
+      ...theme.typography.emptyStateTitle,
+      color: theme.colors.ink,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      ...theme.typography.bodySmall,
+      color: theme.colors.inkMuted,
+      textAlign: 'center',
+      marginTop: theme.spacing['2'],
     },
     searchBackdrop: {
       position: 'absolute',

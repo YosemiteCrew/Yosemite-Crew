@@ -11,6 +11,7 @@ import {
   Platform,
   Linking,
 } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -133,6 +134,41 @@ export const AppointmentFormScreen: React.FC = () => {
     entry.submission &&
     entry.status !== 'signed';
   const lockNonCheckboxInputs = Boolean(allowSign);
+
+  const headerSubtitle = useMemo(() => {
+    const dateLabel = appointment?.date ? getDisplayDate(appointment.date) : '';
+    const detail = [dateLabel, companion?.name].filter(Boolean).join(', ');
+    return [appointment?.organisationName, detail ? `for ${detail}` : '']
+      .filter(Boolean)
+      .join(' · ');
+  }, [appointment?.organisationName, appointment?.date, companion?.name]);
+
+  const progress = useMemo(() => {
+    const schema = entry?.form?.schema;
+    if (!schema?.length) {
+      return 0;
+    }
+    let total = 0;
+    let filled = 0;
+    const walk = (field: FormField) => {
+      if (field.type === 'group') {
+        const nested = (field as any).fields;
+        if (Array.isArray(nested)) {
+          nested.forEach(walk);
+        }
+        return;
+      }
+      if (field.type === 'signature') {
+        return;
+      }
+      total += 1;
+      if (isTruthy(values[field.id])) {
+        filled += 1;
+      }
+    };
+    schema.forEach(walk);
+    return total ? Math.round((filled / total) * 100) : 0;
+  }, [entry?.form?.schema, values]);
 
   useEffect(() => {
     setValues(entry?.submission?.answers ?? {});
@@ -403,6 +439,8 @@ export const AppointmentFormScreen: React.FC = () => {
           return (
             <PressableOpacity
               key={`${field.id}-${value}`}
+              accessibilityRole="radio"
+              accessibilityState={{selected: isSelected}}
               style={[
                 styles.optionItem,
                 isSelected && styles.optionItemSelected,
@@ -415,8 +453,9 @@ export const AppointmentFormScreen: React.FC = () => {
                 style={[
                   styles.optionIndicator,
                   isSelected && styles.optionIndicatorSelected,
-                ]}
-              />
+                ]}>
+                {isSelected ? <View style={styles.optionInnerDot} /> : null}
+              </View>
               <Text
                 style={[
                   styles.optionLabel,
@@ -640,6 +679,38 @@ export const AppointmentFormScreen: React.FC = () => {
     );
   }
 
+  const headerNode = (
+    <View style={styles.header}>
+      <PressableOpacity
+        testID="header-back"
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        style={styles.circleButton}
+        onPress={() => navigation.goBack()}>
+        <Ionicons name="chevron-back" size={18} color={theme.colors.inkBody} />
+      </PressableOpacity>
+
+      <View style={styles.headerTitleBlock}>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {entry.form.name}
+        </Text>
+        {headerSubtitle ? (
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {headerSubtitle}
+          </Text>
+        ) : null}
+      </View>
+
+      {isReadOnly ? (
+        <View style={styles.circleButton} />
+      ) : (
+        <View style={styles.headerRightSlot}>
+          <Text style={styles.headerStepText}>{`${progress}%`}</Text>
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.keyboardAvoidingView}
@@ -650,83 +721,115 @@ export const AppointmentFormScreen: React.FC = () => {
         onPress={Keyboard.dismiss}
         accessible={false}>
         <LiquidGlassHeaderScreen
-          header={
-            <Header
-              title="Form"
-              showBackButton
-              onBack={() => navigation.goBack()}
-              glass={false}
-            />
-          }
+          header={headerNode}
           contentPadding={theme.spacing['3']}>
           {contentPaddingStyle => (
-            <ScrollView
-              contentContainerStyle={[styles.container, contentPaddingStyle]}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}>
-              <View style={styles.formSurface}>
-                <Text style={styles.title}>{entry.form.name}</Text>
-                {entry.form.description ? (
-                  <Text style={styles.description}>
-                    {entry.form.description}
-                  </Text>
-                ) : null}
-
-                <View style={styles.fieldsContainer}>
-                  {(entry.form.schema ?? []).map(field => renderField(field))}
-                </View>
-
-                {isReadOnly ? null : (
-                  <LiquidGlassButton
-                    title={
-                      entry.signingRequired ? 'Submit & Continue' : 'Submit'
-                    }
-                    onPress={handleSubmit}
-                    height={56}
-                    borderRadius={theme.borderRadius.lg}
-                    textStyle={styles.buttonText}
-                    tintColor={theme.colors.secondary}
-                    disabled={submitting}
-                    loading={submitting}
-                  />
-                )}
-
-                {isReadOnly && canStartSigning ? (
-                  <LiquidGlassButton
-                    title="View & Sign"
-                    onPress={handleStartSigning}
-                    height={56}
-                    borderRadius={theme.borderRadius.lg}
-                    textStyle={styles.buttonText}
-                    tintColor={theme.colors.secondary}
-                    disabled={signing}
-                    loading={signing}
-                  />
-                ) : null}
-
-                {entry.status === 'signed' && signedPdfUrl ? (
-                  <LiquidGlassButton
-                    title="View & Download"
-                    onPress={handleOpenSignedPdf}
-                    height={56}
-                    borderRadius={theme.borderRadius.lg}
-                    textStyle={styles.buttonText}
-                    tintColor={theme.colors.secondary}
-                    glassEffect="clear"
-                    forceBorder
-                    borderColor={theme.colors.secondary}
-                  />
-                ) : null}
-
-                {entry.status === 'signed' && entry.submission?.submittedAt ? (
-                  <View style={styles.signedBadge}>
-                    <Text style={styles.signedBadgeText}>
-                      Signed on {getDisplayDate(entry.submission.submittedAt)}
-                    </Text>
+            <View style={styles.flex}>
+              {isReadOnly ? null : (
+                <View style={styles.progressWrap}>
+                  <View style={styles.progressTrack}>
+                    <View
+                      style={[styles.progressFill, {width: `${progress}%`}]}
+                    />
                   </View>
-                ) : null}
+                </View>
+              )}
+
+              <ScrollView
+                contentContainerStyle={[styles.container, contentPaddingStyle]}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}>
+                <View style={styles.formSurface}>
+                  {entry.form.description ? (
+                    <Text style={styles.description}>
+                      {entry.form.description}
+                    </Text>
+                  ) : null}
+
+                  <View style={styles.fieldsContainer}>
+                    {(entry.form.schema ?? []).map(field => renderField(field))}
+                  </View>
+
+                  {isReadOnly ? null : (
+                    <View style={styles.helperBanner}>
+                      <Ionicons
+                        name="save-outline"
+                        size={16}
+                        color={theme.colors.blueText}
+                      />
+                      <Text style={styles.helperBannerText}>
+                        Answers save as you go. You can finish later from the
+                        appointment.
+                      </Text>
+                    </View>
+                  )}
+
+                  {entry.status === 'signed' &&
+                  entry.submission?.submittedAt ? (
+                    <View style={styles.signedBadge}>
+                      <Text style={styles.signedBadgeText}>
+                        Signed on {getDisplayDate(entry.submission.submittedAt)}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </ScrollView>
+
+              <View style={styles.footer}>
+                <PressableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                  style={styles.footerBackBtn}
+                  onPress={() => navigation.goBack()}>
+                  <Text style={styles.footerBackText}>Back</Text>
+                </PressableOpacity>
+
+                <View style={styles.footerPrimarySlot}>
+                  {isReadOnly ? null : (
+                    <LiquidGlassButton
+                      title={
+                        entry.signingRequired ? 'Submit & Continue' : 'Submit'
+                      }
+                      onPress={handleSubmit}
+                      height={56}
+                      borderRadius={theme.borderRadius.button}
+                      textStyle={styles.buttonText}
+                      tintColor={theme.colors.cta}
+                      shadowIntensity="medium"
+                      disabled={submitting}
+                      loading={submitting}
+                    />
+                  )}
+
+                  {isReadOnly && canStartSigning ? (
+                    <LiquidGlassButton
+                      title="View & Sign"
+                      onPress={handleStartSigning}
+                      height={56}
+                      borderRadius={theme.borderRadius.button}
+                      textStyle={styles.buttonText}
+                      tintColor={theme.colors.cta}
+                      shadowIntensity="medium"
+                      disabled={signing}
+                      loading={signing}
+                    />
+                  ) : null}
+
+                  {entry.status === 'signed' && signedPdfUrl ? (
+                    <LiquidGlassButton
+                      title="View & Download"
+                      onPress={handleOpenSignedPdf}
+                      height={56}
+                      borderRadius={theme.borderRadius.button}
+                      textStyle={styles.secondaryButtonText}
+                      glassEffect="clear"
+                      forceBorder
+                      borderColor={theme.colors.divider}
+                    />
+                  ) : null}
+                </View>
               </View>
-            </ScrollView>
+            </View>
           )}
         </LiquidGlassHeaderScreen>
       </PressableOpacity>
@@ -775,18 +878,81 @@ const createStyles = (theme: any) => {
     keyboardAvoidingView: {
       flex: 1,
     },
-    container: {
-      paddingBottom: theme.spacing['18'],
-      paddingHorizontal: theme.spacing['2'],
+    flex: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingVertical: theme.spacing['2'],
+    },
+    circleButton: {
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    headerTitleBlock: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    headerTitle: {
+      ...theme.typography.labelSmall,
+      fontSize: 15.5,
+      fontWeight: '600',
+      letterSpacing: -0.2,
+      color: theme.colors.ink,
+      textAlign: 'center',
+    },
+    headerSubtitle: {
+      ...theme.typography.body12,
+      color: theme.colors.inkFaint,
+      textAlign: 'center',
+      marginTop: 1,
+    },
+    headerRightSlot: {
+      width: theme.spacing['10'],
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+    },
+    headerStepText: {
+      ...theme.typography.subtitleBold12,
+      fontSize: 12.5,
+      fontWeight: '700',
+      color: theme.colors.inkFaint,
+    },
+    progressWrap: {
+      paddingHorizontal: theme.spacing['5'],
+      marginTop: theme.spacing['3.5'],
+    },
+    progressTrack: {
+      height: 6,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.inset,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: 6,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blue,
+    },
+    container: {
+      paddingTop: theme.spacing['3.5'],
+      paddingBottom: theme.spacing['6'],
+      paddingHorizontal: theme.spacing['2'],
+      gap: theme.spacing['3.5'],
     },
     formSurface: {
       paddingHorizontal: theme.spacing['3'],
-      paddingVertical: theme.spacing['4'],
-      borderRadius: theme.borderRadius.lg,
       backgroundColor: 'transparent',
       borderWidth: 0,
-      gap: theme.spacing['3'],
+      gap: theme.spacing['3.5'],
     },
     loadingContainer: {
       padding: theme.spacing['4'],
@@ -794,69 +960,85 @@ const createStyles = (theme: any) => {
       justifyContent: 'center',
     },
     title: {
-      ...theme.typography.titleLarge,
-      color: theme.colors.secondary,
+      ...theme.typography.serifTitleSmall,
+      color: theme.colors.ink,
     },
     description: {
       ...theme.typography.body14,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     fieldsContainer: {
-      gap: theme.spacing['3'],
-      marginTop: theme.spacing['2'],
+      gap: theme.spacing['3.5'],
     },
     fieldContainer: {
-      gap: theme.spacing['1'],
-      marginBottom: theme.spacing['3'],
+      gap: theme.spacing['2'],
+      marginBottom: theme.spacing['1'],
     },
     label: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.secondary,
+      ...theme.typography.pillSubtitleBold15,
+      fontSize: 14.5,
+      lineHeight: 18,
+      fontWeight: '700',
+      color: theme.colors.ink,
+      marginBottom: theme.spacing['1'],
     },
     readOnlyValue: {
       ...theme.typography.body14,
       color: theme.colors.text,
     },
     readOnlyInputContainer: {
-      backgroundColor: theme.colors.cardBackground,
+      backgroundColor: theme.colors.fieldBg,
     },
     textArea: formStyles.textArea,
     optionList: {
-      gap: theme.spacing['2'],
+      gap: theme.spacing['2.5'],
     },
     optionItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: theme.spacing['3'],
+      minHeight: 50,
+      paddingHorizontal: theme.spacing['4'],
+      paddingVertical: theme.spacing['3'],
       borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: theme.borderRadius.md,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.field,
+      backgroundColor: theme.colors.screen2,
     },
     optionItemSelected: {
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primaryTint,
+      borderWidth: 1.5,
+      borderColor: theme.colors.blue,
+      backgroundColor: theme.colors.screen,
+      boxShadow: `0px 0px 0px 3px ${theme.colors.primaryTint}`,
     },
     optionIndicator: {
-      width: theme.spacing['4'],
-      height: theme.spacing['4'],
+      width: 20,
+      height: 20,
       borderRadius: theme.borderRadius.full,
-      borderWidth: 1,
-      borderColor: theme.colors.textSecondary,
-      marginRight: theme.spacing['2'],
-      backgroundColor: theme.colors.background,
+      borderWidth: 2,
+      borderColor: theme.colors.divider,
+      marginRight: theme.spacing['2.5'],
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.transparent,
     },
     optionIndicatorSelected: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
+      borderColor: theme.colors.blue,
+    },
+    optionInnerDot: {
+      width: 8,
+      height: 8,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blue,
     },
     optionLabel: {
       ...theme.typography.body14,
-      color: theme.colors.secondary,
+      fontSize: 14.5,
+      color: theme.colors.inkMuted,
       flex: 1,
     },
     optionLabelSelected: {
-      color: theme.colors.primary,
-      fontWeight: '600',
+      color: theme.colors.ink,
+      fontWeight: '700',
     },
     dateInput: {
       padding: theme.spacing['3'],
@@ -872,32 +1054,75 @@ const createStyles = (theme: any) => {
     },
     helperText: {
       ...theme.typography.body12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     errorText: formStyles.errorText,
-    groupContainer: {
-      padding: theme.spacing['3'],
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      borderRadius: theme.borderRadius.md,
+    helperBanner: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
       gap: theme.spacing['2'],
+      padding: theme.spacing['3'],
+      borderRadius: theme.borderRadius.field,
+      backgroundColor: theme.colors.blueSoft,
+    },
+    helperBannerText: {
+      ...theme.typography.body13,
+      color: theme.colors.blueText,
+      flex: 1,
+    },
+    groupContainer: {
+      padding: theme.spacing['4'],
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.card,
+      backgroundColor: theme.colors.screen2,
+      gap: theme.spacing['3'],
     },
     groupLabel: {
       ...theme.typography.titleSmall,
-      color: theme.colors.secondary,
+      color: theme.colors.ink,
     },
     groupFields: {
-      gap: theme.spacing['2'],
+      gap: theme.spacing['3'],
+    },
+    footer: {
+      flexDirection: 'row',
+      gap: theme.spacing['2.5'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['3.5'],
+      paddingBottom: theme.spacing['6'],
+      backgroundColor: theme.colors.background,
+    },
+    footerBackBtn: {
+      flex: 1,
+      height: 56,
+      borderRadius: theme.borderRadius.button,
+      borderWidth: 1,
+      borderColor: theme.colors.divider,
+      backgroundColor: theme.colors.transparent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    footerBackText: {
+      ...theme.typography.button,
+      color: theme.colors.inkBody,
+    },
+    footerPrimarySlot: {
+      flex: 2,
     },
     buttonText: {
       ...theme.typography.button,
-      color: theme.colors.white,
+      color: theme.colors.ctaText,
+    },
+    secondaryButtonText: {
+      ...theme.typography.button,
+      color: theme.colors.inkBody,
     },
     signedBadge: {
       backgroundColor: theme.colors.successSurface,
-      borderRadius: theme.borderRadius.md,
+      borderRadius: theme.borderRadius.field,
       padding: theme.spacing['3'],
-      marginTop: theme.spacing['4'],
+      marginTop: theme.spacing['1'],
       alignItems: 'center',
     },
     signedBadgeText: {

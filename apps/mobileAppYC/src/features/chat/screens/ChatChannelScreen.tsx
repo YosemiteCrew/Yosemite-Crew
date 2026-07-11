@@ -24,10 +24,13 @@ import {
   getAppointmentChannel,
 } from '../services/streamChatService';
 import {useTheme} from '@/hooks';
-import {Header} from '@/shared/components/common/Header/Header';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {GifLoader} from '@/shared/components/common';
 import {selectAuthUser} from '@/features/auth/selectors';
 import {CustomAttachment} from '../components/CustomAttachment';
+import {ChatEmptyState} from '../components/ChatEmptyState';
+import {ChatTypingIndicator} from '../components/ChatTypingIndicator';
 import type {TabParamList} from '@/navigation/types';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {
@@ -41,6 +44,66 @@ type RouteParams = {
   appointmentTime: string;
   doctorName: string;
   petName?: string;
+};
+
+const getInitials = (name: string): string => {
+  const cleaned = name.replace(/^dr\.?\s+/i, '').trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  const initials = parts
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join('');
+  return initials || '?';
+};
+
+const ChatChannelHeader: React.FC<{
+  doctorName: string;
+  petName?: string;
+  isTyping?: boolean;
+  onBack: () => void;
+}> = ({doctorName, petName, isTyping, onBack}) => {
+  const {theme} = useTheme();
+  const styles = useMemo(() => createHeaderStyles(theme), [theme]);
+  const initials = useMemo(() => getInitials(doctorName), [doctorName]);
+  const subtitle = petName ? `About ${petName}` : undefined;
+
+  let statusNode: React.ReactNode = null;
+  if (isTyping) {
+    statusNode = (
+      <Text style={styles.typingStatus} numberOfLines={1}>
+        typing...
+      </Text>
+    );
+  } else if (subtitle) {
+    statusNode = (
+      <Text style={styles.subtitle} numberOfLines={1}>
+        {subtitle}
+      </Text>
+    );
+  }
+
+  return (
+    <View style={styles.header} testID="Header">
+      <PressableOpacity
+        onPress={onBack}
+        style={styles.backButton}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        testID="HeaderBackButton">
+        <Ionicons name="chevron-back" size={18} color={theme.colors.inkBody} />
+      </PressableOpacity>
+      <View style={styles.avatar}>
+        <Text style={styles.avatarText}>{initials}</Text>
+        <View style={styles.presenceDot} />
+      </View>
+      <View style={styles.titleBlock}>
+        <Text style={styles.name} numberOfLines={1}>
+          {doctorName}
+        </Text>
+        {statusNode}
+      </View>
+    </View>
+  );
 };
 
 export const ChatChannelScreen: React.FC = () => {
@@ -58,6 +121,18 @@ export const ChatChannelScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [client, setClient] = useState<any>(null);
+  const [isTyping, setIsTyping] = useState(false);
+
+  const currentChatUserId = useMemo(
+    () => authUser?.parentId ?? authUser?.id,
+    [authUser],
+  );
+
+  const renderEmptyState = useCallback(
+    () => <ChatEmptyState petName={petName} />,
+    [petName],
+  );
+  const renderTypingIndicator = useCallback(() => <ChatTypingIndicator />, []);
 
   const initChat = useCallback(async () => {
     try {
@@ -165,6 +240,30 @@ export const ChatChannelScreen: React.FC = () => {
     };
   }, [initChat]);
 
+  // Live "typing..." status for the other participant in the header.
+  useEffect(() => {
+    if (!channel) {
+      return;
+    }
+    const handleTypingStart = (event: any) => {
+      if (event.user?.id && event.user.id !== currentChatUserId) {
+        setIsTyping(true);
+      }
+    };
+    const handleTypingStop = (event: any) => {
+      if (event.user?.id && event.user.id !== currentChatUserId) {
+        setIsTyping(false);
+      }
+    };
+    const startSub = channel.on('typing.start', handleTypingStart);
+    const stopSub = channel.on('typing.stop', handleTypingStop);
+    return () => {
+      startSub.unsubscribe();
+      stopSub.unsubscribe();
+      setIsTyping(false);
+    };
+  }, [channel, currentChatUserId]);
+
   const handleBackPress = useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -180,11 +279,10 @@ export const ChatChannelScreen: React.FC = () => {
     return (
       <LiquidGlassHeaderScreen
         header={
-          <Header
-            title={doctorName}
-            showBackButton
+          <ChatChannelHeader
+            doctorName={doctorName}
+            petName={petName}
             onBack={handleBackPress}
-            glass={false}
           />
         }
         useSafeAreaView
@@ -206,11 +304,10 @@ export const ChatChannelScreen: React.FC = () => {
     return (
       <LiquidGlassHeaderScreen
         header={
-          <Header
-            title={doctorName}
-            showBackButton
+          <ChatChannelHeader
+            doctorName={doctorName}
+            petName={petName}
             onBack={handleBackPress}
-            glass={false}
           />
         }
         useSafeAreaView
@@ -236,11 +333,11 @@ export const ChatChannelScreen: React.FC = () => {
   return (
     <LiquidGlassHeaderScreen
       header={
-        <Header
-          title={doctorName}
-          showBackButton
+        <ChatChannelHeader
+          doctorName={doctorName}
+          petName={petName}
+          isTyping={isTyping}
           onBack={handleBackPress}
-          glass={false}
         />
       }
       useSafeAreaView
@@ -254,6 +351,8 @@ export const ChatChannelScreen: React.FC = () => {
                 <Channel
                   channel={channel}
                   Attachment={CustomAttachment}
+                  EmptyStateIndicator={renderEmptyState}
+                  TypingIndicator={renderTypingIndicator}
                   myMessageTheme={myMessageTheme}>
                   <MessageList
                     onThreadSelect={threadMessage => {
@@ -275,6 +374,67 @@ export const ChatChannelScreen: React.FC = () => {
     </LiquidGlassHeaderScreen>
   );
 };
+
+const createHeaderStyles = (theme: any) =>
+  StyleSheet.create({
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingVertical: theme.spacing['3'],
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.hairline,
+    },
+    backButton: {
+      width: theme.spacing['10'],
+      height: theme.spacing['10'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.screen2,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatar: {
+      width: theme.spacing['11'],
+      height: theme.spacing['11'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.avatarVioletBg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: {
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.avatarVioletInk,
+    },
+    presenceDot: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      width: 11,
+      height: 11,
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.success,
+      borderWidth: 2,
+      borderColor: theme.colors.screen,
+    },
+    titleBlock: {
+      flex: 1,
+    },
+    name: {
+      ...theme.typography.pillSubtitleBold15,
+      color: theme.colors.ink,
+    },
+    subtitle: {
+      ...theme.typography.caption,
+      color: theme.colors.inkFaint,
+    },
+    typingStatus: {
+      ...theme.typography.captionBold,
+      color: theme.colors.blueText,
+    },
+  });
 
 const createStyles = (theme: any) =>
   StyleSheet.create({

@@ -185,7 +185,7 @@ describe('AddCoParentScreen', () => {
     );
 
     expect(screen.getByText('Add co-parent')).toBeTruthy();
-    expect(screen.getByText('Send an invite')).toBeTruthy();
+    expect(screen.getByText('Send invite')).toBeTruthy();
     expect(screen.getByTestId('Co-Parent name')).toBeTruthy();
     expect(screen.getByTestId('Email address')).toBeTruthy();
     expect(screen.getByTestId('Mobile (optional)')).toBeTruthy();

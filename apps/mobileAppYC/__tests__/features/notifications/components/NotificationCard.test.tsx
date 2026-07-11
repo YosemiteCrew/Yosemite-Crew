@@ -226,6 +226,18 @@ describe('NotificationCard', () => {
       const tileStyle = StyleSheet.flatten(iconTile?.props.style);
       expect(tileStyle.backgroundColor).toBe(mockTheme.colors.screen2);
     });
+
+    it('applies the read title style when the notification is already read', () => {
+      const readNotif = {...baseNotification, status: 'read' as const};
+      render(<NotificationCard notification={readNotif as any} />);
+      const titleStyle = StyleSheet.flatten(
+        screen.getByText('Test Notification').props.style,
+      );
+      // Read notifications use titleRead (fontWeight 600), not the bold
+      // titleUnread variant (Satoshi-Bold / fontWeight 700).
+      expect(titleStyle.fontWeight).toBe('600');
+      expect(titleStyle.fontFamily).not.toBe('Satoshi-Bold');
+    });
   });
 
   describe('Time Formatting Logic', () => {
@@ -382,6 +394,24 @@ describe('NotificationCard', () => {
       );
 
       expect(getPanGesture().enabled).toBe(false);
+    });
+
+    it('swipes left past threshold without an onArchive handler and does not throw', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+
+      expect(() =>
+        triggerGestureHandler('onEnd', {
+          translationX: -(SWIPE_THRESHOLD + 10),
+        }),
+      ).not.toThrow();
+    });
+
+    it('swipes right past threshold without an onDismiss handler and does not throw', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+
+      expect(() =>
+        triggerGestureHandler('onEnd', {translationX: SWIPE_THRESHOLD + 10}),
+      ).not.toThrow();
     });
   });
 });

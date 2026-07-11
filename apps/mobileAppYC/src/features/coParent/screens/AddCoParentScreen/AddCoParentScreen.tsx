@@ -3,8 +3,6 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  Image,
-  Text,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -13,10 +11,10 @@ import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
 import {useForm, Controller} from 'react-hook-form';
 import type {AppDispatch} from '@/app/store';
+import type {Theme} from '@/theme';
 import {useTheme} from '@/hooks';
 import {Header} from '@/shared/components/common/Header/Header';
 import {Input} from '@/shared/components/common';
-import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {addCoParent} from '../../thunks';
@@ -145,16 +143,6 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
             contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled">
-            {/* Hero Image - always show */}
-            <Image source={Images.heroImage} style={styles.heroImage} />
-
-            {/* Divider - always show */}
-            <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Send an invite</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
             {/* Invite Form - always visible */}
             <View style={styles.formContainer}>
               <View style={styles.formSection}>
@@ -236,12 +224,10 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
                   disabled={isSubmitting}
                   style={styles.button}
                   textStyle={styles.buttonText}
-                  tintColor={theme.colors.secondary}
+                  tintColor={theme.colors.cta}
                   shadowIntensity="medium"
-                  forceBorder
-                  borderColor={theme.colors.borderMuted}
                   height={56}
-                  borderRadius={16}
+                  borderRadius={theme.borderRadius.button}
                   loading={isSubmitting}
                 />
               </View>
@@ -261,39 +247,15 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
     },
     scrollContent: {
-      paddingHorizontal: theme.spacing['6'],
+      paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['5'],
       paddingBottom: theme.spacing['24'],
-    },
-    heroImage: {
-      width: '100%',
-      height: 220,
-      resizeMode: 'contain',
-      marginTop: theme.spacing['20'],
-    },
-    absoluteSearchLoadingContainer: {
-      display: 'none',
-    },
-    dividerContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: theme.spacing['2'],
-      marginInline: 40,
-      marginVertical: theme.spacing['10'],
-    },
-    dividerLine: {
-      flex: 1,
-      height: 1,
-      backgroundColor: theme.colors.text,
-    },
-    dividerText: {
-      ...theme.typography.sectionHeading,
-      color: theme.colors.text,
     },
     formContainer: {
       gap: theme.spacing['4'],
@@ -305,24 +267,18 @@ const createStyles = (theme: any) =>
       marginBottom: 0,
     },
     saveButton: {
-      marginTop: theme.spacing['5'],
+      marginTop: theme.spacing['2'],
     },
     button: {
       width: '100%',
-      backgroundColor: theme.colors.secondary,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      ...theme.shadows.lg,
+      backgroundColor: theme.colors.cta,
+      borderRadius: theme.borderRadius.button,
+      ...theme.shadows.cta,
     },
     buttonText: {
-      color: theme.colors.white,
-      ...theme.typography.titleMedium,
-    },
-    centerContent: {
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: theme.spacing['4'],
+      ...theme.typography.buttonLarge,
+      color: theme.colors.ctaText,
+      textAlign: 'center',
     },
   });
 

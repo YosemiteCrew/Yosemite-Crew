@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useCallback} from 'react';
-import {ScrollView, Text, View} from 'react-native';
+import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import {
   useNavigation,
   useFocusEffect,
@@ -35,7 +35,7 @@ import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 import {useTaskDateSelection} from '@/features/tasks/hooks/useTaskDateSelection';
 import {getTaskCardMeta} from '@/features/tasks/utils/taskCardHelpers';
 import {useTaskNavigationActions} from '@/features/tasks/hooks/useTaskNavigationActions';
-import {formatDateToISODate} from '@/shared/utils/dateHelpers';
+import {formatDateToISODate, isToday} from '@/shared/utils/dateHelpers';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'TasksMain'>;
 type Route = RouteProp<TaskStackParamList, 'TasksMain'>;
@@ -80,10 +80,64 @@ export const TasksMainScreen: React.FC = () => {
   const route = useRoute<Route>();
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
+  const summaryStyles = useMemo(() => createSummaryStyles(theme), [theme]);
   const styles = useCommonScreenStyles(theme, themeArg => ({
     contentContainer: {
       paddingTop: themeArg.spacing['2'],
       paddingBottom: themeArg.spacing['28'],
+    },
+    companionSelectorTask: {
+      marginTop: themeArg.spacing['2'],
+      marginBottom: themeArg.spacing['1'],
+      paddingHorizontal: themeArg.spacing['5'],
+    },
+    categorySection: {
+      marginTop: themeArg.spacing['4.5'],
+      paddingHorizontal: themeArg.spacing['5'],
+    },
+    categoryHeader: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+      marginBottom: themeArg.spacing['2'],
+    },
+    categoryTitle: {
+      ...themeArg.typography.eyebrow,
+      color: themeArg.colors.inkFaint,
+    },
+    emptyCard: {
+      backgroundColor: themeArg.colors.screen,
+      borderRadius: themeArg.borderRadius.card,
+      borderWidth: 1,
+      borderColor: themeArg.colors.hairline,
+      paddingVertical: themeArg.spacing['5'],
+      paddingHorizontal: themeArg.spacing['4'],
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    emptyText: {
+      ...themeArg.typography.bodySmall,
+      color: themeArg.colors.inkMuted,
+    },
+    emptyStateContainer: {
+      marginHorizontal: themeArg.spacing['5'],
+      marginTop: themeArg.spacing['8'],
+      paddingVertical: themeArg.spacing['10'],
+      paddingHorizontal: themeArg.spacing['5'],
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    },
+    emptyStateTitle: {
+      ...themeArg.typography.emptyStateTitle,
+      color: themeArg.colors.ink,
+      marginBottom: themeArg.spacing['2'],
+      textAlign: 'center' as const,
+    },
+    emptyStateText: {
+      ...themeArg.typography.bodyMedium,
+      color: themeArg.colors.inkMuted,
+      textAlign: 'center' as const,
+      lineHeight: 22,
     },
   }));
 
@@ -215,6 +269,33 @@ export const TasksMainScreen: React.FC = () => {
       return firstHasTasks ? -1 : 1;
     });
   }, [categoryData]);
+
+  // Progress summary for the selected date, derived from real task data.
+  const tasksForSelectedDate = useMemo(() => {
+    const dateStr = formatDateToISODate(selectedDate);
+    return allTasks.filter(task => taskOccursOnDate(task, dateStr));
+  }, [allTasks, selectedDate]);
+
+  const {doneCount, totalCount, progressPercent} = useMemo(() => {
+    const total = tasksForSelectedDate.length;
+    const done = tasksForSelectedDate.filter(
+      task => String(task.status).toUpperCase() === 'COMPLETED',
+    ).length;
+    return {
+      doneCount: done,
+      totalCount: total,
+      progressPercent: total > 0 ? Math.round((done / total) * 100) : 0,
+    };
+  }, [tasksForSelectedDate]);
+
+  const summaryLeadLabel = isToday(selectedDate)
+    ? 'Today'
+    : selectedDate.toLocaleDateString('en-US', {weekday: 'long'});
+  const summaryDateLabel = `${selectedDate.toLocaleDateString('en-US', {
+    weekday: 'short',
+  })} ${selectedDate.getDate()} ${selectedDate.toLocaleDateString('en-US', {
+    month: 'short',
+  })}`;
 
   useEffect(() => {
     if (!selectedCompanionId && companions.length > 0) {
@@ -372,10 +453,77 @@ export const TasksMainScreen: React.FC = () => {
               </Text>
             </View>
           ) : (
-            orderedCategories.map(category => renderCategorySection(category))
+            <>
+              {totalCount > 0 && (
+                <View style={summaryStyles.summaryCard}>
+                  <View style={summaryStyles.summaryLeft}>
+                    <Text style={summaryStyles.summaryHeadline}>
+                      {`${summaryLeadLabel}, ${doneCount} of ${totalCount} done`}
+                    </Text>
+                    <View style={summaryStyles.progressTrack}>
+                      <View
+                        style={[
+                          summaryStyles.progressFill,
+                          {width: `${progressPercent}%`},
+                        ]}
+                      />
+                    </View>
+                  </View>
+                  <Text style={summaryStyles.summaryMeta}>
+                    {summaryDateLabel}
+                  </Text>
+                </View>
+              )}
+              {orderedCategories.map(category =>
+                renderCategorySection(category),
+              )}
+            </>
           )}
         </ScrollView>
       )}
     </LiquidGlassHeaderScreen>
   );
 };
+
+const createSummaryStyles = (theme: any) =>
+  StyleSheet.create({
+    summaryCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: theme.spacing['3'],
+      marginTop: theme.spacing['1'],
+      marginBottom: theme.spacing['2'],
+      marginHorizontal: theme.spacing['5'],
+      paddingVertical: theme.spacing['3.5'],
+      paddingHorizontal: theme.spacing['4'],
+      backgroundColor: theme.colors.screen,
+      borderRadius: theme.borderRadius.cardSmall,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      ...theme.shadows.card,
+    },
+    summaryLeft: {
+      flex: 1,
+    },
+    summaryHeadline: {
+      ...theme.typography.subtitleBold14,
+      color: theme.colors.inkBody,
+    },
+    progressTrack: {
+      height: 6,
+      marginTop: theme.spacing['2'],
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.inset,
+      overflow: 'hidden',
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: theme.borderRadius.full,
+      backgroundColor: theme.colors.blue,
+    },
+    summaryMeta: {
+      ...theme.typography.caption,
+      color: theme.colors.inkFaint,
+    },
+  });

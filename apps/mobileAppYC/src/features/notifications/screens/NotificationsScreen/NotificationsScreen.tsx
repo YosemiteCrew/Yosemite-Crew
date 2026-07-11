@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  SectionList,
   Image,
   RefreshControl,
 } from 'react-native';
@@ -247,6 +247,38 @@ export const NotificationsScreen: React.FC = () => {
     [companions],
   );
 
+  // Group the real feed into Today / Yesterday / Earlier sections.
+  const sections = useMemo<Array<{title: string; data: Notification[]}>>(() => {
+    const now = new Date();
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    ).getTime();
+    const startOfYesterday = startOfToday - 86400000;
+
+    const today: Notification[] = [];
+    const yesterday: Notification[] = [];
+    const earlier: Notification[] = [];
+
+    for (const item of notifications) {
+      const time = new Date(item.timestamp).getTime();
+      if (!Number.isNaN(time) && time >= startOfToday) {
+        today.push(item);
+      } else if (!Number.isNaN(time) && time >= startOfYesterday) {
+        yesterday.push(item);
+      } else {
+        earlier.push(item);
+      }
+    }
+
+    const grouped: Array<{title: string; data: Notification[]}> = [];
+    if (today.length) grouped.push({title: 'Today', data: today});
+    if (yesterday.length) grouped.push({title: 'Yesterday', data: yesterday});
+    if (earlier.length) grouped.push({title: 'Earlier', data: earlier});
+    return grouped;
+  }, [notifications]);
+
   // Render empty state
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -293,7 +325,7 @@ export const NotificationsScreen: React.FC = () => {
       showBottomFade={false}>
       {contentPaddingStyle => (
         <>
-          {/* Header content placed above FlatList to preserve internal scroll state */}
+          {/* Header content placed above the list to preserve internal scroll state */}
           <View style={[styles.headerContent, contentPaddingStyle]}>
             <View style={styles.filtersWrapper}>
               <NotificationFilterPills
@@ -327,14 +359,18 @@ export const NotificationsScreen: React.FC = () => {
             </View>
           </View>
 
-          <FlatList
+          <SectionList
             style={styles.list}
             contentContainerStyle={styles.listContent}
-            data={notifications}
+            sections={sections}
             renderItem={renderNotificationItem}
+            renderSectionHeader={({section}) => (
+              <Text style={styles.sectionHeader}>{section.title}</Text>
+            )}
             keyExtractor={item => item.id}
             ListEmptyComponent={renderEmptyState}
             refreshControl={refreshControl}
+            stickySectionHeadersEnabled={false}
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
           />
@@ -356,7 +392,12 @@ const createStyles = (theme: any) => {
     listContent: {
       paddingHorizontal: theme.spacing['4'],
       paddingBottom: theme.spacing['10'],
-      gap: theme.spacing['3'],
+    },
+    sectionHeader: {
+      ...theme.typography.eyebrow,
+      color: theme.colors.inkFaint,
+      marginTop: theme.spacing['2'],
+      marginBottom: theme.spacing['2'],
     },
     headerContent: {
       marginBottom: theme.spacing['2'],
@@ -373,10 +414,10 @@ const createStyles = (theme: any) => {
     },
     segmentInner: {
       flexDirection: 'row',
-      backgroundColor: theme.colors.border,
+      backgroundColor: theme.colors.screen2,
       borderRadius: theme.borderRadius.md,
       padding: theme.spacing['1'],
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.hairline,
       borderWidth: 1,
     },
     segmentItem: {
@@ -389,15 +430,15 @@ const createStyles = (theme: any) => {
     segmentItemActive: {
       backgroundColor: theme.colors.cardBackground,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.hairline,
       ...theme.shadows.xs,
     },
     segmentText: {
       ...theme.typography.labelSmall,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     segmentTextActive: {
-      color: theme.colors.text,
+      color: theme.colors.inkBody,
       fontWeight: '700',
     },
     // Clear All styles removed

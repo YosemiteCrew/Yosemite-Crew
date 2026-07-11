@@ -2,34 +2,16 @@ import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen, act} from '@testing-library/react-native';
 import {OnboardingScreen} from '../../../../src/features/onboarding/screens/OnboardingScreen';
-import {Image, FlatList} from 'react-native';
+import {FlatList} from 'react-native';
 
 // --- Mocks ---
 
-// 1. Mock Theme
+// 1. Theme
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
-// 2. Mock LiquidGlassButton
-jest.mock(
-  '@/shared/components/common/LiquidGlassButton/LiquidGlassButton',
-  () => ({
-    LiquidGlassButton: ({title, onPress, ...props}: any) => {
-      const {Text, TouchableOpacity} = require('react-native');
-      return (
-        <TouchableOpacity
-          testID="liquid-glass-button"
-          onPress={onPress}
-          {...props}>
-          <Text>{title}</Text>
-        </TouchableOpacity>
-      );
-    },
-  }),
-);
-
-// 3. Mock SafeAreaView
+// 2. SafeAreaView
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({children, style}: any) => {
     const {View} = require('react-native');
@@ -38,109 +20,100 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0}),
 }));
 
-// 4. Mock Image Assets
-jest.mock('../../../assets/images/onboarding/text-image-1.png', () => ({
-  uri: 'mock-text-1',
-}));
-jest.mock('../../../assets/images/onboarding/bottom-image-1.png', () => ({
-  uri: 'mock-bottom-1',
-}));
-jest.mock('../../../assets/images/onboarding/text-image-2.png', () => ({
-  uri: 'mock-text-2',
-}));
-jest.mock('../../../assets/images/onboarding/bottom-image-2.png', () => ({
-  uri: 'mock-bottom-2',
-}));
-jest.mock('../../../assets/images/onboarding/text-image-3.png', () => ({
-  uri: 'mock-text-3',
-}));
-jest.mock('../../../assets/images/onboarding/bottom-image-3.png', () => ({
-  uri: 'mock-bottom-3',
-}));
-jest.mock('../../../assets/images/onboarding/text-image-4.png', () => ({
-  uri: 'mock-text-4',
-}));
-jest.mock('../../../assets/images/onboarding/bottom-image-4.png', () => ({
-  uri: 'mock-bottom-4',
-}));
+// react-native-svg, react-native-reanimated and react-native-linear-gradient
+// are mocked globally in jest.setup.js, so InkAnnotation + the gradient render
+// as plain hosts here.
 
 describe('OnboardingScreen', () => {
-  it('renders the FlatList and initial items correctly', () => {
+  it('renders the first slide headline, encircled accent and subtitle', () => {
     render(<OnboardingScreen onComplete={jest.fn()} />);
-
-    // Verify Image content is present (4 slides * 2 images = 8)
-    const images = screen.UNSAFE_getAllByType(Image);
-    expect(images.length).toBe(8);
+    expect(screen.getByText('Every companion has a story.')).toBeTruthy();
+    expect(screen.getByText('Keep it whole.')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Cats, dogs and horses: visits, doses and documents on one timeline you own.',
+      ),
+    ).toBeTruthy();
   });
 
-  it('renders the "Get Started" button on the last slide', () => {
+  it('renders the final-slide "Get started" CTA and the Sign in link', () => {
     render(<OnboardingScreen onComplete={jest.fn()} />);
-    const button = screen.getByText('Get Started');
-    expect(button).toBeTruthy();
+    expect(screen.getByText('Get started')).toBeTruthy();
+    expect(screen.getAllByText('Sign in').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Skip').length).toBeGreaterThan(0);
   });
 
-  it('calls onComplete when the "Get Started" button is pressed', () => {
-    const onCompleteMock = jest.fn();
-    render(<OnboardingScreen onComplete={onCompleteMock} />);
-
-    const touchable = screen.getByTestId('liquid-glass-button');
-    fireEvent.press(touchable);
-
-    expect(onCompleteMock).toHaveBeenCalledTimes(1);
+  it('calls onComplete when "Skip" is pressed', () => {
+    const onComplete = jest.fn();
+    render(<OnboardingScreen onComplete={onComplete} />);
+    fireEvent.press(screen.getAllByText('Skip')[0]);
+    expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it('handles viewable items changes correctly (100% Branch Coverage)', () => {
-    render(<OnboardingScreen onComplete={jest.fn()} />);
+  it('calls onComplete when the "Sign in" link is pressed', () => {
+    const onComplete = jest.fn();
+    render(<OnboardingScreen onComplete={onComplete} />);
+    fireEvent.press(screen.getAllByText('Sign in')[0]);
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
 
+  it('calls onComplete when "Get started" (last slide) is pressed', () => {
+    const onComplete = jest.fn();
+    render(<OnboardingScreen onComplete={onComplete} />);
+    fireEvent.press(screen.getByText('Get started'));
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not complete when a non-final "Continue" is pressed (it advances)', () => {
+    const onComplete = jest.fn();
+    render(<OnboardingScreen onComplete={onComplete} />);
+    // Slides 1 and 2 both show "Continue"; pressing one should scroll, not finish.
+    fireEvent.press(screen.getAllByText('Continue')[0]);
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it('scrolls back a slide when the "Back" glass button is pressed (index !== 0)', () => {
+    const onComplete = jest.fn();
+    render(<OnboardingScreen onComplete={onComplete} />);
+    // The Back button only renders on slides after the first (index !== 0).
+    const backButtons = screen.getAllByLabelText('Back');
+    expect(backButtons.length).toBeGreaterThan(0);
+    fireEvent.press(backButtons[0]);
+    // Back navigates within the list; it must not finish onboarding.
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it('tracks the active slide via onViewableItemsChanged (all branches)', () => {
+    render(<OnboardingScreen onComplete={jest.fn()} />);
     const flatList = screen.UNSAFE_getByType(FlatList);
 
-    // 1. Test Normal Update (Index > 0)
-    // Covers: viewableItems.length > 0 AND right side of || 0 NOT taken
+    // index present and > 0
     act(() => {
       flatList.props.onViewableItemsChanged({
-        viewableItems: [{index: 2, item: {}, key: '3', isViewable: true}],
+        viewableItems: [{index: 1, item: {}, key: '2', isViewable: true}],
         changed: [],
       });
+    });
+    // index null -> guarded, no update
+    act(() => {
+      flatList.props.onViewableItemsChanged({
+        viewableItems: [{index: null, item: {}, key: 'x', isViewable: true}],
+        changed: [],
+      });
+    });
+    // empty -> if condition false
+    act(() => {
+      flatList.props.onViewableItemsChanged({viewableItems: [], changed: []});
     });
 
-    // 2. Test Fallback Logic (Index is 0)
-    // Covers: viewableItems.length > 0 AND right side of || 0 TAKEN (0 || 0)
-    act(() => {
-      flatList.props.onViewableItemsChanged({
-        viewableItems: [{index: 0, item: {}, key: '1', isViewable: true}],
-        changed: [],
-      });
-    });
-
-    // 3. Test Empty Array (If condition false)
-    // Covers: viewableItems.length <= 0 branch
-    act(() => {
-      flatList.props.onViewableItemsChanged({
-        viewableItems: [],
-        changed: [],
-      });
-    });
+    expect(screen.getByText('Every companion has a story.')).toBeTruthy();
   });
 
-  it('extracts keys correctly using keyExtractor', () => {
+  it('extracts keys via keyExtractor', () => {
     render(<OnboardingScreen onComplete={jest.fn()} />);
     const flatList = screen.UNSAFE_getByType(FlatList);
-
-    // Manually invoke keyExtractor to cover the inline function: item => item.id
-    const testItem = {
-      id: 'test-id-123',
-      textImage: 1,
-      bottomImage: 2,
-      textImageWidth: 100,
-      bottomImageHeight: 100,
-    };
-    const key = flatList.props.keyExtractor(testItem, 0);
-
-    expect(key).toBe('test-id-123');
-  });
-
-  it('renders matches snapshot', () => {
-    render(<OnboardingScreen onComplete={jest.fn()} />);
-    expect(screen.toJSON()).toMatchSnapshot();
+    expect(flatList.props.keyExtractor({id: 'slide-9'} as any, 0)).toBe(
+      'slide-9',
+    );
   });
 });

@@ -109,6 +109,7 @@ export const DeleteAccountBottomSheet = ({
     <ConfirmActionBottomSheet
       ref={sheetRef}
       snapPoints={['50%', '60%']}
+      destructive
       title="Delete account"
       message="Are you sure you want to delete your account?"
       messageAlign="left"
@@ -125,7 +126,7 @@ export const DeleteAccountBottomSheet = ({
       primaryButton={{
         label: isProcessing ? 'Deleting...' : 'Delete',
         onPress: handleDelete,
-        tintColor: theme.colors.secondary,
+        tintColor: theme.colors.danger,
         textStyle: styles.deleteText,
         style: styles.deleteButton,
         disabled: isDeleteDisabled || isProcessing,

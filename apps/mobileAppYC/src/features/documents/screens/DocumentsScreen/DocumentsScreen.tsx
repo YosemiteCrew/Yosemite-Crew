@@ -31,6 +31,15 @@ export const DocumentsScreen: React.FC = () => {
       paddingHorizontal: themeArg.spacing['6'],
       paddingBottom: themeArg.spacing['32'],
     },
+    sectionTitle: {
+      ...themeArg.typography.eyebrow,
+      color: themeArg.colors.inkFaint,
+      marginBottom: themeArg.spacing['3'],
+    },
+    categoryTile: {
+      width: '100%' as const,
+      marginBottom: themeArg.spacing['3'],
+    },
   }));
   useDocumentCompanionSync({companions, selectedCompanionId, dispatch});
   const {handleAddDocument, handleViewDocument, handleEditDocument} =
@@ -129,7 +138,8 @@ export const DocumentsScreen: React.FC = () => {
                 key={category.id}
                 icon={category.icon}
                 title={category.label}
-                subtitle={`${category.fileCount} file${category.fileCount === 1 ? '' : 's'}`}
+                subtitle={category.description ?? ''}
+                count={category.fileCount}
                 isSynced={category.isSynced}
                 onPress={() => handleCategoryPress(category.id)}
                 containerStyle={styles.categoryTile}

@@ -1,10 +1,8 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
-import { CategoryTile } from '@/shared/components/common/CategoryTile/CategoryTile';
-import { Images } from '@/assets/images';
-import { mockTheme } from '../setup/mockTheme';
-import { useTheme } from '@/hooks';
-// Removed 'View' import as it's not used directly in the test file, only in mocks
+import {render, fireEvent} from '@testing-library/react-native';
+import {CategoryTile} from '@/shared/components/common/CategoryTile/CategoryTile';
+import {mockTheme} from '../setup/mockTheme';
+import {useTheme} from '@/hooks';
 
 // --- Mocks ---
 
@@ -17,33 +15,28 @@ jest.mock('@/hooks', () => {
   };
 });
 
-// 2. Spy on the props passed to the child component
-const mockIconInfoTile = jest.fn();
-
-jest.mock('@/shared/components/common/tiles/IconInfoTile', () => {
-  // FIX: Dependencies must be required *inside* the mock factory
-  const { View } = require('react-native');
-
-  return {
-    IconInfoTile: jest.fn((props: any) => {
-      // Call the spy
-      mockIconInfoTile(props);
-      // Render the rightAccessory so we can test it
-      return (
-        <View testID="mock-icon-info-tile">{props.rightAccessory}</View>
-      );
-    }),
-  };
-});
-
-// 2. Mock assets
-jest.mock('@/assets/images', () => ({
-  Images: {
-    rightArrow: 12345, // Mocked image source
+// 2. Mock PressableOpacity to a simple host element that forwards onPress,
+//    testID and style so presses and style passthrough can be asserted.
+//    (Ionicons is globally mocked in jest.setup.js and renders as a Text node
+//    with testID `icon-<name>`.)
+jest.mock(
+  '@/shared/components/common/PressableOpacity/PressableOpacity',
+  () => {
+    const ReactActual = require('react');
+    const {View} = require('react-native');
+    return {
+      __esModule: true,
+      PressableOpacity: ({children, testID, onPress, style, ...props}: any) =>
+        ReactActual.createElement(
+          View,
+          {testID, onPress, style, ...props},
+          children,
+        ),
+    };
   },
-}));
+);
 
-// 3. Mock react-native
+// 3. Mock react-native primitives
 jest.mock('react-native', () => {
   const ReactActual = jest.requireActual('react');
   const RN = jest.requireActual('react-native');
@@ -69,7 +62,7 @@ jest.mock('react-native', () => {
     PixelRatio: RN.PixelRatio,
     Appearance: {
       getColorScheme: jest.fn(() => 'light'),
-      addChangeListener: jest.fn(() => ({ remove: jest.fn() })),
+      addChangeListener: jest.fn(() => ({remove: jest.fn()})),
     },
   };
 });
@@ -78,81 +71,88 @@ jest.mock('react-native', () => {
 
 describe('CategoryTile', () => {
   const mockOnPress = jest.fn();
-  const mockIcon = { uri: 'mock-icon-uri' };
+  const mockIcon = {uri: 'mock-icon-uri'};
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useTheme as jest.Mock).mockReturnValue({ theme: mockTheme, isDark: false });
+    (useTheme as jest.Mock).mockReturnValue({theme: mockTheme, isDark: false});
   });
 
-  it('passes all props correctly to IconInfoTile with defaults', () => {
-    const { getByTestId } = render(
-      <CategoryTile
-        icon={mockIcon}
-        title="Test Title"
-        subtitle="Test Subtitle"
-        onPress={mockOnPress}
-      />,
-    );
-
-    // Check that the child was called with all the correct props
-    expect(mockIconInfoTile).toHaveBeenCalledWith(
-      expect.objectContaining({
-        icon: mockIcon,
-        title: 'Test Title',
-        subtitle: 'Test Subtitle',
-        onPress: mockOnPress,
-        isSynced: false, // Verifies default prop
-        syncLabel: 'Synced with\nYosemite Crew PMS',
-        containerStyle: undefined,
-      }),
-    );
-
-    // Check that the rightAccessory (the arrow) was rendered
-    const rightArrow = getByTestId('mock-image');
-    expect(rightArrow).toBeTruthy();
-    expect(rightArrow.props.source).toBe(Images.rightArrow);
-    expect(rightArrow.props.style).toEqual(
-      expect.objectContaining({
-        tintColor: '#747473',
-      }),
-    );
-  });
-
-  it('passes isSynced={true} when provided', () => {
+  const renderTile = (
+    props: Partial<React.ComponentProps<typeof CategoryTile>> = {},
+  ) =>
     render(
       <CategoryTile
         icon={mockIcon}
-        title="Test"
-        subtitle="Test"
+        title="Health"
+        subtitle="Vaccination records"
         onPress={mockOnPress}
-        isSynced={true}
+        {...props}
       />,
     );
 
-    expect(mockIconInfoTile).toHaveBeenCalledWith(
-      expect.objectContaining({
-        isSynced: true,
-      }),
-    );
+  it('renders the title, subtitle and trailing chevron', () => {
+    const {getByText, getByTestId} = renderTile();
+
+    expect(getByText('Health')).toBeTruthy();
+    expect(getByText('Vaccination records')).toBeTruthy();
+    // Ionicons chevron (globally mocked → testID `icon-<name>`)
+    expect(getByTestId('icon-chevron-forward')).toBeTruthy();
   });
 
-  it('passes containerStyle when provided', () => {
-    const customStyle = { backgroundColor: 'red' };
-    render(
-      <CategoryTile
-        icon={mockIcon}
-        title="Test"
-        subtitle="Test"
-        onPress={mockOnPress}
-        containerStyle={customStyle}
-      />,
-    );
+  it('calls onPress when the tile is pressed', () => {
+    const {getByTestId} = renderTile();
 
-    expect(mockIconInfoTile).toHaveBeenCalledWith(
-      expect.objectContaining({
-        containerStyle: customStyle,
-      }),
-    );
+    fireEvent.press(getByTestId('category-tile'));
+
+    expect(mockOnPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the count badge when a count is provided', () => {
+    const {getByTestId, getByText} = renderTile({count: 7});
+
+    const badge = getByTestId('category-tile-count');
+    expect(badge).toBeTruthy();
+    expect(getByText('7')).toBeTruthy();
+  });
+
+  it('does not render the count badge when count is omitted', () => {
+    const {queryByTestId} = renderTile();
+
+    expect(queryByTestId('category-tile-count')).toBeNull();
+  });
+
+  it('renders the SYNCED pill when isSynced is true', () => {
+    const {getByTestId, getByText} = renderTile({isSynced: true});
+
+    expect(getByTestId('category-tile-synced')).toBeTruthy();
+    expect(getByText('SYNCED')).toBeTruthy();
+  });
+
+  it('does not render the SYNCED pill by default', () => {
+    const {queryByTestId, queryByText} = renderTile();
+
+    expect(queryByTestId('category-tile-synced')).toBeNull();
+    expect(queryByText('SYNCED')).toBeNull();
+  });
+
+  it('applies containerStyle to the tile', () => {
+    const customStyle = {marginBottom: 12};
+    const {getByTestId} = renderTile({containerStyle: customStyle});
+
+    const root = getByTestId('category-tile');
+    expect(root.props.style).toEqual(expect.arrayContaining([customStyle]));
+  });
+
+  it('honours a custom testID for the tile and its sub-elements', () => {
+    const {getByTestId} = renderTile({
+      testID: 'admin-tile',
+      count: 3,
+      isSynced: true,
+    });
+
+    expect(getByTestId('admin-tile')).toBeTruthy();
+    expect(getByTestId('admin-tile-count')).toBeTruthy();
+    expect(getByTestId('admin-tile-synced')).toBeTruthy();
   });
 });

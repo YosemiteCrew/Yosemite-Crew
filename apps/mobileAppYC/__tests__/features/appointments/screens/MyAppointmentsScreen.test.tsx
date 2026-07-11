@@ -1,4 +1,5 @@
 import React from 'react';
+import {SectionList} from 'react-native';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act, screen} from '@testing-library/react-native';
 import {Provider} from 'react-redux';
@@ -105,13 +106,25 @@ jest.mock('@/features/appointments/utils/appointmentCardData', () => ({
     // exercising that branch instead of always trusting the card data.
     const checkInLabel = '';
 
+    // 'biz-nodir' resolves to neither a place id nor an address so the
+    // Get Directions handler falls through to its final no-op branch.
+    let mockBusinessAddress = '123 St';
+    let mockGooglePlacesId: string | null = 'gp-1';
+    if (item.businessId === 'biz-2') {
+      mockBusinessAddress = '456 Rd';
+      mockGooglePlacesId = null;
+    } else if (item.businessId === 'biz-nodir') {
+      mockBusinessAddress = '';
+      mockGooglePlacesId = null;
+    }
+
     return {
       cardTitle: 'Dr. Test',
       cardSubtitle: 'General',
       businessName:
         item.businessId === 'biz-2' ? 'Grooming Salon' : 'Vet Clinic',
-      businessAddress: item.businessId === 'biz-2' ? '456 Rd' : '123 St',
-      googlePlacesId: item.businessId === 'biz-2' ? null : 'gp-1',
+      businessAddress: mockBusinessAddress,
+      googlePlacesId: mockGooglePlacesId,
 
       needsPayment,
       isPaymentFailed,
@@ -731,6 +744,221 @@ describe('MyAppointmentsScreen', () => {
       expect(() =>
         avatarErrorBtns.forEach(btn => fireEvent.press(btn)),
       ).not.toThrow();
+    });
+  });
+
+  describe('Warm-bone branch coverage', () => {
+    const buildStore = (
+      companions: any[],
+      selectedCompanionId: any,
+      upcomingOverride: any,
+      pastOverride: any,
+    ) =>
+      mockStore({
+        companion: {companions, selectedCompanionId},
+        appointments: {upcomingOverride, pastOverride},
+      });
+
+    it('invokes the SectionList onEndReached pagination placeholder without side effects', () => {
+      renderScreen();
+      const list = screen.UNSAFE_getByType(SectionList);
+      expect(() => act(() => list.props.onEndReached())).not.toThrow();
+    });
+
+    it('auto-selects the first companion via _id when id is absent', () => {
+      store = buildStore([{_id: 'cid', name: 'NoId'}], null, [], []);
+      renderScreen();
+      expect(setSelectedCompanion).toHaveBeenCalledWith('cid');
+    });
+
+    it('auto-selects the first companion via identifier value when id and _id are absent', () => {
+      store = buildStore(
+        [{identifier: [{value: 'ident'}], name: 'IdentOnly'}],
+        null,
+        [],
+        [],
+      );
+      renderScreen();
+      expect(setSelectedCompanion).toHaveBeenCalledWith('ident');
+    });
+
+    it('does not auto-select a companion when the companion list is empty', () => {
+      store = buildStore([], null, [], []);
+      renderScreen();
+      expect(setSelectedCompanion).not.toHaveBeenCalled();
+    });
+
+    it('does not auto-select a companion when the first companion has no id fields', () => {
+      store = buildStore([{name: 'Ghost'}], null, [], []);
+      renderScreen();
+      expect(setSelectedCompanion).not.toHaveBeenCalled();
+    });
+
+    it('sorts upcoming appointments using start and time fallbacks', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-start',
+            businessId: 'biz-1',
+            date: '2023-12-25',
+            time: '10:00',
+            start: '2023-12-25T10:00:00Z',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+          {
+            id: 'u-notime',
+            businessId: 'biz-1',
+            date: '2023-12-24',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+          {
+            id: 'u-plain',
+            businessId: 'biz-1',
+            date: '2023-12-26',
+            time: '09:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getAllByTestId('card-Dr. Test').length).toBe(3);
+    });
+
+    it('splits far-future upcoming appointments into a Later group', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-soon',
+            businessId: 'biz-1',
+            date: '2023-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+          {
+            id: 'u-later',
+            businessId: 'biz-1',
+            date: '2999-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getByText('This week')).toBeTruthy();
+      expect(screen.getByText('Later')).toBeTruthy();
+    });
+
+    it('renders an empty state card when there are no past appointments', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [],
+        [],
+      );
+      renderScreen();
+      switchToPast();
+      expect(screen.getByText('No past appointments')).toBeTruthy();
+      expect(
+        screen.getByText('Completed appointments will appear here.'),
+      ).toBeTruthy();
+    });
+
+    it('renders an empty state card when there are no upcoming appointments', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [],
+        [],
+      );
+      renderScreen();
+      expect(screen.getByText('No upcoming appointments')).toBeTruthy();
+      expect(
+        screen.getByText('Book a new appointment to see it here.'),
+      ).toBeTruthy();
+    });
+
+    it('does nothing for Get Directions when there is no place id or address', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-nodir',
+            businessId: 'biz-nodir',
+            date: '2023-12-25',
+            time: '10:00',
+            status: 'CONFIRMED',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      fireEvent.press(screen.getByTestId('btn-directions'));
+      expect(openMapsToPlaceId).not.toHaveBeenCalled();
+      expect(openMapsToAddress).not.toHaveBeenCalled();
+    });
+
+    it('resolves the "In progress" check-in label for an in-progress appointment', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [
+          {
+            id: 'u-inprog',
+            businessId: 'biz-1',
+            date: '2023-12-25',
+            time: '10:00',
+            status: 'IN_PROGRESS',
+            companionId: 'c1',
+          },
+        ],
+        [],
+      );
+      renderScreen();
+      expect(screen.getByTestId('lbl-checkin-status').props.children).toBe(
+        'In progress',
+      );
+    });
+
+    it('navigates to ViewAppointment from the past card view-details and press handlers', () => {
+      store = buildStore(
+        [{id: 'c1', name: 'Buddy', identifier: [{value: 'c1'}]}],
+        'c1',
+        [],
+        [
+          {
+            id: 'p-detail',
+            businessId: 'biz-1',
+            date: '2023-01-01',
+            status: 'COMPLETED',
+            companionId: 'c1',
+          },
+        ],
+      );
+      renderScreen();
+      switchToPast();
+      fireEvent.press(screen.getByTestId('btn-view-details'));
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'p-detail',
+      });
+
+      mockNavigate.mockClear();
+      fireEvent.press(screen.getByTestId('btn-card-press'));
+      expect(mockNavigate).toHaveBeenCalledWith('ViewAppointment', {
+        appointmentId: 'p-detail',
+      });
     });
   });
 });

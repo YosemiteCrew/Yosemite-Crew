@@ -5,16 +5,8 @@ import {ViewDateTimeRow} from '../../../../../../src/features/tasks/screens/Task
 
 // --- Mocks ---
 
-// 1. Mock Assets
-jest.mock('@/assets/images', () => ({
-  Images: {
-    calendarIcon: {uri: 'calendar-icon-uri'},
-    clockIcon: {uri: 'clock-icon-uri'},
-  },
-}));
-
-// 2. Mock Child Component (ViewTouchField)
-// We verify props passed to it by rendering them or checking call arguments
+// Mock the shared detail-row component (ViewTouchField) so we can assert the
+// exact props ViewDateTimeRow forwards to each stacked row.
 const MockViewTouchField = jest.fn((props: any) => {
   const {View, Text} = require('react-native');
   return (
@@ -40,57 +32,73 @@ describe('ViewDateTimeRow', () => {
     dateValue: '2023-10-27',
     timeLabel: 'Time',
     timeValue: '10:00 AM',
-    dateTimeRowStyle: {flexDirection: 'row'},
-    dateTimeFieldStyle: {flex: 1},
-    calendarIconStyle: {width: 20},
-    clockIconStyle: {width: 20},
   };
 
   beforeEach(() => {
     MockViewTouchField.mockClear();
   });
 
-  it('renders correctly with given props', () => {
+  it('renders the date and time as two stacked detail rows', () => {
     const {getByTestId, getByText} = render(<ViewDateTimeRow {...mockProps} />);
 
-    // Ensure both fields are rendered via our mock
+    // Both stacked rows render via the mocked ViewTouchField
     expect(getByTestId('view-field-Date')).toBeTruthy();
     expect(getByTestId('view-field-Time')).toBeTruthy();
 
-    // Verify values are displayed
+    // Labels + values are surfaced
+    expect(getByText('Date')).toBeTruthy();
     expect(getByText('2023-10-27')).toBeTruthy();
+    expect(getByText('Time')).toBeTruthy();
     expect(getByText('10:00 AM')).toBeTruthy();
+
+    // Exactly two detail rows are rendered
+    expect(MockViewTouchField).toHaveBeenCalledTimes(2);
   });
 
-  it('passes correct props to Date field', () => {
+  it('passes the date label and value to the first detail row', () => {
     render(<ViewDateTimeRow {...mockProps} />);
 
-    // Check if the mock was called with the correct props for Date
+    // The date row now only receives label + value (no icon/style props)
     expect(MockViewTouchField).toHaveBeenCalledWith(
       expect.objectContaining({
         label: 'Date',
         value: '2023-10-27',
-        // We expect the mocked image object
-        icon: expect.objectContaining({uri: 'calendar-icon-uri'}),
-        iconStyle: mockProps.calendarIconStyle,
-        fieldGroupStyle: mockProps.dateTimeFieldStyle,
       }),
     );
   });
 
-  it('passes correct props to Time field', () => {
+  it('passes the time label and value to the second detail row', () => {
     render(<ViewDateTimeRow {...mockProps} />);
 
-    // Check if the mock was called with the correct props for Time
+    // The time row now only receives label + value (no icon/style props)
     expect(MockViewTouchField).toHaveBeenCalledWith(
       expect.objectContaining({
         label: 'Time',
         value: '10:00 AM',
-        // We expect the mocked image object
-        icon: expect.objectContaining({uri: 'clock-icon-uri'}),
-        iconStyle: mockProps.clockIconStyle,
-        fieldGroupStyle: mockProps.dateTimeFieldStyle,
       }),
+    );
+  });
+
+  it('renders custom labels and values passed via props', () => {
+    const {getByTestId, getByText} = render(
+      <ViewDateTimeRow
+        dateLabel="Due date"
+        dateValue="Tomorrow"
+        timeLabel="Reminder"
+        timeValue="9:30 AM"
+      />,
+    );
+
+    expect(getByTestId('view-field-Due date')).toBeTruthy();
+    expect(getByTestId('view-field-Reminder')).toBeTruthy();
+    expect(getByText('Tomorrow')).toBeTruthy();
+    expect(getByText('9:30 AM')).toBeTruthy();
+
+    expect(MockViewTouchField).toHaveBeenCalledWith(
+      expect.objectContaining({label: 'Due date', value: 'Tomorrow'}),
+    );
+    expect(MockViewTouchField).toHaveBeenCalledWith(
+      expect.objectContaining({label: 'Reminder', value: '9:30 AM'}),
     );
   });
 });

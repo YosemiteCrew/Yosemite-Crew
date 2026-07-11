@@ -580,6 +580,29 @@ describe('EditParentScreen', () => {
       );
     });
     // --- END NEW TEST ---
+
+    it('renders an empty local number when the phone has no digits', () => {
+      // Drives the `if (normalizedPhoneDigits)` false branch in parsedPhone.
+      setupMockState({...mockUser, phone: '+'} as any, false);
+      const {getByTestId} = renderComponent();
+      expect(getByTestId('mock-row-Phone').props.value).toBe('+1 ');
+    });
+
+    it('falls back to the first country when no US entry exists', () => {
+      // Drives the `COUNTRIES.find(US) ?? COUNTRIES[0]` fallback in parsedPhone.
+      const list = require('@/shared/utils/countryList.json');
+      const snapshot = list.map((c: any) => ({...c}));
+      list.length = 0;
+      list.push({name: 'United Kingdom', dial_code: '+44', code: 'GB'});
+      try {
+        setupMockState({...mockUser, phone: '5551212'} as any, false);
+        const {getByTestId} = renderComponent();
+        expect(getByTestId('mock-row-Phone').props.value).toBe('+44 5551212');
+      } finally {
+        list.length = 0;
+        snapshot.forEach((c: any) => list.push(c));
+      }
+    });
   });
 
   describe('Bottom Sheets and Pickers', () => {
@@ -806,6 +829,12 @@ describe('EditParentScreen', () => {
       expect(Clipboard.setString).not.toHaveBeenCalled();
       expect(Alert.alert).not.toHaveBeenCalled();
     });
+
+    it('renders an em dash placeholder when the user has no email', () => {
+      setupMockState({...mockUser, email: null} as any, false);
+      const {getByText} = renderComponent();
+      expect(getByText('—')).toBeTruthy();
+    });
   });
 
   describe('Token Loading', () => {
@@ -907,6 +936,61 @@ describe('EditParentScreen', () => {
         expect.any(Error),
       );
       warnSpy.mockRestore();
+    });
+
+    it('treats tokens with no expiry or access token as no token', async () => {
+      mockGetFreshStoredTokens.mockResolvedValueOnce({
+        accessToken: null,
+        expiresAt: null,
+      });
+      mockIsTokenExpired.mockReturnValueOnce(false);
+      const warnSpy = consoleWarnSpyFn();
+
+      const parentUser = {...mockUser, parentId: 'parent-1'};
+      setupMockState(parentUser, false);
+
+      const {getByTestId} = renderComponent();
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      fireEvent.press(getByTestId('mock-inline-save-First name'));
+
+      await waitFor(() => {
+        expect(warnSpy).toHaveBeenCalledWith(
+          '[EditParent] No access token available; skipping remote sync.',
+        );
+      });
+      // expiresAt was null, so the expiry check receives `undefined`, and the
+      // null accessToken resolves through the `?? null` fallback.
+      expect(mockIsTokenExpired).toHaveBeenCalledWith(undefined);
+      expect(mockUpdateParentProfile).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('ignores tokens that resolve after the screen unmounts', async () => {
+      let resolveTokens: (value: any) => void = () => {};
+      mockGetFreshStoredTokens.mockReturnValueOnce(
+        new Promise(resolve => {
+          resolveTokens = resolve;
+        }),
+      );
+
+      const {unmount} = renderComponent();
+      unmount();
+
+      await act(async () => {
+        resolveTokens({
+          accessToken: 'late-token',
+          expiresAt: Date.now() + 100000,
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      // Effect cleanup set mounted=false, so the expiry check never runs.
+      expect(mockIsTokenExpired).not.toHaveBeenCalled();
     });
   });
 
@@ -1109,6 +1193,40 @@ describe('EditParentScreen', () => {
         );
       });
       errorSpy.mockRestore();
+    });
+
+    it('defaults null profile fields when building the sync payload', async () => {
+      mockPreparePhotoPayload.mockResolvedValue({
+        remoteUrl: null,
+        localFile: null,
+      });
+      mockUpdateParentProfile.mockResolvedValue({});
+
+      const nullFieldsUser = {
+        ...parentUser,
+        firstName: null,
+        phone: null,
+        dateOfBirth: null,
+        profilePicture: null,
+        profileToken: null,
+      } as any;
+
+      // Save the last name so firstName stays null in the synced snapshot.
+      const {getByTestId} = await renderWithFreshToken(nullFieldsUser);
+      fireEvent.press(getByTestId('mock-inline-save-Last name'));
+
+      await waitFor(() => {
+        expect(mockUpdateParentProfile).toHaveBeenCalled();
+      });
+
+      expect(mockPreparePhotoPayload).toHaveBeenCalledWith(
+        expect.objectContaining({imageUri: null}),
+      );
+
+      const [payload] = mockUpdateParentProfile.mock.calls[0];
+      expect(payload.firstName).toBe('');
+      expect(payload.phoneNumber).toBe('');
+      expect(payload.dateOfBirth).toBeNull();
     });
   });
 });

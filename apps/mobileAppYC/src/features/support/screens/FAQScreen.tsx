@@ -11,7 +11,6 @@ import {Header} from '@/shared/components/common';
 import {PillSelector} from '@/shared/components/common/PillSelector/PillSelector';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {SearchBar} from '@/shared/components/common/SearchBar/SearchBar';
-import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {FAQ_CATEGORIES, FAQ_ENTRIES, type FAQEntry} from '../data/faqData';
@@ -24,8 +23,9 @@ interface HelpfulState {
   [faqId: string]: 'yes' | 'no' | null;
 }
 
-// Small presentational card extracted to reduce nesting inside FAQScreen
-const FAQCard: React.FC<{
+// Presentational accordion row inside the grouped FAQ card. Extracted to
+// reduce nesting inside FAQScreen.
+const FAQItem: React.FC<{
   faq: FAQEntry;
   isExpanded: boolean;
   relatedEntries: FAQEntry[];
@@ -46,92 +46,83 @@ const FAQCard: React.FC<{
   styles,
   theme,
 }) => (
-  <View style={styles.faqCardShadowWrapper}>
-    <LiquidGlassCard
-      glassEffect="clear"
-      interactive
-      padding="4"
-      shadow="base"
-      style={styles.faqCard}
-      fallbackStyle={styles.cardFallback}>
+  <Animated.View layout={LinearTransition.duration(200)} style={styles.faqItem}>
+    <PressableOpacity
+      style={styles.questionRow}
+      onPress={() => onToggle(faq.id)}
+      activeOpacity={0.7}>
+      <Text
+        style={[
+          styles.questionText,
+          isExpanded && styles.questionTextExpanded,
+        ]}>
+        {faq.question}
+      </Text>
+      <Image
+        source={Images.downArrow}
+        style={[styles.toggleIcon, isExpanded && styles.toggleIconExpanded]}
+      />
+    </PressableOpacity>
+
+    {isExpanded && (
       <Animated.View
+        entering={FadeIn.duration(160)}
+        exiting={FadeOut.duration(120)}
         layout={LinearTransition.duration(200)}
-        style={styles.faqCardContent}>
-        <PressableOpacity
-          style={styles.questionRow}
-          onPress={() => onToggle(faq.id)}
-          activeOpacity={0.8}>
-          <Text style={styles.questionText}>{faq.question}</Text>
-          <Image
-            source={Images.downArrow}
-            style={[styles.toggleIcon, isExpanded && styles.toggleIconExpanded]}
-          />
-        </PressableOpacity>
+        style={styles.answerSection}>
+        <Text style={styles.answerText}>{faq.answer}</Text>
 
-        {isExpanded && (
-          <Animated.View
-            entering={FadeIn.duration(160)}
-            exiting={FadeOut.duration(120)}
-            layout={LinearTransition.duration(200)}
-            style={styles.answerSection}>
-            <Text style={styles.answerText}>{faq.answer}</Text>
+        <View style={styles.helpfulSection}>
+          <Text style={styles.helpfulPrompt}>Was this answer helpful?</Text>
+          <View style={styles.helpfulButtons}>
+            <LiquidGlassButton
+              title="Yes"
+              size="small"
+              glassEffect="regular"
+              interactive
+              borderRadius="xl"
+              tintColor={theme.colors.secondary}
+              style={[
+                styles.glassButtonDark,
+                helpfulSelection === 'yes' && styles.glassButtonSelected,
+              ]}
+              textStyle={styles.glassButtonDarkText}
+              onPress={() => onHelpfulSelect(faq.id, 'yes')}
+            />
+            <LiquidGlassButton
+              title="No"
+              size="small"
+              glassEffect="regular"
+              interactive
+              borderRadius="xl"
+              forceBorder
+              tintColor={theme.colors.white}
+              borderColor={theme.colors.secondary}
+              style={styles.glassButtonLight}
+              textStyle={styles.glassButtonLightText}
+              onPress={() => onHelpfulSelect(faq.id, 'no')}
+            />
+          </View>
+        </View>
 
-            <View style={styles.helpfulSection}>
-              <Text style={styles.helpfulPrompt}>Was this answer helpful?</Text>
-              <View style={styles.helpfulButtons}>
-                <LiquidGlassButton
-                  title="Yes"
-                  size="small"
-                  glassEffect="regular"
-                  interactive
-                  borderRadius="xl"
-                  tintColor={theme.colors.secondary}
-                  style={[
-                    styles.glassButtonDark,
-                    helpfulSelection === 'yes' && styles.glassButtonSelected,
-                  ]}
-                  textStyle={styles.glassButtonDarkText}
-                  onPress={() => onHelpfulSelect(faq.id, 'yes')}
-                />
-                <LiquidGlassButton
-                  title="No"
-                  size="small"
-                  glassEffect="regular"
-                  interactive
-                  borderRadius="xl"
-                  forceBorder
-                  tintColor={theme.colors.white}
-                  borderColor={theme.colors.secondary}
-                  style={styles.glassButtonLight}
-                  textStyle={styles.glassButtonLightText}
-                  onPress={() => onHelpfulSelect(faq.id, 'no')}
-                />
-              </View>
-            </View>
-
-            {relatedEntries.length > 0 && (
-              <View style={styles.relatedSection}>
-                <Text style={styles.relatedTitle}>Related Questions</Text>
-                {relatedEntries.map(related => (
-                  <PressableOpacity
-                    key={related.id}
-                    style={styles.relatedRow}
-                    onPress={() => onRelatedPress(related.id, false)}
-                    activeOpacity={0.7}>
-                    <Text style={styles.relatedText}>{related.question}</Text>
-                    <Image
-                      source={Images.rightArrow}
-                      style={styles.relatedArrow}
-                    />
-                  </PressableOpacity>
-                ))}
-              </View>
-            )}
-          </Animated.View>
+        {relatedEntries.length > 0 && (
+          <View style={styles.relatedSection}>
+            <Text style={styles.relatedTitle}>Related Questions</Text>
+            {relatedEntries.map(related => (
+              <PressableOpacity
+                key={related.id}
+                style={styles.relatedRow}
+                onPress={() => onRelatedPress(related.id, false)}
+                activeOpacity={0.7}>
+                <Text style={styles.relatedText}>{related.question}</Text>
+                <Image source={Images.rightArrow} style={styles.relatedArrow} />
+              </PressableOpacity>
+            ))}
+          </View>
         )}
       </Animated.View>
-    </LiquidGlassCard>
-  </View>
+    )}
+  </Animated.View>
 );
 
 // (removed unused helper; per-component `onRelatedPress` used instead)
@@ -203,6 +194,7 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
     (id: string, isInFiltered: boolean) => {
       // keep behavior same as previous inline handler
       setExpandedFaqId(id);
+      /* istanbul ignore else -- isInFiltered is always false from the sole caller (FAQItem passes false). */
       if (!isInFiltered) {
         setSelectedCategory('all');
         setSearchQuery('');
@@ -264,22 +256,22 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
           style={styles.container}
           contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
           showsVerticalScrollIndicator={false}>
-          <View style={styles.faqList}>
-            {filteredFaqs.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>
-                  {searchQuery.trim()
-                    ? `No FAQs found for "${searchQuery}"`
-                    : 'No FAQs available in this category'}
+          {filteredFaqs.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                {searchQuery.trim()
+                  ? `No FAQs found for "${searchQuery}"`
+                  : 'No FAQs available in this category'}
+              </Text>
+              {Boolean(searchQuery.trim()) && (
+                <Text style={styles.emptyStateSubtext}>
+                  Try searching with different keywords or browse by category
                 </Text>
-                {Boolean(searchQuery.trim()) && (
-                  <Text style={styles.emptyStateSubtext}>
-                    Try searching with different keywords or browse by category
-                  </Text>
-                )}
-              </View>
-            ) : (
-              filteredFaqs.map(faq => {
+              )}
+            </View>
+          ) : (
+            <View style={styles.faqGroupCard}>
+              {filteredFaqs.map((faq, index) => {
                 const isExpanded = expandedFaqId === faq.id;
                 const relatedEntries: FAQEntry[] = (
                   faq.relatedIds ?? []
@@ -290,22 +282,24 @@ export const FAQScreen: React.FC<FAQScreenProps> = ({navigation}) => {
                 const helpfulSelection = helpfulState[faq.id] ?? null;
 
                 return (
-                  <FAQCard
-                    key={faq.id}
-                    faq={faq}
-                    isExpanded={isExpanded}
-                    relatedEntries={relatedEntries}
-                    helpfulSelection={helpfulSelection}
-                    onToggle={handleToggle}
-                    onHelpfulSelect={handleHelpfulSelection}
-                    onRelatedPress={onRelatedPress}
-                    styles={styles}
-                    theme={theme}
-                  />
+                  <React.Fragment key={faq.id}>
+                    {index > 0 && <View style={styles.itemDivider} />}
+                    <FAQItem
+                      faq={faq}
+                      isExpanded={isExpanded}
+                      relatedEntries={relatedEntries}
+                      helpfulSelection={helpfulSelection}
+                      onToggle={handleToggle}
+                      onHelpfulSelect={handleHelpfulSelection}
+                      onRelatedPress={onRelatedPress}
+                      styles={styles}
+                      theme={theme}
+                    />
+                  </React.Fragment>
                 );
-              })
-            )}
-          </View>
+              })}
+            </View>
+          )}
         </ScrollView>
       )}
     </LiquidGlassHeaderScreen>
@@ -335,9 +329,6 @@ const createStyles = (theme: any) => {
       marginBlock: theme.spacing['2'],
       marginTop: 6,
     },
-    faqList: {
-      gap: theme.spacing['4'],
-    },
     emptyState: {
       paddingVertical: theme.spacing['8'],
       paddingHorizontal: theme.spacing['6'],
@@ -358,44 +349,44 @@ const createStyles = (theme: any) => {
       textAlign: 'center',
       opacity: 0.7,
     },
-    faqCardShadowWrapper: {
-      borderRadius: theme.borderRadius.lg,
-      backgroundColor: theme.colors.cardBackground,
-      boxShadow: `0px 10px 15px ${theme.colors.neutralShadow}`,
-      overflow: 'visible',
+    faqGroupCard: {
+      backgroundColor: theme.colors.screen,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      borderRadius: theme.borderRadius.card,
+      overflow: 'hidden',
     },
-    faqCard: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      padding: 0,
-    },
-    faqCardContent: {
-      gap: theme.spacing['3'],
-      padding: theme.spacing['4'],
+    faqItem: {
       backgroundColor: 'transparent',
     },
-    cardFallback: {
-      backgroundColor: theme.colors.cardBackground,
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 0,
-      borderColor: 'transparent',
+    itemDivider: {
+      height: 1,
+      backgroundColor: theme.colors.hairline,
+      marginHorizontal: theme.spacing['4'],
     },
     questionRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: theme.spacing['3'],
+      paddingVertical: 15,
+      paddingHorizontal: theme.spacing['4'],
     },
     questionText: {
       flex: 1,
-      ...theme.typography.paragraphBold,
-      color: theme.colors.text,
+      ...theme.typography.labelSmall,
+      fontWeight: '600',
+      color: theme.colors.inkBody,
+    },
+    questionTextExpanded: {
+      ...theme.typography.labelSmallBold,
+      color: theme.colors.ink,
     },
     toggleIcon: {
-      width: 20,
-      height: 20,
+      width: 16,
+      height: 16,
       resizeMode: 'contain',
-      tintColor: theme.colors.text,
+      tintColor: theme.colors.inkFaint,
       transform: [{rotate: '0deg'}],
     },
     toggleIconExpanded: {
@@ -403,11 +394,13 @@ const createStyles = (theme: any) => {
     },
     answerSection: {
       gap: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['4'],
+      paddingBottom: theme.spacing['4'],
     },
     answerText: {
-      ...theme.typography.bodySmall,
+      ...theme.typography.mobileFootnote,
       lineHeight: 21,
-      color: theme.colors.textSecondary,
+      color: theme.colors.inkMuted,
     },
     helpfulSection: {
       gap: theme.spacing['2'],
@@ -448,6 +441,7 @@ const createStyles = (theme: any) => {
       height: theme.spacing['4'],
       marginLeft: theme.spacing['2'],
       resizeMode: 'contain',
+      tintColor: theme.colors.inkFaint2,
     },
     glassButtonDark: {
       minWidth: 100,

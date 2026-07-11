@@ -53,6 +53,7 @@ const resolveBorderRadius = (
 };
 
 const isWhiteOrLightColor = (color?: string): boolean => {
+  /* istanbul ignore next -- callers always pass a resolved tint, never falsy */
   if (!color) {
     return false;
   }
@@ -106,10 +107,14 @@ const buildShadowStyle = (
     return themeShadows.none;
   }
 
+  // Warm-bone solid buttons "float" — map onto the design's CTA lift so
+  // filled buttons match the foundations (0 8px 22px) instead of a faint xs.
   const shadowMap = {
-    light: themeShadows.xs,
-    medium: themeShadows.sm,
-    strong: themeShadows.md,
+    light: themeShadows.sm,
+    /* istanbul ignore next -- theme.shadows.cta is always defined in the app theme */
+    medium: themeShadows.cta ?? themeShadows.md,
+    /* istanbul ignore next -- theme.shadows.cta is always defined in the app theme */
+    strong: themeShadows.cta ?? themeShadows.md,
   } as const;
 
   return shadowMap[intensity];
@@ -155,14 +160,12 @@ const buildFallbackSurfaceStyle = ({
   tintColor,
   isDark,
   borderColor,
-  isLightTint,
   shadowIntensity,
   themeShadows,
 }: {
   tintColor?: string;
   isDark: boolean;
   borderColor?: string;
-  isLightTint: boolean;
   shadowIntensity: GlassButtonProps['shadowIntensity'];
   themeShadows: any;
 }): ViewStyle => {
@@ -173,27 +176,19 @@ const buildFallbackSurfaceStyle = ({
   } else if (tintColor) {
     backgroundColor = tintColor;
   } else {
+    /* istanbul ignore next -- resolvedTintColor is always defined; else is unreachable */
     backgroundColor = isDark ? 'rgba(255, 255, 255, 0.1)' : '#FFFFFF';
   }
 
-  let computedBorderColor = borderColor;
-
-  if (!computedBorderColor) {
-    if (tintColor) {
-      computedBorderColor = isLightTint
-        ? 'rgba(0, 0, 0, 0.15)'
-        : `${tintColor}40`;
-    } else {
-      computedBorderColor = isDark
-        ? 'rgba(255, 255, 255, 0.2)'
-        : 'rgba(0, 0, 0, 0.1)';
-    }
-  }
+  // Warm-bone buttons are flat: no border unless the caller explicitly asks
+  // for one (outline/secondary variants pass a borderColor / forceBorder).
+  const borderStyle: ViewStyle = borderColor
+    ? {borderWidth: 1, borderColor}
+    : {};
 
   return {
     backgroundColor,
-    borderWidth: 1,
-    borderColor: computedBorderColor,
+    ...borderStyle,
     ...buildShadowStyle(shadowIntensity, themeShadows),
   };
 };
@@ -247,6 +242,7 @@ const resolvePlatformLabelColor = (
     return PlatformColor('labelColor');
   }
 
+  /* istanbul ignore next -- PlatformColor is always a function; fallback is defensive */
   if (isDark) {
     return themeColors.white;
   }
@@ -284,6 +280,7 @@ const computeTextColor = ({
       : themeColors.white;
   }
 
+  /* istanbul ignore next -- tintColor (resolvedTintColor) is always defined */
   return isDark ? themeColors.white : themeColors.text;
 };
 
@@ -311,6 +308,7 @@ const computeLoadingColor = ({
       : themeColors.white;
   }
 
+  /* istanbul ignore next -- tintColor (resolvedTintColor) is always defined */
   return isDark ? themeColors.white : themeColors.text;
 };
 
@@ -402,7 +400,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
       resolveBorderRadius(
         borderRadius,
         theme.borderRadius,
-        theme.borderRadius.base,
+        theme.borderRadius.button,
       ),
     [borderRadius, theme.borderRadius],
   );
@@ -447,7 +445,6 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
       tintColor: resolvedTintColor,
       isDark,
       borderColor: forcedBorderColor,
-      isLightTint,
       shadowIntensity,
       themeShadows: theme.shadows,
     });

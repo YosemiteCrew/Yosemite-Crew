@@ -1,5 +1,5 @@
 import React from 'react';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 import {FormSigningScreen} from '../../../../src/features/forms/screens/FormSigningScreen';
 import {useDispatch, useSelector} from 'react-redux';
 import {useNavigation, useRoute, useIsFocused} from '@react-navigation/native';
@@ -8,10 +8,10 @@ import * as FormActions from '../../../../src/features/forms';
 
 // --- Mocks ---
 
-// FIX: Safe mock for react-native Linking and Alert to avoid TurboModule crash
+// Safe mock for react-native Linking/Alert to avoid TurboModule crash while
+// keeping every other RN export (View, Text, ActivityIndicator, StyleSheet, …).
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
-  // Return a safe mock object
   return Object.setPrototypeOf(
     {
       Linking: {
@@ -47,24 +47,14 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-jest.mock('../../../../src/hooks', () => ({
-  useTheme: () => ({
-    theme: {
-      colors: {
-        background: 'white',
-        cardBackground: 'white',
-        text: 'black',
-        textSecondary: 'gray',
-        secondary: 'blue',
-        white: 'white',
-        border: 'gray',
-      },
-      spacing: {'2': 8, '3': 12, '4': 16, '6': 24},
-      borderRadius: {lg: 8, md: 4},
-      typography: {body14: {}, button: {}},
-    },
-  }),
-}));
+// Use the shared complete theme mock so warm-bone tokens resolve.
+jest.mock('../../../../src/hooks', () => {
+  const {createMockUseTheme} = require('../../../setup/mockTheme');
+  return {
+    __esModule: true,
+    useTheme: jest.fn(() => createMockUseTheme()),
+  };
+});
 
 jest.mock('../../../../src/features/forms', () => ({
   fetchAppointmentForms: jest.fn(),
@@ -139,8 +129,23 @@ describe('FormSigningScreen', () => {
     formTitle: 'Test Form',
   };
 
+  // Mutable state controllers read by the useSelector mock at call time.
+  let appointmentsItems: any[];
+
+  const flushMicrotasks = async () => {
+    await act(async () => {
+      await Promise.resolve()
+        .then(() => undefined)
+        .then(() => undefined)
+        .then(() => undefined)
+        .then(() => undefined);
+    });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
+    appointmentsItems = [mockAppointment];
+
     (useDispatch as unknown as jest.Mock).mockReturnValue(mockDispatch);
     (useNavigation as jest.Mock).mockReturnValue({
       navigate: mockNavigate,
@@ -151,11 +156,8 @@ describe('FormSigningScreen', () => {
 
     (useSelector as unknown as jest.Mock).mockImplementation(selector => {
       const mockState = {
-        appointments: {items: [mockAppointment]},
+        appointments: {items: appointmentsItems},
       };
-      if (selector === FormActions.selectFormsForAppointment) {
-        return [];
-      }
       return selector(mockState);
     });
 
@@ -166,10 +168,10 @@ describe('FormSigningScreen', () => {
     (FormActions.fetchAppointmentForms as unknown as jest.Mock).mockReturnValue(
       {
         type: 'forms/fetch',
-        catch: jest.fn(),
       },
     );
     mockDispatch.mockResolvedValue({});
+    (Linking.openURL as jest.Mock).mockImplementation(() => Promise.resolve());
   });
 
   const renderScreen = () => render(<FormSigningScreen />);
@@ -186,6 +188,56 @@ describe('FormSigningScreen', () => {
         organisationId: 'biz-1',
         species: 'dog',
       });
+    });
+
+    it('passes null service/organisation/species when appointment lacks them', async () => {
+      appointmentsItems = [{id: mockAppointmentId}];
+      const {getByTestId} = renderScreen();
+
+      expect(FormActions.fetchAppointmentForms).toHaveBeenCalledWith({
+        appointmentId: mockAppointmentId,
+        serviceId: null,
+        organisationId: null,
+        species: null,
+      });
+
+      // Drive the refresh path too so the null-coalescing in handleRefresh runs.
+      await waitFor(() =>
+        expect(getByTestId('btn-Refresh status')).toBeTruthy(),
+      );
+      (FormActions.fetchAppointmentForms as jest.Mock).mockClear();
+      fireEvent(getByTestId('btn-Refresh status'), 'onTouchEnd');
+      await flushMicrotasks();
+      expect(FormActions.fetchAppointmentForms).toHaveBeenCalledWith({
+        appointmentId: mockAppointmentId,
+        serviceId: null,
+        organisationId: null,
+        species: null,
+      });
+    });
+
+    it('does not fetch and no-ops refresh when appointment is missing', async () => {
+      appointmentsItems = [];
+      const {getByTestId} = renderScreen();
+
+      expect(FormActions.fetchAppointmentForms).not.toHaveBeenCalled();
+
+      // The signing link still opens, so the action bar (refresh) appears.
+      await waitFor(() =>
+        expect(getByTestId('btn-Refresh status')).toBeTruthy(),
+      );
+      fireEvent(getByTestId('btn-Refresh status'), 'onTouchEnd');
+      await flushMicrotasks();
+      expect(FormActions.fetchAppointmentForms).not.toHaveBeenCalled();
+    });
+
+    it('swallows fetch dispatch rejections from the mount effects', async () => {
+      mockDispatch.mockImplementation(() =>
+        Promise.reject(new Error('fetch failed')),
+      );
+      expect(() => renderScreen()).not.toThrow();
+      await flushMicrotasks();
+      expect(mockDispatch).toHaveBeenCalled();
     });
 
     it('navigates back automatically if form status becomes signed', () => {
@@ -206,9 +258,19 @@ describe('FormSigningScreen', () => {
       expect(mockGoBack).toHaveBeenCalled();
     });
 
-    it('does not fetch if not focused', () => {
+    it('stays on screen when there is no matching submission entry', () => {
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {submission: {_id: 'other'}, status: 'signed'},
+      ]);
+
+      renderScreen();
+      expect(mockGoBack).not.toHaveBeenCalled();
+    });
+
+    it('does not run the focus-based fetch effect when not focused', () => {
       (useIsFocused as jest.Mock).mockReturnValue(false);
       renderScreen();
+      // useFocusEffect still fires in the mock, so a fetch is dispatched.
       expect(mockDispatch).toHaveBeenCalled();
     });
   });
@@ -230,12 +292,33 @@ describe('FormSigningScreen', () => {
       expect(Linking.openURL).not.toHaveBeenCalled();
     });
 
-    it('handles Linking open failure gracefully', async () => {
+    it('handles auto-open failure gracefully (resets opened flag)', async () => {
       (Linking.openURL as jest.Mock).mockRejectedValueOnce(new Error('Fail'));
-      renderScreen();
+      const {getByText} = renderScreen();
       await waitFor(() => {
         expect(Linking.openURL).toHaveBeenCalled();
       });
+      // After a failed open we stay in the "pending" copy, not the signed state.
+      await waitFor(() =>
+        expect(getByText(/We opened the signing link/)).toBeTruthy(),
+      );
+    });
+
+    it('does not reopen when signingUrl changes after it already opened once', async () => {
+      const {rerender} = renderScreen();
+      await waitFor(() =>
+        expect(Linking.openURL).toHaveBeenCalledWith(mockSigningUrl),
+      );
+
+      (Linking.openURL as jest.Mock).mockClear();
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...mockRouteParams, signingUrl: 'https://sign.com/456'},
+      });
+      rerender(<FormSigningScreen />);
+      await flushMicrotasks();
+
+      // openedRef guard short-circuits: the new URL is never opened.
+      expect(Linking.openURL).not.toHaveBeenCalled();
     });
   });
 
@@ -243,16 +326,40 @@ describe('FormSigningScreen', () => {
     it('refreshes status when refresh button is pressed', async () => {
       const {getByTestId} = renderScreen();
       await waitFor(() => expect(Linking.openURL).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(getByTestId('btn-Refresh status')).toBeTruthy(),
+      );
+      (FormActions.fetchAppointmentForms as jest.Mock).mockClear();
 
       const refreshBtn = getByTestId('btn-Refresh status');
       fireEvent(refreshBtn, 'onTouchEnd');
+      await flushMicrotasks();
 
       expect(FormActions.fetchAppointmentForms).toHaveBeenCalled();
+    });
+
+    it('swallows dispatch rejection when refreshing', async () => {
+      const {getByTestId} = renderScreen();
+      await waitFor(() =>
+        expect(getByTestId('btn-Refresh status')).toBeTruthy(),
+      );
+
+      mockDispatch.mockImplementation(() =>
+        Promise.reject(new Error('refresh failed')),
+      );
+      fireEvent(getByTestId('btn-Refresh status'), 'onTouchEnd');
+      await flushMicrotasks();
+
+      // The finally() clears the refreshing flag, so the button is interactive again.
+      expect(getByTestId('btn-Refresh status')).toBeTruthy();
     });
 
     it('reopens link when button is pressed', async () => {
       const {getByTestId} = renderScreen();
       await waitFor(() => expect(Linking.openURL).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(getByTestId('btn-Open signing link again')).toBeTruthy(),
+      );
 
       (Linking.openURL as jest.Mock).mockClear();
 
@@ -264,6 +371,25 @@ describe('FormSigningScreen', () => {
       });
     });
 
+    it('swallows failure when reopening the link', async () => {
+      const {getByTestId} = renderScreen();
+      await waitFor(() =>
+        expect(getByTestId('btn-Open signing link again')).toBeTruthy(),
+      );
+
+      (Linking.openURL as jest.Mock).mockClear();
+      (Linking.openURL as jest.Mock).mockRejectedValueOnce(
+        new Error('reopen failed'),
+      );
+
+      fireEvent(getByTestId('btn-Open signing link again'), 'onTouchEnd');
+      await flushMicrotasks();
+
+      expect(Linking.openURL).toHaveBeenCalledWith(mockSigningUrl);
+      // Screen is unaffected by the rejection.
+      expect(getByTestId('btn-Open signing link again')).toBeTruthy();
+    });
+
     it('navigates back when header back button pressed', () => {
       const {getByTestId} = renderScreen();
       fireEvent(getByTestId('header-back'), 'onTouchEnd');
@@ -271,13 +397,58 @@ describe('FormSigningScreen', () => {
     });
   });
 
-  describe('Conditional Rendering States', () => {
+  describe('Summary card & content', () => {
     it('shows loading state initially before link opens', () => {
       (Linking.openURL as jest.Mock).mockImplementation(
         () => new Promise(() => {}),
       );
       const {getByText} = renderScreen();
       expect(getByText(/We opened the signing link/)).toBeTruthy();
+    });
+
+    it('renders the form name and description from the current entry', async () => {
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {
+          submission: {_id: mockSubmissionId},
+          status: 'pending',
+          form: {name: 'Consent Form', description: 'Please review carefully'},
+        },
+      ]);
+      const {getByText} = renderScreen();
+      await flushMicrotasks();
+
+      expect(getByText('Consent Form')).toBeTruthy();
+      expect(getByText('Please review carefully')).toBeTruthy();
+    });
+
+    it('falls back to "Sign form" when no form name and no title are available', async () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {...mockRouteParams, formTitle: undefined},
+      });
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {submission: {_id: mockSubmissionId}, status: 'pending'},
+      ]);
+      const {getByText} = renderScreen();
+      await flushMicrotasks();
+
+      expect(getByText('Sign form')).toBeTruthy();
+    });
+
+    it('uses the route formTitle when the entry has no form', async () => {
+      const {getByText} = renderScreen();
+      await flushMicrotasks();
+      expect(getByText('Test Form')).toBeTruthy();
+    });
+
+    it('ignores entries without a submission when matching the current entry', () => {
+      (FormActions.selectFormsForAppointment as jest.Mock).mockReturnValue([
+        {status: 'signed'},
+        {submission: {_id: mockSubmissionId}, status: 'pending'},
+      ]);
+      renderScreen();
+      // The entry without a submission must not be treated as the current one,
+      // so its "signed" status does not trigger a goBack.
+      expect(mockGoBack).not.toHaveBeenCalled();
     });
   });
 });

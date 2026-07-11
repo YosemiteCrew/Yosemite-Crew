@@ -192,7 +192,11 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
             styles.companionItem,
             isSelected && styles.companionItemSelected,
           ]}>
-          <View style={styles.companionAvatarRing}>
+          <View
+            style={[
+              styles.companionAvatarRing,
+              isSelected && styles.companionAvatarRingSelected,
+            ]}>
             {avatarUri && companionId && !failedImages[companionId] ? (
               <Image
                 source={{uri: avatarUri}}
@@ -276,26 +280,32 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.screen,
       ...theme.shadows.companion,
     },
+    // Selected companion = a pink ring encircling the round avatar (the design's
+    // signature "encircle" selection). The reserved 2.5px border keeps layout
+    // stable and turns pink only when selected, with a small gap to the avatar.
     companionAvatarRing: {
-      width: 56,
-      height: 56,
+      width: 60,
+      height: 60,
       borderRadius: theme.borderRadius.full,
       alignItems: 'center',
       justifyContent: 'center',
-      overflow: 'hidden',
-      backgroundColor: theme.colors.cardBackground,
+      borderWidth: 2.5,
+      borderColor: theme.colors.transparent,
+    },
+    companionAvatarRingSelected: {
+      borderColor: theme.colors.pink,
     },
     companionAvatar: {
-      width: '90%',
-      height: '90%',
-      borderRadius: theme.borderRadius.full,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       resizeMode: 'cover',
     },
     companionAvatarPlaceholder: {
-      width: '90%',
-      height: '90%',
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.lightBlueBackground,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: theme.colors.blueSoft,
       alignItems: 'center',
       justifyContent: 'center',
     },

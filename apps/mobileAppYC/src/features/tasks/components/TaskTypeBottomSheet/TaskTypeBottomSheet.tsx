@@ -6,12 +6,14 @@ import React, {
   useState,
 } from 'react';
 import {View, Text, StyleSheet, FlatList} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
 import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
 import {useTheme} from '@/hooks';
 import {createBottomSheetStyles} from '@/shared/utils/bottomSheetHelpers';
+import type {TaskTypeSelection} from '@/features/tasks/types';
 import type {
   TaskTypeBottomSheetRef,
   TaskTypeBottomSheetProps,
@@ -27,7 +29,71 @@ import {
 } from './helpers';
 import {taskTypeOptions} from './taskOptions';
 
+type PendingSelection = {
+  option: TaskTypeOption;
+  ancestors: TaskTypeOption[];
+} | null;
+
+// Ionicons name per real task-type leaf, so each chip reads icon + label.
+const TASK_TYPE_ICONS: Record<string, string> = {
+  'give-medication': 'medkit-outline',
+  'take-observational-tool': 'pulse-outline',
+  'brushing-hair': 'sparkles-outline',
+  'dental-care': 'happy-outline',
+  'nail-trimming': 'cut-outline',
+  'give-bath': 'water-outline',
+  'take-exercise': 'walk-outline',
+  'give-training': 'barbell-outline',
+  meals: 'nutrition-outline',
+  freshwater: 'water-outline',
+};
+
+const getOptionIcon = (option: TaskTypeOption): string => {
+  if (option.category === 'custom') {
+    return 'create-outline';
+  }
+  if (option.taskType && TASK_TYPE_ICONS[option.taskType]) {
+    return TASK_TYPE_ICONS[option.taskType];
+  }
+  return 'pricetag-outline';
+};
+
+const matchesSelection = (
+  a: TaskTypeSelection,
+  b: TaskTypeSelection,
+): boolean =>
+  a.category === b.category &&
+  a.subcategory === b.subcategory &&
+  a.parasitePreventionType === b.parasitePreventionType &&
+  a.chronicConditionType === b.chronicConditionType &&
+  a.taskType === b.taskType &&
+  a.label === b.label;
+
+const findPendingForSelection = (
+  selection: TaskTypeSelection | null | undefined,
+  flattened: Array<{option: TaskTypeOption; ancestors: TaskTypeOption[]}>,
+): PendingSelection => {
+  if (!selection) {
+    return null;
+  }
+  for (const entry of flattened) {
+    if (entry.option.children && entry.option.children.length > 0) {
+      continue;
+    }
+    if (
+      matchesSelection(
+        buildSelectionFromOption(entry.option, entry.ancestors),
+        selection,
+      )
+    ) {
+      return entry;
+    }
+  }
+  return null;
+};
+
 export const TaskTypeBottomSheet = ({
+  selectedTaskType,
   onSelect,
   onSheetChange,
   ref,
@@ -36,18 +102,6 @@ export const TaskTypeBottomSheet = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<BottomSheetRef>(null);
   const [isSheetVisible, setIsSheetVisible] = useState(false);
-
-  // Expose ref methods
-  useImperativeHandle(ref, () => ({
-    open: () => {
-      setIsSheetVisible(true);
-      bottomSheetRef.current?.expand();
-    },
-    close: () => {
-      setIsSheetVisible(false);
-      bottomSheetRef.current?.close();
-    },
-  }));
 
   // Flatten all task options recursively
   const flattenedOptions = useMemo(() => {
@@ -63,28 +117,94 @@ export const TaskTypeBottomSheet = ({
     return buildCategorySections(flattenedOptions);
   }, [flattenedOptions]);
 
-  // Handler for selecting a task type
-  const handleTaskSelect = useCallback(
-    (option: TaskTypeOption, ancestors: TaskTypeOption[]) => {
-      const selection = buildSelectionFromOption(option, ancestors);
-      onSelect(selection);
+  // Custom (single) chips render last, mirroring the sheet's group order.
+  const orderedSections = useMemo(() => {
+    const groups = categorySections.filter(
+      section => section.type !== 'single',
+    );
+    const singles = categorySections.filter(
+      section => section.type === 'single',
+    );
+    return [...groups, ...singles];
+  }, [categorySections]);
+
+  // Highlight the chip that matches the incoming selection.
+  const initialPending = useMemo(
+    () => findPendingForSelection(selectedTaskType, flattenedOptions),
+    [selectedTaskType, flattenedOptions],
+  );
+  const [pending, setPending] = useState<PendingSelection>(initialPending);
+
+  // Expose ref methods
+  useImperativeHandle(ref, () => ({
+    open: () => {
+      setPending(initialPending);
+      setIsSheetVisible(true);
+      bottomSheetRef.current?.expand();
+    },
+    close: () => {
       setIsSheetVisible(false);
       bottomSheetRef.current?.close();
     },
-    [onSelect],
+  }));
+
+  // Highlight a task type; commit happens on Confirm.
+  const handlePillPress = useCallback(
+    (option: TaskTypeOption, ancestors: TaskTypeOption[]) => {
+      setPending({option, ancestors});
+    },
+    [],
   );
+
+  // Commit the highlighted task type.
+  const handleConfirm = useCallback(() => {
+    /* istanbul ignore next -- Confirm is disabled whenever pending is null, so this guard is unreachable via the UI */
+    if (!pending) {
+      return;
+    }
+    const selection = buildSelectionFromOption(
+      pending.option,
+      pending.ancestors,
+    );
+    onSelect(selection);
+    setIsSheetVisible(false);
+    bottomSheetRef.current?.close();
+  }, [pending, onSelect]);
 
   // Render a single pill button
   const renderPillButton = useCallback(
-    (child: {option: TaskTypeOption; ancestors: TaskTypeOption[]}) => (
-      <PressableOpacity
-        key={child.option.id}
-        style={styles.pillButton}
-        onPress={() => handleTaskSelect(child.option, child.ancestors)}>
-        <Text style={styles.pillButtonText}>{child.option.label}</Text>
-      </PressableOpacity>
-    ),
-    [handleTaskSelect, styles.pillButton, styles.pillButtonText],
+    (child: {option: TaskTypeOption; ancestors: TaskTypeOption[]}) => {
+      const isSelected = pending?.option.id === child.option.id;
+      return (
+        <PressableOpacity
+          key={child.option.id}
+          style={[styles.pillButton, isSelected && styles.pillButtonSelected]}
+          onPress={() => handlePillPress(child.option, child.ancestors)}>
+          <Ionicons
+            name={getOptionIcon(child.option)}
+            size={14}
+            color={isSelected ? theme.colors.white : theme.colors.inkBody}
+          />
+          <Text
+            style={[
+              styles.pillButtonText,
+              isSelected && styles.pillButtonTextSelected,
+            ]}>
+            {child.option.label}
+          </Text>
+        </PressableOpacity>
+      );
+    },
+    [
+      handlePillPress,
+      pending,
+      styles.pillButton,
+      styles.pillButtonSelected,
+      styles.pillButtonText,
+      styles.pillButtonTextSelected,
+      theme.colors.white,
+      theme.colors.inkBody,
+    ],
   );
 
   // Render subsubcategory group with pills
@@ -148,12 +268,25 @@ export const TaskTypeBottomSheet = ({
     (section: CategorySection) => {
       // Custom category - single pill at top level without category container/header
       if (section.type === 'single') {
+        const isSelected = pending?.option.id === section.category.id;
         return (
           <View key={section.category.id} style={styles.customPillWrapper}>
             <PressableOpacity
-              style={styles.pillButton}
-              onPress={() => handleTaskSelect(section.category, [])}>
-              <Text style={styles.pillButtonText}>
+              style={[
+                styles.pillButton,
+                isSelected && styles.pillButtonSelected,
+              ]}
+              onPress={() => handlePillPress(section.category, [])}>
+              <Ionicons
+                name={getOptionIcon(section.category)}
+                size={14}
+                color={isSelected ? theme.colors.white : theme.colors.inkBody}
+              />
+              <Text
+                style={[
+                  styles.pillButtonText,
+                  isSelected && styles.pillButtonTextSelected,
+                ]}>
                 {section.category.label}
               </Text>
             </PressableOpacity>
@@ -172,13 +305,18 @@ export const TaskTypeBottomSheet = ({
       );
     },
     [
-      handleTaskSelect,
+      handlePillPress,
+      pending,
       renderSubcategory,
       styles.customPillWrapper,
       styles.pillButton,
+      styles.pillButtonSelected,
       styles.pillButtonText,
+      styles.pillButtonTextSelected,
       styles.categorySection,
       styles.categoryHeader,
+      theme.colors.white,
+      theme.colors.inkBody,
     ],
   );
 
@@ -222,21 +360,32 @@ export const TaskTypeBottomSheet = ({
       onChange={handleSheetChange}>
       <View style={styles.container}>
         <BottomSheetHeader
-          title="Select Task Type"
+          title="Select task type"
           onClose={handleClose}
           theme={theme}
         />
 
         <View style={styles.listWrapper}>
           <FlatList
-            data={categorySections}
+            data={orderedSections}
             keyExtractor={item => item.category.id}
             renderItem={renderItem}
+            extraData={pending?.option.id}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
             nestedScrollEnabled={true}
           />
         </View>
+
+        <PressableOpacity
+          style={[
+            styles.confirmButton,
+            !pending && styles.confirmButtonDisabled,
+          ]}
+          disabled={!pending}
+          onPress={handleConfirm}>
+          <Text style={styles.confirmButtonText}>Confirm</Text>
+        </PressableOpacity>
       </View>
     </CustomBottomSheet>
   );
@@ -247,60 +396,60 @@ TaskTypeBottomSheet.displayName = 'TaskTypeBottomSheet';
 const createStyles = (theme: any) =>
   StyleSheet.create({
     ...createBottomSheetStyles(theme),
+    bottomSheetHandle: {
+      backgroundColor: theme.colors.divider,
+      width: theme.spacing['10'],
+      height: 4.5,
+      borderRadius: theme.borderRadius.full,
+    },
     container: {
       flex: 1,
       paddingHorizontal: theme.spacing['5'],
+      paddingTop: theme.spacing['2.5'],
+      paddingBottom: theme.spacing['6'],
       backgroundColor: theme.colors.background,
     },
     listWrapper: {
-      maxHeight: 600,
+      flex: 1,
       marginBottom: theme.spacing['3'],
     },
     scrollContent: {
       paddingVertical: theme.spacing['1'],
-      gap: theme.spacing['3'],
-      paddingHorizontal: theme.spacing['2'],
+      gap: theme.spacing['4'],
     },
     customPillWrapper: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: theme.spacing['2'],
-      marginBottom: theme.spacing['2'],
     },
     categorySection: {
-      paddingHorizontal: theme.spacing['2'],
-      paddingVertical: theme.spacing['3'],
-      borderRadius: theme.borderRadius.lg,
-      borderWidth: 1,
-      borderColor: theme.colors.borderMuted,
-      backgroundColor: theme.colors.cardBackground,
+      gap: theme.spacing['2.5'],
     },
     categoryHeader: {
       ...theme.typography.eyebrow,
-      color: theme.colors.inkMuted,
-      paddingHorizontal: theme.spacing['1'],
-      marginBottom: theme.spacing['2'],
+      color: theme.colors.inkFaint,
     },
     subcategoryGroup: {
-      marginBottom: theme.spacing['3'],
-    },
-    subcategoryHeader: {
-      ...theme.typography.labelSmall,
-      color: theme.colors.textSecondary,
-      fontWeight: '600',
-      paddingHorizontal: theme.spacing['1'],
+      gap: theme.spacing['2'],
       marginBottom: theme.spacing['1'],
     },
+    subcategoryHeader: {
+      ...theme.typography.labelXs,
+      color: theme.colors.inkMuted,
+      fontWeight: '700',
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
     subsubcategoryGroup: {
-      marginBottom: theme.spacing['2'],
+      gap: theme.spacing['2'],
       marginLeft: theme.spacing['2'],
+      marginBottom: theme.spacing['1'],
     },
     subsubcategoryHeader: {
       ...theme.typography.labelXxsBold,
-      color: theme.colors.textSecondary,
-      fontWeight: '600',
-      paddingHorizontal: theme.spacing['1'],
-      marginBottom: theme.spacing['1'],
+      color: theme.colors.inkFaint2,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
     },
     pillsContainer: {
       flexDirection: 'row',
@@ -309,18 +458,45 @@ const createStyles = (theme: any) =>
       alignItems: 'flex-start',
     },
     pillButton: {
-      paddingVertical: theme.spacing['2'],
-      paddingHorizontal: theme.spacing['3'],
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['1.25'],
+      paddingVertical: theme.spacing['2.5'],
+      paddingHorizontal: theme.spacing['3.5'],
       borderWidth: 1,
       borderColor: theme.colors.hairline,
-      borderRadius: theme.borderRadius.md,
-      backgroundColor: theme.colors.inset,
+      borderRadius: theme.borderRadius.pill,
+      backgroundColor: theme.colors.screen2,
       alignSelf: 'flex-start',
+    },
+    pillButtonSelected: {
+      backgroundColor: theme.colors.blue,
+      borderColor: theme.colors.blue,
+      boxShadow: `0px 6px 16px ${theme.colors.navActiveBg}`,
     },
     pillButtonText: {
       ...theme.typography.labelSmall,
-      color: theme.colors.text,
+      color: theme.colors.inkBody,
+    },
+    pillButtonTextSelected: {
+      color: theme.colors.white,
       fontWeight: '600',
+    },
+    confirmButton: {
+      height: 54,
+      borderRadius: theme.borderRadius.button,
+      backgroundColor: theme.colors.cta,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: theme.spacing['1'],
+      ...theme.shadows.cta,
+    },
+    confirmButtonDisabled: {
+      opacity: 0.5,
+    },
+    confirmButtonText: {
+      ...theme.typography.button,
+      color: theme.colors.ctaText,
     },
   });
 
