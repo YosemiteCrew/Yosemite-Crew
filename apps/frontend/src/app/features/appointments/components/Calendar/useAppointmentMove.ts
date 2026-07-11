@@ -5,10 +5,13 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
   DragAction,
   ErrorCandidate,
-  clampMinutes,
   getErrorMessageFromCandidate,
-  hasAppointmentConflict,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
+import {
+  buildAppointmentMovePayload,
+  createAppointmentMovePlan,
+  getMoveAvailabilityBlockMessage,
+} from '@/app/features/appointments/components/Calendar/appointmentMoveUtils';
 
 type UseAppointmentMoveOptions = {
   allAppointments: Appointment[];
@@ -56,77 +59,45 @@ export const useAppointmentMove = ({
 
   const moveAppointment = useCallback(
     async (date: Date, minutesSinceMidnight: number, targetLeadId?: string) => {
-      if (!appointmentId) return;
-      const appointment = allAppointments.find((item) => item.id === appointmentId);
-      if (!appointment) {
-        warnDrag('Unable to move this appointment.');
-        return;
-      }
-      if (!isAppointmentDraggable(appointment)) {
-        warnDrag('Only requested and upcoming appointments can be moved.');
+      const result = createAppointmentMovePlan({
+        allAppointments,
+        appointmentId,
+        buildStart: buildAppointmentStartFromCalendarMinutes,
+        date,
+        isAppointmentDraggable,
+        minutesSinceMidnight,
+        resolvePractitionerId,
+        supportsSpeciality,
+        targetLeadId,
+      });
+      if (!result.ok) {
+        if (result.message) warnDrag(result.message);
         return;
       }
 
-      const snappedMinutes = clampMinutes(minutesSinceMidnight);
-      const nextStart = buildAppointmentStartFromCalendarMinutes(date, snappedMinutes);
-      const durationMs = Math.max(
-        5 * 60 * 1000,
-        new Date(appointment.endTime).getTime() - new Date(appointment.startTime).getTime()
+      const availabilityBlockMessage = await getMoveAvailabilityBlockMessage(
+        result.plan,
+        date,
+        targetLeadId,
+        ensureDragAvailability
       );
-      const nextEnd = new Date(nextStart.getTime() + durationMs);
-      const appointmentServiceId = appointment.appointmentType?.id;
-      const targetPractitionerId = resolvePractitionerId(targetLeadId || appointment.lead?.id);
-
-      if (nextStart.getTime() < Date.now()) {
-        warnDrag('Cannot move an appointment to a past time.');
-        return;
-      }
-      if (targetLeadId && !supportsSpeciality(targetLeadId, appointment)) {
-        warnDrag('Selected team member is not configured for this speciality.');
-        return;
-      }
-      if (appointmentServiceId && targetPractitionerId) {
-        const availableStartMinutes = await ensureDragAvailability(date, targetLeadId);
-        if (availableStartMinutes.length === 0 || !availableStartMinutes.includes(snappedMinutes)) {
-          warnDrag('No available slot for this service at the selected position.');
-          return;
-        }
-      }
-      if (
-        hasAppointmentConflict(
-          appointment,
-          nextStart,
-          nextEnd,
-          allAppointments,
-          targetPractitionerId
-        )
-      ) {
-        warnDrag('Scheduling conflict detected with another appointment.');
+      if (availabilityBlockMessage) {
+        warnDrag(availabilityBlockMessage);
         return;
       }
 
       try {
         dispatchDrag({ type: 'setError', error: null });
-        await updateAppointment({
-          ...appointment,
-          lead: targetPractitionerId
-            ? {
-                id: targetPractitionerId,
-                name:
-                  teams.find(
-                    (member) =>
-                      normalizeId(member.practionerId || '') ===
-                        normalizeId(targetPractitionerId) ||
-                      normalizeId(member._id || '') === normalizeId(targetPractitionerId)
-                  )?.name ||
-                  appointment.lead?.name ||
-                  targetPractitionerId,
-              }
-            : appointment.lead,
-          startTime: nextStart,
-          endTime: nextEnd,
-          appointmentDate: nextStart,
-        });
+        await updateAppointment(
+          buildAppointmentMovePayload({
+            appointment: result.plan.appointment,
+            normalizeId,
+            nextEnd: result.plan.nextEnd,
+            nextStart: result.plan.nextStart,
+            targetPractitionerId: result.plan.targetPractitionerId,
+            teams,
+          })
+        );
       } catch (error) {
         dispatchDrag({
           type: 'setError',
