@@ -63,8 +63,15 @@ const AppUpdateBottomSheet = ({
 
   const changelog = message
     .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean);
+    .flatMap(line => {
+      const text = line.trim();
+      return text ? [text] : [];
+    })
+    .map((text, index) => ({
+      key: `changelog-${index}`,
+      text,
+      icon: CHANGELOG_ICONS[index % CHANGELOG_ICONS.length],
+    }));
 
   const versionLine = prompt.latestVersion
     ? `${prompt.currentVersion} → ${prompt.latestVersion}`
@@ -143,15 +150,15 @@ const AppUpdateBottomSheet = ({
 
         {changelog.length > 0 ? (
           <View style={styles.changelog}>
-            {changelog.map((line, index) => (
-              <View key={`changelog-${index}`} style={styles.changelogRow}>
+            {changelog.map(item => (
+              <View key={item.key} style={styles.changelogRow}>
                 <Icon
-                  name={CHANGELOG_ICONS[index % CHANGELOG_ICONS.length]}
+                  name={item.icon}
                   size={15}
                   color={theme.colors.blueText}
                   style={styles.changelogIcon}
                 />
-                <Text style={styles.changelogText}>{line}</Text>
+                <Text style={styles.changelogText}>{item.text}</Text>
               </View>
             ))}
           </View>

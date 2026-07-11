@@ -1,5 +1,6 @@
 import React, {useEffect, useMemo, useCallback} from 'react';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
+import type {StyleProp, ViewStyle, TextStyle} from 'react-native';
 import {
   useNavigation,
   useFocusEffect,
@@ -29,7 +30,10 @@ import {
 import {selectAuthUser} from '@/features/auth/selectors';
 import type {AppDispatch, RootState} from '@/app/store';
 import type {TaskStackParamList} from '@/navigation/types';
-import type {TaskCategory} from '@/features/tasks/types';
+import type {Task, TaskCategory} from '@/features/tasks/types';
+import type {Companion} from '@/features/companion/types';
+import type {User} from '@/features/auth/types';
+import type {Theme} from '@/theme';
 import {resolveCategoryLabel} from '@/features/tasks/utils/taskLabels';
 import {useCommonScreenStyles} from '@/shared/utils/screenStyles';
 import {useTaskDateSelection} from '@/features/tasks/hooks/useTaskDateSelection';
@@ -81,65 +85,7 @@ export const TasksMainScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {theme} = useTheme();
   const summaryStyles = useMemo(() => createSummaryStyles(theme), [theme]);
-  const styles = useCommonScreenStyles(theme, themeArg => ({
-    contentContainer: {
-      paddingTop: themeArg.spacing['2'],
-      paddingBottom: themeArg.spacing['28'],
-    },
-    companionSelectorTask: {
-      marginTop: themeArg.spacing['2'],
-      marginBottom: themeArg.spacing['1'],
-      paddingHorizontal: themeArg.spacing['5'],
-    },
-    categorySection: {
-      marginTop: themeArg.spacing['4.5'],
-      paddingHorizontal: themeArg.spacing['5'],
-    },
-    categoryHeader: {
-      flexDirection: 'row' as const,
-      alignItems: 'center' as const,
-      justifyContent: 'space-between' as const,
-      marginBottom: themeArg.spacing['2'],
-    },
-    categoryTitle: {
-      ...themeArg.typography.eyebrow,
-      color: themeArg.colors.inkFaint,
-    },
-    emptyCard: {
-      backgroundColor: themeArg.colors.screen,
-      borderRadius: themeArg.borderRadius.card,
-      borderWidth: 1,
-      borderColor: themeArg.colors.hairline,
-      paddingVertical: themeArg.spacing['5'],
-      paddingHorizontal: themeArg.spacing['4'],
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    emptyText: {
-      ...themeArg.typography.bodySmall,
-      color: themeArg.colors.inkMuted,
-    },
-    emptyStateContainer: {
-      marginHorizontal: themeArg.spacing['5'],
-      marginTop: themeArg.spacing['8'],
-      paddingVertical: themeArg.spacing['10'],
-      paddingHorizontal: themeArg.spacing['5'],
-      alignItems: 'center' as const,
-      justifyContent: 'center' as const,
-    },
-    emptyStateTitle: {
-      ...themeArg.typography.emptyStateTitle,
-      color: themeArg.colors.ink,
-      marginBottom: themeArg.spacing['2'],
-      textAlign: 'center' as const,
-    },
-    emptyStateText: {
-      ...themeArg.typography.bodyMedium,
-      color: themeArg.colors.inkMuted,
-      textAlign: 'center' as const,
-      lineHeight: 22,
-    },
-  }));
+  const styles = useCommonScreenStyles(theme, createTaskScreenStyles);
 
   const companions = useSelector(
     (state: RootState) => state.companion.companions,
@@ -160,12 +106,7 @@ export const TasksMainScreen: React.FC = () => {
     handleMonthChange,
     setCurrentMonth,
   } = useTaskDateSelection();
-  const {
-    handleViewTask,
-    handleEditTask,
-    handleCompleteTask,
-    handleStartObservationalTool,
-  } = useTaskNavigationActions(navigation, dispatch);
+  const taskActions = useTaskNavigationActions(navigation, dispatch);
 
   const hasHydrated = useSelector(
     selectHasHydratedCompanion(selectedCompanionId ?? null),
@@ -288,15 +229,6 @@ export const TasksMainScreen: React.FC = () => {
     };
   }, [tasksForSelectedDate]);
 
-  const summaryLeadLabel = isToday(selectedDate)
-    ? 'Today'
-    : selectedDate.toLocaleDateString('en-US', {weekday: 'long'});
-  const summaryDateLabel = `${selectedDate.toLocaleDateString('en-US', {
-    weekday: 'short',
-  })} ${selectedDate.getDate()} ${selectedDate.toLocaleDateString('en-US', {
-    month: 'short',
-  })}`;
-
   useEffect(() => {
     if (!selectedCompanionId && companions.length > 0) {
       dispatch(setSelectedCompanion(companions[0].id));
@@ -345,61 +277,6 @@ export const TasksMainScreen: React.FC = () => {
     navigation.navigate('TasksList', {category});
   };
 
-  const renderCategorySection = (category: TaskCategory) => {
-    const data = categoryData[category];
-    const recentTasks = data.recentTasks;
-    const taskCount = data.taskCount;
-    const task = recentTasks[0];
-    const companion = companions.find(c => c.id === task?.companionId);
-    const taskMeta = task ? getTaskCardMeta(task, authUser) : null;
-
-    return (
-      <View key={category} style={styles.categorySection}>
-        <View style={styles.categoryHeader}>
-          <Text style={styles.categoryTitle}>
-            {resolveCategoryLabel(category)}
-          </Text>
-          {taskCount > 0 && (
-            <ViewMoreButton onPress={() => handleViewMore(category)} />
-          )}
-        </View>
-
-        {task && companion ? (
-          <TaskCard
-            title={task.title}
-            categoryLabel={resolveCategoryLabel(task.category)}
-            subcategoryLabel={task.subcategory ? task.subcategory : undefined}
-            date={task.date}
-            time={task.time}
-            companionName={companion.name}
-            companionAvatar={companion.profileImage ?? undefined}
-            assignedToName={taskMeta?.assignedToData?.name}
-            assignedToAvatar={taskMeta?.assignedToData?.avatar}
-            status={task.status}
-            onPressView={() => handleViewTask(task.id)}
-            onPressEdit={() => handleEditTask(task.id)}
-            onPressComplete={() => handleCompleteTask(task.id)}
-            onPressTakeObservationalTool={
-              taskMeta?.isObservationalToolTask
-                ? () => handleStartObservationalTool(task.id)
-                : undefined
-            }
-            showEditAction={!taskMeta?.isCompleted}
-            showCompleteButton={Boolean(taskMeta?.isPending)}
-            category={task.category}
-            details={task.details}
-          />
-        ) : (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>
-              No {resolveCategoryLabel(category).toLowerCase()} tasks
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  };
-
   // Show empty screen if no companion is selected
   if (!selectedCompanionId) {
     return <EmptyTasksScreen />;
@@ -407,16 +284,7 @@ export const TasksMainScreen: React.FC = () => {
 
   return (
     <LiquidGlassHeaderScreen
-      header={
-        <Header
-          title="Tasks"
-          variant="root"
-          showBackButton={false}
-          rightIcon={Images.addIconDark}
-          onRightPress={handleAddTask}
-          glass={false}
-        />
-      }
+      header={<TasksScreenHeader onAddTask={handleAddTask} />}
       contentPadding={theme.spacing['3']}>
       {contentPaddingStyle => (
         <ScrollView
@@ -445,38 +313,34 @@ export const TasksMainScreen: React.FC = () => {
 
           {/* Category Sections */}
           {allTasks.length === 0 ? (
-            <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateTitle}>No tasks yet</Text>
-              <Text style={styles.emptyStateText}>
-                Start by adding a task for{' '}
-                {selectedCompanion?.name || 'your companion'}
-              </Text>
-            </View>
+            <NoTasksEmptyState
+              companionName={selectedCompanion?.name}
+              styles={styles}
+            />
           ) : (
             <>
               {totalCount > 0 && (
-                <View style={summaryStyles.summaryCard}>
-                  <View style={summaryStyles.summaryLeft}>
-                    <Text style={summaryStyles.summaryHeadline}>
-                      {`${summaryLeadLabel}, ${doneCount} of ${totalCount} done`}
-                    </Text>
-                    <View style={summaryStyles.progressTrack}>
-                      <View
-                        style={[
-                          summaryStyles.progressFill,
-                          {width: `${progressPercent}%`},
-                        ]}
-                      />
-                    </View>
-                  </View>
-                  <Text style={summaryStyles.summaryMeta}>
-                    {summaryDateLabel}
-                  </Text>
-                </View>
+                <TaskProgressSummary
+                  styles={summaryStyles}
+                  selectedDate={selectedDate}
+                  doneCount={doneCount}
+                  totalCount={totalCount}
+                  progressPercent={progressPercent}
+                />
               )}
-              {orderedCategories.map(category =>
-                renderCategorySection(category),
-              )}
+              {orderedCategories.map(category => (
+                <CategorySection
+                  key={category}
+                  category={category}
+                  recentTasks={categoryData[category].recentTasks}
+                  taskCount={categoryData[category].taskCount}
+                  companions={companions}
+                  authUser={authUser}
+                  styles={styles}
+                  onViewMore={handleViewMore}
+                  taskActions={taskActions}
+                />
+              ))}
             </>
           )}
         </ScrollView>
@@ -484,6 +348,219 @@ export const TasksMainScreen: React.FC = () => {
     </LiquidGlassHeaderScreen>
   );
 };
+
+interface TasksScreenHeaderProps {
+  onAddTask: () => void;
+}
+
+const TasksScreenHeader: React.FC<TasksScreenHeaderProps> = ({onAddTask}) => (
+  <Header
+    title="Tasks"
+    variant="root"
+    showBackButton={false}
+    rightIcon={Images.addIconDark}
+    onRightPress={onAddTask}
+    glass={false}
+  />
+);
+
+interface NoTasksEmptyStateProps {
+  companionName?: string;
+  styles: {
+    emptyStateContainer: StyleProp<ViewStyle>;
+    emptyStateTitle: StyleProp<TextStyle>;
+    emptyStateText: StyleProp<TextStyle>;
+  };
+}
+
+const NoTasksEmptyState: React.FC<NoTasksEmptyStateProps> = ({
+  companionName,
+  styles,
+}) => (
+  <View style={styles.emptyStateContainer}>
+    <Text style={styles.emptyStateTitle}>No tasks yet</Text>
+    <Text style={styles.emptyStateText}>
+      Start by adding a task for {companionName || 'your companion'}
+    </Text>
+  </View>
+);
+
+interface TaskProgressSummaryProps {
+  styles: ReturnType<typeof createSummaryStyles>;
+  selectedDate: Date;
+  doneCount: number;
+  totalCount: number;
+  progressPercent: number;
+}
+
+const TaskProgressSummary: React.FC<TaskProgressSummaryProps> = ({
+  styles,
+  selectedDate,
+  doneCount,
+  totalCount,
+  progressPercent,
+}) => {
+  const leadLabel = isToday(selectedDate)
+    ? 'Today'
+    : selectedDate.toLocaleDateString('en-US', {weekday: 'long'});
+  const dateLabel = `${selectedDate.toLocaleDateString('en-US', {
+    weekday: 'short',
+  })} ${selectedDate.getDate()} ${selectedDate.toLocaleDateString('en-US', {
+    month: 'short',
+  })}`;
+
+  return (
+    <View style={styles.summaryCard}>
+      <View style={styles.summaryLeft}>
+        <Text style={styles.summaryHeadline}>
+          {`${leadLabel}, ${doneCount} of ${totalCount} done`}
+        </Text>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, {width: `${progressPercent}%`}]} />
+        </View>
+      </View>
+      <Text style={styles.summaryMeta}>{dateLabel}</Text>
+    </View>
+  );
+};
+
+interface CategorySectionProps {
+  category: TaskCategory;
+  recentTasks: Task[];
+  taskCount: number;
+  companions: Companion[];
+  authUser: User | null;
+  styles: {
+    categorySection: StyleProp<ViewStyle>;
+    categoryHeader: StyleProp<ViewStyle>;
+    categoryTitle: StyleProp<TextStyle>;
+    emptyCard: StyleProp<ViewStyle>;
+    emptyText: StyleProp<TextStyle>;
+  };
+  onViewMore: (category: TaskCategory) => void;
+  taskActions: ReturnType<typeof useTaskNavigationActions>;
+}
+
+const CategorySection: React.FC<CategorySectionProps> = ({
+  category,
+  recentTasks,
+  taskCount,
+  companions,
+  authUser,
+  styles,
+  onViewMore,
+  taskActions,
+}) => {
+  const task = recentTasks[0];
+  const companion = companions.find(c => c.id === task?.companionId);
+  const taskMeta = task ? getTaskCardMeta(task, authUser) : null;
+
+  return (
+    <View style={styles.categorySection}>
+      <View style={styles.categoryHeader}>
+        <Text style={styles.categoryTitle}>
+          {resolveCategoryLabel(category)}
+        </Text>
+        {taskCount > 0 && (
+          <ViewMoreButton onPress={() => onViewMore(category)} />
+        )}
+      </View>
+
+      {task && companion ? (
+        <TaskCard
+          title={task.title}
+          categoryLabel={resolveCategoryLabel(task.category)}
+          subcategoryLabel={task.subcategory ? task.subcategory : undefined}
+          date={task.date}
+          time={task.time}
+          companionName={companion.name}
+          companionAvatar={companion.profileImage ?? undefined}
+          assignedToName={taskMeta?.assignedToData?.name}
+          assignedToAvatar={taskMeta?.assignedToData?.avatar}
+          status={task.status}
+          onPressView={() => taskActions.handleViewTask(task.id)}
+          onPressEdit={() => taskActions.handleEditTask(task.id)}
+          onPressComplete={() => taskActions.handleCompleteTask(task.id)}
+          onPressTakeObservationalTool={
+            taskMeta?.isObservationalToolTask
+              ? () => taskActions.handleStartObservationalTool(task.id)
+              : undefined
+          }
+          showEditAction={!taskMeta?.isCompleted}
+          showCompleteButton={Boolean(taskMeta?.isPending)}
+          category={task.category}
+          details={task.details}
+        />
+      ) : (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyText}>
+            No {resolveCategoryLabel(category).toLowerCase()} tasks
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const createTaskScreenStyles = (theme: Theme) => ({
+  contentContainer: {
+    paddingTop: theme.spacing['2'],
+    paddingBottom: theme.spacing['28'],
+  },
+  companionSelectorTask: {
+    marginTop: theme.spacing['2'],
+    marginBottom: theme.spacing['1'],
+    paddingHorizontal: theme.spacing['5'],
+  },
+  categorySection: {
+    marginTop: theme.spacing['4.5'],
+    paddingHorizontal: theme.spacing['5'],
+  },
+  categoryHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    marginBottom: theme.spacing['2'],
+  },
+  categoryTitle: {
+    ...theme.typography.eyebrow,
+    color: theme.colors.inkFaint,
+  },
+  emptyCard: {
+    backgroundColor: theme.colors.screen,
+    borderRadius: theme.borderRadius.card,
+    borderWidth: 1,
+    borderColor: theme.colors.hairline,
+    paddingVertical: theme.spacing['5'],
+    paddingHorizontal: theme.spacing['4'],
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  emptyText: {
+    ...theme.typography.bodySmall,
+    color: theme.colors.inkMuted,
+  },
+  emptyStateContainer: {
+    marginHorizontal: theme.spacing['5'],
+    marginTop: theme.spacing['8'],
+    paddingVertical: theme.spacing['10'],
+    paddingHorizontal: theme.spacing['5'],
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  emptyStateTitle: {
+    ...theme.typography.emptyStateTitle,
+    color: theme.colors.ink,
+    marginBottom: theme.spacing['2'],
+    textAlign: 'center' as const,
+  },
+  emptyStateText: {
+    ...theme.typography.bodyMedium,
+    color: theme.colors.inkMuted,
+    textAlign: 'center' as const,
+    lineHeight: 22,
+  },
+});
 
 const createSummaryStyles = (theme: any) =>
   StyleSheet.create({

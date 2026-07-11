@@ -296,219 +296,351 @@ export const Step5Screen: React.FC<Props> = ({navigation}) => {
 
         <Text style={styles.sectionTitle}>The product and what happened</Text>
 
-        <View style={styles.twoUpRow}>
-          <Input
-            label="Product name"
-            value={formData.productName}
-            onChangeText={text => {
-              setFormData(prev => ({...prev, productName: text}));
-              clearFieldError('productName');
-            }}
-            containerStyle={styles.fieldHalf}
-            error={formErrors.productName}
-          />
-          <Input
-            label="Brand name"
-            value={formData.brandName}
-            onChangeText={text => {
-              setFormData(prev => ({...prev, brandName: text}));
-              clearFieldError('brandName');
-            }}
-            containerStyle={styles.fieldHalf}
-            error={formErrors.brandName}
-          />
-        </View>
-
-        <View style={styles.twoUpRow}>
-          <Input
-            label="Batch number"
-            value={formData.batchNumber}
-            onChangeText={text => {
-              setFormData(prev => ({...prev, batchNumber: text}));
-              clearFieldError('batchNumber');
-            }}
-            containerStyle={styles.fieldHalf}
-            error={formErrors.batchNumber}
-          />
-          <TouchableInput
-            label="Event date"
-            value={formatDateForDisplay(formData.eventDate)}
-            onPress={() => setShowDatePicker(true)}
-            rightComponent={
-              <Image source={Images.calendarIcon} style={common.calendarIcon} />
-            }
-            containerStyle={styles.fieldHalf}
-          />
-        </View>
-
-        <TouchableInput
-          label="Manufacturing country"
-          value={formData.manufacturingCountry?.name ?? ''}
-          placeholder="Select country"
-          onPress={() => {
+        <ProductDetailsFields
+          styles={styles}
+          common={common}
+          formData={formData}
+          formErrors={formErrors}
+          setFormData={setFormData}
+          clearFieldError={clearFieldError}
+          onEventDatePress={() => setShowDatePicker(true)}
+          onCountryPress={() => {
             openSheet('country');
             countrySheetRef.current?.open();
           }}
-          rightComponent={
-            <Image source={Images.dropdownIcon} style={common.dropdownIcon} />
-          }
-          containerStyle={styles.input}
-          error={formErrors.manufacturingCountry}
-        />
-
-        <Input
-          label="Number of times product used"
-          value={formData.frequencyUsed}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, frequencyUsed: text}));
-            clearFieldError('frequencyUsed');
-          }}
-          keyboardType="numeric"
-          containerStyle={styles.input}
-          error={formErrors.frequencyUsed}
-        />
-
-        <Input
-          label="Quantity used"
-          value={formData.quantityUsed}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, quantityUsed: text}));
-            clearFieldError('quantityUsed');
-          }}
-          containerStyle={styles.input}
-          error={formErrors.quantityUsed}
-        />
-
-        <SegmentedControl
-          testID="quantity-unit"
-          options={QUANTITY_UNIT_OPTIONS}
-          value={formData.quantityUnit}
-          onChange={value =>
-            setFormData(prev => ({
-              ...prev,
-              quantityUnit: value as QuantityUnit,
-            }))
-          }
-          style={styles.segmented}
-        />
-
-        <TouchableInput
-          label="How was the product administered?"
-          value={formData.administrationMethod ?? ''}
-          placeholder="How was the product administered?"
-          onPress={() => {
+          onAdminPress={() => {
             openSheet('admin');
             adminSheetRef.current?.open();
           }}
-          rightComponent={
-            <Image source={Images.dropdownIcon} style={common.dropdownIcon} />
-          }
-          containerStyle={styles.input}
-          error={formErrors.administrationMethod}
         />
 
-        <Input
-          label="Reason to use the product."
-          value={formData.reasonToUseProduct}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, reasonToUseProduct: text}));
-            clearFieldError('reasonToUseProduct');
+        <PetConditionFields
+          styles={styles}
+          formData={formData}
+          formErrors={formErrors}
+          setFormData={setFormData}
+          clearFieldError={clearFieldError}
+          onAddFile={() => {
+            clearFieldError('files');
+            openSheet('upload');
+            uploadSheetRef.current?.open();
           }}
-          multiline
-          containerStyle={styles.input}
-          error={formErrors.reasonToUseProduct}
+          onRemoveFile={handleRemoveFile}
         />
-
-        <Input
-          label="Pet condition before drug"
-          value={formData.petConditionBefore}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, petConditionBefore: text}));
-            clearFieldError('petConditionBefore');
-          }}
-          multiline
-          containerStyle={styles.input}
-          error={formErrors.petConditionBefore}
-        />
-
-        <Input
-          label="Pet condition after drug"
-          value={formData.petConditionAfter}
-          onChangeText={text => {
-            setFormData(prev => ({...prev, petConditionAfter: text}));
-            clearFieldError('petConditionAfter');
-          }}
-          multiline
-          containerStyle={styles.input}
-          error={formErrors.petConditionAfter}
-        />
-
-        <View style={styles.uploadSection}>
-          <Text style={styles.uploadLabel}>
-            Please add image of the product used.
-          </Text>
-          <DocumentAttachmentsSection
-            files={formData.files}
-            onAddPress={() => {
-              clearFieldError('files');
-              openSheet('upload');
-              uploadSheetRef.current?.open();
-            }}
-            onRequestRemove={file => handleRemoveFile(file.id)}
-            emptyTitle="Upload image"
-            emptySubtitle={'Only PNG, JPEG, PDF · max size 5 MB'}
-            error={formErrors.files}
-          />
-        </View>
       </AERLayout>
 
-      <SimpleDatePicker
-        value={formData.eventDate}
-        onDateChange={date => {
-          setFormData(prev => ({...prev, eventDate: date}));
-          setShowDatePicker(false);
-        }}
-        show={showDatePicker}
-        onDismiss={() => setShowDatePicker(false)}
-        maximumDate={today}
-        mode="date"
-      />
-
-      <CountryBottomSheet
-        ref={countrySheetRef}
-        countries={SUPPORTED_ADVERSE_EVENT_COUNTRIES}
-        selectedCountry={formData.manufacturingCountry as any}
-        onSave={country => {
-          setFormData(prev => ({...prev, manufacturingCountry: country}));
-          clearFieldError('manufacturingCountry');
-          closeSheet();
-        }}
-      />
-
-      <AdministrationMethodBottomSheet
-        ref={adminSheetRef}
-        selectedMethod={formData.administrationMethod}
-        onSave={method => {
-          setFormData(prev => ({...prev, administrationMethod: method}));
-          clearFieldError('administrationMethod');
-          closeSheet();
-        }}
-      />
-
-      <UploadDeleteSheets
+      <Step5Overlays
+        formData={formData}
+        today={today}
+        showDatePicker={showDatePicker}
+        setShowDatePicker={setShowDatePicker}
+        setFormData={setFormData}
+        clearFieldError={clearFieldError}
+        closeSheet={closeSheet}
+        countrySheetRef={countrySheetRef}
+        adminSheetRef={adminSheetRef}
         uploadSheetRef={uploadSheetRef}
         deleteSheetRef={deleteSheetRef}
-        files={formData.files}
-        fileToDelete={fileToDelete as any}
+        fileToDelete={fileToDelete}
         onTakePhoto={handleTakePhoto}
         onChooseGallery={handleChooseFromGallery}
         onUploadDrive={handleUploadFromDrive}
         onConfirmDelete={confirmDeleteFile}
-        closeSheet={closeSheet}
       />
     </>
   );
 };
+
+type Step5Styles = ReturnType<typeof createStyles>;
+type Step5CommonStyles = ReturnType<typeof createCommonFormStyles>;
+
+interface ProductDetailsFieldsProps {
+  styles: Step5Styles;
+  common: Step5CommonStyles;
+  formData: AdverseEventProductInfo;
+  formErrors: Step5FormErrors;
+  setFormData: React.Dispatch<React.SetStateAction<AdverseEventProductInfo>>;
+  clearFieldError: (field: keyof Step5FormErrors) => void;
+  onEventDatePress: () => void;
+  onCountryPress: () => void;
+  onAdminPress: () => void;
+}
+
+const ProductDetailsFields: React.FC<ProductDetailsFieldsProps> = ({
+  styles,
+  common,
+  formData,
+  formErrors,
+  setFormData,
+  clearFieldError,
+  onEventDatePress,
+  onCountryPress,
+  onAdminPress,
+}) => (
+  <>
+    <View style={styles.twoUpRow}>
+      <Input
+        label="Product name"
+        value={formData.productName}
+        onChangeText={text => {
+          setFormData(prev => ({...prev, productName: text}));
+          clearFieldError('productName');
+        }}
+        containerStyle={styles.fieldHalf}
+        error={formErrors.productName}
+      />
+      <Input
+        label="Brand name"
+        value={formData.brandName}
+        onChangeText={text => {
+          setFormData(prev => ({...prev, brandName: text}));
+          clearFieldError('brandName');
+        }}
+        containerStyle={styles.fieldHalf}
+        error={formErrors.brandName}
+      />
+    </View>
+
+    <View style={styles.twoUpRow}>
+      <Input
+        label="Batch number"
+        value={formData.batchNumber}
+        onChangeText={text => {
+          setFormData(prev => ({...prev, batchNumber: text}));
+          clearFieldError('batchNumber');
+        }}
+        containerStyle={styles.fieldHalf}
+        error={formErrors.batchNumber}
+      />
+      <TouchableInput
+        label="Event date"
+        value={formatDateForDisplay(formData.eventDate)}
+        onPress={onEventDatePress}
+        rightComponent={
+          <Image source={Images.calendarIcon} style={common.calendarIcon} />
+        }
+        containerStyle={styles.fieldHalf}
+      />
+    </View>
+
+    <TouchableInput
+      label="Manufacturing country"
+      value={formData.manufacturingCountry?.name ?? ''}
+      placeholder="Select country"
+      onPress={onCountryPress}
+      rightComponent={
+        <Image source={Images.dropdownIcon} style={common.dropdownIcon} />
+      }
+      containerStyle={styles.input}
+      error={formErrors.manufacturingCountry}
+    />
+
+    <Input
+      label="Number of times product used"
+      value={formData.frequencyUsed}
+      onChangeText={text => {
+        setFormData(prev => ({...prev, frequencyUsed: text}));
+        clearFieldError('frequencyUsed');
+      }}
+      keyboardType="numeric"
+      containerStyle={styles.input}
+      error={formErrors.frequencyUsed}
+    />
+
+    <Input
+      label="Quantity used"
+      value={formData.quantityUsed}
+      onChangeText={text => {
+        setFormData(prev => ({...prev, quantityUsed: text}));
+        clearFieldError('quantityUsed');
+      }}
+      containerStyle={styles.input}
+      error={formErrors.quantityUsed}
+    />
+
+    <SegmentedControl
+      testID="quantity-unit"
+      options={QUANTITY_UNIT_OPTIONS}
+      value={formData.quantityUnit}
+      onChange={value =>
+        setFormData(prev => ({
+          ...prev,
+          quantityUnit: value as QuantityUnit,
+        }))
+      }
+      style={styles.segmented}
+    />
+
+    <TouchableInput
+      label="How was the product administered?"
+      value={formData.administrationMethod ?? ''}
+      placeholder="How was the product administered?"
+      onPress={onAdminPress}
+      rightComponent={
+        <Image source={Images.dropdownIcon} style={common.dropdownIcon} />
+      }
+      containerStyle={styles.input}
+      error={formErrors.administrationMethod}
+    />
+  </>
+);
+
+interface PetConditionFieldsProps {
+  styles: Step5Styles;
+  formData: AdverseEventProductInfo;
+  formErrors: Step5FormErrors;
+  setFormData: React.Dispatch<React.SetStateAction<AdverseEventProductInfo>>;
+  clearFieldError: (field: keyof Step5FormErrors) => void;
+  onAddFile: () => void;
+  onRemoveFile: (fileId: string) => void;
+}
+
+const PetConditionFields: React.FC<PetConditionFieldsProps> = ({
+  styles,
+  formData,
+  formErrors,
+  setFormData,
+  clearFieldError,
+  onAddFile,
+  onRemoveFile,
+}) => (
+  <>
+    <Input
+      label="Reason to use the product."
+      value={formData.reasonToUseProduct}
+      onChangeText={text => {
+        setFormData(prev => ({...prev, reasonToUseProduct: text}));
+        clearFieldError('reasonToUseProduct');
+      }}
+      multiline
+      containerStyle={styles.input}
+      error={formErrors.reasonToUseProduct}
+    />
+
+    <Input
+      label="Pet condition before drug"
+      value={formData.petConditionBefore}
+      onChangeText={text => {
+        setFormData(prev => ({...prev, petConditionBefore: text}));
+        clearFieldError('petConditionBefore');
+      }}
+      multiline
+      containerStyle={styles.input}
+      error={formErrors.petConditionBefore}
+    />
+
+    <Input
+      label="Pet condition after drug"
+      value={formData.petConditionAfter}
+      onChangeText={text => {
+        setFormData(prev => ({...prev, petConditionAfter: text}));
+        clearFieldError('petConditionAfter');
+      }}
+      multiline
+      containerStyle={styles.input}
+      error={formErrors.petConditionAfter}
+    />
+
+    <View style={styles.uploadSection}>
+      <Text style={styles.uploadLabel}>
+        Please add image of the product used.
+      </Text>
+      <DocumentAttachmentsSection
+        files={formData.files}
+        onAddPress={onAddFile}
+        onRequestRemove={file => onRemoveFile(file.id)}
+        emptyTitle="Upload image"
+        emptySubtitle={'Only PNG, JPEG, PDF · max size 5 MB'}
+        error={formErrors.files}
+      />
+    </View>
+  </>
+);
+
+interface Step5OverlaysProps {
+  formData: AdverseEventProductInfo;
+  today: Date;
+  showDatePicker: boolean;
+  setShowDatePicker: React.Dispatch<React.SetStateAction<boolean>>;
+  setFormData: React.Dispatch<React.SetStateAction<AdverseEventProductInfo>>;
+  clearFieldError: (field: keyof Step5FormErrors) => void;
+  closeSheet: () => void;
+  countrySheetRef: React.RefObject<CountryBottomSheetRef | null>;
+  adminSheetRef: React.RefObject<AdministrationMethodBottomSheetRef | null>;
+  uploadSheetRef: React.RefObject<UploadDocumentBottomSheetRef>;
+  deleteSheetRef: React.RefObject<DeleteDocumentBottomSheetRef>;
+  fileToDelete: string | null;
+  onTakePhoto: () => void;
+  onChooseGallery: () => void;
+  onUploadDrive: () => void;
+  onConfirmDelete: () => void;
+}
+
+const Step5Overlays: React.FC<Step5OverlaysProps> = ({
+  formData,
+  today,
+  showDatePicker,
+  setShowDatePicker,
+  setFormData,
+  clearFieldError,
+  closeSheet,
+  countrySheetRef,
+  adminSheetRef,
+  uploadSheetRef,
+  deleteSheetRef,
+  fileToDelete,
+  onTakePhoto,
+  onChooseGallery,
+  onUploadDrive,
+  onConfirmDelete,
+}) => (
+  <>
+    <SimpleDatePicker
+      value={formData.eventDate}
+      onDateChange={date => {
+        setFormData(prev => ({...prev, eventDate: date}));
+        setShowDatePicker(false);
+      }}
+      show={showDatePicker}
+      onDismiss={() => setShowDatePicker(false)}
+      maximumDate={today}
+      mode="date"
+    />
+
+    <CountryBottomSheet
+      ref={countrySheetRef}
+      countries={SUPPORTED_ADVERSE_EVENT_COUNTRIES}
+      selectedCountry={formData.manufacturingCountry as any}
+      onSave={country => {
+        setFormData(prev => ({...prev, manufacturingCountry: country}));
+        clearFieldError('manufacturingCountry');
+        closeSheet();
+      }}
+    />
+
+    <AdministrationMethodBottomSheet
+      ref={adminSheetRef}
+      selectedMethod={formData.administrationMethod}
+      onSave={method => {
+        setFormData(prev => ({...prev, administrationMethod: method}));
+        clearFieldError('administrationMethod');
+        closeSheet();
+      }}
+    />
+
+    <UploadDeleteSheets
+      uploadSheetRef={uploadSheetRef}
+      deleteSheetRef={deleteSheetRef}
+      files={formData.files}
+      fileToDelete={fileToDelete as any}
+      onTakePhoto={onTakePhoto}
+      onChooseGallery={onChooseGallery}
+      onUploadDrive={onUploadDrive}
+      onConfirmDelete={onConfirmDelete}
+      closeSheet={closeSheet}
+    />
+  </>
+);
 
 const createStyles = (theme: any) =>
   StyleSheet.create({

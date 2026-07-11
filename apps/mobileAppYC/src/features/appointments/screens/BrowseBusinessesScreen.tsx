@@ -11,6 +11,7 @@ import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {Region} from 'react-native-maps';
 
 import type {AppDispatch, RootState} from '@/app/store';
+import type {Theme} from '@/theme';
 import {useTheme} from '@/hooks';
 import {useLazyRef} from '@/shared/hooks/useLazyRef';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
@@ -75,13 +76,13 @@ export const BrowseBusinessesScreen: React.FC = () => {
   const route =
     useRoute<RouteProp<AppointmentStackParamList, 'BrowseBusinesses'>>();
   const {distanceUnit} = usePreferences();
+  const location = useLocationPermission();
   const {
     userLocation,
     userCoords,
     hasPermission,
     isLoading: locationLoading,
-    handleMapUserLocationChange,
-  } = useLocationPermission();
+  } = location;
   const initialQuery = route.params?.serviceName ?? '';
   const initialBusinessId = route.params?.initialBusinessId;
   const selectionToken = route.params?.selectionToken;
@@ -196,15 +197,8 @@ export const BrowseBusinessesScreen: React.FC = () => {
     location: userLocation,
     useStoredLocation: false,
   });
-  const {
-    searchQuery,
-    setSearchQuery,
-    searchResults,
-    searching,
-    handleSearchChange,
-    handleSelectBusiness,
-    clearResults,
-  } = placesSearch;
+  const {searchQuery, setSearchQuery, handleSearchChange, clearResults} =
+    placesSearch;
   const performSearch = useCallback(
     (term?: string) => {
       const waitingForGrantedLocation = hasPermission && userCoords == null;
@@ -239,19 +233,13 @@ export const BrowseBusinessesScreen: React.FC = () => {
     },
     [dispatch, hasPermission, searchQuery, userCoords],
   );
-  const {
-    visibleClinics,
-    selectedClinicId,
-    mapRegion,
-    category,
-    openNow,
-    setSelectedClinicId,
-    setMapRegion,
-    setCategory,
-    setOpenNow,
-    enrichWithDistance,
-    pinAndSelectClinic,
-  } = useClinicMapDiscovery(searchQuery, initialBusinessId, selectionToken);
+  const discovery = useClinicMapDiscovery(
+    searchQuery,
+    initialBusinessId,
+    selectionToken,
+  );
+  const {visibleClinics, setMapRegion, enrichWithDistance, pinAndSelectClinic} =
+    discovery;
 
   clearResultsRef.current = clearResults;
   pinAndSelectClinicRef.current = pinAndSelectClinic;
@@ -325,8 +313,63 @@ export const BrowseBusinessesScreen: React.FC = () => {
 
   const [headerHeight, setHeaderHeight] = useState(0);
 
+  return (
+    <BrowseBusinessesLayout
+      styles={styles}
+      theme={theme}
+      headerHeight={headerHeight}
+      enrichedClinics={enrichedClinics}
+      discovery={discovery}
+      location={location}
+      placesSearch={placesSearch}
+      fallbacks={fallbacks}
+      distanceUnit={distanceUnit}
+      navigation={navigation}
+      onRegionChange={handleRegionChange}
+      onSearchChange={handleUnifiedSearchChange}
+      onSearchSubmit={handleSearchSubmit}
+      onSearchBarLayout={setHeaderHeight}
+    />
+  );
+};
+
+interface BrowseBusinessesLayoutProps {
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+  headerHeight: number;
+  enrichedClinics: VetBusiness[];
+  discovery: ReturnType<typeof useClinicMapDiscovery>;
+  location: ReturnType<typeof useLocationPermission>;
+  placesSearch: ReturnType<typeof usePlacesBusinessSearch>;
+  fallbacks: Fallbacks;
+  distanceUnit: 'km' | 'mi';
+  navigation: Nav;
+  onRegionChange: (region: Region) => void;
+  onSearchChange: (text: string) => void;
+  onSearchSubmit: () => void;
+  onSearchBarLayout: (height: number) => void;
+}
+
+const BrowseBusinessesLayout: React.FC<BrowseBusinessesLayoutProps> = ({
+  styles,
+  theme,
+  headerHeight,
+  enrichedClinics,
+  discovery,
+  location,
+  placesSearch,
+  fallbacks,
+  distanceUnit,
+  navigation,
+  onRegionChange,
+  onSearchChange,
+  onSearchSubmit,
+  onSearchBarLayout,
+}) => {
   const showSearchResults =
-    searchQuery.length >= 2 && searchResults.length > 0 && !searching;
+    placesSearch.searchQuery.length >= 2 &&
+    placesSearch.searchResults.length > 0 &&
+    !placesSearch.searching;
 
   const dropdownTop =
     headerHeight > 0
@@ -337,9 +380,9 @@ export const BrowseBusinessesScreen: React.FC = () => {
     <BusinessSearchDropdown
       visible
       top={dropdownTop}
-      items={searchResults}
-      onSelect={handleSelectBusiness}
-      onDismiss={clearResults}
+      items={placesSearch.searchResults}
+      onSelect={placesSearch.handleSelectBusiness}
+      onDismiss={placesSearch.clearResults}
     />
   ) : null;
 
@@ -347,28 +390,28 @@ export const BrowseBusinessesScreen: React.FC = () => {
     <View style={styles.root}>
       <MapDiscoveryView
         clinics={enrichedClinics.filter(c =>
-          visibleClinics.some(v => v.id === c.id),
+          discovery.visibleClinics.some(v => v.id === c.id),
         )}
-        selectedClinicId={selectedClinicId}
-        userLocation={userLocation}
-        hasLocationPermission={hasPermission}
-        searchQuery={searchQuery}
-        category={category}
-        openNow={openNow}
-        mapRegion={mapRegion}
+        selectedClinicId={discovery.selectedClinicId}
+        userLocation={location.userLocation}
+        hasLocationPermission={location.hasPermission}
+        searchQuery={placesSearch.searchQuery}
+        category={discovery.category}
+        openNow={discovery.openNow}
+        mapRegion={discovery.mapRegion}
         fallbacks={fallbacks}
         distanceUnit={distanceUnit}
         navigation={navigation}
-        onRegionChange={handleRegionChange}
-        onSelectClinic={setSelectedClinicId}
-        onSearchChange={handleUnifiedSearchChange}
-        onSearchSubmit={handleSearchSubmit}
-        onCategoryChange={setCategory}
-        onOpenNowChange={setOpenNow}
+        onRegionChange={onRegionChange}
+        onSelectClinic={discovery.setSelectedClinicId}
+        onSearchChange={onSearchChange}
+        onSearchSubmit={onSearchSubmit}
+        onCategoryChange={discovery.setCategory}
+        onOpenNowChange={discovery.setOpenNow}
         onBack={() => navigation.goBack()}
-        onMapUserLocationChange={handleMapUserLocationChange}
+        onMapUserLocationChange={location.handleMapUserLocationChange}
         searchResultsOverlay={searchResultsOverlay}
-        onSearchBarLayout={setHeaderHeight}
+        onSearchBarLayout={onSearchBarLayout}
       />
     </View>
   );

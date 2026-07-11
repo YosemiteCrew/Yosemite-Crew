@@ -316,196 +316,334 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
     }
   }, [dispatch, companionId, category, businessName]);
 
-  const companionInitial = (companionName ?? '').trim().charAt(0).toUpperCase();
+  return (
+    <BusinessAddScreenView
+      styles={styles}
+      theme={theme}
+      photo={details.photo}
+      businessName={businessName}
+      businessAddress={businessAddress}
+      distance={distance}
+      website={details.website}
+      rating={rating}
+      companionName={companionName}
+      isPMSRecord={isPMSRecord}
+      loading={loading}
+      fetchingDetails={fetchingDetails}
+      onBack={handleBack}
+      onAdd={handleAddBusiness}
+      onNotify={handleNotifyPress}
+      onAddConfirm={handleAddBusinessClose}
+      onNotifyConfirm={handleNotifyClose}
+      addBusinessSheetRef={addBusinessSheetRef}
+      notifyBusinessSheetRef={notifyBusinessSheetRef}
+    />
+  );
+};
+
+type BusinessAddTheme = ReturnType<typeof useTheme>['theme'];
+type BusinessAddStyles = ReturnType<typeof createStyles>;
+
+interface BusinessHeaderCardProps {
+  styles: BusinessAddStyles;
+  theme: BusinessAddTheme;
+  photo: string | undefined;
+  businessName?: string;
+  businessAddress?: string;
+  distance?: number;
+  website: string | undefined;
+  rating?: number;
+}
+
+const BusinessHeaderCard: React.FC<BusinessHeaderCardProps> = ({
+  styles,
+  theme,
+  photo,
+  businessName,
+  businessAddress,
+  distance,
+  website,
+  rating,
+}) => {
   const photoUri =
-    typeof details.photo === 'string' && details.photo.length > 0
-      ? details.photo
-      : undefined;
+    typeof photo === 'string' && photo.length > 0 ? photo : undefined;
   const metaLine = [businessAddress, distance ? `${distance}mi` : null]
     .filter(Boolean)
     .join('  ·  ');
 
   return (
-    <>
-      <LiquidGlassHeaderScreen
-        header={
-          <Header
-            title="Connect"
-            showBackButton
-            onBack={handleBack}
-            glass={false}
+    <View style={styles.businessCard}>
+      <View style={styles.businessTile}>
+        {photoUri ? (
+          <Image
+            source={{uri: photoUri}}
+            style={styles.businessTileImage}
+            resizeMode="cover"
           />
-        }
-        contentPadding={theme.spacing['4']}
-        showBottomFade={false}>
-        {contentPaddingStyle => (
-          <View style={styles.fill}>
-            <ScrollView
-              style={styles.scroll}
-              contentContainerStyle={[
-                styles.scrollContent,
-                contentPaddingStyle,
-              ]}
-              showsVerticalScrollIndicator={false}>
-              {/* Business header card */}
-              <View style={styles.businessCard}>
-                <View style={styles.businessTile}>
-                  {photoUri ? (
-                    <Image
-                      source={{uri: photoUri}}
-                      style={styles.businessTileImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <Ionicons
-                      name="medkit-outline"
-                      size={24}
-                      color={theme.colors.avatarGreenInk}
-                    />
-                  )}
-                </View>
-                <View style={styles.businessInfo}>
-                  <Text style={styles.businessName} numberOfLines={2}>
-                    {businessName}
-                  </Text>
-                  {!!metaLine && (
-                    <Text style={styles.businessMeta} numberOfLines={2}>
-                      {metaLine}
-                    </Text>
-                  )}
-                  {!!details.website && (
-                    <Text style={styles.businessWebsite} numberOfLines={1}>
-                      {details.website}
-                    </Text>
-                  )}
-                </View>
-                {!!rating && (
-                  <View style={styles.ratingChip}>
-                    <Ionicons name="star" size={12} color={theme.colors.pink} />
-                    <Text style={styles.ratingText}>{`${rating}`}</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Companion this link is for */}
-              {!!companionName && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>Link for</Text>
-                  <View style={styles.companionRow}>
-                    <View style={styles.companionChip}>
-                      <View style={styles.companionAvatar}>
-                        <Text style={styles.companionInitial}>
-                          {companionInitial}
-                        </Text>
-                      </View>
-                      <Text style={styles.companionName} numberOfLines={1}>
-                        {companionName}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              )}
-
-              {/* Connection status */}
-              <View
-                style={[
-                  styles.statusBanner,
-                  isPMSRecord
-                    ? styles.statusBannerSuccess
-                    : styles.statusBannerInfo,
-                ]}>
-                {isPMSRecord ? (
-                  <>
-                    <Text style={styles.statusEmoji}>🎉</Text>
-                    <Text style={styles.statusText}>
-                      We are happy to inform you that this organisation is part
-                      of Yosemite Crew PMS
-                    </Text>
-                    <Image
-                      source={Images.yosemiteLogo}
-                      style={styles.logoImage}
-                      resizeMode="contain"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.statusEmoji}>😔</Text>
-                    <Text style={styles.statusText}>
-                      We are sorry to inform you, this organisation is not a
-                      part of Yosemite Crew PMS. We will soon notify you, when
-                      the organisation is available on this platform.
-                    </Text>
-                    <Text style={styles.statusEmoji}>🔔</Text>
-                  </>
-                )}
-              </View>
-            </ScrollView>
-
-            {/* Bottom action bar */}
-            <View style={styles.bottomBar}>
-              {isPMSRecord ? (
-                <LiquidGlassButton
-                  title={loading ? 'Adding...' : 'Add'}
-                  onPress={handleAddBusiness}
-                  disabled={loading}
-                  glassEffect="clear"
-                  height={56}
-                  borderRadius={theme.borderRadius.button}
-                  tintColor={theme.colors.cta}
-                  textStyle={styles.buttonText}
-                  shadowIntensity="medium"
-                  loading={loading}
-                  leftIcon={
-                    <Ionicons
-                      name="link-outline"
-                      size={18}
-                      color={theme.colors.ctaText}
-                    />
-                  }
-                />
-              ) : (
-                <LiquidGlassButton
-                  title="Notify Business"
-                  onPress={handleNotifyPress}
-                  disabled={fetchingDetails}
-                  glassEffect="clear"
-                  height={56}
-                  borderRadius={theme.borderRadius.button}
-                  tintColor={theme.colors.cta}
-                  textStyle={styles.buttonText}
-                  shadowIntensity="medium"
-                  leftIcon={
-                    <Ionicons
-                      name="notifications-outline"
-                      size={18}
-                      color={theme.colors.ctaText}
-                    />
-                  }
-                />
-              )}
-            </View>
-          </View>
+        ) : (
+          <Ionicons
+            name="medkit-outline"
+            size={24}
+            color={theme.colors.avatarGreenInk}
+          />
         )}
-      </LiquidGlassHeaderScreen>
-
-      {/* Add Business Bottom Sheet */}
-      <AddBusinessBottomSheet
-        ref={addBusinessSheetRef}
-        businessName={businessName}
-        businessAddress={businessAddress}
-        onConfirm={handleAddBusinessClose}
-      />
-
-      {/* Notify Business Bottom Sheet */}
-      <NotifyBusinessBottomSheet
-        ref={notifyBusinessSheetRef}
-        businessName={businessName}
-        companionName={companionName}
-        onConfirm={handleNotifyClose}
-      />
-    </>
+      </View>
+      <View style={styles.businessInfo}>
+        <Text style={styles.businessName} numberOfLines={2}>
+          {businessName}
+        </Text>
+        {!!metaLine && (
+          <Text style={styles.businessMeta} numberOfLines={2}>
+            {metaLine}
+          </Text>
+        )}
+        {!!website && (
+          <Text style={styles.businessWebsite} numberOfLines={1}>
+            {website}
+          </Text>
+        )}
+      </View>
+      {!!rating && (
+        <View style={styles.ratingChip}>
+          <Ionicons name="star" size={12} color={theme.colors.pink} />
+          <Text style={styles.ratingText}>{`${rating}`}</Text>
+        </View>
+      )}
+    </View>
   );
 };
+
+interface CompanionSectionProps {
+  styles: BusinessAddStyles;
+  companionName?: string;
+}
+
+const CompanionSection: React.FC<CompanionSectionProps> = ({
+  styles,
+  companionName,
+}) => {
+  if (!companionName) {
+    return null;
+  }
+
+  const companionInitial = companionName.trim().charAt(0).toUpperCase();
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionLabel}>Link for</Text>
+      <View style={styles.companionRow}>
+        <View style={styles.companionChip}>
+          <View style={styles.companionAvatar}>
+            <Text style={styles.companionInitial}>{companionInitial}</Text>
+          </View>
+          <Text style={styles.companionName} numberOfLines={1}>
+            {companionName}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+interface ConnectionStatusBannerProps {
+  styles: BusinessAddStyles;
+  isPMSRecord?: boolean;
+}
+
+const ConnectionStatusBanner: React.FC<ConnectionStatusBannerProps> = ({
+  styles,
+  isPMSRecord,
+}) => (
+  <View
+    style={[
+      styles.statusBanner,
+      isPMSRecord ? styles.statusBannerSuccess : styles.statusBannerInfo,
+    ]}>
+    {isPMSRecord ? (
+      <>
+        <Text style={styles.statusEmoji}>🎉</Text>
+        <Text style={styles.statusText}>
+          We are happy to inform you that this organisation is part of Yosemite
+          Crew PMS
+        </Text>
+        <Image
+          source={Images.yosemiteLogo}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+      </>
+    ) : (
+      <>
+        <Text style={styles.statusEmoji}>😔</Text>
+        <Text style={styles.statusText}>
+          We are sorry to inform you, this organisation is not a part of
+          Yosemite Crew PMS. We will soon notify you, when the organisation is
+          available on this platform.
+        </Text>
+        <Text style={styles.statusEmoji}>🔔</Text>
+      </>
+    )}
+  </View>
+);
+
+interface BottomActionBarProps {
+  styles: BusinessAddStyles;
+  theme: BusinessAddTheme;
+  isPMSRecord?: boolean;
+  loading: boolean;
+  fetchingDetails: boolean;
+  onAdd: () => void;
+  onNotify: () => void;
+}
+
+const BottomActionBar: React.FC<BottomActionBarProps> = ({
+  styles,
+  theme,
+  isPMSRecord,
+  loading,
+  fetchingDetails,
+  onAdd,
+  onNotify,
+}) => (
+  <View style={styles.bottomBar}>
+    {isPMSRecord ? (
+      <LiquidGlassButton
+        title={loading ? 'Adding...' : 'Add'}
+        onPress={onAdd}
+        disabled={loading}
+        glassEffect="clear"
+        height={56}
+        borderRadius={theme.borderRadius.button}
+        tintColor={theme.colors.cta}
+        textStyle={styles.buttonText}
+        shadowIntensity="medium"
+        loading={loading}
+        leftIcon={
+          <Ionicons
+            name="link-outline"
+            size={18}
+            color={theme.colors.ctaText}
+          />
+        }
+      />
+    ) : (
+      <LiquidGlassButton
+        title="Notify Business"
+        onPress={onNotify}
+        disabled={fetchingDetails}
+        glassEffect="clear"
+        height={56}
+        borderRadius={theme.borderRadius.button}
+        tintColor={theme.colors.cta}
+        textStyle={styles.buttonText}
+        shadowIntensity="medium"
+        leftIcon={
+          <Ionicons
+            name="notifications-outline"
+            size={18}
+            color={theme.colors.ctaText}
+          />
+        }
+      />
+    )}
+  </View>
+);
+
+interface BusinessAddScreenViewProps {
+  styles: BusinessAddStyles;
+  theme: BusinessAddTheme;
+  photo: string | undefined;
+  businessName?: string;
+  businessAddress?: string;
+  distance?: number;
+  website: string | undefined;
+  rating?: number;
+  companionName?: string;
+  isPMSRecord?: boolean;
+  loading: boolean;
+  fetchingDetails: boolean;
+  onBack: () => void;
+  onAdd: () => void;
+  onNotify: () => void;
+  onAddConfirm: () => void;
+  onNotifyConfirm: () => void;
+  addBusinessSheetRef: React.Ref<AddBusinessBottomSheetRef>;
+  notifyBusinessSheetRef: React.Ref<NotifyBusinessBottomSheetRef>;
+}
+
+const BusinessAddScreenView: React.FC<BusinessAddScreenViewProps> = ({
+  styles,
+  theme,
+  photo,
+  businessName,
+  businessAddress,
+  distance,
+  website,
+  rating,
+  companionName,
+  isPMSRecord,
+  loading,
+  fetchingDetails,
+  onBack,
+  onAdd,
+  onNotify,
+  onAddConfirm,
+  onNotifyConfirm,
+  addBusinessSheetRef,
+  notifyBusinessSheetRef,
+}) => (
+  <>
+    <LiquidGlassHeaderScreen
+      header={
+        <Header title="Connect" showBackButton onBack={onBack} glass={false} />
+      }
+      contentPadding={theme.spacing['4']}
+      showBottomFade={false}>
+      {contentPaddingStyle => (
+        <View style={styles.fill}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
+            <BusinessHeaderCard
+              styles={styles}
+              theme={theme}
+              photo={photo}
+              businessName={businessName}
+              businessAddress={businessAddress}
+              distance={distance}
+              website={website}
+              rating={rating}
+            />
+            <CompanionSection styles={styles} companionName={companionName} />
+            <ConnectionStatusBanner styles={styles} isPMSRecord={isPMSRecord} />
+          </ScrollView>
+          <BottomActionBar
+            styles={styles}
+            theme={theme}
+            isPMSRecord={isPMSRecord}
+            loading={loading}
+            fetchingDetails={fetchingDetails}
+            onAdd={onAdd}
+            onNotify={onNotify}
+          />
+        </View>
+      )}
+    </LiquidGlassHeaderScreen>
+    <AddBusinessBottomSheet
+      ref={addBusinessSheetRef}
+      businessName={businessName}
+      businessAddress={businessAddress}
+      onConfirm={onAddConfirm}
+    />
+    <NotifyBusinessBottomSheet
+      ref={notifyBusinessSheetRef}
+      businessName={businessName}
+      companionName={companionName}
+      onConfirm={onNotifyConfirm}
+    />
+  </>
+);
 
 const createStyles = (theme: any) => {
   return StyleSheet.create({

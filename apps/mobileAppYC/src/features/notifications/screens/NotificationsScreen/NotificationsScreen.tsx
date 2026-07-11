@@ -7,6 +7,7 @@ import {
   Image,
   RefreshControl,
 } from 'react-native';
+import type {SectionListRenderItem, ViewStyle} from 'react-native';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {useNavigation} from '@react-navigation/native';
@@ -279,18 +280,6 @@ export const NotificationsScreen: React.FC = () => {
     return grouped;
   }, [notifications]);
 
-  // Render empty state
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Image source={Images.emptyNotifications} style={styles.emptyImage} />
-      <Text style={styles.emptyTitle}>Nothing in the box!</Text>
-      <Text style={styles.emptySubtitle}>
-        Your notification box is empty right now.{'\n'}
-        Sit, stay, and we’ll fetch updates soon.
-      </Text>
-    </View>
-  );
-
   // Render notification item
   const renderNotificationItem = ({item}: {item: Notification}) => {
     const comp = getCompanionById(item.companionId);
@@ -326,53 +315,22 @@ export const NotificationsScreen: React.FC = () => {
       {contentPaddingStyle => (
         <>
           {/* Header content placed above the list to preserve internal scroll state */}
-          <View style={[styles.headerContent, contentPaddingStyle]}>
-            <View style={styles.filtersWrapper}>
-              <NotificationFilterPills
-                selectedFilter={filter}
-                onFilterChange={handleFilterChange}
-                unreadCounts={unreadCounts as any}
-              />
-            </View>
+          <NotificationsListHeader
+            filter={filter}
+            onFilterChange={handleFilterChange}
+            unreadCounts={unreadCounts as any}
+            sortBy={sortBy}
+            onSortChange={handleSortChange}
+            contentPaddingStyle={contentPaddingStyle}
+            styles={styles}
+          />
 
-            <View style={styles.segmentContainer}>
-              <View style={styles.segmentInner}>
-                {(['new', 'seen'] as const).map(option => (
-                  <PressableOpacity
-                    key={option}
-                    onPress={() => handleSortChange(option)}
-                    activeOpacity={0.9}
-                    style={[
-                      styles.segmentItem,
-                      sortBy === option && styles.segmentItemActive,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        sortBy === option && styles.segmentTextActive,
-                      ]}>
-                      {option === 'new' ? 'New' : 'Seen'}
-                    </Text>
-                  </PressableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
-
-          <SectionList
-            style={styles.list}
-            contentContainerStyle={styles.listContent}
+          <NotificationsSectionList
             sections={sections}
             renderItem={renderNotificationItem}
-            renderSectionHeader={({section}) => (
-              <Text style={styles.sectionHeader}>{section.title}</Text>
-            )}
-            keyExtractor={item => item.id}
-            ListEmptyComponent={renderEmptyState}
             refreshControl={refreshControl}
-            stickySectionHeadersEnabled={false}
-            showsVerticalScrollIndicator={false}
-            scrollEventThrottle={16}
+            emptyComponent={<NotificationsEmptyState styles={styles} />}
+            styles={styles}
           />
         </>
       )}
@@ -469,3 +427,114 @@ const createStyles = (theme: any) => {
     },
   });
 };
+
+type NotificationStyles = ReturnType<typeof createStyles>;
+
+interface NotificationsListHeaderProps {
+  filter: NotificationCategory;
+  onFilterChange: (selectedFilter: NotificationCategory) => void;
+  unreadCounts: Partial<Record<NotificationCategory, number>>;
+  sortBy: 'new' | 'seen';
+  onSortChange: (selectedSort: 'new' | 'seen') => void;
+  contentPaddingStyle: ViewStyle | null;
+  styles: NotificationStyles;
+}
+
+// Filter pills + New/Seen segment shown above the list.
+const NotificationsListHeader: React.FC<NotificationsListHeaderProps> = ({
+  filter,
+  onFilterChange,
+  unreadCounts,
+  sortBy,
+  onSortChange,
+  contentPaddingStyle,
+  styles,
+}) => (
+  <View style={[styles.headerContent, contentPaddingStyle]}>
+    <View style={styles.filtersWrapper}>
+      <NotificationFilterPills
+        selectedFilter={filter}
+        onFilterChange={onFilterChange}
+        unreadCounts={unreadCounts}
+      />
+    </View>
+
+    <View style={styles.segmentContainer}>
+      <View style={styles.segmentInner}>
+        {(['new', 'seen'] as const).map(option => (
+          <PressableOpacity
+            key={option}
+            onPress={() => onSortChange(option)}
+            activeOpacity={0.9}
+            style={[
+              styles.segmentItem,
+              sortBy === option && styles.segmentItemActive,
+            ]}>
+            <Text
+              style={[
+                styles.segmentText,
+                sortBy === option && styles.segmentTextActive,
+              ]}>
+              {option === 'new' ? 'New' : 'Seen'}
+            </Text>
+          </PressableOpacity>
+        ))}
+      </View>
+    </View>
+  </View>
+);
+
+type NotificationSection = {title: string; data: Notification[]};
+
+interface NotificationsSectionListProps {
+  sections: NotificationSection[];
+  renderItem: SectionListRenderItem<Notification, NotificationSection>;
+  refreshControl: React.ReactElement<
+    React.ComponentProps<typeof RefreshControl>
+  >;
+  emptyComponent: React.ReactElement;
+  styles: NotificationStyles;
+}
+
+// Grouped Today / Yesterday / Earlier notification list.
+const NotificationsSectionList: React.FC<NotificationsSectionListProps> = ({
+  sections,
+  renderItem,
+  refreshControl,
+  emptyComponent,
+  styles,
+}) => (
+  <SectionList
+    style={styles.list}
+    contentContainerStyle={styles.listContent}
+    sections={sections}
+    renderItem={renderItem}
+    renderSectionHeader={({section}) => (
+      <Text style={styles.sectionHeader}>{section.title}</Text>
+    )}
+    keyExtractor={item => item.id}
+    ListEmptyComponent={emptyComponent}
+    refreshControl={refreshControl}
+    stickySectionHeadersEnabled={false}
+    showsVerticalScrollIndicator={false}
+    scrollEventThrottle={16}
+  />
+);
+
+interface NotificationsEmptyStateProps {
+  styles: NotificationStyles;
+}
+
+// Empty state shown when there are no notifications.
+const NotificationsEmptyState: React.FC<NotificationsEmptyStateProps> = ({
+  styles,
+}) => (
+  <View style={styles.emptyContainer}>
+    <Image source={Images.emptyNotifications} style={styles.emptyImage} />
+    <Text style={styles.emptyTitle}>Nothing in the box!</Text>
+    <Text style={styles.emptySubtitle}>
+      Your notification box is empty right now.{'\n'}
+      Sit, stay, and we’ll fetch updates soon.
+    </Text>
+  </View>
+);

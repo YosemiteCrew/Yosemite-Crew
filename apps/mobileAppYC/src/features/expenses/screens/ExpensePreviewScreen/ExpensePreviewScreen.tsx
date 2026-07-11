@@ -44,6 +44,7 @@ import type {
   DetailItem,
   DetailBadge,
 } from '@/shared/components/common/DetailsCard';
+import type {ExpenseAttachment} from '@/features/expenses/types';
 
 type Navigation = NativeStackNavigationProp<
   ExpenseStackParamList,
@@ -447,38 +448,14 @@ export const ExpensePreviewScreen: React.FC = () => {
           scrollEnabled={!isPdfInteracting}
           showsVerticalScrollIndicator={false}>
           {/* Hero: category tile + serif amount + title + date + status */}
-          <View style={styles.hero}>
-            <View
-              style={[
-                styles.heroTile,
-                {backgroundColor: categoryVisual.backgroundColor},
-              ]}>
-              <Ionicons
-                name={categoryVisual.iconName}
-                size={28}
-                color={categoryVisual.iconColor}
-              />
-            </View>
-            <Text style={styles.heroAmount}>{formattedAmount}</Text>
-            <Text style={styles.heroTitle}>{expense.title}</Text>
-            <Text style={styles.heroDate}>{heroDate}</Text>
-            {badges.length > 0 && (
-              <View style={styles.badgeRow}>
-                {badges.map(badge => (
-                  <View
-                    key={badge.text}
-                    style={[
-                      styles.statusBadge,
-                      {backgroundColor: badge.backgroundColor},
-                    ]}>
-                    <Text style={[styles.statusText, {color: badge.textColor}]}>
-                      {badge.text}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
+          <ExpenseHero
+            styles={styles}
+            categoryVisual={categoryVisual}
+            formattedAmount={formattedAmount}
+            title={expense.title}
+            heroDate={heroDate}
+            badges={badges}
+          />
 
           {/* Business Info Card using SummaryCards */}
           {isInAppExpense && invoiceData && (
@@ -508,30 +485,13 @@ export const ExpensePreviewScreen: React.FC = () => {
           )}
 
           {/* Receipt */}
-          <View style={styles.receiptSection}>
-            <Text style={styles.receiptTitle}>Receipt</Text>
-            {expense.attachments && expense.attachments.length > 0 ? (
-              <DocumentAttachmentViewer
-                attachments={expense.attachments}
-                onPdfTouchStart={() => setIsPdfInteracting(true)}
-                onPdfTouchEnd={() => setIsPdfInteracting(false)}
-              />
-            ) : (
-              <View style={styles.fallbackCard}>
-                <View style={styles.fallbackTile}>
-                  <Ionicons
-                    name="receipt-outline"
-                    size={18}
-                    color={theme.colors.avatarAmberInk}
-                  />
-                </View>
-                <Text style={styles.fallbackTitle}>No attachments</Text>
-                <Text style={styles.fallbackText}>
-                  There are no files attached to this expense.
-                </Text>
-              </View>
-            )}
-          </View>
+          <ReceiptSection
+            styles={styles}
+            theme={theme}
+            attachments={expense.attachments}
+            onPdfTouchStart={() => setIsPdfInteracting(true)}
+            onPdfTouchEnd={() => setIsPdfInteracting(false)}
+          />
 
           <PaymentActions
             shouldShow={shouldShowPaymentActions}
@@ -548,6 +508,94 @@ export const ExpensePreviewScreen: React.FC = () => {
     </LiquidGlassHeaderScreen>
   );
 };
+
+const ExpenseHero = ({
+  styles,
+  categoryVisual,
+  formattedAmount,
+  title,
+  heroDate,
+  badges,
+}: {
+  styles: any;
+  categoryVisual: CategoryVisual;
+  formattedAmount: string;
+  title: string;
+  heroDate: string;
+  badges: DetailBadge[];
+}) => (
+  <View style={styles.hero}>
+    <View
+      style={[
+        styles.heroTile,
+        {backgroundColor: categoryVisual.backgroundColor},
+      ]}>
+      <Ionicons
+        name={categoryVisual.iconName}
+        size={28}
+        color={categoryVisual.iconColor}
+      />
+    </View>
+    <Text style={styles.heroAmount}>{formattedAmount}</Text>
+    <Text style={styles.heroTitle}>{title}</Text>
+    <Text style={styles.heroDate}>{heroDate}</Text>
+    {badges.length > 0 && (
+      <View style={styles.badgeRow}>
+        {badges.map(badge => (
+          <View
+            key={badge.text}
+            style={[
+              styles.statusBadge,
+              {backgroundColor: badge.backgroundColor},
+            ]}>
+            <Text style={[styles.statusText, {color: badge.textColor}]}>
+              {badge.text}
+            </Text>
+          </View>
+        ))}
+      </View>
+    )}
+  </View>
+);
+
+const ReceiptSection = ({
+  styles,
+  theme,
+  attachments,
+  onPdfTouchStart,
+  onPdfTouchEnd,
+}: {
+  styles: any;
+  theme: any;
+  attachments?: ExpenseAttachment[];
+  onPdfTouchStart: () => void;
+  onPdfTouchEnd: () => void;
+}) => (
+  <View style={styles.receiptSection}>
+    <Text style={styles.receiptTitle}>Receipt</Text>
+    {attachments && attachments.length > 0 ? (
+      <DocumentAttachmentViewer
+        attachments={attachments}
+        onPdfTouchStart={onPdfTouchStart}
+        onPdfTouchEnd={onPdfTouchEnd}
+      />
+    ) : (
+      <View style={styles.fallbackCard}>
+        <View style={styles.fallbackTile}>
+          <Ionicons
+            name="receipt-outline"
+            size={18}
+            color={theme.colors.avatarAmberInk}
+          />
+        </View>
+        <Text style={styles.fallbackTitle}>No attachments</Text>
+        <Text style={styles.fallbackText}>
+          There are no files attached to this expense.
+        </Text>
+      </View>
+    )}
+  </View>
+);
 
 const createStyles = (theme: any) =>
   StyleSheet.create({

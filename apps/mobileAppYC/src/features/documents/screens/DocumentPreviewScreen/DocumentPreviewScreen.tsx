@@ -21,6 +21,7 @@ import {useSelector, useDispatch} from 'react-redux';
 import type {RootState, AppDispatch} from '@/app/store';
 import type {DocumentStackParamList} from '@/navigation/types';
 import type {DocumentFile} from '@/features/documents/types';
+import type {Theme} from '@/theme';
 import {createAllCommonStyles} from '@/shared/utils/screenStyles';
 import DocumentAttachmentViewer from '@/features/documents/components/DocumentAttachmentViewer';
 import {fetchDocumentView} from '@/features/documents/documentSlice';
@@ -265,44 +266,15 @@ export const DocumentPreviewScreen: React.FC = () => {
   };
 
   const headerNode = (
-    <View style={styles.header} testID="document-preview-header">
-      <PressableOpacity
-        testID="header-back-btn"
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-        style={styles.circleButton}
-        onPress={() => navigation.goBack()}>
-        <Ionicons name="chevron-back" size={18} color={theme.colors.inkBody} />
-      </PressableOpacity>
-
-      <View style={styles.headerTitleBlock}>
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          {document.title}
-        </Text>
-        {!!subtitle && (
-          <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {subtitle}
-          </Text>
-        )}
-      </View>
-
-      {canEdit ? (
-        <PressableOpacity
-          testID="header-right-btn"
-          accessibilityRole="button"
-          accessibilityLabel="Document options"
-          style={styles.circleButton}
-          onPress={handleEdit}>
-          <Ionicons
-            name="ellipsis-horizontal"
-            size={17}
-            color={theme.colors.inkBody}
-          />
-        </PressableOpacity>
-      ) : (
-        <View style={styles.circleButton} />
-      )}
-    </View>
+    <DocumentPreviewHeader
+      styles={styles}
+      theme={theme}
+      title={document.title}
+      subtitle={subtitle}
+      canEdit={canEdit}
+      onBack={() => navigation.goBack()}
+      onEdit={handleEdit}
+    />
   );
 
   return (
@@ -332,80 +304,164 @@ export const DocumentPreviewScreen: React.FC = () => {
             </View>
           </ScrollView>
 
-          <View style={styles.footer}>
-            <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
-                <Ionicons
-                  name="business-outline"
-                  size={14}
-                  color={theme.colors.inkFaint}
-                />
-                <Text style={styles.metaText} numberOfLines={1}>
-                  {document.businessName || '—'}
-                </Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons
-                  name="paw-outline"
-                  size={14}
-                  color={theme.colors.inkFaint}
-                />
-                <Text style={styles.metaText} numberOfLines={1}>
-                  {companion?.name || 'Unknown'}
-                </Text>
-              </View>
-              {!!fileMeta && (
-                <View style={styles.metaItem}>
-                  <Ionicons
-                    name="document-outline"
-                    size={14}
-                    color={theme.colors.inkFaint}
-                  />
-                  <Text style={styles.metaText} numberOfLines={1}>
-                    {fileMeta}
-                  </Text>
-                </View>
-              )}
-              {isSynced && (
-                <View style={styles.syncedPill}>
-                  <View style={styles.syncedDot} />
-                  <Text style={styles.syncedText}>SYNCED</Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.actionRow}>
-              <PressableOpacity
-                style={[styles.actionButton, styles.actionPrimary]}
-                accessibilityRole="button"
-                accessibilityLabel="Share document"
-                onPress={handleShare}>
-                <Ionicons
-                  name="share-outline"
-                  size={17}
-                  color={theme.colors.ctaText}
-                />
-                <Text style={styles.actionPrimaryText}>Share</Text>
-              </PressableOpacity>
-              <PressableOpacity
-                style={[styles.actionButton, styles.actionSecondary]}
-                accessibilityRole="button"
-                accessibilityLabel="Download document"
-                onPress={handleDownload}>
-                <Ionicons
-                  name="download-outline"
-                  size={17}
-                  color={theme.colors.inkBody}
-                />
-                <Text style={styles.actionSecondaryText}>Download</Text>
-              </PressableOpacity>
-            </View>
-          </View>
+          <DocumentPreviewFooter
+            styles={styles}
+            theme={theme}
+            businessName={document.businessName}
+            companionName={companion?.name}
+            fileMeta={fileMeta}
+            isSynced={isSynced}
+            onShare={handleShare}
+            onDownload={handleDownload}
+          />
         </View>
       )}
     </LiquidGlassHeaderScreen>
   );
 };
+
+type DocumentPreviewHeaderProps = {
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+  title: string;
+  subtitle: string;
+  canEdit: boolean;
+  onBack: () => void;
+  onEdit: () => void;
+};
+
+const DocumentPreviewHeader: React.FC<DocumentPreviewHeaderProps> = ({
+  styles,
+  theme,
+  title,
+  subtitle,
+  canEdit,
+  onBack,
+  onEdit,
+}) => (
+  <View style={styles.header} testID="document-preview-header">
+    <PressableOpacity
+      testID="header-back-btn"
+      accessibilityRole="button"
+      accessibilityLabel="Go back"
+      style={styles.circleButton}
+      onPress={onBack}>
+      <Ionicons name="chevron-back" size={18} color={theme.colors.inkBody} />
+    </PressableOpacity>
+
+    <View style={styles.headerTitleBlock}>
+      <Text style={styles.headerTitle} numberOfLines={1}>
+        {title}
+      </Text>
+      {!!subtitle && (
+        <Text style={styles.headerSubtitle} numberOfLines={1}>
+          {subtitle}
+        </Text>
+      )}
+    </View>
+
+    {canEdit ? (
+      <PressableOpacity
+        testID="header-right-btn"
+        accessibilityRole="button"
+        accessibilityLabel="Document options"
+        style={styles.circleButton}
+        onPress={onEdit}>
+        <Ionicons
+          name="ellipsis-horizontal"
+          size={17}
+          color={theme.colors.inkBody}
+        />
+      </PressableOpacity>
+    ) : (
+      <View style={styles.circleButton} />
+    )}
+  </View>
+);
+
+type DocumentPreviewFooterProps = {
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+  businessName?: string | null;
+  companionName?: string | null;
+  fileMeta: string;
+  isSynced: boolean;
+  onShare: () => void;
+  onDownload: () => void;
+};
+
+const DocumentPreviewFooter: React.FC<DocumentPreviewFooterProps> = ({
+  styles,
+  theme,
+  businessName,
+  companionName,
+  fileMeta,
+  isSynced,
+  onShare,
+  onDownload,
+}) => (
+  <View style={styles.footer}>
+    <View style={styles.metaRow}>
+      <View style={styles.metaItem}>
+        <Ionicons
+          name="business-outline"
+          size={14}
+          color={theme.colors.inkFaint}
+        />
+        <Text style={styles.metaText} numberOfLines={1}>
+          {businessName || '—'}
+        </Text>
+      </View>
+      <View style={styles.metaItem}>
+        <Ionicons name="paw-outline" size={14} color={theme.colors.inkFaint} />
+        <Text style={styles.metaText} numberOfLines={1}>
+          {companionName || 'Unknown'}
+        </Text>
+      </View>
+      {!!fileMeta && (
+        <View style={styles.metaItem}>
+          <Ionicons
+            name="document-outline"
+            size={14}
+            color={theme.colors.inkFaint}
+          />
+          <Text style={styles.metaText} numberOfLines={1}>
+            {fileMeta}
+          </Text>
+        </View>
+      )}
+      {isSynced && (
+        <View style={styles.syncedPill}>
+          <View style={styles.syncedDot} />
+          <Text style={styles.syncedText}>SYNCED</Text>
+        </View>
+      )}
+    </View>
+
+    <View style={styles.actionRow}>
+      <PressableOpacity
+        style={[styles.actionButton, styles.actionPrimary]}
+        accessibilityRole="button"
+        accessibilityLabel="Share document"
+        onPress={onShare}>
+        <Ionicons name="share-outline" size={17} color={theme.colors.ctaText} />
+        <Text style={styles.actionPrimaryText}>Share</Text>
+      </PressableOpacity>
+      <PressableOpacity
+        style={[styles.actionButton, styles.actionSecondary]}
+        accessibilityRole="button"
+        accessibilityLabel="Download document"
+        onPress={onDownload}>
+        <Ionicons
+          name="download-outline"
+          size={17}
+          color={theme.colors.inkBody}
+        />
+        <Text style={styles.actionSecondaryText}>Download</Text>
+      </PressableOpacity>
+    </View>
+  </View>
+);
 
 const createStyles = (theme: any) => {
   const commonStyles = createAllCommonStyles(theme);

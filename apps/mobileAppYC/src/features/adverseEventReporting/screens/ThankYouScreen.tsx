@@ -6,6 +6,9 @@ import {
   Text,
   ActivityIndicator,
   Linking,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
@@ -20,8 +23,16 @@ import {useAdverseEventReport} from '@/features/adverseEventReporting/state/Adve
 import {adverseEventService} from '@/features/adverseEventReporting/services/adverseEventService';
 import {showErrorAlert, showSuccessAlert} from '@/shared/utils/commonHelpers';
 import {SUPPORTED_ADVERSE_EVENT_COUNTRIES} from '@/features/adverseEventReporting/content/supportedCountries';
+import type {Theme} from '@/theme';
 
 type Props = NativeStackScreenProps<AdverseEventStackParamList, 'ThankYou'>;
+
+type RegulatoryContact = {
+  authorityName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+};
 
 export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
@@ -47,12 +58,8 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
     'manufacturer' | 'hospital' | null
   >(null);
   const [regulatoryLoading, setRegulatoryLoading] = useState(false);
-  const [regulatoryContact, setRegulatoryContact] = useState<{
-    authorityName?: string | null;
-    phone?: string | null;
-    email?: string | null;
-    website?: string | null;
-  } | null>(null);
+  const [regulatoryContact, setRegulatoryContact] =
+    useState<RegulatoryContact | null>(null);
 
   const resolvedCompanion = useMemo(() => {
     const targetId = draft.companionId ?? selectedCompanionId;
@@ -227,17 +234,7 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
-          <View style={styles.medallion}>
-            <Ionicons name="heart" size={46} color={theme.colors.pink} />
-          </View>
-
-          <Text style={styles.title}>Thank you for reaching out to us</Text>
-          <Text style={styles.subtitle}>
-            By submitting a report, you agree to be contacted by the company if
-            needed to obtain further details regarding your report.
-          </Text>
-        </View>
+        <ThankYouHero styles={styles} theme={theme} />
 
         <View style={styles.checkboxSection}>
           <Checkbox
@@ -258,104 +255,39 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
         </View>
 
         <View style={styles.actionsContainer}>
-          <PressableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Send report to drug manufacturer"
-            accessibilityState={{
-              disabled: submitLoading !== null,
-              busy: submitLoading === 'manufacturer',
-            }}
-            testID="btn-Send report to drug manufacturer"
-            style={[
-              styles.primaryButton,
-              submitLoading === 'hospital' && styles.buttonDisabled,
-            ]}
+          <SubmitReportButton
+            styles={styles}
+            label="Send report to drug manufacturer"
+            buttonStyle={styles.primaryButton}
+            textStyle={styles.primaryButtonText}
+            iconName="flask-outline"
+            contentColor={theme.colors.ctaText}
+            isBusy={submitLoading === 'manufacturer'}
+            isDimmed={submitLoading === 'hospital'}
+            disabled={submitLoading !== null}
             onPress={handleSendToManufacturer}
-            disabled={submitLoading !== null}>
-            {submitLoading === 'manufacturer' ? (
-              <ActivityIndicator color={theme.colors.ctaText} />
-            ) : (
-              <>
-                <Ionicons
-                  name="flask-outline"
-                  size={18}
-                  color={theme.colors.ctaText}
-                />
-                <Text style={styles.primaryButtonText}>
-                  Send report to drug manufacturer
-                </Text>
-              </>
-            )}
-          </PressableOpacity>
+          />
 
-          <PressableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Send report to hospital"
-            accessibilityState={{
-              disabled: submitLoading !== null,
-              busy: submitLoading === 'hospital',
-            }}
-            testID="btn-Send report to hospital"
-            style={[
-              styles.secondaryButton,
-              submitLoading === 'manufacturer' && styles.buttonDisabled,
-            ]}
+          <SubmitReportButton
+            styles={styles}
+            label="Send report to hospital"
+            buttonStyle={styles.secondaryButton}
+            textStyle={styles.secondaryButtonText}
+            iconName="business-outline"
+            contentColor={theme.colors.inkBody}
+            isBusy={submitLoading === 'hospital'}
+            isDimmed={submitLoading === 'manufacturer'}
+            disabled={submitLoading !== null}
             onPress={handleSendToHospital}
-            disabled={submitLoading !== null}>
-            {submitLoading === 'hospital' ? (
-              <ActivityIndicator color={theme.colors.inkBody} />
-            ) : (
-              <>
-                <Ionicons
-                  name="business-outline"
-                  size={18}
-                  color={theme.colors.inkBody}
-                />
-                <Text style={styles.secondaryButtonText}>
-                  Send report to hospital
-                </Text>
-              </>
-            )}
-          </PressableOpacity>
+          />
 
-          <PressableOpacity
-            style={styles.callAuthorityAction}
-            onPress={regulatoryLoading ? undefined : handleCallAuthority}
-            disabled={regulatoryLoading}>
-            <Ionicons
-              name="call-outline"
-              size={17}
-              color={theme.colors.blueText}
-            />
-            <Text style={styles.callAuthorityText}>
-              {regulatoryLoading
-                ? 'Fetching authority contact...'
-                : 'Call regulatory authority'}
-            </Text>
-          </PressableOpacity>
-
-          {regulatoryContact?.authorityName ? (
-            <View style={styles.authorityDetails}>
-              <Text style={styles.authorityName}>
-                {regulatoryContact.authorityName}
-              </Text>
-              {regulatoryContact.phone ? (
-                <Text style={styles.authorityMeta}>
-                  Phone: {regulatoryContact.phone}
-                </Text>
-              ) : null}
-              {regulatoryContact.email ? (
-                <Text style={styles.authorityMeta}>
-                  Email: {regulatoryContact.email}
-                </Text>
-              ) : null}
-              {regulatoryContact.website ? (
-                <Text style={styles.authorityMeta}>
-                  Website: {regulatoryContact.website}
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
+          <RegulatoryAuthoritySection
+            styles={styles}
+            theme={theme}
+            loading={regulatoryLoading}
+            contact={regulatoryContact}
+            onCall={handleCallAuthority}
+          />
         </View>
       </ScrollView>
 
@@ -372,6 +304,114 @@ export const ThankYouScreen: React.FC<Props> = ({navigation}) => {
     </SafeArea>
   );
 };
+
+interface ThankYouHeroProps {
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+}
+
+const ThankYouHero: React.FC<ThankYouHeroProps> = ({styles, theme}) => (
+  <View style={styles.hero}>
+    <View style={styles.medallion}>
+      <Ionicons name="heart" size={46} color={theme.colors.pink} />
+    </View>
+
+    <Text style={styles.title}>Thank you for reaching out to us</Text>
+    <Text style={styles.subtitle}>
+      By submitting a report, you agree to be contacted by the company if needed
+      to obtain further details regarding your report.
+    </Text>
+  </View>
+);
+
+interface SubmitReportButtonProps {
+  styles: ReturnType<typeof createStyles>;
+  label: string;
+  buttonStyle: StyleProp<ViewStyle>;
+  textStyle: StyleProp<TextStyle>;
+  iconName: string;
+  contentColor: string;
+  isBusy: boolean;
+  isDimmed: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}
+
+const SubmitReportButton: React.FC<SubmitReportButtonProps> = ({
+  styles,
+  label,
+  buttonStyle,
+  textStyle,
+  iconName,
+  contentColor,
+  isBusy,
+  isDimmed,
+  disabled,
+  onPress,
+}) => (
+  <PressableOpacity
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    accessibilityState={{disabled, busy: isBusy}}
+    testID={`btn-${label}`}
+    style={[buttonStyle, isDimmed && styles.buttonDisabled]}
+    onPress={onPress}
+    disabled={disabled}>
+    {isBusy ? (
+      <ActivityIndicator color={contentColor} />
+    ) : (
+      <>
+        <Ionicons name={iconName} size={18} color={contentColor} />
+        <Text style={textStyle}>{label}</Text>
+      </>
+    )}
+  </PressableOpacity>
+);
+
+interface RegulatoryAuthoritySectionProps {
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+  loading: boolean;
+  contact: RegulatoryContact | null;
+  onCall: () => void;
+}
+
+const RegulatoryAuthoritySection: React.FC<RegulatoryAuthoritySectionProps> = ({
+  styles,
+  theme,
+  loading,
+  contact,
+  onCall,
+}) => (
+  <>
+    <PressableOpacity
+      style={styles.callAuthorityAction}
+      onPress={loading ? undefined : onCall}
+      disabled={loading}>
+      <Ionicons name="call-outline" size={17} color={theme.colors.blueText} />
+      <Text style={styles.callAuthorityText}>
+        {loading
+          ? 'Fetching authority contact...'
+          : 'Call regulatory authority'}
+      </Text>
+    </PressableOpacity>
+
+    {contact?.authorityName ? (
+      <View style={styles.authorityDetails}>
+        <Text style={styles.authorityName}>{contact.authorityName}</Text>
+        {contact.phone ? (
+          <Text style={styles.authorityMeta}>Phone: {contact.phone}</Text>
+        ) : null}
+        {contact.email ? (
+          <Text style={styles.authorityMeta}>Email: {contact.email}</Text>
+        ) : null}
+        {contact.website ? (
+          <Text style={styles.authorityMeta}>Website: {contact.website}</Text>
+        ) : null}
+      </View>
+    ) : null}
+  </>
+);
 
 const createStyles = (theme: any) =>
   StyleSheet.create({
