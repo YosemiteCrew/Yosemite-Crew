@@ -1,4 +1,4 @@
-import { Dispatch, useCallback, useRef, useState } from 'react';
+import { Dispatch, useCallback } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { updateAppointment } from '@/app/features/appointments/services/appointmentService';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
@@ -40,15 +40,6 @@ export const useAppointmentMove = ({
   supportsSpeciality,
   teams,
 }: UseAppointmentMoveOptions) => {
-  const [suppressAutoScroll, setSuppressAutoScroll] = useState(false);
-  const suppressAutoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const markDropped = useCallback(() => {
-    if (suppressAutoScrollTimerRef.current) clearTimeout(suppressAutoScrollTimerRef.current);
-    setSuppressAutoScroll(true);
-    suppressAutoScrollTimerRef.current = setTimeout(() => setSuppressAutoScroll(false), 4000);
-  }, []);
-
   const warnDrag = useCallback(
     (message: string) => {
       dispatchDrag({ type: 'setError', error: message });
@@ -123,9 +114,5 @@ export const useAppointmentMove = ({
     ]
   );
 
-  return {
-    markDropped,
-    moveAppointment,
-    suppressAutoScroll,
-  };
+  return { moveAppointment };
 };

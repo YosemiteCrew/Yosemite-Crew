@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 import DayCalendar from '@/app/features/appointments/components/Calendar/Task/DayCalendar';
 import WeekCalendar from '@/app/features/appointments/components/Calendar/Task/WeekCalendar';
@@ -17,6 +17,7 @@ import {
   isOnPreferredTimeZoneCalendarDay,
   utcClockTimeToPreferredTimeZoneClock,
 } from '@/app/lib/timezone';
+import { useAppointmentDragAutoScroll } from '@/app/features/appointments/components/Calendar/useAppointmentDragAutoScroll';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import {
   canRescheduleTask,
@@ -284,44 +285,6 @@ const handleTaskRescheduleAction = (
   }
   setActiveTask?.(task);
   setReschedulePopup?.(true);
-};
-
-const registerCalendarDragAutoScroll = (
-  event: DragEvent,
-  edgeThreshold: number,
-  scrollAmount: number
-) => {
-  const x = event.clientX;
-  const y = event.clientY;
-  const viewportWidth = globalThis.innerWidth;
-  const viewportHeight = globalThis.innerHeight;
-
-  if (x >= 0 && x < edgeThreshold) {
-    globalThis.scrollBy({ left: -scrollAmount });
-  } else if (x > viewportWidth - edgeThreshold) {
-    globalThis.scrollBy({ left: scrollAmount });
-  }
-  if (y >= 0 && y < edgeThreshold) {
-    globalThis.scrollBy({ top: -scrollAmount });
-  } else if (y > viewportHeight - edgeThreshold) {
-    globalThis.scrollBy({ top: scrollAmount });
-  }
-
-  const hoveredElement = document.elementFromPoint(x, y) as HTMLElement | null;
-  const scrollContainer = hoveredElement?.closest?.(
-    "[data-calendar-scroll='true']"
-  ) as HTMLElement | null;
-  if (!scrollContainer) return;
-  const rect = scrollContainer.getBoundingClientRect();
-  let deltaX = 0;
-  let deltaY = 0;
-  if (x - rect.left < edgeThreshold) deltaX = -scrollAmount;
-  else if (rect.right - x < edgeThreshold) deltaX = scrollAmount;
-  if (y - rect.top < edgeThreshold) deltaY = -scrollAmount;
-  else if (rect.bottom - y < edgeThreshold) deltaY = scrollAmount;
-  if (deltaX !== 0 || deltaY !== 0) {
-    scrollContainer.scrollBy({ left: deltaX, top: deltaY });
-  }
 };
 
 type TaskCalendarBodyProps = {
@@ -697,16 +660,7 @@ const TaskCalendar = ({
     [notify, setActiveTask, setReschedulePopup]
   );
 
-  useEffect(() => {
-    if (!draggedTaskId) return;
-    const edgeThreshold = 72;
-    const scrollAmount = 28;
-    const handleDragOver = (event: DragEvent) =>
-      registerCalendarDragAutoScroll(event, edgeThreshold, scrollAmount);
-
-    globalThis.addEventListener('dragover', handleDragOver);
-    return () => globalThis.removeEventListener('dragover', handleDragOver);
-  }, [draggedTaskId, availabilityVersion]);
+  useAppointmentDragAutoScroll(draggedTaskId, availabilityVersion);
 
   const handleViewTask = (appointment: Task) => {
     setActiveTask?.(appointment);

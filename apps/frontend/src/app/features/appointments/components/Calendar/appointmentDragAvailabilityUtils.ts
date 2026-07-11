@@ -71,6 +71,20 @@ const getSlotMinuteBounds = (
   };
 };
 
+const isValidMoveStartMinute = (minute: number, params: CollectValidMinutesParams) => {
+  if (minute < 0 || minute > 24 * 60 - 5) return false;
+  const nextStart = params.buildStart(params.date, minute);
+  if (nextStart.getTime() < params.nowMs) return false;
+  const nextEnd = new Date(nextStart.getTime() + params.durationMs);
+  return !hasAppointmentConflict(
+    params.appointment,
+    nextStart,
+    nextEnd,
+    params.allAppointments,
+    params.targetPractitionerId
+  );
+};
+
 export const collectValidMinutesForSlots = (slots: Slot[], params: CollectValidMinutesParams) => {
   const normalizedTargetPractitionerId = params.normalizeId(params.targetPractitionerId);
   const minutesSet = new Set<number>();
@@ -89,21 +103,7 @@ export const collectValidMinutesForSlots = (slots: Slot[], params: CollectValidM
     if (!bounds) continue;
 
     for (let minute = bounds.startMinute; minute <= bounds.endMinute; minute += 5) {
-      if (minute < 0 || minute > 24 * 60 - 5) continue;
-      const nextStart = params.buildStart(params.date, minute);
-      if (nextStart.getTime() < params.nowMs) continue;
-      const nextEnd = new Date(nextStart.getTime() + params.durationMs);
-      if (
-        hasAppointmentConflict(
-          params.appointment,
-          nextStart,
-          nextEnd,
-          params.allAppointments,
-          params.targetPractitionerId
-        )
-      )
-        continue;
-      minutesSet.add(minute);
+      if (isValidMoveStartMinute(minute, params)) minutesSet.add(minute);
     }
   }
 

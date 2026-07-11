@@ -1,4 +1,17 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+export const useDragAutoScrollSuppression = () => {
+  const [suppressAutoScroll, setSuppressAutoScroll] = useState(false);
+  const suppressAutoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const markDropped = useCallback(() => {
+    if (suppressAutoScrollTimerRef.current) clearTimeout(suppressAutoScrollTimerRef.current);
+    setSuppressAutoScroll(true);
+    suppressAutoScrollTimerRef.current = setTimeout(() => setSuppressAutoScroll(false), 4000);
+  }, []);
+
+  return { markDropped, suppressAutoScroll };
+};
 
 export const useAppointmentDragAutoScroll = (
   draggedAppointmentId: string | null,

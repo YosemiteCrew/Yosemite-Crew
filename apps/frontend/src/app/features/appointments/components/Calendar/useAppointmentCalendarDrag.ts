@@ -4,7 +4,10 @@ import { allowCalendarDrag } from '@/app/lib/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { logger } from '@/app/lib/logger';
 import { useAppointmentDragAvailability } from '@/app/features/appointments/components/Calendar/useAppointmentDragAvailability';
-import { useAppointmentDragAutoScroll } from '@/app/features/appointments/components/Calendar/useAppointmentDragAutoScroll';
+import {
+  useAppointmentDragAutoScroll,
+  useDragAutoScrollSuppression,
+} from '@/app/features/appointments/components/Calendar/useAppointmentDragAutoScroll';
 import { useAppointmentMove } from '@/app/features/appointments/components/Calendar/useAppointmentMove';
 import {
   DragContext,
@@ -117,7 +120,9 @@ export const useAppointmentCalendarDrag = ({
 
   useAppointmentDragAutoScroll(dragState.appointmentId, dragState.availabilityVersion);
 
-  const { markDropped, moveAppointment, suppressAutoScroll } = useAppointmentMove({
+  const { markDropped, suppressAutoScroll } = useDragAutoScrollSuppression();
+
+  const { moveAppointment } = useAppointmentMove({
     allAppointments,
     appointmentId: dragState.appointmentId,
     buildAppointmentStartFromCalendarMinutes,
