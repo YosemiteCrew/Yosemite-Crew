@@ -7,11 +7,7 @@ import {
   ErrorCandidate,
   getErrorMessageFromCandidate,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
-import {
-  buildAppointmentMovePayload,
-  createAppointmentMovePlan,
-  getMoveAvailabilityBlockMessage,
-} from '@/app/features/appointments/components/Calendar/appointmentMoveUtils';
+import { executeAppointmentMove } from '@/app/features/appointments/components/Calendar/appointmentMoveUtils';
 
 type UseAppointmentMoveOptions = {
   allAppointments: Appointment[];
@@ -49,56 +45,34 @@ export const useAppointmentMove = ({
   );
 
   const moveAppointment = useCallback(
-    async (date: Date, minutesSinceMidnight: number, targetLeadId?: string) => {
-      const result = createAppointmentMovePlan({
+    (date: Date, minutesSinceMidnight: number, targetLeadId?: string) =>
+      executeAppointmentMove({
         allAppointments,
         appointmentId,
         buildStart: buildAppointmentStartFromCalendarMinutes,
         date,
+        ensureDragAvailability,
         isAppointmentDraggable,
         minutesSinceMidnight,
+        normalizeId,
+        onBlocked: warnDrag,
+        onUpdateError: (error) =>
+          dispatchDrag({
+            type: 'setError',
+            error: getErrorMessageFromCandidate(
+              error as ErrorCandidate,
+              'Unable to update appointment. Please try again.'
+            ),
+          }),
         resolvePractitionerId,
         supportsSpeciality,
         targetLeadId,
-      });
-      if (!result.ok) {
-        if (result.message) warnDrag(result.message);
-        return;
-      }
-
-      const availabilityBlockMessage = await getMoveAvailabilityBlockMessage(
-        result.plan,
-        date,
-        targetLeadId,
-        ensureDragAvailability
-      );
-      if (availabilityBlockMessage) {
-        warnDrag(availabilityBlockMessage);
-        return;
-      }
-
-      try {
-        dispatchDrag({ type: 'setError', error: null });
-        await updateAppointment(
-          buildAppointmentMovePayload({
-            appointment: result.plan.appointment,
-            normalizeId,
-            nextEnd: result.plan.nextEnd,
-            nextStart: result.plan.nextStart,
-            targetPractitionerId: result.plan.targetPractitionerId,
-            teams,
-          })
-        );
-      } catch (error) {
-        dispatchDrag({
-          type: 'setError',
-          error: getErrorMessageFromCandidate(
-            error as ErrorCandidate,
-            'Unable to update appointment. Please try again.'
-          ),
-        });
-      }
-    },
+        teams,
+        updateAppointment: (payload) => {
+          dispatchDrag({ type: 'setError', error: null });
+          return updateAppointment(payload);
+        },
+      }),
     [
       allAppointments,
       appointmentId,

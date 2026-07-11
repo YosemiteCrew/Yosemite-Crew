@@ -3,7 +3,6 @@ import { Appointment } from '@yosemite-crew/types';
 import { getSlotsForServiceAndDateForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
-import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import {
   buildDateInPreferredTimeZone,
   utcClockTimeToPreferredTimeZoneClock,
@@ -17,10 +16,13 @@ import {
   toLocalDayKey,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
 import {
+  DragAvailabilityCaches,
+  buildDragPrefetchTargets,
   buildDropAvailabilityIntervals,
-  collectValidMinutesForSlots,
+  computeAvailableStartMinutes,
   findTeamMemberByIdentity,
   getSlotCacheKey,
+  resolveDragAvailability,
 } from '@/app/features/appointments/components/Calendar/appointmentDragAvailabilityUtils';
 import { useAppointmentViewAvailability } from '@/app/features/appointments/components/Calendar/useAppointmentViewAvailability';
 
@@ -38,27 +40,27 @@ type UseAppointmentDragAvailabilityOptions = {
   weekStart: Date;
 };
 
-export const useAppointmentDragAvailability = ({
-  activeCalendar,
+type UseDragAvailabilityInputsOptions = Pick<
+  UseAppointmentDragAvailabilityOptions,
+  | 'allAppointments'
+  | 'authUserId'
+  | 'dragContextRef'
+  | 'normalizeId'
+  | 'resolvePractitionerId'
+  | 'supportsSpeciality'
+  | 'teams'
+>;
+
+const useDragAvailabilityInputs = ({
   allAppointments,
   authUserId,
-  currentDate,
-  dispatchDrag,
   dragContextRef,
   normalizeId,
   resolvePractitionerId,
   supportsSpeciality,
   teams,
-  weekStart,
-}: UseAppointmentDragAvailabilityOptions) => {
+}: UseDragAvailabilityInputsOptions) => {
   const slotsCacheRef = useRef<Partial<Record<string, Slot[]>>>({});
-  const dragAvailabilityCacheRef = useRef<Partial<Record<string, number[]>>>({});
-  const dragAvailabilityPendingRef = useRef<Partial<Record<string, Promise<void>>>>({});
-  const { availabilityLoaded, getViewAvailabilityIntervals } = useAppointmentViewAvailability({
-    activeCalendar,
-    normalizeId,
-    teams,
-  });
 
   const getCurrentUserPractitionerId = useCallback(() => {
     const member = findTeamMemberByIdentity(teams, authUserId, normalizeId);
@@ -95,40 +97,20 @@ export const useAppointmentDragAvailability = ({
     [allAppointments, dragContextRef, normalizeId, resolvePractitionerId]
   );
 
-  const getCurrentUserViewAvailabilityIntervals = useCallback(
-    (date: Date): DropAvailabilityInterval[] =>
-      getViewAvailabilityIntervals(date, getCurrentUserPractitionerId() || authUserId),
-    [authUserId, getCurrentUserPractitionerId, getViewAvailabilityIntervals]
-  );
-
   const buildAvailableStartMinutes = useCallback(
-    async (date: Date, targetLeadId?: string) => {
-      const activeDragContext = dragContextRef.current;
-      if (!activeDragContext) return [];
-      const appointment = allAppointments.find(
-        (item) => item.id === activeDragContext.appointmentId
-      );
-      if (!appointment) return [];
-      if (targetLeadId && !supportsSpeciality(targetLeadId, appointment)) return [];
-      const serviceId = activeDragContext.serviceId || appointment.appointmentType?.id;
-      const targetPractitionerId = resolvePractitionerId(targetLeadId || appointment.lead?.id);
-      if (!serviceId || !targetPractitionerId) return [];
-
-      const slots = await getSlotsForMoveValidation(serviceId, date);
-      const durationMs = Math.max(5 * 60 * 1000, activeDragContext.durationMinutes * 60 * 1000);
-      return collectValidMinutesForSlots(slots, {
+    (date: Date, targetLeadId?: string) =>
+      computeAvailableStartMinutes({
         allAppointments,
-        appointment,
         buildStart: buildAppointmentStartFromCalendarMinutes,
         date,
-        durationMinutes: activeDragContext.durationMinutes,
-        durationMs,
+        dragContext: dragContextRef.current,
+        getSlots: getSlotsForMoveValidation,
         normalizeId,
-        nowMs: Date.now(),
-        targetPractitionerId,
+        resolvePractitionerId,
+        supportsSpeciality,
+        targetLeadId,
         toLocalClockFromUtcTime: utcClockTimeToPreferredTimeZoneClock,
-      });
-    },
+      }),
     [
       allAppointments,
       buildAppointmentStartFromCalendarMinutes,
@@ -140,30 +122,67 @@ export const useAppointmentDragAvailability = ({
     ]
   );
 
+  return {
+    buildAppointmentStartFromCalendarMinutes,
+    buildAvailableStartMinutes,
+    getAvailabilityKey,
+    getCurrentUserPractitionerId,
+  };
+};
+
+export const useAppointmentDragAvailability = ({
+  activeCalendar,
+  allAppointments,
+  authUserId,
+  currentDate,
+  dispatchDrag,
+  dragContextRef,
+  normalizeId,
+  resolvePractitionerId,
+  supportsSpeciality,
+  teams,
+  weekStart,
+}: UseAppointmentDragAvailabilityOptions) => {
+  const dragAvailabilityCachesRef = useRef<DragAvailabilityCaches>({ results: {}, pending: {} });
+  const { availabilityLoaded, getViewAvailabilityIntervals } = useAppointmentViewAvailability({
+    activeCalendar,
+    normalizeId,
+    teams,
+  });
+
+  const {
+    buildAppointmentStartFromCalendarMinutes,
+    buildAvailableStartMinutes,
+    getAvailabilityKey,
+    getCurrentUserPractitionerId,
+  } = useDragAvailabilityInputs({
+    allAppointments,
+    authUserId,
+    dragContextRef,
+    normalizeId,
+    resolvePractitionerId,
+    supportsSpeciality,
+    teams,
+  });
+
+  const getCurrentUserViewAvailabilityIntervals = useCallback(
+    (date: Date): DropAvailabilityInterval[] =>
+      getViewAvailabilityIntervals(date, getCurrentUserPractitionerId() || authUserId),
+    [authUserId, getCurrentUserPractitionerId, getViewAvailabilityIntervals]
+  );
+
   const ensureDragAvailability = useCallback(
     async (date: Date, targetLeadId?: string): Promise<number[]> => {
       if (!dragContextRef.current) return [];
-      const key = getAvailabilityKey(date, targetLeadId);
-      if (dragAvailabilityCacheRef.current[key]) return dragAvailabilityCacheRef.current[key];
-      if (dragAvailabilityPendingRef.current[key]) {
-        await dragAvailabilityPendingRef.current[key];
-        return dragAvailabilityCacheRef.current[key] ?? [];
-      }
-      const task = (async () => {
-        try {
-          const starts = await buildAvailableStartMinutes(date, targetLeadId);
-          dragAvailabilityCacheRef.current[key] = starts;
+      return resolveDragAvailability(
+        dragAvailabilityCachesRef.current,
+        getAvailabilityKey(date, targetLeadId),
+        () => buildAvailableStartMinutes(date, targetLeadId),
+        (error) => {
           dispatchDrag({ type: 'availabilityRefreshed' });
-        } catch (error) {
-          dragAvailabilityCacheRef.current[key] = [];
-          dispatchDrag({ type: 'availabilityRefreshed' });
-          logger.warn('Failed to resolve appointment drop availability.', error);
+          if (error) logger.warn('Failed to resolve appointment drop availability.', error);
         }
-      })();
-      dragAvailabilityPendingRef.current[key] = task;
-      await task;
-      delete dragAvailabilityPendingRef.current[key];
-      return dragAvailabilityCacheRef.current[key] ?? [];
+      );
     },
     [buildAvailableStartMinutes, dispatchDrag, dragContextRef, getAvailabilityKey]
   );
@@ -171,26 +190,14 @@ export const useAppointmentDragAvailability = ({
   const getDropAvailabilityIntervals = useCallback(
     (date: Date, targetLeadId?: string): DropAvailabilityInterval[] => {
       const key = getAvailabilityKey(date, targetLeadId);
-      const starts = dragAvailabilityCacheRef.current[key] || [];
+      const starts = dragAvailabilityCachesRef.current.results[key] || [];
       return buildDropAvailabilityIntervals(starts);
     },
     [getAvailabilityKey]
   );
 
   const prefetchDragAvailabilityForView = useCallback(() => {
-    const prefetchTargets: Array<{ date: Date; targetLeadId?: string }> = [];
-    if (activeCalendar === 'day') {
-      prefetchTargets.push({ date: currentDate });
-    } else if (activeCalendar === 'week') {
-      prefetchTargets.push(...getWeekDays(weekStart).map((date) => ({ date })));
-    } else if (activeCalendar === 'team') {
-      prefetchTargets.push(
-        ...(teams || []).map((member) => ({
-          date: currentDate,
-          targetLeadId: member.practionerId || member._id,
-        }))
-      );
-    }
+    const prefetchTargets = buildDragPrefetchTargets(activeCalendar, currentDate, weekStart, teams);
     Promise.all(
       prefetchTargets.map((target) => ensureDragAvailability(target.date, target.targetLeadId))
     ).catch((error: unknown) => {
@@ -199,8 +206,7 @@ export const useAppointmentDragAvailability = ({
   }, [activeCalendar, currentDate, ensureDragAvailability, teams, weekStart]);
 
   const clearDragAvailability = useCallback(() => {
-    dragAvailabilityCacheRef.current = {};
-    dragAvailabilityPendingRef.current = {};
+    dragAvailabilityCachesRef.current = { results: {}, pending: {} };
   }, []);
 
   return {

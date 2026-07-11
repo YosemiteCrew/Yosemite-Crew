@@ -120,6 +120,55 @@ export const getAppointmentDragLabel = (appointment: Appointment) =>
     'Appointment'
   );
 
+export const normalizeCalendarDragId = (value?: string) =>
+  String(value ?? '')
+    .trim()
+    .split('/')
+    .pop()
+    ?.toLowerCase() ?? '';
+
+type TeamMemberIdFields = { practionerId?: string; _id?: string };
+
+const findTeamMemberByPractitionerOrDbId = <T extends TeamMemberIdFields>(
+  teams: T[],
+  candidateId: string
+): T | undefined => {
+  const normalizedCandidate = normalizeCalendarDragId(candidateId);
+  return teams.find(
+    (member) =>
+      normalizeCalendarDragId(member.practionerId || '') === normalizedCandidate ||
+      normalizeCalendarDragId(member._id || '') === normalizedCandidate
+  );
+};
+
+export const resolvePractitionerIdFromTeams = (
+  teams: TeamMemberIdFields[],
+  candidateId?: string
+) => {
+  if (!candidateId) return undefined;
+  const match = findTeamMemberByPractitionerOrDbId(teams, candidateId);
+  return match?.practionerId || candidateId;
+};
+
+export const teamSupportsSpeciality = (
+  teams: Array<TeamMemberIdFields & { speciality?: unknown }>,
+  targetLeadId: string,
+  appointment: Appointment
+) => {
+  const target = findTeamMemberByPractitionerOrDbId(teams, targetLeadId);
+  if (!target) return false;
+  const appointmentSpeciality = appointment.appointmentType?.speciality;
+  if (!appointmentSpeciality) return true;
+  if (!Array.isArray(target.speciality) || target.speciality.length === 0) return true;
+  const expectedId = String((appointmentSpeciality as any).id ?? '').toLowerCase();
+  const expectedName = String((appointmentSpeciality as any).name ?? '').toLowerCase();
+  return target.speciality.some((spec: any) => {
+    const id = String(spec?._id ?? spec?.id ?? '').toLowerCase();
+    const name = String(spec?.name ?? spec ?? '').toLowerCase();
+    return (expectedId && id === expectedId) || (expectedName && name === expectedName);
+  });
+};
+
 export const hasAppointmentConflict = (
   moved: Appointment,
   nextStart: Date,

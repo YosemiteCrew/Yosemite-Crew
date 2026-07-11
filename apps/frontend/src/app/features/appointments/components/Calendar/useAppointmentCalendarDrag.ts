@@ -1,4 +1,4 @@
-import { useCallback, useReducer, useRef } from 'react';
+import { Dispatch, MutableRefObject, useCallback, useReducer, useRef } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { allowCalendarDrag } from '@/app/lib/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
@@ -10,11 +10,15 @@ import {
 } from '@/app/features/appointments/components/Calendar/useAppointmentDragAutoScroll';
 import { useAppointmentMove } from '@/app/features/appointments/components/Calendar/useAppointmentMove';
 import {
+  DragAction,
   DragContext,
   dragReducer,
   getAppointmentDragLabel,
   getAppointmentDurationMinutes,
   initialDragState,
+  normalizeCalendarDragId,
+  resolvePractitionerIdFromTeams,
+  teamSupportsSpeciality,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
 
 type UseAppointmentCalendarDragOptions = {
@@ -26,6 +30,113 @@ type UseAppointmentCalendarDragOptions = {
   notify: (kind: 'warning', value: { title: string; text: string }) => void;
   teams: ReturnType<typeof useTeamForPrimaryOrg>;
   weekStart: Date;
+};
+
+const useCalendarDragTeamHelpers = (
+  teams: ReturnType<typeof useTeamForPrimaryOrg>,
+  canEditAppointments: boolean
+) => {
+  const normalizeId = useCallback((value?: string) => normalizeCalendarDragId(value), []);
+
+  const isAppointmentDraggable = useCallback(
+    (appointment: Appointment) =>
+      !!appointment.id && canEditAppointments && allowCalendarDrag(appointment.status),
+    [canEditAppointments]
+  );
+
+  const resolvePractitionerId = useCallback(
+    (candidateId?: string) => resolvePractitionerIdFromTeams(teams, candidateId),
+    [teams]
+  );
+
+  const supportsSpeciality = useCallback(
+    (targetLeadId: string, appointment: Appointment) =>
+      teamSupportsSpeciality(teams, targetLeadId, appointment),
+    [teams]
+  );
+
+  return { isAppointmentDraggable, normalizeId, resolvePractitionerId, supportsSpeciality };
+};
+
+type UseAppointmentDragHandlersOptions = {
+  clearDragAvailability: () => void;
+  dispatchDrag: Dispatch<DragAction>;
+  dragContextRef: MutableRefObject<DragContext | null>;
+  ensureDragAvailability: (date: Date, targetLeadId?: string) => Promise<number[]>;
+  isAppointmentDraggable: (appointment: Appointment) => boolean;
+  markDropped: () => void;
+  moveAppointment: (date: Date, minute: number, targetLeadId?: string) => Promise<void>;
+  prefetchDragAvailabilityForView: () => void;
+};
+
+const useAppointmentDragHandlers = ({
+  clearDragAvailability,
+  dispatchDrag,
+  dragContextRef,
+  ensureDragAvailability,
+  isAppointmentDraggable,
+  markDropped,
+  moveAppointment,
+  prefetchDragAvailabilityForView,
+}: UseAppointmentDragHandlersOptions) => {
+  const handleAppointmentDragStart = useCallback(
+    (appointment: Appointment) => {
+      if (!isAppointmentDraggable(appointment)) return;
+      clearDragAvailability();
+      const context = {
+        appointmentId: appointment.id ?? '',
+        serviceId: appointment.appointmentType?.id,
+        durationMinutes: getAppointmentDurationMinutes(appointment),
+      };
+      dragContextRef.current = context;
+      dispatchDrag({
+        type: 'start',
+        appointmentId: appointment.id ?? null,
+        label: getAppointmentDragLabel(appointment),
+        context,
+      });
+      prefetchDragAvailabilityForView();
+    },
+    [
+      clearDragAvailability,
+      dispatchDrag,
+      dragContextRef,
+      isAppointmentDraggable,
+      prefetchDragAvailabilityForView,
+    ]
+  );
+
+  const handleAppointmentDragEnd = useCallback(() => {
+    dragContextRef.current = null;
+    dispatchDrag({ type: 'end' });
+  }, [dispatchDrag, dragContextRef]);
+
+  const handleDragHoverTarget = useCallback(
+    (dropDate: Date, targetLeadId?: string) => {
+      ensureDragAvailability(dropDate, targetLeadId).catch((error: unknown) => {
+        logger.warn('Failed to refresh appointment drop availability while dragging.', error);
+      });
+    },
+    [ensureDragAvailability]
+  );
+
+  const handleAppointmentDropAt = useCallback(
+    (dropDate: Date, minute: number, targetLeadId?: string) => {
+      markDropped();
+      moveAppointment(dropDate, minute, targetLeadId).catch((error: unknown) => {
+        logger.warn('Failed to move appointment from calendar drop.', error);
+      });
+      handleAppointmentDragEnd();
+    },
+    [handleAppointmentDragEnd, markDropped, moveAppointment]
+  );
+
+  return {
+    handleAppointmentDragEnd,
+    handleAppointmentDragStart,
+    handleAppointmentDropAt,
+    handleDragHoverTarget,
+  };
 };
 
 export const useAppointmentCalendarDrag = ({
@@ -41,58 +152,8 @@ export const useAppointmentCalendarDrag = ({
   const [dragState, dispatchDrag] = useReducer(dragReducer, initialDragState);
   const dragContextRef = useRef<DragContext | null>(null);
 
-  const normalizeId = useCallback(
-    (value?: string) =>
-      String(value ?? '')
-        .trim()
-        .split('/')
-        .pop()
-        ?.toLowerCase() ?? '',
-    []
-  );
-
-  const isAppointmentDraggable = useCallback(
-    (appointment: Appointment) =>
-      !!appointment.id && canEditAppointments && allowCalendarDrag(appointment.status),
-    [canEditAppointments]
-  );
-
-  const resolvePractitionerId = useCallback(
-    (candidateId?: string) => {
-      if (!candidateId) return undefined;
-      const normalizedCandidate = normalizeId(candidateId);
-      const match = teams.find(
-        (member) =>
-          normalizeId(member.practionerId || '') === normalizedCandidate ||
-          normalizeId(member._id || '') === normalizedCandidate
-      );
-      return match?.practionerId || candidateId;
-    },
-    [normalizeId, teams]
-  );
-
-  const supportsSpeciality = useCallback(
-    (targetLeadId: string, appointment: Appointment) => {
-      const normalizedTarget = normalizeId(targetLeadId);
-      const target = teams.find(
-        (member) =>
-          normalizeId(member.practionerId || '') === normalizedTarget ||
-          normalizeId(member._id || '') === normalizedTarget
-      );
-      if (!target) return false;
-      const appointmentSpeciality = appointment.appointmentType?.speciality;
-      if (!appointmentSpeciality) return true;
-      if (!Array.isArray(target.speciality) || target.speciality.length === 0) return true;
-      const expectedId = String((appointmentSpeciality as any).id ?? '').toLowerCase();
-      const expectedName = String((appointmentSpeciality as any).name ?? '').toLowerCase();
-      return target.speciality.some((spec: any) => {
-        const id = String(spec?._id ?? spec?.id ?? '').toLowerCase();
-        const name = String(spec?.name ?? spec ?? '').toLowerCase();
-        return (expectedId && id === expectedId) || (expectedName && name === expectedName);
-      });
-    },
-    [normalizeId, teams]
-  );
+  const { isAppointmentDraggable, normalizeId, resolvePractitionerId, supportsSpeciality } =
+    useCalendarDragTeamHelpers(teams, canEditAppointments);
 
   const {
     availabilityLoaded,
@@ -136,51 +197,21 @@ export const useAppointmentCalendarDrag = ({
     teams,
   });
 
-  const handleAppointmentDragStart = useCallback(
-    (appointment: Appointment) => {
-      if (!isAppointmentDraggable(appointment)) return;
-      clearDragAvailability();
-      const context = {
-        appointmentId: appointment.id ?? '',
-        serviceId: appointment.appointmentType?.id,
-        durationMinutes: getAppointmentDurationMinutes(appointment),
-      };
-      dragContextRef.current = context;
-      dispatchDrag({
-        type: 'start',
-        appointmentId: appointment.id ?? null,
-        label: getAppointmentDragLabel(appointment),
-        context,
-      });
-      prefetchDragAvailabilityForView();
-    },
-    [clearDragAvailability, isAppointmentDraggable, prefetchDragAvailabilityForView]
-  );
-
-  const handleAppointmentDragEnd = useCallback(() => {
-    dragContextRef.current = null;
-    dispatchDrag({ type: 'end' });
-  }, []);
-
-  const handleDragHoverTarget = useCallback(
-    (dropDate: Date, targetLeadId?: string) => {
-      ensureDragAvailability(dropDate, targetLeadId).catch((error: unknown) => {
-        logger.warn('Failed to refresh appointment drop availability while dragging.', error);
-      });
-    },
-    [ensureDragAvailability]
-  );
-
-  const handleAppointmentDropAt = useCallback(
-    (dropDate: Date, minute: number, targetLeadId?: string) => {
-      markDropped();
-      moveAppointment(dropDate, minute, targetLeadId).catch((error: unknown) => {
-        logger.warn('Failed to move appointment from calendar drop.', error);
-      });
-      handleAppointmentDragEnd();
-    },
-    [handleAppointmentDragEnd, markDropped, moveAppointment]
-  );
+  const {
+    handleAppointmentDragEnd,
+    handleAppointmentDragStart,
+    handleAppointmentDropAt,
+    handleDragHoverTarget,
+  } = useAppointmentDragHandlers({
+    clearDragAvailability,
+    dispatchDrag,
+    dragContextRef,
+    ensureDragAvailability,
+    isAppointmentDraggable,
+    markDropped,
+    moveAppointment,
+    prefetchDragAvailabilityForView,
+  });
 
   return {
     availabilityLoaded,

@@ -13,7 +13,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
-import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { resolvePostAuthRedirect, sanitizeNextPath } from '@/app/lib/postAuthRedirect';
 import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 
@@ -25,11 +25,6 @@ type SignInProps = {
   allowNext?: boolean;
   isDeveloper?: boolean;
 };
-
-// Only same-origin, absolute-path destinations are safe post-auth targets;
-// anything else (external URLs, protocol-relative //host) is dropped.
-export const sanitizeNextPath = (value: string | null): string | undefined =>
-  value?.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\') ? value : undefined;
 
 const SignIn = ({
   redirectPath,

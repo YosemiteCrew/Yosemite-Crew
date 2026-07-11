@@ -119,6 +119,62 @@ export const getMoveAvailabilityBlockMessage = async (
     : 'No available slot for this service at the selected position.';
 };
 
+type ExecuteAppointmentMoveOptions = AppointmentMovePlanOptions & {
+  ensureDragAvailability: (date: Date, targetLeadId?: string) => Promise<number[]>;
+  normalizeId: (value?: string) => string;
+  onBlocked: (message: string) => void;
+  onUpdateError: (error: unknown) => void;
+  teams: TeamMember[];
+  updateAppointment: (payload: ReturnType<typeof buildAppointmentMovePayload>) => Promise<unknown>;
+};
+
+/**
+ * Full drop-to-move flow: plan/validate, gate on slot availability, then
+ * persist. Validation and availability failures surface via onBlocked;
+ * persistence failures via onUpdateError.
+ */
+export const executeAppointmentMove = async ({
+  ensureDragAvailability,
+  normalizeId,
+  onBlocked,
+  onUpdateError,
+  teams,
+  updateAppointment,
+  ...planOptions
+}: ExecuteAppointmentMoveOptions) => {
+  const result = createAppointmentMovePlan(planOptions);
+  if (!result.ok) {
+    if (result.message) onBlocked(result.message);
+    return;
+  }
+
+  const availabilityBlockMessage = await getMoveAvailabilityBlockMessage(
+    result.plan,
+    planOptions.date,
+    planOptions.targetLeadId,
+    ensureDragAvailability
+  );
+  if (availabilityBlockMessage) {
+    onBlocked(availabilityBlockMessage);
+    return;
+  }
+
+  try {
+    await updateAppointment(
+      buildAppointmentMovePayload({
+        appointment: result.plan.appointment,
+        normalizeId,
+        nextEnd: result.plan.nextEnd,
+        nextStart: result.plan.nextStart,
+        targetPractitionerId: result.plan.targetPractitionerId,
+        teams,
+      })
+    );
+  } catch (error) {
+    onUpdateError(error);
+  }
+};
+
 export const buildAppointmentMovePayload = ({
   appointment,
   normalizeId,

@@ -2,7 +2,11 @@ import { Appointment } from '@yosemite-crew/types';
 import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
-import { hasAppointmentConflict } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
+import {
+  DragContext,
+  hasAppointmentConflict,
+} from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
+import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
 
 type TeamMember = ReturnType<typeof useTeamForPrimaryOrg>[number];
 
@@ -108,6 +112,108 @@ export const collectValidMinutesForSlots = (slots: Slot[], params: CollectValidM
   }
 
   return Array.from(minutesSet).sort((a, b) => a - b);
+};
+
+type ComputeAvailableStartMinutesOptions = {
+  allAppointments: Appointment[];
+  buildStart: (date: Date, minuteOfDay: number) => Date;
+  date: Date;
+  dragContext: DragContext | null;
+  getSlots: (serviceId: string, date: Date) => Promise<Slot[]>;
+  normalizeId: NormalizeId;
+  resolvePractitionerId: (candidateId?: string) => string | undefined;
+  supportsSpeciality: (targetLeadId: string, appointment: Appointment) => boolean;
+  targetLeadId?: string;
+  toLocalClockFromUtcTime: (value: string) => ClockTime;
+};
+
+export const computeAvailableStartMinutes = async ({
+  allAppointments,
+  buildStart,
+  date,
+  dragContext,
+  getSlots,
+  normalizeId,
+  resolvePractitionerId,
+  supportsSpeciality,
+  targetLeadId,
+  toLocalClockFromUtcTime,
+}: ComputeAvailableStartMinutesOptions): Promise<number[]> => {
+  if (!dragContext) return [];
+  const appointment = allAppointments.find((item) => item.id === dragContext.appointmentId);
+  if (!appointment) return [];
+  if (targetLeadId && !supportsSpeciality(targetLeadId, appointment)) return [];
+  const serviceId = dragContext.serviceId || appointment.appointmentType?.id;
+  const targetPractitionerId = resolvePractitionerId(targetLeadId || appointment.lead?.id);
+  if (!serviceId || !targetPractitionerId) return [];
+
+  const slots = await getSlots(serviceId, date);
+  const durationMs = Math.max(5 * 60 * 1000, dragContext.durationMinutes * 60 * 1000);
+  return collectValidMinutesForSlots(slots, {
+    allAppointments,
+    appointment,
+    buildStart,
+    date,
+    durationMinutes: dragContext.durationMinutes,
+    durationMs,
+    normalizeId,
+    nowMs: Date.now(),
+    targetPractitionerId,
+    toLocalClockFromUtcTime,
+  });
+};
+
+export type DragAvailabilityCaches = {
+  results: Partial<Record<string, number[]>>;
+  pending: Partial<Record<string, Promise<void>>>;
+};
+
+/**
+ * Cache-and-dedupe wrapper around an availability computation: concurrent
+ * callers for the same key share one in-flight promise, and failures resolve
+ * to an empty availability so dragging never wedges on a network error.
+ */
+export const resolveDragAvailability = async (
+  caches: DragAvailabilityCaches,
+  key: string,
+  compute: () => Promise<number[]>,
+  onSettled: (error?: unknown) => void
+): Promise<number[]> => {
+  if (caches.results[key]) return caches.results[key];
+  if (caches.pending[key]) {
+    await caches.pending[key];
+    return caches.results[key] ?? [];
+  }
+  const task = (async () => {
+    try {
+      caches.results[key] = await compute();
+      onSettled();
+    } catch (error) {
+      caches.results[key] = [];
+      onSettled(error);
+    }
+  })();
+  caches.pending[key] = task;
+  await task;
+  delete caches.pending[key];
+  return caches.results[key] ?? [];
+};
+
+export const buildDragPrefetchTargets = (
+  activeCalendar: string,
+  currentDate: Date,
+  weekStart: Date,
+  teams: ReturnType<typeof useTeamForPrimaryOrg>
+): Array<{ date: Date; targetLeadId?: string }> => {
+  if (activeCalendar === 'day') return [{ date: currentDate }];
+  if (activeCalendar === 'week') return getWeekDays(weekStart).map((date) => ({ date }));
+  if (activeCalendar === 'team') {
+    return (teams || []).map((member) => ({
+      date: currentDate,
+      targetLeadId: member.practionerId || member._id,
+    }));
+  }
+  return [];
 };
 
 export const buildDropAvailabilityIntervals = (starts: number[]): DropAvailabilityInterval[] => {
