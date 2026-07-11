@@ -24,6 +24,11 @@ import {
   canShowTaskStatusChangeAction,
   getPreferredNextTaskStatus,
 } from '@/app/lib/tasks';
+import {
+  findTeamMemberByIdentity,
+  getTeamMemberIdentityIds,
+} from '@/app/features/appointments/components/Calendar/appointmentDragAvailabilityUtils';
+import { logger } from '@/app/lib/logger';
 
 type TaskCalendarProps = {
   filteredList: Task[];
@@ -337,7 +342,9 @@ const TaskCalendarBody = ({
   setWeekStart,
 }: TaskCalendarBodyProps) => {
   const handleDrop = (dropDate: Date, minute: number, assigneeId?: string) => {
-    moveTask(dropDate, minute, assigneeId).catch(() => undefined);
+    moveTask(dropDate, minute, assigneeId).catch((error: unknown) => {
+      logger.warn('Failed to move task from calendar drop.', error);
+    });
     handleTaskDragEnd();
   };
 
@@ -468,15 +475,7 @@ const TaskCalendar = ({
   const resolveAssigneeId = useCallback(
     (candidateId?: string) => {
       if (!candidateId) return '';
-      const normalizedCandidate = normalizeId(candidateId);
-      const member = teams.find(
-        (team) =>
-          normalizeId(team.practionerId) === normalizedCandidate ||
-          normalizeId(team._id) === normalizedCandidate ||
-          normalizeId((team as any).userId) === normalizedCandidate ||
-          normalizeId((team as any).id) === normalizedCandidate ||
-          normalizeId((team as any).userOrganisation?.userId) === normalizedCandidate
-      );
+      const member = findTeamMemberByIdentity(teams, candidateId, normalizeId);
       return (
         member?.practionerId ||
         (member as any)?.userId ||
@@ -504,16 +503,8 @@ const TaskCalendar = ({
     const map: Record<string, string> = {};
     teams.forEach((member) => {
       const name = member.name || (member as any).displayName || '-';
-      const ids = [
-        member.practionerId,
-        member._id,
-        (member as any).userId,
-        (member as any).id,
-        (member as any).userOrganisation?.userId,
-      ];
-      ids.forEach((id) => {
-        const normalized = normalizeId(id);
-        if (normalized) map[normalized] = name;
+      getTeamMemberIdentityIds(member, normalizeId).forEach((normalized) => {
+        map[normalized] = name;
       });
     });
     return map;
@@ -674,7 +665,9 @@ const TaskCalendar = ({
       setDraggedTaskId(task._id);
       setDraggedTaskLabel(task.name || 'Task');
       if (shouldEnforceAvailability(task, task.assignedTo)) {
-        ensureAssigneeAvailability(task.assignedTo).catch(() => undefined);
+        ensureAssigneeAvailability(task.assignedTo).catch((error: unknown) => {
+          logger.warn('Failed to load assignee availability on drag start.', error);
+        });
       }
     },
     [canDragTask, ensureAssigneeAvailability, shouldEnforceAvailability]
@@ -690,7 +683,9 @@ const TaskCalendar = ({
       const task = allTaskItems.find((item) => item._id === draggedTaskId);
       if (!task) return;
       if (shouldEnforceAvailability(task, assigneeId || task.assignedTo)) {
-        ensureAssigneeAvailability(assigneeId || task.assignedTo).catch(() => undefined);
+        ensureAssigneeAvailability(assigneeId || task.assignedTo).catch((error: unknown) => {
+          logger.warn('Failed to refresh assignee availability while dragging.', error);
+        });
       }
     },
     [allTaskItems, draggedTaskId, ensureAssigneeAvailability, shouldEnforceAvailability]
