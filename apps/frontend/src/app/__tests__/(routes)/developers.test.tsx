@@ -86,8 +86,8 @@ describe('developer routes', () => {
   test('settings route renders profile inside guard', () => {
     render(<DevSettingsRoute />);
     expect(screen.getByTestId('dev-guard')).toBeInTheDocument();
-    expect(screen.getByText('Developer Settings')).toBeInTheDocument();
-    expect(screen.getByText(/Grace Hopper/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getAllByText(/Grace Hopper/)[0]).toBeInTheDocument();
     expect(screen.getByText(/grace@example.com/)).toBeInTheDocument();
     expect(screen.getAllByText(/developer/i)[0]).toBeInTheDocument();
   });

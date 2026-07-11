@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
 import AccordionButton from '@/app/ui/primitives/Accordion/AccordionButton';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -10,20 +9,32 @@ import {
 } from '@/app/hooks/useIntegrations';
 import { listIdexxIvlsDevices } from '@/app/features/integrations/services/idexxService';
 import { IvlsDevice } from '@/app/features/integrations/services/types';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { formatDateTimeLocal } from '@/app/lib/date';
-import { IoRefreshOutline } from 'react-icons/io5';
+import { IoRefreshOutline, IoFlaskOutline, IoWaterOutline, IoBeakerOutline } from 'react-icons/io5';
+import type { IconType } from 'react-icons';
 
-const getIntegrationStatusClass = (key: string) => {
-  if (key === 'enabled') return 'bg-success-100 text-success-700';
-  if (key === 'error') return 'bg-danger-100 text-danger-700';
-  if (key === 'pending') return 'bg-primary-100 text-blue-text';
-  return 'bg-warning-100 text-warning-700';
+const isDeviceOnline = (device: IvlsDevice): boolean =>
+  String(device.vcpActivatedStatus ?? '').toLowerCase() === 'active';
+
+const pickDeviceIcon = (displayName?: string | null): IconType => {
+  const name = String(displayName ?? '').toLowerCase();
+  if (name.includes('cyte')) return IoWaterOutline;
+  if (name.includes('ua')) return IoBeakerOutline;
+  return IoFlaskOutline;
 };
 
-const getDeviceStatusLabel = (value?: string) => {
-  const key = String(value || 'unknown').toLowerCase();
-  return `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+const getIdleDays = (device: IvlsDevice): number | null => {
+  if (!device.lastPolledCloudTime) return null;
+  const polled = new Date(device.lastPolledCloudTime).getTime();
+  if (Number.isNaN(polled)) return null;
+  const days = Math.floor((Date.now() - polled) / 86_400_000);
+  return days > 0 ? days : null;
+};
+
+const buildHealthText = (total: number, onlineCount: number): string => {
+  if (total === 0) return 'no devices linked';
+  if (onlineCount === total) return 'all healthy';
+  return `${total - onlineCount} need attention`;
 };
 
 const LinkedMedicalDevices = () => {
@@ -33,9 +44,6 @@ const LinkedMedicalDevices = () => {
   const [devices, setDevices] = useState<IvlsDevice[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const statusKey = (integration?.status ?? 'disabled').toLowerCase();
-  const statusLabel = `${statusKey.charAt(0).toUpperCase()}${statusKey.slice(1)}`;
-  const statusClasses = getIntegrationStatusClass(statusKey);
 
   useEffect(() => {
     const run = async () => {
@@ -57,7 +65,7 @@ const LinkedMedicalDevices = () => {
   }, [primaryOrgId, integration?.status]);
 
   const handleManualRefresh = async () => {
-    if (!primaryOrgId || refreshing) return;
+    if (!primaryOrgId) return;
     setRefreshing(true);
     setError(null);
     try {
@@ -77,102 +85,85 @@ const LinkedMedicalDevices = () => {
     }
   };
 
+  const total = devices.length;
+  const onlineCount = devices.filter(isDeviceOnline).length;
+  const lastPoll = integrationsLastFetchedAt
+    ? formatDateTimeLocal(integrationsLastFetchedAt)
+    : 'not yet';
+
   return (
     <AccordionButton title="Linked medical devices" showButton={false}>
-      <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-3">
-            <Image
-              src={MEDIA_SOURCES.futureAssets.idexxLogoUrl}
-              alt="IDEXX"
-              width={40}
-              height={40}
-              className="rounded-lg border border-card-border p-1.5 bg-neutral-0"
-            />
-            <div>
-              <div className="text-body-2 text-text-primary">IDEXX</div>
-              <div className="text-body-4 text-text-secondary">
-                {devices.length} linked IVLS device(s)
-              </div>
-            </div>
-          </div>
-          <div className={`text-label-xsmall px-2 py-1 rounded ${statusClasses}`}>
-            {statusLabel}
-          </div>
-        </div>
-
-        <div className="text-caption-1 text-text-secondary">
-          Manage IDEXX credentials, enablement, and device links from Integrations settings.
-        </div>
-        <div className="flex items-center justify-between rounded-xl border border-card-border px-3 py-2 ">
-          <div className="text-caption-1 text-text-secondary">
-            Last refreshed:{' '}
-            <span className="text-text-primary">
-              {integrationsLastFetchedAt
-                ? formatDateTimeLocal(integrationsLastFetchedAt)
-                : 'Not refreshed yet'}
-            </span>
+      <div className="rounded-2xl border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-5! py-3! border-b border-[var(--hairline)]">
+          <div className="text-[11.5px] text-[var(--ink-faint)]">
+            Last cloud poll {lastPoll} · {buildHealthText(total, onlineCount)}
           </div>
           <button
             type="button"
             onClick={() => {
               handleManualRefresh().catch(() => undefined);
             }}
-            className="size-8 rounded-full! border border-card-border flex items-center justify-center text-text-primary hover:bg-card-hover"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] px-3 py-1.5 text-[11.5px] font-semibold text-[var(--ink-body)] hover:bg-[var(--inset)] disabled:opacity-50"
             aria-label="Refresh linked medical devices"
             title="Refresh linked medical devices"
             disabled={refreshing}
           >
-            <IoRefreshOutline className={refreshing ? 'animate-spin' : ''} size={16} />
+            <IoRefreshOutline className={refreshing ? 'animate-spin' : ''} size={13} />
+            Refresh
           </button>
         </div>
 
-        {error ? <div className="text-caption-1 text-text-error">{error}</div> : null}
+        {error ? (
+          <div className="px-5! py-2! text-[11.5px] text-[var(--danger-text)]" role="alert">
+            {error}
+          </div>
+        ) : null}
 
-        {devices.length === 0 ? (
-          <div className="rounded-xl border border-card-border p-3 text-body-4 text-text-secondary ">
+        {total === 0 ? (
+          <div className="px-5! py-4! text-[13px] text-[var(--ink-faint)]">
             No linked IVLS devices found.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-2">
-            {devices.map((device) => (
+          devices.map((device) => {
+            const online = isDeviceOnline(device);
+            const idleDays = getIdleDays(device);
+            const DeviceIcon = pickDeviceIcon(device.displayName);
+            return (
               <div
                 key={device.deviceSerialNumber}
-                className="rounded-xl border border-card-border p-3 "
+                className="flex items-center gap-3 px-5! py-3! border-b border-[var(--hairline)]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-body-4 text-text-primary">
-                      {device.displayName || 'IVLS device'}
-                    </div>
-                    <div className="text-caption-1 text-text-secondary mt-0.5">
-                      {device.deviceSerialNumber}
-                    </div>
-                  </div>
-                  <span
-                    className={`text-label-xsmall px-2 py-1 rounded ${
-                      String(device.vcpActivatedStatus || '').toLowerCase() === 'active'
-                        ? 'bg-success-100 text-success-700'
-                        : 'bg-warning-100 text-warning-700'
-                    }`}
-                  >
-                    {getDeviceStatusLabel(device.vcpActivatedStatus)}
+                <span className="shrink-0 flex items-center justify-center size-9 rounded-[11px] bg-[var(--blue-soft)] text-[var(--blue-text)]">
+                  <DeviceIcon size={16} />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13px] font-bold text-[var(--ink)] truncate">
+                    {device.displayName || 'IVLS device'}
                   </span>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-caption-1">
-                  <div className="text-text-secondary">Last cloud poll</div>
-                  <div className="text-text-primary text-right">
-                    {device.lastPolledCloudTime
-                      ? formatDateTimeLocal(device.lastPolledCloudTime)
-                      : 'Not available'}
-                  </div>
-                </div>
+                  <span className="block text-[11px] text-[var(--ink-faint)] tabular-nums">
+                    IVLS {device.deviceSerialNumber}
+                  </span>
+                </span>
+                {online ? (
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--success)]">
+                    <span className="size-[7px] rounded-full bg-[var(--success)] animate-pulse" />
+                    ONLINE
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--warn-text)]">
+                    <span className="size-[7px] rounded-full bg-[var(--warn-text)]" />
+                    IDLE{idleDays ? ` · ${idleDays} day${idleDays === 1 ? '' : 's'}` : ''}
+                  </span>
+                )}
               </div>
-            ))}
-          </div>
+            );
+          })
         )}
 
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-3 px-5! py-3!">
+          <span className="text-[11.5px] text-[var(--ink-faint)]">
+            Devices sync via the IDEXX integration
+          </span>
           <Secondary href="/integrations" text="Open integrations" />
         </div>
       </div>
