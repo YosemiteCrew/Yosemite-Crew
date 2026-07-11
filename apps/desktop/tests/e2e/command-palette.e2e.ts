@@ -75,6 +75,15 @@ const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): P
     { m: method, a: args }
   );
 
+const waitForPaletteReady = async (page: Page, timeout = 5000): Promise<void> => {
+  await expect
+    .poll(async () => await evaluateYcDesktop<unknown>(page, 'getPaletteActions'), {
+      timeout,
+      message: 'Timed out waiting for command palette to open',
+    })
+    .not.toBeNull();
+};
+
 test.describe('command-palette E2E', () => {
   let app: ElectronApplication | undefined;
   let page: Page;
@@ -100,7 +109,7 @@ test.describe('command-palette E2E', () => {
   test('Cmd+K opens palette window', async () => {
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     await page.keyboard.press('Meta+K');
-    await page.waitForTimeout(500);
+    await waitForPaletteReady(page);
     const paletteResult = await evaluateYcDesktop<unknown>(page, 'getPaletteActions');
     expect(paletteResult).not.toBeNull();
   });
@@ -108,7 +117,7 @@ test.describe('command-palette E2E', () => {
   test('search "patient" returns "Patients" result', async () => {
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     await page.keyboard.press('Meta+K');
-    await page.waitForTimeout(300);
+    await waitForPaletteReady(page);
     const actions = await evaluateYcDesktop<{
       ok: boolean;
       actions: { id: string; label: string }[];
@@ -157,7 +166,7 @@ test.describe('command-palette E2E', () => {
   test('Escape closes palette', async () => {
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
     await page.keyboard.press('Meta+K');
-    await page.waitForTimeout(300);
+    await waitForPaletteReady(page);
     const closeResult = await evaluateYcDesktop<{ ok: boolean }>(page, 'closePalette');
     expect(closeResult).not.toBeNull();
   });

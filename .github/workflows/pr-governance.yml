@@ -49,6 +49,9 @@ jobs:
   commit-messages:
     name: Validate commit messages
     runs-on: ubuntu-latest
+    # Release sync PRs replay already-merged dev history into main. Keep title
+    # validation active, but do not re-lint historical commits in that path.
+    if: ${{ !(github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'dev') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
