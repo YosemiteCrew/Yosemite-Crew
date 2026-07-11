@@ -144,6 +144,59 @@ const resolveTaskTypeLabel = (
   return subcategoryLabel ?? null;
 };
 
+// Trailing context segment (done-time / dosage / companion / date). Kept at
+// module scope so the TaskCard component stays within the complexity budget.
+const resolveContextLabel = (
+  isCompleted: boolean,
+  formattedTime: string | null,
+  isMedicationTask: boolean,
+  formattedNearestDosage: string | null,
+  companionName: string,
+  formattedDate: string,
+): string | null => {
+  if (isCompleted) {
+    return formattedTime ? `done ${formattedTime}` : 'done';
+  }
+  if (isMedicationTask && formattedNearestDosage) {
+    return formattedNearestDosage;
+  }
+  if (formattedTime) return formattedTime;
+  if (companionName) return companionName;
+  return formattedDate;
+};
+
+// Companion + optional assignee avatars (image or initial placeholder). Kept at
+// module scope so the TaskCard component stays within the complexity budget.
+const buildTaskCardAvatars = (
+  companionAvatar: string | undefined,
+  companionName: string,
+  assignedToName: string | undefined,
+  assignedToAvatar: string | undefined,
+): TaskCardAvatar[] => {
+  const avatars: TaskCardAvatar[] = [];
+  const companionAvatarUri = normalizeImageUri(companionAvatar ?? undefined);
+  if (companionAvatarUri) {
+    avatars.push({uri: companionAvatarUri, role: 'companion'});
+  } else {
+    avatars.push({
+      placeholder: companionName.charAt(0).toUpperCase(),
+      role: 'companion',
+    });
+  }
+  if (assignedToName) {
+    const assignedAvatarUri = normalizeImageUri(assignedToAvatar ?? undefined);
+    if (assignedAvatarUri) {
+      avatars.push({uri: assignedAvatarUri, role: 'assignee'});
+    } else {
+      avatars.push({
+        placeholder: assignedToName.charAt(0).toUpperCase(),
+        role: 'assignee',
+      });
+    }
+  }
+  return avatars;
+};
+
 export interface TaskCardProps {
   title: string;
   categoryLabel: string;
@@ -326,52 +379,36 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
   // Trailing context segment: done-time when finished, dosage/task time when
   // scheduled, otherwise the companion the task belongs to.
-  const contextLabel = useMemo((): string | null => {
-    if (isCompleted) {
-      return formattedTime ? `done ${formattedTime}` : 'done';
-    }
-    if (isMedicationTask && formattedNearestDosage) {
-      return formattedNearestDosage;
-    }
-    if (formattedTime) return formattedTime;
-    if (companionName) return companionName;
-    return formattedDate;
-  }, [
-    isCompleted,
-    formattedTime,
-    isMedicationTask,
-    formattedNearestDosage,
-    companionName,
-    formattedDate,
-  ]);
+  const contextLabel = useMemo(
+    () =>
+      resolveContextLabel(
+        isCompleted,
+        formattedTime,
+        isMedicationTask,
+        formattedNearestDosage,
+        companionName,
+        formattedDate,
+      ),
+    [
+      isCompleted,
+      formattedTime,
+      isMedicationTask,
+      formattedNearestDosage,
+      companionName,
+      formattedDate,
+    ],
+  );
 
   const metaLine = [categoryLabel, typeLabel, contextLabel]
     .filter(Boolean)
     .join(' · ');
 
-  const avatars: TaskCardAvatar[] = [];
-  const companionAvatarUri = normalizeImageUri(companionAvatar ?? undefined);
-  if (companionAvatarUri) {
-    avatars.push({uri: companionAvatarUri, role: 'companion'});
-  } else {
-    // Show placeholder with companion name initial
-    avatars.push({
-      placeholder: companionName.charAt(0).toUpperCase(),
-      role: 'companion',
-    });
-  }
-  if (assignedToName) {
-    const assignedAvatarUri = normalizeImageUri(assignedToAvatar ?? undefined);
-    if (assignedAvatarUri) {
-      avatars.push({uri: assignedAvatarUri, role: 'assignee'});
-    } else {
-      // Show placeholder with assigned user name initial
-      avatars.push({
-        placeholder: assignedToName.charAt(0).toUpperCase(),
-        role: 'assignee',
-      });
-    }
-  }
+  const avatars = buildTaskCardAvatars(
+    companionAvatar,
+    companionName,
+    assignedToName,
+    assignedToAvatar,
+  );
 
   const showTakePill =
     isObservationalToolTask &&
