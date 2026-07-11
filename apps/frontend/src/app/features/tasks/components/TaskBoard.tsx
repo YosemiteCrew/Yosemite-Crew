@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useBoardColumnDrop, useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
@@ -433,9 +433,6 @@ const TaskBoard = ({
     [canEditTasks, notify, todayTasks]
   );
 
-  const moveToStatusRef = useRef(moveToStatus);
-  moveToStatusRef.current = moveToStatus;
-
   const handleTaskCardDragStart = useCallback((event: React.DragEvent<HTMLElement>, task: Task) => {
     setDraggedTaskId(task._id ?? null);
     event.dataTransfer.effectAllowed = 'move';
@@ -447,57 +444,24 @@ const TaskBoard = ({
     });
   }, []);
 
-  useEffect(() => {
-    const boardRoot = boardRootRef.current;
-    if (!boardRoot) return;
+  const handleColumnTaskDrop = useCallback(
+    (taskId: string, nextStatus: BoardStatus) => {
+      moveToStatus(taskId, nextStatus).catch(() => undefined);
+      setDraggedTaskId(null);
+    },
+    [moveToStatus]
+  );
 
-    const handleBoardDragOver = (event: DragEvent) => {
-      if (!draggedTaskId || !canEditTasks) return;
-      autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
-    };
-
-    boardRoot.addEventListener('dragover', handleBoardDragOver);
-    return () => boardRoot.removeEventListener('dragover', handleBoardDragOver);
-  }, [autoScrollBoardOnDrag, canEditTasks, draggedTaskId]);
-
-  useEffect(() => {
-    const cleanups = BOARD_COLUMNS.flatMap((column) => {
-      const dropElement = columnDropRefs.current[column.key];
-      const scrollElement = columnScrollRefs.current[column.key];
-      if (!dropElement || !scrollElement) return [];
-
-      const handleColumnDragOver = (event: DragEvent) => {
-        if (!draggedTaskId || !canEditTasks) return;
-        event.preventDefault();
-        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
-      };
-
-      const handleColumnDrop = (event: DragEvent) => {
-        if (!draggedTaskId || !canEditTasks) return;
-        event.preventDefault();
-        void moveToStatusRef.current(draggedTaskId, column.key);
-        setDraggedTaskId(null);
-      };
-
-      const handleScrollDragOver = (event: DragEvent) => {
-        if (!draggedTaskId || !canEditTasks) return;
-        event.preventDefault();
-        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>, scrollElement);
-      };
-
-      dropElement.addEventListener('dragover', handleColumnDragOver);
-      dropElement.addEventListener('drop', handleColumnDrop);
-      scrollElement.addEventListener('dragover', handleScrollDragOver);
-
-      return [
-        () => dropElement.removeEventListener('dragover', handleColumnDragOver),
-        () => dropElement.removeEventListener('drop', handleColumnDrop),
-        () => scrollElement.removeEventListener('dragover', handleScrollDragOver),
-      ];
-    });
-
-    return () => cleanups.forEach((cleanup) => cleanup());
-  }, [autoScrollBoardOnDrag, canEditTasks, draggedTaskId]);
+  useBoardColumnDrop({
+    activeItemId: draggedTaskId,
+    autoScrollBoardOnDrag,
+    boardRootRef,
+    canDrop: canEditTasks,
+    columns: BOARD_COLUMNS,
+    columnDropRefs,
+    columnScrollRefs,
+    onDrop: handleColumnTaskDrop,
+  });
 
   return (
     <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">
