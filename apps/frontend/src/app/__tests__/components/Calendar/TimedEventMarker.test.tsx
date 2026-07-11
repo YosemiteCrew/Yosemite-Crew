@@ -34,6 +34,11 @@ jest.mock('@/app/features/appointments/components/Calendar/common/dayCalendarHel
   setCustomDragGhost: jest.fn(),
 }));
 
+jest.mock('@/app/features/appointments/components/Calendar/common/slotHelpers', () => ({
+  getCompanionDisplayName: jest.fn(() => 'Maple Rivera'),
+  setCustomDragGhost: jest.fn(),
+}));
+
 const baseEvent = {
   id: 'apt-1',
   status: 'Scheduled',

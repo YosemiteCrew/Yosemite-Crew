@@ -1,15 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
 import { canEnterAppointmentWorkspace } from '@/app/lib/appointmentWorkspace';
-
-const MARKER_CLICK_DELAY_MS = 180;
-
-type ContextMenuState = {
-  appointment: Appointment;
-  x: number;
-  y: number;
-};
+import { useMarkerInteractions } from './useMarkerInteractions';
 
 type UseSlotMarkerInteractionsArgs = {
   handleOpenPopover: (
@@ -25,10 +17,10 @@ type UseSlotMarkerInteractionsArgs = {
 };
 
 /**
- * Extracted from Slot: owns the marker click/double-click/context-menu
- * interaction handling — the click-vs-doubleclick delay timer, and the
- * right-click context menu's open/dismiss lifecycle (outside click, scroll,
- * resize, Escape). Pure structural extraction, behavior unchanged.
+ * Slot marker interactions: shared click/double-click/context-menu handling
+ * (useMarkerInteractions) with the slot's double-click action — enter the
+ * workspace only for eligible statuses, else fall back to detail/view — and an
+ * outside-click dismiss that ignores clicks inside any [data-context-menu].
  */
 export function useSlotMarkerInteractions({
   handleOpenPopover,
@@ -37,125 +29,16 @@ export function useSlotMarkerInteractions({
   handleDetailAppointment,
   handleViewAppointment,
 }: UseSlotMarkerInteractionsArgs) {
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const contextMenuRef = useRef<HTMLDivElement | null>(null);
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-
-  useEffect(
-    () => () => {
-      if (clickTimerRef.current) {
-        clearTimeout(clickTimerRef.current);
+  return useMarkerInteractions({
+    handleOpenPopover,
+    setActivePopoverKey,
+    dismissIgnoreSelector: '[data-context-menu]',
+    onMarkerDoubleClick: (appointment) => {
+      if (handleOpenWorkspace && canEnterAppointmentWorkspace(appointment.status)) {
+        handleOpenWorkspace(appointment);
+        return;
       }
+      (handleDetailAppointment ?? handleViewAppointment)(appointment);
     },
-    []
-  );
-
-  useEffect(() => {
-    if (!contextMenu) return;
-
-    const closeContextMenu = () => setContextMenu(null);
-    const swallowDismissClick = () => {
-      const handleClickCapture = (event: MouseEvent) => {
-        event.preventDefault();
-        event.stopPropagation();
-        if ('stopImmediatePropagation' in event) {
-          event.stopImmediatePropagation();
-        }
-        globalThis.removeEventListener('click', handleClickCapture, true);
-      };
-
-      globalThis.addEventListener('click', handleClickCapture, true);
-    };
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null;
-      if (contextMenuRef.current?.contains(target)) return;
-      if ((target as Element | null)?.closest('[data-context-menu]')) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if ('stopImmediatePropagation' in event) {
-        event.stopImmediatePropagation();
-      }
-      swallowDismissClick();
-      setContextMenu(null);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setContextMenu(null);
-      }
-    };
-
-    globalThis.addEventListener('pointerdown', handlePointerDown, true);
-    globalThis.addEventListener('scroll', closeContextMenu, true);
-    globalThis.addEventListener('resize', closeContextMenu);
-    globalThis.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      globalThis.removeEventListener('pointerdown', handlePointerDown, true);
-      globalThis.removeEventListener('scroll', closeContextMenu, true);
-      globalThis.removeEventListener('resize', closeContextMenu);
-      globalThis.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [contextMenu]);
-
-  const contextMenuStyle = useMemo(() => {
-    if (!contextMenu) return null;
-    const width = 280;
-    const height = 420;
-    const margin = 12;
-    const left = Math.max(margin, Math.min(contextMenu.x, globalThis.innerWidth - width - margin));
-    const top = Math.max(margin, Math.min(contextMenu.y, globalThis.innerHeight - height - margin));
-    return { left, top, width };
-  }, [contextMenu]);
-
-  const clearPendingMarkerClick = () => {
-    if (!clickTimerRef.current) return;
-    clearTimeout(clickTimerRef.current);
-    clickTimerRef.current = null;
-  };
-
-  const handleMarkerClick = (event: React.MouseEvent<HTMLButtonElement>, key: string) => {
-    const target = event.currentTarget;
-    const { clientX, clientY } = event;
-    clearPendingMarkerClick();
-    setContextMenu(null);
-    clickTimerRef.current = setTimeout(() => {
-      handleOpenPopover(key, target, clientX, clientY);
-      clickTimerRef.current = null;
-    }, MARKER_CLICK_DELAY_MS);
-  };
-
-  const handleMarkerDoubleClick = (appointment: Appointment) => {
-    clearPendingMarkerClick();
-    setContextMenu(null);
-    setActivePopoverKey(null);
-    if (handleOpenWorkspace && canEnterAppointmentWorkspace(appointment.status)) {
-      handleOpenWorkspace(appointment);
-      return;
-    }
-    (handleDetailAppointment ?? handleViewAppointment)(appointment);
-  };
-
-  const handleMarkerContextMenu = (
-    event: React.MouseEvent<HTMLButtonElement>,
-    appointment: Appointment
-  ) => {
-    event.preventDefault();
-    clearPendingMarkerClick();
-    setActivePopoverKey(null);
-    setContextMenu({
-      appointment,
-      x: event.clientX,
-      y: event.clientY,
-    });
-  };
-
-  return {
-    contextMenuRef,
-    contextMenu,
-    setContextMenu,
-    contextMenuStyle,
-    handleMarkerClick,
-    handleMarkerDoubleClick,
-    handleMarkerContextMenu,
-  };
+  });
 }

@@ -1,53 +1,24 @@
 import React from 'react';
 import Image from 'next/image';
-import { Appointment } from '@yosemite-crew/types';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { getAppointmentCompanionPhotoUrl } from '@/app/lib/appointments';
 import { EVENT_HORIZONTAL_GAP_PX } from '@/app/features/appointments/components/Calendar/helpers';
 import { LaidOutEvent } from '@/app/features/appointments/types/calendar';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
+import { getCompanionDisplayName } from '@/app/features/appointments/components/Calendar/common/dayCalendarHelpers';
 import {
-  getCompanionDisplayName,
-  setCustomDragGhost,
-} from '@/app/features/appointments/components/Calendar/common/dayCalendarHelpers';
+  MarkerInteractionProps,
+  getMarkerButtonProps,
+} from '@/app/features/appointments/components/Calendar/common/markerShared';
 
-type TimedEventMarkerProps = {
+type TimedEventMarkerProps = MarkerInteractionProps & {
   ev: LaidOutEvent;
-  itemKey: string;
   yScale: number;
   zoomMode: CalendarZoomMode;
-  activePopoverKey: string | null;
-  appointmentPopoverId: string;
-  draggedAppointmentId?: string | null;
-  canDragAppointment?: (appointment: Appointment) => boolean;
-  onMarkerClick: (event: React.MouseEvent<HTMLButtonElement>, key: string) => void;
-  onMarkerDoubleClick: (appointment: Appointment) => void;
-  onMarkerContextMenu: (
-    event: React.MouseEvent<HTMLButtonElement>,
-    appointment: Appointment
-  ) => void;
-  onAppointmentDragStart?: (appointment: Appointment) => void;
-  onAppointmentDragEnd?: () => void;
-  onDropPreviewClear: () => void;
 };
 
-const TimedEventMarker = ({
-  ev,
-  itemKey,
-  yScale,
-  zoomMode,
-  activePopoverKey,
-  appointmentPopoverId,
-  draggedAppointmentId,
-  canDragAppointment,
-  onMarkerClick,
-  onMarkerDoubleClick,
-  onMarkerContextMenu,
-  onAppointmentDragStart,
-  onAppointmentDragEnd,
-  onDropPreviewClear,
-}: TimedEventMarkerProps) => {
+const TimedEventMarker = ({ ev, yScale, zoomMode, ...interaction }: TimedEventMarkerProps) => {
   const widthPercent = 100 / ev.columnsCount;
   const leftPercent = widthPercent * ev.columnIndex;
   const horizontalGapPx = EVENT_HORIZONTAL_GAP_PX;
@@ -59,7 +30,7 @@ const TimedEventMarker = ({
   const subtitle = [serviceName, concern].filter(Boolean).join(' • ');
   const companionDisplayName = getCompanionDisplayName(ev);
   const markerTitle = subtitle ? `${companionDisplayName} • ${subtitle}` : companionDisplayName;
-  const draggable = !!canDragAppointment?.(ev);
+  const buttonProps = getMarkerButtonProps(ev, interaction, markerTitle);
 
   return (
     <div
@@ -94,32 +65,10 @@ const TimedEventMarker = ({
       )}
       <button
         type="button"
+        {...buttonProps}
         className={`min-w-0 ${
-          draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+          buttonProps.draggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
         } ${isZoomOut ? 'absolute inset-x-0 -inset-y-2 z-20' : 'size-full flex items-center gap-2'}`}
-        aria-haspopup="dialog"
-        aria-expanded={activePopoverKey === itemKey}
-        aria-controls={appointmentPopoverId}
-        onClick={(event) => onMarkerClick(event, itemKey)}
-        onDoubleClick={() => onMarkerDoubleClick(ev)}
-        onContextMenu={(event) => onMarkerContextMenu(event, ev)}
-        draggable={draggable}
-        title={markerTitle}
-        onDragStart={(event) => {
-          event.dataTransfer.effectAllowed = 'move';
-          event.dataTransfer.setData('text/plain', ev.id ?? itemKey);
-          setCustomDragGhost(event, ev);
-          document.body.style.cursor = 'grabbing';
-          onAppointmentDragStart?.(ev);
-        }}
-        onDragEnd={() => {
-          onDropPreviewClear();
-          document.body.style.cursor = '';
-          onAppointmentDragEnd?.();
-        }}
-        style={{
-          opacity: draggedAppointmentId === ev.id ? 0.55 : 1,
-        }}
       >
         {!isZoomOut && (
           <>
