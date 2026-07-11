@@ -3,7 +3,10 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import AppointmentCalendar from '@/app/features/appointments/components/Calendar/AppointmentCalendar';
-import { filterAppointmentsForWeek } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import {
+  filterAppointmentsForWeek,
+  resolveAvailabilityIntervalsForDay,
+} from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
   getSlotsForServiceAndDateForPrimaryOrg,
@@ -12,6 +15,8 @@ import {
 import { loadTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { useNotify } from '@/app/hooks/useNotify';
 import { allowCalendarDrag, canAssignAppointmentRoom } from '@/app/lib/appointments';
+import { useAvailabilityStore } from '@/app/stores/availabilityStore';
+import { useOrgStore } from '@/app/stores/orgStore';
 
 const dayCalendarSpy = jest.fn();
 const weekCalendarSpy = jest.fn();
@@ -198,6 +203,16 @@ describe('AppointmentCalendar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useNotify as jest.Mock).mockReturnValue({ notify: notifyMock });
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: 'org-1' })
+    );
+    (useAvailabilityStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({
+        availabilityIdsByOrgId: {},
+        availabilitiesById: {},
+        status: 'loaded',
+      })
+    );
     (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
       { _id: 'team-1', practionerId: 'vet-1', name: 'Dr Vet' },
       { _id: 'team-2', practionerId: 'vet-2', name: 'Dr Two' },
@@ -439,6 +454,214 @@ describe('AppointmentCalendar', () => {
       'warning',
       expect.objectContaining({ text: 'Scheduling conflict detected with another appointment.' })
     );
+  });
+
+  it('blocks drop when the dragged appointment is unavailable', async () => {
+    renderCalendar();
+    let props = dayCalendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      props.onAppointmentDragStart({ ...appointments[0], id: undefined });
+    });
+
+    props = dayCalendarSpy.mock.calls.at(-1)![0];
+    await act(async () => {
+      props.onAppointmentDropAt(new Date('2027-01-06T00:00:00Z'), 600);
+    });
+
+    expect(updateAppointment).not.toHaveBeenCalled();
+  });
+
+  it('warns when dragged appointment cannot be found for drop', async () => {
+    renderCalendar({ allAppointments: [] });
+    let props = dayCalendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      props.onAppointmentDragStart(appointments[0]);
+    });
+
+    props = dayCalendarSpy.mock.calls.at(-1)![0];
+    await act(async () => {
+      props.onAppointmentDropAt(new Date('2027-01-06T00:00:00Z'), 600);
+    });
+
+    expect(updateAppointment).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'warning',
+      expect.objectContaining({ text: 'Unable to move this appointment.' })
+    );
+  });
+
+  it('blocks drop to a past time', async () => {
+    const dateSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2027-01-07T00:00:00Z').getTime());
+    renderCalendar();
+    let props = dayCalendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      props.onAppointmentDragStart(appointments[0]);
+    });
+
+    props = dayCalendarSpy.mock.calls.at(-1)![0];
+    await act(async () => {
+      props.onAppointmentDropAt(new Date('2027-01-06T00:00:00Z'), 600);
+    });
+
+    expect(updateAppointment).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'warning',
+      expect.objectContaining({ text: 'Cannot move an appointment to a past time.' })
+    );
+    dateSpy.mockRestore();
+  });
+
+  it('blocks drop when selected team member cannot support the speciality', async () => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      {
+        _id: 'team-1',
+        practionerId: 'vet-1',
+        name: 'Dr Vet',
+        speciality: [{ id: 'other-spec', name: 'Surgery' }],
+      },
+    ]);
+    renderCalendar({ activeCalendar: 'team' });
+    let props = userCalendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      props.onAppointmentDragStart(appointments[0]);
+    });
+
+    props = userCalendarSpy.mock.calls.at(-1)![0];
+    await act(async () => {
+      props.onAppointmentDropAt(new Date('2027-01-06T00:00:00Z'), 600, 'team-1');
+    });
+
+    expect(updateAppointment).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'warning',
+      expect.objectContaining({
+        text: 'Selected team member is not configured for this speciality.',
+      })
+    );
+  });
+
+  it('blocks drop when no matching service slot is available', async () => {
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([
+      { startTime: '12:00', endTime: '13:00', vetIds: ['vet-1'] },
+    ]);
+    renderCalendar();
+    let props = dayCalendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      props.onAppointmentDragStart(appointments[0]);
+    });
+
+    props = dayCalendarSpy.mock.calls.at(-1)![0];
+    await act(async () => {
+      props.onAppointmentDropAt(new Date('2027-01-06T00:00:00Z'), 600);
+    });
+
+    expect(updateAppointment).not.toHaveBeenCalled();
+    expect(notifyMock).toHaveBeenCalledWith(
+      'warning',
+      expect.objectContaining({
+        text: 'No available slot for this service at the selected position.',
+      })
+    );
+  });
+
+  it('builds contiguous drop availability intervals from valid service slots', async () => {
+    renderCalendar();
+    let props = dayCalendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      props.onAppointmentDragStart(appointments[0]);
+    });
+
+    props = dayCalendarSpy.mock.calls.at(-1)![0];
+    await act(async () => {
+      props.onDragHoverTarget(new Date('2027-01-06T00:00:00Z'));
+    });
+
+    props = dayCalendarSpy.mock.calls.at(-1)![0];
+    expect(props.getDropAvailabilityIntervals(new Date('2027-01-06T00:00:00Z'))).toEqual([
+      { startMinute: 540, endMinute: 630 },
+    ]);
+  });
+
+  it('auto-scrolls while dragging near a calendar edge', async () => {
+    const scrollContainer = document.createElement('div');
+    scrollContainer.dataset.calendarScroll = 'true';
+    scrollContainer.scrollBy = jest.fn();
+    scrollContainer.getBoundingClientRect = jest.fn(() => ({
+      bottom: 200,
+      height: 200,
+      left: 0,
+      right: 200,
+      top: 0,
+      width: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    }));
+    document.body.appendChild(scrollContainer);
+    const elementFromPointMock = jest.fn().mockReturnValue(scrollContainer);
+    Object.defineProperty(document, 'elementFromPoint', {
+      value: elementFromPointMock,
+      configurable: true,
+    });
+    renderCalendar();
+    const props = dayCalendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      props.onAppointmentDragStart(appointments[0]);
+    });
+
+    const event = new Event('dragover');
+    Object.defineProperty(event, 'clientX', { value: 10 });
+    Object.defineProperty(event, 'clientY', { value: 10 });
+    globalThis.dispatchEvent(event);
+
+    expect(globalThis.scrollBy).toHaveBeenCalledWith({ left: -28 });
+    expect(globalThis.scrollBy).toHaveBeenCalledWith({ top: -28 });
+    expect(scrollContainer.scrollBy).toHaveBeenCalledWith({ left: -28, top: -28 });
+    scrollContainer.remove();
+  });
+
+  it('returns visible availability intervals for a team member', () => {
+    (useAvailabilityStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({
+        availabilityIdsByOrgId: { 'org-1': ['availability-1'] },
+        availabilitiesById: { 'availability-1': { id: 'availability-1' } },
+        status: 'loaded',
+      })
+    );
+    renderCalendar({ activeCalendar: 'team' });
+    const props = userCalendarSpy.mock.calls[0][0];
+
+    props.getVisibleAvailabilityIntervals(new Date('2027-01-06T00:00:00Z'), 'vet-1');
+
+    expect(resolveAvailabilityIntervalsForDay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allEntries: [expect.objectContaining({ id: 'availability-1' })],
+        dayKey: 'MONDAY',
+        targetIds: expect.any(Set),
+      })
+    );
+  });
+
+  it('returns no visible availability when organisation is missing', () => {
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: null })
+    );
+    renderCalendar({ activeCalendar: 'team' });
+    const props = userCalendarSpy.mock.calls[0][0];
+
+    expect(
+      props.getVisibleAvailabilityIntervals(new Date('2027-01-06T00:00:00Z'), 'vet-1')
+    ).toEqual([]);
+    expect(resolveAvailabilityIntervalsForDay).not.toHaveBeenCalled();
   });
 
   it('loads team availability on team calendar mount', async () => {
