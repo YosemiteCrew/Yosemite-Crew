@@ -3,6 +3,7 @@ import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
+import { BoardColumnHeader, attachBoardColumnDnDListeners } from '@/app/ui/board/boardShared';
 import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
 import Image from 'next/image';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
@@ -302,32 +303,7 @@ const BoardColumn = ({
       ref={setDropRef}
       className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
     >
-      <div
-        className="rounded-t-2xl border-b px-3 py-2"
-        style={{
-          backgroundColor: style.backgroundColor,
-          borderBottomColor: style.borderColor,
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <div className="text-body-4-emphasis" style={{ color: style.color }}>
-            {column.label}
-          </div>
-          <div
-            className="text-caption-1 rounded-full px-2 py-0.5"
-            style={{
-              backgroundColor: style.backgroundColor,
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              borderColor: style.borderColor,
-              color: style.color,
-              opacity: 0.85,
-            }}
-          >
-            {columnTasks.length}
-          </div>
-        </div>
-      </div>
+      <BoardColumnHeader label={column.label} count={columnTasks.length} style={style} />
       <div
         ref={setScrollRef}
         className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
@@ -647,34 +623,17 @@ const TaskBoard = ({
       const scrollElement = columnScrollRefs.current[column.key];
       if (!dropElement || !scrollElement) return [];
 
-      const handleColumnDragOver = (event: DragEvent) => {
-        if (!draggedTaskId || !canEditTasks) return;
-        event.preventDefault();
-        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
-      };
-
-      const handleColumnDrop = (event: DragEvent) => {
-        if (!draggedTaskId || !canEditTasks) return;
-        event.preventDefault();
-        void moveToStatusRef.current(draggedTaskId, column.key);
-        setDraggedTaskId(null);
-      };
-
-      const handleScrollDragOver = (event: DragEvent) => {
-        if (!draggedTaskId || !canEditTasks) return;
-        event.preventDefault();
-        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>, scrollElement);
-      };
-
-      dropElement.addEventListener('dragover', handleColumnDragOver);
-      dropElement.addEventListener('drop', handleColumnDrop);
-      scrollElement.addEventListener('dragover', handleScrollDragOver);
-
-      return [
-        () => dropElement.removeEventListener('dragover', handleColumnDragOver),
-        () => dropElement.removeEventListener('drop', handleColumnDrop),
-        () => scrollElement.removeEventListener('dragover', handleScrollDragOver),
-      ];
+      return attachBoardColumnDnDListeners({
+        dropElement,
+        scrollElement,
+        isDragActive: () => !!draggedTaskId && canEditTasks,
+        onDrop: () => {
+          if (!draggedTaskId) return;
+          void moveToStatusRef.current(draggedTaskId, column.key);
+          setDraggedTaskId(null);
+        },
+        autoScrollBoardOnDrag,
+      });
     });
 
     return () => cleanups.forEach((cleanup) => cleanup());

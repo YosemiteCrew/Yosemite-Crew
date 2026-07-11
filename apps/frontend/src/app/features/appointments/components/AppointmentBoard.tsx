@@ -4,6 +4,7 @@ import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
+import { BoardColumnHeader, attachBoardColumnDnDListeners } from '@/app/ui/board/boardShared';
 import { Appointment } from '@yosemite-crew/types';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { changeAppointmentStatus } from '@/app/features/appointments/services/appointmentService';
@@ -105,33 +106,15 @@ const useBoardDropTargets = ({
       const scrollElement = columnScrollRefs.current?.[column.key];
       if (!dropElement || !scrollElement) return [];
 
-      const handleColumnDragOver = (event: DragEvent) => {
-        if (!draggedAppointmentId || !canEditAppointments) return;
-        event.preventDefault();
-        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
-      };
-
-      const handleColumnDrop = (event: DragEvent) => {
-        if (!draggedAppointmentId || !canEditAppointments) return;
-        event.preventDefault();
-        onDropRef.current?.(draggedAppointmentId, column.key);
-      };
-
-      const handleScrollDragOver = (event: DragEvent) => {
-        if (!draggedAppointmentId || !canEditAppointments) return;
-        event.preventDefault();
-        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>, scrollElement);
-      };
-
-      dropElement.addEventListener('dragover', handleColumnDragOver);
-      dropElement.addEventListener('drop', handleColumnDrop);
-      scrollElement.addEventListener('dragover', handleScrollDragOver);
-
-      return [
-        () => dropElement.removeEventListener('dragover', handleColumnDragOver),
-        () => dropElement.removeEventListener('drop', handleColumnDrop),
-        () => scrollElement.removeEventListener('dragover', handleScrollDragOver),
-      ];
+      return attachBoardColumnDnDListeners({
+        dropElement,
+        scrollElement,
+        isDragActive: () => !!draggedAppointmentId && canEditAppointments,
+        onDrop: () => {
+          if (draggedAppointmentId) onDropRef.current?.(draggedAppointmentId, column.key);
+        },
+        autoScrollBoardOnDrag,
+      });
     });
 
     return () => cleanups.forEach((cleanup) => cleanup());
@@ -166,32 +149,7 @@ const BoardColumn = ({
       ref={setDropRef}
       className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl border border-card-border bg-white overflow-hidden flex flex-col min-h-0"
     >
-      <div
-        className="rounded-t-2xl border-b px-3 py-2"
-        style={{
-          backgroundColor: style.backgroundColor,
-          borderBottomColor: style.borderColor,
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <div className="text-body-4-emphasis" style={{ color: style.color }}>
-            {column.label}
-          </div>
-          <div
-            className="text-caption-1 rounded-full px-2 py-0.5"
-            style={{
-              backgroundColor: style.backgroundColor,
-              borderWidth: '1px',
-              borderStyle: 'solid',
-              borderColor: style.borderColor,
-              color: style.color,
-              opacity: 0.85,
-            }}
-          >
-            {appointments.length}
-          </div>
-        </div>
-      </div>
+      <BoardColumnHeader label={column.label} count={appointments.length} style={style} />
       <div
         ref={setScrollRef}
         className="flex-1 min-h-0 h-0 flex flex-col gap-2 p-3 pb-4 bg-white overflow-y-auto"
