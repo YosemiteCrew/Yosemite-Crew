@@ -167,11 +167,10 @@ const AddForm = ({
     }
   };
 
-  useEffect(() => {
-    if (!merckEnabled && view === 'merck') {
-      setView('build');
-    }
-  }, [merckEnabled, view]);
+  // Coerce a stale 'merck' view back to 'build' while rendering when the MSD
+  // integration is disabled — deriving this avoids the extra render a useEffect
+  // sync would cost.
+  const effectiveView = view === 'merck' && !merckEnabled ? 'build' : view;
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
@@ -226,13 +225,13 @@ const AddForm = ({
 
         {/* Body */}
         <div className="flex min-h-0 flex-1 flex-col">
-          {view === 'merck' && (
+          {effectiveView === 'merck' && (
             <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
               <AppointmentMerckSearch activeAppointment={null} />
             </div>
           )}
 
-          {view === 'preview' && (
+          {effectiveView === 'preview' && (
             <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
               <Review
                 formData={formData}
@@ -245,7 +244,7 @@ const AddForm = ({
             </div>
           )}
 
-          {view === 'build' && (
+          {effectiveView === 'build' && (
             <div className="flex min-h-0 flex-1 flex-col gap-3">
               {/* Template details fold — always mounted so validation runs; toggled open on demand. */}
               <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen-2)] px-4 py-2.5">
@@ -305,7 +304,7 @@ const AddForm = ({
         </div>
 
         {/* Footer: Save / Cancel (preview view uses Review's own action buttons). */}
-        {view !== 'preview' && (
+        {effectiveView !== 'preview' && (
           <div className="grid grid-cols-2 gap-3 border-t border-[var(--hairline)] pt-3">
             <Primary
               href="#"

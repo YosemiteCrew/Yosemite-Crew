@@ -2,7 +2,7 @@ import React from 'react';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
 import { FormField } from '@/app/features/forms/types/forms';
-import { StructureLockContext } from '../BuildWrapper';
+import { StructureLockContext } from '../structureLockContext';
 
 /**
  * Builder block for a rich-text field. The author sets a label and the default

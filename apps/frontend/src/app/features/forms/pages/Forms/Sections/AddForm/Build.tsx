@@ -46,9 +46,8 @@ import RichTextBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/c
 import InputBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputBuilder';
 import DropdownBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder';
 import SignatureBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureBuilder';
-import BuilderWrapper, {
-  StructureLockContext,
-} from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import BuilderWrapper from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import { StructureLockContext } from '@/app/features/forms/pages/Forms/Sections/AddForm/components/structureLockContext';
 import BooleanBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanBuilder';
 import DateBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateBuilder';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -1024,6 +1023,12 @@ const taskBlockFieldValue = (field?: FormField): string => {
  * matching `taskBlockKey` leaf field's `defaultValue`, which lib/forms.ts reads
  * when serializing the block into the TASK_ASSIGNMENT template rules.
  */
+const fieldOptions = (f?: FormField): { label: string; value: string }[] =>
+  ((f as { options?: { label: string; value: string }[] } | undefined)?.options ?? []) as {
+    label: string;
+    value: string;
+  }[];
+
 const TaskBlockCard: React.FC<{
   block: FormField & { type: 'group'; fields?: FormField[] };
   index: number;
@@ -1033,12 +1038,6 @@ const TaskBlockCard: React.FC<{
 }> = ({ block, index, onChange, onDuplicate, onRemove }) => {
   const fieldByKey = (key: string) =>
     (block.fields ?? []).find((f) => (f.meta as { taskBlockKey?: string })?.taskBlockKey === key);
-
-  const fieldOptions = (f?: FormField): { label: string; value: string }[] =>
-    ((f as { options?: { label: string; value: string }[] } | undefined)?.options ?? []) as {
-      label: string;
-      value: string;
-    }[];
 
   const setKeyValue = (key: string, value: string) => {
     onChange({
@@ -1709,21 +1708,17 @@ const Build = ({ formData, setFormData, serviceOptions, registerValidator }: Bui
     registerValidator?.(validate);
   }, [registerValidator, validate]);
 
-  // Keep a valid selection: default to the first field, and re-point if the
-  // currently-selected field was removed from the schema.
-  React.useEffect(() => {
-    const ids = (formData.schema ?? []).map((f) => f.id);
-    if (ids.length === 0) {
-      if (selectedFieldId !== null) setSelectedFieldId(null);
-      return;
-    }
-    if (!selectedFieldId || !ids.includes(selectedFieldId)) {
-      setSelectedFieldId(ids[0]);
-    }
-  }, [formData.schema, selectedFieldId]);
-
   const schema = formData.schema ?? [];
-  const selectedField = schema.find((f) => f.id === selectedFieldId) ?? null;
+  // Derive the effective selection while rendering: default to the first field,
+  // and re-point when the selected field was removed from the schema. Computing
+  // this here (instead of syncing it through a useEffect) avoids a stale frame.
+  const effectiveSelectedId = React.useMemo(() => {
+    const ids = (formData.schema ?? []).map((f) => f.id);
+    if (ids.length === 0) return null;
+    if (selectedFieldId && ids.includes(selectedFieldId)) return selectedFieldId;
+    return ids[0];
+  }, [formData.schema, selectedFieldId]);
+  const selectedField = schema.find((f) => f.id === effectiveSelectedId) ?? null;
 
   const toggleRequired = (field: FormField) =>
     handleFieldChange(field.id, { ...field, required: !field.required });
@@ -1819,7 +1814,7 @@ const Build = ({ formData, setFormData, serviceOptions, registerValidator }: Bui
             <CanvasRow
               key={field.id}
               field={field}
-              selected={field.id === selectedFieldId}
+              selected={field.id === effectiveSelectedId}
               locked={structureLocked}
               onSelect={() => setSelectedFieldId(field.id)}
               onDelete={() => handleDeleteField(field.id)}
