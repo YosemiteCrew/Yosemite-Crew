@@ -79,6 +79,10 @@ const InventoryTurnoverTable = dynamic(() => import('@/app/ui/tables/InventoryTu
   loading: () => <InventorySectionSkeleton />,
 });
 const InventoryTurnoverFilters = dynamic(() => import('@/app/ui/filters/InventoryTurnoverFilters'));
+const TurnoverAnalytics = dynamic(
+  () => import('@/app/features/inventory/components/TurnoverAnalytics'),
+  { loading: () => <InventorySectionSkeleton /> }
+);
 const DispensaryTable = dynamic(() => import('@/app/ui/tables/DispensaryTable'), {
   loading: () => <InventorySectionSkeleton />,
 });
@@ -552,6 +556,8 @@ const filterDispensaryRecords = (
 type InventoryTableContentProps = {
   activeView: InventoryView;
   turnover: InventoryTurnoverItem[];
+  inventory: InventoryItem[];
+  setActiveView: React.Dispatch<React.SetStateAction<InventoryView>>;
   setFilteredTurnoverList: React.Dispatch<React.SetStateAction<InventoryTurnoverItem[]>>;
   turnoverCategoryOptions: string[];
   filteredTurnoverList: InventoryTurnoverItem[];
@@ -569,6 +575,8 @@ type InventoryTableContentProps = {
 const InventoryTableContent = ({
   activeView,
   turnover,
+  inventory,
+  setActiveView,
   setFilteredTurnoverList,
   turnoverCategoryOptions,
   filteredTurnoverList,
@@ -584,7 +592,13 @@ const InventoryTableContent = ({
 }: InventoryTableContentProps) => {
   if (activeView === 'analytics') {
     return (
-      <div className="flex flex-col gap-4 pt-3">
+      <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto pt-3 pr-1">
+        <TurnoverAnalytics
+          turnover={turnover}
+          inventory={inventory}
+          setActiveView={setActiveView}
+          onReorder={onRestock}
+        />
         <InventoryTurnoverFilters
           list={turnover}
           setFilteredList={setFilteredTurnoverList}
@@ -1698,6 +1712,8 @@ const Inventory = () => {
             <InventoryTableContent
               activeView={activeView}
               turnover={turnover}
+              inventory={inventory}
+              setActiveView={setActiveView}
               setFilteredTurnoverList={setFilteredTurnoverList}
               turnoverCategoryOptions={turnoverCategoryOptions}
               filteredTurnoverList={filteredTurnoverList}

@@ -23,9 +23,9 @@ describe('VideosCard', () => {
     expect(
       screen.getByText('Make the most of your wait, start exploring instead')
     ).toBeInTheDocument();
-    expect(screen.getByText('Invite your team')).toBeInTheDocument();
-    expect(screen.getByText('Add companions')).toBeInTheDocument();
-    expect(screen.getByText('Build and share forms')).toBeInTheDocument();
+    expect(screen.getByText('Your first day in the PIMS')).toBeInTheDocument();
+    expect(screen.getByText('Run a visit end to end')).toBeInTheDocument();
+    expect(screen.getByText('Invoices, deposits and payouts')).toBeInTheDocument();
   });
 
   it('closes when the close icon is clicked', () => {
@@ -40,7 +40,7 @@ describe('VideosCard', () => {
   it('keeps the thumbnail overlay visible until the video loads', () => {
     render(<VideosCard />);
 
-    fireEvent.click(screen.getByLabelText('Play video: Invite your team'));
+    fireEvent.click(screen.getByLabelText('Play video: Your first day in the PIMS'));
 
     const video = document.querySelector('video');
     expect(video).toBeInTheDocument();
