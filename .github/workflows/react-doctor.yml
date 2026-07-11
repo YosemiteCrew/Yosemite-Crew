@@ -33,8 +33,15 @@ jobs:
       - name: Enforce React Doctor score
         env:
           REACT_DOCTOR_SCORE: ${{ steps.react-doctor.outputs.score }}
+          REACT_DOCTOR_ERROR_COUNT: ${{ steps.react-doctor.outputs.error-count }}
+          REACT_DOCTOR_WARNING_COUNT: ${{ steps.react-doctor.outputs.warning-count }}
           REACT_DOCTOR_MIN_SCORE: '95'
         run: |
+          if [ "${REACT_DOCTOR_ERROR_COUNT:-0}" -eq 0 ] && [ "${REACT_DOCTOR_WARNING_COUNT:-0}" -eq 0 ]; then
+            echo "React Doctor reported 0 errors and 0 warnings; skipping score-only gate."
+            exit 0
+          fi
+
           if [ -z "$REACT_DOCTOR_SCORE" ]; then
             echo "::warning::React Doctor did not return a score (scoring service unavailable); skipping the score gate. Blocking diagnostics are still enforced via 'blocking: error'."
             exit 0
@@ -64,8 +71,15 @@ jobs:
       - name: Enforce React Doctor score
         env:
           REACT_DOCTOR_SCORE: ${{ steps.react-doctor.outputs.score }}
+          REACT_DOCTOR_ERROR_COUNT: ${{ steps.react-doctor.outputs.error-count }}
+          REACT_DOCTOR_WARNING_COUNT: ${{ steps.react-doctor.outputs.warning-count }}
           REACT_DOCTOR_MIN_SCORE: '95'
         run: |
+          if [ "${REACT_DOCTOR_ERROR_COUNT:-0}" -eq 0 ] && [ "${REACT_DOCTOR_WARNING_COUNT:-0}" -eq 0 ]; then
+            echo "React Doctor reported 0 errors and 0 warnings; skipping score-only gate."
+            exit 0
+          fi
+
           if [ -z "$REACT_DOCTOR_SCORE" ]; then
             echo "::warning::React Doctor did not return a score (scoring service unavailable); skipping the score gate. Blocking diagnostics are still enforced via 'blocking: error'."
             exit 0

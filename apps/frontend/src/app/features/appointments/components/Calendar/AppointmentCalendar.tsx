@@ -35,6 +35,7 @@ import {
   resolveAvailabilityIntervalsForDay,
 } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { logger } from '@/app/lib/logger';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -775,7 +776,9 @@ const AppointmentCalendar = ({
 
   const handleDragHoverTarget = useCallback(
     (dropDate: Date, targetLeadId?: string) => {
-      ensureDragAvailability(dropDate, targetLeadId).catch(() => undefined);
+      ensureDragAvailability(dropDate, targetLeadId).catch((error: unknown) => {
+        logger.warn('Failed to refresh appointment drop availability while dragging.', error);
+      });
     },
     [ensureDragAvailability]
   );

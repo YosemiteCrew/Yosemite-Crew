@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useBoardColumnDrop, useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
+import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
@@ -348,16 +348,59 @@ const AppointmentBoardComponent = ({
     [moveToStatus]
   );
 
-  useBoardColumnDrop({
-    activeItemId: draggedAppointmentId,
-    autoScrollBoardOnDrag,
-    boardRootRef,
-    canDrop: canEditAppointments,
-    columns: BOARD_COLUMNS,
-    columnDropRefs,
-    columnScrollRefs,
-    onDrop: handleDroppedAppointmentStatus,
-  });
+  const handleDroppedAppointmentStatusRef = useRef(handleDroppedAppointmentStatus);
+  handleDroppedAppointmentStatusRef.current = handleDroppedAppointmentStatus;
+
+  useEffect(() => {
+    const boardRoot = boardRootRef.current;
+    if (!boardRoot) return;
+
+    const handleBoardDragOver = (event: DragEvent) => {
+      if (!draggedAppointmentId || !canEditAppointments) return;
+      autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
+    };
+
+    boardRoot.addEventListener('dragover', handleBoardDragOver);
+    return () => boardRoot.removeEventListener('dragover', handleBoardDragOver);
+  }, [autoScrollBoardOnDrag, canEditAppointments, draggedAppointmentId]);
+
+  useEffect(() => {
+    const cleanups = BOARD_COLUMNS.flatMap((column) => {
+      const dropElement = columnDropRefs.current[column.key];
+      const scrollElement = columnScrollRefs.current[column.key];
+      if (!dropElement || !scrollElement) return [];
+
+      const handleColumnDragOver = (event: DragEvent) => {
+        if (!draggedAppointmentId || !canEditAppointments) return;
+        event.preventDefault();
+        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
+      };
+
+      const handleColumnDrop = (event: DragEvent) => {
+        if (!draggedAppointmentId || !canEditAppointments) return;
+        event.preventDefault();
+        handleDroppedAppointmentStatusRef.current(draggedAppointmentId, column.key);
+      };
+
+      const handleScrollDragOver = (event: DragEvent) => {
+        if (!draggedAppointmentId || !canEditAppointments) return;
+        event.preventDefault();
+        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>, scrollElement);
+      };
+
+      dropElement.addEventListener('dragover', handleColumnDragOver);
+      dropElement.addEventListener('drop', handleColumnDrop);
+      scrollElement.addEventListener('dragover', handleScrollDragOver);
+
+      return [
+        () => dropElement.removeEventListener('dragover', handleColumnDragOver),
+        () => dropElement.removeEventListener('drop', handleColumnDrop),
+        () => scrollElement.removeEventListener('dragover', handleScrollDragOver),
+      ];
+    });
+
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }, [autoScrollBoardOnDrag, canEditAppointments, draggedAppointmentId]);
 
   return (
     <div className="h-full min-h-0 rounded-2xl border border-grey-light bg-white overflow-hidden flex flex-col">

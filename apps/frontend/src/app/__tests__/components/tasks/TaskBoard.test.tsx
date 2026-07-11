@@ -13,7 +13,6 @@ jest.mock('next/image', () => ({
 }));
 
 jest.mock('@/app/hooks/useBoardDragScroll', () => ({
-  ...jest.requireActual('@/app/hooks/useBoardDragScroll'),
   useBoardDragScroll: () => ({ autoScrollBoardOnDrag: jest.fn() }),
 }));
 
