@@ -185,6 +185,32 @@ const AppointmentCalendar = ({
     [filteredList, weekStart]
   );
 
+  const appointmentActionProps = {
+    handleViewAppointment,
+    handleOpenWorkspace: onOpenWorkspace,
+    handleRescheduleAppointment,
+    handleChangeRoomAppointment,
+    handleAcceptAppointment,
+    canEditAppointments,
+  };
+
+  const appointmentDragProps = {
+    draggedAppointmentId,
+    draggedAppointmentLabel,
+    canDragAppointment: isAppointmentDraggable,
+    onAppointmentDragStart: handleAppointmentDragStart,
+    onAppointmentDragEnd: handleAppointmentDragEnd,
+    onDragHoverTarget: handleDragHoverTarget,
+    getDropAvailabilityIntervals,
+    getVisibleAvailabilityIntervals: getCurrentUserViewAvailabilityIntervals,
+    availabilityLoaded,
+    draggedAppointmentDurationMinutes: dragContext?.durationMinutes,
+    onAppointmentDropAt: handleAppointmentDropAt,
+    onCreateAppointmentAt: handleCreateFromCalendarSlot,
+    slotStepMinutes: 15,
+    skipAutoScroll,
+  };
+
   return (
     <div className="h-full min-h-0 border border-grey-light rounded-2xl overflow-hidden w-full flex flex-col">
       <Header
@@ -211,89 +237,36 @@ const AppointmentCalendar = ({
       ) : null}
       {activeCalendar === 'day' && (
         <DayCalendar
+          {...appointmentActionProps}
+          {...appointmentDragProps}
           events={dayEvents}
           date={currentDate}
           zoomMode={zoomMode}
-          handleViewAppointment={handleViewAppointment}
           handleDetailAppointment={handleViewAppointment}
-          handleOpenWorkspace={onOpenWorkspace}
-          handleRescheduleAppointment={handleRescheduleAppointment}
-          handleChangeRoomAppointment={handleChangeRoomAppointment}
-          handleAcceptAppointment={handleAcceptAppointment}
           setCurrentDate={setCurrentDate}
-          canEditAppointments={canEditAppointments}
-          draggedAppointmentId={draggedAppointmentId}
-          draggedAppointmentLabel={draggedAppointmentLabel}
-          canDragAppointment={isAppointmentDraggable}
-          onAppointmentDragStart={handleAppointmentDragStart}
-          onAppointmentDragEnd={handleAppointmentDragEnd}
-          onDragHoverTarget={handleDragHoverTarget}
-          getDropAvailabilityIntervals={getDropAvailabilityIntervals}
-          getVisibleAvailabilityIntervals={getCurrentUserViewAvailabilityIntervals}
-          availabilityLoaded={availabilityLoaded}
-          draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
-          onAppointmentDropAt={handleAppointmentDropAt}
-          onCreateAppointmentAt={handleCreateFromCalendarSlot}
-          slotStepMinutes={15}
-          skipAutoScroll={skipAutoScroll}
         />
       )}
       {activeCalendar === 'week' && (
         <WeekCalendar
+          {...appointmentActionProps}
+          {...appointmentDragProps}
           events={weekEvents}
           zoomMode={zoomMode}
-          handleViewAppointment={handleViewAppointment}
-          handleOpenWorkspace={onOpenWorkspace}
-          handleRescheduleAppointment={handleRescheduleAppointment}
-          handleChangeRoomAppointment={handleChangeRoomAppointment}
-          handleAcceptAppointment={handleAcceptAppointment}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
           setCurrentDate={setCurrentDate}
-          canEditAppointments={canEditAppointments}
-          draggedAppointmentId={draggedAppointmentId}
-          draggedAppointmentLabel={draggedAppointmentLabel}
-          canDragAppointment={isAppointmentDraggable}
-          onAppointmentDragStart={handleAppointmentDragStart}
-          onAppointmentDragEnd={handleAppointmentDragEnd}
-          onDragHoverTarget={handleDragHoverTarget}
-          getDropAvailabilityIntervals={getDropAvailabilityIntervals}
-          getVisibleAvailabilityIntervals={getCurrentUserViewAvailabilityIntervals}
-          availabilityLoaded={availabilityLoaded}
-          draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
-          onAppointmentDropAt={handleAppointmentDropAt}
-          onCreateAppointmentAt={handleCreateFromCalendarSlot}
-          slotStepMinutes={15}
-          skipAutoScroll={skipAutoScroll}
         />
       )}
       {activeCalendar === 'team' && (
         <UserCalendar
+          {...appointmentActionProps}
+          {...appointmentDragProps}
           events={dayEvents}
           date={currentDate}
           zoomMode={zoomMode}
           forceFullDayInZoomIn
-          handleViewAppointment={handleViewAppointment}
-          handleOpenWorkspace={onOpenWorkspace}
-          handleRescheduleAppointment={handleRescheduleAppointment}
-          handleChangeRoomAppointment={handleChangeRoomAppointment}
-          handleAcceptAppointment={handleAcceptAppointment}
           setCurrentDate={setCurrentDate}
-          canEditAppointments={canEditAppointments}
-          draggedAppointmentId={draggedAppointmentId}
-          draggedAppointmentLabel={draggedAppointmentLabel}
-          canDragAppointment={isAppointmentDraggable}
-          onAppointmentDragStart={handleAppointmentDragStart}
-          onAppointmentDragEnd={handleAppointmentDragEnd}
-          onDragHoverTarget={handleDragHoverTarget}
-          getDropAvailabilityIntervals={getDropAvailabilityIntervals}
           getVisibleAvailabilityIntervals={getViewAvailabilityIntervals}
-          availabilityLoaded={availabilityLoaded}
-          draggedAppointmentDurationMinutes={dragContext?.durationMinutes}
-          onAppointmentDropAt={handleAppointmentDropAt}
-          onCreateAppointmentAt={handleCreateFromCalendarSlot}
-          slotStepMinutes={15}
-          skipAutoScroll={skipAutoScroll}
         />
       )}
     </div>
