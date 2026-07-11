@@ -95,7 +95,7 @@
     "@aws-amplify/backend": "^1.16.1",
     "@aws-amplify/backend-cli": "^1.8.0",
     "@babel/core": "^7.29.6",
-    "@babel/preset-env": "^7.29.5",
+    "@babel/preset-env": "^8.0.2",
     "@babel/runtime": "^7.25.0",
     "@react-native-community/cli": "20.0.0",
     "@react-native-community/cli-platform-android": "20.0.0",
