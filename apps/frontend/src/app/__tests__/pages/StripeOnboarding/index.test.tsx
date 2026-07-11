@@ -6,6 +6,10 @@ import ProtectedStripeOnboarding from '@/app/features/onboarding/pages/StripeOnb
 
 const pushMock = jest.fn();
 const backMock = jest.fn();
+const redirectMock = jest.fn((path: string) => {
+  void path;
+  throw new Error('NEXT_REDIRECT');
+});
 const useStripeOnboardingMock = jest.fn();
 const useSubscriptionCounterUpdateMock = jest.fn();
 const useSubscriptionMock = jest.fn();
@@ -15,6 +19,7 @@ const loadConnectMock = jest.fn();
 let mockOrgIdFromQuery: string | null = 'org-1';
 
 jest.mock('next/navigation', () => ({
+  redirect: (path: string) => redirectMock(path),
   useRouter: () => ({ push: pushMock, back: backMock }),
   useSearchParams: () => ({ get: () => mockOrgIdFromQuery }),
 }));
@@ -83,8 +88,8 @@ describe('Stripe onboarding page', () => {
     useStripeOnboardingMock.mockReturnValue({ onboard: false });
     useSubscriptionMock.mockReturnValue(null);
 
-    render(<ProtectedStripeOnboarding />);
-    expect(screen.queryByText('Stripe Onboarding')).not.toBeInTheDocument();
+    expect(() => render(<ProtectedStripeOnboarding />)).toThrow('NEXT_REDIRECT');
+    expect(redirectMock).toHaveBeenCalledWith('/dashboard');
   });
 
   it('redirects when subscription already connected', async () => {
@@ -94,11 +99,8 @@ describe('Stripe onboarding page', () => {
       connectAccountId: 'acct_1',
     });
 
-    render(<ProtectedStripeOnboarding />);
-
-    await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/dashboard');
-    });
+    expect(() => render(<ProtectedStripeOnboarding />)).toThrow('NEXT_REDIRECT');
+    expect(redirectMock).toHaveBeenCalledWith('/dashboard');
   });
 
   it('renders connect onboarding when instance is created', async () => {
@@ -179,21 +181,15 @@ describe('Stripe onboarding page', () => {
     });
     mockOrgIdFromQuery = null;
 
-    render(<ProtectedStripeOnboarding />);
+    expect(() => render(<ProtectedStripeOnboarding />)).toThrow('NEXT_REDIRECT');
+    expect(redirectMock).toHaveBeenCalledWith('/dashboard');
 
-    await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/dashboard');
-    });
-
-    pushMock.mockClear();
+    redirectMock.mockClear();
     mockOrgIdFromQuery = 'org-1';
     useSubscriptionMock.mockReturnValue(null);
 
-    render(<ProtectedStripeOnboarding />);
-
-    await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith('/dashboard');
-    });
+    expect(() => render(<ProtectedStripeOnboarding />)).toThrow('NEXT_REDIRECT');
+    expect(redirectMock).toHaveBeenCalledWith('/dashboard');
   });
 
   it('redirects when account creation returns no account id', async () => {

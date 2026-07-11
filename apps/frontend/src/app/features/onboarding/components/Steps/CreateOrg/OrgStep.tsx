@@ -37,6 +37,20 @@ type OrgStepProps = {
   setFormData: React.Dispatch<React.SetStateAction<Organisation>>;
 };
 
+type CompanionTerminologyOverride = {
+  orgType: Organisation['type'] | undefined;
+  value: CompanionTerminologyOption;
+} | null;
+
+const resolveCompanionTerminology = (
+  override: CompanionTerminologyOverride,
+  orgType: Organisation['type'] | undefined
+) => {
+  const defaultTerminology = getCompanionTerminologyForOrg(undefined, orgType);
+  if (!override) return defaultTerminology;
+  return override.orgType === orgType ? override.value : defaultTerminology;
+};
+
 const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
   const [formDataErrors, setFormDataErrors] = useState<{
     name?: string;
@@ -46,15 +60,12 @@ const OrgStep = ({ errors, nextStep, formData, setFormData }: OrgStepProps) => {
     taxId?: string;
     website?: string;
   }>({});
-  const [companionTerminologyOverride, setCompanionTerminologyOverride] = useState<{
-    orgType: Organisation['type'] | undefined;
-    value: CompanionTerminologyOption;
-  } | null>(null);
-  const defaultCompanionTerminology = getCompanionTerminologyForOrg(undefined, formData.type);
-  const companionTerminology =
-    companionTerminologyOverride && companionTerminologyOverride.orgType === formData.type
-      ? companionTerminologyOverride.value
-      : defaultCompanionTerminology;
+  const [companionTerminologyOverride, setCompanionTerminologyOverride] =
+    useState<CompanionTerminologyOverride>(null);
+  const companionTerminology = resolveCompanionTerminology(
+    companionTerminologyOverride,
+    formData.type
+  );
   const phoneData = findPhoneData(formData.phoneNo || '', formData.address?.country);
   const selectedCountryCode = phoneData.selectedCode;
   const localPhoneNumber = phoneData.localNumber;
