@@ -33,7 +33,12 @@ export const SkeletonDetail: React.FC<SkeletonDetailProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const secondaryItems = useMemo(
-    () => Array.from({length: secondaryRows}),
+    () =>
+      Array.from({length: secondaryRows}, (_, index) => ({
+        key: `secondary-row-${index}`,
+        dim: index > 0,
+        delay: 500 + index * 60,
+      })),
     [secondaryRows],
   );
 
@@ -112,14 +117,14 @@ export const SkeletonDetail: React.FC<SkeletonDetailProps> = ({
           delay={460}
           reduceMotion={reduceMotion}
         />
-        {secondaryItems.map((_, index) => (
+        {secondaryItems.map(item => (
           <View
-            key={`secondary-row-${index}`}
-            style={index > 0 ? styles.secondaryRowDim : undefined}>
+            key={item.key}
+            style={item.dim ? styles.secondaryRowDim : undefined}>
             <SkeletonBlock
               height={58}
               radius={16}
-              delay={500 + index * 60}
+              delay={item.delay}
               reduceMotion={reduceMotion}
             />
           </View>

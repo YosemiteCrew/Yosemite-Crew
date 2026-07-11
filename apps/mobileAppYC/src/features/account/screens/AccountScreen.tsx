@@ -104,6 +104,291 @@ const deriveDeletionErrorMessage = (error: unknown): string => {
   return baseMessage || 'Failed to delete your account. Please try again.';
 };
 
+const buildAccountMenuItems = (
+  navigation: Props['navigation'],
+  onDeletePress: () => void,
+): MenuItem[] => [
+  {
+    id: 'preferences',
+    label: 'Preferences',
+    icon: Images.editIconSlide,
+    tone: 'info',
+    onPress: () => {
+      navigation.navigate('Preferences');
+    },
+  },
+  {
+    id: 'faqs',
+    label: 'FAQs',
+    icon: Images.faqIcon,
+    tone: 'info',
+    onPress: () => {
+      navigation.navigate('FAQ');
+    },
+  },
+  {
+    id: 'about',
+    label: 'About us',
+    icon: Images.aboutusIcon,
+    tone: 'indigo',
+    onPress: () => {
+      Linking.openURL('https://www.yosemitecrew.com/about').catch(console.warn);
+    },
+  },
+  {
+    id: 'terms',
+    label: 'Terms and Conditions',
+    icon: Images.tncIcon,
+    tone: 'violet',
+    onPress: () => {
+      navigation.navigate('TermsAndConditions');
+    },
+  },
+  {
+    id: 'privacy',
+    label: 'Privacy Policy',
+    icon: Images.privacyIcon,
+    tone: 'violet',
+    onPress: () => {
+      navigation.navigate('PrivacyPolicy');
+    },
+  },
+  {
+    id: 'contact',
+    label: 'Contact us',
+    icon: Images.contactIcon,
+    tone: 'success',
+    onPress: () => {
+      navigation.navigate('ContactUs');
+    },
+  },
+  {
+    id: 'delete',
+    label: 'Delete Account',
+    icon: Images.deleteIconRed,
+    danger: true,
+    onPress: onDeletePress,
+  },
+];
+
+interface ProfileAvatarProps {
+  profile: CompanionProfile;
+  isUserProfile: boolean;
+  failedProfileImages: Record<string, boolean>;
+  userInitials: string;
+  styles: ReturnType<typeof createStyles>;
+  onImageError: (id: string) => void;
+}
+
+const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
+  profile,
+  isUserProfile,
+  failedProfileImages,
+  userInitials,
+  styles,
+  onImageError,
+}) => {
+  const hasRemoteImage = Boolean(profile.remoteUri && profile.avatar);
+  const shouldShowImage =
+    hasRemoteImage &&
+    failedProfileImages[profile.id] !== true &&
+    profile.avatar;
+
+  if (shouldShowImage) {
+    return (
+      <Image
+        source={profile.avatar}
+        style={styles.companionAvatar}
+        onError={() => onImageError(profile.id)}
+      />
+    );
+  }
+
+  const initial = isUserProfile ? userInitials : getInitial(profile.name, 'C');
+
+  return (
+    <View style={styles.companionAvatarInitials}>
+      <Text style={styles.avatarInitialsText}>{initial}</Text>
+    </View>
+  );
+};
+
+interface CompanionProfilesCardProps {
+  profiles: CompanionProfile[];
+  styles: ReturnType<typeof createStyles>;
+  failedProfileImages: Record<string, boolean>;
+  userInitials: string;
+  onProfileImageError: (id: string) => void;
+  navigation: Props['navigation'];
+  accessByCompanionId: Record<string, ParentCompanionAccess>;
+  defaultAccess: ParentCompanionAccess | null;
+  globalRole: ParentCompanionAccess['role'] | null | undefined;
+  globalPermissions: ParentCompanionAccess['permissions'] | null | undefined;
+  dispatch: AppDispatch;
+  onPermissionDenied: (label: string) => void;
+}
+
+const CompanionProfilesCard: React.FC<CompanionProfilesCardProps> = ({
+  profiles,
+  styles,
+  failedProfileImages,
+  userInitials,
+  onProfileImageError,
+  navigation,
+  accessByCompanionId,
+  defaultAccess,
+  globalRole,
+  globalPermissions,
+  dispatch,
+  onPermissionDenied,
+}) => (
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      interactive
+      shadow="none"
+      borderRadius="card"
+      style={styles.companionsCard}
+      fallbackStyle={styles.companionsCardFallback}>
+      {profiles.map((profile, index) => (
+        <View
+          key={profile.id}
+          style={[
+            styles.companionRow,
+            index < profiles.length - 1 && styles.companionRowDivider,
+          ]}>
+          <View style={styles.companionInfo}>
+            <ProfileAvatar
+              profile={profile}
+              isUserProfile={index === 0}
+              failedProfileImages={failedProfileImages}
+              userInitials={userInitials}
+              styles={styles}
+              onImageError={onProfileImageError}
+            />
+            <View style={styles.companionText}>
+              <Text
+                style={[
+                  styles.companionName,
+                  index === 0 && styles.companionNamePrimary,
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail">
+                {truncateText(profile.name, 18)} {/* limit name to ~18 chars */}
+              </Text>
+              <Text
+                style={styles.companionMeta}
+                numberOfLines={1}
+                ellipsizeMode="tail">
+                {truncateText(profile.subtitle, 30)}{' '}
+                {/* limit subtitle to ~30 chars */}
+              </Text>
+            </View>
+          </View>
+          {/* Edit Button with conditional navigation */}
+          <PressableOpacity
+            activeOpacity={0.7}
+            style={styles.editButton}
+            onPress={() => {
+              // Index 0 is the primary user profile
+              if (index === 0) {
+                // Navigate to User Profile Edit screen
+                navigation.navigate('EditParentOverview', {
+                  companionId: profile.id,
+                });
+                // e.g., navigation.navigate('EditUserProfile');
+              } else {
+                const access =
+                  accessByCompanionId[profile.id] ?? defaultAccess ?? null;
+                const role = (access?.role ?? globalRole ?? '').toUpperCase();
+                const isPrimary = role.includes('PRIMARY');
+                const permissions =
+                  access?.permissions ??
+                  defaultAccess?.permissions ??
+                  globalPermissions;
+                const canEdit =
+                  isPrimary ||
+                  (permissions ? Boolean(permissions.companionProfile) : false);
+                if (!canEdit) {
+                  onPermissionDenied('companion profile');
+                  return;
+                }
+                dispatch(setSelectedCompanion(profile.id));
+                navigation.navigate('ProfileOverview', {
+                  companionId: profile.id,
+                });
+              }
+            }}>
+            <Image source={Images.blackEdit} style={styles.editIcon} />
+          </PressableOpacity>
+        </View>
+      ))}
+    </LiquidGlassCard>
+  </View>
+);
+
+interface AccountMenuCardProps {
+  styles: ReturnType<typeof createStyles>;
+  menuItems: MenuItem[];
+}
+
+const AccountMenuCard: React.FC<AccountMenuCardProps> = ({
+  styles,
+  menuItems,
+}) => (
+  <View style={styles.cardShadowWrapper}>
+    <LiquidGlassCard
+      glassEffect="clear"
+      interactive
+      shadow="none"
+      borderRadius="card"
+      style={styles.menuContainer}
+      fallbackStyle={styles.menuContainerFallback}>
+      <AccountMenuList
+        items={menuItems}
+        rightArrowIcon={Images.rightArrow}
+        onItemPress={(id: string) => {
+          const it = menuItems.find(m => m.id === id);
+          it?.onPress();
+        }}
+      />
+    </LiquidGlassCard>
+  </View>
+);
+
+interface AccountFooterActionsProps {
+  styles: ReturnType<typeof createStyles>;
+  appVersion: string;
+  dividerColor: string;
+  onLogout: () => void;
+}
+
+const AccountFooterActions: React.FC<AccountFooterActionsProps> = ({
+  styles,
+  appVersion,
+  dividerColor,
+  onLogout,
+}) => (
+  <>
+    <LiquidGlassButton
+      title="Log out"
+      onPress={onLogout}
+      glassEffect="clear"
+      interactive
+      borderRadius="button"
+      forceBorder
+      borderColor={dividerColor}
+      shadowIntensity="none"
+      leftIcon={<Image source={Images.logoutIcon} style={styles.logoutIcon} />}
+      style={styles.logoutButton}
+      textStyle={styles.logoutText}
+    />
+    {!!appVersion && (
+      <Text style={styles.versionText}>Version {appVersion}</Text>
+    )}
+  </>
+);
+
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
   const {logout, provider} = useAuth();
@@ -219,35 +504,6 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     weightUnit,
   ]); // Re-run when companions or weightUnit change
 
-  const buildProfileAvatar = (profile: CompanionProfile, index: number) => {
-    const isUserProfile = index === 0;
-    const hasRemoteImage = Boolean(profile.remoteUri && profile.avatar);
-    const shouldShowImage =
-      hasRemoteImage &&
-      failedProfileImages[profile.id] !== true &&
-      profile.avatar;
-
-    if (shouldShowImage) {
-      return (
-        <Image
-          source={profile.avatar}
-          style={styles.companionAvatar}
-          onError={() => handleProfileImageError(profile.id)}
-        />
-      );
-    }
-
-    const initial = isUserProfile
-      ? userInitials
-      : getInitial(profile.name, 'C');
-
-    return (
-      <View style={styles.companionAvatarInitials}>
-        <Text style={styles.avatarInitialsText}>{initial}</Text>
-      </View>
-    );
-  };
-
   const handleBackPress = React.useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -327,71 +583,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   }, [logout]);
 
   const menuItems = React.useMemo<MenuItem[]>(
-    () => [
-      {
-        id: 'preferences',
-        label: 'Preferences',
-        icon: Images.editIconSlide,
-        tone: 'info',
-        onPress: () => {
-          navigation.navigate('Preferences');
-        },
-      },
-      {
-        id: 'faqs',
-        label: 'FAQs',
-        icon: Images.faqIcon,
-        tone: 'info',
-        onPress: () => {
-          navigation.navigate('FAQ');
-        },
-      },
-      {
-        id: 'about',
-        label: 'About us',
-        icon: Images.aboutusIcon,
-        tone: 'indigo',
-        onPress: () => {
-          Linking.openURL('https://www.yosemitecrew.com/about').catch(
-            console.warn,
-          );
-        },
-      },
-      {
-        id: 'terms',
-        label: 'Terms and Conditions',
-        icon: Images.tncIcon,
-        tone: 'violet',
-        onPress: () => {
-          navigation.navigate('TermsAndConditions');
-        },
-      },
-      {
-        id: 'privacy',
-        label: 'Privacy Policy',
-        icon: Images.privacyIcon,
-        tone: 'violet',
-        onPress: () => {
-          navigation.navigate('PrivacyPolicy');
-        },
-      },
-      {
-        id: 'contact',
-        label: 'Contact us',
-        icon: Images.contactIcon,
-        tone: 'success',
-        onPress: () => {
-          navigation.navigate('ContactUs');
-        },
-      },
-      {
-        id: 'delete',
-        label: 'Delete Account',
-        icon: Images.deleteIconRed,
-        danger: true,
-        onPress: handleDeletePress,
-      },
-    ],
+    () => buildAccountMenuItems(navigation, handleDeletePress),
     [handleDeletePress, navigation],
   );
 
@@ -417,133 +609,29 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
               contentContainerStyle={[styles.content, contentPaddingStyle]}
               showsVerticalScrollIndicator={false}>
               {/* Companion/Profile Card - Now uses 'profiles' from Redux data */}
-              <View style={styles.cardShadowWrapper}>
-                <LiquidGlassCard
-                  glassEffect="clear"
-                  interactive
-                  shadow="none"
-                  borderRadius="card"
-                  style={styles.companionsCard}
-                  fallbackStyle={styles.companionsCardFallback}>
-                  {profiles.map((profile, index) => (
-                    <View
-                      key={profile.id}
-                      style={[
-                        styles.companionRow,
-                        index < profiles.length - 1 &&
-                          styles.companionRowDivider,
-                      ]}>
-                      <View style={styles.companionInfo}>
-                        {buildProfileAvatar(profile, index)}
-                        <View style={styles.companionText}>
-                          <Text
-                            style={[
-                              styles.companionName,
-                              index === 0 && styles.companionNamePrimary,
-                            ]}
-                            numberOfLines={1}
-                            ellipsizeMode="tail">
-                            {truncateText(profile.name, 18)}{' '}
-                            {/* limit name to ~18 chars */}
-                          </Text>
-                          <Text
-                            style={styles.companionMeta}
-                            numberOfLines={1}
-                            ellipsizeMode="tail">
-                            {truncateText(profile.subtitle, 30)}{' '}
-                            {/* limit subtitle to ~30 chars */}
-                          </Text>
-                        </View>
-                      </View>
-                      {/* Edit Button with conditional navigation */}
-                      <PressableOpacity
-                        activeOpacity={0.7}
-                        style={styles.editButton}
-                        onPress={() => {
-                          // Index 0 is the primary user profile
-                          if (index === 0) {
-                            // Navigate to User Profile Edit screen
-                            navigation.navigate('EditParentOverview', {
-                              companionId: profile.id,
-                            });
-                            // e.g., navigation.navigate('EditUserProfile');
-                          } else {
-                            const access =
-                              accessByCompanionId[profile.id] ??
-                              defaultAccess ??
-                              null;
-                            const role = (
-                              access?.role ??
-                              globalRole ??
-                              ''
-                            ).toUpperCase();
-                            const isPrimary = role.includes('PRIMARY');
-                            const permissions =
-                              access?.permissions ??
-                              defaultAccess?.permissions ??
-                              globalPermissions;
-                            const canEdit =
-                              isPrimary ||
-                              (permissions
-                                ? Boolean(permissions.companionProfile)
-                                : false);
-                            if (!canEdit) {
-                              showPermissionToast('companion profile');
-                              return;
-                            }
-                            dispatch(setSelectedCompanion(profile.id));
-                            navigation.navigate('ProfileOverview', {
-                              companionId: profile.id,
-                            });
-                          }
-                        }}>
-                        <Image
-                          source={Images.blackEdit}
-                          style={styles.editIcon}
-                        />
-                      </PressableOpacity>
-                    </View>
-                  ))}
-                </LiquidGlassCard>
-              </View>
-
-              <View style={styles.cardShadowWrapper}>
-                <LiquidGlassCard
-                  glassEffect="clear"
-                  interactive
-                  shadow="none"
-                  borderRadius="card"
-                  style={styles.menuContainer}
-                  fallbackStyle={styles.menuContainerFallback}>
-                  <AccountMenuList
-                    items={menuItems}
-                    rightArrowIcon={Images.rightArrow}
-                    onItemPress={(id: string) => {
-                      const it = menuItems.find(m => m.id === id);
-                      it?.onPress();
-                    }}
-                  />
-                </LiquidGlassCard>
-              </View>
-
-              <LiquidGlassButton
-                title="Log out"
-                onPress={handleLogoutPress}
-                glassEffect="clear"
-                interactive
-                borderRadius="button"
-                forceBorder
-                borderColor={theme.colors.divider}
-                shadowIntensity="none"
-                leftIcon={
-                  <Image source={Images.logoutIcon} style={styles.logoutIcon} />
-                }
-                style={styles.logoutButton}
-                textStyle={styles.logoutText}
+              <CompanionProfilesCard
+                profiles={profiles}
+                styles={styles}
+                failedProfileImages={failedProfileImages}
+                userInitials={userInitials}
+                onProfileImageError={handleProfileImageError}
+                navigation={navigation}
+                accessByCompanionId={accessByCompanionId}
+                defaultAccess={defaultAccess}
+                globalRole={globalRole}
+                globalPermissions={globalPermissions}
+                dispatch={dispatch}
+                onPermissionDenied={showPermissionToast}
               />
-              {!!appVersion && (
-                <Text style={styles.versionText}>Version {appVersion}</Text>
-              )}
+
+              <AccountMenuCard styles={styles} menuItems={menuItems} />
+
+              <AccountFooterActions
+                styles={styles}
+                appVersion={appVersion}
+                dividerColor={theme.colors.divider}
+                onLogout={handleLogoutPress}
+              />
             </ScrollView>
           </View>
         )}

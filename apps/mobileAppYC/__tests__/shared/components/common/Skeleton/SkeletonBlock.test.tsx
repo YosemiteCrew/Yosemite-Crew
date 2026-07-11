@@ -124,4 +124,14 @@ describe('SkeletonBlock', () => {
     expect(clearTimeoutSpy).toHaveBeenCalled();
     expect(stopMock).toHaveBeenCalledTimes(1);
   });
+
+  it('lazily builds the pulse driver once and reuses it across re-renders', () => {
+    const {rerender, toJSON} = render(<SkeletonBlock />);
+
+    // Re-render: the lazy-init guard sees an existing Value and takes its
+    // already-initialised branch instead of allocating a new driver.
+    rerender(<SkeletonBlock width={220} />);
+
+    expect(rootStyleOf(toJSON()).width).toBe(220);
+  });
 });

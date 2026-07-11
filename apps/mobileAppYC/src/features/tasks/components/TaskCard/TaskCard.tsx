@@ -118,6 +118,8 @@ const resolveTileVisual = (
   return {icon: 'checkbox-outline', bg: 'blueSoft', ink: 'blueText'};
 };
 
+type TaskCardAvatar = {uri?: string; placeholder?: string; role: string};
+
 export interface TaskCardProps {
   title: string;
   categoryLabel: string;
@@ -329,7 +331,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     .filter(Boolean)
     .join(' · ');
 
-  const avatars: Array<{uri?: string; placeholder?: string; role: string}> = [];
+  const avatars: TaskCardAvatar[] = [];
   const companionAvatarUri = normalizeImageUri(companionAvatar ?? undefined);
   if (companionAvatarUri) {
     avatars.push({uri: companionAvatarUri, role: 'companion'});
@@ -364,52 +366,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     !isObservationalToolTask &&
     Boolean(handleCompletePress);
 
-  const renderTrailing = () => {
-    if (isCompleted) {
-      return (
-        <View style={styles.checkCircle}>
-          <Ionicons name="checkmark" size={14} color={theme.colors.white} />
-        </View>
-      );
-    }
-    if (showTakePill) {
-      return (
-        <PressableOpacity
-          activeOpacity={0.85}
-          onPress={handleCompletePress}
-          style={styles.takePill}>
-          <Text style={styles.takePillText}>Take</Text>
-        </PressableOpacity>
-      );
-    }
-    if (avatars.length > 0) {
-      return (
-        <View style={styles.avatarStack}>
-          {avatars.map((avatar, index) => {
-            const overlapStyle = index === 0 ? null : styles.avatarOverlap;
-            if (avatar.uri) {
-              return (
-                <Image
-                  key={avatar.role}
-                  source={{uri: avatar.uri}}
-                  style={[styles.avatarImage, overlapStyle]}
-                />
-              );
-            }
-            return (
-              <View
-                key={avatar.role}
-                style={[styles.avatarPlaceholder, overlapStyle]}>
-                <Text style={styles.avatarInitial}>{avatar.placeholder}</Text>
-              </View>
-            );
-          })}
-        </View>
-      );
-    }
-    return null;
-  };
-
   return (
     <SwipeableActionCard
       cardStyle={[cardStyles.card, isCompleted && styles.completedCard]}
@@ -423,17 +379,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         onPress={onPressView}
         style={styles.innerContent}>
         <View style={styles.infoRow}>
-          <View
-            style={[
-              styles.iconTile,
-              {backgroundColor: theme.colors[tileVisual.bg]},
-            ]}>
-            <Ionicons
-              name={tileVisual.icon}
-              size={18}
-              color={theme.colors[tileVisual.ink]}
-            />
-          </View>
+          <TaskCardTile tileVisual={tileVisual} theme={theme} styles={styles} />
 
           <View style={styles.textContent}>
             <Text
@@ -449,40 +395,160 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             )}
           </View>
 
-          <View style={styles.trailing}>{renderTrailing()}</View>
+          <View style={styles.trailing}>
+            <TaskCardTrailing
+              isCompleted={isCompleted}
+              showTakePill={showTakePill}
+              avatars={avatars}
+              handleCompletePress={handleCompletePress}
+              theme={theme}
+              styles={styles}
+            />
+          </View>
         </View>
 
         {showActionRow && handleCompletePress && (
-          <View style={styles.actionRow}>
-            <PressableOpacity
-              activeOpacity={0.85}
-              onPress={handleCompletePress}
-              style={styles.completePill}>
-              <Ionicons
-                name="checkmark"
-                size={15}
-                color={theme.colors.ctaText}
-              />
-              <Text style={styles.completePillText}>{completeButtonLabel}</Text>
-            </PressableOpacity>
-            {showEditAction && onPressEdit && (
-              <PressableOpacity
-                activeOpacity={0.85}
-                onPress={onPressEdit}
-                style={styles.ellipsisButton}>
-                <Ionicons
-                  name="ellipsis-horizontal"
-                  size={16}
-                  color={theme.colors.inkBody}
-                />
-              </PressableOpacity>
-            )}
-          </View>
+          <TaskCardActionRow
+            handleCompletePress={handleCompletePress}
+            completeButtonLabel={completeButtonLabel}
+            showEditAction={showEditAction}
+            onPressEdit={onPressEdit}
+            theme={theme}
+            styles={styles}
+          />
         )}
       </PressableOpacity>
     </SwipeableActionCard>
   );
 };
+
+type TaskCardStyles = ReturnType<typeof createStyles>;
+
+interface TaskCardTileProps {
+  tileVisual: TileVisual;
+  theme: Theme;
+  styles: TaskCardStyles;
+}
+
+// Leading 40x40 tinted category tile (colour pair + glyph).
+const TaskCardTile: React.FC<TaskCardTileProps> = ({
+  tileVisual,
+  theme,
+  styles,
+}) => (
+  <View
+    style={[styles.iconTile, {backgroundColor: theme.colors[tileVisual.bg]}]}>
+    <Ionicons
+      name={tileVisual.icon}
+      size={18}
+      color={theme.colors[tileVisual.ink]}
+    />
+  </View>
+);
+
+interface TaskCardTrailingProps {
+  isCompleted: boolean;
+  showTakePill: boolean;
+  avatars: TaskCardAvatar[];
+  handleCompletePress?: () => void;
+  theme: Theme;
+  styles: TaskCardStyles;
+}
+
+// Trailing slot: completed check-circle, "Take" pill, or the avatar stack.
+const TaskCardTrailing: React.FC<TaskCardTrailingProps> = ({
+  isCompleted,
+  showTakePill,
+  avatars,
+  handleCompletePress,
+  theme,
+  styles,
+}) => {
+  if (isCompleted) {
+    return (
+      <View style={styles.checkCircle}>
+        <Ionicons name="checkmark" size={14} color={theme.colors.white} />
+      </View>
+    );
+  }
+  if (showTakePill) {
+    return (
+      <PressableOpacity
+        activeOpacity={0.85}
+        onPress={handleCompletePress}
+        style={styles.takePill}>
+        <Text style={styles.takePillText}>Take</Text>
+      </PressableOpacity>
+    );
+  }
+  if (avatars.length > 0) {
+    return (
+      <View style={styles.avatarStack}>
+        {avatars.map((avatar, index) => {
+          const overlapStyle = index === 0 ? null : styles.avatarOverlap;
+          if (avatar.uri) {
+            return (
+              <Image
+                key={avatar.role}
+                source={{uri: avatar.uri}}
+                style={[styles.avatarImage, overlapStyle]}
+              />
+            );
+          }
+          return (
+            <View
+              key={avatar.role}
+              style={[styles.avatarPlaceholder, overlapStyle]}>
+              <Text style={styles.avatarInitial}>{avatar.placeholder}</Text>
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
+  return null;
+};
+
+interface TaskCardActionRowProps {
+  handleCompletePress: () => void;
+  completeButtonLabel: string;
+  showEditAction: boolean;
+  onPressEdit?: () => void;
+  theme: Theme;
+  styles: TaskCardStyles;
+}
+
+// Bottom action row: the "Mark complete" cta pill and optional edit ellipsis.
+const TaskCardActionRow: React.FC<TaskCardActionRowProps> = ({
+  handleCompletePress,
+  completeButtonLabel,
+  showEditAction,
+  onPressEdit,
+  theme,
+  styles,
+}) => (
+  <View style={styles.actionRow}>
+    <PressableOpacity
+      activeOpacity={0.85}
+      onPress={handleCompletePress}
+      style={styles.completePill}>
+      <Ionicons name="checkmark" size={15} color={theme.colors.ctaText} />
+      <Text style={styles.completePillText}>{completeButtonLabel}</Text>
+    </PressableOpacity>
+    {showEditAction && onPressEdit && (
+      <PressableOpacity
+        activeOpacity={0.85}
+        onPress={onPressEdit}
+        style={styles.ellipsisButton}>
+        <Ionicons
+          name="ellipsis-horizontal"
+          size={16}
+          color={theme.colors.inkBody}
+        />
+      </PressableOpacity>
+    )}
+  </View>
+);
 
 const createStyles = (theme: any) =>
   StyleSheet.create({

@@ -34,7 +34,20 @@ export const SkeletonList: React.FC<SkeletonListProps> = ({
   const reduceMotion = useReducedMotion();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const rowItems = useMemo(() => Array.from({length: rows}), [rows]);
+  const rowItems = useMemo(
+    () =>
+      Array.from({length: rows}, (_, index) => {
+        const isSecondLast = index === rows - 2;
+        const isLast = index === rows - 1;
+        const rowDim = isLast ? 0.4 : isSecondLast ? 0.7 : 1;
+        return {
+          key: `skeleton-row-${index}`,
+          opacity: rowDim,
+          baseDelay: 80 + index * 80,
+        };
+      }),
+    [rows],
+  );
 
   return (
     <View style={[styles.container, style]} testID={testID}>
@@ -73,41 +86,35 @@ export const SkeletonList: React.FC<SkeletonListProps> = ({
       )}
 
       <View style={styles.rows}>
-        {rowItems.map((_, index) => {
-          const isSecondLast = index === rows - 2;
-          const isLast = index === rows - 1;
-          const rowDim = isLast ? 0.4 : isSecondLast ? 0.7 : 1;
-          const baseDelay = 80 + index * 80;
-          return (
-            <View
-              key={`skeleton-row-${index}`}
-              style={[styles.rowCard, {opacity: rowDim}]}>
+        {rowItems.map(item => (
+          <View
+            key={item.key}
+            style={[styles.rowCard, {opacity: item.opacity}]}>
+            <SkeletonBlock
+              width={42}
+              height={42}
+              radius={13}
+              delay={item.baseDelay}
+              reduceMotion={reduceMotion}
+            />
+            <View style={styles.rowText}>
               <SkeletonBlock
-                width={42}
-                height={42}
-                radius={13}
-                delay={baseDelay}
+                width="70%"
+                height={13}
+                radius={7}
+                delay={item.baseDelay + 40}
                 reduceMotion={reduceMotion}
               />
-              <View style={styles.rowText}>
-                <SkeletonBlock
-                  width="70%"
-                  height={13}
-                  radius={7}
-                  delay={baseDelay + 40}
-                  reduceMotion={reduceMotion}
-                />
-                <SkeletonBlock
-                  width="45%"
-                  height={10}
-                  radius={5}
-                  delay={baseDelay + 80}
-                  reduceMotion={reduceMotion}
-                />
-              </View>
+              <SkeletonBlock
+                width="45%"
+                height={10}
+                radius={5}
+                delay={item.baseDelay + 80}
+                reduceMotion={reduceMotion}
+              />
             </View>
-          );
-        })}
+          </View>
+        ))}
       </View>
     </View>
   );

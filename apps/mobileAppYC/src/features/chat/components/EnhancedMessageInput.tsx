@@ -32,6 +32,7 @@ import {
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {useTheme} from '@/hooks';
+import type {Theme} from '@/theme';
 
 // Request audio recording permission (Android)
 const requestAudioPermission = async () => {
@@ -306,70 +307,123 @@ export const EnhancedMessageInput: React.FC = () => {
   // Voice recording UI
   if (isRecording) {
     return (
-      <View style={styles.recordingContainer}>
-        <View style={styles.recordingInfo}>
-          <View style={styles.recordingDot} />
-          <Text style={styles.recordingText}>
-            Recording... {Math.floor(recordingDuration / 60)}:
-            {(recordingDuration % 60).toString().padStart(2, '0')}
-          </Text>
-        </View>
-        <View style={styles.recordingActions}>
-          <PressableOpacity
-            onPress={() => {
-              cancelVoiceRecording();
-            }}
-            style={[styles.recordButton, styles.cancelButton]}
-            disabled={isRecordingLoading}>
-            <Icon name="close" size={24} color={theme.colors.inkBody} />
-          </PressableOpacity>
-          <PressableOpacity
-            onPress={() => {
-              stopVoiceRecording();
-            }}
-            style={[styles.recordButton, styles.stopButton]}
-            disabled={isRecordingLoading}>
-            {isRecordingLoading ? (
-              <ActivityIndicator color={theme.colors.ctaText} />
-            ) : (
-              <Icon name="send" size={24} color={theme.colors.ctaText} />
-            )}
-          </PressableOpacity>
-        </View>
-      </View>
+      <RecordingBar
+        styles={styles}
+        theme={theme}
+        recordingDuration={recordingDuration}
+        isRecordingLoading={isRecordingLoading}
+        onCancel={cancelVoiceRecording}
+        onStop={stopVoiceRecording}
+      />
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.actionsRow}>
-        {/* Voice Message Button */}
-        <PressableOpacity
-          onPress={() => {
-            startVoiceRecording();
-          }}
-          style={styles.actionButton}
-          disabled={isRecordingLoading}>
-          {isRecordingLoading ? (
-            <ActivityIndicator size="small" color={theme.colors.blueText} />
-          ) : (
-            <Icon name="mic" size={24} color={theme.colors.blueText} />
-          )}
-        </PressableOpacity>
-
-        {/* Attachment Button */}
-        <PressableOpacity
-          onPress={showAttachmentOptions}
-          style={styles.actionButton}>
-          <Icon name="attach-file" size={24} color={theme.colors.blueText} />
-        </PressableOpacity>
-      </View>
-
-      {/* Default Stream Message Input */}
-      <MessageInput />
-    </View>
+    <ComposerBar
+      styles={styles}
+      theme={theme}
+      isRecordingLoading={isRecordingLoading}
+      onStartRecording={startVoiceRecording}
+      onShowAttachmentOptions={showAttachmentOptions}
+    />
   );
 };
+
+interface RecordingBarProps {
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+  recordingDuration: number;
+  isRecordingLoading: boolean;
+  onCancel: () => void;
+  onStop: () => void;
+}
+
+// Active voice-recording bar: elapsed timer plus cancel/send controls.
+const RecordingBar: React.FC<RecordingBarProps> = ({
+  styles,
+  theme,
+  recordingDuration,
+  isRecordingLoading,
+  onCancel,
+  onStop,
+}) => (
+  <View style={styles.recordingContainer}>
+    <View style={styles.recordingInfo}>
+      <View style={styles.recordingDot} />
+      <Text style={styles.recordingText}>
+        Recording... {Math.floor(recordingDuration / 60)}:
+        {(recordingDuration % 60).toString().padStart(2, '0')}
+      </Text>
+    </View>
+    <View style={styles.recordingActions}>
+      <PressableOpacity
+        onPress={() => {
+          onCancel();
+        }}
+        style={[styles.recordButton, styles.cancelButton]}
+        disabled={isRecordingLoading}>
+        <Icon name="close" size={24} color={theme.colors.inkBody} />
+      </PressableOpacity>
+      <PressableOpacity
+        onPress={() => {
+          onStop();
+        }}
+        style={[styles.recordButton, styles.stopButton]}
+        disabled={isRecordingLoading}>
+        {isRecordingLoading ? (
+          <ActivityIndicator color={theme.colors.ctaText} />
+        ) : (
+          <Icon name="send" size={24} color={theme.colors.ctaText} />
+        )}
+      </PressableOpacity>
+    </View>
+  </View>
+);
+
+interface ComposerBarProps {
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+  isRecordingLoading: boolean;
+  onStartRecording: () => void;
+  onShowAttachmentOptions: () => void;
+}
+
+// Idle composer: voice + attachment actions above the Stream message input.
+const ComposerBar: React.FC<ComposerBarProps> = ({
+  styles,
+  theme,
+  isRecordingLoading,
+  onStartRecording,
+  onShowAttachmentOptions,
+}) => (
+  <View style={styles.container}>
+    <View style={styles.actionsRow}>
+      {/* Voice Message Button */}
+      <PressableOpacity
+        onPress={() => {
+          onStartRecording();
+        }}
+        style={styles.actionButton}
+        disabled={isRecordingLoading}>
+        {isRecordingLoading ? (
+          <ActivityIndicator size="small" color={theme.colors.blueText} />
+        ) : (
+          <Icon name="mic" size={24} color={theme.colors.blueText} />
+        )}
+      </PressableOpacity>
+
+      {/* Attachment Button */}
+      <PressableOpacity
+        onPress={onShowAttachmentOptions}
+        style={styles.actionButton}>
+        <Icon name="attach-file" size={24} color={theme.colors.blueText} />
+      </PressableOpacity>
+    </View>
+
+    {/* Default Stream Message Input */}
+    <MessageInput />
+  </View>
+);
 
 const createStyles = (theme: any) =>
   StyleSheet.create({

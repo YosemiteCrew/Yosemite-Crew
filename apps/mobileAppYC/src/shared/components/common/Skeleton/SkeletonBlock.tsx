@@ -36,7 +36,13 @@ export const SkeletonBlock: React.FC<SkeletonBlockProps> = ({
   style,
 }) => {
   const {theme} = useTheme();
-  const opacity = useRef(new Animated.Value(PULSE_MAX)).current;
+  // Lazily construct the driver once instead of `useRef(new Animated.Value())`,
+  // which would allocate a throwaway Value on every render.
+  const opacityRef = useRef<Animated.Value | null>(null);
+  if (opacityRef.current === null) {
+    opacityRef.current = new Animated.Value(PULSE_MAX);
+  }
+  const opacity = opacityRef.current;
 
   useEffect(() => {
     if (reduceMotion) {
