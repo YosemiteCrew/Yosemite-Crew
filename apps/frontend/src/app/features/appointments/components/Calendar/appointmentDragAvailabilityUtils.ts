@@ -3,10 +3,13 @@ import { DropAvailabilityInterval } from '@/app/features/appointments/components
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
+  clampMinutes,
   DragContext,
   hasAppointmentConflict,
+  toLocalDayKey,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
 import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
+import { buildDateInPreferredTimeZone } from '@/app/lib/timezone';
 
 type TeamMember = ReturnType<typeof useTeamForPrimaryOrg>[number];
 
@@ -32,6 +35,31 @@ type CollectValidMinutesParams = {
 
 export const getSlotCacheKey = (serviceId: string, date: Date) =>
   `${serviceId}:${date.toISOString().slice(0, 10)}`;
+
+export const buildAppointmentStartFromCalendarMinutes = (date: Date, minuteOfDay: number) =>
+  buildDateInPreferredTimeZone(date, clampMinutes(minuteOfDay));
+
+export const getAvailabilityKey = ({
+  allAppointments,
+  date,
+  dragContext,
+  normalizeId,
+  resolvePractitionerId,
+  targetLeadId,
+}: {
+  allAppointments: Appointment[];
+  date: Date;
+  dragContext: DragContext | null;
+  normalizeId: NormalizeId;
+  resolvePractitionerId: (candidateId?: string) => string | undefined;
+  targetLeadId?: string;
+}) => {
+  const appointment = dragContext
+    ? allAppointments.find((item) => item.id === dragContext.appointmentId)
+    : null;
+  const practitionerId = resolvePractitionerId(targetLeadId || appointment?.lead?.id);
+  return `${toLocalDayKey(date)}:${normalizeId(practitionerId || '')}`;
+};
 
 export const getTeamMemberIdentityIds = (
   member: Partial<TeamMember> | undefined,

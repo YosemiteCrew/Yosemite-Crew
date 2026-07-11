@@ -23,6 +23,31 @@ type UseAppointmentMoveOptions = {
   teams: ReturnType<typeof useTeamForPrimaryOrg>;
 };
 
+type WarnDragOptions = Pick<UseAppointmentMoveOptions, 'dispatchDrag' | 'notify'>;
+
+const handleMoveBlocked = ({ dispatchDrag, notify }: WarnDragOptions, message: string) => {
+  dispatchDrag({ type: 'setError', error: message });
+  notify('warning', { title: 'Move blocked', text: message });
+};
+
+const handleMoveUpdateError = (dispatchDrag: Dispatch<DragAction>, error: unknown) => {
+  dispatchDrag({
+    type: 'setError',
+    error: getErrorMessageFromCandidate(
+      error as ErrorCandidate,
+      'Unable to update appointment. Please try again.'
+    ),
+  });
+};
+
+const updateMovedAppointment = (
+  dispatchDrag: Dispatch<DragAction>,
+  payload: Parameters<typeof updateAppointment>[0]
+) => {
+  dispatchDrag({ type: 'setError', error: null });
+  return updateAppointment(payload);
+};
+
 export const useAppointmentMove = ({
   allAppointments,
   appointmentId,
@@ -36,12 +61,18 @@ export const useAppointmentMove = ({
   supportsSpeciality,
   teams,
 }: UseAppointmentMoveOptions) => {
-  const warnDrag = useCallback(
-    (message: string) => {
-      dispatchDrag({ type: 'setError', error: message });
-      notify('warning', { title: 'Move blocked', text: message });
-    },
+  const onBlocked = useCallback(
+    (message: string) => handleMoveBlocked({ dispatchDrag, notify }, message),
     [dispatchDrag, notify]
+  );
+  const onUpdateError = useCallback(
+    (error: unknown) => handleMoveUpdateError(dispatchDrag, error),
+    [dispatchDrag]
+  );
+  const persistMovedAppointment = useCallback(
+    (payload: Parameters<typeof updateAppointment>[0]) =>
+      updateMovedAppointment(dispatchDrag, payload),
+    [dispatchDrag]
   );
 
   const moveAppointment = useCallback(
@@ -55,36 +86,27 @@ export const useAppointmentMove = ({
         isAppointmentDraggable,
         minutesSinceMidnight,
         normalizeId,
-        onBlocked: warnDrag,
-        onUpdateError: (error) =>
-          dispatchDrag({
-            type: 'setError',
-            error: getErrorMessageFromCandidate(
-              error as ErrorCandidate,
-              'Unable to update appointment. Please try again.'
-            ),
-          }),
+        onBlocked,
+        onUpdateError,
         resolvePractitionerId,
         supportsSpeciality,
         targetLeadId,
         teams,
-        updateAppointment: (payload) => {
-          dispatchDrag({ type: 'setError', error: null });
-          return updateAppointment(payload);
-        },
+        updateAppointment: persistMovedAppointment,
       }),
     [
       allAppointments,
       appointmentId,
       buildAppointmentStartFromCalendarMinutes,
-      dispatchDrag,
       ensureDragAvailability,
       isAppointmentDraggable,
       normalizeId,
+      onBlocked,
+      onUpdateError,
+      persistMovedAppointment,
       resolvePractitionerId,
       supportsSpeciality,
       teams,
-      warnDrag,
     ]
   );
 

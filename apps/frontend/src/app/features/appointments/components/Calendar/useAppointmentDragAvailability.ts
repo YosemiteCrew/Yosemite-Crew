@@ -3,24 +3,21 @@ import { Appointment } from '@yosemite-crew/types';
 import { getSlotsForServiceAndDateForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
-import {
-  buildDateInPreferredTimeZone,
-  utcClockTimeToPreferredTimeZoneClock,
-} from '@/app/lib/timezone';
+import { utcClockTimeToPreferredTimeZoneClock } from '@/app/lib/timezone';
 import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 import { logger } from '@/app/lib/logger';
 import {
   DragAction,
   DragContext,
-  clampMinutes,
-  toLocalDayKey,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
 import {
   DragAvailabilityCaches,
+  buildAppointmentStartFromCalendarMinutes,
   buildDragPrefetchTargets,
   buildDropAvailabilityIntervals,
   computeAvailableStartMinutes,
   findTeamMemberByIdentity,
+  getAvailabilityKey as buildAvailabilityKey,
   getSlotCacheKey,
   resolveDragAvailability,
 } from '@/app/features/appointments/components/Calendar/appointmentDragAvailabilityUtils';
@@ -75,25 +72,18 @@ const useDragAvailabilityInputs = ({
     return slots;
   }, []);
 
-  const buildAppointmentStartFromCalendarMinutes = useCallback(
-    (date: Date, minuteOfDay: number) => {
-      const clampedMinute = clampMinutes(minuteOfDay);
-      return buildDateInPreferredTimeZone(date, clampedMinute);
-    },
-    []
-  );
+  const buildStartFromCalendarMinutes = useCallback(buildAppointmentStartFromCalendarMinutes, []);
 
   const getAvailabilityKey = useCallback(
-    (date: Date, targetLeadId?: string) => {
-      const dayKey = toLocalDayKey(date);
-      const activeDragContext = dragContextRef.current;
-      const appointment = activeDragContext
-        ? allAppointments.find((item) => item.id === activeDragContext.appointmentId)
-        : null;
-      const defaultLeadId = appointment?.lead?.id;
-      const practitionerId = resolvePractitionerId(targetLeadId || defaultLeadId);
-      return `${dayKey}:${normalizeId(practitionerId || '')}`;
-    },
+    (date: Date, targetLeadId?: string) =>
+      buildAvailabilityKey({
+        allAppointments,
+        date,
+        dragContext: dragContextRef.current,
+        normalizeId,
+        resolvePractitionerId,
+        targetLeadId,
+      }),
     [allAppointments, dragContextRef, normalizeId, resolvePractitionerId]
   );
 
@@ -101,7 +91,7 @@ const useDragAvailabilityInputs = ({
     (date: Date, targetLeadId?: string) =>
       computeAvailableStartMinutes({
         allAppointments,
-        buildStart: buildAppointmentStartFromCalendarMinutes,
+        buildStart: buildStartFromCalendarMinutes,
         date,
         dragContext: dragContextRef.current,
         getSlots: getSlotsForMoveValidation,
@@ -113,7 +103,7 @@ const useDragAvailabilityInputs = ({
       }),
     [
       allAppointments,
-      buildAppointmentStartFromCalendarMinutes,
+      buildStartFromCalendarMinutes,
       dragContextRef,
       getSlotsForMoveValidation,
       normalizeId,
@@ -123,7 +113,7 @@ const useDragAvailabilityInputs = ({
   );
 
   return {
-    buildAppointmentStartFromCalendarMinutes,
+    buildAppointmentStartFromCalendarMinutes: buildStartFromCalendarMinutes,
     buildAvailableStartMinutes,
     getAvailabilityKey,
     getCurrentUserPractitionerId,

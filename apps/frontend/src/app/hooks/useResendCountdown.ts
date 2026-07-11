@@ -10,8 +10,9 @@ export const useResendCountdown = (active: boolean, durationSeconds: number) => 
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const restart = useCallback(() => {
-    setNowMs(Date.now());
-    setDeadline(Date.now() + durationSeconds * 1000);
+    const startedAtMs = Date.now();
+    setNowMs(startedAtMs);
+    setDeadline(startedAtMs + durationSeconds * 1000);
   }, [durationSeconds]);
 
   useEffect(() => {
