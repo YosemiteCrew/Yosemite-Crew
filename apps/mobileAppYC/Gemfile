@@ -14,3 +14,5 @@ gem 'bigdecimal'
 gem 'logger'
 gem 'benchmark'
 gem 'mutex_m'
+
+gem 'json', '>= 2.19.8'
