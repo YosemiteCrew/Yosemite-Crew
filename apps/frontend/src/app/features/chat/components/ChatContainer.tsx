@@ -1083,13 +1083,13 @@ const INITIAL_GROUP_MODAL: GroupModalState = {
   busy: false,
 };
 
-export const ChatContainer: FC<ChatContainerProps> = ({
+const useChatContainerView = ({
   appointmentId,
   onChannelSelect,
   className = '',
   scope = 'clients',
   onScopeChange,
-}) => {
+}: ChatContainerProps) => {
   useLoadAppointmentsForPrimaryOrg();
   useLoadCompanionsForPrimaryOrg();
   const attributes = useAuthStore((state) => state.attributes);
@@ -2076,6 +2076,8 @@ export const ChatContainer: FC<ChatContainerProps> = ({
     </ChatSessionStatusContext.Provider>
   );
 };
+
+export const ChatContainer: FC<ChatContainerProps> = (props) => useChatContainerView(props);
 
 const ProtectedChatContainer = () => {
   return (

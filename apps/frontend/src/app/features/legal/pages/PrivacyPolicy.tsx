@@ -538,272 +538,264 @@ const PrivacyPart2Sub2 = () => (
 );
 
 const PrivacyPart2Sub3 = () => (
-  <>
-    <div className="PolicyItems">
-      <h3>3.2.9. Contacting Us</h3>
+  <div className="PolicyItems">
+    <h3>3.2.9. Contacting Us</h3>
+    <p>
+      <strong>Purpose:</strong> Users can contact us through the application by sending us a
+      message. Users can submit a general enquiry, feature request or a data subject access request.
+      When you contact us at, your data will be processed to the extent necessary to answer your
+      enquiry and for any follow-up measures.
+    </p>
+    <p>
+      <strong>Categories of data: </strong>Inventory data (e.g., names, addresses), contact details,
+      content data, metadata (timestamps, sender/ recipient).
+    </p>
+    <div className="policyul">
       <p>
-        <strong>Purpose:</strong> Users can contact us through the application by sending us a
-        message. Users can submit a general enquiry, feature request or a data subject access
-        request. When you contact us at, your data will be processed to the extent necessary to
-        answer your enquiry and for any follow-up measures.
+        <strong>Recipient:</strong>
       </p>
-      <p>
-        <strong>Categories of data: </strong>Inventory data (e.g., names, addresses), contact
-        details, content data, metadata (timestamps, sender/ recipient).
-      </p>
-      <div className="policyul">
-        <p>
-          <strong>Recipient:</strong>
-        </p>
-        <ul>
-          <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland.</li>
-          <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.</li>
-          <li>
-            Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
-            contact: privacy@supabase.com).
-          </li>
-        </ul>
-      </div>
-      <p>
-        <strong>Legal basis: </strong> Contract fulfillment and pre-contractual inquiries (Art. 6
-        para. 1 lit. b. GDPR); legitimate interests (Art. 6 para. 1 lit. f. GDPR) in the processing
-        of communication.
-      </p>
-      <p>
-        <strong>Storage period: </strong> The data will generally be processed for as long as it is
-        necessary to process the inquiry.
-      </p>
+      <ul>
+        <li>Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland.</li>
+        <li>Amazon Web Services EMEA SARL, 38 Avenue John F. Kennedy, L-1855, Luxemburg.</li>
+        <li>
+          Supabase, Inc., 65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513 (Privacy
+          contact: privacy@supabase.com).
+        </li>
+      </ul>
     </div>
-  </>
+    <p>
+      <strong>Legal basis: </strong> Contract fulfillment and pre-contractual inquiries (Art. 6
+      para. 1 lit. b. GDPR); legitimate interests (Art. 6 para. 1 lit. f. GDPR) in the processing of
+      communication.
+    </p>
+    <p>
+      <strong>Storage period: </strong> The data will generally be processed for as long as it is
+      necessary to process the inquiry.
+    </p>
+  </div>
 );
 
 const PrivacyPart2 = () => (
-  <>
-    <div className="PolicyNumbdetail">
-      <PrivacyPart2Sub1 />
-      <PrivacyPart2Sub2 />
-      <PrivacyPart2Sub3 />
-    </div>
-  </>
+  <div className="PolicyNumbdetail">
+    <PrivacyPart2Sub1 />
+    <PrivacyPart2Sub2 />
+    <PrivacyPart2Sub3 />
+  </div>
 );
 
 const PrivacyPart3 = () => (
-  <>
-    <div className="PolicyNumbdetail">
-      <div className="PolicyItems">
-        <h3> 4. Presence on social media</h3>
-        <p>
-          We have profiles on social networks. Our social media accounts complement our PMS and
-          offer you the opportunity to interact with us. As soon as you access our social media
-          profiles on social networks, the terms and conditions and data processing guidelines of
-          the respective operators apply. The data collected about you when you use the services is
-          processed by the networks and may also be transferred to countries outside the European
-          Union where there is no adequate level of protection for the processing of personal data.
-          We have no influence on data processing in social networks, as we are users of the network
-          just like you. Information on this and on what data is processed by the social networks
-          and for what purposes the data is used can be found in the privacy policy of the
-          respective network listed below. We use the following social networks:
-        </p>
-      </div>
-      <div className="PolicyItems">
-        <h3>4.1. LinkedIn</h3>
-        <p>
-          Our website can be accessed at:{' '}
-          <Link href="https://de.linkedin.com/company/yosemitecrew">
-            {' '}
-            https://de.linkedin.com/company/yosemitecrew
-          </Link>{' '}
-        </p>
-        <p>
-          The network is operated by: LinkedIn Ireland Unlimited Company, Wilton Place, Dublin 2,
-          Ireland.
-        </p>
-        <p>
-          Privacy policy of the network:{' '}
-          <Link href="www.linkedin.com/legal/privacy-policy">
-            {' '}
-            www.linkedin.com/legal/privacy-policy
-          </Link>{' '}
-        </p>
-      </div>
-      <div className="PolicyItems">
-        <h3>4.2. Tik-Tok</h3>
-        <p>
-          Our website can be accessed at:{' '}
-          <Link href="https://www.tiktok.com/@yosemitecrew">
-            {' '}
-            https://www.tiktok.com/@yosemitecrew
-          </Link>{' '}
-        </p>
-        <p>
-          The network is operated by: TikTok Technology Limited, 10 Earlsfort Terrace, Dublin, D02
-          T380, Ireland.
-        </p>
-        <p>
-          Privacy policy of the network:{' '}
-          <Link href="https://www.tiktok.com/legal/page/eea/privacy-policy/de">
-            {' '}
-            https://www.tiktok.com/legal/page/eea/privacy-policy/de
-          </Link>{' '}
-        </p>
-      </div>
-      <div className="PolicyItems">
-        <h3>4.3. Instagram</h3>
-        <p>
-          Our website can be accessed at:{' '}
-          <Link href="https://www.instagram.com/yosemite_crew">
-            {' '}
-            https://www.instagram.com/yosemite_crew
-          </Link>{' '}
-        </p>
-        <p>
-          The network is operated by: Meta Platforms Ireland Limited, 4 Grand Canal Square, Dublin
-          2, Ireland.
-        </p>
-        <p>
-          Privacy policy of the network:{' '}
-          <Link href="https://privacycenter.instagram.com/">
-            {' '}
-            https://privacycenter.instagram.com/
-          </Link>{' '}
-        </p>
-      </div>
-      <div className="PolicyItems">
-        <h3>4.4. X.com</h3>
-        <p>
-          Our website can be accessed at:{' '}
-          <Link href="https://x.com/yosemitecrew"> https://x.com/yosemitecrew</Link>{' '}
-        </p>
-        <p>
-          The network is operated by: X Internet Unlimited Company, One Cumberland Place, Fenian
-          Street, Dublin 2, D02 AX07 Ireland.
-        </p>
-        <p>
-          Privacy policy of the network:{' '}
-          <Link href="https://x.com/de/privacy"> https://x.com/de/privacy</Link>{' '}
-        </p>
-      </div>
-      <div className="PolicyItems">
-        <h3>4.5. Discord</h3>
-        <p>
-          Our website can be accessed at:{' '}
-          <Link href="https://discord.gg/YVzMa9j7BK"> https://discord.gg/YVzMa9j7BK</Link>{' '}
-        </p>
-        <p>
-          The network is operated by: Discord Netherlands BV, Schiphol Boulevard 195, 1118 BG
-          Schiphol, Netherlands.
-        </p>
-        <p>
-          Privacy policy of the network:{' '}
-          <Link href="https://discord.com/privacy"> https://discord.com/privacy</Link>{' '}
-        </p>
-      </div>
-      <div className="PolicyItems">
-        <h3>4.6. GitHub</h3>
-        <p>
-          Our website can be accessed at:{' '}
-          <Link href="https://github.com/YosemiteCrew/Yosemite-Crew">
-            {' '}
-            https://github.com/YosemiteCrew/Yosemite-Crew
-          </Link>{' '}
-        </p>
-        <p>
-          The network is operated by: GitHub B.V Prins Bernhardplein 200, Amsterdam 1097JB,
-          Netherlands.
-        </p>
-        <p>
-          Privacy policy of the network:{' '}
-          <Link href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement">
-            {' '}
-            https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement
-          </Link>{' '}
-        </p>
-      </div>
-      <div className="PolicyItems">
-        <h3>4.7. Joint responsibility</h3>
-        <p>
-          <strong>Purposes: </strong> We process personal data as our own controller when you send
-          us inquiries via social media profiles. We process this data to respond to your
-          inquiries.{' '}
-        </p>
-        <p>
-          In addition, we are jointly responsible with the following networks for the following
-          processing (Art. 26 GDPR). When you visit our profile on LinkedIn and Instagram,{' '}
-          <span className="warningtext">Tik-Tok, X.com, Discord, Github</span> the network collects
-          aggregated statistics (“Insights data”) created from certain events logged by their
-          servers when you interact with our profiles and the content associated with them. We
-          receive these aggregated and anonymous statistics from the network about the use of our
-          profile. We are generally unable to associate the data with specific users. To a certain
-          extent, we can determine the criteria according to which the network compiles these
-          statistics for us. We use these statistics to make our profiles more interesting and
-          informative for you.
-        </p>
-        <p>
-          For more information about this data processing by LinkedIn, please refer to the joint
-          controller agreement at:{' '}
-          <Link href="https://legal.linkedin.com/pages-joint-controller-addendum">
-            {' '}
-            https://legal.linkedin.com/pages-joint-controller-addendum
-          </Link>
-        </p>
-        <p>
-          Further information on this data processing by Instagram can be found in the joint
-          controller agreement at:{' '}
-          <Link
-            style={{ wordWrap: 'break-word' }}
-            href="https://www.facebook.com/legal/terms/information_about_page_insights_data"
-          >
-            {' '}
-            https://www.facebook.com/legal/terms/information_about_page_insights_data
-          </Link>
-        </p>
-        <p>
-          Further information on this data processing by TikTok can be found in the joint controller
-          agreement at:{' '}
-          <Link href="https://www.tiktok.com/legal/page/global/tiktok-analytics-joint-controller-addendum/en">
-            {' '}
-            https://www.tiktok.com/legal/page/global/tiktok-analytics-joint-controller-addendum/en
-          </Link>
-        </p>
-        <p>
-          <span className="warningtext">
-            Further information on this data processing by X.com can be found in the joint
-            controller agreement at:{' '}
-            <Link href="https://gdpr.x.com/en/controller-to-controller-transfers.html">
-              https://gdpr.x.com/en/controller-to-controller-transfers.html
-            </Link>
-          </span>
-        </p>
-        <p>
-          <span className="warningtext">
-            Further information on this data processing by Discord can be found in the joint
-            controller agreement at:{' '}
-            <Link href="https://discord.com/terms/local-laws">
-              https://discord.com/terms/local-laws
-            </Link>
-          </span>
-        </p>
-        <p>
-          <span className="warningtext">
-            Further information on this data processing by Github can be found in the joint
-            controller agreement at:{' '}
-            <Link href="https://github.com/customer-terms/github-data-protection-agreement">
-              https://github.com/customer-terms/github-data-protection-agreement
-            </Link>
-          </span>
-        </p>
-        <p>
-          <strong>Legal basis: </strong> Processing is carried out on the basis of our legitimate
-          interest (Art. 6 (1) (f) GDPR). The interest lies in the respective purpose.
-        </p>
-        <p>
-          <strong>Storage period: </strong> We do not store any personal data ourselves within the
-          scope of joint responsibility. With regard to contact requests outside the network, the
-          above information on establishing contact applies accordingly.
-        </p>
-      </div>
+  <div className="PolicyNumbdetail">
+    <div className="PolicyItems">
+      <h3> 4. Presence on social media</h3>
+      <p>
+        We have profiles on social networks. Our social media accounts complement our PMS and offer
+        you the opportunity to interact with us. As soon as you access our social media profiles on
+        social networks, the terms and conditions and data processing guidelines of the respective
+        operators apply. The data collected about you when you use the services is processed by the
+        networks and may also be transferred to countries outside the European Union where there is
+        no adequate level of protection for the processing of personal data. We have no influence on
+        data processing in social networks, as we are users of the network just like you.
+        Information on this and on what data is processed by the social networks and for what
+        purposes the data is used can be found in the privacy policy of the respective network
+        listed below. We use the following social networks:
+      </p>
     </div>
-  </>
+    <div className="PolicyItems">
+      <h3>4.1. LinkedIn</h3>
+      <p>
+        Our website can be accessed at:{' '}
+        <Link href="https://de.linkedin.com/company/yosemitecrew">
+          {' '}
+          https://de.linkedin.com/company/yosemitecrew
+        </Link>{' '}
+      </p>
+      <p>
+        The network is operated by: LinkedIn Ireland Unlimited Company, Wilton Place, Dublin 2,
+        Ireland.
+      </p>
+      <p>
+        Privacy policy of the network:{' '}
+        <Link href="www.linkedin.com/legal/privacy-policy">
+          {' '}
+          www.linkedin.com/legal/privacy-policy
+        </Link>{' '}
+      </p>
+    </div>
+    <div className="PolicyItems">
+      <h3>4.2. Tik-Tok</h3>
+      <p>
+        Our website can be accessed at:{' '}
+        <Link href="https://www.tiktok.com/@yosemitecrew">
+          {' '}
+          https://www.tiktok.com/@yosemitecrew
+        </Link>{' '}
+      </p>
+      <p>
+        The network is operated by: TikTok Technology Limited, 10 Earlsfort Terrace, Dublin, D02
+        T380, Ireland.
+      </p>
+      <p>
+        Privacy policy of the network:{' '}
+        <Link href="https://www.tiktok.com/legal/page/eea/privacy-policy/de">
+          {' '}
+          https://www.tiktok.com/legal/page/eea/privacy-policy/de
+        </Link>{' '}
+      </p>
+    </div>
+    <div className="PolicyItems">
+      <h3>4.3. Instagram</h3>
+      <p>
+        Our website can be accessed at:{' '}
+        <Link href="https://www.instagram.com/yosemite_crew">
+          {' '}
+          https://www.instagram.com/yosemite_crew
+        </Link>{' '}
+      </p>
+      <p>
+        The network is operated by: Meta Platforms Ireland Limited, 4 Grand Canal Square, Dublin 2,
+        Ireland.
+      </p>
+      <p>
+        Privacy policy of the network:{' '}
+        <Link href="https://privacycenter.instagram.com/">
+          {' '}
+          https://privacycenter.instagram.com/
+        </Link>{' '}
+      </p>
+    </div>
+    <div className="PolicyItems">
+      <h3>4.4. X.com</h3>
+      <p>
+        Our website can be accessed at:{' '}
+        <Link href="https://x.com/yosemitecrew"> https://x.com/yosemitecrew</Link>{' '}
+      </p>
+      <p>
+        The network is operated by: X Internet Unlimited Company, One Cumberland Place, Fenian
+        Street, Dublin 2, D02 AX07 Ireland.
+      </p>
+      <p>
+        Privacy policy of the network:{' '}
+        <Link href="https://x.com/de/privacy"> https://x.com/de/privacy</Link>{' '}
+      </p>
+    </div>
+    <div className="PolicyItems">
+      <h3>4.5. Discord</h3>
+      <p>
+        Our website can be accessed at:{' '}
+        <Link href="https://discord.gg/YVzMa9j7BK"> https://discord.gg/YVzMa9j7BK</Link>{' '}
+      </p>
+      <p>
+        The network is operated by: Discord Netherlands BV, Schiphol Boulevard 195, 1118 BG
+        Schiphol, Netherlands.
+      </p>
+      <p>
+        Privacy policy of the network:{' '}
+        <Link href="https://discord.com/privacy"> https://discord.com/privacy</Link>{' '}
+      </p>
+    </div>
+    <div className="PolicyItems">
+      <h3>4.6. GitHub</h3>
+      <p>
+        Our website can be accessed at:{' '}
+        <Link href="https://github.com/YosemiteCrew/Yosemite-Crew">
+          {' '}
+          https://github.com/YosemiteCrew/Yosemite-Crew
+        </Link>{' '}
+      </p>
+      <p>
+        The network is operated by: GitHub B.V Prins Bernhardplein 200, Amsterdam 1097JB,
+        Netherlands.
+      </p>
+      <p>
+        Privacy policy of the network:{' '}
+        <Link href="https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement">
+          {' '}
+          https://docs.github.com/de/site-policy/privacy-policies/github-general-privacy-statement
+        </Link>{' '}
+      </p>
+    </div>
+    <div className="PolicyItems">
+      <h3>4.7. Joint responsibility</h3>
+      <p>
+        <strong>Purposes: </strong> We process personal data as our own controller when you send us
+        inquiries via social media profiles. We process this data to respond to your inquiries.{' '}
+      </p>
+      <p>
+        In addition, we are jointly responsible with the following networks for the following
+        processing (Art. 26 GDPR). When you visit our profile on LinkedIn and Instagram,{' '}
+        <span className="warningtext">Tik-Tok, X.com, Discord, Github</span> the network collects
+        aggregated statistics (“Insights data”) created from certain events logged by their servers
+        when you interact with our profiles and the content associated with them. We receive these
+        aggregated and anonymous statistics from the network about the use of our profile. We are
+        generally unable to associate the data with specific users. To a certain extent, we can
+        determine the criteria according to which the network compiles these statistics for us. We
+        use these statistics to make our profiles more interesting and informative for you.
+      </p>
+      <p>
+        For more information about this data processing by LinkedIn, please refer to the joint
+        controller agreement at:{' '}
+        <Link href="https://legal.linkedin.com/pages-joint-controller-addendum">
+          {' '}
+          https://legal.linkedin.com/pages-joint-controller-addendum
+        </Link>
+      </p>
+      <p>
+        Further information on this data processing by Instagram can be found in the joint
+        controller agreement at:{' '}
+        <Link
+          style={{ wordWrap: 'break-word' }}
+          href="https://www.facebook.com/legal/terms/information_about_page_insights_data"
+        >
+          {' '}
+          https://www.facebook.com/legal/terms/information_about_page_insights_data
+        </Link>
+      </p>
+      <p>
+        Further information on this data processing by TikTok can be found in the joint controller
+        agreement at:{' '}
+        <Link href="https://www.tiktok.com/legal/page/global/tiktok-analytics-joint-controller-addendum/en">
+          {' '}
+          https://www.tiktok.com/legal/page/global/tiktok-analytics-joint-controller-addendum/en
+        </Link>
+      </p>
+      <p>
+        <span className="warningtext">
+          Further information on this data processing by X.com can be found in the joint controller
+          agreement at:{' '}
+          <Link href="https://gdpr.x.com/en/controller-to-controller-transfers.html">
+            https://gdpr.x.com/en/controller-to-controller-transfers.html
+          </Link>
+        </span>
+      </p>
+      <p>
+        <span className="warningtext">
+          Further information on this data processing by Discord can be found in the joint
+          controller agreement at:{' '}
+          <Link href="https://discord.com/terms/local-laws">
+            https://discord.com/terms/local-laws
+          </Link>
+        </span>
+      </p>
+      <p>
+        <span className="warningtext">
+          Further information on this data processing by Github can be found in the joint controller
+          agreement at:{' '}
+          <Link href="https://github.com/customer-terms/github-data-protection-agreement">
+            https://github.com/customer-terms/github-data-protection-agreement
+          </Link>
+        </span>
+      </p>
+      <p>
+        <strong>Legal basis: </strong> Processing is carried out on the basis of our legitimate
+        interest (Art. 6 (1) (f) GDPR). The interest lies in the respective purpose.
+      </p>
+      <p>
+        <strong>Storage period: </strong> We do not store any personal data ourselves within the
+        scope of joint responsibility. With regard to contact requests outside the network, the
+        above information on establishing contact applies accordingly.
+      </p>
+    </div>
+  </div>
 );
 
 const PrivacyPart4 = () => (

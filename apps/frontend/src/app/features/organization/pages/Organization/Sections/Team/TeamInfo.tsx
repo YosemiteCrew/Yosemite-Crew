@@ -116,7 +116,12 @@ const normalizeId = (value?: string) =>
     .pop()
     ?.toLowerCase() ?? '';
 
-const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfoProps) => {
+const useTeamInfoContent = ({
+  showModal,
+  setShowModal,
+  activeTeam,
+  canEditTeam,
+}: TeamInfoProps) => {
   const specialities = useSpecialitiesForPrimaryOrg();
   const { membership } = usePrimaryOrgWithMembership();
   const { notify } = useNotify();
@@ -606,5 +611,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     </>
   );
 };
+
+const TeamInfo = (props: TeamInfoProps) => useTeamInfoContent(props);
 
 export default TeamInfo;

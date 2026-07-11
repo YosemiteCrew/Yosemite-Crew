@@ -155,6 +155,58 @@ const BatchFieldRenderer = ({
   );
 };
 
+type NewBatchesSectionProps = {
+  newBatches: BatchValues[];
+  disableEditing?: boolean;
+  sectionConfig: ConfigItem<any>[];
+  removeBatch: (index: number) => void;
+  addBatch: () => void;
+  renderItem: (item: ConfigItem<any>, index: number, batchIndex: number) => React.ReactNode;
+};
+
+const NewBatchesSection = ({
+  newBatches,
+  disableEditing,
+  sectionConfig,
+  removeBatch,
+  addBatch,
+  renderItem,
+}: NewBatchesSectionProps) => (
+  <div className="flex flex-col gap-4">
+    <div className="font-satoshi font-semibold text-black-text">Add new batches</div>
+    {newBatches.map((batch, batchIdx) => (
+      <div
+        key={batch._id ?? `new-batch-${batchIdx}`}
+        className="flex flex-col gap-3 border border-grey-light rounded-xl p-3"
+      >
+        <div className="flex items-center justify-between">
+          <div className="font-satoshi font-semibold text-black-text">New batch {batchIdx + 1}</div>
+          {newBatches.length > 1 && !disableEditing && (
+            <button
+              type="button"
+              className="text-red-500 text-sm font-semibold"
+              onClick={() => removeBatch(batchIdx)}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+        <div className="flex flex-col gap-3">
+          {sectionConfig.map((item, index) => renderItem(item, index, batchIdx))}
+        </div>
+      </div>
+    ))}
+    {!disableEditing && (
+      <Secondary
+        href="#"
+        text="Add another batch"
+        onClick={addBatch}
+        className="w-full! h-12! text-body-3-emphasis! font-satoshi font-semibold!"
+      />
+    )}
+  </div>
+);
+
 type BatchEditorAction = { type: 'PATCH'; payload: Partial<BatchEditorState> } | { type: 'RESET' };
 
 const batchEditorReducer = (
@@ -457,41 +509,14 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
           </div>
 
           {isEditing && (
-            <div className="flex flex-col gap-4">
-              <div className="font-satoshi font-semibold text-black-text">Add new batches</div>
-              {newBatches.map((batch, batchIdx) => (
-                <div
-                  key={batch._id ?? `new-batch-${batchIdx}`}
-                  className="flex flex-col gap-3 border border-grey-light rounded-xl p-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="font-satoshi font-semibold text-black-text">
-                      New batch {batchIdx + 1}
-                    </div>
-                    {newBatches.length > 1 && !disableEditing && (
-                      <button
-                        type="button"
-                        className="text-red-500 text-sm font-semibold"
-                        onClick={() => removeBatch(batchIdx)}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    {sectionConfig.map((item, index) => renderItem(item, index, batchIdx))}
-                  </div>
-                </div>
-              ))}
-              {!disableEditing && (
-                <Secondary
-                  href="#"
-                  text="Add another batch"
-                  onClick={addBatch}
-                  className="w-full! h-12! text-body-3-emphasis! font-satoshi font-semibold!"
-                />
-              )}
-            </div>
+            <NewBatchesSection
+              newBatches={newBatches}
+              disableEditing={disableEditing}
+              sectionConfig={sectionConfig}
+              removeBatch={removeBatch}
+              addBatch={addBatch}
+              renderItem={renderItem}
+            />
           )}
         </div>
       </Accordion>

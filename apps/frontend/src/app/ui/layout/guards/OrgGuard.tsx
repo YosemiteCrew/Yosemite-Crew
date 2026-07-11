@@ -77,6 +77,18 @@ type RedirectParams = {
   availabilities: ApiDayAvailability[];
 };
 
+type GuardRedirectParams = {
+  isAuthGuardDisabled: boolean;
+  orgStatus: string;
+  pathname: string;
+  primaryOrgId: string | null;
+  shouldWaitForData: boolean;
+  primaryOrg: Organisation | null;
+  membership: UserOrganization | null;
+  profile: UserProfile | null | undefined;
+  getAvailabilitiesByOrgId: (orgId: string) => ApiDayAvailability[];
+};
+
 const isUnverifiedPathAllowed = (pathname: string): boolean =>
   pathname === '/book-onboarding' ||
   pathname === '/team-onboarding' ||
@@ -174,6 +186,70 @@ const applyDefaultLandingRedirect = (
   return null;
 };
 
+const resolveReadyOrgGuardRedirect = ({
+  pathname,
+  primaryOrgId,
+  primaryOrg,
+  membership,
+  profile,
+  getAvailabilitiesByOrgId,
+}: Omit<GuardRedirectParams, 'isAuthGuardDisabled' | 'orgStatus' | 'shouldWaitForData'> & {
+  primaryOrgId: string;
+  primaryOrg: Organisation;
+  membership: UserOrganization;
+}): string | null => {
+  const role = membership.roleDisplay ?? membership.roleCode;
+  const availabilities = getAvailabilitiesByOrgId(primaryOrgId);
+  const orgRedirect = resolveOrgRedirect({
+    pathname,
+    primaryOrgId,
+    primaryOrg,
+    membership,
+    profile,
+    availabilities,
+  });
+  if (orgRedirect && orgRedirect !== pathname) return orgRedirect;
+
+  const effectivePermissions = membership.effectivePermissions ?? [];
+  const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
+    pathname,
+    effectivePermissions
+  );
+  if (permissionsFallbackRedirect) return permissionsFallbackRedirect;
+
+  const preferredLanding = resolveDefaultOpenScreenRouteForProfile({
+    profile,
+    orgType: primaryOrg.type,
+    role,
+  });
+  return applyDefaultLandingRedirect(pathname, primaryOrgId, preferredLanding);
+};
+
+const resolveGuardRedirect = ({
+  isAuthGuardDisabled,
+  orgStatus,
+  pathname,
+  primaryOrgId,
+  shouldWaitForData,
+  primaryOrg,
+  membership,
+  profile,
+  getAvailabilitiesByOrgId,
+}: GuardRedirectParams): string | null => {
+  if (isAuthGuardDisabled || isStatusPending(orgStatus) || shouldWaitForData) return null;
+  if (!primaryOrgId) return getOrgFallbackRedirect(pathname);
+  if (!primaryOrg || !membership) return getOrgFallbackRedirect(pathname);
+
+  return resolveReadyOrgGuardRedirect({
+    pathname,
+    primaryOrgId,
+    primaryOrg,
+    membership,
+    profile,
+    getAvailabilitiesByOrgId,
+  });
+};
+
 /**
  * Guard for org-scoped routes.
  *
@@ -233,46 +309,17 @@ const OrgGuard = ({ children, skeleton = null }: OrgGuardProps) => {
     primaryOrgId !== null &&
     shouldWaitForOrgGuardData(availabilityStatus, profileStatus, teamStatus, hasTeamDataForOrg);
 
-  let guardRedirect: string | null = null;
-  if (!isAuthGuardDisabled && !isStatusPending(orgStatus)) {
-    if (!primaryOrgId) {
-      guardRedirect = getOrgFallbackRedirect(pathname);
-    } else if (!shouldWaitForData) {
-      if (!primaryOrg || !membership) {
-        guardRedirect = getOrgFallbackRedirect(pathname);
-      } else {
-        const role = membership.roleDisplay ?? membership.roleCode;
-        const availabilities = getAvailabilitiesByOrgId(primaryOrgId);
-        const orgRedirect = resolveOrgRedirect({
-          pathname,
-          primaryOrgId,
-          primaryOrg,
-          membership,
-          profile,
-          availabilities,
-        });
-        if (orgRedirect && orgRedirect !== pathname) {
-          guardRedirect = orgRedirect;
-        } else {
-          const effectivePermissions = membership.effectivePermissions ?? [];
-          const permissionsFallbackRedirect = getPermissionsFallbackRedirect(
-            pathname,
-            effectivePermissions
-          );
-          if (permissionsFallbackRedirect) {
-            guardRedirect = permissionsFallbackRedirect;
-          } else {
-            const preferredLanding = resolveDefaultOpenScreenRouteForProfile({
-              profile,
-              orgType: primaryOrg.type,
-              role,
-            });
-            guardRedirect = applyDefaultLandingRedirect(pathname, primaryOrgId, preferredLanding);
-          }
-        }
-      }
-    }
-  }
+  const guardRedirect = resolveGuardRedirect({
+    isAuthGuardDisabled,
+    orgStatus,
+    pathname,
+    primaryOrgId,
+    shouldWaitForData,
+    primaryOrg,
+    membership,
+    profile,
+    getAvailabilitiesByOrgId,
+  });
 
   const [checked, setChecked] = useState(
     () =>

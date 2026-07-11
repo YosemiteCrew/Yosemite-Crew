@@ -155,7 +155,7 @@ const getSearchPlaceholder = (
 
 const CLOSED_MENUS = { menuOpen: false, selectOrg: false, selectProfile: false };
 
-const UserHeader = () => {
+const useUserHeaderContent = () => {
   const terminologyText = useCompanionTerminologyText();
   const { signOut } = useSignOut();
   const pathname = usePathname();
@@ -636,5 +636,7 @@ const UserHeader = () => {
     </div>
   );
 };
+
+const UserHeader = () => useUserHeaderContent();
 
 export default UserHeader;

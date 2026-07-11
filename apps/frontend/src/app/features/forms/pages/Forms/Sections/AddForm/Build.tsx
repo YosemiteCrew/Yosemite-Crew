@@ -1179,12 +1179,114 @@ const removeFieldById = (form: FormsProps, id: string): FormsProps => ({
   schema: (form.schema || []).filter((field) => field.id !== id),
 });
 
-const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProps) => {
-  const [buildError, setBuildError] = useState<string>('');
+// Drag-to-reorder with edge auto-scroll for the builder field list. Owns the
+// drag index plus the scroll velocity/animation refs so Build stays focused on
+// schema state; `onReorder` receives the (from, to) indices on drop.
+const useBuilderDragAutoScroll = (
+  builderRef: React.RefObject<HTMLDivElement | null>,
+  onReorder: (from: number, to: number) => void
+) => {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const builderRef = React.useRef<HTMLDivElement | null>(null);
   const scrollVelocityRef = React.useRef<number>(0);
   const scrollAnimRef = React.useRef<number | null>(null);
+
+  const handleDragStart = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const getScrollableContainer = () => {
+    if (builderRef.current && builderRef.current.scrollHeight > builderRef.current.clientHeight) {
+      return builderRef.current;
+    }
+    return document.scrollingElement as HTMLElement | null;
+  };
+
+  const updateScrollVelocity = (scrollable: HTMLElement, clientY: number) => {
+    const rect =
+      scrollable === builderRef.current
+        ? scrollable.getBoundingClientRect()
+        : { top: 0, bottom: globalThis.innerHeight, height: globalThis.innerHeight };
+    const softZone = Math.min(300, (rect.bottom - rect.top) / 2);
+    const turboZone = softZone / 3;
+    const distanceToTop = Math.max(0, clientY - rect.top);
+    const distanceToBottom = Math.max(0, rect.bottom - clientY);
+
+    if (distanceToTop < softZone && scrollable.scrollTop > 0) {
+      const ratio = (softZone - distanceToTop) / softZone;
+      const turbo = distanceToTop < turboZone ? 14 : 0;
+      const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
+      scrollVelocityRef.current = -speed;
+      return;
+    }
+
+    if (distanceToBottom < softZone) {
+      const ratio = (softZone - distanceToBottom) / softZone;
+      const turbo = distanceToBottom < turboZone ? 14 : 0;
+      const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
+      scrollVelocityRef.current = speed;
+      return;
+    }
+
+    scrollVelocityRef.current = 0;
+  };
+
+  const startAutoScroll = (scrollable: HTMLElement) => {
+    if (scrollAnimRef.current !== null) return;
+    const step = () => {
+      const vel = scrollVelocityRef.current;
+      if (vel === 0) {
+        scrollAnimRef.current = null;
+        return;
+      }
+      scrollable.scrollTop += vel;
+      scrollAnimRef.current = requestAnimationFrame(step);
+    };
+    scrollAnimRef.current = requestAnimationFrame(step);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (dragIndex === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const scrollable = getScrollableContainer();
+    if (!scrollable) return;
+    updateScrollVelocity(scrollable, e.clientY);
+    startAutoScroll(scrollable);
+  };
+
+  const stopAutoScroll = () => {
+    scrollVelocityRef.current = 0;
+    if (scrollAnimRef.current !== null) {
+      cancelAnimationFrame(scrollAnimRef.current);
+      scrollAnimRef.current = null;
+    }
+  };
+
+  const handleDrop = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (dragIndex === null) return;
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const isAfter = e.clientY > rect.top + rect.height / 2;
+    const destination = isAfter ? index + 1 : index;
+    onReorder(dragIndex, destination);
+    setDragIndex(null);
+    stopAutoScroll();
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    stopAutoScroll();
+  };
+
+  return { dragIndex, handleDragStart, handleDragOver, handleDrop, handleDragEnd };
+};
+
+const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProps) => {
+  const [buildError, setBuildError] = useState<string>('');
+  const builderRef = React.useRef<HTMLDivElement | null>(null);
   const createField = (key: OptionKey): FormField => {
     const id = crypto.randomUUID();
     return fieldFactory[key](id, serviceOptions);
@@ -1305,96 +1407,8 @@ const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProp
     });
   };
 
-  const handleDragStart = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
-    setDragIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const getScrollableContainer = () => {
-    if (builderRef.current && builderRef.current.scrollHeight > builderRef.current.clientHeight) {
-      return builderRef.current;
-    }
-    return document.scrollingElement as HTMLElement | null;
-  };
-
-  const updateScrollVelocity = (scrollable: HTMLElement, clientY: number) => {
-    const rect =
-      scrollable === builderRef.current
-        ? scrollable.getBoundingClientRect()
-        : { top: 0, bottom: globalThis.innerHeight, height: globalThis.innerHeight };
-    const softZone = Math.min(300, (rect.bottom - rect.top) / 2);
-    const turboZone = softZone / 3;
-    const distanceToTop = Math.max(0, clientY - rect.top);
-    const distanceToBottom = Math.max(0, rect.bottom - clientY);
-
-    if (distanceToTop < softZone && scrollable.scrollTop > 0) {
-      const ratio = (softZone - distanceToTop) / softZone;
-      const turbo = distanceToTop < turboZone ? 14 : 0;
-      const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
-      scrollVelocityRef.current = -speed;
-      return;
-    }
-
-    if (distanceToBottom < softZone) {
-      const ratio = (softZone - distanceToBottom) / softZone;
-      const turbo = distanceToBottom < turboZone ? 14 : 0;
-      const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
-      scrollVelocityRef.current = speed;
-      return;
-    }
-
-    scrollVelocityRef.current = 0;
-  };
-
-  const startAutoScroll = (scrollable: HTMLElement) => {
-    if (scrollAnimRef.current !== null) return;
-    const step = () => {
-      const vel = scrollVelocityRef.current;
-      if (vel === 0) {
-        scrollAnimRef.current = null;
-        return;
-      }
-      scrollable.scrollTop += vel;
-      scrollAnimRef.current = requestAnimationFrame(step);
-    };
-    scrollAnimRef.current = requestAnimationFrame(step);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    if (dragIndex === null) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const scrollable = getScrollableContainer();
-    if (!scrollable) return;
-    updateScrollVelocity(scrollable, e.clientY);
-    startAutoScroll(scrollable);
-  };
-
-  const handleDrop = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (dragIndex === null) return;
-    const target = e.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const isAfter = e.clientY > rect.top + rect.height / 2;
-    const destination = isAfter ? index + 1 : index;
-    reorderField(dragIndex, destination);
-    setDragIndex(null);
-    scrollVelocityRef.current = 0;
-    if (scrollAnimRef.current !== null) {
-      cancelAnimationFrame(scrollAnimRef.current);
-      scrollAnimRef.current = null;
-    }
-  };
-
-  const handleDragEnd = () => {
-    setDragIndex(null);
-    scrollVelocityRef.current = 0;
-    if (scrollAnimRef.current !== null) {
-      cancelAnimationFrame(scrollAnimRef.current);
-      scrollAnimRef.current = null;
-    }
-  };
+  const { dragIndex, handleDragStart, handleDragOver, handleDrop, handleDragEnd } =
+    useBuilderDragAutoScroll(builderRef, reorderField);
 
   const validate = React.useCallback(() => {
     if (!formData.schema || formData.schema.length === 0) {

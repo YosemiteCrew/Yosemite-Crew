@@ -844,7 +844,7 @@ const useOnValueChange = <T,>(value: T, onChange: () => void): void => {
   }
 };
 
-const Inventory = () => {
+const useInventoryContent = () => {
   useLoadOrg();
 
   const permissions = usePermissions();
@@ -1454,6 +1454,8 @@ const Inventory = () => {
     </div>
   );
 };
+
+const Inventory = () => useInventoryContent();
 
 const ProtectedInventory = () => {
   return (

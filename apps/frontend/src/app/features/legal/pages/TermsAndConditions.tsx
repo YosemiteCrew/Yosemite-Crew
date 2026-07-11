@@ -1328,142 +1328,136 @@ const TermsPart6 = () => (
 );
 
 const TermsPart7 = () => (
-  <>
-    <div className="doc-section">
-      <div className="doc-subtitle">Exhibit B</div>
-      <div className="doc-title">Data Processing Agreement</div>
+  <div className="doc-section">
+    <div className="doc-subtitle">Exhibit B</div>
+    <div className="doc-title">Data Processing Agreement</div>
 
-      <p>
-        The Customer as defined in the Yosemite Crew License and Subscription Terms (SaaS) &ndash;
-        hereinafter referred to as the Controller/Data Importer &ndash; and DuneXploration as
-        defined in the Yosemite Crew License and Subscription Terms (SaaS) &ndash; hereinafter
-        referred to as the Processor/Data Exporter &ndash; each a ‘party’; together ‘the parties’
-        &ndash;
-      </p>
+    <p>
+      The Customer as defined in the Yosemite Crew License and Subscription Terms (SaaS) &ndash;
+      hereinafter referred to as the Controller/Data Importer &ndash; and DuneXploration as defined
+      in the Yosemite Crew License and Subscription Terms (SaaS) &ndash; hereinafter referred to as
+      the Processor/Data Exporter &ndash; each a ‘party’; together ‘the parties’ &ndash;
+    </p>
 
-      <p>
-        HAVE AGREED on the following Data Processing Agreement (the “DPA”) in order to fulfil their
-        obligation according to Art. 28 (3) GDPR.
-      </p>
+    <p>
+      HAVE AGREED on the following Data Processing Agreement (the “DPA”) in order to fulfil their
+      obligation according to Art. 28 (3) GDPR.
+    </p>
 
-      <h4 className="doc-section-title">Preamble</h4>
-      <p>
-        The Parties have concluded the “Yosemite Crew License and Subscription Terms (SaaS)” under
-        which the Processor performs services for the Customer. For the performance of the services,
-        it is necessary that the Processor processes personal data for and on behalf of the
-        Controller. The purpose of this agreement is to stipulate the obligations of the parties in
-        connection with any processing of personal data by Processor as data processor on behalf of
-        Controller as data controller.
-      </p>
+    <h4 className="doc-section-title">Preamble</h4>
+    <p>
+      The Parties have concluded the “Yosemite Crew License and Subscription Terms (SaaS)” under
+      which the Processor performs services for the Customer. For the performance of the services,
+      it is necessary that the Processor processes personal data for and on behalf of the
+      Controller. The purpose of this agreement is to stipulate the obligations of the parties in
+      connection with any processing of personal data by Processor as data processor on behalf of
+      Controller as data controller.
+    </p>
 
-      <h4 className="doc-section-title">1. Application of the Standard Contractual Clauses</h4>
-      <ol>
-        <li>
-          The Parties conclude the Standard Contractual Clauses between controllers and processors
-          as agreed upon by the European Commission in its Commission Implementing Decision (EU)
-          2021/915 of June 4 2021 and attached to this DPA as APPENDIX 1 (the “EU-Standard
-          Contractual Clauses”). For clarity, Processor’s obligations and Controller’s rights
-          concerning Personal Data apply even if the Personal Data relates to a data subject outside
-          the European Union.
-        </li>
-        <li>
-          The Parties agree upon including Clause 5 of the Standard Contractual Clauses and use
-          OPTION 2 of Clause 7.7 regarding the general authorization of sub processors, whereas the
-          time period in Clause 7.7 shall be 2 weeks. Regarding any other OPTIONS to choose from in
-          the Clauses of the Standard Contractual Clauses, the Parties in each case agree upon
-          OPTION 1.
-        </li>
-        <li>
-          The Parties conclude the Standard Contractual Clauses, MODULE 4 (Processor to Controller)
-          for the transfer of personal data to third countries pursuant to Regulation (EU) 2016/679
-          as agreed upon by the European Commission in its Commission Implementing Decision (EU)
-          2021/914 of 4 June 2021 and attached to this DPA as APPENDIX 2 (the “International
-          Standard Contractual Clauses”). Regarding Clause 17 and Clause 18 (applicable law and
-          jurisdiction) Germany is chosen each time. ANNEX 1 and 2 of APPENDIX 1 apply accordingly
-          to describe the roles and the processing of personal data.
-        </li>
-        <li>
-          The EU-Standard Contractual Clauses and International Standard Contractual Clauses will be
-          supplemented by the provisions of this DPA.
-        </li>
-        <li>
-          If any clause from this DPA or the Yosemite Crew License and Subscription Terms (SaaS) or
-          any other related agreement between the Parties directly or indirectly contradicts the
-          EU-Standard Contractual Clauses or International Standard Contractual Clauses, the
-          respective Standard Contractual Clauses shall prevail. If any clause from the EU-Standard
-          Contractual Clauses directly or indirectly contradicts the International Standard
-          Contractual Clauses, the International Standard Contractual Clauses shall prevail.
-        </li>
-      </ol>
+    <h4 className="doc-section-title">1. Application of the Standard Contractual Clauses</h4>
+    <ol>
+      <li>
+        The Parties conclude the Standard Contractual Clauses between controllers and processors as
+        agreed upon by the European Commission in its Commission Implementing Decision (EU) 2021/915
+        of June 4 2021 and attached to this DPA as APPENDIX 1 (the “EU-Standard Contractual
+        Clauses”). For clarity, Processor’s obligations and Controller’s rights concerning Personal
+        Data apply even if the Personal Data relates to a data subject outside the European Union.
+      </li>
+      <li>
+        The Parties agree upon including Clause 5 of the Standard Contractual Clauses and use OPTION
+        2 of Clause 7.7 regarding the general authorization of sub processors, whereas the time
+        period in Clause 7.7 shall be 2 weeks. Regarding any other OPTIONS to choose from in the
+        Clauses of the Standard Contractual Clauses, the Parties in each case agree upon OPTION 1.
+      </li>
+      <li>
+        The Parties conclude the Standard Contractual Clauses, MODULE 4 (Processor to Controller)
+        for the transfer of personal data to third countries pursuant to Regulation (EU) 2016/679 as
+        agreed upon by the European Commission in its Commission Implementing Decision (EU) 2021/914
+        of 4 June 2021 and attached to this DPA as APPENDIX 2 (the “International Standard
+        Contractual Clauses”). Regarding Clause 17 and Clause 18 (applicable law and jurisdiction)
+        Germany is chosen each time. ANNEX 1 and 2 of APPENDIX 1 apply accordingly to describe the
+        roles and the processing of personal data.
+      </li>
+      <li>
+        The EU-Standard Contractual Clauses and International Standard Contractual Clauses will be
+        supplemented by the provisions of this DPA.
+      </li>
+      <li>
+        If any clause from this DPA or the Yosemite Crew License and Subscription Terms (SaaS) or
+        any other related agreement between the Parties directly or indirectly contradicts the
+        EU-Standard Contractual Clauses or International Standard Contractual Clauses, the
+        respective Standard Contractual Clauses shall prevail. If any clause from the EU-Standard
+        Contractual Clauses directly or indirectly contradicts the International Standard
+        Contractual Clauses, the International Standard Contractual Clauses shall prevail.
+      </li>
+    </ol>
 
-      <h4 className="doc-section-title">2. Instructions of the Controller</h4>
-      <ol>
-        <li>
-          The Controller’s initial instructions shall be set out by the provisions of the Yosemite
-          Crew License and Subscription Terms (SaaS), its Annexes and Appendices and any related
-          agreement.
-        </li>
-        <li>
-          The Controller shall be entitled to modify, amend or replace such individual instructions
-          by issuing new instructions to the point of contact designated by the Processor. The
-          instruction shall be given either in written form (email to suffice). In case of an oral
-          instruction, the Controller shall immediately confirm this instruction in written form
-          (email to suffice).
-        </li>
-        <li>
-          Instructions not foreseen in or covered by the Yosemite Crew License and Subscription
-          Terms (SaaS) shall be treated as requests for change in performance. The Controller shall
-          immediately confirm in writing or in text form any instruction issued orally.
-        </li>
-      </ol>
+    <h4 className="doc-section-title">2. Instructions of the Controller</h4>
+    <ol>
+      <li>
+        The Controller’s initial instructions shall be set out by the provisions of the Yosemite
+        Crew License and Subscription Terms (SaaS), its Annexes and Appendices and any related
+        agreement.
+      </li>
+      <li>
+        The Controller shall be entitled to modify, amend or replace such individual instructions by
+        issuing new instructions to the point of contact designated by the Processor. The
+        instruction shall be given either in written form (email to suffice). In case of an oral
+        instruction, the Controller shall immediately confirm this instruction in written form
+        (email to suffice).
+      </li>
+      <li>
+        Instructions not foreseen in or covered by the Yosemite Crew License and Subscription Terms
+        (SaaS) shall be treated as requests for change in performance. The Controller shall
+        immediately confirm in writing or in text form any instruction issued orally.
+      </li>
+    </ol>
 
-      <h4 className="doc-section-title">3. Technical and Organisational Measures</h4>
-      <p>
-        In Cases where the EU-Standard Contractual Clauses apply, the Processor has the right to
-        amend or modify the technical and organisational measures that are set out in the DPA and
-        its APPENDICES and ANNEXES at any time, provided, however, that the level of security shall
-        not fall below the level initially agreed upon.
-      </p>
+    <h4 className="doc-section-title">3. Technical and Organisational Measures</h4>
+    <p>
+      In Cases where the EU-Standard Contractual Clauses apply, the Processor has the right to amend
+      or modify the technical and organisational measures that are set out in the DPA and its
+      APPENDICES and ANNEXES at any time, provided, however, that the level of security shall not
+      fall below the level initially agreed upon.
+    </p>
 
-      <h4 className="doc-section-title">4. Obligations of the Controller</h4>
-      <ol>
-        <li>
-          The Controller shall notify the Processor without undue delay of any defect or
-          irregularity of the services with regard to the processing of personal data detected by
-          the Controller.
-        </li>
-        <li>
-          The Controller shall notify the Processor’s point of contract for any issue related to
-          data protection arising out of or in connection with the Yosemite Crew License and
-          Subscription Terms (SaaS).
-        </li>
-      </ol>
+    <h4 className="doc-section-title">4. Obligations of the Controller</h4>
+    <ol>
+      <li>
+        The Controller shall notify the Processor without undue delay of any defect or irregularity
+        of the services with regard to the processing of personal data detected by the Controller.
+      </li>
+      <li>
+        The Controller shall notify the Processor’s point of contract for any issue related to data
+        protection arising out of or in connection with the Yosemite Crew License and Subscription
+        Terms (SaaS).
+      </li>
+    </ol>
 
-      <h4 className="doc-section-title">5. Inspections</h4>
-      <ol>
-        <li>
-          In cases where the EU-Standard Contractual Clauses apply, the Controller shall give the
-          Processor reasonable notice before conducting an audit according to Clause 7.6 of the
-          EU-Standard Contractual Clauses unless such notice is impossible to provide or would
-          defeat the purpose of the audit.
-        </li>
-        <li>
-          In cases where the EU-Standard Contractual Clauses apply, Processor shall be entitled to
-          request a remuneration for Processor’s support in conducting audits in accordance with the
-          then current price list of Processor.
-        </li>
-      </ol>
+    <h4 className="doc-section-title">5. Inspections</h4>
+    <ol>
+      <li>
+        In cases where the EU-Standard Contractual Clauses apply, the Controller shall give the
+        Processor reasonable notice before conducting an audit according to Clause 7.6 of the
+        EU-Standard Contractual Clauses unless such notice is impossible to provide or would defeat
+        the purpose of the audit.
+      </li>
+      <li>
+        In cases where the EU-Standard Contractual Clauses apply, Processor shall be entitled to
+        request a remuneration for Processor’s support in conducting audits in accordance with the
+        then current price list of Processor.
+      </li>
+    </ol>
 
-      <h4 className="doc-section-title">6. Remuneration for Supporting Obligations</h4>
-      <p>
-        In cases where the EU-Standard Contractual Clauses apply and Insofar as Processor may claim
-        compensation to the Controller for support services which are not included in the
-        description of the services and which are not attributable to failures on the part of the
-        Processor, the parties may agree in writing in advance to additional remuneration for
-        Processor’s supporting obligations in connection with non-standard data protection requests.
-      </p>
-    </div>
-  </>
+    <h4 className="doc-section-title">6. Remuneration for Supporting Obligations</h4>
+    <p>
+      In cases where the EU-Standard Contractual Clauses apply and Insofar as Processor may claim
+      compensation to the Controller for support services which are not included in the description
+      of the services and which are not attributable to failures on the part of the Processor, the
+      parties may agree in writing in advance to additional remuneration for Processor’s supporting
+      obligations in connection with non-standard data protection requests.
+    </p>
+  </div>
 );
 
 const TermsPart8Sub1 = () => (
@@ -1900,21 +1894,17 @@ const TermsPart8Sub2Sub4 = () => (
 );
 
 const TermsPart8Sub2 = () => (
-  <>
-    <div className="doc-box">
-      <TermsPart8Sub2Sub3 />
-      <TermsPart8Sub2Sub4 />
-    </div>
-  </>
+  <div className="doc-box">
+    <TermsPart8Sub2Sub3 />
+    <TermsPart8Sub2Sub4 />
+  </div>
 );
 
 const TermsPart8 = () => (
-  <>
-    <div className="doc-section">
-      <TermsPart8Sub1 />
-      <TermsPart8Sub2 />
-    </div>
-  </>
+  <div className="doc-section">
+    <TermsPart8Sub1 />
+    <TermsPart8Sub2 />
+  </div>
 );
 
 const TermsPart9Inner1 = () => (
@@ -2623,486 +2613,475 @@ const TermsPart9Inner3 = () => (
 );
 
 const TermsPart9Inner4 = () => (
-  <>
-    <table className="dataMatrix">
-      <DataMatrixHeaders />
-      <tbody>
-        <tr>
-          <td rowSpan={17} className="moduleCell">
-            <strong> Generate New Bill</strong>
-          </td>
-          <td className="dataCell">Name</td>
-          <td rowSpan={17} className="subjectCell">
-            Customer/Employees of Customer
-          </td>
-          <td rowSpan={17} className="purposeCell">
-            To generate and manage invoices for veterinary services, ensuring accurate billing and
-            payment records for the veterinary business and pet owners, and integrating financial
-            data with the platform.
-          </td>
-        </tr>
-        <tr>
-          <td className="dataCell">Bill Number</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Pet Owner</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Bill Date</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Animal Name</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Doctor&apos;s Name</td>
-        </tr>
-        <tr>
-          <td className="dataCell">
-            <strong>Itemised Billing Details:</strong>
-          </td>
-        </tr>
-        <tr>
-          <td className="dataCell">Item name</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Item Type</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Quantity</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Unit Price</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Gross Total</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Discount</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Tax</td>
-        </tr>
-        <tr>
-          <td className="dataCell">
-            <strong>Payment Information:</strong>
-          </td>
-        </tr>
-        <tr>
-          <td className="dataCell">Payment Method</td>
-        </tr>
-        <tr>
-          <td className="dataCell">Payment Status</td>
-        </tr>
-      </tbody>
-    </table>
-  </>
+  <table className="dataMatrix">
+    <DataMatrixHeaders />
+    <tbody>
+      <tr>
+        <td rowSpan={17} className="moduleCell">
+          <strong> Generate New Bill</strong>
+        </td>
+        <td className="dataCell">Name</td>
+        <td rowSpan={17} className="subjectCell">
+          Customer/Employees of Customer
+        </td>
+        <td rowSpan={17} className="purposeCell">
+          To generate and manage invoices for veterinary services, ensuring accurate billing and
+          payment records for the veterinary business and pet owners, and integrating financial data
+          with the platform.
+        </td>
+      </tr>
+      <tr>
+        <td className="dataCell">Bill Number</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Pet Owner</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Bill Date</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Animal Name</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Doctor&apos;s Name</td>
+      </tr>
+      <tr>
+        <td className="dataCell">
+          <strong>Itemised Billing Details:</strong>
+        </td>
+      </tr>
+      <tr>
+        <td className="dataCell">Item name</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Item Type</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Quantity</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Unit Price</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Gross Total</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Discount</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Tax</td>
+      </tr>
+      <tr>
+        <td className="dataCell">
+          <strong>Payment Information:</strong>
+        </td>
+      </tr>
+      <tr>
+        <td className="dataCell">Payment Method</td>
+      </tr>
+      <tr>
+        <td className="dataCell">Payment Status</td>
+      </tr>
+    </tbody>
+  </table>
 );
 
 const TermsPart9 = () => (
-  <>
-    <div className="doc-section">
-      <TermsPart9Inner1 />
-      <TermsPart9Inner2 />
-      <TermsPart9Inner3 />
-      <TermsPart9Inner4 />
-    </div>
-  </>
+  <div className="doc-section">
+    <TermsPart9Inner1 />
+    <TermsPart9Inner2 />
+    <TermsPart9Inner3 />
+    <TermsPart9Inner4 />
+  </div>
 );
 
 const TermsPart10 = () => (
-  <>
-    <div className="doc-section">
-      <div className="processingSection">
-        <div className="processingContent">
-          <p className="contentParagraph">
-            <strong className="contentBold">
-              Categories of data subjects whose personal data is processed
-            </strong>
-            <br />
-            See the table above.
-          </p>
-          <p className="contentParagraph">
-            <strong className="contentBold">Categories of personal data processed</strong>
-            <br />
-            See the table above.
-          </p>
-          <p className="contentParagraph">
-            <strong className="contentBold">
-              Sensitive data processed (if applicable) and applied restrictions or safeguards that
-              fully take into consideration the nature of the data and the risks involved, such as
-              for instance strict purpose limitation, access restrictions (including access only for
-              staff having followed specialised training), keeping a record of access to the data,
-              restrictions for onward transfers or additional security measures.
-            </strong>
-            <br />
-            The processing of sensitive data is not part of the services rendered by the Processor.
-          </p>
-          <p className="contentParagraph">
-            <strong className="contentBold">Nature of the processing</strong>
-            <br />
-            Processor provides SaaS to Controller and the nature of the processing of personal data
-            includes any processing that is required for Processor to render these services to
-            Controller. It specifically includes the collection, organisation, structuring, storage
-            and making available of personal data but may also include any other operation such as
-            the adaptation or alteration, retrieval, consultation, use, disclosure by transmission,
-            dissemination, alignment or combination, restriction, erasure or destruction of personal
-            data.
-          </p>
-          <p className="contentParagraph">
-            <strong className="contentBold">
-              Purpose(s) for which the personal data is processed on behalf of the controller
-            </strong>
-            <br />
-            See the table above.
-          </p>
-          <p className="contentParagraph">
-            <strong className="contentBold">Duration of the processing</strong>
-            <br />
-            The processing endures as long as Processor renders its services to Controller and ends
-            with the termination of the Yosemite Crew License and Subscription Terms.
-          </p>
-          <p className="contentParagraph">
-            <strong className="contentBold">
-              Subject matter, nature and duration of the processing with regard to sub processors:
-            </strong>
-            <br />
-            Please see below in ANNEX IV.
-          </p>
-        </div>
+  <div className="doc-section">
+    <div className="processingSection">
+      <div className="processingContent">
+        <p className="contentParagraph">
+          <strong className="contentBold">
+            Categories of data subjects whose personal data is processed
+          </strong>
+          <br />
+          See the table above.
+        </p>
+        <p className="contentParagraph">
+          <strong className="contentBold">Categories of personal data processed</strong>
+          <br />
+          See the table above.
+        </p>
+        <p className="contentParagraph">
+          <strong className="contentBold">
+            Sensitive data processed (if applicable) and applied restrictions or safeguards that
+            fully take into consideration the nature of the data and the risks involved, such as for
+            instance strict purpose limitation, access restrictions (including access only for staff
+            having followed specialised training), keeping a record of access to the data,
+            restrictions for onward transfers or additional security measures.
+          </strong>
+          <br />
+          The processing of sensitive data is not part of the services rendered by the Processor.
+        </p>
+        <p className="contentParagraph">
+          <strong className="contentBold">Nature of the processing</strong>
+          <br />
+          Processor provides SaaS to Controller and the nature of the processing of personal data
+          includes any processing that is required for Processor to render these services to
+          Controller. It specifically includes the collection, organisation, structuring, storage
+          and making available of personal data but may also include any other operation such as the
+          adaptation or alteration, retrieval, consultation, use, disclosure by transmission,
+          dissemination, alignment or combination, restriction, erasure or destruction of personal
+          data.
+        </p>
+        <p className="contentParagraph">
+          <strong className="contentBold">
+            Purpose(s) for which the personal data is processed on behalf of the controller
+          </strong>
+          <br />
+          See the table above.
+        </p>
+        <p className="contentParagraph">
+          <strong className="contentBold">Duration of the processing</strong>
+          <br />
+          The processing endures as long as Processor renders its services to Controller and ends
+          with the termination of the Yosemite Crew License and Subscription Terms.
+        </p>
+        <p className="contentParagraph">
+          <strong className="contentBold">
+            Subject matter, nature and duration of the processing with regard to sub processors:
+          </strong>
+          <br />
+          Please see below in ANNEX IV.
+        </p>
       </div>
     </div>
-  </>
+  </div>
 );
 
 const TermsPart11 = () => (
-  <>
-    <div className="doc-section">
-      <div className="securitySection">
-        <h3 className="securityTitle">
-          ANNEX III: TECHNICAL AND ORGANISATIONAL MEASURES INCLUDING TECHNICAL AND ORGANISATIONAL
-          MEASURES TO ENSURE THE SECURITY OF THE DATA
-        </h3>
-        <div className="explanatoryNote">
-          <p className="noteParagraph  ">
-            <strong className="noteBold">EXPLANATORY NOTE:</strong>
+  <div className="doc-section">
+    <div className="securitySection">
+      <h3 className="securityTitle">
+        ANNEX III: TECHNICAL AND ORGANISATIONAL MEASURES INCLUDING TECHNICAL AND ORGANISATIONAL
+        MEASURES TO ENSURE THE SECURITY OF THE DATA
+      </h3>
+      <div className="explanatoryNote">
+        <p className="noteParagraph  ">
+          <strong className="noteBold">EXPLANATORY NOTE:</strong>
+          <br />
+          The technical and organisational measures need to be described concretely and not in a
+          generic manner.
+        </p>
+      </div>
+      <div className="measuresContent">
+        <h4 className="measuresSubtitle">Technical and organisational measures of Processor</h4>
+        <p className="measuresParagraph">
+          <strong className="measuresBold">EXPLANATORY NOTE:</strong>
+          <br />
+          <b>
+            {' '}
+            The technical and organisational measures must be described in specific (and not
+            generic) terms. See also the general comment on the first page of the Appendix, in
+            particular on the need to clearly indicate which measures apply to each transfer/set of
+            transfers.
+          </b>
+          <br />
+          <strong className="measuresBold">
+            Description of the technical and organisational measures implemented by the data
+            importer(s) (including any relevant certifications) to ensure an appropriate level of
+            security, taking into account the nature, scope, context and purpose of the processing,
+            and the risks for the rights and freedoms of natural persons.
+          </strong>
+        </p>
+        <p>The following specific measures are implemented:</p>
+        <ul className="measuresList">
+          <li className="measuresItem">
+            <strong className="measuresBold">
+              Measures of pseudonymisation and encryption of personal data
+            </strong>
             <br />
-            The technical and organisational measures need to be described concretely and not in a
-            generic manner.
-          </p>
-        </div>
-        <div className="measuresContent">
-          <h4 className="measuresSubtitle">Technical and organisational measures of Processor</h4>
-          <p className="measuresParagraph">
-            <strong className="measuresBold">EXPLANATORY NOTE:</strong>
+            Our data is Encrypted both way at rest and in transit too.
             <br />
-            <b>
-              {' '}
-              The technical and organisational measures must be described in specific (and not
-              generic) terms. See also the general comment on the first page of the Appendix, in
-              particular on the need to clearly indicate which measures apply to each transfer/set
-              of transfers.
+            We use strong encryption: data and volumes are encrypted at rest (AES-256) using AWS
+            KMS, and in transit (TLS 1.3) across all services:
+            <br />
+            <ul>
+              <li>
+                Encryption at rest our dev and prod instances, databases, snapshots and file stores
+                are encrypted with AES-256 Encryption. Keys live in AWS KMS and rotate automatically
+                every 12 months.
+              </li>
+              <li>
+                Encryption in transit &ndash; External traffic is forced over TLS 1.3 with
+                Perfect-Forward Secrecy. Internal service-to-service calls use mTLS.
+              </li>
+              <li>
+                Pseudonymisation &ndash; We use salted bcrypt hashing for lookup tables for password
+                store
+              </li>
+            </ul>
+          </li>
+          <li className="measuresItem">
+            <strong className="measuresBold">
+              Measures for ensuring ongoing confidentiality, integrity, availability and resilience
+              of processing systems and services
+            </strong>
+            <br />
+            Our systems are built on AWS using secure, highly available cloud architecture. We use
+            encryption (TLS & AES-256), least-privilege IAM roles RBAC methodology, and network
+            isolation to protect data. We use GitHub for secure source control, with enforced code
+            reviews, signed commits, and audit logging to ensure code integrity: All changes are
+            version-controlled, tested, and logged via CloudTrail to maintain integrity. Backups,
+            regular disaster recovery tests, and alignment with AWS Well-Architected Framework
+            ensure we stay resilient under pressure or failure. Continuous vulnerability management,
+            container scans, weekly patched AMIs backup, annual VAPT penetration test.
+          </li>
+          <li className="measuresItem">
+            <strong className="measuresBold">
+              Measures for user identification and authorisation
+            </strong>
+            <br />
+            (RBAC) Role based access control: We use role-based access control (RBAC) to make sure
+            each person only sees the data they need for their job &ndash; right down to individual
+            rows in the database if needed. We don’t allow shared logins, so every action can be
+            clearly traced to a specific user. Session management &ndash; We manage user sessions
+            securely using encrypted tokens. If someone’s inactive for 15 minutes, they’re logged
+            out automatically, and all sessions end after 12 hours no matter what &mdash; this helps
+            reduce the risk from forgotten or unattended logins.
+          </li>
+          <li className="measuresItem">
+            <strong className="measuresBold">
+              Measures for the protection of data during transmission
+            </strong>
+            <br />
+            All data on AWS cloud instances volumes are encrypted using the latest and most secure
+            standard. We’ve disabled older, weaker encryption methods to keep communications safe.
+            For our mobile apps, we use certificate pinning to make sure the app only talks to our
+            real servers &mdash; this helps prevent man-in-the-middle attacks. In sensitive
+            industries like healthcare or legal, we offer full end-to-end encryption so that even we
+            can’t see the data in transit. When it comes to file transfers, we use secure methods
+            like SFTP with strong SSH keys or short-lived HTTPS download links that session ends
+            after 30 minutes to prevent unauthorized access.
+          </li>
+          <li className="measuresItem">
+            <strong className="measuresBold">Measures for ensuring events logging</strong>
+            <br />
+            We track all key activities across our systems using AWS CloudWatch and GitHub audit
+            logs. In AWS, CloudWatch logs cover everything from API calls and network activity to
+            system performance and security events. Combined with services like CloudTrail and
+            GuardDuty, this helps us detect and respond to threats quickly. On the development side,
+            GitHub audit logs let us monitor actions like code pushes, permission changes, and
+            access to repositories &mdash; ensuring we have full traceability of who did what, and
+            when. All logs are stored securely, protected from tampering, and kept according to our
+            retention policy. We review them regularly and have automated alerts for anything
+            suspicious, so our security team can act fast if something’s not right.
+          </li>
+          <li className="measuresItem">
+            <strong className="measuresBold">
+              Measures for ensuring system configuration, including default configuration
+            </strong>
+            <br />
+            Our systems are built with security in mind from the ground up. We use infrastructure a
+            -code tools (like Terraform and Ansible) to ensure all environments are configured
+            consistently and securely. Servers and containers are based on hardened images that
+            follow industry standards (like CIS Benchmarks), with only the necessary services and
+            ports enabled. Encryption is turned on by default, and insecure protocols are disabled.
+            We regularly apply security updates and critical API patches, so we don’t fall behind.
+            System settings are continuously monitored to catch any drift from our secure baseline.
+          </li>
+          <li className="measuresItem">
+            <strong className="measuresBold">
+              Measures for internal IT and IT security governance and management
+            </strong>
+            <br />
+            We follow IT Security & Compliance standards like ISO 27001:2022 and SOC 2 to keep our
+            systems and data secure. Our Information Security Management System (ISMS) is aligned
+            with ISO 27001:2022, and we have a dedicated Data Protection Officer (DPO) and a
+            Security Steering Committee that reports quarterly to senior leadership. We carry out
+            regular risk assessments, including a Data Protection Impact Assessment (DPIA) at
+            project launch and updates after any major technical or architectural changes. All team
+            members complete mandatory cyber security and privacy training during onboarding and
+            annually thereafter.
+          </li>
+          <li className="measuresItem">
+            <b className="measuresBold">
+              Measures for certification/assurance of processes and products
             </b>
             <br />
-            <strong className="measuresBold">
-              Description of the technical and organisational measures implemented by the data
-              importer(s) (including any relevant certifications) to ensure an appropriate level of
-              security, taking into account the nature, scope, context and purpose of the
-              processing, and the risks for the rights and freedoms of natural persons.
-            </strong>
-          </p>
-          <p>The following specific measures are implemented:</p>
-          <ul className="measuresList">
-            <li className="measuresItem">
-              <strong className="measuresBold">
-                Measures of pseudonymisation and encryption of personal data
-              </strong>
-              <br />
-              Our data is Encrypted both way at rest and in transit too.
-              <br />
-              We use strong encryption: data and volumes are encrypted at rest (AES-256) using AWS
-              KMS, and in transit (TLS 1.3) across all services:
-              <br />
-              <ul>
-                <li>
-                  Encryption at rest our dev and prod instances, databases, snapshots and file
-                  stores are encrypted with AES-256 Encryption. Keys live in AWS KMS and rotate
-                  automatically every 12 months.
-                </li>
-                <li>
-                  Encryption in transit &ndash; External traffic is forced over TLS 1.3 with
-                  Perfect-Forward Secrecy. Internal service-to-service calls use mTLS.
-                </li>
-                <li>
-                  Pseudonymisation &ndash; We use salted bcrypt hashing for lookup tables for
-                  password store
-                </li>
-              </ul>
-            </li>
-            <li className="measuresItem">
-              <strong className="measuresBold">
-                Measures for ensuring ongoing confidentiality, integrity, availability and
-                resilience of processing systems and services
-              </strong>
-              <br />
-              Our systems are built on AWS using secure, highly available cloud architecture. We use
-              encryption (TLS & AES-256), least-privilege IAM roles RBAC methodology, and network
-              isolation to protect data. We use GitHub for secure source control, with enforced code
-              reviews, signed commits, and audit logging to ensure code integrity: All changes are
-              version-controlled, tested, and logged via CloudTrail to maintain integrity. Backups,
-              regular disaster recovery tests, and alignment with AWS Well-Architected Framework
-              ensure we stay resilient under pressure or failure. Continuous vulnerability
-              management, container scans, weekly patched AMIs backup, annual VAPT penetration test.
-            </li>
-            <li className="measuresItem">
-              <strong className="measuresBold">
-                Measures for user identification and authorisation
-              </strong>
-              <br />
-              (RBAC) Role based access control: We use role-based access control (RBAC) to make sure
-              each person only sees the data they need for their job &ndash; right down to
-              individual rows in the database if needed. We don’t allow shared logins, so every
-              action can be clearly traced to a specific user. Session management &ndash; We manage
-              user sessions securely using encrypted tokens. If someone’s inactive for 15 minutes,
-              they’re logged out automatically, and all sessions end after 12 hours no matter what
-              &mdash; this helps reduce the risk from forgotten or unattended logins.
-            </li>
-            <li className="measuresItem">
-              <strong className="measuresBold">
-                Measures for the protection of data during transmission
-              </strong>
-              <br />
-              All data on AWS cloud instances volumes are encrypted using the latest and most secure
-              standard. We’ve disabled older, weaker encryption methods to keep communications safe.
-              For our mobile apps, we use certificate pinning to make sure the app only talks to our
-              real servers &mdash; this helps prevent man-in-the-middle attacks. In sensitive
-              industries like healthcare or legal, we offer full end-to-end encryption so that even
-              we can’t see the data in transit. When it comes to file transfers, we use secure
-              methods like SFTP with strong SSH keys or short-lived HTTPS download links that
-              session ends after 30 minutes to prevent unauthorized access.
-            </li>
-            <li className="measuresItem">
-              <strong className="measuresBold">Measures for ensuring events logging</strong>
-              <br />
-              We track all key activities across our systems using AWS CloudWatch and GitHub audit
-              logs. In AWS, CloudWatch logs cover everything from API calls and network activity to
-              system performance and security events. Combined with services like CloudTrail and
-              GuardDuty, this helps us detect and respond to threats quickly. On the development
-              side, GitHub audit logs let us monitor actions like code pushes, permission changes,
-              and access to repositories &mdash; ensuring we have full traceability of who did what,
-              and when. All logs are stored securely, protected from tampering, and kept according
-              to our retention policy. We review them regularly and have automated alerts for
-              anything suspicious, so our security team can act fast if something’s not right.
-            </li>
-            <li className="measuresItem">
-              <strong className="measuresBold">
-                Measures for ensuring system configuration, including default configuration
-              </strong>
-              <br />
-              Our systems are built with security in mind from the ground up. We use infrastructure
-              a -code tools (like Terraform and Ansible) to ensure all environments are configured
-              consistently and securely. Servers and containers are based on hardened images that
-              follow industry standards (like CIS Benchmarks), with only the necessary services and
-              ports enabled. Encryption is turned on by default, and insecure protocols are
-              disabled. We regularly apply security updates and critical API patches, so we don’t
-              fall behind. System settings are continuously monitored to catch any drift from our
-              secure baseline.
-            </li>
-            <li className="measuresItem">
-              <strong className="measuresBold">
-                Measures for internal IT and IT security governance and management
-              </strong>
-              <br />
-              We follow IT Security & Compliance standards like ISO 27001:2022 and SOC 2 to keep our
-              systems and data secure. Our Information Security Management System (ISMS) is aligned
-              with ISO 27001:2022, and we have a dedicated Data Protection Officer (DPO) and a
-              Security Steering Committee that reports quarterly to senior leadership. We carry out
-              regular risk assessments, including a Data Protection Impact Assessment (DPIA) at
-              project launch and updates after any major technical or architectural changes. All
-              team members complete mandatory cyber security and privacy training during onboarding
-              and annually thereafter.
-            </li>
-            <li className="measuresItem">
-              <b className="measuresBold">
-                Measures for certification/assurance of processes and products
-              </b>
-              <br />
-              <ul>
-                <li>
-                  {' '}
-                  We&apos;re actively working toward completing our ISO 27001:2022 and SOC 2 Type II
-                  certifications to demonstrate our commitment to strong security and compliance
-                  practices.
-                </li>
-                <li>
-                  {' '}
-                  As part of this process, we’ve already implemented many of the required controls
-                  across our infrastructure, development, and data handling processes. We’re also
-                  working closely with external auditors to ensure everything meets or exceeds
-                  industry expectations.
-                </li>
-              </ul>
-            </li>
-            <li className="measuresItem">
-              <strong className="measuresBold">Measures for ensuring data minimisation</strong>
-              <br />
-              We generally do not store personal data unless it’s strictly necessary for the
-              functionality of our application. When personal data is required, we collect only
-              what’s needed &mdash; no more, no less. Every feature goes through a privacy-by-design
-              review to ensure we’re limiting the type, amount, and duration of personal data used.
-              Where possible, we replace identifiers with pseudonyms or anonymised values, and we
-              use aggregated data for analytics and reporting.
-            </li>
-            <li className="measuresItem">
-              <strong className="measuresBold">Measures for ensuring accountability</strong>
-              <br />
-              We take accountability seriously and have put processes in place to make sure data
-              protection and security responsibilities are clear, monitored, and auditable. All
-              roles and responsibilities related to data handling and security are formally defined,
-              with oversight from our Data Protection Officer (DPO) and Security Steering Committee.
-              We maintain detailed records of processing activities (RoPA) and conduct regular
-              internal audits to ensure we’re following our policies and meeting legal requirements.
-            </li>
-          </ul>
-          <h4 className="measuresSubtitle">Transfers to (Sub-)Processors</h4>
-          <p className="measuresParagraph">
-            We carefully vet all sub-processors before working with them, especially when they
-            handle personal data on our behalf. Each sub-processor must sign a Data Processing
-            Agreement (DPA) that clearly sets out their responsibilities, including support for the
-            controller’s obligations under GDPR. Sub-processors are required to implement equivalent
-            technical and organisational measures as we do &mdash; including encryption of data in
-            transit and at rest, access controls, security logging, and staff training. We also
-            require that they only process data under documented instructions and never for their
-            own purposes. To ensure transparency and compliance: Sub-processors must promptly assist
-            us (and therefore the controller) with requests from data subjects, such as access,
-            rectification, or deletion. They must notify us of any data breach without undue delay,
-            allowing us to meet the 72-hour GDPR notification window. They are required to undergo
-            regular security audits (ISO 27001 or SOC 2) and provide evidence on request.
-          </p>
-          <h4 className="measuresSubtitle">
-            Technical and organisational measures of sub processors
-          </h4>
-          <p className="measuresParagraph">
-            Supplier uses sub processors for rendering its services (see Annex IV). All sub
-            processors implement appropriate technical and organisational measures. Please find more
-            information under: <br />
-            <a
-              href="https://d1.awsstatic.com/legal/aws-gdpr/AWS_GDPR_DPA.pdf"
-              className="measuresLink"
-            >
-              Amazon Web Services: https://d1.awsstatic.com/legal/aws-gdpr/AWS_GDPR_DPA.pdf
-            </a>
-            ;{' '}
-            <a href="https://aws.amazon.com/de/security/" className="measuresLink">
-              https://aws.amazon.com/de/security/
-            </a>
+            <ul>
+              <li>
+                {' '}
+                We&apos;re actively working toward completing our ISO 27001:2022 and SOC 2 Type II
+                certifications to demonstrate our commitment to strong security and compliance
+                practices.
+              </li>
+              <li>
+                {' '}
+                As part of this process, we’ve already implemented many of the required controls
+                across our infrastructure, development, and data handling processes. We’re also
+                working closely with external auditors to ensure everything meets or exceeds
+                industry expectations.
+              </li>
+            </ul>
+          </li>
+          <li className="measuresItem">
+            <strong className="measuresBold">Measures for ensuring data minimisation</strong>
             <br />
-            Supabase, Inc.: Legal Name: Supabase, Inc.; Registered Address: 65 Chulia Street
-            #38-02/03, OCBC Centre, Singapore 049513; Contact for Privacy: privacy@supabase.com
+            We generally do not store personal data unless it’s strictly necessary for the
+            functionality of our application. When personal data is required, we collect only what’s
+            needed &mdash; no more, no less. Every feature goes through a privacy-by-design review
+            to ensure we’re limiting the type, amount, and duration of personal data used. Where
+            possible, we replace identifiers with pseudonyms or anonymised values, and we use
+            aggregated data for analytics and reporting.
+          </li>
+          <li className="measuresItem">
+            <strong className="measuresBold">Measures for ensuring accountability</strong>
             <br />
-            <a
-              href="https://cloud.google.com/terms/data-processing-addendum"
-              className="measuresLink"
-            >
-              Google Cloud: https://cloud.google.com/terms/data-processing-addendum
-            </a>
-            ,{' '}
-            <a href="https://cloud.google.com/trust-center/security" className="measuresLink">
-              https://cloud.google.com/trust-center/security
-            </a>
-          </p>
-        </div>
+            We take accountability seriously and have put processes in place to make sure data
+            protection and security responsibilities are clear, monitored, and auditable. All roles
+            and responsibilities related to data handling and security are formally defined, with
+            oversight from our Data Protection Officer (DPO) and Security Steering Committee. We
+            maintain detailed records of processing activities (RoPA) and conduct regular internal
+            audits to ensure we’re following our policies and meeting legal requirements.
+          </li>
+        </ul>
+        <h4 className="measuresSubtitle">Transfers to (Sub-)Processors</h4>
+        <p className="measuresParagraph">
+          We carefully vet all sub-processors before working with them, especially when they handle
+          personal data on our behalf. Each sub-processor must sign a Data Processing Agreement
+          (DPA) that clearly sets out their responsibilities, including support for the controller’s
+          obligations under GDPR. Sub-processors are required to implement equivalent technical and
+          organisational measures as we do &mdash; including encryption of data in transit and at
+          rest, access controls, security logging, and staff training. We also require that they
+          only process data under documented instructions and never for their own purposes. To
+          ensure transparency and compliance: Sub-processors must promptly assist us (and therefore
+          the controller) with requests from data subjects, such as access, rectification, or
+          deletion. They must notify us of any data breach without undue delay, allowing us to meet
+          the 72-hour GDPR notification window. They are required to undergo regular security audits
+          (ISO 27001 or SOC 2) and provide evidence on request.
+        </p>
+        <h4 className="measuresSubtitle">
+          Technical and organisational measures of sub processors
+        </h4>
+        <p className="measuresParagraph">
+          Supplier uses sub processors for rendering its services (see Annex IV). All sub processors
+          implement appropriate technical and organisational measures. Please find more information
+          under: <br />
+          <a
+            href="https://d1.awsstatic.com/legal/aws-gdpr/AWS_GDPR_DPA.pdf"
+            className="measuresLink"
+          >
+            Amazon Web Services: https://d1.awsstatic.com/legal/aws-gdpr/AWS_GDPR_DPA.pdf
+          </a>
+          ;{' '}
+          <a href="https://aws.amazon.com/de/security/" className="measuresLink">
+            https://aws.amazon.com/de/security/
+          </a>
+          <br />
+          Supabase, Inc.: Legal Name: Supabase, Inc.; Registered Address: 65 Chulia Street
+          #38-02/03, OCBC Centre, Singapore 049513; Contact for Privacy: privacy@supabase.com
+          <br />
+          <a
+            href="https://cloud.google.com/terms/data-processing-addendum"
+            className="measuresLink"
+          >
+            Google Cloud: https://cloud.google.com/terms/data-processing-addendum
+          </a>
+          ,{' '}
+          <a href="https://cloud.google.com/trust-center/security" className="measuresLink">
+            https://cloud.google.com/trust-center/security
+          </a>
+        </p>
       </div>
     </div>
-  </>
+  </div>
 );
 
 const TermsPart12 = () => (
-  <>
-    <div className="doc-section">
-      <h3 className="annexTitle">ANNEX IV: LIST OF SUB-PROCESSORS</h3>
-      <p className="introParagraph">
-        The controller has authorised the use of the following sub-processors:
-      </p>
-      <table className="dataMatrix">
-        <caption className="sr-only">
-          Authorised sub-processors, addresses, and processing purposes
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col" className="snoHeader moduleHeader ">
-              S.No.
-            </th>
-            <th scope="col" className="moduleHeader">
-              Third Party Provider
-            </th>
-            <th scope="col" className="dataCategoryHeader">
-              Address
-            </th>
-            <th scope="col" className="purposeHeader">
-              Purpose
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td className="snoCell moduleCell">1</td>
-            <td className="moduleCell">Amazon Web Services EMEA SARL</td>
-            <td className="dataCell">38 Avenue John F. Kennedy, L-1855 Luxembourg</td>
-            <td className="purposeCell">
-              AWS cloud server for Hosting
-              <br />
-              Provides the cloud infrastructure for hosting the Yosemite Crew platform and storing
-              application data, ensuring accessibility and scalability.
-            </td>
-          </tr>
-          <tr>
-            <td className="snoCell moduleCell">2</td>
-            <td className="moduleCell">Amazon Web Services EMEA SARL</td>
-            <td className="dataCell">38 Avenue John F. Kennedy, L-1855 Luxembourg</td>
-            <td className="purposeCell">
-              Amazon Simple Email service
-              <br />
-              Facilitates the sending of automated email notifications, alerts, and transactional
-              emails to users of the Yosemite Crew platform.
-            </td>
-          </tr>
-          <tr>
-            <td className="snoCel moduleCell">3</td>
-            <td className="moduleCell">Amazon Web Services EMEA SARL</td>
-            <td className="dataCell">38 Avenue John F. Kennedy, L-1855 Luxembourg</td>
-            <td className="purposeCell">
-              AWS S3 Bucket
-              <br />
-              Stores files and documents, such as images, uploaded documents, and other digital
-              assets, for the Yosemite Crew platform.
-            </td>
-          </tr>
-          <tr>
-            <td className="snoCell moduleCell">4</td>
-            <td className="moduleCell">Google Ireland Limited</td>
-            <td className="dataCell">Gordon House, Barrow Street Dublin 4, Ireland</td>
-            <td className="purposeCell">
-              Google Cloud Services for map APIs
-              <br />
-              Enables the integration of mapping functionalities within the Yosemite Crew platform,
-              such as displaying addresses, and location-based searches.
-            </td>
-          </tr>
-          <tr>
-            <td className="snoCell moduleCell">5</td>
-            <td className="moduleCell">Supabase, Inc.</td>
-            <td className="dataCell">65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513</td>
-            <td className="purposeCell">
-              Stores and manages the application&apos;s data, including user information, business
-              data, pet records, and other relevant information for the Yosemite Crew platform.
-              <br />
-              Privacy contact: privacy@supabase.com
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </>
+  <div className="doc-section">
+    <h3 className="annexTitle">ANNEX IV: LIST OF SUB-PROCESSORS</h3>
+    <p className="introParagraph">
+      The controller has authorised the use of the following sub-processors:
+    </p>
+    <table className="dataMatrix">
+      <caption className="sr-only">
+        Authorised sub-processors, addresses, and processing purposes
+      </caption>
+      <thead>
+        <tr>
+          <th scope="col" className="snoHeader moduleHeader ">
+            S.No.
+          </th>
+          <th scope="col" className="moduleHeader">
+            Third Party Provider
+          </th>
+          <th scope="col" className="dataCategoryHeader">
+            Address
+          </th>
+          <th scope="col" className="purposeHeader">
+            Purpose
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td className="snoCell moduleCell">1</td>
+          <td className="moduleCell">Amazon Web Services EMEA SARL</td>
+          <td className="dataCell">38 Avenue John F. Kennedy, L-1855 Luxembourg</td>
+          <td className="purposeCell">
+            AWS cloud server for Hosting
+            <br />
+            Provides the cloud infrastructure for hosting the Yosemite Crew platform and storing
+            application data, ensuring accessibility and scalability.
+          </td>
+        </tr>
+        <tr>
+          <td className="snoCell moduleCell">2</td>
+          <td className="moduleCell">Amazon Web Services EMEA SARL</td>
+          <td className="dataCell">38 Avenue John F. Kennedy, L-1855 Luxembourg</td>
+          <td className="purposeCell">
+            Amazon Simple Email service
+            <br />
+            Facilitates the sending of automated email notifications, alerts, and transactional
+            emails to users of the Yosemite Crew platform.
+          </td>
+        </tr>
+        <tr>
+          <td className="snoCel moduleCell">3</td>
+          <td className="moduleCell">Amazon Web Services EMEA SARL</td>
+          <td className="dataCell">38 Avenue John F. Kennedy, L-1855 Luxembourg</td>
+          <td className="purposeCell">
+            AWS S3 Bucket
+            <br />
+            Stores files and documents, such as images, uploaded documents, and other digital
+            assets, for the Yosemite Crew platform.
+          </td>
+        </tr>
+        <tr>
+          <td className="snoCell moduleCell">4</td>
+          <td className="moduleCell">Google Ireland Limited</td>
+          <td className="dataCell">Gordon House, Barrow Street Dublin 4, Ireland</td>
+          <td className="purposeCell">
+            Google Cloud Services for map APIs
+            <br />
+            Enables the integration of mapping functionalities within the Yosemite Crew platform,
+            such as displaying addresses, and location-based searches.
+          </td>
+        </tr>
+        <tr>
+          <td className="snoCell moduleCell">5</td>
+          <td className="moduleCell">Supabase, Inc.</td>
+          <td className="dataCell">65 Chulia Street #38-02/03, OCBC Centre, Singapore 049513</td>
+          <td className="purposeCell">
+            Stores and manages the application&apos;s data, including user information, business
+            data, pet records, and other relevant information for the Yosemite Crew platform.
+            <br />
+            Privacy contact: privacy@supabase.com
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 );
 
 const TermsPart13Sub5Sub6 = () => (
@@ -3216,9 +3195,7 @@ const TermsPart13Sub5Sub6 = () => (
 );
 
 const TermsPart13Sub5Sub7Sub8 = () => (
-  <>
-    <h5 className="clauseHeader">Clause 8 Data protection safeguards</h5>
-  </>
+  <h5 className="clauseHeader">Clause 8 Data protection safeguards</h5>
 );
 
 const TermsPart13Sub5Sub7Sub9Sub10 = () => (
@@ -3739,22 +3716,18 @@ const TermsPart13Sub5Sub7Sub9Sub12 = () => (
 );
 
 const TermsPart13Sub5Sub7Sub9 = () => (
-  <>
-    <div className="clauseParagraph">
-      <TermsPart13Sub5Sub7Sub9Sub10 />
-      <TermsPart13Sub5Sub7Sub9Sub11 />
-      <TermsPart13Sub5Sub7Sub9Sub12 />
-    </div>
-  </>
+  <div className="clauseParagraph">
+    <TermsPart13Sub5Sub7Sub9Sub10 />
+    <TermsPart13Sub5Sub7Sub9Sub11 />
+    <TermsPart13Sub5Sub7Sub9Sub12 />
+  </div>
 );
 
 const TermsPart13Sub5Sub7 = () => (
-  <>
-    <div className="clauseContainer">
-      <TermsPart13Sub5Sub7Sub8 />
-      <TermsPart13Sub5Sub7Sub9 />
-    </div>
-  </>
+  <div className="clauseContainer">
+    <TermsPart13Sub5Sub7Sub8 />
+    <TermsPart13Sub5Sub7Sub9 />
+  </div>
 );
 
 const TermsPart13Sub5Sub13 = () => (
@@ -4455,24 +4428,20 @@ const TermsPart13Sub5Sub16 = () => (
 );
 
 const TermsPart13Sub5 = () => (
-  <>
-    <div className="docSection">
-      <TermsPart13Sub5Sub6 />
-      <TermsPart13Sub5Sub7 />
-      <TermsPart13Sub5Sub13 />
-      <TermsPart13Sub5Sub14 />
-      <TermsPart13Sub5Sub15 />
-      <TermsPart13Sub5Sub16 />
-    </div>
-  </>
+  <div className="docSection">
+    <TermsPart13Sub5Sub6 />
+    <TermsPart13Sub5Sub7 />
+    <TermsPart13Sub5Sub13 />
+    <TermsPart13Sub5Sub14 />
+    <TermsPart13Sub5Sub15 />
+    <TermsPart13Sub5Sub16 />
+  </div>
 );
 
 const TermsPart13 = () => (
-  <>
-    <div className="doc-section">
-      <TermsPart13Sub5 />
-    </div>
-  </>
+  <div className="doc-section">
+    <TermsPart13Sub5 />
+  </div>
 );
 
 const TermsAndConditions = () => {
