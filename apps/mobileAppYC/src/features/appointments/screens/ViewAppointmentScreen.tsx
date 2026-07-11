@@ -58,7 +58,6 @@ import {
 } from '@/features/expenses';
 import {
   resolveCategoryLabel,
-  resolveSubcategoryLabel,
   resolveVisitTypeLabel,
 } from '@/features/expenses/utils/expenseLabels';
 import {
@@ -1383,10 +1382,6 @@ export const ViewAppointmentScreen: React.FC = () => {
                       key={expense.id}
                       title={expense.title}
                       categoryLabel={resolveCategoryLabel(expense.category)}
-                      subcategoryLabel={resolveSubcategoryLabel(
-                        expense.category,
-                        expense.subcategory,
-                      )}
                       visitTypeLabel={resolveVisitTypeLabel(expense.visitType)}
                       date={expense.date}
                       amount={expense.amount}

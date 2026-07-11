@@ -50,19 +50,22 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
       useSafeAreaView
       containerStyle={styles.safeArea}
       showBottomFade={false}>
-      {contentPaddingStyle => (
-        <ScrollView
-          contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
-          showsVerticalScrollIndicator={false}>
-          {currentStep != null && totalSteps ? (
+      {contentPaddingStyle => {
+        let topBlock: React.ReactNode = null;
+        if (currentStep != null && totalSteps) {
+          const segments = Array.from({length: totalSteps}, (_, index) => ({
+            key: `aer-progress-segment-${index}`,
+            active: index < currentStep,
+          }));
+          topBlock = (
             <View style={styles.progressRow}>
               <View style={styles.progressTrack}>
-                {Array.from({length: totalSteps}).map((_, index) => (
+                {segments.map(segment => (
                   <View
-                    key={`aer-progress-segment-${index}`}
+                    key={segment.key}
                     style={[
                       styles.progressSegment,
-                      index < currentStep
+                      segment.active
                         ? styles.progressSegmentActive
                         : styles.progressSegmentInactive,
                     ]}
@@ -73,22 +76,29 @@ export const AERLayout: React.FC<AERLayoutProps> = ({
                 {`${currentStep}/${totalSteps}`}
               </Text>
             </View>
-          ) : stepLabel ? (
-            <Text style={styles.stepLabel}>{stepLabel}</Text>
-          ) : null}
-          {children}
-          {bottomButton ? (
-            <View style={styles.buttonContainer}>
-              <PrimaryActionButton
-                title={bottomButton.title}
-                onPress={bottomButton.onPress}
-                disabled={bottomButton.disabled}
-                textStyle={bottomButton.textStyleOverride}
-              />
-            </View>
-          ) : null}
-        </ScrollView>
-      )}
+          );
+        } else if (stepLabel) {
+          topBlock = <Text style={styles.stepLabel}>{stepLabel}</Text>;
+        }
+        return (
+          <ScrollView
+            contentContainerStyle={[styles.scrollContent, contentPaddingStyle]}
+            showsVerticalScrollIndicator={false}>
+            {topBlock}
+            {children}
+            {bottomButton ? (
+              <View style={styles.buttonContainer}>
+                <PrimaryActionButton
+                  title={bottomButton.title}
+                  onPress={bottomButton.onPress}
+                  disabled={bottomButton.disabled}
+                  textStyle={bottomButton.textStyleOverride}
+                />
+              </View>
+            ) : null}
+          </ScrollView>
+        );
+      }}
     </LiquidGlassHeaderScreen>
   );
 };

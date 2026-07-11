@@ -444,11 +444,12 @@ export const TaskViewScreen: React.FC = () => {
     .filter(Boolean)
     .join('  ·  ');
 
-  const badgeStatus: 'completed' | 'cancelled' | 'pending' = isCompleted
-    ? 'completed'
-    : isCancelled
-      ? 'cancelled'
-      : 'pending';
+  let badgeStatus: 'completed' | 'cancelled' | 'pending' = 'pending';
+  if (isCompleted) {
+    badgeStatus = 'completed';
+  } else if (isCancelled) {
+    badgeStatus = 'cancelled';
+  }
   const badgeLabel = String(task.status ?? '').toUpperCase();
 
   return (

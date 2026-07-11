@@ -31,7 +31,6 @@ import type {AppDispatch, RootState} from '@/app/store';
 import type {ExpenseStackParamList} from '@/navigation/types';
 import {
   resolveCategoryLabel,
-  resolveSubcategoryLabel,
   resolveVisitTypeLabel,
 } from '@/features/expenses/utils/expenseLabels';
 import {useExpensePayment} from '@/features/expenses/hooks/useExpensePayment';
@@ -246,10 +245,6 @@ export const ExpensesMainScreen: React.FC = () => {
                       key={expense.id}
                       title={expense.title}
                       categoryLabel={resolveCategoryLabel(expense.category)}
-                      subcategoryLabel={resolveSubcategoryLabel(
-                        expense.category,
-                        expense.subcategory,
-                      )}
                       visitTypeLabel={resolveVisitTypeLabel(expense.visitType)}
                       date={expense.date}
                       amount={expense.amount}
@@ -283,10 +278,6 @@ export const ExpensesMainScreen: React.FC = () => {
                       key={expense.id}
                       title={expense.title}
                       categoryLabel={resolveCategoryLabel(expense.category)}
-                      subcategoryLabel={resolveSubcategoryLabel(
-                        expense.category,
-                        expense.subcategory,
-                      )}
                       visitTypeLabel={resolveVisitTypeLabel(expense.visitType)}
                       date={expense.date}
                       amount={expense.amount}
