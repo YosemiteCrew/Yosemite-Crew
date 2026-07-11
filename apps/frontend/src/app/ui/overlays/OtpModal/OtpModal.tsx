@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef, useEffect, useId, useLayoutEffect } from 'react';
+import React, { useState, useId } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -7,6 +7,8 @@ import { Icon } from '@iconify/react/dist/iconify.js';
 import { useAuthStore } from '@/app/stores/authStore';
 import { logger } from '@/app/lib/logger';
 import { provisionBackendUser } from '@/app/features/auth/services/userProvisioningService';
+import { useOtpCodeInput } from '@/app/hooks/useOtpCodeInput';
+import { useResendCountdown } from '@/app/hooks/useResendCountdown';
 import { Button } from '@/app/ui';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import Close from '@/app/ui/primitives/Icons/Close';
@@ -16,20 +18,119 @@ import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 
 import './OtpModal.css';
 
+const RESEND_COUNTDOWN_SECONDS = 150;
+
+type ShowErrorTost = (args: {
+  message: string;
+  errortext: string;
+  iconElement: React.ReactNode;
+  className: string;
+}) => void;
+
 type OtpModalProps = {
   email: string;
   password: string;
-  showErrorTost: (args: {
-    message: string;
-    errortext: string;
-    iconElement: React.ReactNode;
-    className: string;
-  }) => void;
+  showErrorTost: ShowErrorTost;
   showVerifyModal: boolean;
   setShowVerifyModal: React.Dispatch<React.SetStateAction<boolean>>;
   redirectPath?: string;
   isDeveloper?: boolean;
 };
+
+const dangerIcon = (
+  <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="var(--color-danger-600)" />
+);
+
+type OtpDigitFieldsProps = {
+  code: string[];
+  describedBy: string;
+  setOtpRef: (el: HTMLInputElement | null, idx: number) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>, idx: number) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => void;
+};
+
+const OtpDigitFields = ({
+  code,
+  describedBy,
+  setOtpRef,
+  onChange,
+  onKeyDown,
+}: OtpDigitFieldsProps) => (
+  <fieldset
+    className="verifyInput"
+    style={{ marginBottom: 24 }}
+    aria-label="Email verification code"
+    aria-describedby={describedBy}
+  >
+    {code.map((digit, idx) => (
+      <input
+        key={`${digit}-${idx}`}
+        ref={(el) => setOtpRef(el, idx)}
+        type="text"
+        maxLength={1}
+        value={digit}
+        inputMode="numeric"
+        pattern="[0-9]*"
+        autoComplete={idx === 0 ? 'one-time-code' : 'off'}
+        aria-label={`Digit ${idx + 1} of 6`}
+        onChange={(e) => onChange(e, idx)}
+        onKeyDown={(e) => onKeyDown(e, idx)}
+      />
+    ))}
+  </fieldset>
+);
+
+type VerifyModalFooterProps = {
+  isVerifying: boolean;
+  canVerify: boolean;
+  secondsLeft: number;
+  onVerify: () => void;
+  onResend: () => void;
+  onChangeEmail: () => void;
+};
+
+const VerifyModalFooter = ({
+  isVerifying,
+  canVerify,
+  secondsLeft,
+  onVerify,
+  onResend,
+  onChangeEmail,
+}: VerifyModalFooterProps) => (
+  <div className="VerifyModalBottomInner">
+    <div className="VerifyBtnDiv">
+      <Button
+        variant="primary"
+        text={isVerifying ? 'Verifying...' : 'Verify Code'}
+        type="button"
+        onClick={onVerify}
+        isDisabled={isVerifying || !canVerify}
+        className="w-full"
+      />
+      <output aria-live="polite">
+        {secondsLeft > 0
+          ? `${String(Math.floor(secondsLeft / 60)).padStart(2, '0')}:${String(
+              secondsLeft % 60
+            ).padStart(2, '0')} sec`
+          : 'Didn’t get the code? Request a new one below.'}
+      </output>
+    </div>
+    <div className="VerifyResent">
+      <Link
+        href=""
+        onClick={(e) => {
+          e.preventDefault();
+          onResend();
+        }}
+      >
+        <span>Request New Code</span>
+      </Link>
+      <Link href="#" onClick={onChangeEmail}>
+        . Change Email
+      </Link>
+    </div>
+  </div>
+);
 
 const OtpModal = ({
   email,
@@ -42,56 +143,20 @@ const OtpModal = ({
 }: Readonly<OtpModalProps>) => {
   const { confirmSignUp, resendCode, signIn, role } = useAuthStore();
   const router = useRouter();
-  const [code, setCode] = useState(() => new Array(6).fill(''));
-  const [activeInput, setActiveInput] = useState(0);
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [invalidOtp, setInvalidOtp] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const dialogTitleId = useId();
   const dialogDescriptionId = useId();
   const otpHintId = useId();
   const otpStatusId = useId();
-  // Stable ref callback to avoid React warning
-  const setOtpRef = (el: HTMLInputElement | null, idx: number) => {
-    otpRefs.current[idx] = el;
-  };
 
-  const [timer, setTimer] = useState(150); // 2.30 minutes in seconds
-  const [timerActive, setTimerActive] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-
-  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
-    const val = e.target.value.replaceAll(/\D/g, '');
-    if (!val) return;
-    const newCode = [...code];
-    newCode[idx] = val[0];
-    setCode(newCode);
-    if (invalidOtp) {
-      setInvalidOtp(false);
-    }
-    if (idx < 5 && val) {
-      otpRefs.current[idx + 1]?.focus();
-      setActiveInput(idx + 1);
-    }
-  };
-
-  const handleCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
-    if (e.key === 'Backspace') {
-      if (code[idx]) {
-        const newCode = [...code];
-        newCode[idx] = '';
-        setCode(newCode);
-      } else if (idx > 0) {
-        otpRefs.current[idx - 1]?.focus();
-        setActiveInput(idx - 1);
-      }
-    } else if (e.key === 'ArrowLeft' && idx > 0) {
-      otpRefs.current[idx - 1]?.focus();
-      setActiveInput(idx - 1);
-    } else if (e.key === 'ArrowRight' && idx < 5) {
-      otpRefs.current[idx + 1]?.focus();
-      setActiveInput(idx + 1);
-    }
-  };
+  const { code, handleCodeChange, handleCodeKeyDown, resetCode, setOtpRef } = useOtpCodeInput(() =>
+    setInvalidOtp(false)
+  );
+  const { restart: restartCountdown, secondsLeft } = useResendCountdown(
+    showVerifyModal,
+    RESEND_COUNTDOWN_SECONDS
+  );
 
   const buildSignInFallbackRoute = () => {
     const signinPath = isDeveloper ? '/developers/signin' : '/signin';
@@ -145,14 +210,7 @@ const OtpModal = ({
       showErrorTost({
         message: 'Please enter the full OTP',
         errortext: 'Error',
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="var(--color-danger-600)"
-          />
-        ),
+        iconElement: dangerIcon,
         className: 'errofoundbg',
       });
       return;
@@ -167,7 +225,7 @@ const OtpModal = ({
         return;
       }
       confirmed = true;
-      setCode(new Array(6).fill(''));
+      resetCode();
       setShowVerifyModal(false);
       await signIn(email, password);
       await completeSignedInRedirect();
@@ -204,55 +262,19 @@ const OtpModal = ({
           ),
           className: 'CongratsBg',
         });
-        setCode(new Array(6).fill('')); // Clear OTP fields on resend
-        setActiveInput(0); // Focus first input
-        setTimer(150);
-        setTimerActive(true);
+        resetCode(true); // Clear OTP fields and focus the first input
+        restartCountdown();
       }
     } catch (error: any) {
       globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
       showErrorTost({
         message: error.message || 'Error resending code.',
         errortext: 'Error',
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="var(--color-danger-600)"
-          />
-        ),
+        iconElement: dangerIcon,
         className: 'errofoundbg',
       });
     }
   };
-
-  useLayoutEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (showVerifyModal && timerActive && timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    if (timer === 0 && interval) {
-      clearInterval(interval);
-      setTimerActive(false);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [showVerifyModal, timerActive, timer]);
-
-  useLayoutEffect(() => {
-    if (showVerifyModal) {
-      setTimer(150);
-      setTimerActive(true);
-    }
-  }, [showVerifyModal]);
-
-  useEffect(() => {
-    otpRefs.current[activeInput]?.focus();
-  }, [activeInput]);
 
   if (!showVerifyModal) return null;
 
@@ -291,28 +313,13 @@ const OtpModal = ({
             </p>
           </div>
           <div className="verifyInputDiv">
-            <fieldset
-              className="verifyInput"
-              style={{ marginBottom: 24 }}
-              aria-label="Email verification code"
-              aria-describedby={`${otpHintId} ${invalidOtp ? otpStatusId : ''}`.trim()}
-            >
-              {code.map((digit, idx) => (
-                <input
-                  key={`${digit}-${idx}`}
-                  ref={(el) => setOtpRef(el, idx)}
-                  type="text"
-                  maxLength={1}
-                  value={digit}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  autoComplete={idx === 0 ? 'one-time-code' : 'off'}
-                  aria-label={`Digit ${idx + 1} of 6`}
-                  onChange={(e) => handleCodeChange(e, idx)}
-                  onKeyDown={(e) => handleCodeKeyDown(e, idx)}
-                />
-              ))}
-            </fieldset>
+            <OtpDigitFields
+              code={code}
+              describedBy={`${otpHintId} ${invalidOtp ? otpStatusId : ''}`.trim()}
+              setOtpRef={setOtpRef}
+              onChange={handleCodeChange}
+              onKeyDown={handleCodeKeyDown}
+            />
             <p id={otpHintId} className="text-caption-1 text-text-secondary">
               Enter the 6-digit code from your email.
             </p>
@@ -325,37 +332,14 @@ const OtpModal = ({
             )}{' '}
           </div>
         </div>
-        <div className="VerifyModalBottomInner">
-          <div className="VerifyBtnDiv">
-            <Button
-              variant="primary"
-              text={isVerifying ? 'Verifying...' : 'Verify Code'}
-              type="button"
-              onClick={handleVerify}
-              isDisabled={isVerifying || code.includes('')}
-              className="w-full"
-            />
-            <output aria-live="polite">
-              {timer > 0
-                ? `${String(Math.floor(timer / 60)).padStart(2, '0')}:${String(timer % 60).padStart(2, '0')} sec`
-                : 'Didn’t get the code? Request a new one below.'}
-            </output>
-          </div>
-          <div className="VerifyResent">
-            <Link
-              href=""
-              onClick={(e) => {
-                e.preventDefault();
-                handleResend();
-              }}
-            >
-              <span>Request New Code</span>
-            </Link>
-            <Link href="#" onClick={() => setShowVerifyModal(false)}>
-              . Change Email
-            </Link>
-          </div>
-        </div>
+        <VerifyModalFooter
+          isVerifying={isVerifying}
+          canVerify={!code.includes('')}
+          secondsLeft={secondsLeft}
+          onVerify={handleVerify}
+          onResend={handleResend}
+          onChangeEmail={() => setShowVerifyModal(false)}
+        />
       </div>
     </ModalBase>
   );

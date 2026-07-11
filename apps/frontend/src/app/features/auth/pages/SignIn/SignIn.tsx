@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
 import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
@@ -26,7 +26,7 @@ type SignInProps = {
   isDeveloper?: boolean;
 };
 
-const SignIn = ({
+const SignInForm = ({
   redirectPath,
   signupHref = '/signup',
   allowNext = true,
@@ -217,5 +217,13 @@ const SignIn = ({
     </section>
   );
 };
+
+// useSearchParams needs a Suspense boundary; owning it here keeps every
+// consumer of SignIn safe regardless of how the route wraps it.
+const SignIn = (props: Readonly<SignInProps>) => (
+  <Suspense fallback={null}>
+    <SignInForm {...props} />
+  </Suspense>
+);
 
 export default SignIn;
