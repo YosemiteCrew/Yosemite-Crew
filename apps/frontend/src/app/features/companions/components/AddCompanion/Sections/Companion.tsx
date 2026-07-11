@@ -106,7 +106,7 @@ type CompanionProps = {
   onCompanionCreated?: (companion: StoredCompanion) => void;
 };
 
-const Companion = ({
+const useCompanionContent = ({
   setActiveLabel,
   formData,
   setFormData,
@@ -572,5 +572,7 @@ const Companion = ({
     </div>
   );
 };
+
+const Companion = (props: CompanionProps) => useCompanionContent(props);
 
 export default Companion;

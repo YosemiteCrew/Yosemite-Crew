@@ -393,7 +393,7 @@ const isTaskStatusLocked = (status?: string | null): boolean =>
 const getRequestedButtonLabel = (status: string): string =>
   status === 'CHECKED_IN' ? 'Start' : 'Open';
 
-const StatusPillSelect = ({
+export const StatusPillSelect = ({
   status,
   options,
   onChange,
@@ -492,7 +492,7 @@ const StatusPillSelect = ({
   );
 };
 
-const CategoryPill = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
+export const CategoryPill = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
   <span
     className="inline-flex h-9 w-fit max-w-full items-center gap-2 rounded-2xl border px-4 text-body-4 text-neutral-900"
     style={{
@@ -523,7 +523,7 @@ const TABLE_DATA_STYLE = {
   lineHeight: '120%',
 } satisfies React.CSSProperties;
 
-const TableHeading = ({ children }: { children?: React.ReactNode }) => (
+export const TableHeading = ({ children }: { children?: React.ReactNode }) => (
   <div style={TABLE_HEADING_STYLE}>{children}</div>
 );
 
@@ -538,7 +538,7 @@ const TASK_GRID =
 const BILLING_GRID =
   'grid-cols-[36px_minmax(170px,0.9fr)_minmax(145px,0.75fr)_minmax(145px,0.85fr)_116px_120px_132px_112px]';
 
-const LinkedName = ({ children }: { children: React.ReactNode }) => (
+export const LinkedName = ({ children }: { children: React.ReactNode }) => (
   <span className="font-medium text-text-brand">{children}</span>
 );
 
@@ -549,13 +549,13 @@ const MONEY_CLASS_NAME_BY_TONE: Record<MoneyTone, string> = {
   warning: 'text-pill-warning-text',
 };
 
-const MoneyText = ({ value, tone }: { value: string; tone: MoneyTone }) => (
+export const MoneyText = ({ value, tone }: { value: string; tone: MoneyTone }) => (
   <span className={`font-bold ${MONEY_CLASS_NAME_BY_TONE[tone]}`}>{value}</span>
 );
 
-const LoadingIcon = () => <LuLoader className="animate-spin" aria-hidden="true" />;
+export const LoadingIcon = () => <LuLoader className="animate-spin" aria-hidden="true" />;
 
-const TimelineMarker = ({ active }: { active: boolean }) => {
+export const TimelineMarker = ({ active }: { active: boolean }) => {
   const ring = active ? 'border-text-brand' : 'border-neutral-300';
   const dot = active ? 'bg-text-brand' : 'bg-neutral-300';
   return (
@@ -744,7 +744,7 @@ const getLabResults = (entry: HistoryEntry): DetailPair[] => {
   }));
 };
 
-const StructuredResultsPanel = ({
+export const StructuredResultsPanel = ({
   entry,
   results,
 }: {
@@ -781,7 +781,7 @@ type RowActionProps = {
   onToggle: (id: string) => void;
 };
 
-const RowActions = ({ entry, expanded, canExpand, onOpen, onToggle }: RowActionProps) => (
+export const RowActions = ({ entry, expanded, canExpand, onOpen, onToggle }: RowActionProps) => (
   <div className="flex items-center justify-end gap-2">
     {canExpand ? (
       <CircleIconButton
@@ -800,7 +800,7 @@ const RowActions = ({ entry, expanded, canExpand, onOpen, onToggle }: RowActionP
   </div>
 );
 
-const RequestedAppointmentActions = ({
+export const RequestedAppointmentActions = ({
   entry,
   canEdit,
   onStatusChange,
@@ -844,7 +844,7 @@ const RequestedAppointmentActions = ({
   );
 };
 
-const AppointmentRows = ({
+export const AppointmentRows = ({
   entries,
   statusOverrides,
   onStatusChange,
@@ -921,7 +921,7 @@ const AppointmentRows = ({
   </div>
 );
 
-const DiagnosticsRows = ({
+export const DiagnosticsRows = ({
   entries,
   statusOverrides,
   expandedId,
@@ -1012,7 +1012,7 @@ const DiagnosticsRows = ({
   </div>
 );
 
-const MedicalRecordRows = ({
+export const MedicalRecordRows = ({
   entries,
   expandedId,
   onToggle,
@@ -1101,7 +1101,7 @@ const MedicalRecordRows = ({
   </div>
 );
 
-const TaskRows = ({
+export const TaskRows = ({
   entries,
   statusOverrides,
   onStatusChange,
@@ -1178,7 +1178,7 @@ const isPaidInvoice = (entry: HistoryEntry): boolean => {
   return ['PAID', 'PAID_FULL', 'COMPLETED'].includes(status);
 };
 
-const BillingRows = ({
+export const BillingRows = ({
   entries,
   statusOverrides,
   onOpen,
@@ -1272,7 +1272,7 @@ const getAuditActorDisplay = (entry: AuditTrail): string => {
   return actorName ? `${actorName} • ${actorTypeLabel}` : actorTypeLabel;
 };
 
-const AuditTimeline = ({
+export const AuditTimeline = ({
   loading,
   error,
   entries,
@@ -1325,7 +1325,7 @@ const AuditTimeline = ({
   );
 };
 
-const EmptyOrRows = ({
+export const EmptyOrRows = ({
   activeFilter,
   entries,
   statusOverrides,
@@ -1439,7 +1439,7 @@ const historyLoadReducer = (
   return { ...state, ...action.patch };
 };
 
-const CompanionHistoryTimeline = ({
+const useCompanionHistoryTimelineView = ({
   companionId,
   activeAppointmentId,
   showDocumentUpload = false,
@@ -2051,5 +2051,8 @@ const CompanionHistoryTimeline = ({
     </PermissionGate>
   );
 };
+
+const CompanionHistoryTimeline = (props: CompanionHistoryTimelineProps) =>
+  useCompanionHistoryTimelineView(props);
 
 export default CompanionHistoryTimeline;

@@ -159,7 +159,7 @@ const addCompanionModalReducer = (
   };
 };
 
-const AddCompanionCentralModal = ({
+const useAddCompanionCentralModalContent = ({
   showModal,
   setShowModal,
   viewCompanion,
@@ -938,5 +938,8 @@ const AddCompanionCentralModal = ({
     </>
   );
 };
+
+const AddCompanionCentralModal = (props: AddCompanionCentralModalProps) =>
+  useAddCompanionCentralModalContent(props);
 
 export default AddCompanionCentralModal;
