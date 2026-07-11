@@ -435,6 +435,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
   }) => {
     try {
       if (!role) {
+        /* v8 ignore next -- PermissionsEditor (and its save handler) only render when `role` is truthy */
         throw new Error('ROle undeifned');
       }
       const member: Team = {

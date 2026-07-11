@@ -504,4 +504,247 @@ describe('TeamInfo', () => {
     expect(consoleSpy).toHaveBeenCalledWith('No availability selected');
     consoleSpy.mockRestore();
   });
+
+  it('shows an error notification when saving availability fails', async () => {
+    (upsertTeamAvailability as jest.Mock).mockRejectedValue(new Error('availability failed'));
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save availability' }));
+    });
+
+    await waitFor(() => {
+      expect(notifyMock).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to update availability' })
+      );
+    });
+  });
+
+  it('does not fetch the profile or open the modal when showModal is false', () => {
+    render(
+      <TeamInfo showModal={false} setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam />
+    );
+
+    expect(getProfileForUserForPrimaryOrg).not.toHaveBeenCalled();
+    expect(screen.queryByText('View team')).not.toBeInTheDocument();
+  });
+
+  it('sets profile to null and skips mutations when the profile fetch rejects', async () => {
+    (getProfileForUserForPrimaryOrg as jest.Mock).mockRejectedValue(new Error('fetch failed'));
+    editableSavePayloads['Address details'] = { addressLine: 'x' };
+    editableSavePayloads['Personal details'] = { gender: 'MALE' };
+    editableSavePayloads['Professional details'] = { linkedin: 'y' };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await waitFor(() => {
+      expect(getProfileForUserForPrimaryOrg).toHaveBeenCalled();
+    });
+    // Flush the rejected promise so setProfile(null) settles inside act().
+    await act(async () => {});
+
+    fireEvent.click(screen.getByRole('button', { name: 'save-Address details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'save-Personal details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'save-Professional details' }));
+
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+  });
+
+  it('closes the delete modal when the delete is cancelled', async () => {
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    fireEvent.click(await screen.findByTestId('IoTrash'));
+    expect(screen.getByText('Delete team member')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByText('Delete team member')).not.toBeInTheDocument();
+  });
+
+  it('saves address details for the current member', async () => {
+    editableSavePayloads['Address details'] = {
+      addressLine: 'New Street 5',
+      state: 'CA',
+      city: 'Los Angeles',
+      postalCode: '90001',
+    };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const addressBtn = screen.getByRole('button', { name: 'save-Address details' });
+    await act(async () => {
+      fireEvent.click(addressBtn);
+    });
+
+    expect(upsertUserProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        _id: 'profile-1',
+        personalDetails: expect.objectContaining({
+          address: expect.objectContaining({
+            addressLine: 'New Street 5',
+            state: 'CA',
+            city: 'Los Angeles',
+            postalCode: '90001',
+          }),
+        }),
+      })
+    );
+    expect(notifyMock).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Address updated' })
+    );
+  });
+
+  it('shows an error notification when saving address fails', async () => {
+    editableSavePayloads['Address details'] = { addressLine: 'New Street 5' };
+    (upsertUserProfile as jest.Mock).mockRejectedValue(new Error('address failed'));
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const addressBtn = screen.getByRole('button', { name: 'save-Address details' });
+    await act(async () => {
+      fireEvent.click(addressBtn);
+    });
+
+    await waitFor(() => {
+      expect(notifyMock).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to update address' })
+      );
+    });
+  });
+
+  it('saves personal details for the current member', async () => {
+    editableSavePayloads['Personal details'] = {
+      gender: 'FEMALE',
+      dateOfBirth: '1985-05-05',
+      phoneNumber: '999888777',
+      country: 'United States',
+    };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const personalBtn = screen.getByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    expect(upsertUserProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        _id: 'profile-1',
+        personalDetails: expect.objectContaining({
+          gender: 'FEMALE',
+          dateOfBirth: '1985-05-05',
+          phoneNumber: '999888777',
+          address: expect.objectContaining({ country: 'United States' }),
+        }),
+      })
+    );
+    expect(notifyMock).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Personal details updated' })
+    );
+  });
+
+  it('shows an error notification when saving personal details fails', async () => {
+    editableSavePayloads['Personal details'] = { gender: 'FEMALE' };
+    (upsertUserProfile as jest.Mock).mockRejectedValue(new Error('personal failed'));
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const personalBtn = screen.getByRole('button', { name: 'save-Personal details' });
+    await act(async () => {
+      fireEvent.click(personalBtn);
+    });
+
+    await waitFor(() => {
+      expect(notifyMock).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to update personal details' })
+      );
+    });
+  });
+
+  it('saves professional details for the current member', async () => {
+    editableSavePayloads['Professional details'] = {
+      linkedin: 'https://example.com/pro',
+      licenseNumber: 'LIC-99',
+      experience: '10',
+      specialisation: 'Cardiology',
+      qulaification: 'MD',
+      description: 'Experienced vet',
+    };
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const professionalBtn = screen.getByRole('button', { name: 'save-Professional details' });
+    await act(async () => {
+      fireEvent.click(professionalBtn);
+    });
+
+    expect(upsertUserProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        _id: 'profile-1',
+        professionalDetails: expect.objectContaining({
+          linkedin: 'https://example.com/pro',
+          medicalLicenseNumber: 'LIC-99',
+          yearsOfExperience: '10',
+          specialization: 'Cardiology',
+          qualification: 'MD',
+          biography: 'Experienced vet',
+        }),
+      })
+    );
+    expect(notifyMock).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Professional details updated' })
+    );
+  });
+
+  it('shows an error notification when saving professional details fails', async () => {
+    editableSavePayloads['Professional details'] = { linkedin: 'https://example.com/pro' };
+    (upsertUserProfile as jest.Mock).mockRejectedValue(new Error('professional failed'));
+
+    render(
+      <TeamInfo showModal setShowModal={setShowModal} activeTeam={activeTeam} canEditTeam={true} />
+    );
+
+    await screen.findByText(/FULL_TIME/);
+    const professionalBtn = screen.getByRole('button', { name: 'save-Professional details' });
+    await act(async () => {
+      fireEvent.click(professionalBtn);
+    });
+
+    await waitFor(() => {
+      expect(notifyMock).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to update professional details' })
+      );
+    });
+  });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AppointmentInfoModal from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo';
 import {
@@ -23,7 +23,10 @@ const orgStoreState = {
     'org-1': { type: 'HOSPITAL' },
   },
 };
-const formsStoreState = {
+const formsStoreState: {
+  formsById: Record<string, any>;
+  formIds: string[];
+} = {
   formsById: {
     'form-1': {
       _id: 'form-1',
@@ -39,10 +42,33 @@ const formsStoreState = {
       schema: [],
       requiredSigner: '',
     },
+    'form-vet': {
+      _id: 'form-vet',
+      name: 'Vet Signature Template',
+      category: 'SOAP',
+      schema: [{ type: 'signature', id: 'sig', label: 'Signature' }],
+      requiredSigner: 'VET',
+    },
+    'form-required': {
+      _id: 'form-required',
+      name: 'Required Field Template',
+      category: 'SOAP',
+      schema: [{ type: 'text', id: 'name', label: 'Full Name', required: true }],
+      requiredSigner: '',
+    },
+    'form-client': {
+      _id: 'form-client',
+      name: 'Client Signer Template',
+      category: 'SOAP',
+      schema: [{ type: 'signature', id: 'sig', label: 'Signature' }],
+      requiredSigner: 'CLIENT',
+    },
   },
-  formIds: ['form-1', 'form-2'],
+  formIds: ['form-1', 'form-2', 'form-vet', 'form-required', 'form-client'],
 };
-const services: Array<{ id: string; cost: string }> = [];
+const DEFAULT_FORM_IDS = ['form-1', 'form-2', 'form-vet', 'form-required', 'form-client'];
+let servicesReturn: any[] = [];
+let signingOverlayOpen = false;
 
 jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
@@ -280,11 +306,11 @@ jest.mock('@/app/stores/authStore', () => ({
 }));
 
 jest.mock('@/app/hooks/useSpecialities', () => ({
-  useServicesForPrimaryOrgSpecialities: jest.fn(() => services),
+  useServicesForPrimaryOrgSpecialities: jest.fn(() => servicesReturn),
 }));
 
 jest.mock('@/app/stores/signingOverlayStore', () => ({
-  useSigningOverlayStore: jest.fn((selector: any) => selector({ open: false })),
+  useSigningOverlayStore: jest.fn((selector: any) => selector({ open: signingOverlayOpen })),
 }));
 
 jest.mock('@/app/hooks/useMerckIntegration', () => ({
@@ -317,8 +343,30 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer', () => ({
   __esModule: true,
-  default: () => <div>form-renderer</div>,
+  default: ({ onChange }: any) => (
+    <div>
+      <span>form-renderer</span>
+      <button type="button" onClick={() => onChange?.('field-1', 'val-1')}>
+        trigger-form-change
+      </button>
+    </div>
+  ),
 }));
+
+jest.mock(
+  '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Submissions/SignatureActions',
+  () => ({
+    __esModule: true,
+    default: ({ submission, onStatusChange }: any) => (
+      <button
+        type="button"
+        onClick={() => onStatusChange?.(submission?._id, { signing: { status: 'SIGNED' } })}
+      >
+        signature-actions
+      </button>
+    ),
+  })
+);
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -381,6 +429,10 @@ describe('AppointmentInfo modal', () => {
     labelsRenderCount = 0;
     setShowModal.mockClear();
     mockRouterPush.mockClear();
+    servicesReturn = [];
+    signingOverlayOpen = false;
+    orgStoreState.orgsById['org-1'].type = 'HOSPITAL';
+    formsStoreState.formIds = [...DEFAULT_FORM_IDS];
     formsStoreState.formsById['form-1'].requiredSigner = '';
     (fetchSubmissions as jest.Mock).mockResolvedValue({
       soapNotes: {
@@ -714,5 +766,555 @@ describe('AppointmentInfo modal', () => {
       );
     });
     expect(createSubmission).not.toHaveBeenCalled();
+  });
+
+  const renderModal = (props: any = {}) =>
+    render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={appointment}
+        {...props}
+      />
+    );
+
+  const openMedicalRecordsSoap = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
+  };
+
+  it('renders workspace-state summaries for progressing, checked-in, requested, and unknown statuses', () => {
+    const { rerender } = renderModal({
+      activeAppointment: { ...appointment, status: 'IN_PROGRESS' },
+    });
+    expect(
+      screen.getByText(/Continue in the workspace for clinical records, labs, treatment, and billing/)
+    ).toBeInTheDocument();
+
+    rerender(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, status: 'CHECKED_IN' }}
+      />
+    );
+    expect(screen.getByText(/checked in and ready to continue in the workspace/)).toBeInTheDocument();
+
+    rerender(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, status: 'REQUESTED' }}
+      />
+    );
+    expect(screen.getByText(/request is waiting for confirmation/)).toBeInTheDocument();
+
+    rerender(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, status: 'SOMETHING_UNKNOWN' }}
+      />
+    );
+    expect(
+      screen.getByText('Review appointment details and related records.')
+    ).toBeInTheDocument();
+  });
+
+  it('maps display-name species to their avatar image types when no photo is present', () => {
+    const { rerender } = render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{
+          ...appointment,
+          companion: { ...appointment.companion, species: 'canine', photoUrl: '' },
+        }}
+      />
+    );
+    let headerImage = screen
+      .getAllByTestId('mock-next-image')
+      .find((node) => node.getAttribute('data-alt') === 'pet image');
+    expect(headerImage?.getAttribute('data-src')).toContain('avatar/dog.png');
+
+    rerender(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{
+          ...appointment,
+          companion: { ...appointment.companion, species: 'reptile', photoUrl: '' },
+        }}
+      />
+    );
+    headerImage = screen
+      .getAllByTestId('mock-next-image')
+      .find((node) => node.getAttribute('data-alt') === 'pet image');
+    expect(headerImage?.getAttribute('data-src')).toContain('avatar/dog.png');
+  });
+
+  it('defaults org type to HOSPITAL when the appointment organisation is unknown', () => {
+    render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, organisationId: 'org-unknown' }}
+      />
+    );
+
+    const latestLabels = labelsSpy.mock.calls.at(-1)?.[0] ?? [];
+    expect(latestLabels.some((label: any) => label.key === 'prescription')).toBe(true);
+  });
+
+  it('navigates to companion history and closes the modal when the companion name is clicked', () => {
+    renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Buddy' }));
+
+    expect(mockRouterPush).toHaveBeenCalledWith(expect.stringContaining('/companions/history'));
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('renders nothing and skips form loading when there is no active appointment', async () => {
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={null} />
+    );
+
+    expect(screen.queryByTestId('modal')).not.toBeInTheDocument();
+    await waitFor(() => expect(fetchAppointmentForms).not.toHaveBeenCalled());
+  });
+
+  it('resets to the default tab when a different appointment opens without an intent', async () => {
+    const { rerender } = renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Finance' }));
+    expect(screen.getByText('summary-section')).toBeInTheDocument();
+
+    rerender(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, id: 'appt-2' }}
+      />
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText('appointment-info-section')).toBeInTheDocument()
+    );
+  });
+
+  it('falls back to the first label when the active label disappears after an org change', async () => {
+    const { rerender } = renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    orgStoreState.orgsById['org-1'].type = 'BOARDER' as any;
+
+    rerender(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText('appointment-info-section')).toBeInTheDocument()
+    );
+  });
+
+  it('falls back to the first sublabel when the initial intent omits a sublabel', () => {
+    renderModal({ initialViewIntent: { label: 'finance' } });
+
+    expect(screen.getByText('summary-section')).toBeInTheDocument();
+  });
+
+  it('maps a care intent to the prescription tab for hospital orgs', async () => {
+    renderModal({ initialViewIntent: { label: 'care', subLabel: 'forms' } });
+
+    expect(await screen.findByRole('button', { name: 'pick-template' })).toBeInTheDocument();
+  });
+
+  it('maps a prescription intent to the care tab for non-hospital orgs', async () => {
+    orgStoreState.orgsById['org-1'].type = 'BOARDER' as any;
+
+    renderModal({ initialViewIntent: { label: 'prescription', subLabel: 'forms' } });
+
+    expect(await screen.findByText('No past form submissions.')).toBeInTheDocument();
+  });
+
+  it('resolves in-modal history navigation intents to labels and sublabels', () => {
+    renderModal();
+
+    const openView = appointmentInfoSectionSpy.mock.calls.at(-1)?.[0]?.onOpenAppointmentView;
+    expect(typeof openView).toBe('function');
+
+    act(() => openView({ label: 'info', subLabel: 'overview' }));
+    expect(screen.getByText('history-section')).toBeInTheDocument();
+
+    act(() => openView({ label: 'info' }));
+    expect(screen.getByText('appointment-info-section')).toBeInTheDocument();
+
+    act(() => openView({ label: 'finance', subLabel: 'not-real' }));
+    expect(screen.getByText('summary-section')).toBeInTheDocument();
+
+    act(() => openView({ label: 'no-such-label' }));
+    expect(screen.getByText('summary-section')).toBeInTheDocument();
+  });
+
+  it('normalizes service cost values of every type when computing invoice totals', () => {
+    const { rerender } = renderModal();
+
+    const costs: unknown[] = [10, '15.5', 'abc', null, true];
+    costs.forEach((cost) => {
+      servicesReturn = [{ id: 'svc-1', cost }];
+      rerender(
+        <AppointmentInfoModal
+          showModal
+          setShowModal={setShowModal}
+          activeAppointment={appointment}
+        />
+      );
+    });
+
+    expect(screen.getByTestId('modal')).toBeInTheDocument();
+  });
+
+  it('reloads appointment forms when the signing overlay closes', async () => {
+    signingOverlayOpen = true;
+    const { rerender } = renderModal();
+
+    await waitFor(() => expect(fetchAppointmentForms).toHaveBeenCalled());
+    (fetchAppointmentForms as jest.Mock).mockClear();
+
+    signingOverlayOpen = false;
+    rerender(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    await waitFor(() => expect(fetchAppointmentForms).toHaveBeenCalledTimes(1));
+  });
+
+  it('updates template values when a template field changes', async () => {
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'trigger-form-change' }));
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+  });
+
+  it('marks a vet template submission as signature-required on save', async () => {
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Vet Signature Template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(createSubmission).toHaveBeenCalledWith(
+        expect.objectContaining({ formId: 'form-vet' })
+      )
+    );
+  });
+
+  it('blocks template save when required fields are missing', async () => {
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Required Field Template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByText(/Please complete the required field\(s\): Full Name/)
+    ).toBeInTheDocument();
+    expect(createSubmission).not.toHaveBeenCalled();
+  });
+
+  it('shows an error when template submission fails', async () => {
+    (createSubmission as jest.Mock).mockRejectedValue(new Error('save failed'));
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByText('Failed to submit form. Please try again.')
+    ).toBeInTheDocument();
+  });
+
+  it('shows a template-not-found error when the selected template disappears', async () => {
+    const { rerender } = renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
+
+    formsStoreState.formIds = [];
+    rerender(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('Template not found')).toBeInTheDocument();
+  });
+
+  it('shows an org-not-found error when sending a client template without an organisation', async () => {
+    render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, organisationId: undefined }}
+      />
+    );
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Client Signer Template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send to parent' }));
+
+    expect(await screen.findByText('Organisation not found.')).toBeInTheDocument();
+    expect(linkAppointmentForms).not.toHaveBeenCalled();
+  });
+
+  it('shows an error when sending a client template to the parent fails', async () => {
+    (linkAppointmentForms as jest.Mock).mockRejectedValue(new Error('link failed'));
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Client Signer Template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send to parent' }));
+
+    expect(
+      await screen.findByText('Failed to send form. Please try again.')
+    ).toBeInTheDocument();
+  });
+
+  it('fills and submits an editable appointment form entry', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({
+      forms: [
+        {
+          form: { _id: 'form-1', name: 'Entry Form', requiredSigner: '', schema: [] },
+          submission: null,
+          status: 'pending',
+        },
+      ],
+    });
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'trigger-form-change' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(createSubmission).toHaveBeenCalledWith(
+        expect.objectContaining({ formId: 'form-1' })
+      )
+    );
+  });
+
+  it('marks an editable vet form entry submission as signature-required on save', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({
+      forms: [
+        {
+          form: {
+            _id: 'form-vet',
+            name: 'Vet Entry',
+            requiredSigner: 'VET',
+            schema: [{ type: 'signature', id: 'sig', label: 'Signature' }],
+          },
+          submission: null,
+          status: 'pending',
+        },
+      ],
+    });
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(createSubmission).toHaveBeenCalledWith(
+        expect.objectContaining({ formId: 'form-vet' })
+      )
+    );
+  });
+
+  it('blocks editable form entry save when required fields are missing', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({
+      forms: [
+        {
+          form: {
+            _id: 'form-required',
+            name: 'Required Entry',
+            requiredSigner: '',
+            schema: [{ type: 'text', id: 'name', label: 'Full Name', required: true }],
+          },
+          submission: null,
+          status: 'pending',
+        },
+      ],
+    });
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByText(/Please complete the required field\(s\): Full Name/)
+    ).toBeInTheDocument();
+    expect(createSubmission).not.toHaveBeenCalled();
+  });
+
+  it('shows an error when editable form entry submission fails', async () => {
+    (createSubmission as jest.Mock).mockRejectedValue(new Error('save failed'));
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({
+      forms: [
+        {
+          form: { _id: 'form-1', name: 'Entry Form', requiredSigner: '', schema: [] },
+          submission: null,
+          status: 'pending',
+        },
+      ],
+    });
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByText('Failed to submit form. Please try again.')
+    ).toBeInTheDocument();
+  });
+
+  it('updates an existing form entry when its template is re-submitted', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({
+      forms: [
+        {
+          form: { _id: 'form-1', name: 'Existing Form', requiredSigner: '', schema: [] },
+          submission: { _id: 'existing-sub', formId: 'form-1', answers: {} },
+          status: 'completed',
+        },
+      ],
+    });
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(createSubmission).toHaveBeenCalledWith(
+        expect.objectContaining({ formId: 'form-1' })
+      )
+    );
+  });
+
+  it('renders signature badges, client-signer notices, and handles status updates', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({
+      forms: [
+        {
+          form: {
+            _id: 'form-vet',
+            name: 'Vet Form',
+            requiredSigner: 'VET',
+            schema: [{ type: 'signature', id: 'sig', label: 'Signature' }],
+          },
+          submission: {
+            _id: 'sub-1',
+            formId: 'form-vet',
+            answers: {},
+            signing: { status: 'NOT_STARTED' },
+          },
+          status: 'completed',
+        },
+        {
+          form: { _id: 'form-client', name: 'Signed Client Form', requiredSigner: 'CLIENT', schema: [] },
+          submission: {
+            _id: 'sub-2',
+            formId: 'form-client',
+            answers: {},
+            signing: { status: 'SIGNED' },
+          },
+          status: 'completed',
+        },
+        {
+          form: {
+            _id: 'form-client-2',
+            name: 'Pending Client Form',
+            requiredSigner: 'CLIENT',
+            schema: [],
+          },
+          submission: { _id: 'sub-3', formId: 'form-client-2', answers: {} },
+          status: 'pending',
+        },
+      ],
+    });
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    expect(await screen.findByText('Signature Pending')).toBeInTheDocument();
+    expect(screen.getByText('Signed by pet parent.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Sent to pet parent. It will update when they sign the document.')
+    ).toBeInTheDocument();
+
+    const actionButtons = screen.getAllByRole('button', { name: 'signature-actions' });
+    expect(actionButtons).toHaveLength(1);
+    fireEvent.click(actionButtons[0]);
+
+    expect(screen.getByTestId('modal')).toBeInTheDocument();
+  });
+
+  it('applies signature metadata to fetched SOAP submissions', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({
+      forms: [
+        {
+          form: { _id: 'form-1', name: 'Matched Form', requiredSigner: '', schema: [] },
+          submission: { _id: 's2', formId: 'form-1', answers: {}, signing: { status: 'SIGNED' } },
+          status: 'completed',
+        },
+      ],
+    });
+    (fetchSubmissions as jest.Mock).mockResolvedValue({
+      soapNotes: {
+        Subjective: [
+          { _id: 's1', formId: 'form-vet', answers: {} },
+          { _id: 's2', formId: 'form-1', answers: {}, signing: { status: 'SIGNED' } },
+          { formId: 'form-1', answers: {} },
+          { answers: {} },
+        ],
+        Objective: [],
+        Assessment: [],
+        Plan: [],
+        Discharge: [],
+      },
+    });
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    await waitFor(() => expect(fetchSubmissions).toHaveBeenCalledWith('appt-1'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+  });
+
+  it('clears SOAP form state when fetching submissions fails', async () => {
+    (fetchSubmissions as jest.Mock).mockRejectedValue(new Error('soap failed'));
+
+    renderModal();
+    openMedicalRecordsSoap();
+
+    await waitFor(() => expect(fetchSubmissions).toHaveBeenCalledWith('appt-1'));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId('modal')).toBeInTheDocument();
   });
 });

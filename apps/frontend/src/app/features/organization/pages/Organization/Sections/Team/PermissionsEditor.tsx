@@ -331,6 +331,7 @@ const PermissionsEditor = ({ value, onSave, role, readOnly = false }: Permission
                 <div className="flex gap-10 items-center">
                   <div className="w-18 flex justify-center">
                     {viewDisabled ? (
+                      /* v8 ignore next -- every PERMISSION_ROWS entry defines a non-empty `view`, so viewDisabled is never true */
                       <span className="text-muted-400">{'—'}</span>
                     ) : (
                       <input

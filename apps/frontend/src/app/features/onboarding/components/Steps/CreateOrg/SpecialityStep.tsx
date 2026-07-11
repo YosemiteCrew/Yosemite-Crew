@@ -315,6 +315,7 @@ const SpecialityStep = ({
   };
 
   const handleSaveService = () => {
+    /* v8 ignore next 3 -- unreachable: the service editor modal only renders while serviceEditor is set */
     if (!serviceEditor) {
       return;
     }
@@ -366,6 +367,7 @@ const SpecialityStep = ({
 
   const handleServiceNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setServiceEditor((previous) =>
+      /* v8 ignore next 2 -- unreachable: modal inputs only render while serviceEditor is set */
       previous == null
         ? previous
         : { ...previous, service: { ...previous.service, name: event.target.value } }
@@ -374,6 +376,7 @@ const SpecialityStep = ({
 
   const handleServiceDurationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setServiceEditor((previous) =>
+      /* v8 ignore next 2 -- unreachable: modal inputs only render while serviceEditor is set */
       previous == null
         ? previous
         : {
@@ -385,6 +388,7 @@ const SpecialityStep = ({
 
   const handleServiceCostChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setServiceEditor((previous) =>
+      /* v8 ignore next 2 -- unreachable: modal inputs only render while serviceEditor is set */
       previous == null
         ? previous
         : { ...previous, service: { ...previous.service, cost: Number(event.target.value || 0) } }
