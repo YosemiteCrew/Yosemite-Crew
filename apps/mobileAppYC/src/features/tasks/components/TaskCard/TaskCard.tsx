@@ -120,6 +120,30 @@ const resolveTileVisual = (
 
 type TaskCardAvatar = {uri?: string; placeholder?: string; role: string};
 
+// Task-type label for the middle meta segment. Kept at module scope so the
+// TaskCard component stays within the cognitive-complexity budget.
+const resolveTaskTypeLabel = (
+  category: TaskCategory,
+  taskType: string | undefined,
+  resolvedOtLabel: string | null,
+  subcategoryLabel: string | undefined,
+): string | null => {
+  if (category === 'health') {
+    if (taskType === 'give-medication') return 'Give medication';
+    if (taskType === 'take-observational-tool') {
+      return resolvedOtLabel ?? 'Observational tool';
+    }
+    if (taskType === 'vaccination') return 'Vaccination';
+  }
+  if (category === 'hygiene' && taskType) {
+    return resolveHygieneTaskTypeLabel(taskType as HygieneTaskType);
+  }
+  if (category === 'dietary' && taskType) {
+    return resolveDietaryTaskTypeLabel(taskType as DietaryTaskType);
+  }
+  return subcategoryLabel ?? null;
+};
+
 export interface TaskCardProps {
   title: string;
   categoryLabel: string;
@@ -289,22 +313,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   );
 
   // Task-type label for the middle segment of the meta line.
-  const typeLabel = useMemo((): string | null => {
-    if (category === 'health') {
-      if (details?.taskType === 'give-medication') return 'Give medication';
-      if (details?.taskType === 'take-observational-tool') {
-        return resolvedOtLabel ?? 'Observational tool';
-      }
-      if (details?.taskType === 'vaccination') return 'Vaccination';
-    }
-    if (category === 'hygiene' && details?.taskType) {
-      return resolveHygieneTaskTypeLabel(details.taskType as HygieneTaskType);
-    }
-    if (category === 'dietary' && details?.taskType) {
-      return resolveDietaryTaskTypeLabel(details.taskType as DietaryTaskType);
-    }
-    return subcategoryLabel ?? null;
-  }, [category, details?.taskType, resolvedOtLabel, subcategoryLabel]);
+  const typeLabel = useMemo(
+    () =>
+      resolveTaskTypeLabel(
+        category,
+        details?.taskType,
+        resolvedOtLabel,
+        subcategoryLabel,
+      ),
+    [category, details?.taskType, resolvedOtLabel, subcategoryLabel],
+  );
 
   // Trailing context segment: done-time when finished, dosage/task time when
   // scheduled, otherwise the companion the task belongs to.

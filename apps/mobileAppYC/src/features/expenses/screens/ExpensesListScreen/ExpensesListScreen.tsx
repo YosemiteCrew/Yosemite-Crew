@@ -28,7 +28,6 @@ import type {AppDispatch, RootState} from '@/app/store';
 import type {ExpenseStackParamList} from '@/navigation/types';
 import {
   resolveCategoryLabel,
-  resolveSubcategoryLabel,
   resolveVisitTypeLabel,
 } from '@/features/expenses/utils/expenseLabels';
 import type {Expense} from '@/features/expenses';
@@ -148,10 +147,6 @@ export const ExpensesListScreen: React.FC = () => {
       key={item.id}
       title={item.title}
       categoryLabel={resolveCategoryLabel(item.category)}
-      subcategoryLabel={resolveSubcategoryLabel(
-        item.category,
-        item.subcategory,
-      )}
       visitTypeLabel={resolveVisitTypeLabel(item.visitType)}
       date={item.date}
       amount={item.amount}

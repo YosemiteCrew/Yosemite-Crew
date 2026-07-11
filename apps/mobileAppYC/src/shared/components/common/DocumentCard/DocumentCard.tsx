@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {StyleSheet, Text, View, ImageSourcePropType} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SwipeableActionCard} from '@/shared/components/common/SwipeableActionCard/SwipeableActionCard';
@@ -27,11 +27,6 @@ export interface DocumentCardProps {
   businessName: string;
   visitType: string;
   issueDate: string;
-  /**
-   * Retained for backward compatibility with existing callers. The warm-bone
-   * row uses a tinted icon tile instead of a thumbnail, so this is unused.
-   */
-  thumbnail?: ImageSourcePropType;
   onPressView?: () => void;
   onPressEdit?: () => void;
   showEditAction?: boolean;

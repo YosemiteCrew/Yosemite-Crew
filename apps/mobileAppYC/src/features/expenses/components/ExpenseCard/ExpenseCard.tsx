@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SwipeableActionCard} from '@/shared/components/common/SwipeableActionCard/SwipeableActionCard';
@@ -28,17 +28,10 @@ export type ExpenseCardPayment =
 export interface ExpenseCardProps {
   title: string;
   categoryLabel: string;
-  subcategoryLabel: string;
   visitTypeLabel: string;
   date: string;
   amount: number;
   currencyCode: string;
-  /**
-   * Retained for backward compatibility with existing callers. The warm-bone
-   * row uses a category-tinted icon tile instead of a thumbnail, so this is
-   * unused.
-   */
-  thumbnail?: ImageSourcePropType;
   onPressView?: () => void;
   onPressEdit?: () => void;
   editAction?: ExpenseCardActionVisibility;

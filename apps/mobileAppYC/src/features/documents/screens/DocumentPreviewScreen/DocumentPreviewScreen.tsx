@@ -53,12 +53,10 @@ const resolveFileTypeLabel = (file?: DocumentFile): string => {
   if (!file) {
     return '';
   }
-  const fromName =
-    file.name && file.name.includes('.') ? file.name.split('.').pop() : '';
-  const fromMime =
-    file.type && file.type.includes('/')
-      ? file.type.split('/').pop()
-      : file.type;
+  const fromName = file.name?.includes('.') ? file.name.split('.').pop() : '';
+  const fromMime = file.type?.includes('/')
+    ? file.type.split('/').pop()
+    : file.type;
   return (fromName || fromMime || '').toUpperCase();
 };
 

@@ -39,7 +39,12 @@ export const SkeletonList: React.FC<SkeletonListProps> = ({
       Array.from({length: rows}, (_, index) => {
         const isSecondLast = index === rows - 2;
         const isLast = index === rows - 1;
-        const rowDim = isLast ? 0.4 : isSecondLast ? 0.7 : 1;
+        let rowDim = 1;
+        if (isLast) {
+          rowDim = 0.4;
+        } else if (isSecondLast) {
+          rowDim = 0.7;
+        }
         return {
           key: `skeleton-row-${index}`,
           opacity: rowDim,
