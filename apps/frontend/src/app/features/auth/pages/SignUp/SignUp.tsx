@@ -90,6 +90,43 @@ type SignUpProps = {
   isDeveloper?: boolean;
 };
 
+const FEATURE_ITEMS = [
+  {
+    developerTitle: 'API-first, self-host or managed',
+    developerDescription:
+      'Open source core with APIs built for integrations. Run it yourself or use our managed stack.',
+    title: 'Enjoy smooth online solutions with us!',
+    description:
+      'Our services are built on a strong foundation for great performance and flexibility.',
+  },
+  {
+    developerTitle: 'Local dev + production ready',
+    developerDescription:
+      'Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted.',
+    title: 'Start free and upgrade as needed.',
+    description: 'Enjoy generous free usage. Upgrade only when you need.',
+  },
+  {
+    developerTitle: 'Secure by default',
+    developerDescription:
+      'Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed.',
+    title: 'Our servers are EU-based and GDPR compliant.',
+    description: 'All data is securely stored in the EU, fully GDPR compliant.',
+  },
+];
+
+const SignUpFeatureItem = ({ title, description }: { title: string; description: string }) => (
+  <div className="flex gap-2">
+    <div className="w-[20px]">
+      <GoCheckCircleFill color="var(--color-primary-500)" size={20} className="mt-[3px]" />
+    </div>
+    <div className="flex flex-col gap-1">
+      <div className="text-body-3-emphasis text-text-primary auth-feature-title">{title}</div>
+      <p className="text-caption-1 text-text-primary auth-feature-desc">{description}</p>
+    </div>
+  </div>
+);
+
 const SignUpFeaturePanel = ({ isDeveloper }: { isDeveloper: boolean }) => (
   <div className="flex align-center justify-center flex-col gap-8 w-[90%] sm:w-[70%] md:w-1/2 md:mt-16">
     <div className="flex w-full items-center justify-center">
@@ -101,55 +138,13 @@ const SignUpFeaturePanel = ({ isDeveloper }: { isDeveloper: boolean }) => (
     </div>
 
     <div className="flex flex-col gap-6">
-      <div className="flex gap-2">
-        <div className="w-[20px]">
-          <GoCheckCircleFill color="var(--color-primary-500)" size={20} className="mt-[3px]" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-body-3-emphasis text-text-primary auth-feature-title">
-            {isDeveloper
-              ? 'API-first, self-host or managed'
-              : 'Enjoy smooth online solutions with us!'}
-          </div>
-          <p className="text-caption-1 text-text-primary auth-feature-desc">
-            {isDeveloper
-              ? 'Open source core with APIs built for integrations. Run it yourself or use our managed stack.'
-              : 'Our services are built on a strong foundation for great performance and flexibility.'}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        <div className="w-[20px]">
-          <GoCheckCircleFill color="var(--color-primary-500)" size={20} className="mt-[3px]" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-body-3-emphasis text-text-primary auth-feature-title">
-            {isDeveloper ? 'Local dev + production ready' : 'Start free and upgrade as needed.'}
-          </div>
-          <p className="text-caption-1 text-text-primary auth-feature-desc">
-            {isDeveloper
-              ? 'Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted.'
-              : 'Enjoy generous free usage. Upgrade only when you need.'}
-          </p>
-        </div>
-      </div>
-
-      <div className="flex gap-2">
-        <div className="w-[20px]">
-          <GoCheckCircleFill color="var(--color-primary-500)" size={20} className="mt-[3px]" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <div className="text-body-3-emphasis text-text-primary auth-feature-title">
-            {isDeveloper ? 'Secure by default' : 'Our servers are EU-based and GDPR compliant.'}
-          </div>
-          <p className="text-caption-1 text-text-primary auth-feature-desc">
-            {isDeveloper
-              ? 'Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed.'
-              : 'All data is securely stored in the EU, fully GDPR compliant.'}
-          </p>
-        </div>
-      </div>
+      {FEATURE_ITEMS.map((item) => (
+        <SignUpFeatureItem
+          key={item.title}
+          title={isDeveloper ? item.developerTitle : item.title}
+          description={isDeveloper ? item.developerDescription : item.description}
+        />
+      ))}
     </div>
   </div>
 );

@@ -358,104 +358,139 @@ const useAddAppointmentView = ({
     }, 80);
   }, [formData.companion.id, scrollToStep, setFormDataErrors, terminologyText]);
 
-  const goToDateTimeStep = useCallback(() => {
-    const errors = validateForm(false);
-    const nextErrors = {
-      specialityId: errors.specialityId,
-      serviceId: errors.serviceId,
-      concern: errors.concern,
-    };
-    setFormDataErrors((prev) => ({
-      ...prev,
-      specialityId: nextErrors.specialityId,
-      serviceId: nextErrors.serviceId,
-      concern: nextErrors.concern,
-    }));
-    if (nextErrors.specialityId || nextErrors.serviceId || nextErrors.concern) {
-      dispatchUi({ type: 'set-active-step', activeStep: detailsStepNumber });
-      scrollToStep(step2Ref);
-      return;
-    }
-    dispatchUi({ type: 'unlock-step', step: dateTimeStepNumber, activeStep: dateTimeStepNumber });
-    globalThis.setTimeout(() => {
-      scrollToStep(isCalendarSlotFlow ? step2Ref : step3Ref);
-    }, 80);
-  }, [
-    dateTimeStepNumber,
-    detailsStepNumber,
-    isCalendarSlotFlow,
-    scrollToStep,
-    setFormDataErrors,
-    validateForm,
-  ]);
+  // Shared step-advance template: validate the given fields, surface their errors,
+  // bounce back to the failing step on error, otherwise unlock and scroll onward.
+  const advanceStep = useCallback(
+    (options: {
+      errorKeys: Array<'specialityId' | 'serviceId' | 'concern' | 'slot' | 'leadId'>;
+      failStep: number;
+      failRef: React.RefObject<HTMLDivElement | null>;
+      unlockStep: number;
+      nextRef: React.RefObject<HTMLDivElement | null>;
+    }) => {
+      const errors = validateForm(false);
+      const nextErrors = Object.fromEntries(options.errorKeys.map((key) => [key, errors[key]]));
+      setFormDataErrors((prev) => ({ ...prev, ...nextErrors }));
+      if (options.errorKeys.some((key) => errors[key])) {
+        dispatchUi({ type: 'set-active-step', activeStep: options.failStep });
+        scrollToStep(options.failRef);
+        return;
+      }
+      dispatchUi({ type: 'unlock-step', step: options.unlockStep, activeStep: options.unlockStep });
+      globalThis.setTimeout(() => {
+        scrollToStep(options.nextRef);
+      }, 80);
+    },
+    [scrollToStep, setFormDataErrors, validateForm]
+  );
 
-  const goToBillingStep = useCallback(() => {
-    const errors = validateForm(false);
-    const nextErrors = {
-      slot: errors.slot,
-      leadId: errors.leadId,
-    };
-    setFormDataErrors((prev) => ({
-      ...prev,
-      slot: nextErrors.slot,
-      leadId: nextErrors.leadId,
-    }));
-    if (nextErrors.slot || nextErrors.leadId) {
-      dispatchUi({ type: 'set-active-step', activeStep: dateTimeStepNumber });
-      scrollToStep(isCalendarSlotFlow ? step2Ref : step3Ref);
-      return;
-    }
-    dispatchUi({ type: 'unlock-step', step: 4, activeStep: 4 });
-    globalThis.setTimeout(() => {
-      scrollToStep(step4Ref);
-    }, 80);
-  }, [dateTimeStepNumber, isCalendarSlotFlow, scrollToStep, setFormDataErrors, validateForm]);
+  const goToDateTimeStep = useCallback(
+    () =>
+      advanceStep({
+        errorKeys: ['specialityId', 'serviceId', 'concern'],
+        failStep: detailsStepNumber,
+        failRef: step2Ref,
+        unlockStep: dateTimeStepNumber,
+        nextRef: isCalendarSlotFlow ? step2Ref : step3Ref,
+      }),
+    [advanceStep, dateTimeStepNumber, detailsStepNumber, isCalendarSlotFlow]
+  );
 
-  const goToDetailsFromDateTimeStep = useCallback(() => {
-    const errors = validateForm(false);
-    const nextErrors = {
-      slot: errors.slot,
-      leadId: errors.leadId,
-    };
-    setFormDataErrors((prev) => ({
-      ...prev,
-      slot: nextErrors.slot,
-      leadId: nextErrors.leadId,
-    }));
-    if (nextErrors.slot || nextErrors.leadId) {
-      dispatchUi({ type: 'set-active-step', activeStep: dateTimeStepNumber });
-      scrollToStep(step2Ref);
-      return;
-    }
-    dispatchUi({ type: 'unlock-step', step: detailsStepNumber, activeStep: detailsStepNumber });
-    globalThis.setTimeout(() => {
-      scrollToStep(step3Ref);
-    }, 80);
-  }, [dateTimeStepNumber, detailsStepNumber, scrollToStep, setFormDataErrors, validateForm]);
+  const goToBillingStep = useCallback(
+    () =>
+      advanceStep({
+        errorKeys: ['slot', 'leadId'],
+        failStep: dateTimeStepNumber,
+        failRef: isCalendarSlotFlow ? step2Ref : step3Ref,
+        unlockStep: 4,
+        nextRef: step4Ref,
+      }),
+    [advanceStep, dateTimeStepNumber, isCalendarSlotFlow]
+  );
 
-  const goToBillingFromDetailsStep = useCallback(() => {
-    const errors = validateForm(false);
-    const nextErrors = {
-      specialityId: errors.specialityId,
-      serviceId: errors.serviceId,
-      concern: errors.concern,
-    };
-    setFormDataErrors((prev) => ({
-      ...prev,
-      specialityId: nextErrors.specialityId,
-      serviceId: nextErrors.serviceId,
-      concern: nextErrors.concern,
-    }));
-    if (nextErrors.specialityId || nextErrors.serviceId || nextErrors.concern) {
-      dispatchUi({ type: 'set-active-step', activeStep: detailsStepNumber });
-      scrollToStep(step3Ref);
-      return;
-    }
-    dispatchUi({ type: 'unlock-step', step: 4, activeStep: 4 });
-    globalThis.setTimeout(() => {
-      scrollToStep(step4Ref);
-    }, 80);
-  }, [detailsStepNumber, scrollToStep, setFormDataErrors, validateForm]);
+  const goToDetailsFromDateTimeStep = useCallback(
+    () =>
+      advanceStep({
+        errorKeys: ['slot', 'leadId'],
+        failStep: dateTimeStepNumber,
+        failRef: step2Ref,
+        unlockStep: detailsStepNumber,
+        nextRef: step3Ref,
+      }),
+    [advanceStep, dateTimeStepNumber, detailsStepNumber]
+  );
+
+  const goToBillingFromDetailsStep = useCallback(
+    () =>
+      advanceStep({
+        errorKeys: ['specialityId', 'serviceId', 'concern'],
+        failStep: detailsStepNumber,
+        failRef: step3Ref,
+        unlockStep: 4,
+        nextRef: step4Ref,
+      }),
+    [advanceStep, detailsStepNumber]
+  );
+
+  // Shared details-step JSX: the two placements (before or after date & time in the
+  // calendar-slot flow) differ only in their concern-blur behavior and Next target.
+  const renderAppointmentDetailsSection = ({
+    onConcernBlur,
+    onNext,
+  }: {
+    onConcernBlur: () => void;
+    onNext: () => void;
+  }) => (
+    <AppointmentDetailsSection
+      defaultOpen={activeStep === detailsStepNumber}
+      open={activeStep === detailsStepNumber}
+      onOpenChange={(open) =>
+        dispatchUi({
+          type: 'set-active-step',
+          activeStep: open ? detailsStepNumber : null,
+        })
+      }
+      specialityId={formData.appointmentType?.speciality.id}
+      specialityError={formDataErrors.specialityId}
+      specialitiesOptions={SpecialitiesOptions}
+      onSpecialitySelect={(option) => {
+        handleSpecialitySelect(option);
+        dispatchUi({ type: 'set-concern-focused', concernFocused: false });
+        setConcernBlurred(false);
+        dispatchUi({
+          type: 'unlock-step',
+          step: detailsStepNumber,
+          activeStep: detailsStepNumber,
+        });
+      }}
+      serviceId={formData.appointmentType?.id}
+      serviceError={formDataErrors.serviceId}
+      servicesOptions={ServicesOptions}
+      onServiceSelect={(option) => {
+        handleServiceSelect(option);
+        dispatchUi({ type: 'set-concern-focused', concernFocused: false });
+        setConcernBlurred(false);
+        dispatchUi({
+          type: 'unlock-step',
+          step: detailsStepNumber,
+          activeStep: detailsStepNumber,
+        });
+      }}
+      concern={formData.concern || ''}
+      concernError={formDataErrors.concern}
+      onConcernChange={(value) => {
+        setFormData({ ...formData, concern: value });
+        if (value.trim()) {
+          setFormDataErrors((prev) => ({ ...prev, concern: undefined }));
+        }
+      }}
+      onConcernFocus={() => {
+        dispatchUi({ type: 'set-concern-focused', concernFocused: true });
+      }}
+      onConcernBlur={onConcernBlur}
+      onNext={onNext}
+    />
+  );
 
   const handleQuickAddCompanionVisibility = (value: React.SetStateAction<boolean>) => {
     const nextOpen = typeof value === 'function' ? value(showAddCompanionModal) : value;
@@ -574,53 +609,8 @@ const useAddAppointmentView = ({
               </Accordion>
               {companionSatisfied && !isCalendarSlotFlow && (
                 <div ref={step2Ref}>
-                  <AppointmentDetailsSection
-                    defaultOpen={activeStep === detailsStepNumber}
-                    open={activeStep === detailsStepNumber}
-                    onOpenChange={(open) =>
-                      dispatchUi({
-                        type: 'set-active-step',
-                        activeStep: open ? detailsStepNumber : null,
-                      })
-                    }
-                    specialityId={formData.appointmentType?.speciality.id}
-                    specialityError={formDataErrors.specialityId}
-                    specialitiesOptions={SpecialitiesOptions}
-                    onSpecialitySelect={(option) => {
-                      handleSpecialitySelect(option);
-                      dispatchUi({ type: 'set-concern-focused', concernFocused: false });
-                      setConcernBlurred(false);
-                      dispatchUi({
-                        type: 'unlock-step',
-                        step: detailsStepNumber,
-                        activeStep: detailsStepNumber,
-                      });
-                    }}
-                    serviceId={formData.appointmentType?.id}
-                    serviceError={formDataErrors.serviceId}
-                    servicesOptions={ServicesOptions}
-                    onServiceSelect={(option) => {
-                      handleServiceSelect(option);
-                      dispatchUi({ type: 'set-concern-focused', concernFocused: false });
-                      setConcernBlurred(false);
-                      dispatchUi({
-                        type: 'unlock-step',
-                        step: detailsStepNumber,
-                        activeStep: detailsStepNumber,
-                      });
-                    }}
-                    concern={formData.concern || ''}
-                    concernError={formDataErrors.concern}
-                    onConcernChange={(value) => {
-                      setFormData({ ...formData, concern: value });
-                      if (value.trim()) {
-                        setFormDataErrors((prev) => ({ ...prev, concern: undefined }));
-                      }
-                    }}
-                    onConcernFocus={() => {
-                      dispatchUi({ type: 'set-concern-focused', concernFocused: true });
-                    }}
-                    onConcernBlur={() => {
+                  {renderAppointmentDetailsSection({
+                    onConcernBlur: () => {
                       if (concernFocused) {
                         setConcernBlurred(true);
                         if (detailsSatisfied && !isCalendarSlotFlow) {
@@ -630,9 +620,9 @@ const useAddAppointmentView = ({
                           }, 80);
                         }
                       }
-                    }}
-                    onNext={goToDateTimeStep}
-                  />
+                    },
+                    onNext: goToDateTimeStep,
+                  })}
                 </div>
               )}
               {canShowDateTimeStep && (
@@ -680,59 +670,14 @@ const useAddAppointmentView = ({
               )}
               {companionSatisfied && isCalendarSlotFlow && canShowDetailsStep && (
                 <div ref={step3Ref}>
-                  <AppointmentDetailsSection
-                    defaultOpen={activeStep === detailsStepNumber}
-                    open={activeStep === detailsStepNumber}
-                    onOpenChange={(open) =>
-                      dispatchUi({
-                        type: 'set-active-step',
-                        activeStep: open ? detailsStepNumber : null,
-                      })
-                    }
-                    specialityId={formData.appointmentType?.speciality.id}
-                    specialityError={formDataErrors.specialityId}
-                    specialitiesOptions={SpecialitiesOptions}
-                    onSpecialitySelect={(option) => {
-                      handleSpecialitySelect(option);
-                      dispatchUi({ type: 'set-concern-focused', concernFocused: false });
-                      setConcernBlurred(false);
-                      dispatchUi({
-                        type: 'unlock-step',
-                        step: detailsStepNumber,
-                        activeStep: detailsStepNumber,
-                      });
-                    }}
-                    serviceId={formData.appointmentType?.id}
-                    serviceError={formDataErrors.serviceId}
-                    servicesOptions={ServicesOptions}
-                    onServiceSelect={(option) => {
-                      handleServiceSelect(option);
-                      dispatchUi({ type: 'set-concern-focused', concernFocused: false });
-                      setConcernBlurred(false);
-                      dispatchUi({
-                        type: 'unlock-step',
-                        step: detailsStepNumber,
-                        activeStep: detailsStepNumber,
-                      });
-                    }}
-                    concern={formData.concern || ''}
-                    concernError={formDataErrors.concern}
-                    onConcernChange={(value) => {
-                      setFormData({ ...formData, concern: value });
-                      if (value.trim()) {
-                        setFormDataErrors((prev) => ({ ...prev, concern: undefined }));
-                      }
-                    }}
-                    onConcernFocus={() => {
-                      dispatchUi({ type: 'set-concern-focused', concernFocused: true });
-                    }}
-                    onConcernBlur={() => {
+                  {renderAppointmentDetailsSection({
+                    onConcernBlur: () => {
                       if (concernFocused) {
                         setConcernBlurred(true);
                       }
-                    }}
-                    onNext={goToBillingFromDetailsStep}
-                  />
+                    },
+                    onNext: goToBillingFromDetailsStep,
+                  })}
                 </div>
               )}
               {canShowBillingStep && (
