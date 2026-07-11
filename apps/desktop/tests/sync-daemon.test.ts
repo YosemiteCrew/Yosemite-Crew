@@ -125,7 +125,7 @@ describe('createSyncDaemon', () => {
       daemon.stop();
       jest.advanceTimersByTime(60000);
 
-      expect(transport.send.mock.calls.length).toBe(beforeCount);
+      expect(transport.send.mock.calls).toHaveLength(beforeCount);
     });
   });
 

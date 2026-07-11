@@ -39,8 +39,8 @@ const buildInstallModuleScript = () => `
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser -ErrorAction SilentlyContinue | Out-Null
-Install-Module -Name TrustedSigning -MinimumVersion 0.5.0 -Force -AllowClobber -Repository PSGallery -Scope CurrentUser -ErrorAction Stop
-Import-Module TrustedSigning -MinimumVersion 0.5.0 -ErrorAction Stop
+Install-Module -Name TrustedSigning -RequiredVersion 0.5.0 -Force -AllowClobber -Repository PSGallery -Scope CurrentUser -ErrorAction Stop
+Import-Module TrustedSigning -RequiredVersion 0.5.0 -ErrorAction Stop
 `;
 
 const buildEndpointProbeScript = (config) => `
@@ -62,7 +62,7 @@ finally {
 const buildInvokeTrustedSigningScript = (filePath, config) => `
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
-Import-Module TrustedSigning -MinimumVersion 0.5.0 -ErrorAction Stop
+Import-Module TrustedSigning -RequiredVersion 0.5.0 -ErrorAction Stop
 $params = @{
   Endpoint = ${psQuote(config.endpoint)}
   CertificateProfileName = ${psQuote(config.certificateProfileName)}

@@ -23,7 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: stats
     permissions:
-      contents: write
+      # Checkout/push to the data branch uses the GHRS_GITHUB_API_TOKEN PAT, not GITHUB_TOKEN.
+      # The default GITHUB_TOKEN only needs read access here.
+      contents: read
     steps:
       - name: Checkout stats branch
         uses: actions/checkout@v7

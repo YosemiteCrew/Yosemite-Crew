@@ -495,13 +495,27 @@ export const ServiceService = {
     return docs.map((d) => toServiceResponseDTO(mapDocToDomain(d)));
   },
 
-  async update(id: string, fhirDto: ServiceRequestDTO) {
+  async update(
+    id: string,
+    fhirDto: ServiceRequestDTO,
+    organisationId?: string,
+  ) {
     const serviceUpdates = fromServiceRequestDTO(fhirDto);
 
     const oid = ensureObjectId(id, "serviceId");
 
     const doc = await ServiceModel.findById(oid);
     if (!doc) {
+      throw new ServiceServiceError("Service not found", 404);
+    }
+    // Org binding: a service belonging to another organisation is treated as
+    // not-found. Compared post-fetch (not via a query object built from the
+    // user-supplied organisationId) to keep the lookup injection-safe.
+    if (
+      organisationId !== undefined &&
+      doc.organisationId?.toString() !==
+        ensureObjectId(organisationId, "organisationId").toString()
+    ) {
       throw new ServiceServiceError("Service not found", 404);
     }
 
@@ -542,17 +556,36 @@ export const ServiceService = {
     return toServiceResponseDTO(mapDocToDomain(doc));
   },
 
-  async delete(id: string) {
+  async delete(id: string, organisationId?: string) {
     const oid = ensureObjectId(id, "serviceId");
 
     const doc = await ServiceModel.findById(oid);
     if (!doc) return null;
+    // Org binding: a service from another organisation is treated as not-found.
+    if (
+      organisationId !== undefined &&
+      doc.organisationId?.toString() !==
+        ensureObjectId(organisationId, "organisationId").toString()
+    ) {
+      return null;
+    }
 
     await doc.deleteOne();
 
     if (shouldDualWrite) {
       try {
-        await prisma.service.deleteMany({ where: { id: id } });
+        await prisma.service.deleteMany({
+          where:
+            organisationId === undefined
+              ? { id: id }
+              : {
+                  id: id,
+                  organisationId: requireSafeString(
+                    organisationId,
+                    "organisationId",
+                  ),
+                },
+        });
       } catch (err) {
         handleDualWriteError("Service delete", err);
       }

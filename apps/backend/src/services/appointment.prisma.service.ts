@@ -2237,10 +2237,7 @@ export const AppointmentPrismaService = {
       parentId && getParentIdFromRow(row as AppointmentRow) === parentId;
 
     if ((actorId || parentId) && !canViewAsActor && !canViewAsParent) {
-      throw new AppointmentPrismaServiceError(
-        "Forbidden – insufficient permissions",
-        403,
-      );
+      throw new AppointmentPrismaServiceError("Appointment not found", 404);
     }
 
     return toResponse(row as AppointmentRow);
