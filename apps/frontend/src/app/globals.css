@@ -485,7 +485,7 @@ textarea:focus-visible {
   --img-bg-trust-after: url('https://d2il6osz49gpup.cloudfront.net/Images/TrustAfter.png');
   --img-bg-about: url('https://d2il6osz49gpup.cloudfront.net/Images/aboutbg.png');
 
-  /* Warm-bone token additions (merged in to avoid a duplicate :root selector). */
+  /* Warm-bone token additions (merged in to keep a single :root selector). */
   /* surfaces */
   --page: #efe8dc;
   --band: #e8e0d2;
@@ -1098,6 +1098,7 @@ input[type='number'] {
    existing PIMS surface untouched — consuming components opt in per surface.
    Dark mode is driven by html[data-theme="dark"], stamped pre-paint from
    localStorage 'yc-theme' or prefers-color-scheme (see ui/theme/ThemeScript).
+   ========================================================================== */
 
 html[data-theme='dark'] {
   --page: #201c18;
@@ -1169,9 +1170,9 @@ html[data-theme='dark'] {
   --pink-soft: rgba(255, 144, 212, 0.16);
   --pink-text: #ff9dd8;
 
-  /* Dark overrides for coloured ramps, status chips, and semantic one-offs so tinted
-     badges, alerts, pills, chat, and calendar surfaces flip with the theme. Status values
-     match the DS dark set. Light mode is unaffected (these only apply under data-theme=dark). */
+/* Dark overrides for coloured ramps, status chips, and semantic one-offs so tinted
+   badges, alerts, pills, chat, and calendar surfaces flip with the theme. Status values
+   match the DS dark set. Light mode is unaffected (these only apply under data-theme=dark). */
   /* tinted chip backgrounds + text (success / warning / danger / brand) */
   --color-success-100: rgba(74, 205, 155, 0.16);
   --color-success-700: #74d0a2;
