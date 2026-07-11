@@ -1,7 +1,6 @@
-import React, {useCallback, useMemo} from 'react';
+import React, {useMemo} from 'react';
 import {
   ActivityIndicator,
-  FlatList,
   Platform,
   StyleProp,
   StyleSheet,
@@ -13,6 +12,8 @@ import {PressableOpacity} from '@/shared/components/common/PressableOpacity/Pres
 import {Input} from '@/shared/components/common/Input/Input';
 import {useTheme} from '@/hooks';
 import type {PlaceSuggestion} from '@/shared/services/maps/googlePlaces';
+
+const MAX_VISIBLE_ADDRESS_SUGGESTIONS = 5;
 
 export interface AddressFieldValues {
   addressLine?: string;
@@ -65,33 +66,9 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
 
   const shouldShowSuggestionList =
     isFetchingSuggestions || addressSuggestions.length > 0 || !!error;
-  const renderSuggestion = useCallback(
-    (renderItemInfo: {item: PlaceSuggestion; index: number}) => (
-      <PressableOpacity
-        style={[
-          styles.suggestionItem,
-          renderItemInfo.index === addressSuggestions.length - 1 &&
-            styles.suggestionItemLast,
-        ]}
-        onPress={() => onSelectSuggestion(renderItemInfo.item)}>
-        <Text style={styles.suggestionPrimary}>
-          {renderItemInfo.item.primaryText}
-        </Text>
-        {renderItemInfo.item.secondaryText ? (
-          <Text style={styles.suggestionSecondary}>
-            {renderItemInfo.item.secondaryText}
-          </Text>
-        ) : null}
-      </PressableOpacity>
-    ),
-    [
-      addressSuggestions.length,
-      onSelectSuggestion,
-      styles.suggestionItem,
-      styles.suggestionItemLast,
-      styles.suggestionPrimary,
-      styles.suggestionSecondary,
-    ],
+  const visibleAddressSuggestions = useMemo(
+    () => addressSuggestions.slice(0, MAX_VISIBLE_ADDRESS_SUGGESTIONS),
+    [addressSuggestions],
   );
 
   return (
@@ -121,14 +98,27 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
                 );
               } else if (addressSuggestions.length > 0) {
                 content = (
-                  <FlatList
-                    data={addressSuggestions}
-                    keyExtractor={item => item.placeId}
-                    renderItem={renderSuggestion}
-                    style={styles.suggestionList}
-                    scrollEnabled={addressSuggestions.length > 3}
-                    showsVerticalScrollIndicator={true}
-                  />
+                  <View style={styles.suggestionList}>
+                    {visibleAddressSuggestions.map((item, index) => (
+                      <PressableOpacity
+                        key={item.placeId}
+                        style={[
+                          styles.suggestionItem,
+                          index === visibleAddressSuggestions.length - 1 &&
+                            styles.suggestionItemLast,
+                        ]}
+                        onPress={() => onSelectSuggestion(item)}>
+                        <Text style={styles.suggestionPrimary}>
+                          {item.primaryText}
+                        </Text>
+                        {item.secondaryText ? (
+                          <Text style={styles.suggestionSecondary}>
+                            {item.secondaryText}
+                          </Text>
+                        ) : null}
+                      </PressableOpacity>
+                    ))}
+                  </View>
                 );
               } else {
                 content = (

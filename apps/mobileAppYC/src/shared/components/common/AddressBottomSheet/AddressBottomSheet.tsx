@@ -125,7 +125,7 @@ export const AddressBottomSheet = ({
   return (
     <CustomBottomSheet
       ref={bottomSheetRef}
-      snapPoints={isKeyboardVisible ? ['93%', '96%'] : ['60%', '80%']}
+      snapPoints={isKeyboardVisible ? ['93%', '96%'] : ['72%', '85%']}
       initialIndex={-1}
       onChange={index => {
         setIsSheetVisible(index !== -1);

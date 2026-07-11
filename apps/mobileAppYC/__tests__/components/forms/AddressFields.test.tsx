@@ -1,5 +1,6 @@
 import React from 'react';
 import {render, fireEvent} from '@testing-library/react-native';
+import {Platform} from 'react-native';
 import AddressFields from '../../../src/shared/components/forms/AddressFields';
 import {mockTheme} from '../../setup/mockTheme';
 
@@ -92,6 +93,17 @@ describe('AddressFields', () => {
     expect(getByTestId('input-Country').props.value).toBe('USA');
   });
 
+  it('falls back to empty input values when optional fields are omitted', () => {
+    const {getByTestId} = render(
+      <AddressFields {...defaultProps} values={{}} />,
+    );
+
+    expect(getByTestId('input-Address').props.value).toBe('');
+    expect(getByTestId('input-City').props.value).toBe('');
+    expect(getByTestId('input-Postal code').props.value).toBe('');
+    expect(getByTestId('input-Country').props.value).toBe('');
+  });
+
   // ===========================================================================
   // 2. Input Interactions
   // ===========================================================================
@@ -143,6 +155,15 @@ describe('AddressFields', () => {
       })();
 
     expect(hasStateLabel).toBe(true);
+  });
+
+  it('uses State/Province when Platform.select does not resolve a label', () => {
+    const selectSpy = jest.spyOn(Platform, 'select').mockReturnValue(undefined);
+
+    const {getByText} = render(<AddressFields {...defaultProps} />);
+
+    expect(getByText('State/Province')).toBeTruthy();
+    selectSpy.mockRestore();
   });
 
   it('uses custom labels provided via props', () => {
@@ -263,21 +284,29 @@ describe('AddressFields', () => {
   });
 
   // ===========================================================================
-  // 5. ScrollView & Styling Coverage
+  // 5. Suggestion List & Styling Coverage
   // ===========================================================================
 
-  it('enables scroll on ScrollView only when items > 3', () => {
+  it('renders suggestions in a capped plain list', () => {
     const longList = [
       {placeId: '1', primaryText: '1'},
       {placeId: '2', primaryText: '2'},
       {placeId: '3', primaryText: '3'},
       {placeId: '4', primaryText: '4'},
+      {placeId: '5', primaryText: '5'},
+      {placeId: '6', primaryText: '6'},
     ];
 
-    const {toJSON} = render(
+    const {getByText, queryByText} = render(
       <AddressFields {...defaultProps} addressSuggestions={longList} />,
     );
-    expect(toJSON()).toMatchSnapshot();
+
+    longList.slice(0, 5).forEach(item => {
+      expect(getByText(item.primaryText)).toBeTruthy();
+    });
+    expect(queryByText('6')).toBeNull();
+    expect(getByText('Suggestions')).toBeTruthy();
+    expect(getByText('Powered by Google')).toBeTruthy();
   });
 
   it('renders field errors passed via fieldErrors prop', () => {
