@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 
 import { Icon } from '@iconify/react/dist/iconify.js';
 import { useAuthStore } from '@/app/stores/authStore';
-import { postData } from '@/app/services/axios';
-import { useSignOut } from '@/app/hooks/useAuth';
+import { isAuthRedirectError, postData } from '@/app/services/axios';
+import { logger } from '@/app/lib/logger';
 import { Button } from '@/app/ui';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import Close from '@/app/ui/primitives/Icons/Close';
@@ -31,6 +31,33 @@ type OtpModalProps = {
   isDeveloper?: boolean;
 };
 
+const PROVISION_MAX_ATTEMPTS = 3;
+const PROVISION_RETRY_BASE_MS = 800;
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Creates the backend user record for a freshly confirmed account. The write
+ * is idempotent on the backend, so transient failures (cold start, 429, 5xx)
+ * are retried with backoff instead of aborting the whole signup flow.
+ * Returns false on persistent transient failure; rethrows auth-loss errors.
+ */
+export const provisionBackendUser = async (): Promise<boolean> => {
+  for (let attempt = 0; attempt < PROVISION_MAX_ATTEMPTS; attempt++) {
+    try {
+      await postData('/fhir/v1/user');
+      return true;
+    } catch (error) {
+      if (isAuthRedirectError(error)) throw error;
+      logger.warn(`Backend user provisioning attempt ${attempt + 1} failed`, error);
+      if (attempt < PROVISION_MAX_ATTEMPTS - 1) {
+        await delay(PROVISION_RETRY_BASE_MS * 2 ** attempt);
+      }
+    }
+  }
+  return false;
+};
+
 const OtpModal = ({
   email,
   password,
@@ -40,7 +67,6 @@ const OtpModal = ({
   redirectPath,
   isDeveloper = false,
 }: Readonly<OtpModalProps>) => {
-  const { signOut } = useSignOut();
   const { confirmSignUp, resendCode, signIn, role } = useAuthStore();
   const router = useRouter();
   const [code, setCode] = useState(() => new Array(6).fill(''));
@@ -94,13 +120,51 @@ const OtpModal = ({
     }
   };
 
-  const afterAuthSuccess = async () => {
-    try {
-      await postData('/fhir/v1/user');
-    } catch (error) {
-      await signOut();
-      throw error;
+  const buildSignInFallbackRoute = () => {
+    const signinPath = isDeveloper ? '/developers/signin' : '/signin';
+    const params = new URLSearchParams({ email });
+    if (redirectPath) params.set('next', redirectPath);
+    return `${signinPath}?${params.toString()}`;
+  };
+
+  const redirectToSignInAfterSignup = () => {
+    showErrorTost({
+      message: 'Your email is verified. Please sign in to continue.',
+      errortext: 'Account created',
+      iconElement: (
+        <Icon
+          icon="solar:check-circle-bold"
+          width="20"
+          height="20"
+          color="var(--color-success-bright)"
+        />
+      ),
+      className: 'CongratsBg',
+    });
+    router.push(buildSignInFallbackRoute());
+  };
+
+  const completeSignedInRedirect = async () => {
+    defaultSidebarToCollapsed();
+    // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
+    setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
+
+    // The Cognito session is valid at this point. If backend provisioning
+    // keeps failing transiently, continue anyway — the account exists and
+    // signing the user out here is worse than a delayed provision.
+    const provisioned = await provisionBackendUser();
+    if (!provisioned) {
+      logger.warn('Backend user provisioning did not complete; continuing signed in.');
     }
+
+    const signedInRole =
+      typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
+    const nextRoute = await resolvePostAuthRedirect({
+      fallbackRole: signedInRole,
+      redirectPath,
+      isDeveloper,
+    });
+    router.push(nextRoute);
   };
 
   const handleVerify = async (): Promise<void> => {
@@ -121,48 +185,30 @@ const OtpModal = ({
       return;
     }
 
+    let confirmed = false;
     try {
       setIsVerifying(true);
       const result = await confirmSignUp(email, code.join(''));
-      if (result) {
-        setCode(new Array(6).fill(''));
-        setShowVerifyModal(false);
-        try {
-          await signIn(email, password);
-          defaultSidebarToCollapsed();
-          await afterAuthSuccess();
-          // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
-          setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
-          const signedInRole =
-            typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
-          const nextRoute = await resolvePostAuthRedirect({
-            fallbackRole: signedInRole,
-            redirectPath,
-            isDeveloper,
-          });
-          router.push(nextRoute);
-        } catch (error) {
-          console.log(error);
-          setIsVerifying(false);
-          showErrorTost({
-            message: `Sign in failed`,
-            errortext: 'Error',
-            iconElement: (
-              <Icon
-                icon="solar:danger-triangle-bold"
-                width="20"
-                height="20"
-                color="var(--color-danger-600)"
-              />
-            ),
-            className: 'errofoundbg',
-          });
-        }
+      if (!result) {
+        setIsVerifying(false);
+        return;
       }
-    } catch (error: any) {
-      globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
-      console.log(error);
+      confirmed = true;
+      setCode(new Array(6).fill(''));
+      setShowVerifyModal(false);
+      await signIn(email, password);
+      await completeSignedInRedirect();
+    } catch (error) {
       setIsVerifying(false);
+      if (confirmed) {
+        // The account is verified — never strand the user on the signup page.
+        // Send them to sign in with their email prefilled instead.
+        logger.warn('Automatic sign in after signup failed; redirecting to sign in.', error);
+        redirectToSignInAfterSignup();
+        return;
+      }
+      globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
+      logger.warn('OTP confirmation failed', error);
       setInvalidOtp(true);
     }
   };
@@ -313,13 +359,13 @@ const OtpModal = ({
               text={isVerifying ? 'Verifying...' : 'Verify Code'}
               type="button"
               onClick={handleVerify}
-              isDisabled={isVerifying || timer === 0 || code.includes('')}
+              isDisabled={isVerifying || code.includes('')}
               className="w-full"
             />
             <output aria-live="polite">
               {timer > 0
                 ? `${String(Math.floor(timer / 60)).padStart(2, '0')}:${String(timer % 60).padStart(2, '0')} sec`
-                : 'Code expired'}
+                : 'Didn’t get the code? Request a new one below.'}
             </output>
           </div>
           <div className="VerifyResent">
