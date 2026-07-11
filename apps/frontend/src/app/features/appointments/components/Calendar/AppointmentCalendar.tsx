@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import DayCalendar from '@/app/features/appointments/components/Calendar/common/DayCalendar';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 import WeekCalendar from '@/app/features/appointments/components/Calendar/common/WeekCalendar';
@@ -70,6 +70,60 @@ type DragContext = {
   appointmentId: string;
   serviceId?: string;
   durationMinutes: number;
+};
+
+type DragState = {
+  appointmentId: string | null;
+  label: string | null;
+  error: string | null;
+  context: DragContext | null;
+  availabilityVersion: number;
+};
+
+type DragAction =
+  | { type: 'start'; appointmentId: string | null; label: string; context: DragContext }
+  | { type: 'end' }
+  | { type: 'setError'; error: string | null }
+  | { type: 'availabilityRefreshed' };
+
+const initialDragState: DragState = {
+  appointmentId: null,
+  label: null,
+  error: null,
+  context: null,
+  availabilityVersion: 0,
+};
+
+const dragReducer = (state: DragState, action: DragAction): DragState => {
+  switch (action.type) {
+    case 'start':
+      return {
+        appointmentId: action.appointmentId,
+        label: action.label,
+        error: null,
+        context: action.context,
+        availabilityVersion: state.availabilityVersion + 1,
+      };
+    case 'end':
+      return {
+        ...state,
+        appointmentId: null,
+        label: null,
+        context: null,
+      };
+    case 'setError':
+      return {
+        ...state,
+        error: action.error,
+      };
+    case 'availabilityRefreshed':
+      return {
+        ...state,
+        availabilityVersion: state.availabilityVersion + 1,
+      };
+    default:
+      return state;
+  }
 };
 
 const snapToStep = (minutes: number, step = 5) => Math.round(minutes / step) * step;
@@ -190,10 +244,13 @@ const AppointmentCalendar = ({
     );
   }, []);
 
-  const [draggedAppointmentId, setDraggedAppointmentId] = useState<string | null>(null);
-  const [draggedAppointmentLabel, setDraggedAppointmentLabel] = useState<string | null>(null);
-  const [dragError, setDragError] = useState<string | null>(null);
-  const [dragContext, setDragContext] = useState<DragContext | null>(null);
+  const [dragState, dispatchDrag] = useReducer(dragReducer, initialDragState);
+  const dragContextRef = useRef<DragContext | null>(null);
+  const draggedAppointmentId = dragState.appointmentId;
+  const draggedAppointmentLabel = dragState.label;
+  const dragError = dragState.error;
+  const dragContext = dragState.context;
+  const availabilityVersion = dragState.availabilityVersion;
   const [suppressAutoScroll, setSuppressAutoScroll] = useState(false);
   const suppressAutoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const markDropped = useCallback(() => {
@@ -202,7 +259,6 @@ const AppointmentCalendar = ({
     suppressAutoScrollTimerRef.current = setTimeout(() => setSuppressAutoScroll(false), 4000);
   }, []);
   const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
-  const [availabilityVersion, setAvailabilityVersion] = useState(0);
   const slotsCacheRef = useRef<Partial<Record<string, Slot[]>>>({});
   const dragAvailabilityCacheRef = useRef<Partial<Record<string, number[]>>>({});
   const dragAvailabilityPendingRef = useRef<Partial<Record<string, Promise<void>>>>({});
@@ -324,7 +380,7 @@ const AppointmentCalendar = ({
     targetLeadId?: string
   ) => {
     const warnDrag = (message: string) => {
-      setDragError(message);
+      dispatchDrag({ type: 'setError', error: message });
       notify('warning', { title: 'Move blocked', text: message });
     };
 
@@ -370,7 +426,7 @@ const AppointmentCalendar = ({
     }
 
     try {
-      setDragError(null);
+      dispatchDrag({ type: 'setError', error: null });
       await updateAppointment({
         ...appointment,
         lead: targetPractitionerId
@@ -391,21 +447,25 @@ const AppointmentCalendar = ({
         appointmentDate: nextStart,
       });
     } catch (error) {
-      setDragError(getErrorMessage(error, 'Unable to update appointment. Please try again.'));
+      dispatchDrag({
+        type: 'setError',
+        error: getErrorMessage(error, 'Unable to update appointment. Please try again.'),
+      });
     }
   };
 
   const getAvailabilityKey = useCallback(
     (date: Date, targetLeadId?: string) => {
       const dayKey = toLocalDayKey(date);
-      const appointment = dragContext
-        ? allAppointments.find((item) => item.id === dragContext.appointmentId)
+      const activeDragContext = dragContextRef.current;
+      const appointment = activeDragContext
+        ? allAppointments.find((item) => item.id === activeDragContext.appointmentId)
         : null;
       const defaultLeadId = appointment?.lead?.id;
       const practitionerId = resolvePractitionerId(targetLeadId || defaultLeadId);
       return `${dayKey}:${normalizeId(practitionerId || '')}`;
     },
-    [allAppointments, dragContext, normalizeId, resolvePractitionerId]
+    [allAppointments, normalizeId, resolvePractitionerId]
   );
 
   const getViewAvailabilityIntervals = useCallback(
@@ -512,19 +572,22 @@ const AppointmentCalendar = ({
 
   const buildAvailableStartMinutes = useCallback(
     async (date: Date, targetLeadId?: string) => {
-      if (!dragContext) return [];
-      const appointment = allAppointments.find((item) => item.id === dragContext.appointmentId);
+      const activeDragContext = dragContextRef.current;
+      if (!activeDragContext) return [];
+      const appointment = allAppointments.find(
+        (item) => item.id === activeDragContext.appointmentId
+      );
       if (!appointment) return [];
       if (targetLeadId && !supportsSpeciality(targetLeadId, appointment)) {
         return [];
       }
-      const serviceId = dragContext.serviceId || appointment.appointmentType?.id;
+      const serviceId = activeDragContext.serviceId || appointment.appointmentType?.id;
       const targetPractitionerId = resolvePractitionerId(targetLeadId || appointment.lead?.id);
       if (!serviceId || !targetPractitionerId) return [];
 
       const slots = await getSlotsForMoveValidation(serviceId, date);
       const normalizedTargetPractitionerId = normalizeId(targetPractitionerId);
-      const durationMs = Math.max(5 * 60 * 1000, dragContext.durationMinutes * 60 * 1000);
+      const durationMs = Math.max(5 * 60 * 1000, activeDragContext.durationMinutes * 60 * 1000);
       const nowMs = Date.now();
       const minutesSet = new Set<number>();
 
@@ -534,7 +597,7 @@ const AppointmentCalendar = ({
           appointment,
           normalizedTargetPractitionerId,
           targetPractitionerId,
-          durationMinutes: dragContext.durationMinutes,
+          durationMinutes: activeDragContext.durationMinutes,
           durationMs,
           nowMs,
           minutesSet,
@@ -546,7 +609,6 @@ const AppointmentCalendar = ({
     [
       allAppointments,
       collectValidMinutesForSlot,
-      dragContext,
       getSlotsForMoveValidation,
       normalizeId,
       resolvePractitionerId,
@@ -556,7 +618,7 @@ const AppointmentCalendar = ({
 
   const ensureDragAvailability = useCallback(
     async (date: Date, targetLeadId?: string): Promise<number[]> => {
-      if (!dragContext) return [];
+      if (!dragContextRef.current) return [];
       const key = getAvailabilityKey(date, targetLeadId);
       if (dragAvailabilityCacheRef.current[key]) {
         return dragAvailabilityCacheRef.current[key];
@@ -569,10 +631,10 @@ const AppointmentCalendar = ({
         try {
           const starts = await buildAvailableStartMinutes(date, targetLeadId);
           dragAvailabilityCacheRef.current[key] = starts;
-          setAvailabilityVersion((version) => version + 1);
+          dispatchDrag({ type: 'availabilityRefreshed' });
         } catch {
           dragAvailabilityCacheRef.current[key] = [];
-          setAvailabilityVersion((version) => version + 1);
+          dispatchDrag({ type: 'availabilityRefreshed' });
         }
       })();
       dragAvailabilityPendingRef.current[key] = task;
@@ -580,7 +642,7 @@ const AppointmentCalendar = ({
       delete dragAvailabilityPendingRef.current[key];
       return dragAvailabilityCacheRef.current[key] ?? [];
     },
-    [buildAvailableStartMinutes, dragContext, getAvailabilityKey]
+    [buildAvailableStartMinutes, getAvailabilityKey]
   );
 
   const getDropAvailabilityIntervals = useCallback(
@@ -607,8 +669,7 @@ const AppointmentCalendar = ({
     [getAvailabilityKey]
   );
 
-  useEffect(() => {
-    if (!dragContext) return;
+  const prefetchDragAvailabilityForView = useCallback(() => {
     const prefetchTargets: Array<{ date: Date; targetLeadId?: string }> = [];
     if (activeCalendar === 'day') {
       prefetchTargets.push({ date: currentDate });
@@ -628,8 +689,10 @@ const AppointmentCalendar = ({
     }
     Promise.all(
       prefetchTargets.map((target) => ensureDragAvailability(target.date, target.targetLeadId))
-    ).catch(() => undefined);
-  }, [activeCalendar, currentDate, dragContext, ensureDragAvailability, teams, weekStart]);
+    ).catch((error: unknown) => {
+      logger.warn('Failed to prefetch appointment drop availability.', error);
+    });
+  }, [activeCalendar, currentDate, ensureDragAvailability, teams, weekStart]);
 
   useEffect(() => {
     if (!draggedAppointmentId) return;
@@ -753,25 +816,28 @@ const AppointmentCalendar = ({
   const handleAppointmentDragStart = useCallback(
     (appointment: Appointment) => {
       if (!isAppointmentDraggable(appointment)) return;
-      setDraggedAppointmentId(appointment.id ?? null);
-      setDraggedAppointmentLabel(getAppointmentDragLabel(appointment));
-      setDragError(null);
       dragAvailabilityCacheRef.current = {};
       dragAvailabilityPendingRef.current = {};
-      setAvailabilityVersion((version) => version + 1);
-      setDragContext({
+      const context = {
         appointmentId: appointment.id ?? '',
         serviceId: appointment.appointmentType?.id,
         durationMinutes: getAppointmentDurationMinutes(appointment),
+      };
+      dragContextRef.current = context;
+      dispatchDrag({
+        type: 'start',
+        appointmentId: appointment.id ?? null,
+        label: getAppointmentDragLabel(appointment),
+        context,
       });
+      prefetchDragAvailabilityForView();
     },
-    [isAppointmentDraggable]
+    [isAppointmentDraggable, prefetchDragAvailabilityForView]
   );
 
   const handleAppointmentDragEnd = useCallback(() => {
-    setDraggedAppointmentId(null);
-    setDraggedAppointmentLabel(null);
-    setDragContext(null);
+    dragContextRef.current = null;
+    dispatchDrag({ type: 'end' });
   }, []);
 
   const handleDragHoverTarget = useCallback(
