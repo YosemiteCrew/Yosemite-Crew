@@ -1,7 +1,6 @@
-import { Dispatch, RefObject, useCallback, useEffect, useRef } from 'react';
+import { Dispatch, RefObject, useCallback, useRef } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { getSlotsForServiceAndDateForPrimaryOrg } from '@/app/features/appointments/services/appointmentService';
-import { loadTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { Slot } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
@@ -9,19 +8,12 @@ import {
   buildDateInPreferredTimeZone,
   utcClockTimeToPreferredTimeZoneClock,
 } from '@/app/lib/timezone';
-import { useOrgStore } from '@/app/stores/orgStore';
-import { useAvailabilityStore } from '@/app/stores/availabilityStore';
-import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
-import {
-  DropAvailabilityInterval,
-  resolveAvailabilityIntervalsForDay,
-} from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 import { logger } from '@/app/lib/logger';
 import {
   DragAction,
   DragContext,
   clampMinutes,
-  getDayOfWeekKey,
   toLocalDayKey,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
 import {
@@ -29,8 +21,8 @@ import {
   collectValidMinutesForSlots,
   findTeamMemberByIdentity,
   getSlotCacheKey,
-  getTeamMemberIdentityIds,
 } from '@/app/features/appointments/components/Calendar/appointmentDragAvailabilityUtils';
+import { useAppointmentViewAvailability } from '@/app/features/appointments/components/Calendar/useAppointmentViewAvailability';
 
 type UseAppointmentDragAvailabilityOptions = {
   activeCalendar: string;
@@ -62,24 +54,11 @@ export const useAppointmentDragAvailability = ({
   const slotsCacheRef = useRef<Partial<Record<string, Slot[]>>>({});
   const dragAvailabilityCacheRef = useRef<Partial<Record<string, number[]>>>({});
   const dragAvailabilityPendingRef = useRef<Partial<Record<string, Promise<void>>>>({});
-  const teamAvailabilityFetchedRef = useRef<string | null>(null);
-  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const availabilityIdsByOrgId = useAvailabilityStore((s) => s.availabilityIdsByOrgId);
-  const availabilitiesById = useAvailabilityStore((s) => s.availabilitiesById);
-  const availabilityStatus = useAvailabilityStore((s) => s.status);
-  const availabilityLoaded = availabilityStatus === 'loaded';
-  useLoadAvailabilities();
-
-  useEffect(() => {
-    if (activeCalendar === 'team' && primaryOrgId) {
-      const fetchKey = primaryOrgId;
-      if (teamAvailabilityFetchedRef.current === fetchKey) return;
-      teamAvailabilityFetchedRef.current = fetchKey;
-      loadTeamAvailability(primaryOrgId).catch(() => {
-        teamAvailabilityFetchedRef.current = null;
-      });
-    }
-  }, [activeCalendar, primaryOrgId]);
+  const { availabilityLoaded, getViewAvailabilityIntervals } = useAppointmentViewAvailability({
+    activeCalendar,
+    normalizeId,
+    teams,
+  });
 
   const getCurrentUserPractitionerId = useCallback(() => {
     const member = findTeamMemberByIdentity(teams, authUserId, normalizeId);
@@ -114,39 +93,6 @@ export const useAppointmentDragAvailability = ({
       return `${dayKey}:${normalizeId(practitionerId || '')}`;
     },
     [allAppointments, dragContextRef, normalizeId, resolvePractitionerId]
-  );
-
-  const getViewAvailabilityIntervals = useCallback(
-    (date: Date, targetLeadId?: string): DropAvailabilityInterval[] => {
-      if (!primaryOrgId) return [];
-      const dayKey = getDayOfWeekKey(date);
-      const ids = availabilityIdsByOrgId[primaryOrgId] ?? [];
-      const orgAvailabilities = ids.flatMap((id) => {
-        const availability = availabilitiesById[id];
-        return availability ? [availability] : [];
-      });
-      if (!orgAvailabilities.length) return [];
-
-      const normalizedTarget = normalizeId(targetLeadId);
-      const matchedTargetMember = findTeamMemberByIdentity(teams, targetLeadId, normalizeId);
-      const targetIds = normalizedTarget
-        ? new Set(
-            [
-              normalizedTarget,
-              ...getTeamMemberIdentityIds(matchedTargetMember, normalizeId),
-            ].filter(Boolean)
-          )
-        : undefined;
-
-      return resolveAvailabilityIntervalsForDay({
-        allEntries: orgAvailabilities,
-        dayKey,
-        targetIds,
-        normalizeId,
-        toLocalClockFromUtcTime: utcClockTimeToPreferredTimeZoneClock,
-      });
-    },
-    [availabilityIdsByOrgId, availabilitiesById, normalizeId, primaryOrgId, teams]
   );
 
   const getCurrentUserViewAvailabilityIntervals = useCallback(
