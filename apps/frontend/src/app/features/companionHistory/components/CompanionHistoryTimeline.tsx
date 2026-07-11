@@ -696,6 +696,62 @@ const isPaidInvoice = (entry: HistoryEntry): boolean => {
   return ['PAID', 'PAID_FULL', 'COMPLETED'].includes(status);
 };
 
+type LabResultActionsProps = {
+  entry: HistoryEntry;
+  loadingPdf: boolean;
+  expanded: boolean;
+  fallbackUrl: ReturnType<typeof resolveFallbackUrl>;
+  results: ReturnType<typeof getLabResults>;
+  onOpenResultPdf: (entry: HistoryEntry) => void;
+  onPreviewPdf: (entry: HistoryEntry, pdfUrl: string) => void;
+  onToggle: (id: string) => void;
+};
+
+const LabResultActions = ({
+  entry,
+  loadingPdf,
+  expanded,
+  fallbackUrl,
+  results,
+  onOpenResultPdf,
+  onPreviewPdf,
+  onToggle,
+}: LabResultActionsProps): React.ReactNode => {
+  const resultId = resolveLabResultId(entry);
+  return (
+    <>
+      {resultId ? (
+        <InsetChipButton
+          icon={loadingPdf ? <LoadingIcon /> : <IoEyeOutline size={11} aria-hidden="true" />}
+          label={loadingPdf ? 'Loading…' : 'Result PDF'}
+          disabled={loadingPdf}
+          onClick={() => onOpenResultPdf(entry)}
+        />
+      ) : null}
+      {fallbackUrl ? (
+        <InsetChipButton
+          icon={<IoEyeOutline size={11} aria-hidden="true" />}
+          label="Acknowledgment PDF"
+          onClick={() => onPreviewPdf(entry, fallbackUrl)}
+        />
+      ) : null}
+      {results.length > 0 ? (
+        <InsetChipButton
+          icon={
+            expanded ? (
+              <IoEyeOffOutline size={11} aria-hidden="true" />
+            ) : (
+              <IoEyeOutline size={11} aria-hidden="true" />
+            )
+          }
+          label={expanded ? `Hide ${entry.title}` : `View ${entry.title}`}
+          onClick={() => onToggle(entry.id)}
+        />
+      ) : null}
+    </>
+  );
+};
+
 const getEntryActions = ({
   entry,
   expandedId,
@@ -724,38 +780,17 @@ const getEntryActions = ({
   }
 
   if (entry.type === 'LAB_RESULT') {
-    const resultId = resolveLabResultId(entry);
     return (
-      <>
-        {resultId ? (
-          <InsetChipButton
-            icon={loadingPdf ? <LoadingIcon /> : <IoEyeOutline size={11} aria-hidden="true" />}
-            label={loadingPdf ? 'Loading…' : 'Result PDF'}
-            disabled={loadingPdf}
-            onClick={() => onOpenResultPdf(entry)}
-          />
-        ) : null}
-        {fallbackUrl ? (
-          <InsetChipButton
-            icon={<IoEyeOutline size={11} aria-hidden="true" />}
-            label="Acknowledgment PDF"
-            onClick={() => onPreviewPdf(entry, fallbackUrl)}
-          />
-        ) : null}
-        {results.length > 0 ? (
-          <InsetChipButton
-            icon={
-              expanded ? (
-                <IoEyeOffOutline size={11} aria-hidden="true" />
-              ) : (
-                <IoEyeOutline size={11} aria-hidden="true" />
-              )
-            }
-            label={expanded ? `Hide ${entry.title}` : `View ${entry.title}`}
-            onClick={() => onToggle(entry.id)}
-          />
-        ) : null}
-      </>
+      <LabResultActions
+        entry={entry}
+        loadingPdf={loadingPdf}
+        expanded={expanded}
+        fallbackUrl={fallbackUrl}
+        results={results}
+        onOpenResultPdf={onOpenResultPdf}
+        onPreviewPdf={onPreviewPdf}
+        onToggle={onToggle}
+      />
     );
   }
 

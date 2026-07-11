@@ -289,10 +289,6 @@ const AddForm = ({
                 <Build
                   formData={formData}
                   setFormData={setFormData}
-                  onNext={
-                    /* v8 ignore next -- dead no-op leftover from the old wizard: single-screen Build never invokes onNext */ () =>
-                      undefined
-                  }
                   serviceOptions={serviceOptions}
                   registerValidator={(fn) => {
                     buildValidatorRef.current = fn;

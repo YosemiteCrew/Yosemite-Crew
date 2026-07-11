@@ -107,7 +107,7 @@ const DeveloperPortalHome = () => {
                   <span className="dev-status-label">Portal access</span>
                   <strong className="dev-status-active">
                     <span className="dev-dot" aria-hidden="true" />
-                    Active
+                    {'Active'}
                   </strong>
                 </li>
                 <li>

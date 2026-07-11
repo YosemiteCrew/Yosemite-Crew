@@ -106,9 +106,9 @@ const ARTICLES: Record<string, Article> = {
   },
 };
 
-const CURL_SAMPLE = `curl -X POST \\
-  https://api.yosemitecrew.com/v2/appointments \\
-  -H "Authorization: Bearer $YC_KEY" \\
+const CURL_SAMPLE = String.raw`curl -X POST \
+  https://api.yosemitecrew.com/v2/appointments \
+  -H "Authorization: Bearer $YC_KEY" \
   -d '{
     "patient": "Patient/pat_poppy_812",
     "serviceType": "wellness",

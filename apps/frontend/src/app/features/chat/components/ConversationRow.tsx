@@ -236,7 +236,7 @@ export function ConversationRow({
                     )}
                 {onSnooze && (
                   <>
-                    <div className="my-1 h-px bg-chat-divider" role="separator" />
+                    <hr className="my-1 h-px border-0 bg-chat-divider" />
                     <MenuItem
                       icon={<IoMoonOutline className="h-3.5 w-3.5 text-neutral-500" />}
                       label="Snooze · 1 hour"

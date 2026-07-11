@@ -180,7 +180,6 @@ const renderBuild = (
         <Build
           formData={formData}
           setFormData={setFormData}
-          onNext={jest.fn()}
           serviceOptions={serviceOptions}
           registerValidator={(fn) => {
             capturedValidator = fn;

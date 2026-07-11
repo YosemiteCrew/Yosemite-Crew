@@ -66,7 +66,7 @@ const PhoneMoreSheet = ({ open, onClose, sections, links, onNavigate }: PhoneMor
         })}
       </ul>
 
-      <div className="yc-phone-more-divider" role="separator" />
+      <hr className="yc-phone-more-divider" />
 
       <ul className="yc-phone-more-list">
         {links.map((link) => {
@@ -90,7 +90,7 @@ const PhoneMoreSheet = ({ open, onClose, sections, links, onNavigate }: PhoneMor
 
       <div className="yc-phone-more-status">
         <span className="yc-phone-more-status-dot" aria-hidden />
-        All systems live
+        {'All systems live'}
       </div>
     </BottomSheet>
   );

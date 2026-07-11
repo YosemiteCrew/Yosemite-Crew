@@ -22,7 +22,7 @@ export const ABC_POLICY: Record<AbcClass, string> = {
 export const toNumber = (value: unknown): number => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   if (typeof value === 'string') {
-    const parsed = parseFloat(value);
+    const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;

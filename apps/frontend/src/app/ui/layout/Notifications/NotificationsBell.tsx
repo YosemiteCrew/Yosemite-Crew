@@ -96,14 +96,14 @@ const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
         {trigger}
         {open
           ? createPortal(
-              <div className="yc-noti-sheet-root" role="presentation">
+              <div className="yc-noti-sheet-root">
                 <button
                   type="button"
                   className="yc-noti-sheet-backdrop"
                   aria-label="Close notifications"
                   onClick={close}
                 />
-                <div
+                <div /* NOSONAR: custom-positioned bottom-sheet overlay; native <dialog> adds UA margin/border that break the design-system sheet positioning */
                   id={panelId}
                   className="yc-noti-sheet"
                   role="dialog"
@@ -126,7 +126,7 @@ const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
     <div className="yc-noti-wrap" ref={wrapRef}>
       {trigger}
       {open ? (
-        <div id={panelId} className="yc-noti-panel" role="dialog" aria-label="Notifications">
+        <div id={panelId} className="yc-noti-panel" role="dialog" aria-label="Notifications" /* NOSONAR: custom-positioned dropdown overlay; native <dialog> adds UA padding/margin that break the panel layout */>
           {panel}
         </div>
       ) : null}

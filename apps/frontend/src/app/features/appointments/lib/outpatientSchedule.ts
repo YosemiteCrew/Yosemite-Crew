@@ -46,6 +46,45 @@ type BuildOptions = {
   nowMs?: number;
 };
 
+type VisitContext = {
+  companionId?: string;
+  excludeAppointmentId?: string;
+  nowMs: number;
+};
+
+const byStart = (a: OutpatientVisit, b: OutpatientVisit): number => {
+  if (a.startTime < b.startTime) return -1;
+  if (a.startTime > b.startTime) return 1;
+  return 0;
+};
+
+/** Map a single appointment to an outpatient visit, or null when it should be skipped. */
+const toOutpatientVisit = (
+  appointment: Appointment,
+  { companionId, excludeAppointmentId, nowMs }: VisitContext
+): OutpatientVisit | null => {
+  if (!appointment.id || appointment.id === excludeAppointmentId) return null;
+  const companion = getAppointmentCompanion(appointment);
+  if (companionId && companion?.id !== companionId) return null;
+
+  const startMs = toMs(appointment.startTime);
+  if (startMs === undefined || startMs <= nowMs) return null;
+
+  const normalized = normalizeAppointmentStatus(appointment.status);
+  if (isExcludedStatus(normalized)) return null;
+
+  return {
+    id: appointment.id,
+    title: appointment.appointmentType?.name?.trim() || 'Scheduled visit',
+    startTime: new Date(startMs).toISOString(),
+    durationMinutes: appointment.durationMinutes,
+    leadName: appointment.lead?.name?.trim() || undefined,
+    roomName: appointment.room?.name?.trim() || undefined,
+    status: isProposedStatus(normalized) ? 'PROPOSED' : 'SCHEDULED',
+    group: startMs - nowMs < WEEK_MS ? 'THIS_WEEK' : 'NEXT_WEEK',
+  };
+};
+
 /**
  * Derive the outpatient This-week / Next-week visit schedule for a companion from the
  * real appointment list already in the store. There is no dedicated outpatient "series"
@@ -62,31 +101,11 @@ export const buildOutpatientSchedule = (
   const nextWeek: OutpatientVisit[] = [];
 
   for (const appointment of appointments) {
-    if (!appointment.id || appointment.id === excludeAppointmentId) continue;
-    const companion = getAppointmentCompanion(appointment);
-    if (companionId && companion?.id !== companionId) continue;
-
-    const startMs = toMs(appointment.startTime);
-    if (startMs === undefined || startMs <= nowMs) continue;
-
-    const normalized = normalizeAppointmentStatus(appointment.status);
-    if (isExcludedStatus(normalized)) continue;
-
-    const visit: OutpatientVisit = {
-      id: appointment.id,
-      title: appointment.appointmentType?.name?.trim() || 'Scheduled visit',
-      startTime: new Date(startMs).toISOString(),
-      durationMinutes: appointment.durationMinutes,
-      leadName: appointment.lead?.name?.trim() || undefined,
-      roomName: appointment.room?.name?.trim() || undefined,
-      status: isProposedStatus(normalized) ? 'PROPOSED' : 'SCHEDULED',
-      group: startMs - nowMs < WEEK_MS ? 'THIS_WEEK' : 'NEXT_WEEK',
-    };
+    const visit = toOutpatientVisit(appointment, { companionId, excludeAppointmentId, nowMs });
+    if (!visit) continue;
     (visit.group === 'THIS_WEEK' ? thisWeek : nextWeek).push(visit);
   }
 
-  const byStart = (a: OutpatientVisit, b: OutpatientVisit) =>
-    a.startTime < b.startTime ? -1 : a.startTime > b.startTime ? 1 : 0;
   thisWeek.sort(byStart);
   nextWeek.sort(byStart);
 

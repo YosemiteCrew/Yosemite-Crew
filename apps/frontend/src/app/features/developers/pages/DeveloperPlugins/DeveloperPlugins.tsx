@@ -165,7 +165,7 @@ const DeveloperPlugins = () => {
                 </div>
                 <span className="dev-site-status text-caption-2 text-text-tertiary">
                   <span className="dev-dot" aria-hidden="true" />
-                  Bookings sync to the PIMS in real time
+                  {'Bookings sync to the PIMS in real time'}
                 </span>
               </div>
             </div>

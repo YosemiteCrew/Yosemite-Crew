@@ -441,6 +441,61 @@ const useChannelState = () => {
   return state;
 };
 
+type HeaderChannelInfo = {
+  title: string;
+  channelMemberCount: number;
+  isClientChat: boolean;
+  isGroupChat: boolean;
+  appointmentId?: string;
+  patientId?: string;
+};
+
+// Derive the header's channel-shaped booleans/labels in one place so the
+// component body stays readable (and under the cognitive-complexity limit).
+const deriveHeaderChannelInfo = (
+  channel: StreamChannel | null | undefined,
+  currentUserId?: string | null
+): HeaderChannelInfo => {
+  const { title } = getChannelDisplayInfo(channel, currentUserId);
+  const scope = channel ? resolveChannelScope(channel) : 'colleagues';
+  const channelMemberCount = channel?.state?.members
+    ? Object.keys(channel.state.members).length
+    : 0;
+  const data = (channel?.data as any) ?? {};
+  const dataType = typeof data.type === 'string' ? data.type : undefined;
+  const chatCategory = typeof data.chatCategory === 'string' ? data.chatCategory : undefined;
+  const isTeamChannel = (channel?.type || '').toLowerCase() === 'team';
+  const isOrgGroupType = dataType === 'ORG_GROUP' || (chatCategory || '').toLowerCase() === 'group';
+  return {
+    title,
+    channelMemberCount,
+    isClientChat: scope === 'clients',
+    isGroupChat: scope === 'groups' || isOrgGroupType || (isTeamChannel && channelMemberCount > 2),
+    appointmentId: data.appointmentId,
+    patientId: data.patientId as string | undefined,
+  };
+};
+
+const getHeaderStatusText = ({
+  isGroupChat,
+  hasSessionClosed,
+  online,
+  channelMemberCount,
+  isClientChat,
+}: {
+  isGroupChat: boolean;
+  hasSessionClosed: boolean;
+  online: boolean;
+  channelMemberCount: number;
+  isClientChat: boolean;
+}): string => {
+  let baseStatus: string;
+  if (isGroupChat) baseStatus = `${channelMemberCount} members`;
+  else if (hasSessionClosed) baseStatus = 'Chat closed';
+  else baseStatus = online ? 'Active now' : 'Offline';
+  return isClientChat && !hasSessionClosed ? `${baseStatus} · via pet parent app` : baseStatus;
+};
+
 const ChannelHeaderWithCounterpart: FC<{
   currentUserId?: string | null;
 }> = ({ currentUserId }) => {
@@ -454,26 +509,9 @@ const ChannelHeaderWithCounterpart: FC<{
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [completingAppointment, setCompletingAppointment] = useState(false);
-  const { title } = getChannelDisplayInfo(channel, currentUserId);
-  const scope = channel ? resolveChannelScope(channel) : 'colleagues';
-  const channelMemberCount = channel?.state?.members
-    ? Object.keys(channel.state.members).length
-    : 0;
-  const dataType =
-    typeof (channel?.data as any)?.type === 'string' ? (channel?.data as any).type : undefined;
-  const chatCategory =
-    typeof (channel?.data as any)?.chatCategory === 'string'
-      ? (channel?.data as any).chatCategory
-      : undefined;
-  const isTeamChannel = (channel?.type || '').toLowerCase() === 'team';
-  const isOrgGroupType = dataType === 'ORG_GROUP' || (chatCategory || '').toLowerCase() === 'group';
-  const isClientChat = scope === 'clients';
-  const isGroupChat =
-    scope === 'groups' || isOrgGroupType || (isTeamChannel && channelMemberCount > 2);
-
-  const appointmentId = (channel?.data as any)?.appointmentId;
+  const { title, channelMemberCount, isClientChat, isGroupChat, appointmentId, patientId } =
+    deriveHeaderChannelInfo(channel, currentUserId);
   const backendStatus = appointmentId ? statusByAppointmentId[appointmentId] : undefined;
-  const patientId = (channel?.data as any)?.patientId as string | undefined;
   const appointment = useAppointmentStore((s) =>
     appointmentId ? s.appointmentsById[appointmentId] : undefined
   );
@@ -533,12 +571,13 @@ const ChannelHeaderWithCounterpart: FC<{
 
   const hasSessionClosed = sessionClosed;
   const online = isCounterpartOnline(channel, currentUserId);
-  let baseStatus: string;
-  if (isGroupChat) baseStatus = `${channelMemberCount} members`;
-  else if (hasSessionClosed) baseStatus = 'Chat closed';
-  else baseStatus = online ? 'Active now' : 'Offline';
-  const statusText =
-    isClientChat && !hasSessionClosed ? `${baseStatus} · via pet parent app` : baseStatus;
+  const statusText = getHeaderStatusText({
+    isGroupChat,
+    hasSessionClosed,
+    online,
+    channelMemberCount,
+    isClientChat,
+  });
 
   const handleAppointmentComplete = async () => {
     if (!appointment || completingAppointment) return;

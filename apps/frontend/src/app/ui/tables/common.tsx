@@ -29,6 +29,17 @@ export type NoDataMessageProps = {
 const CTA_CLASS =
   'inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-primary-600 px-5 text-[14px] font-semibold text-white transition-colors hover:bg-primary-700';
 
+const NoDataCta = ({ cta }: { cta: EmptyStateCta }) =>
+  cta.href ? (
+    <a href={cta.href} onClick={cta.onClick} className={CTA_CLASS}>
+      {cta.label}
+    </a>
+  ) : (
+    <button type="button" onClick={cta.onClick} className={CTA_CLASS}>
+      {cta.label}
+    </button>
+  );
+
 /**
  * Shared empty-state per the DS recipe: centered, a 64px `--blue-soft` icon chip,
  * a Newsreader 20px title, a 13.5px muted sub, and an optional primary CTA.
@@ -53,17 +64,7 @@ export const NoDataMessage = ({
       <div className="font-newsreader text-[20px] leading-tight text-text-primary">{title}</div>
       {subtitle ? <div className="text-[13.5px] text-text-secondary">{subtitle}</div> : null}
     </div>
-    {cta ? (
-      cta.href ? (
-        <a href={cta.href} onClick={cta.onClick} className={CTA_CLASS}>
-          {cta.label}
-        </a>
-      ) : (
-        <button type="button" onClick={cta.onClick} className={CTA_CLASS}>
-          {cta.label}
-        </button>
-      )
-    ) : null}
+    {cta ? <NoDataCta cta={cta} /> : null}
   </div>
 );
 

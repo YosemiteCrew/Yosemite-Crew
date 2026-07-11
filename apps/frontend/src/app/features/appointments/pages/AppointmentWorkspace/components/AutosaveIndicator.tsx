@@ -38,29 +38,27 @@ const AutosaveIndicator = ({ status, savedAt, className = '' }: AutosaveIndicato
 
   if (status === 'offline') {
     return (
-      <span
+      <output
         data-testid="autosave-indicator"
         data-state="offline"
-        role="status"
         className={`${base} text-danger-700`}
       >
         <IoCloudOfflineOutline size={13} aria-hidden="true" />
         Offline · retrying, edits kept locally
-      </span>
+      </output>
     );
   }
 
   const savedTime = formatStampTime(savedAt);
   return (
-    <span
+    <output
       data-testid="autosave-indicator"
       data-state="saved"
-      role="status"
       className={`${base} text-text-secondary`}
     >
       <IoCheckmarkCircle size={13} aria-hidden="true" className="text-pill-success-text" />
       {savedTime ? `Autosaved ${savedTime}` : 'Autosaved'}
-    </span>
+    </output>
   );
 };
 

@@ -73,7 +73,6 @@ const makeNestedFieldUpdater =
 type BuildProps = {
   formData: FormsProps;
   setFormData: React.Dispatch<React.SetStateAction<FormsProps>>;
-  onNext: () => void;
   serviceOptions: { label: string; value: string; badge?: string }[];
   registerValidator?: (fn: () => boolean) => void;
 };
@@ -1387,6 +1386,7 @@ const CanvasRow: React.FC<{
     return 'border border-[var(--hairline)]';
   })();
   return (
+    // NOSONAR: draggable card row that wraps action <button>s; a native <button> cannot nest interactive buttons or act as a drag row, so role="button" + tabIndex + onKeyDown provide the equivalent keyboard access
     <div
       role="button"
       tabIndex={0}
@@ -1423,25 +1423,51 @@ const CanvasRow: React.FC<{
         </span>
       </span>
       {selected && !locked ? (
-        <span
-          className="flex items-center gap-1.5"
-          onClick={(e) => e.stopPropagation()}
-          role="presentation"
-        >
+        <span className="flex items-center gap-1.5">
           {onMoveUp && (
-            <button type="button" title="Move up" aria-label="Move up" onClick={onMoveUp}>
+            <button
+              type="button"
+              title="Move up"
+              aria-label="Move up"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveUp();
+              }}
+            >
               <IoChevronUp size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
             </button>
           )}
           {onMoveDown && (
-            <button type="button" title="Move down" aria-label="Move down" onClick={onMoveDown}>
+            <button
+              type="button"
+              title="Move down"
+              aria-label="Move down"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveDown();
+              }}
+            >
               <IoChevronDown size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
             </button>
           )}
-          <button type="button" aria-label={`Duplicate ${title}`} onClick={onDuplicate}>
+          <button
+            type="button"
+            aria-label={`Duplicate ${title}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate();
+            }}
+          >
             <IoCopyOutline size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
           </button>
-          <button type="button" aria-label={`delete-${field.id}`} onClick={onDelete}>
+          <button
+            type="button"
+            aria-label={`delete-${field.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
             <IoTrashOutline size={14} className="text-[var(--ink-faint)]" aria-hidden="true" />
           </button>
         </span>
@@ -1726,7 +1752,7 @@ const Build = ({ formData, setFormData, serviceOptions, registerValidator }: Bui
   const toggleSummary = (field: FormField) =>
     handleFieldChange(field.id, {
       ...field,
-      meta: { ...(field.meta ?? {}), showInSummaryPdf: field.meta?.showInSummaryPdf === false },
+      meta: { ...field.meta, showInSummaryPdf: field.meta?.showInSummaryPdf === false },
     });
 
   const linkedServices = (formData.services ?? []).map(

@@ -413,6 +413,7 @@
   .yc-phone-more-divider {
     height: 1px;
     margin: 10px 4px;
+    border: 0;
     background: var(--hairline);
   }
 

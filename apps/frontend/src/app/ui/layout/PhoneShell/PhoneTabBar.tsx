@@ -51,13 +51,9 @@ const PhoneTabBar = ({ items, moreOpen, onNavigate, onOpenMore }: PhoneTabBarPro
           <span className="yc-phone-tab-icon" aria-hidden>
             <Icon size={22} />
             {showBadge ? (
-              <span
-                className="yc-phone-tab-badge"
-                aria-label={`${badgeCount} unread`}
-                role="status"
-              >
+              <output className="yc-phone-tab-badge" aria-label={`${badgeCount} unread`}>
                 {formatBadge(badgeCount)}
-              </span>
+              </output>
             ) : null}
           </span>
         );

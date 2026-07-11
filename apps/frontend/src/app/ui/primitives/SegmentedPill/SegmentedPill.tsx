@@ -32,7 +32,7 @@ function SegmentedPill<T extends string>({
   disabled,
 }: Readonly<SegmentedPillProps<T>>) {
   return (
-    <div
+    <div /* NOSONAR: styled inline-flex segmented control; native <fieldset> defaults (block layout, border, required legend) break the pill design */
       role="group"
       aria-label={ariaLabel}
       className={`inline-flex items-center rounded-full! border border-[var(--hairline)] bg-[var(--band)] p-[3px] ${

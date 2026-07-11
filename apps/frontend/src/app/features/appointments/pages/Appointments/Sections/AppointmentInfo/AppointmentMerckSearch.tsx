@@ -322,6 +322,8 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
     );
   }
 
+  const referenceQuerySuffix = query.trim() ? `?q=${encodeURIComponent(query.trim())}` : '';
+
   return (
     <>
       <div
@@ -333,7 +335,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
             <span className="flex size-7 items-center justify-center rounded-[9px] bg-blue-soft text-blue-text">
               <IoBookOutline size={14} aria-hidden="true" />
             </span>
-            MSD Manual
+            {'MSD Manual'}
           </span>
           <span className="text-[10.5px] text-[var(--ink-faint)]">In-visit lookup</span>
         </div>
@@ -442,7 +444,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-hairline pt-3">
           <span className="text-[11px] text-[var(--ink-faint)]">Opens the full browser</span>
           <a
-            href={`/integrations/merck-manuals${query.trim() ? `?q=${encodeURIComponent(query.trim())}` : ''}`}
+            href={`/integrations/merck-manuals${referenceQuerySuffix}`}
             className="flex items-center gap-1.5 text-[11.5px] font-semibold text-blue-text"
           >
             Open in Reference

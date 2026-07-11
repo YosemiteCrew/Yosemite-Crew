@@ -227,7 +227,7 @@ const TurnoverAnalytics = ({
 
         <div className={kpiCardClass}>
           <span className={kpiLabelClass}>Avg days on shelf</span>
-          <span className={kpiValueClass}>{avgDaysOnShelf === null ? '—' : avgDaysOnShelf}</span>
+          <span className={kpiValueClass}>{avgDaysOnShelf ?? '—'}</span>
           <span className={kpiCaptionClass}>across tracked items</span>
         </div>
 

@@ -35,6 +35,152 @@ const findDropdownOption = (options: DropdownOption[], defaultOption?: string) =
   );
 };
 
+const triggerClassName = (open: boolean, hasErrorState: boolean): string => {
+  const base =
+    'relative w-full flex h-[42px] items-center px-3.5 pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[14px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)]';
+  if (open) return `${base} border-input-border-active! border-b-0! rounded-t-xl! z-20`;
+  const border = hasErrorState ? 'border-input-border-error!' : 'border-input-border-default!';
+  return `${base} rounded-xl! ${border}`;
+};
+
+const optionClassName = (isActive: boolean): string =>
+  `flex items-center justify-between gap-2 px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
+    isActive ? 'bg-card-hover text-text-primary!' : ''
+  }`;
+
+type DropdownPanelProps = {
+  listboxId: string;
+  placeholder: string;
+  isTerminologyLocked: boolean;
+  shouldPortal: boolean;
+  portalStyle: React.CSSProperties | null;
+  filteredOptions: DropdownOption[];
+  activeOptionId?: string;
+  searchQuery: string;
+  noOptionsMessage?: string;
+  onOptionHover: (option: DropdownOption) => void;
+  onOptionSelect: (option: DropdownOption) => void;
+};
+
+const DropdownPanel = ({
+  listboxId,
+  placeholder,
+  isTerminologyLocked,
+  shouldPortal,
+  portalStyle,
+  filteredOptions,
+  activeOptionId,
+  searchQuery,
+  noOptionsMessage,
+  onOptionHover,
+  onOptionSelect,
+}: DropdownPanelProps) => {
+  const emptyMessage = searchQuery ? 'No matches found' : (noOptionsMessage ?? 'No options');
+  return (
+    <div
+      id={listboxId}
+      aria-label={placeholder}
+      data-portal-dropdown
+      data-terminology-lock={isTerminologyLocked ? 'true' : undefined}
+      className="border-input-border-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-xl border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
+      style={shouldPortal ? (portalStyle ?? undefined) : undefined}
+    >
+      {filteredOptions.length > 0 &&
+        filteredOptions.map((option) => (
+          <button
+            key={option.value}
+            id={`${listboxId}-option-${option.value}`}
+            type="button"
+            className={optionClassName(activeOptionId === `${listboxId}-option-${option.value}`)}
+            onMouseEnter={() => onOptionHover(option)}
+            onClick={() => onOptionSelect(option)}
+          >
+            <span className="min-w-0 truncate">{option.label}</span>
+            {option.badge && (
+              <span className="shrink-0 rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-text-brand">
+                {option.badge}
+              </span>
+            )}
+          </button>
+        ))}
+      {filteredOptions.length === 0 && (
+        <div className="text-caption-1 py-3 text-text-primary text-center">{emptyMessage}</div>
+      )}
+    </div>
+  );
+};
+
+type DropdownTriggerContentProps = {
+  open: boolean;
+  searchable: boolean;
+  selected: DropdownOption | null;
+  placeholder: string;
+  listboxId: string;
+  searchQuery: string;
+  activeOptionId?: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onSearchChange: (value: string) => void;
+  onSearchKeyDown: (event: React.KeyboardEvent) => void;
+  onChevronClick: () => void;
+};
+
+const DropdownTriggerContent = ({
+  open,
+  searchable,
+  selected,
+  placeholder,
+  listboxId,
+  searchQuery,
+  activeOptionId,
+  inputRef,
+  onSearchChange,
+  onSearchKeyDown,
+  onChevronClick,
+}: DropdownTriggerContentProps) => (
+  <>
+    {open && searchable && (
+      <input
+        ref={inputRef}
+        id={`${listboxId}-search`}
+        name={`${listboxId}-search`}
+        type="text"
+        value={searchQuery}
+        onChange={(e) => onSearchChange(e.target.value)}
+        placeholder={selected ? selected.label : ''}
+        aria-label={`Search ${placeholder}`}
+        aria-controls={open ? listboxId : undefined}
+        aria-activedescendant={activeOptionId}
+        onKeyDown={(event) => {
+          event.stopPropagation();
+          onSearchKeyDown(event);
+        }}
+        className="w-full min-w-0 bg-transparent text-left text-[14px] text-text-primary focus-visible:outline-none placeholder:text-input-text-placeholder"
+      />
+    )}
+    {(!open || !searchable) && selected && (
+      <span className="min-w-0 flex-1 text-left text-text-primary text-[14px] truncate">
+        {selected.label}
+      </span>
+    )}
+    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center">
+      <IoChevronDown
+        size={14}
+        aria-hidden="true"
+        style={{
+          flexShrink: 0,
+          color: 'var(--color-neutral-600)',
+          transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+          transition: 'transform 150ms ease',
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onChevronClick();
+        }}
+      />
+    </span>
+  </>
+);
+
 const LabelDropdown = ({
   placeholder,
   options,
@@ -207,43 +353,20 @@ const LabelDropdown = ({
   );
 
   // Same visual style for both portal and inline — connected panel below trigger
-  const panel = (
-    <div
-      id={listboxId}
-      aria-label={placeholder}
-      data-portal-dropdown
-      data-terminology-lock={isTerminologyLocked ? 'true' : undefined}
-      className="border-input-border-active max-h-50 overflow-y-auto scrollbar-hidden z-200 rounded-b-xl border border-t bg-[var(--glass-93)] shadow-[0_16px_34px_var(--sh12)] backdrop-blur-[24px] backdrop-saturate-150 flex flex-col items-stretch w-full px-3 py-2.5"
-      style={shouldPortal ? (portalStyle ?? undefined) : undefined}
-    >
-      {filteredOptions.length > 0 &&
-        filteredOptions.map((option) => (
-          <button
-            key={option.value}
-            id={`${listboxId}-option-${option.value}`}
-            type="button"
-            className={`flex items-center justify-between gap-2 px-5 py-3 text-left text-body-4 hover:bg-card-hover rounded-2xl! text-text-secondary! hover:text-text-primary! w-full ${
-              activeOptionId === `${listboxId}-option-${option.value}`
-                ? 'bg-card-hover text-text-primary!'
-                : ''
-            }`}
-            onMouseEnter={() => setActiveIndex(filteredOptions.indexOf(option))}
-            onClick={() => selectOption(option)}
-          >
-            <span className="min-w-0 truncate">{option.label}</span>
-            {option.badge && (
-              <span className="shrink-0 rounded-2xl bg-primary-100 px-2 py-0.5 text-caption-2 font-medium text-text-brand">
-                {option.badge}
-              </span>
-            )}
-          </button>
-        ))}
-      {filteredOptions.length === 0 && (
-        <div className="text-caption-1 py-3 text-text-primary text-center">
-          {searchQuery ? 'No matches found' : (noOptionsMessage ?? 'No options')}
-        </div>
-      )}
-    </div>
+  const panelNode = (
+    <DropdownPanel
+      listboxId={listboxId}
+      placeholder={placeholder}
+      isTerminologyLocked={isTerminologyLocked}
+      shouldPortal={shouldPortal}
+      portalStyle={portalStyle}
+      filteredOptions={filteredOptions}
+      activeOptionId={activeOptionId}
+      searchQuery={searchQuery}
+      noOptionsMessage={noOptionsMessage}
+      onOptionHover={(option) => setActiveIndex(filteredOptions.indexOf(option))}
+      onOptionSelect={selectOption}
+    />
   );
 
   return (
@@ -255,11 +378,7 @@ const LabelDropdown = ({
       <div className="w-full relative" ref={dropdownRef}>
         <button
           type="button"
-          className={`relative w-full flex h-[42px] items-center px-3.5 pr-11 min-w-30 border-[1.5px] cursor-pointer bg-[var(--field-bg)] text-[14px] outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${
-            open
-              ? 'border-input-border-active! border-b-0! rounded-t-xl! z-20'
-              : `rounded-xl! ${error || hasError ? 'border-input-border-error!' : 'border-input-border-default!'}`
-          }`}
+          className={triggerClassName(open, Boolean(error || hasError))}
           onClick={() => {
             if (!open) {
               openDropdown();
@@ -271,49 +390,24 @@ const LabelDropdown = ({
           aria-haspopup="listbox"
           onKeyDown={handleKeyDown}
         >
-          {open && searchable && (
-            <input
-              ref={inputRef}
-              id={`${listboxId}-search`}
-              name={`${listboxId}-search`}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={selected ? selected.label : ''}
-              aria-label={`Search ${placeholder}`}
-              aria-controls={open ? listboxId : undefined}
-              aria-activedescendant={activeOptionId}
-              onKeyDown={(event) => {
-                event.stopPropagation();
-                handleKeyDown(event);
-              }}
-              className="w-full min-w-0 bg-transparent text-left text-[14px] text-text-primary focus-visible:outline-none placeholder:text-input-text-placeholder"
-            />
-          )}
-          {(!open || !searchable) && selected && (
-            <span className="min-w-0 flex-1 text-left text-text-primary text-[14px] truncate">
-              {selected.label}
-            </span>
-          )}
-          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center">
-            <IoChevronDown
-              size={14}
-              aria-hidden="true"
-              style={{
-                flexShrink: 0,
-                color: 'var(--color-neutral-600)',
-                transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 150ms ease',
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleDropdown();
-              }}
-            />
-          </span>
+          <DropdownTriggerContent
+            open={open}
+            searchable={searchable}
+            selected={selected}
+            placeholder={placeholder}
+            listboxId={listboxId}
+            searchQuery={searchQuery}
+            activeOptionId={activeOptionId}
+            inputRef={inputRef}
+            onSearchChange={setSearchQuery}
+            onSearchKeyDown={handleKeyDown}
+            onChevronClick={toggleDropdown}
+          />
         </button>
-        {open && shouldPortal && portalStyle && createPortal(panel, document.body)}
-        {open && !shouldPortal && <div className="absolute top-full left-0 w-full">{panel}</div>}
+        {open && shouldPortal && portalStyle && createPortal(panelNode, document.body)}
+        {open && !shouldPortal && (
+          <div className="absolute top-full left-0 w-full">{panelNode}</div>
+        )}
       </div>
       {error && (
         <div className="min-h-6 mt-1.5 flex items-center gap-1 text-caption-2 text-text-error">

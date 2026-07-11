@@ -48,17 +48,21 @@ const HistoryRecordDrawer = ({
   const note = entry.summary?.trim() || entry.subtitle?.trim() || '';
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-[var(--sh55)] backdrop-blur-sm md:items-stretch md:justify-end"
-      data-history-record-drawer="true"
-      onClick={onClose}
+    <dialog
+      open
+      aria-label={`Record detail for ${entry.title}`}
+      className="fixed inset-0 z-[60] m-0 flex h-full max-h-none w-full max-w-none items-end justify-center border-0 bg-[var(--sh55)] p-0 backdrop-blur-sm md:items-stretch md:justify-end"
     >
+      <button
+        type="button"
+        aria-label="Dismiss record detail"
+        data-history-record-drawer="true"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default"
+      />
       <section
-        role="dialog"
-        aria-modal="true"
         aria-label={`Record detail for ${entry.title}`}
-        onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-hairline bg-[var(--screen-2)] shadow-2xl md:h-full md:max-h-none md:w-[380px] md:rounded-none md:border-y-0 md:border-r-0"
+        className="relative z-10 flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border border-hairline bg-[var(--screen-2)] shadow-2xl md:h-full md:max-h-none md:w-[380px] md:rounded-none md:border-y-0 md:border-r-0"
       >
         <header className="flex flex-none items-start justify-between gap-2.5 border-b border-hairline px-5 py-4">
           <div className="flex min-w-0 flex-col gap-1">
@@ -150,7 +154,7 @@ const HistoryRecordDrawer = ({
           </div>
         </footer>
       </section>
-    </div>
+    </dialog>
   );
 };
 

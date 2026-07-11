@@ -484,6 +484,88 @@ textarea:focus-visible {
   --img-bg-lines: url('https://d2il6osz49gpup.cloudfront.net/Images/LINES.png');
   --img-bg-trust-after: url('https://d2il6osz49gpup.cloudfront.net/Images/TrustAfter.png');
   --img-bg-about: url('https://d2il6osz49gpup.cloudfront.net/Images/aboutbg.png');
+
+  /* Warm-bone token additions (merged in to avoid a duplicate :root selector). */
+  /* surfaces */
+  --page: #efe8dc;
+  --band: #e8e0d2;
+  --inset: #eae2d5;
+  --screen: #f7f3ec;
+  --screen-2: #f1ebe1;
+  --hairline: #e5dccf;
+  --divider: #d6d1cd;
+  --hairline-hover: #d6d1cd;
+  /* active nav item (current page) */
+  --nav-active: #1657c9;
+  --nav-active-bg: rgba(37, 123, 237, 0.11);
+  /* ink */
+  --ink: #1d1c1b;
+  --ink-body: #302f2e;
+  --ink-muted: #5c5956;
+  --ink-soft: #423f3c;
+  --ink-faint: #8f8984;
+  --ink-faint2: #a9a39e;
+  --ink-6b: #6b6763;
+  /* primary CTA (dark fill on light) */
+  --cta: #302f2e;
+  --cta-hover: #1d1c1b;
+  --cta-text: #ffffff;
+  /* accents */
+  --blue: #257bed;
+  --blue-text: #257bed;
+  --blue-soft: #e6f2ff;
+  --pink: #ff90d4;
+  --cyan: #5ce1e6;
+  --cyan-text: #38ccd8;
+  --success: #008f5d;
+  /* mockup avatar chips (initials) */
+  --avatar-violet-bg: #f5f3ff;
+  --avatar-violet-ink: #5b21b6;
+  --avatar-green-bg: #e6f4ef;
+  --avatar-green-ink: #006642;
+  --avatar-amber-bg: #fef3e9;
+  --avatar-amber-ink: #af5e19;
+  --hairline-soft: rgba(29, 28, 27, 0.09);
+  --glass-inset-hi: rgba(255, 255, 255, 0.8);
+  /* elevation scale — warm-dark in light, deeper black in dark */
+  --sh03: rgba(29, 28, 27, 0.03);
+  --sh05: rgba(29, 28, 27, 0.05);
+  --sh06: rgba(29, 28, 27, 0.06);
+  --sh08: rgba(29, 28, 27, 0.08);
+  --sh09: rgba(29, 28, 27, 0.09);
+  --sh10: rgba(29, 28, 27, 0.1);
+  --sh12: rgba(29, 28, 27, 0.12);
+  --sh14: rgba(29, 28, 27, 0.14);
+  --sh16: rgba(29, 28, 27, 0.16);
+  --sh18: rgba(29, 28, 27, 0.18);
+  --sh20: rgba(29, 28, 27, 0.2);
+  --sh22: rgba(29, 28, 27, 0.22);
+  --sh28: rgba(29, 28, 27, 0.28);
+  --sh55: rgba(29, 28, 27, 0.55);
+  /* ambient radial glows */
+  --glow-b10: rgba(37, 123, 237, 0.1);
+  --glow-b12: rgba(37, 123, 237, 0.12);
+  --glow-b14: rgba(37, 123, 237, 0.14);
+  --glow-c10: rgba(92, 225, 230, 0.1);
+  --glow-c14: rgba(92, 225, 230, 0.14);
+  --glow-p10: rgba(244, 121, 190, 0.1);
+  --glow-p12: rgba(244, 121, 190, 0.12);
+  /* soft surfaces */
+  --surface-soft: rgba(239, 232, 220, 0.7);
+  --pill-raised: #f7f3ec;
+  --glass-93: rgba(239, 232, 220, 0.93);
+  /* form inputs */
+  --field-bg: #fafafa;
+  /* Semantic tinted surfaces for chrome + global-state components (notifications
+     rows, permission-denied, filtered-empty). Values mirror the danger/warning
+     ramps and the pink accent so tinted discs read consistently in light mode. */
+  --danger-bg: #fdebea;
+  --danger-text: #d53225;
+  --warn-bg: #fef3e9;
+  --warn-text: #af5e19;
+  --warn-border: #f9ad6c;
+  --pink-soft: #ffe8f6;
+  --pink-text: #c43d94;
 }
 
 html,
@@ -1016,89 +1098,6 @@ input[type='number'] {
    existing PIMS surface untouched — consuming components opt in per surface.
    Dark mode is driven by html[data-theme="dark"], stamped pre-paint from
    localStorage 'yc-theme' or prefers-color-scheme (see ui/theme/ThemeScript).
-   ========================================================================== */
-:root {
-  /* surfaces */
-  --page: #efe8dc;
-  --band: #e8e0d2;
-  --inset: #eae2d5;
-  --screen: #f7f3ec;
-  --screen-2: #f1ebe1;
-  --hairline: #e5dccf;
-  --divider: #d6d1cd;
-  --hairline-hover: #d6d1cd;
-  /* active nav item (current page) */
-  --nav-active: #1657c9;
-  --nav-active-bg: rgba(37, 123, 237, 0.11);
-  /* ink */
-  --ink: #1d1c1b;
-  --ink-body: #302f2e;
-  --ink-muted: #5c5956;
-  --ink-soft: #423f3c;
-  --ink-faint: #8f8984;
-  --ink-faint2: #a9a39e;
-  --ink-6b: #6b6763;
-  /* primary CTA (dark fill on light) */
-  --cta: #302f2e;
-  --cta-hover: #1d1c1b;
-  --cta-text: #ffffff;
-  /* accents */
-  --blue: #257bed;
-  --blue-text: #257bed;
-  --blue-soft: #e6f2ff;
-  --pink: #ff90d4;
-  --cyan: #5ce1e6;
-  --cyan-text: #38ccd8;
-  --success: #008f5d;
-  /* mockup avatar chips (initials) */
-  --avatar-violet-bg: #f5f3ff;
-  --avatar-violet-ink: #5b21b6;
-  --avatar-green-bg: #e6f4ef;
-  --avatar-green-ink: #006642;
-  --avatar-amber-bg: #fef3e9;
-  --avatar-amber-ink: #af5e19;
-  --hairline-soft: rgba(29, 28, 27, 0.09);
-  --glass-inset-hi: rgba(255, 255, 255, 0.8);
-  /* elevation scale — warm-dark in light, deeper black in dark */
-  --sh03: rgba(29, 28, 27, 0.03);
-  --sh05: rgba(29, 28, 27, 0.05);
-  --sh06: rgba(29, 28, 27, 0.06);
-  --sh08: rgba(29, 28, 27, 0.08);
-  --sh09: rgba(29, 28, 27, 0.09);
-  --sh10: rgba(29, 28, 27, 0.1);
-  --sh12: rgba(29, 28, 27, 0.12);
-  --sh14: rgba(29, 28, 27, 0.14);
-  --sh16: rgba(29, 28, 27, 0.16);
-  --sh18: rgba(29, 28, 27, 0.18);
-  --sh20: rgba(29, 28, 27, 0.2);
-  --sh22: rgba(29, 28, 27, 0.22);
-  --sh28: rgba(29, 28, 27, 0.28);
-  --sh55: rgba(29, 28, 27, 0.55);
-  /* ambient radial glows */
-  --glow-b10: rgba(37, 123, 237, 0.1);
-  --glow-b12: rgba(37, 123, 237, 0.12);
-  --glow-b14: rgba(37, 123, 237, 0.14);
-  --glow-c10: rgba(92, 225, 230, 0.1);
-  --glow-c14: rgba(92, 225, 230, 0.14);
-  --glow-p10: rgba(244, 121, 190, 0.1);
-  --glow-p12: rgba(244, 121, 190, 0.12);
-  /* soft surfaces */
-  --surface-soft: rgba(239, 232, 220, 0.7);
-  --pill-raised: #f7f3ec;
-  --glass-93: rgba(239, 232, 220, 0.93);
-  /* form inputs */
-  --field-bg: #fafafa;
-  /* Semantic tinted surfaces for chrome + global-state components (notifications
-     rows, permission-denied, filtered-empty). Values mirror the danger/warning
-     ramps and the pink accent so tinted discs read consistently in light mode. */
-  --danger-bg: #fdebea;
-  --danger-text: #d53225;
-  --warn-bg: #fef3e9;
-  --warn-text: #af5e19;
-  --warn-border: #f9ad6c;
-  --pink-soft: #ffe8f6;
-  --pink-text: #c43d94;
-}
 
 html[data-theme='dark'] {
   --page: #201c18;
@@ -1169,12 +1168,10 @@ html[data-theme='dark'] {
   --warn-border: rgba(249, 173, 108, 0.5);
   --pink-soft: rgba(255, 144, 212, 0.16);
   --pink-text: #ff9dd8;
-}
 
-/* Dark overrides for coloured ramps, status chips, and semantic one-offs so tinted
-   badges, alerts, pills, chat, and calendar surfaces flip with the theme. Status values
-   match the DS dark set. Light mode is unaffected (these only apply under data-theme=dark). */
-html[data-theme='dark'] {
+  /* Dark overrides for coloured ramps, status chips, and semantic one-offs so tinted
+     badges, alerts, pills, chat, and calendar surfaces flip with the theme. Status values
+     match the DS dark set. Light mode is unaffected (these only apply under data-theme=dark). */
   /* tinted chip backgrounds + text (success / warning / danger / brand) */
   --color-success-100: rgba(74, 205, 155, 0.16);
   --color-success-700: #74d0a2;

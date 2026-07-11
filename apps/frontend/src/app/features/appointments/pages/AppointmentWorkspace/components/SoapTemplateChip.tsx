@@ -85,6 +85,7 @@ const SoapTemplateChip = ({
       </button>
 
       {open && (
+        /* NOSONAR: custom searchable popover; native <select>/<datalist> cannot hold the search box and rich option rows, and the role is required by the listbox/option semantics */
         <div
           role="listbox"
           aria-label="SOAP templates"
@@ -109,9 +110,8 @@ const SoapTemplateChip = ({
               </li>
             ) : (
               matches.map((template) => {
-                const isActive = Boolean(
-                  activeName && template.name.toLowerCase() === activeName.trim().toLowerCase()
-                );
+                const isActive =
+                  template.name.toLowerCase() === activeName?.trim().toLowerCase();
                 return (
                   <li key={template.id}>
                     <button

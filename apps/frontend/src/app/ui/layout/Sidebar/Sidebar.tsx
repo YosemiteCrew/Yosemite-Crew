@@ -240,7 +240,7 @@ const Sidebar = () => {
         {!isCollapsed && (
           <span className="sidebar-status">
             <span className="sidebar-status-dot" aria-hidden />
-            All systems live
+            {'All systems live'}
           </span>
         )}
         <GlassTooltip

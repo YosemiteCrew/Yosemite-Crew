@@ -600,9 +600,7 @@ const OrderDetailPanel = ({
   onClose,
 }: OrderDetailPanelProps) => {
   const owner = activeResultDetail ? getResultOwnerName(activeResultDetail) : '';
-  const pdfLoading = Boolean(
-    activeResultDetail && pdfPreviewLoadingId === activeResultDetail.resultId
-  );
+  const pdfLoading = pdfPreviewLoadingId === activeResultDetail?.resultId;
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="flex items-start justify-between gap-3">

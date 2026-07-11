@@ -127,6 +127,8 @@ const LinkedMedicalDevices = () => {
           devices.map((device) => {
             const online = isDeviceOnline(device);
             const idleDays = getIdleDays(device);
+            const idleDayLabel = idleDays === 1 ? 'day' : 'days';
+            const idleSuffix = idleDays ? ` · ${idleDays} ${idleDayLabel}` : '';
             const DeviceIcon = pickDeviceIcon(device.displayName);
             return (
               <div
@@ -147,12 +149,13 @@ const LinkedMedicalDevices = () => {
                 {online ? (
                   <span className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--success)]">
                     <span className="size-[7px] rounded-full bg-[var(--success)] animate-pulse" />
-                    ONLINE
+                    {'ONLINE'}
                   </span>
                 ) : (
                   <span className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--warn-text)]">
                     <span className="size-[7px] rounded-full bg-[var(--warn-text)]" />
-                    IDLE{idleDays ? ` · ${idleDays} day${idleDays === 1 ? '' : 's'}` : ''}
+                    {'IDLE'}
+                    {idleSuffix}
                   </span>
                 )}
               </div>

@@ -324,6 +324,21 @@ function MessageReactions({
   );
 }
 
+/** Meta line label: outgoing messages append the staff sender name to the time. */
+const formatMessageTimeLabel = (mine: boolean, time: string, senderName?: string): string =>
+  mine && senderName ? `${time} · ${senderName}` : time;
+
+/** Left avatar gutter for incoming messages; a spacer keeps grouped rows aligned. */
+function MessageGutter({
+  mine,
+  firstOfGroup,
+  name,
+}: Readonly<{ mine: boolean; firstOfGroup?: boolean; name: string }>) {
+  if (mine) return null;
+  if (firstOfGroup === false) return <span className="w-9 shrink-0" aria-hidden="true" />;
+  return <ChatAvatar name={name} size="sm" />;
+}
+
 export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean }>) {
   const { message, isMyMessage, handleReaction, handleOpenThread, readBy } = useMessageContext();
   const { editMessage, deleteMessage } = useChannelActionContext();
@@ -395,12 +410,7 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
         mine ? 'justify-end' : 'justify-start'
       )}
     >
-      {!mine &&
-        (firstOfGroup === false ? (
-          <span className="w-9 shrink-0" aria-hidden="true" />
-        ) : (
-          <ChatAvatar name={counterpartName} size="sm" />
-        ))}
+      <MessageGutter mine={mine} firstOfGroup={firstOfGroup} name={counterpartName} />
       <div
         className={clsx(
           'flex max-w-[80%] flex-col gap-1 sm:max-w-md',
@@ -415,7 +425,7 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
         <span className="flex items-center gap-2 px-1">
           <MessageReactions reactions={reactions} onToggle={handleReaction} />
           <Text as="span" variant="caption-2" className="text-neutral-500">
-            {mine && senderName ? `${time} · ${senderName}` : time}
+            {formatMessageTimeLabel(mine, time, senderName)}
           </Text>
           {mine && <MessageStatusIcon sending={sending} seen={seen} />}
         </span>

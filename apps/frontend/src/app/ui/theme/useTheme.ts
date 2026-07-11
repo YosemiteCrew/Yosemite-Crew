@@ -73,7 +73,7 @@ const applyTheme = (theme: Theme, persist: boolean) => {
  */
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>('light');
-  const [appearance, setAppearanceState] = useState<Appearance>('auto');
+  const [appearanceState, setAppearanceState] = useState<Appearance>('auto');
 
   useEffect(() => {
     setTheme(readTheme());
@@ -145,5 +145,5 @@ export function useTheme() {
     setAppearanceState(next);
   }, []);
 
-  return { theme, toggle, appearance, setAppearance };
+  return { theme, toggle, appearance: appearanceState, setAppearance };
 }

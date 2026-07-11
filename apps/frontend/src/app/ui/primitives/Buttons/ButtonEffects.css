@@ -20,7 +20,7 @@
   font-family: 'Satoshi Variable', 'Satoshi', sans-serif !important;
   font-size: 0.875rem !important;
   font-weight: 600 !important;
-  line-height: 1.25rem !important;
+  line-height: 1.25rem;
   color: var(--cta-text) !important;
   transition:
     background-color 200ms ease-out,

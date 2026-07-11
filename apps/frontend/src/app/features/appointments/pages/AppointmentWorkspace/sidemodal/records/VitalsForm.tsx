@@ -233,11 +233,11 @@ const VitalsField = ({
 
 // The observation controls are rendered as segmented pickers below the grid, so
 // they must be excluded from the numeric-input grid to avoid duplicate controls.
-const OBSERVATION_GRID_KEYS: ReadonlyArray<keyof DraftVitals> = [
+const OBSERVATION_GRID_KEYS: ReadonlySet<keyof DraftVitals> = new Set<keyof DraftVitals>([
   'bcs',
   'painScore',
   'mucousMembrane',
-];
+]);
 
 // BCS uses the app's full 1..9 scale; pain uses the app's full 0..10 scale — the
 // design shows narrower windows, but the app's real ranges keep validation/data intact.
@@ -274,6 +274,7 @@ const SegmentedPicker = ({
   <div className="flex flex-col gap-1">
     <div className="flex items-center justify-between gap-3">
       <span className="text-body-4 font-medium text-text-secondary">{label}</span>
+      {/* NOSONAR: segmented control; native <fieldset> breaks the flex layout and the group role is asserted by the tests */}
       <div
         className="flex flex-wrap items-center justify-end gap-1"
         role="group"
@@ -600,7 +601,7 @@ const VitalsForm = ({
       </div>
       <div className="grid grid-cols-2 gap-3">
         {activeFields
-          .filter((field) => !OBSERVATION_GRID_KEYS.includes(field.key))
+          .filter((field) => !OBSERVATION_GRID_KEYS.has(field.key))
           .map((field) => (
             <div key={field.key} className="flex flex-col gap-1">
               <VitalsField

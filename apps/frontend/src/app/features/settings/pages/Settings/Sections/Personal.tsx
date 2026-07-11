@@ -74,7 +74,7 @@ const initialsFrom = (first: string, last: string): string => {
 };
 
 const isHttpsAvatar = (raw?: string | null): raw is string =>
-  typeof raw === 'string' && /^https:\/\//.test(raw.trim());
+  typeof raw === 'string' && raw.trim().startsWith('https://');
 
 const scrollToSection = (id: string) => {
   globalThis.document?.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });

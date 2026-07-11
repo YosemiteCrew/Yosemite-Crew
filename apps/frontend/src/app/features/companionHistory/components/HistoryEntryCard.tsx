@@ -118,6 +118,12 @@ const getMetaText = (entry: HistoryEntry): string => {
   return contributor ? `${timestamp} · ${contributor}` : timestamp;
 };
 
+const getAttachmentLabel = (attachment: unknown): string => {
+  if (typeof attachment === 'string') return attachment.trim();
+  const name = (attachment as { name?: unknown })?.name;
+  return typeof name === 'string' || typeof name === 'number' ? String(name).trim() : '';
+};
+
 const getAttachmentChips = (entry: HistoryEntry): AttachmentChip[] => {
   const chips: AttachmentChip[] = [];
   const fileName = getPayloadString(entry.payload, [
@@ -136,10 +142,7 @@ const getAttachmentChips = (entry: HistoryEntry): AttachmentChip[] => {
 
   const attachments = Array.isArray(entry.payload.attachments) ? entry.payload.attachments : [];
   attachments.forEach((attachment, index) => {
-    const label =
-      typeof attachment === 'string'
-        ? attachment.trim()
-        : String((attachment as { name?: unknown })?.name ?? '').trim();
+    const label = getAttachmentLabel(attachment);
     if (label) {
       chips.push({
         key: `attachment-${index}`,

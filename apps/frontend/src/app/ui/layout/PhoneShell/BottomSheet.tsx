@@ -56,7 +56,7 @@ const BottomSheet = ({ open, title, onClose, children, footer, className }: Bott
 
       const items = getFocusables();
       const first = items[0];
-      const last = items[items.length - 1];
+      const last = items.at(-1)!;
       const active = document.activeElement;
 
       if (event.shiftKey && active === first) {
@@ -79,7 +79,7 @@ const BottomSheet = ({ open, title, onClose, children, footer, className }: Bott
   if (!open) return null;
 
   return (
-    <div className="yc-phone-sheet-root" role="presentation">
+    <div className="yc-phone-sheet-root">
       <button
         type="button"
         className="yc-phone-sheet-backdrop"
@@ -87,7 +87,7 @@ const BottomSheet = ({ open, title, onClose, children, footer, className }: Bott
         tabIndex={-1}
         onClick={onClose}
       />
-      <div
+      <div /* NOSONAR: custom-positioned bottom-sheet overlay; native <dialog> adds UA margin/border that break the design-system sheet positioning */
         ref={panelRef}
         className={`yc-phone-sheet ${className ?? ''}`.trim()}
         role="dialog"

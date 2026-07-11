@@ -55,7 +55,7 @@ const DashboardProfile = () => {
               style={{ background: 'var(--success)' }}
               aria-hidden="true"
             />
-            Verified clinic
+            {'Verified clinic'}
           </span>
         )}
       </div>
