@@ -349,7 +349,7 @@ const buildUpdatedAppointment = (ctx: AppointmentSaveContext): Appointment => {
   };
 };
 
-const AppointmentInfo = ({
+const useAppointmentInfoView = ({
   activeAppointment,
   canEditAppointments: canEditProp = true,
 }: AppointmentInfoProps) => {
@@ -997,5 +997,7 @@ const AppointmentInfo = ({
     </div>
   );
 };
+
+const AppointmentInfo = (props: AppointmentInfoProps) => useAppointmentInfoView(props);
 
 export default AppointmentInfo;

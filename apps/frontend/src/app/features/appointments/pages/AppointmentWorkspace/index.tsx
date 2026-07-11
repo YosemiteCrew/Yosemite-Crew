@@ -310,7 +310,7 @@ const DischargeDateTimeModal = ({
  * Full-page clinical workspace shell. Hosts the header, companion card, stepper,
  * meta bar, and the active step. Step bodies are layered in per phase.
  */
-const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
+const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspaceProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { notify } = useNotify();
@@ -1588,5 +1588,8 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     </div>
   );
 };
+
+const AppointmentWorkspace = (props: AppointmentWorkspaceProps) =>
+  useAppointmentWorkspaceContent(props);
 
 export default AppointmentWorkspace;

@@ -232,13 +232,12 @@ const mergeCompanionMeta = (
   };
 };
 
-const Appointments = () => {
-  const router = useRouter();
-  const { notify } = useNotify();
+const useEnrichedAppointments = (): Appointment[] => {
   useLoadAppointmentsForPrimaryOrg();
   const rawAppointments = useAppointmentsForPrimaryOrg();
   useLoadCompanionsForPrimaryOrg();
   const companions = useCompanionsParentsForPrimaryOrg();
+
   const companionMetaById = useMemo(() => {
     const entries = companions.map((item) => {
       const photoUrl = item.companion.photoUrl?.trim() || '';
@@ -261,23 +260,23 @@ const Appointments = () => {
     });
     return new Map(entries);
   }, [companions]);
-  const appointments = useMemo(
+
+  return useMemo(
     () =>
       rawAppointments.map((appointment) =>
         mergeCompanionMeta(appointment, companionMetaById.get(appointment.companion?.id ?? ''))
       ),
     [rawAppointments, companionMetaById]
   );
-  const permissions = usePermissions();
-  const canEditAny = permissions.can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
-  const canEditOwn = permissions.can(PERMISSIONS.APPOINTMENTS_EDIT_OWN);
-  const canEditAppointments = canEditAny || canEditOwn;
+};
 
+const useCurrentUserLeadId = (): string => {
   const team = useTeamForPrimaryOrg();
   const authUserId = useAuthStore(
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
   );
-  const currentUserLeadId = useMemo(() => {
+
+  return useMemo(() => {
     const normalizedCurrentUser = normalizeLeadId(authUserId);
     if (!normalizedCurrentUser) return '';
     const member = team.find(
@@ -287,6 +286,42 @@ const Appointments = () => {
     );
     return normalizeLeadId(member?.practionerId || member?._id);
   }, [authUserId, team]);
+};
+
+const resolveDeepLinkState = (
+  searchParams: ReturnType<typeof useSearchParams>,
+  appointments: Appointment[],
+  handledDeepLink: string | null
+) => {
+  const appointmentId = String(searchParams.get('appointmentId') ?? '').trim();
+  if (!appointmentId) return null;
+
+  const open = String(searchParams.get('open') ?? '')
+    .trim()
+    .toLowerCase();
+  const subLabelRaw = String(searchParams.get('subLabel') ?? '')
+    .trim()
+    .toLowerCase();
+  const normalizedSubLabel = subLabelRaw === 'overview' ? 'history' : subLabelRaw;
+  const initialIntent = resolveInitialIntent(open, normalizedSubLabel);
+  const resolvedSubLabel = initialIntent?.subLabel ?? normalizedSubLabel;
+  const deepLinkKey = `${appointmentId}:${open || 'details'}:${resolvedSubLabel}`;
+  if (handledDeepLink === deepLinkKey) return null;
+
+  const target = appointments.find((appointment) => appointment.id === appointmentId);
+  return target ? { appointmentId, deepLinkKey, initialIntent, target } : null;
+};
+
+const useAppointmentsView = () => {
+  const router = useRouter();
+  const { notify } = useNotify();
+  const appointments = useEnrichedAppointments();
+  const permissions = usePermissions();
+  const canEditAny = permissions.can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
+  const canEditOwn = permissions.can(PERMISSIONS.APPOINTMENTS_EDIT_OWN);
+  const canEditAppointments = canEditAny || canEditOwn;
+
+  const currentUserLeadId = useCurrentUserLeadId();
 
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
@@ -386,33 +421,17 @@ const Appointments = () => {
     setHandledDeepLink(null);
   });
   {
-    const appointmentId = String(searchParams.get('appointmentId') ?? '').trim();
-    if (appointmentId) {
-      const open = String(searchParams.get('open') ?? '')
-        .trim()
-        .toLowerCase();
-      const subLabelRaw = String(searchParams.get('subLabel') ?? '')
-        .trim()
-        .toLowerCase();
-      const normalizedSubLabel = subLabelRaw === 'overview' ? 'history' : subLabelRaw;
-      const initialIntent = resolveInitialIntent(open, normalizedSubLabel);
-      const resolvedSubLabel = initialIntent?.subLabel ?? normalizedSubLabel;
-      const deepLinkKey = `${appointmentId}:${open || 'details'}:${resolvedSubLabel}`;
-      const target =
-        handledDeepLink === deepLinkKey
-          ? undefined
-          : appointments.find((appointment) => appointment.id === appointmentId);
-      if (target) {
-        setHandledDeepLink(deepLinkKey);
-        setActiveAppointment(target);
-        setViewIntent(initialIntent);
-        const workspaceHref =
-          revampEnabled && canEnterAppointmentWorkspace(target.status)
-            ? buildWorkspaceHrefForIntent(appointmentId, initialIntent)
-            : null;
-        setDeepLinkWorkspaceHref(workspaceHref);
-        if (!workspaceHref) setViewPopup(true);
-      }
+    const deepLink = resolveDeepLinkState(searchParams, appointments, handledDeepLink);
+    if (deepLink) {
+      setHandledDeepLink(deepLink.deepLinkKey);
+      setActiveAppointment(deepLink.target);
+      setViewIntent(deepLink.initialIntent);
+      const workspaceHref =
+        revampEnabled && canEnterAppointmentWorkspace(deepLink.target.status)
+          ? buildWorkspaceHrefForIntent(deepLink.appointmentId, deepLink.initialIntent)
+          : null;
+      setDeepLinkWorkspaceHref(workspaceHref);
+      if (!workspaceHref) setViewPopup(true);
     }
   }
 
@@ -674,6 +693,8 @@ const Appointments = () => {
     </div>
   );
 };
+
+const Appointments = () => useAppointmentsView();
 
 const ProtectedAppoitments = () => {
   return (

@@ -1100,51 +1100,17 @@ const AppointmentInfoModalHeader = ({
   </div>
 );
 
-const AppoitmentInfo = ({
-  showModal,
-  setShowModal,
-  activeAppointment,
-  initialViewIntent,
-  canEditAppointments = false,
-  onReschedule,
-}: AppoitmentInfoProps) => {
-  const router = useRouter();
-  const { can } = usePermissions();
-  const appointmentStatus = normalizeAppointmentStatus(activeAppointment?.status);
-  const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN) && appointmentStatus !== 'COMPLETED';
-  const services = useServicesForPrimaryOrgSpecialities();
-  const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key as LabelKey);
-  const [activeSubLabel, setActiveSubLabel] = useState<string>(hospitalLabels[0].labels[0].key);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [appliedIntent, setAppliedIntent] = useState<AppointmentViewIntent | null>(null);
-  const [lastOpenedAppointmentId, setLastOpenedAppointmentId] = useState<string | null>(null);
-
-  const {
-    customForms,
-    customFormsLoading,
-    customFormsError,
-    upsertCustomForm,
-    updateCustomFormSubmission,
-    loadAppointmentForms,
-  } = useAppointmentCustomForms(activeAppointment?.id);
-
+const useAppointmentOrgType = (activeAppointment: Appointment | null | undefined) => {
   const orgsById = useOrgStore((s) => s.orgsById);
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE;
-  const orgType =
+  return (
     (orgTypeOverride as Organisation['type'] | undefined) ||
     (activeAppointment?.organisationId && orgsById[activeAppointment.organisationId]?.type) ||
-    'HOSPITAL';
-  const statusSummary = getAppointmentStateSummary(activeAppointment?.status);
-  const statusLabel = toStatusLabel(activeAppointment?.status);
-  const clinicalWorkspaceIntent = getClinicalNotesIntent(orgType);
-  const openWorkspaceIntent = useCallback(
-    (intent: AppointmentViewIntent) => {
-      if (!activeAppointment?.id) return;
-      router.push(buildWorkspaceHrefForIntent(activeAppointment.id, intent));
-      setShowModal(false);
-    },
-    [activeAppointment?.id, router, setShowModal]
+    'HOSPITAL'
   );
+};
+
+const useTemplatesForOrg = (orgType: Organisation['type']) => {
   const formsById = useFormsStore((s) => s.formsById);
   useLoadFormsForPrimaryOrg();
   const formIds = useFormsStore((s) => s.formIds);
@@ -1152,9 +1118,8 @@ const AppoitmentInfo = ({
     const form = formsById[id];
     return form ? [form] : [];
   });
-  const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
-  const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
-  const templatesForOrg = useMemo(() => {
+
+  return useMemo(() => {
     const trimPrefix = (text?: string | null) =>
       (text ?? '').replace(/^(Boarder|Breeder|Groomer)\s*-\s*/i, '');
     const matchesAllowed = (category: string, allowed: string[]) => {
@@ -1168,8 +1133,71 @@ const AppoitmentInfo = ({
         : []
     );
   }, [allForms, orgType]);
+};
 
-  const labels = useMemo(() => buildInfoLabels(orgType, merckEnabled), [orgType, merckEnabled]);
+type AppointmentTabSelection = {
+  label: LabelKey;
+  subLabel: string;
+};
+
+const useSyncAppointmentInfoTabs = ({
+  showModal,
+  activeAppointmentId,
+  initialViewIntent,
+  appliedIntent,
+  lastOpenedAppointmentId,
+  labels,
+  setAppliedIntent,
+  setLastOpenedAppointmentId,
+  resolveTabSelection,
+  applyTabSelection,
+}: {
+  showModal: boolean;
+  activeAppointmentId: string | null;
+  initialViewIntent: AppointmentViewIntent | null | undefined;
+  appliedIntent: AppointmentViewIntent | null;
+  lastOpenedAppointmentId: string | null;
+  labels: ReturnType<typeof buildInfoLabels>;
+  setAppliedIntent: React.Dispatch<React.SetStateAction<AppointmentViewIntent | null>>;
+  setLastOpenedAppointmentId: React.Dispatch<React.SetStateAction<string | null>>;
+  resolveTabSelection: (
+    labelKey: string,
+    requestedSubLabel?: string | null
+  ) => AppointmentTabSelection | null;
+  applyTabSelection: (selection: AppointmentTabSelection) => void;
+}) => {
+  if (!showModal) {
+    if (appliedIntent) setAppliedIntent(null);
+    return;
+  }
+
+  if (initialViewIntent && initialViewIntent !== appliedIntent) {
+    setAppliedIntent(initialViewIntent);
+    const selection = resolveTabSelection(initialViewIntent.label);
+    if (selection) applyTabSelection(selection);
+  }
+
+  if (!activeAppointmentId || activeAppointmentId === lastOpenedAppointmentId) return;
+
+  if (lastOpenedAppointmentId && !initialViewIntent) {
+    const selection = resolveTabSelection(labels[0].key);
+    if (selection) applyTabSelection(selection);
+  }
+
+  setLastOpenedAppointmentId(activeAppointmentId);
+};
+
+const useAppointmentInfoTabs = (
+  labels: ReturnType<typeof buildInfoLabels>,
+  showModal: boolean,
+  activeAppointment: Appointment | null | undefined,
+  initialViewIntent: AppointmentViewIntent | null | undefined
+) => {
+  const [activeLabel, setActiveLabel] = useState<LabelKey>(hospitalLabels[0].key as LabelKey);
+  const [activeSubLabel, setActiveSubLabel] = useState<string>(hospitalLabels[0].labels[0].key);
+  const [appliedIntent, setAppliedIntent] = useState<AppointmentViewIntent | null>(null);
+  const [lastOpenedAppointmentId, setLastOpenedAppointmentId] = useState<string | null>(null);
+
   const resolveTabSelection = useCallback(
     (labelKey: string, requestedSubLabel?: string | null) => {
       const resolvedLabelKey = resolveIntentLabel(labels, labelKey);
@@ -1192,7 +1220,7 @@ const AppoitmentInfo = ({
     },
     [labels]
   );
-  const applyTabSelection = useCallback((selection: { label: LabelKey; subLabel: string }) => {
+  const applyTabSelection = useCallback((selection: AppointmentTabSelection) => {
     setActiveLabel(selection.label);
     setActiveSubLabel(selection.subLabel);
   }, []);
@@ -1211,26 +1239,76 @@ const AppoitmentInfo = ({
     [applyTabSelection, resolveTabSelection]
   );
 
-  // Render-phase adjustment: reset the active tab when the modal opens with a
-  // view intent or with a different appointment than last time.
-  if (showModal) {
-    if (initialViewIntent && initialViewIntent !== appliedIntent) {
-      setAppliedIntent(initialViewIntent);
-      const selection = resolveTabSelection(initialViewIntent.label);
-      if (selection) applyTabSelection(selection);
-    }
-    const currentAppointmentId = activeAppointment?.id ?? null;
-    if (currentAppointmentId && currentAppointmentId !== lastOpenedAppointmentId) {
-      if (lastOpenedAppointmentId && !initialViewIntent) {
-        const selection = resolveTabSelection(labels[0].key);
-        if (selection) applyTabSelection(selection);
-      }
-      setLastOpenedAppointmentId(currentAppointmentId);
-    }
-  } else if (appliedIntent) {
-    // Allow the same intent object to re-apply on the next open.
-    setAppliedIntent(null);
-  }
+  useSyncAppointmentInfoTabs({
+    showModal,
+    activeAppointmentId: activeAppointment?.id ?? null,
+    initialViewIntent,
+    appliedIntent,
+    lastOpenedAppointmentId,
+    labels,
+    setAppliedIntent,
+    setLastOpenedAppointmentId,
+    resolveTabSelection,
+    applyTabSelection,
+  });
+
+  return {
+    activeLabel,
+    activeSubLabel,
+    setActiveSubLabel,
+    handleActiveLabelChange,
+    handleHistoryOpenAppointmentView,
+  };
+};
+
+const AppoitmentInfo = ({
+  showModal,
+  setShowModal,
+  activeAppointment,
+  initialViewIntent,
+  canEditAppointments = false,
+  onReschedule,
+}: AppoitmentInfoProps) => {
+  const router = useRouter();
+  const { can } = usePermissions();
+  const appointmentStatus = normalizeAppointmentStatus(activeAppointment?.status);
+  const canEdit = can(PERMISSIONS.PRESCRIPTION_EDIT_OWN) && appointmentStatus !== 'COMPLETED';
+  const services = useServicesForPrimaryOrgSpecialities();
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  const {
+    customForms,
+    customFormsLoading,
+    customFormsError,
+    upsertCustomForm,
+    updateCustomFormSubmission,
+    loadAppointmentForms,
+  } = useAppointmentCustomForms(activeAppointment?.id);
+
+  const orgType = useAppointmentOrgType(activeAppointment);
+  const statusSummary = getAppointmentStateSummary(activeAppointment?.status);
+  const statusLabel = toStatusLabel(activeAppointment?.status);
+  const clinicalWorkspaceIntent = getClinicalNotesIntent(orgType);
+  const openWorkspaceIntent = useCallback(
+    (intent: AppointmentViewIntent) => {
+      if (!activeAppointment?.id) return;
+      router.push(buildWorkspaceHrefForIntent(activeAppointment.id, intent));
+      setShowModal(false);
+    },
+    [activeAppointment?.id, router, setShowModal]
+  );
+  const formsById = useFormsStore((s) => s.formsById);
+  const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
+  const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
+  const templatesForOrg = useTemplatesForOrg(orgType);
+  const labels = useMemo(() => buildInfoLabels(orgType, merckEnabled), [orgType, merckEnabled]);
+  const {
+    activeLabel,
+    activeSubLabel,
+    setActiveSubLabel,
+    handleActiveLabelChange,
+    handleHistoryOpenAppointmentView,
+  } = useAppointmentInfoTabs(labels, showModal, activeAppointment, initialViewIntent);
 
   const [formData, setFormData] = useState<FormDataProps>(() => createEmptyFormData());
 

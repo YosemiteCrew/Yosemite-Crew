@@ -71,6 +71,11 @@ type DragContext = {
   durationMinutes: number;
 };
 
+type DragAvailabilityPrefetchTarget = {
+  date: Date;
+  targetLeadId?: string;
+};
+
 const snapToStep = (minutes: number, step = 5) => Math.round(minutes / step) * step;
 const clampMinutes = (minutes: number) => Math.max(0, Math.min(24 * 60 - 5, snapToStep(minutes)));
 const toLocalDayKey = (date: Date) =>
@@ -144,7 +149,7 @@ const INITIAL_DRAG_UI = {
   dragContext: null,
 };
 
-const AppointmentCalendar = ({
+const useAppointmentCalendarView = ({
   filteredList,
   allAppointments,
   setActiveAppointment,
@@ -634,29 +639,26 @@ const AppointmentCalendar = ({
     [getAvailabilityKey]
   );
 
-  useEffect(() => {
-    if (!dragContext) return;
-    const prefetchTargets: Array<{ date: Date; targetLeadId?: string }> = [];
-    if (activeCalendar === 'day') {
-      prefetchTargets.push({ date: currentDate });
-    } else if (activeCalendar === 'week') {
-      prefetchTargets.push(
-        ...getWeekDays(weekStart).map((date) => ({
-          date,
-        }))
-      );
-    } else if (activeCalendar === 'team') {
-      prefetchTargets.push(
-        ...(teams || []).map((member) => ({
-          date: currentDate,
-          targetLeadId: member.practionerId || member._id,
-        }))
-      );
+  const dragAvailabilityPrefetchTargets = useMemo<DragAvailabilityPrefetchTarget[]>(() => {
+    if (!dragContext) return [];
+    if (activeCalendar === 'day') return [{ date: currentDate }];
+    if (activeCalendar === 'week') return getWeekDays(weekStart).map((date) => ({ date }));
+    if (activeCalendar === 'team') {
+      return (teams || []).map((member) => ({
+        date: currentDate,
+        targetLeadId: member.practionerId || member._id,
+      }));
     }
+    return [];
+  }, [activeCalendar, currentDate, dragContext, teams, weekStart]);
+
+  useEffect(() => {
     Promise.all(
-      prefetchTargets.map((target) => ensureDragAvailability(target.date, target.targetLeadId))
+      dragAvailabilityPrefetchTargets.map((target) =>
+        ensureDragAvailability(target.date, target.targetLeadId)
+      )
     ).catch(() => undefined);
-  }, [activeCalendar, currentDate, dragContext, ensureDragAvailability, teams, weekStart]);
+  }, [dragAvailabilityPrefetchTargets, ensureDragAvailability]);
 
   useEffect(() => {
     if (!draggedAppointmentId) return;
@@ -909,5 +911,7 @@ const AppointmentCalendar = ({
     </div>
   );
 };
+
+const AppointmentCalendar = (props: AppointmentCalendarProps) => useAppointmentCalendarView(props);
 
 export default AppointmentCalendar;

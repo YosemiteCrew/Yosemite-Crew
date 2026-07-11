@@ -197,7 +197,7 @@ const toFollowUpDate = (iso?: string): Date | null => {
 const toIsoString = (value: string | Date): string =>
   typeof value === 'string' ? value : new Date(value).toISOString();
 
-const DocumentSourcePill = ({ source }: { source: string }) => (
+export const DocumentSourcePill = ({ source }: { source: string }) => (
   <span className="inline-flex rounded-2xl border border-[#D6D1CD] bg-[#FAF8F6] px-3 py-1 text-caption-1 text-text-primary">
     {humanizeToken(source)}
   </span>
@@ -219,7 +219,7 @@ const downloadDocumentUrl = (url: string) => {
   link.remove();
 };
 
-const AllDocumentsTable = ({
+export const AllDocumentsTable = ({
   documents,
   organisationId,
   canView,
@@ -350,7 +350,7 @@ type TemplateSearchSectionProps = {
   onSelectTemplate: (template: TemplateLike) => void;
 };
 
-const TemplateSearchSection = ({
+export const TemplateSearchSection = ({
   templateSearchRef,
   templateQuery,
   setTemplateQuery,
@@ -400,7 +400,11 @@ type SavedDischargeViewProps = {
   onEdit: () => void;
 };
 
-const SavedDischargeView = ({ encounter, followUpDate, onEdit }: SavedDischargeViewProps) => (
+export const SavedDischargeView = ({
+  encounter,
+  followUpDate,
+  onEdit,
+}: SavedDischargeViewProps) => (
   <div className="relative">
     {/* Editable until the encounter is locked (window closed / completed /
         discharged). Absolutely positioned so it overlays the top-right
@@ -461,7 +465,7 @@ type ActionButtonsRowProps = {
   onSign: () => void;
 };
 
-const ActionButtonsRow = ({
+export const ActionButtonsRow = ({
   documentState,
   onPrint,
   onSave,
@@ -514,7 +518,7 @@ const ActionButtonsRow = ({
   </div>
 );
 
-const SummaryStep = ({
+const useSummaryStepContent = ({
   appointmentId,
   appointment,
   encounter,
@@ -1001,5 +1005,7 @@ const SummaryStep = ({
     </div>
   );
 };
+
+const SummaryStep = (props: SummaryStepProps) => useSummaryStepContent(props);
 
 export default SummaryStep;

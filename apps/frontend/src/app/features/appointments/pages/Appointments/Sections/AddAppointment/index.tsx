@@ -148,7 +148,13 @@ const syncModalOpenState = ({
   dispatchUi({ type: 'modal-opened' });
 };
 
-const AddAppointment = ({
+const scrollModalToTopOnOpen = (showModal: boolean, container: HTMLDivElement | null) => {
+  if (!showModal) return;
+  scrollModalSectionIntoView(container, null);
+  container?.scrollTo({ top: 0, behavior: 'auto' });
+};
+
+const useAddAppointmentView = ({
   showModal,
   setShowModal,
   setActiveStatus,
@@ -248,11 +254,7 @@ const AddAppointment = ({
       dispatchUi,
       onPrefillConsumed,
     });
-
-    if (showModal) {
-      scrollModalSectionIntoView(scrollContainerRef.current, null);
-      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-    }
+    scrollModalToTopOnOpen(showModal, scrollContainerRef.current);
   }, [showModal, resetForm, onPrefillConsumed]);
 
   useLayoutEffect(() => {
@@ -804,5 +806,7 @@ const AddAppointment = ({
     </>
   );
 };
+
+const AddAppointment = (props: AddAppointmentProps) => useAddAppointmentView(props);
 
 export default AddAppointment;

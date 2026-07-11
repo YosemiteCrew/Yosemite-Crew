@@ -185,7 +185,7 @@ const getDropdownValue = (option: string | { value: string }): string =>
   typeof option === 'string' ? option : option.value;
 
 // ─── Shared arrow icon (spec: solid but light-weight) ─────────────────────────
-const Arrow = ({ open }: { open: boolean }) => (
+export const Arrow = ({ open }: { open: boolean }) => (
   <IoChevronDown
     size={15}
     aria-hidden="true"
@@ -199,7 +199,7 @@ const Arrow = ({ open }: { open: boolean }) => (
 );
 
 // ─── Floating label ─────────────────────────────────────────────────────────────
-const FloatLabel = ({ floated, children }: { floated: boolean; children: ReactNode }) => (
+export const FloatLabel = ({ floated, children }: { floated: boolean; children: ReactNode }) => (
   <span
     className="pointer-events-none absolute left-5 z-10 flex items-center gap-1 bg-white px-1 transition-all duration-150"
     style={
@@ -213,7 +213,7 @@ const FloatLabel = ({ floated, children }: { floated: boolean; children: ReactNo
 );
 
 // ─── Field error ────────────────────────────────────────────────────────────────
-const FieldError = ({ message }: { message?: string }) => {
+export const FieldError = ({ message }: { message?: string }) => {
   if (!message) return null;
   return (
     <div className="mt-1 flex items-center gap-1 px-4 text-caption-2 text-text-error" role="alert">
@@ -257,7 +257,7 @@ type PersonRowProps = {
   error?: string;
 };
 
-const PersonRow = ({
+export const PersonRow = ({
   fieldId,
   label,
   icon,
@@ -449,7 +449,7 @@ type TimeSlotDropdownProps = {
   label?: string;
 };
 
-const TimeSlotLoadingMessage = () => (
+export const TimeSlotLoadingMessage = () => (
   <div className="flex items-center justify-center gap-2 px-5 py-4">
     <svg className="animate-spin size-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -472,7 +472,7 @@ type TimeSlotMenuContentProps = {
   closeMenu: () => void;
 };
 
-const TimeSlotMenuContent = ({
+export const TimeSlotMenuContent = ({
   timeSlots,
   selectedSlot,
   hasService,
@@ -519,7 +519,7 @@ type TimeSlotTriggerValueProps = {
   selectedLabel: string | null;
 };
 
-const TimeSlotTriggerValue = ({ isLoading, selectedLabel }: TimeSlotTriggerValueProps) => {
+export const TimeSlotTriggerValue = ({ isLoading, selectedLabel }: TimeSlotTriggerValueProps) => {
   if (isLoading) {
     return (
       <span
@@ -558,7 +558,7 @@ const TimeSlotTriggerValue = ({ isLoading, selectedLabel }: TimeSlotTriggerValue
   return <span style={{ ...text16R, color: INPUT_PLACEHOLDER }} />;
 };
 
-const TimeSlotDropdown = ({
+export const TimeSlotDropdown = ({
   timeSlots,
   selectedSlot,
   setSelectedSlot,
@@ -653,7 +653,7 @@ const TimeSlotDropdown = ({
 };
 
 // ─── SlotBadge — duration display ──────────────────────────────────────────────
-const SlotBadge = ({ label }: { label: string | null }) => (
+export const SlotBadge = ({ label }: { label: string | null }) => (
   <div className="relative flex items-center min-h-12 border border-input-border-default rounded-2xl bg-white px-5 py-3">
     <FloatLabel floated={Boolean(label)}>Slot duration</FloatLabel>
     <span style={label ? text16R : { ...text16R, color: INPUT_PLACEHOLDER }}>{label ?? ''}</span>
@@ -719,7 +719,7 @@ type AppointmentFormContentProps = {
   handleSubmit: () => void;
 };
 
-const AppointmentFormContent = ({
+export const AppointmentFormContent = ({
   patientLabel,
   selectedPatientName,
   selectedPatientPhoto,
@@ -964,7 +964,7 @@ const AppointmentFormContent = ({
   </div>
 );
 
-const DiscardConfirmationModal = ({
+export const DiscardConfirmationModal = ({
   showModal,
   setShowModal,
   onDiscard,
@@ -1034,7 +1034,7 @@ const computePrefillKey = (prefill: AppointmentDraftPrefill | null | undefined):
   });
 };
 
-const AddAppointmentCentralModal = ({
+const useAddAppointmentCentralModalView = ({
   showModal,
   setShowModal,
   setActiveFilter,
@@ -1465,5 +1465,8 @@ const AddAppointmentCentralModal = ({
     </>
   );
 };
+
+const AddAppointmentCentralModal = (props: AddAppointmentCentralModalProps) =>
+  useAddAppointmentCentralModalView(props);
 
 export default AddAppointmentCentralModal;

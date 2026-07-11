@@ -463,7 +463,7 @@ const getDepositModalActionLabel = (saving: boolean, method: PaymentMethod): str
   return method === 'ONLINE' ? 'Generate link' : 'Collect deposit';
 };
 
-const StatusPill = ({ status }: { status: InvoiceStatus }) => (
+export const StatusPill = ({ status }: { status: InvoiceStatus }) => (
   <span
     className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${STATUS_CLASSES[status]}`}
   >
@@ -487,7 +487,7 @@ const getPaymentProgressDescription = (status: PaymentProgressState['status']): 
   return 'We have not received the final payment confirmation yet. You can keep checking or continue editing and this page will refresh again when you return.';
 };
 
-const PaymentProgressOverlay = ({
+export const PaymentProgressOverlay = ({
   state,
   onCheckAgain,
   onAbort,
@@ -556,7 +556,7 @@ const PaymentProgressOverlay = ({
 };
 
 /** Green confirmation badge in the breakdown footer; copy reflects the scenario. */
-const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
+export const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
   const label = invoice.paidFromDeposit ? 'Withdrawn from Deposit' : 'Invoice Paid';
   return (
     <span className="inline-flex items-center gap-1.5 rounded-3xl bg-[#15803D] px-3 py-1 text-caption-1 font-medium text-neutral-0">
@@ -569,7 +569,13 @@ const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
 const ROW_GRID =
   'grid gap-3 sm:grid-cols-[minmax(0,1.7fr)_repeat(5,minmax(0,1fr))] sm:items-center';
 
-const InvoiceBreakdown = ({ invoice, currency }: { invoice: PastInvoice; currency: string }) => (
+export const InvoiceBreakdown = ({
+  invoice,
+  currency,
+}: {
+  invoice: PastInvoice;
+  currency: string;
+}) => (
   <SectionContainer title="Breakdown" nested className="bg-neutral-0">
     <div className="flex flex-col gap-2">
       <div
@@ -653,7 +659,7 @@ const INVOICE_COLS =
   'sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_132px]';
 const INVOICE_ROW_GRID = `grid gap-3 ${INVOICE_COLS} sm:items-center`;
 
-const InvoiceHeadings = () => (
+export const InvoiceHeadings = () => (
   <div
     // Match the row's p-4 + 1px border so the column origins line up exactly.
     className={`${INVOICE_ROW_GRID} hidden border border-transparent px-4 text-caption-2 font-medium tracking-wide text-text-secondary uppercase [&>span]:truncate sm:grid`}
@@ -667,7 +673,7 @@ const InvoiceHeadings = () => (
   </div>
 );
 
-const InvoiceRow = ({
+export const InvoiceRow = ({
   invoice,
   index,
   expanded,
@@ -753,7 +759,7 @@ const InvoiceRow = ({
   );
 };
 
-const InvoicesSection = ({
+export const InvoicesSection = ({
   invoices,
   readOnly,
   currency,
@@ -805,7 +811,7 @@ const InvoicesSection = ({
 };
 
 /** Payment actions below the Total Bill (Collect Deposit / Collect Cash / Pay Online). */
-const PaymentActions = ({
+export const PaymentActions = ({
   isInpatient,
   depositDisabled,
   paymentDisabled,
@@ -868,7 +874,7 @@ const PaymentActions = ({
   );
 };
 
-const DepositModal = ({
+export const DepositModal = ({
   open,
   saving,
   generatedLink,
@@ -975,7 +981,7 @@ const DepositModal = ({
   );
 };
 
-const InvoiceStep = ({
+const useInvoiceStepContent = ({
   appointmentId,
   organisationId,
   patientId,
@@ -1866,5 +1872,7 @@ const InvoiceStep = ({
     </div>
   );
 };
+
+const InvoiceStep = (props: InvoiceStepProps) => useInvoiceStepContent(props);
 
 export default InvoiceStep;
