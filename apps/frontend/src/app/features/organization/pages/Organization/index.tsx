@@ -44,6 +44,10 @@ const LinkedMedicalDevices = dynamic(
   () => import('@/app/features/organization/pages/Organization/Sections/LinkedMedicalDevices'),
   { loading: () => <OrganizationSectionSkeleton /> }
 );
+const OnlineBooking = dynamic(
+  () => import('@/app/features/organization/pages/Organization/Sections/OnlineBooking'),
+  { loading: () => <OrganizationSectionSkeleton /> }
+);
 const DeleteOrg = dynamic(
   () => import('@/app/features/organization/pages/Organization/Sections/DeleteOrg'),
   { loading: () => <OrganizationSectionSkeleton /> }
@@ -84,6 +88,7 @@ export const Organization = () => {
           <LinkedMedicalDevices />
           <Documents />
           <DocumentESigning />
+          <OnlineBooking />
         </>
       )}
       <DeleteOrg />
