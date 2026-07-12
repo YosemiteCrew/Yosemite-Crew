@@ -29,6 +29,10 @@ jobs:
           directory: apps/frontend
           blocking: error
           node-version: '22'
+          # Pin the CLI: react-doctor@0.7.5+ emits report schemaVersion 3, which
+          # the pinned action (v2.2.6) rejects as an unrecognized payload and
+          # fails as "Scan could not complete". 0.7.4 emits schema 1 (accepted).
+          version: 0.7.4
 
       - name: Enforce React Doctor score
         env:
