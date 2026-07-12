@@ -122,7 +122,8 @@
       "fast-uri@3.1.1": "3.1.2",
       "@babel/core@7.29.0": "7.29.6",
       "next": "15.5.18",
-      "sitemap@7.1.2": "https://npm.aikido.io/1d09dbcde8c03de80d3f8/sitemap@7.1.2-tuxcare.2"
+      "sitemap@7.1.2": "https://npm.aikido.io/1d09dbcde8c03de80d3f8/sitemap@7.1.2-tuxcare.2",
+      "@tiptap/core@<=3.27.0": "3.27.0"
     }
   }
 }
