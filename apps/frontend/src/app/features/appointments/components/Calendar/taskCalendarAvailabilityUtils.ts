@@ -53,17 +53,14 @@ export const getCalendarDayKey = (date: Date) =>
 export const shouldAllowTaskAvailabilityBypass = (
   authUserId: string,
   task: Task,
-  normalizeId: (value?: string) => string,
-  resolveAssigneeId: (candidateId?: string) => string,
-  targetAssigneeId?: string
+  normalizeId: (value?: string) => string
 ) => {
   const normalizedCurrentUser = normalizeId(authUserId);
   const isAssignedByCurrentUser =
     !!normalizedCurrentUser && normalizeId(task.assignedBy) === normalizedCurrentUser;
-  if (isAssignedByCurrentUser) return false;
-  const currentAssignee = resolveAssigneeId(task.assignedTo);
-  const nextAssignee = resolveAssigneeId(targetAssigneeId || task.assignedTo);
-  return normalizeId(nextAssignee) !== normalizeId(currentAssignee) || true;
+  // Availability is enforced for everyone except the user who created the
+  // assignment, who is trusted to schedule the task freely.
+  return !isAssignedByCurrentUser;
 };
 
 const getSourceDayKey = (dayEntry: AvailabilityDayEntry) =>

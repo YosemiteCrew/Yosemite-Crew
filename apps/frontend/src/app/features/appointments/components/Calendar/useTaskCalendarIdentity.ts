@@ -76,15 +76,9 @@ export const useTaskCalendarIdentity = (
   );
 
   const shouldEnforceAvailability = useCallback(
-    (task: Task, targetAssigneeId?: string) =>
-      shouldAllowTaskAvailabilityBypass(
-        authUserId,
-        task,
-        normalizeId,
-        resolveAssigneeId,
-        targetAssigneeId
-      ),
-    [authUserId, normalizeId, resolveAssigneeId]
+    (task: Task, _targetAssigneeId?: string) =>
+      shouldAllowTaskAvailabilityBypass(authUserId, task, normalizeId),
+    [authUserId, normalizeId]
   );
 
   return {
