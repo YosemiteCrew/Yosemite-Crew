@@ -63,6 +63,8 @@ const WEEKDAY_ORDER = [
   'SATURDAY',
 ];
 
+const TASK_BLOCK_DURATION_MINUTES = 30;
+
 const normalizeCalendarId = (value?: string) =>
   String(value ?? '')
     .trim()
@@ -251,7 +253,8 @@ const moveTaskToCalendarSlot = async (
       dueAt: nextDueAt,
       timezone: task.timezone || getPreferredTimeZone(),
     });
-  } catch {
+  } catch (error) {
+    logger.warn('Failed to update task from calendar drop.', error);
     params.setDragError('Unable to update task. Please try again.');
   }
 };
@@ -428,40 +431,11 @@ const TaskCalendarBody = ({
   );
 };
 
-const TaskCalendar = ({
-  filteredList,
-  allTasks,
-  setActiveTask,
-  setViewPopup,
-  setChangeStatusPopup,
-  setChangeStatusPreferredStatus,
-  setReschedulePopup,
-  activeCalendar,
-  setActiveCalendar,
-  currentDate,
-  setCurrentDate,
-  weekStart,
-  setWeekStart,
-  canEditTasks = false,
-  onCreateFromCalendarSlot,
-}: TaskCalendarProps) => {
-  const { notify } = useNotify();
-  const allTaskItems = allTasks ?? filteredList;
-  const teams = useTeamForPrimaryOrg();
+const useTaskCalendarIdentity = (
+  teams: ReturnType<typeof useTeamForPrimaryOrg>,
+  authUserId: string
+) => {
   const { resolveMemberName } = useMemberMap();
-  const authUserId = useAuthStore(
-    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
-  );
-  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [draggedTaskLabel, setDraggedTaskLabel] = useState<string | null>(null);
-  const [dragError, setDragError] = useState<string | null>(null);
-  const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
-  const [availabilityVersion, setAvailabilityVersion] = useState(0);
-  const availabilityCacheRef = useRef<Record<string, Record<string, DropAvailabilityInterval[]>>>(
-    {}
-  );
-  const availabilityPendingRef = useRef<Partial<Record<string, Promise<void>>>>({});
-  const TASK_BLOCK_DURATION_MINUTES = 30;
   const normalizeId = useCallback((value?: string) => normalizeCalendarId(value), []);
 
   const shiftDayKey = useCallback((dayKey: string, offset: number): string => {
@@ -497,7 +471,6 @@ const TaskCalendar = ({
     },
     [authUserId, normalizeId]
   );
-  const canDragTask = canEditTask;
 
   const teamNameById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -522,17 +495,49 @@ const TaskCalendar = ({
   );
 
   const shouldEnforceAvailability = useCallback(
-    (task: Task, targetAssigneeId?: string) => {
-      return shouldAllowTaskAvailabilityBypass(
+    (task: Task, targetAssigneeId?: string) =>
+      shouldAllowTaskAvailabilityBypass(
         authUserId,
         task,
         normalizeId,
         resolveAssigneeId,
         targetAssigneeId
-      );
-    },
+      ),
     [authUserId, normalizeId, resolveAssigneeId]
   );
+
+  return {
+    canEditTask,
+    normalizeId,
+    resolveAssigneeId,
+    resolveDisplayName,
+    shiftDayKey,
+    shouldEnforceAvailability,
+  };
+};
+
+type UseTaskAvailabilityOptions = {
+  allTaskItems: Task[];
+  draggedTaskId: string | null;
+  normalizeId: (value?: string) => string;
+  resolveAssigneeId: (candidateId?: string) => string;
+  shiftDayKey: (dayKey: string, offset: number) => string;
+  shouldEnforceAvailability: (task: Task, targetAssigneeId?: string) => boolean;
+};
+
+const useTaskAvailability = ({
+  allTaskItems,
+  draggedTaskId,
+  normalizeId,
+  resolveAssigneeId,
+  shiftDayKey,
+  shouldEnforceAvailability,
+}: UseTaskAvailabilityOptions) => {
+  const [availabilityVersion, setAvailabilityVersion] = useState(0);
+  const availabilityCacheRef = useRef<Record<string, Record<string, DropAvailabilityInterval[]>>>(
+    {}
+  );
+  const availabilityPendingRef = useRef<Partial<Record<string, Promise<void>>>>({});
 
   const ensureAssigneeAvailability = useCallback(
     async (assigneeId?: string) => {
@@ -547,14 +552,7 @@ const TaskCalendar = ({
       const task = (async () => {
         try {
           const profile = (await getProfileForUserForPrimaryOrg(resolvedAssigneeId)) as {
-            baseAvailability?: Array<{
-              dayOfWeek?: string;
-              slots?: Array<{
-                isAvailable?: boolean;
-                startTime?: string;
-                endTime?: string;
-              }>;
-            }>;
+            baseAvailability?: AvailabilityDayEntry[];
           };
           const baseAvailability = Array.isArray(profile?.baseAvailability)
             ? profile.baseAvailability
@@ -565,9 +563,10 @@ const TaskCalendar = ({
             toLocalClockFromUtcTime,
             shiftDayKey
           );
-          setAvailabilityVersion((version) => version + 1);
-        } catch {
+        } catch (error) {
+          logger.warn('Failed to load assignee availability.', error);
           availabilityCacheRef.current[cacheKey] = {};
+        } finally {
           setAvailabilityVersion((version) => version + 1);
         }
       })();
@@ -583,18 +582,12 @@ const TaskCalendar = ({
       const draggedTask = allTaskItems.find((item) => item._id === draggedTaskId);
       const targetAssigneeId = assigneeId || draggedTask?.assignedTo;
       if (draggedTask && !shouldEnforceAvailability(draggedTask, targetAssigneeId)) {
-        return [
-          {
-            startMinute: 0,
-            endMinute: 24 * 60 - TASK_BLOCK_DURATION_MINUTES,
-          },
-        ];
+        return [{ startMinute: 0, endMinute: 24 * 60 - TASK_BLOCK_DURATION_MINUTES }];
       }
       const resolvedAssigneeId = resolveAssigneeId(targetAssigneeId);
       if (!resolvedAssigneeId) return [];
       const assigneeKey = normalizeId(resolvedAssigneeId);
-      const dayKey = getCalendarDayKey(date);
-      return availabilityCacheRef.current[assigneeKey]?.[dayKey] || [];
+      return availabilityCacheRef.current[assigneeKey]?.[getCalendarDayKey(date)] || [];
     },
     [allTaskItems, draggedTaskId, normalizeId, resolveAssigneeId, shouldEnforceAvailability]
   );
@@ -612,6 +605,43 @@ const TaskCalendar = ({
     },
     [ensureAssigneeAvailability, getDropAvailabilityIntervals, resolveAssigneeId]
   );
+
+  return {
+    availabilityVersion,
+    ensureAssigneeAvailability,
+    getDropAvailabilityIntervals,
+    isMinuteAvailableForAssignee,
+  };
+};
+
+type UseTaskCalendarDragStateOptions = {
+  allTaskItems: Task[];
+  canDragTask: (task: Task) => boolean;
+  canEditTask: (task: Task) => boolean;
+  ensureAssigneeAvailability: (assigneeId?: string) => Promise<void>;
+  isMinuteAvailableForAssignee: (
+    date: Date,
+    minute: number,
+    assigneeId?: string
+  ) => Promise<boolean>;
+  onDraggedTaskChange: (taskId: string | null) => void;
+  resolveAssigneeId: (candidateId?: string) => string;
+  shouldEnforceAvailability: (task: Task, targetAssigneeId?: string) => boolean;
+};
+
+const useTaskCalendarDragState = ({
+  allTaskItems,
+  canDragTask,
+  canEditTask,
+  ensureAssigneeAvailability,
+  isMinuteAvailableForAssignee,
+  onDraggedTaskChange,
+  resolveAssigneeId,
+  shouldEnforceAvailability,
+}: UseTaskCalendarDragStateOptions) => {
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [draggedTaskLabel, setDraggedTaskLabel] = useState<string | null>(null);
+  const [dragError, setDragError] = useState<string | null>(null);
 
   const moveTask = useCallback(
     (date: Date, minuteOfDay: number, targetAssigneeId?: string) =>
@@ -633,6 +663,122 @@ const TaskCalendar = ({
       shouldEnforceAvailability,
     ]
   );
+
+  const handleTaskDragStart = useCallback(
+    (task: Task) => {
+      if (!canDragTask(task)) return;
+      setDragError(null);
+      setDraggedTaskId(task._id);
+      setDraggedTaskLabel(task.name || 'Task');
+      onDraggedTaskChange(task._id ?? null);
+      if (shouldEnforceAvailability(task, task.assignedTo)) {
+        ensureAssigneeAvailability(task.assignedTo).catch((error: unknown) => {
+          logger.warn('Failed to load assignee availability on drag start.', error);
+        });
+      }
+    },
+    [canDragTask, ensureAssigneeAvailability, onDraggedTaskChange, shouldEnforceAvailability]
+  );
+
+  const handleTaskDragEnd = useCallback(() => {
+    setDraggedTaskId(null);
+    setDraggedTaskLabel(null);
+    onDraggedTaskChange(null);
+  }, [onDraggedTaskChange]);
+
+  const handleDragHoverTarget = useCallback(
+    (_dropDate: Date, assigneeId?: string) => {
+      const task = allTaskItems.find((item) => item._id === draggedTaskId);
+      if (!task) return;
+      if (shouldEnforceAvailability(task, assigneeId || task.assignedTo)) {
+        ensureAssigneeAvailability(assigneeId || task.assignedTo).catch((error: unknown) => {
+          logger.warn('Failed to refresh assignee availability while dragging.', error);
+        });
+      }
+    },
+    [allTaskItems, draggedTaskId, ensureAssigneeAvailability, shouldEnforceAvailability]
+  );
+
+  return {
+    dragError,
+    draggedTaskId,
+    draggedTaskLabel,
+    handleDragHoverTarget,
+    handleTaskDragEnd,
+    handleTaskDragStart,
+    moveTask,
+  };
+};
+
+const TaskCalendar = ({
+  filteredList,
+  allTasks,
+  setActiveTask,
+  setViewPopup,
+  setChangeStatusPopup,
+  setChangeStatusPreferredStatus,
+  setReschedulePopup,
+  activeCalendar,
+  setActiveCalendar,
+  currentDate,
+  setCurrentDate,
+  weekStart,
+  setWeekStart,
+  canEditTasks = false,
+  onCreateFromCalendarSlot,
+}: TaskCalendarProps) => {
+  const { notify } = useNotify();
+  const allTaskItems = allTasks ?? filteredList;
+  const teams = useTeamForPrimaryOrg();
+  const authUserId = useAuthStore(
+    (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
+  );
+  const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
+
+  const {
+    canEditTask,
+    resolveAssigneeId,
+    resolveDisplayName,
+    shiftDayKey,
+    shouldEnforceAvailability,
+  } = useTaskCalendarIdentity(teams, authUserId);
+
+  const canDragTask = canEditTask;
+  const [draggedTaskIdForAvailability, setDraggedTaskIdForAvailability] = useState<string | null>(
+    null
+  );
+  const {
+    availabilityVersion,
+    ensureAssigneeAvailability,
+    getDropAvailabilityIntervals,
+    isMinuteAvailableForAssignee,
+  } = useTaskAvailability({
+    allTaskItems,
+    draggedTaskId: draggedTaskIdForAvailability,
+    normalizeId: normalizeCalendarId,
+    resolveAssigneeId,
+    shiftDayKey,
+    shouldEnforceAvailability,
+  });
+
+  const {
+    dragError,
+    draggedTaskId,
+    draggedTaskLabel,
+    handleDragHoverTarget,
+    handleTaskDragEnd,
+    handleTaskDragStart,
+    moveTask,
+  } = useTaskCalendarDragState({
+    allTaskItems,
+    canDragTask,
+    canEditTask,
+    ensureAssigneeAvailability,
+    isMinuteAvailableForAssignee,
+    onDraggedTaskChange: setDraggedTaskIdForAvailability,
+    resolveAssigneeId,
+    shouldEnforceAvailability,
+  });
 
   const handleChangeStatusTask = useCallback(
     (task: Task) =>
@@ -657,39 +803,6 @@ const TaskCalendar = ({
     setActiveTask?.(appointment);
     setViewPopup?.(true);
   };
-
-  const handleTaskDragStart = useCallback(
-    (task: Task) => {
-      if (!canDragTask(task)) return;
-      setDragError(null);
-      setDraggedTaskId(task._id);
-      setDraggedTaskLabel(task.name || 'Task');
-      if (shouldEnforceAvailability(task, task.assignedTo)) {
-        ensureAssigneeAvailability(task.assignedTo).catch((error: unknown) => {
-          logger.warn('Failed to load assignee availability on drag start.', error);
-        });
-      }
-    },
-    [canDragTask, ensureAssigneeAvailability, shouldEnforceAvailability]
-  );
-
-  const handleTaskDragEnd = useCallback(() => {
-    setDraggedTaskId(null);
-    setDraggedTaskLabel(null);
-  }, []);
-
-  const handleDragHoverTarget = useCallback(
-    (_dropDate: Date, assigneeId?: string) => {
-      const task = allTaskItems.find((item) => item._id === draggedTaskId);
-      if (!task) return;
-      if (shouldEnforceAvailability(task, assigneeId || task.assignedTo)) {
-        ensureAssigneeAvailability(assigneeId || task.assignedTo).catch((error: unknown) => {
-          logger.warn('Failed to refresh assignee availability while dragging.', error);
-        });
-      }
-    },
-    [allTaskItems, draggedTaskId, ensureAssigneeAvailability, shouldEnforceAvailability]
-  );
 
   const handleCreateTaskAt = useCallback(
     (date: Date, minuteOfDay: number, targetAssigneeId?: string) => {

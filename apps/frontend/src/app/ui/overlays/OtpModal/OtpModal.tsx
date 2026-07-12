@@ -19,6 +19,14 @@ import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 import './OtpModal.css';
 
 const RESEND_COUNTDOWN_SECONDS = 150;
+const OTP_DIGIT_FIELD_IDS = [
+  'otp-digit-1',
+  'otp-digit-2',
+  'otp-digit-3',
+  'otp-digit-4',
+  'otp-digit-5',
+  'otp-digit-6',
+] as const;
 
 type ShowErrorTost = (args: {
   message: string;
@@ -62,13 +70,13 @@ const OtpDigitFields = ({
     aria-label="Email verification code"
     aria-describedby={describedBy}
   >
-    {code.map((digit, idx) => (
+    {OTP_DIGIT_FIELD_IDS.map((fieldId, idx) => (
       <input
-        key={`${digit}-${idx}`}
+        key={fieldId}
         ref={(el) => setOtpRef(el, idx)}
         type="text"
         maxLength={1}
-        value={digit}
+        value={code[idx] ?? ''}
         inputMode="numeric"
         pattern="[0-9]*"
         autoComplete={idx === 0 ? 'one-time-code' : 'off'}
@@ -104,7 +112,7 @@ const VerifyModalFooter = ({
         text={isVerifying ? 'Verifying...' : 'Verify Code'}
         type="button"
         onClick={onVerify}
-        isDisabled={isVerifying || !canVerify}
+        isDisabled={isVerifying || !canVerify || secondsLeft === 0}
         className="w-full"
       />
       <output aria-live="polite">
@@ -206,6 +214,16 @@ const OtpModal = ({
   };
 
   const handleVerify = async (): Promise<void> => {
+    if (secondsLeft === 0) {
+      showErrorTost({
+        message: 'This verification code has expired. Please request a new code.',
+        errortext: 'Code expired',
+        iconElement: dangerIcon,
+        className: 'errofoundbg',
+      });
+      return;
+    }
+
     if (code.includes('')) {
       showErrorTost({
         message: 'Please enter the full OTP',

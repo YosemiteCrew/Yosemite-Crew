@@ -48,6 +48,14 @@ type UseDragAvailabilityInputsOptions = Pick<
   | 'teams'
 >;
 
+type UseDragAvailabilityCacheOptions = Pick<
+  UseAppointmentDragAvailabilityOptions,
+  'activeCalendar' | 'currentDate' | 'dispatchDrag' | 'dragContextRef' | 'teams' | 'weekStart'
+> & {
+  buildAvailableStartMinutes: (date: Date, targetLeadId?: string) => Promise<number[]>;
+  getAvailabilityKey: (date: Date, targetLeadId?: string) => string;
+};
+
 const useDragAvailabilityInputs = ({
   allAppointments,
   authUserId,
@@ -120,46 +128,17 @@ const useDragAvailabilityInputs = ({
   };
 };
 
-export const useAppointmentDragAvailability = ({
+const useDragAvailabilityCache = ({
   activeCalendar,
-  allAppointments,
-  authUserId,
+  buildAvailableStartMinutes,
   currentDate,
   dispatchDrag,
   dragContextRef,
-  normalizeId,
-  resolvePractitionerId,
-  supportsSpeciality,
+  getAvailabilityKey,
   teams,
   weekStart,
-}: UseAppointmentDragAvailabilityOptions) => {
+}: UseDragAvailabilityCacheOptions) => {
   const dragAvailabilityCachesRef = useRef<DragAvailabilityCaches>({ results: {}, pending: {} });
-  const { availabilityLoaded, getViewAvailabilityIntervals } = useAppointmentViewAvailability({
-    activeCalendar,
-    normalizeId,
-    teams,
-  });
-
-  const {
-    buildAppointmentStartFromCalendarMinutes,
-    buildAvailableStartMinutes,
-    getAvailabilityKey,
-    getCurrentUserPractitionerId,
-  } = useDragAvailabilityInputs({
-    allAppointments,
-    authUserId,
-    dragContextRef,
-    normalizeId,
-    resolvePractitionerId,
-    supportsSpeciality,
-    teams,
-  });
-
-  const getCurrentUserViewAvailabilityIntervals = useCallback(
-    (date: Date): DropAvailabilityInterval[] =>
-      getViewAvailabilityIntervals(date, getCurrentUserPractitionerId() || authUserId),
-    [authUserId, getCurrentUserPractitionerId, getViewAvailabilityIntervals]
-  );
 
   const ensureDragAvailability = useCallback(
     async (date: Date, targetLeadId?: string): Promise<number[]> => {
@@ -198,6 +177,70 @@ export const useAppointmentDragAvailability = ({
   const clearDragAvailability = useCallback(() => {
     dragAvailabilityCachesRef.current = { results: {}, pending: {} };
   }, []);
+
+  return {
+    clearDragAvailability,
+    ensureDragAvailability,
+    getDropAvailabilityIntervals,
+    prefetchDragAvailabilityForView,
+  };
+};
+
+export const useAppointmentDragAvailability = ({
+  activeCalendar,
+  allAppointments,
+  authUserId,
+  currentDate,
+  dispatchDrag,
+  dragContextRef,
+  normalizeId,
+  resolvePractitionerId,
+  supportsSpeciality,
+  teams,
+  weekStart,
+}: UseAppointmentDragAvailabilityOptions) => {
+  const { availabilityLoaded, getViewAvailabilityIntervals } = useAppointmentViewAvailability({
+    activeCalendar,
+    normalizeId,
+    teams,
+  });
+
+  const {
+    buildAppointmentStartFromCalendarMinutes,
+    buildAvailableStartMinutes,
+    getAvailabilityKey,
+    getCurrentUserPractitionerId,
+  } = useDragAvailabilityInputs({
+    allAppointments,
+    authUserId,
+    dragContextRef,
+    normalizeId,
+    resolvePractitionerId,
+    supportsSpeciality,
+    teams,
+  });
+
+  const getCurrentUserViewAvailabilityIntervals = useCallback(
+    (date: Date): DropAvailabilityInterval[] =>
+      getViewAvailabilityIntervals(date, getCurrentUserPractitionerId() || authUserId),
+    [authUserId, getCurrentUserPractitionerId, getViewAvailabilityIntervals]
+  );
+
+  const {
+    clearDragAvailability,
+    ensureDragAvailability,
+    getDropAvailabilityIntervals,
+    prefetchDragAvailabilityForView,
+  } = useDragAvailabilityCache({
+    activeCalendar,
+    buildAvailableStartMinutes,
+    currentDate,
+    dispatchDrag,
+    dragContextRef,
+    getAvailabilityKey,
+    teams,
+    weekStart,
+  });
 
   return {
     availabilityLoaded,

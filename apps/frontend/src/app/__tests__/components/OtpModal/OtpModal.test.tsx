@@ -108,7 +108,7 @@ describe('OtpModal Component', () => {
     expect(screen.getByText('01:29 sec')).toBeInTheDocument();
   });
 
-  it('keeps verify enabled after the countdown ends and prompts for a resend', () => {
+  it('disables verify after the countdown ends and prompts for a resend', () => {
     render(<OtpModal {...defaultProps} />);
     fillCode();
 
@@ -117,8 +117,7 @@ describe('OtpModal Component', () => {
     });
 
     expect(screen.getByText('Didn’t get the code? Request a new one below.')).toBeInTheDocument();
-    // Cognito codes outlive the resend countdown, so the button must stay usable.
-    expect(screen.getByRole('button', { name: /Verify Code/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Verify Code/i })).toBeDisabled();
   });
 
   // --- 2. Input Handling Logic ---
