@@ -4,7 +4,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import FloatingToolbar from '@/app/ui/primitives/RichTextEditor/FloatingToolbar';
-import { sanitizeRichText } from '@/app/lib/richText';
+import { isRichTextEmpty, sanitizeRichText } from '@/app/lib/richText';
 
 type RichTextEditorProps = {
   value: string;
@@ -23,12 +23,6 @@ type RichTextEditorProps = {
    */
   toolbarPlacement?: 'title' | 'inline' | 'inset';
 };
-
-const stripRichTextMarkup = (html: string): string =>
-  html
-    .replaceAll(/<[^<>]*>/g, '')
-    .replaceAll('&nbsp;', ' ')
-    .trim();
 
 /**
  * Shared rich-text editor (Tiptap) with a floating B/I/U/list/indent toolbar.
@@ -73,7 +67,7 @@ const RichTextEditor = ({
     [ariaLabel, contentPadding, onChange, readOnly, value]
   );
 
-  const showPlaceholder = !readOnly && placeholder && stripRichTextMarkup(value).length === 0;
+  const showPlaceholder = !readOnly && placeholder && isRichTextEmpty(value);
   // `title` overlaps the section title row (no reserved space); `inline` keeps
   // the toolbar inside the editor and reserves room above the first text line;
   // `inset` pins the pill toolbar to the top-right of the editor's content area
