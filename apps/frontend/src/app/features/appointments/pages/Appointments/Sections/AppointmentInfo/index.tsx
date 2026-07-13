@@ -18,10 +18,7 @@ import Discharge from '@/app/features/appointments/pages/Appointments/Sections/A
 import Audit from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Audit';
 import Plan from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Prescription/Plan';
 import { Appointment, FormSubmission, Organisation } from '@yosemite-crew/types';
-import {
-  createSubmission,
-  fetchSubmissions,
-} from '@/app/features/appointments/services/soapService';
+import { createSubmission } from '@/app/features/appointments/services/soapService';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import { PERMISSIONS } from '@/app/lib/permissions';
@@ -654,20 +651,6 @@ const CustomFormsView = ({
   );
 };
 
-const toNumber = (v: unknown): number => {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') {
-    const n = Number.parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
-  }
-  if (v == null) return 0;
-  return 0;
-};
-
-const getTaxPercent = (): number => {
-  return 0;
-};
-
 type AppoitmentInfoProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -682,8 +665,7 @@ export type {
   FormDataProps,
 } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/appointmentInfoTypes';
 export { createEmptyFormData } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/appointmentInfoTypes';
-import type { FormDataProps } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/appointmentInfoTypes';
-import { createEmptyFormData } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/appointmentInfoTypes';
+import { useAppointmentFormData } from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/useAppointmentFormData';
 
 type LabelKey = 'info' | 'prescription' | 'care' | 'tasks' | 'finance' | 'labs';
 
@@ -691,15 +673,6 @@ const normalizeInfoSubLabel = (label: string, subLabel?: string) => {
   if (label === 'info' && subLabel === 'overview') return 'history';
   return subLabel;
 };
-
-const SOAP_SUB_LABELS = new Set([
-  'forms',
-  'subjective',
-  'objective',
-  'assessment',
-  'plan',
-  'discharge-summary',
-]);
 
 const resolveIntentLabel = (
   availableLabels: Array<{ key: string }>,
@@ -1310,8 +1283,6 @@ const AppoitmentInfo = ({
     handleHistoryOpenAppointmentView,
   } = useAppointmentInfoTabs(labels, showModal, activeAppointment, initialViewIntent);
 
-  const [formData, setFormData] = useState<FormDataProps>(() => createEmptyFormData());
-
   const { withSignatureMeta, withSignatureMetaRef } = useSubmissionSignatureMeta(
     customForms,
     formsById
@@ -1328,72 +1299,16 @@ const AppoitmentInfo = ({
     orgType === 'HOSPITAL' && resolvedActiveLabel === 'prescription' ? 'SOAP' : 'Templates';
   const Content = COMPONENT_MAP[resolvedActiveLabel]?.[resolvedActiveSubLabel];
 
-  // Invoice totals are derived from the line items and the appointment's service
-  // cost, so they are computed during render instead of being written back into
-  // form state from an effect (which would cost an extra render).
-  const derivedInvoiceTotals = useMemo(() => {
-    if (!activeAppointment?.id) return null;
-    const itemsSubTotal = (formData.lineItems ?? []).reduce(
-      (sum, li) => sum + toNumber(li.total),
-      0
-    );
-    const service = services.find((s) => s.id === activeAppointment?.appointmentType?.id);
-    const serviceCost = service ? toNumber(service.cost) : 0;
-    const subTotal = itemsSubTotal + serviceCost;
-    const taxTotal = (subTotal * getTaxPercent()) / 100;
-    return {
-      subTotal: String(subTotal),
-      tax: String(taxTotal),
-      total: String(subTotal + taxTotal),
-    };
-  }, [activeAppointment?.id, activeAppointment?.appointmentType?.id, formData.lineItems, services]);
-
-  // The form value handed to children carries the derived totals so finance
-  // summaries stay in sync without storing derived state.
-  const formDataWithTotals = useMemo(
-    () => (derivedInvoiceTotals ? { ...formData, ...derivedInvoiceTotals } : formData),
-    [formData, derivedInvoiceTotals]
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      const appointmentId = activeAppointment?.id;
-      if (!appointmentId) {
-        setFormData(createEmptyFormData());
-        return;
-      }
-      if (resolvedActiveLabel !== 'prescription' || !SOAP_SUB_LABELS.has(resolvedActiveSubLabel)) {
-        return;
-      }
-      try {
-        const soap = await fetchSubmissions(appointmentId);
-        if (cancelled) return;
-        const applySignatureMeta = withSignatureMetaRef.current;
-        setFormData((prev) => ({
-          ...prev,
-          subjective: applySignatureMeta(soap?.soapNotes?.Subjective),
-          objective: applySignatureMeta(soap?.soapNotes?.Objective),
-          assessment: applySignatureMeta(soap?.soapNotes?.Assessment),
-          plan: applySignatureMeta(soap?.soapNotes?.Plan),
-          discharge: applySignatureMeta(soap?.soapNotes?.Discharge),
-          // not present in GetSOAPResponse, keep as-is / empty
-          total: prev.total ?? '',
-          subTotal: prev.subTotal ?? '',
-          tax: prev.tax ?? '',
-          discount: prev.discount ?? '',
-        }));
-      } catch (e) {
-        if (cancelled) return;
-        console.error('Failed to fetch submissions:', e);
-        setFormData(createEmptyFormData());
-      }
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeAppointment?.id, resolvedActiveLabel, resolvedActiveSubLabel, withSignatureMetaRef]);
+  const { setFormData, formDataWithTotals } = useAppointmentFormData({
+    activeAppointment,
+    services,
+    resolvedActiveLabel,
+    resolvedActiveSubLabel,
+    customForms,
+    formsById,
+    withSignatureMeta,
+    withSignatureMetaRef,
+  });
 
   useEffect(() => {
     void loadAppointmentForms();
@@ -1407,17 +1322,6 @@ const AppoitmentInfo = ({
     if (!wasOpen || signingOverlayOpen) return;
     void loadAppointmentForms();
   }, [signingOverlayOpen, loadAppointmentForms]);
-
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      subjective: withSignatureMeta(prev.subjective),
-      objective: withSignatureMeta(prev.objective),
-      assessment: withSignatureMeta(prev.assessment),
-      plan: withSignatureMeta(prev.plan),
-      discharge: withSignatureMeta(prev.discharge),
-    }));
-  }, [formsById, customForms, withSignatureMeta]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
