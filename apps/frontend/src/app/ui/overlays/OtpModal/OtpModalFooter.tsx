@@ -31,7 +31,7 @@ const OtpModalFooter = ({
       <output aria-live="polite">
         {timer > 0
           ? `${String(Math.floor(timer / 60)).padStart(2, '0')}:${String(timer % 60).padStart(2, '0')} sec`
-          : 'Code expired'}
+          : 'Didn’t get the code? Request a new one below.'}
       </output>
     </div>
     <div className="VerifyResent">

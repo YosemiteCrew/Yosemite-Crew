@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import DayCalendar from '@/app/features/appointments/components/Calendar/common/DayCalendar';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 import WeekCalendar from '@/app/features/appointments/components/Calendar/common/WeekCalendar';
@@ -9,37 +9,14 @@ import {
   AppointmentDraftPrefill,
 } from '@/app/features/appointments/types/calendar';
 import { allowCalendarDrag, canAssignAppointmentRoom } from '@/app/lib/appointments';
-import { updateAppointment } from '@/app/features/appointments/services/appointmentService';
-import { loadTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { AppointmentStatus } from '@/app/features/appointments/types/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
-import { getWeekDays } from '@/app/features/appointments/components/Calendar/weekHelpers';
 import { isOnPreferredTimeZoneCalendarDay } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { useAuthStore } from '@/app/stores/authStore';
-import { useOrgStore } from '@/app/stores/orgStore';
-import { useAvailabilityStore } from '@/app/stores/availabilityStore';
-import { useLoadAvailabilities } from '@/app/hooks/useAvailabiities';
 import { useNotify } from '@/app/hooks/useNotify';
-import {
-  DropAvailabilityInterval,
-  filterAppointmentsForWeek,
-} from '@/app/features/appointments/components/Calendar/availabilityIntervals';
-import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
-import {
-  DragUiState,
-  INITIAL_DRAG_UI,
-  buildAppointmentStartFromCalendarMinutes,
-  clampMinutes,
-  findCurrentUserPractitionerId,
-  getErrorMessageFromCandidate,
-  hasAppointmentConflict,
-  normalizeId,
-  resolvePractitionerId,
-  resolveViewAvailabilityIntervals,
-  supportsSpeciality,
-} from './appointmentCalendarHelpers';
-import { useDragAvailability, useDragEdgeAutoScroll } from './useDragAvailability';
+import { filterAppointmentsForWeek } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
+import { useAppointmentCalendarDrag } from '@/app/features/appointments/components/Calendar/useAppointmentCalendarDrag';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -70,12 +47,7 @@ type AppointmentCalendarProps = {
   statusOptions?: { key: string; name: string; bg?: string; text?: string; border?: string }[];
 };
 
-type DragAvailabilityPrefetchTarget = {
-  date: Date;
-  targetLeadId?: string;
-};
-
-const useAppointmentCalendarView = ({
+const AppointmentCalendar = ({
   filteredList,
   allAppointments,
   setActiveAppointment,
@@ -105,216 +77,38 @@ const useAppointmentCalendarView = ({
   statusOptions,
 }: AppointmentCalendarProps) => {
   const { notify } = useNotify();
-  const getErrorMessage = useCallback((error: unknown, fallback: string) => {
-    return getErrorMessageFromCandidate(
-      error as { response?: { data?: unknown } } | { data?: unknown } | { message?: string },
-      fallback
-    );
-  }, []);
-
-  const [dragUi, setDragUi] = useState<DragUiState>(INITIAL_DRAG_UI);
-  const { draggedAppointmentId, draggedAppointmentLabel, dragError, dragContext } = dragUi;
-  const setDragError = (message: string | null) =>
-    setDragUi((ui) => ({ ...ui, dragError: message }));
-  const [suppressAutoScroll, setSuppressAutoScroll] = useState(false);
-  const suppressAutoScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const teamAvailabilityFetchedRef = useRef<string | null>(null);
-  const teams = useTeamForPrimaryOrg();
-  const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const availabilityIdsByOrgId = useAvailabilityStore((s) => s.availabilityIdsByOrgId);
-  const availabilitiesById = useAvailabilityStore((s) => s.availabilitiesById);
-  const availabilityStatus = useAvailabilityStore((s) => s.status);
-  const availabilityLoaded = availabilityStatus === 'loaded';
-  useLoadAvailabilities();
-
-  const {
-    availabilityVersion,
-    resetDragAvailability,
-    ensureDragAvailability,
-    getDropAvailabilityIntervals,
-  } = useDragAvailability({ dragContext, allAppointments, teams });
-
-  const beginAppointmentDrag = (appointment: Appointment) => {
-    if (!isAppointmentDraggable(appointment)) return;
-    resetDragAvailability();
-    setDragUi({
-      draggedAppointmentId: appointment.id ?? null,
-      draggedAppointmentLabel: formatCompanionNameWithOwnerLastName(
-        appointment.companion?.name,
-        appointment.companion?.parent,
-        'Appointment'
-      ),
-      dragError: null,
-      dragContext: {
-        appointmentId: appointment.id ?? '',
-        serviceId: appointment.appointmentType?.id,
-        durationMinutes: Math.max(
-          5,
-          Math.round(
-            (new Date(appointment.endTime).getTime() - new Date(appointment.startTime).getTime()) /
-              60000
-          )
-        ),
-      },
-    });
-  };
-  const endAppointmentDrag = () =>
-    setDragUi((ui) => ({
-      ...ui,
-      draggedAppointmentId: null,
-      draggedAppointmentLabel: null,
-      dragContext: null,
-    }));
-
-  const markDropped = () => {
-    if (suppressAutoScrollTimerRef.current) clearTimeout(suppressAutoScrollTimerRef.current);
-    setSuppressAutoScroll(true);
-    suppressAutoScrollTimerRef.current = setTimeout(() => setSuppressAutoScroll(false), 4000);
-  };
   const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
-
-  useEffect(() => {
-    if (activeCalendar === 'team' && primaryOrgId) {
-      const fetchKey = primaryOrgId;
-      if (teamAvailabilityFetchedRef.current === fetchKey) return;
-      teamAvailabilityFetchedRef.current = fetchKey;
-      loadTeamAvailability(primaryOrgId).catch(() => {
-        teamAvailabilityFetchedRef.current = null;
-      });
-    }
-  }, [activeCalendar, primaryOrgId]);
-
+  const teams = useTeamForPrimaryOrg();
   const authUserId = useAuthStore(
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
   );
-  const isAppointmentDraggable = (appointment: Appointment) =>
-    !!appointment.id && canEditAppointments && allowCalendarDrag(appointment.status);
-
-  const getCurrentUserPractitionerId = useCallback(
-    () => findCurrentUserPractitionerId(teams, authUserId),
-    [authUserId, teams]
-  );
-
-  const moveAppointment = async (
-    date: Date,
-    minutesSinceMidnight: number,
-    targetLeadId?: string
-  ) => {
-    const warnDrag = (message: string) => {
-      setDragError(message);
-      notify('warning', { title: 'Move blocked', text: message });
-    };
-
-    if (!draggedAppointmentId) return;
-    const appointment = allAppointments.find((item) => item.id === draggedAppointmentId);
-    if (!appointment) {
-      warnDrag('Unable to move this appointment.');
-      return;
-    }
-    if (!isAppointmentDraggable(appointment)) {
-      warnDrag('Only requested and upcoming appointments can be moved.');
-      return;
-    }
-
-    const snappedMinutes = clampMinutes(minutesSinceMidnight);
-    const nextStart = buildAppointmentStartFromCalendarMinutes(date, snappedMinutes);
-    const durationMs = Math.max(
-      5 * 60 * 1000,
-      new Date(appointment.endTime).getTime() - new Date(appointment.startTime).getTime()
-    );
-    const nextEnd = new Date(nextStart.getTime() + durationMs);
-    const appointmentServiceId = appointment.appointmentType?.id;
-    const targetPractitionerId = resolvePractitionerId(teams, targetLeadId || appointment.lead?.id);
-
-    if (nextStart.getTime() < Date.now()) {
-      warnDrag('Cannot move an appointment to a past time.');
-      return;
-    }
-    if (targetLeadId && !supportsSpeciality(teams, targetLeadId, appointment)) {
-      warnDrag('Selected team member is not configured for this speciality.');
-      return;
-    }
-    if (appointmentServiceId && targetPractitionerId) {
-      const availableStartMinutes = await ensureDragAvailability(date, targetLeadId);
-      if (availableStartMinutes.length === 0 || !availableStartMinutes.includes(snappedMinutes)) {
-        warnDrag('No available slot for this service at the selected position.');
-        return;
-      }
-    }
-    if (
-      hasAppointmentConflict(appointment, nextStart, nextEnd, allAppointments, targetPractitionerId)
-    ) {
-      warnDrag('Scheduling conflict detected with another appointment.');
-      return;
-    }
-
-    try {
-      setDragError(null);
-      await updateAppointment({
-        ...appointment,
-        lead: targetPractitionerId
-          ? {
-              id: targetPractitionerId,
-              name:
-                teams.find(
-                  (member) =>
-                    normalizeId(member.practionerId || '') === normalizeId(targetPractitionerId) ||
-                    normalizeId(member._id || '') === normalizeId(targetPractitionerId)
-                )?.name ||
-                appointment.lead?.name ||
-                targetPractitionerId,
-            }
-          : appointment.lead,
-        startTime: nextStart,
-        endTime: nextEnd,
-        appointmentDate: nextStart,
-      });
-    } catch (error) {
-      setDragError(getErrorMessage(error, 'Unable to update appointment. Please try again.'));
-    }
-  };
-
-  const getViewAvailabilityIntervals = useCallback(
-    (date: Date, targetLeadId?: string): DropAvailabilityInterval[] =>
-      resolveViewAvailabilityIntervals({
-        date,
-        targetLeadId,
-        primaryOrgId,
-        availabilityIdsByOrgId,
-        availabilitiesById,
-        teams,
-      }),
-    [availabilityIdsByOrgId, availabilitiesById, primaryOrgId, teams]
-  );
-
-  const getCurrentUserViewAvailabilityIntervals = useCallback(
-    (date: Date): DropAvailabilityInterval[] =>
-      getViewAvailabilityIntervals(date, getCurrentUserPractitionerId() || authUserId),
-    [authUserId, getCurrentUserPractitionerId, getViewAvailabilityIntervals]
-  );
-
-  const dragAvailabilityPrefetchTargets = useMemo<DragAvailabilityPrefetchTarget[]>(() => {
-    if (!dragContext) return [];
-    if (activeCalendar === 'day') return [{ date: currentDate }];
-    if (activeCalendar === 'week') return getWeekDays(weekStart).map((date) => ({ date }));
-    if (activeCalendar === 'team') {
-      return (teams || []).map((member) => ({
-        date: currentDate,
-        targetLeadId: member.practionerId || member._id,
-      }));
-    }
-    return [];
-  }, [activeCalendar, currentDate, dragContext, teams, weekStart]);
-
-  useEffect(() => {
-    Promise.all(
-      dragAvailabilityPrefetchTargets.map((target) =>
-        ensureDragAvailability(target.date, target.targetLeadId)
-      )
-    ).catch(() => undefined);
-  }, [dragAvailabilityPrefetchTargets, ensureDragAvailability]);
-
-  useDragEdgeAutoScroll(draggedAppointmentId, availabilityVersion);
+  const {
+    availabilityLoaded,
+    dragContext,
+    draggedAppointmentId,
+    draggedAppointmentLabel,
+    dragError,
+    getCurrentUserPractitionerId,
+    getCurrentUserViewAvailabilityIntervals,
+    getDropAvailabilityIntervals,
+    getViewAvailabilityIntervals,
+    handleAppointmentDragEnd,
+    handleAppointmentDragStart,
+    handleAppointmentDropAt,
+    handleDragHoverTarget,
+    isAppointmentDraggable,
+    resolvePractitionerId,
+    skipAutoScroll,
+  } = useAppointmentCalendarDrag({
+    activeCalendar,
+    allAppointments,
+    authUserId,
+    canEditAppointments,
+    currentDate,
+    notify,
+    teams,
+    weekStart,
+  });
 
   const handleViewAppointment = (appointment: Appointment, intent?: AppointmentViewIntent) => {
     setActiveAppointment?.(appointment);
@@ -361,7 +155,7 @@ const useAppointmentCalendarView = ({
       if (!onCreateFromCalendarSlot || !canEditAppointments) return;
       const defaultLeadId =
         activeCalendar === 'team'
-          ? resolvePractitionerId(teams, targetLeadId)
+          ? resolvePractitionerId(targetLeadId)
           : getCurrentUserPractitionerId();
       onCreateFromCalendarSlot({
         date,
@@ -374,7 +168,7 @@ const useAppointmentCalendarView = ({
       canEditAppointments,
       getCurrentUserPractitionerId,
       onCreateFromCalendarSlot,
-      teams,
+      resolvePractitionerId,
     ]
   );
 
@@ -391,38 +185,30 @@ const useAppointmentCalendarView = ({
     [filteredList, weekStart]
   );
 
-  const handleDragHoverTarget = (dropDate: Date, targetLeadId?: string) => {
-    ensureDragAvailability(dropDate, targetLeadId).catch(() => undefined);
-  };
-
-  const handleAppointmentDropAt = (dropDate: Date, minute: number, targetLeadId?: string) => {
-    markDropped();
-    moveAppointment(dropDate, minute, targetLeadId).catch(() => undefined);
-    endAppointmentDrag();
-  };
-
-  const sharedCalendarProps = {
-    zoomMode,
+  const appointmentActionProps = {
     handleViewAppointment,
     handleOpenWorkspace: onOpenWorkspace,
     handleRescheduleAppointment,
     handleChangeRoomAppointment,
     handleAcceptAppointment,
-    setCurrentDate,
     canEditAppointments,
+  };
+
+  const appointmentDragProps = {
     draggedAppointmentId,
     draggedAppointmentLabel,
     canDragAppointment: isAppointmentDraggable,
-    onAppointmentDragStart: beginAppointmentDrag,
-    onAppointmentDragEnd: endAppointmentDrag,
+    onAppointmentDragStart: handleAppointmentDragStart,
+    onAppointmentDragEnd: handleAppointmentDragEnd,
     onDragHoverTarget: handleDragHoverTarget,
     getDropAvailabilityIntervals,
+    getVisibleAvailabilityIntervals: getCurrentUserViewAvailabilityIntervals,
     availabilityLoaded,
     draggedAppointmentDurationMinutes: dragContext?.durationMinutes,
     onAppointmentDropAt: handleAppointmentDropAt,
     onCreateAppointmentAt: handleCreateFromCalendarSlot,
     slotStepMinutes: 15,
-    skipAutoScroll: suppressAutoScroll,
+    skipAutoScroll,
   };
 
   return (
@@ -451,35 +237,40 @@ const useAppointmentCalendarView = ({
       ) : null}
       {activeCalendar === 'day' && (
         <DayCalendar
-          {...sharedCalendarProps}
+          {...appointmentActionProps}
+          {...appointmentDragProps}
           events={dayEvents}
           date={currentDate}
+          zoomMode={zoomMode}
           handleDetailAppointment={handleViewAppointment}
-          getVisibleAvailabilityIntervals={getCurrentUserViewAvailabilityIntervals}
+          setCurrentDate={setCurrentDate}
         />
       )}
       {activeCalendar === 'week' && (
         <WeekCalendar
-          {...sharedCalendarProps}
+          {...appointmentActionProps}
+          {...appointmentDragProps}
           events={weekEvents}
+          zoomMode={zoomMode}
           weekStart={weekStart}
           setWeekStart={setWeekStart}
-          getVisibleAvailabilityIntervals={getCurrentUserViewAvailabilityIntervals}
+          setCurrentDate={setCurrentDate}
         />
       )}
       {activeCalendar === 'team' && (
         <UserCalendar
-          {...sharedCalendarProps}
+          {...appointmentActionProps}
+          {...appointmentDragProps}
           events={dayEvents}
           date={currentDate}
+          zoomMode={zoomMode}
           forceFullDayInZoomIn
+          setCurrentDate={setCurrentDate}
           getVisibleAvailabilityIntervals={getViewAvailabilityIntervals}
         />
       )}
     </div>
   );
 };
-
-const AppointmentCalendar = (props: AppointmentCalendarProps) => useAppointmentCalendarView(props);
 
 export default AppointmentCalendar;

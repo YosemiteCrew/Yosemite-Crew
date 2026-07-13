@@ -1,11 +1,13 @@
 'use client';
-import React, { useState, useRef, useId, useLayoutEffect } from 'react';
+import React, { useState, useId } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Icon } from '@iconify/react/dist/iconify.js';
 import { useAuthStore } from '@/app/stores/authStore';
-import { postData } from '@/app/services/axios';
-import { useSignOut } from '@/app/hooks/useAuth';
+import { logger } from '@/app/lib/logger';
+import { provisionBackendUser } from '@/app/features/auth/services/userProvisioningService';
+import { useOtpCodeInput } from '@/app/hooks/useOtpCodeInput';
+import { useResendCountdown } from '@/app/hooks/useResendCountdown';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
@@ -17,20 +19,28 @@ import OtpModalFooter from '@/app/ui/overlays/OtpModal/OtpModalFooter';
 
 import './OtpModal.css';
 
+const RESEND_COUNTDOWN_SECONDS = 150;
+
+type ShowErrorTost = (args: {
+  message: string;
+  errortext: string;
+  iconElement: React.ReactNode;
+  className: string;
+}) => void;
+
 type OtpModalProps = {
   email: string;
   password: string;
-  showErrorTost: (args: {
-    message: string;
-    errortext: string;
-    iconElement: React.ReactNode;
-    className: string;
-  }) => void;
+  showErrorTost: ShowErrorTost;
   showVerifyModal: boolean;
   setShowVerifyModal: React.Dispatch<React.SetStateAction<boolean>>;
   redirectPath?: string;
   isDeveloper?: boolean;
 };
+
+const dangerIcon = (
+  <Icon icon="solar:danger-triangle-bold" width="20" height="20" color="var(--color-danger-600)" />
+);
 
 const OtpModal = ({
   email,
@@ -41,129 +51,115 @@ const OtpModal = ({
   redirectPath,
   isDeveloper = false,
 }: Readonly<OtpModalProps>) => {
-  const { signOut } = useSignOut();
   const { confirmSignUp, resendCode, signIn, role } = useAuthStore();
   const router = useRouter();
-  const [code, setCode] = useState(() => new Array(6).fill(''));
-  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [invalidOtp, setInvalidOtp] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const dialogTitleId = useId();
   const dialogDescriptionId = useId();
   const otpHintId = useId();
   const otpStatusId = useId();
-  // Stable ref callback to avoid React warning
-  const setOtpRef = (el: HTMLInputElement | null, idx: number) => {
-    otpRefs.current[idx] = el;
-  };
-  // The active input is only ever read to move focus, never rendered — track it in a
-  // ref and focus imperatively instead of round-tripping through state + an effect.
-  const focusInput = (idx: number) => {
-    otpRefs.current[idx]?.focus();
-  };
 
-  const [timer, setTimer] = useState(150); // 2.30 minutes in seconds
-  const timerActiveRef = useRef(showVerifyModal);
-  const [isVerifying, setIsVerifying] = useState(false);
+  const { code, handleCodeChange, handleCodeKeyDown, resetCode, setOtpRef } = useOtpCodeInput(() =>
+    setInvalidOtp(false)
+  );
+  const { restart: restartCountdown, secondsLeft } = useResendCountdown(
+    showVerifyModal,
+    RESEND_COUNTDOWN_SECONDS
+  );
 
-  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
-    const val = e.target.value.replaceAll(/\D/g, '');
-    if (!val) return;
-    const newCode = [...code];
-    newCode[idx] = val[0];
-    setCode(newCode);
-    if (invalidOtp) {
-      setInvalidOtp(false);
-    }
-    if (idx < 5 && val) {
-      focusInput(idx + 1);
-    }
+  const buildSignInFallbackRoute = () => {
+    const signinPath = isDeveloper ? '/developers/signin' : '/signin';
+    const params = new URLSearchParams({ email });
+    if (redirectPath) params.set('next', redirectPath);
+    return `${signinPath}?${params.toString()}`;
   };
 
-  const handleCodeKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, idx: number) => {
-    if (e.key === 'Backspace') {
-      if (code[idx]) {
-        const newCode = [...code];
-        newCode[idx] = '';
-        setCode(newCode);
-      } else if (idx > 0) {
-        focusInput(idx - 1);
-      }
-    } else if (e.key === 'ArrowLeft' && idx > 0) {
-      focusInput(idx - 1);
-    } else if (e.key === 'ArrowRight' && idx < 5) {
-      focusInput(idx + 1);
-    }
+  const redirectToSignInAfterSignup = () => {
+    showErrorTost({
+      message: 'Your email is verified. Please sign in to continue.',
+      errortext: 'Account created',
+      iconElement: (
+        <Icon
+          icon="solar:check-circle-bold"
+          width="20"
+          height="20"
+          color="var(--color-success-bright)"
+        />
+      ),
+      className: 'CongratsBg',
+    });
+    router.push(buildSignInFallbackRoute());
   };
 
-  const afterAuthSuccess = async () => {
-    try {
-      await postData('/fhir/v1/user');
-    } catch (error) {
-      await signOut();
-      throw error;
+  const completeSignedInRedirect = async () => {
+    defaultSidebarToCollapsed();
+    // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
+    setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
+
+    // The Cognito session is valid at this point. If backend provisioning
+    // keeps failing transiently, continue anyway — the account exists and
+    // signing the user out here is worse than a delayed provision.
+    const provisioned = await provisionBackendUser();
+    if (!provisioned) {
+      logger.warn('Backend user provisioning did not complete; continuing signed in.');
     }
+
+    const signedInRole =
+      typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
+    const nextRoute = await resolvePostAuthRedirect({
+      fallbackRole: signedInRole,
+      redirectPath,
+      isDeveloper,
+    });
+    router.push(nextRoute);
   };
 
   const handleVerify = async (): Promise<void> => {
-    if (code.includes('')) {
+    if (secondsLeft === 0) {
       showErrorTost({
-        message: 'Please enter the full OTP',
-        errortext: 'Error',
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="var(--color-danger-600)"
-          />
-        ),
+        message: 'This verification code has expired. Please request a new code.',
+        errortext: 'Code expired',
+        iconElement: dangerIcon,
         className: 'errofoundbg',
       });
       return;
     }
 
+    if (code.includes('')) {
+      showErrorTost({
+        message: 'Please enter the full OTP',
+        errortext: 'Error',
+        iconElement: dangerIcon,
+        className: 'errofoundbg',
+      });
+      return;
+    }
+
+    let confirmed = false;
     try {
       setIsVerifying(true);
       const result = await confirmSignUp(email, code.join(''));
-      if (result) {
-        setCode(new Array(6).fill(''));
-        setShowVerifyModal(false);
-        try {
-          await signIn(email, password);
-          defaultSidebarToCollapsed();
-          await afterAuthSuccess();
-          // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
-          setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
-          const signedInRole =
-            typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
-          const nextRoute = await resolvePostAuthRedirect({
-            fallbackRole: signedInRole,
-            redirectPath,
-            isDeveloper,
-          });
-          router.push(nextRoute);
-        } catch (error) {
-          console.log(error);
-          setIsVerifying(false);
-          showErrorTost({
-            message: `Sign in failed`,
-            errortext: 'Error',
-            iconElement: (
-              <Icon
-                icon="solar:danger-triangle-bold"
-                width="20"
-                height="20"
-                color="var(--color-danger-600)"
-              />
-            ),
-            className: 'errofoundbg',
-          });
-        }
+      if (!result) {
+        setIsVerifying(false);
+        return;
       }
-    } catch (error: any) {
-      globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
-      console.log(error);
+      confirmed = true;
+      resetCode();
+      setShowVerifyModal(false);
+      await signIn(email, password);
+      await completeSignedInRedirect();
+    } catch (error) {
       setIsVerifying(false);
+      if (confirmed) {
+        // The account is verified — never strand the user on the signup page.
+        // Send them to sign in with their email prefilled instead.
+        logger.warn('Automatic sign in after signup failed; redirecting to sign in.', error);
+        redirectToSignInAfterSignup();
+        return;
+      }
+      globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
+      logger.warn('OTP confirmation failed', error);
       setInvalidOtp(true);
     }
   };
@@ -186,51 +182,19 @@ const OtpModal = ({
           ),
           className: 'CongratsBg',
         });
-        setCode(new Array(6).fill('')); // Clear OTP fields on resend
-        focusInput(0); // Focus first input
-        setTimer(150);
-        timerActiveRef.current = true;
+        resetCode(true); // Clear OTP fields and focus the first input
+        restartCountdown();
       }
     } catch (error: any) {
       globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
       showErrorTost({
         message: error.message || 'Error resending code.',
         errortext: 'Error',
-        iconElement: (
-          <Icon
-            icon="solar:danger-triangle-bold"
-            width="20"
-            height="20"
-            color="var(--color-danger-600)"
-          />
-        ),
+        iconElement: dangerIcon,
         className: 'errofoundbg',
       });
     }
   };
-
-  useLayoutEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (showVerifyModal && timerActiveRef.current && timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    if (timer === 0 && interval) {
-      clearInterval(interval);
-      timerActiveRef.current = false;
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [showVerifyModal, timer]);
-
-  useLayoutEffect(() => {
-    if (showVerifyModal) {
-      setTimer(150);
-      timerActiveRef.current = true;
-    }
-  }, [showVerifyModal]);
 
   if (!showVerifyModal) return null;
 
@@ -273,7 +237,7 @@ const OtpModal = ({
         </div>
         <OtpModalFooter
           isVerifying={isVerifying}
-          timer={timer}
+          timer={secondsLeft}
           code={code}
           onVerify={handleVerify}
           onResend={handleResend}
