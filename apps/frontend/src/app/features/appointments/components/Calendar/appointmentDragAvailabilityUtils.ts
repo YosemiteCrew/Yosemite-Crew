@@ -123,6 +123,21 @@ export const buildTeamMemberNameMap = (
   return map;
 };
 
+// Resolve a member's display name, preferring the member-map lookup and falling
+// back to the team name map, then the raw id.
+export const resolveMemberDisplayName = (
+  memberId: string | undefined,
+  normalizeId: NormalizeId,
+  resolveMemberName: (id: string) => string,
+  teamNameById: Record<string, string>
+) => {
+  const raw = String(memberId ?? '').trim();
+  if (!raw) return '-';
+  const resolved = resolveMemberName(raw);
+  if (resolved && resolved !== '-') return resolved;
+  return teamNameById[normalizeId(raw)] || raw;
+};
+
 const getSlotMinuteBounds = (
   slot: Slot,
   durationMinutes: number,

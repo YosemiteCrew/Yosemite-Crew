@@ -143,15 +143,9 @@ const appendSlotIntervals = (
   const range = getAbsoluteMinuteRange(slot);
   const bounds = getDayOffsetBounds(range);
   if (!bounds) return;
-  for (let offset = bounds.firstDayOffset; offset <= bounds.lastDayOffset; offset++) {
-    appendAvailabilityInterval(
-      output,
-      sourceDayKey,
-      offset,
-      range.start,
-      bounds.latestStart,
-      shiftKey
-    );
+  const { firstDayOffset, lastDayOffset, latestStart } = bounds;
+  for (let offset = firstDayOffset; offset <= lastDayOffset; offset++) {
+    appendAvailabilityInterval(output, sourceDayKey, offset, range.start, latestStart, shiftKey);
   }
 };
 
@@ -220,3 +214,35 @@ export const runOncePerKey = async (
     delete pending[key];
   }
 };
+
+const FULL_DAY_INTERVAL: DropAvailabilityInterval = {
+  startMinute: 0,
+  endMinute: 24 * 60 - TASK_BLOCK_DURATION_MINUTES,
+};
+
+type AvailabilityCache = Record<string, Record<string, DropAvailabilityInterval[]>>;
+
+// Read the cached drop intervals for an assignee on a given day, returning a
+// full-day window when availability enforcement is bypassed for the dragged task.
+export const readDropAvailabilityIntervals = (
+  cache: AvailabilityCache,
+  date: Date,
+  targetAssigneeId: string | undefined,
+  deps: {
+    draggedTask?: Task;
+    resolveAssigneeId: (candidateId?: string) => string;
+    shouldEnforceAvailability: (task: Task, targetAssigneeId?: string) => boolean;
+  }
+): DropAvailabilityInterval[] => {
+  if (deps.draggedTask && !deps.shouldEnforceAvailability(deps.draggedTask, targetAssigneeId)) {
+    return [FULL_DAY_INTERVAL];
+  }
+  const resolvedAssigneeId = deps.resolveAssigneeId(targetAssigneeId);
+  if (!resolvedAssigneeId) return [];
+  const assigneeKey = normalizeCalendarId(resolvedAssigneeId);
+  return cache[assigneeKey]?.[getCalendarDayKey(date)] || [];
+};
+
+// True when the given minute falls inside any drop interval.
+export const isMinuteWithinIntervals = (minute: number, intervals: DropAvailabilityInterval[]) =>
+  intervals.some((interval) => minute >= interval.startMinute && minute <= interval.endMinute);

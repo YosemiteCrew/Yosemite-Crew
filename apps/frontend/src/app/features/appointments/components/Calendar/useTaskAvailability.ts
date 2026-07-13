@@ -3,10 +3,10 @@ import { Task } from '@/app/features/tasks/types/task';
 import {
   DropAvailabilityInterval,
   fetchAssigneeAvailability,
-  getCalendarDayKey,
+  isMinuteWithinIntervals,
   normalizeCalendarId,
+  readDropAvailabilityIntervals,
   runOncePerKey,
-  TASK_BLOCK_DURATION_MINUTES,
 } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
 
 type UseTaskAvailabilityOptions = {
@@ -50,14 +50,12 @@ export const useTaskAvailability = ({
   const getDropAvailabilityIntervals = useCallback(
     (date: Date, assigneeId?: string): DropAvailabilityInterval[] => {
       const draggedTask = allTaskItems.find((item) => item._id === draggedTaskId);
-      const targetAssigneeId = assigneeId || draggedTask?.assignedTo;
-      if (draggedTask && !shouldEnforceAvailability(draggedTask, targetAssigneeId)) {
-        return [{ startMinute: 0, endMinute: 24 * 60 - TASK_BLOCK_DURATION_MINUTES }];
-      }
-      const resolvedAssigneeId = resolveAssigneeId(targetAssigneeId);
-      if (!resolvedAssigneeId) return [];
-      const assigneeKey = normalizeCalendarId(resolvedAssigneeId);
-      return availabilityCacheRef.current[assigneeKey]?.[getCalendarDayKey(date)] || [];
+      return readDropAvailabilityIntervals(
+        availabilityCacheRef.current,
+        date,
+        assigneeId || draggedTask?.assignedTo,
+        { draggedTask, resolveAssigneeId, shouldEnforceAvailability }
+      );
     },
     [allTaskItems, draggedTaskId, resolveAssigneeId, shouldEnforceAvailability]
   );
@@ -67,10 +65,9 @@ export const useTaskAvailability = ({
       const resolvedAssigneeId = resolveAssigneeId(assigneeId);
       if (!resolvedAssigneeId) return false;
       await ensureAssigneeAvailability(resolvedAssigneeId);
-      const intervals = getDropAvailabilityIntervals(date, resolvedAssigneeId);
-      if (intervals.length === 0) return false;
-      return intervals.some(
-        (interval) => minute >= interval.startMinute && minute <= interval.endMinute
+      return isMinuteWithinIntervals(
+        minute,
+        getDropAvailabilityIntervals(date, resolvedAssigneeId)
       );
     },
     [ensureAssigneeAvailability, getDropAvailabilityIntervals, resolveAssigneeId]

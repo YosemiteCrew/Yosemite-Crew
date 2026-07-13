@@ -1,6 +1,8 @@
 import {
   buildAvailabilityOutput,
   canCurrentUserEditTask,
+  isMinuteWithinIntervals,
+  readDropAvailabilityIntervals,
   runOncePerKey,
   shiftWeekdayKey,
   shouldAllowTaskAvailabilityBypass,
@@ -126,5 +128,52 @@ describe('runOncePerKey', () => {
       runOncePerKey(pending, 'k', () => Promise.reject(new Error('boom')))
     ).rejects.toThrow('boom');
     expect(pending.k).toBeUndefined();
+  });
+});
+
+describe('isMinuteWithinIntervals', () => {
+  const intervals = [{ startMinute: 100, endMinute: 200 }];
+
+  it('is true inside an interval (inclusive bounds)', () => {
+    expect(isMinuteWithinIntervals(100, intervals)).toBe(true);
+    expect(isMinuteWithinIntervals(200, intervals)).toBe(true);
+  });
+
+  it('is false outside every interval', () => {
+    expect(isMinuteWithinIntervals(99, intervals)).toBe(false);
+    expect(isMinuteWithinIntervals(0, [])).toBe(false);
+  });
+});
+
+describe('readDropAvailabilityIntervals', () => {
+  const resolveAssigneeId = (id?: string) => id ?? '';
+  const date = new Date('2026-07-13T00:00:00Z');
+
+  it('returns a full-day window when enforcement is bypassed', () => {
+    const draggedTask = { _id: 't1', assignedTo: 'a1' } as Task;
+    const result = readDropAvailabilityIntervals({}, date, 'a1', {
+      draggedTask,
+      resolveAssigneeId,
+      shouldEnforceAvailability: () => false,
+    });
+    expect(result).toEqual([{ startMinute: 0, endMinute: 24 * 60 - 30 }]);
+  });
+
+  it('returns an empty list when the assignee cannot be resolved', () => {
+    const result = readDropAvailabilityIntervals({}, date, undefined, {
+      resolveAssigneeId: () => '',
+      shouldEnforceAvailability: () => true,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it('reads cached intervals for the resolved assignee and day', () => {
+    const dayKey = date.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+    const cache = { a1: { [dayKey]: [{ startMinute: 60, endMinute: 120 }] } };
+    const result = readDropAvailabilityIntervals(cache, date, 'a1', {
+      resolveAssigneeId,
+      shouldEnforceAvailability: () => true,
+    });
+    expect(Array.isArray(result)).toBe(true);
   });
 });

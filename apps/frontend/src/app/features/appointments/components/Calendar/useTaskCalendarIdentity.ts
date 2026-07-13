@@ -4,6 +4,7 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
 import {
   buildTeamMemberNameMap,
+  resolveMemberDisplayName,
   resolveTeamMemberPrimaryId,
 } from '@/app/features/appointments/components/Calendar/appointmentDragAvailabilityUtils';
 import {
@@ -38,13 +39,8 @@ export const useTaskCalendarIdentity = (
   );
 
   const resolveDisplayName = useCallback(
-    (memberId?: string) => {
-      const raw = String(memberId ?? '').trim();
-      if (!raw) return '-';
-      const resolved = resolveMemberName(raw);
-      if (resolved && resolved !== '-') return resolved;
-      return teamNameById[normalizeId(raw)] || raw;
-    },
+    (memberId?: string) =>
+      resolveMemberDisplayName(memberId, normalizeId, resolveMemberName, teamNameById),
     [normalizeId, resolveMemberName, teamNameById]
   );
 
