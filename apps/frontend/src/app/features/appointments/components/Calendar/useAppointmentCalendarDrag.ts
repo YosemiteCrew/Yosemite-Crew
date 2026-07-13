@@ -1,4 +1,4 @@
-import { Dispatch, MutableRefObject, useCallback, useReducer, useRef } from 'react';
+import { Dispatch, RefObject, useCallback, useReducer, useRef } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { allowCalendarDrag } from '@/app/lib/appointments';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
@@ -61,7 +61,7 @@ const useCalendarDragTeamHelpers = (
 type UseAppointmentDragHandlersOptions = {
   clearDragAvailability: () => void;
   dispatchDrag: Dispatch<DragAction>;
-  dragContextRef: MutableRefObject<DragContext | null>;
+  dragContextRef: RefObject<DragContext | null>;
   ensureDragAvailability: (date: Date, targetLeadId?: string) => Promise<number[]>;
   isAppointmentDraggable: (appointment: Appointment) => boolean;
   markDropped: () => void;
