@@ -65,6 +65,29 @@ export const shouldAllowTaskAvailabilityBypass = (
   return !isAssignedByCurrentUser;
 };
 
+// Shift a weekday key by a signed day offset, wrapping around the week.
+export const shiftWeekdayKey = (dayKey: string, offset: number): string => {
+  const upper = String(dayKey || '').toUpperCase();
+  const index = WEEKDAY_ORDER.indexOf(upper);
+  if (index < 0) return upper;
+  const shifted = (index + offset) % WEEKDAY_ORDER.length;
+  const safe = shifted < 0 ? shifted + WEEKDAY_ORDER.length : shifted;
+  return WEEKDAY_ORDER[safe];
+};
+
+// A task can be moved only while it is open and the current user created the
+// assignment.
+export const canCurrentUserEditTask = (
+  authUserId: string,
+  task: Task,
+  normalizeId: (value?: string) => string
+) => {
+  const normalizedCurrentUser = normalizeId(authUserId);
+  const isAssignedByCurrentUser =
+    !!normalizedCurrentUser && normalizeId(task.assignedBy) === normalizedCurrentUser;
+  return task.status !== 'COMPLETED' && task.status !== 'CANCELLED' && isAssignedByCurrentUser;
+};
+
 const getSourceDayKey = (dayEntry: AvailabilityDayEntry) =>
   String(dayEntry?.dayOfWeek ?? '').toUpperCase();
 
@@ -132,17 +155,25 @@ const appendSlotIntervals = (
   }
 };
 
+const appendDayIntervals = (
+  output: Record<string, DropAvailabilityInterval[]>,
+  dayEntry: AvailabilityDayEntry,
+  shiftKey: (dayKey: string, offset: number) => string
+) => {
+  const sourceDayKey = getSourceDayKey(dayEntry);
+  if (!sourceDayKey) return;
+  for (const slot of getAvailabilitySlots(dayEntry)) {
+    appendSlotIntervals(output, sourceDayKey, slot, shiftKey);
+  }
+};
+
 export const buildAvailabilityOutput = (
   baseAvailability: AvailabilityDayEntry[],
   shiftKey: (dayKey: string, offset: number) => string
 ): Record<string, DropAvailabilityInterval[]> => {
   const output: Record<string, DropAvailabilityInterval[]> = {};
   for (const dayEntry of baseAvailability) {
-    const sourceDayKey = getSourceDayKey(dayEntry);
-    if (!sourceDayKey) continue;
-    for (const slot of getAvailabilitySlots(dayEntry)) {
-      appendSlotIntervals(output, sourceDayKey, slot, shiftKey);
-    }
+    appendDayIntervals(output, dayEntry, shiftKey);
   }
   return output;
 };
@@ -165,5 +196,27 @@ export const fetchAssigneeAvailability = async (
   } catch (error) {
     logger.warn('Failed to load assignee availability.', error);
     return {};
+  }
+};
+
+// Run `work` at most once per key concurrently: concurrent callers for the same
+// key await the in-flight promise instead of starting a duplicate. The pending
+// entry is cleared once settled.
+export const runOncePerKey = async (
+  pending: Partial<Record<string, Promise<void>>>,
+  key: string,
+  work: () => Promise<void>
+): Promise<void> => {
+  const inFlight = pending[key];
+  if (inFlight) {
+    await inFlight;
+    return;
+  }
+  const task = work();
+  pending[key] = task;
+  try {
+    await task;
+  } finally {
+    delete pending[key];
   }
 };

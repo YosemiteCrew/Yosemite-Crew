@@ -7,9 +7,10 @@ import {
   resolveTeamMemberPrimaryId,
 } from '@/app/features/appointments/components/Calendar/appointmentDragAvailabilityUtils';
 import {
+  canCurrentUserEditTask,
   normalizeCalendarId,
+  shiftWeekdayKey,
   shouldAllowTaskAvailabilityBypass,
-  WEEKDAY_ORDER,
 } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
 
 export const useTaskCalendarIdentity = (
@@ -19,13 +20,7 @@ export const useTaskCalendarIdentity = (
   const { resolveMemberName } = useMemberMap();
   const normalizeId = useCallback((value?: string) => normalizeCalendarId(value), []);
 
-  const shiftDayKey = useCallback((dayKey: string, offset: number): string => {
-    const index = WEEKDAY_ORDER.indexOf(String(dayKey || '').toUpperCase());
-    if (index < 0) return String(dayKey || '').toUpperCase();
-    const shifted = (index + offset) % WEEKDAY_ORDER.length;
-    const safe = shifted < 0 ? shifted + WEEKDAY_ORDER.length : shifted;
-    return WEEKDAY_ORDER[safe];
-  }, []);
+  const shiftDayKey = useCallback(shiftWeekdayKey, []);
 
   const resolveAssigneeId = useCallback(
     (candidateId?: string) => resolveTeamMemberPrimaryId(teams, candidateId, normalizeId),
@@ -33,12 +28,7 @@ export const useTaskCalendarIdentity = (
   );
 
   const canEditTask = useCallback(
-    (task: Task) => {
-      const normalizedCurrentUser = normalizeId(authUserId);
-      const isAssignedByCurrentUser =
-        !!normalizedCurrentUser && normalizeId(task.assignedBy) === normalizedCurrentUser;
-      return task.status !== 'COMPLETED' && task.status !== 'CANCELLED' && isAssignedByCurrentUser;
-    },
+    (task: Task) => canCurrentUserEditTask(authUserId, task, normalizeId),
     [authUserId, normalizeId]
   );
 

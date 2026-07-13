@@ -32,6 +32,43 @@ type TaskCalendarBodyProps = {
   setWeekStart: Dispatch<SetStateAction<Date>>;
 };
 
+type CommonCalendarPropsInput = Pick<
+  TaskCalendarBodyProps,
+  | 'zoomMode'
+  | 'handleViewTask'
+  | 'handleChangeStatusTask'
+  | 'handleRescheduleTask'
+  | 'canEditTasks'
+  | 'draggedTaskId'
+  | 'draggedTaskLabel'
+  | 'canDragTask'
+  | 'handleTaskDragStart'
+  | 'handleTaskDragEnd'
+  | 'onCreateTaskAt'
+  | 'onDragHoverTarget'
+  | 'getDropAvailabilityIntervals'
+  | 'resolveDisplayName'
+>;
+
+// Assemble the props shared by the day/week/team calendar variants.
+const buildCommonCalendarProps = (input: CommonCalendarPropsInput) => ({
+  zoomMode: input.zoomMode,
+  handleViewTask: input.handleViewTask,
+  handleChangeStatusTask: input.handleChangeStatusTask,
+  handleRescheduleTask: input.handleRescheduleTask,
+  canEditTasks: input.canEditTasks,
+  draggedTaskId: input.draggedTaskId,
+  draggedTaskLabel: input.draggedTaskLabel,
+  canDragTask: input.canDragTask,
+  onTaskDragStart: input.handleTaskDragStart,
+  onTaskDragEnd: input.handleTaskDragEnd,
+  onCreateTaskAt: input.onCreateTaskAt,
+  onDragHoverTarget: input.onDragHoverTarget,
+  getDropAvailabilityIntervals: input.getDropAvailabilityIntervals,
+  resolveDisplayName: input.resolveDisplayName,
+  slotStepMinutes: 15,
+});
+
 export const TaskCalendarBody = ({
   activeCalendar,
   dayEvents,
@@ -58,7 +95,7 @@ export const TaskCalendarBody = ({
 }: TaskCalendarBodyProps) => {
   const handleDrop = createTaskDropHandler(moveTask, handleTaskDragEnd);
 
-  const commonCalendarProps = {
+  const commonCalendarProps = buildCommonCalendarProps({
     zoomMode,
     handleViewTask,
     handleChangeStatusTask,
@@ -67,14 +104,13 @@ export const TaskCalendarBody = ({
     draggedTaskId,
     draggedTaskLabel,
     canDragTask,
-    onTaskDragStart: handleTaskDragStart,
-    onTaskDragEnd: handleTaskDragEnd,
+    handleTaskDragStart,
+    handleTaskDragEnd,
     onCreateTaskAt,
     onDragHoverTarget,
     getDropAvailabilityIntervals,
     resolveDisplayName,
-    slotStepMinutes: 15,
-  };
+  });
 
   if (activeCalendar === 'day') {
     return (

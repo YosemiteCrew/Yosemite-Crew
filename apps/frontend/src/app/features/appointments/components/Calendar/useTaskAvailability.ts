@@ -5,6 +5,7 @@ import {
   fetchAssigneeAvailability,
   getCalendarDayKey,
   normalizeCalendarId,
+  runOncePerKey,
   TASK_BLOCK_DURATION_MINUTES,
 } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
 
@@ -35,20 +36,13 @@ export const useTaskAvailability = ({
       if (!resolvedAssigneeId) return;
       const cacheKey = normalizeCalendarId(resolvedAssigneeId);
       if (availabilityCacheRef.current[cacheKey]) return;
-      if (availabilityPendingRef.current[cacheKey]) {
-        await availabilityPendingRef.current[cacheKey];
-        return;
-      }
-      const task = (async () => {
+      await runOncePerKey(availabilityPendingRef.current, cacheKey, async () => {
         availabilityCacheRef.current[cacheKey] = await fetchAssigneeAvailability(
           resolvedAssigneeId,
           shiftDayKey
         );
         setAvailabilityVersion((version) => version + 1);
-      })();
-      availabilityPendingRef.current[cacheKey] = task;
-      await task;
-      delete availabilityPendingRef.current[cacheKey];
+      });
     },
     [resolveAssigneeId, shiftDayKey]
   );

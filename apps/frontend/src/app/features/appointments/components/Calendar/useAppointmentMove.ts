@@ -60,39 +60,40 @@ export const useAppointmentMove = ({
   supportsSpeciality,
   teams,
 }: UseAppointmentMoveOptions) => {
-  const handlers = useMemo(() => createMoveHandlers(dispatchDrag, notify), [dispatchDrag, notify]);
-
-  const moveAppointment = useCallback(
-    (date: Date, minutesSinceMidnight: number, targetLeadId?: string) =>
-      executeAppointmentMove({
-        allAppointments,
-        appointmentId,
-        buildStart: buildAppointmentStartFromCalendarMinutes,
-        date,
-        ensureDragAvailability,
-        isAppointmentDraggable,
-        minutesSinceMidnight,
-        normalizeId,
-        onBlocked: handlers.onBlocked,
-        onUpdateError: handlers.onUpdateError,
-        resolvePractitionerId,
-        supportsSpeciality,
-        targetLeadId,
-        teams,
-        updateAppointment: handlers.persistMovedAppointment,
-      }),
-    [
+  const moveContext = useMemo(() => {
+    const handlers = createMoveHandlers(dispatchDrag, notify);
+    return {
       allAppointments,
       appointmentId,
-      buildAppointmentStartFromCalendarMinutes,
+      buildStart: buildAppointmentStartFromCalendarMinutes,
       ensureDragAvailability,
-      handlers,
       isAppointmentDraggable,
       normalizeId,
+      onBlocked: handlers.onBlocked,
+      onUpdateError: handlers.onUpdateError,
       resolvePractitionerId,
       supportsSpeciality,
       teams,
-    ]
+      updateAppointment: handlers.persistMovedAppointment,
+    };
+  }, [
+    allAppointments,
+    appointmentId,
+    buildAppointmentStartFromCalendarMinutes,
+    dispatchDrag,
+    ensureDragAvailability,
+    isAppointmentDraggable,
+    normalizeId,
+    notify,
+    resolvePractitionerId,
+    supportsSpeciality,
+    teams,
+  ]);
+
+  const moveAppointment = useCallback(
+    (date: Date, minutesSinceMidnight: number, targetLeadId?: string) =>
+      executeAppointmentMove({ ...moveContext, date, minutesSinceMidnight, targetLeadId }),
+    [moveContext]
   );
 
   return { moveAppointment };

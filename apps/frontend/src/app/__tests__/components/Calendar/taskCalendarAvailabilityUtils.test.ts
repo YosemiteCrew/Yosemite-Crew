@@ -1,5 +1,8 @@
 import {
   buildAvailabilityOutput,
+  canCurrentUserEditTask,
+  runOncePerKey,
+  shiftWeekdayKey,
   shouldAllowTaskAvailabilityBypass,
 } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
 import { Task } from '@/app/features/tasks/types/task';
@@ -65,5 +68,63 @@ describe('buildAvailabilityOutput', () => {
       identityShift
     );
     expect(output).toEqual({});
+  });
+});
+
+describe('shiftWeekdayKey', () => {
+  it('wraps forward across the week boundary', () => {
+    expect(shiftWeekdayKey('SATURDAY', 1)).toBe('SUNDAY');
+  });
+
+  it('wraps backward across the week boundary', () => {
+    expect(shiftWeekdayKey('SUNDAY', -1)).toBe('SATURDAY');
+  });
+
+  it('returns the upper-cased key unchanged for an unknown day', () => {
+    expect(shiftWeekdayKey('noday', 3)).toBe('NODAY');
+  });
+});
+
+describe('canCurrentUserEditTask', () => {
+  const norm = (v?: string) => String(v ?? '').toLowerCase();
+
+  it('allows editing an open task assigned by the current user', () => {
+    const task = { status: 'PENDING', assignedBy: 'u1' } as Task;
+    expect(canCurrentUserEditTask('u1', task, norm)).toBe(true);
+  });
+
+  it('blocks completed/cancelled tasks', () => {
+    const task = { status: 'COMPLETED', assignedBy: 'u1' } as Task;
+    expect(canCurrentUserEditTask('u1', task, norm)).toBe(false);
+  });
+
+  it('blocks tasks assigned by someone else', () => {
+    const task = { status: 'PENDING', assignedBy: 'u2' } as Task;
+    expect(canCurrentUserEditTask('u1', task, norm)).toBe(false);
+  });
+});
+
+describe('runOncePerKey', () => {
+  it('dedupes concurrent callers for the same key', async () => {
+    const pending: Record<string, Promise<void>> = {};
+    let calls = 0;
+    const work = () =>
+      new Promise<void>((resolve) => {
+        calls += 1;
+        setTimeout(resolve, 5);
+      });
+
+    await Promise.all([runOncePerKey(pending, 'k', work), runOncePerKey(pending, 'k', work)]);
+
+    expect(calls).toBe(1);
+    expect(pending.k).toBeUndefined();
+  });
+
+  it('clears the pending entry even when work rejects', async () => {
+    const pending: Record<string, Promise<void>> = {};
+    await expect(
+      runOncePerKey(pending, 'k', () => Promise.reject(new Error('boom')))
+    ).rejects.toThrow('boom');
+    expect(pending.k).toBeUndefined();
   });
 });

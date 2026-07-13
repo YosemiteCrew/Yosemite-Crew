@@ -1,19 +1,12 @@
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import React, { memo, useState } from 'react';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 import { TaskCalendarBody } from '@/app/features/appointments/components/Calendar/TaskCalendarBody';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
-import { useNotify } from '@/app/hooks/useNotify';
-import { buildDateInPreferredTimeZone, isOnPreferredTimeZoneCalendarDay } from '@/app/lib/timezone';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
-import {
-  canRescheduleTask,
-  canShowTaskStatusChangeAction,
-  getPreferredNextTaskStatus,
-} from '@/app/lib/tasks';
-import { clampCalendarMinutes } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
 import { useTaskCalendarDrag } from '@/app/features/appointments/components/Calendar/useTaskCalendarDrag';
+import { useTaskCalendarActions } from '@/app/features/appointments/components/Calendar/useTaskCalendarActions';
 
 type TaskCalendarProps = {
   filteredList: Task[];
@@ -33,42 +26,6 @@ type TaskCalendarProps = {
   onCreateFromCalendarSlot?: (prefill: { dueAt: Date; assignedTo?: string }) => void;
 };
 
-const handleTaskStatusChangeAction = (
-  task: Task,
-  notify: ReturnType<typeof useNotify>['notify'],
-  setActiveTask?: (inventory: Task) => void,
-  setChangeStatusPreferredStatus?: React.Dispatch<React.SetStateAction<TaskStatus | null>>,
-  setChangeStatusPopup?: (open: boolean) => void
-) => {
-  if (!canShowTaskStatusChangeAction(task.status)) {
-    notify('warning', {
-      title: 'Status change blocked',
-      text: 'No status changes are available for this task.',
-    });
-    return;
-  }
-  setActiveTask?.(task);
-  setChangeStatusPreferredStatus?.(getPreferredNextTaskStatus(task.status));
-  setChangeStatusPopup?.(true);
-};
-
-const handleTaskRescheduleAction = (
-  task: Task,
-  notify: ReturnType<typeof useNotify>['notify'],
-  setActiveTask?: (inventory: Task) => void,
-  setReschedulePopup?: (open: boolean) => void
-) => {
-  if (!canRescheduleTask(task.status)) {
-    notify('warning', {
-      title: 'Reschedule blocked',
-      text: 'Completed and cancelled tasks cannot be rescheduled.',
-    });
-    return;
-  }
-  setActiveTask?.(task);
-  setReschedulePopup?.(true);
-};
-
 const TaskCalendar = ({
   filteredList,
   allTasks,
@@ -86,7 +43,6 @@ const TaskCalendar = ({
   canEditTasks = false,
   onCreateFromCalendarSlot,
 }: TaskCalendarProps) => {
-  const { notify } = useNotify();
   const allTaskItems = allTasks ?? filteredList;
   const teams = useTeamForPrimaryOrg();
   const authUserId = useAuthStore(
@@ -108,48 +64,24 @@ const TaskCalendar = ({
     moveTask,
   } = useTaskCalendarDrag({ allTaskItems, teams, authUserId });
 
-  const handleChangeStatusTask = useCallback(
-    (task: Task) =>
-      handleTaskStatusChangeAction(
-        task,
-        notify,
-        setActiveTask,
-        setChangeStatusPreferredStatus,
-        setChangeStatusPopup
-      ),
-    [notify, setActiveTask, setChangeStatusPopup, setChangeStatusPreferredStatus]
-  );
-
-  const handleRescheduleTask = useCallback(
-    (task: Task) => handleTaskRescheduleAction(task, notify, setActiveTask, setReschedulePopup),
-    [notify, setActiveTask, setReschedulePopup]
-  );
-
-  const handleViewTask = useCallback(
-    (appointment: Task) => {
-      setActiveTask?.(appointment);
-      setViewPopup?.(true);
-    },
-    [setActiveTask, setViewPopup]
-  );
-
-  const handleCreateTaskAt = useCallback(
-    (date: Date, minuteOfDay: number, targetAssigneeId?: string) => {
-      if (!canEditTasks || !onCreateFromCalendarSlot) return;
-      const dueAt = buildDateInPreferredTimeZone(date, clampCalendarMinutes(minuteOfDay));
-      const assignedTo = targetAssigneeId ? resolveAssigneeId(targetAssigneeId) : undefined;
-      onCreateFromCalendarSlot({ dueAt, assignedTo: assignedTo || undefined });
-    },
-    [canEditTasks, onCreateFromCalendarSlot, resolveAssigneeId]
-  );
-
-  const dayEvents = useMemo(
-    () =>
-      filteredList.filter((event) =>
-        isOnPreferredTimeZoneCalendarDay(new Date(event.dueAt), currentDate)
-      ),
-    [filteredList, currentDate]
-  );
+  const {
+    dayEvents,
+    handleChangeStatusTask,
+    handleCreateTaskAt,
+    handleRescheduleTask,
+    handleViewTask,
+  } = useTaskCalendarActions({
+    filteredList,
+    currentDate,
+    canEditTasks,
+    resolveAssigneeId,
+    setActiveTask,
+    setViewPopup,
+    setChangeStatusPopup,
+    setChangeStatusPreferredStatus,
+    setReschedulePopup,
+    onCreateFromCalendarSlot,
+  });
 
   return (
     <div className="border border-grey-light rounded-2xl size-full min-h-0 flex flex-col overflow-hidden">
