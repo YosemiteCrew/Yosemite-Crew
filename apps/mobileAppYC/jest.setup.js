@@ -683,27 +683,6 @@ jest.mock('@react-navigation/native-stack', () => {
   };
 });
 
-// Mock bottom sheet to simple components
-jest.mock('@gorhom/bottom-sheet', () => {
-  const React = require('react');
-  // Simple host components to satisfy RN rendering paths
-  const PassThrough = ({children, ...props}) =>
-    React.createElement('View', props, children);
-  return {
-    __esModule: true,
-    default: ({children, ...props}) =>
-      React.createElement(PassThrough, props, children),
-    BottomSheetView: ({children, ...props}) =>
-      React.createElement(PassThrough, props, children),
-    BottomSheetScrollView: ({children, ...props}) =>
-      React.createElement(PassThrough, props, children),
-    BottomSheetFlatList: ({..._props}) => null,
-    BottomSheetBackdrop: ({children, ...props}) =>
-      React.createElement(PassThrough, props, children),
-    BottomSheetHandle: ({...props}) => React.createElement('View', props),
-  };
-});
-
 // Mock RN Bootsplash and LinearGradient
 jest.mock('react-native-bootsplash', () => ({
   __esModule: true,

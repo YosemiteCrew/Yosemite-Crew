@@ -5,7 +5,9 @@ import React, {
   useCallback,
   useState,
 } from 'react';
-import {View, Text, StyleSheet, FlatList} from 'react-native';
+import {View, Text, StyleSheet} from 'react-native';
+import {BottomSheetFlatList} from '@gorhom/bottom-sheet';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
@@ -99,7 +101,19 @@ export const TaskTypeBottomSheet = ({
   ref,
 }: TaskTypeBottomSheetProps & {ref?: React.Ref<TaskTypeBottomSheetRef>}) => {
   const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const {bottom: bottomSafeAreaInset} = useSafeAreaInsets();
+  const listBottomInset = Math.max(
+    theme.spacing['20'],
+    bottomSafeAreaInset + theme.spacing['20'],
+  );
+  const scrollIndicatorInsets = useMemo(
+    () => ({bottom: listBottomInset}),
+    [listBottomInset],
+  );
+  const styles = useMemo(
+    () => createStyles(theme, listBottomInset),
+    [theme, listBottomInset],
+  );
   const bottomSheetRef = useRef<BottomSheetRef>(null);
   const [isSheetVisible, setIsSheetVisible] = useState(false);
 
@@ -148,28 +162,17 @@ export const TaskTypeBottomSheet = ({
     },
   }));
 
-  // Highlight a task type; commit happens on Confirm.
+  // Select a task type and close the sheet immediately.
   const handlePillPress = useCallback(
     (option: TaskTypeOption, ancestors: TaskTypeOption[]) => {
       setPending({option, ancestors});
+      const selection = buildSelectionFromOption(option, ancestors);
+      onSelect(selection);
+      setIsSheetVisible(false);
+      bottomSheetRef.current?.close();
     },
-    [],
+    [onSelect],
   );
-
-  // Commit the highlighted task type.
-  const handleConfirm = useCallback(() => {
-    /* istanbul ignore next -- Confirm is disabled whenever pending is null, so this guard is unreachable via the UI */
-    if (!pending) {
-      return;
-    }
-    const selection = buildSelectionFromOption(
-      pending.option,
-      pending.ancestors,
-    );
-    onSelect(selection);
-    setIsSheetVisible(false);
-    bottomSheetRef.current?.close();
-  }, [pending, onSelect]);
 
   // Render a single pill button
   const renderPillButton = useCallback(
@@ -320,7 +323,7 @@ export const TaskTypeBottomSheet = ({
     ],
   );
 
-  // Stable renderItem for FlatList — satisfies react-doctor/rn-no-inline-flatlist-renderitem
+  // Stable renderItem for FlatList; satisfies react-doctor/rn-no-inline-flatlist-renderitem.
   const renderItem = useCallback(
     ({item}: {item: CategorySection}) => renderCategorySection(item),
     [renderCategorySection],
@@ -355,6 +358,7 @@ export const TaskTypeBottomSheet = ({
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       contentType="view"
+      contentStyle={styles.sheetContent}
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.bottomSheetHandle}
       onChange={handleSheetChange}>
@@ -366,26 +370,19 @@ export const TaskTypeBottomSheet = ({
         />
 
         <View style={styles.listWrapper}>
-          <FlatList
+          <BottomSheetFlatList
+            testID="task-type-list"
+            style={styles.list}
             data={orderedSections}
-            keyExtractor={item => item.category.id}
+            keyExtractor={(item: CategorySection) => item.category.id}
             renderItem={renderItem}
             extraData={pending?.option.id}
             contentContainerStyle={styles.scrollContent}
+            scrollIndicatorInsets={scrollIndicatorInsets}
             showsVerticalScrollIndicator={true}
-            nestedScrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
           />
         </View>
-
-        <PressableOpacity
-          style={[
-            styles.confirmButton,
-            !pending && styles.confirmButtonDisabled,
-          ]}
-          disabled={!pending}
-          onPress={handleConfirm}>
-          <Text style={styles.confirmButtonText}>Confirm</Text>
-        </PressableOpacity>
       </View>
     </CustomBottomSheet>
   );
@@ -393,7 +390,7 @@ export const TaskTypeBottomSheet = ({
 
 TaskTypeBottomSheet.displayName = 'TaskTypeBottomSheet';
 
-const createStyles = (theme: any) =>
+const createStyles = (theme: any, listBottomInset: number) =>
   StyleSheet.create({
     ...createBottomSheetStyles(theme),
     bottomSheetHandle: {
@@ -401,6 +398,12 @@ const createStyles = (theme: any) =>
       width: theme.spacing['10'],
       height: 4.5,
       borderRadius: theme.borderRadius.full,
+    },
+    // BottomSheetView only sets top/left/right by default, so it can size to
+    // content height instead of filling the sheet. bottom: 0 makes it stretch
+    // so the flex chain below (container -> listWrapper) can bound the list.
+    sheetContent: {
+      bottom: 0,
     },
     container: {
       flex: 1,
@@ -411,10 +414,17 @@ const createStyles = (theme: any) =>
     },
     listWrapper: {
       flex: 1,
-      marginBottom: theme.spacing['3'],
     },
+    list: {
+      flex: 1,
+    },
+    // Extra bottom clearance so the last section (Dietary + Custom) can be
+    // scrolled fully clear of the sheet's rounded bottom edge and safe area.
+    // padding on the outer container doesn't help since it sits outside the
+    // FlatList's own scrollable frame.
     scrollContent: {
-      paddingVertical: theme.spacing['1'],
+      paddingTop: theme.spacing['1'],
+      paddingBottom: listBottomInset,
       gap: theme.spacing['4'],
     },
     customPillWrapper: {
@@ -481,22 +491,6 @@ const createStyles = (theme: any) =>
     pillButtonTextSelected: {
       color: theme.colors.white,
       fontWeight: '600',
-    },
-    confirmButton: {
-      height: 54,
-      borderRadius: theme.borderRadius.button,
-      backgroundColor: theme.colors.cta,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: theme.spacing['1'],
-      ...theme.shadows.cta,
-    },
-    confirmButtonDisabled: {
-      opacity: 0.5,
-    },
-    confirmButtonText: {
-      ...theme.typography.button,
-      color: theme.colors.ctaText,
     },
   });
 

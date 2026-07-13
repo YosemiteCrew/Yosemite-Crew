@@ -113,6 +113,19 @@ describe('CustomBottomSheet', () => {
     );
   });
 
+  it('forwards contentStyle to the default BottomSheetView', () => {
+    const contentStyle = {bottom: 0};
+    const {getByTestId} = render(
+      <CustomBottomSheet contentStyle={contentStyle}>
+        <Text>Styled Content</Text>
+      </CustomBottomSheet>,
+    );
+
+    expect(getByTestId('mock-bottom-sheet-view').props.style).toBe(
+      contentStyle,
+    );
+  });
+
   it('passes all custom props correctly to BottomSheet', () => {
     const mockOnChange = jest.fn();
     const mockOnAnimate = jest.fn();

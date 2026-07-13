@@ -1,5 +1,6 @@
 import React, {createRef} from 'react';
 import {render, screen, fireEvent, act} from '@testing-library/react-native';
+import {StyleSheet} from 'react-native';
 // FIX 1: Update component import path
 import {TaskTypeBottomSheet} from '@/features/tasks/components/TaskTypeBottomSheet/TaskTypeBottomSheet';
 // FIX 2: Update type import path
@@ -287,6 +288,22 @@ describe('TaskTypeBottomSheet', () => {
       expect(screen.getByText('Custom Task')).toBeTruthy();
     });
 
+    it('keeps the task list scrollable past the last pill', () => {
+      renderComponent();
+
+      const list = screen.getByTestId('task-type-list');
+      expect(StyleSheet.flatten(list.props.style)).toEqual(
+        expect.objectContaining({flex: 1}),
+      );
+      expect(StyleSheet.flatten(list.props.contentContainerStyle)).toEqual(
+        expect.objectContaining({paddingBottom: mockTheme.spacing['20']}),
+      );
+      expect(list.props.scrollIndicatorInsets).toEqual({
+        bottom: mockTheme.spacing['20'],
+      });
+      expect(list.props.keyboardShouldPersistTaps).toBe('handled');
+    });
+
     it('renders a category with direct children', () => {
       renderComponent();
       expect(screen.getByText('Health')).toBeTruthy();
@@ -317,21 +334,20 @@ describe('TaskTypeBottomSheet', () => {
   });
 
   describe('Interactions and Callbacks', () => {
-    it('calls onSelect with correct structure for a "single" pill', () => {
+    it('calls onSelect and closes the sheet for a "single" pill', () => {
       const {mockOnSelect} = renderComponent();
 
       const option: TaskTypeOption = {id: 'custom', label: 'Custom Task'};
       const expectedSelection = buildSelectionFromOption(option, []);
 
-      // Highlight the chip, then commit via the new Confirm button.
+      // Selecting a pill commits and closes immediately; no separate Confirm step.
       fireEvent.press(screen.getByText('Custom Task'));
-      fireEvent.press(screen.getByText('Confirm'));
 
       expect(mockOnSelect).toHaveBeenCalledWith(expectedSelection);
       expect(mockClose).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onSelect with correct structure for a category pill', () => {
+    it('calls onSelect and closes the sheet for a category pill', () => {
       const {mockOnSelect} = renderComponent();
 
       const option: TaskTypeOption = {id: 'vitals', label: 'Vitals'};
@@ -339,12 +355,12 @@ describe('TaskTypeBottomSheet', () => {
       const expectedSelection = buildSelectionFromOption(option, ancestors);
 
       fireEvent.press(screen.getByText('Vitals'));
-      fireEvent.press(screen.getByText('Confirm'));
 
       expect(mockOnSelect).toHaveBeenCalledWith(expectedSelection);
+      expect(mockClose).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onSelect with correct structure for a subcategory pill', () => {
+    it('calls onSelect and closes the sheet for a subcategory pill', () => {
       const {mockOnSelect} = renderComponent();
 
       const option: TaskTypeOption = {id: 'med-admin-pill', label: 'Pill'};
@@ -355,12 +371,12 @@ describe('TaskTypeBottomSheet', () => {
       const expectedSelection = buildSelectionFromOption(option, ancestors);
 
       fireEvent.press(screen.getByText('Pill'));
-      fireEvent.press(screen.getByText('Confirm'));
 
       expect(mockOnSelect).toHaveBeenCalledWith(expectedSelection);
+      expect(mockClose).toHaveBeenCalledTimes(1);
     });
 
-    it('calls onSelect with correct structure for a sub-subcategory pill', () => {
+    it('calls onSelect and closes the sheet for a sub-subcategory pill', () => {
       const {mockOnSelect} = renderComponent();
 
       const option: TaskTypeOption = {id: 'walk', label: 'Walk'};
@@ -372,9 +388,9 @@ describe('TaskTypeBottomSheet', () => {
       const expectedSelection = buildSelectionFromOption(option, ancestors);
 
       fireEvent.press(screen.getByText('Walk'));
-      fireEvent.press(screen.getByText('Confirm'));
 
       expect(mockOnSelect).toHaveBeenCalledWith(expectedSelection);
+      expect(mockClose).toHaveBeenCalledTimes(1);
     });
 
     it('calls close on the header close button', () => {
@@ -403,7 +419,7 @@ describe('TaskTypeBottomSheet', () => {
   });
 
   describe('Warm-bone coverage', () => {
-    it('initialises pending from a matching selectedTaskType and confirms it', () => {
+    it('initialises pending from a matching selectedTaskType and still selects a fresh pill', () => {
       const mockOnSelect = jest.fn();
       const selectedOption: TaskTypeOption = {
         id: 'flat-leaf',
@@ -421,9 +437,14 @@ describe('TaskTypeBottomSheet', () => {
         />,
       );
 
-      // Confirm is enabled because findPendingForSelection matched the leaf.
-      fireEvent.press(screen.getByText('Confirm'));
-      expect(mockOnSelect).toHaveBeenCalledWith(selection);
+      // findPendingForSelection matches the leaf on mount; pressing a rendered
+      // pill still reports that pill's own selection, not the stale initial one.
+      const option: TaskTypeOption = {id: 'vitals', label: 'Vitals'};
+      const ancestors: TaskTypeOption[] = [{id: 'health', label: 'Health'}];
+      fireEvent.press(screen.getByText('Vitals'));
+      expect(mockOnSelect).toHaveBeenCalledWith(
+        buildSelectionFromOption(option, ancestors),
+      );
     });
 
     it('leaves pending null when selectedTaskType matches no leaf option', () => {
@@ -441,9 +462,13 @@ describe('TaskTypeBottomSheet', () => {
         />,
       );
 
-      // Confirm stays disabled (pending is null), so pressing it is a no-op.
-      fireEvent.press(screen.getByText('Confirm'));
-      expect(mockOnSelect).not.toHaveBeenCalled();
+      // findPendingForSelection finds no match; pressing a pill still selects normally.
+      const option: TaskTypeOption = {id: 'vitals', label: 'Vitals'};
+      const ancestors: TaskTypeOption[] = [{id: 'health', label: 'Health'}];
+      fireEvent.press(screen.getByText('Vitals'));
+      expect(mockOnSelect).toHaveBeenCalledWith(
+        buildSelectionFromOption(option, ancestors),
+      );
     });
 
     it('renders the custom "create-outline" icon and the mapped task-type icon', () => {
