@@ -105,6 +105,21 @@ const triggerDownload = async (page: Page, origin: string, format: string): Prom
   );
 };
 
+const waitForVaultCount = async (page: Page, count: number, timeout = 5000): Promise<void> => {
+  await expect
+    .poll(
+      async () => {
+        const res = await evaluateYcDesktop<{ ok: boolean; documents: unknown[] }>(
+          page,
+          'vaultList'
+        );
+        return res?.ok && Array.isArray(res.documents) ? res.documents.length : -1;
+      },
+      { timeout, message: `Timed out waiting for ${count} vault documents` }
+    )
+    .toBe(count);
+};
+
 test.describe('document-vault E2E', () => {
   let app: ElectronApplication | undefined;
   let page: Page;
@@ -131,7 +146,7 @@ test.describe('document-vault E2E', () => {
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
     await triggerDownload(page, pimsServer.origin, 'text');
-    await page.waitForTimeout(1000);
+    await waitForVaultCount(page, 1);
 
     const response = await evaluateYcDesktop<{
       ok: boolean;
@@ -145,7 +160,7 @@ test.describe('document-vault E2E', () => {
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
     await triggerDownload(page, pimsServer.origin, 'binary');
-    await page.waitForTimeout(1000);
+    await waitForVaultCount(page, 1);
 
     const listRes = await evaluateYcDesktop<{
       ok: boolean;
@@ -174,7 +189,7 @@ test.describe('document-vault E2E', () => {
 
     for (let i = 0; i < 3; i++) {
       await triggerDownload(page, pimsServer.origin, 'text');
-      await page.waitForTimeout(500);
+      await waitForVaultCount(page, i + 1);
     }
 
     const listRes1 = await evaluateYcDesktop<{
@@ -182,7 +197,7 @@ test.describe('document-vault E2E', () => {
       documents: { id: string }[];
     }>(page, 'vaultList');
     expect(listRes1.ok).toBe(true);
-    expect(listRes1.documents.length).toBe(3);
+    expect(listRes1.documents).toHaveLength(3);
 
     const deleteRes = await evaluateYcDesktop<{ ok: boolean }>(
       page,
@@ -203,14 +218,14 @@ test.describe('document-vault E2E', () => {
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 
     await triggerDownload(page, pimsServer.origin, 'text');
-    await page.waitForTimeout(500);
+    await waitForVaultCount(page, 1);
 
     const listRes1 = await evaluateYcDesktop<{
       ok: boolean;
       documents: unknown[];
     }>(page, 'vaultList');
     expect(listRes1.ok).toBe(true);
-    expect(listRes1.documents.length).toBe(1);
+    expect(listRes1.documents).toHaveLength(1);
 
     await app?.close();
     app = undefined;
@@ -220,14 +235,14 @@ test.describe('document-vault E2E', () => {
     page = relaunched.page;
 
     await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
-    await page.waitForTimeout(500);
+    await waitForVaultCount(page, 1);
 
     const listRes2 = await evaluateYcDesktop<{
       ok: boolean;
       documents: unknown[];
     }>(page, 'vaultList');
     expect(listRes2.ok).toBe(true);
-    expect(listRes2.documents.length).toBe(1);
+    expect(listRes2.documents).toHaveLength(1);
   });
 
   test('vaultSave from renderer then vaultGet returns content', async () => {

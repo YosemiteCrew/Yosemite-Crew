@@ -121,7 +121,7 @@ button:active {
   margin-top: 14px;
   font-size: 11.5px;
   color: var(--muted);
-  word-break: break-word;
+  overflow-wrap: break-word;
   opacity: 0.85;
 }
 @media (prefers-color-scheme: dark) {
