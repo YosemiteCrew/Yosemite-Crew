@@ -1328,27 +1328,32 @@ const AppoitmentInfo = ({
     orgType === 'HOSPITAL' && resolvedActiveLabel === 'prescription' ? 'SOAP' : 'Templates';
   const Content = COMPONENT_MAP[resolvedActiveLabel]?.[resolvedActiveSubLabel];
 
-  useEffect(() => {
-    const appointmentId = activeAppointment?.id;
-    if (!appointmentId) return;
+  // Invoice totals are derived from the line items and the appointment's service
+  // cost, so they are computed during render instead of being written back into
+  // form state from an effect (which would cost an extra render).
+  const derivedInvoiceTotals = useMemo(() => {
+    if (!activeAppointment?.id) return null;
+    const itemsSubTotal = (formData.lineItems ?? []).reduce(
+      (sum, li) => sum + toNumber(li.total),
+      0
+    );
+    const service = services.find((s) => s.id === activeAppointment?.appointmentType?.id);
+    const serviceCost = service ? toNumber(service.cost) : 0;
+    const subTotal = itemsSubTotal + serviceCost;
+    const taxTotal = (subTotal * getTaxPercent()) / 100;
+    return {
+      subTotal: String(subTotal),
+      tax: String(taxTotal),
+      total: String(subTotal + taxTotal),
+    };
+  }, [activeAppointment?.id, activeAppointment?.appointmentType?.id, formData.lineItems, services]);
 
-    setFormData((prev) => {
-      const itemsSubTotal = (prev.lineItems ?? []).reduce((sum, li) => sum + toNumber(li.total), 0);
-      const serviceId = activeAppointment?.appointmentType?.id;
-      const service = services.find((s) => s.id === serviceId);
-      const serviceCost = service ? toNumber(service.cost) : 0;
-      const subTotal = itemsSubTotal + serviceCost;
-      const taxPercent = getTaxPercent();
-      const taxTotal = (subTotal * taxPercent) / 100;
-      const total = subTotal + taxTotal;
-      return {
-        ...prev,
-        subTotal: String(subTotal),
-        tax: String(taxTotal),
-        total: String(total),
-      };
-    });
-  }, [activeAppointment, services]);
+  // The form value handed to children carries the derived totals so finance
+  // summaries stay in sync without storing derived state.
+  const formDataWithTotals = useMemo(
+    () => (derivedInvoiceTotals ? { ...formData, ...derivedInvoiceTotals } : formData),
+    [formData, derivedInvoiceTotals]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -1454,7 +1459,7 @@ const AppoitmentInfo = ({
           {Content ? (
             <Content
               activeAppointment={activeAppointment}
-              formData={formData}
+              formData={formDataWithTotals}
               setFormData={setFormData}
               canEdit={canEdit}
               canEditAppointments={canEditAppointments}

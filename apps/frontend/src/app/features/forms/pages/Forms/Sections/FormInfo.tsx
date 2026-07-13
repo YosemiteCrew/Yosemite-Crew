@@ -9,10 +9,8 @@ import {
   FormsUsageOptions,
   getFormCategoryDisplayLabel,
 } from '@/app/features/forms/types/forms';
-import {
-  TaskTemplateSummary,
-  baseDetailsFields,
-} from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary';
+import { TaskTemplateSummary } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary';
+import { baseDetailsFields } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary.helpers';
 import React from 'react';
 import { archiveForm, publishForm, unpublishForm } from '@/app/features/forms/services/formService';
 import {

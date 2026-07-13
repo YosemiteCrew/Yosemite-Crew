@@ -12,10 +12,8 @@ import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/comp
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
 import { buildInitialValues } from '@/app/features/forms/pages/Forms/Sections/AddForm/reviewUtils';
-import {
-  TaskTemplateSummary,
-  baseDetailsFields,
-} from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary';
+import { TaskTemplateSummary } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary';
+import { baseDetailsFields } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary.helpers';
 
 type ReviewProps = {
   formData: FormsProps;
