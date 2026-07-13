@@ -1,4 +1,4 @@
-import { Dispatch, useCallback } from 'react';
+import { Dispatch, useCallback, useMemo } from 'react';
 import { Appointment } from '@yosemite-crew/types';
 import { updateAppointment } from '@/app/features/appointments/services/appointmentService';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
@@ -8,6 +8,30 @@ import {
   getErrorMessageFromCandidate,
 } from '@/app/features/appointments/components/Calendar/appointmentCalendarDragUtils';
 import { executeAppointmentMove } from '@/app/features/appointments/components/Calendar/appointmentMoveUtils';
+
+type NotifyFn = (kind: 'warning', value: { title: string; text: string }) => void;
+
+// Build the drag error/persistence handlers for a move. Pure factory kept out of
+// the hook so useAppointmentMove stays focused on wiring.
+const createMoveHandlers = (dispatchDrag: Dispatch<DragAction>, notify: NotifyFn) => ({
+  onBlocked: (message: string) => {
+    dispatchDrag({ type: 'setError', error: message });
+    notify('warning', { title: 'Move blocked', text: message });
+  },
+  onUpdateError: (error: unknown) => {
+    dispatchDrag({
+      type: 'setError',
+      error: getErrorMessageFromCandidate(
+        error as ErrorCandidate,
+        'Unable to update appointment. Please try again.'
+      ),
+    });
+  },
+  persistMovedAppointment: (payload: Parameters<typeof updateAppointment>[0]) => {
+    dispatchDrag({ type: 'setError', error: null });
+    return updateAppointment(payload);
+  },
+});
 
 type UseAppointmentMoveOptions = {
   allAppointments: Appointment[];
@@ -36,34 +60,7 @@ export const useAppointmentMove = ({
   supportsSpeciality,
   teams,
 }: UseAppointmentMoveOptions) => {
-  const onBlocked = useCallback(
-    (message: string) => {
-      dispatchDrag({ type: 'setError', error: message });
-      notify('warning', { title: 'Move blocked', text: message });
-    },
-    [dispatchDrag, notify]
-  );
-
-  const onUpdateError = useCallback(
-    (error: unknown) => {
-      dispatchDrag({
-        type: 'setError',
-        error: getErrorMessageFromCandidate(
-          error as ErrorCandidate,
-          'Unable to update appointment. Please try again.'
-        ),
-      });
-    },
-    [dispatchDrag]
-  );
-
-  const persistMovedAppointment = useCallback(
-    (payload: Parameters<typeof updateAppointment>[0]) => {
-      dispatchDrag({ type: 'setError', error: null });
-      return updateAppointment(payload);
-    },
-    [dispatchDrag]
-  );
+  const handlers = useMemo(() => createMoveHandlers(dispatchDrag, notify), [dispatchDrag, notify]);
 
   const moveAppointment = useCallback(
     (date: Date, minutesSinceMidnight: number, targetLeadId?: string) =>
@@ -76,24 +73,22 @@ export const useAppointmentMove = ({
         isAppointmentDraggable,
         minutesSinceMidnight,
         normalizeId,
-        onBlocked,
-        onUpdateError,
+        onBlocked: handlers.onBlocked,
+        onUpdateError: handlers.onUpdateError,
         resolvePractitionerId,
         supportsSpeciality,
         targetLeadId,
         teams,
-        updateAppointment: persistMovedAppointment,
+        updateAppointment: handlers.persistMovedAppointment,
       }),
     [
       allAppointments,
       appointmentId,
       buildAppointmentStartFromCalendarMinutes,
       ensureDragAvailability,
+      handlers,
       isAppointmentDraggable,
       normalizeId,
-      onBlocked,
-      onUpdateError,
-      persistMovedAppointment,
       resolvePractitionerId,
       supportsSpeciality,
       teams,
