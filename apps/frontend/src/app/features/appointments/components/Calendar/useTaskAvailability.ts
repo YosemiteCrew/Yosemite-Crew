@@ -1,11 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { Task } from '@/app/features/tasks/types/task';
-import { getProfileForUserForPrimaryOrg } from '@/app/features/organization/services/teamService';
-import { logger } from '@/app/lib/logger';
 import {
-  AvailabilityDayEntry,
-  buildAvailabilityOutput,
   DropAvailabilityInterval,
+  fetchAssigneeAvailability,
   getCalendarDayKey,
   normalizeCalendarId,
   TASK_BLOCK_DURATION_MINUTES,
@@ -43,23 +40,11 @@ export const useTaskAvailability = ({
         return;
       }
       const task = (async () => {
-        try {
-          const profile = (await getProfileForUserForPrimaryOrg(resolvedAssigneeId)) as {
-            baseAvailability?: AvailabilityDayEntry[];
-          };
-          const baseAvailability = Array.isArray(profile?.baseAvailability)
-            ? profile.baseAvailability
-            : [];
-          availabilityCacheRef.current[cacheKey] = buildAvailabilityOutput(
-            baseAvailability,
-            shiftDayKey
-          );
-        } catch (error) {
-          logger.warn('Failed to load assignee availability.', error);
-          availabilityCacheRef.current[cacheKey] = {};
-        } finally {
-          setAvailabilityVersion((version) => version + 1);
-        }
+        availabilityCacheRef.current[cacheKey] = await fetchAssigneeAvailability(
+          resolvedAssigneeId,
+          shiftDayKey
+        );
+        setAvailabilityVersion((version) => version + 1);
       })();
       availabilityPendingRef.current[cacheKey] = task;
       await task;

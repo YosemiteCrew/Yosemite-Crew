@@ -85,6 +85,44 @@ export const findTeamMemberByIdentity = (
   );
 };
 
+// Resolve the canonical id used to key availability lookups for a candidate id,
+// preferring the practitioner id and falling back through the member's other
+// identity fields before returning the candidate unchanged.
+export const resolveTeamMemberPrimaryId = (
+  teams: ReturnType<typeof useTeamForPrimaryOrg>,
+  candidateId: string | undefined,
+  normalizeId: NormalizeId
+) => {
+  if (!candidateId) return '';
+  const member = findTeamMemberByIdentity(teams, candidateId, normalizeId) as
+    | Partial<TeamMember>
+    | undefined;
+  return (
+    member?.practionerId ||
+    (member as any)?.userId ||
+    (member as any)?.id ||
+    (member as any)?.userOrganisation?.userId ||
+    member?._id ||
+    candidateId
+  );
+};
+
+// Build a normalized-id → display-name map across all identity ids of each team
+// member, so any id variant resolves to the same name.
+export const buildTeamMemberNameMap = (
+  teams: ReturnType<typeof useTeamForPrimaryOrg>,
+  normalizeId: NormalizeId
+) => {
+  const map: Record<string, string> = {};
+  for (const member of teams) {
+    const name = member.name || (member as any).displayName || '-';
+    for (const normalized of getTeamMemberIdentityIds(member, normalizeId)) {
+      map[normalized] = name;
+    }
+  }
+  return map;
+};
+
 const getSlotMinuteBounds = (
   slot: Slot,
   durationMinutes: number,

@@ -3,8 +3,8 @@ import { Task } from '@/app/features/tasks/types/task';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
 import {
-  findTeamMemberByIdentity,
-  getTeamMemberIdentityIds,
+  buildTeamMemberNameMap,
+  resolveTeamMemberPrimaryId,
 } from '@/app/features/appointments/components/Calendar/appointmentDragAvailabilityUtils';
 import {
   normalizeCalendarId,
@@ -28,18 +28,7 @@ export const useTaskCalendarIdentity = (
   }, []);
 
   const resolveAssigneeId = useCallback(
-    (candidateId?: string) => {
-      if (!candidateId) return '';
-      const member = findTeamMemberByIdentity(teams, candidateId, normalizeId);
-      return (
-        member?.practionerId ||
-        (member as any)?.userId ||
-        (member as any)?.id ||
-        (member as any)?.userOrganisation?.userId ||
-        member?._id ||
-        candidateId
-      );
-    },
+    (candidateId?: string) => resolveTeamMemberPrimaryId(teams, candidateId, normalizeId),
     [normalizeId, teams]
   );
 
@@ -53,16 +42,10 @@ export const useTaskCalendarIdentity = (
     [authUserId, normalizeId]
   );
 
-  const teamNameById = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const member of teams) {
-      const name = member.name || (member as any).displayName || '-';
-      for (const normalized of getTeamMemberIdentityIds(member, normalizeId)) {
-        map[normalized] = name;
-      }
-    }
-    return map;
-  }, [normalizeId, teams]);
+  const teamNameById = useMemo(
+    () => buildTeamMemberNameMap(teams, normalizeId),
+    [normalizeId, teams]
+  );
 
   const resolveDisplayName = useCallback(
     (memberId?: string) => {

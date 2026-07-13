@@ -177,3 +177,17 @@ export const useTaskCalendarDragState = ({
     moveTask,
   };
 };
+
+// Build the calendar drop handler that performs the move, logs any failure, and
+// ends the drag. Kept out of the render component so it stays a pure factory.
+export const createTaskDropHandler =
+  (
+    moveTask: (date: Date, minute: number, assigneeId?: string) => Promise<void>,
+    onDragEnd: () => void
+  ) =>
+  (dropDate: Date, minute: number, assigneeId?: string) => {
+    moveTask(dropDate, minute, assigneeId).catch((error: unknown) => {
+      logger.warn('Failed to move task from calendar drop.', error);
+    });
+    onDragEnd();
+  };

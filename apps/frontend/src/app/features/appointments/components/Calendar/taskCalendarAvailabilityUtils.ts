@@ -1,4 +1,6 @@
 import { Task } from '@/app/features/tasks/types/task';
+import { getProfileForUserForPrimaryOrg } from '@/app/features/organization/services/teamService';
+import { logger } from '@/app/lib/logger';
 import {
   formatDateInPreferredTimeZone,
   utcClockTimeToPreferredTimeZoneClock,
@@ -143,4 +145,25 @@ export const buildAvailabilityOutput = (
     }
   }
   return output;
+};
+
+// Fetch an assignee's base availability and reduce it to per-day drop intervals.
+// Any fetch failure resolves to an empty map so callers can cache a definitive
+// (if empty) result rather than retrying indefinitely.
+export const fetchAssigneeAvailability = async (
+  assigneeId: string,
+  shiftDayKey: (dayKey: string, offset: number) => string
+): Promise<Record<string, DropAvailabilityInterval[]>> => {
+  try {
+    const profile = (await getProfileForUserForPrimaryOrg(assigneeId)) as {
+      baseAvailability?: AvailabilityDayEntry[];
+    };
+    const baseAvailability = Array.isArray(profile?.baseAvailability)
+      ? profile.baseAvailability
+      : [];
+    return buildAvailabilityOutput(baseAvailability, shiftDayKey);
+  } catch (error) {
+    logger.warn('Failed to load assignee availability.', error);
+    return {};
+  }
 };

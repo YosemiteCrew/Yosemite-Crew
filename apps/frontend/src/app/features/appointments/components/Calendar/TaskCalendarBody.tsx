@@ -4,8 +4,8 @@ import WeekCalendar from '@/app/features/appointments/components/Calendar/Task/W
 import UserCalendar from '@/app/features/appointments/components/Calendar/Task/UserCalendar';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { DropAvailabilityInterval } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
+import { createTaskDropHandler } from '@/app/features/appointments/components/Calendar/useTaskCalendarDragState';
 import { Task } from '@/app/features/tasks/types/task';
-import { logger } from '@/app/lib/logger';
 
 type TaskCalendarBodyProps = {
   activeCalendar: string;
@@ -56,12 +56,7 @@ export const TaskCalendarBody = ({
   weekStart,
   setWeekStart,
 }: TaskCalendarBodyProps) => {
-  const handleDrop = (dropDate: Date, minute: number, assigneeId?: string) => {
-    moveTask(dropDate, minute, assigneeId).catch((error: unknown) => {
-      logger.warn('Failed to move task from calendar drop.', error);
-    });
-    handleTaskDragEnd();
-  };
+  const handleDrop = createTaskDropHandler(moveTask, handleTaskDragEnd);
 
   const commonCalendarProps = {
     zoomMode,

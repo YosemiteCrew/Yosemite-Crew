@@ -6,7 +6,6 @@ import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useAuthStore } from '@/app/stores/authStore';
 import { useNotify } from '@/app/hooks/useNotify';
 import { buildDateInPreferredTimeZone, isOnPreferredTimeZoneCalendarDay } from '@/app/lib/timezone';
-import { useAppointmentDragAutoScroll } from '@/app/features/appointments/components/Calendar/useAppointmentDragAutoScroll';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import {
   canRescheduleTask,
@@ -14,9 +13,7 @@ import {
   getPreferredNextTaskStatus,
 } from '@/app/lib/tasks';
 import { clampCalendarMinutes } from '@/app/features/appointments/components/Calendar/taskCalendarAvailabilityUtils';
-import { useTaskAvailability } from '@/app/features/appointments/components/Calendar/useTaskAvailability';
-import { useTaskCalendarDragState } from '@/app/features/appointments/components/Calendar/useTaskCalendarDragState';
-import { useTaskCalendarIdentity } from '@/app/features/appointments/components/Calendar/useTaskCalendarIdentity';
+import { useTaskCalendarDrag } from '@/app/features/appointments/components/Calendar/useTaskCalendarDrag';
 
 type TaskCalendarProps = {
   filteredList: Task[];
@@ -96,30 +93,12 @@ const TaskCalendar = ({
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
   );
   const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
-  const [draggedTaskIdForAvailability, setDraggedTaskIdForAvailability] = useState<string | null>(
-    null
-  );
 
   const {
     canEditTask,
     resolveAssigneeId,
     resolveDisplayName,
-    shiftDayKey,
-    shouldEnforceAvailability,
-  } = useTaskCalendarIdentity(teams, authUserId);
-  const {
-    availabilityVersion,
-    ensureAssigneeAvailability,
     getDropAvailabilityIntervals,
-    isMinuteAvailableForAssignee,
-  } = useTaskAvailability({
-    allTaskItems,
-    draggedTaskId: draggedTaskIdForAvailability,
-    resolveAssigneeId,
-    shiftDayKey,
-    shouldEnforceAvailability,
-  });
-  const {
     dragError,
     draggedTaskId,
     draggedTaskLabel,
@@ -127,18 +106,7 @@ const TaskCalendar = ({
     handleTaskDragEnd,
     handleTaskDragStart,
     moveTask,
-  } = useTaskCalendarDragState({
-    allTaskItems,
-    canDragTask: canEditTask,
-    canEditTask,
-    ensureAssigneeAvailability,
-    isMinuteAvailableForAssignee,
-    onDraggedTaskChange: setDraggedTaskIdForAvailability,
-    resolveAssigneeId,
-    shouldEnforceAvailability,
-  });
-
-  useAppointmentDragAutoScroll(draggedTaskId, availabilityVersion);
+  } = useTaskCalendarDrag({ allTaskItems, teams, authUserId });
 
   const handleChangeStatusTask = useCallback(
     (task: Task) =>
