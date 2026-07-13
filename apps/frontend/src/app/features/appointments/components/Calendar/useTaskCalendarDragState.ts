@@ -30,7 +30,7 @@ const resolveTaskMove = (
 ): ResolvedTaskMove | null => {
   if (!params.draggedTaskId) return null;
   const task = params.allTaskItems.find((item) => item._id === params.draggedTaskId);
-  if (!task?._id) return null;
+  if (!task) return null;
   if (!params.canEditTask(task)) {
     params.setDragError('Only pending or in-progress tasks can be moved.');
     return null;
