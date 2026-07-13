@@ -108,6 +108,28 @@ const appendAvailabilityInterval = (
   });
 };
 
+const appendSlotIntervals = (
+  output: Record<string, DropAvailabilityInterval[]>,
+  sourceDayKey: string,
+  slot: AvailabilitySlot,
+  shiftKey: (dayKey: string, offset: number) => string
+) => {
+  if (slot?.isAvailable === false) return;
+  const range = getAbsoluteMinuteRange(slot);
+  const bounds = getDayOffsetBounds(range);
+  if (!bounds) return;
+  for (let offset = bounds.firstDayOffset; offset <= bounds.lastDayOffset; offset++) {
+    appendAvailabilityInterval(
+      output,
+      sourceDayKey,
+      offset,
+      range.start,
+      bounds.latestStart,
+      shiftKey
+    );
+  }
+};
+
 export const buildAvailabilityOutput = (
   baseAvailability: AvailabilityDayEntry[],
   shiftKey: (dayKey: string, offset: number) => string
@@ -117,20 +139,7 @@ export const buildAvailabilityOutput = (
     const sourceDayKey = getSourceDayKey(dayEntry);
     if (!sourceDayKey) continue;
     for (const slot of getAvailabilitySlots(dayEntry)) {
-      if (slot?.isAvailable === false) continue;
-      const range = getAbsoluteMinuteRange(slot);
-      const bounds = getDayOffsetBounds(range);
-      if (!bounds) continue;
-      for (let offset = bounds.firstDayOffset; offset <= bounds.lastDayOffset; offset++) {
-        appendAvailabilityInterval(
-          output,
-          sourceDayKey,
-          offset,
-          range.start,
-          bounds.latestStart,
-          shiftKey
-        );
-      }
+      appendSlotIntervals(output, sourceDayKey, slot, shiftKey);
     }
   }
   return output;

@@ -19,28 +19,43 @@ type MoveTaskToCalendarSlotParams = {
   ) => Promise<boolean>;
 };
 
-const moveTaskToCalendarSlot = async (
-  date: Date,
+type ResolvedTaskMove = { task: Task; nextAssignee: string; snappedMinute: number };
+
+// Validate the drop and resolve the target assignee/minute. Returns null (after
+// surfacing the reason via setDragError) when the move isn't allowed.
+const resolveTaskMove = (
   minuteOfDay: number,
   targetAssigneeId: string | undefined,
   params: MoveTaskToCalendarSlotParams
-) => {
-  if (!params.draggedTaskId) return;
+): ResolvedTaskMove | null => {
+  if (!params.draggedTaskId) return null;
   const task = params.allTaskItems.find((item) => item._id === params.draggedTaskId);
-  if (!task?._id) return;
+  if (!task?._id) return null;
   if (!params.canEditTask(task)) {
     params.setDragError('Only pending or in-progress tasks can be moved.');
-    return;
+    return null;
   }
-  const snappedMinute = clampCalendarMinutes(minuteOfDay);
   const canReassign = task.audience === 'EMPLOYEE_TASK';
   const nextAssignee = params.resolveAssigneeId(
     (canReassign ? targetAssigneeId : undefined) || task.assignedTo
   );
   if (!nextAssignee) {
     params.setDragError('Task assignee is required.');
-    return;
+    return null;
   }
+  return { task, nextAssignee, snappedMinute: clampCalendarMinutes(minuteOfDay) };
+};
+
+const moveTaskToCalendarSlot = async (
+  date: Date,
+  minuteOfDay: number,
+  targetAssigneeId: string | undefined,
+  params: MoveTaskToCalendarSlotParams
+) => {
+  const resolved = resolveTaskMove(minuteOfDay, targetAssigneeId, params);
+  if (!resolved) return;
+  const { task, nextAssignee, snappedMinute } = resolved;
+
   if (params.shouldEnforceAvailability(task, nextAssignee)) {
     const isAvailable = await params.isMinuteAvailableForAssignee(
       date,
@@ -53,14 +68,12 @@ const moveTaskToCalendarSlot = async (
     }
   }
 
-  const nextDueAt = buildDateInPreferredTimeZone(date, snappedMinute);
-
   try {
     params.setDragError(null);
     await updateTask({
       ...task,
       assignedTo: nextAssignee,
-      dueAt: nextDueAt,
+      dueAt: buildDateInPreferredTimeZone(date, snappedMinute),
       timezone: task.timezone || getPreferredTimeZone(),
     });
   } catch (error) {
