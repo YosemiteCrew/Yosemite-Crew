@@ -1,5 +1,7 @@
 # Update Feed Threat Model
 
+This is the threat model for the desktop app's auto-update path (the GitHub Releases feeds that `electron-updater` reads to deliver new versions). It is for maintainers cutting or reviewing releases, and it lists the assets at risk, the threats against the update channel, the controls in place, and the checks every release must pass. For the signing and channel mechanics referenced below see [`../RELEASE.md`](../RELEASE.md); for the broader process and trust-boundary model see [`desktop-architecture.md`](desktop-architecture.md).
+
 ## Assets
 
 - Installed Yosemite Crew PIMS desktop app.

@@ -262,10 +262,35 @@ const deserializePacketDocuments = (
         .map(deserializeDocumentRow)
     : [];
 
+const findLatestEncounterPacket = async (
+  organisationId: string,
+  encounterId: string,
+): Promise<PacketRecord | null> =>
+  (await prisma.workspaceDocumentPacket.findFirst({
+    where: { organisationId, encounterId },
+    orderBy: { updatedAt: "desc" },
+  })) as PacketRecord | null;
+
+const hasActiveOrCompletedSigning = (packet: PacketRecord): boolean => {
+  if (packet.status === "FINAL") {
+    return true;
+  }
+  const signing = parseSigning(packet.signing);
+  return signing?.status === "IN_PROGRESS" || signing?.status === "SIGNED";
+};
+
 export const WorkspaceDocumentPacketService = {
   async createForEncounter(
     input: CreatePacketInput,
   ): Promise<WorkspaceDocumentPacketRow> {
+    const existingPacket = await findLatestEncounterPacket(
+      input.organisationId,
+      input.encounterId,
+    );
+    if (existingPacket && hasActiveOrCompletedSigning(existingPacket)) {
+      return mapPacket(existingPacket);
+    }
+
     const bootstrap = await WorkspaceService.getEncounterBootstrap(
       {
         organisationId: input.organisationId,
@@ -273,6 +298,20 @@ export const WorkspaceDocumentPacketService = {
       },
       [],
     );
+
+    if (existingPacket) {
+      const refreshed = (await prisma.workspaceDocumentPacket.update({
+        where: { id: existingPacket.id },
+        data: {
+          appointmentId: bootstrap.appointment?.id ?? null,
+          companionId: bootstrap.companion?.id ?? null,
+          status: "DRAFT",
+          documents: bootstrap.documents.map(serializeDocumentRow),
+        },
+      })) as PacketRecord;
+
+      return mapPacket(refreshed);
+    }
 
     const packet = (await prisma.workspaceDocumentPacket.create({
       data: {

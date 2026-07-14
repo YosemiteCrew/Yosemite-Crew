@@ -105,6 +105,7 @@ const CompanionCard = ({
           <button
             type="button"
             onClick={() => handleViewCompanion(companion)}
+            aria-label={`${terminologyText('View companion')} ${companion.companion.name}`}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
             <IoEye size={20} color="var(--color-neutral-900)" />
@@ -115,6 +116,7 @@ const CompanionCard = ({
             <button
               type="button"
               onClick={() => handleChangeStatus(companion)}
+              aria-label={`Change status for ${companion.companion.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
               <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
@@ -126,6 +128,7 @@ const CompanionCard = ({
             <button
               type="button"
               onClick={() => handleBookAppointment(companion)}
+              aria-label={`Schedule ${companion.companion.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
               <FaCalendar size={14} color="var(--color-neutral-900)" />
@@ -137,6 +140,7 @@ const CompanionCard = ({
             <button
               type="button"
               onClick={() => handleAddTask(companion)}
+              aria-label={`Create task for ${companion.companion.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
               <FaTasks size={14} color="var(--color-neutral-900)" />

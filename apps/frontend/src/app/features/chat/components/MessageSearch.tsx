@@ -62,13 +62,13 @@ export function MessageSearch() {
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className={clsx(
-          'inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors',
+          'inline-flex size-9 items-center justify-center rounded-full transition-colors',
           open
             ? 'bg-chat-panel text-primary-600'
             : 'text-neutral-500 hover:bg-chat-panel hover:text-neutral-900'
         )}
       >
-        <LuSearch className="h-4 w-4" />
+        <LuSearch className="size-4" />
       </button>
       {open && (
         <>
@@ -80,7 +80,7 @@ export function MessageSearch() {
           />
           <div className="absolute right-0 top-11 z-20 w-80 rounded-2xl border border-chat-divider bg-neutral-0 p-2 shadow-lg">
             <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) px-4 py-2.5 transition-colors focus-within:border-input-border-active">
-              <LuSearch className="h-4 w-4 shrink-0 text-input-text-placeholder" />
+              <LuSearch className="size-4 shrink-0 text-input-text-placeholder" />
               <input
                 autoFocus
                 value={query}
@@ -91,7 +91,7 @@ export function MessageSearch() {
               />
               {hasQuery && (
                 <button type="button" aria-label="Clear search" onClick={() => setQuery('')}>
-                  <LuX className="h-4 w-4 text-input-text-placeholder" />
+                  <LuX className="size-4 text-input-text-placeholder" />
                 </button>
               )}
             </div>

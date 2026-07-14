@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import type { Appointment } from '@yosemite-crew/types';
@@ -31,15 +31,17 @@ import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorks
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import {
   useLabTests,
+  LabResultCategoryTable,
+  type UseLabTestsReturn,
+} from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
+import {
   resolveOrderUiUrl,
   resolveOrderPdfUrl,
   formatTestPrice,
   getTestTurnaround,
   getTestSpecimen,
   toTitleCase,
-  LabResultCategoryTable,
-  type UseLabTestsReturn,
-} from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
+} from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/labTestsUtils';
 import type { IdexxTest } from '@/app/features/integrations/services/types';
 import type { DiagnosticOrder } from '@/app/features/appointments/types/workspace';
 import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
@@ -709,9 +711,23 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
   const url = s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder);
   const safeUrl = getSafeIdexxIframeUrl(url);
   const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
+  const [prevIframeDeps, setPrevIframeDeps] = useState({
+    safeUrl,
+    iframeOpenSource: s.iframeOpenSource,
+    showOrderIframe: s.showOrderIframe,
+  });
+  if (
+    safeUrl !== prevIframeDeps.safeUrl ||
+    s.iframeOpenSource !== prevIframeDeps.iframeOpenSource ||
+    s.showOrderIframe !== prevIframeDeps.showOrderIframe
+  ) {
+    setPrevIframeDeps({
+      safeUrl,
+      iframeOpenSource: s.iframeOpenSource,
+      showOrderIframe: s.showOrderIframe,
+    });
     if (s.showOrderIframe) setLoaded(false);
-  }, [safeUrl, s.iframeOpenSource, s.showOrderIframe]);
+  }
   if (!s.showOrderIframe || !safeUrl || typeof document === 'undefined') return null;
   const title = s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
   return createPortal(
@@ -753,6 +769,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
             loading="lazy"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
+            sandbox="allow-scripts allow-forms allow-popups allow-downloads"
             onLoad={() => setLoaded(true)}
           />
         </div>
@@ -774,6 +791,81 @@ const IdexxNotEnabled = () => (
     <Secondary href="/integrations" text="Enable IDEXX in Integrations" />
   </SectionContainer>
 );
+
+type IdexxSectionProps = {
+  s: UseLabTestsReturn;
+  readOnly: boolean;
+  preloadedTests: DiagnosticOrder[];
+  onCreateOrder: () => Promise<void>;
+  printingAll: boolean;
+  onPrintAllResults: () => Promise<void>;
+  onOpenTreatment: () => void;
+  combinedPdfUrl: string | null;
+  onCloseCombinedPdf: () => void;
+};
+
+const IdexxSection = ({
+  s,
+  readOnly,
+  preloadedTests,
+  onCreateOrder,
+  printingAll,
+  onPrintAllResults,
+  onOpenTreatment,
+  combinedPdfUrl,
+  onCloseCombinedPdf,
+}: IdexxSectionProps) => {
+  if (s.loading) {
+    return <p className="text-body-4 text-text-secondary">Loading IDEXX integration…</p>;
+  }
+  if (!s.integrationEnabled) return <IdexxNotEnabled />;
+  return (
+    <>
+      {s.error ? <p className="text-body-4 text-text-error">{s.error}</p> : null}
+      {!readOnly && <OrderBuilderSection s={s} readOnly={readOnly} />}
+      <PreloadedDiagnosticsSection items={preloadedTests} />
+      <TestQueueSection s={s} readOnly={readOnly} onCreateOrder={() => void onCreateOrder()} />
+      <OrderStatusSection s={s} />
+      <ResultsSection s={s} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Secondary
+          text={printingAll ? 'Preparing…' : 'Print all Results'}
+          icon={<LuPrinter aria-hidden="true" />}
+          onClick={() => void onPrintAllResults()}
+          isDisabled={printingAll}
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <Secondary
+            href="/appointments/idexx-workspace"
+            text="Open Labs"
+            ariaLabel="Open labs workspace"
+            icon={<LuExternalLink aria-hidden="true" />}
+          />
+          <Primary
+            text="Treatment Plan"
+            icon={<LuCalendarDays aria-hidden="true" />}
+            onClick={onOpenTreatment}
+          />
+        </div>
+      </div>
+      <OrderIframeOverlay s={s} />
+      <PdfPreviewOverlay
+        open={s.showPdfPreview}
+        pdfUrl={s.pdfPreviewUrl}
+        title={s.pdfPreviewTitle}
+        closeLabel="Close IDEXX PDF preview"
+        onClose={s.closePdfPreview}
+      />
+      <PdfPreviewOverlay
+        open={Boolean(combinedPdfUrl)}
+        pdfUrl={combinedPdfUrl}
+        title="All lab results"
+        closeLabel="Close combined results PDF"
+        onClose={onCloseCombinedPdf}
+      />
+    </>
+  );
+};
 
 /**
  * Diagnostics step — the new workspace UI (pills, Order Builder, Test Queue,
@@ -823,7 +915,7 @@ const DiagnosticsStep = ({
   const handlePrintAllResults = useCallback(async () => {
     if (printingAll) return;
     const organisationId = appointment.organisationId;
-    const resultIds = s.results.map((result) => result.resultId).filter(Boolean);
+    const resultIds = s.results.flatMap((result) => (result.resultId ? [result.resultId] : []));
     if (!organisationId || resultIds.length === 0) {
       globalThis.window.print();
       return;
@@ -847,67 +939,20 @@ const DiagnosticsStep = ({
     });
   }, []);
 
-  const renderIdexx = () => {
-    if (s.loading) {
-      return <p className="text-body-4 text-text-secondary">Loading IDEXX integration…</p>;
-    }
-    if (!s.integrationEnabled) return <IdexxNotEnabled />;
-    return (
-      <>
-        {s.error ? <p className="text-body-4 text-text-error">{s.error}</p> : null}
-        {!readOnly && <OrderBuilderSection s={s} readOnly={readOnly} />}
-        <PreloadedDiagnosticsSection items={preloadedTests} />
-        <TestQueueSection
-          s={s}
-          readOnly={readOnly}
-          onCreateOrder={() => void handleCreateOrder()}
-        />
-        <OrderStatusSection s={s} />
-        <ResultsSection s={s} />
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Secondary
-            text={printingAll ? 'Preparing…' : 'Print all Results'}
-            icon={<LuPrinter aria-hidden="true" />}
-            onClick={() => void handlePrintAllResults()}
-            isDisabled={printingAll}
-          />
-          <div className="flex flex-wrap items-center gap-3">
-            <Secondary
-              href="/appointments/idexx-workspace"
-              text="Open Labs"
-              ariaLabel="Open labs workspace"
-              icon={<LuExternalLink aria-hidden="true" />}
-            />
-            <Primary
-              text="Treatment Plan"
-              icon={<LuCalendarDays aria-hidden="true" />}
-              onClick={onOpenTreatment}
-            />
-          </div>
-        </div>
-        <OrderIframeOverlay s={s} />
-        <PdfPreviewOverlay
-          open={s.showPdfPreview}
-          pdfUrl={s.pdfPreviewUrl}
-          title={s.pdfPreviewTitle}
-          closeLabel="Close IDEXX PDF preview"
-          onClose={s.closePdfPreview}
-        />
-        <PdfPreviewOverlay
-          open={Boolean(combinedPdfUrl)}
-          pdfUrl={combinedPdfUrl}
-          title="All lab results"
-          closeLabel="Close combined results PDF"
-          onClose={closeCombinedPdf}
-        />
-      </>
-    );
-  };
-
   return (
     <div className="flex flex-col gap-5">
       <IntegrationPills selected={selectedProvider} onSelect={setSelectedProvider} />
-      {renderIdexx()}
+      <IdexxSection
+        s={s}
+        readOnly={readOnly}
+        preloadedTests={preloadedTests}
+        onCreateOrder={handleCreateOrder}
+        printingAll={printingAll}
+        onPrintAllResults={handlePrintAllResults}
+        onOpenTreatment={onOpenTreatment}
+        combinedPdfUrl={combinedPdfUrl}
+        onCloseCombinedPdf={closeCombinedPdf}
+      />
     </div>
   );
 };

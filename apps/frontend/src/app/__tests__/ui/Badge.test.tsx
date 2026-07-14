@@ -22,7 +22,7 @@ describe('Badge', () => {
 
     const badge = screen.getByTestId('badge');
     expect(badge.className).toContain('bg-danger-100');
-    expect(badge.className).toContain('text-danger-700');
+    expect(badge.className).toContain('text-danger-800');
     expect(badge.className).toContain('extra');
   });
 });

@@ -310,7 +310,7 @@ const DischargeDateTimeModal = ({
  * Full-page clinical workspace shell. Hosts the header, companion card, stepper,
  * meta bar, and the active step. Step bodies are layered in per phase.
  */
-const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
+const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspaceProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { notify } = useNotify();
@@ -366,6 +366,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   );
   const [dischargeOverrideReason, setDischargeOverrideReason] = useState('');
   const lifecycleEncounterIdRef = useRef<string | undefined>(appointment.encounterId);
+  const initializedEncounterKeyRef = useRef<string | null>(null);
   const supportStaffMember = useMemo(() => {
     const leadName = (appointment.lead?.name ?? '').trim();
     return (appointment.supportStaff ?? []).find(
@@ -373,8 +374,19 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     );
   }, [appointment.lead?.name, appointment.supportStaff]);
 
-  useEffect(() => {
-    if (!appointmentId) return;
+  const encounterInitKey = appointmentId
+    ? [
+        appointmentId,
+        appointment.encounterId ?? '',
+        initialMode,
+        appointment.lead?.id ?? '',
+        appointment.lead?.name ?? '',
+        supportStaffMember?.id ?? '',
+        supportStaffMember?.name ?? '',
+      ].join('|')
+    : '';
+  if (appointmentId && initializedEncounterKeyRef.current !== encounterInitKey) {
+    initializedEncounterKeyRef.current = encounterInitKey;
     lifecycleEncounterIdRef.current = appointment.encounterId;
     const leadName = (appointment.lead?.name ?? '').trim();
     initEncounter(appointmentId, initialMode, {
@@ -383,14 +395,7 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
       nurseId: supportStaffMember?.id,
       nurseName: supportStaffMember?.name?.trim(),
     });
-  }, [
-    appointment.encounterId,
-    appointment.lead,
-    appointmentId,
-    initEncounter,
-    initialMode,
-    supportStaffMember,
-  ]);
+  }
 
   useEffect(() => {
     const organisationId = appointment.organisationId;
@@ -403,11 +408,13 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
   useEffect(() => {
     const organisationId = appointment.organisationId;
     if (!organisationId || catalogSpecialities.length === 0) return;
-    Promise.allSettled(
-      catalogSpecialities
-        .filter((speciality) => speciality.organisationId === organisationId)
-        .map((speciality) => loadSpecialityCatalog(organisationId, speciality.id))
-    ).catch((error: unknown) => {
+    const specialityLoads: Array<Promise<unknown>> = [];
+    for (const speciality of catalogSpecialities) {
+      if (speciality.organisationId === organisationId) {
+        specialityLoads.push(loadSpecialityCatalog(organisationId, speciality.id));
+      }
+    }
+    Promise.allSettled(specialityLoads).catch((error: unknown) => {
       console.error('Failed to load hospitalization services:', error);
     });
   }, [appointment.organisationId, catalogSpecialities, loadSpecialityCatalog]);
@@ -665,36 +672,40 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     // Only INPATIENT-bookable items may be added on hospitalization. The backend derives
     // `supportsInpatient` from `isInpatientPreferred` and rejects anything else with a 400
     // ("not bookable for inpatient appointments"), so filter to inpatient-preferred items here.
-    const serviceOptions = catalogServices
-      .filter(
-        (service) =>
-          service.organisationId === appointment.organisationId &&
-          service.status === 'ACTIVE' &&
-          service.isBookable !== false &&
-          service.isInpatientPreferred === true
-      )
-      .map((service) => ({
-        id: service.id,
-        kind: 'SERVICE' as const,
-        name: service.name,
-        cost: service.grossAmount,
-        maxDiscount: service.maxDiscount,
-      }));
-    const packageOptions = catalogPackages
-      .filter(
-        (pkg) =>
-          pkg.organisationId === appointment.organisationId &&
-          pkg.status === 'ACTIVE' &&
-          pkg.isBookable !== false &&
-          pkg.isInpatientPreferred === true
-      )
-      .map((pkg) => ({
-        id: pkg.id,
-        kind: 'PACKAGE' as const,
-        name: pkg.name,
-        cost: pkg.serverFinalAmount ?? 0,
-        maxDiscount: pkg.additionalDiscount,
-      }));
+    const serviceOptions = [];
+    for (const service of catalogServices) {
+      if (
+        service.organisationId === appointment.organisationId &&
+        service.status === 'ACTIVE' &&
+        service.isBookable !== false &&
+        service.isInpatientPreferred === true
+      ) {
+        serviceOptions.push({
+          id: service.id,
+          kind: 'SERVICE' as const,
+          name: service.name,
+          cost: service.grossAmount,
+          maxDiscount: service.maxDiscount,
+        });
+      }
+    }
+    const packageOptions = [];
+    for (const pkg of catalogPackages) {
+      if (
+        pkg.organisationId === appointment.organisationId &&
+        pkg.status === 'ACTIVE' &&
+        pkg.isBookable !== false &&
+        pkg.isInpatientPreferred === true
+      ) {
+        packageOptions.push({
+          id: pkg.id,
+          kind: 'PACKAGE' as const,
+          name: pkg.name,
+          cost: pkg.serverFinalAmount ?? 0,
+          maxDiscount: pkg.additionalDiscount,
+        });
+      }
+    }
     return [...serviceOptions, ...packageOptions];
   }, [appointment.organisationId, catalogPackages, catalogServices]);
 
@@ -877,11 +888,11 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
 
   const persistUnitAssignment = useCallback(
     async (unitId?: string) => {
+      if (!unitId) return false;
       const encounterId =
         lifecycleEncounterIdRef.current ??
         appointment.encounterId ??
         (await refreshWorkspaceEncounterId());
-      if (!unitId) return false;
       if (!encounterId) {
         notify('error', {
           title: 'Unable to assign unit',
@@ -1530,8 +1541,9 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
             allowModeConversion: true,
           });
           if (!converted) return false;
+          const servicePackageIdSet = new Set(payload.servicePackageIds);
           const selectedServicePackages = hospitalizationServicePackages.filter((item) =>
-            payload.servicePackageIds.includes(item.id)
+            servicePackageIdSet.has(item.id)
           );
           // Admission has created/resolved the encounter — persist each chosen service/package as a
           // treatment item so it survives a refresh (local addLineItem alone is lost on reload).
@@ -1539,9 +1551,9 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
             lifecycleEncounterIdRef.current ??
             appointment.encounterId ??
             (await refreshWorkspaceEncounterId());
-          for (const selectedServicePackage of selectedServicePackages) {
+          const admissionLines = selectedServicePackages.map((selectedServicePackage) => {
             const amountCents = Math.max(0, Math.round(selectedServicePackage.cost * 100));
-            const line = {
+            return {
               refId: selectedServicePackage.id,
               kind: selectedServicePackage.kind,
               name: selectedServicePackage.name,
@@ -1550,17 +1562,20 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
               unitPriceCents: amountCents,
               amountCents,
             };
-            if (appointment.organisationId && admissionEncounterId) {
-              try {
-                await persistEncounterTreatmentLine(
-                  appointment.organisationId,
-                  admissionEncounterId,
-                  line
-                );
-              } catch (error) {
-                console.error('Failed to persist hospitalization service/package:', error);
-              }
-            }
+          });
+          if (appointment.organisationId && admissionEncounterId) {
+            const organisationId = appointment.organisationId;
+            await Promise.all(
+              admissionLines.map((line) =>
+                persistEncounterTreatmentLine(organisationId, admissionEncounterId, line).catch(
+                  (error) => {
+                    console.error('Failed to persist hospitalization service/package:', error);
+                  }
+                )
+              )
+            );
+          }
+          for (const line of admissionLines) {
             addLineItem(appointmentId, line);
           }
           setEncounterMode(appointmentId, 'INPATIENT');
@@ -1573,5 +1588,8 @@ const AppointmentWorkspace = ({ appointment }: AppointmentWorkspaceProps) => {
     </div>
   );
 };
+
+const AppointmentWorkspace = (props: AppointmentWorkspaceProps) =>
+  useAppointmentWorkspaceContent(props);
 
 export default AppointmentWorkspace;

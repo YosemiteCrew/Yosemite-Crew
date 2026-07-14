@@ -1,6 +1,6 @@
 'use client';
-import React, { useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useMemo } from 'react';
+import { redirect, useRouter } from 'next/navigation';
 import {
   useAppointmentsForPrimaryOrg,
   useLoadAppointmentsForPrimaryOrg,
@@ -37,11 +37,7 @@ const WorkspaceRoute = ({ appointmentId }: WorkspaceRouteProps) => {
     [appointments, appointmentId]
   );
 
-  useEffect(() => {
-    if (!revampEnabled) router.replace('/appointments');
-  }, [revampEnabled, router]);
-
-  if (!revampEnabled) return null;
+  if (!revampEnabled) redirect('/appointments');
 
   if (appointment) {
     if (canEnterAppointmentWorkspace(appointment.status)) {

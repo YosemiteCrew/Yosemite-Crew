@@ -1,6 +1,7 @@
 {
   "$schema": "https://react.doctor/schema/config.json",
   "ignore": {
+    "files": ["apps/frontend/public/dev-docs/assets/js/**", "apps/frontend/src/app/__tests__/**"],
     "overrides": [
       {
         "files": ["package.json"],
