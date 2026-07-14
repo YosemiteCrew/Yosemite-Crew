@@ -271,6 +271,346 @@ const handleCopyLink = (id: string) => {
   alert('Link copied to clipboard!');
 };
 
+type TrustData = typeof trustCenterData;
+
+const TrustHero = ({ hero }: { hero: NonNullable<TrustData['hero']> }) => (
+  <section className="TrustHeroSec">
+    <div className="TrustHeroContainer">
+      <div className="TrustHeroSplit">
+        <div className="TrustHeroContent">
+          <h1 className="TrustHeroTitle">{hero.title}</h1>
+          <p className="TrustHeroSubtitle">{hero.subtitle}</p>
+
+          <div className="HeroMetaLinks">
+            <a href={`mailto:${hero.email}`} className="HeroLink">
+              <FiMail className="HeroIcon" /> {hero.email}
+            </a>
+            <Link href={hero.privacyLink || '#'} className="HeroLink">
+              <FiLink className="HeroIcon" /> Privacy Policy
+            </Link>
+          </div>
+        </div>
+
+        <div className="TrustHeroImage">
+          <Image
+            src={MEDIA_SOURCES.trustCenter.security}
+            alt="Security Illustration"
+            width={320}
+            height={250}
+            style={{ objectFit: 'contain', width: '100%', height: 'auto' }}
+            priority
+          />
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
+type TrustOverviewTabProps = {
+  certifications: NonNullable<TrustData['certifications']>;
+  securityPillars: NonNullable<TrustData['securityPillars']>;
+  resources: NonNullable<TrustData['resources']>;
+  subProcessors: NonNullable<TrustData['subProcessors']>;
+  setActiveTab: (tab: string) => void;
+};
+
+const TrustOverviewTab = ({
+  certifications,
+  securityPillars,
+  resources,
+  subProcessors,
+  setActiveTab,
+}: TrustOverviewTabProps) => (
+  <div className="OverviewDashboard">
+    <div>
+      <h2 className="SectionTitle" style={{ margin: 0, marginBottom: '20px' }}>
+        Compliance & Regulations
+      </h2>
+      <CertificationList certifications={certifications} />
+    </div>
+    <div className="OverviewSplit">
+      <div className="OverviewLeftCol">
+        <div style={SECTION_HEADER_STYLE}>
+          <h2 className="SectionTitle" style={{ fontSize: '1.5rem', margin: 0 }}>
+            Security Controls
+          </h2>
+          <button
+            type="button"
+            onClick={() => setActiveTab('Controls')}
+            style={SECTION_LINK_BUTTON_STYLE}
+          >
+            View all <FiChevronRight />
+          </button>
+        </div>
+        <div className="OverviewControlsGrid">
+          {securityPillars.slice(0, 4).map((pillar: any) => (
+            <div className="OverviewControlCard" key={pillar.title}>
+              <h3>
+                <span style={{ fontSize: '1.2rem' }}>{pillar.icon}</span> {pillar.title}
+              </h3>
+              <ul className="OverviewControlList">
+                {pillar.items.slice(0, 3).map((item: string) => (
+                  <li key={item}>
+                    <FiCheckCircle
+                      style={{
+                        color: 'var(--color-success-500)',
+                        minWidth: '14px',
+                      }}
+                    />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="OverviewResourceCard">
+        <div style={SECTION_HEADER_STYLE}>
+          <h2 className="SectionTitle" style={{ fontSize: '1.5rem', margin: 0 }}>
+            Resources
+          </h2>
+          <button
+            type="button"
+            onClick={() => setActiveTab('Resources')}
+            style={SECTION_LINK_BUTTON_STYLE}
+          >
+            View all <FiChevronRight />
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {resources.slice(0, 3).map((res) => (
+            <div
+              className="OverviewResourceItem"
+              key={res.title}
+              style={{
+                width: '100%',
+                border: 'none',
+                textAlign: 'left',
+                font: 'inherit',
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontFamily: 'var(--satoshi-font)',
+                    fontWeight: '500',
+                    fontSize: '0.95rem',
+                  }}
+                >
+                  {res.title}
+                </div>
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    color: 'var(--color-text-tertiary)',
+                  }}
+                >
+                  {res.type}
+                </div>
+              </div>
+              {res.locked ? (
+                <FiLock style={{ color: 'var(--color-text-tertiary)' }} />
+              ) : (
+                <FiDownload style={{ color: 'var(--blue-text)' }} />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <div className="OverviewSubproc">
+      <div style={SECTION_HEADER_STYLE}>
+        <h2 className="SectionTitle" style={{ fontSize: '1.5rem', margin: 0 }}>
+          Sub-processors
+        </h2>
+        <button
+          type="button"
+          onClick={() => setActiveTab('Subprocessors')}
+          style={SECTION_LINK_BUTTON_STYLE}
+        >
+          View all <FiChevronRight />
+        </button>
+      </div>
+      <div className="SubprocGrid">
+        {subProcessors.map((sub) => (
+          <div key={sub.name} className="SubprocCard">
+            <div className="SubprocIcon">
+              {sub.logo && (
+                <Image
+                  src={sub.logo}
+                  alt={sub.name}
+                  fill
+                  sizes="64px"
+                  style={{ objectFit: 'contain' }}
+                />
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+type RequestAccessModalProps = {
+  isModalOpen: boolean;
+  setIsModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  handleModalClose: () => void;
+  requestAccessTitleId: string;
+  selectedResource: string | null;
+  requestAccessForm: RequestAccessFormState;
+  setRequestAccessForm: React.Dispatch<React.SetStateAction<RequestAccessFormState>>;
+  requestAccessErrors: { workEmail?: string };
+  setRequestAccessErrors: React.Dispatch<React.SetStateAction<{ workEmail?: string }>>;
+  handleRequestAccessSubmit: () => void;
+};
+
+const RequestAccessModal = ({
+  isModalOpen,
+  setIsModalOpen,
+  handleModalClose,
+  requestAccessTitleId,
+  selectedResource,
+  requestAccessForm,
+  setRequestAccessForm,
+  requestAccessErrors,
+  setRequestAccessErrors,
+  handleRequestAccessSubmit,
+}: RequestAccessModalProps) => (
+  <ModalBase
+    showModal={isModalOpen}
+    setShowModal={setIsModalOpen}
+    onClose={handleModalClose}
+    overlayClassName="ModalOverlay"
+    containerClassName="ModalContent"
+    aria-labelledby={requestAccessTitleId}
+  >
+    <div>
+      <div className="ModalHeader">
+        <h3 id={requestAccessTitleId}>Request Access</h3>
+        <button
+          type="button"
+          className="CloseBtn"
+          onClick={handleModalClose}
+          aria-label="Close modal"
+        >
+          <FiX />
+        </button>
+      </div>
+
+      <div className="ModalBody">
+        <div className="ResourceInfoBox">
+          <span style={{ color: 'var(--color-text-secondary)' }}>
+            You are requesting access to:
+          </span>
+          <br />
+          <strong style={{ color: 'var(--blue-text)', fontSize: '1.05rem' }}>
+            {selectedResource}
+          </strong>
+        </div>
+
+        <div className="FormGrid">
+          <div className="FormGroup">
+            <label htmlFor="firstName">First Name</label>
+            <input
+              id="firstName"
+              type="text"
+              aria-label="First Name"
+              className="FormInput"
+              placeholder="Jane"
+              value={requestAccessForm.firstName}
+              onChange={(e) =>
+                setRequestAccessForm((prev) => ({ ...prev, firstName: e.target.value }))
+              }
+            />
+          </div>
+          <div className="FormGroup">
+            <label htmlFor="lastName">Last Name</label>
+            <input
+              id="lastName"
+              type="text"
+              aria-label="Last Name"
+              className="FormInput"
+              placeholder="Doe"
+              value={requestAccessForm.lastName}
+              onChange={(e) =>
+                setRequestAccessForm((prev) => ({ ...prev, lastName: e.target.value }))
+              }
+            />
+          </div>
+        </div>
+
+        <div className="FormGroup">
+          <label htmlFor="workEmail">Work Email</label>
+          <input
+            id="workEmail"
+            type="email"
+            aria-label="Work Email"
+            placeholder="jane@company.com"
+            className="FormInput"
+            value={requestAccessForm.workEmail}
+            onChange={(e) => {
+              setRequestAccessForm((prev) => ({ ...prev, workEmail: e.target.value }));
+              setRequestAccessErrors((prev) => ({ ...prev, workEmail: undefined }));
+            }}
+          />
+          {requestAccessErrors.workEmail && (
+            <div className="text-caption-2 text-text-error mt-1">
+              {requestAccessErrors.workEmail}
+            </div>
+          )}
+        </div>
+
+        <div className="FormGroup">
+          <label htmlFor="companyName">Company Name</label>
+          <input
+            id="companyName"
+            type="text"
+            aria-label="Company Name"
+            placeholder="Acme Inc."
+            className="FormInput"
+            value={requestAccessForm.companyName}
+            onChange={(e) =>
+              setRequestAccessForm((prev) => ({ ...prev, companyName: e.target.value }))
+            }
+          />
+        </div>
+
+        <div className="FormGroup">
+          <label htmlFor="reason">Reason for Request</label>
+          <select
+            id="reason"
+            className="FormInput"
+            value={requestAccessForm.reason}
+            onChange={(e) => setRequestAccessForm((prev) => ({ ...prev, reason: e.target.value }))}
+          >
+            <option value="" disabled>
+              Select a reason…
+            </option>
+            <option value="due_diligence">Due Diligence</option>
+            <option value="audit">Customer Audit</option>
+            <option value="internal_review">Internal Review</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="ModalFooter">
+        <button className="CancelBtn" onClick={handleModalClose} type="button">
+          Cancel
+        </button>
+        <button className="SubmitBtn" type="button" onClick={handleRequestAccessSubmit}>
+          Request Access
+        </button>
+      </div>
+    </div>
+  </ModalBase>
+);
+
 const TrustCenter = () => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -325,36 +665,7 @@ const TrustCenter = () => {
   return (
     <div className="TrustPageWrapper">
       {/* 1. HERO SECTION */}
-      <section className="TrustHeroSec">
-        <div className="TrustHeroContainer">
-          <div className="TrustHeroSplit">
-            <div className="TrustHeroContent">
-              <h1 className="TrustHeroTitle">{hero.title}</h1>
-              <p className="TrustHeroSubtitle">{hero.subtitle}</p>
-
-              <div className="HeroMetaLinks">
-                <a href={`mailto:${hero.email}`} className="HeroLink">
-                  <FiMail className="HeroIcon" /> {hero.email}
-                </a>
-                <Link href={hero.privacyLink || '#'} className="HeroLink">
-                  <FiLink className="HeroIcon" /> Privacy Policy
-                </Link>
-              </div>
-            </div>
-
-            <div className="TrustHeroImage">
-              <Image
-                src={MEDIA_SOURCES.trustCenter.security}
-                alt="Security Illustration"
-                width={320}
-                height={250}
-                style={{ objectFit: 'contain', width: '100%', height: 'auto' }}
-                priority
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+      <TrustHero hero={hero} />
 
       {/* 2. TAB NAVIGATION */}
       <div className="TrustNavBarSticky">
@@ -376,139 +687,13 @@ const TrustCenter = () => {
       <div className="TrustContentContainer">
         {/* TAB: OVERVIEW */}
         {activeTab === 'Overview' && (
-          <div className="OverviewDashboard">
-            <div>
-              <h2 className="SectionTitle" style={{ margin: 0, marginBottom: '20px' }}>
-                Compliance & Regulations
-              </h2>
-              <CertificationList certifications={certifications} />
-            </div>
-            <div className="OverviewSplit">
-              <div className="OverviewLeftCol">
-                <div style={SECTION_HEADER_STYLE}>
-                  <h2 className="SectionTitle" style={{ fontSize: '1.5rem', margin: 0 }}>
-                    Security Controls
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('Controls')}
-                    style={SECTION_LINK_BUTTON_STYLE}
-                  >
-                    View all <FiChevronRight />
-                  </button>
-                </div>
-                <div className="OverviewControlsGrid">
-                  {securityPillars.slice(0, 4).map((pillar: any) => (
-                    <div className="OverviewControlCard" key={pillar.title}>
-                      <h3>
-                        <span style={{ fontSize: '1.2rem' }}>{pillar.icon}</span> {pillar.title}
-                      </h3>
-                      <ul className="OverviewControlList">
-                        {pillar.items.slice(0, 3).map((item: string) => (
-                          <li key={item}>
-                            <FiCheckCircle
-                              style={{
-                                color: 'var(--color-success-500)',
-                                minWidth: '14px',
-                              }}
-                            />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="OverviewResourceCard">
-                <div style={SECTION_HEADER_STYLE}>
-                  <h2 className="SectionTitle" style={{ fontSize: '1.5rem', margin: 0 }}>
-                    Resources
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('Resources')}
-                    style={SECTION_LINK_BUTTON_STYLE}
-                  >
-                    View all <FiChevronRight />
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {resources.slice(0, 3).map((res) => (
-                    <div
-                      className="OverviewResourceItem"
-                      key={res.title}
-                      style={{
-                        width: '100%',
-                        border: 'none',
-                        textAlign: 'left',
-                        font: 'inherit',
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            fontFamily: 'var(--satoshi-font)',
-                            fontWeight: '500',
-                            fontSize: '0.95rem',
-                          }}
-                        >
-                          {res.title}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.8rem',
-                            color: 'var(--color-text-tertiary)',
-                          }}
-                        >
-                          {res.type}
-                        </div>
-                      </div>
-                      {res.locked ? (
-                        <FiLock style={{ color: 'var(--color-text-tertiary)' }} />
-                      ) : (
-                        <FiDownload style={{ color: 'var(--blue-text)' }} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="OverviewSubproc">
-              <div style={SECTION_HEADER_STYLE}>
-                <h2 className="SectionTitle" style={{ fontSize: '1.5rem', margin: 0 }}>
-                  Sub-processors
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('Subprocessors')}
-                  style={SECTION_LINK_BUTTON_STYLE}
-                >
-                  View all <FiChevronRight />
-                </button>
-              </div>
-              <div className="SubprocGrid">
-                {subProcessors.map((sub) => (
-                  <div key={sub.name} className="SubprocCard">
-                    <div className="SubprocIcon">
-                      {sub.logo && (
-                        <Image
-                          src={sub.logo}
-                          alt={sub.name}
-                          fill
-                          sizes="64px"
-                          style={{ objectFit: 'contain' }}
-                        />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <TrustOverviewTab
+            certifications={certifications}
+            securityPillars={securityPillars}
+            resources={resources}
+            subProcessors={subProcessors}
+            setActiveTab={setActiveTab}
+          />
         )}
 
         {/* --- OTHER TABS --- */}
@@ -610,138 +795,18 @@ const TrustCenter = () => {
       </div>
 
       {/* --- REQUEST ACCESS MODAL --- */}
-      {isModalOpen && (
-        <ModalBase
-          showModal={isModalOpen}
-          setShowModal={setIsModalOpen}
-          onClose={handleModalClose}
-          overlayClassName="ModalOverlay"
-          containerClassName="ModalContent"
-          aria-labelledby={requestAccessTitleId}
-        >
-          <div>
-            <div className="ModalHeader">
-              <h3 id={requestAccessTitleId}>Request Access</h3>
-              <button
-                type="button"
-                className="CloseBtn"
-                onClick={handleModalClose}
-                aria-label="Close modal"
-              >
-                <FiX />
-              </button>
-            </div>
-
-            <div className="ModalBody">
-              <div className="ResourceInfoBox">
-                <span style={{ color: 'var(--color-text-secondary)' }}>
-                  You are requesting access to:
-                </span>
-                <br />
-                <strong style={{ color: 'var(--blue-text)', fontSize: '1.05rem' }}>
-                  {selectedResource}
-                </strong>
-              </div>
-
-              <div className="FormGrid">
-                <div className="FormGroup">
-                  <label htmlFor="firstName">First Name</label>
-                  <input
-                    id="firstName"
-                    type="text"
-                    aria-label="First Name"
-                    className="FormInput"
-                    placeholder="Jane"
-                    value={requestAccessForm.firstName}
-                    onChange={(e) =>
-                      setRequestAccessForm((prev) => ({ ...prev, firstName: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="FormGroup">
-                  <label htmlFor="lastName">Last Name</label>
-                  <input
-                    id="lastName"
-                    type="text"
-                    aria-label="Last Name"
-                    className="FormInput"
-                    placeholder="Doe"
-                    value={requestAccessForm.lastName}
-                    onChange={(e) =>
-                      setRequestAccessForm((prev) => ({ ...prev, lastName: e.target.value }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="FormGroup">
-                <label htmlFor="workEmail">Work Email</label>
-                <input
-                  id="workEmail"
-                  type="email"
-                  aria-label="Work Email"
-                  placeholder="jane@company.com"
-                  className="FormInput"
-                  value={requestAccessForm.workEmail}
-                  onChange={(e) => {
-                    setRequestAccessForm((prev) => ({ ...prev, workEmail: e.target.value }));
-                    setRequestAccessErrors((prev) => ({ ...prev, workEmail: undefined }));
-                  }}
-                />
-                {requestAccessErrors.workEmail && (
-                  <div className="text-caption-2 text-text-error mt-1">
-                    {requestAccessErrors.workEmail}
-                  </div>
-                )}
-              </div>
-
-              <div className="FormGroup">
-                <label htmlFor="companyName">Company Name</label>
-                <input
-                  id="companyName"
-                  type="text"
-                  aria-label="Company Name"
-                  placeholder="Acme Inc."
-                  className="FormInput"
-                  value={requestAccessForm.companyName}
-                  onChange={(e) =>
-                    setRequestAccessForm((prev) => ({ ...prev, companyName: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="FormGroup">
-                <label htmlFor="reason">Reason for Request</label>
-                <select
-                  id="reason"
-                  className="FormInput"
-                  value={requestAccessForm.reason}
-                  onChange={(e) =>
-                    setRequestAccessForm((prev) => ({ ...prev, reason: e.target.value }))
-                  }
-                >
-                  <option value="" disabled>
-                    Select a reason…
-                  </option>
-                  <option value="due_diligence">Due Diligence</option>
-                  <option value="audit">Customer Audit</option>
-                  <option value="internal_review">Internal Review</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="ModalFooter">
-              <button className="CancelBtn" onClick={handleModalClose} type="button">
-                Cancel
-              </button>
-              <button className="SubmitBtn" type="button" onClick={handleRequestAccessSubmit}>
-                Request Access
-              </button>
-            </div>
-          </div>
-        </ModalBase>
-      )}
+      <RequestAccessModal
+        isModalOpen={isModalOpen}
+        setIsModalOpen={setIsModalOpen}
+        handleModalClose={handleModalClose}
+        requestAccessTitleId={requestAccessTitleId}
+        selectedResource={selectedResource}
+        requestAccessForm={requestAccessForm}
+        setRequestAccessForm={setRequestAccessForm}
+        requestAccessErrors={requestAccessErrors}
+        setRequestAccessErrors={setRequestAccessErrors}
+        handleRequestAccessSubmit={handleRequestAccessSubmit}
+      />
     </div>
   );
 };

@@ -52,6 +52,36 @@ describe('Dropdown (index)', () => {
     expect(onSelect).toHaveBeenCalledWith(options[1]);
   });
 
+  it('supports home, end, and escape keys', () => {
+    const onSelect = jest.fn();
+    render(<Dropdown placeholder="View" options={options} onSelect={onSelect} />);
+
+    const trigger = screen.getByRole('button', { name: /View/i });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: 'End' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith(options[1]);
+
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    expect(screen.getByText('Day')).toBeInTheDocument();
+    fireEvent.keyDown(trigger, { key: 'Home' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith(options[0]);
+
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    expect(screen.getAllByRole('button', { name: 'Day' })).toHaveLength(2);
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(screen.getAllByRole('button', { name: 'Day' })).toHaveLength(1);
+  });
+
+  it('applies the default option on mount', () => {
+    render(
+      <Dropdown placeholder="View" options={options} defaultOption="week" onSelect={jest.fn()} />
+    );
+
+    expect(screen.getByText('Week')).toBeInTheDocument();
+  });
+
   it('shows error message', () => {
     render(<Dropdown placeholder="View" options={options} onSelect={jest.fn()} error="Required" />);
 

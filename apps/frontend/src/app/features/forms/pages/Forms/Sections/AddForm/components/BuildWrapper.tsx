@@ -2,14 +2,7 @@ import React from 'react';
 import { FormField } from '@/app/features/forms/types/forms';
 import { MdDeleteForever, MdDragIndicator } from 'react-icons/md';
 import { IoMdArrowUp, IoMdArrowDown } from 'react-icons/io';
-
-/**
- * When true, the template structure is locked (YC-default ownership): builder controls
- * that change structure — add/remove/delete/move/reorder and the medication/task pickers —
- * are hidden at every nesting level, while field content stays editable. Provided by Build
- * and consumed by BuilderWrapper plus the nested group builders.
- */
-export const StructureLockContext = React.createContext(false);
+import { StructureLockContext } from '@/app/features/forms/pages/Forms/Sections/AddForm/components/structureLockContext';
 
 const BuilderWrapper: React.FC<{
   field: FormField;
@@ -49,7 +42,7 @@ const BuilderWrapper: React.FC<{
   contentDeletable = false,
   children,
 }) => {
-  const structureLocked = React.useContext(StructureLockContext);
+  const structureLocked = React.use(StructureLockContext);
   const wrapperRef = React.useRef<HTMLDivElement | null>(null);
   const dragPreviewRef = React.useRef<HTMLDivElement | null>(null);
   const title = field.type.charAt(0).toUpperCase() + field.type.slice(1);
@@ -137,6 +130,7 @@ const BuilderWrapper: React.FC<{
                 disabled={!canMoveUp}
                 className={`${canMoveUp ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
                 title="Move up"
+                aria-label={`Move ${title} up`}
               >
                 <IoMdArrowUp size={20} color="var(--color-neutral-900)" />
               </button>
@@ -148,12 +142,18 @@ const BuilderWrapper: React.FC<{
                 disabled={!canMoveDown}
                 className={`${canMoveDown ? 'cursor-pointer hover:bg-gray-100' : 'opacity-30 cursor-not-allowed'} rounded p-1`}
                 title="Move down"
+                aria-label={`Move ${title} down`}
               >
                 <IoMdArrowDown size={20} color="var(--color-neutral-900)" />
               </button>
             )}
             {/* Delete stays available for content items (medications/tasks) even when locked. */}
-            <button type="button" onClick={onDelete} className="hover:bg-red-50 rounded p-1">
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label={`Delete ${title}`}
+              className="hover:bg-red-50 rounded p-1"
+            >
               <MdDeleteForever size={20} color="var(--color-danger-600)" />
             </button>
           </div>
