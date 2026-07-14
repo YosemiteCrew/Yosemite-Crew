@@ -2,7 +2,7 @@ import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen, act} from '@testing-library/react-native';
 import {OnboardingScreen} from '../../../../src/features/onboarding/screens/OnboardingScreen';
-import {FlatList} from 'react-native';
+import {AccessibilityInfo, FlatList} from 'react-native';
 
 // --- Mocks ---
 
@@ -115,5 +115,26 @@ describe('OnboardingScreen', () => {
     expect(flatList.props.keyExtractor({id: 'slide-9'} as any, 0)).toBe(
       'slide-9',
     );
+  });
+
+  it('plays the active slide video when reduce motion is off (default)', () => {
+    render(<OnboardingScreen onComplete={jest.fn()} />);
+    const [firstSlideVideo] = screen.getAllByTestId('rn-video');
+    expect(firstSlideVideo.props.paused).toBe(false);
+  });
+
+  it('keeps every video paused when the OS reduce-motion preference is on', async () => {
+    jest
+      .spyOn(AccessibilityInfo, 'isReduceMotionEnabled')
+      .mockResolvedValue(true);
+
+    render(<OnboardingScreen onComplete={jest.fn()} />);
+    await act(async () => {});
+
+    const videos = screen.getAllByTestId('rn-video');
+    expect(videos.length).toBeGreaterThan(0);
+    videos.forEach(video => {
+      expect(video.props.paused).toBe(true);
+    });
   });
 });

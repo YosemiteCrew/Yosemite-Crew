@@ -207,10 +207,13 @@ export const InkAnnotation: React.FC<InkAnnotationProps> = ({
 
   return (
     <View style={styles.wrap}>
+      {/* Font scaling stays on (the OS text-size setting must apply to real
+          content like this accent word). The SVG annotation below is
+          measured from the text's actual rendered size via onLayout, so it
+          redraws correctly around larger scaled text automatically. */}
       <Text
         onLayout={onLayout}
-        style={[textStyle, {color}, italic && styles.italic]}
-        allowFontScaling={false}>
+        style={[textStyle, {color}, italic && styles.italic]}>
         {children}
       </Text>
       {geometry ? (

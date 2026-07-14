@@ -43,7 +43,13 @@ export const SkeletonDetail: React.FC<SkeletonDetailProps> = ({
   );
 
   return (
-    <View style={[styles.container, style]} testID={testID}>
+    <View
+      style={[styles.container, style]}
+      testID={testID}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading"
+      accessibilityState={{busy: true}}>
       <View style={styles.heroCard}>
         <View style={styles.heroHeader}>
           <SkeletonBlock

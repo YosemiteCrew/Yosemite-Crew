@@ -171,4 +171,14 @@ describe('SkeletonList', () => {
     expect(flat.flex).toBe(1);
     expect(flat.backgroundColor).toBe(mockTheme.colors.background);
   });
+
+  it('announces itself to screen readers as a busy loading region', () => {
+    const {getByTestId} = render(<SkeletonList testID="skeleton-list" />);
+
+    const container = getByTestId('skeleton-list');
+    expect(container.props.accessible).toBe(true);
+    expect(container.props.accessibilityRole).toBe('progressbar');
+    expect(container.props.accessibilityLabel).toBe('Loading');
+    expect(container.props.accessibilityState).toEqual({busy: true});
+  });
 });

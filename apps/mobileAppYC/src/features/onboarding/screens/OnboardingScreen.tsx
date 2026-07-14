@@ -15,6 +15,7 @@ import Video from 'react-native-video';
 import {useTheme} from '@/hooks';
 import {InkAnnotation} from '@/shared/components/common/InkAnnotation';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {useReducedMotion} from '@/shared/components/common/Skeleton/useReducedMotion';
 import type {Theme} from '@/theme';
 
 interface OnboardingScreenProps {
@@ -97,6 +98,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
   const {width, height} = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<Slide>>(null);
+  const reduceMotion = useReducedMotion();
 
   const onViewableItemsChanged = useRef(
     ({viewableItems}: {viewableItems: ViewToken[]}) => {
@@ -141,7 +143,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
               resizeMode="cover"
               repeat
               muted
-              paused={!isActive}
+              paused={!isActive || reduceMotion}
               playInBackground={false}
               disableFocus
               ignoreSilentSwitch="obey"
@@ -265,6 +267,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
       goNext,
       height,
       onComplete,
+      reduceMotion,
       styles,
       theme.colors.pink,
       theme.colors.screen,

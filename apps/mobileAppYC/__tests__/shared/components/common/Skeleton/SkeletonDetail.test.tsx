@@ -120,4 +120,14 @@ describe('SkeletonDetail', () => {
       blocks.every(block => block.props.accessibilityState.disabled === false),
     ).toBe(true);
   });
+
+  it('announces itself to screen readers as a busy loading region', () => {
+    render(<SkeletonDetail testID="skeleton-detail" />);
+
+    const container = screen.getByTestId('skeleton-detail');
+    expect(container.props.accessible).toBe(true);
+    expect(container.props.accessibilityRole).toBe('progressbar');
+    expect(container.props.accessibilityLabel).toBe('Loading');
+    expect(container.props.accessibilityState).toEqual({busy: true});
+  });
 });

@@ -55,7 +55,13 @@ export const SkeletonList: React.FC<SkeletonListProps> = ({
   );
 
   return (
-    <View style={[styles.container, style]} testID={testID}>
+    <View
+      style={[styles.container, style]}
+      testID={testID}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Loading"
+      accessibilityState={{busy: true}}>
       {showHeader && (
         <View style={styles.titleRow}>
           <SkeletonBlock

@@ -13,6 +13,7 @@ import Animated, {
 import BootSplash from 'react-native-bootsplash';
 import LinearGradient from 'react-native-linear-gradient';
 import Video from 'react-native-video';
+import {useReducedMotion} from '@/shared/components/common/Skeleton/useReducedMotion';
 
 type Props = {
   onAnimationEnd: () => void;
@@ -65,6 +66,7 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
   const fade = useSharedValue(1);
   const logoScale = useSharedValue(0.86);
   const loadX = useSharedValue(-LOAD_SEG_WIDTH);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     BootSplash.hide({fade: false});
@@ -117,7 +119,7 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
           resizeMode="cover"
           repeat
           muted
-          paused={false}
+          paused={reduceMotion}
           playInBackground={false}
           disableFocus
           ignoreSilentSwitch="obey"
