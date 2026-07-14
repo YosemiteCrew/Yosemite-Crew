@@ -29,6 +29,9 @@ const buildBreedCode = (species: string, slug: string) =>
   `YBREED:${species.toUpperCase()}:${slug.toUpperCase()}`;
 
 const readJson = <T>(filePath: string): T => {
+  if (filePath.includes('..')) {
+    throw new Error('Invalid file path');
+  }
   const raw = fs.readFileSync(filePath, "utf-8");
   return JSON.parse(raw) as T;
 };
