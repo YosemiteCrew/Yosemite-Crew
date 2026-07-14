@@ -1,4 +1,27 @@
 @import 'tailwindcss';
+
+/* Native <dialog> ships user-agent defaults (position:absolute, inset:0, margin:auto,
+   width/height:fit-content, padding, border) that fight the Tailwind layout classes our
+   modals set — most visibly anchoring the right-docked side modal to the left. Reset them
+   here so the container* classes fully control placement. Lives in @layer base so every
+   Tailwind utility a consumer applies still wins over this reset. */
+@layer base {
+  dialog.yc-modal-dialog {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    padding: 0;
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    overflow: visible;
+  }
+}
+
 /* Fonts */
 
 @font-face {

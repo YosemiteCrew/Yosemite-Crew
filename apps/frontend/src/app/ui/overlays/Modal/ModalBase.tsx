@@ -161,7 +161,7 @@ const ModalBase = ({
         aria-describedby={ariaDescribedBy}
         tabIndex={-1}
         inert={isInert || undefined}
-        className={`${containerClassName} ${showModal ? '' : 'pointer-events-none'}`}
+        className={`yc-modal-dialog ${containerClassName} ${showModal ? '' : 'pointer-events-none'}`}
       >
         {children}
       </dialog>
