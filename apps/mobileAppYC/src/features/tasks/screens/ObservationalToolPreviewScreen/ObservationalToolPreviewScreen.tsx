@@ -24,7 +24,7 @@ import {
   type ObservationToolDefinitionRemote,
   type ObservationToolSubmission,
 } from '@/features/observationalTools/services/observationToolService';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
 
 type Navigation = NativeStackNavigationProp<
@@ -32,6 +32,9 @@ type Navigation = NativeStackNavigationProp<
   'ObservationalToolPreview'
 >;
 type Route = RouteProp<TaskStackParamList, 'ObservationalToolPreview'>;
+
+const normalizeToken = (value?: string | null) =>
+  (value ?? '').toLowerCase().replaceAll(/[^a-z0-9]/g, '');
 
 export const ObservationalToolPreviewScreen: React.FC = () => {
   const navigation = useNavigation<Navigation>();
@@ -47,9 +50,6 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
     useState<ObservationToolSubmission | null>(null);
   const [definition, setDefinition] =
     useState<ObservationToolDefinitionRemote | null>(null);
-
-  const normalizeToken = (value?: string | null) =>
-    (value ?? '').toLowerCase().replaceAll(/[^a-z0-9]/g, '');
 
   useEffect(() => {
     let isMounted = true;

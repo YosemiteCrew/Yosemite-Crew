@@ -6,10 +6,11 @@ import {
   FormsCategoryOptions,
   FormField,
   FormsProps,
-  RequiredSignerOptions,
   FormsUsageOptions,
   getFormCategoryDisplayLabel,
 } from '@/app/features/forms/types/forms';
+import { TaskTemplateSummary } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary';
+import { baseDetailsFields } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary.helpers';
 import React from 'react';
 import { archiveForm, publishForm, unpublishForm } from '@/app/features/forms/services/formService';
 import {
@@ -66,12 +67,6 @@ type FormInfoProps = {
   serviceOptions: { label: string; value: string; badge?: string }[];
   canEdit?: boolean;
 };
-
-const baseDetailsFields = [
-  { label: 'Form name', key: 'name', type: 'text' },
-  { label: 'Description', key: 'description', type: 'text' },
-  { label: 'Signed by', key: 'requiredSigner', type: 'dropdown', options: RequiredSignerOptions },
-];
 
 const UsageFields = [
   {
@@ -137,12 +132,12 @@ const FormInfo = ({
     }),
     [activeForm]
   );
-  const detailsFields = React.useMemo(
-    () => [
+  const detailsFields = React.useMemo(() => {
+    const fields = [
       baseDetailsFields[0],
       baseDetailsFields[1],
       {
-        label: 'Template type',
+        label: 'Template Source',
         key: 'templateSource',
         type: 'dropdown',
         options: [
@@ -159,10 +154,12 @@ const FormInfo = ({
           value: category,
         })),
       },
-      baseDetailsFields[2],
-    ],
-    [effectiveOrgType]
-  );
+    ];
+    if (activeForm.templateSource !== 'YC_LIBRARY') {
+      fields.push(baseDetailsFields[2]);
+    }
+    return fields;
+  }, [activeForm.templateSource, effectiveOrgType]);
 
   const showActionError = (message: string) =>
     showErrorTost({
@@ -339,16 +336,21 @@ const FormInfo = ({
               showEditIcon={false}
               readOnly
             />
-            {(activeForm.schema?.length ?? 0) > 0 && (
-              <Accordion title="Form preview" defaultOpen showEditIcon={false} isEditing={true}>
-                <FormRenderer
-                  fields={activeForm.schema ?? []}
-                  values={buildPreviewValues(activeForm.schema ?? [])}
-                  onChange={() => {}}
-                  readOnly
-                />
-              </Accordion>
-            )}
+            {(activeForm.schema?.length ?? 0) > 0 &&
+              (activeForm.category === 'Task Template' ? (
+                <Accordion title="Tasks" defaultOpen showEditIcon={false} isEditing={true}>
+                  <TaskTemplateSummary schema={activeForm.schema ?? []} />
+                </Accordion>
+              ) : (
+                <Accordion title="Form preview" defaultOpen showEditIcon={false} isEditing={true}>
+                  <FormRenderer
+                    fields={activeForm.schema ?? []}
+                    values={buildPreviewValues(activeForm.schema ?? [])}
+                    onChange={() => {}}
+                    readOnly
+                  />
+                </Accordion>
+              ))}
           </div>
           <div className="flex flex-col gap-3 px-3 pb-3">
             {canMutateTemplateState && renderActions()}

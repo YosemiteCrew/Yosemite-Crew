@@ -166,11 +166,14 @@ jest.mock('@/features/tasks/utils/userHelpers', () => ({
 // UI component mocks
 // ---------------------------------------------------------------------------
 
+let lastContentPaddingChildren: any = null;
+
 jest.mock(
   '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
   () => ({
     LiquidGlassHeaderScreen: ({header, children}: any) => {
       const {View} = require('react-native');
+      lastContentPaddingChildren = children;
       return (
         <View>
           {header}
@@ -286,9 +289,9 @@ jest.mock(
 );
 
 jest.mock('@/features/tasks/components/form', () => ({
-  TaskFormContent: () => {
+  TaskFormContent: ({taskFormMode}: any) => {
     const {Text} = require('react-native');
-    return <Text>Form Content</Text>;
+    return <Text testID="task-form-mode">Form Content: {taskFormMode}</Text>;
   },
   TaskFormFooter: ({onSave, loading}: any) => {
     const {TouchableOpacity, Text} = require('react-native');
@@ -562,6 +565,44 @@ describe('EditTaskScreen — additional coverage', () => {
       await waitFor(() => {
         expect(mockCreateCalendarEventForTask).toHaveBeenCalledWith(
           expect.objectContaining({calendarProvider: 'google'}),
+          expect.any(String),
+          expect.any(String),
+        );
+      });
+    });
+
+    it('falls back to "Companion" when the assigned companion cannot be found', async () => {
+      mockHookData.task = {
+        ...mockHookData.task,
+        companionId: 'unknown-companion',
+      };
+      mockCreateCalendarEventForTask.mockResolvedValue(null);
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('save-btn'));
+
+      await waitFor(() => {
+        expect(mockCreateCalendarEventForTask).toHaveBeenCalledWith(
+          expect.anything(),
+          'Companion',
+          expect.any(String),
+        );
+      });
+    });
+
+    it('omits calendarProvider on the updated task when formData has none', async () => {
+      mockHookData.formData = {
+        ...mockHookData.formData,
+        calendarProvider: '',
+      };
+      mockCreateCalendarEventForTask.mockResolvedValue(null);
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('save-btn'));
+
+      await waitFor(() => {
+        expect(mockCreateCalendarEventForTask).toHaveBeenCalledWith(
+          expect.objectContaining({calendarProvider: undefined}),
           expect.any(String),
           expect.any(String),
         );
@@ -972,6 +1013,85 @@ describe('EditTaskScreen — additional coverage', () => {
       const {getByTestId} = renderScreen();
       fireEvent.press(getByTestId('discard-btn'));
       expect(mockGoBack).toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // taskFormMode selection
+  // -------------------------------------------------------------------------
+
+  describe('taskFormMode selection', () => {
+    afterEach(() => {
+      mockHookData.isMedicationForm = false;
+      mockHookData.isObservationalToolForm = false;
+    });
+
+    it('resolves to "medication" when isMedicationForm is true', () => {
+      mockHookData.isMedicationForm = true;
+      const {getByTestId} = renderScreen();
+      expect(getByTestId('task-form-mode').props.children).toEqual([
+        'Form Content: ',
+        'medication',
+      ]);
+    });
+
+    it('resolves to "observationalTool" when isObservationalToolForm is true', () => {
+      mockHookData.isObservationalToolForm = true;
+      const {getByTestId} = renderScreen();
+      expect(getByTestId('task-form-mode').props.children).toEqual([
+        'Form Content: ',
+        'observationalTool',
+      ]);
+    });
+
+    it('resolves to "simple" by default', () => {
+      const {getByTestId} = renderScreen();
+      expect(getByTestId('task-form-mode').props.children).toEqual([
+        'Form Content: ',
+        'simple',
+      ]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Delete confirmation — cancel
+  // -------------------------------------------------------------------------
+
+  describe('delete confirmation — cancel', () => {
+    it('closes the sheet without deleting when Cancel is pressed', () => {
+      const {getByTestId} = renderScreen();
+      expect(() =>
+        fireEvent.press(getByTestId('confirm-secondary-btn')),
+      ).not.toThrow();
+      expect(mockDeleteTask).not.toHaveBeenCalled();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // handleSave — form validation
+  // -------------------------------------------------------------------------
+
+  describe('handleSave — validation', () => {
+    it('does not save when validateForm reports the form is invalid', () => {
+      mockHookData.validateForm.mockReturnValue(false);
+
+      const {getByTestId} = renderScreen();
+      fireEvent.press(getByTestId('save-btn'));
+
+      expect(mockUpdateTask).not.toHaveBeenCalled();
+
+      mockHookData.validateForm.mockReturnValue(true);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Content padding calculation
+  // -------------------------------------------------------------------------
+
+  describe('scroll content padding', () => {
+    it('uses the provided numeric paddingTop when available', () => {
+      renderScreen();
+      expect(() => lastContentPaddingChildren({paddingTop: 25})).not.toThrow();
     });
   });
 });

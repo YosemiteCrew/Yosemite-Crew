@@ -117,9 +117,9 @@ export const TaskFhirController = {
       const task = await TaskService.createCustom(input);
       const nextStatus = taskFhirMapper.fromTaskStatus(body.status);
       const hydrated =
-        nextStatus !== "PENDING"
-          ? (await TaskService.changeStatus(task.id, nextStatus, userId)).task
-          : task;
+        nextStatus === "PENDING"
+          ? task
+          : (await TaskService.changeStatus(task.id, nextStatus, userId)).task;
 
       return res.status(201).json(taskFhirMapper.toFhirTask(hydrated));
     } catch (error) {
@@ -169,10 +169,10 @@ export const TaskFhirController = {
 
       const nextStatus = taskFhirMapper.fromTaskStatus(body.status);
       const hydrated =
-        nextStatus !== "PENDING"
-          ? (await TaskService.changeStatus(updated.id, nextStatus, userId))
-              .task
-          : updated;
+        nextStatus === "PENDING"
+          ? updated
+          : (await TaskService.changeStatus(updated.id, nextStatus, userId))
+              .task;
 
       return res.status(200).json(taskFhirMapper.toFhirTask(hydrated));
     } catch (error) {

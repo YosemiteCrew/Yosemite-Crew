@@ -75,6 +75,7 @@ const taskTableSpy = jest.fn();
 const taskBoardSpy = jest.fn();
 const taskInfoSpy = jest.fn();
 const addTaskSpy = jest.fn();
+const filtersSpy = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => useSearchParamsMock(),
@@ -136,15 +137,22 @@ jest.mock('@/app/ui/widgets/TitleCalendar', () => (props: any) => (
   </div>
 ));
 
-jest.mock('@/app/ui/filters/Filters', () => (props: any) => (
-  <div data-testid="filters">
-    {props.showAddButton ? (
-      <button type="button" onClick={props.onAddButtonClick}>
-        Add
-      </button>
-    ) : null}
-  </div>
-));
+jest.mock(
+  '@/app/ui/filters/Filters',
+  () => (props: any) =>
+    (() => {
+      filtersSpy(props);
+      return (
+        <div data-testid="filters">
+          {props.showAddButton ? (
+            <button type="button" onClick={props.onAddButtonClick}>
+              Add
+            </button>
+          ) : null}
+        </div>
+      );
+    })()
+);
 
 jest.mock('@/app/features/appointments/components/Calendar/TaskCalendar', () => (props: any) => {
   taskCalendarSpy(props);
@@ -330,6 +338,16 @@ describe('Tasks page', () => {
     });
 
     expect(addTaskSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
+  });
+
+  it('uses compact filter pills to match the companions pill styling', () => {
+    render(<ProtectedTasks />);
+
+    expect(filtersSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        compactFilterPills: true,
+      })
+    );
   });
 
   it('filteredList in board view ignores status filter (shows all matching query/audience)', async () => {

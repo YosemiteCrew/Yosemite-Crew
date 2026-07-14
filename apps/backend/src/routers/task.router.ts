@@ -164,6 +164,14 @@ router.patch(
   TaskController.updateTaskPMS,
 );
 
+router.delete(
+  "/pms/:taskId",
+  authorizeCognito,
+  withTaskOrgPermissions(),
+  requirePermission(["tasks:edit:any", "tasks:edit:own"]),
+  TaskController.deleteTaskPMS,
+);
+
 router.post(
   "/pms/:taskId/status",
   authorizeCognito,

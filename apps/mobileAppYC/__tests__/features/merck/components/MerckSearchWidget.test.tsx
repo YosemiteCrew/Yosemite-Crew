@@ -1,5 +1,6 @@
 import React from 'react';
 import {act, fireEvent, render, waitFor} from '@testing-library/react-native';
+import {Linking} from 'react-native';
 import {mockTheme} from '../../../setup/mockTheme';
 import {MerckSearchWidget} from '@/features/merck/components/MerckSearchWidget';
 import {merckApi} from '@/features/merck/services/merckService';
@@ -31,7 +32,11 @@ jest.mock('@/features/merck/services/merckService', () => ({
   },
   isAllowedMerckUrl: jest.fn((url: string) => {
     try {
-      const host = new URL(url).hostname.toLowerCase();
+      const parsed = new URL(url);
+      const host = parsed.hostname.toLowerCase();
+      if (parsed.protocol !== 'https:') {
+        return false;
+      }
       return host === 'msdvetmanual.com' || host.endsWith('.msdvetmanual.com');
     } catch {
       return false;
@@ -84,9 +89,10 @@ jest.mock(
 describe('MerckSearchWidget', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
   });
 
-  it('searches and opens secure in-app reader', async () => {
+  it('searches and opens allowed MSD links in the system browser', async () => {
     (merckApi.searchManuals as jest.Mock).mockResolvedValue({
       meta: {
         requestId: 'req-1',
@@ -127,28 +133,11 @@ describe('MerckSearchWidget', () => {
 
     fireEvent.press(getByText('Open'));
 
-    const reader = await waitFor(() => getByTestId('merck-reader-webview'));
-    expect(reader).toBeTruthy();
-
-    await act(async () => {
-      const allow = reader.props.onShouldStartLoadWithRequest({
-        url: 'https://www.msdvetmanual.com/topic#details',
-      });
-      expect(allow).toBe(true);
+    await waitFor(() => {
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        'https://www.msdvetmanual.com/topic',
+      );
     });
-
-    await act(async () => {
-      const allow = reader.props.onShouldStartLoadWithRequest({
-        url: 'https://example.com/phishing',
-      });
-      expect(allow).toBe(false);
-    });
-
-    expect(
-      getByText(
-        'Blocked URL: only MSD Veterinary Manual consumer links are allowed.',
-      ),
-    ).toBeTruthy();
   });
 
   it('shows empty-state only after explicit search', async () => {
@@ -363,7 +352,7 @@ describe('MerckSearchWidget', () => {
     expect(merckApi.searchManuals).not.toHaveBeenCalled();
   });
 
-  it('handles reader webview URL blocking correctly', async () => {
+  it('blocks non-MSD manual URLs before opening the browser', async () => {
     (merckApi.searchManuals as jest.Mock).mockResolvedValue({
       meta: {
         requestId: 'req-1',
@@ -400,20 +389,9 @@ describe('MerckSearchWidget', () => {
     fireEvent.press(getByText('Open'));
 
     await waitFor(() => {
-      const reader = getByTestId('merck-reader-webview');
-      expect(reader).toBeTruthy();
-
-      // Test allowed URL
-      const allowAllowed = reader.props.onShouldStartLoadWithRequest({
-        url: 'https://www.msdvetmanual.com/resource/test',
-      });
-      expect(allowAllowed).toBe(true);
-
-      // Test blocked URL
-      const allowBlocked = reader.props.onShouldStartLoadWithRequest({
-        url: 'https://malicious.com/phishing',
-      });
-      expect(allowBlocked).toBe(false);
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        'https://www.msdvetmanual.com/test',
+      );
     });
   });
 
@@ -545,7 +523,7 @@ describe('MerckSearchWidget', () => {
     ).toBeTruthy();
   });
 
-  it('opens reader when a sublink pill is pressed', async () => {
+  it('opens a sublink pill in the system browser', async () => {
     const initialEntries = [
       {
         id: 'e1',
@@ -563,7 +541,7 @@ describe('MerckSearchWidget', () => {
       },
     ];
 
-    const {getByText, getByTestId} = render(
+    const {getByText} = render(
       <MerckSearchWidget
         organisationId="org-1"
         initialEntries={initialEntries}
@@ -573,7 +551,11 @@ describe('MerckSearchWidget', () => {
 
     fireEvent.press(getByText('Etiology'));
 
-    await waitFor(() => getByTestId('merck-reader-webview'));
+    await waitFor(() => {
+      expect(Linking.openURL).toHaveBeenCalledWith(
+        'https://www.msdvetmanual.com/etiology',
+      );
+    });
   });
 
   it('shows idle state with logo and description before any search in non-compact mode', () => {
@@ -757,7 +739,7 @@ describe('MerckSearchWidget', () => {
     expect(queryByText('Language')).toBeNull();
   });
 
-  it('closes the reader and removes WebView when close button is pressed', async () => {
+  it('shows an error when the system browser cannot open an allowed URL', async () => {
     (merckApi.searchManuals as jest.Mock).mockResolvedValue({
       meta: {
         requestId: 'r1',
@@ -779,8 +761,9 @@ describe('MerckSearchWidget', () => {
         },
       ],
     });
+    (Linking.openURL as jest.Mock).mockRejectedValueOnce(new Error('failed'));
 
-    const {getByTestId, getByText, getByLabelText, queryByTestId} = render(
+    const {getByTestId, getByText} = render(
       <MerckSearchWidget organisationId="org-1" />,
     );
 
@@ -789,101 +772,11 @@ describe('MerckSearchWidget', () => {
     await waitFor(() => expect(merckApi.searchManuals).toHaveBeenCalled());
 
     fireEvent.press(getByText('Open'));
-    await waitFor(() => getByTestId('merck-reader-webview'));
-
-    fireEvent.press(getByLabelText('Close MSD Veterinary Manual reader'));
 
     await waitFor(() => {
-      expect(queryByTestId('merck-reader-webview')).toBeNull();
-    });
-  });
-
-  describe('WebView event callbacks', () => {
-    const renderWithOpenReader = async () => {
-      (merckApi.searchManuals as jest.Mock).mockResolvedValue({
-        meta: {
-          requestId: 'r1',
-          source: 'merck-live-feed',
-          updatedAt: null,
-          audience: 'PAT',
-          language: 'en',
-          totalResults: 1,
-        },
-        entries: [
-          {
-            id: 'e1',
-            title: 'Topic',
-            summaryText: '',
-            updatedAt: null,
-            audience: 'PAT',
-            primaryUrl: 'https://www.msdvetmanual.com/topic',
-            subLinks: [],
-          },
-        ],
-      });
-
-      const utils = render(<MerckSearchWidget organisationId="org-1" />);
-      fireEvent.changeText(utils.getByTestId('merck-search-input'), 'test');
-      fireEvent.press(utils.getByText('Search'));
-      await waitFor(() => expect(merckApi.searchManuals).toHaveBeenCalled());
-      fireEvent.press(utils.getByText('Open'));
-      await waitFor(() => utils.getByTestId('merck-reader-webview'));
-      return utils;
-    };
-
-    it('shows loading overlay when reader opens, hides on onLoadEnd, re-shows on onLoadStart', async () => {
-      const {getByTestId, getByText, queryByText} =
-        await renderWithOpenReader();
-      const reader = getByTestId('merck-reader-webview');
-
-      expect(getByText('Loading manual...')).toBeTruthy();
-
-      act(() => {
-        reader.props.onLoadEnd();
-      });
-      expect(queryByText('Loading manual...')).toBeNull();
-
-      act(() => {
-        reader.props.onLoadStart();
-      });
-      expect(getByText('Loading manual...')).toBeTruthy();
-    });
-
-    it('sets error text and clears loading on WebView onError', async () => {
-      const {getByTestId, getByText} = await renderWithOpenReader();
-      const reader = getByTestId('merck-reader-webview');
-
-      act(() => {
-        reader.props.onError();
-      });
-
       expect(
         getByText('Unable to open this MSD Veterinary Manual page right now.'),
       ).toBeTruthy();
-    });
-
-    it('sets error text and clears loading on WebView onHttpError', async () => {
-      const {getByTestId, getByText} = await renderWithOpenReader();
-      const reader = getByTestId('merck-reader-webview');
-
-      act(() => {
-        reader.props.onHttpError();
-      });
-
-      expect(
-        getByText('Unable to load this MSD Veterinary Manual page right now.'),
-      ).toBeTruthy();
-    });
-
-    it('allows about:blank and empty-string URLs in reader navigation', async () => {
-      const {getByTestId} = await renderWithOpenReader();
-      const reader = getByTestId('merck-reader-webview');
-
-      expect(
-        reader.props.onShouldStartLoadWithRequest({url: 'about:blank'}),
-      ).toBe(true);
-
-      expect(reader.props.onShouldStartLoadWithRequest({url: ''})).toBe(true);
     });
   });
 });

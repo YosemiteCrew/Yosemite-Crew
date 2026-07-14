@@ -21,12 +21,32 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
 
 jest.mock('@/app/ui/widgets/Labels/Labels', () => ({
   __esModule: true,
-  default: ({ labels, setActiveLabel }: any) => (
+  default: ({ labels, setActiveLabel, setActiveSubLabel }: any) => (
     <div>
       {labels.map((label: any) => (
-        <button key={label.key} type="button" onClick={() => setActiveLabel(label.key)}>
-          {label.name}
-        </button>
+        <React.Fragment key={label.key}>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveLabel(label.key);
+              setActiveSubLabel(label.labels?.[0]?.key ?? label.key);
+            }}
+          >
+            {label.name}
+          </button>
+          {label.labels?.map((subLabel: any) => (
+            <button
+              key={subLabel.key}
+              type="button"
+              onClick={() => {
+                setActiveLabel(label.key);
+                setActiveSubLabel(subLabel.key);
+              }}
+            >
+              {subLabel.name}
+            </button>
+          ))}
+        </React.Fragment>
       ))}
     </div>
   ),
@@ -45,13 +65,19 @@ jest.mock('@/app/lib/urls', () => ({
   getSafeImageUrl: () => 'https://example.com/pet.png',
 }));
 
+const terminologyTextMock = (text: string) => text;
+
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => terminologyTextMock,
+}));
+
 jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => <img alt={props.alt} {...props} />,
 }));
 
 describe('CompanionInfo', () => {
-  it('renders modal and switches sub-section', () => {
+  it('renders modal and switches sub-section', async () => {
     const setShowModal = jest.fn();
     const companion: any = {
       companion: { name: 'Buddy', breed: 'Lab', type: 'dog', photoUrl: '' },
@@ -63,7 +89,7 @@ describe('CompanionInfo', () => {
     expect(screen.getByText('Buddy')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
-    expect(screen.getByText('history-section')).toBeInTheDocument();
+    expect(await screen.findByText('history-section')).toBeInTheDocument();
   });
 
   it('opens on history tab when initialLabel is history', () => {

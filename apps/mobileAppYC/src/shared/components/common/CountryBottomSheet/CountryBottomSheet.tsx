@@ -1,6 +1,9 @@
 // src/components/common/CountryBottomSheet/CountryBottomSheet.tsx
-import React, { forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
-import { GenericSelectBottomSheet, type SelectItem } from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import React, {useImperativeHandle, useRef, useMemo} from 'react';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
 
 interface Country {
   name: string;
@@ -20,25 +23,31 @@ interface CountryBottomSheetProps {
   onSave: (country: Country | null) => void;
 }
 
-export const CountryBottomSheet = forwardRef<
-  CountryBottomSheetRef,
-  CountryBottomSheetProps
->(({ countries, selectedCountry, onSave }, ref) => {
+export const CountryBottomSheet = ({
+  countries,
+  selectedCountry,
+  onSave,
+  ref,
+}: CountryBottomSheetProps & {ref?: React.Ref<CountryBottomSheetRef>}) => {
   const bottomSheetRef = useRef<any>(null);
 
-  const countryItems: SelectItem[] = useMemo(() =>
-    countries.map(country => ({
-      id: country.code,
-      label: `${country.flag} ${country.name}`,
-      ...country,
-    })), [countries]
+  const countryItems: SelectItem[] = useMemo(
+    () =>
+      countries.map(country => ({
+        id: country.code,
+        label: `${country.flag} ${country.name}`,
+        ...country,
+      })),
+    [countries],
   );
 
-  const selectedItem = selectedCountry ? {
-    id: selectedCountry.code,
-    label: `${selectedCountry.flag} ${selectedCountry.name}`,
-    ...selectedCountry,
-  } : null;
+  const selectedItem = selectedCountry
+    ? {
+        id: selectedCountry.code,
+        label: `${selectedCountry.flag} ${selectedCountry.name}`,
+        ...selectedCountry,
+      }
+    : null;
 
   useImperativeHandle(ref, () => ({
     open: () => {
@@ -50,7 +59,9 @@ export const CountryBottomSheet = forwardRef<
   }));
 
   const handleSave = (item: SelectItem | null) => {
-    const country = item ? countries.find(c => c.code === item.id) || null : null;
+    const country = item
+      ? countries.find(c => c.code === item.id) || null
+      : null;
     onSave(country);
   };
 
@@ -63,11 +74,11 @@ export const CountryBottomSheet = forwardRef<
       onSave={handleSave}
       searchPlaceholder="Search country name"
       emptyMessage="No results found"
-      mode='select'
+      mode="select"
       snapPoints={['85%', '95%']}
       maxListHeight={520}
     />
   );
-});
+};
 
 CountryBottomSheet.displayName = 'CountryBottomSheet';

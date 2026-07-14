@@ -27,6 +27,16 @@ import {
   FormsUsage,
 } from '@/app/features/forms/types/forms';
 import { formatDisplayDate, formatTimeInPreferredTimeZone } from '@/app/lib/date';
+import {
+  categoryToKind,
+  offsetToReminderValue,
+  recurrenceToRepeatValue,
+  TASK_CATEGORY_OPTIONS,
+  TASK_REMINDER_OPTIONS,
+  TASK_REPEAT_OPTIONS,
+  reminderValueToOffset,
+  repeatValueToRecurrence,
+} from '@/app/features/tasks/constants/taskTaxonomy';
 
 const statusToLabelMap: Record<Form['status'], FormsStatus> = {
   draft: 'Draft',
@@ -108,13 +118,16 @@ const toStringList = (value: unknown): string[] => {
 };
 
 const SPECIES_LABELS = new Map<string, string>([
+  ['dog', 'Canine'],
+  ['cat', 'Feline'],
+  ['horse', 'Equine'],
   ['canine', 'Canine'],
   ['feline', 'Feline'],
   ['equine', 'Equine'],
 ]);
 
 const normalizeSpeciesValue = (value: string): string =>
-  SPECIES_LABELS.get(value.trim().toLowerCase()) ?? value;
+  SPECIES_LABELS.get(value.trim().toLowerCase()) ?? value.trim();
 
 const normalizeSpeciesList = (value: unknown): string[] =>
   toStringList(value).map(normalizeSpeciesValue);
@@ -243,7 +256,7 @@ export const mapFormToUI = (form: Form): FormsProps => ({
   description: form.description,
   businessType: (form as any).businessType,
   services: toList(form.serviceId),
-  species: form.speciesFilter ?? [],
+  species: normalizeSpeciesList(form.speciesFilter),
   category: form.category as FormsCategory,
   requiredSigner: form.requiredSigner ?? '',
   usage: normalizeUsageLabel(form.visibilityType ?? 'Internal'),
@@ -265,13 +278,128 @@ const resolveTemplateStatus = (
   return 'draft';
 };
 
+const taskAssignmentSchemaToFormFields = (snapshot: TemplateSchemaSnapshot): FormField[] => {
+  const baseTaskTemplate = getCategoryTemplate('Task Template');
+  const taskGroup = baseTaskTemplate.find(
+    (field): field is FormField & { type: 'group'; fields?: FormField[] } =>
+      field.type === 'group' && Boolean(field.meta?.taskGroup)
+  );
+  if (!taskGroup) return baseTaskTemplate;
+
+  const scheduleSection = snapshot.sections.find((section) => section.id === 'schedule');
+  const taskBlocksField = scheduleSection?.fields.find((field) => field.key === 'taskBlocks');
+  const taskBlocks = Array.isArray(taskBlocksField?.defaultValue)
+    ? taskBlocksField.defaultValue
+    : [];
+
+  return [
+    {
+      ...taskGroup,
+      fields: taskBlocks
+        .filter(
+          (block): block is Record<string, unknown> => Boolean(block) && typeof block === 'object'
+        )
+        .map((block, index) => {
+          const prefix = `task_blocks_task_${index + 1}`;
+          let instructions = '';
+          if (typeof block.additionalNotes === 'string') {
+            instructions = block.additionalNotes;
+          } else if (typeof block.description === 'string') {
+            instructions = block.description;
+          }
+          const recurrence = (
+            block.recurrence && typeof block.recurrence === 'object' ? block.recurrence : {}
+          ) as {
+            type?: string;
+            cronExpression?: string;
+          };
+          const reminderOffset =
+            typeof block.reminderOffsetMinutes === 'number'
+              ? block.reminderOffsetMinutes
+              : undefined;
+          const durationDays =
+            typeof block.durationDays === 'number' || typeof block.durationDays === 'string'
+              ? String(block.durationDays)
+              : '';
+
+          return {
+            id: `${prefix}_group`,
+            type: 'group',
+            label:
+              typeof block.name === 'string' && block.name.trim().length > 0
+                ? block.name
+                : `Task ${index + 1}`,
+            meta: { taskBlock: true, taskBlockId: prefix },
+            fields: [
+              {
+                id: `${prefix}_name`,
+                type: 'input',
+                label: 'Task title',
+                placeholder: 'Eg.: Record vitals',
+                defaultValue: typeof block.name === 'string' ? block.name : '',
+                meta: { taskBlockKey: 'name' },
+              } as unknown as FormField,
+              {
+                id: `${prefix}_category`,
+                type: 'dropdown',
+                label: 'Category',
+                options: TASK_CATEGORY_OPTIONS,
+                defaultValue:
+                  typeof block.category === 'string' && block.category.trim().length > 0
+                    ? block.category
+                    : 'CARE',
+                meta: { taskBlockKey: 'category' },
+              } as unknown as FormField,
+              {
+                id: `${prefix}_additionalNotes`,
+                type: 'textarea',
+                label: 'Instructions (optional)',
+                placeholder: 'Add default instructions for this task',
+                defaultValue: instructions,
+                meta: { taskBlockKey: 'additionalNotes' },
+              } as unknown as FormField,
+              {
+                id: `${prefix}_recurrence`,
+                type: 'dropdown',
+                label: 'Repeat',
+                options: TASK_REPEAT_OPTIONS,
+                defaultValue: recurrenceToRepeatValue(recurrence),
+                meta: { taskBlockKey: 'recurrence.type' },
+              } as unknown as FormField,
+              {
+                id: `${prefix}_reminderOffsetMinutes`,
+                type: 'dropdown',
+                label: 'Reminder (optional)',
+                options: TASK_REMINDER_OPTIONS,
+                defaultValue: offsetToReminderValue(reminderOffset),
+                meta: { taskBlockKey: 'reminderOffsetMinutes' },
+              } as unknown as FormField,
+              {
+                id: `${prefix}_durationDays`,
+                type: 'number',
+                label: 'Duration (days)',
+                placeholder: '3',
+                defaultValue: durationDays,
+                meta: { taskBlockKey: 'durationDays' },
+              } as unknown as FormField,
+            ],
+          } as unknown as FormField;
+        }),
+    },
+  ];
+};
+
 const templateToForm = (template: TemplateLike): Form => {
   const sanitizePrescriptionSchema = (snapshot: TemplateSchemaSnapshot): TemplateSchemaSnapshot => {
-    const sections = snapshot.sections.filter((section) => {
-      if (section.fields.length > 0) return true;
-      const title = section.title.trim().toLowerCase();
-      return title !== 'instructions' && title !== 'notes';
-    });
+    // The backend persists the canonical medications section plus generic
+    // `instructions`/`notes` richText sections. The builder/edit modal only
+    // authors the canonical prescription structure, so strip any section that
+    // is not part of it (matched on the canonical section ids) to keep the
+    // reloaded preview and edit flow aligned with the create flow.
+    const canonicalSectionIds = new Set(
+      CANONICAL_PRESCRIPTION_STRUCTURE.sections.map((section) => section.id)
+    );
+    const sections = snapshot.sections.filter((section) => canonicalSectionIds.has(section.id));
     return sections.length === snapshot.sections.length ? snapshot : { sections };
   };
 
@@ -286,6 +414,11 @@ const templateToForm = (template: TemplateLike): Form => {
     }
     return { sections: [] };
   };
+  const schema = latestSchemaFromTemplate();
+  const uiSchema =
+    template.kind === 'TASK_ASSIGNMENT'
+      ? taskAssignmentSchemaToFormFields(schema)
+      : templateSchemaToFormFields(schema);
 
   if (templateMapper.isPlanDefinitionResourceKind(template.kind)) {
     const resource = templateMapper.templateToPlanDefinition(template);
@@ -307,7 +440,7 @@ const templateToForm = (template: TemplateLike): Form => {
       description: input.description,
       visibilityType: 'Internal',
       status: template.status === 'ARCHIVED' ? 'archived' : 'draft',
-      schema: templateSchemaToFormFields(latestSchemaFromTemplate()),
+      schema: uiSchema,
       serviceId: templateServicesFromLinks(template),
       createdBy: template.createdBy,
       updatedBy: template.updatedBy,
@@ -335,7 +468,7 @@ const templateToForm = (template: TemplateLike): Form => {
     description: input.description,
     visibilityType: 'Internal',
     status: resolveTemplateStatus(template.status, input.schemaSnapshot.sections.length),
-    schema: templateSchemaToFormFields(latestSchemaFromTemplate()),
+    schema: uiSchema,
     serviceId: templateServicesFromLinks(template),
     createdBy: template.createdBy,
     updatedBy: template.updatedBy,
@@ -444,44 +577,7 @@ const clinicalBlueprints: Partial<Record<TemplateKind, TemplateSchemaSnapshot>> 
   // Single-sourced from @yosemite-crew/types so the builder, workspace editors, and the
   // backend resolver/validation blueprint all agree on keys + rich-text field types.
   SOAP_NOTE: CANONICAL_SOAP_STRUCTURE,
-  PRESCRIPTION: {
-    sections: [
-      {
-        id: 'medications',
-        title: 'Medications',
-        order: 1,
-        fields: [
-          {
-            key: 'prescribedItems',
-            label: 'Prescribed items',
-            type: 'medicationLine',
-            repeatable: true,
-            order: 1,
-            rules: { columns: ['drug', 'dose', 'frequency', 'duration'] },
-          },
-        ],
-      },
-      {
-        id: 'instructions',
-        title: 'Instructions',
-        order: 2,
-        fields: [
-          {
-            key: 'usageInstructions',
-            label: 'Usage instructions',
-            type: 'instructionBlock',
-            order: 1,
-          },
-        ],
-      },
-      {
-        id: 'notes',
-        title: 'Notes',
-        order: 3,
-        fields: [{ key: 'clinicalNotes', label: 'Clinical notes', type: 'richText', order: 1 }],
-      },
-    ],
-  },
+  PRESCRIPTION: CANONICAL_PRESCRIPTION_STRUCTURE,
   DISCHARGE_SUMMARY: CANONICAL_DISCHARGE_STRUCTURE,
   VITAL_RECORD: CANONICAL_VITALS_STRUCTURE,
 };
@@ -564,6 +660,33 @@ const workflowBlueprints: Partial<Record<TemplateKind, TemplateSchemaSnapshot>> 
               { label: 'Custom', value: 'CUSTOM' },
             ],
             rules: { allowCustom: false },
+          },
+        ],
+      },
+      {
+        // A YC-default Task Template is authored as a set of task blocks (the
+        // "Building a template" UI). They serialize into this repeater (mirrors
+        // the INPATIENT_SCHEDULE schedule section) so the workspace schedule can
+        // preload them via resolveScheduleTasksFromTemplate.
+        id: 'schedule',
+        title: 'Schedule',
+        order: 4,
+        fields: [
+          {
+            key: 'taskBlocks',
+            label: 'Task blocks',
+            type: 'repeater',
+            repeatable: true,
+            rules: {
+              columns: [
+                'name',
+                'category',
+                'recurrence',
+                'reminderOffsetMinutes',
+                'durationDays',
+                'additionalNotes',
+              ],
+            },
           },
         ],
       },
@@ -678,9 +801,11 @@ type TaskBlockValue = {
   audience: string;
   assignedRole?: string;
   reminderOffsetMinutes?: number;
+  durationDays?: number;
   additionalNotes?: string;
   recurrence?: {
     type: string;
+    cronExpression?: string;
   };
 };
 
@@ -701,14 +826,23 @@ const assignTaskBlockValue = (
   value: unknown
 ): void => {
   if (!key || value === undefined || value === '') return;
+  const stringValue =
+    typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+      ? String(value)
+      : '';
   if (key === 'dayOffset') {
     block.dayOffset = coerceNumberValue(value, 0);
+  } else if (key === 'durationDays') {
+    block.durationDays = coerceNumberValue(value, 0);
   } else if (key === 'reminderOffsetMinutes') {
-    block.reminderOffsetMinutes = coerceNumberValue(value, 0);
+    // The reminder dropdown carries the canonical "NONE" sentinel for no reminder.
+    const offset = reminderValueToOffset(stringValue);
+    if (offset) block.reminderOffsetMinutes = offset;
   } else if (key === 'recurrence.type') {
-    if (typeof value === 'string' || typeof value === 'number') {
-      block.recurrence = { type: String(value) };
-    }
+    // The repeat dropdown carries canonical values (EVERY_6_HOURS, …); resolve to
+    // the backend recurrence type + cron so interval repeats materialize correctly.
+    const { type, cronExpression } = repeatValueToRecurrence(stringValue);
+    block.recurrence = { type, cronExpression };
   } else if (key in block) {
     (block as Record<string, unknown>)[key] = value;
   }
@@ -731,6 +865,10 @@ const taskBlockFromGroup = (group: FormField & { fields?: FormField[] }): TaskBl
     const key = (field.meta as { taskBlockKey?: string } | undefined)?.taskBlockKey;
     assignTaskBlockValue(block, key, fieldAuthoredValue(field));
   }
+
+  // Derive the constrained Prisma kind from the authored category so the
+  // template rules carry a valid `taskKind` (falls back to CUSTOM pre-migration).
+  block.taskKind = categoryToKind(block.category);
 
   return block;
 };
@@ -784,19 +922,36 @@ type MedicationRow = {
   inventoryItemId?: string;
   medicineId?: string;
   medicineName?: string;
+  brand?: string;
+  genericName?: string;
+  sku?: string;
+  strength?: string;
+  strengthUnit?: string;
+  dosageForm?: string;
   dosage?: string;
+  dose?: string;
+  doseUnit?: string;
   route?: string;
   frequency?: string;
   durationDays?: string;
+  durationUnit?: string;
   instructions?: string;
   qty?: string;
+  refill?: string;
+  fulfillment?: string;
+  inventoryBatchId?: string;
   price?: string | number;
+  priceCents?: string | number;
+  controlledSubstance?: string | boolean;
+  prescriptionRequired?: string | boolean;
+  drugSchedule?: string;
 };
 
-const medicationFieldValue = (field: FormField): string | number | undefined => {
+const medicationFieldValue = (field: FormField): string | number | boolean | undefined => {
   const defaultValue = (field as FormField & { defaultValue?: unknown }).defaultValue;
   if (typeof defaultValue === 'string' && defaultValue.trim().length > 0) return defaultValue;
   if (typeof defaultValue === 'number') return defaultValue;
+  if (typeof defaultValue === 'boolean') return defaultValue;
   if (typeof field.placeholder === 'string' && field.placeholder.trim().length > 0) {
     return field.placeholder;
   }
@@ -813,19 +968,58 @@ const medicationRowFromGroup = (group: FormField & { fields?: FormField[] }): Me
   for (const field of group.fields ?? []) {
     const value = medicationFieldValue(field);
     if (value === undefined) continue;
-    if (field.id.endsWith('_name')) row.medicineName = String(value);
-    else if (field.id.endsWith('_dosage')) row.dosage = String(value);
-    else if (field.id.endsWith('_route')) row.route = String(value);
-    else if (field.id.endsWith('_frequency')) row.frequency = String(value);
-    else if (field.id.endsWith('_duration')) row.durationDays = String(value);
-    else if (field.id.endsWith('_qty')) row.qty = String(value);
-    else if (field.id.endsWith('_price')) row.price = value;
-    else if (field.id.endsWith('_remark') || field.id.endsWith('_instructions')) {
-      row.instructions = String(value);
-    }
+    assignMedicationRowField(row, field, value);
   }
 
   return row;
+};
+
+/** Field-id suffix → the MedicationRow string key it maps to. */
+const MEDICATION_STRING_FIELD_BY_SUFFIX: Record<string, keyof MedicationRow> = {
+  _name: 'medicineName',
+  _brand: 'brand',
+  _genericName: 'genericName',
+  _sku: 'sku',
+  _strength: 'strength',
+  _strengthUnit: 'strengthUnit',
+  _form: 'dosageForm',
+  _dosage: 'dosage',
+  _route: 'route',
+  _frequency: 'frequency',
+  _duration: 'durationDays',
+  _durationUnit: 'durationUnit',
+  _qty: 'qty',
+  _refill: 'refill',
+  _remark: 'instructions',
+  _instructions: 'instructions',
+};
+
+const assignMedicationRowField = (
+  row: MedicationRow,
+  field: FormField,
+  value: string | number | boolean
+): void => {
+  const prescriptionField = (field.meta as { prescriptionField?: keyof MedicationRow } | undefined)
+    ?.prescriptionField;
+  if (prescriptionField) {
+    row[prescriptionField] = value as never;
+    return;
+  }
+  const numericOrString = typeof value === 'boolean' ? String(value) : value;
+  if (field.id.endsWith('_price')) {
+    row.price = numericOrString;
+    return;
+  }
+  if (field.id.endsWith('_priceCents')) {
+    row.priceCents = numericOrString;
+    return;
+  }
+  const suffix = Object.keys(MEDICATION_STRING_FIELD_BY_SUFFIX).find((key) =>
+    field.id.endsWith(key)
+  );
+  if (suffix) {
+    row[MEDICATION_STRING_FIELD_BY_SUFFIX[suffix]] = String(value) as never;
+  }
 };
 
 const collectMedicationRows = (fields: FormField[] = []): MedicationRow[] => {
@@ -873,7 +1067,10 @@ export const buildTemplateSchemaSnapshot = (
   if (blueprint) {
     const mergedBlueprint = mergeFieldDefaults(blueprint, form.schema ?? []);
     const customFields = filterCustomFields(getBlueprintFieldKeys(blueprint), form.schema ?? []);
-    if (kind === 'INPATIENT_SCHEDULE') {
+    // Both inpatient-schedule and task-assignment templates carry authored task
+    // blocks in a `schedule.taskBlocks` field; serialize them for either kind so
+    // the YC-default task builder (TASK_ASSIGNMENT) persists its tasks.
+    if (kind === 'INPATIENT_SCHEDULE' || kind === 'TASK_ASSIGNMENT') {
       const taskBlocks = taskBlocksFromForm(form);
       return {
         sections: [...withTaskBlocks(mergedBlueprint, taskBlocks).sections],

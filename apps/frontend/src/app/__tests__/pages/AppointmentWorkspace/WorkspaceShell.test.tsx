@@ -116,6 +116,7 @@ describe('WorkspaceHeader', () => {
     // Title uses the companion's first name only.
     expect(screen.getByText(/Gigi’s Appointment/)).toBeInTheDocument();
     expect(screen.getByText('Needs muzzle')).toBeInTheDocument();
+    expect(screen.getByTestId('workspace-alert-strip')).toHaveClass('overflow-x-auto');
     fireEvent.click(screen.getByRole('button', { name: /go back/i }));
     fireEvent.click(screen.getByRole('button', { name: /quick actions/i }));
     expect(onBack).toHaveBeenCalled();
@@ -169,7 +170,7 @@ describe('WorkspaceHeader', () => {
     expect(trigger).not.toBeNull();
     fireEvent.mouseEnter(trigger as Element);
 
-    expect(await screen.findByText('Add alerts for patient')).toBeInTheDocument();
+    expect(await screen.findByText('Add alerts for companion')).toBeInTheDocument();
   });
 
   it('omits the add-alert button when no handler is provided', () => {

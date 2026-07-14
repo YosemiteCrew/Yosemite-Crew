@@ -105,6 +105,8 @@
 	<string>We add your pet's tasks and appointments to your calendar so you never miss important care steps.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We use the camera so you can capture pet photos or documents for profiles, bookings, and updates to caregivers.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Location helps us show nearby veterinary businesses and verify appointment check-ins when location access is needed for your pet's care.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Location helps us show nearby vets, groomers, walkers, and to coordinate appointments for your pet while you use the app.</string>
 	<key>NSMicrophoneUsageDescription</key>

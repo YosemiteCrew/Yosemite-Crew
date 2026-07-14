@@ -11,7 +11,8 @@
  */
 
 import React from 'react';
-import {Alert, ActionSheetIOS, Platform, TouchableWithoutFeedback, View} from 'react-native';
+import {Alert, ActionSheetIOS, Platform, View} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {MessageSimple, useMessageContext} from 'stream-chat-react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import Share from 'react-native-share';
@@ -111,7 +112,7 @@ export const EnhancedMessage: React.FC = () => {
           cancelButtonIndex: options.length - 1,
           destructiveButtonIndex: isMyMessage ? options.length - 2 : undefined,
         },
-        (buttonIndex) => {
+        buttonIndex => {
           if (buttonIndex < handlers.length) {
             handlers[buttonIndex]();
           }
@@ -126,7 +127,10 @@ export const EnhancedMessage: React.FC = () => {
           ...options.slice(0, -1).map((option, index) => ({
             text: option,
             onPress: handlers[index],
-            style: option === 'Delete Message' ? ('destructive' as const) : ('default' as const),
+            style:
+              option === 'Delete Message'
+                ? ('destructive' as const)
+                : ('default' as const),
           })),
           {
             text: 'Cancel',
@@ -139,11 +143,11 @@ export const EnhancedMessage: React.FC = () => {
   };
 
   return (
-    <TouchableWithoutFeedback onLongPress={handleLongPress}>
+    <PressableOpacity activeOpacity={1} onLongPress={handleLongPress}>
       <View>
         <MessageSimple />
       </View>
-    </TouchableWithoutFeedback>
+    </PressableOpacity>
   );
 };
 

@@ -61,7 +61,7 @@ describe('Configuration Variables', () => {
         defaultOptIn: false,
         enableSessionReplay: false,
         enabled: false,
-        host: 'https://us.i.posthog.com',
+        host: 'https://eu.i.posthog.com',
       });
       expect(config.MOBILE_CONFIG_BEHAVIOR.useDevApi).toBe(false);
       expect(config.MOBILE_CONFIG_BEHAVIOR.mockAppUpdateFlow).toBe('off');

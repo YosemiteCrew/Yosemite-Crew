@@ -124,6 +124,7 @@ import { medicalCertificateRouter } from "./medical-certificate.router";
 import { patientFlagRouter } from "./patient-flag.router";
 import { inventoryCountRouter } from "./inventory-count.router";
 import { clinicNoteRouter } from "./clinic-note.router";
+import marketingUnsubscribeRouter from "./marketing-unsubscribe.router";
 
 export function registerRoutes(app: Express) {
   app.use(`/fhir/v1/organization`, organizationRounter);
@@ -252,4 +253,5 @@ export function registerRoutes(app: Express) {
   app.use(`/v1/labs`, labResultRouter);
   app.use(`/v1/auth`, authRouter);
   app.use(`/v1/catalog`, catalogRouter);
+  app.use(`/v1/email-preferences`, marketingUnsubscribeRouter);
 }

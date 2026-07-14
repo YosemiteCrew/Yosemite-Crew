@@ -37,6 +37,26 @@ export type InvoiceItem = {
   total: number;
 };
 
+export type InvoiceSettlementLineAllocation = {
+  id?: string;
+  name: string;
+  description?: string | null;
+  total: number;
+  cashApplied: number;
+  creditApplied: number;
+  remaining: number;
+};
+
+export type InvoiceSettlementSummary = {
+  invoiceTotal: number;
+  cashPaid: number;
+  depositRecordedAmount: number;
+  credited: number;
+  effectivePaid: number;
+  balance: number;
+  lineAllocations: InvoiceSettlementLineAllocation[];
+};
+
 export type Invoice = {
   id?: string;
   parentId?: string;
@@ -76,6 +96,9 @@ export type Invoice = {
   stripeCheckoutUrl?: string;
 
   metadata?: Record<string, string | number | boolean>;
+  settlementSummary?: InvoiceSettlementSummary;
+  renderedDocumentId?: string;
+  pdfUrl?: string | null;
   paidAt?: Date;
   createdAt: Date;
   updatedAt: Date;

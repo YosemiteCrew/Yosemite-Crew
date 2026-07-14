@@ -214,7 +214,7 @@ const DEFAULT_POSTHOG_CONFIG: PostHogConfig = {
   defaultOptIn: false,
   enableSessionReplay: false,
   enabled: false,
-  host: 'https://us.i.posthog.com',
+  host: 'https://eu.i.posthog.com',
 };
 
 const isMissingLocalVariablesModule = (error: unknown): boolean => {

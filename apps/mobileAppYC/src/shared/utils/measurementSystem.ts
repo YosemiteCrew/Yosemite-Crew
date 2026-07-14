@@ -34,8 +34,8 @@ export const getMeasurementSystemFromCountryName = (
 /**
  * Gets the weight unit based on measurement system
  */
-export const getWeightUnit = (system: MeasurementSystem): WeightUnit => {
-  return system === 'imperial' ? 'lbs' : 'kg';
+export const getWeightUnit = (_system: MeasurementSystem): WeightUnit => {
+  return 'kg';
 };
 
 /**

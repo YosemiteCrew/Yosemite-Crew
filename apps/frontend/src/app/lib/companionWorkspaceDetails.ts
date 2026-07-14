@@ -50,7 +50,10 @@ const formatBreedSpecies = (breed?: string, type?: string): string => {
   );
 };
 
-const formatWeight = (weight?: number): string => (weight == null ? DASH : `${weight} lbs`);
+const WEIGHT_UNIT = 'kg';
+
+const formatWeight = (weight?: number): string =>
+  weight == null ? DASH : `${weight} ${WEIGHT_UNIT}`;
 
 type CompanionFallback = {
   id: string;
@@ -66,10 +69,11 @@ type CompanionFallback = {
  */
 export const buildCompanionDetails = (
   fallback: CompanionFallback,
-  companion?: StoredCompanion
+  companion?: StoredCompanion,
+  rewriteText: (text: string) => string = (text) => text
 ): CompanionDetail[] => [
   { label: 'Name', value: clean(companion?.name ?? fallback.name) },
-  { label: 'Patient ID', value: clean(companion?.id ?? fallback.id) },
+  { label: rewriteText('Patient ID'), value: clean(companion?.id ?? fallback.id) },
   {
     label: 'Breed/Species',
     value: formatBreedSpecies(

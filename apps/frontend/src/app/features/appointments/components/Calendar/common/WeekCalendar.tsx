@@ -54,6 +54,249 @@ const getAllDayAppointmentAriaLabel = (appointment: Appointment) => {
   )}${concernSuffix}`;
 };
 
+/**
+ * Scroll the week grid once per week change: to the current-time line when today
+ * is visible, otherwise to the first relevant timed event (or the default focus
+ * time). Re-renders from availability loading or clock ticks must not re-scroll,
+ * so the scroll inputs are read through refs instead of effect deps.
+ */
+const useWeekAutoScroll = ({
+  scrollRef,
+  weekStartKey,
+  draggedAppointmentId,
+  skipAutoScroll,
+  days,
+  height,
+  nowPosition,
+  timedEvents,
+  visibleHourRange,
+}: {
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  weekStartKey: string;
+  draggedAppointmentId?: string | null;
+  skipAutoScroll: boolean;
+  days: Date[];
+  height: number;
+  nowPosition: { topPx: number; todayIndex: number } | null;
+  timedEvents: Appointment[];
+  visibleHourRange: { startHour: number; endHour: number };
+}) => {
+  const scrolledWeekRef = useRef<string | null>(null);
+  const nowPositionRef = useRef(nowPosition);
+  nowPositionRef.current = nowPosition;
+  const timedEventsRef = useRef(timedEvents);
+  timedEventsRef.current = timedEvents;
+  const visibleHourRangeRef = useRef(visibleHourRange);
+  visibleHourRangeRef.current = visibleHourRange;
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || !!draggedAppointmentId || !days.length || skipAutoScroll) return;
+    if (scrolledWeekRef.current === weekStartKey) return;
+    scrolledWeekRef.current = weekStartKey;
+
+    const currentNowPosition = nowPositionRef.current;
+    const currentTimedEvents = timedEventsRef.current;
+    const currentRange = visibleHourRangeRef.current;
+
+    const rangeStart = days[0];
+    const effectiveRangeEnd = days.at(-1) ? nextDay(days.at(-1) as Date) : nextDay(days[0]);
+
+    let topPx: number;
+    if (currentNowPosition) {
+      topPx = Math.max(0, currentNowPosition.topPx);
+    } else {
+      const focusStart = getFirstRelevantTimedEventStart(
+        currentTimedEvents,
+        rangeStart,
+        effectiveRangeEnd
+      );
+      const focusMinutes = focusStart
+        ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
+        : DEFAULT_CALENDAR_FOCUS_MINUTES;
+      topPx = ((focusMinutes - currentRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
+    }
+    scrollContainerToTarget(container, topPx);
+  }, [weekStartKey, draggedAppointmentId, skipAutoScroll, days, height, scrollRef]);
+};
+
+const WeekHeaderRow = ({
+  days,
+  now,
+  dayColumnsStyle,
+  onPrevWeek,
+  onNextWeek,
+}: {
+  days: Date[];
+  now: Date;
+  dayColumnsStyle: React.CSSProperties;
+  onPrevWeek: () => void;
+  onNextWeek: () => void;
+}) => (
+  <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
+    <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
+      <Back onClick={onPrevWeek} />
+    </div>
+    <div className="grid bg-white" style={dayColumnsStyle}>
+      {days.map((day) => {
+        const weekday = day.toLocaleDateString('en-US', { weekday: 'short' });
+        const dateNumber = day.getDate();
+        const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
+        const dateNumberClass = isToday
+          ? 'bg-text-brand text-white border-transparent'
+          : 'bg-card-bg text-text-secondary border-transparent';
+        return (
+          <div key={day.toISOString()} className="flex items-center justify-center gap-2">
+            <div
+              className={`text-body-4 ${
+                isToday ? 'text-(--color-primary-700)' : 'text-text-primary'
+              }`}
+            >
+              {weekday}
+            </div>
+            <div
+              className={`text-body-4-emphasis size-10 flex items-center justify-center rounded-full border ${dateNumberClass}`}
+            >
+              {dateNumber}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+    <div className="sticky right-0 z-40 bg-white flex items-center justify-center">
+      <Next onClick={onNextWeek} />
+    </div>
+  </div>
+);
+
+const AllDayRow = ({
+  days,
+  allDayByDay,
+  dayColumnsStyle,
+  onViewAppointment,
+}: {
+  days: Date[];
+  allDayByDay: Appointment[][];
+  dayColumnsStyle: React.CSSProperties;
+  onViewAppointment: (appointment: Appointment) => void;
+}) => (
+  <div className="border-b border-grey-light bg-slate-50">
+    <div className="grid py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+      <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-grey-text flex items-start pr-2">
+        All-day
+      </div>
+      <div className="grid min-w-max" style={dayColumnsStyle}>
+        {days.map((day, idx) => (
+          <div key={day.toISOString()} className="flex flex-col gap-1 pr-2">
+            {allDayByDay[idx].map((ev) => (
+              <button
+                key={`${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}`}
+                type="button"
+                onClick={() => onViewAppointment(ev)}
+                aria-label={getAllDayAppointmentAriaLabel(ev)}
+                className="w-full rounded-md! px-2 py-1 text-[11px] font-satoshi text-left truncate"
+                style={{
+                  ...({
+                    ...getStatusStyle(ev.status),
+                    padding: undefined,
+                  } as React.CSSProperties),
+                }}
+              >
+                <div className="font-medium truncate">
+                  {formatCompanionNameWithOwnerLastName(
+                    (ev.companion ?? ev.patient).name,
+                    (ev.companion ?? ev.patient).parent
+                  )}{' '}
+                  • {ev.concern || ''}
+                </div>
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="sticky right-0 z-40 bg-slate-50" />
+    </div>
+  </div>
+);
+
+/** Shaded overlays for the parts of one day-hour cell outside available hours. */
+const UnavailableHourOverlays = ({
+  segments,
+  dayIndex,
+  hour,
+}: {
+  segments: Array<{ startMinute: number; endMinute: number }>;
+  dayIndex: number;
+  hour: number;
+}) => {
+  const hourStart = hour * 60;
+  const hourEnd = hourStart + 60;
+  return (
+    <>
+      {segments.flatMap((seg) => {
+        if (!(seg.endMinute > hourStart && seg.startMinute < hourEnd)) return [];
+        const clampedStart = Math.max(seg.startMinute, hourStart);
+        const clampedEnd = Math.min(seg.endMinute, hourEnd);
+        const topPct = ((clampedStart - hourStart) / 60) * 100;
+        const heightPct = ((clampedEnd - clampedStart) / 60) * 100;
+        return [
+          <div
+            key={`unavail-${dayIndex}-${hour}-${seg.startMinute}`}
+            className="pointer-events-none absolute left-0 right-0 z-1"
+            style={{
+              top: `${topPct}%`,
+              height: `${heightPct}%`,
+              backgroundColor: 'rgba(0,0,0,0.045)',
+              transition: 'opacity 0.25s ease',
+            }}
+          />,
+        ];
+      })}
+    </>
+  );
+};
+
+const NowIndicatorOverlay = ({
+  days,
+  dayColumnsStyle,
+  nowPosition,
+  nowTimeLabel,
+}: {
+  days: Date[];
+  dayColumnsStyle: React.CSSProperties;
+  nowPosition: { topPx: number; todayIndex: number };
+  nowTimeLabel: string | null;
+}) => (
+  <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
+    <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+      <div />
+      <div className="grid min-w-max" style={dayColumnsStyle}>
+        {days.map((day, dayIndex) => (
+          <div key={`appointment-now-${day.toISOString()}`} className="relative">
+            {dayIndex === nowPosition.todayIndex && (
+              <div
+                className="absolute left-0 right-2 z-20 w-full"
+                style={{
+                  top: nowPosition.topPx,
+                }}
+              >
+                {nowTimeLabel && (
+                  <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-danger-700 whitespace-nowrap">
+                    {nowTimeLabel}
+                  </div>
+                )}
+                <div className="absolute -left-1.25 size-3 rounded-full bg-red-500 -translate-y-1/2" />
+                <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div />
+    </div>
+  </div>
+);
+
 type WeekCalendarProps = {
   events: Appointment[];
   zoomMode?: CalendarZoomMode;
@@ -64,7 +307,6 @@ type WeekCalendarProps = {
   setWeekStart: React.Dispatch<React.SetStateAction<Date>>;
   setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
   handleRescheduleAppointment: any;
-  handleChangeStatusAppointment?: any;
   handleChangeRoomAppointment?: any;
   handleAcceptAppointment?: (appt: Appointment) => void;
   canEditAppointments: boolean;
@@ -100,7 +342,6 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   setWeekStart,
   setCurrentDate,
   handleRescheduleAppointment,
-  handleChangeStatusAppointment,
   handleChangeRoomAppointment,
   handleAcceptAppointment,
   canEditAppointments,
@@ -219,51 +460,17 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     [now, nowPosition]
   );
 
-  // Track the weekStart key for which we've already scrolled so we don't
-  // re-fire when availability loads and triggers additional renders.
-  const scrolledWeekRef = useRef<string | null>(null);
-  const weekStartKey = weekStart.toISOString();
-
-  // Keep latest scroll inputs in refs — readable inside the effect without
-  // being deps (avoids re-scrolling when only nowPosition/availability change).
-  const nowPositionRef = useRef(nowPosition);
-  nowPositionRef.current = nowPosition;
-  const timedEventsRef = useRef(timedEvents);
-  timedEventsRef.current = timedEvents;
-  const visibleHourRangeRef = useRef(visibleHourRange);
-  visibleHourRangeRef.current = visibleHourRange;
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container || !!draggedAppointmentId || !days.length || skipAutoScroll) return;
-    // Only scroll once per week. Re-renders from availability loading or
-    // nowPosition updates must not cause a second jump.
-    if (scrolledWeekRef.current === weekStartKey) return;
-    scrolledWeekRef.current = weekStartKey;
-
-    const currentNowPosition = nowPositionRef.current;
-    const currentTimedEvents = timedEventsRef.current;
-    const currentRange = visibleHourRangeRef.current;
-
-    const rangeStart = days[0];
-    const effectiveRangeEnd = days.at(-1) ? nextDay(days.at(-1) as Date) : nextDay(days[0]);
-
-    let topPx: number;
-    if (currentNowPosition) {
-      topPx = Math.max(0, currentNowPosition.topPx);
-    } else {
-      const focusStart = getFirstRelevantTimedEventStart(
-        currentTimedEvents,
-        rangeStart,
-        effectiveRangeEnd
-      );
-      const focusMinutes = focusStart
-        ? getMinutesSinceStartOfDayInPreferredTimeZone(focusStart)
-        : DEFAULT_CALENDAR_FOCUS_MINUTES;
-      topPx = ((focusMinutes - currentRange.startHour * 60) / 60) * height + HOUR_ROW_TOP_OFFSET_PX;
-    }
-    scrollContainerToTarget(container, topPx);
-  }, [weekStartKey, draggedAppointmentId, skipAutoScroll, days, height, scrollRef]);
+  useWeekAutoScroll({
+    scrollRef,
+    weekStartKey: weekStart.toISOString(),
+    draggedAppointmentId,
+    skipAutoScroll,
+    days,
+    height,
+    nowPosition,
+    timedEvents,
+    visibleHourRange,
+  });
 
   const unavailableByDay = useMemo(
     () =>
@@ -292,84 +499,21 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       >
         <div className="min-w-max h-full flex flex-col">
           <div className="z-30 bg-white shrink-0">
-            <div className="grid border-b border-grey-light py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-white">
-              <div className="sticky left-0 z-40 bg-white flex items-center justify-center">
-                <Back onClick={handlePrevWeek} />
-              </div>
-              <div className="grid bg-white" style={dayColumnsStyle}>
-                {days.map((day) => {
-                  const weekday = day.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                  });
-                  const dateNumber = day.getDate();
-                  const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
-                  const dateNumberClass = isToday
-                    ? 'bg-text-brand text-white border-transparent'
-                    : 'bg-card-bg text-text-secondary border-transparent';
-                  return (
-                    <div key={day.toISOString()} className="flex items-center justify-center gap-2">
-                      <div
-                        className={`text-body-4 ${
-                          isToday ? 'text-(--color-primary-700)' : 'text-text-primary'
-                        }`}
-                      >
-                        {weekday}
-                      </div>
-                      <div
-                        className={`text-body-4-emphasis size-10 flex items-center justify-center rounded-full border ${dateNumberClass}`}
-                      >
-                        {dateNumber}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="sticky right-0 z-40 bg-white flex items-center justify-center">
-                <Next onClick={handleNextWeek} />
-              </div>
-            </div>
+            <WeekHeaderRow
+              days={days}
+              now={now}
+              dayColumnsStyle={dayColumnsStyle}
+              onPrevWeek={handlePrevWeek}
+              onNextWeek={handleNextWeek}
+            />
 
             {hasAnyAllDay && (
-              <div className="border-b border-grey-light bg-slate-50">
-                <div className="grid py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                  <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-grey-text flex items-start pr-2">
-                    All-day
-                  </div>
-                  <div className="grid min-w-max" style={dayColumnsStyle}>
-                    {days.map((day, idx) => {
-                      const dayAllEvents = allDayByDay[idx];
-                      return (
-                        <div key={day.toISOString()} className="flex flex-col gap-1 pr-2">
-                          {dayAllEvents.map((ev) => (
-                            <button
-                              key={`${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}`}
-                              type="button"
-                              onClick={() => handleViewAppointment(ev)}
-                              aria-label={getAllDayAppointmentAriaLabel(ev)}
-                              className="w-full rounded-md! px-2 py-1 text-[11px] font-satoshi text-left truncate"
-                              style={{
-                                ...({
-                                  ...getStatusStyle(ev.status),
-                                  padding: undefined,
-                                } as React.CSSProperties),
-                              }}
-                            >
-                              <div className="font-medium truncate">
-                                {formatCompanionNameWithOwnerLastName(
-                                  (ev.companion ?? ev.patient).name,
-                                  (ev.companion ?? ev.patient).parent
-                                )}{' '}
-                                • {ev.concern || ''}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="sticky right-0 z-40 bg-slate-50" />
-                </div>
-              </div>
+              <AllDayRow
+                days={days}
+                allDayByDay={allDayByDay}
+                dayColumnsStyle={dayColumnsStyle}
+                onViewAppointment={handleViewAppointment}
+              />
             )}
           </div>
 
@@ -402,34 +546,17 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     {days.map((day, dayIndex) => {
                       const slotEvents =
                         timedEventsByDayHour.get(`${day.toISOString()}-${hour}`) ?? [];
-                      const hourStart = hour * 60;
-                      const hourEnd = hourStart + 60;
                       return (
                         <div
                           key={`${day.toISOString()}-${hour}`}
                           className="relative"
                           style={{ height: `${height}px` }}
                         >
-                          {unavailableByDay[dayIndex].flatMap((seg) => {
-                            if (!(seg.endMinute > hourStart && seg.startMinute < hourEnd))
-                              return [];
-                            const clampedStart = Math.max(seg.startMinute, hourStart);
-                            const clampedEnd = Math.min(seg.endMinute, hourEnd);
-                            const topPct = ((clampedStart - hourStart) / 60) * 100;
-                            const heightPct = ((clampedEnd - clampedStart) / 60) * 100;
-                            return [
-                              <div
-                                key={`unavail-${dayIndex}-${hour}-${seg.startMinute}`}
-                                className="pointer-events-none absolute left-0 right-0 z-1"
-                                style={{
-                                  top: `${topPct}%`,
-                                  height: `${heightPct}%`,
-                                  backgroundColor: 'rgba(0,0,0,0.045)',
-                                  transition: 'opacity 0.25s ease',
-                                }}
-                              />,
-                            ];
-                          })}
+                          <UnavailableHourOverlays
+                            segments={unavailableByDay[dayIndex]}
+                            dayIndex={dayIndex}
+                            hour={hour}
+                          />
                           <Slot
                             slotEvents={slotEvents}
                             height={height}
@@ -440,9 +567,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                             handleOpenWorkspace={handleOpenWorkspace}
                             handleRescheduleAppointment={handleRescheduleAppointment}
                             handleChangeRoomAppointment={handleChangeRoomAppointment}
-                            handleAcceptAppointment={
-                              handleAcceptAppointment ?? handleChangeStatusAppointment
-                            }
+                            handleAcceptAppointment={handleAcceptAppointment}
                             canEditAppointments={canEditAppointments}
                             length={days.length - 1}
                             draggedAppointmentId={draggedAppointmentId}
@@ -476,34 +601,12 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
               <div style={{ height: zoomMode === 'out' ? 30 : 40 }} />
 
               {nowPosition && (
-                <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
-                  <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
-                    <div />
-                    <div className="grid min-w-max" style={dayColumnsStyle}>
-                      {days.map((day, dayIndex) => (
-                        <div key={`appointment-now-${day.toISOString()}`} className="relative">
-                          {dayIndex === nowPosition.todayIndex && (
-                            <div
-                              className="absolute left-0 right-2 z-20 w-full"
-                              style={{
-                                top: nowPosition.topPx,
-                              }}
-                            >
-                              {nowTimeLabel && (
-                                <div className="absolute left-3 -translate-y-[115%] text-[10px] leading-none font-semibold text-danger-700 whitespace-nowrap">
-                                  {nowTimeLabel}
-                                </div>
-                              )}
-                              <div className="absolute -left-1.25 size-3 rounded-full bg-red-500 -translate-y-1/2" />
-                              <div className="border-t-2 border-t-red-500 translate-y-[-50%]" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <div />
-                  </div>
-                </div>
+                <NowIndicatorOverlay
+                  days={days}
+                  dayColumnsStyle={dayColumnsStyle}
+                  nowPosition={nowPosition}
+                  nowTimeLabel={nowTimeLabel}
+                />
               )}
             </div>
           </div>

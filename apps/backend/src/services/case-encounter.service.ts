@@ -350,19 +350,40 @@ const normalizeOptionalString = (value?: string | null) => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const getTransactionDelegate = <TDelegate>(
+  tx: Prisma.TransactionClient,
+  key: string,
+): TDelegate => {
+  const delegate = (tx as Record<string, unknown>)[key];
+
+  if (!delegate) {
+    throw new CaseEncounterServiceError(
+      `Transaction client is missing ${key} delegate.`,
+      500,
+    );
+  }
+
+  return delegate as TDelegate;
+};
+
 const resolveAssignableUnitContext = async (params: {
   tx: Prisma.TransactionClient;
   encounter: EncounterRow;
   unitId: string;
 }) => {
   const { tx, encounter, unitId } = params;
-  const roomUnitDelegate = (tx as unknown as { roomUnit: RoomUnitDelegate })
-    .roomUnit;
-  const roomUnitGroupDelegate = (
-    tx as unknown as { roomUnitGroup: RoomUnitGroupDelegate }
-  ).roomUnitGroup;
-  const companionDelegate = (tx as unknown as { companion: CompanionDelegate })
-    .companion;
+  const roomUnitDelegate = getTransactionDelegate<RoomUnitDelegate>(
+    tx,
+    "roomUnit",
+  );
+  const roomUnitGroupDelegate = getTransactionDelegate<RoomUnitGroupDelegate>(
+    tx,
+    "roomUnitGroup",
+  );
+  const companionDelegate = getTransactionDelegate<CompanionDelegate>(
+    tx,
+    "patient",
+  );
 
   const unit = await roomUnitDelegate.findUnique({
     where: { id: unitId },

@@ -4,7 +4,6 @@ import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import {
   FormsCategoryOptions,
   FormsProps,
-  RequiredSignerOptions,
   FormsUsageOptions,
   getFormCategoryDisplayLabel,
 } from '@/app/features/forms/types/forms';
@@ -13,6 +12,8 @@ import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/comp
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
 import { buildInitialValues } from '@/app/features/forms/pages/Forms/Sections/AddForm/reviewUtils';
+import { TaskTemplateSummary } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary';
+import { baseDetailsFields } from '@/app/features/forms/pages/Forms/Sections/taskTemplateSummary.helpers';
 
 type ReviewProps = {
   formData: FormsProps;
@@ -22,12 +23,6 @@ type ReviewProps = {
   loading?: boolean;
   isEditing?: boolean;
 };
-
-const baseDetailsFields = [
-  { label: 'Form name', key: 'name', type: 'text' },
-  { label: 'Description', key: 'description', type: 'text' },
-  { label: 'Signed by', key: 'requiredSigner', type: 'dropdown', options: RequiredSignerOptions },
-];
 
 const Review = ({
   formData,
@@ -44,8 +39,8 @@ const Review = ({
     | Organisation['type']
     | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
-  const detailsFields = React.useMemo(
-    () => [
+  const detailsFields = React.useMemo(() => {
+    const fields = [
       baseDetailsFields[0],
       baseDetailsFields[1],
       {
@@ -57,10 +52,12 @@ const Review = ({
           value: category,
         })),
       },
-      baseDetailsFields[2],
-    ],
-    [effectiveOrgType]
-  );
+    ];
+    if (formData.templateSource !== 'YC_LIBRARY') {
+      fields.push(baseDetailsFields[2]);
+    }
+    return fields;
+  }, [effectiveOrgType, formData.templateSource]);
   const UsageFields = React.useMemo(
     () => [
       {
@@ -121,15 +118,21 @@ const Review = ({
           showEditIcon={false}
           readOnly
         />
-        {(formData.schema?.length ?? 0) > 0 && (
-          <Accordion title="Form" defaultOpen showEditIcon={false} isEditing={true}>
-            <FormRenderer
-              fields={formData.schema ?? []}
-              values={values}
-              onChange={handleValueChange}
-              readOnly
-            />
+        {formData.category === 'Task Template' ? (
+          <Accordion title="Tasks" defaultOpen showEditIcon={false} isEditing={true}>
+            <TaskTemplateSummary schema={formData.schema ?? []} />
           </Accordion>
+        ) : (
+          (formData.schema?.length ?? 0) > 0 && (
+            <Accordion title="Form" defaultOpen showEditIcon={false} isEditing={true}>
+              <FormRenderer
+                fields={formData.schema ?? []}
+                values={values}
+                onChange={handleValueChange}
+                readOnly
+              />
+            </Accordion>
+          )
         )}
       </div>
       <div className="grid grid-cols-2 gap-3 px-3">

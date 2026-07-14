@@ -18,12 +18,39 @@
 </div>
 
 <div align="center">
-This directory contains the Next.js web app for Yosemite Crew. It powers the staff-facing PMS dashboard and operational workflows for veterinary teams.
+This directory contains the Next.js web app for Yosemite Crew. It powers the staff-facing PIMS dashboard and operational workflows for veterinary teams.
 </div>
+
+## Release Line
+
+The frontend release line uses `pims-v*` tags.
+
+- Current released baseline: `pims-v1.3.0-beta`
+- Next major frontend release: `pims-v2.0.0-beta`
+- Tag format: `pims-v<major>.<minor>.<patch>-beta`
+
+Recommended release flow:
+
+```sh
+git tag -a pims-v2.0.0-beta -m "PIMS frontend v2.0.0-beta"
+git push origin pims-v2.0.0-beta
+```
 
 ## 🧭 Overview
 
 The frontend is built on the Next.js App Router and organized around feature modules. Each feature owns its pages, local components, services, and types, while shared UI, hooks, and helpers live in central folders.
+
+## What this release line covers
+
+The PIMS frontend release line includes the major revamp across:
+
+- appointment workspace and billing
+- chat and cross-clinic messaging
+- prescriptions and dispensing
+- inventory and dispensary
+- forms, templates, and task workflows
+- companion terminology updates
+- Sonar and test hardening
 
 # 🔍 Code Quality (SonarCloud)
 

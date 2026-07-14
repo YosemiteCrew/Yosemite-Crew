@@ -1,12 +1,13 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {render, fireEvent, waitFor, act} from '@testing-library/react-native';
 // Fix: Correct import path based on coverage report structure
 import {ExpensePreviewScreen} from '../../../../src/features/expenses/screens/ExpensePreviewScreen/ExpensePreviewScreen';
 import {useSelector, useDispatch} from 'react-redux';
 import {useNavigation, useRoute} from '@react-navigation/native';
 // Fix: Import thunks from the barrel file to match the jest.mock below
 import {
+  fetchExpensePaymentIntent,
   fetchExpenseInvoice,
   fetchExpensePaymentIntentByInvoice,
   fetchExpenseById,
@@ -153,8 +154,16 @@ describe('ExpensePreviewScreen', () => {
     businessName: 'Vet Clinic',
     description: 'Annual shot',
     source: 'inApp',
+    companionId: 'companion-1',
     invoiceId: 'inv-123',
     attachments: [],
+  };
+
+  const selectorState = {
+    auth: {user: {currency: 'USD'}},
+    companion: {
+      companions: [{id: 'companion-1', name: 'Buddy'}],
+    },
   };
 
   beforeEach(() => {
@@ -181,8 +190,7 @@ describe('ExpensePreviewScreen', () => {
       if (callback === mockExpenseSelectorFn) {
         return baseExpense;
       }
-      // Default fallback for other selectors (e.g. user currency)
-      return 'USD';
+      return callback(selectorState);
     });
 
     // Default Dispatch
@@ -197,7 +205,7 @@ describe('ExpensePreviewScreen', () => {
     // Override selector to return null
     (useSelector as unknown as jest.Mock).mockImplementation(callback => {
       if (callback === mockExpenseSelectorFn) return null;
-      return 'USD';
+      return callback(selectorState);
     });
 
     const {getByText} = render(<ExpensePreviewScreen />);
@@ -225,7 +233,7 @@ describe('ExpensePreviewScreen', () => {
 
     (useSelector as unknown as jest.Mock).mockImplementation(callback => {
       if (callback === mockExpenseSelectorFn) return expenseWithDocs;
-      return 'USD';
+      return callback(selectorState);
     });
 
     const {UNSAFE_getByType} = render(<ExpensePreviewScreen />);
@@ -267,21 +275,77 @@ describe('ExpensePreviewScreen', () => {
   it('handles payment intent fetch failure gracefully', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-    // Sequence: 1. Invoice (Success), 2. Intent (Fail)
+    // Sequence: 1. Invoice (Success), 2. latest intent (Fail),
+    // 3. legacy intent fallback (Fail)
     mockDispatch
       .mockReturnValueOnce({
         unwrap: () => Promise.resolve({invoice: {}, paymentIntentId: 'pi-1'}),
       })
       .mockReturnValueOnce({
         unwrap: () => Promise.reject('Intent Error'),
+      })
+      .mockReturnValueOnce({
+        unwrap: () => Promise.reject('Legacy Intent Error'),
       });
 
     render(<ExpensePreviewScreen />);
+
+    await waitFor(() => {
+      expect(fetchExpensePaymentIntent).toHaveBeenCalledWith({
+        paymentIntentId: 'pi-1',
+      });
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to fetch payment intent:',
+        'Legacy Intent Error',
+      );
+    });
+
+    consoleSpy.mockRestore();
+  });
+
+  it('falls back to fetching payment intent by id when invoice lookup fails', async () => {
+    mockDispatch
+      .mockReturnValueOnce({
+        unwrap: () => Promise.resolve({invoice: {}, paymentIntentId: 'pi-1'}),
+      })
+      .mockReturnValueOnce({
+        unwrap: () => Promise.reject('Intent lookup unavailable'),
+      })
+      .mockReturnValueOnce({
+        unwrap: () => Promise.resolve({id: 'pi-1', clientSecret: 'secret'}),
+      });
+
+    render(<ExpensePreviewScreen />);
+
+    await waitFor(() => {
+      expect(fetchExpensePaymentIntent).toHaveBeenCalledWith({
+        paymentIntentId: 'pi-1',
+      });
+    });
+  });
+
+  it('logs invoice fetch failures', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+    mockDispatch.mockReturnValueOnce({
+      unwrap: () => Promise.reject('Invoice Error'),
+    });
+
+    render(<ExpensePreviewScreen />);
+
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to fetch invoice:',
+        'Invoice Error',
+      );
+    });
+
     consoleSpy.mockRestore();
   });
 
   it('displays "Pay" button for pending invoices', () => {
     (isExpensePaymentPending as jest.Mock).mockReturnValue(true);
+    const {getByTestId} = render(<ExpensePreviewScreen />);
+    expect(getByTestId('payment-button').props.title).toBe('Pay $50');
   });
 
   it('displays "View Invoice" button for paid invoices', () => {
@@ -306,7 +370,7 @@ describe('ExpensePreviewScreen', () => {
 
     (useSelector as unknown as jest.Mock).mockImplementation(callback => {
       if (callback === mockExpenseSelectorFn) return externalExpense;
-      return 'USD';
+      return callback(selectorState);
     });
 
     const {getByText, getByTestId} = render(<ExpensePreviewScreen />);
@@ -317,21 +381,64 @@ describe('ExpensePreviewScreen', () => {
     // @ts-ignore - custom prop on mock
     expect(header.props.rightIcon).toBeDefined();
 
-    // Trigger Edit
-    // @ts-ignore
     fireEvent(header, 'pressRight');
+    header.props.onRightPress();
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('EditExpense', {
+      expenseId: 'exp-1',
+    });
   });
 
   it('refreshes external expense details on mount', () => {
     const externalExpense = {...baseExpense, source: 'external'};
     (useSelector as unknown as jest.Mock).mockImplementation(callback => {
       if (callback === mockExpenseSelectorFn) return externalExpense;
-      return 'USD';
+      return callback(selectorState);
     });
 
     render(<ExpensePreviewScreen />);
 
     expect(fetchExpenseById).toHaveBeenCalledWith({expenseId: 'exp-1'});
+  });
+
+  it('uses fallback currency and header back guard behavior', () => {
+    const noCurrencyExpense = {
+      ...baseExpense,
+      currencyCode: undefined,
+    };
+    (useSelector as unknown as jest.Mock).mockImplementation(callback => {
+      if (callback === mockExpenseSelectorFn) return noCurrencyExpense;
+      return callback({
+        ...selectorState,
+        auth: {user: null},
+      });
+    });
+
+    const {getByTestId} = render(<ExpensePreviewScreen />);
+    const header = getByTestId('header');
+
+    header.props.onBack();
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+
+    mockNavigation.canGoBack.mockReturnValueOnce(false);
+    header.props.onBack();
+    expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates pdf interaction state from attachment viewer callbacks', () => {
+    const expenseWithDocs = {...baseExpense, attachments: [{id: 'doc1'}]};
+
+    (useSelector as unknown as jest.Mock).mockImplementation(callback => {
+      if (callback === mockExpenseSelectorFn) return expenseWithDocs;
+      return callback(selectorState);
+    });
+
+    const {UNSAFE_getByType} = render(<ExpensePreviewScreen />);
+    const viewer = UNSAFE_getByType('mock-attachment-viewer');
+
+    act(() => {
+      viewer.props.onPdfTouchStart();
+      viewer.props.onPdfTouchEnd();
+    });
   });
 
   // ==============================================================================
@@ -359,6 +466,34 @@ describe('ExpensePreviewScreen', () => {
     await waitFor(() => {
       expect(fetchBusinessDetails).toHaveBeenCalledWith('place-123');
     });
+  });
+
+  it('logs debug output when business photo fallback fails', async () => {
+    const debugSpy = jest.spyOn(console, 'debug').mockImplementation();
+    (isDummyPhoto as jest.Mock).mockReturnValue(true);
+
+    mockDispatch
+      .mockReturnValueOnce({
+        unwrap: () =>
+          Promise.resolve({
+            invoice: {},
+            organisation: {placesId: 'place-123', image: 'dummy.jpg'},
+          }),
+      })
+      .mockReturnValueOnce({
+        unwrap: () => Promise.reject(new Error('No photo')),
+      });
+
+    render(<ExpensePreviewScreen />);
+
+    await waitFor(() => {
+      expect(debugSpy).toHaveBeenCalledWith(
+        '[ExpensePreview] Could not fetch places image for placesId:',
+        'place-123',
+      );
+    });
+
+    debugSpy.mockRestore();
   });
 
   it('does not fetch business photo if current image is valid', async () => {

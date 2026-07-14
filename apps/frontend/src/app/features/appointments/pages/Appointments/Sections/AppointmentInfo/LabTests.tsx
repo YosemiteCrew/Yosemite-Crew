@@ -21,7 +21,6 @@ import {
   getIdexxCensus,
   getIdexxOrderById,
   getIdexxResultPdfBlob,
-  listIdexxOrders,
   listIdexxIvlsDevices,
   listIdexxResults,
   listIdexxTests,
@@ -35,277 +34,34 @@ import {
   LabResult,
 } from '@/app/features/integrations/services/types';
 import { formatDateTimeLocal } from '@/app/lib/date';
-import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
+import {
+  formatTestPrice,
+  getOrderStatusBadgeClass,
+  getTestSpecimen,
+  getTestTurnaround,
+  resolveOrderPdfUrl,
+  resolveOrderUiUrl,
+  toTitleCase,
+} from './labTestsUtils';
+import {
+  formatCensusIvlsDevices,
+  formatOrderStatus,
+  getMeterMeta,
+  getNormalizedLifecycleStatus,
+  getOrderActionLabel,
+  getOrderActionSource,
+  getOrderResultProgressFromResults,
+  getResultOrderId,
+  listIdexxOrdersWithFallback,
+  mergeUniqueTests,
+  normalizeOrders,
+  resolveLatestOrder,
+  shouldCloseOrderIframe,
+} from './LabTests.helpers';
 
 const TESTS_PAGE_SIZE = 25;
 const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
   'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
-
-const getOrderResultProgressFromResults = (allResults: LabResult[], orderId: string): string => {
-  const orderIdStr = String(orderId).trim();
-  const statuses = new Set(
-    allResults.flatMap((result) => {
-      if (getResultOrderId(result) !== orderIdStr) return [];
-      const raw = result.rawPayload;
-      const status = normalizeResultProgress(
-        result.statusDetail ?? result.status ?? raw?.statusDetail ?? raw?.status
-      );
-      return status ? [status] : [];
-    })
-  );
-  if (statuses.has('In process')) return 'In process';
-  if (statuses.has('Error')) return 'Error';
-  if (statuses.has('Complete')) return 'Complete';
-  return '';
-};
-
-const normalizeOrders = (orders: LabOrder[]): LabOrder[] =>
-  orders.toSorted((a, b) => {
-    const aDate = new Date(orderSortDate(a)).getTime();
-    const bDate = new Date(orderSortDate(b)).getTime();
-    return bDate - aDate;
-  });
-
-/**
- * Lists lab orders scoped to the appointment, falling back to companion-only when the labs
- * provider does not recognise the appointment (e.g. it was never registered as a lab order
- * context). The clinician still sees the companion's lab history instead of an error.
- */
-const listIdexxOrdersWithFallback = async (
-  organisationId: string,
-  appointmentId: string,
-  companionId?: string
-): Promise<LabOrder[]> => {
-  try {
-    return await listIdexxOrders({ organisationId, appointmentId, companionId });
-  } catch (error) {
-    if (!companionId) throw error;
-    return listIdexxOrders({ organisationId, companionId });
-  }
-};
-
-const resolveLatestOrder = (prev: LabOrder | null, normalizedOrders: LabOrder[]): LabOrder => {
-  if (!prev) return normalizedOrders[0];
-  return normalizedOrders.find((order) => order._id === prev._id) ?? normalizedOrders[0];
-};
-
-const mergeUniqueTests = (current: IdexxTest[], incoming: IdexxTest[]): IdexxTest[] => {
-  const seen = new Set(current.map((item) => item.code || item._id));
-  const next = [...current];
-  incoming.forEach((item) => {
-    const key = item.code || item._id;
-    if (!seen.has(key)) {
-      seen.add(key);
-      next.push(item);
-    }
-  });
-  return next;
-};
-
-const getResultOrderId = (result: LabResult) => {
-  const raw = result.rawPayload as
-    | { orderId?: string | number; requisitionId?: string | number }
-    | undefined;
-  return String(
-    result.orderId ?? result.requisitionId ?? raw?.orderId ?? raw?.requisitionId ?? ''
-  ).trim();
-};
-
-export const formatTestPrice = (test: IdexxTest) => {
-  const amount = String(test.meta?.listPrice ?? '').trim();
-  if (!amount) return 'Rate unavailable';
-  const currency = String(test.meta?.currencyCode ?? '').trim();
-  if (!currency) return amount;
-  const numericAmount = Number.parseFloat(amount.replaceAll(',', '.').replaceAll(/[^0-9.+-]/g, ''));
-  if (!Number.isFinite(numericAmount)) return `${currency.toUpperCase()} ${amount}`;
-  try {
-    return numericAmount.toLocaleString(undefined, {
-      style: 'currency',
-      currency: currency.toUpperCase(),
-      currencyDisplay: 'symbol',
-    });
-  } catch {
-    return `${currency.toUpperCase()} ${amount}`;
-  }
-};
-
-export const getTestTurnaround = (test: IdexxTest) =>
-  String(test.meta?.turnaround ?? '').trim() || 'TAT not listed';
-
-export const getTestSpecimen = (test: IdexxTest) =>
-  String(test.meta?.specimen ?? '').trim() || 'Specimen not listed';
-
-const formatCensusIvlsDevices = (entry: CensusEntry | null) => {
-  const devices = entry?.ivls ?? [];
-  if (devices.length === 0) return '-';
-  return devices
-    .map((device) => {
-      const serial = String(device.serialNumber ?? '').trim();
-      const displayName = String(device.displayName ?? '').trim();
-      if (displayName && serial) return `${displayName} (${serial})`;
-      return displayName || serial || '-';
-    })
-    .join(', ');
-};
-
-const parseFloatSafe = (value?: string): number | null => {
-  if (!value) return null;
-  const normalized = String(value).replaceAll(',', '.');
-  const allowedChars = '0123456789.+-';
-  const cleaned = Array.from(normalized)
-    .filter((char) => allowedChars.includes(char))
-    .join('');
-  const parsed = Number.parseFloat(cleaned);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const parseReferenceRange = (range?: string): { min: number; max: number } | null => {
-  if (!range) return null;
-  const matches = range.match(/-?\d+(?:\.\d+)?/g);
-  if (!matches || matches.length < 2) return null;
-  const min = Number.parseFloat(matches[0]);
-  const max = Number.parseFloat(matches[1]);
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return null;
-  return { min, max };
-};
-
-const getMeterMeta = (test: LabResultTest) => {
-  const range = parseReferenceRange(test.referenceRange);
-  const value = parseFloatSafe(test.result);
-  if (!range || value == null) {
-    return { canRender: false, percent: 0, markerClass: 'bg-text-secondary' };
-  }
-  const isOutOfRangeByValue = value < range.min || value > range.max;
-  const percent = Math.min(100, Math.max(0, ((value - range.min) / (range.max - range.min)) * 100));
-  const markerClass = test.outOfRange || isOutOfRangeByValue ? 'bg-red-500' : 'bg-text-primary';
-  return { canRender: true, percent, markerClass };
-};
-
-export const toTitleCase = (value?: string | null) => {
-  const raw = String(value ?? '').trim();
-  if (!raw) return '-';
-  const normalized = raw.toLowerCase().replaceAll(/[_-]+/g, ' ');
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-};
-
-const orderSortDate = (order: LabOrder) => order.updatedAt ?? order.createdAt ?? '';
-
-export const resolveOrderUiUrl = (order: LabOrder | null) => {
-  if (!order) return '';
-  const nested = String(
-    (order as unknown as { responsePayload?: { uiURL?: string } })?.responsePayload?.uiURL ?? ''
-  ).trim();
-  const raw = String(order.uiUrl ?? '').trim() || nested;
-  return getSafeIdexxIframeUrl(raw);
-};
-
-export const resolveOrderPdfUrl = (order: LabOrder | null) => {
-  if (!order) return '';
-  const nested = String(
-    (order as unknown as { responsePayload?: { pdfURL?: string } })?.responsePayload?.pdfURL ?? ''
-  ).trim();
-  const raw = String(order.pdfUrl ?? '').trim() || nested;
-  return getSafeIdexxIframeUrl(raw);
-};
-
-const getNormalizedLifecycleStatus = (order: LabOrder | null) =>
-  String(order?.externalStatus ?? order?.status ?? '')
-    .trim()
-    .toUpperCase()
-    .replaceAll(/\s+/g, '_');
-
-const formatOrderStatus = (order: LabOrder) => {
-  const status = String(order.status ?? '').trim();
-  const external = String(order.externalStatus ?? '').trim();
-  if (external && external.toLowerCase() !== status.toLowerCase()) {
-    return `${toTitleCase(status || '-')} (${toTitleCase(external)})`;
-  }
-  return toTitleCase(status || '-');
-};
-
-const normalizeResultProgress = (status?: string | null) => {
-  const key = String(status ?? '')
-    .trim()
-    .toUpperCase();
-  if (!key) return '';
-  if (key.includes('PARTIAL') || key.includes('INPROCESS') || key.includes('IN_PROCESS'))
-    return 'In process';
-  if (key.includes('PENDING') || key.includes('RUNNING')) return 'In process';
-  if (key.includes('COMPLETE') || key.includes('FINAL')) return 'Complete';
-  if (key.includes('ERROR') || key.includes('FAIL')) return 'Error';
-  return '';
-};
-
-export const getOrderStatusBadgeClass = (
-  order: LabOrder,
-  resultProgressByOrderId: Map<string, string>
-) => {
-  const resultProgress = resultProgressByOrderId.get(String(order.idexxOrderId ?? '').trim());
-  if (resultProgress === 'Complete') return 'bg-green-50 text-green-800';
-  if (resultProgress === 'In process') return 'bg-amber-50 text-amber-700';
-  if (resultProgress === 'Error') return 'bg-red-50 text-red-700';
-  const key = String(order.status ?? '').toLowerCase();
-  if (key.includes('submitted') || key.includes('complete') || key.includes('final'))
-    return 'bg-green-50 text-green-800';
-  if (key.includes('created') || key.includes('pending')) return 'bg-amber-50 text-amber-700';
-  if (key.includes('error') || key.includes('failed') || key.includes('cancel'))
-    return 'bg-red-50 text-red-700';
-  return 'bg-card-hover text-text-secondary';
-};
-
-const shouldCloseOrderIframe = (args: {
-  source: 'order' | 'followup';
-  initialStatus: string | null;
-  nextStatus: string;
-  nextHasAcknowledgement: boolean;
-  sawNonSubmittedStatus: boolean;
-  initialUpdatedAt: string | null;
-  nextUpdatedAt?: string;
-  initialOrderId: string | null;
-  newestKnownOrderId: string;
-}) => {
-  const {
-    source,
-    initialStatus,
-    nextStatus,
-    nextHasAcknowledgement,
-    sawNonSubmittedStatus,
-    initialUpdatedAt,
-    nextUpdatedAt,
-    initialOrderId,
-    newestKnownOrderId,
-  } = args;
-
-  if (source === 'order') {
-    const initialStatusKey = String(initialStatus ?? '')
-      .trim()
-      .toUpperCase()
-      .replaceAll(/\s+/g, '_');
-    const startedAsCreated = initialStatusKey === 'CREATED' || !initialStatusKey;
-    const startedAsInProgress = ['IN_PROCESS', 'INPROCESS', 'PENDING'].includes(initialStatusKey);
-    const updatedAtChanged = Boolean(
-      initialUpdatedAt && nextUpdatedAt && nextUpdatedAt !== initialUpdatedAt
-    );
-    if (startedAsCreated) {
-      return nextStatus === 'SUBMITTED' && nextHasAcknowledgement;
-    }
-    if (startedAsInProgress) {
-      return (
-        (sawNonSubmittedStatus || updatedAtChanged) &&
-        nextStatus === 'SUBMITTED' &&
-        nextHasAcknowledgement
-      );
-    }
-    return false;
-  }
-
-  const updatedAtChanged = Boolean(
-    initialUpdatedAt && nextUpdatedAt && nextUpdatedAt !== initialUpdatedAt
-  );
-  const followUpOrderCreated =
-    Boolean(initialOrderId) && Boolean(newestKnownOrderId) && newestKnownOrderId !== initialOrderId;
-  return updatedAtChanged || followUpOrderCreated;
-};
 
 // ---------- Sub-components ----------
 
@@ -410,10 +166,10 @@ const PastOrderCard = ({
       ) : (
         <Primary
           href="#"
-          text="Open IDEXX"
+          text={getOrderActionLabel(order)}
           onClick={() => {
             setActiveOrderForActions(order);
-            openOrderIframe('order', order.status, order);
+            openOrderIframe(getOrderActionSource(order), order.status, order);
           }}
           isDisabled={!resolveOrderUiUrl(order)}
         />
@@ -433,7 +189,7 @@ const PastOrderCard = ({
 export const useLabTests = (activeAppointment: Appointment | null) => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const idexxIntegration = useIntegrationByProviderForPrimaryOrg('IDEXX');
-  const [integrationEnabled, setIntegrationEnabled] = useState(false);
+  const integrationEnabled = idexxIntegration?.status === 'enabled';
   const [devices, setDevices] = useState<IvlsDevice[]>([]);
   const [tests, setTests] = useState<IdexxTest[]>([]);
   const [testsPage, setTestsPage] = useState(1);
@@ -446,10 +202,16 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [modality, setModality] = useState<'REFERENCE_LAB' | 'INHOUSE'>('REFERENCE_LAB');
   const [selectedIvls, setSelectedIvls] = useState('');
-  const [veterinarian, setVeterinarian] = useState('');
-  const [technician, setTechnician] = useState('');
+  const defaultLeadName = (activeAppointment?.lead?.name ?? '').trim();
+  const defaultTechnicianName = (activeAppointment?.supportStaff ?? [])
+    .map((staff) => (staff.name ?? '').trim())
+    .find((name) => name && name !== defaultLeadName);
+  const [veterinarian, setVeterinarian] = useState(defaultLeadName);
+  const [technician, setTechnician] = useState(defaultTechnicianName ?? '');
   const [notes, setNotes] = useState('');
-  const [specimenCollectionDate, setSpecimenCollectionDate] = useState('');
+  const [specimenCollectionDate, setSpecimenCollectionDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [latestOrder, setLatestOrder] = useState<LabOrder | null>(null);
   const [results, setResults] = useState<LabResult[]>([]);
   const [censusEntries, setCensusEntries] = useState<CensusEntry[]>([]);
@@ -460,14 +222,9 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
   const [error, setError] = useState<string | null>(null);
   const [showOrderIframe, setShowOrderIframe] = useState(false);
   const [iframeInitialStatus, setIframeInitialStatus] = useState<string | null>(null);
-  const [iframeInitialResultProgress, setIframeInitialResultProgress] = useState<string | null>(
-    null
-  );
-  const [iframeInitialUpdatedAt, setIframeInitialUpdatedAt] = useState<string | null>(null);
   const [iframeInitialOrderId, setIframeInitialOrderId] = useState<string | null>(null);
   const [iframeOrderUiUrl, setIframeOrderUiUrl] = useState<string | null>(null);
   const [iframeOpenSource, setIframeOpenSource] = useState<'order' | 'followup'>('order');
-  const [iframeSawNonSubmittedStatus, setIframeSawNonSubmittedStatus] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [pdfPreviewTitle, setPdfPreviewTitle] = useState('IDEXX PDF');
@@ -475,6 +232,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
 
   const companionId = activeAppointment?.companion?.id;
   const parentId = activeAppointment?.companion?.parent?.id;
+  const [prevAppointmentStaffKey, setPrevAppointmentStaffKey] = useState<string | null>(null);
 
   // Stable ref so callbacks can read the latest appointmentOrders without
   // listing the array as a dep (new array ref every render → infinite loop).
@@ -498,7 +256,7 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     latestOrder &&
     resolveOrderUiUrl(latestOrder) &&
     !['INHOUSE', 'IN_HOUSE'].includes(String(latestOrder.modality ?? '').toUpperCase()) &&
-    normalizedOrderStatus !== 'CREATED'
+    normalizedOrderStatus === 'SUBMITTED'
   );
 
   const getOrderDisplayStatus = useCallback(
@@ -515,24 +273,17 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     });
   }, []);
 
-  useEffect(() => {
-    setSpecimenCollectionDate(new Date().toISOString().slice(0, 10));
-  }, []);
-
-  useEffect(() => {
-    const leadName = (activeAppointment?.lead?.name ?? '').trim();
-    // Technician defaults to the first support staff member who isn't the lead,
-    // so the Veterinarian (lead) and Technician fields don't echo the same person.
-    const supportTechnicianName = (activeAppointment?.supportStaff ?? [])
-      .map((staff) => (staff.name ?? '').trim())
-      .find((name) => name && name !== leadName);
-    setVeterinarian(leadName);
-    setTechnician(supportTechnicianName ?? '');
-  }, [activeAppointment?.id, activeAppointment?.lead?.name, activeAppointment?.supportStaff]);
-
-  useEffect(() => {
-    setIntegrationEnabled(idexxIntegration?.status === 'enabled');
-  }, [idexxIntegration?.status]);
+  const appointmentStaffKey = `${activeAppointment?.id ?? ''}:${defaultLeadName}:${(activeAppointment?.supportStaff ?? []).map((staff) => staff.id ?? staff.name ?? '').join('|')}`;
+  if (prevAppointmentStaffKey === null || appointmentStaffKey !== prevAppointmentStaffKey) {
+    setPrevAppointmentStaffKey(appointmentStaffKey);
+    if (veterinarian !== defaultLeadName) {
+      setVeterinarian(defaultLeadName);
+    }
+    const nextTechnician = defaultTechnicianName ?? '';
+    if (technician !== nextTechnician) {
+      setTechnician(nextTechnician);
+    }
+  }
 
   useEffect(() => {
     const run = async () => {
@@ -693,9 +444,9 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
         });
         setLatestOrder(next);
         upsertAppointmentOrder(next);
-        let newestKnownOrderId = String(next.idexxOrderId ?? '').trim();
 
         if (iframeOpenSource === 'followup' && activeAppointment?.id) {
+          let newestKnownOrderId = String(next.idexxOrderId ?? '').trim();
           const appointmentOrderIds = new Set(
             appointmentOrdersRef.current.flatMap((order) => {
               const orderId = String(order.idexxOrderId ?? '').trim();
@@ -710,12 +461,6 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
               return companionMatch && appointmentOrderIds.has(resultOrderId);
             });
             setResults(filtered);
-
-            const nextProgress = getOrderResultProgressFromResults(filtered, next.idexxOrderId);
-            if ((iframeInitialResultProgress ?? '') !== (nextProgress ?? '') && nextProgress) {
-              setShowOrderIframe(false);
-              return;
-            }
           }
 
           const refreshedOrders = await listIdexxOrdersWithFallback(
@@ -729,12 +474,25 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
             setLatestOrder((prev) => resolveLatestOrder(prev, normalizedOrders));
             newestKnownOrderId = String(normalizedOrders[0].idexxOrderId ?? '').trim();
           }
+          const nextHasAcknowledgement = Boolean(resolveOrderPdfUrl(next));
+          if (
+            shouldCloseOrderIframe({
+              source: iframeOpenSource,
+              initialStatus: iframeInitialStatus,
+              nextStatus: getNormalizedLifecycleStatus(next),
+              nextHasAcknowledgement,
+              initialOrderId: iframeInitialOrderId,
+              newestKnownOrderId,
+            })
+          ) {
+            setShowOrderIframe(false);
+            void refreshAppointmentOrders();
+            return;
+          }
+          return;
         }
 
         const nextStatus = getNormalizedLifecycleStatus(next);
-        if (nextStatus !== 'SUBMITTED') {
-          setIframeSawNonSubmittedStatus(true);
-        }
         const nextHasAcknowledgement = Boolean(resolveOrderPdfUrl(next));
         if (
           shouldCloseOrderIframe({
@@ -742,14 +500,12 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
             initialStatus: iframeInitialStatus,
             nextStatus,
             nextHasAcknowledgement,
-            sawNonSubmittedStatus: iframeSawNonSubmittedStatus,
-            initialUpdatedAt: iframeInitialUpdatedAt,
-            nextUpdatedAt: next.updatedAt,
             initialOrderId: iframeInitialOrderId,
-            newestKnownOrderId,
+            newestKnownOrderId: String(next.idexxOrderId ?? '').trim(),
           })
         ) {
           setShowOrderIframe(false);
+          void refreshAppointmentOrders();
           return;
         }
       } catch (e) {
@@ -765,11 +521,9 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
     iframeInitialOrderId,
     iframeOpenSource,
     iframeInitialStatus,
-    iframeInitialResultProgress,
-    iframeInitialUpdatedAt,
-    iframeSawNonSubmittedStatus,
     upsertAppointmentOrder,
     companionId,
+    refreshAppointmentOrders,
   ]);
 
   const openOrderIframe = useCallback(
@@ -783,19 +537,17 @@ export const useLabTests = (activeAppointment: Appointment | null) => {
       }
       setIframeOpenSource(source);
       setIframeInitialStatus((statusOverride ?? orderForFrame?.status ?? '').toUpperCase() || null);
-      setIframeInitialResultProgress(resultProgressByOrderId.get(frameOrderId) ?? null);
-      setIframeInitialUpdatedAt(orderForFrame?.updatedAt ?? null);
       setIframeInitialOrderId(frameOrderId);
       setIframeOrderUiUrl(frameUiUrl);
-      setIframeSawNonSubmittedStatus(false);
       setShowOrderIframe(true);
     },
-    [latestOrder, resultProgressByOrderId]
+    [latestOrder]
   );
 
   const closeOrderIframeManually = useCallback(() => {
     setShowOrderIframe(false);
-  }, []);
+    void refreshAppointmentOrders();
+  }, [refreshAppointmentOrders]);
 
   const closePdfPreview = useCallback(() => {
     setShowPdfPreview(false);
@@ -1315,13 +1067,7 @@ const LabOrderForm = ({ s }: { s: UseLabTestsReturn }) => (
   </Accordion>
 );
 
-const LabOrderStatus = ({
-  s,
-  orderButtonText,
-}: {
-  s: UseLabTestsReturn;
-  orderButtonText: string;
-}) => (
+const LabOrderStatus = ({ s }: { s: UseLabTestsReturn }) => (
   <Accordion title="Order status and requisition" defaultOpen showEditIcon={false} isEditing>
     <div className="flex flex-col gap-3 py-2">
       <div className="flex items-center justify-end">
@@ -1356,7 +1102,7 @@ const LabOrderStatus = ({
                 text={
                   s.getOrderDisplayStatus(s.latestOrder) === 'Complete'
                     ? 'Result PDF'
-                    : orderButtonText
+                    : getOrderActionLabel(s.latestOrder)
                 }
                 onClick={() => {
                   if (!s.latestOrder) return;
@@ -1364,7 +1110,11 @@ const LabOrderStatus = ({
                     void s.openResultPdfForOrder(s.latestOrder);
                     return;
                   }
-                  s.openOrderIframe(s.canOpenFollowUpInCurrentOrder ? 'followup' : 'order');
+                  s.openOrderIframe(
+                    getOrderActionSource(s.latestOrder),
+                    s.latestOrder.status,
+                    s.latestOrder
+                  );
                 }}
                 isDisabled={
                   s.getOrderDisplayStatus(s.latestOrder) === 'Complete'
@@ -1486,6 +1236,7 @@ type IdexxOrderIframeOverlayProps = {
 
 const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverlayProps) => {
   const [loaded, setLoaded] = useState(false);
+  const isFollowUp = title.toLowerCase().includes('follow-up');
   return (
     <div
       className="fixed inset-0 z-5000 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
@@ -1494,7 +1245,15 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
     >
       <div className="relative bg-white rounded-2xl shadow-2xl size-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
-          <div className="text-body-2 text-text-primary">{title}</div>
+          <div className="flex flex-col">
+            <div className="text-body-2 text-text-primary">{title}</div>
+            {isFollowUp ? (
+              <div className="text-caption-1 text-text-secondary">
+                If IDEXX shows the order was submitted and this window stays open, close it with the
+                top-right cross arrow to refresh this appointment.
+              </div>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -1517,6 +1276,7 @@ const IdexxOrderIframeOverlay = ({ url, title, onClose }: IdexxOrderIframeOverla
             title="IDEXX order UI"
             className="size-full border-0"
             loading="lazy"
+            sandbox="allow-scripts allow-popups allow-forms"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ pointerEvents: 'auto' }}
@@ -1558,12 +1318,6 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
   const iframeTitle =
     s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
   const orderIframeUrl = s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder);
-  let orderButtonText = 'Open IDEXX';
-  if (s.needsInitialOrderPlacement) {
-    orderButtonText = 'Resume order placement';
-  } else if (s.canOpenFollowUpInCurrentOrder) {
-    orderButtonText = 'Follow up';
-  }
 
   return (
     <>
@@ -1588,7 +1342,7 @@ const LabTests = ({ activeAppointment }: LabTestsProps) => {
       <div className="flex flex-col gap-4 w-full">
         {s.error ? <div className="text-body-4 text-text-error">{s.error}</div> : null}
         <LabOrderForm s={s} />
-        <LabOrderStatus s={s} orderButtonText={orderButtonText} />
+        <LabOrderStatus s={s} />
         <LabResultsList s={s} />
       </div>
     </>

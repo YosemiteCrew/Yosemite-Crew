@@ -171,4 +171,72 @@ describe("CompanionHistoryController", () => {
         "Permissions not loaded. Include withOrgPermissions before handler.",
     });
   });
+
+  it("accepts a UUID patientId for postgres compatibility", async () => {
+    const uuidPatientId = "6fafc6c4-8440-4070-adf1-8849209186bd";
+    (req as any).userPermissions = ["companions:view:any"];
+    req.params = {
+      organisationId,
+      patientId: uuidPatientId,
+    };
+
+    mockedCompanionHistoryService.listForCompanion.mockResolvedValue({
+      entries: [],
+      nextCursor: null,
+      summary: {
+        totalReturned: 0,
+        countsByType: {
+          APPOINTMENT: 0,
+          TASK: 0,
+          FORM_SUBMISSION: 0,
+          DOCUMENT: 0,
+          LAB_RESULT: 0,
+          INVOICE: 0,
+        },
+      },
+    } as any);
+
+    await CompanionHistoryController.listForCompanion(req as any, res as any);
+
+    expect(mockedCompanionHistoryService.listForCompanion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patientId: uuidPatientId,
+      }),
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("still accepts a legacy ObjectId patientId", async () => {
+    const objectIdPatientId = "507f191e810c19729de860ea";
+    (req as any).userPermissions = ["companions:view:any"];
+    req.params = {
+      organisationId,
+      patientId: objectIdPatientId,
+    };
+
+    mockedCompanionHistoryService.listForCompanion.mockResolvedValue({
+      entries: [],
+      nextCursor: null,
+      summary: {
+        totalReturned: 0,
+        countsByType: {
+          APPOINTMENT: 0,
+          TASK: 0,
+          FORM_SUBMISSION: 0,
+          DOCUMENT: 0,
+          LAB_RESULT: 0,
+          INVOICE: 0,
+        },
+      },
+    } as any);
+
+    await CompanionHistoryController.listForCompanion(req as any, res as any);
+
+    expect(mockedCompanionHistoryService.listForCompanion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        patientId: objectIdPatientId,
+      }),
+    );
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
 });

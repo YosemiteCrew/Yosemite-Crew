@@ -133,18 +133,18 @@
     "cashCancellationNoticeBody": "Esta cita fue pagada en efectivo y ha sido cancelada. Si se necesita un reembolso, debe gestionarse directamente con el proveedor del servicio."
   },
   "mapDiscovery": {
-    "title": "Encontrar una clínica",
-    "searchPlaceholder": "Buscar clínicas, especialidades…",
+    "title": "Buscar negocios",
+    "searchPlaceholder": "Buscar negocios, especialidades…",
     "openNow": "Abierto ahora",
     "filterAll": "Todos",
     "filterHospital": "Hospital",
     "filterGroomer": "Peluquería",
     "filterBreeder": "Criador",
     "filterBoarder": "Pensión",
-    "emptyClinicsTitle": "No hay clínicas en esta área",
+    "emptyClinicsTitle": "No hay negocios veterinarios en esta área",
     "emptyClinicsSubtitle": "Mueve el mapa o busca para descubrir proveedores cercanos.",
     "locationPermissionTitle": "Acceso a ubicación",
-    "locationPermissionMessage": "Permite que Yosemite Crew muestre clínicas cerca de ti.",
+    "locationPermissionMessage": "Permite que Yosemite Crew muestre negocios veterinarios cerca de ti.",
     "locationPermissionAllow": "Permitir",
     "locationPermissionDeny": "Denegar"
   }

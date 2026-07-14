@@ -1,5 +1,4 @@
-import { TemplateKind } from "@prisma/client";
-import { Prisma } from "@prisma/client";
+import { Prisma, TemplateKind } from "@prisma/client";
 import {
   generateClinicalPdf,
   generateClinicalPdfWithMetadata,
@@ -1686,8 +1685,7 @@ const buildTemplateFreeVitalRecordPdfInput = async (
         record.data.vitals ?? metadata.vitals ?? metadata.vitalRows,
       ),
       notes,
-      metadata:
-        record.data.metadata !== undefined ? record.data.metadata : metadata,
+      metadata: record.data.metadata ?? metadata,
       printedBy: readPrintedByField(record, metadata),
       signature,
     },

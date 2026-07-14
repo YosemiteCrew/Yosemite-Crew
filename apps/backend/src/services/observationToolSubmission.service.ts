@@ -25,6 +25,14 @@ export class ObservationToolSubmissionServiceError extends Error {
   }
 }
 
+type ObservationToolTaskRow = {
+  _id: Types.ObjectId;
+  patientId?: string | null;
+  status?: string;
+  dueAt?: Date;
+  observationToolId?: Types.ObjectId | string | null;
+};
+
 const SAFE_ID_FALLBACK = /^[A-Za-z0-9_-]+$/;
 
 const asNonEmptyString = (value: unknown): string | undefined => {
@@ -1060,13 +1068,7 @@ export const ObservationToolSubmissionService = {
     })
       .setOptions({ sanitizeFilter: true })
       .select("_id patientId status dueAt observationToolId")
-      .lean()) as unknown as Array<{
-      _id: Types.ObjectId;
-      patientId?: string | null;
-      status?: string;
-      dueAt?: Date;
-      observationToolId?: Types.ObjectId | string | null;
-    }>;
+      .lean()) as unknown as Array<ObservationToolTaskRow>;
 
     if (!tasks.length) return [];
 

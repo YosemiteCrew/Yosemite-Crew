@@ -60,6 +60,7 @@ export interface DispenseRequestApi {
   medications: DispenseRequestMedication[];
   metadata: Record<string, unknown> | null;
   patientName: string | null;
+  parentName: string | null;
   petBreed: string | null;
   petAge: string | null;
   patientImageUrl: string | null;

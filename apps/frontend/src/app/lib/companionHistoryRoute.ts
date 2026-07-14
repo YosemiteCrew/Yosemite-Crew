@@ -9,6 +9,18 @@ type BuildCompanionHistoryHrefParams = {
 
 const normalizeValue = (value?: string | null): string => String(value ?? '').trim();
 
+const removeCompanionDeepLinkParam = (path: string): string => {
+  if (!path.startsWith('/') || path.startsWith('//')) return path;
+
+  const url = new URL(path, 'https://yosemite.local');
+  if (url.pathname !== '/companions') return path;
+
+  url.searchParams.delete('companionId');
+  const search = url.searchParams.toString();
+  const query = search ? `?${search}` : '';
+  return `${url.pathname}${query}${url.hash}`;
+};
+
 export const buildCompanionHistoryHref = ({
   companionId,
   source,
@@ -52,5 +64,5 @@ export const buildCompanionOverviewHref = (companionId?: string | null, backTo =
   buildCompanionHistoryHref({
     companionId,
     source: 'companions',
-    backTo,
+    backTo: removeCompanionDeepLinkParam(backTo || '/companions'),
   });

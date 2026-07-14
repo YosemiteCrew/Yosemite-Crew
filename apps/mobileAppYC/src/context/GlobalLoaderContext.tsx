@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useMemo,
-} from 'react';
+import React, {createContext, use, useState, useCallback, useMemo} from 'react';
 import {StyleSheet, View, Modal} from 'react-native';
 import {useTheme} from '@/hooks';
 import {GifLoader} from '@/shared/components/common/GifLoader/GifLoader';
@@ -68,7 +62,7 @@ const createStyles = (theme: any) =>
   });
 
 export const useGlobalLoader = () => {
-  const context = useContext(GlobalLoaderContext);
+  const context = use(GlobalLoaderContext);
   if (context === undefined) {
     throw new Error(
       'useGlobalLoader must be used within a GlobalLoaderProvider',

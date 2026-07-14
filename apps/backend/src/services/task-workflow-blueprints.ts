@@ -70,8 +70,16 @@ const workflowBlueprints: Record<
           {
             key: "taskKind",
             label: "Task kind",
-            type: "text",
+            type: "select",
             required: true,
+            options: [
+              { label: "Medication", value: "MEDICATION" },
+              { label: "Observation tool", value: "OBSERVATION_TOOL" },
+              { label: "Hygiene", value: "HYGIENE" },
+              { label: "Diet", value: "DIET" },
+              { label: "Custom", value: "CUSTOM" },
+            ],
+            rules: { allowCustom: false },
           },
           {
             key: "category",
@@ -100,13 +108,23 @@ const workflowBlueprints: Record<
           {
             key: "audience",
             label: "Audience",
-            type: "text",
+            type: "select",
             required: true,
+            options: [
+              { label: "Employee task", value: "EMPLOYEE_TASK" },
+              { label: "Parent task", value: "PARENT_TASK" },
+            ],
+            rules: { allowCustom: false },
           },
           {
             key: "defaultAssigneeRole",
             label: "Default assignee role",
-            type: "text",
+            type: "select",
+            options: [
+              { label: "Employee task", value: "EMPLOYEE_TASK" },
+              { label: "Parent task", value: "PARENT_TASK" },
+            ],
+            rules: { allowCustom: false },
           },
           {
             key: "syncWithCalendar",
@@ -134,7 +152,14 @@ const workflowBlueprints: Record<
           {
             key: "recurrence",
             label: "Recurrence",
-            type: "text",
+            type: "select",
+            options: [
+              { label: "Once", value: "ONCE" },
+              { label: "Daily", value: "DAILY" },
+              { label: "Weekly", value: "WEEKLY" },
+              { label: "Custom", value: "CUSTOM" },
+            ],
+            rules: { allowCustom: false },
           },
         ],
       },
@@ -256,7 +281,13 @@ const validateFieldType = (
   path: string,
   field: BlueprintField,
   snapshotField: SnapshotField,
-) => (snapshotField.type !== field.type ? [`${path}.type`] : []);
+) => {
+  if (snapshotField.type === field.type) {
+    return [];
+  }
+
+  return [`${path}.type`];
+};
 
 const validateFieldRepeatable = (
   path: string,

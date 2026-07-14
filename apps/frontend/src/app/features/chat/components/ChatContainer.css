@@ -4,7 +4,7 @@
   display: flex;
   height: 100%;
   width: 100%;
-  font-family: var(--satoshi-font);
+  font-family: var(--font-satoshi);
   overflow: hidden;
 }
 
@@ -12,13 +12,18 @@
 .str-chat__container {
   display: flex;
   width: 100%;
+  max-width: 100%;
   height: 100%;
+  min-width: 0;
 }
 
-/* Sidebar with channel list */
+/* Sidebar with channel list — fluid within sensible bounds so it never feels
+   cramped on tablets nor over-wide on large screens. */
 .str-chat__channel-list-wrapper {
-  flex: 0 0 360px;
+  flex: 0 0 clamp(300px, 30%, 380px);
   height: 100%;
+  min-width: 0;
+  max-width: 100%;
   border-right: 1px solid var(--color-chat-divider);
   background: var(--color-neutral-0);
   overflow: hidden;
@@ -49,6 +54,10 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .str-chat__channel-preview {
@@ -87,12 +96,19 @@
   border: none;
   border-bottom: 1px solid var(--color-chat-divider);
   cursor: pointer;
-  color: var(--color-chat-panel-border);
-  font-weight: 500;
+  color: var(--color-primary-700);
+  font-family: var(--font-satoshi);
+  font-size: 14px;
+  font-weight: 600;
   flex-shrink: 0;
-  background: transparent;
+  background: var(--color-neutral-0);
   text-align: left;
   width: 100%;
+  transition: background-color 0.2s ease;
+}
+
+.chat-back-button:hover {
+  background: var(--color-chat-surface-soft);
 }
 
 .chat-back-button:focus-visible {
@@ -185,6 +201,123 @@
   padding: 10px;
 }
 
+/* ---------------------------------------------------------------------------
+   Stream default-surface overrides.
+   stream-chat-react ships its own v2 theme; these rules realign the surfaces
+   our custom components do NOT replace (the message-list canvas, the
+   pagination / "Load more" control, date separators, typing indicator and
+   scrollbars) with the Yosemite design tokens so the whole panel reads as one.
+   --------------------------------------------------------------------------- */
+
+/* Message canvas */
+.str-chat__main-panel .str-chat__list,
+.str-chat__main-panel .str-chat__message-list-scroll {
+  background: var(--color-chat-surface);
+}
+
+.str-chat__main-panel .str-chat__list {
+  padding: 16px 16px 8px;
+}
+
+/* Guard against horizontal overflow anywhere in the conversation pane: long
+   words, wide attachments and the header action row must never force a
+   sideways scrollbar or push the layout wider than the panel. */
+/* Flex nodes in the conversation pane must be allowed to shrink below their
+   content's intrinsic width (flex items default to min-width:auto), otherwise a
+   wide message/attachment forces the whole panel past the viewport. Scoped to
+   the structural layout chain only — NOT every descendant — so it never
+   collapses composer popovers, icons or other intentionally-sized UI. */
+.str-chat__main-panel,
+.str-chat__main-panel > .str-chat__channel,
+.str-chat__main-panel .str-chat__main-panel-inner,
+.str-chat__main-panel .str-chat__window,
+.str-chat__main-panel .str-chat__message-list,
+.str-chat__main-panel .str-chat__message-list-scroll,
+.str-chat__main-panel .str-chat__list {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.str-chat__main-panel .str-chat__channel,
+.str-chat__main-panel .str-chat__main-panel-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.str-chat__main-panel .str-chat__list :where(p, span, a) {
+  overflow-wrap: anywhere;
+}
+
+/* Attachments / images must never exceed the bubble width */
+.str-chat__main-panel .str-chat__list img,
+.str-chat__main-panel .str-chat__list video,
+.str-chat__main-panel .str-chat__attachment,
+.str-chat__main-panel .str-chat__attachment-container {
+  max-width: 100%;
+  height: auto;
+}
+
+/* The channel-list "Load more" control is rendered by our custom Paginator
+   (ChatChannelListPaginator) using the reusable Primary button, so Stream's
+   default full-width load-more button needs no override here. */
+
+/* Date separators between message groups */
+.str-chat__date-separator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 8px;
+}
+
+.str-chat__date-separator-line {
+  flex: 1;
+  height: 1px;
+  background: var(--color-chat-divider);
+}
+
+.str-chat__date-separator-date {
+  font-family: var(--font-satoshi);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* Typing indicator row */
+.str-chat__typing-indicator {
+  padding: 2px 16px 4px;
+}
+
+/* Consistent, subtle scrollbars across chat surfaces */
+.str-chat__channel-list-messenger__main,
+.str-chat__list,
+.str-chat__message-list-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-300) transparent;
+}
+
+.str-chat__channel-list-messenger__main::-webkit-scrollbar,
+.str-chat__list::-webkit-scrollbar,
+.str-chat__message-list-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.str-chat__channel-list-messenger__main::-webkit-scrollbar-thumb,
+.str-chat__list::-webkit-scrollbar-thumb,
+.str-chat__message-list-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-neutral-200);
+  border-radius: 999px;
+}
+
+.str-chat__channel-list-messenger__main::-webkit-scrollbar-thumb:hover,
+.str-chat__list::-webkit-scrollbar-thumb:hover,
+.str-chat__message-list-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neutral-300);
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .str-chat {
@@ -248,12 +381,9 @@
     overflow: hidden;
   }
 
-  .str-chat__textarea {
-    font-size: 14px;
-  }
-
-  .str-chat__send-button {
-    font-size: 13px;
+  /* Tighter message canvas gutters on phones */
+  .str-chat__main-panel .str-chat__list {
+    padding: 12px 10px 6px;
   }
 }
 
@@ -278,14 +408,42 @@
     flex-shrink: 0;
     overflow: hidden;
   }
+}
 
-  .str-chat__textarea {
-    font-size: 13px;
-    min-height: 36px;
-  }
+/* Empty / welcome state shown when no conversation is selected */
+.chat-empty-state {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px 24px;
+  text-align: center;
+  background: var(--color-chat-surface);
+}
 
-  .str-chat__send-button {
-    font-size: 12px;
-    padding: 8px 12px;
-  }
+.chat-empty-state__art {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 9999px;
+  background: var(--color-chat-surface-soft);
+  color: var(--color-chat-panel-border);
+}
+
+.chat-empty-state__art svg {
+  width: 44px;
+  height: 44px;
+}
+
+.chat-empty-state__title {
+  color: var(--color-neutral-900);
+}
+
+.chat-empty-state__subtitle {
+  max-width: 360px;
+  color: var(--color-neutral-600);
 }

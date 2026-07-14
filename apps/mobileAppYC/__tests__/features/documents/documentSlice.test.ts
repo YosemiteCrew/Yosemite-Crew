@@ -4,6 +4,7 @@ import documentReducer, {
   clearError,
   clearSearchResults,
   fetchDocuments,
+  fetchAppointmentDocuments,
   uploadDocumentFiles,
   addDocument,
   updateDocument,
@@ -19,7 +20,8 @@ import {configureStore} from '@reduxjs/toolkit';
 jest.mock('../../../src/features/documents/services/documentService');
 jest.mock('../../../src/features/auth/sessionManager');
 
-const mockGetFreshStoredTokens = sessionManager.getFreshStoredTokens as jest.Mock;
+const mockGetFreshStoredTokens =
+  sessionManager.getFreshStoredTokens as jest.Mock;
 const mockIsTokenExpired = sessionManager.isTokenExpired as jest.Mock;
 
 describe('documentSlice', () => {
@@ -61,7 +63,9 @@ describe('documentSlice', () => {
   // ====================================================
   describe('Synchronous Reducers', () => {
     it('should return initial state', () => {
-      expect(documentReducer(undefined, {type: 'unknown'})).toEqual(initialState);
+      expect(documentReducer(undefined, {type: 'unknown'})).toEqual(
+        initialState,
+      );
     });
 
     it('resetDocumentState: should reset all fields', () => {
@@ -71,7 +75,9 @@ describe('documentSlice', () => {
         loading: true,
         error: 'err',
       };
-      expect(documentReducer(dirtyState as any, resetDocumentState())).toEqual(initialState);
+      expect(documentReducer(dirtyState as any, resetDocumentState())).toEqual(
+        initialState,
+      );
     });
 
     it('setUploadProgress: should update progress', () => {
@@ -102,7 +108,9 @@ describe('documentSlice', () => {
       mockGetFreshStoredTokens.mockResolvedValue(null);
       const store = createTestStore();
       const result = await store.dispatch(fetchDocuments({companionId: 'c1'}));
-      expect(result.payload).toBe('Missing access token. Please sign in again.');
+      expect(result.payload).toBe(
+        'Missing access token. Please sign in again.',
+      );
     });
 
     it('should reject if token is expired', async () => {
@@ -113,7 +121,9 @@ describe('documentSlice', () => {
       mockIsTokenExpired.mockReturnValue(true);
       const store = createTestStore();
       const result = await store.dispatch(fetchDocuments({companionId: 'c1'}));
-      expect(result.payload).toBe('Your session expired. Please sign in again.');
+      expect(result.payload).toBe(
+        'Your session expired. Please sign in again.',
+      );
     });
 
     it('should handle undefined expiresAt (treat as valid)', async () => {
@@ -137,7 +147,7 @@ describe('documentSlice', () => {
   // --- FETCH DOCUMENTS ---
   describe('fetchDocuments', () => {
     it('pending: sets fetching true', () => {
-      const action = { type: fetchDocuments.pending.type };
+      const action = {type: fetchDocuments.pending.type};
       const state = documentReducer(initialState, action) as any;
       expect(state.fetching).toBe(true);
       expect(state.error).toBeNull();
@@ -148,7 +158,10 @@ describe('documentSlice', () => {
       (documentApi.list as jest.Mock).mockResolvedValue(mockDocs);
 
       const store = createTestStore({
-        documents: [{id: 'old', companionId: 'c1'}, {id: 'keep', companionId: 'c2'}]
+        documents: [
+          {id: 'old', companionId: 'c1'},
+          {id: 'keep', companionId: 'c2'},
+        ],
       });
 
       await store.dispatch(fetchDocuments({companionId: 'c1'}));
@@ -160,7 +173,9 @@ describe('documentSlice', () => {
     });
 
     it('rejected: sets error', async () => {
-      (documentApi.list as jest.Mock).mockRejectedValue(new Error('Fetch Fail'));
+      (documentApi.list as jest.Mock).mockRejectedValue(
+        new Error('Fetch Fail'),
+      );
       const store = createTestStore();
       await store.dispatch(fetchDocuments({companionId: 'c1'}));
       const state = store.getState().documents;
@@ -173,25 +188,82 @@ describe('documentSlice', () => {
       const res = await store.dispatch(fetchDocuments({companionId: ''}));
       expect(res.type).toBe('documents/fetchDocuments/rejected');
       // The thunk's condition function prevents execution, resulting in an aborted action
-      expect(res.error.message).toBe('Aborted due to condition callback returning false.');
+      expect(res.error.message).toBe(
+        'Aborted due to condition callback returning false.',
+      );
+    });
+  });
+
+  // --- FETCH APPOINTMENT DOCUMENTS ---
+  describe('fetchAppointmentDocuments', () => {
+    it('pending: sets fetching true', () => {
+      const action = {type: fetchAppointmentDocuments.pending.type};
+      const state = documentReducer(initialState, action) as any;
+      expect(state.fetching).toBe(true);
+      expect(state.error).toBeNull();
+    });
+
+    it('fulfilled: replaces documents for the appointment and upserts by id', async () => {
+      (documentApi.listForAppointment as jest.Mock).mockResolvedValue([
+        {id: '1', appointmentId: 'apt-1', title: 'Updated'},
+        {id: '2', appointmentId: 'apt-1', title: 'New'},
+      ]);
+
+      const store = createTestStore({
+        documents: [
+          {id: '1', appointmentId: 'apt-1', title: 'Old'},
+          {id: 'other', appointmentId: 'apt-2', title: 'Unrelated'},
+        ],
+      });
+
+      await store.dispatch(fetchAppointmentDocuments({appointmentId: 'apt-1'}));
+
+      const state = store.getState().documents;
+      expect(state.fetching).toBe(false);
+      expect(state.documents).toHaveLength(3);
+      expect(state.documents.find((d: any) => d.id === '1').title).toBe(
+        'Updated',
+      );
+      expect(state.documents.find((d: any) => d.id === 'other')).toBeDefined();
+    });
+
+    it('rejected: fails validation if appointmentId is missing', async () => {
+      const store = createTestStore();
+      const res = await store.dispatch(
+        fetchAppointmentDocuments({appointmentId: ''}),
+      );
+      expect(res.payload).toBe('Appointment is required to load documents.');
+    });
+
+    it('rejected: sets error from the api failure', async () => {
+      (documentApi.listForAppointment as jest.Mock).mockRejectedValue(
+        new Error('Appointment Fetch Fail'),
+      );
+      const store = createTestStore();
+      await store.dispatch(fetchAppointmentDocuments({appointmentId: 'apt-1'}));
+      const state = store.getState().documents;
+      expect(state.fetching).toBe(false);
+      expect(state.error).toBe('Appointment Fetch Fail');
     });
   });
 
   // --- UPLOAD DOCUMENTS (Complex Logic) ---
   describe('uploadDocumentFiles', () => {
     it('pending: sets loading true', () => {
-      const action = { type: uploadDocumentFiles.pending.type };
+      const action = {type: uploadDocumentFiles.pending.type};
       const state = documentReducer(initialState, action) as any;
       expect(state.loading).toBe(true);
       expect(state.error).toBeNull();
     });
 
     it('fulfilled: resets loading and progress', async () => {
-      const store = createTestStore({ loading: true, uploadProgress: 50 });
+      const store = createTestStore({loading: true, uploadProgress: 50});
       const files = [{uri: 'path', name: 'f', status: 'ready'}];
       (documentApi.uploadAttachment as jest.Mock).mockResolvedValue({key: 'k'});
 
-      await store.dispatch(uploadDocumentFiles({files: files as any, companionId: 'c1'}));
+      await store.dispatch(
+        uploadDocumentFiles({files: files as any, companionId: 'c1'}),
+      );
 
       const state = store.getState().documents;
       expect(state.loading).toBe(false);
@@ -200,278 +272,387 @@ describe('documentSlice', () => {
 
     // COVERAGE: Simulating the progress callback execution
     it('executes progress callback', async () => {
-        const store = createTestStore();
-        const files = [{uri: 'path', name: 'f', status: 'ready'}];
+      const store = createTestStore();
+      const files = [{uri: 'path', name: 'f', status: 'ready'}];
 
-        // Mock implementation to trigger the callback passed as the 2nd argument
-        (documentApi.uploadAttachment as jest.Mock).mockImplementation((file, onProgress) => {
-            if(onProgress) onProgress({ loaded: 50, total: 100 });
-            return Promise.resolve({ key: 'k1' });
-        });
+      // Mock implementation to trigger the callback passed as the 2nd argument
+      (documentApi.uploadAttachment as jest.Mock).mockImplementation(
+        (file, onProgress) => {
+          if (onProgress) onProgress({loaded: 50, total: 100});
+          return Promise.resolve({key: 'k1'});
+        },
+      );
 
-        await store.dispatch(uploadDocumentFiles({files: files as any, companionId: 'c1'}));
+      await store.dispatch(
+        uploadDocumentFiles({files: files as any, companionId: 'c1'}),
+      );
 
-        // We can't check the intermediate state easily in integration test,
-        // but this ensures the lambda inside the thunk runs.
-        expect(documentApi.uploadAttachment).toHaveBeenCalled();
+      // We can't check the intermediate state easily in integration test,
+      // but this ensures the lambda inside the thunk runs.
+      expect(documentApi.uploadAttachment).toHaveBeenCalled();
+    });
+
+    it('validation: fails if companionId is missing', async () => {
+      const store = createTestStore();
+      const files = [{uri: 'path', name: 'f', status: 'ready'}];
+      const res = await store.dispatch(
+        uploadDocumentFiles({files: files as any, companionId: ''}),
+      );
+      expect(res.payload).toBe('Please select a pet to upload documents.');
     });
 
     it('validation: returns empty if no files', async () => {
       const store = createTestStore();
-      const res = await store.dispatch(uploadDocumentFiles({files: [], companionId: 'c1'}));
+      const res = await store.dispatch(
+        uploadDocumentFiles({files: [], companionId: 'c1'}),
+      );
       expect(res.payload).toEqual([]);
     });
 
     it('validation: filters files already uploaded', async () => {
-        const store = createTestStore();
-        const files = [
-            { key: 'existing', uri: '' }, // Should be skipped
-            { uri: 'new', name: 'n', status: 'ready' } // Should be uploaded
-        ];
-        (documentApi.uploadAttachment as jest.Mock).mockResolvedValue({key: 'new-key'});
+      const store = createTestStore();
+      const files = [
+        {key: 'existing', uri: ''}, // Should be skipped
+        {uri: 'new', name: 'n', status: 'ready'}, // Should be uploaded
+      ];
+      (documentApi.uploadAttachment as jest.Mock).mockResolvedValue({
+        key: 'new-key',
+      });
 
-        await store.dispatch(uploadDocumentFiles({files: files as any, companionId: 'c1'}));
-
+      await store.dispatch(
+        uploadDocumentFiles({files: files as any, companionId: 'c1'}),
+      );
     });
 
     it('validation: fails if status not ready', async () => {
-        const store = createTestStore();
-        const files = [{uri: 'path', status: 'error'}];
-        const res = await store.dispatch(uploadDocumentFiles({files: files as any, companionId: 'c1'}));
-        expect(res.payload).toContain('Some files are still preparing');
+      const store = createTestStore();
+      const files = [{uri: 'path', status: 'error'}];
+      const res = await store.dispatch(
+        uploadDocumentFiles({files: files as any, companionId: 'c1'}),
+      );
+      expect(res.payload).toContain('Some files are still preparing');
+    });
+
+    it('validation: fails if a file has no key and a blank uri', async () => {
+      const store = createTestStore();
+      const files = [{uri: '  ', name: 'f'}];
+      const res = await store.dispatch(
+        uploadDocumentFiles({files: files as any, companionId: 'c1'}),
+      );
+      expect(res.payload).toContain('Some files are still preparing');
     });
 
     // COVERAGE: Catch block string conversion
     it('rejected: handles non-Error rejection', async () => {
-        const spy = jest.spyOn(console, 'error').mockImplementation();
-        const store = createTestStore();
-        const files = [{uri: 'path', status: 'ready'}];
-        (documentApi.uploadAttachment as jest.Mock).mockRejectedValue('String Error');
+      const spy = jest.spyOn(console, 'error').mockImplementation();
+      const store = createTestStore();
+      const files = [{uri: 'path', status: 'ready'}];
+      (documentApi.uploadAttachment as jest.Mock).mockRejectedValue(
+        'String Error',
+      );
 
-        const res = await store.dispatch(uploadDocumentFiles({files: files as any, companionId: 'c1'}));
-        expect(res.payload).toBe('Failed to upload files');
-        spy.mockRestore();
+      const res = await store.dispatch(
+        uploadDocumentFiles({files: files as any, companionId: 'c1'}),
+      );
+      expect(res.payload).toBe('Failed to upload files');
+      spy.mockRestore();
     });
   });
 
   // --- ADD DOCUMENT ---
   describe('addDocument', () => {
-      it('pending: sets loading', () => {
-          const action = { type: addDocument.pending.type };
-          const state = documentReducer(initialState, action) as any;
-          expect(state.loading).toBe(true);
-      });
+    it('pending: sets loading', () => {
+      const action = {type: addDocument.pending.type};
+      const state = documentReducer(initialState, action) as any;
+      expect(state.loading).toBe(true);
+    });
 
-      it('fulfilled: adds to list', async () => {
-          const store = createTestStore({ documents: [] });
-          const newDoc = {id: 'new'};
-          (documentApi.create as jest.Mock).mockResolvedValue(newDoc);
+    it('fulfilled: adds to list', async () => {
+      const store = createTestStore({documents: []});
+      const newDoc = {id: 'new'};
+      (documentApi.create as jest.Mock).mockResolvedValue(newDoc);
 
-          await store.dispatch(addDocument({} as any));
+      await store.dispatch(addDocument({} as any));
 
-          const state = store.getState().documents;
-          expect(state.loading).toBe(false);
-          expect(state.documents).toContainEqual(newDoc);
-      });
+      const state = store.getState().documents;
+      expect(state.loading).toBe(false);
+      expect(state.documents).toContainEqual(newDoc);
+    });
 
-      it('rejected: handles failure', async () => {
-          const store = createTestStore();
-          (documentApi.create as jest.Mock).mockRejectedValue(new Error('Add Fail'));
-          await store.dispatch(addDocument({} as any));
-          const state = store.getState().documents;
-          expect(state.loading).toBe(false);
-          expect(state.error).toBe('Add Fail');
-      });
+    it('rejected: handles failure', async () => {
+      const store = createTestStore();
+      (documentApi.create as jest.Mock).mockRejectedValue(
+        new Error('Add Fail'),
+      );
+      await store.dispatch(addDocument({} as any));
+      const state = store.getState().documents;
+      expect(state.loading).toBe(false);
+      expect(state.error).toBe('Add Fail');
+    });
   });
 
   // --- UPDATE DOCUMENT ---
   describe('updateDocument', () => {
-      it('pending: sets loading', () => {
-          const action = { type: updateDocument.pending.type };
-          const state = documentReducer(initialState, action) as any;
-          expect(state.loading).toBe(true);
+    it('pending: sets loading', () => {
+      const action = {type: updateDocument.pending.type};
+      const state = documentReducer(initialState, action) as any;
+      expect(state.loading).toBe(true);
+    });
+
+    it('fulfilled: updates existing document and files', async () => {
+      const store = createTestStore({
+        documents: [{id: '1', title: 'Old', files: [{key: 'f1'}]}],
       });
 
-      it('fulfilled: updates existing document and files', async () => {
-          const store = createTestStore({
-              documents: [{id: '1', title: 'Old', files: [{key: 'f1'}]}]
-          });
-
-          (documentApi.update as jest.Mock).mockResolvedValue({
-              id: '1', title: 'New', files: [{key: 'f2'}]
-          });
-
-          await store.dispatch(updateDocument({documentId: '1'} as any));
-
-          const state = store.getState().documents;
-          expect(state.loading).toBe(false);
-          const doc = state.documents[0];
-          expect(doc.title).toBe('New');
-          expect(doc.files).toEqual([{key: 'f2'}]);
+      (documentApi.update as jest.Mock).mockResolvedValue({
+        id: '1',
+        title: 'New',
+        files: [{key: 'f2'}],
       });
 
-      // COVERAGE: Branch where document is not found (pushes new)
-      it('fulfilled: pushes new if not found', async () => {
-          const store = createTestStore({ documents: [] });
-          (documentApi.update as jest.Mock).mockResolvedValue({id: 'new', title: 'New'});
+      await store.dispatch(updateDocument({documentId: '1'} as any));
 
-          await store.dispatch(updateDocument({documentId: 'new'} as any));
+      const state = store.getState().documents;
+      expect(state.loading).toBe(false);
+      const doc = state.documents[0];
+      expect(doc.title).toBe('New');
+      expect(doc.files).toEqual([{key: 'f2'}]);
+    });
 
-          expect(store.getState().documents.documents).toHaveLength(1);
+    // COVERAGE: Branch where document is not found (pushes new)
+    it('fulfilled: pushes new if not found', async () => {
+      const store = createTestStore({documents: []});
+      (documentApi.update as jest.Mock).mockResolvedValue({
+        id: 'new',
+        title: 'New',
       });
 
-      // COVERAGE: Branch where files are NOT in response (preserve existing)
-      it('fulfilled: preserves existing files if not in response', async () => {
-          const store = createTestStore({
-              documents: [{id: '1', title: 'Old', files: [{key: 'f1'}]}]
-          });
-          (documentApi.update as jest.Mock).mockResolvedValue({id: '1', title: 'New'}); // No files
+      await store.dispatch(updateDocument({documentId: 'new'} as any));
 
-          await store.dispatch(updateDocument({documentId: '1'} as any));
+      expect(store.getState().documents.documents).toHaveLength(1);
+    });
 
-          expect(store.getState().documents.documents[0].files).toEqual([{key: 'f1'}]);
+    // COVERAGE: Branch where files are NOT in response (preserve existing)
+    it('fulfilled: preserves existing files if not in response', async () => {
+      const store = createTestStore({
+        documents: [{id: '1', title: 'Old', files: [{key: 'f1'}]}],
       });
+      (documentApi.update as jest.Mock).mockResolvedValue({
+        id: '1',
+        title: 'New',
+      }); // No files
+
+      await store.dispatch(updateDocument({documentId: '1'} as any));
+
+      expect(store.getState().documents.documents[0].files).toEqual([
+        {key: 'f1'},
+      ]);
+    });
+
+    it('rejected: uses the fallback message for a non-Error rejection', async () => {
+      const store = createTestStore();
+      (documentApi.update as jest.Mock).mockRejectedValue('String Error');
+
+      const res = await store.dispatch(
+        updateDocument({documentId: '1'} as any),
+      );
+
+      expect(res.payload).toBe('Failed to update document');
+    });
   });
 
   // --- DELETE DOCUMENT ---
   describe('deleteDocument', () => {
-      it('pending: sets loading', () => {
-          const action = { type: deleteDocument.pending.type };
-          const state = documentReducer(initialState, action) as any;
-          expect(state.loading).toBe(true);
-      });
+    it('rejected: uses the fallback message for a non-Error rejection', async () => {
+      const store = createTestStore();
+      (documentApi.remove as jest.Mock).mockRejectedValue('String Error');
 
-      it('fulfilled: removes document', async () => {
-          const store = createTestStore({ documents: [{id: '1'}, {id: '2'}] });
-          (documentApi.remove as jest.Mock).mockResolvedValue({});
+      const res = await store.dispatch(deleteDocument({documentId: '1'}));
 
-          await store.dispatch(deleteDocument({documentId: '1'}));
+      expect(res.payload).toBe('Failed to delete document');
+    });
 
-          const state = store.getState().documents;
-          expect(state.loading).toBe(false);
-          expect(state.documents).toHaveLength(1);
-          expect(state.documents[0].id).toBe('2');
-      });
+    it('pending: sets loading', () => {
+      const action = {type: deleteDocument.pending.type};
+      const state = documentReducer(initialState, action) as any;
+      expect(state.loading).toBe(true);
+    });
 
-      // COVERAGE: Branch where document ID doesn't exist (no-op)
-      it('fulfilled: does nothing if id not found', async () => {
-          const store = createTestStore({ documents: [{id: '1'}] });
-          (documentApi.remove as jest.Mock).mockResolvedValue({});
+    it('fulfilled: removes document', async () => {
+      const store = createTestStore({documents: [{id: '1'}, {id: '2'}]});
+      (documentApi.remove as jest.Mock).mockResolvedValue({});
 
-          await store.dispatch(deleteDocument({documentId: '99'}));
+      await store.dispatch(deleteDocument({documentId: '1'}));
 
-          expect(store.getState().documents.documents).toHaveLength(1);
-      });
+      const state = store.getState().documents;
+      expect(state.loading).toBe(false);
+      expect(state.documents).toHaveLength(1);
+      expect(state.documents[0].id).toBe('2');
+    });
+
+    // COVERAGE: Branch where document ID doesn't exist (no-op)
+    it('fulfilled: does nothing if id not found', async () => {
+      const store = createTestStore({documents: [{id: '1'}]});
+      (documentApi.remove as jest.Mock).mockResolvedValue({});
+
+      await store.dispatch(deleteDocument({documentId: '99'}));
+
+      expect(store.getState().documents.documents).toHaveLength(1);
+    });
   });
 
   // --- VIEW DOCUMENT ---
   describe('fetchDocumentView', () => {
-      it('pending: sets viewLoading for ID', () => {
-          const action = {
-              type: fetchDocumentView.pending.type,
-              meta: { arg: { documentId: '123' } }
-          };
-          const state = documentReducer(initialState, action) as any;
-          expect(state.viewLoading['123']).toBe(true);
+    it('pending: sets viewLoading for ID', () => {
+      const action = {
+        type: fetchDocumentView.pending.type,
+        meta: {arg: {documentId: '123'}},
+      };
+      const state = documentReducer(initialState, action) as any;
+      expect(state.viewLoading['123']).toBe(true);
+    });
+
+    it('fulfilled: updates doc and clears loading', async () => {
+      const store = createTestStore({
+        documents: [{id: '1', files: []}],
+        viewLoading: {'1': true},
       });
+      (documentApi.fetchView as jest.Mock).mockResolvedValue([{key: 'k'}]);
 
-      it('fulfilled: updates doc and clears loading', async () => {
-          const store = createTestStore({
-              documents: [{id: '1', files: []}],
-              viewLoading: { '1': true }
-          });
-          (documentApi.fetchView as jest.Mock).mockResolvedValue([{key: 'k'}]);
+      await store.dispatch(fetchDocumentView({documentId: '1'}));
 
-          await store.dispatch(fetchDocumentView({documentId: '1'}));
+      const state = store.getState().documents;
+      expect(state.viewLoading['1']).toBe(false);
+      expect(state.documents[0].files).toEqual([{key: 'k'}]);
+    });
 
-          const state = store.getState().documents;
-          expect(state.viewLoading['1']).toBe(false);
-          expect(state.documents[0].files).toEqual([{key: 'k'}]);
+    it('rejected: sets error and clears loading', async () => {
+      const store = createTestStore({viewLoading: {'1': true}});
+      (documentApi.fetchView as jest.Mock).mockRejectedValue(new Error('Fail'));
+
+      await store.dispatch(fetchDocumentView({documentId: '1'}));
+
+      const state = store.getState().documents;
+      expect(state.viewLoading['1']).toBe(false);
+      expect(state.error).toBe('Fail');
+    });
+
+    // COVERAGE: Branch where the document is not found in state (no-op)
+    it('fulfilled: does nothing to the document list if id not found', async () => {
+      const store = createTestStore({
+        documents: [{id: '1', files: []}],
+        viewLoading: {'99': true},
       });
+      (documentApi.fetchView as jest.Mock).mockResolvedValue([{key: 'k'}]);
 
-      it('rejected: sets error and clears loading', async () => {
-          const store = createTestStore({ viewLoading: { '1': true } });
-          (documentApi.fetchView as jest.Mock).mockRejectedValue(new Error('Fail'));
+      await store.dispatch(fetchDocumentView({documentId: '99'}));
 
-          await store.dispatch(fetchDocumentView({documentId: '1'}));
-
-          const state = store.getState().documents;
-          expect(state.viewLoading['1']).toBe(false);
-          expect(state.error).toBe('Fail');
-      });
+      const state = store.getState().documents;
+      expect(state.viewLoading['99']).toBe(false);
+      expect(state.documents).toEqual([{id: '1', files: []}]);
+    });
   });
 
   // --- SEARCH DOCUMENTS ---
   describe('searchDocuments', () => {
-      it('pending: sets searchLoading', () => {
-          const action = { type: searchDocuments.pending.type };
-          const state = documentReducer(initialState, action) as any;
-          expect(state.searchLoading).toBe(true);
-      });
+    it('pending: sets searchLoading', () => {
+      const action = {type: searchDocuments.pending.type};
+      const state = documentReducer(initialState, action) as any;
+      expect(state.searchLoading).toBe(true);
+    });
 
-      it('fulfilled: sets searchResults', async () => {
-          const store = createTestStore();
-          const results = [{id: '1'}];
-          (documentApi.search as jest.Mock).mockResolvedValue(results);
+    it('validation: returns an empty array without calling the api for a blank query', async () => {
+      const store = createTestStore();
+      const res = await store.dispatch(
+        searchDocuments({companionId: 'c1', query: '   '}),
+      );
+      expect(res.payload).toEqual([]);
+      expect(documentApi.search).not.toHaveBeenCalled();
+    });
 
-          await store.dispatch(searchDocuments({companionId: 'c1', query: 'q'}));
+    it('fulfilled: sets searchResults', async () => {
+      const store = createTestStore();
+      const results = [{id: '1'}];
+      (documentApi.search as jest.Mock).mockResolvedValue(results);
 
-          const state = store.getState().documents;
-          expect(state.searchLoading).toBe(false);
-          expect(state.searchResults).toEqual(results);
-      });
+      await store.dispatch(searchDocuments({companionId: 'c1', query: 'q'}));
 
-      it('rejected: sets searchError', async () => {
-          const store = createTestStore();
-          (documentApi.search as jest.Mock).mockRejectedValue(new Error('Search Fail'));
+      const state = store.getState().documents;
+      expect(state.searchLoading).toBe(false);
+      expect(state.searchResults).toEqual(results);
+    });
 
-          await store.dispatch(searchDocuments({companionId: 'c1', query: 'q'}));
+    it('rejected: sets searchError', async () => {
+      const store = createTestStore();
+      (documentApi.search as jest.Mock).mockRejectedValue(
+        new Error('Search Fail'),
+      );
 
-          const state = store.getState().documents;
-          expect(state.searchLoading).toBe(false);
-          expect(state.searchError).toBe('Search Fail');
-      });
+      await store.dispatch(searchDocuments({companionId: 'c1', query: 'q'}));
+
+      const state = store.getState().documents;
+      expect(state.searchLoading).toBe(false);
+      expect(state.searchError).toBe('Search Fail');
+    });
   });
 
   // ====================================================
   // 4. MANUAL REDUCER BRANCH COVERAGE (Fallback Errors)
   // ====================================================
   describe('Reducer Branch Coverage (Manual Actions)', () => {
+    const getMeta = (type: string) => {
+      if (type.includes('fetchDocumentView')) return {arg: {documentId: '1'}};
+      return {};
+    };
 
-      const getMeta = (type: string) => {
-          if(type.includes('fetchDocumentView')) return { arg: { documentId: '1' } };
-          return {};
-      };
+    const testErrorBranches = (
+      actionType: string,
+      stateKey: 'error' | 'searchError' = 'error',
+    ) => {
+      const meta = getMeta(actionType);
 
-      const testErrorBranches = (actionType: string, stateKey: 'error' | 'searchError' = 'error') => {
-          const meta = getMeta(actionType);
+      it(`${actionType}: uses payload`, () => {
+        const action = {
+          type: actionType,
+          payload: 'PayloadErr',
+          error: {},
+          meta,
+        };
+        const state = documentReducer(initialState, action) as any;
+        expect(state[stateKey]).toBe('PayloadErr');
+      });
 
-          it(`${actionType}: uses payload`, () => {
-              const action = { type: actionType, payload: 'PayloadErr', error: {}, meta };
-              const state = documentReducer(initialState, action) as any;
-              expect(state[stateKey]).toBe('PayloadErr');
-          });
+      it(`${actionType}: uses error.message`, () => {
+        const action = {
+          type: actionType,
+          payload: undefined,
+          error: {message: 'MsgErr'},
+          meta,
+        };
+        const state = documentReducer(initialState, action) as any;
+        expect(state[stateKey]).toBe('MsgErr');
+      });
 
-          it(`${actionType}: uses error.message`, () => {
-              const action = { type: actionType, payload: undefined, error: { message: 'MsgErr' }, meta };
-              const state = documentReducer(initialState, action) as any;
-              expect(state[stateKey]).toBe('MsgErr');
-          });
+      it(`${actionType}: fallbacks to null`, () => {
+        const action = {type: actionType, payload: undefined, error: {}, meta};
+        const state = documentReducer(initialState, action) as any;
+        expect(state[stateKey]).toBeNull();
+      });
+    };
 
-          it(`${actionType}: fallbacks to null`, () => {
-              const action = { type: actionType, payload: undefined, error: {}, meta };
-              const state = documentReducer(initialState, action) as any;
-              expect(state[stateKey]).toBeNull();
-          });
-      };
-
-      describe('Fetch Rejections', () => testErrorBranches(fetchDocuments.rejected.type));
-      describe('Upload Rejections', () => testErrorBranches(uploadDocumentFiles.rejected.type));
-      describe('Add Rejections', () => testErrorBranches(addDocument.rejected.type));
-      describe('Update Rejections', () => testErrorBranches(updateDocument.rejected.type));
-      describe('Delete Rejections', () => testErrorBranches(deleteDocument.rejected.type));
-      describe('Search Rejections', () => testErrorBranches(searchDocuments.rejected.type, 'searchError'));
-      describe('View Rejections', () => testErrorBranches(fetchDocumentView.rejected.type));
+    describe('Fetch Rejections', () =>
+      testErrorBranches(fetchDocuments.rejected.type));
+    describe('Upload Rejections', () =>
+      testErrorBranches(uploadDocumentFiles.rejected.type));
+    describe('Add Rejections', () =>
+      testErrorBranches(addDocument.rejected.type));
+    describe('Update Rejections', () =>
+      testErrorBranches(updateDocument.rejected.type));
+    describe('Delete Rejections', () =>
+      testErrorBranches(deleteDocument.rejected.type));
+    describe('Search Rejections', () =>
+      testErrorBranches(searchDocuments.rejected.type, 'searchError'));
+    describe('View Rejections', () =>
+      testErrorBranches(fetchDocumentView.rejected.type));
   });
-
 });

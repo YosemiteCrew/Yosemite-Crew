@@ -13,13 +13,13 @@ import Close from '@/app/ui/primitives/Icons/Close';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
-const LabelOptions = [
+const getLabelOptions = (terminologyText: (text: string) => string) => [
   {
     name: 'Parents details',
     key: 'parents',
   },
   {
-    name: 'Companion information',
+    name: terminologyText('Companion information'),
     key: 'companion',
   },
 ];
@@ -38,6 +38,7 @@ const AddCompanion = ({
   mode = 'default',
 }: AddCompanionProps) => {
   const terminologyText = useCompanionTerminologyText();
+  const labelOptions = getLabelOptions(terminologyText);
   const [activeLabel, setActiveLabel] = useState<string>('parents');
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const parentSectionRef = useRef<ParentSectionRef | null>(null);
@@ -73,7 +74,7 @@ const AddCompanion = ({
         </div>
 
         <Labels
-          labels={LabelOptions}
+          labels={labelOptions}
           activeLabel={activeLabel}
           setActiveLabel={handleLabelChange}
         />

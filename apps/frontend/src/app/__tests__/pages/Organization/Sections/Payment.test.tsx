@@ -18,9 +18,25 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
 
 jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => ({
   __esModule: true,
-  default: ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <section aria-label={title}>{children}</section>
+  default: ({
+    title,
+    actions,
+    children,
+  }: {
+    title: string;
+    actions?: React.ReactNode;
+    children: React.ReactNode;
+  }) => (
+    <section aria-label={title}>
+      {actions}
+      {children}
+    </section>
   ),
+}));
+
+jest.mock('@/app/features/billing/components/StripeSettingsButton', () => ({
+  __esModule: true,
+  default: () => <a href="/stripe-onboarding?orgId=org-1">Settings</a>,
 }));
 
 jest.mock('@/app/features/organization/pages/Organization/Sections/ProfileCard', () => ({
@@ -58,5 +74,9 @@ describe('Payment organization section', () => {
     expect(screen.getByText('Appointments: 2 / 120')).toBeInTheDocument();
     expect(screen.getByText('Tools: 1 / 200')).toBeInTheDocument();
     expect(screen.getByText('Users: 3 / 10')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'href',
+      '/stripe-onboarding?orgId=org-1'
+    );
   });
 });

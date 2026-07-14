@@ -92,7 +92,6 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 describe('Details Component', () => {
   const mockSetFormData = jest.fn();
   const mockOnNext = jest.fn();
-  const mockRegisterValidator = jest.fn();
 
   const defaultFormData: FormsProps = {
     name: '',
@@ -140,9 +139,9 @@ describe('Details Component', () => {
     expect(screen.getByTestId('next-btn')).toBeInTheDocument();
     // Ownership selector lives above Category; Custom is the default and shows
     // the org/personal scope sub-choice.
-    expect(screen.getByTestId('dropdown-Template type')).toBeInTheDocument();
-    expect(screen.getByTestId('dropdown-value-Template type')).toHaveTextContent('CUSTOM');
-    expect(screen.getByTestId('dropdown-Template scope')).toBeInTheDocument();
+    expect(screen.getByTestId('dropdown-Template Source')).toBeInTheDocument();
+    expect(screen.getByTestId('dropdown-value-Template Source')).toHaveTextContent('CUSTOM');
+    expect(screen.getByTestId('dropdown-Template visibility')).toBeInTheDocument();
   });
 
   it('locks structure and hides the scope sub-choice for YC default templates', () => {
@@ -155,10 +154,11 @@ describe('Details Component', () => {
       />
     );
 
-    expect(screen.getByTestId('dropdown-value-Template type')).toHaveTextContent('YC_LIBRARY');
+    expect(screen.getByTestId('dropdown-value-Template Source')).toHaveTextContent('YC_LIBRARY');
     expect(screen.getByText(/fixed structure/i)).toBeInTheDocument();
     // The org/personal scope only applies to Custom templates.
-    expect(screen.queryByTestId('dropdown-Template scope')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dropdown-Template visibility')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dropdown-Signed by')).not.toBeInTheDocument();
   });
 
   it('restricts category options to canonical structures for YC default templates', () => {
@@ -212,7 +212,7 @@ describe('Details Component', () => {
 
     // The mock LabelDropdown emits "SelectedValue"; assert the Custom branch keeps
     // an org scope and clears the template-backed flag.
-    fireEvent.click(screen.getByTestId('dropdown-select-Template type'));
+    fireEvent.click(screen.getByTestId('dropdown-select-Template Source'));
     const updater = setFormData.mock.calls.at(-1)?.[0];
     const next = typeof updater === 'function' ? updater(defaultFormData) : updater;
     expect(next).toEqual(
@@ -231,7 +231,7 @@ describe('Details Component', () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId('dropdown-option-Template type-YC_LIBRARY'));
+    fireEvent.click(screen.getByTestId('dropdown-option-Template Source-YC_LIBRARY'));
     const updater = setFormData.mock.calls.at(-1)?.[0];
     const next =
       typeof updater === 'function' ? updater({ ...defaultFormData, category: 'Vitals' }) : updater;
@@ -239,6 +239,7 @@ describe('Details Component', () => {
       expect.objectContaining({
         templateSource: 'YC_LIBRARY',
         isTemplateBacked: true,
+        requiredSigner: '',
         category: '',
       })
     );
@@ -463,27 +464,53 @@ describe('Details Component', () => {
     expect(mockOnNext).toHaveBeenCalled();
   });
 
+  it('does not require signed by for YC default templates', () => {
+    const validYcDefaultData: FormsProps = {
+      ...defaultFormData,
+      name: 'Valid Name',
+      description: 'Desc',
+      category: 'SOAP',
+      templateSource: 'YC_LIBRARY',
+      isTemplateBacked: true,
+      requiredSigner: '',
+      services: ['A'],
+      species: ['Dog'],
+      usage: 'Internal',
+    };
+
+    render(
+      <Details
+        formData={validYcDefaultData}
+        setFormData={mockSetFormData}
+        onNext={mockOnNext}
+        serviceOptions={serviceOptions}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('next-btn'));
+    expect(screen.queryByTestId('dropdown-error-Signed by')).not.toBeInTheDocument();
+    expect(mockOnNext).toHaveBeenCalled();
+  });
+
   // --- 5. Validator Registration ---
 
-  it('registers the validator function on mount', () => {
+  it('exposes the validator through the step ref on mount', () => {
+    const stepRef = React.createRef<{ validate: () => boolean }>();
     render(
       <Details
         formData={defaultFormData}
         setFormData={mockSetFormData}
         onNext={mockOnNext}
         serviceOptions={serviceOptions}
-        registerValidator={mockRegisterValidator}
+        ref={stepRef}
       />
     );
 
-    expect(mockRegisterValidator).toHaveBeenCalledWith(expect.any(Function));
+    expect(stepRef.current?.validate).toEqual(expect.any(Function));
   });
 
   it('allows parent to trigger validation via registered validator', () => {
-    let capturedValidator: (data: FormsProps) => boolean = () => false; // Initialize explicitly
-    mockRegisterValidator.mockImplementation((fn) => {
-      capturedValidator = fn;
-    });
+    const stepRef = React.createRef<{ validate: () => boolean }>();
 
     const invalidData = { ...defaultFormData, name: '' } as FormsProps; // Invalid
 
@@ -493,13 +520,13 @@ describe('Details Component', () => {
         setFormData={mockSetFormData}
         onNext={mockOnNext}
         serviceOptions={serviceOptions}
-        registerValidator={mockRegisterValidator}
+        ref={stepRef}
       />
     );
 
     let isValid: boolean = false; // Initialize explicitly
     act(() => {
-      isValid = capturedValidator(invalidData);
+      isValid = Boolean(stepRef.current?.validate());
     });
 
     expect(isValid).toBe(false);

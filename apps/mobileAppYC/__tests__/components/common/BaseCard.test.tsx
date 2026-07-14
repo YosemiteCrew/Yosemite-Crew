@@ -49,6 +49,7 @@ jest.mock('react-native', () => {
     Text: createMockComponent('Text'),
     Image: MockImage,
     TouchableOpacity: MockTouchableOpacity,
+    Pressable: MockTouchableOpacity,
     StyleSheet: {
       create: jest.fn(styles => styles),
       flatten: jest.fn(style => style), // <-- This is required by testing-library
@@ -197,13 +198,11 @@ describe('BaseCard', () => {
     expect(queryByTestId('mock-card-action-button')).toBeNull();
   });
 
-  it('renders the primary button when showPrimaryButton is true and isPrimaryActive is false', () => {
+  it('renders the primary button when a primary action is available', () => {
     const {getByTestId, getByText} = render(
       <BaseCard
         title="Test"
-        showPrimaryButton={true}
-        isPrimaryActive={false}
-        primaryButtonLabel="Click Me"
+        primaryAction={{onPress: mockOnPressPrimary, label: 'Click Me'}}
       />,
     );
     const button = getByTestId('mock-card-action-button');
@@ -212,9 +211,12 @@ describe('BaseCard', () => {
     expect(button.props.variant).toBe('primary');
   });
 
-  it('does NOT render the primary button when showPrimaryButton is true but isPrimaryActive is also true', () => {
+  it('does NOT render the primary button when the primary action is active', () => {
     const {queryByTestId} = render(
-      <BaseCard title="Test" showPrimaryButton={true} isPrimaryActive={true} />,
+      <BaseCard
+        title="Test"
+        primaryAction={{onPress: mockOnPressPrimary, state: 'active'}}
+      />,
     );
     expect(queryByTestId('mock-card-action-button')).toBeNull();
   });
@@ -227,13 +229,9 @@ describe('BaseCard', () => {
     fireEvent.press(getByTestId('mock-swipeable-card'));
   });
 
-  it('calls onPressPrimary when the action button is pressed', () => {
+  it('calls primaryAction.onPress when the action button is pressed', () => {
     const {getByTestId} = render(
-      <BaseCard
-        title="Test"
-        showPrimaryButton={true}
-        onPressPrimary={mockOnPressPrimary}
-      />,
+      <BaseCard title="Test" primaryAction={{onPress: mockOnPressPrimary}} />,
     );
     const button = getByTestId('mock-card-action-button');
     fireEvent.press(button);
@@ -246,13 +244,12 @@ describe('BaseCard', () => {
         title="Test"
         onPressView={mockOnPressView}
         onPressEdit={mockOnPressEdit}
-        showEditAction={false}
-        hideSwipeActions={true}
+        editAction="hidden"
+        swipeActions="hidden"
       />,
     );
 
     // FIX: Add children: expect.anything() to the matcher
-
   });
 
   it('does not call onPressView if it is not provided', () => {

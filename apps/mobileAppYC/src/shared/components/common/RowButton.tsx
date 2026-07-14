@@ -1,0 +1,59 @@
+import React, {useMemo} from 'react';
+import {Text, Image, StyleSheet} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import {useTheme} from '@/hooks';
+import {Images} from '@/assets/images';
+
+export const RowButton: React.FC<{
+  label: string;
+  value?: string;
+  onPress: () => void;
+}> = ({label, value, onPress}) => {
+  const {theme} = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const displayValue = value && value.trim().length > 0 ? value : '—';
+  return (
+    <PressableOpacity
+      style={styles.rowButtonTouchable}
+      activeOpacity={0.8}
+      onPress={onPress}>
+      <Text style={styles.rowButtonLabel}>{label}</Text>
+      <Text
+        style={styles.rowButtonValue}
+        numberOfLines={1}
+        ellipsizeMode="tail">
+        {displayValue}
+      </Text>
+      <Image source={Images.rightArrow} style={styles.rowButtonArrow} />
+    </PressableOpacity>
+  );
+};
+
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    rowButtonTouchable: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: theme.spacing['3'],
+      paddingHorizontal: theme.spacing['3'],
+      marginVertical: theme.spacing['1'],
+    },
+    rowButtonLabel: {
+      ...theme.typography.body,
+      color: theme.colors.textSecondary,
+      flex: 1,
+    },
+    rowButtonValue: {
+      ...theme.typography.bodyMedium,
+      color: theme.colors.secondary,
+      marginRight: theme.spacing['3'],
+      flexShrink: 1,
+      flex: 1,
+      textAlign: 'right',
+    },
+    rowButtonArrow: {
+      width: 16,
+      height: 16,
+      resizeMode: 'contain',
+    },
+  });

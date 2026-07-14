@@ -23,6 +23,7 @@ import {
 import { FaPaw, FaCaretDown } from 'react-icons/fa6';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSignOut } from '@/app/hooks/useAuth';
+import { useHasMounted } from '@/app/hooks/useHasMounted';
 import { removeStorageItem } from '@/app/lib/browserStorage';
 
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -129,30 +130,56 @@ const shouldHideSearch = (pathname: string): boolean =>
   pathname.startsWith('/organizations') ||
   pathname.startsWith('/dashboard') ||
   pathname.startsWith('/guides') ||
+  pathname.startsWith('/inventory') ||
   (pathname.startsWith('/integrations') && !pathname.startsWith('/integrations/idexx-workspace'));
 
-const getSearchPlaceholder = (pathname: string, terminologyText: (s: string) => string): string => {
+const getSearchPlaceholder = (
+  pathname: string,
+  terminologyText: (s: string) => string,
+  useOrgTerminology: boolean
+): string => {
   if (pathname.startsWith('/appointments/idexx-workspace')) return 'Search result / order';
   if (pathname.startsWith('/appointments')) return 'Search appointments';
   if (pathname.startsWith('/inventory')) return 'Search inventory';
   if (pathname.startsWith('/integrations/idexx-workspace')) return 'Search result / order';
   if (pathname.startsWith('/integrations')) return 'Search integrations';
   if (pathname.startsWith('/forms')) return 'Search forms';
-  if (pathname.startsWith('/companions')) return terminologyText('Search companions');
+  if (pathname.startsWith('/companions')) {
+    return useOrgTerminology ? terminologyText('Search companions') : 'Search companions';
+  }
   if (pathname.startsWith('/tasks')) return 'Search tasks';
   if (pathname.startsWith('/finance')) return 'Search invoices';
   if (pathname.startsWith('/organization/specialities')) return 'Search specialities';
   return 'Search';
 };
 
-const UserHeader = () => {
+const CLOSED_MENUS = { menuOpen: false, selectOrg: false, selectProfile: false };
+
+const useUserHeaderContent = () => {
   const terminologyText = useCompanionTerminologyText();
   const { signOut } = useSignOut();
   const pathname = usePathname();
   const router = useRouter();
   const attributes = useAuthStore((s) => s.attributes);
   const profile = usePrimaryOrgProfile();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState(CLOSED_MENUS);
+  const { menuOpen, selectOrg, selectProfile } = openMenus;
+  const setMenuOpen = (value: boolean | ((prev: boolean) => boolean)) =>
+    setOpenMenus((m) => ({
+      ...m,
+      menuOpen: typeof value === 'function' ? value(m.menuOpen) : value,
+    }));
+  const setSelectOrg = (value: boolean | ((prev: boolean) => boolean)) =>
+    setOpenMenus((m) => ({
+      ...m,
+      selectOrg: typeof value === 'function' ? value(m.selectOrg) : value,
+    }));
+  const setSelectProfile = (value: boolean | ((prev: boolean) => boolean)) =>
+    setOpenMenus((m) => ({
+      ...m,
+      selectProfile: typeof value === 'function' ? value(m.selectProfile) : value,
+    }));
+  const mounted = useHasMounted();
   const isDev = pathname.startsWith('/developers');
   const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
   const routes = isDev ? headerDevRoutes : headerAppRoutes;
@@ -161,8 +188,6 @@ const UserHeader = () => {
     mobileRoutes,
     isDev ? DEV_MOBILE_ROUTE_GROUPS : APP_MOBILE_ROUTE_GROUPS
   );
-  const [selectOrg, setSelectOrg] = useState(false);
-  const [selectProfile, setSelectProfile] = useState(false);
   const orgs = useOrgList();
   const primaryOrg = usePrimaryOrg();
   const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
@@ -171,7 +196,8 @@ const UserHeader = () => {
   const setQuery = useSearchStore((s) => s.setQuery);
   const clear = useSearchStore((s) => s.clear);
   const openUniversalSearch = useUniversalSearchStore((s) => s.open);
-  const orgDropdownRef = useRef<HTMLDivElement>(null);
+  const desktopOrgDropdownRef = useRef<HTMLDivElement>(null);
+  const mobileOrgDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuId = 'user-mobile-menu';
   const orgMenuId = 'user-header-org-menu';
@@ -180,26 +206,24 @@ const UserHeader = () => {
   const toggleMenu = () => setMenuOpen((prev) => !prev);
 
   const logoutRedirect = pathname.startsWith('/developers') ? '/developers/signin' : '/signin';
-
-  const prevPathnameRef = useRef(pathname);
-  if (prevPathnameRef.current !== pathname) {
-    prevPathnameRef.current = pathname;
-    handlePathnameChange();
+  // Reset transient header UI when the route changes. Menus reset during
+  // render (local state); `clear()` mutates the external search store, so it
+  // must run in an effect — calling a store setter during render updates other
+  // store subscribers mid render and triggers React's "Cannot update a
+  // component while rendering a different component" warning.
+  const [lastPathname, setLastPathname] = useState(pathname);
+  if (lastPathname !== pathname) {
+    setLastPathname(pathname);
+    setOpenMenus(CLOSED_MENUS);
   }
-
-  function handlePathnameChange() {
+  useEffect(() => {
     clear();
-    if (menuOpen) setMenuOpen(false);
-    if (selectOrg) setSelectOrg(false);
-    if (selectProfile) setSelectProfile(false);
-  }
+  }, [pathname, clear]);
 
   useEffect(() => {
     const closeMenuOnDesktop = () => {
       if (globalThis.window.innerWidth >= 1024) {
-        setMenuOpen(false);
-        setSelectOrg(false);
-        setSelectProfile(false);
+        setOpenMenus(CLOSED_MENUS);
       }
     };
 
@@ -287,7 +311,10 @@ const UserHeader = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (orgDropdownRef.current && !orgDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedInsideDesktopOrgMenu = desktopOrgDropdownRef.current?.contains(target) ?? false;
+      const clickedInsideMobileOrgMenu = mobileOrgDropdownRef.current?.contains(target) ?? false;
+      if (!clickedInsideDesktopOrgMenu && !clickedInsideMobileOrgMenu) {
         setSelectOrg(false);
       }
     };
@@ -300,7 +327,7 @@ const UserHeader = () => {
   const orgMissing = !primaryOrg;
   const orgVerified = !!primaryOrg?.isVerified;
 
-  const searchPlaceholder = getSearchPlaceholder(pathname, terminologyText);
+  const searchPlaceholder = getSearchPlaceholder(pathname, terminologyText, mounted);
 
   const hideSearch = shouldHideSearch(pathname);
   const primaryOrgId = primaryOrg?._id?.toString();
@@ -337,7 +364,7 @@ const UserHeader = () => {
       >
         <div className="yc-mobile-menu-shell">
           {primaryOrg && !isDev && (
-            <div className="yc-mobile-org-card" ref={orgDropdownRef}>
+            <div className="yc-mobile-org-card" ref={mobileOrgDropdownRef}>
               <button
                 type="button"
                 className="yc-mobile-org-trigger"
@@ -442,7 +469,7 @@ const UserHeader = () => {
       </div>
       <div className="yc-header-left">
         {primaryOrg && !isDev && (
-          <div className="yc-header-dropdown-wrap" ref={orgDropdownRef}>
+          <div className="yc-header-dropdown-wrap" ref={desktopOrgDropdownRef}>
             <button
               type="button"
               className={`yc-header-org-trigger ${selectOrg ? 'yc-header-trigger-open' : ''}`}
@@ -609,5 +636,7 @@ const UserHeader = () => {
     </div>
   );
 };
+
+const UserHeader = () => useUserHeaderContent();
 
 export default UserHeader;

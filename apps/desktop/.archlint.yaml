@@ -10,6 +10,7 @@ entry_points:
   - 'src/preload.ts'
   - 'scripts/apply-fuses.js'
   - 'scripts/notarize.js'
+  - 'scripts/windows-trusted-sign.js'
 rules:
   cyclic_dependency: high
   god_module: medium

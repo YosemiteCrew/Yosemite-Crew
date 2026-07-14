@@ -1,33 +1,43 @@
 import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Image,
-  Animated,
-  Platform,
-} from 'react-native';
+import {View, Text, Pressable, StyleSheet, Image, Platform} from 'react-native';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import type {VetPackage} from '@/features/appointments/types';
-import {createAccordionSectionStyles} from '@/features/appointments/components/accordionSectionStyles';
+import {
+  createAccordionSectionStyles,
+  KIND_LABELS,
+} from '@/features/appointments/components/accordionSectionStyles';
 
 interface PackageAccordionProps {
   title: string;
   icon?: any;
   packages: VetPackage[];
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 interface PackageItemProps {
   pkg: VetPackage;
   defaultExpanded?: boolean;
   compact?: boolean;
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  specialtyName?: string;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 export const PackageItem: React.FC<PackageItemProps> = ({
@@ -35,6 +45,7 @@ export const PackageItem: React.FC<PackageItemProps> = ({
   onSelectPackage,
   defaultExpanded,
   compact = false,
+  specialtyName,
 }) => {
   const {theme} = useTheme();
   const styles = React.useMemo(
@@ -42,24 +53,23 @@ export const PackageItem: React.FC<PackageItemProps> = ({
     [theme, compact],
   );
   const [expanded, setExpanded] = useState(Boolean(defaultExpanded));
-  const [animation] = useState(new Animated.Value(Number(defaultExpanded)));
+  const animation = useSharedValue(Number(defaultExpanded));
 
   const currencySymbol = resolveCurrencySymbol(pkg.currency ?? 'USD');
 
   const toggleExpanded = () => {
     const toValue = expanded ? 0 : 1;
-    Animated.timing(animation, {
-      toValue,
-      duration: compact ? 250 : 300,
-      useNativeDriver: false,
-    }).start();
+    animation.value = withTiming(toValue, {duration: compact ? 250 : 300});
     setExpanded(!expanded);
   };
 
-  const rotateInterpolate = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
+  const chevronAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotate: `${interpolate(animation.value, [0, 1], [0, 180])}deg`,
+      },
+    ],
+  }));
 
   const formatPrice = (price: number) =>
     `${currencySymbol} ${price.toFixed(2)}`;
@@ -74,25 +84,33 @@ export const PackageItem: React.FC<PackageItemProps> = ({
         onPress={toggleExpanded}
         accessibilityRole="button"
         accessibilityState={{expanded}}>
-        <View style={styles.packageHeaderContent}>
-          <Text
-            style={styles.packageName}
-            numberOfLines={1}
-            ellipsizeMode="tail">
-            {pkg.name}
-          </Text>
-          <View style={styles.totalChip}>
-            <Text style={styles.totalChipText}>
-              {formatPrice(pkg.totalPrice)}
+        <View style={styles.packageHeaderInner}>
+          <View style={styles.packageHeaderContent}>
+            <Text
+              style={styles.packageName}
+              numberOfLines={1}
+              ellipsizeMode="tail">
+              {pkg.name}
             </Text>
+            <View style={styles.chipContainer}>
+              <Text style={styles.chipText}>{formatPrice(pkg.totalPrice)}</Text>
+            </View>
           </View>
+          {pkg.appointmentKinds && pkg.appointmentKinds.length > 0 ? (
+            <View style={styles.kindBadgeRow}>
+              {pkg.appointmentKinds.map(kind => (
+                <View key={kind} style={styles.kindBadge}>
+                  <Text style={styles.kindBadgeText}>
+                    {KIND_LABELS[kind] ?? kind}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
         <Animated.Image
           source={Images.downArrow}
-          style={[
-            styles.chevronIcon,
-            {transform: [{rotate: rotateInterpolate}]},
-          ]}
+          style={[styles.chevronIcon, chevronAnimatedStyle]}
         />
       </Pressable>
 
@@ -130,7 +148,9 @@ export const PackageItem: React.FC<PackageItemProps> = ({
 
           <LiquidGlassButton
             title="Select package"
-            onPress={() => onSelectPackage(pkg.id, pkg.name)}
+            onPress={() =>
+              onSelectPackage(pkg.id, pkg.name, specialtyName ?? pkg.specialty)
+            }
             height={theme.spacing['12']}
             borderRadius={theme.borderRadius.md}
             style={styles.selectButton}
@@ -210,8 +230,11 @@ const createStyles = (theme: any, compact = false) =>
     packageHeaderPressed: {
       opacity: 0.7,
     },
-    packageHeaderContent: {
+    packageHeaderInner: {
       flex: 1,
+      gap: theme.spacing['2'],
+    },
+    packageHeaderContent: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -222,16 +245,6 @@ const createStyles = (theme: any, compact = false) =>
       ...theme.typography.paragraphBold,
       color: compact ? theme.colors.text : theme.colors.textSecondary,
       flex: 1,
-    },
-    totalChip: {
-      paddingHorizontal: theme.spacing['2'],
-      paddingVertical: theme.spacing['1'],
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.primaryTint,
-    },
-    totalChipText: {
-      ...theme.typography.subtitleBold12,
-      color: theme.colors.primary,
     },
     chevronIcon: {
       width: compact ? theme.spacing['4'] : theme.spacing['5'],
@@ -294,16 +307,6 @@ const createStyles = (theme: any, compact = false) =>
     totalValue: {
       ...theme.typography.h6Clash,
       color: theme.colors.secondary,
-    },
-    selectButton: {
-      width: '100%',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: theme.borderRadius.lg,
-    },
-    selectButtonText: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.white,
     },
   });
 

@@ -45,7 +45,7 @@ export const renderVitalRecordContent = (ctx: PdfContext, data: VitalRecordDocum
     renderRichText(ctx, data.notes);
   }
 
-  if (data.metadata !== undefined) {
+  if (data.metadata != null) {
     renderSectionTitle(ctx, 'Metadata');
     const metadataEntries = Object.entries(data.metadata as Record<string, unknown>).map(
       ([label, value]) =>

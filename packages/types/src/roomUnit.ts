@@ -10,6 +10,7 @@ export type RoomUnit = {
   size?: string;
   speciesConstraints?: string[];
   isActive?: boolean;
+  isOccupied?: boolean;
 };
 
 export type RoomUnitGroup = {
@@ -30,6 +31,8 @@ const EXT_ROOM_UNIT_CODE = 'https://yosemitecrew.com/fhir/StructureDefinition/ro
 const EXT_ROOM_UNIT_SIZE = 'https://yosemitecrew.com/fhir/StructureDefinition/room-unit-size';
 const EXT_ROOM_UNIT_SPECIES = 'https://yosemitecrew.com/fhir/StructureDefinition/room-unit-species';
 const EXT_ROOM_UNIT_ACTIVE = 'https://yosemitecrew.com/fhir/StructureDefinition/room-unit-active';
+const EXT_ROOM_UNIT_OCCUPIED =
+  'https://yosemitecrew.com/fhir/StructureDefinition/room-unit-occupied';
 const EXT_ROOM_UNIT_GROUP = 'https://yosemitecrew.com/fhir/StructureDefinition/room-unit-group';
 const EXT_ROOM_UNIT_GROUP_SIZE =
   'https://yosemitecrew.com/fhir/StructureDefinition/room-unit-group-size';
@@ -125,6 +128,14 @@ export const toFHIRRoomUnit = (unit: RoomUnit): FHIRLocation => ({
       url: EXT_ROOM_UNIT_ACTIVE,
       valueBoolean: unit.isActive ?? true,
     },
+    ...(typeof unit.isOccupied === 'boolean'
+      ? [
+          {
+            url: EXT_ROOM_UNIT_OCCUPIED,
+            valueBoolean: unit.isOccupied,
+          },
+        ]
+      : []),
   ],
 });
 
@@ -138,6 +149,7 @@ export const fromFHIRRoomUnit = (resource: FHIRLocation): RoomUnit => ({
   size: getStringExtension(resource.extension, EXT_ROOM_UNIT_SIZE),
   speciesConstraints: getStringArrayExtension(resource.extension, EXT_ROOM_UNIT_SPECIES),
   isActive: getBooleanExtension(resource.extension, EXT_ROOM_UNIT_ACTIVE) ?? true,
+  isOccupied: getBooleanExtension(resource.extension, EXT_ROOM_UNIT_OCCUPIED),
 });
 
 export const toFHIRRoomUnitGroup = (group: RoomUnitGroup): FHIRLocation => ({

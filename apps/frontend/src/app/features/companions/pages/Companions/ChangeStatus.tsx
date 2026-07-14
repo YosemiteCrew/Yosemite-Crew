@@ -3,6 +3,7 @@ import { RecordStatus } from '@yosemite-crew/types';
 import ChangeStatusModal from '@/app/ui/overlays/Modal/ChangeStatusModal';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 import { updateCompanion } from '@/app/features/companions/services/companionService';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 type ChangeCompanionStatusProps = {
   showModal: boolean;
@@ -25,6 +26,7 @@ const ChangeCompanionStatus = ({
   setShowModal,
   activeCompanion,
 }: ChangeCompanionStatusProps) => {
+  const terminologyText = useCompanionTerminologyText();
   const currentStatus: RecordStatus = activeCompanion.companion.status ?? 'active';
 
   return (
@@ -34,7 +36,7 @@ const ChangeCompanionStatus = ({
       currentStatus={currentStatus}
       defaultStatus={currentStatus}
       statusOptions={CompanionStatusOptions}
-      placeholder="Companion status"
+      placeholder={terminologyText('Companion status')}
       canTransition={canTransitionCompanionStatus}
       getInvalidMessage={getInvalidCompanionStatusTransitionMessage}
       onSave={async (newStatus) => {

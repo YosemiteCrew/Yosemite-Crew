@@ -16,7 +16,14 @@ export type TaskKind =
   | "OBSERVATION_TOOL"
   | "HYGIENE"
   | "DIET"
-  | "CUSTOM";
+  | "CUSTOM"
+  | "CARE"
+  | "PROCEDURE"
+  | "DIAGNOSTIC"
+  | "COMMUNICATION"
+  | "BILLING"
+  | "RECORD"
+  | "ADMIN";
 
 export type Species = "dog" | "cat" | "horse";
 
@@ -29,6 +36,13 @@ const TASK_KINDS = new Set<TaskKind>([
   "HYGIENE",
   "DIET",
   "CUSTOM",
+  "CARE",
+  "PROCEDURE",
+  "DIAGNOSTIC",
+  "COMMUNICATION",
+  "BILLING",
+  "RECORD",
+  "ADMIN",
 ]);
 const SPECIES_LIST = new Set<Species>(["dog", "cat", "horse"]);
 

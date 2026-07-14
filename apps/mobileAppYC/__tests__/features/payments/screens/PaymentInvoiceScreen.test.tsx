@@ -141,6 +141,7 @@ const mockStateBase = {
         paymentIntent: {
           clientSecret: 'pi_test_secret',
           paymentIntentId: 'pi_test_123',
+          connectedAccountId: 'acct_test_123',
           amount: 150,
           currency: 'USD',
         },

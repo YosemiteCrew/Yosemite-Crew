@@ -46,8 +46,9 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
     getPreferredTimeValue(initialTask?.dueAt, '00:00')
   );
   const [formDataErrors, setFormDataErrors] = useState<TaskFormErrors>({});
-  const [orgTemplates, setOrgTemplates] = useState<TaskTemplate[]>([]);
-  const [libraryTemplates, setLibraryTemplates] = useState<TaskLibrary[]>([]);
+  // Selectable templates: org task templates first, then YC library, in one
+  // list so the load commits as a single state update.
+  const [templates, setTemplates] = useState<Array<TaskTemplate | TaskLibrary>>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -73,44 +74,48 @@ export const useTaskForm = (options: UseTaskFormOptions = {}) => {
     }));
   }, [due, dueTimeValue]);
 
+  // Load the org task templates (and YC library) up front so the single
+  // "Load from template" picker is always populated — the form no longer
+  // exposes a "Source" selector that gated which list to fetch.
   useEffect(() => {
     if (!loadOnMount) return;
+    let active = true;
 
     const load = async () => {
-      if (formData.source !== 'ORG_TEMPLATE' && formData.source !== 'YC_LIBRARY') return;
-      try {
-        if (formData.source === 'ORG_TEMPLATE') {
-          const data = await getTaskTemplatesForPrimaryOrg();
-          setOrgTemplates(data);
-        } else if (formData.source === 'YC_LIBRARY') {
-          const data = await getTaskLibrary();
-          setLibraryTemplates(data);
-        }
-      } catch (err) {
-        console.log('Error loading templates:', err);
+      const [orgResult, libraryResult] = await Promise.allSettled([
+        getTaskTemplatesForPrimaryOrg(),
+        getTaskLibrary(),
+      ]);
+      if (!active) return;
+      const orgTemplates = orgResult.status === 'fulfilled' ? (orgResult.value ?? []) : [];
+      const libraryTemplates =
+        libraryResult.status === 'fulfilled' ? (libraryResult.value ?? []) : [];
+      const merged = [...orgTemplates, ...libraryTemplates];
+      // Single commit for both lists so the load is one atomic state update. Skip
+      // the commit entirely when there are no templates — avoids a no-op re-render
+      // (and the empty state already starts as []).
+      if (merged.length > 0) setTemplates(merged);
+      if (orgResult.status === 'rejected' && libraryResult.status === 'rejected') {
+        console.log('Error loading task templates:', orgResult.reason);
       }
     };
     load();
-  }, [loadOnMount, formData.source]);
 
-  const templateOptions: Option[] = useMemo(() => {
-    const list = formData.source === 'ORG_TEMPLATE' ? orgTemplates : libraryTemplates;
-    return toTemplateOptions(list);
-  }, [formData.source, orgTemplates, libraryTemplates]);
+    return () => {
+      active = false;
+    };
+  }, [loadOnMount]);
+
+  const templateOptions: Option[] = useMemo(() => toTemplateOptions(templates), [templates]);
 
   const selectTemplate = useCallback(
     (templateId: string) => {
-      let template;
-      if (formData.source === 'ORG_TEMPLATE') {
-        template = orgTemplates.find((t) => t._id === templateId);
-      } else if (formData.source === 'YC_LIBRARY') {
-        template = libraryTemplates.find((t) => t._id === templateId);
-      }
+      const template = templates.find((t) => t._id === templateId);
       if (template) {
         setFormData((prev) => applyTemplateToForm(prev, template));
       }
     },
-    [formData.source, orgTemplates, libraryTemplates]
+    [templates]
   );
 
   const handleCreate = useCallback(async () => {

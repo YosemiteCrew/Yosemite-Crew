@@ -17,6 +17,7 @@ import {
   LuSearch,
 } from 'react-icons/lu';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import Search from '@/app/ui/inputs/Search';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
@@ -45,6 +46,7 @@ import {
   getEncounterDocumentPacketPdfUrl,
   listEncounterWorkspaceDocuments,
   normalizeWorkspaceBootstrapForEncounter,
+  reconcileWorkspaceDocumentPacket,
   signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 
@@ -97,28 +99,11 @@ const getTemplateSchemaSnapshot = (template: TemplateLike): TemplateSchemaSnapsh
   return hasTemplateSchemaSnapshot(version?.schemaSnapshot) ? version.schemaSnapshot : undefined;
 };
 
-const schemaSnapshotToDischargeHtml = (snapshot?: TemplateSchemaSnapshot): string => {
-  const sections = snapshot?.sections ?? [];
-  if (sections.length === 0) return '';
-  return sections
-    .map((section) => {
-      const fields = section.fields
-        .map((field) => `<p><strong>${escapeHtml(field.label || field.key)}</strong>: </p>`)
-        .join('');
-      return `<h3>${escapeHtml(section.title)}</h3>${fields}`;
-    })
-    .join('');
-};
+const DISCHARGE_META_FIELD_KEYS = new Set(['followUpInDays', 'followUpDate']);
 
-const templateToDischargeHtml = (template: TemplateLike): string =>
-  schemaSnapshotToDischargeHtml(getTemplateSchemaSnapshot(template));
+const normalizeTemplateLabel = (value: string): string => value.trim().toLowerCase();
 
-/** ISO follow-up timestamp ⇄ the Datepicker's `Date | null` value. */
-const toFollowUpDate = (iso?: string): Date | null => {
-  if (!iso) return null;
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
+type TemplateField = TemplateSchemaSnapshot['sections'][number]['fields'][number];
 
 /** Humanise a backend enum token (e.g. "DISCHARGE_SUMMARY" → "Discharge summary",
  *  "NOT_REQUIRED" → "Not required") so raw enums never reach the table. */
@@ -134,12 +119,85 @@ const humanizeToken = (value?: string | null): string => {
     .join(' ');
 };
 
+const htmlFromDefaultValue = (value: unknown): string => {
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+};
+
+const fieldDefaultToHtml = (field: TemplateField): string => {
+  if (DISCHARGE_META_FIELD_KEYS.has(field.key)) return '';
+  const defaultValue = htmlFromDefaultValue(field.defaultValue);
+  if (!defaultValue) return '';
+  if (field.type === 'richText') return sanitizeRichText(defaultValue);
+  return `<p><strong>${escapeHtml(field.label || field.key)}:</strong> ${escapeHtml(defaultValue)}</p>`;
+};
+
+const medicationColumnLabels = (field: TemplateField): string[] => {
+  const columns = field.rules?.columns;
+  if (!Array.isArray(columns)) return ['Drug', 'Dose', 'Frequency', 'Duration'];
+  return columns
+    .filter((column): column is string => typeof column === 'string' && column.trim().length > 0)
+    .map(humanizeToken);
+};
+
+const fieldOutlineToHtml = (field: TemplateField): string => {
+  if (DISCHARGE_META_FIELD_KEYS.has(field.key)) return '';
+  if (field.type === 'richText' || field.type === 'instructionBlock') return '<p><br></p>';
+  if (field.type === 'diagnosis') return '<ul><li>Diagnosis: </li></ul>';
+  if (field.type === 'medicationLine') {
+    const labels = medicationColumnLabels(field)
+      .map((label) => `${escapeHtml(label)}: `)
+      .join(' | ');
+    return `<ul><li>${labels}</li></ul>`;
+  }
+  return `<p><strong>${escapeHtml(field.label || field.key)}:</strong> </p>`;
+};
+
+const schemaSnapshotToDischargeHtml = (snapshot?: TemplateSchemaSnapshot): string => {
+  const sections = snapshot?.sections ?? [];
+  if (sections.length === 0) return '';
+  return sections
+    .map((section) => {
+      const defaultFields = section.fields.flatMap((field) => {
+        const html = fieldDefaultToHtml(field);
+        return html ? [html] : [];
+      });
+      if (defaultFields.length > 0) return defaultFields.join('');
+
+      const outlineFields: Array<{ html: string; label: string }> = [];
+      for (const field of section.fields) {
+        const html = fieldOutlineToHtml(field);
+        if (html) {
+          outlineFields.push({ html, label: field.label || field.key });
+        }
+      }
+      if (outlineFields.length === 0) return '';
+
+      const duplicatesOnlyField =
+        outlineFields.length === 1 &&
+        normalizeTemplateLabel(outlineFields[0].label) === normalizeTemplateLabel(section.title);
+      const heading = duplicatesOnlyField
+        ? ''
+        : `<p><strong>${escapeHtml(section.title)}</strong></p>`;
+      return `${heading}${outlineFields.map((field) => field.html).join('')}`;
+    })
+    .join('');
+};
+
+/** ISO follow-up timestamp ⇄ the Datepicker's `Date | null` value. */
+const toFollowUpDate = (iso?: string): Date | null => {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 /** The documents read-model types timestamps as `Date` in the contract but they
  *  arrive as JSON strings over the wire — normalise to ISO for formatting. */
 const toIsoString = (value: string | Date): string =>
   typeof value === 'string' ? value : new Date(value).toISOString();
 
-const DocumentSourcePill = ({ source }: { source: string }) => (
+export const DocumentSourcePill = ({ source }: { source: string }) => (
   <span className="inline-flex rounded-2xl border border-[#D6D1CD] bg-[#FAF8F6] px-3 py-1 text-caption-1 text-text-primary">
     {humanizeToken(source)}
   </span>
@@ -161,7 +219,7 @@ const downloadDocumentUrl = (url: string) => {
   link.remove();
 };
 
-const AllDocumentsTable = ({
+export const AllDocumentsTable = ({
   documents,
   organisationId,
   canView,
@@ -283,7 +341,184 @@ const AllDocumentsTable = ({
   );
 };
 
-const SummaryStep = ({
+type TemplateSearchSectionProps = {
+  templateSearchRef: React.RefObject<HTMLDivElement | null>;
+  templateQuery: string;
+  setTemplateQuery: (value: string) => void;
+  templateMatches: TemplateLike[];
+  templateError: string | null;
+  onSelectTemplate: (template: TemplateLike) => void;
+};
+
+export const TemplateSearchSection = ({
+  templateSearchRef,
+  templateQuery,
+  setTemplateQuery,
+  templateMatches,
+  templateError,
+  onSelectTemplate,
+}: TemplateSearchSectionProps) => (
+  <div className="relative flex justify-end">
+    <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
+      <Search
+        value={templateQuery}
+        setSearch={setTemplateQuery}
+        placeholder="Search discharge templates"
+        label="Search discharge templates"
+        className="w-full!"
+      />
+      <SearchResultsDropdown
+        anchorRef={templateSearchRef}
+        open={Boolean(templateQuery.trim()) && !templateError}
+        onClose={() => setTemplateQuery('')}
+      >
+        {templateMatches.length > 0 ? (
+          <ul>
+            {templateMatches.map((template) => (
+              <WorkspaceSearchResultRow
+                key={template.id}
+                name={template.name}
+                leadingIcon={<LuSearch aria-hidden="true" className="shrink-0" />}
+                onSelect={() => onSelectTemplate(template)}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className="px-4 py-3 text-body-4 text-text-secondary">
+            No discharge templates match this search.
+          </p>
+        )}
+      </SearchResultsDropdown>
+      {templateError && <p className="mt-2 text-caption-1 text-danger-600">{templateError}</p>}
+    </div>
+  </div>
+);
+
+type SavedDischargeViewProps = {
+  encounter: AppointmentEncounter;
+  followUpDate: Date | null;
+  onEdit: () => void;
+};
+
+export const SavedDischargeView = ({
+  encounter,
+  followUpDate,
+  onEdit,
+}: SavedDischargeViewProps) => (
+  <div className="relative">
+    {/* Editable until the encounter is locked (window closed / completed /
+        discharged). Absolutely positioned so it overlays the top-right
+        without pushing the summary down a row. */}
+    {!encounter.viewOnly && (
+      <div className="absolute top-0 right-0 z-10">
+        <CircleIconButton
+          icon={<LuPencil aria-hidden="true" />}
+          label="Edit discharge summary"
+          variant="dark"
+          onClick={onEdit}
+        />
+      </div>
+    )}
+    <div
+      className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
+      dangerouslySetInnerHTML={{
+        __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
+      }}
+    />
+    <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
+      {/* Same Datepicker container as edit mode, rendered non-interactive. */}
+      <div className="pointer-events-none w-full select-none sm:max-w-72" aria-disabled="true">
+        <Datepicker
+          type="input"
+          currentDate={followUpDate}
+          setCurrentDate={() => undefined}
+          placeholder="Follow up date"
+        />
+      </div>
+      <div className="flex flex-col items-end leading-[120%]">
+        <span className="text-[12px] font-bold text-neutral-900">
+          Saved by {encounter.dischargeSavedByName}
+        </span>
+        <span className="text-[12px] font-medium text-text-brand">
+          {formatDateTime(encounter.dischargeSavedAt ?? '')}
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
+type ActionButtonsRowProps = {
+  documentState: {
+    visible: boolean;
+    dischargeSaved: boolean;
+    printing: boolean;
+    saving: boolean;
+    signing: boolean;
+    packetSigned: boolean;
+    signBlocked: boolean;
+    signBlockedReason: string | undefined;
+    encounterViewOnly: boolean | undefined;
+  };
+  onPrint: () => void;
+  onSave: () => void;
+  onDownloadSigned: () => void;
+  onSign: () => void;
+};
+
+export const ActionButtonsRow = ({
+  documentState,
+  onPrint,
+  onSave,
+  onDownloadSigned,
+  onSign,
+}: ActionButtonsRowProps) => (
+  <div className="flex flex-wrap items-center justify-end gap-3">
+    {documentState.visible && (
+      <Secondary
+        text={documentState.printing ? 'Preparing…' : 'Print All'}
+        icon={<LuPrinter aria-hidden="true" />}
+        onClick={onPrint}
+        isDisabled={documentState.printing}
+      />
+    )}
+    {!documentState.dischargeSaved && (
+      <Secondary
+        text="Save"
+        icon={<LuSave aria-hidden="true" />}
+        onClick={onSave}
+        isDisabled={documentState.encounterViewOnly || documentState.saving}
+      />
+    )}
+    {documentState.visible && documentState.packetSigned && (
+      <Secondary
+        text="Download Signed"
+        icon={<LuDownload aria-hidden="true" />}
+        onClick={onDownloadSigned}
+        isDisabled={documentState.printing}
+      />
+    )}
+    {documentState.visible && !documentState.packetSigned && documentState.signBlockedReason && (
+      <GlassTooltip content={documentState.signBlockedReason} side="top">
+        <Secondary
+          text={documentState.signing ? 'Signing…' : 'Sign'}
+          icon={<LuFileSignature aria-hidden="true" />}
+          onClick={onSign}
+          isDisabled={documentState.signBlocked}
+        />
+      </GlassTooltip>
+    )}
+    {documentState.visible && !documentState.packetSigned && !documentState.signBlockedReason && (
+      <Secondary
+        text={documentState.signing ? 'Signing…' : 'Sign'}
+        icon={<LuFileSignature aria-hidden="true" />}
+        onClick={onSign}
+        isDisabled={documentState.signBlocked}
+      />
+    )}
+  </div>
+);
+
+const useSummaryStepContent = ({
   appointmentId,
   appointment,
   encounter,
@@ -332,6 +567,10 @@ const SummaryStep = ({
   // hydrated/admitted visits). Acts as the last-resort fallback so the document,
   // sign, and print logic still has encounter context.
   const [hydratedEncounterId, setHydratedEncounterId] = useState<string | undefined>();
+  // Packet-level signing truth captured from the reconcile response. Kept
+  // alongside the documents-derived signal so the Sign→Download Signed swap fires
+  // even before the per-document SIGNED status has propagated into the read-model.
+  const [packetSigned, setPacketSigned] = useState(false);
 
   const templateSearchRef = useRef<HTMLDivElement>(null);
   const templateMatches = useMemo(() => {
@@ -405,6 +644,23 @@ const SummaryStep = ({
   // ready-for-billing) reflect the completed Documenso signature.
   const refreshAfterSigning = useCallback(async () => {
     if (!organisationId || !appointmentId) return;
+    // The Documenso completion webhook can't reach the backend in local/dev and
+    // can lag in prod, so first ask the backend to reconcile the packet against
+    // Documenso directly (pull the signed copy, mark packet + documents SIGNED).
+    // Best-effort: if the reconcile endpoint isn't deployed yet (404) or signing
+    // is genuinely incomplete, we swallow the error and fall through to the
+    // bootstrap + documents refetch below, which still reflects webhook truth.
+    const packetId = signingPacketIdRef.current;
+    if (packetId) {
+      try {
+        const reconciled = await reconcileWorkspaceDocumentPacket(organisationId, packetId);
+        if (reconciled?.signing?.status?.toUpperCase() === 'SIGNED') {
+          setPacketSigned(true);
+        }
+      } catch (error) {
+        console.error('Unable to reconcile packet signing:', error);
+      }
+    }
     try {
       const bootstrap = await getAppointmentWorkspaceBootstrap(organisationId, appointmentId);
       mergeEncounterData(appointmentId, normalizeWorkspaceBootstrapForEncounter(bootstrap));
@@ -418,6 +674,9 @@ const SummaryStep = ({
   // sign was started as the signal to refetch (the Documenso webhook has run
   // server-side by then).
   const signingInitiatedRef = useRef(false);
+  // The packet being signed, captured when signing starts so the post-close
+  // reconcile can pull server-side signing truth from Documenso directly.
+  const signingPacketIdRef = useRef<string | null>(null);
   const resolvedDischargeEncounterRef = useRef<string | null>(null);
   const dischargeResolveKey = encounterId ?? appointmentId;
   const companionId = appointment?.patient?.id;
@@ -425,6 +684,16 @@ const SummaryStep = ({
   const dischargeSummary = encounter.dischargeSummary;
   const encounterMode = encounter.mode;
   const encounterServices = encounter.services;
+  const applyTemplateFollowUpDays = useCallback(
+    (snapshot: TemplateSchemaSnapshot | undefined) => {
+      const followUpInDays = extractFollowUpInDays(snapshot);
+      if (!followUpInDays || encounter.followUpAt) return;
+      const next = new Date();
+      next.setDate(next.getDate() + followUpInDays);
+      setFollowUp(appointmentId, next.toISOString());
+    },
+    [appointmentId, encounter.followUpAt, setFollowUp]
+  );
   useEffect(() => {
     if (signingOverlayOpen || !signingInitiatedRef.current) return;
     signingInitiatedRef.current = false;
@@ -460,12 +729,7 @@ const SummaryStep = ({
         });
         // The discharge template defines "follow up in N days"; prefill the follow-up date as
         // (today + N days) when the clinician has not already set one. It stays editable below.
-        const followUpInDays = extractFollowUpInDays(resolved.schemaSnapshot);
-        if (followUpInDays && !encounter.followUpAt) {
-          const next = new Date();
-          next.setDate(next.getDate() + followUpInDays);
-          setFollowUp(appointmentId, next.toISOString());
-        }
+        applyTemplateFollowUpDays(resolved.schemaSnapshot);
       })
       .catch((error) => {
         console.error('Unable to resolve discharge template:', error);
@@ -485,17 +749,18 @@ const SummaryStep = ({
     encounterMode,
     encounterServices,
     organisationId,
+    applyTemplateFollowUpDays,
     setDischargeSummary,
-    setFollowUp,
-    encounter.followUpAt,
   ]);
 
   const handleTemplateSelect = (template: TemplateLike) => {
-    setDischargeSummary(appointmentId, templateToDischargeHtml(template));
+    const snapshot = getTemplateSchemaSnapshot(template);
+    setDischargeSummary(appointmentId, schemaSnapshotToDischargeHtml(snapshot));
     setDischargeTemplate({
       templateId: template.id,
       templateVersion: template.publishedVersion ?? template.latestVersion,
     });
+    applyTemplateFollowUpDays(snapshot);
     setTemplateQuery('');
   };
 
@@ -519,6 +784,9 @@ const SummaryStep = ({
       if (!packetId) {
         throw new Error('Document packet could not be created.');
       }
+      // Remember the packet so the post-close reconcile can resolve its signing
+      // state against Documenso directly.
+      signingPacketIdRef.current = packetId;
       const signed = await signWorkspaceDocumentPacket(organisationId, packetId, {
         signerName: encounter.leadName ?? undefined,
       });
@@ -602,6 +870,45 @@ const SummaryStep = ({
   const followUpDate = toFollowUpDate(encounter.followUpAt);
   const showDocumentActions = dischargeSaved;
 
+  // The packet is considered signed once any document in the encounter read-model
+  // reports a SIGNED signing status — Documenso marks the bundled documents signed
+  // against the one signed packet PDF. Drives the Sign→Download Signed swap and the
+  // "print the signed copy" behaviour.
+  const isPacketSigned = useMemo(
+    () =>
+      packetSigned ||
+      documents.some((document) => document.signingStatus?.toUpperCase() === 'SIGNED'),
+    [documents, packetSigned]
+  );
+
+  // Signing may only begin while the appointment is actively in progress; before
+  // that (e.g. checked-in/upcoming) or after completion the action is disabled and
+  // a tooltip explains why.
+  const appointmentInProgress = appointment?.status === 'IN_PROGRESS';
+  const signDisabled = encounter.viewOnly || isSigning || !appointmentInProgress;
+  const signDisabledReason = appointmentInProgress
+    ? undefined
+    : 'Signing is available only while the appointment is In progress.';
+
+  // Download the signed packet PDF (the packet endpoint returns the signed copy
+  // server-side once signing has completed).
+  const handleDownloadSigned = async () => {
+    if (isPrinting) return;
+    if (!organisationId || !encounterId) return;
+    setIsPrinting(true);
+    try {
+      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
+      downloadDocumentUrl(url);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setSignError(
+        error instanceof Error ? error.message : 'Unable to download the signed document.'
+      );
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-5">
       <SigningOverlay />
@@ -616,91 +923,25 @@ const SummaryStep = ({
 
       {/* Discharge-template search sits above the container (like the SOAP step's
           template search) — selecting a template fills the editor. */}
-      <div className="relative flex justify-end">
-        <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
-          <Search
-            value={templateQuery}
-            setSearch={setTemplateQuery}
-            placeholder="Search discharge templates"
-            label="Search discharge templates"
-            className="w-full!"
-          />
-          <SearchResultsDropdown
-            anchorRef={templateSearchRef}
-            open={Boolean(templateQuery.trim()) && !templateState.error}
-            onClose={() => setTemplateQuery('')}
-          >
-            {templateMatches.length > 0 ? (
-              <ul>
-                {templateMatches.map((template) => (
-                  <WorkspaceSearchResultRow
-                    key={template.id}
-                    name={template.name}
-                    leadingIcon={<LuSearch aria-hidden="true" className="shrink-0" />}
-                    onSelect={() => handleTemplateSelect(template)}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p className="px-4 py-3 text-body-4 text-text-secondary">
-                No discharge templates match this search.
-              </p>
-            )}
-          </SearchResultsDropdown>
-          {templateState.error && (
-            <p className="mt-2 text-caption-1 text-danger-600">{templateState.error}</p>
-          )}
-        </div>
-      </div>
+      <TemplateSearchSection
+        templateSearchRef={templateSearchRef}
+        templateQuery={templateQuery}
+        setTemplateQuery={setTemplateQuery}
+        templateMatches={templateMatches}
+        templateError={templateState.error}
+        onSelectTemplate={handleTemplateSelect}
+      />
 
       {/* Mirrors the SOAP step sections: title + inset rich-text editor only.
           Once saved, the editor is replaced by a read-only render of the summary
           with a fixed follow-up date and a "Saved on … by …" stamp. */}
       <SectionContainer titleClassName="text-yc-20-b-primary" title="Discharge Summary" compactTop>
         {dischargeSaved ? (
-          <div className="relative">
-            {/* Editable until the encounter is locked (window closed / completed /
-                discharged). Absolutely positioned so it overlays the top-right
-                without pushing the summary down a row. */}
-            {!encounter.viewOnly && (
-              <div className="absolute top-0 right-0 z-10">
-                <CircleIconButton
-                  icon={<LuPencil aria-hidden="true" />}
-                  label="Edit discharge summary"
-                  variant="dark"
-                  onClick={() => reopenDischargeSummary(appointmentId)}
-                />
-              </div>
-            )}
-            <div
-              className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
-              dangerouslySetInnerHTML={{
-                __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
-              }}
-            />
-            <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-              {/* Same Datepicker container as edit mode, rendered non-interactive. */}
-              <div
-                className="pointer-events-none w-full select-none sm:max-w-72"
-                aria-disabled="true"
-              >
-                <Datepicker
-                  type="input"
-                  currentDate={followUpDate}
-                  setCurrentDate={() => undefined}
-                  placeholder="Follow up date"
-                />
-              </div>
-              <div className="flex flex-col items-end leading-[120%]">
-                <span className="text-[12px] font-bold text-neutral-900">
-                  Saved by {encounter.dischargeSavedByName}
-                </span>
-                <span className="text-[12px] font-medium text-text-brand">
-                  {formatDateTime(encounter.dischargeSavedAt ?? '')}
-                </span>
-              </div>
-            </div>
-          </div>
+          <SavedDischargeView
+            encounter={encounter}
+            followUpDate={followUpDate}
+            onEdit={() => reopenDischargeSummary(appointmentId)}
+          />
         ) : (
           <>
             <RichTextEditor
@@ -736,32 +977,23 @@ const SummaryStep = ({
             {signError}
           </p>
         )}
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          {showDocumentActions && (
-            <Secondary
-              text={isPrinting ? 'Preparing…' : 'Print All'}
-              icon={<LuPrinter aria-hidden="true" />}
-              onClick={handlePrint}
-              isDisabled={isPrinting}
-            />
-          )}
-          {!dischargeSaved && (
-            <Secondary
-              text="Save"
-              icon={<LuSave aria-hidden="true" />}
-              onClick={handleSave}
-              isDisabled={encounter.viewOnly || isSaving}
-            />
-          )}
-          {showDocumentActions && (
-            <Secondary
-              text={isSigning ? 'Signing…' : 'Sign'}
-              icon={<LuFileSignature aria-hidden="true" />}
-              onClick={handleSign}
-              isDisabled={encounter.viewOnly || isSigning}
-            />
-          )}
-        </div>
+        <ActionButtonsRow
+          documentState={{
+            visible: showDocumentActions,
+            dischargeSaved,
+            printing: isPrinting,
+            saving: isSaving,
+            signing: isSigning,
+            packetSigned: isPacketSigned,
+            signBlocked: signDisabled,
+            signBlockedReason: signDisabledReason,
+            encounterViewOnly: encounter.viewOnly,
+          }}
+          onPrint={() => void handlePrint()}
+          onSave={() => void handleSave()}
+          onDownloadSigned={() => void handleDownloadSigned()}
+          onSign={() => void handleSign()}
+        />
       </div>
 
       <AllDocumentsTable
@@ -773,5 +1005,7 @@ const SummaryStep = ({
     </div>
   );
 };
+
+const SummaryStep = (props: SummaryStepProps) => useSummaryStepContent(props);
 
 export default SummaryStep;

@@ -63,14 +63,24 @@ const mockRefs: TaskSheetRefs = {
 };
 
 const defaultProps: React.ComponentProps<typeof TaskFormSheets> = {
-  showDatePicker: false,
-  setShowDatePicker: mockSetShowDatePicker,
-  showTimePicker: false,
-  setShowTimePicker: mockSetShowTimePicker,
-  showStartDatePicker: false,
-  setShowStartDatePicker: mockSetShowStartDatePicker,
-  showEndDatePicker: false,
-  setShowEndDatePicker: mockSetShowEndDatePicker,
+  pickerControls: {
+    date: {
+      visible: false,
+      setVisible: mockSetShowDatePicker,
+    },
+    time: {
+      visible: false,
+      setVisible: mockSetShowTimePicker,
+    },
+    startDate: {
+      visible: false,
+      setVisible: mockSetShowStartDatePicker,
+    },
+    endDate: {
+      visible: false,
+      setVisible: mockSetShowEndDatePicker,
+    },
+  },
   formData: mockFormData,
   updateField: mockUpdateField,
   companionType: 'dog',
@@ -105,22 +115,34 @@ describe('TaskFormSheets', () => {
     render(
       <TaskFormSheets
         {...defaultProps}
-        showDatePicker={true}
-        showEndDatePicker={true}
+        pickerControls={{
+          ...defaultProps.pickerControls,
+          date: {
+            ...defaultProps.pickerControls.date,
+            visible: true,
+          },
+          endDate: {
+            ...defaultProps.pickerControls.endDate,
+            visible: true,
+          },
+        }}
       />,
     );
 
     const props = MockTaskDatePickers.mock.calls[0][0];
 
-    // FIX: Check for the props that TaskFormSheets *actually* passes
-    expect(props.showDatePicker).toBe(true);
-    expect(props.setShowDatePicker).toBe(mockSetShowDatePicker);
-    expect(props.showTimePicker).toBe(false);
-    expect(props.setShowTimePicker).toBe(mockSetShowTimePicker);
-    expect(props.showStartDatePicker).toBe(false);
-    expect(props.setShowStartDatePicker).toBe(mockSetShowStartDatePicker);
-    expect(props.showEndDatePicker).toBe(true);
-    expect(props.setShowEndDatePicker).toBe(mockSetShowEndDatePicker);
+    expect(props.pickerControls.date.visible).toBe(true);
+    expect(props.pickerControls.date.setVisible).toBe(mockSetShowDatePicker);
+    expect(props.pickerControls.time.visible).toBe(false);
+    expect(props.pickerControls.time.setVisible).toBe(mockSetShowTimePicker);
+    expect(props.pickerControls.startDate.visible).toBe(false);
+    expect(props.pickerControls.startDate.setVisible).toBe(
+      mockSetShowStartDatePicker,
+    );
+    expect(props.pickerControls.endDate.visible).toBe(true);
+    expect(props.pickerControls.endDate.setVisible).toBe(
+      mockSetShowEndDatePicker,
+    );
     expect(props.formData).toBe(mockFormData);
     expect(props.updateField).toBe(mockUpdateField);
   });
@@ -177,6 +199,5 @@ describe('TaskFormSheets', () => {
   it('does not pass taskTypeSheetProps when not provided', () => {
     const {...propsWithout} = defaultProps;
     render(<TaskFormSheets {...propsWithout} />);
-
   });
 });

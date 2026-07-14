@@ -131,6 +131,7 @@ describe("FinanceController", () => {
     ).mockResolvedValueOnce({
       paymentIntentId: "pi_1",
       clientSecret: "secret_1",
+      connectedAccountId: "acct_1",
       amount: 42,
       currency: "usd",
     });
@@ -147,12 +148,16 @@ describe("FinanceController", () => {
 
     expect(
       FinancePaymentService.createPaymentIntentForInvoice,
-    ).toHaveBeenCalledWith("inv_1");
+    ).toHaveBeenCalledWith("inv_1", {
+      collectionMode: "DEPOSIT_THEN_SETTLE",
+      settlementChannel: "DEPOSIT",
+    });
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
       data: {
         paymentIntentId: "pi_1",
         clientSecret: "secret_1",
+        connectedAccountId: "acct_1",
         amount: 42,
         currency: "usd",
       },

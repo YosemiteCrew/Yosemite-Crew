@@ -21,17 +21,28 @@ jest.mock(
     __esModule: true,
     default: () => <div>legacy lab tests</div>,
     useLabTests: (appt: unknown) => mockUseLabTests(appt),
+    LabResultCategoryTable: ({ resultId }: { resultId: string }) => (
+      <div data-testid={`category-${resultId}`}>category table</div>
+    ),
+  })
+);
+
+jest.mock(
+  '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/labTestsUtils',
+  () => ({
+    __esModule: true,
     resolveOrderUiUrl: (order: { uiUrl?: string | null } | null) => order?.uiUrl ?? '',
     resolveOrderPdfUrl: (order: { pdfUrl?: string | null } | null) => order?.pdfUrl ?? '',
     formatTestPrice: (test: IdexxTest) => test.meta?.listPrice ?? '$0.00',
     getTestTurnaround: (test: IdexxTest) => test.meta?.turnaround ?? '24 hours',
     getTestSpecimen: (test: IdexxTest) => test.meta?.specimen ?? 'Serum',
     toTitleCase: (value?: string | null) => value ?? '',
-    LabResultCategoryTable: ({ resultId }: { resultId: string }) => (
-      <div data-testid={`category-${resultId}`}>category table</div>
-    ),
   })
 );
+
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
 
 jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
   __esModule: true,
@@ -253,6 +264,27 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     expect(screen.getByText(/Loading IDEXX integration/i)).toBeInTheDocument();
   });
 
+  it('shows Follow up for submitted orders and Continue for created orders', () => {
+    renderStep({
+      latestOrder: makeOrder({ status: 'SUBMITTED' }),
+      canOpenFollowUpInCurrentOrder: true,
+      needsInitialOrderPlacement: false,
+    });
+    expect(
+      screen.getByRole('button', { name: 'Follow up for order 100358709' })
+    ).toBeInTheDocument();
+
+    renderStep({
+      latestOrder: makeOrder({ status: 'CREATED' }),
+      appointmentOrders: [makeOrder({ status: 'CREATED' })],
+      canOpenFollowUpInCurrentOrder: false,
+      needsInitialOrderPlacement: true,
+    });
+    expect(
+      screen.getByRole('button', { name: 'Continue for order 100358709' })
+    ).toBeInTheDocument();
+  });
+
   it('surfaces a hook error message', () => {
     renderStep({ error: 'IDEXX request failed' });
 
@@ -370,9 +402,9 @@ describe('DiagnosticsStep (workspace, real IDEXX backend)', () => {
     const order = makeOrder({ pdfUrl: 'https://idexx.test/ack.pdf' } as Partial<LabOrder>);
     const { hook } = renderStep({ appointmentOrders: [order], latestOrder: order });
 
-    fireEvent.click(screen.getByRole('button', { name: /open idexx for order 100358709/i }));
+    fireEvent.click(screen.getByRole('button', { name: /follow up for order 100358709/i }));
     expect(hook.setActiveOrderForActions).toHaveBeenCalled();
-    expect(hook.openOrderIframe).toHaveBeenCalledWith('order');
+    expect(hook.openOrderIframe).toHaveBeenCalledWith('followup', order.status, order);
 
     fireEvent.click(
       screen.getByRole('button', { name: /view acknowledgement for order 100358709/i })

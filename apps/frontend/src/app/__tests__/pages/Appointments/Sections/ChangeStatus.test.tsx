@@ -77,6 +77,13 @@ jest.mock('@/app/features/appointments/types/appointments', () => ({
   ],
 }));
 
+jest.mock('@/app/lib/timezone', () => ({
+  getMinutesSinceStartOfDayInPreferredTimeZone: jest.fn((date: Date) => {
+    const shifted = new Date(date.getTime() + 330 * 60_000);
+    return shifted.getUTCHours() * 60 + shifted.getUTCMinutes();
+  }),
+}));
+
 jest.mock('@/app/ui/overlays/Modal/ChangeStatusModal', () => ({
   __esModule: true,
   default: function MockChangeStatusModal({
@@ -344,6 +351,131 @@ describe('ChangeStatus (Appointments)', () => {
         'UPCOMING'
       );
     });
+  });
+
+  it('matches FHIR practitioner references from team and slot data when accepting', async () => {
+    mockTeams = [
+      { practionerId: 'Practitioner/dr-1', name: 'Dr. Smith' },
+      { practionerId: 'Practitioner/dr-2', name: 'Dr. Jones' },
+    ];
+    mockGetSlots.mockResolvedValue([
+      {
+        startTime: '09:00',
+        endTime: '09:30',
+        vetIds: ['Practitioner/dr-1'],
+      },
+    ]);
+    mockChangeAppointmentStatus.mockResolvedValue({});
+    render(
+      <ChangeStatus
+        showModal={true}
+        setShowModal={jest.fn()}
+        activeAppointment={makeAppointment({
+          status: 'REQUESTED',
+          lead: { id: 'dr-1', name: '' },
+          appointmentType: { id: 'svc-1' },
+          startTime: new Date('2026-03-16T09:00:00.000Z'),
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Upcoming' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Dr. Smith' })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: 'Dr. Jones' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(mockChangeAppointmentStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lead: expect.objectContaining({ id: 'dr-1', name: 'Dr. Smith' }),
+        }),
+        'UPCOMING'
+      );
+    });
+  });
+
+  it('shows all available slot leads and excludes an unavailable current lead', async () => {
+    mockTeams = [
+      { practionerId: 'dr-1', name: 'Dr. Existing' },
+      { practionerId: 'dr-2', name: 'Dr. Available' },
+      { practionerId: 'dr-3', name: 'Dr. Also Available' },
+    ];
+    mockGetSlots.mockResolvedValue([
+      {
+        startTime: '09:00',
+        endTime: '09:30',
+        vetIds: ['dr-2', 'dr-3'],
+      },
+    ]);
+    mockChangeAppointmentStatus.mockResolvedValue({});
+    render(
+      <ChangeStatus
+        showModal={true}
+        setShowModal={jest.fn()}
+        activeAppointment={makeAppointment({
+          status: 'REQUESTED',
+          lead: { id: 'dr-1', name: 'Dr. Existing' },
+          appointmentType: { id: 'svc-1' },
+          startTime: new Date('2026-03-16T09:00:00.000Z'),
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Upcoming' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Dr. Available' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Dr. Also Available' })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: 'Dr. Existing' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dr. Also Available' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('dropdown-Select lead')).toHaveTextContent('dr-3');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(mockChangeAppointmentStatus).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lead: expect.objectContaining({ id: 'dr-3', name: 'Dr. Also Available' }),
+        }),
+        'UPCOMING'
+      );
+    });
+  });
+
+  it('matches org-local slot clock times against appointment timezone minutes', async () => {
+    mockTeams = [
+      { practionerId: 'dr-local', name: 'Dr. Local Time' },
+      { practionerId: 'dr-other', name: 'Dr. Other' },
+    ];
+    mockGetSlots.mockResolvedValue([
+      {
+        startTime: '14:30',
+        endTime: '15:00',
+        vetIds: ['dr-local'],
+      },
+    ]);
+    render(
+      <ChangeStatus
+        showModal={true}
+        setShowModal={jest.fn()}
+        activeAppointment={makeAppointment({
+          status: 'REQUESTED',
+          appointmentType: { id: 'svc-1' },
+          startTime: new Date('2026-03-16T09:00:00.000Z'),
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Upcoming' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Dr. Local Time' })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: 'Dr. Other' })).not.toBeInTheDocument();
   });
 
   it('blocks accepting when no lead is available for the slot', async () => {

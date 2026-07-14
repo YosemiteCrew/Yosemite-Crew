@@ -79,36 +79,59 @@ describe('useTaskForm', () => {
     mockBuildDateInPreferredTimeZone.mockImplementation((date: Date) => date);
     mockGetPreferredTimeZone.mockReturnValue('UTC');
     (validateTaskForm as jest.Mock).mockReturnValue({});
+    // The form now always loads both template sources on mount (no Source
+    // selector). Default both to empty so the load effect resolves cleanly.
+    mockGetTaskTemplatesForPrimaryOrg.mockResolvedValue([]);
+    mockGetTaskLibrary.mockResolvedValue([]);
   });
 
-  it('initializes with EMPTY_TASK defaults for non-companion task', () => {
+  // The hook fires an on-mount template load (async setState). Flush it inside
+  // act() so it never commits after a test ends and trips jest.setup's
+  // console.error guard.
+  const flushTemplateLoad = () =>
+    act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+  it('initializes with EMPTY_TASK defaults for non-companion task', async () => {
     const { result } = renderHook(() => useTaskForm());
     expect(result.current.formData).toBeDefined();
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
     expect(result.current.templateOptions).toEqual([]);
+    await flushTemplateLoad();
   });
 
-  it('initializes with initialTask when provided', () => {
+  it('initializes with initialTask when provided', async () => {
     const { result } = renderHook(() =>
       useTaskForm({ initialTask: { name: 'prefilled', dueAt: new Date('2026-01-15T10:00:00Z') } })
     );
     expect(result.current.formData.name).toBe('prefilled');
+    await flushTemplateLoad();
   });
 
-  it('initializes due to new Date() when initialTask.dueAt is not provided', () => {
+  it('initializes due to new Date() when initialTask.dueAt is not provided', async () => {
     const { result } = renderHook(() => useTaskForm({ initialTask: {} }));
     expect(result.current.due).toBeInstanceOf(Date);
+    await flushTemplateLoad();
   });
 
-  it('initializes due with initialTask.dueAt when provided', () => {
+  it('initializes due with initialTask.dueAt when provided', async () => {
     const dueAt = new Date('2026-06-01T09:00:00Z');
     const { result } = renderHook(() => useTaskForm({ initialTask: { dueAt } }));
     expect(result.current.due).toBeInstanceOf(Date);
+    await flushTemplateLoad();
   });
 
   it('resetForm restores initial state', async () => {
+    mockGetTaskTemplatesForPrimaryOrg.mockResolvedValue([
+      { _id: 't1', name: 'Template A', kind: 'CUSTOM' },
+    ]);
     const { result } = renderHook(() => useTaskForm({ initialTask: baseTask }));
+
+    // Settle the on-mount template load before touching state.
+    await waitFor(() => expect(result.current.templateOptions.length).toBeGreaterThan(0));
 
     await act(async () => {
       result.current.setFormData((prev) => ({ ...prev, name: 'changed' }));
@@ -116,11 +139,13 @@ describe('useTaskForm', () => {
 
     expect(result.current.formData.name).toBe('changed');
 
-    await act(async () => {
+    act(() => {
       result.current.resetForm();
     });
 
-    expect(result.current.formData.name).toBe('Test task');
+    // resetForm resets `due` to a fresh Date, whose dependent effect commits a
+    // follow-up setFormData. waitFor flushes that trailing effect inside act().
+    await waitFor(() => expect(result.current.formData.name).toBe('Test task'));
     expect(result.current.error).toBeNull();
   });
 
@@ -219,50 +244,38 @@ describe('useTaskForm', () => {
     consoleSpy.mockRestore();
   });
 
-  it('loads ORG_TEMPLATE templates when source is ORG_TEMPLATE and loadOnMount is true', async () => {
+  it('loads and merges org templates and YC library on mount', async () => {
     const templates = [{ _id: 't1', name: 'Template A', kind: 'CUSTOM' }];
+    const libraryItems = [{ _id: 'lib-1', name: 'Library Task', kind: 'MEDICATION' }];
     mockGetTaskTemplatesForPrimaryOrg.mockResolvedValue(templates);
+    mockGetTaskLibrary.mockResolvedValue(libraryItems);
 
-    const { result } = renderHook(() =>
-      useTaskForm({ initialTask: { ...baseTask, source: 'ORG_TEMPLATE' } })
-    );
+    const { result } = renderHook(() => useTaskForm({ initialTask: baseTask }));
 
     await waitFor(() => {
       expect(mockGetTaskTemplatesForPrimaryOrg).toHaveBeenCalled();
-    });
-
-    await waitFor(() => {
-      expect(result.current.templateOptions).toEqual([{ label: 'Template A', value: 't1' }]);
-    });
-  });
-
-  it('loads YC_LIBRARY templates when source is YC_LIBRARY and loadOnMount is true', async () => {
-    const libraryItems = [{ _id: 'lib-1', name: 'Library Task', kind: 'MEDICATION' }];
-    mockGetTaskLibrary.mockResolvedValue(libraryItems);
-
-    const { result } = renderHook(() =>
-      useTaskForm({ initialTask: { ...baseTask, source: 'YC_LIBRARY' } })
-    );
-
-    await waitFor(() => {
       expect(mockGetTaskLibrary).toHaveBeenCalled();
     });
 
     await waitFor(() => {
-      expect(result.current.templateOptions).toEqual([{ label: 'Library Task', value: 'lib-1' }]);
+      expect(result.current.templateOptions).toEqual([
+        { label: 'Template A', value: 't1' },
+        { label: 'Library Task', value: 'lib-1' },
+      ]);
     });
   });
 
   it('does not load templates when loadOnMount is false', async () => {
     const { result } = renderHook(() =>
       useTaskForm({
-        initialTask: { ...baseTask, source: 'ORG_TEMPLATE' },
+        initialTask: baseTask,
         loadOnMount: false,
       })
     );
 
     await act(async () => {});
     expect(mockGetTaskTemplatesForPrimaryOrg).not.toHaveBeenCalled();
+    expect(mockGetTaskLibrary).not.toHaveBeenCalled();
     expect(result.current.templateOptions).toEqual([]);
   });
 

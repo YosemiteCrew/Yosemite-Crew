@@ -52,7 +52,9 @@ export const useMapRegionFilter = ({
     }
 
     if (region) {
-      filtered = filtered.filter(b => isInRegion(b.lat, b.lng, region));
+      const beforeRegionFilter = filtered;
+      const inRegion = filtered.filter(b => isInRegion(b.lat, b.lng, region));
+      filtered = inRegion.length > 0 ? inRegion : beforeRegionFilter;
     }
 
     const trimmed = searchQuery.trim();

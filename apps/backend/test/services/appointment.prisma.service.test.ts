@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, jest, it } from "@jest/globals";
 import { AppointmentPrismaService } from "../../src/services/appointment.prisma.service";
 import { prisma } from "../../src/config/prisma";
 import { InvoiceService } from "../../src/services/invoice.service";
+import { CompanionOrganisationService } from "../../src/services/companion-organisation.service";
 
 jest.mock("@yosemite-crew/types", () => ({
   ...(jest.requireActual("@yosemite-crew/types") as unknown as Record<
@@ -34,6 +35,12 @@ jest.mock("../../src/services/invoice.service", () => ({
     createCheckoutSessionAndEmailParent: jest.fn(),
     markAppointmentReadyForBilling: jest.fn(),
     setInvoiceDepositTarget: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/companion-organisation.service", () => ({
+  CompanionOrganisationService: {
+    linkByParent: jest.fn(),
   },
 }));
 
@@ -87,6 +94,13 @@ jest.mock("../../src/config/prisma", () => ({
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    organization: {
+      findUnique: jest.fn(),
+    },
+    patientOrganisation: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
   },
 }));
 
@@ -109,6 +123,9 @@ const mockedInvoiceService = InvoiceService as unknown as {
   createCheckoutSessionAndEmailParent: jest.Mock;
   markAppointmentReadyForBilling: jest.Mock;
   setInvoiceDepositTarget: jest.Mock;
+};
+const mockedCompanionOrgService = CompanionOrganisationService as unknown as {
+  linkByParent: jest.Mock;
 };
 
 const baseDomain = {
@@ -209,6 +226,9 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.occupancy.deleteMany.mockResolvedValue({ count: 1 } as any);
     mockedPrisma.roomUnit.findUnique.mockResolvedValue(null);
     mockedPrisma.roomUnitGroup.findUnique.mockResolvedValue(null);
+    mockedPrisma.organization.findUnique.mockResolvedValue({
+      type: "HOSPITAL",
+    });
     mockedPrisma.patient.findUnique.mockResolvedValue({
       id: "comp_1",
       type: "dog",
@@ -231,6 +251,7 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.admission.findUnique.mockResolvedValue(null);
     mockedPrisma.admission.upsert.mockResolvedValue({} as any);
     mockedPrisma.template.findFirst.mockResolvedValue(null);
+    mockedPrisma.invoice.findMany.mockResolvedValue([]);
   });
 
   it("creates a requested appointment with product validation", async () => {
@@ -295,6 +316,14 @@ describe("AppointmentPrismaService", () => {
     );
     expect((result as any).paymentStatus).toBe("UNPAID");
     expect(result.id).toBe("appt_1");
+    expect(mockedCompanionOrgService.linkByParent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: "parent_1",
+        patientId: "comp_1",
+        organisationId: "org_1",
+        organisationType: "HOSPITAL",
+      }),
+    );
     expect((result as any).templateDefaults).toEqual([
       expect.objectContaining({
         templateKind: "SOAP_NOTE",
@@ -455,6 +484,14 @@ describe("AppointmentPrismaService", () => {
       "appt_1",
       "PAYMENT_LINK",
     );
+    expect(mockedCompanionOrgService.linkByParent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentId: "parent_1",
+        patientId: "comp_1",
+        organisationId: "org_1",
+        organisationType: "HOSPITAL",
+      }),
+    );
     expect(
       mockedInvoiceService.createCheckoutSessionAndEmailParent,
     ).toHaveBeenCalledWith("inv_1");
@@ -485,31 +522,167 @@ describe("AppointmentPrismaService", () => {
     });
   });
 
-  it("respects organisation and actor scoping when loading an appointment", async () => {
-    mockedPrisma.appointment.findFirst.mockResolvedValue(
-      makeRow({
-        organisationId: "org_2",
-        lead: { id: "lead_1", name: "Dr Vet" },
-        supportStaff: [{ id: "staff_1", name: "Assistant" }],
-      }),
-    );
+  describe("getById org-scoping and own-scope (IDOR)", () => {
+    it("uses findUnique unscoped when no organisationId is supplied (mobile/internal preserved)", async () => {
+      mockedPrisma.appointment.findUnique.mockResolvedValue(makeRow());
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-    await expect(
-      AppointmentPrismaService.getById("appt_1", "org_2", "actor_2"),
-    ).rejects.toMatchObject({
-      message: "Forbidden – insufficient permissions",
-      statusCode: 403,
+      const result = await AppointmentPrismaService.getById("appt_1");
+
+      expect(mockedPrisma.appointment.findUnique).toHaveBeenCalledWith({
+        where: { id: "appt_1" },
+      });
+      expect(mockedPrisma.appointment.findFirst).not.toHaveBeenCalled();
+      expect(result.id).toBe("appt_1");
     });
 
-    await expect(
-      AppointmentPrismaService.getById("appt_1", "org_2", "lead_1"),
-    ).resolves.toMatchObject({ id: "appt_1" });
+    it("binds to organisationId via findFirst when org is supplied", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ organisationId: "org_1" }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-    expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
-      where: { id: "appt_1", organisationId: "org_2" },
+      const result = await AppointmentPrismaService.getById("appt_1", "org_1");
+
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_1", organisationId: "org_1" },
+      });
+      expect(mockedPrisma.appointment.findUnique).not.toHaveBeenCalled();
+      expect(result.id).toBe("appt_1");
+    });
+
+    it("returns 404 for a cross-org id when org is supplied (no cross-tenant leak)", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.getById("appt_in_org_b", "org_a"),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_in_org_b", organisationId: "org_a" },
+      });
+    });
+
+    it("own-scope: returns the appointment when assigned to the actor", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ organisationId: "org_1", lead: { id: "vet_1", name: "V" } }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.getById(
+        "appt_1",
+        "org_1",
+        "vet_1",
+      );
+
+      expect(result.id).toBe("appt_1");
+    });
+
+    it("own-scope: returns 404 for an in-org appointment not assigned to the actor", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({
+          organisationId: "org_1",
+          lead: { id: "other_vet", name: "Other" },
+        }),
+      );
+
+      await expect(
+        AppointmentPrismaService.getById("appt_1", "org_1", "vet_1"),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+    });
+
+    it("allows the linked parent to read the appointment", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({
+          organisationId: "org_2",
+          patient: {
+            id: "comp_1",
+            name: "Buddy",
+            species: "Dog",
+            breed: "Labrador",
+            parent: { id: "parent_1", name: "Parent One" },
+          },
+        }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.getById(
+        "appt_1",
+        "org_2",
+        undefined,
+        "parent_1",
+      );
+
+      expect(result).toMatchObject({ id: "appt_1" });
+    });
+
+    it("own-scope: returns the appointment when the actor is assigned support staff (not lead)", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({
+          organisationId: "org_1",
+          lead: { id: "other_vet", name: "Other" },
+          supportStaff: [{ id: "staff_1", name: "Assistant" }],
+        }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.getById(
+        "appt_1",
+        "org_1",
+        "staff_1",
+      );
+
+      expect(result.id).toBe("appt_1");
     });
   });
 
+  it("shows booking payment as paid while the final invoice remains unpaid", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
+      makeRow({
+        organisationId: "org_2",
+      }),
+    );
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      {
+        appointmentId: "appt_1",
+        status: "AWAITING_PAYMENT",
+        depositCollectedAmount: 25,
+        payments: [{ id: "pay_1" }],
+      },
+    ]);
+
+    const result = await AppointmentPrismaService.getById("appt_1", "org_2");
+
+    expect((result as any).paymentStatus).toBe("UNPAID");
+    expect((result as any).bookingPaymentStatus).toBe("PAID");
+  });
+
+  it("treats a succeeded payment attempt as a booking payment signal", async () => {
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
+      makeRow({
+        organisationId: "org_2",
+      }),
+    );
+    mockedPrisma.invoice.findMany.mockResolvedValue([
+      {
+        appointmentId: "appt_1",
+        status: "AWAITING_PAYMENT",
+        depositCollectedAmount: 0,
+        paymentAttempts: [{ id: "attempt_1" }],
+        payments: [],
+      },
+    ]);
+
+    const result = await AppointmentPrismaService.getById("appt_1", "org_2");
+
+    expect((result as any).paymentStatus).toBe("UNPAID");
+    expect((result as any).bookingPaymentStatus).toBe("PAID");
+  });
   it("reschedules and resets UPCOMING appointments back to requested", async () => {
     mockedPrisma.appointment.findUnique.mockResolvedValue(
       makeRow({ status: "UPCOMING" }),
@@ -615,16 +788,10 @@ describe("AppointmentPrismaService", () => {
         }),
       }),
     );
-    expect(mockedPrisma.admission.upsert).toHaveBeenCalledWith({
-      where: { encounterId: "enc_1" },
-      update: {},
-      create: {
-        encounterId: "enc_1",
-        organisationId: "org_1",
-        patientId: "comp_1",
-        admittedAt: baseDomain.startTime,
-      },
-    });
+    expect(mockedPrisma.admission.upsert).not.toHaveBeenCalled();
+    expect(
+      mockedInvoiceService.markAppointmentReadyForBilling,
+    ).not.toHaveBeenCalled();
     expect((result as any).encounterId).toBe("enc_1");
   });
 
@@ -681,6 +848,9 @@ describe("AppointmentPrismaService", () => {
         encounterId: "enc_out_1",
       },
     });
+    expect(
+      mockedInvoiceService.markAppointmentReadyForBilling,
+    ).not.toHaveBeenCalled();
     expect((result as any).caseId).toBe("case_out_1");
     expect((result as any).encounterId).toBe("enc_out_1");
   });

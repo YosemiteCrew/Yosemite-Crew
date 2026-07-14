@@ -40,14 +40,18 @@ describe('Measurement System Utilities', () => {
 
   describe('getMeasurementSystemFromCountryName', () => {
     it('returns "imperial" for United States, Myanmar, Liberia', () => {
-      expect(getMeasurementSystemFromCountryName('United States')).toBe('imperial');
+      expect(getMeasurementSystemFromCountryName('United States')).toBe(
+        'imperial',
+      );
       expect(getMeasurementSystemFromCountryName('Myanmar')).toBe('imperial');
       expect(getMeasurementSystemFromCountryName('Liberia')).toBe('imperial');
     });
 
     it('returns "metric" for other country names', () => {
       expect(getMeasurementSystemFromCountryName('Canada')).toBe('metric');
-      expect(getMeasurementSystemFromCountryName('United Kingdom')).toBe('metric');
+      expect(getMeasurementSystemFromCountryName('United Kingdom')).toBe(
+        'metric',
+      );
     });
 
     it('returns "metric" if country name is missing or null', () => {
@@ -60,11 +64,8 @@ describe('Measurement System Utilities', () => {
   // --- 2. Unit Getters ---
 
   describe('getWeightUnit', () => {
-    it('returns "lbs" for imperial system', () => {
-      expect(getWeightUnit('imperial')).toBe('lbs');
-    });
-
-    it('returns "kg" for metric system', () => {
+    it('returns "kg" for all systems', () => {
+      expect(getWeightUnit('imperial')).toBe('kg');
       expect(getWeightUnit('metric')).toBe('kg');
     });
   });

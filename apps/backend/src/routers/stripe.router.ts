@@ -16,6 +16,12 @@ router.post(
   StripeController.webhook,
 );
 
+router.post(
+  "/connect/webhook",
+  bodyParser.raw({ type: "application/json" }),
+  StripeController.connectWebhook,
+);
+
 /* ======================================================
    MOBILE ROUTES (PARENT / OWN CONTEXT)
    ====================================================== */

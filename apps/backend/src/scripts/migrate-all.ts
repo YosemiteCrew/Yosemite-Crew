@@ -4,9 +4,19 @@ import path from "node:path";
 import mongoose from "mongoose";
 import { PrismaClient } from "@prisma/client";
 import {
+  chooseMongooseSourceModelName,
   deriveOrganisationRoomCode,
+  getMissingCoParentInvitePatientIdReason,
+  getMissingExternalExpensePatientIdReason,
   getMissingCompanionForeignKeyReason,
+  getMissingMongooseModelReason,
+  normalizePatientGender,
+  normalizePatientSource,
+  normalizePatientStatus,
+  normalizePatientType,
+  resolveLegacyPatientId,
 } from "./migrate-all.helpers";
+import { normalizeRoomType } from "../services/room-management.helpers";
 
 dotenv.config();
 
@@ -19,7 +29,11 @@ const ONLY = process.env.ONLY?.split(",")
   .filter(Boolean);
 const RESET = process.env.RESET === "true";
 
-const modelMappings: Array<{ mongoose: string; prisma: string }> = [
+const modelMappings: Array<{
+  mongoose: string;
+  prisma: string;
+  sourceMongooseNames?: string[];
+}> = [
   { mongoose: "AccountWithdrawal", prisma: "AccountWithdrawal" },
   { mongoose: "AdverseEventReport", prisma: "AdverseEventReport" },
   { mongoose: "Appointment", prisma: "Appointment" },
@@ -28,8 +42,7 @@ const modelMappings: Array<{ mongoose: string; prisma: string }> = [
   { mongoose: "BaseAvailability", prisma: "BaseAvailability" },
   { mongoose: "ChatSession", prisma: "ChatSession" },
   { mongoose: "CoParentInvite", prisma: "CoParentInvite" },
-  { mongoose: "Companion", prisma: "Companion" },
-  { mongoose: "CompanionOrganisation", prisma: "CompanionOrganisation" },
+  { mongoose: "Companion", prisma: "Patient" },
   { mongoose: "ContactRequest", prisma: "ContactRequest" },
   { mongoose: "DeviceToken", prisma: "DeviceToken" },
   { mongoose: "Document", prisma: "Document" },
@@ -57,11 +70,19 @@ const modelMappings: Array<{ mongoose: string; prisma: string }> = [
   { mongoose: "OrganizationDocument", prisma: "OrganizationDocument" },
   { mongoose: "OrganisationInvite", prisma: "OrganisationInvite" },
   { mongoose: "OrganisationRating", prisma: "OrganisationRating" },
-  { mongoose: "OrganisationRoom", prisma: "OrganisationRoom" },
   { mongoose: "OrgBilling", prisma: "OrganizationBilling" },
   { mongoose: "OrgUsageCounters", prisma: "OrganizationUsageCounter" },
   { mongoose: "Parent", prisma: "Parent" },
-  { mongoose: "ParentCompanion", prisma: "ParentCompanion" },
+  {
+    mongoose: "PatientOrganisation",
+    prisma: "PatientOrganisation",
+    sourceMongooseNames: ["CompanionOrganisation", "PatientOrganisation"],
+  },
+  {
+    mongoose: "ParentPatient",
+    prisma: "ParentPatient",
+    sourceMongooseNames: ["ParentCompanion", "ParentPatient"],
+  },
   { mongoose: "RegulatoryAuthority", prisma: "RegulatoryAuthority" },
   { mongoose: "ReminderJob", prisma: "ReminderJob" },
   { mongoose: "Service", prisma: "Service" },
@@ -71,6 +92,7 @@ const modelMappings: Array<{ mongoose: string; prisma: string }> = [
   { mongoose: "TaskLibraryDefinition", prisma: "TaskLibraryDefinition" },
   { mongoose: "TaskTemplate", prisma: "TaskTemplate" },
   { mongoose: "User", prisma: "User" },
+  { mongoose: "OrganisationRoom", prisma: "OrganisationRoom" },
   { mongoose: "UserOrganization", prisma: "UserOrganization" },
   { mongoose: "UserProfile", prisma: "UserProfile" },
   {
@@ -86,6 +108,28 @@ const tableNameOverrides: Record<string, string> = {
   OrganizationUsageCounter: "OrgUsageCounters",
 };
 
+const legacyMongooseModelAliases: Array<{
+  alias: string;
+  current: string;
+  collection: string;
+}> = [
+  {
+    alias: "CompanionOrganisation",
+    current: "PatientOrganisation",
+    collection: "companionorganisations",
+  },
+  {
+    alias: "ParentCompanion",
+    current: "ParentPatient",
+    collection: "parentcompanions",
+  },
+];
+
+const modelNameAliases: Record<string, string> = {
+  CompanionOrganisation: "PatientOrganisation",
+  ParentCompanion: "ParentPatient",
+};
+
 const fieldAliases: Record<string, Record<string, string>> = {
   Organization: {
     dunsNumber: "DUNSNumber",
@@ -94,6 +138,9 @@ const fieldAliases: Record<string, Record<string, string>> = {
   },
   FormField: {
     fieldId: "id",
+  },
+  Appointment: {
+    patient: "companion",
   },
   Parent: {
     address: "__skip__",
@@ -206,6 +253,13 @@ const loadModels = async () => {
     .filter((file) => file.endsWith(".ts"))
     .map((file) => import(path.join(modelsDir, file)));
   await Promise.all(imports);
+
+  for (const alias of legacyMongooseModelAliases) {
+    if (mongoose.models[alias.alias]) continue;
+    const currentModel = mongoose.models[alias.current];
+    if (!currentModel) continue;
+    mongoose.model(alias.alias, currentModel.schema, alias.collection);
+  }
 };
 
 const migrateModel = async (
@@ -213,8 +267,33 @@ const migrateModel = async (
   prismaName: string,
   fieldsByModel: Map<string, string[]>,
   hasIdByModel: Map<string, boolean>,
+  sourceMongooseNames: string[] = [],
 ) => {
-  const model = mongoose.model(mongooseName);
+  const sourceModelNames = [mongooseName, ...sourceMongooseNames];
+  const sourceModelName = chooseMongooseSourceModelName({
+    preferredNames: sourceModelNames,
+    registeredModelNames: mongoose.modelNames(),
+    documentCounts: new Map(
+      await Promise.all(
+        sourceModelNames.map(async (name) => {
+          if (!mongoose.modelNames().includes(name)) {
+            return [name, 0] as const;
+          }
+          const count = await mongoose.model(name).estimatedDocumentCount();
+          return [name, count] as const;
+        }),
+      ),
+    ),
+  });
+  const missingModelReason = sourceModelName
+    ? null
+    : getMissingMongooseModelReason(mongooseName, mongoose.modelNames());
+  if (missingModelReason) {
+    console.warn(`Skipping ${mongooseName}: ${missingModelReason}.`);
+    return;
+  }
+
+  const model = mongoose.model(sourceModelName ?? mongooseName);
   const prismaDelegate = (prisma as any)[
     prismaName.charAt(0).toLowerCase() + prismaName.slice(1)
   ];
@@ -230,19 +309,34 @@ const migrateModel = async (
   const hasId = hasIdByModel.get(prismaName) ?? false;
 
   const aliases = fieldAliases[prismaName] ?? {};
+  const legacyPatientIdFields =
+    prismaName === "Document" ||
+    prismaName === "PatientOrganisation" ||
+    prismaName === "ParentPatient" ||
+    prismaName === "CoParentInvite" ||
+    prismaName === "ExternalExpense"
+      ? ["patientId", "companionId", "patient", "companion"]
+      : [];
 
   let batch: Record<string, unknown>[] = [];
   let attachmentBatch: Record<string, unknown>[] = [];
   let parentAddressBatch: Record<string, unknown>[] = [];
   let orgAddressBatch: Record<string, unknown>[] = [];
   let userProfileAddressBatch: Record<string, unknown>[] = [];
+  let roomSpecialityBatch: Record<string, unknown>[] = [];
+  let roomStaffBatch: Record<string, unknown>[] = [];
   let processed = 0;
   let skipped = 0;
   let skippedMissingForm = 0;
-  let skippedMissingCompanionFk = 0;
+  let skippedMissingPatientFk = 0;
+  let skippedMissingRoomSpecialityFk = 0;
+  let skippedMissingRoomStaffFk = 0;
+  let skippedMissingCoParentInvitePatientId = 0;
 
   let existingFormIds: Set<string> | null = null;
-  let existingCompanionIds: Set<string> | null = null;
+  let existingPatientIds: Set<string> | null = null;
+  let existingSpecialityIds: Set<string> | null = null;
+  let existingUserIds: Set<string> | null = null;
   if (
     prismaName === "FormField" ||
     prismaName === "FormVersion" ||
@@ -253,13 +347,25 @@ const migrateModel = async (
   }
   if (
     prismaName === "Document" ||
-    prismaName === "CompanionOrganisation" ||
-    prismaName === "ParentCompanion"
+    prismaName === "PatientOrganisation" ||
+    prismaName === "ParentPatient"
   ) {
-    const companions = await prisma.patient.findMany({
+    const patients = await prisma.patient.findMany({
       select: { id: true },
     });
-    existingCompanionIds = new Set(companions.map((companion) => companion.id));
+    existingPatientIds = new Set(patients.map((patient) => patient.id));
+  }
+  if (prismaName === "OrganisationRoom") {
+    const specialities = await prisma.speciality.findMany({
+      select: { id: true },
+    });
+    const users = await prisma.user.findMany({
+      select: { userId: true },
+    });
+    existingSpecialityIds = new Set(
+      specialities.map((speciality) => speciality.id),
+    );
+    existingUserIds = new Set(users.map((user) => user.userId));
   }
 
   const cursor = model.find().sort({ _id: 1 }).cursor();
@@ -279,6 +385,19 @@ const migrateModel = async (
     }
 
     if (
+      legacyPatientIdFields.length > 0 &&
+      typeof data.patientId !== "string"
+    ) {
+      const resolvedPatientId = resolveLegacyPatientId(
+        obj,
+        legacyPatientIdFields,
+      );
+      if (resolvedPatientId) {
+        data.patientId = resolvedPatientId;
+      }
+    }
+
+    if (
       prismaName === "FormField" ||
       prismaName === "FormVersion" ||
       prismaName === "FormSubmission"
@@ -287,6 +406,59 @@ const migrateModel = async (
       if (typeof formId !== "string" || !existingFormIds?.has(formId)) {
         skipped += 1;
         skippedMissingForm += 1;
+        continue;
+      }
+    }
+
+    if (prismaName === "Patient") {
+      const normalizedType = normalizePatientType(data.type);
+      const normalizedGender = normalizePatientGender(data.gender);
+      if (!normalizedType || !normalizedGender) {
+        skipped += 1;
+        console.warn(
+          `Skipping ${mongooseName} ${String(data.id ?? obj._id ?? "")} because a patient enum value could not be normalized.`,
+        );
+        continue;
+      }
+      data.type = normalizedType;
+      data.gender = normalizedGender;
+
+      const normalizedSource = normalizePatientSource(data.source);
+      if (normalizedSource) {
+        data.source = normalizedSource;
+      } else {
+        delete data.source;
+      }
+
+      const normalizedStatus = normalizePatientStatus(data.status);
+      if (normalizedStatus) {
+        data.status = normalizedStatus;
+      } else {
+        delete data.status;
+      }
+    }
+
+    if (prismaName === "CoParentInvite") {
+      const missingPatientIdReason =
+        getMissingCoParentInvitePatientIdReason(data);
+      if (missingPatientIdReason) {
+        skipped += 1;
+        skippedMissingCoParentInvitePatientId += 1;
+        console.warn(
+          `Skipping ${mongooseName} ${String(data.id ?? obj._id ?? "")} because ${missingPatientIdReason}.`,
+        );
+        continue;
+      }
+    }
+
+    if (prismaName === "ExternalExpense") {
+      const missingPatientIdReason =
+        getMissingExternalExpensePatientIdReason(data);
+      if (missingPatientIdReason) {
+        skipped += 1;
+        console.warn(
+          `Skipping ${mongooseName} ${String(data.id ?? obj._id ?? "")} because ${missingPatientIdReason}.`,
+        );
         continue;
       }
     }
@@ -305,14 +477,26 @@ const migrateModel = async (
       data.code = derivedCode;
     }
 
+    if (prismaName === "OrganisationRoom") {
+      try {
+        data.type = normalizeRoomType(data.type);
+      } catch {
+        skipped += 1;
+        console.warn(
+          `Skipping ${mongooseName} ${String(data.id ?? obj._id ?? "")} because room type could not be normalized.`,
+        );
+        continue;
+      }
+    }
+
     const missingCompanionFkReason = getMissingCompanionForeignKeyReason(
       prismaName,
       data,
-      existingCompanionIds ?? new Set(),
+      existingPatientIds ?? new Set(),
     );
     if (missingCompanionFkReason) {
       skipped += 1;
-      skippedMissingCompanionFk += 1;
+      skippedMissingPatientFk += 1;
       continue;
     }
 
@@ -332,6 +516,65 @@ const migrateModel = async (
           key: attachment.key,
           mimeType: attachment.mimeType,
           size: attachment.size,
+        });
+      }
+    }
+
+    if (prismaName === "OrganisationRoom" && data.id) {
+      const roomId = data.id as string;
+      const organisationId = toIdString(obj.organisationId);
+      const safeOrganisationId =
+        typeof organisationId === "string" ? organisationId : null;
+      const assignedSpecialiteis = Array.isArray(obj.assignedSpecialiteis)
+        ? (obj.assignedSpecialiteis as Array<unknown>)
+        : [];
+      const assignedStaffs = Array.isArray(obj.assignedStaffs)
+        ? (obj.assignedStaffs as Array<unknown>)
+        : [];
+
+      for (const speciality of assignedSpecialiteis) {
+        const specialityId = toIdString(speciality);
+        if (
+          typeof specialityId !== "string" ||
+          !(existingSpecialityIds?.has(specialityId) ?? false)
+        ) {
+          skipped += 1;
+          skippedMissingRoomSpecialityFk += 1;
+          continue;
+        }
+        if (!safeOrganisationId) {
+          skipped += 1;
+          skippedMissingRoomSpecialityFk += 1;
+          continue;
+        }
+
+        roomSpecialityBatch.push({
+          organisationId: safeOrganisationId,
+          roomId,
+          specialityId,
+        });
+      }
+
+      for (const staff of assignedStaffs) {
+        const staffUserId = toIdString(staff);
+        if (
+          typeof staffUserId !== "string" ||
+          !(existingUserIds?.has(staffUserId) ?? false)
+        ) {
+          skipped += 1;
+          skippedMissingRoomStaffFk += 1;
+          continue;
+        }
+        if (!safeOrganisationId) {
+          skipped += 1;
+          skippedMissingRoomStaffFk += 1;
+          continue;
+        }
+
+        roomStaffBatch.push({
+          organisationId: safeOrganisationId,
+          roomId,
+          staffUserId,
         });
       }
     }
@@ -408,6 +651,21 @@ const migrateModel = async (
             skipDuplicates: true,
           });
         }
+        if (
+          prismaName === "OrganisationRoom" &&
+          roomSpecialityBatch.length > 0
+        ) {
+          await (prisma as any).organisationRoomSpeciality.createMany({
+            data: roomSpecialityBatch,
+            skipDuplicates: true,
+          });
+        }
+        if (prismaName === "OrganisationRoom" && roomStaffBatch.length > 0) {
+          await (prisma as any).organisationRoomStaff.createMany({
+            data: roomStaffBatch,
+            skipDuplicates: true,
+          });
+        }
       }
       processed += batch.length;
       batch = [];
@@ -415,6 +673,8 @@ const migrateModel = async (
       parentAddressBatch = [];
       orgAddressBatch = [];
       userProfileAddressBatch = [];
+      roomSpecialityBatch = [];
+      roomStaffBatch = [];
       process.stdout.write(`\rProcessed ${processed} ${mongooseName}`);
     }
   }
@@ -446,14 +706,41 @@ const migrateModel = async (
           skipDuplicates: true,
         });
       }
+      if (prismaName === "OrganisationRoom" && roomSpecialityBatch.length > 0) {
+        await (prisma as any).organisationRoomSpeciality.createMany({
+          data: roomSpecialityBatch,
+          skipDuplicates: true,
+        });
+      }
+      if (prismaName === "OrganisationRoom" && roomStaffBatch.length > 0) {
+        await (prisma as any).organisationRoomStaff.createMany({
+          data: roomStaffBatch,
+          skipDuplicates: true,
+        });
+      }
     }
     processed += batch.length;
   }
 
   if (skipped > 0) {
-    if (skippedMissingCompanionFk > 0) {
+    if (skippedMissingPatientFk > 0) {
       console.log(
-        `\nSkipped ${skippedMissingCompanionFk} ${mongooseName} rows due to missing Companion references.`,
+        `\nSkipped ${skippedMissingPatientFk} ${mongooseName} rows due to missing Patient references.`,
+      );
+    }
+    if (skippedMissingRoomSpecialityFk > 0) {
+      console.log(
+        `\nSkipped ${skippedMissingRoomSpecialityFk} ${mongooseName} room-speciality links due to missing Speciality rows.`,
+      );
+    }
+    if (skippedMissingRoomStaffFk > 0) {
+      console.log(
+        `\nSkipped ${skippedMissingRoomStaffFk} ${mongooseName} room-staff links due to missing User rows.`,
+      );
+    }
+    if (skippedMissingCoParentInvitePatientId > 0) {
+      console.log(
+        `\nSkipped ${skippedMissingCoParentInvitePatientId} ${mongooseName} rows due to missing patientId.`,
       );
     }
     if (skippedMissingForm > 0) {
@@ -481,9 +768,15 @@ const main = async () => {
   const schemaText = await fs.readFile(schemaPath, "utf8");
   const { modelFields, modelHasId } = parseSchema(schemaText);
 
-  const jobs = ONLY?.length
+  const normalizedOnly = ONLY?.length
+    ? ONLY.map((name) => modelNameAliases[name] ?? name)
+    : null;
+
+  const jobs = normalizedOnly?.length
     ? modelMappings.filter(
-        (m) => ONLY.includes(m.mongoose) || ONLY.includes(m.prisma),
+        (m) =>
+          normalizedOnly.includes(m.mongoose) ||
+          normalizedOnly.includes(m.prisma),
       )
     : modelMappings;
 
@@ -496,6 +789,8 @@ const main = async () => {
           "ParentAddress",
           "OrganizationAddress",
           "UserProfileAddress",
+          "OrganisationRoomSpeciality",
+          "OrganisationRoomStaff",
         ].filter(Boolean),
       ),
     );
@@ -509,7 +804,13 @@ const main = async () => {
 
   for (const job of jobs) {
     console.log(`\n==> Migrating ${job.mongoose} -> ${job.prisma}`);
-    await migrateModel(job.mongoose, job.prisma, modelFields, modelHasId);
+    await migrateModel(
+      job.mongoose,
+      job.prisma,
+      modelFields,
+      modelHasId,
+      job.sourceMongooseNames,
+    );
   }
 
   console.log("\nAll migrations finished.");

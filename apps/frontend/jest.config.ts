@@ -41,6 +41,10 @@ const config: Config = {
     '!<rootDir>/src/**/*.spec.tsx',
     '!<rootDir>/src/**/tests/**',
     '!<rootDir>/src/**/__tests__/**',
+    // Storybook demo files are documentation, not product code — exclude them
+    // from the coverage denominator like tests and mocks.
+    '!<rootDir>/src/**/*.stories.ts',
+    '!<rootDir>/src/**/*.stories.tsx',
     '!<rootDir>/src/app/jest.mocks/**',
     '!<rootDir>/src/app/features/*/index.ts',
     '!<rootDir>/src/app/features/*/index.tsx',
@@ -68,6 +72,8 @@ const config: Config = {
     // which made Sonar report them as 0% coverage. A trailing positive pattern
     // re-includes them (micromatch honours order).
     '<rootDir>/src/app/features/companions/components/AddCompanionCentralModal/index.tsx',
+    '<rootDir>/src/app/features/inventory/pages/Inventory/index.tsx',
+    '<rootDir>/src/app/features/appointments/pages/AppointmentWorkspace/index.tsx',
   ],
 
   // The directory where Jest should output its coverage files

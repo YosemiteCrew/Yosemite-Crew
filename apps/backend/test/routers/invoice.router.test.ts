@@ -208,8 +208,46 @@ describe("invoice.router", () => {
     expect(withAppointmentOrgPermissions).toHaveBeenCalledTimes(3);
     expect(withPaymentIntentOrgPermissions).toHaveBeenCalledTimes(1);
     expect(withOrgPermissions).toHaveBeenCalledTimes(1);
-    expect(withInvoiceOrgPermissions).toHaveBeenCalledTimes(4);
+    expect(withInvoiceOrgPermissions).toHaveBeenCalledTimes(5);
     expect(requirePermission).toHaveBeenCalledWith("billing:edit:any");
     expect(requirePermission).toHaveBeenCalledWith("billing:view:any");
+  });
+
+  it("guards the checkout-session payment mutation with invoice org scoping and billing:edit:any so a billing viewer is rejected", () => {
+    const checkoutSessionRoute = findRoute(
+      "/:invoiceId/checkout-session",
+      "post",
+    );
+
+    const handles = checkoutSessionRoute?.stack.map((layer) => layer.handle);
+
+    // The route must run an invoice-derived org authorization middleware and a
+    // requirePermission gate before reaching the controller. Both are produced
+    // by the mocked factories, so their returned middlewares must be present in
+    // the route stack ahead of the controller.
+    const orgScopingMiddlewares = withInvoiceOrgPermissions.mock.results.map(
+      (result) => result.value,
+    );
+    const permissionMiddlewares = requirePermission.mock.results.map(
+      (result) => result.value,
+    );
+
+    expect(orgScopingMiddlewares.some((mw) => handles?.includes(mw))).toBe(
+      true,
+    );
+    expect(permissionMiddlewares.some((mw) => handles?.includes(mw))).toBe(
+      true,
+    );
+
+    // The factory that builds the gate for this route must request the
+    // billing edit permission, so a viewer (billing:view only) cannot reach the
+    // checkout/payment-link mutation.
+    expect(requirePermission).toHaveBeenCalledWith("billing:edit:any");
+
+    // Defence in depth: the controller is the last layer, gated by everything
+    // above it.
+    expect(handles?.[handles.length - 1]).toBe(
+      InvoiceController.createCheckoutSessionForInvoice,
+    );
   });
 });

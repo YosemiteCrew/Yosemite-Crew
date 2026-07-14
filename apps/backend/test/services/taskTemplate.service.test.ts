@@ -70,6 +70,23 @@ describe("TaskTemplateService", () => {
     ).rejects.toBeInstanceOf(TaskTemplateServiceError);
   });
 
+  it("accepts expanded task kinds", async () => {
+    mockedPrisma.taskTemplate.create.mockResolvedValueOnce({
+      id: "tmpl-2",
+    });
+
+    await expect(
+      TaskTemplateService.create({
+        organisationId: "org-1",
+        category: "Care",
+        name: "Rounds",
+        kind: "CARE",
+        defaultRole: "EMPLOYEE",
+        createdBy: "creator-1",
+      }),
+    ).resolves.toEqual({ id: "tmpl-2" });
+  });
+
   it("updates a task template", async () => {
     mockedPrisma.taskTemplate.findFirst.mockResolvedValueOnce({
       id: "tmpl-1",

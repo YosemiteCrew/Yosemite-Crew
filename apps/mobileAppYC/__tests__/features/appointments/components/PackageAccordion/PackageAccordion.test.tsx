@@ -308,6 +308,7 @@ describe('PackageAccordion', () => {
       expect(onSelectPackage).toHaveBeenCalledWith(
         'pkg-001',
         'Canine Radiographic Assessment',
+        undefined,
       );
     });
   });

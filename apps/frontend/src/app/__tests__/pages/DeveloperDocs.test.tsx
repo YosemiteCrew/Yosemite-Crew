@@ -37,7 +37,7 @@ describe('DeveloperDocs page', () => {
 
     const iframe = screen.getByTitle(/developer documentation/i);
     expect(iframe).toHaveAttribute('src', '/dev-docs/index.html');
-    expect(iframe).toHaveAttribute('sandbox', 'allow-popups allow-same-origin allow-scripts');
+    expect(iframe).toHaveAttribute('sandbox', 'allow-popups allow-scripts');
     expect(iframe).toHaveAttribute('referrerpolicy', 'same-origin');
   });
 });

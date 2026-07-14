@@ -17,6 +17,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "src/config/prisma";
 import ServiceModel from "src/models/service";
 import { InvoiceService } from "./invoice.service";
+import { roundMoney } from "./finance/pricing";
 import { StripeService } from "./stripe.service";
 import { OccupancyModel } from "src/models/occupancy";
 import OrganizationModel from "src/models/organization";
@@ -41,6 +42,7 @@ import { resolvePaymentCollectionMethod } from "src/utils/payment";
 import { ensureObjectId as ensureObjectIdStrict } from "src/utils/mongo";
 import { assertEmail } from "src/utils/sanitize";
 import { CatalogService, CatalogServiceError } from "./catalog.service";
+import { CompanionOrganisationService } from "./companion-organisation.service";
 
 export class AppointmentServiceError extends Error {
   constructor(
@@ -200,13 +202,9 @@ export const resolvePaymentStatusByAppointmentIds = async (
 export const resolvePaymentStatusByAppointmentIdsFromPostgres = async (
   appointmentIds: string[],
 ): Promise<Map<string, AppointmentPaymentStatus>> => {
-  const statusMap = new Map<string, AppointmentPaymentStatus>();
   const invoices = await prisma.invoice.findMany({
     where: {
       appointmentId: { in: appointmentIds },
-      status: {
-        in: ["PAID", "PENDING", "AWAITING_PAYMENT", "FAILED", "REFUNDED"],
-      },
     },
     select: {
       appointmentId: true,
@@ -214,34 +212,7 @@ export const resolvePaymentStatusByAppointmentIdsFromPostgres = async (
     },
   });
 
-  const tracker = new Map<string, { hasPaid: boolean; hasUnpaid: boolean }>();
-
-  for (const invoice of invoices) {
-    if (!invoice.appointmentId) continue;
-    const entry = tracker.get(invoice.appointmentId) ?? {
-      hasPaid: false,
-      hasUnpaid: false,
-    };
-
-    if (invoice.status === "PAID") {
-      entry.hasPaid = true;
-    } else if (
-      ["PENDING", "AWAITING_PAYMENT", "FAILED", "REFUNDED"].includes(
-        invoice.status,
-      )
-    ) {
-      entry.hasUnpaid = true;
-    }
-
-    tracker.set(invoice.appointmentId, entry);
-  }
-
-  for (const [appointmentId, entry] of tracker) {
-    const paid = entry.hasPaid && !entry.hasUnpaid;
-    statusMap.set(appointmentId, paid ? "PAID" : "UNPAID");
-  }
-
-  return statusMap;
+  return buildAppointmentPaymentStatusMap(invoices);
 };
 
 export const resolvePaymentStatusByAppointmentIdsFromMongo = async (
@@ -288,6 +259,46 @@ export const resolvePaymentStatusByAppointmentIdsFromMongo = async (
   return statusMap;
 };
 
+const buildAppointmentPaymentStatusMap = (
+  invoices: Array<{
+    appointmentId: string | null;
+    status: string;
+  }>,
+) => {
+  const statusMap = new Map<string, AppointmentPaymentStatus>();
+  const tracker = new Map<string, { hasPaid: boolean; hasUnpaid: boolean }>();
+
+  for (const invoice of invoices) {
+    if (!invoice.appointmentId) continue;
+    const entry = tracker.get(invoice.appointmentId) ?? {
+      hasPaid: false,
+      hasUnpaid: false,
+    };
+
+    if (invoice.status === "PAID") {
+      entry.hasPaid = true;
+    }
+    if (
+      ["PENDING", "AWAITING_PAYMENT", "FAILED", "REFUNDED"].includes(
+        invoice.status,
+      )
+    ) {
+      entry.hasUnpaid = true;
+    }
+
+    tracker.set(invoice.appointmentId, entry);
+  }
+
+  for (const [appointmentId, entry] of tracker) {
+    statusMap.set(
+      appointmentId,
+      entry.hasPaid && !entry.hasUnpaid ? "PAID" : "UNPAID",
+    );
+  }
+
+  return statusMap;
+};
+
 type AppointmentRequestInput = ReturnType<typeof fromAppointmentRequestDTO>;
 
 type DraftInvoiceItemInput = {
@@ -295,6 +306,7 @@ type DraftInvoiceItemInput = {
   quantity: number;
   unitPrice: number;
   discountPercent?: number;
+  total?: number;
 };
 
 type LegacyServiceBridge = {
@@ -306,19 +318,31 @@ type LegacyServiceBridge = {
 };
 
 const mapCatalogSelectionToDraftItems = (selection: {
+  productKind: string;
+  name: string;
   billingItems: Array<{
     name: string;
     quantity: number;
     unitPrice: number;
     defaultDiscountPercent?: number | null;
   }>;
+  finalAmount: number;
 }): DraftInvoiceItemInput[] =>
-  selection.billingItems.map((item) => ({
-    description: item.name,
-    quantity: item.quantity,
-    unitPrice: item.unitPrice,
-    discountPercent: item.defaultDiscountPercent ?? undefined,
-  }));
+  selection.productKind === "PACKAGE"
+    ? [
+        {
+          description: selection.name,
+          quantity: 1,
+          unitPrice: roundMoney(selection.finalAmount),
+          total: roundMoney(selection.finalAmount),
+        },
+      ]
+    : selection.billingItems.map((item) => ({
+        description: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discountPercent: item.defaultDiscountPercent ?? undefined,
+      }));
 
 const mapLegacyServiceToDraftItems = (
   service: Pick<LegacyServiceBridge, "name" | "cost" | "maxDiscount">,
@@ -1386,6 +1410,52 @@ const getOrganisationName = async (
   return organisation?.name;
 };
 
+const getOrganisationType = async (
+  organisationId?: string,
+): Promise<"HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER" | undefined> => {
+  if (!organisationId) return undefined;
+  if (isReadFromPostgres()) {
+    const organisation = await prisma.organization.findUnique({
+      where: { id: organisationId },
+      select: { type: true },
+    });
+    return organisation?.type ?? undefined;
+  }
+  if (typeof OrganizationModel.findById !== "function") {
+    return undefined;
+  }
+  const query = OrganizationModel.findById(organisationId) as unknown;
+  if (!isOrganisationNameQuery(query)) {
+    return undefined;
+  }
+  const organisation = (await query.select("type").lean()) as {
+    type?: "HOSPITAL" | "BREEDER" | "BOARDER" | "GROOMER";
+  };
+  return organisation?.type;
+};
+
+const linkPatientToOrganisationFromMobile = async (params: {
+  parentId: string;
+  patientId: string;
+  organisationId: string;
+}) => {
+  const organisationType = await getOrganisationType(params.organisationId);
+
+  if (!organisationType) {
+    throw new AppointmentServiceError(
+      "Unable to resolve organisation type for appointment booking.",
+      404,
+    );
+  }
+
+  await CompanionOrganisationService.linkByParent({
+    parentId: params.parentId,
+    patientId: params.patientId,
+    organisationId: params.organisationId,
+    organisationType,
+  });
+};
+
 const sendAppointmentAssignmentEmails = async (
   appointment: AppointmentDocument | Appointment,
   organisationName?: string,
@@ -2157,6 +2227,11 @@ export const AppointmentService = {
       }
 
       const appointment = buildAppointmentFromInput(input, "REQUESTED");
+      await linkPatientToOrganisationFromMobile({
+        parentId: appointment.patient.parent.id,
+        patientId: appointment.patient.id,
+        organisationId: appointment.organisationId,
+      });
 
       let created;
       try {
@@ -2303,6 +2378,11 @@ export const AppointmentService = {
     }
 
     const appointment = buildAppointmentFromInput(input, "REQUESTED");
+    await linkPatientToOrganisationFromMobile({
+      parentId: appointment.patient.parent.id,
+      patientId: appointment.patient.id,
+      organisationId: appointment.organisationId,
+    });
 
     const persistable = toPersistable(appointment);
     let savedAppointment: AppointmentDocument;

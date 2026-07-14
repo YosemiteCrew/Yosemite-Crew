@@ -57,6 +57,10 @@ jest.mock('@/app/hooks/usePermissions', () => ({
   usePermissions: () => usePermissionsMock(),
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 jest.mock('@/app/stores/searchStore', () => ({
   useSearchStore: (selector: any) => useSearchStoreMock(selector),
 }));

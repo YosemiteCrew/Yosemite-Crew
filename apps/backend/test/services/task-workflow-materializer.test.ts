@@ -33,6 +33,27 @@ describe("task workflow materializer", () => {
     expect(seed.syncWithCalendar).toBe(true);
   });
 
+  it("accepts expanded task kinds in workflow seeds", () => {
+    const seed = materializeTaskTemplateSeed(
+      {
+        taskKind: "CARE",
+        category: "Care",
+        name: "Nursing check",
+        defaultRole: "EMPLOYEE_TASK",
+      },
+      {
+        organisationId: "org-1",
+        createdBy: "creator-1",
+        templateId: "tmpl-1",
+        dueAt: new Date("2026-01-01T10:00:00.000Z"),
+        resolveAssignee: () => "user-1",
+      },
+    );
+
+    expect(seed.templateId).toBe("tmpl-1");
+    expect(seed.category).toBe("Care");
+  });
+
   it("materializes inpatient care pathway seeds from schedule blocks", () => {
     const seeds = materializeCarePathwaySeeds(
       {

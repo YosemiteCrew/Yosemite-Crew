@@ -33,6 +33,7 @@ describe('useRooms Hooks', () => {
     (useOrganisationRoomStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector(mockRoomState)
     );
+    (loadRoomsForOrgPrimaryOrg as jest.Mock).mockResolvedValue(undefined);
     mockRoomGetState.mockReturnValue(mockRoomState);
     (useOrganisationRoomStore as unknown as jest.Mock & { getState: jest.Mock }).getState =
       mockRoomGetState;
@@ -47,6 +48,10 @@ describe('useRooms Hooks', () => {
       renderHook(() => useLoadRoomsForPrimaryOrg());
 
       expect(loadRoomsForOrgPrimaryOrg).toHaveBeenCalledTimes(1);
+      expect(loadRoomsForOrgPrimaryOrg).toHaveBeenCalledWith({
+        force: undefined,
+        silent: undefined,
+      });
     });
 
     it('should NOT trigger service call when primaryOrgId is null/undefined', () => {
@@ -68,6 +73,15 @@ describe('useRooms Hooks', () => {
       rerender();
 
       expect(loadRoomsForOrgPrimaryOrg).toHaveBeenCalledTimes(2);
+    });
+
+    it('forces a refresh even when room data is already cached', () => {
+      mockOrgState.primaryOrgId = 'org-1';
+      mockRoomState.roomIdsByOrgId = { 'org-1': ['room-1'] };
+
+      renderHook(() => useLoadRoomsForPrimaryOrg({ force: true, silent: true }));
+
+      expect(loadRoomsForOrgPrimaryOrg).toHaveBeenCalledWith({ force: true, silent: true });
     });
   });
 

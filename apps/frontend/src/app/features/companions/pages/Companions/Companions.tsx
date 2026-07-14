@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useState, useEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -26,6 +26,7 @@ import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 const AddCompanion = dynamic(() => import('@/app/features/companions/components/AddCompanion'));
 const AddCompanionCentralModal = dynamic(
@@ -46,6 +47,7 @@ const ChangeCompanionStatus = dynamic(
 );
 
 const Companions = () => {
+  const terminologyText = useCompanionTerminologyText();
   const companions = useCompanionsParentsForPrimaryOrg();
   const permissions = usePermissions();
   const canEditCompanions = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
@@ -53,7 +55,6 @@ const Companions = () => {
   const canEditTasks = permissions.can(PERMISSIONS.TASKS_EDIT_ANY);
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
-  const handledDeepLinkRef = useRef<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -80,19 +81,19 @@ const Companions = () => {
     });
   }, [companions]);
 
-  useEffect(() => {
-    const companionId = String(searchParams.get('companionId') ?? '').trim();
-    if (!companionId) return;
-    if (handledDeepLinkRef.current === companionId) return;
-
-    const target = companions.find((item) => item.companion.id === companionId);
-    if (!target) return;
-
-    setActiveCompanion(target);
-    setCompanionInfoInitialLabel('info');
-    setViewCompanion(true);
-    handledDeepLinkRef.current = companionId;
-  }, [companions, searchParams]);
+  // Render-phase adjustment: open the companion view when a deep link points
+  // at a companion we have loaded, once per companion id.
+  const [handledDeepLink, setHandledDeepLink] = useState<string | null>(null);
+  const deepLinkCompanionId = String(searchParams.get('companionId') ?? '').trim();
+  if (deepLinkCompanionId && deepLinkCompanionId !== handledDeepLink) {
+    const target = companions.find((item) => item.companion.id === deepLinkCompanionId);
+    if (target) {
+      setHandledDeepLink(deepLinkCompanionId);
+      setActiveCompanion(target);
+      setCompanionInfoInitialLabel('info');
+      setViewCompanion(true);
+    }
+  }
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -128,16 +129,18 @@ const Companions = () => {
         <div className="flex flex-col gap-1">
           <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
             <span>
-              {'Companions'}
+              {terminologyText('Companions')}
               <span className="text-body-2 text-text-tertiary">{` (${companions.length})`}</span>
             </span>
             <GlassTooltip
-              content="View companion and parent details, access their documents, and jump into related tasks or appointments without leaving the profile."
+              content={terminologyText(
+                'View companion and parent details, access their documents, and jump into related tasks or appointments without leaving the profile.'
+              )}
               side="bottom"
             >
               <button
                 type="button"
-                aria-label="Companions info"
+                aria-label={terminologyText('Companions info')}
                 className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
               >
                 <IoInformationCircleOutline size={20} />
@@ -146,7 +149,7 @@ const Companions = () => {
           </h1>
         </div>
       </div>
-      <MobileSearchBar placeholder="Search companions" />
+      <MobileSearchBar placeholder={terminologyText('Search companions')} />
       <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>
           <Filters
@@ -159,6 +162,7 @@ const Companions = () => {
             showAddButton={canEditCompanions}
             onAddButtonClick={() => setAddPopup((e) => !e)}
             addButtonText="Add"
+            compactFilterPills
           />
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
             <CompanionsTable

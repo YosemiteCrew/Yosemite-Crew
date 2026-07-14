@@ -2,9 +2,13 @@ import React from 'react';
 import TestRenderer from 'react-test-renderer';
 import {Provider} from 'react-redux';
 import {configureStore} from '@reduxjs/toolkit';
-import {Text, TouchableOpacity, View} from 'react-native';
+import {Text, Pressable, View} from 'react-native';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import {themeReducer} from '@/features/theme';
+
+// react-native's Pressable is wrapped in React.memo; findByType must match
+// against the memoized inner component, not the memo wrapper.
+const PressableType = (Pressable as any).type;
 
 describe('TouchableInput', () => {
   const createTestStore = () => {
@@ -23,7 +27,7 @@ describe('TouchableInput', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<TouchableInput placeholder="Select date" onPress={() => {}} />)
+        wrap(<TouchableInput placeholder="Select date" onPress={() => {}} />),
       );
     });
     const texts = tree.root.findAllByType(Text);
@@ -35,7 +39,7 @@ describe('TouchableInput', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<TouchableInput value="01/01/2024" onPress={() => {}} />)
+        wrap(<TouchableInput value="01/01/2024" onPress={() => {}} />),
       );
     });
     const texts = tree.root.findAllByType(Text);
@@ -52,8 +56,8 @@ describe('TouchableInput', () => {
             label="Date of Birth"
             value="01/01/2024"
             onPress={() => {}}
-          />
-        )
+          />,
+        ),
       );
     });
     // Label is rendered but might be in Animated.Text
@@ -65,11 +69,11 @@ describe('TouchableInput', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<TouchableInput placeholder="Select" onPress={onPress} />)
+        wrap(<TouchableInput placeholder="Select" onPress={onPress} />),
       );
     });
 
-    const touchable = tree.root.findByType(TouchableOpacity);
+    const touchable = tree.root.findByType(PressableType);
     TestRenderer.act(() => {
       touchable.props.onPress();
     });
@@ -82,11 +86,13 @@ describe('TouchableInput', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<TouchableInput placeholder="Select" onPress={onPress} disabled />)
+        wrap(
+          <TouchableInput placeholder="Select" onPress={onPress} disabled />,
+        ),
       );
     });
 
-    const touchable = tree.root.findByType(TouchableOpacity);
+    const touchable = tree.root.findByType(PressableType);
     expect(touchable.props.disabled).toBe(true);
   });
 
@@ -100,8 +106,8 @@ describe('TouchableInput', () => {
             placeholder="Select"
             onPress={() => {}}
             error={errorMessage}
-          />
-        )
+          />,
+        ),
       );
     });
 
@@ -120,8 +126,8 @@ describe('TouchableInput', () => {
             placeholder="Select"
             onPress={() => {}}
             leftComponent={<LeftIcon />}
-          />
-        )
+          />,
+        ),
       );
     });
 
@@ -139,8 +145,8 @@ describe('TouchableInput', () => {
             placeholder="Select"
             onPress={() => {}}
             rightComponent={<RightIcon />}
-          />
-        )
+          />,
+        ),
       );
     });
 
@@ -158,8 +164,8 @@ describe('TouchableInput', () => {
             placeholder="Select"
             onPress={() => {}}
             containerStyle={customStyle}
-          />
-        )
+          />,
+        ),
       );
     });
 
@@ -177,8 +183,8 @@ describe('TouchableInput', () => {
             placeholder="Select"
             onPress={() => {}}
             inputStyle={customStyle}
-          />
-        )
+          />,
+        ),
       );
     });
 
@@ -190,12 +196,14 @@ describe('TouchableInput', () => {
     let tree!: TestRenderer.ReactTestRenderer;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        wrap(<TouchableInput placeholder="Choose option" onPress={() => {}} />)
+        wrap(<TouchableInput placeholder="Choose option" onPress={() => {}} />),
       );
     });
 
     const texts = tree.root.findAllByType(Text);
-    const placeholderText = texts.find(t => t.props.children === 'Choose option');
+    const placeholderText = texts.find(
+      t => t.props.children === 'Choose option',
+    );
     expect(placeholderText).toBeTruthy();
   });
 
@@ -208,8 +216,8 @@ describe('TouchableInput', () => {
             placeholder="Choose option"
             value="Selected value"
             onPress={() => {}}
-          />
-        )
+          />,
+        ),
       );
     });
 

@@ -46,6 +46,10 @@ jest.mock('@/app/features/companions/components/AddCompanion/Sections/Companion'
   },
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 describe('AddCompanion', () => {
   beforeEach(() => {
     jest.clearAllMocks();

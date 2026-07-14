@@ -1,4 +1,11 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useState,
+} from 'react';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import SelectLabel from '@/app/ui/inputs/SelectLabel';
@@ -22,6 +29,7 @@ import {
 } from '@/app/features/companions/services/codeEntriesService';
 import { formatDisplayDate } from '@/app/lib/date';
 import { toTitleCase } from '@/app/lib/validators';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 type OptionProp = {
   label: string;
@@ -304,7 +312,7 @@ const CompanionReadOnlySection = ({
         value={String(companion.companion.ageWhenNeutered || '-')}
       />
     ) : null}
-    <CompanionRow label="Current weight (lbs)" value={companion.companion.currentWeight || '-'} />
+    <CompanionRow label="Current weight (kg)" value={companion.companion.currentWeight || '-'} />
     <CompanionRow label="Color" value={companion.companion.colour || '-'} />
     <CompanionRow label="Blood group" value={companion.companion.bloodGroup || '-'} />
     <CompanionRow label="Country of origin" value={companion.companion.countryOfOrigin || '-'} />
@@ -458,7 +466,7 @@ const CompanionEditSection = ({
       intype="number"
       inname="weight"
       value={formData.currentWeight + ''}
-      inlabel="Current weight (optional) (lbs)"
+      inlabel="Current weight (optional) (kg)"
       onChange={(e) =>
         setFormData((prev) => ({
           ...prev,
@@ -578,17 +586,105 @@ type CompanionTypeProps = {
   canEditCompanionStatus?: boolean;
 };
 
+type CompanionEditState = {
+  isEditing: boolean;
+  isStatusEditing: boolean;
+  statusValue: RecordStatus;
+  formData: StoredCompanion;
+  currentDate: Date | null;
+  formErrors: CompanionFormErrors;
+};
+
+type CompanionEditStatePatch = Partial<{
+  isEditing: boolean;
+  isStatusEditing: boolean;
+  statusValue: RecordStatus;
+  formData: Partial<StoredCompanion>;
+  currentDate: Date | null;
+  formErrors: Partial<CompanionFormErrors>;
+}>;
+
+type CompanionEditAction =
+  | { type: 'RESET'; state: CompanionEditState }
+  | { type: 'PATCH'; patch: CompanionEditStatePatch }
+  | { type: 'SET_FORM_ERRORS'; errors: CompanionFormErrors };
+
+const companionEditReducer = (
+  state: CompanionEditState,
+  action: CompanionEditAction
+): CompanionEditState => {
+  if (action.type === 'RESET') return action.state;
+  if (action.type === 'SET_FORM_ERRORS') return { ...state, formErrors: action.errors };
+  const { patch } = action;
+  return {
+    ...state,
+    ...patch,
+    formData: patch.formData ? { ...state.formData, ...patch.formData } : state.formData,
+    formErrors: patch.formErrors ? { ...state.formErrors, ...patch.formErrors } : state.formErrors,
+  };
+};
+
+const buildCompanionEditState = (companion: CompanionParent): CompanionEditState => ({
+  isEditing: false,
+  isStatusEditing: false,
+  statusValue: companion.companion.status ?? 'active',
+  formData: companion.companion,
+  currentDate: companion.companion.dateOfBirth ? new Date(companion.companion.dateOfBirth) : null,
+  formErrors: {},
+});
+
 const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isStatusEditing, setIsStatusEditing] = useState(false);
-  const [statusValue, setStatusValue] = useState<RecordStatus>(
-    companion.companion.status ?? 'active'
+  const terminologyText = useCompanionTerminologyText();
+  const [editState, dispatchEditState] = useReducer(
+    companionEditReducer,
+    companion,
+    buildCompanionEditState
   );
-  const [formData, setFormData] = useState<StoredCompanion>(companion.companion);
-  const [currentDate, setCurrentDate] = useState<Date | null>(
-    companion.companion.dateOfBirth ? new Date(companion.companion.dateOfBirth) : null
+  const { isEditing, isStatusEditing, statusValue, formData, currentDate, formErrors } = editState;
+  const patchEditState = useCallback(
+    (patch: CompanionEditStatePatch) => dispatchEditState({ type: 'PATCH', patch }),
+    []
   );
-  const [formErrors, setFormErrors] = useState<CompanionFormErrors>({});
+  const setIsEditing = useCallback(
+    (value: boolean) => patchEditState({ isEditing: value }),
+    [patchEditState]
+  );
+  const setIsStatusEditing = useCallback(
+    (value: boolean) => patchEditState({ isStatusEditing: value }),
+    [patchEditState]
+  );
+  const setStatusValue = useCallback(
+    (value: RecordStatus) => patchEditState({ statusValue: value }),
+    [patchEditState]
+  );
+  const setFormData = useCallback<React.Dispatch<React.SetStateAction<StoredCompanion>>>(
+    (value) => {
+      dispatchEditState({
+        type: 'PATCH',
+        patch: {
+          formData:
+            typeof value === 'function'
+              ? (value as (prev: StoredCompanion) => StoredCompanion)(editState.formData)
+              : value,
+        },
+      });
+    },
+    [editState.formData]
+  );
+  const setCurrentDate = useCallback<React.Dispatch<React.SetStateAction<Date | null>>>(
+    (value) => {
+      dispatchEditState({
+        type: 'PATCH',
+        patch: {
+          currentDate:
+            typeof value === 'function'
+              ? (value as (prev: Date | null) => Date | null)(editState.currentDate)
+              : value,
+        },
+      });
+    },
+    [editState.currentDate]
+  );
   const [speciesOptions, setSpeciesOptions] = useState<SpeciesOption[]>(DEFAULT_SPECIES_OPTIONS);
   const [breedOptions, setBreedOptions] = useState<BreedOption[]>([]);
 
@@ -601,14 +697,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
   );
 
   useLayoutEffect(() => {
-    setIsEditing(false);
-    setIsStatusEditing(false);
-    setStatusValue(companion.companion.status ?? 'active');
-    setFormData(companion.companion);
-    setCurrentDate(
-      companion.companion.dateOfBirth ? new Date(companion.companion.dateOfBirth) : null
-    );
-    setFormErrors({});
+    dispatchEditState({ type: 'RESET', state: buildCompanionEditState(companion) });
   }, [companion]);
 
   useEffect(() => {
@@ -672,17 +761,20 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
   }, [companion.companion.type, speciesOptions]);
 
   const handleCancel = () => {
-    setIsEditing(false);
-    setFormData(companion.companion);
-    setCurrentDate(
-      companion.companion.dateOfBirth ? new Date(companion.companion.dateOfBirth) : null
-    );
-    setFormErrors({});
+    patchEditState({
+      isEditing: false,
+      formData: companion.companion,
+      currentDate: companion.companion.dateOfBirth
+        ? new Date(companion.companion.dateOfBirth)
+        : null,
+      formErrors: {},
+    });
+    dispatchEditState({ type: 'SET_FORM_ERRORS', errors: {} });
   };
 
   const handleSave = async () => {
     const validationErrors = validateCompanionForm(formData, currentDate, isInsured);
-    setFormErrors(validationErrors);
+    dispatchEditState({ type: 'SET_FORM_ERRORS', errors: validationErrors });
     if (hasErrors(validationErrors)) return;
 
     const codeResolution = await resolveCompanionCodes(
@@ -693,7 +785,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
     );
     const codeErrors = getCodeResolutionErrors(codeResolution);
     if (hasErrors(codeErrors)) {
-      setFormErrors((prev) => ({ ...prev, ...codeErrors }));
+      patchEditState({ formErrors: codeErrors });
       return;
     }
 
@@ -707,16 +799,18 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
 
     try {
       await updateCompanion(payload);
-      setIsEditing(false);
-      setFormErrors({});
+      patchEditState({ isEditing: false });
+      dispatchEditState({ type: 'SET_FORM_ERRORS', errors: {} });
     } catch (error) {
       console.log(error);
     }
   };
 
   const handleStatusCancel = () => {
-    setIsStatusEditing(false);
-    setStatusValue(companion.companion.status ?? 'active');
+    patchEditState({
+      isStatusEditing: false,
+      statusValue: companion.companion.status ?? 'active',
+    });
   };
 
   const handleStatusSave = async () => {
@@ -725,8 +819,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
         ...companion.companion,
         status: statusValue,
       });
-      setFormData((prev) => ({ ...prev, status: statusValue }));
-      setIsStatusEditing(false);
+      patchEditState({ formData: { status: statusValue }, isStatusEditing: false });
     } catch (error) {
       console.log(error);
     }
@@ -735,7 +828,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
   return (
     <div className="flex flex-col gap-6 w-full">
       <Accordion
-        title="Companion information"
+        title={terminologyText('Companion information')}
         defaultOpen={true}
         showEditIcon={true}
         isEditing={isEditing}
@@ -772,7 +865,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
         {isStatusEditing ? (
           <div className="flex flex-col gap-3 pt-2">
             <LabelDropdown
-              placeholder="Companion status"
+              placeholder={terminologyText('Companion status')}
               onSelect={(option) => setStatusValue(option.value as RecordStatus)}
               defaultOption={statusValue}
               options={COMPANION_STATUS_OPTIONS}

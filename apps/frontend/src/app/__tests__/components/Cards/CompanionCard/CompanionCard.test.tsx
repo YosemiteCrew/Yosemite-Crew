@@ -39,6 +39,10 @@ jest.mock('@/app/ui/primitives/GlassTooltip/GlassTooltip', () => ({
   default: ({ content, children }: any) => <span aria-label={content}>{children}</span>,
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 describe('CompanionCard', () => {
   const handleViewCompanion = jest.fn();
   const handleBookAppointment = jest.fn();
@@ -102,7 +106,7 @@ describe('CompanionCard', () => {
       />
     );
 
-    fireEvent.click(screen.getByLabelText('View').querySelector('button')!);
+    fireEvent.click(screen.getByLabelText('View companion').querySelector('button')!);
     fireEvent.click(screen.getByLabelText('Change status').querySelector('button')!);
     fireEvent.click(screen.getByLabelText('Schedule').querySelector('button')!);
     fireEvent.click(screen.getByLabelText('Task').querySelector('button')!);
@@ -127,7 +131,7 @@ describe('CompanionCard', () => {
       />
     );
 
-    expect(screen.getByLabelText('View')).toBeInTheDocument();
+    expect(screen.getByLabelText('View companion')).toBeInTheDocument();
     expect(screen.queryByLabelText('Change status')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Schedule')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Task')).not.toBeInTheDocument();

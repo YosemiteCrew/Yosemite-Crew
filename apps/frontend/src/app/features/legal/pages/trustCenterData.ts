@@ -34,7 +34,7 @@ export const trustCenterData = {
       name: '21 CFR Part 11',
       status: 'Compliant',
       description: 'FDA regulations for electronic records & signatures.',
-      icon: '📜',
+      icon: MEDIA_SOURCES.footer.fda,
     },
     {
       name: 'ESIGN Act',

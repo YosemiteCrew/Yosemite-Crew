@@ -6,7 +6,7 @@ import {
   type ConfirmActionBottomSheetRef,
 } from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 import {useTheme} from '@/hooks';
-import {Text} from 'react-native';
+import {Keyboard, Text} from 'react-native';
 
 // FIX: Added 'h3' to typography and 'text' to colors to prevent crashes
 
@@ -18,10 +18,35 @@ jest.mock('@/hooks', () => {
   };
 });
 
+jest.mock(
+  '@/shared/components/common/BottomSheetHeader/BottomSheetHeader',
+  () => {
+    const {
+      TouchableOpacity,
+      Text: RNText,
+      View,
+    } = jest.requireActual('react-native');
+    return {
+      BottomSheetHeader: ({title, onClose, showCloseButton}: any) => (
+        <View>
+          <RNText>{title}</RNText>
+          {showCloseButton ? (
+            <TouchableOpacity testID="mock-header-close" onPress={onClose}>
+              <RNText>Close</RNText>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ),
+    };
+  },
+);
+
 const mockBottomSheet = jest.fn();
 const mockSnapToIndex = jest.fn();
 const mockClose = jest.fn();
 let mockSheetOnChange: (index: number) => void = () => {};
+let keyboardDidShow: () => void = () => {};
+let keyboardDidHide: () => void = () => {};
 
 jest.mock('@/shared/components/common/BottomSheet/BottomSheet', () => {
   const ReactActual = jest.requireActual('react');
@@ -81,6 +106,19 @@ describe('ConfirmActionBottomSheet', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    keyboardDidShow = () => {};
+    keyboardDidHide = () => {};
+    jest
+      .spyOn(Keyboard, 'addListener')
+      .mockImplementation((eventName: string, callback: () => void) => {
+        if (eventName === 'keyboardDidShow') {
+          keyboardDidShow = callback;
+        }
+        if (eventName === 'keyboardDidHide') {
+          keyboardDidHide = callback;
+        }
+        return {remove: jest.fn()} as any;
+      });
     (useTheme as jest.Mock).mockReturnValue({theme: mockTheme});
   });
 
@@ -263,7 +301,7 @@ describe('ConfirmActionBottomSheet', () => {
     // Backdrop is always enabled; visibility is controlled by backdropAppearsOnIndex/backdropDisappearsOnIndex
     expect(mockBottomSheet).toHaveBeenCalledWith(
       expect.objectContaining({
-        enableBackdrop: true,
+        behavior: expect.objectContaining({backdrop: true}),
         initialIndex: 0,
         backdropAppearsOnIndex: 0,
         backdropDisappearsOnIndex: -1,
@@ -281,7 +319,7 @@ describe('ConfirmActionBottomSheet', () => {
     // Backdrop always enabled; sheet starts closed via initialIndex=-1
     expect(mockBottomSheet).toHaveBeenCalledWith(
       expect.objectContaining({
-        enableBackdrop: true,
+        behavior: expect.objectContaining({backdrop: true}),
         initialIndex: -1,
         backdropAppearsOnIndex: 0,
         backdropDisappearsOnIndex: -1,
@@ -324,6 +362,56 @@ describe('ConfirmActionBottomSheet', () => {
     expect(mockClose).toHaveBeenCalledTimes(1);
   });
 
+  it('dismisses keyboard from backdrop and header close handlers', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+    const {getByTestId} = render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+      />,
+    );
+
+    const props = mockBottomSheet.mock.calls.at(-1)?.[0];
+    act(() => {
+      props.onBackdropPress();
+      fireEvent.press(getByTestId('mock-header-close'));
+    });
+
+    expect(dismissSpy).toHaveBeenCalled();
+    expect(mockClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('expands snap points while the keyboard is visible and restores custom snap points when hidden', () => {
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+        snapPoints={['40%', '80%']}
+      />,
+    );
+
+    expect(mockBottomSheet.mock.calls.at(-1)?.[0].snapPoints).toEqual([
+      '40%',
+      '80%',
+    ]);
+
+    act(() => {
+      keyboardDidShow();
+    });
+    expect(mockBottomSheet.mock.calls.at(-1)?.[0].snapPoints).toEqual([
+      '93%',
+      '95%',
+    ]);
+
+    act(() => {
+      keyboardDidHide();
+    });
+    expect(mockBottomSheet.mock.calls.at(-1)?.[0].snapPoints).toEqual([
+      '40%',
+      '80%',
+    ]);
+  });
+
   it('updates state and calls onSheetChange when sheet callback fires', () => {
     const mockOnSheetChange = jest.fn();
     render(
@@ -340,6 +428,25 @@ describe('ConfirmActionBottomSheet', () => {
     });
 
     expect(mockOnSheetChange).toHaveBeenCalledWith(-1);
+  });
+
+  it('keeps keyboard state when sheet changes to an open index', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+    const mockOnSheetChange = jest.fn();
+    render(
+      <ConfirmActionBottomSheet
+        title="Test"
+        primaryButton={primaryButtonConfig}
+        onSheetChange={mockOnSheetChange}
+      />,
+    );
+
+    act(() => {
+      mockSheetOnChange(0);
+    });
+
+    expect(mockOnSheetChange).toHaveBeenCalledWith(0);
+    expect(dismissSpy).not.toHaveBeenCalled();
   });
 
   it('handles async button press rejection and warns', async () => {

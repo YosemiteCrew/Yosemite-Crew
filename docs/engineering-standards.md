@@ -49,6 +49,11 @@ Before merging, changes should satisfy:
 - Avoid stale command names and outdated paths.
 - Keep docs opinionated and executable.
 
+## Architecture Decisions
+
+- If a PR introduces a decision that would be expensive to reverse or that crosses app/package boundaries (datastore choice, payment/settlement model, auth or persistence trade-offs, public API contracts), add an ADR under [docs/adr/](./adr/README.md) in the same PR.
+- Retroactive ADRs for decisions already made are welcome — the goal is a durable record, not process for its own sake.
+
 ## AI/Agent Contributions
 
 - Follow repository `AGENTS.md`.

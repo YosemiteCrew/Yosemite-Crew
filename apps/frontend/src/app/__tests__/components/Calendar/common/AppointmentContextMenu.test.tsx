@@ -29,6 +29,9 @@ jest.mock('@/app/lib/appointments', () => ({
   ),
   getClinicalNotesIntent: jest.fn(() => ({ label: 'prescription', subLabel: 'subjective' })),
   getClinicalNotesLabel: jest.fn(() => 'Clinical notes'),
+  isRequestedLikeStatus: jest.fn(
+    (status: string) => status === 'REQUESTED' || status === 'NO_PAYMENT'
+  ),
   normalizeAppointmentStatus: jest.fn((status: string) =>
     status === 'NO_PAYMENT' ? 'REQUESTED' : status
   ),
@@ -41,6 +44,10 @@ jest.mock('@/app/hooks/useRooms', () => ({
     { id: 'room-1', name: 'Room 1' },
     { id: 'room-2', name: 'Room 2' },
   ]),
+}));
+
+jest.mock('@/app/features/organization/services/roomService', () => ({
+  loadRoomsForOrgPrimaryOrg: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
@@ -62,6 +69,7 @@ jest.mock('@/app/stores/appointmentWorkspaceStore', () => ({
 let mockRoomState = {
   roomUnitsById: {} as Record<string, any>,
   roomUnitIdsByRoomId: {} as Record<string, string[]>,
+  setRoomUnitOccupied: jest.fn(),
 };
 jest.mock('@/app/stores/roomStore', () => ({
   useOrganisationRoomStore: Object.assign((selector: any) => selector(mockRoomState), {
@@ -85,6 +93,7 @@ describe('AppointmentContextMenu', () => {
     mockRoomState = {
       roomUnitsById: {},
       roomUnitIdsByRoomId: {},
+      setRoomUnitOccupied: jest.fn(),
     };
     Object.defineProperty(globalThis, 'innerWidth', {
       configurable: true,
@@ -142,6 +151,22 @@ describe('AppointmentContextMenu', () => {
     );
   });
 
+  it('does not expose inline status changes for requested appointments', () => {
+    render(
+      <AppointmentContextMenu
+        appointment={{ ...baseAppointment, status: 'REQUESTED' }}
+        canEditAppointments
+        menuRef={{ current: null }}
+        menuStyle={{ top: 20, left: 20, width: 280 }}
+        handleViewAppointment={jest.fn()}
+        handleRescheduleAppointment={jest.fn()}
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByRole('menuitem', { name: /Change status/i })).not.toBeInTheDocument();
+  });
+
   it('shows a room submenu and updates the room inline', async () => {
     mockRoomState = {
       roomUnitsById: {
@@ -151,9 +176,19 @@ describe('AppointmentContextMenu', () => {
           displayName: 'Ward 2A',
           code: '2A',
           isActive: true,
+          isOccupied: true,
+        },
+        'unit-2b': {
+          id: 'unit-2b',
+          roomId: 'room-2',
+          displayName: 'Ward 2B',
+          code: '2B',
+          isActive: true,
+          isOccupied: false,
         },
       },
-      roomUnitIdsByRoomId: { 'room-2': ['unit-2a'] },
+      roomUnitIdsByRoomId: { 'room-2': ['unit-2a', 'unit-2b'] },
+      setRoomUnitOccupied: jest.fn(),
     };
     render(
       <AppointmentContextMenu
@@ -184,9 +219,9 @@ describe('AppointmentContextMenu', () => {
         room: { id: 'room-2', name: 'Room 2' },
       })
     );
-    expect(mockSetRoomUnit).toHaveBeenCalledWith('appt-1', 'room-2', 'unit-2a');
+    expect(mockSetRoomUnit).toHaveBeenCalledWith('appt-1', 'room-2', 'unit-2b');
     expect(assignEncounterUnit).toHaveBeenCalledWith(
-      expect.objectContaining({ encounterId: 'enc-1', unitId: 'unit-2a' })
+      expect.objectContaining({ encounterId: 'enc-1', unitId: 'unit-2b' })
     );
   });
 

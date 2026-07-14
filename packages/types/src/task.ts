@@ -3,7 +3,19 @@ import type { Bundle, CodeableConcept, Extension, Reference, Task } from '@yosem
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 export type TaskAudience = 'EMPLOYEE_TASK' | 'PARENT_TASK';
 export type TaskSource = 'YC_LIBRARY' | 'ORG_TEMPLATE' | 'CUSTOM';
-export type TaskKind = 'MEDICATION' | 'OBSERVATION_TOOL' | 'HYGIENE' | 'DIET' | 'CUSTOM';
+export type TaskKind =
+  | 'MEDICATION'
+  | 'OBSERVATION_TOOL'
+  | 'HYGIENE'
+  | 'DIET'
+  | 'CUSTOM'
+  | 'CARE'
+  | 'PROCEDURE'
+  | 'DIAGNOSTIC'
+  | 'COMMUNICATION'
+  | 'BILLING'
+  | 'RECORD'
+  | 'ADMIN';
 export type TaskCategory =
   | 'MEDICATION'
   | 'CARE'
@@ -22,6 +34,13 @@ export const TASK_KIND_TAXONOMY: readonly TaskKind[] = [
   'HYGIENE',
   'DIET',
   'CUSTOM',
+  'CARE',
+  'PROCEDURE',
+  'DIAGNOSTIC',
+  'COMMUNICATION',
+  'BILLING',
+  'RECORD',
+  'ADMIN',
 ] as const;
 
 export const TASK_CATEGORY_TAXONOMY: readonly TaskCategory[] = [

@@ -6,6 +6,67 @@ import type { OrgRequest } from "src/middlewares/rbac";
 import logger from "src/utils/logger";
 import { resolveUserIdFromRequest } from "src/utils/request";
 
+const FORM_RESPONSE_PARENT_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-parent";
+const FORM_RESPONSE_SUBMITTED_BY_URL =
+  "https://yosemitecrew.com/fhir/StructureDefinition/form-response-submitted-by";
+
+const hasExtension = (extensions: unknown[], url: string) =>
+  extensions.some(
+    (extension) =>
+      typeof extension === "object" &&
+      extension !== null &&
+      (extension as { url?: unknown }).url === url,
+  );
+
+const normalizeMobileSubmissionRequest = (
+  body: FormSubmissionRequestDTO,
+  formId: string | undefined,
+  parentId: string | undefined,
+): FormSubmissionRequestDTO => {
+  const normalized = {
+    ...(body as unknown as Record<string, unknown>),
+  } as Record<string, unknown>;
+
+  if (formId && !normalized.questionnaire) {
+    normalized.questionnaire = `Questionnaire/${formId}`;
+  }
+
+  const rawExtensions = normalized.extension;
+  const extensions: unknown[] = Array.isArray(rawExtensions)
+    ? rawExtensions.slice()
+    : [];
+
+  if (parentId && !hasExtension(extensions, FORM_RESPONSE_PARENT_URL)) {
+    extensions.push({
+      url: FORM_RESPONSE_PARENT_URL,
+      valueString: parentId,
+    });
+  }
+
+  if (parentId && !hasExtension(extensions, FORM_RESPONSE_SUBMITTED_BY_URL)) {
+    extensions.push({
+      url: FORM_RESPONSE_SUBMITTED_BY_URL,
+      valueString: parentId,
+    });
+  }
+
+  if (extensions.length) {
+    normalized.extension = extensions;
+  }
+
+  return normalized as unknown as FormSubmissionRequestDTO;
+};
+
+const parseAppointmentFormQuery = (body: unknown) => {
+  const { serviceId, species, isPMS } = (body as Record<string, unknown>) ?? {};
+  return {
+    serviceId: typeof serviceId === "string" ? serviceId : undefined,
+    species: typeof species === "string" ? species : undefined,
+    isPMS: typeof isPMS === "string" ? isPMS === "true" : undefined,
+  };
+};
+
 export const FormController = {
   createForm: async (req: Request, res: Response) => {
     try {
@@ -165,7 +226,6 @@ export const FormController = {
 
   submitForm: async (req: Request, res: Response) => {
     try {
-      const submissionRequest = req.body as FormSubmissionRequestDTO;
       const authUserId = resolveUserIdFromRequest(req);
       const authUser = await AuthUserMobileService.getByProviderUserId(
         authUserId!,
@@ -175,6 +235,12 @@ export const FormController = {
           .status(401)
           .json({ message: "Unauthorized: User not found" });
       }
+
+      const submissionRequest = normalizeMobileSubmissionRequest(
+        req.body as FormSubmissionRequestDTO,
+        req.params.formId,
+        authUser.parentId?.toString(),
+      );
 
       const submission = await FormService.submitFHIR(submissionRequest);
       return res.status(201).json(submission);
@@ -190,8 +256,22 @@ export const FormController = {
   submitFormFromPMS: async (req: Request, res: Response) => {
     try {
       const submissionRequest = req.body as FormSubmissionRequestDTO;
+      // The submitter is the authenticated PMS user from the verified token,
+      // never client-supplied. Persisting submittedBy lets the signing guard
+      // confirm the initiator is the submitter; without it submittedBy is
+      // undefined and the authenticated user is wrongly blocked from signing.
+      const userId = resolveUserIdFromRequest(req);
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User ID missing" });
+      }
 
-      const submission = await FormService.submitFHIR(submissionRequest);
+      const submission = await FormService.submitFHIR(
+        submissionRequest,
+        undefined,
+        userId,
+      );
       return res.status(201).json(submission);
     } catch (error) {
       if (error instanceof FormServiceError) {
@@ -306,8 +386,7 @@ export const FormController = {
   getFormsForAppointment: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
-      const { serviceId, species, isPMS } =
-        (req.body as Record<string, unknown>) ?? {};
+      const { serviceId, species, isPMS } = parseAppointmentFormQuery(req.body);
       const isMobileRequest =
         typeof req.path === "string" && req.path.includes("/mobile/");
 
@@ -316,6 +395,7 @@ export const FormController = {
       }
 
       let viewerParentId: string | undefined;
+      let requesterOrgId: string | undefined;
       if (isMobileRequest) {
         const authUserId = resolveUserIdFromRequest(req);
         if (!authUserId) {
@@ -331,14 +411,20 @@ export const FormController = {
         if (!viewerParentId) {
           return res.status(403).json({ message: "Forbidden" });
         }
+      } else {
+        requesterOrgId = (req as OrgRequest).organisationId;
+        if (!requesterOrgId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
       }
 
       const result = await FormService.getFormsForAppointment({
         appointmentId,
-        serviceId: typeof serviceId === "string" ? serviceId : undefined,
-        species: typeof species === "string" ? species : undefined,
-        isPMS: typeof isPMS === "string" ? isPMS === "true" : undefined,
+        serviceId,
+        species,
+        isPMS,
         viewerParentId,
+        requesterOrgId,
       });
 
       return res.status(200).json(result);

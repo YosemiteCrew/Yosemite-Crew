@@ -30,6 +30,13 @@ describe('buildCompanionDetails', () => {
     expect(valueFor('Blood Group')).toBe('-');
   });
 
+  it('applies a caller-provided terminology rewrite to configurable labels', () => {
+    const details = buildCompanionDetails(fallback, undefined, (text) =>
+      text.replace('Patient', 'Pet')
+    );
+    expect(details.find((row) => row.label === 'Pet ID')?.value).toBe('PT-1');
+  });
+
   it('maps a loaded companion record into all rows', () => {
     const companion = baseCompanion({
       isneutered: true,
@@ -43,7 +50,7 @@ describe('buildCompanionDetails', () => {
     expect(valueFor('Breed/Species', companion)).toBe('Golden Retriever / Canine');
     expect(valueFor('Age / DOB', companion)).toMatch(/years \/ /);
     expect(valueFor('Sex', companion)).toBe('Female, Spayed');
-    expect(valueFor('Weight', companion)).toBe('55 lbs');
+    expect(valueFor('Weight', companion)).toBe('55 kg');
     expect(valueFor('Blood Group', companion)).toBe('DEA 1.1');
     expect(valueFor('Microchip ID', companion)).toBe('ID-123457GHH');
     expect(valueFor('Allergies', companion)).toBe('Sensitive skin');
