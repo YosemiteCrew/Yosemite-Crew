@@ -84,7 +84,23 @@ const Github = () => {
         if (!cancelled) setError('—');
       }
     }
-    loadStars();
+    // Defer the third-party GitHub API call off the critical load path. Firing it
+    // synchronously on mount keeps the network busy and prevents `networkidle` from
+    // settling (which flakes the Playwright a11y run); the star count is non-essential
+    // chrome, so let the page reach idle first, then fetch.
+    const idleWindow = globalThis.window as
+      | (Window & {
+          requestIdleCallback?: (cb: () => void) => number;
+          cancelIdleCallback?: (handle: number) => void;
+        })
+      | undefined;
+    let idleHandle: number | undefined;
+    let idleTimeout: ReturnType<typeof setTimeout> | undefined;
+    if (idleWindow?.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(() => loadStars());
+    } else {
+      idleTimeout = setTimeout(loadStars, 1000);
+    }
 
     // optional: refresh every 15 minutes while banner is mounted
     const id = setInterval(loadStars, 15 * 60 * 1000);
@@ -92,6 +108,8 @@ const Github = () => {
     return () => {
       cancelled = true;
       clearInterval(id);
+      if (idleHandle !== undefined) idleWindow?.cancelIdleCallback?.(idleHandle);
+      if (idleTimeout !== undefined) clearTimeout(idleTimeout);
     };
   }, []);
 
