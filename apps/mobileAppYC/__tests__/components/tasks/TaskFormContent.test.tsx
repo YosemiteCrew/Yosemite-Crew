@@ -91,7 +91,6 @@ const mockFileHandlers = {
   onRequestRemove: jest.fn(),
 };
 
-
 const mockStyles = {
   fieldGroup: {},
   toggleSection: {},
@@ -154,9 +153,7 @@ const renderComponent = (
     errors: mockErrors,
     theme: mockTheme,
     updateField: mockUpdateField,
-    isMedicationForm: false,
-    isObservationalToolForm: false,
-    isSimpleForm: false,
+    taskFormMode: 'simple',
     reminderOptions: mockReminderOptions,
     styles: mockStyles,
     sheetHandlers: mockSheetHandlers,
@@ -192,10 +189,9 @@ describe('TaskFormContent', () => {
     ).mockClear();
   });
 
-  it('renders the TaskTypeSelector when showTaskTypeSelector is true and props are provided', () => {
+  it('renders the TaskTypeSelector when selector config is provided', () => {
     renderComponent({
-      showTaskTypeSelector: true,
-      taskTypeSelectorProps: mockTaskTypeSelectorProps,
+      taskTypeSelector: mockTaskTypeSelectorProps,
     });
 
     const selector = screen.getByTestId('mock-TouchableInput');
@@ -213,8 +209,7 @@ describe('TaskFormContent', () => {
 
   it('renders the TaskTypeSelector with label when taskTypeSelection is also provided', () => {
     renderComponent({
-      showTaskTypeSelector: true,
-      taskTypeSelectorProps: mockTaskTypeSelectorProps,
+      taskTypeSelector: mockTaskTypeSelectorProps,
       taskTypeSelection: mockTaskTypeSelection,
     });
 
@@ -225,10 +220,9 @@ describe('TaskFormContent', () => {
     expect(screen.getByTestId('mock-CommonTaskFields')).toBeTruthy();
   });
 
-  it('calls taskTypeSelectorProps.onPress when selector is pressed', () => {
+  it('calls taskTypeSelector.onPress when selector is pressed', () => {
     renderComponent({
-      showTaskTypeSelector: true,
-      taskTypeSelectorProps: mockTaskTypeSelectorProps,
+      taskTypeSelector: mockTaskTypeSelectorProps,
     });
 
     const selector = screen.getByTestId('mock-TouchableInput');
@@ -236,18 +230,15 @@ describe('TaskFormContent', () => {
     expect(mockTaskTypeSelectorProps.onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('does NOT render TaskTypeSelector when showTaskTypeSelector is false', () => {
-    renderComponent({
-      showTaskTypeSelector: false,
-      taskTypeSelectorProps: mockTaskTypeSelectorProps,
-    });
+  it('does NOT render TaskTypeSelector when selector config is omitted', () => {
+    renderComponent({});
 
     expect(screen.queryByTestId('mock-TouchableInput')).toBeNull();
     expect(screen.getByTestId('mock-CommonTaskFields')).toBeTruthy();
   });
 
   it('renders MedicationFormSection when isMedicationForm is true', () => {
-    renderComponent({isMedicationForm: true});
+    renderComponent({taskFormMode: 'medication'});
     expect(screen.getByTestId('mock-MedicationFormSection')).toBeTruthy();
     expect(
       screen.queryByTestId('mock-ObservationalToolFormSection'),
@@ -256,7 +247,7 @@ describe('TaskFormContent', () => {
   });
 
   it('renders ObservationalToolFormSection when isObservationalToolForm is true', () => {
-    renderComponent({isObservationalToolForm: true});
+    renderComponent({taskFormMode: 'observationalTool'});
     expect(screen.queryByTestId('mock-MedicationFormSection')).toBeNull();
     expect(
       screen.getByTestId('mock-ObservationalToolFormSection'),
@@ -265,7 +256,7 @@ describe('TaskFormContent', () => {
   });
 
   it('renders SimpleTaskFormSection when isSimpleForm is true', () => {
-    renderComponent({isSimpleForm: true});
+    renderComponent({taskFormMode: 'simple'});
     expect(screen.queryByTestId('mock-MedicationFormSection')).toBeNull();
     expect(
       screen.queryByTestId('mock-ObservationalToolFormSection'),
@@ -274,7 +265,7 @@ describe('TaskFormContent', () => {
   });
 
   it('renders all common sections when form is visible', () => {
-    renderComponent({isSimpleForm: true});
+    renderComponent({taskFormMode: 'simple'});
     expect(screen.getByTestId('mock-SimpleTaskFormSection')).toBeTruthy();
     expect(screen.getByTestId('mock-CommonTaskFields')).toBeTruthy();
     expect(screen.getByTestId('mock-ReminderSection')).toBeTruthy();

@@ -192,10 +192,16 @@ jest.mock('@/features/companion/components/CompanionProfileHeader', () => {
     )),
   };
 });
-jest.mock('@/shared/components/common/FormRowComponents', () => {
-  const {Text, TouchableOpacity, View} = jest.requireActual('react-native');
+jest.mock('@/shared/components/common/Separator', () => {
+  const {View} = jest.requireActual('react-native');
   return {
     Separator: jest.fn(() => <View testID="row-separator" />),
+  };
+});
+
+jest.mock('@/shared/components/common/RowButton', () => {
+  const {Text, TouchableOpacity} = jest.requireActual('react-native');
+  return {
     RowButton: jest.fn(({label, value, onPress, testID: explicitTestID}) => {
       const generatedTestID = `row-button-${label.replaceAll(/\s+/g, '-')}`;
       return (
@@ -1113,4 +1119,301 @@ describe('CompanionOverviewScreen', () => {
       expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', []);
     });
   });
+
+  it('skips loading breeds when the stored access token is missing', async () => {
+    (
+      require('@/features/auth/sessionManager')
+        .getFreshStoredTokens as jest.Mock
+    ).mockResolvedValueOnce({accessToken: null});
+
+    renderWithState(mockCompanion);
+
+    await waitFor(() => {
+      expect(
+        require('@/features/companion/services/codeEntriesService')
+          .fetchBreedCodeEntries,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  it('clears breed options when fetching breed entries fails', async () => {
+    (
+      require('@/features/companion/services/codeEntriesService')
+        .fetchBreedCodeEntries as jest.Mock
+    ).mockRejectedValueOnce(new Error('network down'));
+
+    renderWithState(mockCompanion);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('breed-sheet')).toHaveProp('breeds', []);
+    });
+  });
+
+  it('resolves the companion from the store using the route param id', async () => {
+    const {
+      fetchCompanions,
+      resetCompanionState,
+    } = require('@/features/companion');
+    store.dispatch({
+      type: fetchCompanions.fulfilled.type,
+      payload: [mockCompanion],
+    });
+
+    const routeWithParam = {
+      ...mockRoute,
+      params: {companionId: mockCompanion.id},
+    } as unknown as MockProps['route'];
+
+    (
+      require('@/features/companion/selectors')
+        .selectSelectedCompanion as jest.Mock
+    )
+      .mockClear()
+      .mockReturnValue(null);
+    (
+      require('@/features/companion/selectors')
+        .selectCompanionLoading as jest.Mock
+    )
+      .mockClear()
+      .mockReturnValue(false);
+
+    render(
+      <Provider store={store}>
+        <CompanionOverviewScreen
+          navigation={mockNavigation}
+          route={routeWithParam}
+        />
+      </Provider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('header')).toHaveProp(
+        'title',
+        "Sparky's Overview",
+      );
+    });
+
+    store.dispatch(resetCompanionState());
+  });
+
+  it('edits colour, allergies, microchip number, and passport number', async () => {
+    renderWithState(mockCompanion);
+    const updateProfileMock = require('@/features/companion')
+      .updateCompanionProfile as jest.Mock;
+
+    fireEvent(screen.getByTestId('inline-edit-Colour'), 'onSave', 'Black');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({color: 'Black'}),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(screen.getByTestId('inline-edit-Colour'), 'onSave', '');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({color: null}),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(
+      screen.getByTestId('inline-edit-Allergies'),
+      'onSave',
+      'Dust mites',
+    );
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({allergies: 'Dust mites'}),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(screen.getByTestId('inline-edit-Allergies'), 'onSave', '');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({allergies: null}),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(
+      screen.getByTestId('inline-edit-Microchip-number'),
+      'onSave',
+      '99900',
+    );
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({microchipNumber: '99900'}),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(screen.getByTestId('inline-edit-Microchip-number'), 'onSave', '');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({microchipNumber: null}),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(
+      screen.getByTestId('inline-edit-Passport-number'),
+      'onSave',
+      'P999',
+    );
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({passportNumber: 'P999'}),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(screen.getByTestId('inline-edit-Passport-number'), 'onSave', '');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({passportNumber: null}),
+      }),
+    );
+  });
+
+  it('strips the "Years"/"Year" suffix when saving age when neutered', async () => {
+    renderWithState({
+      ...mockCompanion,
+      neuteredStatus: 'neutered' as Companion['neuteredStatus'],
+      ageWhenNeutered: '6',
+    } as Companion);
+    const updateProfileMock = require('@/features/companion')
+      .updateCompanionProfile as jest.Mock;
+    const ageInput = screen.getByTestId(
+      'inline-edit-Age-when-neutered-(optional)',
+    );
+
+    fireEvent(ageInput, 'onSave', '3 Years');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({ageWhenNeutered: '3'}),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(ageInput, 'onSave', '1 Year');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({ageWhenNeutered: '1'}),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(ageInput, 'onSave', '');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({ageWhenNeutered: null}),
+      }),
+    );
+  });
+
+  it('edits insurance company and policy number when insured', async () => {
+    renderWithState({
+      ...mockCompanion,
+      insuredStatus: 'insured' as Companion['insuredStatus'],
+      insuranceCompany: 'PetPlan',
+      insurancePolicyNumber: 'PP123',
+    } as Companion);
+    const updateProfileMock = require('@/features/companion')
+      .updateCompanionProfile as jest.Mock;
+
+    fireEvent(
+      screen.getByTestId('inline-edit-Insurance-company'),
+      'onSave',
+      'Trupanion',
+    );
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({
+          insuranceCompany: 'Trupanion',
+        }),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(
+      screen.getByTestId('inline-edit-Insurance-company'),
+      'onSave',
+      '',
+    );
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({insuranceCompany: null}),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(
+      screen.getByTestId('inline-edit-Policy-number'),
+      'onSave',
+      'PP999',
+    );
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({
+          insurancePolicyNumber: 'PP999',
+        }),
+      }),
+    );
+    updateProfileMock.mockClear();
+
+    fireEvent(screen.getByTestId('inline-edit-Policy-number'), 'onSave', '');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({
+          insurancePolicyNumber: null,
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ['Breed', 'breed-sheet'],
+    ['Blood-group', 'blood-sheet'],
+    ['Country-of-origin', 'country-sheet'],
+    ['Neutered-status', 'neutered-sheet'],
+    ['Insurance-status', 'insured-sheet'],
+    ['My-pet-comes-from', 'origin-sheet'],
+  ])(
+    'BackHandler closes the %s bottom sheet via its switch case',
+    async (rowSuffix, sheetTestId) => {
+      renderWithState(mockCompanion);
+      fireEvent.press(screen.getByTestId(`row-button-${rowSuffix}`));
+
+      const sheetRef = mockedComponentRefs.get(sheetTestId);
+      expect(sheetRef).toBeDefined();
+      expect(mockCapturedBackPressCallback).toBeDefined();
+
+      let handled = false;
+      await act(async () => {
+        handled = mockCapturedBackPressCallback
+          ? (mockCapturedBackPressCallback() ?? false)
+          : false;
+      });
+
+      expect(handled).toBe(true);
+      expect(sheetRef?.close).toHaveBeenCalledTimes(1);
+    },
+  );
 });

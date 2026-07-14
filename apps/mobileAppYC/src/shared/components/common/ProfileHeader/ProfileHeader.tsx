@@ -1,5 +1,6 @@
 import React, {useMemo} from 'react';
-import {Image, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Image, StyleSheet, Text, View} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {
   ProfileImagePicker,
   type ProfileImagePickerRef,
@@ -47,17 +48,15 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           fallbackText={fallbackText}
         />
         {showCameraButton ? (
-          <TouchableOpacity
+          <PressableOpacity
             style={styles.cameraIconContainer}
             onPress={() => pickerRef.current?.triggerPicker()}>
             <Image source={Images.cameraIcon} style={styles.cameraIcon} />
-          </TouchableOpacity>
+          </PressableOpacity>
         ) : null}
       </View>
       <Text style={styles.profileName}>{title}</Text>
-      {subtitle ? (
-        <Text style={styles.profileSubtitle}>{subtitle}</Text>
-      ) : null}
+      {subtitle ? <Text style={styles.profileSubtitle}>{subtitle}</Text> : null}
     </View>
   );
 };

@@ -2,11 +2,9 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 
-const pushMock = jest.fn();
+const redirectMock = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: pushMock,
-  }),
+  redirect: (...args: unknown[]) => redirectMock(...args),
 }));
 
 jest.mock('@/app/stores/authStore', () => ({
@@ -33,14 +31,14 @@ describe('page (Forgot Password route)', () => {
 
     render(<Page />);
     expect(screen.getByTestId('forgotpassword-mock')).toBeInTheDocument();
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
   test('redirects to /appointments if user is logged in', () => {
     useAuthStoreMock.mockReturnValue({ user: { id: '123' } });
 
     render(<Page />);
-    expect(pushMock).toHaveBeenCalledWith('/appointments');
+    expect(redirectMock).toHaveBeenCalledWith('/appointments');
   });
 
   test('renders ForgotPasswordPage even if redirect occurs', () => {

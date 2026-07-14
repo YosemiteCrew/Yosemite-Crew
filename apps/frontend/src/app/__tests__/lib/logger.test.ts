@@ -74,3 +74,99 @@ describe('logger (NODE_ENV=test)', () => {
     expect(() => logger.error()).not.toThrow();
   });
 });
+
+describe('logger (simulated development env)', () => {
+  const originalEnv = process.env.NODE_ENV;
+  let debugSpy: jest.SpyInstance;
+  let infoSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.resetModules();
+    (process.env as { NODE_ENV: string }).NODE_ENV = 'development';
+    debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => {});
+    infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    (process.env as { NODE_ENV: string }).NODE_ENV = originalEnv as string;
+    debugSpy.mockRestore();
+    infoSpy.mockRestore();
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it('debug calls console.debug with the level prefix and forwarded args', async () => {
+    const { logger } = await import('@/app/lib/logger');
+    logger.debug('hello', 42);
+    expect(debugSpy).toHaveBeenCalledWith('[DEBUG]', 'hello', 42);
+  });
+
+  it('debug falls back to "(no details)" when called with no args', async () => {
+    const { logger } = await import('@/app/lib/logger');
+    logger.debug();
+    expect(debugSpy).toHaveBeenCalledWith('[DEBUG]', '(no details)');
+  });
+
+  it('info calls console.info with the level prefix and forwarded args', async () => {
+    const { logger } = await import('@/app/lib/logger');
+    logger.info('hello');
+    expect(infoSpy).toHaveBeenCalledWith('[INFO]', 'hello');
+  });
+
+  it('warn calls console.warn outside test env', async () => {
+    const { logger } = await import('@/app/lib/logger');
+    logger.warn('careful');
+    expect(warnSpy).toHaveBeenCalledWith('[WARN]', 'careful');
+  });
+
+  it('error calls console.error outside test env', async () => {
+    const { logger } = await import('@/app/lib/logger');
+    logger.error('boom');
+    expect(errorSpy).toHaveBeenCalledWith('[ERROR]', 'boom');
+  });
+});
+
+describe('logger (simulated production env)', () => {
+  const originalEnv = process.env.NODE_ENV;
+  let debugSpy: jest.SpyInstance;
+  let infoSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
+  let errorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.resetModules();
+    (process.env as { NODE_ENV: string }).NODE_ENV = 'production';
+    debugSpy = jest.spyOn(console, 'debug').mockImplementation(() => {});
+    infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    (process.env as { NODE_ENV: string }).NODE_ENV = originalEnv as string;
+    debugSpy.mockRestore();
+    infoSpy.mockRestore();
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it('debug and info are silenced in production', async () => {
+    const { logger } = await import('@/app/lib/logger');
+    logger.debug('hidden');
+    logger.info('hidden');
+    expect(debugSpy).not.toHaveBeenCalled();
+    expect(infoSpy).not.toHaveBeenCalled();
+  });
+
+  it('warn and error still fire in production (only isTest silences them)', async () => {
+    const { logger } = await import('@/app/lib/logger');
+    logger.warn('prod warning');
+    logger.error('prod error');
+    expect(warnSpy).toHaveBeenCalledWith('[WARN]', 'prod warning');
+    expect(errorSpy).toHaveBeenCalledWith('[ERROR]', 'prod error');
+  });
+});

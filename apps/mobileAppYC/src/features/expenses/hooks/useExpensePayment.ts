@@ -15,8 +15,7 @@ import type {TabParamList} from '@/navigation/types';
 import type {Invoice, PaymentIntentInfo} from '@/features/appointments/types';
 
 // Extract appointmentId from invoice extensions
-const extractAppointmentId = (invoice: Invoice | null): string | null => {
-  if (!invoice) return null;
+const extractAppointmentId = (invoice: Invoice): string | null => {
   if (invoice.appointmentId) {
     return invoice.appointmentId;
   }
@@ -31,7 +30,7 @@ const extractAppointmentId = (invoice: Invoice | null): string | null => {
   }
   const accountRef = (invoice as any)?.account?.reference as string | undefined;
   if (accountRef?.includes('Appointment/')) {
-    return accountRef.split('/').pop() ?? null;
+    return accountRef.split('/').pop() as string;
   }
   return null;
 };
@@ -105,6 +104,10 @@ export const useExpensePayment = () => {
 
   const findTabNavigation =
     useCallback((): NavigationProp<TabParamList> | null => {
+      if (!(navigation as any)?.getParent) {
+        return null;
+      }
+
       let tabNavigation =
         navigation.getParent<NavigationProp<TabParamList>>() ??
         navigation.getParent()?.getParent<NavigationProp<TabParamList>>() ??
@@ -113,8 +116,8 @@ export const useExpensePayment = () => {
           ?.getParent()
           ?.getParent<NavigationProp<TabParamList>>();
 
-      if (tabNavigation || !(navigation as any)?.getParent) {
-        return tabNavigation ?? null;
+      if (tabNavigation) {
+        return tabNavigation;
       }
 
       let current: any = navigation;

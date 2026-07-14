@@ -25,7 +25,7 @@ import {
 } from '@testing-library/react-native';
 import {TaskCard} from '@/features/tasks/components/TaskCard/TaskCard';
 import type {TaskCardProps} from '@/features/tasks/components/TaskCard/TaskCard';
-import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {createCardStyles} from '@/shared/components/common/cardStyles';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
@@ -72,10 +72,9 @@ jest.mock('@/hooks', () => ({
   }),
 }));
 
-jest.mock(
-  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
-  () => ({formatDateForDisplay: jest.fn(() => 'Oct 29, 2025')}),
-);
+jest.mock('@/shared/components/common/SimpleDatePicker/dateTimeFormat', () => ({
+  formatDateForDisplay: jest.fn(() => 'Oct 29, 2025'),
+}));
 
 jest.mock('@/shared/components/common/cardStyles', () => ({
   createCardStyles: jest.fn(() => ({card: {}, fallback: {}})),

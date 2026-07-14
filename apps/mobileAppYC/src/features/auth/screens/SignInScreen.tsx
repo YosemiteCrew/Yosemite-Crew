@@ -1,16 +1,16 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect as useReactEffect, useState} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Image,
-  TouchableOpacity,
   Platform,
   KeyboardAvoidingView,
   Keyboard,
   useWindowDimensions,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SafeArea, Input} from '@/shared/components/common';
 import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -65,7 +65,7 @@ type SignInScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 const useKeyboardVisibility = () => {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
-  useEffect(() => {
+  useReactEffect(() => {
     const showEvent =
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent =
@@ -98,7 +98,7 @@ const useRouteParamsRestore = (
     ? Object.hasOwn(route.params, 'statusMessage')
     : false;
 
-  useEffect(() => {
+  useReactEffect(() => {
     const shouldSkipRestore =
       routeEmail == null && hasStatusMessageParam === false;
     if (shouldSkipRestore) {
@@ -461,9 +461,9 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 
               <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>Not a member? </Text>
-                <TouchableOpacity onPress={navigateToSignUp}>
+                <PressableOpacity onPress={navigateToSignUp}>
                   <Text style={styles.signUpLink}>Sign up</Text>
-                </TouchableOpacity>
+                </PressableOpacity>
               </View>
             </View>
           </View>

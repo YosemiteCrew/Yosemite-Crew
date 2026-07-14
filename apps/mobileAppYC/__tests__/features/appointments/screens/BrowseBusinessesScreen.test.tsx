@@ -13,10 +13,35 @@ import {
 import {useClinicMapDiscovery} from '@/features/appointments/hooks/useClinicMapDiscovery';
 import {usePlacesBusinessSearch} from '@/features/linkedBusinesses/hooks/usePlacesBusinessSearch';
 
+const mockLocationPermissionState = {
+  userLocation: null as null | {latitude: number; longitude: number},
+  userCoords: null as null | {lat: number; lng: number},
+  hasPermission: false,
+  isLoading: false,
+  handleMapUserLocationChange: jest.fn(),
+};
+
 // --- Mocks ---
 jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn(),
   useRoute: jest.fn(),
+}));
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) =>
+      ({
+        'mapDiscovery.filterAll': 'All',
+        'mapDiscovery.filterHospital': 'Hospital',
+        'mapDiscovery.filterGroomer': 'Groomer',
+        'mapDiscovery.filterBreeder': 'Breeder',
+        'mapDiscovery.filterBoarder': 'Boarder',
+        'mapDiscovery.emptyClinicsTitle':
+          'No veterinary businesses in this area',
+        'mapDiscovery.emptyClinicsSubtitle': 'Try another search or area.',
+        'mapDiscovery.title': 'Find care',
+      })[key] ?? key,
+  }),
 }));
 
 jest.mock('@/hooks', () => ({
@@ -128,6 +153,10 @@ jest.mock('@/features/appointments/hooks/useClinicMapDiscovery', () => ({
   useClinicMapDiscovery: jest.fn(),
 }));
 
+jest.mock('@/features/appointments/hooks/useLocationPermission', () => ({
+  useLocationPermission: () => mockLocationPermissionState,
+}));
+
 jest.mock('@/features/linkedBusinesses/hooks/usePlacesBusinessSearch', () => ({
   usePlacesBusinessSearch: jest.fn(),
 }));
@@ -205,6 +234,13 @@ describe('BrowseBusinessesScreen', () => {
     );
 
     (useRoute as jest.Mock).mockReturnValue({params: {}});
+    Object.assign(mockLocationPermissionState, {
+      userLocation: null,
+      userCoords: null,
+      hasPermission: false,
+      isLoading: false,
+      handleMapUserLocationChange: jest.fn(),
+    });
 
     jest.useFakeTimers();
   });
@@ -264,6 +300,9 @@ describe('BrowseBusinessesScreen', () => {
   });
 
   it('updates search query and performs search on submit', () => {
+    (usePlacesBusinessSearch as jest.Mock).mockReturnValue(
+      makePlacesSearchMock({searchQuery: 'vet'}),
+    );
     const {getByTestId} = render(<BrowseBusinessesScreen />);
 
     // Clear initial mount call
@@ -280,6 +319,9 @@ describe('BrowseBusinessesScreen', () => {
   });
 
   it('performs search on icon press', () => {
+    (usePlacesBusinessSearch as jest.Mock).mockReturnValue(
+      makePlacesSearchMock({searchQuery: 'vet'}),
+    );
     const {getByTestId} = render(<BrowseBusinessesScreen />);
 
     // Clear initial mount call
@@ -295,7 +337,97 @@ describe('BrowseBusinessesScreen', () => {
     );
   });
 
+  it('waits for granted location coordinates before searching', () => {
+    Object.assign(mockLocationPermissionState, {
+      hasPermission: true,
+      userCoords: null,
+      isLoading: false,
+    });
+
+    render(<BrowseBusinessesScreen />);
+
+    expect(fetchBusinesses).not.toHaveBeenCalled();
+    expect(dispatchMock).not.toHaveBeenCalledWith(expect.anything());
+  });
+
+  it('skips submitted searches while granted permission is still resolving coordinates', () => {
+    Object.assign(mockLocationPermissionState, {
+      hasPermission: true,
+      userCoords: null,
+      isLoading: false,
+    });
+    (usePlacesBusinessSearch as jest.Mock).mockReturnValue(
+      makePlacesSearchMock({searchQuery: 'vet'}),
+    );
+
+    const {getByTestId} = render(<BrowseBusinessesScreen />);
+    dispatchMock.mockClear();
+
+    fireEvent(getByTestId('searchBar'), 'submitEditing');
+
+    expect(dispatchMock).not.toHaveBeenCalled();
+  });
+
+  it('re-searches after permission changes once coordinates are available', async () => {
+    let now = 1000;
+    const dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    Object.assign(mockLocationPermissionState, {
+      hasPermission: false,
+      userCoords: null,
+      isLoading: false,
+    });
+
+    const rendered = render(<BrowseBusinessesScreen />);
+    dispatchMock.mockClear();
+
+    now = 2500;
+    Object.assign(mockLocationPermissionState, {
+      hasPermission: true,
+      userCoords: {lat: 37.7, lng: -122.4},
+    });
+    rendered.rerender(<BrowseBusinessesScreen />);
+
+    await waitFor(() => {
+      expect(dispatchMock).toHaveBeenCalledWith(
+        fetchBusinesses({lat: 37.7, lng: -122.4}),
+      );
+    });
+    dateNowSpy.mockRestore();
+  });
+
+  it('searches again after the first user location is resolved', async () => {
+    let now = 1000;
+    const dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    Object.assign(mockLocationPermissionState, {
+      userLocation: null,
+      userCoords: null,
+      hasPermission: false,
+      isLoading: false,
+    });
+
+    const rendered = render(<BrowseBusinessesScreen />);
+    dispatchMock.mockClear();
+
+    now = 2500;
+    Object.assign(mockLocationPermissionState, {
+      userLocation: {latitude: 37.7, longitude: -122.4},
+      userCoords: {lat: 37.7, lng: -122.4},
+      hasPermission: true,
+    });
+    rendered.rerender(<BrowseBusinessesScreen />);
+
+    await waitFor(() => {
+      expect(dispatchMock).toHaveBeenCalledWith(
+        fetchBusinesses({lat: 37.7, lng: -122.4}),
+      );
+    });
+    dateNowSpy.mockRestore();
+  });
+
   it('debounces search calls (skips duplicate within interval)', () => {
+    (usePlacesBusinessSearch as jest.Mock).mockReturnValue(
+      makePlacesSearchMock({searchQuery: 'vet'}),
+    );
     let now = 1000;
     const dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
 

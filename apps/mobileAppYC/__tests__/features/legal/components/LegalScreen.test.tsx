@@ -148,4 +148,58 @@ describe('LegalScreen', () => {
 
     expect(mockNavigation.goBack).toHaveBeenCalledTimes(1);
   });
+
+  // --- 4. Header height measurement ---
+
+  it('adds top padding to the scroll content once the header height is measured', () => {
+    const {UNSAFE_root, UNSAFE_getByType} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Height Test"
+        sections={mockSections}
+      />,
+    );
+    const {ScrollView} = require('react-native');
+
+    const {View} = require('react-native');
+    const topSectionView = UNSAFE_root.findAllByType(View).find(
+      (node: any) => node.props.style?.position === 'absolute',
+    );
+    fireEvent(topSectionView, 'layout', {
+      nativeEvent: {layout: {height: 90}},
+    });
+
+    const scrollView = UNSAFE_getByType(ScrollView);
+    expect(scrollView.props.contentContainerStyle).toEqual([
+      {padding: 16},
+      {paddingTop: 90 + mockTheme.spacing['3']},
+    ]);
+  });
+
+  it('does not re-measure when the layout height is unchanged', () => {
+    const {UNSAFE_root, UNSAFE_getByType} = render(
+      <LegalScreen
+        // @ts-ignore
+        navigation={mockNavigation}
+        route={{} as any}
+        title="Height Test"
+        sections={mockSections}
+      />,
+    );
+    const {ScrollView} = require('react-native');
+
+    const {View} = require('react-native');
+    const topSectionView = UNSAFE_root.findAllByType(View).find(
+      (node: any) => node.props.style?.position === 'absolute',
+    );
+    fireEvent(topSectionView, 'layout', {nativeEvent: {layout: {height: 0}}});
+
+    const scrollView = UNSAFE_getByType(ScrollView);
+    expect(scrollView.props.contentContainerStyle).toEqual([
+      {padding: 16},
+      null,
+    ]);
+  });
 });

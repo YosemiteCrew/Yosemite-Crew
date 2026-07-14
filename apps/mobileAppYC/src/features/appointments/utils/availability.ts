@@ -1,5 +1,12 @@
-import type {EmployeeAvailability, SlotWindow} from '@/features/appointments/types';
-import {addDays, formatDateToISODate, parseISODate} from '@/shared/utils/dateHelpers';
+import type {
+  EmployeeAvailability,
+  SlotWindow,
+} from '@/features/appointments/types';
+import {
+  addDays,
+  formatDateToISODate,
+  parseISODate,
+} from '@/shared/utils/dateHelpers';
 
 const sortIsoDates = (a: string, b: string) => a.localeCompare(b);
 const DEFAULT_MARKER_WINDOW_DAYS = 30;
@@ -86,8 +93,9 @@ export const getFirstAvailableDate = (
   }
 
   const dates = Object.entries(availability.slotsByDate)
-    .filter(([date, slots]) => date >= todayISO && slots.some(isSlotAvailable))
-    .map(([date]) => date)
+    .flatMap(([date, slots]) =>
+      date >= todayISO && slots.some(isSlotAvailable) ? [date] : [],
+    )
     .sort(sortIsoDates);
 
   if (dates.length > 0) {
@@ -112,10 +120,13 @@ export const getSlotsForDate = (
 
   const sameDaySlots = availability.slotsByDate?.[date];
   if (sameDaySlots?.length) {
-    return sameDaySlots
-      .filter(isSlotAvailable)
-      .map(slot => formatSlotLabel(slot, date))
-      .filter(label => Boolean(label?.trim?.()));
+    return sameDaySlots.flatMap(slot => {
+      if (!isSlotAvailable(slot)) {
+        return [];
+      }
+      const label = formatSlotLabel(slot, date);
+      return label?.trim?.() ? [label] : [];
+    });
   }
 
   return [];
@@ -168,8 +179,8 @@ export const findSlotByLabel = (
   return (
     slots.find(
       slot =>
-        formatSlotLabel(slot, date).replaceAll(/\s+/g, '').toLowerCase() === normalizedTarget,
-    ) ??
-    null
+        formatSlotLabel(slot, date).replaceAll(/\s+/g, '').toLowerCase() ===
+        normalizedTarget,
+    ) ?? null
   );
 };

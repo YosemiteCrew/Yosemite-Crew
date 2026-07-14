@@ -1,11 +1,6 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
+import {View, Text, StyleSheet, ScrollView} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 
 interface ErrorBoundaryProps {
@@ -47,9 +42,9 @@ const ErrorFallback: React.FC<{
           </View>
         )}
 
-        <TouchableOpacity style={styles.button} onPress={resetError}>
+        <PressableOpacity style={styles.button} onPress={resetError}>
           <Text style={styles.buttonText}>Try Again</Text>
-        </TouchableOpacity>
+        </PressableOpacity>
       </ScrollView>
     </View>
   );

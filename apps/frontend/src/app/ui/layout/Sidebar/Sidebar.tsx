@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -89,7 +89,7 @@ const Sidebar = () => {
   useLoadSpecialitiesForPrimaryOrg();
   const pathname = usePathname();
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(() => isSidebarCollapsedByDefault());
 
   const isDevPortal = pathname?.startsWith('/developers') || false;
   const routes = isDevPortal ? devRoutes : appRoutes;
@@ -105,10 +105,6 @@ const Sidebar = () => {
     primaryOrgId ? (s.membershipsByOrgId?.[primaryOrgId] ?? null) : null
   );
   const effectivePermissions = membership?.effectivePermissions ?? [];
-
-  useEffect(() => {
-    setIsCollapsed(isSidebarCollapsedByDefault());
-  }, []);
 
   const routeIcons = useMemo(() => ROUTE_ICONS, []);
 

@@ -1,5 +1,4 @@
 import React, {
-  forwardRef,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -11,61 +10,10 @@ import {
 } from '@/shared/components/common/GenericSelectBottomSheet/GenericSelectBottomSheet';
 import {resolveObservationalToolLabel} from '@/features/tasks/utils/taskLabels';
 import {
-  observationToolApi,
-  type ObservationToolDefinitionRemote,
-} from '@/features/observationalTools/services/observationToolService';
-
-let _tools: ObservationToolDefinitionRemote[] = [];
-let _toolsLoaded = false;
-let _toolsFetching = false;
-const _toolsListeners = new Set<() => void>();
-
-function _notifyTools() {
-  _toolsListeners.forEach(l => l());
-}
-
-function _startFetchTools() {
-  if (_toolsFetching) return;
-  _toolsFetching = true;
-  observationToolApi
-    .list({onlyActive: true})
-    .then(list => {
-      _tools = list;
-    })
-    .catch(error => {
-      console.warn(
-        '[ObservationalToolBottomSheet] Failed to fetch tools',
-        error,
-      );
-    })
-    .finally(() => {
-      _toolsLoaded = true;
-      _notifyTools();
-    });
-}
-
-function _subscribeTools(listener: () => void) {
-  _toolsListeners.add(listener);
-  _startFetchTools();
-  return () => {
-    _toolsListeners.delete(listener);
-  };
-}
-
-function _getToolsSnapshot(): ObservationToolDefinitionRemote[] {
-  return _tools;
-}
-
-function _getToolsLoadingSnapshot(): boolean {
-  return !_toolsLoaded;
-}
-
-export function _resetToolsStoreForTesting() {
-  _tools = [];
-  _toolsLoaded = false;
-  _toolsFetching = false;
-  _toolsListeners.clear();
-}
+  subscribeTools,
+  getToolsSnapshot,
+  getToolsLoadingSnapshot,
+} from './observationalToolsStore';
 
 export interface ObservationalToolBottomSheetRef {
   open: () => void;
@@ -79,37 +27,40 @@ interface ObservationalToolBottomSheetProps {
   onSheetChange?: (index: number) => void;
 }
 
-export const ObservationalToolBottomSheet = forwardRef<
-  ObservationalToolBottomSheetRef,
-  ObservationalToolBottomSheetProps
->(({selectedTool, onSelect, companionType, onSheetChange}, ref) => {
+const inferSpeciesFromName = (name?: string | null) => {
+  const normalized = (name ?? '').toLowerCase();
+  if (normalized.includes('feline') || normalized.includes('cat')) return 'cat';
+  if (normalized.includes('canine') || normalized.includes('dog')) return 'dog';
+  if (normalized.includes('equine') || normalized.includes('horse'))
+    return 'horse';
+  return null;
+};
+
+export const ObservationalToolBottomSheet = ({
+  selectedTool,
+  onSelect,
+  companionType,
+  onSheetChange,
+  ref,
+}: ObservationalToolBottomSheetProps & {
+  ref?: React.Ref<ObservationalToolBottomSheetRef>;
+}) => {
   const bottomSheetRef = useRef<any>(null);
   const tools = useSyncExternalStore(
-    _subscribeTools,
-    _getToolsSnapshot,
-    _getToolsSnapshot,
+    subscribeTools,
+    getToolsSnapshot,
+    getToolsSnapshot,
   );
   const loading = useSyncExternalStore(
-    _subscribeTools,
-    _getToolsLoadingSnapshot,
-    _getToolsLoadingSnapshot,
+    subscribeTools,
+    getToolsLoadingSnapshot,
+    getToolsLoadingSnapshot,
   );
 
   useImperativeHandle(ref, () => ({
     open: () => bottomSheetRef.current?.open(),
     close: () => bottomSheetRef.current?.close(),
   }));
-
-  const inferSpeciesFromName = (name?: string | null) => {
-    const normalized = (name ?? '').toLowerCase();
-    if (normalized.includes('feline') || normalized.includes('cat'))
-      return 'cat';
-    if (normalized.includes('canine') || normalized.includes('dog'))
-      return 'dog';
-    if (normalized.includes('equine') || normalized.includes('horse'))
-      return 'horse';
-    return null;
-  };
 
   const availableTools = useMemo(() => {
     return tools.filter(tool => {
@@ -160,6 +111,6 @@ export const ObservationalToolBottomSheet = forwardRef<
       onSheetChange={onSheetChange}
     />
   );
-});
+};
 
 export default ObservationalToolBottomSheet;

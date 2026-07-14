@@ -357,6 +357,73 @@ describe('formsSlice', () => {
       expect(store.getState().forms.error).toContain('session expired');
     });
 
+    it('checks expiry with undefined when token expiry is missing', async () => {
+      (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+        accessToken: mockAccessToken,
+        userId: mockUserId,
+      });
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [],
+      });
+
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+
+      expect(isTokenExpired).toHaveBeenCalledWith(undefined);
+    });
+
+    it('uses schema signature checks when form category is missing', async () => {
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [{form: mockForm({category: undefined}), submission: null}],
+      });
+
+      await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+
+      expect(Utils.hasSignatureField).toHaveBeenCalled();
+    });
+
+    it('rejects fetch with the generic message for non-error failures', async () => {
+      (getFreshStoredTokens as jest.Mock).mockRejectedValue('nope');
+
+      const action = await store.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+
+      expect(action.type).toBe(fetchAppointmentForms.rejected.type);
+      expect(store.getState().forms.error).toBe('Unable to load forms');
+    });
+
+    it('handles a missing forms cache in existing state', async () => {
+      const partialStore = configureStore({
+        reducer: {
+          forms: formsReducer,
+          auth: (state = {user: {id: mockUserId}}) => state,
+        },
+        preloadedState: {
+          forms: {
+            byAppointmentId: {},
+            loadingByAppointment: {},
+            submittingByForm: {},
+            signingBySubmission: {},
+            error: null,
+          },
+          auth: {user: {id: mockUserId}},
+        } as any,
+      });
+      (formApi.fetchFormsForAppointment as jest.Mock).mockResolvedValue({
+        items: [],
+      });
+
+      const action = await partialStore.dispatch(
+        fetchAppointmentForms({appointmentId: mockAppointmentId}),
+      );
+
+      expect(action.type).toBe(fetchAppointmentForms.fulfilled.type);
+    });
+
     it('merges pending entries by form/source and preserves existing submission/signingUrl/formVersion values when incoming omits them', async () => {
       (formApi.fetchFormsForAppointment as jest.Mock)
         .mockResolvedValueOnce({
@@ -540,6 +607,32 @@ describe('formsSlice', () => {
       );
     });
 
+    it('falls back to auth user id for submittedBy when token userId is missing', async () => {
+      (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+        accessToken: mockAccessToken,
+        expiresAt: Date.now() + 60_000,
+      });
+      (formApi.submitForm as jest.Mock).mockResolvedValue(
+        mockSubmission({_id: 'saved-sub'}),
+      );
+
+      await store.dispatch(
+        submitAppointmentForm({
+          appointmentId: mockAppointmentId,
+          form: mockForm({_id: 'f1'}) as any,
+          answers: {},
+        }),
+      );
+
+      expect(formApi.submitForm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          submission: expect.objectContaining({
+            submittedBy: mockUserId,
+          }),
+        }),
+      );
+    });
+
     it('rejects and stores an error when submitForm fails', async () => {
       (formApi.submitForm as jest.Mock).mockRejectedValue(
         new Error('Network Error'),
@@ -556,6 +649,21 @@ describe('formsSlice', () => {
       expect(action.type).toBe(submitAppointmentForm.rejected.type);
       expect(store.getState().forms.submittingByForm.f1).toBe(false);
       expect(store.getState().forms.error).toBe('Network Error');
+    });
+
+    it('rejects submit with the generic message for non-error failures', async () => {
+      (formApi.submitForm as jest.Mock).mockRejectedValue('bad submit');
+
+      const action = await store.dispatch(
+        submitAppointmentForm({
+          appointmentId: mockAppointmentId,
+          form: mockForm({_id: 'f1'}) as any,
+          answers: {},
+        }),
+      );
+
+      expect(action.type).toBe(submitAppointmentForm.rejected.type);
+      expect(store.getState().forms.error).toBe('Unable to submit form');
     });
 
     it('rejects on auth failure during submit', async () => {
@@ -715,6 +823,20 @@ describe('formsSlice', () => {
       expect(store.getState().forms.error).toBe('Sign Fail');
     });
 
+    it('rejects signing with the generic message for non-error failures', async () => {
+      (formApi.startSigning as jest.Mock).mockRejectedValue('bad signing');
+
+      const action = await store.dispatch(
+        startFormSigning({
+          appointmentId: mockAppointmentId,
+          submissionId: 'sub-1',
+        }),
+      );
+
+      expect(action.type).toBe(startFormSigning.rejected.type);
+      expect(store.getState().forms.error).toBe('Unable to start signing');
+    });
+
     it('rejects on auth failure during signing', async () => {
       (getFreshStoredTokens as jest.Mock).mockResolvedValue({
         accessToken: null,
@@ -729,6 +851,113 @@ describe('formsSlice', () => {
 
       expect(action.type).toBe(startFormSigning.rejected.type);
       expect(store.getState().forms.error).toContain('Missing access token');
+    });
+  });
+
+  describe('extra reducer fallback branches', () => {
+    it('uses action error fallback messages for rejected actions without payloads', () => {
+      const fetchRejectedState = formsReducer(undefined, {
+        type: fetchAppointmentForms.rejected.type,
+        meta: {arg: {appointmentId: 'appt-x'}},
+        error: {message: 'fetch error fallback'},
+      } as any);
+      expect(fetchRejectedState.error).toBe('fetch error fallback');
+
+      const submitRejectedState = formsReducer(undefined, {
+        type: submitAppointmentForm.rejected.type,
+        meta: {arg: {form: {_id: 'form-x'}}},
+        error: {message: 'submit error fallback'},
+      } as any);
+      expect(submitRejectedState.error).toBe('submit error fallback');
+
+      const signingRejectedState = formsReducer(undefined, {
+        type: startFormSigning.rejected.type,
+        meta: {arg: {submissionId: 'sub-x'}},
+        error: {message: 'signing error fallback'},
+      } as any);
+      expect(signingRejectedState.error).toBe('signing error fallback');
+    });
+
+    it('uses null rejected error fallback and handles missing appointment entries during signing fulfillment', () => {
+      const fetchRejectedState = formsReducer(undefined, {
+        type: fetchAppointmentForms.rejected.type,
+        meta: {arg: {appointmentId: 'appt-x'}},
+        error: {},
+      } as any);
+      expect(fetchRejectedState.error).toBeNull();
+
+      const submitRejectedState = formsReducer(undefined, {
+        type: submitAppointmentForm.rejected.type,
+        meta: {arg: {form: {_id: 'form-x'}}},
+        error: {},
+      } as any);
+      expect(submitRejectedState.error).toBeNull();
+
+      const signingRejectedState = formsReducer(undefined, {
+        type: startFormSigning.rejected.type,
+        meta: {arg: {submissionId: 'sub-x'}},
+        error: {},
+      } as any);
+      expect(signingRejectedState.error).toBeNull();
+
+      const signingState = formsReducer(undefined, {
+        type: startFormSigning.fulfilled.type,
+        payload: {
+          appointmentId: 'missing-appt',
+          submissionId: 'sub-x',
+          signingUrl: null,
+          documentId: undefined,
+        },
+      } as any);
+      expect(signingState.byAppointmentId['missing-appt']).toEqual([]);
+    });
+
+    it('preserves current merge values when an incoming duplicate omits them', () => {
+      const initial = formsReducer(undefined, {
+        type: fetchAppointmentForms.fulfilled.type,
+        payload: {
+          appointmentId: 'appt-merge',
+          forms: [
+            {
+              form: mockForm({_id: 'f-merge'}),
+              submission: null,
+              signingUrl: 'https://existing',
+              signingRequired: true,
+              status: 'submitted',
+              source: 'appointment',
+              formVersion: 4,
+            },
+          ],
+          cache: {},
+        },
+      } as any);
+
+      const merged = formsReducer(initial, {
+        type: fetchAppointmentForms.fulfilled.type,
+        payload: {
+          appointmentId: 'appt-merge',
+          forms: [
+            {
+              form: mockForm({_id: 'f-merge', name: 'Updated'}),
+              submission: null,
+              signingUrl: null,
+              signingRequired: undefined,
+              status: 'pending',
+              source: 'appointment',
+              formVersion: undefined,
+            },
+          ],
+          cache: {},
+        },
+      } as any);
+
+      expect(merged.byAppointmentId['appt-merge'][0]).toEqual(
+        expect.objectContaining({
+          signingUrl: 'https://existing',
+          signingRequired: true,
+          formVersion: 4,
+        }),
+      );
     });
   });
 });

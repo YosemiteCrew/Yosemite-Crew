@@ -36,13 +36,6 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
     };
   }, [preview]);
 
-  useEffect(() => {
-    if (preview && !isSafePreviewUrl(preview)) {
-      setPreview(null);
-      setError('Invalid preview source');
-    }
-  }, [preview]);
-
   const getSignedUrl = async (file: File): Promise<GetSignedUrlResponse> => {
     const res = await postData<GetSignedUrlResponse>(apiUrl, {
       mimeType: file?.type,
@@ -61,6 +54,10 @@ const LogoUploader = ({ title, apiUrl, setImageUrl }: LogoUploaderProps) => {
       return;
     }
     const localUrl = URL.createObjectURL(file);
+    if (!isSafePreviewUrl(localUrl)) {
+      setError('Invalid preview source');
+      return;
+    }
     if (preview) URL.revokeObjectURL(preview);
     setPreview(localUrl);
     try {

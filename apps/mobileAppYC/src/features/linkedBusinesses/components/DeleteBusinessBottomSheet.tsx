@@ -1,5 +1,8 @@
-import React, {forwardRef, useImperativeHandle, useRef} from 'react';
-import {ConfirmActionBottomSheet, ConfirmActionBottomSheetRef} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
+import React, {useImperativeHandle, useRef} from 'react';
+import {
+  ConfirmActionBottomSheet,
+  ConfirmActionBottomSheetRef,
+} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 
 export interface DeleteBusinessBottomSheetRef {
   open: (businessName: string) => void;
@@ -13,10 +16,15 @@ interface DeleteBusinessBottomSheetProps {
   loading?: boolean;
 }
 
-export const DeleteBusinessBottomSheet = forwardRef<
-  DeleteBusinessBottomSheetRef,
-  DeleteBusinessBottomSheetProps
->(({onDelete, onCancel, onSheetChange, loading = false}, ref) => {
+export const DeleteBusinessBottomSheet = ({
+  onDelete,
+  onCancel,
+  onSheetChange,
+  loading = false,
+  ref,
+}: DeleteBusinessBottomSheetProps & {
+  ref?: React.Ref<DeleteBusinessBottomSheetRef>;
+}) => {
   const bottomSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
   const [businessName, setBusinessName] = React.useState<string>('');
 
@@ -59,7 +67,7 @@ export const DeleteBusinessBottomSheet = forwardRef<
       snapPoints={['40%']}
     />
   );
-});
+};
 
 DeleteBusinessBottomSheet.displayName = 'DeleteBusinessBottomSheet';
 

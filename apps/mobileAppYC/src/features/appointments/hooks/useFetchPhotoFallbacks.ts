@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect as useReactEffect} from 'react';
 import {isDummyPhoto} from '@/features/appointments/utils/photoUtils';
 
 /**
@@ -10,12 +10,17 @@ export const useFetchPhotoFallbacks = (
   businessMap: Map<string, any>,
   requestBusinessPhoto: (googlePlacesId: string, businessId: string) => void,
 ) => {
-  useEffect(() => {
+  useReactEffect(() => {
     appointments.forEach(apt => {
       const biz = businessMap.get(apt.businessId);
-      const googlePlacesId = biz?.googlePlacesId ?? apt.businessGooglePlacesId ?? null;
-      const photoCandidate = (biz?.photo ?? apt.businessPhoto) as string | null | undefined;
-      const needsPhoto = (!photoCandidate || isDummyPhoto(photoCandidate)) && googlePlacesId;
+      const googlePlacesId =
+        biz?.googlePlacesId ?? apt.businessGooglePlacesId ?? null;
+      const photoCandidate = (biz?.photo ?? apt.businessPhoto) as
+        | string
+        | null
+        | undefined;
+      const needsPhoto =
+        (!photoCandidate || isDummyPhoto(photoCandidate)) && googlePlacesId;
       if (needsPhoto && googlePlacesId) {
         requestBusinessPhoto(googlePlacesId, apt.businessId);
       }

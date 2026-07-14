@@ -50,6 +50,7 @@ describe('appointmentsService', () => {
   const mockToken = 'mock-access-token';
 
   beforeEach(() => {
+    jest.dontMock('@yosemite-crew/types');
     jest.resetModules(); // CRITICAL: Resets module state to re-evaluate top-level code
     jest.clearAllMocks();
     mockOS = 'ios';
@@ -196,6 +197,51 @@ describe('appointmentsService', () => {
         const {mapAppointmentFromResponse} = getModule();
         const result = mapAppointmentFromResponse({start: 'invalid-date'});
         expect(result.date).toBe('');
+      });
+
+      it('ignores non-array appointment extensions', () => {
+        const {mapAppointmentFromResponse} = getModule();
+        const result = mapAppointmentFromResponse({
+          id: 'apt-non-array-ext',
+          extension: {url: 'not-an-array'},
+        });
+
+        expect(result.id).toBe('apt-non-array-ext');
+        expect(result.appointmentCheckInBufferMinutes).toBeUndefined();
+      });
+
+      it('falls back to converted attachments when FHIR attachment extensions are absent', () => {
+        jest.isolateModules(() => {
+          jest.doMock('@yosemite-crew/types', () => ({
+            ...jest.requireActual('@yosemite-crew/types'),
+            fromFHIRAppointment: jest.fn(() => ({
+              attachments: [
+                {
+                  key: 'converted-file.pdf',
+                  name: 'Converted File',
+                  contentType: 'application/pdf',
+                },
+              ],
+            })),
+          }));
+
+          const {
+            mapAppointmentFromResponse,
+          } = require('@/features/appointments/services/appointmentsService');
+          const result = mapAppointmentFromResponse({
+            id: 'apt-converted-attachment',
+          });
+
+          expect(result.uploadedFiles).toEqual([
+            {
+              id: 'converted-file.pdf',
+              name: 'Converted File',
+              key: 'converted-file.pdf',
+              url: 'https://cdn.com/converted-file.pdf',
+              type: 'application/pdf',
+            },
+          ]);
+        });
       });
 
       it('should map lead avatar from non-FHIR lead object fields', () => {
@@ -402,6 +448,64 @@ describe('appointmentsService', () => {
         const {invoice, paymentIntent} = mapInvoiceFromResponse(null);
         expect(invoice).toBeNull();
         expect(paymentIntent).toBeNull();
+      });
+
+      it('falls back to raw invoice mapping when the FHIR converter throws', () => {
+        jest.isolateModules(() => {
+          jest.doMock('@yosemite-crew/types', () => ({
+            ...jest.requireActual('@yosemite-crew/types'),
+            fromFHIRInvoice: jest.fn(() => {
+              throw new Error('converter failed');
+            }),
+          }));
+
+          const {
+            mapInvoiceFromResponse,
+          } = require('@/features/appointments/services/appointmentsService');
+          const {invoice} = mapInvoiceFromResponse({
+            resourceType: 'Invoice',
+            id: 'raw-after-converter-error',
+            items: [{description: 'Fallback item', rate: 10, qty: 2}],
+          });
+
+          expect(invoice?.id).toBe('raw-after-converter-error');
+          expect(invoice?.items[0].lineTotal).toBe(20);
+        });
+      });
+
+      it('normalizes converted FHIR invoice items when the converter succeeds', () => {
+        jest.isolateModules(() => {
+          jest.doMock('@yosemite-crew/types', () => ({
+            ...jest.requireActual('@yosemite-crew/types'),
+            fromFHIRInvoice: jest.fn(() => ({
+              id: 'converted-invoice',
+              items: [
+                {
+                  name: 'Converted line',
+                  unitPrice: 12,
+                  quantity: 3,
+                },
+              ],
+            })),
+          }));
+
+          const {
+            mapInvoiceFromResponse,
+          } = require('@/features/appointments/services/appointmentsService');
+          const {invoice} = mapInvoiceFromResponse({
+            resourceType: 'Invoice',
+            id: 'converted-invoice',
+          });
+
+          expect(invoice?.items).toEqual([
+            {
+              description: 'Converted line',
+              rate: 12,
+              qty: 3,
+              lineTotal: 36,
+            },
+          ]);
+        });
       });
 
       it('should map invoice and handle missing item totals', () => {
@@ -720,6 +824,90 @@ describe('appointmentsService', () => {
         expect(
           mapBusinessFromResponse({org: {type: 'UNKNOWN'}}).business.category,
         ).toBe('hospital');
+      });
+
+      it('leaves photo undefined when neither top-level fields nor the image extension resolve', () => {
+        const {mapBusinessFromResponse} = getModule();
+        const raw = {
+          org: {
+            id: 'biz-nophoto',
+            extension: [{url: 'https://example.org/other-extension'}],
+          },
+        };
+        const {business} = mapBusinessFromResponse(raw);
+        expect(business.photo).toBeUndefined();
+      });
+
+      it('maps PACKAGE-kind services into packages with a breakdown of items', () => {
+        const {mapBusinessFromResponse} = getModule();
+        const raw = {
+          org: {id: 'biz-pkg', name: 'Vet Clinic'},
+          specialitiesWithServices: [
+            {
+              name: 'Wellness',
+              services: [
+                {
+                  id: 'pkg-1',
+                  name: 'Puppy Package',
+                  kind: 'package',
+                  currency: 'USD',
+                  cost: 120,
+                  packageItems: [
+                    {
+                      id: 'item-1',
+                      childProductName: 'Vaccine',
+                      finalAmount: 50,
+                    },
+                    {
+                      childProductItemId: 'item-2',
+                      name: 'Deworming',
+                      grossAmount: 30,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        };
+
+        const {packages, services} = mapBusinessFromResponse(raw);
+
+        expect(services).toHaveLength(0);
+        expect(packages).toHaveLength(1);
+        expect(packages[0]).toEqual(
+          expect.objectContaining({
+            id: 'pkg-1',
+            businessId: 'biz-pkg',
+            name: 'Puppy Package',
+            totalPrice: 120,
+          }),
+        );
+      });
+
+      it('falls back to summing package item prices when the package has no top-level cost', () => {
+        const {mapBusinessFromResponse} = getModule();
+        const raw = {
+          org: {id: 'biz-pkg2'},
+          specialitiesWithServices: [
+            {
+              name: 'Wellness',
+              services: [
+                {
+                  id: 'pkg-2',
+                  name: 'Senior Package',
+                  kind: 'PACKAGE',
+                  packageItems: [
+                    {name: 'Bloodwork', overridePrice: 40},
+                    {name: 'Checkup', finalAmount: 60},
+                  ],
+                },
+              ],
+            },
+          ],
+        };
+
+        const {packages} = mapBusinessFromResponse(raw);
+        expect(packages[0].totalPrice).toBe(100);
       });
     });
   });
@@ -1135,6 +1323,43 @@ describe('appointmentsService', () => {
         accessToken: mockToken,
       });
       expect(result.paymentIntentId).toBe('pi-a1');
+    });
+
+    it('createPaymentIntent throws when no invoice id can be resolved', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+      client.post.mockResolvedValueOnce({data: {}});
+
+      await expect(
+        appointmentApi.createPaymentIntent({
+          appointmentId: 'a1',
+          accessToken: mockToken,
+        }),
+      ).rejects.toThrow('Unable to resolve invoice for appointment');
+    });
+
+    it('createPaymentIntent fetches the clientSecret via the mobile payment-intent route when missing from the session response', async () => {
+      const {appointmentApi} = getModule();
+      const client = getApiClient();
+      client.post
+        .mockResolvedValueOnce({data: {data: {id: 'inv-a1'}}})
+        .mockResolvedValueOnce({
+          data: {data: {providerPaymentIntentId: 'pi-lazy'}},
+        });
+      client.get.mockResolvedValueOnce({
+        data: {data: {clientSecret: 'secret-from-intent-route'}},
+      });
+
+      const result = await appointmentApi.createPaymentIntent({
+        appointmentId: 'a1',
+        accessToken: mockToken,
+      });
+
+      expect(client.get).toHaveBeenCalledWith(
+        expect.stringContaining('/v1/finance/mobile/payment-intent/pi-lazy'),
+        expect.anything(),
+      );
+      expect(result.clientSecret).toBe('secret-from-intent-route');
     });
 
     it('cancelAppointment calls PATCH', async () => {

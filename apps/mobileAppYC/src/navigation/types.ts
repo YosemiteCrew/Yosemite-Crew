@@ -1,12 +1,24 @@
 // src/navigation/types.ts - Updated navigation types
-import {NavigatorScreenParams} from '@react-navigation/native';
+import {
+  NavigatorScreenParams,
+  type ParamListBase,
+} from '@react-navigation/native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {BottomTabScreenProps} from '@react-navigation/bottom-tabs';
 import type {AuthStackParamList} from './AuthNavigator';
 import type {TaskCategory} from '@/features/tasks/types';
 import type {ObservationalToolBookingContext} from '@/features/observationalTools/types';
 import type {OrganisationDocumentCategory} from '@/features/legal/services/organisationDocumentService';
 import type {MerckEntry, MerckLanguage} from '@/features/merck/types';
+
+type BottomTabScreenProps<
+  ParamList extends ParamListBase,
+  RouteName extends keyof ParamList = keyof ParamList,
+  NavigatorID extends string | undefined = undefined,
+> = import('@react-navigation/bottom-tabs').BottomTabScreenProps<
+  ParamList,
+  RouteName,
+  NavigatorID
+>;
 
 // Root Stack Navigator - Add Onboarding
 export type RootStackParamList = {

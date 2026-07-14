@@ -9,7 +9,29 @@ const runAxe = (page: Page) =>
     .disableRules(['color-contrast'])
     .analyze();
 
+// Public pages pull logos/data from third-party hosts (GitHub API, CloudFront,
+// laika.aitemsolutions.com, unsplash, wikimedia). When any of those is slow or
+// unreachable from CI the request stays in flight and `networkidle` never settles,
+// timing out the axe run. These accessibility checks only care about the app's own
+// markup, so abort every cross-origin request and let the page reach idle reliably.
+const blockCrossOriginRequests = async (page: Page) => {
+  await page.route('**/*', (route) => {
+    const requestUrl = route.request().url();
+    const isSameOrigin =
+      requestUrl.startsWith('http://127.0.0.1:3001') ||
+      requestUrl.startsWith('http://localhost:3001') ||
+      requestUrl.startsWith('data:') ||
+      requestUrl.startsWith('blob:');
+    if (isSameOrigin) return route.continue();
+    return route.abort();
+  });
+};
+
 test.describe('Public pages — accessibility (WCAG 2.1 AA)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockCrossOriginRequests(page);
+  });
+
   test('home / marketing page has no axe violations', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('networkidle').catch(() => {});
