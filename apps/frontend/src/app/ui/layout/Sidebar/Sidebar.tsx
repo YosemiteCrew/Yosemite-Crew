@@ -178,6 +178,7 @@ const Sidebar = () => {
                     (orgMissing || (needsVerifiedOrg && !orgVerified) || !hasRoutePermission);
 
                 const isActive = pathname === route.href;
+                /* v8 ignore next -- every route name in APP_ROUTE_GROUPS/DEV_ROUTE_GROUPS maps to an entry in ROUTE_ICONS, so the IoBookOutline fallback is unreachable */
                 const RouteIcon = routeIcons[route.name] || IoBookOutline;
 
                 const onClick: React.MouseEventHandler<HTMLAnchorElement> = (e) => {

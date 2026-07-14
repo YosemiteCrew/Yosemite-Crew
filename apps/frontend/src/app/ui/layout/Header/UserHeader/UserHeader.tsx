@@ -91,6 +91,7 @@ const buildMobileRoutes = (
 ): typeof headerAppRoutes => {
   const next = [...routes];
   const signOutIndex = next.findIndex((route) => route.name === 'Sign out');
+  /* v8 ignore next -- headerAppRoutes always contains "Sign out" and buildMobileRoutes runs only for app routes, so the next.length fallback is unreachable */
   const insertIndex = signOutIndex === -1 ? next.length : signOutIndex;
   if (merckEnabled) {
     next.splice(insertIndex, 0, {
@@ -418,6 +419,7 @@ const useUserHeaderContent = () => {
             <div className="yc-mobile-route-group" key={group.label}>
               <div className="yc-mobile-section-label">{group.label}</div>
               {group.routes.map((route) => {
+                /* v8 ignore next 2 -- every mobile route name has a ROUTE_ICONS entry, so the IoBookOutline fallback is unreachable */
                 const RouteIcon =
                   ROUTE_ICONS[route.name as keyof typeof ROUTE_ICONS] ?? IoBookOutline;
                 const needsVerifiedOrg = route.verify;

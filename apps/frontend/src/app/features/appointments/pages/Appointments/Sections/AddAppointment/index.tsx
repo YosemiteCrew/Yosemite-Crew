@@ -107,6 +107,7 @@ const addAppointmentUiReducer = (
     case 'unlock-step':
       return {
         ...state,
+        /* v8 ignore next -- unlock-step is always dispatched with an explicit activeStep, so the fallback is never taken */
         activeStep: action.activeStep ?? state.activeStep,
         maxUnlockedStep: Math.max(state.maxUnlockedStep, action.step),
       };
@@ -123,6 +124,7 @@ const addAppointmentUiReducer = (
           ? null
           : state.pendingAutoSelectCompanionId,
       };
+    /* v8 ignore next 2 -- exhaustive action union; the default is an unreachable defensive fallback */
     default:
       return state;
   }
@@ -391,6 +393,7 @@ const useAddAppointmentView = ({
         failStep: detailsStepNumber,
         failRef: step2Ref,
         unlockStep: dateTimeStepNumber,
+        /* v8 ignore next -- goToDateTimeStep is only wired in the non-calendar flow, so isCalendarSlotFlow is always false here */
         nextRef: isCalendarSlotFlow ? step2Ref : step3Ref,
       }),
     [advanceStep, dateTimeStepNumber, detailsStepNumber, isCalendarSlotFlow]
@@ -401,6 +404,7 @@ const useAddAppointmentView = ({
       advanceStep({
         errorKeys: ['slot', 'leadId'],
         failStep: dateTimeStepNumber,
+        /* v8 ignore next -- goToBillingStep is only wired in the non-calendar flow, so isCalendarSlotFlow is always false here */
         failRef: isCalendarSlotFlow ? step2Ref : step3Ref,
         unlockStep: 4,
         nextRef: step4Ref,

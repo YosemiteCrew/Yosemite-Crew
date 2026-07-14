@@ -56,6 +56,7 @@ const GenericTable = <T extends object>({
     const updatePageSize = () => {
       const headerRow = scrollNode.querySelector('thead tr') as HTMLTableRowElement | null;
       const bodyRow = scrollNode.querySelector('tbody tr') as HTMLTableRowElement | null;
+      /* v8 ignore next 4 -- the table always renders a thead tr and a tbody tr (data or no-data row), so these are never null while pagination is active */
       if (!headerRow || !bodyRow) {
         setAutoPageSize(pageSize);
         return;

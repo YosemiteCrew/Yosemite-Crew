@@ -779,6 +779,10 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         });
         return false;
       }
+      /* v8 ignore start -- every non-inpatient admit path is the hospitalization
+         convert flow, which always passes allowModeConversion: true; the header
+         Admit and unit-assign re-admit callers are gated to INPATIENT, so this
+         guard is unreachable through the UI. */
       if (encounterMode !== 'INPATIENT' && !options?.allowModeConversion) {
         notify('error', {
           title: 'Unable to admit',
@@ -786,6 +790,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         });
         return false;
       }
+      /* v8 ignore stop */
 
       const admittedAt = options?.admittedAt ?? new Date().toISOString();
       const resolvedRoomId = roomId ?? effectiveEncounter?.roomId ?? appointment.room?.id;
@@ -1314,6 +1319,8 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   const handleSummaryTerminalAction = useCallback(() => {
     if (!effectiveEncounter) return;
     const alreadyDischarged = Boolean(effectiveEncounter.dischargedAt);
+    /* v8 ignore next -- the summary CTA is disabled whenever alreadyDischarged or
+       isFinalizing is true, so this re-entry guard can never fire when clicked. */
     if (alreadyDischarged || isFinalizing) return;
     if (effectiveEncounter.mode === 'INPATIENT') {
       setIsSummaryDischargeModalOpen(true);

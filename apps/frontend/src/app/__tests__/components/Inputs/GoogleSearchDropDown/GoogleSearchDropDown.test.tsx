@@ -594,4 +594,471 @@ describe('GoogleSearchDropDown Component', () => {
     });
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  // --- 5. Prediction text derivation edge cases ---
+
+  const openWithSuggestions = async (suggestions: unknown[], query = 'Query') => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ suggestions }),
+    });
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+      />
+    );
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: query } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+  };
+
+  it('renders "Unknown location" with no secondary text for an empty suggestion', async () => {
+    // A suggestion object that is neither a placePrediction nor a queryPrediction
+    // maps to { kind: 'query', description: '' } → primary falls back to the placeholder.
+    await openWithSuggestions([{}]);
+    expect(await screen.findByText('Unknown location')).toBeInTheDocument();
+  });
+
+  it('derives secondary text from mainText/secondaryText and description variants', async () => {
+    await openWithSuggestions([
+      // secondaryText equals primary → secondary suppressed
+      {
+        placePrediction: {
+          placeId: 'p_alpha',
+          structuredFormat: { mainText: { text: 'Alpha' }, secondaryText: { text: 'Alpha' } },
+        },
+      },
+      // no secondaryText, description starts with primary → tail after primary is used
+      {
+        placePrediction: {
+          placeId: 'p_beta',
+          text: { text: 'Beta, State, Country' },
+          structuredFormat: { mainText: { text: 'Beta' } },
+        },
+      },
+      // no secondaryText, description does not start with primary → whole description used
+      {
+        placePrediction: {
+          placeId: 'p_gamma',
+          text: { text: 'Delta Region' },
+          structuredFormat: { mainText: { text: 'Gamma' } },
+        },
+      },
+      // no secondaryText, description equals primary → secondary suppressed
+      {
+        placePrediction: {
+          placeId: 'p_echo',
+          text: { text: 'Echo' },
+          structuredFormat: { mainText: { text: 'Echo' } },
+        },
+      },
+      // queryPrediction with only structuredFormat.mainText (no text.text)
+      {
+        queryPrediction: {
+          structuredFormat: { mainText: { text: 'QueryOnly' } },
+        },
+      },
+    ]);
+
+    expect(await screen.findByText('Alpha')).toBeInTheDocument();
+    expect(screen.getByText('Beta')).toBeInTheDocument();
+    expect(screen.getByText('State, Country')).toBeInTheDocument();
+    expect(screen.getByText('Gamma')).toBeInTheDocument();
+    expect(screen.getByText('Delta Region')).toBeInTheDocument();
+    expect(screen.getByText('Echo')).toBeInTheDocument();
+    expect(screen.getByText('QueryOnly')).toBeInTheDocument();
+    // 'Alpha' and 'Echo' rows have their secondary line suppressed → only one text node each
+    expect(screen.getAllByText('Alpha')).toHaveLength(1);
+    expect(screen.getAllByText('Echo')).toHaveLength(1);
+  });
+
+  it('handles an autocomplete response with no suggestions array', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({}),
+    });
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+      />
+    );
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Nothing' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('sends an empty API key header when the env var is absent', async () => {
+    const savedKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    delete process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ suggestions: [] }),
+    });
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+      />
+    );
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'NoKey' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://places.googleapis.com/v1/places:autocomplete',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'X-Goog-Api-Key': '' }),
+      })
+    );
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = savedKey;
+  });
+
+  // --- 6. Selection / autofill edge cases ---
+
+  const selectFirstSuggestion = async (
+    autocomplete: unknown,
+    props: Partial<React.ComponentProps<typeof GoogleSearchDropDown>> = {},
+    detailsResponse?: { ok: boolean; json?: () => Promise<unknown> } | 'reject'
+  ) => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => autocomplete,
+    });
+    if (detailsResponse === 'reject') {
+      mockFetch.mockRejectedValueOnce(new Error('network'));
+    } else if (detailsResponse) {
+      mockFetch.mockResolvedValueOnce(detailsResponse);
+    }
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+        setFormData={mockSetFormData}
+        {...props}
+      />
+    );
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Pick' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const button = await screen.findByRole('button');
+    await act(async () => {
+      fireEvent.mouseDown(button);
+    });
+  };
+
+  it('autofills organisation mode with fallbacks (no phone, no location, city/state fallbacks, startsWith cut)', async () => {
+    await selectFirstSuggestion(
+      {
+        suggestions: [
+          {
+            placePrediction: {
+              placeId: 'p_thane',
+              structuredFormat: {
+                mainText: { text: 'Thane Store' },
+                secondaryText: { text: 'Thane West, Maharashtra, India' },
+              },
+            },
+          },
+        ],
+      },
+      {},
+      {
+        ok: true,
+        json: async () => ({
+          id: 'p_thane',
+          displayName: { text: 'Thane Store' },
+          // no nationalPhoneNumber → normalizeGooglePhoneNumber('') path
+          // no location → latitude/longitude null → undefined
+          addressComponents: [
+            { types: ['country'], shortText: 'US', longText: 'United States' },
+            // no locality → falls through to postal_town
+            { types: ['postal_town'], longText: 'Thane' },
+            // admin_area_level_1 has only shortText → state falls back to shortText
+            { types: ['administrative_area_level_1'], shortText: 'MH' },
+          ],
+        }),
+      }
+    );
+
+    expect(mockSetFormData).toHaveBeenCalled();
+    const newState = mockSetFormData.mock.calls[0][0]({});
+    expect(newState).toEqual(
+      expect.objectContaining({
+        name: 'Thane Store',
+        phoneNo: '',
+        googlePlacesId: 'p_thane',
+        address: expect.objectContaining({
+          addressLine: 'Thane Store',
+          city: 'Thane',
+          state: 'MH',
+          country: 'United States',
+          latitude: undefined,
+          longitude: undefined,
+        }),
+      })
+    );
+  });
+
+  it('calls onAddressSelect and skips setFormData when provided (details without components)', async () => {
+    const onAddressSelect = jest.fn();
+    await selectFirstSuggestion(
+      {
+        suggestions: [
+          {
+            placePrediction: {
+              placeId: 'p_addr',
+              structuredFormat: {
+                mainText: { text: 'Foo' },
+                secondaryText: { text: 'Bar' },
+              },
+            },
+          },
+        ],
+      },
+      { onAddressSelect },
+      {
+        ok: true,
+        // No locality/postal_town → city falls through to administrative_area_level_2.
+        json: async () => ({
+          addressComponents: [{ types: ['administrative_area_level_2'], longText: 'District X' }],
+        }),
+      }
+    );
+    expect(onAddressSelect).toHaveBeenCalledTimes(1);
+    expect(onAddressSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ city: 'District X', state: '', country: '' })
+    );
+    expect(mockSetFormData).not.toHaveBeenCalled();
+  });
+
+  it('recovers gracefully when the place details fetch rejects', async () => {
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    await selectFirstSuggestion(
+      {
+        suggestions: [
+          {
+            placePrediction: {
+              placeId: 'p_fail',
+              structuredFormat: {
+                mainText: { text: 'Fail Place' },
+                secondaryText: { text: 'Somewhere' },
+              },
+            },
+          },
+        ],
+      },
+      {},
+      'reject'
+    );
+    // details stays undefined → autofill still runs without crashing
+    expect(mockSetFormData).toHaveBeenCalled();
+    const newState = mockSetFormData.mock.calls[0][0]({});
+    expect(newState.name).toBe('');
+    expect(newState.googlePlacesId).toBeUndefined();
+    errorSpy.mockRestore();
+  });
+
+  it('does not fetch place details for a query prediction (no placeId)', async () => {
+    await selectFirstSuggestion({
+      suggestions: [
+        {
+          queryPrediction: {
+            text: { text: 'pizza near me' },
+          },
+        },
+      ],
+    });
+    // Only the autocomplete fetch happened — no details GET.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockSetFormData).toHaveBeenCalled();
+  });
+
+  // --- 7. Focus / blur / short query / pointer handling ---
+
+  it('short-circuits input changes before the field is focused', () => {
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+      />
+    );
+    // Typing without focusing first → shouldFetchRef is false → no debounce scheduled.
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'NoFocus' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    expect(mockOnChange).toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('clears predictions when the trimmed query drops below two characters', async () => {
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+      />
+    );
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'a' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    // fetchPredictions early-returns for a one-char query — no network call.
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('reopens the dropdown on refocus when predictions already exist', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        suggestions: [{ placePrediction: { placeId: 'p1', text: { text: 'Result' } } }],
+      }),
+    });
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+      />
+    );
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Result' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(await screen.findByRole('button', { name: /Result/ })).toBeInTheDocument();
+
+    // Blur closes the dropdown but keeps predictions in state.
+    fireEvent.blur(input);
+    expect(screen.queryByRole('button', { name: /Result/ })).not.toBeInTheDocument();
+
+    // Refocus should reopen because predictions.length > 0.
+    fireEvent.focus(input);
+    expect(await screen.findByRole('button', { name: /Result/ })).toBeInTheDocument();
+  });
+
+  it('selects a prediction via pointerdown as well as mousedown', async () => {
+    // Also exercises the details-fetch API key fallback when the env var is absent.
+    const savedKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    delete process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        suggestions: [
+          {
+            placePrediction: {
+              placeId: 'p_pointer',
+              structuredFormat: {
+                mainText: { text: 'Pointer Place' },
+                secondaryText: { text: 'City' },
+              },
+            },
+          },
+        ],
+      }),
+    });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'p_pointer', displayName: { text: 'Pointer Place' } }),
+    });
+    render(
+      <ControlledGoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        initialValue=""
+        onChange={mockOnChange}
+        setFormData={mockSetFormData}
+      />
+    );
+    const input = screen.getByRole('textbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'Point' } });
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const button = await screen.findByRole('button', { name: /Pointer Place/ });
+    await act(async () => {
+      fireEvent.pointerDown(button);
+    });
+    expect(mockSetFormData).toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenLastCalledWith(
+      expect.stringContaining('places/p_pointer'),
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'X-Goog-Api-Key': '' }),
+      })
+    );
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = savedKey;
+  });
+
+  it('renders safely when value is nullish', () => {
+    render(
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address"
+        inlabel="Address"
+        value={undefined as unknown as string}
+        onChange={mockOnChange}
+      />
+    );
+    expect(screen.getByRole('textbox')).toHaveValue('');
+  });
 });

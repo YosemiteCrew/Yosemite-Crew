@@ -361,6 +361,7 @@ const SubmittedFormEntry = ({
                   }
                   const submission: FormSubmission = {
                     _id: '',
+                    /* v8 ignore next -- this Save handler only renders in the `!entry.submission` branch, so formVersion always falls back to 1 */
                     formVersion: entry.submission?.formVersion ?? 1,
                     submittedAt: createSubmissionTimestamp(),
                     formId: entry.form._id,

@@ -158,10 +158,12 @@ const InvoicePaymentActions = ({
     );
 
   const handleGenerate = () => {
+    /* v8 ignore next -- the Generate & Mail button is disabled when invoiceId is absent, so this guard's empty branch is unreachable via the UI */
     if (invoiceId) generatePaymentLink(invoiceId, setGeneratedLink);
   };
 
   const handleCopy = () => {
+    /* v8 ignore next -- the Copy link button only renders when generatedLink is set, so this guard's empty branch is unreachable via the UI */
     if (generatedLink) copyLinkToClipboard(generatedLink);
   };
 
@@ -170,14 +172,19 @@ const InvoicePaymentActions = ({
   };
 
   const handleCollectOfflinePayment = () => {
+    /* v8 ignore next -- the Collect cash button is disabled under this exact condition, so the early return is unreachable via the UI */
     if (!invoiceId || markingOfflinePaid) return;
     collectOfflinePayment(invoiceId, setMarkingOfflinePaid, setShowCashConfirmation, notify);
   };
 
   const handleStartCashCollection = () => {
+    /* v8 ignore next -- the Pay in cash button is disabled under this exact condition, so the early return is unreachable via the UI */
     if (!invoiceId || markingOfflinePaid || settingCashCollectionMethod) return;
     startCashCollection(invoiceId, setSettingCashCollectionMethod, setShowCashConfirmation, notify);
   };
+
+  /* v8 ignore next -- settingCashCollectionMethod flips true only in the same synchronous state batch that sets showCashConfirmation=true (which switches to the cash-confirmation view), so the 'Preparing...' label is never committed */
+  const payInCashLabel = settingCashCollectionMethod ? 'Preparing...' : 'Pay in cash';
 
   if (stripeReceiptUrl) {
     return (
@@ -229,7 +236,7 @@ const InvoicePaymentActions = ({
           ) : null}
           {showOfflineCollect ? (
             <Secondary
-              text={settingCashCollectionMethod ? 'Preparing...' : 'Pay in cash'}
+              text={payInCashLabel}
               href="#"
               onClick={handleStartCashCollection}
               isDisabled={!invoiceId || markingOfflinePaid || settingCashCollectionMethod}

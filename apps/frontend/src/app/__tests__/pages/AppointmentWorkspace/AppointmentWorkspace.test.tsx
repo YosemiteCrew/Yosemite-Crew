@@ -17,7 +17,10 @@ import {
   updateAppointment,
 } from '@/app/features/appointments/services/appointmentService';
 import { loadWorkspaceClinicalArtifacts } from '@/app/features/appointments/services/workspaceClinicalService';
-import { listSoapTemplatesForWorkspace } from '@/app/features/appointments/services/workspaceTemplateService';
+import {
+  listSoapTemplatesForWorkspace,
+  resolveSoapTemplate,
+} from '@/app/features/appointments/services/workspaceTemplateService';
 import { getAppointmentWorkspaceBootstrap } from '@/app/features/appointments/services/workspaceAggregateService';
 import {
   markAppointmentReadyForBilling,
@@ -90,10 +93,24 @@ jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/Diagnost
 
 jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/TreatmentStep', () => ({
   __esModule: true,
-  default: ({ onOpenInvoice }: { onOpenInvoice: () => void }) => (
+  default: ({
+    onOpenInvoice,
+    ensureEncounterId,
+  }: {
+    onOpenInvoice: () => void;
+    ensureEncounterId?: () => Promise<string | undefined>;
+  }) => (
     <div>
       <button type="button" onClick={onOpenInvoice}>
         Mock open invoice
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void ensureEncounterId?.();
+        }}
+      >
+        Mock ensure encounter
       </button>
     </div>
   ),
@@ -1649,5 +1666,396 @@ describe('AppointmentWorkspace container', () => {
       )
     );
     expect(updateCompanion).not.toHaveBeenCalled();
+  });
+
+  const inpatientWithEncounter = () =>
+    ({ ...makeAppointment(new Date(), true), encounterId: 'enc-1' }) as Appointment;
+
+  it('confirms an inpatient discharge from the summary modal', async () => {
+    mockStepParam = 'SUMMARY';
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^discharge$/i }));
+    expect(screen.getByText('Discharge date & time')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /confirm discharge/i }));
+    });
+
+    await waitFor(() =>
+      expect(dischargeEncounter).toHaveBeenCalledWith('enc-1', expect.any(String), {
+        overrideReason: undefined,
+      })
+    );
+    expect(changeAppointmentStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'appt-workspace' }),
+      'COMPLETED'
+    );
+    await waitFor(() =>
+      expect(
+        useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.dischargedAt
+      ).toEqual(expect.any(String))
+    );
+    expect(mockNotify).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Patient discharged' })
+    );
+    // The modal (a persistent <dialog>) becomes inert once the discharge resolves.
+    await waitFor(() =>
+      expect(screen.getByText('Discharge date & time').closest('dialog')).toHaveAttribute('inert')
+    );
+  });
+
+  it('requires an override reason when the finalization gate blocks discharge', async () => {
+    mockStepParam = 'SUMMARY';
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({
+      finalizationGate: { enabled: false, disabledReason: 'SOAP not signed' },
+    });
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.finalizationGate
+          ?.enabled
+      ).toBe(false)
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /^discharge$/i }));
+    // Backend-owned reason surfaces and confirm stays blocked until an override is given.
+    expect(screen.getByText('SOAP not signed')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /override & discharge/i })).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText(/Explain why discharge proceeds/i), {
+      target: { value: 'Owner insisted on leaving' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /override & discharge/i }));
+    });
+
+    await waitFor(() =>
+      expect(dischargeEncounter).toHaveBeenCalledWith('enc-1', expect.any(String), {
+        overrideReason: 'Owner insisted on leaving',
+      })
+    );
+  });
+
+  it('notifies with the nested server message when discharge fails', async () => {
+    mockStepParam = 'SUMMARY';
+    (dischargeEncounter as jest.Mock).mockRejectedValueOnce({
+      response: { data: { error: { message: 'Encounter is locked' } } },
+    });
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^discharge$/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /confirm discharge/i }));
+    });
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to discharge', text: 'Encounter is locked' })
+      )
+    );
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.dischargedAt
+    ).toBeUndefined();
+  });
+
+  it('completes an outpatient visit from the summary action', async () => {
+    mockStepParam = 'SUMMARY';
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^complete$/i }));
+    });
+
+    await waitFor(() =>
+      expect(changeAppointmentStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'appt-workspace' }),
+        'COMPLETED'
+      )
+    );
+    expect(mockNotify).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Appointment completed' })
+    );
+    await waitFor(() =>
+      expect(
+        useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.dischargedAt
+      ).toEqual(expect.any(String))
+    );
+  });
+
+  it('notifies when completing an outpatient visit fails', async () => {
+    mockStepParam = 'SUMMARY';
+    (changeAppointmentStatus as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^complete$/i }));
+    });
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to complete', text: 'offline' })
+      )
+    );
+  });
+
+  it('shows a disabled Discharged action once an inpatient stay is closed', async () => {
+    mockStepParam = 'SUMMARY';
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    act(() => {
+      useAppointmentWorkspaceStore
+        .getState()
+        .markDischarged('appt-workspace', new Date().toISOString());
+    });
+
+    const terminal = await screen.findByRole('button', { name: /^discharged$/i });
+    expect(terminal).toBeDisabled();
+  });
+
+  it('shows a disabled Completed action once an outpatient visit is closed', async () => {
+    mockStepParam = 'SUMMARY';
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    act(() => {
+      useAppointmentWorkspaceStore
+        .getState()
+        .markDischarged('appt-workspace', new Date().toISOString());
+    });
+
+    const terminal = await screen.findByRole('button', { name: /^completed$/i });
+    expect(terminal).toBeDisabled();
+  });
+
+  it('blocks hospitalization until the appointment is checked in', async () => {
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date()), status: 'UPCOMING' } as Appointment}
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /hospitalize patient/i }));
+
+    expect(mockNotify).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ title: 'Check in required' })
+    );
+    expect(screen.queryByRole('button', { name: /convert to inpatient/i })).not.toBeInTheDocument();
+  });
+
+  it('requires check-in before re-admitting when a unit assign has no admission', async () => {
+    singleUnitInpatientRooms();
+    (assignEncounterUnit as jest.Mock).mockRejectedValue(new Error('Admission not found'));
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date(), true),
+            encounterId: 'enc-1',
+            status: 'UPCOMING',
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+
+    // The missing-admission recovery routes into handleAdmit, which refuses because
+    // the un-checked-in appointment can't be admitted yet.
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Check in required' })
+      )
+    );
+    expect(admitAppointment).not.toHaveBeenCalled();
+  });
+
+  it('reverts the ready-for-discharge toggle and warns on a non-404 failure', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (markEncounterReadyForDischarge as jest.Mock).mockRejectedValue(new Error('500 boom'));
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /ready for discharge/i }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: expect.stringContaining('mark ready for discharge') })
+      )
+    );
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.readyForDischarge
+        .value
+    ).toBe(false);
+    consoleError.mockRestore();
+  });
+
+  it('reverts the ready-for-billing toggle and warns on a non-409 failure', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (markAppointmentReadyForBilling as jest.Mock).mockRejectedValueOnce(new Error('nope'));
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /ready for billing/i }));
+    });
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: expect.stringContaining('mark ready for billing') })
+      )
+    );
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.readyForBilling.value
+    ).toBe(false);
+    consoleError.mockRestore();
+  });
+
+  it('logs when the post-mark billing refresh fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    // The mark succeeds, but the follow-up re-hydration from the bootstrap fails.
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockRejectedValue(new Error('refresh down'));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /ready for billing/i }));
+    });
+
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to refresh billing state after marking ready:',
+        expect.any(Error)
+      )
+    );
+    consoleError.mockRestore();
+  });
+
+  it('prefills the SOAP draft from a resolved template when there is no content', async () => {
+    (resolveSoapTemplate as jest.Mock).mockResolvedValueOnce({
+      id: 'tmpl-1',
+      content: { subjective: '<p>Prefilled subjective</p>' },
+    });
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await waitFor(() => {
+      const soap =
+        useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.soap ?? [];
+      expect(soap.some((note) => note.templateId === 'tmpl-1')).toBe(true);
+    });
+  });
+
+  it('does not overwrite existing SOAP content with a resolved template', async () => {
+    (loadWorkspaceClinicalArtifacts as jest.Mock).mockResolvedValue({
+      soap: [
+        {
+          id: 'soap-real',
+          chiefComplaint: '',
+          subjective: '<p>real content</p>',
+          objective: '',
+          assessment: '',
+          plan: '',
+          status: 'IN_PROGRESS',
+          createdAt: '2026-04-20T09:00:00.000Z',
+        },
+      ],
+    });
+    (resolveSoapTemplate as jest.Mock).mockResolvedValueOnce({
+      id: 'tmpl-2',
+      content: { subjective: '<p>template</p>' },
+    });
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.soap[0].id
+      ).toBe('soap-real')
+    );
+    expect(
+      useAppointmentWorkspaceStore
+        .getState()
+        .getEncounter('appt-workspace')
+        ?.soap.some((note) => note.templateId === 'tmpl-2')
+    ).toBe(false);
+  });
+
+  it('checks the appointment in to create an encounter when none exists', async () => {
+    mockStepParam = 'TREATMENT';
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mock ensure encounter' }));
+
+    await waitFor(() =>
+      expect(changeAppointmentStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'appt-workspace' }),
+        'CHECKED_IN'
+      )
+    );
+  });
+
+  it('reuses an existing encounter id without checking in', async () => {
+    mockStepParam = 'TREATMENT';
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mock ensure encounter' }));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(changeAppointmentStatus).not.toHaveBeenCalled();
+  });
+
+  it('skips check-in when the appointment is already checked in', async () => {
+    mockStepParam = 'TREATMENT';
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date()), status: 'CHECKED_IN' } as Appointment}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mock ensure encounter' }));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(changeAppointmentStatus).not.toHaveBeenCalled();
+  });
+
+  it('logs when check-in fails while ensuring an encounter', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockStepParam = 'TREATMENT';
+    (changeAppointmentStatus as jest.Mock).mockRejectedValueOnce(new Error('checkin failed'));
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mock ensure encounter' }));
+
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to check in appointment to create an encounter:',
+        expect.any(Error)
+      )
+    );
+    consoleError.mockRestore();
   });
 });

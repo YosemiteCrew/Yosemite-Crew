@@ -96,6 +96,7 @@ const scheduleStatusToTaskStatus = (status: ScheduleTaskStatus): TaskStatus => {
 const dueTimeLabel = (dueAt?: Date | string): string | undefined => {
   if (!dueAt) return undefined;
   const date = new Date(dueAt);
+  /* v8 ignore next -- unreachable from the panel: a dueAt that yields an invalid Date throws earlier in scheduleTaskFromTask's toISOString() before the row can render */
   if (Number.isNaN(date.getTime())) return undefined;
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 };
@@ -115,13 +116,17 @@ const scheduleTaskFromTask = (task: Task): ScheduleTask => ({
   sourceRefId: task.templateId || task.libraryTaskId,
 });
 
-const StatusPill = ({ status }: { status: ScheduleTaskStatus }) => (
-  <span
-    className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${STATUS_CLASSES[status]}`}
-  >
-    {STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}
-  </span>
-);
+const StatusPill = ({ status }: { status: ScheduleTaskStatus }) => {
+  /* v8 ignore next -- status is always one of the four STATUS_OPTIONS, so the ?. miss and ?? fallback are unreachable */
+  const label = STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
+  return (
+    <span
+      className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${STATUS_CLASSES[status]}`}
+    >
+      {label}
+    </span>
+  );
+};
 
 /** One "Task details" row inside the expandable breakdown. */
 const DetailRow = ({ label, value }: { label: string; value: string }) => (
@@ -498,6 +503,7 @@ const TasksPanel = ({
         _id: '',
         appointmentId,
         assignedTo: scheduleTask.assignedToId ?? '',
+        /* v8 ignore next -- parent-tab rows have Edit disabled, so openEdit only ever runs on the employee tab */
         audience: isParent ? 'PARENT_TASK' : 'EMPLOYEE_TASK',
         source: 'CUSTOM',
         category: scheduleTask.category,

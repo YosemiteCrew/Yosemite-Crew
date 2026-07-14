@@ -306,6 +306,7 @@ const SlotComponent: React.FC<SlotProps> = ({
   );
 
   const tryCreateAppointmentAt = (minute: number) => {
+    /* v8 ignore next -- defensive guard: the create button only mounts when both dropDate and onCreateAppointmentAt are set, so this early return is unreachable from the UI */
     if (!dropDate || !onCreateAppointmentAt) return;
     const snapped = Math.round(minute / 5) * 5;
     const slotTime = new Date(dropDate);

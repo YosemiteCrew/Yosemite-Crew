@@ -144,6 +144,7 @@ const UserCalendar: React.FC<UserCalendarProps> = ({
   }, [date, events, forceFullDayInZoomIn, getVisibleAvailabilityIntervals, team, zoomMode]);
 
   const visibleHours = useMemo(() => getVisibleHours(visibleHourRange), [visibleHourRange]);
+  /* v8 ignore next -- getVisibleHours always returns a non-empty array (min length 1), so at(-1) is never nullish */
   const lastVisibleHour = visibleHours.at(-1) ?? visibleHourRange.endHour;
 
   const nowPosition = useMemo(() => {

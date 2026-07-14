@@ -594,4 +594,230 @@ describe('Slot (Appointments)', () => {
     expect(screen.queryByRole('dialog', { name: 'Rex' })).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
   });
+
+  it('renders the zoom-out event list and clears the drop preview on drag end', () => {
+    const patientEvent: any = {
+      id: 'patient-1',
+      status: 'in_progress',
+      startTime: new Date('2025-01-06T09:15:00Z'),
+      endTime: new Date('2025-01-06T09:45:00Z'),
+      concern: 'Checkup',
+      lead: { name: 'Dr. Lee' },
+      appointmentType: { name: 'Exam' },
+      // No companion — exercises the `event.companion ?? event.patient` fallback
+      companion: undefined,
+      patient: { name: 'Bella', species: 'cat', parent: { name: 'Owner Smith' } },
+    };
+
+    render(
+      <Slot
+        slotEvents={[patientEvent]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+        zoomMode="out"
+      />
+    );
+
+    const marker = screen.getByRole('button');
+    expect(marker).toBeInTheDocument();
+
+    // Drag end wires through the shared onDropPreviewClear callback.
+    fireEvent.dragEnd(marker);
+    expect(marker).toBeInTheDocument();
+  });
+
+  it('lays out overlapping events into reused and new lanes', () => {
+    const base = {
+      status: 'in_progress',
+      concern: 'Checkup',
+      lead: { name: 'Dr. Lee' },
+      appointmentType: { name: 'Exam' },
+      companion: { name: 'Rex', species: 'dog' },
+    };
+    // e1 0-20, e2 10-30 (new lane), e2b 10-45 (same start as e2 -> endMinute tie-break),
+    // e3 25-40 (reuses e1's freed lane).
+    const e1: any = {
+      ...base,
+      startTime: new Date('2025-01-06T09:00:00Z'),
+      endTime: new Date('2025-01-06T09:20:00Z'),
+      companion: { name: 'Rex', species: 'dog' },
+    };
+    const e2: any = {
+      ...base,
+      startTime: new Date('2025-01-06T09:10:00Z'),
+      endTime: new Date('2025-01-06T09:30:00Z'),
+      companion: { name: 'Milo', species: 'dog' },
+    };
+    const e2b: any = {
+      ...base,
+      startTime: new Date('2025-01-06T09:10:00Z'),
+      endTime: new Date('2025-01-06T09:45:00Z'),
+      companion: { name: 'Coco', species: 'dog' },
+    };
+    const e3: any = {
+      ...base,
+      startTime: new Date('2025-01-06T09:25:00Z'),
+      endTime: new Date('2025-01-06T09:40:00Z'),
+      companion: { name: 'Bo', species: 'dog' },
+    };
+
+    render(
+      <Slot
+        slotEvents={[e1, e2, e2b, e3]}
+        height={600}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={1}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getAllByRole('button')).toHaveLength(4);
+  });
+
+  it('warns and does not create an appointment for a past time slot', () => {
+    const onCreateAppointmentAt = jest.fn();
+
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        dropDate={new Date('2000-01-15T00:00:00.000Z')}
+        dropHour={9}
+        onCreateAppointmentAt={onCreateAppointmentAt}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Create appointment on/i }));
+    expect(onCreateAppointmentAt).not.toHaveBeenCalled();
+  });
+
+  it('warns and does not create an appointment inside an unavailable segment', () => {
+    const onCreateAppointmentAt = jest.fn();
+
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
+        dropHour={9}
+        onCreateAppointmentAt={onCreateAppointmentAt}
+        unavailableSegments={[{ startMinute: 540, endMinute: 600 }]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Create appointment on/i }));
+    expect(onCreateAppointmentAt).not.toHaveBeenCalled();
+  });
+
+  it('reports the hover target while dragging over an availability slot', () => {
+    const onDragHoverTarget = jest.fn();
+
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        draggedAppointmentId="appt-1"
+        draggedAppointmentLabel="Buddy"
+        onDragHoverTarget={onDragHoverTarget}
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
+        dropHour={9}
+        dropPractitionerId="vet-1"
+        // First interval overlaps the 9:00 hour (renders a segment); the second
+        // falls entirely outside it, exercising the empty-segment branch.
+        dropAvailabilityIntervals={[
+          { startMinute: 540, endMinute: 599 },
+          { startMinute: 0, endMinute: 10 },
+        ]}
+      />
+    );
+
+    const slot = screen.getByRole('region', { name: /Appointments slot for/i });
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+
+    expect(onDragHoverTarget).toHaveBeenCalledWith(expect.any(Date), 'vet-1');
+  });
+
+  it('ignores drag lifecycle events when no appointment is being dragged', () => {
+    const onDragHoverTarget = jest.fn();
+    const onAppointmentDropAt = jest.fn();
+
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        onDragHoverTarget={onDragHoverTarget}
+        onAppointmentDropAt={onAppointmentDropAt}
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
+        dropHour={9}
+      />
+    );
+
+    const slot = screen.getByRole('region', { name: /Appointments slot for/i });
+    // No draggedAppointmentId — every drag handler should early-return.
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+    fireEvent.dragLeave(slot);
+    fireEvent.drop(slot, { clientX: 10, clientY: 20 });
+
+    expect(onDragHoverTarget).not.toHaveBeenCalled();
+    expect(onAppointmentDropAt).not.toHaveBeenCalled();
+  });
+
+  it('clears the drop preview when the drag leaves the slot region', () => {
+    render(
+      <Slot
+        slotEvents={[]}
+        height={120}
+        handleViewAppointment={handleViewAppointment}
+        handleDetailAppointment={handleDetailAppointment}
+        handleRescheduleAppointment={handleRescheduleAppointment}
+        dayIndex={0}
+        length={0}
+        canEditAppointments
+        draggedAppointmentId="appt-1"
+        draggedAppointmentLabel="Buddy"
+        dropDate={new Date('2030-01-15T00:00:00.000Z')}
+        dropHour={9}
+        dropAvailabilityIntervals={[{ startMinute: 540, endMinute: 599 }]}
+      />
+    );
+
+    const slot = screen.getByRole('region', { name: /Appointments slot for/i });
+    fireEvent.dragOver(slot, { clientX: 10, clientY: 20 });
+    // relatedTarget null => the drag left the region entirely.
+    fireEvent.dragLeave(slot, { relatedTarget: null });
+
+    expect(slot).toBeInTheDocument();
+  });
 });

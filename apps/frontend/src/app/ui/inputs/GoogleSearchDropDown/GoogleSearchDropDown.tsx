@@ -124,11 +124,11 @@ const requestGooglePredictions = async (q: string): Promise<Prediction[]> => {
   });
 };
 
-const derivePlaceAutofill = (details: PlaceDetails, fullPredictionText?: string) => {
-  const comps = details.addressComponents ?? [];
-  const name = details.displayName?.text || '';
-  const website = details.websiteUri || '';
-  const phone = details.nationalPhoneNumber || '';
+const derivePlaceAutofill = (details: PlaceDetails | undefined, fullPredictionText?: string) => {
+  const comps = details?.addressComponents ?? [];
+  const name = details?.displayName?.text || '';
+  const website = details?.websiteUri || '';
+  const phone = details?.nationalPhoneNumber || '';
 
   const countryCode = getAddrComponent(comps, 'country', 'shortText');
   const country = countries.find((c) => c.code === countryCode);
@@ -152,7 +152,7 @@ const derivePlaceAutofill = (details: PlaceDetails, fullPredictionText?: string)
   //   city="Thane" first match at segment "Thane West" (startsWith "Thane") → cut before it
   const locationMarkers = [city, state, postalCode, country?.name].filter(Boolean) as string[];
 
-  let addressLine = fullPredictionText ?? details.formattedAddress ?? '';
+  let addressLine = fullPredictionText ?? details?.formattedAddress ?? '';
   if (locationMarkers.length > 0) {
     const segments = addressLine.split(',');
     let cutSegment = -1;
@@ -172,8 +172,8 @@ const derivePlaceAutofill = (details: PlaceDetails, fullPredictionText?: string)
     }
   }
   addressLine = addressLine.replace(/,\s*$/, '').trim();
-  const latitude = details.location?.latitude ?? null;
-  const longitude = details.location?.longitude ?? null;
+  const latitude = details?.location?.latitude ?? null;
+  const longitude = details?.location?.longitude ?? null;
   const normalizedAddress = {
     addressLine,
     city,
@@ -320,7 +320,7 @@ const GoogleSearchDropDown = ({
     }, 0);
   };
 
-  const autofillFromPlace = (details: PlaceDetails, fullPredictionText?: string) => {
+  const autofillFromPlace = (details: PlaceDetails | undefined, fullPredictionText?: string) => {
     const { name, website, phone, normalizedAddress } = derivePlaceAutofill(
       details,
       fullPredictionText
@@ -346,7 +346,7 @@ const GoogleSearchDropDown = ({
         name,
         phoneNo: normalizeGooglePhoneNumber(phone),
         website,
-        googlePlacesId: details.id,
+        googlePlacesId: details?.id,
         address: {
           ...normalizedAddress,
         },

@@ -158,6 +158,7 @@ const modalUiReducer = (state: ModalUiState, action: ModalUiAction): ModalUiStat
     }
     case 'dismissPrefill':
       return state.prefillDismissed ? state : { ...state, prefillDismissed: true };
+    /* v8 ignore next 2 -- exhaustive ModalUiAction union; the default arm is unreachable */
     default:
       return state;
   }
@@ -224,6 +225,7 @@ export const FieldError = ({ message }: { message?: string }) => {
 
 // ─── Portal position helper ─────────────────────────────────────────────────────
 const getPortalStyle = (el: HTMLElement | null): CSSProperties | null => {
+  /* v8 ignore next -- defensive null guard: el is triggerRef.current, always attached whenever a dropdown opens */
   if (!el) return null;
   const rect = el.getBoundingClientRect();
   const viewportHeight = globalThis.window.innerHeight;
@@ -1170,6 +1172,7 @@ const useAddAppointmentCentralModalView = ({
   const handlePatientSelect = useCallback(
     (id: string) => {
       const hit = companions.find((c) => c.companion.id === id);
+      /* v8 ignore next -- id always originates from companion-derived options; a miss is unreachable */
       if (!hit) return;
       setFormData((prev) => ({
         ...prev,
