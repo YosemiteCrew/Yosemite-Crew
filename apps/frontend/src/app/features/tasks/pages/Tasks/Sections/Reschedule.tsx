@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
@@ -31,16 +31,6 @@ const RescheduleTask = ({ showModal, setShowModal, activeTask }: RescheduleTaskP
     setSelectedDate(new Date(activeTask.dueAt));
     setDueTimeValue(getPreferredTimeValue(activeTask.dueAt, '00:00'));
   }
-
-  useEffect(() => {
-    if (!showModal) return;
-    if (canRescheduleTask(activeTask.status)) return;
-    notify('warning', {
-      title: 'Reschedule blocked',
-      text: 'Completed and cancelled tasks cannot be rescheduled.',
-    });
-    setShowModal(false);
-  }, [activeTask.status, notify, setShowModal, showModal]);
 
   const handleCancel = () => {
     setShowModal(false);

@@ -1,10 +1,12 @@
 # Frontend BFSG Execution Checklist
 
+BFSG (Barrierefreiheitsstaerkungsgesetz) is Germany's accessibility act, which implements the EU Accessibility Act. This checklist tracks batch-by-batch progress on making `apps/frontend` accessible to the WCAG (Web Content Accessibility Guidelines) 2.1 AA level. It is the running task log; the strategy behind it lives in the reference plan below.
+
 Last updated: 2026-05-07 (eighth batch)
 
 Reference plan:
 
-- [frontend-bfsg-wcag-audit-plan.md](/Users/harshitwandhare/Desktop/Yosemite-Crew/docs/accessibility/frontend-bfsg-wcag-audit-plan.md)
+- [frontend-bfsg-wcag-audit-plan.md](./frontend-bfsg-wcag-audit-plan.md)
 
 ## Program status
 
@@ -13,18 +15,18 @@ Reference plan:
 - [x] Automated accessibility enforcement installed (jest-axe + @axe-core/playwright)
 - [ ] Full route-by-route BFSG remediation complete
 - [ ] Manual assistive-technology validation complete
-- [x] BFSG disclosure artifacts — accessibility statement published at `/accessibility`
+- [x] BFSG disclosure artifacts - accessibility statement published at `/accessibility`
 
 ## Phase 1: Platform foundation
 
 - [x] Add global skip link
 - [x] Add stable `#main-content` target in public/app shells
 - [x] Add consistent main landmark wrappers in shared layouts (public layout has `<main id="main-content">`)
-- [x] Add global focus-visible styling (globals.css — buttons/links get `2px` ring; inputs/selects/textareas suppressed since border-color IS the indicator)
+- [x] Add global focus-visible styling (globals.css - buttons/links get `2px` ring; inputs/selects/textareas suppressed since border-color IS the indicator)
 - [x] Add reduced-motion baseline (`prefers-reduced-motion` block in globals.css)
-- [x] Add route-change/live-region announcement pattern (`RouteAnnouncer` — aria-live polite)
-- [x] Remove remaining accessibility-hostile global CSS overrides (`outline: none` without replacement — all audited; remaining instances are intentional with border-change focus indicator or explicit `:focus-visible` override)
-- [x] Standardize one `h1` and one main landmark per route template — auth pages done; public marketing routes in current batch now use semantic primary headings (Pricing, Contact, book-demo, overview)
+- [x] Add route-change/live-region announcement pattern (`RouteAnnouncer` - aria-live polite)
+- [x] Remove remaining accessibility-hostile global CSS overrides (`outline: none` without replacement - all audited; remaining instances are intentional with border-change focus indicator or explicit `:focus-visible` override)
+- [x] Standardize one `h1` and one main landmark per route template - auth pages done; public marketing routes in current batch now use semantic primary headings (Pricing, Contact, book-demo, overview)
 
 ## Phase 2: Shared primitives
 
@@ -39,16 +41,16 @@ Reference plan:
 - [x] LabelDropdown: `focus-visible:outline-none` (border-change IS indicator), `aria-current` wiring
 - [x] SearchDropdown: `role="combobox"`, `aria-autocomplete="list"`, `aria-expanded`, `aria-controls`, `role="listbox"`, `role="option"`, `role="alert"` error, `role="status"` loading, `focus-within` border on container
 - [x] Timepicker: `aria-label` with value, `aria-describedby` error, `role="alert"` error, border-change focus indicator (no extra ring)
-- [x] FileInput / file upload primitives — base input and upload widgets audited; accessible names added for upload triggers and remove actions; `jest-axe` coverage added for FileInput / UploadImage / DocUploader
+- [x] FileInput / file upload primitives - base input and upload widgets audited; accessible names added for upload triggers and remove actions; `jest-axe` coverage added for FileInput / UploadImage / DocUploader
 
 ### Overlays and dialogs
 
 - [x] ModalBase can focus the dialog itself when no focusable child exists
 - [x] Cal booking overlay migrated onto shared modal behavior
-- [~] Raw `<dialog>` in `AppointmentPopover.tsx` — title wiring and cancel behavior added; `role="alert"` added to statusError; action buttons now expose explicit `aria-label`; intentionally NOT migrated onto `ModalBase` (non-modal popover semantics require `aria-modal="false"`, no focus trap, no body scroll lock)
-- [~] Raw `<dialog>` in `TaskSlot.tsx` — title wiring and cancel behavior added; focus restoration now handled by `usePopoverManager`; action buttons now expose explicit `aria-label`; intentionally NOT migrated onto `ModalBase` (same non-modal rationale)
-- [x] Raw `<dialog>` in `TrustCenter.tsx` removed — request-access flow now uses shared `ModalBase`
-- [~] Normalize overlay titles, descriptions, and close behavior across all three — trust-center complete; appointment/task popovers fully normalized for WCAG AA (non-modal dialog contract, labelled titles, explicit action names, focus restoration, Escape close)
+- [~] Raw `<dialog>` in `AppointmentPopover.tsx` - title wiring and cancel behavior added; `role="alert"` added to statusError; action buttons now expose explicit `aria-label`; intentionally NOT migrated onto `ModalBase` (non-modal popover semantics require `aria-modal="false"`, no focus trap, no body scroll lock)
+- [~] Raw `<dialog>` in `TaskSlot.tsx` - title wiring and cancel behavior added; focus restoration now handled by `usePopoverManager`; action buttons now expose explicit `aria-label`; intentionally NOT migrated onto `ModalBase` (same non-modal rationale)
+- [x] Raw `<dialog>` in `TrustCenter.tsx` removed - request-access flow now uses shared `ModalBase`
+- [~] Normalize overlay titles, descriptions, and close behavior across all three - trust-center complete; appointment/task popovers fully normalized for WCAG AA (non-modal dialog contract, labelled titles, explicit action names, focus restoration, Escape close)
 
 ### Navigation
 
@@ -58,24 +60,24 @@ Reference plan:
 - [x] Logo links use meaningful accessible names
 - [x] Footer links: `focus-visible` ring, no `outline: none` suppression
 - [x] FAQ accordion: `focus-visible` ring restored
-- [~] Mobile navigation and account menus — controlled-menu semantics, `aria-expanded` / `aria-controls`, and Escape-close behavior added for guest/authenticated headers; manual keyboard walkthrough still pending
+- [~] Mobile navigation and account menus - controlled-menu semantics, `aria-expanded` / `aria-controls`, and Escape-close behavior added for guest/authenticated headers; manual keyboard walkthrough still pending
 
 ### Tables and status surfaces
 
 - [x] GenericTable supports accessible caption
 - [x] GenericTable column headers use `scope="col"`
 - [x] Loader exposes a status role
-- [x] Data tables in legal pages — `TermsAndConditions.tsx` and `TrustCenter.tsx` now expose captions plus meaningful row/column header semantics
+- [x] Data tables in legal pages - `TermsAndConditions.tsx` and `TrustCenter.tsx` now expose captions plus meaningful row/column header semantics
 
 ## Phase 3: High-risk route remediation
 
-- [~] Public auth flows — `h1` added to SignIn, SignUp, ForgotPassword; OTP inputs labelled; `jest-axe` coverage added in high-signal component tests; per-field and OTP-group error association is now tightened in SignIn, SignUp, ForgotPassword, and OtpModal; remaining work is mainly manual keyboard/screen-reader verification
-- [~] Organization onboarding flows — primary route headings added for `CreateOrg` and `TeamOnboarding`; current code audit shows step-level controls are largely labelled, but a manual keyboard/screen-reader pass is still pending
-- [~] Finance / payment / Stripe onboarding — primary route headings added for `Finance`, `payment-status`, and `StripeOnboarding`; payment-status state messaging, invoice-table naming/captioning, invoice modal tabs, and Stripe onboarding loading/error states have been remediated; remaining work is mostly manual embedded-surface verification
-- [~] Booking overlays and scheduling flows — popovers now restore focus and expose labelled dialog titles; still not fully consolidated onto a shared popover contract
-- [x] Legal / trust-center content — `TrustCenter` request-access modal now runs on `ModalBase`; remaining work is table/legal content audit
-- [~] Appointments / tasks / operational dense workflows — popover contract is stabilized; slot creation controls now expose unique time-based names and day/week timelines are labelled as navigable regions; `AppointmentPopover` and `TaskSlot` action buttons now expose explicit `aria-label`; `AppointmentPopover` statusError has `role="alert"`; remaining work is broader manual workflow review
-- [x] Integrations / embedded third-party flows — `Integrations/index.tsx`: h1, filter tab `aria-pressed`, `role="alert"` error, `role="status"` empty states; `IdexxWorkspace/index.tsx`: h1, `role="alert"` error, pagination `<nav aria-label>`, result modal `aria-labelledby`; `MerckManuals/index.tsx`: sr-only h1, `AudienceToggle` `role="group"` + `aria-pressed`, language pills `aria-pressed`, `MerckReaderPortal` `role="dialog"` + `aria-modal` + `aria-labelledby`, `role="alert"`/`role="status"` feedback; `DeveloperPortalHome.tsx`: `h1`/`h2`/`h3` hierarchy corrected (was double-`h2` with `h4` children); jest-axe coverage added to all four test suites
+- [~] Public auth flows - `h1` added to SignIn, SignUp, ForgotPassword; OTP inputs labelled; `jest-axe` coverage added in high-signal component tests; per-field and OTP-group error association is now tightened in SignIn, SignUp, ForgotPassword, and OtpModal; remaining work is mainly manual keyboard/screen-reader verification
+- [~] Organization onboarding flows - primary route headings added for `CreateOrg` and `TeamOnboarding`; current code audit shows step-level controls are largely labelled, but a manual keyboard/screen-reader pass is still pending
+- [~] Finance / payment / Stripe onboarding - primary route headings added for `Finance`, `payment-status`, and `StripeOnboarding`; payment-status state messaging, invoice-table naming/captioning, invoice modal tabs, and Stripe onboarding loading/error states have been remediated; remaining work is mostly manual embedded-surface verification
+- [~] Booking overlays and scheduling flows - popovers now restore focus and expose labelled dialog titles; still not fully consolidated onto a shared popover contract
+- [x] Legal / trust-center content - `TrustCenter` request-access modal now runs on `ModalBase`; remaining work is table/legal content audit
+- [~] Appointments / tasks / operational dense workflows - popover contract is stabilized; slot creation controls now expose unique time-based names and day/week timelines are labelled as navigable regions; `AppointmentPopover` and `TaskSlot` action buttons now expose explicit `aria-label`; `AppointmentPopover` statusError has `role="alert"`; remaining work is broader manual workflow review
+- [x] Integrations / embedded third-party flows - `Integrations/index.tsx`: h1, filter tab `aria-pressed`, `role="alert"` error, `role="status"` empty states; `IdexxWorkspace/index.tsx`: h1, `role="alert"` error, pagination `<nav aria-label>`, result modal `aria-labelledby`; `MerckManuals/index.tsx`: sr-only h1, `AudienceToggle` `role="group"` + `aria-pressed`, language pills `aria-pressed`, `MerckReaderPortal` `role="dialog"` + `aria-modal` + `aria-labelledby`, `role="alert"`/`role="status"` feedback; `DeveloperPortalHome.tsx`: `h1`/`h2`/`h3` hierarchy corrected (was double-`h2` with `h4` children); jest-axe coverage added to all four test suites
 
 ## Phase 4: Testing and enforcement
 
@@ -85,18 +87,18 @@ Reference plan:
 - [x] Playwright `@axe-core/playwright` installed
 - [x] Playwright a11y spec `e2e/a11y.spec.ts` covers public pages + skip-link keyboard flow
 - [x] `frontend-a11y.yml` CI workflow gates the full current `jest-axe` suite on every PR touching `apps/frontend/src/**`
-- [x] Dropdown, LabelDropdown, SearchDropdown, Timepicker tests updated — `jest-axe` assertions added
+- [x] Dropdown, LabelDropdown, SearchDropdown, Timepicker tests updated - `jest-axe` assertions added
 - [x] Add zoom / reflow / reduced-motion regression checklist (manual browser checklist at `docs/accessibility/zoom-reflow-reduced-motion-checklist.md`)
 - [x] Appointment/task popover axe coverage added in targeted calendar tests
 - [x] `pnpm run e2e` in `apps/frontend` now runs the full `jest-axe` batch before the Playwright browser suite so local accessibility verification matches CI intent
 
 ## Phase 5: BFSG operational artifacts
 
-- [x] Accessibility statement published at `/accessibility` (BFSG Anlage 3 compliant — conformance status, report barrier, enforcement authority, third-party exception register)
+- [x] Accessibility statement published at `/accessibility` (BFSG Anlage 3 compliant - conformance status, report barrier, enforcement authority, third-party exception register)
 - [x] Accessibility statement linked from Footer (`Company` links section)
-- [x] Accessibility issue reporting flow — dedicated form built at `/accessibility/report`; link added from accessibility statement
+- [x] Accessibility issue reporting flow - dedicated form built at `/accessibility/report`; link added from accessibility statement
 - [ ] Third-party exception register (documented in statement prose; structured register not yet built)
-- [ ] Legal/compliance review checkpoint — engineering artifacts ready, legal sign-off pending
+- [ ] Legal/compliance review checkpoint - engineering artifacts ready, legal sign-off pending
 
 ## Enforcement rules for new AI-generated code
 
@@ -107,7 +109,7 @@ All new code generated by AI or humans must pass the following before merging:
 3. No `aria-` attributes may be added without a corresponding test asserting their value
 4. Interactive elements (buttons, links, inputs) must have accessible names verifiable via `getByRole`
 
-## Current batch verification (fourth batch — 2026-05-06)
+## Current batch verification (fourth batch - 2026-05-06)
 
 Completed in this batch:
 
@@ -141,21 +143,21 @@ Completed in this batch:
   - BFSG entry into force for covered obligations: 28 June 2025
   - WCAG 2.1 remains a current W3C Recommendation (updated 6 May 2025)
 
-## Current batch summary (fifth batch — 2026-05-07)
+## Current batch summary (fifth batch - 2026-05-07)
 
 Completed in this batch:
 
 - `Integrations/index.tsx`: `h1` page heading, filter tabs `aria-pressed`, `role="alert"` error banner, `role="status"` empty-state messages
 - `IdexxWorkspace/index.tsx`: `h1` page heading (both enabled and disabled states), `role="alert"` error, pagination wrapped in `<nav aria-label="Results pagination">` with `aria-live`/`aria-atomic` count, result modal title wired via `aria-labelledby`
 - `MerckManuals/index.tsx`: sr-only `h1` behind the logo image, `AudienceToggle` gets `role="group"` + `aria-label` + per-button `aria-pressed`, language filter pills get `aria-pressed`, `MerckReaderPortal` promoted to `role="dialog"` + `aria-modal="true"` + `aria-labelledby`, error/copy feedback gets `role="alert"` / `role="status"`
-- `DeveloperPortalHome.tsx`: heading hierarchy corrected — `h1` → `h2` → `h3` (was `h2` top, `h4` children skipping two levels)
+- `DeveloperPortalHome.tsx`: heading hierarchy corrected - `h1` → `h2` → `h3` (was `h2` top, `h4` children skipping two levels)
 - `Integrations.test.tsx`, `IdexxWorkspace.test.tsx`, `MerckManuals.test.tsx`, `DeveloperPortalHome.test.tsx`: `jest-axe` coverage added; all 140 integration + 5 developer tests pass
 
-## Current batch summary (sixth batch — 2026-05-07)
+## Current batch summary (sixth batch - 2026-05-07)
 
 Completed in this batch:
 
-- `TitleCalendar/index.tsx`: page title `<div>` promoted to `<h1>` — fixes heading semantics for Appointments and Tasks pages
+- `TitleCalendar/index.tsx`: page title `<div>` promoted to `<h1>` - fixes heading semantics for Appointments and Tasks pages
 - `Inventory/index.tsx`: page heading `<div>` → `<h1>`
 - `Forms/index.tsx`: page heading `<div>` → `<h1>` ("Templates")
 - `Companions/Companions.tsx`: page heading `<div>` → `<h1>`
@@ -174,17 +176,17 @@ Completed in this batch:
 - `Guides.test.tsx`: axe assertion added
 - All 71 tests in 9 suites pass; TypeScript and ESLint clean
 
-## Current batch summary (seventh batch — 2026-05-07)
+## Current batch summary (seventh batch - 2026-05-07)
 
 Completed in this batch:
 
-- `accessibility/report/page.tsx`: new `'use client'` accessibility barrier report form — breadcrumb, error summary (`role="alert"` + `aria-labelledby`), per-field `aria-required`/`aria-invalid`/`aria-describedby` + inline `role="alert"` errors, severity select with 4 options, success state with `role="status" aria-live="polite"`, Cancel link; submits to `/v1/contact-us/contact-web` with `type: 'COMPLAINT'`, `source: 'accessibility'`
+- `accessibility/report/page.tsx`: new `'use client'` accessibility barrier report form - breadcrumb, error summary (`role="alert"` + `aria-labelledby`), per-field `aria-required`/`aria-invalid`/`aria-describedby` + inline `role="alert"` errors, severity select with 4 options, success state with `role="status" aria-live="polite"`, Cancel link; submits to `/v1/contact-us/contact-web` with `type: 'COMPLAINT'`, `source: 'accessibility'`
 - `accessibility/page.tsx`: added report-form link (`<Link href="/accessibility/report">`) before email contact options
-- `accessibility-report-page.test.tsx`: 12 tests — renders, axe (initial + success), validation errors (empty + email format), field error clearing, successful submit with payload assertions, generic API error, axios error message, severity options, breadcrumb, cancel link; all 12 pass
+- `accessibility-report-page.test.tsx`: 12 tests - renders, axe (initial + success), validation errors (empty + email format), field error clearing, successful submit with payload assertions, generic API error, axios error message, severity options, breadcrumb, cancel link; all 12 pass
 - `docs/accessibility/zoom-reflow-reduced-motion-checklist.md`: manual browser regression checklist covering SC 1.4.4 (text resize 200%), SC 1.4.10 (reflow 320 px), reduced-motion (`prefers-reduced-motion: reduce`), focus visibility at zoom, and touch target guidance
 - All automated checks pass: TypeScript clean, ESLint clean, 12/12 tests pass
 
-## Current batch summary (eighth batch — 2026-05-07)
+## Current batch summary (eighth batch - 2026-05-07)
 
 Completed in this batch:
 
@@ -205,9 +207,9 @@ Completed in this batch:
 
 Priority order:
 
-1. **Manual motion/reflow verification** — execute `zoom-reflow-reduced-motion-checklist.md` in a real browser; record results in its Results Log section.
-2. **Public auth keyboard review** — automated field/error wiring is stronger now; finish the manual keyboard and screen-reader walkthrough for sign-in, sign-up, forgot-password, and verification states.
-3. **Final manual mobile/header keyboard walkthrough** — code-side menu semantics are in place; finish the human verification pass and document findings.
-4. **Appointments / tasks dense-workflow manual audit** — code-side naming and region semantics are stronger now; continue the human keyboard and announcement review.
-5. **Third-party exception register** — structured register not yet built; currently documented only in statement prose.
-6. **Legal/compliance review checkpoint** — engineering artifacts ready; legal sign-off pending.
+1. **Manual motion/reflow verification** - execute `zoom-reflow-reduced-motion-checklist.md` in a real browser; record results in its Results Log section.
+2. **Public auth keyboard review** - automated field/error wiring is stronger now; finish the manual keyboard and screen-reader walkthrough for sign-in, sign-up, forgot-password, and verification states.
+3. **Final manual mobile/header keyboard walkthrough** - code-side menu semantics are in place; finish the human verification pass and document findings.
+4. **Appointments / tasks dense-workflow manual audit** - code-side naming and region semantics are stronger now; continue the human keyboard and announcement review.
+5. **Third-party exception register** - structured register not yet built; currently documented only in statement prose.
+6. **Legal/compliance review checkpoint** - engineering artifacts ready; legal sign-off pending.

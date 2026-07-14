@@ -108,17 +108,20 @@ const useActiveOption = ({
       ? `${listboxId}-option-${filteredOptions[activeIndex].value}`
       : undefined;
 
-  useEffect(() => {
+  const [activeIndexDeps, setActiveIndexDeps] = React.useState({ filteredOptions, open, valueSet });
+  if (
+    filteredOptions !== activeIndexDeps.filteredOptions ||
+    open !== activeIndexDeps.open ||
+    valueSet !== activeIndexDeps.valueSet
+  ) {
+    setActiveIndexDeps({ filteredOptions, open, valueSet });
     if (!open || filteredOptions.length === 0) {
       setActiveIndex(-1);
-      return;
-    }
-    setActiveIndex((current) => {
-      if (current >= 0 && current < filteredOptions.length) return current;
+    } else if (activeIndex < 0 || activeIndex >= filteredOptions.length) {
       const selectedIndex = filteredOptions.findIndex((option) => valueSet.has(option.value));
-      return Math.max(selectedIndex, 0);
-    });
-  }, [filteredOptions, open, valueSet]);
+      setActiveIndex(Math.max(selectedIndex, 0));
+    }
+  }
 
   useEffect(() => {
     if (!open || !activeOptionId) return;
