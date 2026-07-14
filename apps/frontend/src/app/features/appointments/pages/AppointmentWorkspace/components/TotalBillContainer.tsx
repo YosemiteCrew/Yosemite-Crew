@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { use, useMemo, useRef, useState } from 'react';
 import { IoAddOutline, IoInformationCircleOutline, IoTrashOutline } from 'react-icons/io5';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
@@ -82,7 +82,7 @@ const CurrencyContext = React.createContext<string>('USD');
 
 const formatCents = (cents: number, currency = 'USD'): string => formatMoney(cents / 100, currency);
 
-const useCurrency = () => React.useContext(CurrencyContext);
+const useCurrency = () => use(CurrencyContext);
 
 // Totals are estimated exclusive of tax — the backend operates in exclusive-tax
 // mode, finalising tax via the finance/tax provider at invoice finalisation. The

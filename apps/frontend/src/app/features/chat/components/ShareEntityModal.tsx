@@ -60,11 +60,12 @@ export function ShareEntityModal({
     return Object.entries(appointments).map(([id, raw]) => {
       const a = raw as Appointment;
       const when = a.startTime
-        ? new Date(a.startTime).toLocaleString(undefined, {
+        ? new Date(a.startTime).toLocaleString('en-US', {
             month: 'short',
             day: 'numeric',
             hour: 'numeric',
             minute: '2-digit',
+            timeZone: 'UTC',
           })
         : undefined;
       return {
@@ -137,7 +138,7 @@ export function ShareEntityModal({
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-chat-surface-soft"
+            className="inline-flex size-8 items-center justify-center rounded-full text-neutral-500 hover:bg-chat-surface-soft"
           >
             <IoClose className="h-4 w-4" />
           </button>
@@ -156,7 +157,7 @@ export function ShareEntityModal({
                   : 'text-neutral-500 hover:bg-chat-surface-soft'
               )}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="size-4" />
               {label}
             </button>
           ))}

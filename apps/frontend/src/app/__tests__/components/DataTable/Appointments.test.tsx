@@ -102,6 +102,44 @@ jest.mock(
     )
 );
 
+jest.mock(
+  'react-icons/fa',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
+
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
+
 describe('Appointments table', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -133,7 +171,7 @@ describe('Appointments table', () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId('IoCheckmarkCircle').closest('button')!);
+    fireEvent.click(screen.getByTestId('FaCheckCircle').closest('button')!);
     fireEvent.click(screen.getByTestId('IoIosCloseCircle').closest('button')!);
 
     // Accept now opens the change-status modal so a lead/support can be assigned.
@@ -203,7 +241,7 @@ describe('Appointments table', () => {
 
     fireEvent.click(screen.getByTestId('IoDocumentTextOutline').closest('button')!);
     fireEvent.click(screen.getByTestId('IoCardOutline').closest('button')!);
-    fireEvent.click(screen.getByTestId('IoFlaskOutline').closest('button')!);
+    fireEvent.click(screen.getByTestId('MdScience').closest('button')!);
 
     expect(pushMock).toHaveBeenCalledWith('/appointments/a4/workspace?step=SOAP');
     expect(pushMock).toHaveBeenCalledWith('/appointments/a4/workspace?step=INVOICE');

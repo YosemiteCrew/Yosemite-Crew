@@ -18,6 +18,7 @@ import { listVitalsTemplates } from '@/app/features/appointments/services/worksp
 import {
   createEncounterDocumentPacket,
   getEncounterDocumentPacketPdfUrl,
+  listEncounterWorkspaceDocuments,
   signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
@@ -76,6 +77,7 @@ jest.mock('@/app/features/appointments/services/workspaceTemplateService', () =>
 jest.mock('@/app/features/appointments/services/workspaceAggregateService', () => ({
   createEncounterDocumentPacket: jest.fn(),
   getEncounterDocumentPacketPdfUrl: jest.fn(),
+  listEncounterWorkspaceDocuments: jest.fn(),
   signWorkspaceDocumentPacket: jest.fn(),
   reconcileWorkspaceDocumentPacket: jest.fn(),
 }));
@@ -812,6 +814,8 @@ describe('DocumentsPanel', () => {
       status: 'DRAFT',
       signing: { status: 'NOT_STARTED' },
     });
+    (listEncounterWorkspaceDocuments as jest.Mock).mockReset();
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([]);
     (signWorkspaceDocumentPacket as jest.Mock).mockReset();
     (signWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({
       packetId: 'packet-1',

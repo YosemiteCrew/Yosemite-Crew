@@ -33,6 +33,7 @@ import { SharedEntityCard, type SharedEntityData } from './SharedEntityCard';
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🎉', '🙏', '✅'];
 
 type ReactionChip = Readonly<{ emoji: string; count: number; mine: boolean }>;
+type MentionTextPart = Readonly<{ key: string; value: string }>;
 
 type ReactionSource = {
   reaction_groups?: Record<string, { count?: number }> | null;
@@ -52,27 +53,45 @@ function getReactionChips(message: ReactionSource): ReactionChip[] {
     groups && Object.keys(groups).length > 0
       ? Object.entries(groups).map(([emoji, g]) => [emoji, g.count ?? 0])
       : Object.entries(counts);
-  return entries
-    .filter(([, count]) => count > 0)
-    .map(([emoji, count]) => ({ emoji, count, mine: ownTypes.has(emoji) }));
+  const chips: ReactionChip[] = [];
+  for (const [emoji, count] of entries) {
+    if (count > 0) {
+      chips.push({ emoji, count, mine: ownTypes.has(emoji) });
+    }
+  }
+  return chips;
 }
 
-const renderText = (body: string, mine: boolean) =>
-  body.split(/(@\w[\w-]*)/g).map((part, i) =>
-    part.startsWith('@') ? (
-      <span
-        key={`${part}-${i}`}
-        className={clsx(
-          'font-semibold',
-          mine ? 'text-[var(--cta-text)] underline' : 'text-primary-700'
-        )}
-      >
-        {part}
-      </span>
-    ) : (
-      part
-    )
+function splitMentionAwareText(body: string): MentionTextPart[] {
+  let offset = 0;
+  return body.split(/(@\w[\w-]*)/g).map((value) => {
+    const key = `${offset}-${value}`;
+    offset += value.length;
+    return { key, value };
+  });
+}
+
+function MentionAwareText({ body, mine }: Readonly<{ body: string; mine: boolean }>) {
+  return (
+    <>
+      {splitMentionAwareText(body).map((part) =>
+        part.value.startsWith('@') ? (
+          <span
+            key={part.key}
+            className={clsx(
+              'font-semibold',
+              mine ? 'text-[var(--cta-text)] underline' : 'text-primary-700'
+            )}
+          >
+            {part.value}
+          </span>
+        ) : (
+          part.value
+        )
+      )}
+    </>
   );
+}
 
 function MsgIconButton({
   label,
@@ -84,7 +103,7 @@ function MsgIconButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-chat-panel hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-input-border-active"
+      className="inline-flex size-7 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-chat-panel hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-input-border-active"
     >
       {children}
     </button>
@@ -167,7 +186,7 @@ function MessageActions({
                   onReact(emoji, ev);
                   setPickerOpen(false);
                 }}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-lg hover:bg-chat-surface-soft"
+                className="flex size-8 items-center justify-center rounded-lg text-lg hover:bg-chat-surface-soft"
               >
                 {emoji}
               </button>
@@ -246,7 +265,6 @@ function MessageEditor({
           }
           if (e.key === 'Escape') onCancel();
         }}
-        autoFocus
         aria-label="Edit message"
         className="w-48 bg-transparent font-satoshi text-sm text-neutral-900 outline-none"
       />
@@ -287,7 +305,7 @@ function MessageBubble({
             variant="body-4"
             className={mine ? 'text-[var(--cta-text)]' : 'text-neutral-900'}
           >
-            {renderText(text, mine)}
+            <MentionAwareText body={text} mine={mine} />
           </Text>
         </div>
       )}
@@ -361,7 +379,11 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
 
   const reactions = getReactionChips(message as ReactionSource);
   const time = message.created_at
-    ? new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    ? new Date(message.created_at).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: 'UTC',
+      })
     : '';
   const seen = mine && (readBy?.length ?? 0) > 0;
   const sending = message.status === 'sending';

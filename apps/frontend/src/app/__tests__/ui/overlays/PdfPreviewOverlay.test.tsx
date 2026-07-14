@@ -25,7 +25,7 @@ describe('PdfPreviewOverlay', () => {
       'https://integration.vetconnectplus.com/acknowledgment/1'
     );
     expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-    expect(iframe).not.toHaveAttribute('sandbox');
+    expect(iframe).toHaveAttribute('sandbox', 'allow-downloads allow-scripts');
   });
 
   it('renders iframe for blob URL (CSP object-src none blocks <object>; frame-src blob: is allowed)', () => {

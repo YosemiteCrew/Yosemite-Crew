@@ -65,4 +65,57 @@ describe('Steps Progress', () => {
     // No onStepSelect handler provided — clicking must not throw.
     expect(() => fireEvent.click(triggers[1])).not.toThrow();
   });
+
+  test('renders a connector between steps but not after the last one', () => {
+    const steps = [
+      { title: 'One', logo: '1' },
+      { title: 'Two', logo: '2' },
+      { title: 'Three', logo: '3' },
+    ];
+    const { container } = render(<Progress activeStep={0} steps={steps} />);
+    expect(container.querySelectorAll('.yc-step-connector')).toHaveLength(2);
+  });
+
+  test('disables and marks non-clickable steps when canSelectStep returns false', () => {
+    const steps = [
+      { title: 'One', logo: '1' },
+      { title: 'Two', logo: '2' },
+    ];
+    render(<Progress activeStep={0} steps={steps} canSelectStep={(index) => index === 0} />);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons[0]).not.toBeDisabled();
+    expect(buttons[0]).toHaveClass('is-clickable');
+    expect(buttons[1]).toBeDisabled();
+    expect(buttons[1]).not.toHaveClass('is-clickable');
+  });
+
+  test('is not disabled by default when canSelectStep is not provided', () => {
+    const steps = [{ title: 'One', logo: '1' }];
+    render(<Progress activeStep={0} steps={steps} />);
+    expect(screen.getByRole('button')).not.toBeDisabled();
+  });
+
+  test('calls onStepSelect with the clicked step index', () => {
+    const onStepSelect = jest.fn();
+    const steps = [
+      { title: 'One', logo: '1' },
+      { title: 'Two', logo: '2' },
+    ];
+    render(
+      <Progress
+        activeStep={0}
+        steps={steps}
+        canSelectStep={() => true}
+        onStepSelect={onStepSelect}
+      />
+    );
+    fireEvent.click(screen.getAllByRole('button')[1]);
+    expect(onStepSelect).toHaveBeenCalledWith(1);
+  });
+
+  test('does not throw when a step is clicked and onStepSelect is not provided', () => {
+    const steps = [{ title: 'One', logo: '1' }];
+    render(<Progress activeStep={0} steps={steps} />);
+    expect(() => fireEvent.click(screen.getByRole('button'))).not.toThrow();
+  });
 });

@@ -7,7 +7,7 @@
  * the parent's activateChannelById). Mounted once inside the chat shell.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { StreamChat, Channel, ChannelFilters, ChannelSort } from 'stream-chat';
 import { LuCommand } from 'react-icons/lu';
 import { IoReturnDownBackOutline, IoSearchOutline } from 'react-icons/io5';
@@ -34,6 +34,14 @@ export function ChatCommandPalette({
   const [channels, setChannels] = useState<Channel[]>([]);
   const userId = client.userID;
 
+  // Reset the query as soon as the palette closes, computed during render
+  // (rather than in an effect) so there's no stale-query flash on reopen.
+  const prevOpenRef = useRef(open);
+  if (prevOpenRef.current !== open) {
+    prevOpenRef.current = open;
+    if (!open && query) setQuery('');
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -53,10 +61,7 @@ export function ChatCommandPalette({
   }, []);
 
   useEffect(() => {
-    if (!open) {
-      setQuery('');
-      return;
-    }
+    if (!open) return;
     let active = true;
     client
       .queryChannels(filters, PALETTE_SORT, { limit: 30 })
@@ -113,7 +118,7 @@ export function ChatCommandPalette({
             className="w-full bg-transparent font-satoshi text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
           />
           <span className="flex shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-neutral-400">
-            <LuCommand className="h-3 w-3" />K
+            <LuCommand className="size-3" />K
           </span>
         </div>
         <ul className="max-h-80 overflow-y-auto p-2">

@@ -62,7 +62,7 @@ export function MessageSearch() {
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className={clsx(
-          'inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors',
+          'inline-flex size-9 items-center justify-center rounded-full transition-colors',
           open
             ? 'bg-chat-panel text-primary-600'
             : 'text-neutral-500 hover:bg-chat-panel hover:text-neutral-900'

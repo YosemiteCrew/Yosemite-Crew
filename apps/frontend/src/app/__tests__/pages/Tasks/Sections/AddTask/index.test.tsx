@@ -192,14 +192,11 @@ describe('Tasks AddTask', () => {
     });
   });
 
-  it('applies prefill defaults for missing optional fields and calls onPrefillConsumed', async () => {
-    const onPrefillConsumed = jest.fn();
-
+  it('applies prefill defaults for missing optional fields', () => {
     render(
       <AddTask
         showModal
         setShowModal={jest.fn()}
-        onPrefillConsumed={onPrefillConsumed}
         prefill={
           {
             name: 'Bare',
@@ -210,7 +207,6 @@ describe('Tasks AddTask', () => {
       />
     );
 
-    await waitFor(() => expect(onPrefillConsumed).toHaveBeenCalled());
     // No prefill.audience -> falls back to the previous audience (EMPLOYEE_TASK).
     expect(screen.getByTestId('audience')).toHaveTextContent('EMPLOYEE_TASK');
     // No prefill.assignedTo -> reset to empty string.
@@ -218,19 +214,15 @@ describe('Tasks AddTask', () => {
   });
 
   it('does not render or apply prefill while the modal is closed', () => {
-    const onPrefillConsumed = jest.fn();
-
     render(
       <AddTask
         showModal={false}
         setShowModal={jest.fn()}
         prefill={{ name: 'Closed', dueAt: new Date() } as any}
-        onPrefillConsumed={onPrefillConsumed}
       />
     );
 
     expect(screen.queryByTestId('modal')).not.toBeInTheDocument();
-    expect(onPrefillConsumed).not.toHaveBeenCalled();
   });
 
   it('toggles audience and assignee selection for staff and pet parents', () => {

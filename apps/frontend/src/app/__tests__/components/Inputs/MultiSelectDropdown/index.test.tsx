@@ -12,6 +12,13 @@ jest.mock('react-icons/fa6', () => ({
 }));
 
 describe('MultiSelectDropdown', () => {
+  beforeEach(() => {
+    Object.defineProperty(globalThis.window, 'innerHeight', {
+      configurable: true,
+      value: 900,
+    });
+  });
+
   it('renders a badge pill next to options that provide one', () => {
     render(
       <MultiSelectDropdown
@@ -131,6 +138,34 @@ describe('MultiSelectDropdown', () => {
     fireEvent.keyDown(trigger, { key: 'Escape' });
   });
 
+  it('supports home, end, and escape while open', () => {
+    const onChange = jest.fn();
+    render(
+      <MultiSelectDropdown
+        placeholder="Select"
+        value={[]}
+        onChange={onChange}
+        options={['One', 'Two', 'Three']}
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: /Select/i });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(trigger, { key: 'End' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith(['Three']);
+
+    fireEvent.click(trigger);
+    fireEvent.keyDown(trigger, { key: 'Home' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith(['One']);
+
+    fireEvent.click(trigger);
+    expect(screen.getByRole('button', { name: 'One', pressed: false })).toBeInTheDocument();
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    expect(screen.queryByRole('button', { name: 'One', pressed: false })).not.toBeInTheDocument();
+  });
+
   it('filters options and shows an empty search state', () => {
     render(
       <MultiSelectDropdown
@@ -154,5 +189,33 @@ describe('MultiSelectDropdown', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Select/i }));
     expect(screen.getByText('No options available')).toBeInTheDocument();
+  });
+
+  it('resets an invalid selection when the available options change', () => {
+    const onChange = jest.fn();
+    const { rerender } = render(
+      <MultiSelectDropdown
+        placeholder="Select"
+        value={['Missing']}
+        onChange={onChange}
+        options={['One', 'Two']}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /Select/i })).toBeInTheDocument();
+
+    rerender(
+      <MultiSelectDropdown
+        placeholder="Select"
+        value={['Missing']}
+        onChange={onChange}
+        options={['Two']}
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: /Select/i });
+    fireEvent.click(trigger);
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith(['Missing', 'Two']);
   });
 });

@@ -150,7 +150,7 @@ type AddInventoryProps = {
   organisationId?: string;
 };
 
-const AddInventory = ({
+const useAddInventoryContent = ({
   showModal,
   setShowModal,
   businessType,
@@ -582,5 +582,7 @@ const AddInventory = ({
     </Modal>
   );
 };
+
+const AddInventory = (props: AddInventoryProps) => useAddInventoryContent(props);
 
 export default AddInventory;

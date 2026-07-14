@@ -74,6 +74,7 @@ const PdfPreviewOverlay = ({
             src={safePdfUrl}
             title={title}
             className="size-full border-0"
+            sandbox="allow-downloads allow-scripts"
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ pointerEvents: 'auto' }}
             onLoad={() => setLoaded(true)}

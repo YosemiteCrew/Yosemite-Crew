@@ -46,10 +46,7 @@ import {
   updateTask,
 } from '@/app/features/tasks/services/taskService';
 import type { Task } from '@/app/features/tasks/types/task';
-import {
-  categoryFromLabel,
-  getTaskCategoryLabel,
-} from '@/app/features/tasks/constants/taskTaxonomy';
+import { categoryFromLabel } from '@/app/features/tasks/constants/taskTaxonomy';
 import { useLoadTeam, useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import {
   getInpatientScheduleForEncounter,
@@ -58,20 +55,19 @@ import {
   resolvePrescriptionTemplate,
   resolveScheduleTasksFromTemplate,
 } from '@/app/features/appointments/services/workspaceTemplateService';
-import { formatStampTime } from '@/app/lib/appointmentWorkspace';
 import { getAppointmentCompanion } from '@/app/lib/appointments';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import type { PrescriptionTemplateOption } from '@/app/features/appointments/services/workspaceTemplateService';
 import type { TemplateLike } from '@yosemite-crew/types';
-import type {
-  PackageBreakdownItem,
-  PackageRevamp,
-  ServiceRevamp,
-} from '@/app/features/organization/types/revamp';
 import {
-  computePackageBreakdownItem,
-  computePackageTotals,
-} from '@/app/features/organization/services/catalogCalculations';
+  PRESCRIPTION_INVENTORY_CATEGORIES,
+  WORKSPACE_TASK_LOAD,
+  combineScheduleDateTime,
+  packageToLineItem,
+  scheduleStatusToTaskStatus,
+  serviceToLineItem,
+  taskToScheduleTask,
+} from './treatmentStepUtils';
 
 type TreatmentStepProps = {
   appointmentId: string;
@@ -84,248 +80,91 @@ type TreatmentStepProps = {
   onOpenInvoice: () => void;
 };
 
-const PRESCRIPTION_INVENTORY_CATEGORIES = new Set([
-  'medicine',
-  'vaccine',
-  'supplement',
-  'iv/fluid therapy',
-]);
-
-const moneyToCents = (amount: number): number => Math.max(0, Math.round(amount * 100));
-
-const discountCentsFromPercent = (grossCents: number, percent: number): number =>
-  Math.min(grossCents, Math.round((grossCents * percent) / 100));
-
-const breakdownToLineItem = (item: PackageBreakdownItem) => {
-  const { gross, discountAmt, net } = computePackageBreakdownItem(item);
-  return {
-    id: item.id,
-    name: item.name,
-    qty: item.quantity,
-    instructions: item.type,
-    unitPriceCents: moneyToCents(item.unitPrice),
-    grossCents: moneyToCents(gross),
-    discountPercent: item.discount,
-    discountCents: moneyToCents(discountAmt),
-    amountCents: moneyToCents(net),
-  };
+type TreatmentCatalogPackage = {
+  id: string;
+  organisationId?: string;
+  status: string;
+  breakdown: unknown[];
 };
 
-const serviceToLineItem = (service: ServiceRevamp) => {
-  const grossCents = moneyToCents(service.grossAmount);
-  const defaultDiscountPercent = service.defaultDiscount ?? 0;
-  const maxDiscountPercent = service.maxDiscount ?? 0;
-  const defaultDiscountCents = discountCentsFromPercent(grossCents, defaultDiscountPercent);
-  return {
-    refId: service.id,
-    kind: 'SERVICE' as const,
-    name: service.name,
-    qty: 1,
-    instructions: service.description || service.type,
-    unitPriceCents: grossCents,
-    amountCents: grossCents - defaultDiscountCents,
-    defaultDiscountPercent,
-    defaultDiscountCents,
-    maxDiscountPercent,
-    maxDiscountCents: discountCentsFromPercent(grossCents, maxDiscountPercent),
-  };
-};
+const getPackageIdsNeedingDetail = (
+  catalogPackages: TreatmentCatalogPackage[],
+  organisationId?: string
+): string[] =>
+  catalogPackages.reduce<string[]>((ids, pkg) => {
+    if (
+      pkg.organisationId === organisationId &&
+      pkg.status === 'ACTIVE' &&
+      pkg.breakdown.length === 0
+    ) {
+      ids.push(pkg.id);
+    }
+    return ids;
+  }, []);
 
-const packageToLineItem = (pkg: PackageRevamp) => {
-  const { additionalDiscountAmt, afterItemDiscounts, totalCost } = computePackageTotals(pkg);
-  const grossCents = moneyToCents(afterItemDiscounts);
-  const defaultDiscountPercent = pkg.additionalDiscount ?? 0;
-  const defaultDiscountCents = moneyToCents(additionalDiscountAmt);
-  return {
-    refId: pkg.id,
-    kind: 'PACKAGE' as const,
-    name: pkg.name,
-    qty: 1,
-    instructions: pkg.description || `Package with ${pkg.breakdown.length} item(s)`,
-    unitPriceCents: grossCents,
-    amountCents: moneyToCents(totalCost),
-    defaultDiscountPercent,
-    defaultDiscountCents,
-    maxDiscountPercent: defaultDiscountPercent,
-    maxDiscountCents: defaultDiscountCents,
-    breakdown: pkg.breakdown.map(breakdownToLineItem),
-  };
-};
-
-// Workspace task loads must include COMPLETED tasks: the backend list excludes
-// them by default, which would make completed schedule rows vanish on refresh.
-const WORKSPACE_TASK_LOAD = { force: true, silent: true, filters: { includeCompleted: true } };
-
-const taskStatusToScheduleStatus = (status: Task['status']) => {
-  if (status === 'COMPLETED') return 'COMPLETED' as const;
-  if (status === 'CANCELLED') return 'CANCELLED' as const;
-  if (status === 'IN_PROGRESS') return 'UPCOMING' as const;
-  return 'PENDING' as const;
-};
-
-const scheduleStatusToTaskStatus = (status: ScheduleTaskStatus): Task['status'] => {
-  if (status === 'COMPLETED') return 'COMPLETED';
-  if (status === 'CANCELLED') return 'CANCELLED';
-  if (status === 'UPCOMING') return 'IN_PROGRESS';
-  return 'PENDING';
-};
-
-// Combine a schedule task's start date ("MMM d, yyyy" or ISO) and "h:mm AM/PM"
-// time into a single Date for the backend `dueAt`. Returns null when the date is
-// unparseable so the caller can keep the existing value.
-const combineScheduleDateTime = (startDate?: string, time?: string): Date | null => {
-  if (!startDate) return null;
-  const base = new Date(startDate);
-  if (Number.isNaN(base.getTime())) return null;
-  const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec((time ?? '').trim());
-  if (match) {
-    let hours = Number(match[1]) % 12;
-    if (match[3].toUpperCase() === 'PM') hours += 12;
-    base.setHours(hours, Number(match[2]), 0, 0);
+const loadInpatientScheduleTasks = async ({
+  encounterId,
+  isInpatient,
+  organisationId,
+}: {
+  encounterId?: string;
+  isInpatient: boolean;
+  organisationId?: string;
+}) => {
+  if (!organisationId || !isInpatient) return;
+  if (encounterId) {
+    try {
+      await getInpatientScheduleForEncounter(organisationId, encounterId);
+    } catch (error) {
+      console.error('Failed to load encounter schedule:', error);
+    }
   }
-  return base;
+  await loadTasksForPrimaryOrg(WORKSPACE_TASK_LOAD).catch((error) => {
+    console.error('Failed to load schedule tasks:', error);
+  });
 };
-
-/** "h:mm AM/PM" from a Date for the schedule timeline column. */
-const dueTimeLabel = (dueAt?: Date): string | undefined => {
-  if (!dueAt) return undefined;
-  const date = new Date(dueAt);
-  return Number.isNaN(date.getTime()) ? undefined : formatStampTime(date.toISOString());
-};
-
-const taskToScheduleTask = (task: Task): ScheduleTask => ({
-  id: task._id,
-  description: task.name || task.description || 'Task',
-  // Instructions render as the grey second line under the title.
-  subtext: task.name ? task.description : undefined,
-  // Schedule rows display the human category label; task.category is a code.
-  category: getTaskCategoryLabel(task.category) as ScheduleTask['category'],
-  assignedToId: task.assignedTo,
-  status: taskStatusToScheduleStatus(task.status),
-  time: dueTimeLabel(task.dueAt),
-  startDate: task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 10) : undefined,
-  autoGenerated: task.source !== 'CUSTOM',
-  sourceRefId: task.templateId || task.libraryTaskId,
-});
 
 /**
- * Treatment step: services/packages, prescription, and inpatient schedule.
- * Add/edit actions update the workspace store; backend-backed catalog and
- * clinical artifact hydration supply persisted rows. "Skip to Summary" lives
- * in the meta bar.
+ * Groups the catalog/package/inventory/template data-loading effects and the
+ * catalog-derived memos for the treatment step.
  */
-const TreatmentStep = ({
-  appointmentId,
+const useTreatmentCatalog = ({
   organisationId,
   encounterId,
-  authorId,
-  encounter,
-  ensureEncounterId,
-  onOpenInvoice,
-}: TreatmentStepProps) => {
-  const addLineItem = useAppointmentWorkspaceStore((s) => s.addLineItem);
-  const updateLineItem = useAppointmentWorkspaceStore((s) => s.updateLineItem);
-  const removeLineItem = useAppointmentWorkspaceStore((s) => s.removeLineItem);
-  const addPrescription = useAppointmentWorkspaceStore((s) => s.addPrescription);
-  const updatePrescription = useAppointmentWorkspaceStore((s) => s.updatePrescription);
-  const setPrescriptions = useAppointmentWorkspaceStore((s) => s.setPrescriptions);
-  const removePrescription = useAppointmentWorkspaceStore((s) => s.removePrescription);
-  const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
-  const mergeEncounterData = useAppointmentWorkspaceStore((s) => s.mergeEncounterData);
-  const setActiveSideAction = useAppointmentWorkspaceStore((s) => s.setActiveSideAction);
-  const openTaskInQuickActions = useAppointmentWorkspaceStore((s) => s.openTaskInQuickActions);
-  const router = useRouter();
-  const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
+  isInpatient,
+}: {
+  organisationId?: string;
+  encounterId?: string;
+  isInpatient: boolean;
+}) => {
   const itemIdsByOrgId = useInventoryStore((s) => s.itemIdsByOrgId);
   const inventoryById = useInventoryStore((s) => s.itemsById);
   const setInventoryForOrg = useInventoryStore((s) => s.setInventoryForOrg);
-  const tasksById = useTaskStore((s) => s.tasksById);
-  const upsertTask = useTaskStore((s) => s.upsertTask);
-  useLoadTeam();
-  const teamMembers = useTeamForPrimaryOrg();
   const catalogSpecialities = useRevampCatalogStore((s) => s.specialities);
   const catalogServices = useRevampCatalogStore((s) => s.services);
   const catalogPackages = useRevampCatalogStore((s) => s.packages);
   const loadOrganisationCatalog = useRevampCatalogStore((s) => s.loadOrganisationCatalog);
   const loadSpecialityCatalog = useRevampCatalogStore((s) => s.loadSpecialityCatalog);
   const hydratePackageDetail = useRevampCatalogStore((s) => s.hydratePackageDetail);
-  const [prescriptionError, setPrescriptionError] = useState<string | null>(null);
-  const [printingLabels, setPrintingLabels] = useState(false);
   const [scheduleTemplates, setScheduleTemplates] = useState<TemplateLike[]>([]);
   const [prescriptionTemplates, setPrescriptionTemplates] = useState<PrescriptionTemplateOption[]>(
     []
-  );
-  const [scheduleError, setScheduleError] = useState<string | null>(null);
-  const [treatmentSaveError, setTreatmentSaveError] = useState<string | null>(null);
-  const [isSavingTreatment, setIsSavingTreatment] = useState(false);
-  const readOnly = encounter.viewOnly;
-  // Once the encounter is ready for billing, destructive removal of un-billed
-  // items is locked. Already-billed items lock per-row inside each editor (read
-  // -only + "Billed" badge + no delete); adding new items always stays allowed.
-  const billedTreatmentLocked = readOnly || encounter.readyForBilling.value;
-  const isInpatient = encounter.mode === 'INPATIENT';
-  // The outpatient visit schedule is built from the companion's real upcoming
-  // appointments already in the store (there is no dedicated outpatient "series" data
-  // model). It degrades to an empty state when no future visits are available — e.g. on
-  // a direct deep-link where the appointment list has not been loaded.
-  const outpatientCompanionId = useMemo(() => {
-    const current = appointmentsById[appointmentId];
-    return current ? getAppointmentCompanion(current).id : undefined;
-  }, [appointmentsById, appointmentId]);
-  const outpatientSchedule = useMemo(
-    () =>
-      buildOutpatientSchedule(Object.values(appointmentsById), {
-        companionId: outpatientCompanionId,
-        excludeAppointmentId: appointmentId,
-      }),
-    [appointmentsById, outpatientCompanionId, appointmentId]
   );
   const inventoryIds = useMemo(
     () => (organisationId ? (itemIdsByOrgId[organisationId] ?? []) : []),
     [itemIdsByOrgId, organisationId]
   );
-  const catalogSpecialityIds = useMemo(
-    () =>
-      organisationId
-        ? catalogSpecialities
-            .filter((speciality) => speciality.organisationId === organisationId)
-            .map((speciality) => speciality.id)
-        : [],
-    [catalogSpecialities, organisationId]
-  );
+  const catalogSpecialityIds = useMemo(() => {
+    if (!organisationId) return [];
+    const ids: string[] = [];
+    for (const speciality of catalogSpecialities) {
+      if (speciality.organisationId === organisationId) {
+        ids.push(speciality.id);
+      }
+    }
+    return ids;
+  }, [catalogSpecialities, organisationId]);
   const catalogSpecialityKey = catalogSpecialityIds.join('|');
-  const appointmentEmployeeTasks = useMemo(
-    () =>
-      Object.values(tasksById)
-        .filter((task) => task.appointmentId === appointmentId && task.audience === 'EMPLOYEE_TASK')
-        .map(taskToScheduleTask),
-    [appointmentId, tasksById]
-  );
-  // The task store is the single source of truth for schedule tasks: every row is
-  // a real backend employee task, so the Schedule timeline and the Quick Actions
-  // Tasks panel always stay in sync and no local-only duplicates can appear.
-  const visibleScheduleTasks = appointmentEmployeeTasks;
-
-  // Real staff available to own a schedule task: active org team members, plus
-  // the encounter's own lead/support so they are always selectable even if the
-  // team list hasn't loaded yet. De-duped by value.
-  const assigneeOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const options: { label: string; value: string }[] = [];
-    const add = (value?: string, label?: string) => {
-      const id = (value ?? '').trim();
-      const name = (label ?? '').trim();
-      if (!id || !name || seen.has(id)) return;
-      seen.add(id);
-      options.push({ value: id, label: name });
-    };
-    teamMembers
-      .filter((member) => member.status !== 'Off-Duty')
-      .forEach((member) => add(member.practionerId || member._id, member.name));
-    add(encounter.leadId, encounter.leadName);
-    add(encounter.nurseId, encounter.nurseName);
-    return options;
-  }, [teamMembers, encounter.leadId, encounter.leadName, encounter.nurseId, encounter.nurseName]);
 
   useEffect(() => {
     if (!organisationId) return;
@@ -345,20 +184,16 @@ const TreatmentStep = ({
     });
   }, [catalogSpecialityIds, catalogSpecialityKey, loadSpecialityCatalog, organisationId]);
 
+  const packageIdsNeedingDetail = useMemo(
+    () => getPackageIdsNeedingDetail(catalogPackages, organisationId),
+    [catalogPackages, organisationId]
+  );
+
   useEffect(() => {
-    const packageIdsNeedingDetail = catalogPackages
-      .filter(
-        (pkg) =>
-          pkg.organisationId === organisationId &&
-          pkg.status === 'ACTIVE' &&
-          pkg.breakdown.length === 0
-      )
-      .map((pkg) => pkg.id);
-    if (packageIdsNeedingDetail.length === 0) return;
     Promise.all(packageIdsNeedingDetail.map((id) => hydratePackageDetail(id))).catch((error) => {
       console.error('Failed to hydrate treatment package details:', error);
     });
-  }, [catalogPackages, hydratePackageDetail, organisationId]);
+  }, [hydratePackageDetail, packageIdsNeedingDetail]);
 
   useEffect(() => {
     if (!organisationId) return;
@@ -396,21 +231,115 @@ const TreatmentStep = ({
   // exist on the backend, then pull the generated tasks into the task store so
   // the timeline renders persisted items (not just ones added this session).
   useEffect(() => {
-    if (!organisationId || !isInpatient) return;
-    const loadSchedule = async () => {
-      if (encounterId) {
-        try {
-          await getInpatientScheduleForEncounter(organisationId, encounterId);
-        } catch (error) {
-          console.error('Failed to load encounter schedule:', error);
-        }
-      }
-      await loadTasksForPrimaryOrg(WORKSPACE_TASK_LOAD).catch((error) => {
-        console.error('Failed to load schedule tasks:', error);
-      });
-    };
-    void loadSchedule();
+    void loadInpatientScheduleTasks({ encounterId, isInpatient, organisationId });
   }, [encounterId, isInpatient, organisationId]);
+
+  const prescriptionCatalogItems = useMemo(
+    () =>
+      inventoryIds
+        .map((id) => inventoryById[id])
+        .filter((item): item is InventoryItem => {
+          const category = item?.basicInfo.category?.toLowerCase();
+          return Boolean(category && PRESCRIPTION_INVENTORY_CATEGORIES.has(category));
+        })
+        .map(inventoryToPrescriptionItem),
+    [inventoryById, inventoryIds]
+  );
+
+  // Backfill saved/encounter prescription lines with inventory-owned display fields (brand,
+  // generic, strength unit, form, route, controlled flag, live stock, price) that the persisted
+  // record may be missing. Resolve by inventoryItemId first, then SKU. Saved values always win.
+  const inventoryBySku = useMemo(() => {
+    const bySku = new Map<string, InventoryItem>();
+    for (const id of inventoryIds) {
+      const inv = inventoryById[id];
+      const sku = inv?.sku?.trim();
+      if (sku) bySku.set(sku.toLowerCase(), inv);
+    }
+    return bySku;
+  }, [inventoryById, inventoryIds]);
+
+  const servicePackageCatalogItems = useMemo(() => {
+    if (!organisationId) return [];
+    const serviceItems = [];
+    for (const service of catalogServices) {
+      if (service.organisationId === organisationId && service.status === 'ACTIVE') {
+        serviceItems.push(serviceToLineItem(service));
+      }
+    }
+    const packageItems = [];
+    for (const pkg of catalogPackages) {
+      if (pkg.organisationId === organisationId && pkg.status === 'ACTIVE') {
+        packageItems.push(packageToLineItem(pkg));
+      }
+    }
+    return [...serviceItems, ...packageItems];
+  }, [catalogPackages, catalogServices, organisationId]);
+
+  return {
+    inventoryById,
+    inventoryBySku,
+    prescriptionCatalogItems,
+    servicePackageCatalogItems,
+    scheduleTemplates,
+    prescriptionTemplates,
+  };
+};
+
+/**
+ * Schedule-task state and handlers. The task store is the single source of
+ * truth for schedule tasks: every row is a real backend employee task, so the
+ * Schedule timeline and the Quick Actions Tasks panel always stay in sync and
+ * no local-only duplicates can appear.
+ */
+const useScheduleTasks = ({
+  appointmentId,
+  organisationId,
+  encounter,
+}: {
+  appointmentId: string;
+  organisationId?: string;
+  encounter: AppointmentEncounter;
+}) => {
+  const tasksById = useTaskStore((s) => s.tasksById);
+  const upsertTask = useTaskStore((s) => s.upsertTask);
+  useLoadTeam();
+  const teamMembers = useTeamForPrimaryOrg();
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
+  const appointmentEmployeeTasks = useMemo(() => {
+    const tasks = [];
+    for (const task of Object.values(tasksById)) {
+      if (task.appointmentId === appointmentId && task.audience === 'EMPLOYEE_TASK') {
+        tasks.push(taskToScheduleTask(task));
+      }
+    }
+    return tasks;
+  }, [appointmentId, tasksById]);
+  const visibleScheduleTasks = appointmentEmployeeTasks;
+
+  // Real staff available to own a schedule task: active org team members, plus
+  // the encounter's own lead/support so they are always selectable even if the
+  // team list hasn't loaded yet. De-duped by value.
+  const assigneeOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const options: { label: string; value: string }[] = [];
+    const add = (value?: string, label?: string) => {
+      const id = (value ?? '').trim();
+      const name = (label ?? '').trim();
+      if (!id || !name || seen.has(id)) return;
+      seen.add(id);
+      options.push({ value: id, label: name });
+    };
+    for (const member of teamMembers) {
+      if (member.status !== 'Off-Duty') {
+        add(member.practionerId || member._id, member.name);
+      }
+    }
+    add(encounter.leadId, encounter.leadName);
+    add(encounter.nurseId, encounter.nurseName);
+    return options;
+  }, [teamMembers, encounter.leadId, encounter.leadName, encounter.nurseId, encounter.nurseName]);
 
   // Append a task template: resolve its blocks and create them as real employee
   // tasks for this appointment, so each appears in the schedule (derived from the
@@ -448,44 +377,83 @@ const TreatmentStep = ({
     }
   };
 
-  const prescriptionCatalogItems = useMemo(
-    () =>
-      inventoryIds
-        .map((id) => inventoryById[id])
-        .filter((item): item is InventoryItem => {
-          const category = item?.basicInfo.category?.toLowerCase();
-          return Boolean(category && PRESCRIPTION_INVENTORY_CATEGORIES.has(category));
-        })
-        .map(inventoryToPrescriptionItem),
-    [inventoryById, inventoryIds]
-  );
+  // Persist schedule-task edits. Every schedule row is a real backend employee
+  // task (the task store is the single source of truth), so the optimistic update
+  // writes to the task store and persists via the status/PATCH task endpoints —
+  // the derived schedule row and the Quick Actions panel re-render from the same
+  // source, staying in sync with no local-only duplicate.
+  const handleUpdateScheduleTask = (id: string, patch: Partial<ScheduleTask>) => {
+    const backingTask = tasksById[id];
+    if (!backingTask) return;
+    setScheduleError(null);
+    // Optimistically reflect the change in the task store so the derived schedule
+    // row (appointmentEmployeeTasks) re-renders immediately.
+    const nextStatus =
+      patch.status === undefined
+        ? backingTask.status
+        : scheduleStatusToTaskStatus(patch.status as ScheduleTaskStatus);
+    const nextAssignedTo = patch.assignedToId ?? backingTask.assignedTo;
+    const nextDescription = patch.description ?? backingTask.description;
+    const optimisticTask = {
+      ...backingTask,
+      status: nextStatus,
+      assignedTo: nextAssignedTo,
+      description: nextDescription,
+    };
+    upsertTask(optimisticTask);
+    const persist = async () => {
+      try {
+        if (patch.status !== undefined) {
+          await changeTaskStatus({ ...backingTask, status: nextStatus });
+        }
+        if (patch.assignedToId !== undefined || patch.description !== undefined) {
+          await updateTask({
+            ...backingTask,
+            assignedTo: nextAssignedTo,
+            description: nextDescription,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to sync schedule task:', error);
+        setScheduleError('Unable to save the task change. Please try again.');
+        await loadTasksForPrimaryOrg(WORKSPACE_TASK_LOAD).catch(() => undefined);
+      }
+    };
+    void persist();
+  };
 
-  // Backfill saved/encounter prescription lines with inventory-owned display fields (brand,
-  // generic, strength unit, form, route, controlled flag, live stock, price) that the persisted
-  // record may be missing. Resolve by inventoryItemId first, then SKU. Saved values always win.
-  const inventoryBySku = useMemo(() => {
-    const bySku = new Map<string, InventoryItem>();
-    for (const id of inventoryIds) {
-      const inv = inventoryById[id];
-      const sku = inv?.sku?.trim();
-      if (sku) bySku.set(sku.toLowerCase(), inv);
-    }
-    return bySku;
-  }, [inventoryById, inventoryIds]);
+  return {
+    visibleScheduleTasks,
+    assigneeOptions,
+    scheduleError,
+    handleApplyScheduleTemplate,
+    handleUpdateScheduleTask,
+  };
+};
 
-  const prescriptionItems = useMemo(
-    () =>
-      encounter.prescription.map((item) =>
-        backfillPrescriptionFromInventory(item, (line) => {
-          if (line.inventoryItemId && inventoryById[line.inventoryItemId]) {
-            return inventoryById[line.inventoryItemId];
-          }
-          const sku = line.sku?.trim().toLowerCase();
-          return sku ? inventoryBySku.get(sku) : undefined;
-        })
-      ),
-    [encounter.prescription, inventoryById, inventoryBySku]
-  );
+/**
+ * Prescription add/remove/template/print actions plus the auto-load of the
+ * linked prescription template for the encounter's service/package context.
+ */
+const usePrescriptionActions = ({
+  appointmentId,
+  organisationId,
+  encounterId,
+  encounter,
+  readOnly,
+  prescriptionItems,
+}: {
+  appointmentId: string;
+  organisationId?: string;
+  encounterId?: string;
+  encounter: AppointmentEncounter;
+  readOnly: boolean;
+  prescriptionItems: AppointmentEncounter['prescription'];
+}) => {
+  const addPrescription = useAppointmentWorkspaceStore((s) => s.addPrescription);
+  const removePrescription = useAppointmentWorkspaceStore((s) => s.removePrescription);
+  const [prescriptionError, setPrescriptionError] = useState<string | null>(null);
+  const [printingLabels, setPrintingLabels] = useState(false);
 
   const addPrescriptionRowsFromTemplate = React.useCallback(
     (rows: Array<Omit<AppointmentEncounter['prescription'][number], 'id'>>) => {
@@ -498,11 +466,14 @@ const TreatmentStep = ({
       const existingRows =
         useAppointmentWorkspaceStore.getState().getEncounter(appointmentId)?.prescription ?? [];
       const seenInventoryIds = new Set(
-        existingRows
-          .map((item) => item.inventoryItemId)
-          .filter((value): value is string => Boolean(value))
+        existingRows.flatMap((item) => (item.inventoryItemId ? [item.inventoryItemId] : []))
       );
-      const seenClinicalKeys = new Set(existingRows.map(clinicalKey).filter(Boolean));
+      const seenClinicalKeys = new Set(
+        existingRows.flatMap((item) => {
+          const key = clinicalKey(item);
+          return key ? [key] : [];
+        })
+      );
       rows.forEach((row) => {
         const inventoryKey = row.inventoryItemId?.trim();
         const rowClinicalKey = clinicalKey(row);
@@ -519,7 +490,8 @@ const TreatmentStep = ({
   // Auto-load the PRESCRIPTION template linked to the encounter's service/package once that
   // service/package context is known and the prescription section is still empty. Track attempts by
   // service/package key so an initial blank encounter cannot block the later linked-template load.
-  const autoResolvedRxKeysRef = React.useRef<Set<string>>(new Set());
+  const autoResolvedRxKeysRef = React.useRef<Set<string> | null>(null);
+  autoResolvedRxKeysRef.current ??= new Set();
   const prescriptionCount = encounter.prescription.length;
   const encounterServicesForRx = encounter.services;
   const encounterModeForRx = encounter.mode;
@@ -529,8 +501,10 @@ const TreatmentStep = ({
     const packageLine = encounterServicesForRx.find((item) => item.kind === 'PACKAGE');
     if (!serviceLine && !packageLine) return;
     const contextKey = `${serviceLine?.refId ?? ''}|${packageLine?.refId ?? ''}|${encounterModeForRx}`;
-    if (autoResolvedRxKeysRef.current.has(contextKey)) return;
-    autoResolvedRxKeysRef.current.add(contextKey);
+    const autoResolvedRxKeys = autoResolvedRxKeysRef.current ?? new Set<string>();
+    autoResolvedRxKeysRef.current = autoResolvedRxKeys;
+    if (autoResolvedRxKeys.has(contextKey)) return;
+    autoResolvedRxKeys.add(contextKey);
     let cancelled = false;
     resolvePrescriptionTemplate({
       organisationId,
@@ -562,17 +536,6 @@ const TreatmentStep = ({
     prescriptionCount,
     readOnly,
   ]);
-
-  const servicePackageCatalogItems = useMemo(() => {
-    if (!organisationId) return [];
-    const serviceItems = catalogServices
-      .filter((service) => service.organisationId === organisationId && service.status === 'ACTIVE')
-      .map(serviceToLineItem);
-    const packageItems = catalogPackages
-      .filter((pkg) => pkg.organisationId === organisationId && pkg.status === 'ACTIVE')
-      .map(packageToLineItem);
-    return [...serviceItems, ...packageItems];
-  }, [catalogPackages, catalogServices, organisationId]);
 
   // Adding a medication from inventory only stages it locally — it does NOT immediately call
   // the backend. Persisting on add captured the bare inventory-derived row before the clinician
@@ -631,50 +594,145 @@ const TreatmentStep = ({
     }
   };
 
-  // Persist schedule-task edits. Every schedule row is a real backend employee
-  // task (the task store is the single source of truth), so the optimistic update
-  // writes to the task store and persists via the status/PATCH task endpoints —
-  // the derived schedule row and the Quick Actions panel re-render from the same
-  // source, staying in sync with no local-only duplicate.
-  const handleUpdateScheduleTask = (id: string, patch: Partial<ScheduleTask>) => {
-    const backingTask = tasksById[id];
-    if (!backingTask) return;
-    setScheduleError(null);
-    // Optimistically reflect the change in the task store so the derived schedule
-    // row (appointmentEmployeeTasks) re-renders immediately.
-    const nextStatus =
-      patch.status === undefined
-        ? backingTask.status
-        : scheduleStatusToTaskStatus(patch.status as ScheduleTaskStatus);
-    const nextAssignedTo = patch.assignedToId ?? backingTask.assignedTo;
-    const nextDescription = patch.description ?? backingTask.description;
-    const optimisticTask = {
-      ...backingTask,
-      status: nextStatus,
-      assignedTo: nextAssignedTo,
-      description: nextDescription,
-    };
-    upsertTask(optimisticTask);
-    const persist = async () => {
-      try {
-        if (patch.status !== undefined) {
-          await changeTaskStatus({ ...backingTask, status: nextStatus });
-        }
-        if (patch.assignedToId !== undefined || patch.description !== undefined) {
-          await updateTask({
-            ...backingTask,
-            assignedTo: nextAssignedTo,
-            description: nextDescription,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to sync schedule task:', error);
-        setScheduleError('Unable to save the task change. Please try again.');
-        await loadTasksForPrimaryOrg(WORKSPACE_TASK_LOAD).catch(() => undefined);
-      }
-    };
-    void persist();
+  // Print the dispensary-style label PDF for each saved prescription item, mirroring
+  // the dispensary modal (GET .../prescriptions/.../:prescriptionId/label.pdf as a blob).
+  // Only persisted items (with an id) have a printable label.
+  const handlePrintPrescriptionLabels = async () => {
+    if (printingLabels || !organisationId) return;
+    const printable = encounter.prescription.filter((rx) => rx.id);
+    if (printable.length === 0) {
+      setPrescriptionError('Save the treatment before printing prescription labels.');
+      return;
+    }
+    setPrescriptionError(null);
+    setPrintingLabels(true);
+    try {
+      const blobs = await Promise.all(
+        printable.map((rx) => fetchPrescriptionLabelPdf(organisationId, rx.id))
+      );
+      blobs.forEach((blob) => {
+        const url = URL.createObjectURL(blob);
+        const win = globalThis.window.open(url, '_blank');
+        win?.focus();
+        globalThis.window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      });
+    } catch (error) {
+      console.error('Failed to print prescription labels:', error);
+      setPrescriptionError('Unable to print prescription labels. Please try again.');
+    } finally {
+      setPrintingLabels(false);
+    }
   };
+
+  return {
+    prescriptionError,
+    setPrescriptionError,
+    printingLabels,
+    handleAddPrescription,
+    handleApplyPrescriptionTemplate,
+    handleRemovePrescription,
+    handlePrintPrescriptionLabels,
+  };
+};
+
+/**
+ * Treatment step: services/packages, prescription, and inpatient schedule.
+ * Add/edit actions update the workspace store; backend-backed catalog and
+ * clinical artifact hydration supply persisted rows. "Skip to Summary" lives
+ * in the meta bar.
+ */
+const TreatmentStep = ({
+  appointmentId,
+  organisationId,
+  encounterId,
+  authorId,
+  encounter,
+  ensureEncounterId,
+  onOpenInvoice,
+}: TreatmentStepProps) => {
+  const addLineItem = useAppointmentWorkspaceStore((s) => s.addLineItem);
+  const updateLineItem = useAppointmentWorkspaceStore((s) => s.updateLineItem);
+  const removeLineItem = useAppointmentWorkspaceStore((s) => s.removeLineItem);
+  const updatePrescription = useAppointmentWorkspaceStore((s) => s.updatePrescription);
+  const setPrescriptions = useAppointmentWorkspaceStore((s) => s.setPrescriptions);
+  const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
+  const mergeEncounterData = useAppointmentWorkspaceStore((s) => s.mergeEncounterData);
+  const setActiveSideAction = useAppointmentWorkspaceStore((s) => s.setActiveSideAction);
+  const openTaskInQuickActions = useAppointmentWorkspaceStore((s) => s.openTaskInQuickActions);
+  const [treatmentSaveError, setTreatmentSaveError] = useState<string | null>(null);
+  const [isSavingTreatment, setIsSavingTreatment] = useState(false);
+  const readOnly = encounter.viewOnly;
+  // Once the encounter is ready for billing, destructive removal of un-billed
+  // items is locked. Already-billed items lock per-row inside each editor (read
+  // -only + "Billed" badge + no delete); adding new items always stays allowed.
+  const billedTreatmentLocked = readOnly || encounter.readyForBilling.value;
+  const isInpatient = encounter.mode === 'INPATIENT';
+  const router = useRouter();
+  const appointmentsById = useAppointmentStore((s) => s.appointmentsById);
+  // The outpatient visit schedule is built from the companion's real upcoming
+  // appointments already in the store (there is no dedicated outpatient "series" data
+  // model). It degrades to an empty state when no future visits are available — e.g. on
+  // a direct deep-link where the appointment list has not been loaded.
+  const outpatientCompanionId = useMemo(() => {
+    const current = appointmentsById[appointmentId];
+    return current ? getAppointmentCompanion(current).id : undefined;
+  }, [appointmentsById, appointmentId]);
+  const outpatientSchedule = useMemo(
+    () =>
+      buildOutpatientSchedule(Object.values(appointmentsById), {
+        companionId: outpatientCompanionId,
+        excludeAppointmentId: appointmentId,
+      }),
+    [appointmentsById, outpatientCompanionId, appointmentId]
+  );
+
+  const {
+    inventoryById,
+    inventoryBySku,
+    prescriptionCatalogItems,
+    servicePackageCatalogItems,
+    scheduleTemplates,
+    prescriptionTemplates,
+  } = useTreatmentCatalog({ organisationId, encounterId, isInpatient });
+
+  const {
+    visibleScheduleTasks,
+    assigneeOptions,
+    scheduleError,
+    handleApplyScheduleTemplate,
+    handleUpdateScheduleTask,
+  } = useScheduleTasks({ appointmentId, organisationId, encounter });
+
+  const prescriptionItems = useMemo(
+    () =>
+      encounter.prescription.map((item) =>
+        backfillPrescriptionFromInventory(item, (line) => {
+          if (line.inventoryItemId && inventoryById[line.inventoryItemId]) {
+            return inventoryById[line.inventoryItemId];
+          }
+          const sku = line.sku?.trim().toLowerCase();
+          return sku ? inventoryBySku.get(sku) : undefined;
+        })
+      ),
+    [encounter.prescription, inventoryById, inventoryBySku]
+  );
+
+  const {
+    prescriptionError,
+    setPrescriptionError,
+    printingLabels,
+    handleAddPrescription,
+    handleApplyPrescriptionTemplate,
+    handleRemovePrescription,
+    handlePrintPrescriptionLabels,
+  } = usePrescriptionActions({
+    appointmentId,
+    organisationId,
+    encounterId,
+    encounter,
+    readOnly,
+    prescriptionItems,
+  });
 
   const handleSaveTreatment = async () => {
     if (isSavingTreatment) return;
@@ -769,36 +827,6 @@ const TreatmentStep = ({
     setStepStatus(appointmentId, 'TREATMENT', 'COMPLETED');
     setIsSavingTreatment(false);
     onOpenInvoice();
-  };
-
-  // Print the dispensary-style label PDF for each saved prescription item, mirroring
-  // the dispensary modal (GET .../prescriptions/.../:prescriptionId/label.pdf as a blob).
-  // Only persisted items (with an id) have a printable label.
-  const handlePrintPrescriptionLabels = async () => {
-    if (printingLabels || !organisationId) return;
-    const printable = encounter.prescription.filter((rx) => rx.id);
-    if (printable.length === 0) {
-      setPrescriptionError('Save the treatment before printing prescription labels.');
-      return;
-    }
-    setPrescriptionError(null);
-    setPrintingLabels(true);
-    try {
-      const blobs = await Promise.all(
-        printable.map((rx) => fetchPrescriptionLabelPdf(organisationId, rx.id))
-      );
-      blobs.forEach((blob) => {
-        const url = URL.createObjectURL(blob);
-        const win = globalThis.window.open(url, '_blank');
-        win?.focus();
-        globalThis.window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      });
-    } catch (error) {
-      console.error('Failed to print prescription labels:', error);
-      setPrescriptionError('Unable to print prescription labels. Please try again.');
-    } finally {
-      setPrintingLabels(false);
-    }
   };
 
   const treatmentCents = encounter.services.reduce((sum, item) => sum + (item.amountCents ?? 0), 0);

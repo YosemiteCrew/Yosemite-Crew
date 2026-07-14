@@ -153,12 +153,8 @@ const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
         width={64}
       />
       <div className="grid flex-1 grid-cols-1 gap-x-10 gap-y-3 lg:grid-cols-2">
-        {selectedDetails.map((detail, index) => (
-          <ProfileDetail
-            key={`${detail.label}-${index}`}
-            label={detail.label}
-            value={detail.value}
-          />
+        {selectedDetails.map((detail) => (
+          <ProfileDetail key={detail.label} label={detail.label} value={detail.value} />
         ))}
       </div>
     </section>

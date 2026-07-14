@@ -63,12 +63,30 @@ const getTaskStatusColors = (status: string): MarkerStyle =>
 const getTaskMarkerStyle = (task: Pick<Task, 'status' | 'audience'>): MarkerStyle =>
   task.audience === 'PARENT_TASK' ? PARENT_MARKER_STYLE : getTaskStatusColors(task.status);
 
+const buildTaskSlotLabels = (dropDate: Date, hour: number) => {
+  const dayLabel = formatDateInPreferredTimeZone(dropDate, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  const timeLabel = formatDateInPreferredTimeZone(
+    new Date(dropDate.getTime() + hour * 60 * 60 * 1000),
+    { hour: 'numeric', minute: '2-digit' }
+  );
+  return {
+    createTaskLabel: `Create task on ${dayLabel} at ${timeLabel}`,
+    taskSlotLabel: `Tasks slot for ${dayLabel} at ${timeLabel}`,
+  };
+};
+
 type TaskSlotProps = {
   slotEvents: Task[];
   handleViewTask: (task: Task) => void;
   handleChangeStatusTask?: (task: Task) => void;
   handleRescheduleTask?: (task: Task) => void;
-  canEditTasks?: boolean;
+  permissions?: {
+    canEditTasks?: boolean;
+  };
   index?: number;
   dayIndex?: number;
   length?: number;
@@ -87,9 +105,11 @@ type TaskSlotProps = {
   dropAvailabilityIntervals?: DropAvailabilityInterval[];
   draggedTaskDurationMinutes?: number;
   zoomMode?: CalendarZoomMode;
-  showGridLines?: boolean;
-  slotOffsetMinutes?: number[];
-  isLastVisibleHour?: boolean;
+  layout?: {
+    showGridLines?: boolean;
+    slotOffsetMinutes?: number[];
+    isLastVisibleHour?: boolean;
+  };
   resolveDisplayName?: (memberId?: string) => string;
 };
 
@@ -98,7 +118,7 @@ const TaskSlot = ({
   handleViewTask,
   handleChangeStatusTask,
   handleRescheduleTask,
-  canEditTasks = false,
+  permissions,
   index,
   dayIndex = 0,
   length = 0,
@@ -117,11 +137,13 @@ const TaskSlot = ({
   dropAvailabilityIntervals = DEFAULT_DROP_AVAILABILITY_INTERVALS,
   draggedTaskDurationMinutes = 30,
   zoomMode = 'in',
-  showGridLines = false,
-  slotOffsetMinutes = DEFAULT_SLOT_OFFSET_MINUTES,
-  isLastVisibleHour = false,
+  layout,
   resolveDisplayName,
 }: TaskSlotProps) => {
+  const canEditTasks = permissions?.canEditTasks ?? false;
+  const showGridLines = layout?.showGridLines ?? false;
+  const slotOffsetMinutes = layout?.slotOffsetMinutes ?? DEFAULT_SLOT_OFFSET_MINUTES;
+  const isLastVisibleHour = layout?.isLastVisibleHour ?? false;
   const isZoomOutMode = zoomMode === 'out';
   const [dropPreviewMinute, setDropPreviewMinute] = useState<number | null>(null);
   const {
@@ -150,22 +172,7 @@ const TaskSlot = ({
     [resolveDisplayName]
   );
 
-  const createTaskLabel = `Create task on ${formatDateInPreferredTimeZone(dropDate, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })} at ${formatDateInPreferredTimeZone(new Date(dropDate.getTime() + hour * 60 * 60 * 1000), {
-    hour: 'numeric',
-    minute: '2-digit',
-  })}`;
-  const taskSlotLabel = `Tasks slot for ${formatDateInPreferredTimeZone(dropDate, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })} at ${formatDateInPreferredTimeZone(new Date(dropDate.getTime() + hour * 60 * 60 * 1000), {
-    hour: 'numeric',
-    minute: '2-digit',
-  })}`;
+  const { createTaskLabel, taskSlotLabel } = buildTaskSlotLabels(dropDate, hour);
 
   useEffect(() => {
     if (!draggedTaskId) return;

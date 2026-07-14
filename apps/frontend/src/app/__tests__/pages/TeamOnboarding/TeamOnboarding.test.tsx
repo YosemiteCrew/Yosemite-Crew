@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import ProtectedTeamOnboarding from '@/app/features/onboarding/pages/TeamOnboarding/TeamOnboarding';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import { useTeamOnboarding } from '@/app/hooks/useTeamOnboarding';
 import { convertFromGetApi } from '@/app/features/appointments/components/Availability/utils';
 
@@ -66,6 +66,7 @@ jest.mock('next/dynamic', () => ({
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
   useSearchParams: jest.fn(),
+  redirect: jest.fn(),
 }));
 
 jest.mock('@/app/hooks/useTeamOnboarding', () => ({
@@ -162,7 +163,7 @@ describe('TeamOnboarding Page', () => {
     });
 
     render(<ProtectedTeamOnboarding />);
-    expect(mockRouterReplace).toHaveBeenCalledWith('/organizations');
+    expect(redirect).toHaveBeenCalledWith('/organizations');
   });
 
   it('redirects to /dashboard if step is 3 (completed)', () => {
@@ -172,8 +173,7 @@ describe('TeamOnboarding Page', () => {
     });
 
     render(<ProtectedTeamOnboarding />);
-    expect(mockRouterReplace).toHaveBeenCalledWith('/dashboard');
-    expect(screen.queryByTestId('personal-step')).not.toBeInTheDocument();
+    expect(redirect).toHaveBeenCalledWith('/dashboard');
     expect(screen.queryByText(/Setting up your profile/)).not.toBeInTheDocument();
   });
 

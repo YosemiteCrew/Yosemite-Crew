@@ -44,6 +44,182 @@ export interface ParentSectionRef {
 
 const MAX_LOCAL_PHONE_LENGTH = 15;
 
+type ParentFormErrors = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phoneNumber?: string;
+  dateOfBirth?: string;
+  countryCode?: string;
+  addressLine?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+};
+
+type ParentDetailsFormProps = Readonly<{
+  formData: StoredParent;
+  formDataErrors: ParentFormErrors;
+  selectedCountryCode: CountryDialCodeOption;
+  localPhoneNumber: string;
+  currentDate: Date | null;
+  setCurrentDate: Dispatch<SetStateAction<Date | null>>;
+  onFirstNameChange: (value: string) => void;
+  onLastNameChange: (value: string) => void;
+  onEmailChange: (value: string) => void;
+  onCountryCodeSelect: (value: string) => void;
+  onPhoneChange: (value: string) => void;
+  onAddressFieldChange: (
+    field: 'addressLine' | 'city' | 'state' | 'postalCode',
+    value: string
+  ) => void;
+  onAddressSelect: (address: {
+    addressLine: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+    latitude?: number;
+    longitude?: number;
+  }) => void;
+}>;
+
+const ParentDetailsForm = ({
+  formData,
+  formDataErrors,
+  selectedCountryCode,
+  localPhoneNumber,
+  currentDate,
+  setCurrentDate,
+  onFirstNameChange,
+  onLastNameChange,
+  onEmailChange,
+  onCountryCodeSelect,
+  onPhoneChange,
+  onAddressFieldChange,
+  onAddressSelect,
+}: ParentDetailsFormProps) => (
+  <Accordion title="Parents details" defaultOpen showEditIcon={false} isEditing={true}>
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3">
+        <FormInput
+          intype="text"
+          inname="name"
+          value={formData.firstName}
+          inlabel="Parent's name"
+          onChange={(e) => onFirstNameChange(e.target.value)}
+          error={formDataErrors.firstName}
+          className="min-h-12!"
+        />
+        <FormInput
+          intype="text"
+          inname="name"
+          value={formData.lastName || ''}
+          inlabel="Last name"
+          onChange={(e) => onLastNameChange(e.target.value)}
+          error={formDataErrors.lastName}
+          className="min-h-12!"
+        />
+      </div>
+      <FormInput
+        intype="email"
+        inname="email"
+        value={formData.email}
+        inlabel="Email"
+        onChange={(e) => onEmailChange(e.target.value)}
+        error={formDataErrors.email}
+        className="min-h-12!"
+      />
+      <div className="grid grid-cols-12 gap-3">
+        <div className="col-span-5">
+          <LabelDropdown
+            placeholder="Country code"
+            onSelect={(option) => onCountryCodeSelect(option.value)}
+            defaultOption={selectedCountryCode.value}
+            options={CountryDialCodeOptions}
+            error={formDataErrors.countryCode}
+            portal
+          />
+        </div>
+        <div className="col-span-7">
+          <FormInput
+            intype="text"
+            inname="number"
+            value={localPhoneNumber || ''}
+            inlabel="Phone number"
+            onChange={(e) => onPhoneChange(e.target.value)}
+            error={formDataErrors.phoneNumber}
+            className="min-h-12!"
+          />
+        </div>
+      </div>
+      <div className="flex items-start gap-2">
+        <Datepicker
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          type="input"
+          className="min-h-12!"
+          containerClassName="w-full"
+          placeholder="Date of birth"
+          error={formDataErrors.dateOfBirth}
+        />
+        <GlassTooltip
+          content="Date of birth may be required in some countries for age verification and legal consent. Please ensure the parent is 18 years or older where regulations require it."
+          side="bottom"
+          maxWidth={460}
+        >
+          <button
+            type="button"
+            aria-label="Date of birth information"
+            className="mt-3 inline-flex size-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <IoInformationCircleOutline size={18} />
+          </button>
+        </GlassTooltip>
+      </div>
+      <GoogleSearchDropDown
+        intype="text"
+        inname="address line"
+        value={formData.address.addressLine || ''}
+        inlabel="Address"
+        onChange={(e) => onAddressFieldChange('addressLine', e.target.value)}
+        error={formDataErrors.addressLine}
+        onAddressSelect={onAddressSelect}
+        onlyAddress={true}
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <FormInput
+          intype="text"
+          inname="city"
+          value={formData.address.city || ''}
+          inlabel="City"
+          onChange={(e) => onAddressFieldChange('city', e.target.value)}
+          error={formDataErrors.city}
+          className="min-h-12!"
+        />
+        <FormInput
+          intype="text"
+          inname="state"
+          value={formData.address.state || ''}
+          inlabel="State/Province"
+          onChange={(e) => onAddressFieldChange('state', e.target.value)}
+          error={formDataErrors.state}
+          className="min-h-12!"
+        />
+      </div>
+      <FormInput
+        intype="text"
+        inname="postal code"
+        value={formData.address.postalCode || ''}
+        inlabel="Postal code"
+        onChange={(e) => onAddressFieldChange('postalCode', e.target.value)}
+        error={formDataErrors.postalCode}
+        className="min-h-12!"
+      />
+    </div>
+  </Accordion>
+);
+
 function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
   const initialPhoneData = findPhoneData(formData.phoneNumber || '', formData.address.country);
   const [formDataErrors, setFormDataErrors] = useState<{
@@ -58,9 +234,14 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
     state?: string;
     postalCode?: string;
   }>({});
-  const [currentDate, setCurrentDate] = useState<Date | null>(
-    formData.birthDate ? new Date(formData.birthDate) : null
-  );
+  const currentDate = formData.birthDate ? new Date(formData.birthDate) : null;
+  const setCurrentDate: Dispatch<SetStateAction<Date | null>> = (value) => {
+    setFormData((prev) => {
+      const prevDate = prev.birthDate ? new Date(prev.birthDate) : null;
+      const next = typeof value === 'function' ? value(prevDate) : value;
+      return { ...prev, birthDate: next ?? undefined };
+    });
+  };
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<StoredParent[]>([]);
   const [selectedCountryCode, setSelectedCountryCode] = useState<CountryDialCodeOption>(
@@ -101,13 +282,6 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
     }, 300);
     return () => globalThis.clearTimeout(t);
   }, [query]);
-
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      birthDate: currentDate ?? undefined,
-    }));
-  }, [currentDate, setFormData]);
 
   const validateStep = () => {
     const errors: {
@@ -244,120 +418,24 @@ function Parent({ setActiveLabel, formData, setFormData, ref }: ParentProps) {
           setQuery={setQuery}
         />
 
-        <Accordion title="Parents details" defaultOpen showEditIcon={false} isEditing={true}>
-          <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-3">
-              <FormInput
-                intype="text"
-                inname="name"
-                value={formData.firstName}
-                inlabel="Parent's name"
-                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                error={formDataErrors.firstName}
-              />
-              <FormInput
-                intype="text"
-                inname="name"
-                value={formData.lastName || ''}
-                inlabel="Last name"
-                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                error={formDataErrors.lastName}
-              />
-            </div>
-            <FormInput
-              intype="email"
-              inname="email"
-              value={formData.email}
-              inlabel="Email"
-              onChange={(e) => {
-                setFormData({ ...formData, email: e.target.value });
-                setFormDataErrors((prev) => ({ ...prev, email: undefined }));
-              }}
-              error={formDataErrors.email}
-            />
-            <div className="grid grid-cols-12 gap-3">
-              <div className="col-span-5">
-                <LabelDropdown
-                  placeholder="Country code"
-                  onSelect={(option) => handleCountryCodeSelect(option.value)}
-                  defaultOption={selectedCountryCode.value}
-                  options={CountryDialCodeOptions}
-                  error={formDataErrors.countryCode}
-                  portal
-                />
-              </div>
-              <div className="col-span-7">
-                <FormInput
-                  intype="text"
-                  inname="number"
-                  value={localPhoneNumber || ''}
-                  inlabel="Phone number"
-                  onChange={(e) => handlePhoneChange(e.target.value)}
-                  error={formDataErrors.phoneNumber}
-                />
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Datepicker
-                currentDate={currentDate}
-                setCurrentDate={setCurrentDate}
-                type="input"
-                containerClassName="w-full"
-                placeholder="Date of birth"
-                error={formDataErrors.dateOfBirth}
-              />
-              <GlassTooltip
-                content="Date of birth may be required in some countries for age verification and legal consent. Please ensure the parent is 18 years or older where regulations require it."
-                side="bottom"
-                maxWidth={460}
-              >
-                <button
-                  type="button"
-                  aria-label="Date of birth information"
-                  className="mt-3 inline-flex size-5 shrink-0 items-center justify-center leading-none text-text-secondary hover:text-text-primary transition-colors"
-                >
-                  <IoInformationCircleOutline size={18} />
-                </button>
-              </GlassTooltip>
-            </div>
-            <GoogleSearchDropDown
-              intype="text"
-              inname="address line"
-              value={formData.address.addressLine || ''}
-              inlabel="Address"
-              onChange={(e) => updateAddressField('addressLine', e.target.value)}
-              error={formDataErrors.addressLine}
-              onAddressSelect={handleAddressSelect}
-              onlyAddress={true}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <FormInput
-                intype="text"
-                inname="city"
-                value={formData.address.city || ''}
-                inlabel="City"
-                onChange={(e) => updateAddressField('city', e.target.value)}
-                error={formDataErrors.city}
-              />
-              <FormInput
-                intype="text"
-                inname="state"
-                value={formData.address.state || ''}
-                inlabel="State/Province"
-                onChange={(e) => updateAddressField('state', e.target.value)}
-                error={formDataErrors.state}
-              />
-            </div>
-            <FormInput
-              intype="text"
-              inname="postal code"
-              value={formData.address.postalCode || ''}
-              inlabel="Postal code"
-              onChange={(e) => updateAddressField('postalCode', e.target.value)}
-              error={formDataErrors.postalCode}
-            />
-          </div>
-        </Accordion>
+        <ParentDetailsForm
+          formData={formData}
+          formDataErrors={formDataErrors}
+          selectedCountryCode={selectedCountryCode}
+          localPhoneNumber={localPhoneNumber}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          onFirstNameChange={(value) => setFormData({ ...formData, firstName: value })}
+          onLastNameChange={(value) => setFormData({ ...formData, lastName: value })}
+          onEmailChange={(value) => {
+            setFormData({ ...formData, email: value });
+            setFormDataErrors((prev) => ({ ...prev, email: undefined }));
+          }}
+          onCountryCodeSelect={handleCountryCodeSelect}
+          onPhoneChange={handlePhoneChange}
+          onAddressFieldChange={updateAddressField}
+          onAddressSelect={handleAddressSelect}
+        />
       </div>
 
       <div className="flex justify-center items-center gap-3 w-full flex-row">

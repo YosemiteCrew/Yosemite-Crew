@@ -46,6 +46,11 @@ const EMPTY_TEMPLATES: TemplateLike[] = [];
 const ASSIGNEE_COLUMN_MIN_CH = 14;
 const ASSIGNEE_COLUMN_MAX_CH = 20;
 
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
 const formatStatusLabel = (status: ScheduleTaskStatus): string =>
   STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 
@@ -199,11 +204,6 @@ const InpatientSchedule = ({
     return now;
   });
 
-  const isSameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-
   const shiftSelectedDate = (deltaDays: number) => {
     setSelectedDate((current) => {
       const next = new Date(current);
@@ -223,6 +223,7 @@ const InpatientSchedule = ({
       day: 'numeric',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Kolkata',
     });
     return isSameDay(selectedDate, todayAtMidnight) ? `Today ${formatted}` : formatted;
   }, [selectedDate, todayAtMidnight]);

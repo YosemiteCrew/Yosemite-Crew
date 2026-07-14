@@ -62,8 +62,8 @@ export function SharedEntityCard({
         mine ? 'border-primary-300 bg-neutral-0' : 'border-chat-divider bg-neutral-0'
       )}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-chat-panel text-primary-600">
-        <Icon className="h-5 w-5" />
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-chat-panel text-primary-600">
+        <Icon className="size-5" />
       </span>
       <div className="flex min-w-0 flex-col">
         <Text as="span" variant="caption-2" className="uppercase tracking-wide text-neutral-400">

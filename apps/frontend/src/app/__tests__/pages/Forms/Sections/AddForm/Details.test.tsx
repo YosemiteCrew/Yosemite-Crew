@@ -92,7 +92,6 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 describe('Details Component', () => {
   const mockSetFormData = jest.fn();
   const mockOnNext = jest.fn();
-  const mockRegisterValidator = jest.fn();
 
   const defaultFormData: FormsProps = {
     name: '',
@@ -495,18 +494,19 @@ describe('Details Component', () => {
 
   // --- 5. Validator Registration ---
 
-  it('registers the validator function on mount', () => {
+  it('exposes the validator through the step ref on mount', () => {
+    const stepRef = React.createRef<{ validate: () => boolean }>();
     render(
       <Details
         formData={defaultFormData}
         setFormData={mockSetFormData}
         onNext={mockOnNext}
         serviceOptions={serviceOptions}
-        registerValidator={mockRegisterValidator}
+        ref={stepRef}
       />
     );
 
-    expect(mockRegisterValidator).toHaveBeenCalledWith(expect.any(Function));
+    expect(stepRef.current?.validate).toEqual(expect.any(Function));
   });
 
   it('hides the Next button when hideNext is set (single-screen builder)', () => {
@@ -526,10 +526,7 @@ describe('Details Component', () => {
   });
 
   it('allows parent to trigger validation via registered validator', () => {
-    let capturedValidator: (data: FormsProps) => boolean = () => false; // Initialize explicitly
-    mockRegisterValidator.mockImplementation((fn) => {
-      capturedValidator = fn;
-    });
+    const stepRef = React.createRef<{ validate: () => boolean }>();
 
     const invalidData = { ...defaultFormData, name: '' } as FormsProps; // Invalid
 
@@ -539,13 +536,13 @@ describe('Details Component', () => {
         setFormData={mockSetFormData}
         onNext={mockOnNext}
         serviceOptions={serviceOptions}
-        registerValidator={mockRegisterValidator}
+        ref={stepRef}
       />
     );
 
     let isValid: boolean = false; // Initialize explicitly
     act(() => {
-      isValid = capturedValidator(invalidData);
+      isValid = Boolean(stepRef.current?.validate());
     });
 
     expect(isValid).toBe(false);

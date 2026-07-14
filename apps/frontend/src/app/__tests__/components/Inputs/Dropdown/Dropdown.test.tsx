@@ -58,6 +58,10 @@ expect.extend(toHaveNoViolations);
 describe('Dropdown Component', () => {
   const mockOnChange = jest.fn();
 
+  const triggerKey = (key: string) => {
+    fireEvent.keyDown(screen.getAllByRole('button')[0], { key });
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -151,6 +155,17 @@ describe('Dropdown Component', () => {
     expect(screen.queryByText('A')).not.toBeInTheDocument();
   });
 
+  it('closes the dropdown when escape is pressed after opening', () => {
+    render(<Dropdown placeholder="Select" value="" onChange={mockOnChange} options={['A']} />);
+
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByText('A')).toBeInTheDocument();
+
+    triggerKey('Escape');
+
+    expect(screen.queryByText('A')).not.toBeInTheDocument();
+  });
+
   // --- 3. Option Logic & Types ---
 
   it('handles string options selection', () => {
@@ -208,6 +223,29 @@ describe('Dropdown Component', () => {
     expect(mockOnChange).toHaveBeenCalledWith('Option A');
   });
 
+  it('supports home and end keys when the list is open', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Option A', 'Option B', 'Option C']}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    triggerKey('End');
+    triggerKey('Enter');
+
+    expect(mockOnChange).toHaveBeenCalledWith('Option C');
+
+    fireEvent.click(screen.getByRole('button'));
+    triggerKey('Home');
+    triggerKey('Enter');
+
+    expect(mockOnChange).toHaveBeenCalledWith('Option A');
+  });
+
   it('closes on Escape key', () => {
     render(
       <Dropdown placeholder="Select" value="" onChange={mockOnChange} options={['Option A']} />
@@ -234,6 +272,15 @@ describe('Dropdown Component', () => {
 
     fireEvent.keyDown(screen.getByRole('button'), { key: 'ArrowDown' });
     expect(screen.queryByText('Option A')).not.toBeInTheDocument();
+  });
+
+  it('opens on space and does not select when there are no options', () => {
+    render(<Dropdown placeholder="Empty" value="" onChange={mockOnChange} options={[]} />);
+
+    triggerKey(' ');
+    triggerKey('Enter');
+
+    expect(mockOnChange).not.toHaveBeenCalled();
   });
 
   it('handles object options ({ label, value }) selection', () => {
@@ -375,6 +422,47 @@ describe('Dropdown Component', () => {
     // Apple and Banana should both be visible again
     expect(screen.getByText('Banana')).toBeInTheDocument();
     // Input value should be empty (though we might not be able to easily check the internal state value unless we find by display value, but the fact Banana is visible proves query is empty)
+  });
+
+  it('clears the search query when the portal dropdown closes from outer scroll', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Apple', 'Banana']}
+        search={true}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    const searchInput = screen.getByPlaceholderText('Search Select');
+    fireEvent.change(searchInput, { target: { value: 'Ban' } });
+    expect(screen.queryByText('Apple')).not.toBeInTheDocument();
+
+    fireEvent.scroll(globalThis.window);
+    expect(screen.queryByText('Banana')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByText('Apple')).toBeInTheDocument();
+    expect(screen.getByText('Banana')).toBeInTheDocument();
+  });
+
+  it('renders inline instead of using the portal when portal is false', () => {
+    render(
+      <Dropdown
+        placeholder="Inline"
+        value=""
+        onChange={mockOnChange}
+        options={['A']}
+        portal={false}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    const panel = screen.getByText('A').parentElement;
+
+    expect(panel?.getAttribute('style')).toBeNull();
   });
 
   it('renders correctly with custom dropdownClassName', () => {

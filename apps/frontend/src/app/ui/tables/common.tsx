@@ -76,6 +76,7 @@ export const ViewButton = ({ onClick }: ActionButtonProps) => (
   <button
     type="button"
     onClick={onClick}
+    aria-label="View details"
     className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
   >
     <IoEye size={18} color="var(--color-neutral-900)" />
@@ -86,6 +87,7 @@ export const RescheduleButton = ({ onClick }: ActionButtonProps) => (
   <button
     type="button"
     onClick={onClick}
+    aria-label="Reschedule"
     className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
   >
     <IoIosCalendar size={18} color="var(--color-neutral-900)" />

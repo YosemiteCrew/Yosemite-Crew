@@ -91,4 +91,13 @@ describe('MessageSearch', () => {
     expect(await screen.findByText('Attachment')).toBeInTheDocument();
     expect(screen.getByText('u3')).toBeInTheDocument();
   });
+
+  it('falls back to a generic "User" label when the message has no user info', async () => {
+    search.mockResolvedValue({
+      results: [{ message: { id: 'm3', text: 'Hello' } }],
+    });
+    render(<MessageSearch />);
+    openAndType('hello');
+    expect(await screen.findByText('User')).toBeInTheDocument();
+  });
 });

@@ -6,8 +6,8 @@ import {
   createConnectedAccount,
   onBoardConnectedAccount,
 } from '@/app/features/billing/services/stripeService';
-import { useRouter, useSearchParams } from 'next/navigation';
-import React, { Suspense, useCallback, useEffect, useState } from 'react';
+import { redirect, useRouter, useSearchParams } from 'next/navigation';
+import React, { Suspense, useCallback, useEffect, useReducer } from 'react';
 import { loadConnectAndInitialize, StripeConnectInstance } from '@stripe/connect-js/pure';
 import {
   ConnectAccountOnboarding,
@@ -19,15 +19,62 @@ import { useSubscriptionByOrgId } from '@/app/hooks/useBilling';
 import { Secondary } from '@/app/ui/primitives/Buttons';
 import { IoArrowBack, IoLockClosed } from 'react-icons/io5';
 
+type StripeSetupState = {
+  accountId: string;
+  connectInstance?: StripeConnectInstance;
+  setupError: string | null;
+  isPreparing: boolean;
+};
+
+type StripeSetupAction =
+  | { type: 'prepare' }
+  | { type: 'account-ready'; accountId: string }
+  | { type: 'account-error'; message: string }
+  | { type: 'connect-ready'; connectInstance: StripeConnectInstance }
+  | { type: 'connect-error'; message: string };
+
+const initialStripeSetupState: StripeSetupState = {
+  accountId: '',
+  connectInstance: undefined,
+  setupError: null,
+  isPreparing: true,
+};
+
+const stripeSetupReducer = (
+  state: StripeSetupState,
+  action: StripeSetupAction
+): StripeSetupState => {
+  switch (action.type) {
+    case 'prepare':
+      if (state.accountId) return state;
+      if (state.setupError === null && state.isPreparing) return state;
+      return { ...state, setupError: null, isPreparing: true };
+    case 'account-ready':
+      if (state.accountId === action.accountId && state.setupError === null) return state;
+      return { ...state, accountId: action.accountId, setupError: null };
+    case 'account-error':
+      return { ...state, setupError: action.message, isPreparing: false };
+    case 'connect-ready':
+      return {
+        ...state,
+        connectInstance: action.connectInstance,
+        setupError: null,
+        isPreparing: false,
+      };
+    case 'connect-error':
+      return { ...state, setupError: action.message, isPreparing: false };
+    default:
+      return state;
+  }
+};
+
 const StripeOnboarding = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const orgIdFromQuery = searchParams.get('orgId');
-  const [accountId, setAccountId] = useState('');
   const PUBLISHABE_KEY = process.env.NEXT_PUBLIC_SANDBOX_PUBLISH;
-  const [connectInstance, setConnectInstance] = useState<StripeConnectInstance>();
-  const [setupError, setSetupError] = useState<string | null>(null);
-  const [isPreparing, setIsPreparing] = useState(true);
+  const [setupState, dispatchSetup] = useReducer(stripeSetupReducer, initialStripeSetupState);
+  const { accountId, connectInstance, setupError, isPreparing } = setupState;
 
   const { onboard } = useStripeOnboarding(orgIdFromQuery);
   const subscription = useSubscriptionByOrgId(orgIdFromQuery);
@@ -41,45 +88,30 @@ const StripeOnboarding = () => {
   const createAccountIfNeeded = useCallback(async () => {
     if (!orgIdFromQuery) return;
     try {
-      setSetupError(null);
       const account_id = await createConnectedAccount(orgIdFromQuery);
       if (!account_id) {
         router.push('/dashboard');
         return;
       }
-      setAccountId(account_id);
+      dispatchSetup({ type: 'account-ready', accountId: account_id });
     } catch (error) {
       console.error(error);
-      setSetupError('We could not prepare Stripe onboarding. Please try again.');
-      setIsPreparing(false);
+      dispatchSetup({
+        type: 'account-error',
+        message: 'We could not prepare Stripe onboarding. Please try again.',
+      });
     }
   }, [orgIdFromQuery, router]);
 
   useEffect(() => {
-    setIsPreparing(true);
-    if (!onboard) {
-      router.push('/dashboard');
-      return;
-    }
-    if (!orgIdFromQuery) {
-      router.push('/dashboard');
-      return;
-    }
-    if (!subscription) {
-      router.push('/dashboard');
-      return;
-    }
-    if (subscription.connectChargesEnabled) {
-      router.push('/dashboard');
-      return;
-    }
+    dispatchSetup({ type: 'prepare' });
+    if (!subscription) return;
     if (subscription.connectAccountId) {
-      setAccountId(subscription.connectAccountId);
-      setSetupError(null);
+      dispatchSetup({ type: 'account-ready', accountId: subscription.connectAccountId });
       return;
     }
     createAccountIfNeeded();
-  }, [onboard, orgIdFromQuery, subscription, createAccountIfNeeded, router]);
+  }, [subscription, createAccountIfNeeded]);
 
   useEffect(() => {
     if (!orgIdFromQuery || !accountId || !PUBLISHABE_KEY || !subscription) return;
@@ -88,7 +120,6 @@ const StripeOnboarding = () => {
       return secret;
     };
     try {
-      setSetupError(null);
       const instance = loadConnectAndInitialize({
         publishableKey: PUBLISHABE_KEY,
         fetchClientSecret,
@@ -97,14 +128,14 @@ const StripeOnboarding = () => {
           variables: { colorPrimary: '#635BFF' },
         },
       });
-      setConnectInstance(instance);
-      setIsPreparing(false);
+      dispatchSetup({ type: 'connect-ready', connectInstance: instance });
     } catch (error) {
       console.error(error);
-      setSetupError(
-        'We could not load the secure Stripe onboarding form. Please refresh the page and try again.'
-      );
-      setIsPreparing(false);
+      dispatchSetup({
+        type: 'connect-error',
+        message:
+          'We could not load the secure Stripe onboarding form. Please refresh the page and try again.',
+      });
     }
   }, [orgIdFromQuery, accountId, PUBLISHABE_KEY, subscription]);
 
@@ -117,8 +148,8 @@ const StripeOnboarding = () => {
     [subscriptionCounterUpdate]
   );
 
-  if (!onboard) {
-    return null;
+  if (!onboard || !orgIdFromQuery || !subscription || subscription.connectChargesEnabled) {
+    redirect('/dashboard');
   }
 
   const canRetrySetup = Boolean(orgIdFromQuery) && !subscription?.connectAccountId;

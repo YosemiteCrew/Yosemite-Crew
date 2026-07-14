@@ -220,6 +220,7 @@ export const GroupModal: FC<GroupModalProps> = ({
                         {isCreator && m.id !== ownerId && (
                           <button
                             type="button"
+                            aria-label={`Remove ${m.name} from group`}
                             onClick={() => handleRemoveMemberClick(m.id)}
                             disabled={busy}
                             className={`p-1.5 rounded-lg hover:bg-chat-surface-soft transition-all duration-200 ${
@@ -281,6 +282,7 @@ export const GroupModal: FC<GroupModalProps> = ({
                         </div>
                         <button
                           type="button"
+                          aria-label={`Add ${u.name || u.email || 'teammate'} to group`}
                           onClick={() => handleAddMemberClick(u.keyId)}
                           disabled={busy}
                           className={`p-1.5 rounded-lg hover:bg-chat-surface-soft transition-all duration-200 ${

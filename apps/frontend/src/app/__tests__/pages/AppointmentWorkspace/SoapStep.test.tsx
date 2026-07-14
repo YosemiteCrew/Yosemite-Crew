@@ -175,7 +175,7 @@ describe('SoapStep', () => {
     });
     renderSoapStep(encounter);
     fireEvent.click(screen.getByRole('button', { name: /Template: None/ }));
-    fireEvent.click(screen.getByRole('option', { name: /Orthopaedic exam/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Orthopaedic exam/ }));
     await waitFor(() => {
       expect(useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0]?.templateId).toBe(
         'tpl-ortho'
@@ -197,7 +197,7 @@ describe('SoapStep', () => {
     const enc = useAppointmentWorkspaceStore.getState().getEncounter(APPT)!;
     renderSoapStep(enc);
     fireEvent.click(screen.getByRole('button', { name: /Template: None/ }));
-    fireEvent.click(screen.getByRole('option', { name: /Wellness/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Wellness/ }));
     const soap = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.soap[0];
     expect(soap?.subjective).toContain('annual wellness examination');
     // The preset carries no backend template id.

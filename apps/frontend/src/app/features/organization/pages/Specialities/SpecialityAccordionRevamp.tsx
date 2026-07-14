@@ -1,15 +1,8 @@
 import React, { useId, useRef, useState } from 'react';
 import type { ServicesTabHandle } from '@/app/features/organization/pages/Specialities/ServicesTab';
 import type { PackagesTabHandle } from '@/app/features/organization/pages/Specialities/PackagesTab';
-import { IoIosArrowDown, IoIosSearch } from 'react-icons/io';
-import {
-  IoArchiveOutline,
-  IoCheckmarkOutline,
-  IoClose,
-  IoCreateOutline,
-  IoTrash,
-} from 'react-icons/io5';
-import TabToggle, { TabOption } from '@/app/ui/primitives/TabToggle/TabToggle';
+import { IoIosArrowDown } from 'react-icons/io';
+import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
 import ServicesTab from '@/app/features/organization/pages/Specialities/ServicesTab';
 import PackagesTab from '@/app/features/organization/pages/Specialities/PackagesTab';
 import ArchiveTab from '@/app/features/organization/pages/Specialities/ArchiveTab';
@@ -18,33 +11,196 @@ import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useNotify } from '@/app/hooks/useNotify';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
-import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
-import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
-import Secondary from '@/app/ui/primitives/Buttons/Secondary';
-import Delete from '@/app/ui/primitives/Buttons/Delete';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
+import { TABS, panelId, type ActiveTab, type SearchResult } from './specialityAccordionHelpers';
+import SpecialitySearchBar from './SpecialitySearchBar';
+import SpecialityDeleteModal from './SpecialityDeleteModal';
+import SpecialityNameEditor from './SpecialityNameEditor';
 
 type SpecialityAccordionRevampProps = {
   speciality: SpecialityRevamp;
   defaultOpen?: boolean;
 };
 
-type ActiveTab = 'services' | 'packages' | 'archive';
-
-const TABS: TabOption[] = [
-  { key: 'services', label: 'Services' },
-  { key: 'packages', label: 'Packages' },
-  { key: 'archive', label: 'Archive', icon: <IoArchiveOutline size={14} aria-hidden="true" /> },
-];
-
-const panelId = (key: string) => `panel-${key}`;
-
-type SearchResult = {
-  id: string;
-  name: string;
-  kind: 'service' | 'package';
-  meta: string;
+type SpecialityAccordionHeaderProps = {
+  speciality: SpecialityRevamp;
+  activeTab: ActiveTab;
+  totalCount: number;
+  open: boolean;
+  editingName: boolean;
+  nameInputId: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  nameValue: string;
+  nameError: string;
+  searchRef: React.RefObject<HTMLDivElement | null>;
+  searchQuery: string;
+  searchOpen: boolean;
+  searchResults: SearchResult[];
+  onToggleOpen: () => void;
+  onNameChange: (value: string) => void;
+  onNameKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  onSaveName: (event: React.MouseEvent | React.KeyboardEvent) => void;
+  onCancelName: (event: React.MouseEvent) => void;
+  onEditClick: (event: React.MouseEvent) => void;
+  onRequestDelete: (event: React.MouseEvent) => void;
+  onOpenAdd: (event: React.MouseEvent) => void;
+  onSearchQueryChange: (value: string) => void;
+  onSearchFocus: () => void;
+  onSearchBlur: () => void;
+  onSearchKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  onSearchClear: () => void;
+  onSelectSearchResult: (result: SearchResult) => void;
 };
+
+const SpecialityAccordionHeader = ({
+  speciality,
+  activeTab,
+  totalCount,
+  open,
+  editingName,
+  nameInputId,
+  inputRef,
+  nameValue,
+  nameError,
+  searchRef,
+  searchQuery,
+  searchOpen,
+  searchResults,
+  onToggleOpen,
+  onNameChange,
+  onNameKeyDown,
+  onSaveName,
+  onCancelName,
+  onEditClick,
+  onRequestDelete,
+  onOpenAdd,
+  onSearchQueryChange,
+  onSearchFocus,
+  onSearchBlur,
+  onSearchKeyDown,
+  onSearchClear,
+  onSelectSearchResult,
+}: SpecialityAccordionHeaderProps) => (
+  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 sm:px-5 py-3 sm:py-3.5">
+    <div className="flex items-center gap-2 min-w-0 flex-1">
+      <button
+        type="button"
+        className="flex items-center gap-2 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand rounded"
+        onClick={onToggleOpen}
+        aria-expanded={open}
+        aria-label={`${speciality.name} speciality`}
+      >
+        <IoIosArrowDown
+          size={20}
+          aria-hidden="true"
+          className={`text-black-text transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
+        />
+      </button>
+
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <SpecialityNameEditor
+          editingName={editingName}
+          nameInputId={nameInputId}
+          inputRef={inputRef}
+          nameValue={nameValue}
+          nameError={nameError}
+          specialityName={speciality.name}
+          totalCount={totalCount}
+          onToggleOpen={onToggleOpen}
+          onNameChange={onNameChange}
+          onNameKeyDown={onNameKeyDown}
+          onSaveName={onSaveName}
+          onCancelName={onCancelName}
+          onEditClick={onEditClick}
+          onRequestDelete={onRequestDelete}
+        />
+      </div>
+    </div>
+    {editingName && nameError && (
+      <p className="text-caption-1 text-text-error sm:basis-full sm:pl-12">{nameError}</p>
+    )}
+
+    {!editingName && (
+      <div className="flex items-center gap-2 flex-wrap w-full sm:flex-nowrap sm:w-auto min-h-12">
+        {open && activeTab !== 'archive' && (
+          <div className="shrink-0 w-full sm:w-auto">
+            <Primary
+              href="#"
+              icon={<span>+</span>}
+              text={activeTab === 'packages' ? 'New Package' : 'New Service'}
+              onClick={onOpenAdd}
+              className="w-full sm:w-auto"
+            />
+          </div>
+        )}
+        <SpecialitySearchBar
+          searchRef={searchRef}
+          specialityName={speciality.name}
+          searchQuery={searchQuery}
+          searchOpen={searchOpen}
+          searchResults={searchResults}
+          onQueryChange={onSearchQueryChange}
+          onFocus={onSearchFocus}
+          onBlur={onSearchBlur}
+          onKeyDown={onSearchKeyDown}
+          onClear={onSearchClear}
+          onSelectResult={onSelectSearchResult}
+        />
+      </div>
+    )}
+  </div>
+);
+
+type SpecialityAccordionPanelProps = {
+  speciality: SpecialityRevamp;
+  activeTab: ActiveTab;
+  servicesTabRef: React.RefObject<ServicesTabHandle | null>;
+  packagesTabRef: React.RefObject<PackagesTabHandle | null>;
+  onTabChange: (tab: ActiveTab) => void;
+};
+
+const SpecialityAccordionPanel = ({
+  speciality,
+  activeTab,
+  servicesTabRef,
+  packagesTabRef,
+  onTabChange,
+}: SpecialityAccordionPanelProps) => (
+  <div className="border-t border-card-border">
+    <TabToggle
+      tabs={TABS}
+      activeKey={activeTab}
+      onChange={(key) => onTabChange(key as ActiveTab)}
+      panelId={panelId}
+    />
+
+    <div className="px-5 pt-3">
+      {activeTab === 'services' && (
+        <div id={panelId('services')} role="tabpanel" aria-labelledby="tab-services">
+          <ServicesTab
+            ref={servicesTabRef}
+            specialityId={speciality.id}
+            organisationId={speciality.organisationId}
+          />
+        </div>
+      )}
+      {activeTab === 'packages' && (
+        <div id={panelId('packages')} role="tabpanel" aria-labelledby="tab-packages">
+          <PackagesTab
+            ref={packagesTabRef}
+            specialityId={speciality.id}
+            organisationId={speciality.organisationId}
+          />
+        </div>
+      )}
+      {activeTab === 'archive' && (
+        <div id={panelId('archive')} role="tabpanel" aria-labelledby="tab-archive">
+          <ArchiveTab specialityId={speciality.id} organisationId={speciality.organisationId} />
+        </div>
+      )}
+    </div>
+  </div>
+);
 
 const SpecialityAccordionRevamp = ({
   speciality,
@@ -230,255 +386,79 @@ const SpecialityAccordionRevamp = ({
     }
   };
 
+  const handleOpenAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (activeTab === 'packages') {
+      packagesTabRef.current?.openAdd();
+    } else {
+      servicesTabRef.current?.openAdd();
+    }
+  };
+
   return (
-    <div className="flex flex-col w-full rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-      {/* Accordion Header — two rows on mobile, single row on sm+ */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-4 sm:px-5 py-3 sm:py-3.5">
-        {/* Row 1 (always): chevron + name + rename icon */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <button
-            type="button"
-            className="flex items-center gap-2 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand rounded"
-            onClick={() => setOpen((p) => !p)}
-            aria-expanded={open}
-            aria-label={`${speciality.name} speciality`}
-          >
-            <IoIosArrowDown
-              size={20}
-              aria-hidden="true"
-              className={`text-black-text transition-transform ${open ? 'rotate-0' : '-rotate-90'}`}
-            />
-          </button>
-
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {editingName ? (
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <label htmlFor={nameInputId} className="sr-only">
-                  Speciality name
-                </label>
-                <input
-                  ref={inputRef}
-                  id={nameInputId}
-                  type="text"
-                  value={nameValue}
-                  onChange={(e) => {
-                    setNameValue(e.target.value);
-                    if (nameError) setNameError('');
-                  }}
-                  onKeyDown={handleNameKeyDown}
-                  className="flex-1 min-w-0 text-heading-3 text-text-primary bg-transparent border-b-2 border-input-border-active focus-visible:outline-none px-1"
-                  aria-label="Edit speciality name"
-                  aria-invalid={Boolean(nameError)}
-                />
-                <button
-                  type="button"
-                  aria-label="Save name"
-                  onClick={(event) => {
-                    Promise.resolve(handleSaveName(event)).catch(() => undefined);
-                  }}
-                  className="flex items-center justify-center size-8 rounded-full bg-text-brand text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand shrink-0"
-                >
-                  <IoCheckmarkOutline size={14} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Cancel rename"
-                  onClick={handleCancelName}
-                  className="flex items-center justify-center size-8 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors shrink-0"
-                >
-                  <IoClose size={14} color="var(--color-danger-600)" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Delete ${speciality.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setConfirmDelete(true);
-                  }}
-                  className="flex items-center justify-center size-8 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors shrink-0"
-                >
-                  <IoTrash size={16} color="var(--color-danger-600)" aria-hidden="true" />
-                </button>
-              </div>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="text-heading-3 text-text-primary text-left truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand rounded"
-                  onClick={() => setOpen((p) => !p)}
-                >
-                  <span className="truncate">{speciality.name}</span>{' '}
-                  <span className="text-text-secondary font-normal whitespace-nowrap">
-                    ({totalCount})
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Rename ${speciality.name}`}
-                  onClick={handleEditClick}
-                  className="flex items-center justify-center size-9 rounded-full border border-transparent hover:border-card-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors shrink-0"
-                >
-                  <IoCreateOutline size={18} color="var(--color-neutral-700)" aria-hidden="true" />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-        {editingName && nameError && (
-          <p className="text-caption-1 text-text-error sm:basis-full sm:pl-12">{nameError}</p>
-        )}
-
-        {/* Row 2 on mobile / inline on sm+: primary button (left) + search (right) */}
-        {!editingName && (
-          <div className="flex items-center gap-2 flex-wrap w-full sm:flex-nowrap sm:w-auto min-h-12">
-            {/* Primary button — leftmost, only when accordion is open and not on Archive tab */}
-            {open && activeTab !== 'archive' && (
-              <div className="shrink-0 w-full sm:w-auto">
-                <Primary
-                  href="#"
-                  icon={<span>+</span>}
-                  text={activeTab === 'packages' ? 'New Package' : 'New Service'}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (activeTab === 'packages') {
-                      packagesTabRef.current?.openAdd();
-                    } else {
-                      servicesTabRef.current?.openAdd();
-                    }
-                  }}
-                  className="w-full sm:w-auto"
-                />
-              </div>
-            )}
-            {/* Search bar — full width on mobile, fixed 256px + pushed right on sm+ */}
-            <div ref={searchRef} className="relative w-full sm:w-64 sm:ml-auto shrink-0">
-              <div className="flex items-center gap-2 border border-input-border-default rounded-2xl px-3.5 h-10.5 focus-within:border-input-border-active transition-colors bg-neutral-0 w-full">
-                <input
-                  type="text"
-                  placeholder="Search services & packages..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setSearchOpen(true);
-                  }}
-                  onFocus={() => setSearchOpen(true)}
-                  onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-                  onKeyDown={handleSearchKeyDown}
-                  className="flex-1 min-w-0 bg-transparent font-satoshi text-[13px] font-medium text-text-primary focus-visible:outline-none placeholder:text-text-secondary"
-                  aria-label={`Search within ${speciality.name}`}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    aria-label="Clear search"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSearchOpen(false);
-                    }}
-                    className="shrink-0 focus-visible:outline-none"
-                  >
-                    <IoClose size={12} color="var(--color-text-secondary)" />
-                  </button>
-                )}
-                <IoIosSearch
-                  size={20}
-                  color="var(--color-neutral-900)"
-                  aria-hidden="true"
-                  className="shrink-0"
-                />
-              </div>
-
-              {searchOpen && searchQuery.trim() && (
-                <div className="absolute top-full left-0 sm:left-auto sm:right-0 z-50 mt-1 w-full sm:w-96 bg-neutral-0 border border-card-border rounded-2xl shadow-lg overflow-hidden">
-                  {searchResults.length > 0 ? (
-                    searchResults.map((result) => (
-                      <button
-                        key={result.id}
-                        type="button"
-                        onMouseDown={() => handleSearchSelect(result)}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-card-hover transition-colors"
-                      >
-                        <span className="text-body-4 text-text-primary truncate">
-                          {result.name}
-                        </span>
-                        <span className="text-caption-1 text-text-secondary shrink-0">
-                          {result.meta}
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-4 py-3 text-body-4 text-text-secondary">
-                      No results found.
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Expanded content */}
+    <div className="flex flex-col w-full rounded-2xl border border-card-border">
+      <SpecialityAccordionHeader
+        speciality={speciality}
+        activeTab={activeTab}
+        totalCount={totalCount}
+        open={open}
+        editingName={editingName}
+        nameInputId={nameInputId}
+        inputRef={inputRef}
+        nameValue={nameValue}
+        nameError={nameError}
+        searchRef={searchRef}
+        searchQuery={searchQuery}
+        searchOpen={searchOpen}
+        searchResults={searchResults}
+        onToggleOpen={() => setOpen((p) => !p)}
+        onNameChange={(value) => {
+          setNameValue(value);
+          if (nameError) setNameError('');
+        }}
+        onNameKeyDown={handleNameKeyDown}
+        onSaveName={(event) => {
+          Promise.resolve(handleSaveName(event)).catch(() => undefined);
+        }}
+        onCancelName={handleCancelName}
+        onEditClick={handleEditClick}
+        onRequestDelete={(event) => {
+          event.stopPropagation();
+          setConfirmDelete(true);
+        }}
+        onOpenAdd={handleOpenAdd}
+        onSearchQueryChange={(value) => {
+          setSearchQuery(value);
+          setSearchOpen(true);
+        }}
+        onSearchFocus={() => setSearchOpen(true)}
+        onSearchBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+        onSearchKeyDown={handleSearchKeyDown}
+        onSearchClear={() => {
+          setSearchQuery('');
+          setSearchOpen(false);
+        }}
+        onSelectSearchResult={handleSearchSelect}
+      />
       {open && (
-        <div className="border-t border-[var(--hairline)]">
-          <TabToggle
-            tabs={TABS}
-            activeKey={activeTab}
-            onChange={(key) => setActiveTab(key as ActiveTab)}
-            panelId={panelId}
-          />
-
-          <div className="px-5 pt-3">
-            {activeTab === 'services' && (
-              <div id={panelId('services')} role="tabpanel" aria-labelledby="tab-services">
-                <ServicesTab
-                  ref={servicesTabRef}
-                  specialityId={speciality.id}
-                  organisationId={speciality.organisationId}
-                />
-              </div>
-            )}
-            {activeTab === 'packages' && (
-              <div id={panelId('packages')} role="tabpanel" aria-labelledby="tab-packages">
-                <PackagesTab
-                  ref={packagesTabRef}
-                  specialityId={speciality.id}
-                  organisationId={speciality.organisationId}
-                />
-              </div>
-            )}
-            {activeTab === 'archive' && (
-              <div id={panelId('archive')} role="tabpanel" aria-labelledby="tab-archive">
-                <ArchiveTab
-                  specialityId={speciality.id}
-                  organisationId={speciality.organisationId}
-                />
-              </div>
-            )}
-          </div>
-        </div>
+        <SpecialityAccordionPanel
+          speciality={speciality}
+          activeTab={activeTab}
+          servicesTabRef={servicesTabRef}
+          packagesTabRef={packagesTabRef}
+          onTabChange={setActiveTab}
+        />
       )}
 
       {confirmDelete && (
-        <CenterModal showModal setShowModal={() => setConfirmDelete(false)}>
-          <ModalHeader title="Delete speciality" onClose={() => setConfirmDelete(false)} />
-          <p className="text-body-4 text-text-primary">
-            Are you sure you want to delete <strong>{speciality.name}</strong>? This will remove the
-            speciality and is only possible if it has no services, packages, or historical usage.
-            This action cannot be undone.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Secondary href="#" text="Cancel" onClick={() => setConfirmDelete(false)} />
-            <Delete
-              href="#"
-              text={deleting ? 'Deleting...' : 'Delete'}
-              onClick={() => {
-                if (deleting) return;
-                Promise.resolve(handleDeleteConfirm()).catch(() => undefined);
-              }}
-            />
-          </div>
-        </CenterModal>
+        <SpecialityDeleteModal
+          specialityName={speciality.name}
+          deleting={deleting}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            Promise.resolve(handleDeleteConfirm()).catch(() => undefined);
+          }}
+        />
       )}
     </div>
   );

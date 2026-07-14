@@ -161,8 +161,12 @@ describe('Modal', () => {
       </Modal>
     );
 
-    // Drawer slides off-screen when closed.
-    expect(screen.getByRole('dialog').className).toContain('translate-x-[120%]');
+    // Closed <dialog> drops its `open` attribute, so it leaves the a11y tree
+    // (no role="dialog"). The panel element is still portaled to the body —
+    // query it by its stable class and assert it slides off-screen.
+    const dialog = document.querySelector('.yc-modal-dialog');
+    expect(dialog).not.toBeNull();
+    expect(dialog?.className).toContain('translate-x-[120%]');
   });
 
   it('hides the centered panel when showModal is false', () => {
@@ -172,7 +176,9 @@ describe('Modal', () => {
       </Modal>
     );
 
-    expect(screen.getByRole('dialog').className).toContain('opacity-0');
+    const dialog = document.querySelector('.yc-modal-dialog');
+    expect(dialog).not.toBeNull();
+    expect(dialog?.className).toContain('opacity-0');
   });
 
   it('does not close the centered variant when clicking a portaled dropdown option', () => {

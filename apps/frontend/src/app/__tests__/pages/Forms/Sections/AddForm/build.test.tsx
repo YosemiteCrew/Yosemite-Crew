@@ -163,7 +163,7 @@ const baseFormData = (overrides: Partial<FormsProps> = {}): FormsProps => ({
   ...overrides,
 });
 
-let capturedValidator: (() => boolean) | undefined;
+let stepRef: React.RefObject<{ validate: () => boolean } | null>;
 
 const renderBuild = (
   initialFormData: FormsProps,
@@ -181,9 +181,7 @@ const renderBuild = (
           formData={formData}
           setFormData={setFormData}
           serviceOptions={serviceOptions}
-          registerValidator={(fn) => {
-            capturedValidator = fn;
-          }}
+          ref={stepRef}
         />
         <pre data-testid="schema-state">{JSON.stringify(formData.schema)}</pre>
       </>
@@ -203,7 +201,7 @@ const addFromPalette = (optionLabel: string) => {
 
 describe('Build form (single-screen builder)', () => {
   beforeEach(() => {
-    capturedValidator = undefined;
+    stepRef = React.createRef<{ validate: () => boolean }>();
     jest.clearAllMocks();
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
       selector({ primaryOrgId: undefined })
@@ -224,10 +222,10 @@ describe('Build form (single-screen builder)', () => {
   it('registers validator and fails validation when no fields are present', () => {
     renderBuild(baseFormData());
 
-    expect(capturedValidator).toBeDefined();
+    expect(stepRef.current).not.toBeNull();
     let result = true;
     act(() => {
-      result = Boolean(capturedValidator?.());
+      result = Boolean(stepRef.current?.validate());
     });
     expect(result).toBe(false);
     expect(screen.getByText('Add at least one field to continue.')).toBeInTheDocument();
@@ -238,7 +236,7 @@ describe('Build form (single-screen builder)', () => {
 
     let result = false;
     act(() => {
-      result = Boolean(capturedValidator?.());
+      result = Boolean(stepRef.current?.validate());
     });
     expect(result).toBe(true);
     expect(screen.queryByText('Add at least one field to continue.')).not.toBeInTheDocument();
@@ -674,6 +672,67 @@ describe('Build form (single-screen builder)', () => {
       expect(screen.getByRole('button', { name: 'Short Text' })).toBeInTheDocument();
       expect(screen.getByText('Drop a field here')).toBeInTheDocument();
       expect(screen.getByTestId('medicine-dropdown')).toBeInTheDocument();
+    });
+
+    it('edits, duplicates and removes task blocks', async () => {
+      const taskGroup: FormField = {
+        id: 'task_blocks',
+        type: 'group',
+        label: 'Schedule tasks',
+        meta: { taskGroup: true } as any,
+        fields: [],
+      } as FormField;
+
+      renderBuild(baseFormData({ category: 'Task Template', schema: [taskGroup] }));
+
+      fireEvent.click(screen.getByRole('button', { name: /Add task block/i }));
+
+      let schema = readSchema();
+      let taskGroupState = schema[0] as FormField & { fields?: FormField[] };
+      let block = taskGroupState.fields?.[0] as FormField & {
+        id: string;
+        fields?: FormField[];
+      };
+
+      fireEvent.change(screen.getByTestId(`${block.id}-title`), {
+        target: { value: 'Record vitals' },
+      });
+      fireEvent.click(screen.getByRole('option', { name: 'Care' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Every 12 hours' }));
+      fireEvent.click(screen.getByRole('option', { name: '15 minutes before' }));
+      fireEvent.change(screen.getByTestId(`${block.id}-instructions`), {
+        target: { value: 'Check twice a day' },
+      });
+      fireEvent.change(screen.getByTestId(`${block.id}-duration`), {
+        target: { value: '5' },
+      });
+
+      schema = readSchema();
+      taskGroupState = schema[0] as FormField & { fields?: FormField[] };
+      block = taskGroupState.fields?.[0] as FormField & {
+        id: string;
+        fields?: FormField[];
+      };
+      const byKey = (key: string) =>
+        (block.fields ?? []).find((f: any) => f.meta?.taskBlockKey === key) as any;
+      expect(byKey('name').defaultValue).toBe('Record vitals');
+      expect(byKey('category').defaultValue).toBe('CARE');
+      expect(byKey('recurrence.type').defaultValue).toBe('EVERY_12_HOURS');
+      expect(byKey('reminderOffsetMinutes').defaultValue).toBe('15');
+      expect(byKey('additionalNotes').defaultValue).toBe('Check twice a day');
+      expect(byKey('durationDays').defaultValue).toBe('5');
+
+      // Duplicate the task block
+      fireEvent.click(screen.getByRole('button', { name: /Duplicate task 1/i }));
+      schema = readSchema();
+      taskGroupState = schema[0] as FormField & { fields?: FormField[] };
+      expect(taskGroupState.fields).toHaveLength(2);
+
+      // Remove the first task block
+      fireEvent.click(screen.getAllByRole('button', { name: /Remove task/i })[0]);
+      schema = readSchema();
+      taskGroupState = schema[0] as FormField & { fields?: FormField[] };
+      expect(taskGroupState.fields).toHaveLength(1);
     });
 
     it('lets YC-default task templates add schedule task blocks as content', () => {

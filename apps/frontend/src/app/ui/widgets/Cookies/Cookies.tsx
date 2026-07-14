@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useSyncExternalStore } from 'react';
 import Image from 'next/image';
 
 import { getStorageItem, setStorageItem } from '@/app/lib/browserStorage';
@@ -14,25 +14,29 @@ const setConsent = (value: 'true' | 'false') => {
   );
 };
 
+const subscribeToConsent = (onChange: () => void): (() => void) => {
+  globalThis.window?.addEventListener('storage', onChange);
+  return () => globalThis.window?.removeEventListener('storage', onChange);
+};
+
+const getConsentSnapshot = () => getStorageItem('local', COOKIE_CONSENT_KEY);
+const getServerConsentSnapshot = () => null;
+
+const handleConsent = () => {
+  setConsent('true');
+};
+
+const handleRejection = () => {
+  setConsent('false');
+};
+
 const Cookies = () => {
-  const [showCookiePopup, setShowCookiePopup] = useState(false);
-
-  useEffect(() => {
-    const cookieConsentGiven = getStorageItem('local', COOKIE_CONSENT_KEY);
-    if (!cookieConsentGiven) {
-      setShowCookiePopup(true);
-    }
-  }, []);
-
-  const handleConsent = () => {
-    setShowCookiePopup(false);
-    setConsent('true');
-  };
-
-  const handleRejection = () => {
-    setShowCookiePopup(false);
-    setConsent('false');
-  };
+  const consent = useSyncExternalStore(
+    subscribeToConsent,
+    getConsentSnapshot,
+    getServerConsentSnapshot
+  );
+  const showCookiePopup = !consent;
 
   if (!showCookiePopup) return null;
 

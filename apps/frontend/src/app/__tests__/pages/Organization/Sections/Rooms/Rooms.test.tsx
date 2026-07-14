@@ -30,13 +30,19 @@ jest.mock('@/app/ui/layout/guards/PermissionGate', () => ({
 }));
 
 // Rich mock: expose the table's row callbacks as buttons so the parent's
-// handlers (edit / toggle availability) can be exercised via fireEvent.
+// handlers (select/open overlay, toggle availability) can be exercised via fireEvent.
 jest.mock('@/app/ui/tables/RoomTable', () => ({
   __esModule: true,
-  default: ({ filteredList, onEdit, onToggleAvailability }: any) => (
+  default: ({ filteredList, setActive, setView, onToggleAvailability }: any) => (
     <div data-testid="room-table">
       <span data-testid="room-rows">{filteredList.length}</span>
-      <button type="button" onClick={() => onEdit({ id: 'room-1', name: 'Room A' })}>
+      <button
+        type="button"
+        onClick={() => {
+          setActive({ id: 'room-1', name: 'Room A' });
+          setView(true);
+        }}
+      >
         edit-room
       </button>
       <button

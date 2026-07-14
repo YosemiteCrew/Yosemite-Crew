@@ -297,9 +297,7 @@ describe('TaskSlot', () => {
         handleViewTask={handleViewTask}
         height={200}
         hour={9}
-        showGridLines
-        slotOffsetMinutes={[15, 30, 45]}
-        isLastVisibleHour
+        layout={{ showGridLines: true, slotOffsetMinutes: [15, 30, 45], isLastVisibleHour: true }}
       />
     );
 
@@ -314,8 +312,7 @@ describe('TaskSlot', () => {
         handleViewTask={handleViewTask}
         height={200}
         hour={9}
-        showGridLines
-        slotOffsetMinutes={[]}
+        layout={{ showGridLines: true, slotOffsetMinutes: [] }}
       />
     );
 
@@ -586,7 +583,7 @@ describe('TaskSlot', () => {
         slotEvents={slotEvents}
         handleViewTask={handleViewTask}
         handleRescheduleTask={handleRescheduleTask}
-        canEditTasks
+        permissions={{ canEditTasks: true }}
         index={0}
         length={1}
         height={200}
@@ -627,7 +624,7 @@ describe('TaskSlot', () => {
         slotEvents={slotEvents}
         handleViewTask={handleViewTask}
         handleChangeStatusTask={handleChangeStatusTask}
-        canEditTasks
+        permissions={{ canEditTasks: true }}
         index={0}
         length={1}
         height={200}
@@ -658,7 +655,7 @@ describe('TaskSlot', () => {
       <TaskSlot
         slotEvents={slotEvents}
         handleViewTask={handleViewTask}
-        canEditTasks
+        permissions={{ canEditTasks: true }}
         index={0}
         length={1}
         height={200}

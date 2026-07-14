@@ -237,9 +237,9 @@ describe('AddAppointmentCentralModal', () => {
     expect(screen.getByLabelText('Client')).toBeInTheDocument();
   });
 
-  it('renders the Book appointment submit button', () => {
+  it('renders the Add Appointment submit button', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
-    expect(screen.getByRole('button', { name: /book appointment/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add appointment/i })).toBeInTheDocument();
   });
 
   it('renders notify checkboxes', () => {
@@ -284,7 +284,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /book appointment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /add appointment/i }));
     });
 
     // submitAttempted becomes true, booking error should show
@@ -298,7 +298,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /book appointment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /add appointment/i }));
       await Promise.resolve();
     });
 
@@ -319,7 +319,7 @@ describe('AddAppointmentCentralModal', () => {
 
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
-    expect(screen.getByRole('button', { name: /book appointment/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /add appointment/i })).toBeDisabled();
   });
 
   it('closes modal directly when no unsaved changes', async () => {
@@ -519,7 +519,7 @@ describe('AddAppointmentCentralModal', () => {
   it('shows loading indicator on submit button when isLoading', () => {
     mockAppointmentForm.isLoading = true;
     render(<AddAppointmentCentralModal {...defaultProps} />);
-    expect(screen.getByRole('button', { name: /book appointment/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /add appointment/i })).toBeDisabled();
   });
 
   it('prefill active state is set when prefill prop is provided', async () => {
@@ -537,6 +537,16 @@ describe('AddAppointmentCentralModal', () => {
   it('initialCompanionId pre-selects companion when provided', () => {
     render(<AddAppointmentCentralModal {...defaultProps} initialCompanionId="c1" />);
     expect(screen.getByTestId('modal-shell')).toBeInTheDocument();
+  });
+
+  it('auto-selects companion on first mount when showModal and initialCompanionId are already true/set (mount-time, not toggled)', () => {
+    // Regression test: the component can mount with showModal=true and initialCompanionId
+    // already populated (e.g. lazy-loaded chunk resolving after the parent already opened it,
+    // or a deep-link into the workspace). The auto-select must fire on this very first render,
+    // not only when showModal/initialCompanionId change on a later render.
+    render(<AddAppointmentCentralModal {...defaultProps} showModal initialCompanionId="c1" />);
+    const patientInput = screen.getByLabelText('Patient') as HTMLInputElement;
+    expect(patientInput.value).toBe('Buddy');
   });
 
   it('renders visit notes FormDesc', () => {
@@ -660,7 +670,7 @@ describe('AddAppointmentCentralModal', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /book appointment/i }));
+      fireEvent.click(screen.getByRole('button', { name: /add appointment/i }));
       await Promise.resolve();
     });
 

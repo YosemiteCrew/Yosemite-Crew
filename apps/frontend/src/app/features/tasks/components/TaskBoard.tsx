@@ -4,6 +4,7 @@ import { useBoardDragScroll } from '@/app/hooks/useBoardDragScroll';
 import { useScrollBoundaryWheel } from '@/app/hooks/useScrollBoundaryWheel';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { buildDragPreview } from '@/app/lib/buildDragPreview';
+import { attachBoardColumnDnDListeners } from '@/app/ui/board/boardShared';
 import BoardScopeToggle from '@/app/ui/primitives/BoardScopeToggle/BoardScopeToggle';
 import Image from 'next/image';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
@@ -512,34 +513,17 @@ const TaskBoard = ({
       /* v8 ignore next */
       if (!dropElement || !scrollElement) return [];
 
-      const handleColumnDragOver = (event: DragEvent) => {
-        if (!draggedTaskId || !canEditTasks) return;
-        event.preventDefault();
-        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>);
-      };
-
-      const handleColumnDrop = (event: DragEvent) => {
-        if (!draggedTaskId || !canEditTasks) return;
-        event.preventDefault();
-        void moveToStatusRef.current(draggedTaskId, column.key);
-        setDraggedTaskId(null);
-      };
-
-      const handleScrollDragOver = (event: DragEvent) => {
-        if (!draggedTaskId || !canEditTasks) return;
-        event.preventDefault();
-        autoScrollBoardOnDrag(event as unknown as React.DragEvent<HTMLElement>, scrollElement);
-      };
-
-      dropElement.addEventListener('dragover', handleColumnDragOver);
-      dropElement.addEventListener('drop', handleColumnDrop);
-      scrollElement.addEventListener('dragover', handleScrollDragOver);
-
-      return [
-        () => dropElement.removeEventListener('dragover', handleColumnDragOver),
-        () => dropElement.removeEventListener('drop', handleColumnDrop),
-        () => scrollElement.removeEventListener('dragover', handleScrollDragOver),
-      ];
+      return attachBoardColumnDnDListeners({
+        dropElement,
+        scrollElement,
+        isDragActive: () => !!draggedTaskId && canEditTasks,
+        onDrop: () => {
+          if (!draggedTaskId) return;
+          void moveToStatusRef.current(draggedTaskId, column.key);
+          setDraggedTaskId(null);
+        },
+        autoScrollBoardOnDrag,
+      });
     });
 
     return () => cleanups.forEach((cleanup) => cleanup());

@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import {
   IoCheckmarkOutline,
   IoEyeOffOutline,
@@ -320,6 +320,54 @@ const formatWeightDelta = (delta: number) => {
   return `${rounded > 0 ? '+' : ''}${rounded} lbs`;
 };
 
+// The draft/notes/creating trio always resets together (handleDiscard, and the
+// post-save success path in handleSave), and `updateField` patches the draft on
+// every keystroke — grouping them into one reducer describes each transition as
+// a single action instead of 2-3 separate setState calls. Every case below
+// returns the *same* state reference when the patch is a no-op, so an effect
+// that ever ends up depending on this state (none does today — see the audit
+// note above the component) can still bail out via React's `Object.is` check
+// instead of looping forever (the lesson from the StripeOnboarding OOM).
+type VitalsFormDraftState = {
+  draft: DraftVitals;
+  notes: string;
+  creating: boolean;
+};
+
+const INITIAL_VITALS_FORM_DRAFT_STATE: VitalsFormDraftState = {
+  draft: EMPTY_DRAFT,
+  notes: '',
+  creating: false,
+};
+
+type VitalsFormDraftAction =
+  | { type: 'SET_FIELD'; key: keyof DraftVitals; value: string }
+  | { type: 'SET_NOTES'; value: string }
+  | { type: 'SET_CREATING'; value: boolean }
+  | { type: 'RESET' };
+
+const vitalsFormDraftReducer = (
+  state: VitalsFormDraftState,
+  action: VitalsFormDraftAction
+): VitalsFormDraftState => {
+  switch (action.type) {
+    case 'SET_FIELD': {
+      if (state.draft[action.key] === action.value) return state;
+      return { ...state, draft: { ...state.draft, [action.key]: action.value } };
+    }
+    case 'SET_NOTES':
+      return state.notes === action.value ? state : { ...state, notes: action.value };
+    case 'SET_CREATING':
+      return state.creating === action.value ? state : { ...state, creating: action.value };
+    case 'RESET':
+      return state.draft === EMPTY_DRAFT && state.notes === '' && !state.creating
+        ? state
+        : INITIAL_VITALS_FORM_DRAFT_STATE;
+    default:
+      return state;
+  }
+};
+
 const parseNumber = (value: string): number | undefined => {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
@@ -438,15 +486,17 @@ const VitalsForm = ({
     },
     [recorderNamesById]
   );
-  const [draft, setDraft] = useState<DraftVitals>(EMPTY_DRAFT);
-  const [notes, setNotes] = useState('');
+  const [formState, dispatchFormState] = useReducer(
+    vitalsFormDraftReducer,
+    INITIAL_VITALS_FORM_DRAFT_STATE
+  );
+  const { draft, notes, creating } = formState;
   const [templateQuery, setTemplateQuery] = useState('');
   const [templateState, setTemplateState] = useState<{
     templates: TemplateLike[];
     error: string | null;
   }>({ templates: [], error: null });
   const [activeFields, setActiveFields] = useState<Field[]>(defaultVitalFieldsFromFormsSchema);
-  const [creating, setCreating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof DraftVitals, string>>>({});
@@ -473,7 +523,7 @@ const VitalsForm = ({
   const weightTrend = useMemo(() => computeWeightTrend(vitals), [vitals]);
 
   const updateField = (key: keyof DraftVitals, value: string) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
+    dispatchFormState({ type: 'SET_FIELD', key, value });
     setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
   };
 
@@ -523,15 +573,11 @@ const VitalsForm = ({
     } finally {
       setIsSaving(false);
     }
-    setDraft(EMPTY_DRAFT);
-    setNotes('');
-    setCreating(false);
+    dispatchFormState({ type: 'RESET' });
   };
 
   const handleDiscard = () => {
-    setDraft(EMPTY_DRAFT);
-    setNotes('');
-    setCreating(false);
+    dispatchFormState({ type: 'RESET' });
   };
 
   if (!creating) {
@@ -552,7 +598,7 @@ const VitalsForm = ({
           <Primary
             text="New Vital"
             icon={<span aria-hidden="true">+</span>}
-            onClick={() => setCreating(true)}
+            onClick={() => dispatchFormState({ type: 'SET_CREATING', value: true })}
           />
         </div>
       </div>
@@ -660,7 +706,7 @@ const VitalsForm = ({
         <span className="text-[12px] font-medium text-neutral-700">Notes (optional)</span>
         <textarea
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          onChange={(e) => dispatchFormState({ type: 'SET_NOTES', value: e.target.value })}
           aria-label="Vitals notes"
           rows={3}
           className="rounded-2xl border border-input-border-default px-4 py-2.5 text-body-4 text-text-primary outline-none focus:border-input-border-active"

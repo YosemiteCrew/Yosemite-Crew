@@ -1,8 +1,11 @@
 import Modal from '@/app/ui/overlays/Modal';
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import Details from '@/app/features/forms/pages/Forms/Sections/AddForm/Details';
+import Details, {
+  AddFormStepHandle,
+} from '@/app/features/forms/pages/Forms/Sections/AddForm/Details';
 import Build from '@/app/features/forms/pages/Forms/Sections/AddForm/Build';
+import { normalizeServiceGroups } from '@/app/features/forms/pages/Forms/Sections/AddForm/serviceGroupHelpers';
 import Review from '@/app/features/forms/pages/Forms/Sections/AddForm/Review';
 import AppointmentMerckSearch from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch';
 import { FormsCategory, FormsProps } from '@/app/features/forms/types/forms';
@@ -63,15 +66,22 @@ const AddForm = ({
   const [formData, setFormData] = useState<FormsProps>(draft ?? initialForm ?? defaultForm());
   const [view, setView] = useState<BuilderView>('build');
   const [showDetails, setShowDetails] = useState(false);
-  const detailValidatorRef = useRef<() => boolean>(() => true);
-  const buildValidatorRef = useRef<() => boolean>(() => true);
+  // Keep the last non-null handle so validation still applies while the step
+  // is unmounted (e.g. validating Details/schema from the preview tab).
+  const detailStepRef = useRef<AddFormStepHandle | null>(null);
+  const buildStepRef = useRef<AddFormStepHandle | null>(null);
+  const setDetailStepHandle = (handle: AddFormStepHandle | null) => {
+    if (handle) detailStepRef.current = handle;
+  };
+  const setBuildStepHandle = (handle: AddFormStepHandle | null) => {
+    if (handle) buildStepRef.current = handle;
+  };
   const [isSaving, setIsSaving] = useState(false);
   const wasOpenRef = useRef(false);
   const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
 
   const isEditing = useMemo(() => Boolean(initialForm?._id), [initialForm]);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-
   const fieldCount = formData.schema?.length ?? 0;
   const serviceCount = formData.services?.length ?? 0;
   const detailsSummary = `${formData.category || 'Uncategorised'} · ${fieldCount} field${
@@ -90,18 +100,15 @@ const AddForm = ({
           useOrgStore.getState().getPrimaryOrg?.()?.type,
       };
       setFormData(next);
+      if (!initialForm) {
+        onDraftChange?.(next);
+      }
       wasOpenRef.current = true;
     }
     if (!showModal) {
       wasOpenRef.current = false;
     }
-  }, [showModal, initialForm, draft]);
-
-  useEffect(() => {
-    if (!initialForm) {
-      onDraftChange?.(formData);
-    }
-  }, [formData, onDraftChange, initialForm]);
+  }, [showModal, initialForm, draft, onDraftChange]);
 
   const closeModal = () => {
     setFormData(defaultForm());
@@ -117,6 +124,7 @@ const AddForm = ({
     try {
       const draftData = {
         ...formData,
+        schema: normalizeServiceGroups(formData.schema ?? [], serviceOptions),
         status: 'Draft' as const,
       };
       const saved =
@@ -137,19 +145,23 @@ const AddForm = ({
   const handlePublish = async () => {
     // Single-screen: validate the details and the field schema before publishing.
     // Invalid details reveal the details panel so the inline errors are visible.
-    if (!detailValidatorRef.current()) {
+    if (!(detailStepRef.current?.validate() ?? true)) {
       setShowDetails(true);
       return;
     }
-    if (!buildValidatorRef.current()) {
+    if (!(buildStepRef.current?.validate() ?? true)) {
       return;
     }
     setIsSaving(true);
     try {
+      const publishData = {
+        ...formData,
+        schema: normalizeServiceGroups(formData.schema ?? [], serviceOptions),
+      };
       const saved =
-        shouldUseTemplateApi(formData) && primaryOrgId
-          ? await saveTemplateFormDraft(formData, primaryOrgId)
-          : await saveFormDraft(formData);
+        shouldUseTemplateApi(publishData) && primaryOrgId
+          ? await saveTemplateFormDraft(publishData, primaryOrgId)
+          : await saveFormDraft(publishData);
       if (saved._id) {
         const published =
           saved.isTemplateBacked && primaryOrgId
@@ -278,9 +290,7 @@ const AddForm = ({
                       setShowDetails(false)
                   }
                   serviceOptions={serviceOptions}
-                  registerValidator={(fn) => {
-                    detailValidatorRef.current = fn;
-                  }}
+                  ref={setDetailStepHandle}
                   hideNext
                 />
               </div>
@@ -290,9 +300,7 @@ const AddForm = ({
                   formData={formData}
                   setFormData={setFormData}
                   serviceOptions={serviceOptions}
-                  registerValidator={(fn) => {
-                    buildValidatorRef.current = fn;
-                  }}
+                  ref={setBuildStepHandle}
                 />
               </div>
             </div>

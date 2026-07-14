@@ -9,17 +9,18 @@ import { validatePhone } from '@/app/lib/validators';
 import { CountryDialCodeOptions } from '@/app/features/companions/components/AddCompanion/type';
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
-  Primary: ({ text, onClick }: any) => (
-    <button type="button" onClick={onClick}>
+  Primary: ({ text, onClick, isDisabled }: any) => (
+    <button type="button" onClick={onClick} disabled={isDisabled}>
       {text}
     </button>
   ),
   Secondary: ({ text }: any) => <div>{text}</div>,
 }));
 
-const FieldMock = ({ error, inlabel, label, value, onChange }: any) => (
+const FieldMock = ({ error, inlabel, label, inname, value, onChange }: any) => (
   <div>
     <span>{inlabel || label}</span>
+    <input aria-label={inname || inlabel || label} value={value ?? ''} onChange={onChange} />
     {error ? <div>{error}</div> : null}
     <input aria-label={inlabel || label} value={value ?? ''} onChange={onChange} />
   </div>
@@ -46,7 +47,14 @@ jest.mock('@/app/ui/widgets/UploadImage/LogoUploader', () => ({
 
 jest.mock('@/app/ui/inputs/Datepicker', () => ({
   __esModule: true,
-  default: ({ error }: any) => (error ? <div>{error}</div> : <div />),
+  default: ({ error, setCurrentDate }: any) => (
+    <div>
+      <button type="button" onClick={() => setCurrentDate(new Date('2000-01-01'))}>
+        set-dob
+      </button>
+      {error ? <div>{error}</div> : null}
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({

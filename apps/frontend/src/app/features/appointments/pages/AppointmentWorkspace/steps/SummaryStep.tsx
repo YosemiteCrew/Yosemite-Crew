@@ -161,15 +161,19 @@ const schemaSnapshotToDischargeHtml = (snapshot?: TemplateSchemaSnapshot): strin
   if (sections.length === 0) return '';
   return sections
     .map((section) => {
-      const defaultFields = section.fields.map(fieldDefaultToHtml).filter(Boolean);
+      const defaultFields = section.fields.flatMap((field) => {
+        const html = fieldDefaultToHtml(field);
+        return html ? [html] : [];
+      });
       if (defaultFields.length > 0) return defaultFields.join('');
 
-      const outlineFields = section.fields
-        .map((field) => ({
-          html: fieldOutlineToHtml(field),
-          label: field.label || field.key,
-        }))
-        .filter((field) => field.html);
+      const outlineFields: Array<{ html: string; label: string }> = [];
+      for (const field of section.fields) {
+        const html = fieldOutlineToHtml(field);
+        if (html) {
+          outlineFields.push({ html, label: field.label || field.key });
+        }
+      }
       if (outlineFields.length === 0) return '';
 
       const duplicatesOnlyField =
@@ -195,7 +199,7 @@ const toFollowUpDate = (iso?: string): Date | null => {
 const toIsoString = (value: string | Date): string =>
   typeof value === 'string' ? value : new Date(value).toISOString();
 
-const DocumentSourcePill = ({ source }: { source: string }) => (
+export const DocumentSourcePill = ({ source }: { source: string }) => (
   <span className="inline-flex rounded-2xl border border-neutral-300 bg-neutral-100 px-3 py-1 text-caption-1 text-text-primary">
     {humanizeToken(source)}
   </span>
@@ -248,7 +252,7 @@ const downloadDocumentUrl = (url: string) => {
   link.remove();
 };
 
-const AllDocumentsTable = ({
+export const AllDocumentsTable = ({
   documents,
   organisationId,
   canView,
@@ -370,7 +374,7 @@ const AllDocumentsTable = ({
   );
 };
 
-const SummaryStep = ({
+const useSummaryStepContent = ({
   appointmentId,
   appointment,
   encounter,
@@ -973,5 +977,7 @@ const SummaryStep = ({
     </div>
   );
 };
+
+const SummaryStep = (props: SummaryStepProps) => useSummaryStepContent(props);
 
 export default SummaryStep;

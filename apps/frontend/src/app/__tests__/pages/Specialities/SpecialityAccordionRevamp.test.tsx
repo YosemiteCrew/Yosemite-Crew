@@ -107,10 +107,13 @@ jest.mock('@/app/ui/primitives/TabToggle/TabToggle', () => ({
   ),
 }));
 
+const mockOpenAddService = jest.fn();
+const mockOpenAddPackage = jest.fn();
+
 jest.mock('@/app/features/organization/pages/Specialities/ServicesTab', () => ({
   __esModule: true,
   default: React.forwardRef((_props: any, ref: any) => {
-    React.useImperativeHandle(ref, () => ({ openAdd: mockServicesOpenAdd }));
+    React.useImperativeHandle(ref, () => ({ openAdd: mockOpenAddService }));
     return <div data-testid="services-tab">Services</div>;
   }),
 }));
@@ -118,7 +121,7 @@ jest.mock('@/app/features/organization/pages/Specialities/ServicesTab', () => ({
 jest.mock('@/app/features/organization/pages/Specialities/PackagesTab', () => ({
   __esModule: true,
   default: React.forwardRef((_props: any, ref: any) => {
-    React.useImperativeHandle(ref, () => ({ openAdd: mockPackagesOpenAdd }));
+    React.useImperativeHandle(ref, () => ({ openAdd: mockOpenAddPackage }));
     return <div data-testid="packages-tab">Packages</div>;
   }),
 }));
@@ -142,8 +145,10 @@ const mockSpeciality = {
 const mockNotify = jest.fn();
 const mockRenameSpeciality = jest.fn();
 const mockDeleteSpeciality = jest.fn();
-const mockServicesOpenAdd = jest.fn();
-const mockPackagesOpenAdd = jest.fn();
+// HEAD's Section 10 tests reference these names; alias them to the wired dev mocks
+// so both parallel test suites exercise the same tab-ref openAdd handler.
+const mockServicesOpenAdd = mockOpenAddService;
+const mockPackagesOpenAdd = mockOpenAddPackage;
 
 describe('SpecialityAccordionRevamp', () => {
   beforeEach(() => {
@@ -236,6 +241,32 @@ describe('SpecialityAccordionRevamp', () => {
     expect(screen.getByTestId('archive-tab')).toBeInTheDocument();
   });
 
+  it('opens the add service draft from the header action', () => {
+    render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'New Service' }));
+
+    expect(mockOpenAddService).toHaveBeenCalled();
+    expect(mockOpenAddPackage).not.toHaveBeenCalled();
+  });
+
+  it('opens the add package draft from the header action after switching tabs', () => {
+    render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
+
+    fireEvent.click(screen.getByTestId('tab-packages'));
+    fireEvent.click(screen.getByRole('button', { name: 'New Package' }));
+
+    expect(mockOpenAddPackage).toHaveBeenCalled();
+  });
+
+  it('hides the add draft action on the archive tab', () => {
+    render(<SpecialityAccordionRevamp speciality={mockSpeciality} defaultOpen />);
+
+    fireEvent.click(screen.getByTestId('tab-archive'));
+
+    expect(screen.queryByRole('button', { name: /New / })).not.toBeInTheDocument();
+  });
+
   // --- Section 4: Edit name ---
 
   it('enters name-editing mode when edit icon button is clicked', () => {
@@ -285,6 +316,34 @@ describe('SpecialityAccordionRevamp', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel rename' }));
     expect(mockRenameSpeciality).not.toHaveBeenCalled();
     expect(screen.queryByLabelText('Edit speciality name')).not.toBeInTheDocument();
+  });
+
+  it('opens and cancels the delete confirmation from name edit mode', () => {
+    render(<SpecialityAccordionRevamp speciality={mockSpeciality} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Rename General Practice/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Delete General Practice/i }));
+
+    expect(screen.getByTestId('center-modal')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+  });
+
+  it('confirms speciality deletion and reports success', async () => {
+    mockDeleteSpeciality.mockResolvedValueOnce(undefined);
+    render(<SpecialityAccordionRevamp speciality={mockSpeciality} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Rename General Practice/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Delete General Practice/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => expect(mockDeleteSpeciality).toHaveBeenCalledWith('spec-1'));
+    expect(mockNotify).toHaveBeenCalledWith(
+      'success',
+      expect.objectContaining({ title: 'Speciality deleted' })
+    );
   });
 
   it('does not save when name is empty/whitespace', () => {

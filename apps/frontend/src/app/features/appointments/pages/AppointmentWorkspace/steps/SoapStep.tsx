@@ -1,11 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
-import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
-import { IoArrowForward } from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
-import Search from '@/app/ui/inputs/Search';
-import RichTextEditor from '@/app/ui/primitives/RichTextEditor/RichTextEditor';
-import { Primary } from '@/app/ui/primitives/Buttons';
+import { Secondary } from '@/app/ui/primitives/Buttons';
+import { LuClipboardList } from 'react-icons/lu';
 import SoapNotesList, {
   type SoapNoteListItem,
 } from '@/app/features/appointments/pages/AppointmentWorkspace/components/SoapNotesList';
@@ -17,16 +13,13 @@ import {
   findSoapPreset,
 } from '@/app/features/appointments/lib/soapTemplatePresets';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
-import type {
-  AppointmentEncounter,
-  SoapNoteEntry,
-} from '@/app/features/appointments/types/workspace';
+import type { AppointmentEncounter, SoapNoteEntry } from '@/app/features/appointments/types/workspace';
+import { isRichTextEmpty } from '@/app/lib/richText';
 import {
   formatStampDate,
   formatStampTime,
   resolveSectionLock,
 } from '@/app/lib/appointmentWorkspace';
-import { isRichTextEmpty } from '@/app/lib/richText';
 import { saveSoapNote } from '@/app/features/appointments/services/workspaceClinicalService';
 import {
   getWorkspaceTemplateById,
@@ -36,6 +29,10 @@ import {
 import FormRenderer from '@/app/features/forms/pages/Forms/Sections/AddForm/components/FormRenderer';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import { collectMissingRequiredFields } from '@/app/features/forms/pages/Forms/Sections/AddForm/validationUtils';
+import { EMPTY_SOAP, isPersistedSoapId, hasNativeSoapContent, isCustomSoap } from './soapStepUtils';
+import { SoapSignActions, SoapContextField, ChiefComplaintField } from './SoapPresentational';
+import SoapTemplateSearch from './SoapTemplateSearch';
+import NativeSoapFields from './NativeSoapFields';
 
 type SoapStepProps = {
   appointmentId: string;
@@ -50,69 +47,6 @@ type SoapStepProps = {
   onRecordVitals: () => void;
   onSaveAndNext: () => void;
 };
-
-const EMPTY_SOAP: SoapNoteEntry = {
-  id: 'draft',
-  chiefComplaint: '',
-  subjective: '',
-  objective: '',
-  assessment: '',
-  plan: '',
-  status: 'EMPTY',
-  createdAt: '',
-};
-
-const isPersistedSoapId = (value?: string) =>
-  Boolean(value && value !== 'draft' && !value.startsWith('local-'));
-
-const hasNativeSoapContent = (note: SoapNoteEntry) =>
-  [note.chiefComplaint, note.subjective, note.objective, note.assessment, note.plan].some(
-    (value) => !isRichTextEmpty(value)
-  );
-
-const isCustomSoap = (note: SoapNoteEntry) => Boolean(note.customSchema?.length);
-
-const SoapSignActions = ({
-  disabled,
-  onSaveAndNext,
-}: {
-  disabled: boolean;
-  onSaveAndNext: () => void;
-}) => (
-  <div className="flex flex-wrap items-center justify-end gap-3">
-    <Primary
-      text="Save & Next"
-      onClick={onSaveAndNext}
-      isDisabled={disabled}
-      icon={<IoArrowForward aria-hidden="true" />}
-      iconPosition="right"
-    />
-  </div>
-);
-
-const SoapContextField = ({ label, value }: { label: string; value?: string }) => (
-  <div className="relative w-full">
-    <div className="relative flex min-h-12 w-full items-center rounded-2xl border border-input-border-default bg-(--whitebg) px-5 py-2">
-      <span
-        className={`min-w-0 flex-1 truncate text-left text-body-4 ${value?.trim() ? 'text-text-primary' : 'text-input-text-placeholder'}`}
-      >
-        {value?.trim() || '-'}
-      </span>
-    </div>
-    <span className="pointer-events-none absolute -top-2 left-5 z-10 bg-(--whitebg) px-1 text-caption-2 text-text-secondary">
-      {label}
-    </span>
-  </div>
-);
-
-const ChiefComplaintField = ({ value }: { value: string }) => (
-  <div className="flex min-h-14 items-center justify-between gap-4 rounded-2xl border border-input-border-default px-5 py-4">
-    <span className="shrink-0 text-yc-16-r-neutral font-bold">Chief Complaint</span>
-    <span className="min-w-0 overflow-x-auto whitespace-nowrap text-right text-yc-16-r-neutral">
-      {value}
-    </span>
-  </div>
-);
 
 /**
  * SOAP step: appointment reason, template search, and four rich-text sections
@@ -141,9 +75,9 @@ const SoapStep = ({
   const saveState = useAppointmentWorkspaceStore((s) => s.saveStatusByAppointmentId[appointmentId]);
   const [templateQuery, setTemplateQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [isApplyingTemplate, setIsApplyingTemplate] = useState(false);
+  const isApplyingTemplateRef = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [persistedDraftId, setPersistedDraftId] = useState<string | undefined>(undefined);
+  const persistedDraftIdRef = useRef<string | undefined>(undefined);
   const [activeTemplateName, setActiveTemplateName] = useState<string | undefined>(undefined);
 
   // Work on the active draft (first not-yet-signed note); once a note is signed
@@ -156,7 +90,7 @@ const SoapStep = ({
   const lockReason = soapLock.reason;
 
   useEffect(() => {
-    setPersistedDraftId(isPersistedSoapId(note.id) ? note.id : undefined);
+    persistedDraftIdRef.current = isPersistedSoapId(note.id) ? note.id : undefined;
   }, [note.id]);
 
   // Auto-load the SOAP template linked to the encounter's service/package when the active draft
@@ -207,8 +141,8 @@ const SoapStep = ({
   }, [templateQuery, encounter.soapTemplates]);
 
   const applySelectedTemplate = async (templateId: string): Promise<void> => {
-    if (!organisationId || isApplyingTemplate) return;
-    setIsApplyingTemplate(true);
+    if (!organisationId || isApplyingTemplateRef.current) return;
+    isApplyingTemplateRef.current = true;
     try {
       const selectedTemplate = encounter.soapTemplates.find((tpl) => tpl.id === templateId);
       const fullTemplate =
@@ -221,7 +155,7 @@ const SoapStep = ({
     } catch (error) {
       console.error('Unable to apply SOAP template:', error);
     } finally {
-      setIsApplyingTemplate(false);
+      isApplyingTemplateRef.current = false;
     }
   };
 
@@ -307,8 +241,8 @@ const SoapStep = ({
     try {
       if (organisationId) {
         const noteForSave =
-          persistedDraftId && !isPersistedSoapId(note.id)
-            ? { ...note, id: persistedDraftId }
+          persistedDraftIdRef.current && !isPersistedSoapId(note.id)
+            ? { ...note, id: persistedDraftIdRef.current }
             : note;
         const saved = await saveSoapNote(
           {
@@ -377,35 +311,15 @@ const SoapStep = ({
                 />
                 <AutosaveIndicator status={saveState?.status ?? 'idle'} savedAt={saveState?.at} />
               </div>
-              <div className="relative flex justify-end">
-                <div ref={templateSearchRef} className="relative w-full sm:max-w-90">
-                  <Search
-                    value={templateQuery}
-                    setSearch={setTemplateQuery}
-                    placeholder="Search for SOAP template"
-                    label="Search for SOAP template"
-                    className="w-full!"
-                  />
-                  <SearchResultsDropdown
-                    anchorRef={templateSearchRef}
-                    open={templateMatches.length > 0}
-                    onClose={() => setTemplateQuery('')}
-                  >
-                    <ul>
-                      {templateMatches.map((tpl) => (
-                        <WorkspaceSearchResultRow
-                          key={tpl.id}
-                          name={tpl.name}
-                          leadingIcon={null}
-                          onSelect={() => {
-                            void applySelectedTemplate(tpl.id);
-                          }}
-                        />
-                      ))}
-                    </ul>
-                  </SearchResultsDropdown>
-                </div>
-              </div>
+              <SoapTemplateSearch
+                templateSearchRef={templateSearchRef}
+                templateQuery={templateQuery}
+                setTemplateQuery={setTemplateQuery}
+                templateMatches={templateMatches}
+                onSelectTemplate={(templateId) => {
+                  void applySelectedTemplate(templateId);
+                }}
+              />
 
               {customMode ? (
                 // A custom template overrides the native structure: render its typed fields via the
@@ -420,67 +334,27 @@ const SoapStep = ({
                     values={note.customAnswers ?? {}}
                     onChange={handleCustomAnswerChange}
                   />
+                  <div className="mt-3 flex justify-end">
+                    <Secondary
+                      text="Record Vitals"
+                      onClick={onRecordVitals}
+                      icon={<LuClipboardList aria-hidden="true" />}
+                    />
+                  </div>
                 </SectionContainer>
               ) : (
-                <>
-                  <SectionContainer
-                    titleClassName="text-yc-20-b-primary"
-                    title="Subjective (History)"
-                    compactTop
-                  >
-                    <RichTextEditor
-                      ariaLabel="Subjective history"
-                      value={note.subjective}
-                      readOnly={false}
-                      toolbarPlacement="inset"
-                      onChange={(html) => upsertSoap(appointmentId, { subjective: html })}
-                      placeholder={terminologyText(
-                        'Patient history and owner-reported information'
-                      )}
-                    />
-                  </SectionContainer>
-
-                  <SectionContainer
-                    titleClassName="text-yc-20-b-primary"
-                    title="Objective (Examination)"
-                    compactTop
-                  >
-                    <RichTextEditor
-                      ariaLabel="Objective examination"
-                      value={note.objective}
-                      readOnly={false}
-                      toolbarPlacement="inset"
-                      onChange={(html) => upsertSoap(appointmentId, { objective: html })}
-                      placeholder="Examination findings and recorded vitals"
-                    />
-                  </SectionContainer>
-
-                  <SectionContainer
-                    titleClassName="text-yc-20-b-primary"
-                    title="Assessment (Differential)"
-                    compactTop
-                  >
-                    <RichTextEditor
-                      ariaLabel="Assessment differential"
-                      value={note.assessment}
-                      readOnly={false}
-                      toolbarPlacement="inset"
-                      onChange={(html) => upsertSoap(appointmentId, { assessment: html })}
-                      placeholder="Diagnosis and differentials"
-                    />
-                  </SectionContainer>
-
-                  <SectionContainer titleClassName="text-yc-20-b-primary" title="Plan" compactTop>
-                    <RichTextEditor
-                      ariaLabel="Plan"
-                      value={note.plan}
-                      readOnly={false}
-                      toolbarPlacement="inset"
-                      onChange={(html) => upsertSoap(appointmentId, { plan: html })}
-                      placeholder="Treatment plan and next steps"
-                    />
-                  </SectionContainer>
-                </>
+                <NativeSoapFields
+                  subjective={note.subjective}
+                  objective={note.objective}
+                  assessment={note.assessment}
+                  plan={note.plan}
+                  terminologyText={terminologyText}
+                  onSubjectiveChange={(html) => upsertSoap(appointmentId, { subjective: html })}
+                  onObjectiveChange={(html) => upsertSoap(appointmentId, { objective: html })}
+                  onAssessmentChange={(html) => upsertSoap(appointmentId, { assessment: html })}
+                  onPlanChange={(html) => upsertSoap(appointmentId, { plan: html })}
+                  onRecordVitals={onRecordVitals}
+                />
               )}
 
               {saveError && (

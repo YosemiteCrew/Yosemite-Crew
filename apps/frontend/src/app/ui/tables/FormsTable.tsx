@@ -140,6 +140,7 @@ const FormsTable = ({
           <button
             type="button"
             onClick={() => handleViewForm(item)}
+            aria-label={`View form ${item.name}`}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
             <IoEye size={20} color="var(--color-neutral-900)" />

@@ -33,14 +33,21 @@ export function NetworkDirectoryModal({
   const [starting, setStarting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [prevSearchDeps, setPrevSearchDeps] = useState({ query, organisationId });
+  if (query !== prevSearchDeps.query || organisationId !== prevSearchDeps.organisationId) {
+    setPrevSearchDeps({ query, organisationId });
+    if (query.trim()) {
+      setSearching(true);
+    } else {
+      setResults([]);
+      setSearching(false);
+    }
+  }
+
   useEffect(() => {
     const trimmed = query.trim();
-    if (!trimmed) {
-      setResults([]);
-      return;
-    }
+    if (!trimmed) return;
     let active = true;
-    setSearching(true);
     const timer = setTimeout(() => {
       searchNetworkColleagues(organisationId, trimmed)
         .then((colleagues) => {
@@ -103,7 +110,7 @@ export function NetworkDirectoryModal({
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-chat-surface-soft"
+            className="inline-flex size-8 items-center justify-center rounded-full text-neutral-500 hover:bg-chat-surface-soft"
           >
             <IoClose className="h-4 w-4" />
           </button>

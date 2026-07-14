@@ -46,8 +46,10 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/Details', () => ({
   __esModule: true,
-  default: ({ registerValidator, hideNext }: any) => {
-    registerValidator(() => isDetailValid);
+  default: ({ ref, hideNext }: any) => {
+    jest.requireActual<typeof import('react')>('react').useImperativeHandle(ref, () => ({
+      validate: () => isDetailValid,
+    }));
     return (
       <div>
         <div>Details Step</div>
@@ -59,8 +61,10 @@ jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/Details', () => ({
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/Build', () => ({
   __esModule: true,
-  default: ({ registerValidator }: any) => {
-    registerValidator(() => isBuildValid);
+  default: ({ ref }: any) => {
+    jest.requireActual<typeof import('react')>('react').useImperativeHandle(ref, () => ({
+      validate: () => isBuildValid,
+    }));
     return <div>Build Step</div>;
   },
 }));

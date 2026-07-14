@@ -6,7 +6,7 @@ import { IoBag, IoLocationSharp } from 'react-icons/io5';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import { Organisation } from '@yosemite-crew/types';
 import { useOrgOnboarding } from '@/app/hooks/useOrgOnboarding';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import { findPhoneData } from '@/app/features/companions/components/AddCompanion/type';
 import { validateOrgAddress, validateOrgBasics } from '@/app/lib/organizationOnboardingValidation';
 import { useFullscreenLoader } from '@/app/hooks/useFullscreenLoader';
@@ -105,20 +105,19 @@ const CreateOrg = () => {
     if (!isReady) {
       return;
     }
-    if (computedStep === 2) {
-      setIsTransitioning(true);
-      router.replace('/dashboard');
-      return;
-    }
     if (computedStep >= 0 && computedStep <= 1) {
       setActiveStep(computedStep);
     }
     if (org) {
       setFormData(org);
     }
-  }, [org, computedStep, isReady, router]);
+  }, [org, computedStep, isReady]);
 
-  if (!isReady || isCompletedRedirect) {
+  if (isCompletedRedirect) {
+    redirect('/dashboard');
+  }
+
+  if (!isReady) {
     return null;
   }
 

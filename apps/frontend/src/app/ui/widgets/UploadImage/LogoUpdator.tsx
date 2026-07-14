@@ -37,7 +37,7 @@ const uploadToS3 = async (uploadUrl: string, f: File) => {
 const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorProps) => {
   const [updatePopup, setUpdatePopup] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const selectedFileRef = useRef<File | null>(null);
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -55,7 +55,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
   const resetSelection = () => {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
-    setFile(null);
+    selectedFileRef.current = null;
     setUploadError(null);
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -85,7 +85,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
     const localUrl = URL.createObjectURL(f);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(localUrl);
-    setFile(f);
+    selectedFileRef.current = f;
   };
 
   const handleUpdate = async () => {
@@ -94,15 +94,16 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
       return;
     }
     if (disabled || isUploading) return;
-    if (!file) {
+    const selectedFile = selectedFileRef.current;
+    if (!selectedFile) {
       setUploadError('Please choose an image to upload.');
       return;
     }
     setIsUploading(true);
     setUploadError(null);
     try {
-      const signed = await getSignedUrl(file);
-      await uploadToS3(signed.uploadUrl, file);
+      const signed = await getSignedUrl(selectedFile);
+      await uploadToS3(signed.uploadUrl, selectedFile);
       await onSave(signed.s3Key);
       setUpdatePopup(false);
       resetSelection();

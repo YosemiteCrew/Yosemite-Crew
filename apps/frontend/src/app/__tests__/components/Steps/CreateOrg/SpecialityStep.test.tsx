@@ -15,6 +15,19 @@ import { useRouter } from 'next/navigation';
 import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 import { getOnboardingSpecialityCatalog } from '@/app/lib/onboardingSpecialityCatalog';
 import { Organisation, Service, Speciality } from '@yosemite-crew/types';
+import axios from 'axios';
+
+jest.mock('axios', () => {
+  const actual = jest.requireActual('axios');
+  return {
+    __esModule: true,
+    ...actual,
+    default: {
+      ...actual.default,
+      isAxiosError: jest.fn(),
+    },
+  };
+});
 
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
@@ -862,6 +875,7 @@ describe('SpecialityStep Component', () => {
       isAxiosError: true,
       response: { data: { message: 'Server rejected the request' } },
     });
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
     (createOrg as jest.Mock).mockRejectedValueOnce(axiosError);
     const onRedirectingChange = jest.fn();
 
@@ -981,5 +995,429 @@ describe('SpecialityStep Component', () => {
       );
     });
     expect(createServicesBulk).not.toHaveBeenCalled();
+  });
+
+  it('adds a custom specialty typed into the search box', () => {
+    let stateCallback: ((previous: SpecialityWeb[]) => SpecialityWeb[]) | undefined;
+    mockSetSpecialities.mockImplementation((callback) => {
+      stateCallback = callback;
+    });
+
+    render(<SpecialityStep {...getProps()} />);
+
+    const input = screen.getByLabelText('Search or add a specialty');
+    fireEvent.change(input, { target: { value: 'Zzz Custom Specialty' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Create specialty/i }));
+
+    const nextState = stateCallback?.([]);
+    expect(nextState?.[0]).toEqual(
+      expect.objectContaining({ name: 'Zzz Custom Specialty', services: [] })
+    );
+  });
+
+  it('ignores adding a specialty that already exists (dedupe branch)', () => {
+    let stateCallback: ((previous: SpecialityWeb[]) => SpecialityWeb[]) | undefined;
+    mockSetSpecialities.mockImplementation((callback) => {
+      stateCallback = callback;
+    });
+
+    render(<SpecialityStep {...getProps()} />);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /General Practice/i })[0]);
+
+    const existing = [
+      { name: 'General Practice', organisationId: '', services: [] } as SpecialityWeb,
+    ];
+    const nextState = stateCallback?.(existing);
+
+    expect(nextState).toBe(existing);
+  });
+
+  it('filters the recommended search dropdown by query text', () => {
+    render(<SpecialityStep {...getProps()} />);
+
+    const input = screen.getByLabelText('Search or add a specialty');
+    fireEvent.change(input, { target: { value: 'General' } });
+
+    expect(screen.getAllByText(/General Practice/i).length).toBeGreaterThan(0);
+  });
+
+  it('opens and uses the service search panel to add a template service', () => {
+    const specialities = [
+      { name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add service' }));
+
+    const searchInput = screen.getByLabelText('Search services for Cardiology');
+    expect(searchInput).toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: 'zzznomatch' } });
+    expect(screen.getByText(/Add custom service/i)).toBeInTheDocument();
+
+    fireEvent.change(searchInput, { target: { value: '' } });
+    const optionButtons = screen.getAllByRole('button', {
+      name: (accessibleName, element) =>
+        element.classList.contains('step-three-picker-option') &&
+        !element.classList.contains('step-three-picker-option--empty'),
+    });
+    expect(optionButtons.length).toBeGreaterThan(0);
+  });
+
+  it('adds a custom service via the per-speciality search box', () => {
+    let stateCallback: ((previous: SpecialityWeb[]) => SpecialityWeb[]) | undefined;
+    mockSetSpecialities.mockImplementation((callback) => {
+      stateCallback = callback;
+    });
+
+    const specialities = [
+      { name: 'Custom Area', organisationId: '', services: [] } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add service' }));
+    const searchInput = screen.getByLabelText('Search services for Custom Area');
+    fireEvent.change(searchInput, { target: { value: 'My Custom Service' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Add custom service/i }));
+
+    expect(screen.getByText('Edit service')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save service' }));
+
+    const nextState = stateCallback?.(specialities);
+    expect(nextState?.[0].services?.[0]).toEqual(
+      expect.objectContaining({ name: 'My Custom Service' })
+    );
+  });
+
+  it('does not create a custom service when the query is blank', () => {
+    const specialities = [
+      { name: 'Custom Area', organisationId: '', services: [] } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add service' }));
+    const searchInput = screen.getByLabelText('Search services for Custom Area');
+    fireEvent.change(searchInput, { target: { value: '   ' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Add custom service/i }));
+
+    expect(screen.queryByText('Edit service')).not.toBeInTheDocument();
+  });
+
+  it('removes a service from a specialty', () => {
+    let stateCallback: ((previous: SpecialityWeb[]) => SpecialityWeb[]) | undefined;
+    mockSetSpecialities.mockImplementation((callback) => {
+      stateCallback = callback;
+    });
+
+    const specialities = [
+      {
+        name: 'Cardiology',
+        organisationId: '',
+        services: [
+          {
+            id: '',
+            cost: 70,
+            durationMinutes: 30,
+            isActive: true,
+            name: 'Heart Check-up',
+            organisationId: '',
+          } as Service,
+        ],
+      } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Heart Check-up' }));
+
+    const nextState = stateCallback?.(specialities);
+    expect(nextState?.[0].services).toHaveLength(0);
+  });
+
+  it('removes a specialty and closes its active service search panel', () => {
+    let stateCallback: ((previous: SpecialityWeb[]) => SpecialityWeb[]) | undefined;
+    mockSetSpecialities.mockImplementation((callback) => {
+      stateCallback = callback;
+    });
+
+    const specialities = [
+      { name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add service' }));
+    expect(screen.getByLabelText('Search services for Cardiology')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Cardiology' }));
+
+    const nextState = stateCallback?.(specialities);
+    expect(nextState).toHaveLength(0);
+    expect(screen.queryByLabelText('Search services for Cardiology')).not.toBeInTheDocument();
+  });
+
+  it('shows a required-field error when saving a service with a blank name', () => {
+    const specialities = [
+      {
+        name: 'Cardiology',
+        organisationId: '',
+        services: [
+          {
+            id: '',
+            cost: 70,
+            durationMinutes: 30,
+            isActive: true,
+            name: 'Heart Check-up',
+            organisationId: '',
+          } as Service,
+        ],
+      } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Heart Check-up' }));
+    fireEvent.change(screen.getByLabelText('Service name'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save service' }));
+
+    expect(screen.getByText('Service name is required.')).toBeInTheDocument();
+    expect(mockSetSpecialities).not.toHaveBeenCalled();
+  });
+
+  it('closes the service editor modal via Cancel', () => {
+    const specialities = [
+      {
+        name: 'Cardiology',
+        organisationId: '',
+        services: [
+          {
+            id: '',
+            cost: 70,
+            durationMinutes: 30,
+            isActive: true,
+            name: 'Heart Check-up',
+            organisationId: '',
+          } as Service,
+        ],
+      } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Heart Check-up' }));
+    expect(screen.getByText('Edit service')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText('Edit service')).not.toBeInTheDocument();
+  });
+
+  it('surfaces an axios error message from the submission failure', async () => {
+    (axios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    (createOrg as jest.Mock).mockRejectedValueOnce({
+      response: { data: { message: 'Server rejected the org' } },
+      message: 'Request failed',
+    });
+
+    const specialities = [
+      { name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities })} />);
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Server rejected the org')).toBeInTheDocument();
+    });
+    expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
+  it('notifies onRedirectingChange across a submission lifecycle', async () => {
+    const onRedirectingChange = jest.fn();
+    const specialities = [
+      { name: 'Cardiology', organisationId: '', services: [] } as SpecialityWeb,
+    ];
+
+    render(<SpecialityStep {...getProps({ specialities, onRedirectingChange })} />);
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalled();
+    });
+
+    expect(onRedirectingChange).toHaveBeenCalledWith(true);
+  });
+
+  it('shows an error and stops when deleting a removed specialty fails', async () => {
+    (deleteSpeciality as jest.Mock).mockRejectedValueOnce(new Error('nope'));
+
+    const initialSpecialities = [
+      {
+        _id: 'spec-1',
+        name: 'Old One',
+        organisationId: 'org-existing',
+        services: [],
+      } as SpecialityWeb,
+    ];
+
+    render(
+      <SpecialityStep
+        {...getProps({
+          formData: { ...baseFormData, _id: 'org-existing' } as Organisation,
+          initialSpecialities,
+          isExistingOrg: true,
+          specialities: [{ name: 'New Spec', organisationId: '', services: [] } as SpecialityWeb],
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('We could not save your specialties. Please try again.')
+      ).toBeInTheDocument();
+    });
+    expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
+  it('shows an error when service sync (update/delete/create) fails', async () => {
+    (updateService as jest.Mock).mockRejectedValueOnce(new Error('boom'));
+
+    const initialSpecialities = [
+      {
+        _id: 'spec-1',
+        name: 'Existing',
+        organisationId: 'org-existing',
+        services: [
+          {
+            id: 'svc-1',
+            name: 'Care plan',
+            cost: 75,
+            durationMinutes: 30,
+            isActive: true,
+            organisationId: 'org-existing',
+            specialityId: 'spec-1',
+          },
+        ],
+      } as SpecialityWeb,
+    ];
+
+    const specialities = [
+      {
+        _id: 'spec-1',
+        name: 'Existing',
+        organisationId: 'org-existing',
+        services: [
+          {
+            id: 'svc-1',
+            name: 'Care plan',
+            cost: 95,
+            durationMinutes: 45,
+            isActive: true,
+            organisationId: 'org-existing',
+            specialityId: 'spec-1',
+          },
+        ],
+      } as SpecialityWeb,
+    ];
+
+    render(
+      <SpecialityStep
+        {...getProps({
+          formData: { ...baseFormData, _id: 'org-existing' } as Organisation,
+          initialSpecialities,
+          isExistingOrg: true,
+          specialities,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('We could not save your services. Please try again.')
+      ).toBeInTheDocument();
+    });
+    expect(mockRouterPush).not.toHaveBeenCalled();
+  });
+
+  it('does not update an unchanged existing service', async () => {
+    const initialSpecialities = [
+      {
+        _id: 'spec-1',
+        name: 'Existing',
+        organisationId: 'org-existing',
+        services: [
+          {
+            id: 'svc-1',
+            name: 'Care plan',
+            cost: 75,
+            durationMinutes: 30,
+            isActive: true,
+            organisationId: 'org-existing',
+            specialityId: 'spec-1',
+          },
+        ],
+      } as SpecialityWeb,
+    ];
+
+    const specialities = [
+      {
+        _id: 'spec-1',
+        name: 'Existing',
+        organisationId: 'org-existing',
+        services: [
+          {
+            id: 'svc-1',
+            name: 'Care plan',
+            cost: 75,
+            durationMinutes: 30,
+            isActive: true,
+            organisationId: 'org-existing',
+            specialityId: 'spec-1',
+          },
+        ],
+      } as SpecialityWeb,
+    ];
+
+    render(
+      <SpecialityStep
+        {...getProps({
+          formData: { ...baseFormData, _id: 'org-existing' } as Organisation,
+          initialSpecialities,
+          isExistingOrg: true,
+          specialities,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('btn-next'));
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalled();
+    });
+    expect(updateService).not.toHaveBeenCalled();
+  });
+
+  it('closes the specialty picker dropdown when clicking outside', () => {
+    render(<SpecialityStep {...getProps()} />);
+
+    const input = screen.getByLabelText('Search or add a specialty');
+    fireEvent.focus(input);
+    expect(screen.getAllByText(/General Practice/i).length).toBeGreaterThan(0);
+
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.queryByText('Recommended for hospitals')).toBeInTheDocument();
   });
 });

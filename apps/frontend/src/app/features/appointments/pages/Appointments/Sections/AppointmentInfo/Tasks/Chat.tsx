@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import { Appointment } from '@yosemite-crew/types';
 
@@ -26,7 +26,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
   const [closingSession, setClosingSession] = useState(false);
   const [sessionClosed, setSessionClosed] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
 
   // Check if this appointment belongs to the current user
   const currentUserId = attributes?.sub || attributes?.email;
@@ -47,7 +47,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
       // Create or get chat session
       const session = await createChatSession(activeAppointment.id);
       const resolvedSessionId = (session as any)?._id || (session as any)?.id;
-      setSessionId(resolvedSessionId ?? null);
+      sessionIdRef.current = resolvedSessionId ?? null;
 
       // Redirect to chat page with appointment ID in the query
       router.push(`/chat?appointmentId=${activeAppointment.id}`);
@@ -80,7 +80,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
 
         if (!cancelled) {
           const resolvedSessionId = (session as any)?._id || (session as any)?.id;
-          setSessionId(resolvedSessionId ?? null);
+          sessionIdRef.current = resolvedSessionId ?? null;
           // Check if the session is closed (check for CLOSED status or frozen state)
           const sessionStatus = (session as any).status;
           const isFrozen = (session as any).frozen === true;
@@ -93,7 +93,7 @@ const Chat = ({ activeAppointment }: ChatProps) => {
         // open/close actions surface their own errors when the user acts.
         if (!cancelled) {
           setSessionClosed(false);
-          setSessionId(null);
+          sessionIdRef.current = null;
         }
       } finally {
         if (!cancelled) {
@@ -131,11 +131,11 @@ const Chat = ({ activeAppointment }: ChatProps) => {
     setError(null);
 
     try {
-      let resolvedSessionId = sessionId;
+      let resolvedSessionId = sessionIdRef.current;
       if (!resolvedSessionId) {
         const session = await getChatSession(activeAppointment.id);
         resolvedSessionId = (session as any)?._id || (session as any)?.id;
-        setSessionId(resolvedSessionId ?? null);
+        sessionIdRef.current = resolvedSessionId ?? null;
       }
       if (!resolvedSessionId) {
         throw new Error('No chat session found for this appointment');

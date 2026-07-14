@@ -21,15 +21,22 @@ jest.mock(
     __esModule: true,
     default: () => <div>legacy lab tests</div>,
     useLabTests: (appt: unknown) => mockUseLabTests(appt),
+    LabResultCategoryTable: ({ resultId }: { resultId: string }) => (
+      <div data-testid={`category-${resultId}`}>category table</div>
+    ),
+  })
+);
+
+jest.mock(
+  '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/labTestsUtils',
+  () => ({
+    __esModule: true,
     resolveOrderUiUrl: (order: { uiUrl?: string | null } | null) => order?.uiUrl ?? '',
     resolveOrderPdfUrl: (order: { pdfUrl?: string | null } | null) => order?.pdfUrl ?? '',
     formatTestPrice: (test: IdexxTest) => test.meta?.listPrice ?? '$0.00',
     getTestTurnaround: (test: IdexxTest) => test.meta?.turnaround ?? '24 hours',
     getTestSpecimen: (test: IdexxTest) => test.meta?.specimen ?? 'Serum',
     toTitleCase: (value?: string | null) => value ?? '',
-    LabResultCategoryTable: ({ resultId }: { resultId: string }) => (
-      <div data-testid={`category-${resultId}`}>category table</div>
-    ),
   })
 );
 

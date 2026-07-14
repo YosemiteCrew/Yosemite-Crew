@@ -267,7 +267,7 @@ describe('AppointmentBoard', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'New appointment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Appointment' }));
     expect(onAddAppointment).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));

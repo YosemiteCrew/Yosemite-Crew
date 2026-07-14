@@ -23,6 +23,19 @@ const wrapActiveIndex = (current: number, optionCount: number, delta: 1 | -1): n
   return current <= 0 ? optionCount - 1 : current - 1;
 };
 
+/** Compute the active option index when the open/options/selection context changes. */
+const resolveActiveIndex = (
+  open: boolean,
+  options: DropdownOption[],
+  activeIndex: number,
+  selectedValue?: string
+): number => {
+  if (!open || options.length === 0) return -1;
+  if (activeIndex >= 0 && activeIndex < options.length) return activeIndex;
+  const selectedIndex = options.findIndex((option) => option.value === selectedValue);
+  return Math.max(selectedIndex, 0);
+};
+
 const DROPDOWN_MAX_HEIGHT = 200;
 const DROPDOWN_MIN_HEIGHT = 72;
 const TERMINOLOGY_LOCK_SELECTOR = "[data-terminology-lock='true']";
@@ -265,17 +278,19 @@ const LabelDropdown = ({
     };
   }, [closeDropdown, open, portal]);
 
-  useEffect(() => {
-    if (!open || filteredOptions.length === 0) {
-      setActiveIndex(-1);
-      return;
-    }
-    setActiveIndex((current) => {
-      if (current >= 0 && current < filteredOptions.length) return current;
-      const selectedIndex = filteredOptions.findIndex((option) => option.value === selected?.value);
-      return Math.max(selectedIndex, 0);
-    });
-  }, [filteredOptions, open, selected?.value]);
+  const [activeIndexDeps, setActiveIndexDeps] = useState({
+    filteredOptions,
+    open,
+    selectedValue: selected?.value,
+  });
+  if (
+    filteredOptions !== activeIndexDeps.filteredOptions ||
+    open !== activeIndexDeps.open ||
+    selected?.value !== activeIndexDeps.selectedValue
+  ) {
+    setActiveIndexDeps({ filteredOptions, open, selectedValue: selected?.value });
+    setActiveIndex(resolveActiveIndex(open, filteredOptions, activeIndex, selected?.value));
+  }
 
   useEffect(() => {
     if (!open || !activeOptionId) return;

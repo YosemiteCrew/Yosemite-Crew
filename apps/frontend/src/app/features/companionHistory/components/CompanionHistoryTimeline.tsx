@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useReducer, useState } from 'react';
 import {
   IoArrowForwardOutline,
   IoCheckmarkOutline,
@@ -266,7 +266,7 @@ const isTaskStatusLocked = (status?: string | null): boolean =>
 const getRequestedButtonLabel = (status: string): string =>
   status === 'CHECKED_IN' ? 'Start' : 'Open';
 
-const StatusPillSelect = ({
+export const StatusPillSelect = ({
   status,
   options,
   onChange,
@@ -383,9 +383,9 @@ const TABLE_DATA_STYLE = {
   lineHeight: '120%',
 } satisfies React.CSSProperties;
 
-const LoadingIcon = () => <IoReloadOutline className="animate-spin" aria-hidden="true" />;
+export const LoadingIcon = () => <IoReloadOutline className="animate-spin" aria-hidden="true" />;
 
-const TimelineMarker = ({ active }: { active: boolean }) => {
+export const TimelineMarker = ({ active }: { active: boolean }) => {
   const ring = active ? 'border-text-brand' : 'border-neutral-300';
   const dot = active ? 'bg-text-brand' : 'bg-neutral-300';
   return (
@@ -486,9 +486,11 @@ const getLinkedAppointmentLabel = (
   return appointmentName || 'Linked appointment';
 };
 
+const SEARCHABLE_PAYLOAD_TYPES = new Set(['string', 'number']);
+
 const getSearchableText = (entry: HistoryEntry): string => {
   const payloadText = Object.values(entry.payload)
-    .filter((value) => ['string', 'number'].includes(typeof value))
+    .filter((value) => SEARCHABLE_PAYLOAD_TYPES.has(typeof value))
     .join(' ');
   return [
     entry.title,
@@ -503,6 +505,9 @@ const getSearchableText = (entry: HistoryEntry): string => {
     .join(' ')
     .toLowerCase();
 };
+
+const entryMatchesSearchQuery = (entry: HistoryEntry, normalizedQuery: string): boolean =>
+  getSearchableText(entry).includes(normalizedQuery);
 
 const getEffectiveStatus = (entry: HistoryEntry, statusOverrides: StatusOverrides): string =>
   statusOverrides[entry.id] ?? entry.status ?? getPayloadString(entry.payload, ['status']) ?? '';
@@ -541,7 +546,7 @@ const getLabResults = (entry: HistoryEntry): DetailPair[] => {
   }));
 };
 
-const StructuredResultsPanel = ({
+export const StructuredResultsPanel = ({
   entry,
   results,
 }: {
@@ -598,7 +603,7 @@ const InsetChipButton = ({
   </button>
 );
 
-const RequestedAppointmentActions = ({
+export const RequestedAppointmentActions = ({
   entry,
   canEdit,
   onStatusChange,
@@ -872,7 +877,7 @@ const getAuditActorDisplay = (entry: AuditTrail): string => {
   return actorName ? `${actorName} • ${actorTypeLabel}` : actorTypeLabel;
 };
 
-const AuditTimeline = ({
+export const AuditTimeline = ({
   loading,
   error,
   entries,
@@ -1007,7 +1012,37 @@ const getPersistStatusAction = (
 const FILTER_CHIP_BASE =
   'inline-flex items-center rounded-full px-[13px] py-1.5 text-[12px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand';
 
-const CompanionHistoryTimeline = ({
+type HistoryLoadState = {
+  entries: HistoryEntry[];
+  auditEntries: AuditTrail[];
+  loading: boolean;
+  auditLoading: boolean;
+  error: string | null;
+  auditError: string | null;
+  nextCursor: string | null;
+  loadingMore: boolean;
+  expandedId: string | null;
+};
+
+type HistoryLoadAction =
+  | { type: 'PATCH'; patch: Partial<HistoryLoadState> }
+  | { type: 'APPEND_PAGE'; response: CompanionHistoryResponse; shouldReplace: boolean };
+
+const historyLoadReducer = (
+  state: HistoryLoadState,
+  action: HistoryLoadAction
+): HistoryLoadState => {
+  if (action.type === 'APPEND_PAGE') {
+    return {
+      ...state,
+      entries: appendPage(state.entries, action.response, action.shouldReplace),
+      nextCursor: action.response.nextCursor,
+    };
+  }
+  return { ...state, ...action.patch };
+};
+
+const useCompanionHistoryTimelineView = ({
   companionId,
   activeAppointmentId,
   showDocumentUpload = false,
@@ -1025,16 +1060,47 @@ const CompanionHistoryTimeline = ({
   const appointmentsById = useAppointmentStore((state) => state.appointmentsById);
   const tasksById = useTaskStore((state) => state.tasksById);
   const { notify } = useNotify();
-  const [entries, setEntries] = useState<HistoryEntry[]>([]);
-  const [auditEntries, setAuditEntries] = useState<AuditTrail[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [auditLoading, setAuditLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [auditError, setAuditError] = useState<string | null>(null);
+  const [historyLoad, dispatchHistoryLoad] = useReducer(historyLoadReducer, {
+    entries: [] as HistoryEntry[],
+    auditEntries: [] as AuditTrail[],
+    loading: false,
+    auditLoading: false,
+    error: null as string | null,
+    auditError: null as string | null,
+    nextCursor: null as string | null,
+    loadingMore: false,
+    expandedId: null as string | null,
+  });
+  const {
+    entries,
+    auditEntries,
+    loading,
+    auditLoading,
+    error,
+    auditError,
+    nextCursor,
+    loadingMore,
+    expandedId,
+  } = historyLoad;
+  const patchHistoryLoad = useCallback(
+    (patch: Partial<HistoryLoadState>) => dispatchHistoryLoad({ type: 'PATCH', patch }),
+    []
+  );
+  const setExpandedId = useCallback<React.Dispatch<React.SetStateAction<string | null>>>(
+    (value) => {
+      dispatchHistoryLoad({
+        type: 'PATCH',
+        patch: {
+          expandedId:
+            typeof value === 'function'
+              ? (value as (prev: string | null) => string | null)(historyLoad.expandedId)
+              : value,
+        },
+      });
+    },
+    [historyLoad.expandedId]
+  );
   const [activeFilter, setActiveFilter] = useState<HistoryFilterKey>(DEFAULT_FILTER);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
   const [sortKey, setSortKey] = useState<SortKey>('newest');
@@ -1054,13 +1120,12 @@ const CompanionHistoryTimeline = ({
   const loadHistory = useCallback(
     async (cursor: string | null, shouldReplace: boolean) => {
       if (!organisationId || !companionId) {
-        setEntries([]);
-        setNextCursor(null);
+        patchHistoryLoad({ entries: [], nextCursor: null });
         return;
       }
-      if (cursor) setLoadingMore(true);
-      else setLoading(true);
-      setError(null);
+      patchHistoryLoad(
+        cursor ? { loadingMore: true, error: null } : { loading: true, error: null }
+      );
       try {
         const response = await fetchCompanionHistory({
           organisationId,
@@ -1072,74 +1137,83 @@ const CompanionHistoryTimeline = ({
         if (!response || !Array.isArray(response.entries)) {
           throw new Error('Invalid companion history response');
         }
-        setEntries((prev) => appendPage(prev, response, shouldReplace));
-        setNextCursor(response.nextCursor);
+        dispatchHistoryLoad({ type: 'APPEND_PAGE', response, shouldReplace });
       } catch (historyError) {
         console.error('Failed to load companion history:', historyError);
-        setError('Unable to load overview. Please try again.');
-        if (shouldReplace) setEntries([]);
+        patchHistoryLoad({
+          error: 'Unable to load overview. Please try again.',
+          ...(shouldReplace ? { entries: [] } : {}),
+        });
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        patchHistoryLoad({ loading: false, loadingMore: false });
       }
     },
-    [organisationId, companionId, requestedTypes]
+    [organisationId, companionId, requestedTypes, patchHistoryLoad]
   );
 
-  useLayoutEffect(() => {
+  const identityKey = `${companionId ?? ''}:${organisationId ?? ''}`;
+  const [prevIdentityKey, setPrevIdentityKey] = useState(identityKey);
+  if (identityKey !== prevIdentityKey) {
+    setPrevIdentityKey(identityKey);
     setActiveFilter(DEFAULT_FILTER);
     setQuery('');
     setExpandedId(null);
     setStatusOverrides({});
-  }, [companionId, organisationId]);
+  }
 
   useLayoutEffect(() => {
     if (activeFilter === 'AUDIT_TRAIL') return;
-    setEntries([]);
-    setAuditEntries([]);
-    setNextCursor(null);
-    setError(null);
-    setAuditError(null);
-    setExpandedId(null);
+    patchHistoryLoad({
+      entries: [],
+      auditEntries: [],
+      nextCursor: null,
+      error: null,
+      auditError: null,
+      expandedId: null,
+    });
     loadHistory(null, true).catch((historyError) => {
       console.error('Failed to initialize companion history:', historyError);
     });
-  }, [companionId, organisationId, activeFilter, loadHistory]);
+  }, [companionId, organisationId, activeFilter, loadHistory, patchHistoryLoad]);
 
   useLayoutEffect(() => {
     if (activeFilter !== 'AUDIT_TRAIL') {
-      setAuditError(null);
+      patchHistoryLoad({ auditError: null });
       return;
     }
     if (!companionId) {
-      setAuditEntries([]);
-      setAuditError(null);
+      patchHistoryLoad({ auditEntries: [], auditError: null });
       return;
     }
     let cancelled = false;
-    setAuditLoading(true);
-    setAuditError(null);
+    patchHistoryLoad({ auditLoading: true, auditError: null });
     getCompanionAuditTrail(companionId)
       .then((response) => {
-        if (!cancelled) setAuditEntries(Array.isArray(response) ? response : []);
+        if (!cancelled) patchHistoryLoad({ auditEntries: Array.isArray(response) ? response : [] });
       })
       .catch((auditTrailError) => {
         if (cancelled) return;
         console.error('Failed to load companion audit trail:', auditTrailError);
-        setAuditEntries([]);
-        setAuditError('Unable to load audit trail. Please try again.');
+        patchHistoryLoad({
+          auditEntries: [],
+          auditError: 'Unable to load audit trail. Please try again.',
+        });
       })
       .finally(() => {
-        if (!cancelled) setAuditLoading(false);
+        if (!cancelled) patchHistoryLoad({ auditLoading: false });
       });
     return () => {
       cancelled = true;
     };
-  }, [activeFilter, companionId]);
+  }, [activeFilter, companionId, patchHistoryLoad]);
+
+  const requestedTypeSet = useMemo(
+    () => (requestedTypes ? new Set(requestedTypes) : undefined),
+    [requestedTypes]
+  );
 
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const requestedTypeSet = requestedTypes ? new Set(requestedTypes) : null;
     let byTab: HistoryEntry[];
     if (activeFilter === 'ALL') {
       byTab = entries;
@@ -1149,7 +1223,7 @@ const CompanionHistoryTimeline = ({
       byTab = entries.filter((entry) => requestedTypeSet?.has(entry.type) ?? false);
     }
     const bySearch = normalizedQuery
-      ? byTab.filter((entry) => getSearchableText(entry).includes(normalizedQuery))
+      ? byTab.filter((entry) => entryMatchesSearchQuery(entry, normalizedQuery))
       : byTab;
     const withStatusOverrides = bySearch.map((entry) => ({
       ...entry,
@@ -1168,7 +1242,7 @@ const CompanionHistoryTimeline = ({
     compact,
     entries,
     query,
-    requestedTypes,
+    requestedTypeSet,
     sortKey,
     statusFilter,
     statusOverrides,
@@ -1674,5 +1748,8 @@ const CompanionHistoryTimeline = ({
     </PermissionGate>
   );
 };
+
+const CompanionHistoryTimeline = (props: CompanionHistoryTimelineProps) =>
+  useCompanionHistoryTimelineView(props);
 
 export default CompanionHistoryTimeline;

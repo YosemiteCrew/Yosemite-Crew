@@ -134,13 +134,13 @@ export function ConversationRow({
             {viaApp && (
               <IoPhonePortraitOutline
                 aria-label="Messages via pet parent app"
-                className="h-3.5 w-3.5 shrink-0 text-neutral-400"
+                className="size-3.5 shrink-0 text-neutral-400"
               />
             )}
             {network && (
               <IoGlobeOutline
                 aria-label="Across the network"
-                className="h-3.5 w-3.5 shrink-0 text-neutral-500"
+                className="size-3.5 shrink-0 text-neutral-500"
               />
             )}
             {time && (
@@ -172,7 +172,7 @@ export function ConversationRow({
             aria-label="Conversation actions"
             onClick={() => setMenuOpen((o) => !o)}
             className={clsx(
-              'inline-flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-0 hover:text-neutral-900',
+              'inline-flex size-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-0 hover:text-neutral-900',
               menuOpen
                 ? 'opacity-100'
                 : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100'

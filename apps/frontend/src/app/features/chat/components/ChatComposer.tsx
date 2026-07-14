@@ -57,7 +57,7 @@ function ComposerIconButton({
       aria-label={label}
       onClick={onClick}
       className={clsx(
-        'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-input-border-active',
+        'inline-flex size-10 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-input-border-active',
         active
           ? 'bg-chat-panel text-primary-600'
           : 'text-neutral-500 hover:bg-chat-panel hover:text-neutral-900'
@@ -228,7 +228,7 @@ export function ChatComposer() {
                       insert(emoji);
                       setEmojiOpen(false);
                     }}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-lg hover:bg-chat-surface-soft"
+                    className="flex size-9 items-center justify-center rounded-lg text-lg hover:bg-chat-surface-soft"
                   >
                     {emoji}
                   </button>

@@ -764,6 +764,7 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
             title="IDEXX follow-up hub"
             className="size-full border-0"
             loading="lazy"
+            sandbox="allow-scripts allow-popups allow-forms"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ pointerEvents: 'auto' }}
@@ -1411,6 +1412,7 @@ const useIdexxWorkspacePage = () => {
   }, [results, headerSearchQuery, modalityFilter, needsAckOnly]);
 
   const totalPages = Math.max(1, Math.ceil(filteredResults.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
 
   // When the result set shrinks below the current page (filters, page size, or a
   // background refresh), clamp during render rather than paying an extra render
@@ -1420,9 +1422,9 @@ const useIdexxWorkspacePage = () => {
   }
 
   const paginatedResults = useMemo(() => {
-    const start = (page - 1) * pageSize;
+    const start = (currentPage - 1) * pageSize;
     return filteredResults.slice(start, start + pageSize);
-  }, [filteredResults, page, pageSize]);
+  }, [filteredResults, currentPage, pageSize]);
 
   useEffect(() => {
     setPage(1);
@@ -1477,7 +1479,7 @@ const useIdexxWorkspacePage = () => {
     setNeedsAckOnly,
     pageSize,
     setPageSize,
-    page,
+    page: currentPage,
     setPage,
     lastRefreshedAt,
     orderLookupId,

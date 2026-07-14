@@ -207,11 +207,19 @@ const OrgSection = () => {
     [profile]
   );
 
-  useEffect(() => {
-    if (availabilities && !membership?.practitionerReference) {
-      setAvailability(availabilities);
-    }
-  }, [availabilities, membership?.practitionerReference]);
+  // Render-phase adjustment: seed the editable availability from the store
+  // snapshot whenever a new snapshot arrives (org-level fallback only).
+  const [syncedAvailabilities, setSyncedAvailabilities] = useState<typeof availabilities | null>(
+    null
+  );
+  if (
+    availabilities &&
+    !membership?.practitionerReference &&
+    availabilities !== syncedAvailabilities
+  ) {
+    setSyncedAvailabilities(availabilities);
+    setAvailability(availabilities);
+  }
 
   useEffect(() => {
     const practitionerId = membership?.practitionerReference;

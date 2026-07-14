@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useState } from 'react';
+import React, { useCallback, useId, useState } from 'react';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
@@ -41,6 +41,189 @@ type ServiceFormDraftProps = {
 
 type FormErrors = Partial<Record<string, string>>;
 
+type ServiceFormFieldsProps = {
+  name: string;
+  onNameChange: (value: string) => void;
+  nameError?: string;
+  description: string;
+  onDescriptionChange: (value: string) => void;
+  descId: string;
+  type: CatalogItemType;
+  onTypeSelect: (value: string) => void;
+  duration: string;
+  onDurationSelect: (value: string) => void;
+  isBookable: boolean;
+  onIsBookableChange: (value: boolean) => void;
+  isInpatient: boolean;
+  onIsInpatientChange: (value: boolean) => void;
+};
+
+const ServiceFormFields = ({
+  name,
+  onNameChange,
+  nameError,
+  description,
+  onDescriptionChange,
+  descId,
+  type,
+  onTypeSelect,
+  duration,
+  onDurationSelect,
+  isBookable,
+  onIsBookableChange,
+  isInpatient,
+  onIsInpatientChange,
+}: ServiceFormFieldsProps) => (
+  <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-x-6 gap-y-4 items-start">
+    {/* Left col */}
+    <div className="flex flex-col gap-4">
+      <FormInput
+        intype="text"
+        inlabel="Name"
+        value={name}
+        onChange={(e) => onNameChange(e.target.value)}
+        error={nameError}
+      />
+      <div className="relative w-full">
+        <textarea
+          id={descId}
+          aria-label="Description"
+          value={description}
+          onChange={(e) => onDescriptionChange(e.target.value)}
+          rows={3}
+          placeholder=" "
+          className="peer w-full rounded-2xl bg-transparent px-6 pt-4 pb-3 text-body-4 text-text-primary outline-none border border-input-border-default focus:border-input-border-active resize-none min-h-28"
+        />
+        <label
+          htmlFor={descId}
+          className="pointer-events-none absolute left-4 top-4 max-w-[calc(100%-2rem)] truncate text-body-4 text-input-text-placeholder transition-all duration-200 peer-focus:-top-2.5 peer-focus:left-4 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:text-input-text-placeholder-active peer-focus:bg-(--whitebg) peer-focus:px-1.5 peer-focus:max-w-none peer-not-placeholder-shown:px-1.5 peer-not-placeholder-shown:-top-2.5 peer-not-placeholder-shown:left-4 peer-not-placeholder-shown:translate-y-0 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:bg-(--whitebg) peer-not-placeholder-shown:max-w-none"
+        >
+          Description
+        </label>
+      </div>
+    </div>
+
+    {/* Right col */}
+    <div className="flex flex-col gap-4">
+      <LabelDropdown
+        placeholder="Type"
+        options={TYPE_OPTIONS}
+        defaultOption={type}
+        onSelect={(o) => onTypeSelect(o.value)}
+        portal
+      />
+      <LabelDropdown
+        placeholder="Duration"
+        options={DURATION_OPTIONS}
+        defaultOption={duration}
+        onSelect={(o) => onDurationSelect(o.value)}
+        portal
+      />
+      <div className="flex items-center justify-end gap-4 flex-wrap">
+        <label className="flex items-center gap-2 cursor-pointer select-none text-body-4 text-text-secondary whitespace-nowrap">
+          <input
+            type="checkbox"
+            aria-label="Bookable"
+            checked={isBookable}
+            onChange={(e) => onIsBookableChange(e.target.checked)}
+            className="size-4 shrink-0 accent-(--color-input-border-active)"
+          />
+          {'Bookable'}
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer select-none text-body-4 text-text-secondary whitespace-nowrap">
+          <input
+            type="checkbox"
+            aria-label="Inpatient preferred"
+            checked={isInpatient}
+            onChange={(e) => onIsInpatientChange(e.target.checked)}
+            className="size-4 shrink-0 accent-(--color-input-border-active)"
+          />
+          {'Inpatient preferred'}
+        </label>
+      </div>
+    </div>
+  </div>
+);
+
+type ServicePricingRowProps = {
+  grossAmount: string;
+  onGrossAmountChange: (value: string) => void;
+  grossAmountError?: string;
+  defaultDiscount: string;
+  onDefaultDiscountChange: (value: string) => void;
+  defaultDiscountError?: string;
+  maxDiscount: string;
+  onMaxDiscountChange: (value: string) => void;
+  maxDiscountError?: string;
+  total: number;
+  currency: string;
+};
+
+const ServicePricingRow = ({
+  grossAmount,
+  onGrossAmountChange,
+  grossAmountError,
+  defaultDiscount,
+  onDefaultDiscountChange,
+  defaultDiscountError,
+  maxDiscount,
+  onMaxDiscountChange,
+  maxDiscountError,
+  total,
+  currency,
+}: ServicePricingRowProps) => (
+  <div className="grid grid-cols-2 @2xl:grid-cols-4 gap-4">
+    <FormInput
+      intype="number"
+      inlabel="Gross amt."
+      value={grossAmount}
+      onChange={(e) => onGrossAmountChange(e.target.value)}
+      error={grossAmountError}
+    />
+    <FormInput
+      intype="number"
+      inlabel="Default Discount (%)"
+      value={defaultDiscount}
+      onChange={(e) => onDefaultDiscountChange(e.target.value)}
+      error={defaultDiscountError}
+    />
+    <FormInput
+      intype="number"
+      inlabel="Max. Discount (%)"
+      value={maxDiscount}
+      onChange={(e) => onMaxDiscountChange(e.target.value)}
+      error={maxDiscountError}
+    />
+    <FormInput
+      intype="text"
+      inlabel="Total Amount"
+      value={total > 0 ? formatMoney(total, currency) : ''}
+      readonly
+    />
+  </div>
+);
+
+type DeleteServiceModalProps = {
+  serviceName: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+const DeleteServiceModal = ({ serviceName, onCancel, onConfirm }: DeleteServiceModalProps) => (
+  <CenterModal showModal setShowModal={onCancel}>
+    <ModalHeader title="Delete service" onClose={onCancel} />
+    <p className="text-body-4 text-text-primary">
+      Are you sure you want to delete <strong>{serviceName}</strong>? This permanently removes the
+      service and cannot be undone. If it is used in packages or has historical usage, consider
+      archiving instead.
+    </p>
+    <div className="grid grid-cols-2 gap-3">
+      <Secondary href="#" text="Cancel" onClick={onCancel} />
+      <Delete href="#" text="Delete" onClick={onConfirm} />
+    </div>
+  </CenterModal>
+);
+
 const ServiceFormDraft = ({
   specialityId,
   organisationId,
@@ -70,14 +253,10 @@ const ServiceFormDraft = ({
   const [errors, setErrors] = useState<FormErrors>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const [previewCode, setPreviewCode] = useState<string>(editService?.code ?? '');
+  const [previewCode, setPreviewCode] = useState<string>(() =>
+    editService?.code ? editService.code : generateCode(type)
+  );
   const descId = useId();
-
-  useEffect(() => {
-    if (!isEditing) {
-      setPreviewCode(generateCode(type));
-    }
-  }, [type, isEditing, generateCode]);
 
   const gross = Number.parseFloat(grossAmount) || 0;
   const disc = Number.parseFloat(defaultDiscount) || 0;
@@ -206,122 +385,56 @@ const ServiceFormDraft = ({
       className="@container flex flex-col gap-5"
     >
       {/* Two-column: collapses to one column in narrow containers (e.g. side drawer) */}
-      <div className="grid grid-cols-1 @2xl:grid-cols-2 gap-x-6 gap-y-4 items-start">
-        {/* Left col */}
-        <div className="flex flex-col gap-4">
-          <FormInput
-            intype="text"
-            inlabel="Name"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setErrors((p) => ({ ...p, name: undefined }));
-            }}
-            error={errors.name}
-          />
-          <div className="relative w-full">
-            <textarea
-              id={descId}
-              aria-label="Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder=" "
-              className="peer w-full rounded-2xl bg-transparent px-6 pt-4 pb-3 text-body-4 text-text-primary outline-none border border-input-border-default focus:border-input-border-active resize-none min-h-28"
-            />
-            <label
-              htmlFor={descId}
-              className="pointer-events-none absolute left-4 top-4 max-w-[calc(100%-2rem)] truncate text-body-4 text-input-text-placeholder transition-all duration-200 peer-focus:-top-2.5 peer-focus:left-4 peer-focus:translate-y-0 peer-focus:text-xs peer-focus:text-input-text-placeholder-active peer-focus:bg-(--whitebg) peer-focus:px-1.5 peer-focus:max-w-none peer-not-placeholder-shown:px-1.5 peer-not-placeholder-shown:-top-2.5 peer-not-placeholder-shown:left-4 peer-not-placeholder-shown:translate-y-0 peer-not-placeholder-shown:text-xs peer-not-placeholder-shown:bg-(--whitebg) peer-not-placeholder-shown:max-w-none"
-            >
-              Description
-            </label>
-          </div>
-        </div>
-
-        {/* Right col */}
-        <div className="flex flex-col gap-4">
-          <LabelDropdown
-            placeholder="Type"
-            options={TYPE_OPTIONS}
-            defaultOption={type}
-            onSelect={(o) => {
-              const next = o.value as CatalogItemType;
-              setType(next);
-              if (!isEditing) setIsBookable(next === 'CONSULTATION');
-            }}
-            portal
-          />
-          <LabelDropdown
-            placeholder="Duration"
-            options={DURATION_OPTIONS}
-            defaultOption={duration}
-            onSelect={(o) => setDuration(o.value)}
-            portal
-          />
-          <div className="flex items-center justify-end gap-4 flex-wrap">
-            <label className="flex items-center gap-2 cursor-pointer select-none text-body-4 text-text-secondary whitespace-nowrap">
-              <input
-                type="checkbox"
-                aria-label="Bookable"
-                checked={isBookable}
-                onChange={(e) => setIsBookable(e.target.checked)}
-                className="size-4 shrink-0 accent-(--color-input-border-active)"
-              />
-              {'Bookable'}
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer select-none text-body-4 text-text-secondary whitespace-nowrap">
-              <input
-                type="checkbox"
-                aria-label="Inpatient preferred"
-                checked={isInpatient}
-                onChange={(e) => setIsInpatient(e.target.checked)}
-                className="size-4 shrink-0 accent-(--color-input-border-active)"
-              />
-              {'Inpatient preferred'}
-            </label>
-          </div>
-        </div>
-      </div>
+      <ServiceFormFields
+        name={name}
+        onNameChange={(value) => {
+          setName(value);
+          setErrors((p) => ({ ...p, name: undefined }));
+        }}
+        nameError={errors.name}
+        description={description}
+        onDescriptionChange={setDescription}
+        descId={descId}
+        type={type}
+        onTypeSelect={(value) => {
+          const next = value as CatalogItemType;
+          setType(next);
+          if (!isEditing) {
+            setIsBookable(next === 'CONSULTATION');
+            setPreviewCode(generateCode(next));
+          }
+        }}
+        duration={duration}
+        onDurationSelect={setDuration}
+        isBookable={isBookable}
+        onIsBookableChange={setIsBookable}
+        isInpatient={isInpatient}
+        onIsInpatientChange={setIsInpatient}
+      />
 
       {/* Pricing row — always 2 per row, expanding to 4 on wide containers */}
-      <div className="grid grid-cols-2 @2xl:grid-cols-4 gap-4">
-        <FormInput
-          intype="number"
-          inlabel="Gross amt."
-          value={grossAmount}
-          onChange={(e) => {
-            setGrossAmount(e.target.value);
-            setErrors((p) => ({ ...p, grossAmount: undefined }));
-          }}
-          error={errors.grossAmount}
-        />
-        <FormInput
-          intype="number"
-          inlabel="Default Discount (%)"
-          value={defaultDiscount}
-          onChange={(e) => {
-            setDefaultDiscount(e.target.value);
-            setErrors((p) => ({ ...p, defaultDiscount: undefined }));
-          }}
-          error={errors.defaultDiscount}
-        />
-        <FormInput
-          intype="number"
-          inlabel="Max. Discount (%)"
-          value={maxDiscount}
-          onChange={(e) => {
-            setMaxDiscount(e.target.value);
-            setErrors((p) => ({ ...p, maxDiscount: undefined }));
-          }}
-          error={errors.maxDiscount}
-        />
-        <FormInput
-          intype="text"
-          inlabel="Total Amount"
-          value={total > 0 ? formatMoney(total, currency) : ''}
-          readonly
-        />
-      </div>
+      <ServicePricingRow
+        grossAmount={grossAmount}
+        onGrossAmountChange={(value) => {
+          setGrossAmount(value);
+          setErrors((p) => ({ ...p, grossAmount: undefined }));
+        }}
+        grossAmountError={errors.grossAmount}
+        defaultDiscount={defaultDiscount}
+        onDefaultDiscountChange={(value) => {
+          setDefaultDiscount(value);
+          setErrors((p) => ({ ...p, defaultDiscount: undefined }));
+        }}
+        defaultDiscountError={errors.defaultDiscount}
+        maxDiscount={maxDiscount}
+        onMaxDiscountChange={(value) => {
+          setMaxDiscount(value);
+          setErrors((p) => ({ ...p, maxDiscount: undefined }));
+        }}
+        maxDiscountError={errors.maxDiscount}
+        total={total}
+        currency={currency}
+      />
 
       {/* Actions row */}
       <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
@@ -350,24 +463,13 @@ const ServiceFormDraft = ({
       </div>
 
       {confirmDelete && editService && (
-        <CenterModal showModal setShowModal={() => setConfirmDelete(false)}>
-          <ModalHeader title="Delete service" onClose={() => setConfirmDelete(false)} />
-          <p className="text-body-4 text-text-primary">
-            Are you sure you want to delete <strong>{editService.name}</strong>? This permanently
-            removes the service and cannot be undone. If it is used in packages or has historical
-            usage, consider archiving instead.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Secondary href="#" text="Cancel" onClick={() => setConfirmDelete(false)} />
-            <Delete
-              href="#"
-              text="Delete"
-              onClick={() => {
-                Promise.resolve(handleDelete()).catch(() => undefined);
-              }}
-            />
-          </div>
-        </CenterModal>
+        <DeleteServiceModal
+          serviceName={editService.name}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            Promise.resolve(handleDelete()).catch(() => undefined);
+          }}
+        />
       )}
     </SectionContainer>
   );

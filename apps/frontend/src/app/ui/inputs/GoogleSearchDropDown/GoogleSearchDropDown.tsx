@@ -85,6 +85,107 @@ const getPredictionSecondaryText = (prediction: Prediction) => {
   return description;
 };
 
+const requestGooglePredictions = async (q: string): Promise<Prediction[]> => {
+  const body: any = {
+    input: q,
+  };
+  const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Autocomplete failed: ${res.status}`);
+  const json = await res.json();
+  return (json?.suggestions ?? []).map((s: any) => {
+    if (s.placePrediction) {
+      const p = s.placePrediction;
+      return {
+        kind: 'place' as const,
+        description: p.text?.text ?? p.structuredFormat?.mainText?.text ?? '',
+        placeId: p.placeId,
+        mainText: p.structuredFormat?.mainText?.text,
+        secondaryText: p.structuredFormat?.secondaryText?.text,
+        types: p.types,
+        distanceMeters: p.distanceMeters,
+      };
+    } else if (s.queryPrediction) {
+      const qp = s.queryPrediction;
+      return {
+        kind: 'query' as const,
+        description: qp.text?.text ?? qp.structuredFormat?.mainText?.text ?? '',
+        mainText: qp.structuredFormat?.mainText?.text,
+        secondaryText: qp.structuredFormat?.secondaryText?.text,
+      };
+    }
+    return { kind: 'query', description: '' };
+  });
+};
+
+const derivePlaceAutofill = (details: PlaceDetails, fullPredictionText?: string) => {
+  const comps = details.addressComponents ?? [];
+  const name = details.displayName?.text || '';
+  const website = details.websiteUri || '';
+  const phone = details.nationalPhoneNumber || '';
+
+  const countryCode = getAddrComponent(comps, 'country', 'shortText');
+  const country = countries.find((c) => c.code === countryCode);
+  const city =
+    getAddrComponent(comps, 'locality') ||
+    getAddrComponent(comps, 'postal_town') ||
+    getAddrComponent(comps, 'administrative_area_level_2');
+  const state =
+    getAddrComponent(comps, 'administrative_area_level_1') ||
+    getAddrComponent(comps, 'administrative_area_level_1', 'shortText');
+  const postalCode = getAddrComponent(comps, 'postal_code');
+
+  // Derive addressLine from the full prediction text by finding where the
+  // city/state/country tail begins and cutting there. State is matched using
+  // its long form ("Maharashtra") since shortText ("MH") rarely appears in the
+  // prediction string. We find the earliest comma-segment that starts with any
+  // of these markers and cut the string at that comma.
+  //
+  // e.g. "LODHA CROWN, near Majiwada Flyover, ..., EEH, Thane West, Thane, Maharashtra, India"
+  //   segments: ["LODHA CROWN","near Majiwada Flyover",...,"EEH","Thane West","Thane","Maharashtra","India"]
+  //   city="Thane" first match at segment "Thane West" (startsWith "Thane") → cut before it
+  const locationMarkers = [city, state, postalCode, country?.name].filter(Boolean) as string[];
+
+  let addressLine = fullPredictionText ?? details.formattedAddress ?? '';
+  if (locationMarkers.length > 0) {
+    const segments = addressLine.split(',');
+    let cutSegment = -1;
+    for (let i = 1; i < segments.length; i++) {
+      const seg = segments[i].trim();
+      const isLocationSeg = locationMarkers.some(
+        (m) =>
+          seg.toLowerCase() === m.toLowerCase() || seg.toLowerCase().startsWith(m.toLowerCase())
+      );
+      if (isLocationSeg) {
+        cutSegment = i;
+        break;
+      }
+    }
+    if (cutSegment > 0) {
+      addressLine = segments.slice(0, cutSegment).join(',').trim();
+    }
+  }
+  addressLine = addressLine.replace(/,\s*$/, '').trim();
+  const latitude = details.location?.latitude ?? null;
+  const longitude = details.location?.longitude ?? null;
+  const normalizedAddress = {
+    addressLine,
+    city,
+    state,
+    postalCode,
+    country: country?.name ?? '',
+    latitude: latitude == null ? undefined : Number(latitude),
+    longitude: longitude == null ? undefined : Number(longitude),
+  };
+  return { name, website, phone, normalizedAddress };
+};
+
 const GoogleSearchDropDown = ({
   intype,
   inname,
@@ -99,7 +200,7 @@ const GoogleSearchDropDown = ({
   onAddressSelect,
 }: Readonly<GoogleSearchDropDownProps>) => {
   const uid = useId();
-  const [isFocused, setIsFocused] = useState(false);
+  const isFocusedRef = useRef(false);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -135,46 +236,11 @@ const GoogleSearchDropDown = ({
       return;
     }
     try {
-      const body: any = {
-        input: q,
-      };
-      const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
-        },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`Autocomplete failed: ${res.status}`);
-      const json = await res.json();
-      const list: Prediction[] = (json?.suggestions ?? []).map((s: any) => {
-        if (s.placePrediction) {
-          const p = s.placePrediction;
-          return {
-            kind: 'place' as const,
-            description: p.text?.text ?? p.structuredFormat?.mainText?.text ?? '',
-            placeId: p.placeId,
-            mainText: p.structuredFormat?.mainText?.text,
-            secondaryText: p.structuredFormat?.secondaryText?.text,
-            types: p.types,
-            distanceMeters: p.distanceMeters,
-          };
-        } else if (s.queryPrediction) {
-          const qp = s.queryPrediction;
-          return {
-            kind: 'query' as const,
-            description: qp.text?.text ?? qp.structuredFormat?.mainText?.text ?? '',
-            mainText: qp.structuredFormat?.mainText?.text,
-            secondaryText: qp.structuredFormat?.secondaryText?.text,
-          };
-        }
-        return { kind: 'query', description: '' };
-      });
+      const list = await requestGooglePredictions(q);
       logger.debug('Google places autocomplete results', list);
       lastQueriedRef.current = q;
       setPredictions(list);
-      if (!suppressNextOpenRef.current && isFocused) setOpen(list.length > 0);
+      if (!suppressNextOpenRef.current && isFocusedRef.current) setOpen(list.length > 0);
     } catch (err) {
       logger.error('Google places autocomplete failed', err);
       setPredictions([]);
@@ -255,64 +321,10 @@ const GoogleSearchDropDown = ({
   };
 
   const autofillFromPlace = (details: PlaceDetails, fullPredictionText?: string) => {
-    const comps = details.addressComponents ?? [];
-    const name = details.displayName?.text || '';
-    const website = details.websiteUri || '';
-    const phone = details.nationalPhoneNumber || '';
-
-    const countryCode = getAddrComponent(comps, 'country', 'shortText');
-    const country = countries.find((c) => c.code === countryCode);
-    const city =
-      getAddrComponent(comps, 'locality') ||
-      getAddrComponent(comps, 'postal_town') ||
-      getAddrComponent(comps, 'administrative_area_level_2');
-    const state =
-      getAddrComponent(comps, 'administrative_area_level_1') ||
-      getAddrComponent(comps, 'administrative_area_level_1', 'shortText');
-    const postalCode = getAddrComponent(comps, 'postal_code');
-
-    // Derive addressLine from the full prediction text by finding where the
-    // city/state/country tail begins and cutting there. State is matched using
-    // its long form ("Maharashtra") since shortText ("MH") rarely appears in the
-    // prediction string. We find the earliest comma-segment that starts with any
-    // of these markers and cut the string at that comma.
-    //
-    // e.g. "LODHA CROWN, near Majiwada Flyover, ..., EEH, Thane West, Thane, Maharashtra, India"
-    //   segments: ["LODHA CROWN","near Majiwada Flyover",...,"EEH","Thane West","Thane","Maharashtra","India"]
-    //   city="Thane" first match at segment "Thane West" (startsWith "Thane") → cut before it
-    const locationMarkers = [city, state, postalCode, country?.name].filter(Boolean) as string[];
-
-    let addressLine = fullPredictionText ?? details.formattedAddress ?? '';
-    if (locationMarkers.length > 0) {
-      const segments = addressLine.split(',');
-      let cutSegment = -1;
-      for (let i = 1; i < segments.length; i++) {
-        const seg = segments[i].trim();
-        const isLocationSeg = locationMarkers.some(
-          (m) =>
-            seg.toLowerCase() === m.toLowerCase() || seg.toLowerCase().startsWith(m.toLowerCase())
-        );
-        if (isLocationSeg) {
-          cutSegment = i;
-          break;
-        }
-      }
-      if (cutSegment > 0) {
-        addressLine = segments.slice(0, cutSegment).join(',').trim();
-      }
-    }
-    addressLine = addressLine.replace(/,\s*$/, '').trim();
-    const latitude = details.location?.latitude ?? null;
-    const longitude = details.location?.longitude ?? null;
-    const normalizedAddress = {
-      addressLine,
-      city,
-      state,
-      postalCode,
-      country: country?.name ?? '',
-      latitude: latitude == null ? undefined : Number(latitude),
-      longitude: longitude == null ? undefined : Number(longitude),
-    };
+    const { name, website, phone, normalizedAddress } = derivePlaceAutofill(
+      details,
+      fullPredictionText
+    );
     if (onAddressSelect) {
       onAddressSelect(normalizedAddress);
       return;
@@ -343,7 +355,7 @@ const GoogleSearchDropDown = ({
   };
 
   const onFocus = () => {
-    setIsFocused(true);
+    isFocusedRef.current = true;
     shouldFetchRef.current = true;
     if (predictions.length) setOpen(true);
   };
@@ -374,7 +386,7 @@ const GoogleSearchDropDown = ({
           ref={inputRef}
           onBlur={() => {
             if (suppressNextOpenRef.current) return;
-            setIsFocused(false);
+            isFocusedRef.current = false;
             setOpen(false);
           }}
           className={`

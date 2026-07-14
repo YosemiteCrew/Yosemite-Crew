@@ -13,7 +13,7 @@ import Modal from '@/app/ui/overlays/Modal';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { Team } from '@/app/features/organization/types/team';
-import React, { useEffect, useLayoutEffect, useMemo, useState, startTransition } from 'react';
+import React, { useEffect, useMemo, useState, startTransition } from 'react';
 import PermissionsEditor from '@/app/features/organization/pages/Organization/Sections/Team/PermissionsEditor';
 import { computeEffectivePermissions } from '@/app/features/organization/pages/Organization/Sections/Team/permissionsEditorUtils';
 import { Permission, RoleCode } from '@/app/lib/permissions';
@@ -116,13 +116,20 @@ const normalizeId = (value?: string) =>
     .pop()
     ?.toLowerCase() ?? '';
 
-const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfoProps) => {
+const useTeamInfoContent = ({
+  showModal,
+  setShowModal,
+  activeTeam,
+  canEditTeam,
+}: TeamInfoProps) => {
   const specialities = useSpecialitiesForPrimaryOrg();
   const { membership } = usePrimaryOrgWithMembership();
   const { notify } = useNotify();
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
-  const [perms, setPerms] = React.useState<Permission[]>([]);
-  const [role, setRole] = useState<RoleCode | null>(null);
+  const [permissionOverride, setPermissionOverride] = React.useState<{
+    teamId: string;
+    permissions: Permission[];
+  } | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [availability, setAvailability] = useState<AvailabilityState>(() =>
     daysOfWeek.reduce<AvailabilityState>((acc, day) => {
@@ -159,23 +166,12 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
   const canEditAvailability = isSelfMember;
   const canEditOrgDetails = canEditRole || canEditEmploymentType || canEditDepartment;
   const canDeleteMember = canEditTeam && activeTeam.role !== 'OWNER';
-
-  useEffect(() => {
-    if (activeTeam) {
-      setPerms(activeTeam.effectivePermissions);
-      setRole(activeTeam.role as RoleCode);
-    }
-  }, [activeTeam]);
-
-  useEffect(() => {
-    if (profile) {
-      const apiAvailability = Array.isArray(profile?.baseAvailability)
-        ? profile.baseAvailability
-        : [];
-      const converted = convertFromGetApi(apiAvailability);
-      setAvailability(converted);
-    }
-  }, [profile]);
+  const role = activeTeam.role as RoleCode;
+  const activeTeamId = activeTeam._id ?? '';
+  const perms =
+    permissionOverride?.teamId === activeTeamId
+      ? permissionOverride.permissions
+      : activeTeam.effectivePermissions;
 
   const SpecialitiesOptions = useMemo(
     () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
@@ -201,7 +197,15 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     (async () => {
       try {
         const data = await getProfileForUserForPrimaryOrg(userId);
-        if (!cancelled) setProfile(data);
+        if (!cancelled) {
+          setProfile(data);
+          if (data) {
+            const { baseAvailability } = data as { baseAvailability?: unknown };
+            setAvailability(
+              convertFromGetApi(Array.isArray(baseAvailability) ? baseAvailability : [])
+            );
+          }
+        }
       } catch {
         setProfile(null);
       }
@@ -211,11 +215,12 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     };
   }, [showModal, activeTeam]);
 
-  useLayoutEffect(() => {
-    if (!showModal) {
+  const handleModalVisibility: React.Dispatch<React.SetStateAction<boolean>> = (value) => {
+    setShowModal(value);
+    if (value === false) {
       setShowDeleteModal(false);
     }
-  }, [showModal]);
+  };
 
   const orgInfoData = useMemo(
     () => ({
@@ -434,23 +439,20 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     revokedPermissions: Permission[];
   }) => {
     try {
-      if (!role) {
-        /* v8 ignore next -- PermissionsEditor (and its save handler) only render when `role` is truthy */
-        throw new Error('ROle undeifned');
-      }
       const member: Team = {
         ...activeTeam,
         extraPerissions,
         revokedPermissions,
       };
       await updateMember(member);
-      setPerms(
-        computeEffectivePermissions({
+      setPermissionOverride({
+        teamId: activeTeamId,
+        permissions: computeEffectivePermissions({
           role,
           extraPerissions,
           revokedPermissions,
-        })
-      );
+        }),
+      });
       notify('success', {
         title: 'Team member updated',
         text: 'Team member has been updated successfully.',
@@ -494,7 +496,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
 
   return (
     <>
-      <Modal showModal={showModal} setShowModal={setShowModal}>
+      <Modal showModal={showModal} setShowModal={handleModalVisibility}>
         <div className="flex flex-col h-full gap-6">
           <div className="flex justify-between items-center">
             <div className="opacity-0">
@@ -609,5 +611,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     </>
   );
 };
+
+const TeamInfo = (props: TeamInfoProps) => useTeamInfoContent(props);
 
 export default TeamInfo;
