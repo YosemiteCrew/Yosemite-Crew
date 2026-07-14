@@ -12,13 +12,18 @@ jest.mock('framer-motion', () => ({
   LazyMotion: ({ children }: any) => <>{children}</>,
   domAnimation: {},
   m: {
-    div: ({ children, variants, custom, animate, className }: any) => {
+    div: ({ children, variants, custom, initial, animate, className }: any) => {
       if (variants && typeof variants.animate === 'function') {
         variants.animate(custom || 0);
       }
 
       return (
-        <div data-testid="motion-word" data-animate={animate} className={className}>
+        <div
+          data-testid="motion-word"
+          data-initial={String(initial)}
+          data-animate={animate}
+          className={className}
+        >
           {children}
         </div>
       );
@@ -88,5 +93,14 @@ describe('WordsPullUp Component', () => {
     const word = screen.getByTestId('motion-word');
     // Code logic: animate={isInView ? "animate" : ""} -> becomes ""
     expect(word).toHaveAttribute('data-animate', '');
+  });
+
+  it('can render the final state without the initial animation', () => {
+    (useInView as jest.Mock).mockReturnValue(false);
+    render(<WordsPullUp text="Stable" animateWords={false} />);
+
+    const word = screen.getByTestId('motion-word');
+    expect(word).toHaveAttribute('data-initial', 'false');
+    expect(word).toHaveAttribute('data-animate', 'animate');
   });
 });

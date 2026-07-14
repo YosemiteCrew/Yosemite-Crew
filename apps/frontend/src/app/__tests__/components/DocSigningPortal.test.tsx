@@ -42,7 +42,7 @@ describe('DocSigningPortal', () => {
     expect(iframe.src).toBe('https://ds.yosemitecrew.com/portal/home');
     expect(iframe).toHaveAttribute(
       'sandbox',
-      'allow-downloads allow-forms allow-modals allow-popups allow-same-origin allow-scripts'
+      'allow-downloads allow-forms allow-modals allow-popups allow-scripts allow-same-origin'
     );
     expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin');
   });

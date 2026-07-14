@@ -38,7 +38,8 @@ jest.mock('react-native-reanimated', () => {
     useAnimatedStyle: jest.fn(cb => cb()),
     withTiming: jest.fn(toValue => toValue),
     interpolate: jest.fn(() => 100),
-    Extrapolation: {CLAMP: 'clamp'},
+    FadeIn: {duration: jest.fn(() => ({}))},
+    FadeOut: {duration: jest.fn(() => ({}))},
   };
 
   return {
@@ -63,11 +64,21 @@ describe('SubcategoryAccordion', () => {
   // 1. Rendering
   // ===========================================================================
 
-  it('renders title, subtitle, and children correctly', () => {
-    const {getByText} = render(<SubcategoryAccordion {...defaultProps} />);
+  it('renders title and subtitle, keeping children unmounted while collapsed', () => {
+    const {getByText, queryByText} = render(
+      <SubcategoryAccordion {...defaultProps} />,
+    );
 
     expect(getByText('Test Title')).toBeTruthy();
     expect(getByText('Test Subtitle')).toBeTruthy();
+    expect(queryByText('Accordion Content')).toBeNull();
+  });
+
+  it('renders children when expanded by default', () => {
+    const {getByText} = render(
+      <SubcategoryAccordion {...defaultProps} defaultExpanded={true} />,
+    );
+
     expect(getByText('Accordion Content')).toBeTruthy();
   });
 
@@ -115,24 +126,24 @@ describe('SubcategoryAccordion', () => {
     expect(useSharedValue).toHaveBeenCalledWith(1);
   });
 
-  it('toggles state on header press', () => {
+  it('toggles the content on header press', () => {
     const {withTiming} = require('react-native-reanimated');
-    const {getByText} = render(<SubcategoryAccordion {...defaultProps} />);
+    const {getByText, queryByText} = render(
+      <SubcategoryAccordion {...defaultProps} />,
+    );
 
     const headerText = getByText('Test Title');
     // Traverse up to the TouchableOpacity.
     const headerButton = headerText.parent?.parent;
 
-    // 1. Initial Press (Expand)
+    // 1. Initial Press (Expand): content mounts and the chevron animates to 1.
     fireEvent.press(headerButton);
-
-    // Should trigger withTiming to 1 (Expanded)
+    expect(getByText('Accordion Content')).toBeTruthy();
     expect(withTiming).toHaveBeenCalledWith(1, expect.any(Object));
 
-    // 2. Second Press (Collapse)
+    // 2. Second Press (Collapse): content unmounts and the chevron animates back.
     fireEvent.press(headerButton);
-
-    // Should trigger withTiming to 0 (Collapsed)
+    expect(queryByText('Accordion Content')).toBeNull();
     expect(withTiming).toHaveBeenCalledWith(0, expect.any(Object));
   });
 });

@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import React, { useMemo, useState, type CSSProperties } from 'react';
 import { LuCheck } from 'react-icons/lu';
 import { TiPlus } from 'react-icons/ti';
 import { HiUser } from 'react-icons/hi2';
@@ -103,13 +103,13 @@ const HospitalizationModal = ({
       '0'
     )}`;
   });
-  const [dischargeDate, setDischargeDate] = useState<Date | null>(addDays(today, 2));
+  const [dischargeDate, setDischargeDate] = useState<Date | null>(() => addDays(today, 2));
   const [roomId, setRoomId] = useState<string | undefined>(defaultRoomId);
   const [unitId, setUnitId] = useState<string | undefined>(defaultUnitId);
   const defaultSupportId = supportOptions.find((option) => option.label === supportName)?.value;
   const [supportStaffId, setSupportStaffId] = useState<string | undefined>(defaultSupportId);
   const [servicePackageIds, setServicePackageIds] = useState<string[]>([]);
-  const [notifyChannels, setNotifyChannels] = useState<Set<NotifyChannel>>(new Set(['app']));
+  const [notifyChannels, setNotifyChannels] = useState<Set<NotifyChannel>>(() => new Set(['app']));
   const [isConverting, setIsConverting] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -143,28 +143,34 @@ const HospitalizationModal = ({
     return unitOptionsByRoomId?.[roomId] ?? unitOptions;
   }, [roomId, unitOptions, unitOptionsByRoomId]);
 
-  useEffect(() => {
-    if (!showModal) return;
-    setRoomId(defaultRoomId);
-    setUnitId(defaultUnitId);
-    setSupportStaffId(defaultSupportId);
-    setServicePackageIds([]);
-    setHasSubmitted(false);
-  }, [defaultRoomId, defaultSupportId, defaultUnitId, showModal]);
-
-  useEffect(() => {
-    if (!roomId || !unitOptionsByRoomId) return;
-    const optionsForRoom = unitOptionsByRoomId[roomId] ?? [];
-    if (!optionsForRoom.length) {
-      setUnitId(undefined);
-      return;
+  const [prevShowModal, setPrevShowModal] = useState(showModal);
+  if (showModal !== prevShowModal) {
+    setPrevShowModal(showModal);
+    if (showModal) {
+      setRoomId(defaultRoomId);
+      setUnitId(defaultUnitId);
+      setSupportStaffId(defaultSupportId);
+      setServicePackageIds([]);
+      setHasSubmitted(false);
     }
-    setUnitId((current) =>
-      current && optionsForRoom.some((option) => option.value === current)
-        ? current
-        : optionsForRoom[0].value
-    );
-  }, [roomId, unitOptionsByRoomId]);
+  }
+
+  const [prevRoomId, setPrevRoomId] = useState(roomId);
+  if (roomId !== prevRoomId) {
+    setPrevRoomId(roomId);
+    if (roomId && unitOptionsByRoomId) {
+      const optionsForRoom = unitOptionsByRoomId[roomId] ?? [];
+      if (!optionsForRoom.length) {
+        setUnitId(undefined);
+      } else {
+        setUnitId((current) =>
+          current && optionsForRoom.some((option) => option.value === current)
+            ? current
+            : optionsForRoom[0].value
+        );
+      }
+    }
+  }
 
   const validationErrors = useMemo(() => {
     const errors: Record<string, string> = {};
