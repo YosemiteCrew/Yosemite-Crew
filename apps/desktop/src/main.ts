@@ -1200,7 +1200,7 @@ const openCommandPalette = (): void => {
     alwaysOnTop: true,
     skipTaskbar: true,
     title: 'Command Palette',
-    backgroundColor: '#0b0d12',
+    backgroundColor: '#f7f3ec',
     show: false,
     webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
   });
