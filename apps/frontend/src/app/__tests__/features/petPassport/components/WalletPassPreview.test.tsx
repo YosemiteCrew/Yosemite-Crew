@@ -20,6 +20,7 @@ const poppy: PetPassportDTO = {
   rabies: {
     id: 'r',
     patientId: 'pat-1',
+    createdAt: '2026-01-01T00:00:00.000Z',
     vaccineType: 'RABIES',
     vaccineName: 'Versiguard Rabies',
     dateAdministered: '2026-06-12',
@@ -29,6 +30,7 @@ const poppy: PetPassportDTO = {
     {
       id: 'v-past',
       patientId: 'pat-1',
+      createdAt: '2026-01-01T00:00:00.000Z',
       vaccineType: 'CORE',
       vaccineName: 'Old Jab',
       dateAdministered: '2024-01-01',
@@ -37,6 +39,7 @@ const poppy: PetPassportDTO = {
     {
       id: 'v',
       patientId: 'pat-1',
+      createdAt: '2026-01-01T00:00:00.000Z',
       vaccineType: 'CORE',
       vaccineName: 'Nobivac DHPPi',
       dateAdministered: '2026-03-03',

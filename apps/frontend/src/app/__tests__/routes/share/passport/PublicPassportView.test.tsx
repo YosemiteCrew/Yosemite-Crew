@@ -22,6 +22,7 @@ const fullPassport: PetPassportDTO = {
   rabies: {
     id: 'vac-rabies',
     patientId: 'pat-1',
+    createdAt: '2026-01-01T00:00:00.000Z',
     vaccineType: 'RABIES',
     vaccineName: 'Versiguard Rabies',
     dateAdministered: '2026-06-12',
@@ -33,6 +34,7 @@ const fullPassport: PetPassportDTO = {
     {
       id: 'vac-dhppi',
       patientId: 'pat-1',
+      createdAt: '2026-01-01T00:00:00.000Z',
       vaccineType: 'CORE',
       vaccineName: 'Nobivac DHPPi',
       dateAdministered: '2026-03-03',
@@ -45,6 +47,7 @@ const fullPassport: PetPassportDTO = {
     {
       id: 'exam-1',
       patientId: 'pat-1',
+      createdAt: '2026-01-01T00:00:00.000Z',
       examinedAt: '2026-07-02',
       fitForTravel: true,
     },
@@ -97,6 +100,7 @@ describe('PublicPassportView', () => {
       rabies: {
         id: 'r3',
         patientId: 'pat-3',
+        createdAt: '2026-01-01T00:00:00.000Z',
         vaccineType: 'RABIES',
         vaccineName: 'RabVac',
         dateAdministered: '2026-01-01',
@@ -105,6 +109,7 @@ describe('PublicPassportView', () => {
         {
           id: 'v3',
           patientId: 'pat-3',
+          createdAt: '2026-01-01T00:00:00.000Z',
           vaccineType: 'CORE',
           vaccineName: 'FluVac',
           dateAdministered: '2026-02-01',
