@@ -49,6 +49,9 @@ const defaultAnswersFromSchema = (
   const walk = (items: NonNullable<SoapTemplate['customSchema']>) => {
     items.forEach((field) => {
       if (field.type === 'group') {
+        // GroupField.fields is a required array (packages/types form.ts), so the
+        // `?? []` fallback is unreachable via the typed API — kept as a defensive guard.
+        /* v8 ignore next */
         walk(field.fields ?? []);
         return;
       }

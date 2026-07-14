@@ -89,8 +89,10 @@ const formatAgeDob = (value?: Date | string): string => {
   const age = getAgeInYears(value);
   const dob = formatDisplayDate(value, '-');
   if (!Number.isFinite(age) || age < 0) return dob;
+  // A finite, non-negative age means `value` parsed to a valid date, so
+  // formatDisplayDate never returns the '-' fallback here — always show age / dob.
   const ageLabel = `${age} ${age === 1 ? 'year' : 'years'}`;
-  return dob === '-' ? ageLabel : `${ageLabel} / ${dob}`;
+  return `${ageLabel} / ${dob}`;
 };
 
 const ProfileDetail = ({
@@ -290,6 +292,7 @@ const CompanionHistoryPageInner = () => {
 
   const persistCompanionAlerts = useCallback(
     async (nextAlerts: CompanionAlert[]) => {
+      /* v8 ignore next -- activeCompanion is always set here: the add/remove alert controls only render inside the `activeCompanion` block */
       if (!activeCompanion) return;
       await updateCompanion({
         ...activeCompanion.companion,
@@ -301,6 +304,7 @@ const CompanionHistoryPageInner = () => {
 
   const persistClientAlerts = useCallback(
     async (nextAlerts: CompanionAlert[]) => {
+      /* v8 ignore next -- activeCompanion is always set here: the add/remove alert controls only render inside the `activeCompanion` block */
       if (!activeCompanion) return;
       await updateParent({
         ...activeCompanion.parent,

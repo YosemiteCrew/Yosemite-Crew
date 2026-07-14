@@ -1,7 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import CompanionHistoryTimeline from '@/app/features/companionHistory/components/CompanionHistoryTimeline';
+import CompanionHistoryTimeline, {
+  RequestedAppointmentActions,
+  StatusPillSelect,
+} from '@/app/features/companionHistory/components/CompanionHistoryTimeline';
 import { fetchCompanionHistory } from '@/app/features/companionHistory/services/companionHistoryService';
 import { getCompanionAuditTrail } from '@/app/features/audit/services/auditService';
 import { loadDocumentDownloadURL } from '@/app/features/companions/services/companionDocumentService';
@@ -21,8 +24,15 @@ jest.mock('@/app/ui/overlays/Fallback', () => ({
 
 jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
   __esModule: true,
-  default: ({ open, pdfUrl, title }: any) =>
-    open ? <div data-testid="pdf-preview">{`${title}-${pdfUrl}`}</div> : null,
+  default: ({ open, pdfUrl, title, onClose }: any) =>
+    open ? (
+      <div data-testid="pdf-preview">
+        {`${title}-${pdfUrl}`}
+        <button type="button" onClick={onClose}>
+          close pdf preview
+        </button>
+      </div>
+    ) : null,
 }));
 
 let mockOrgState: any = {
@@ -2141,5 +2151,284 @@ describe('CompanionHistoryTimeline', () => {
     );
     const drawer = await screen.findByRole('dialog', { name: /Annual check-up/ });
     expect(within(drawer).queryByText('Linked to')).not.toBeInTheDocument();
+  });
+
+  it('revokes a blob preview URL when the overlay is closed', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [baseEntries[4]],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Result PDF' }));
+    expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(
+      'IDEXX Result PDF #l-1-blob:lab-result'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'close pdf preview' }));
+
+    await waitFor(() => {
+      expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:lab-result');
+    });
+    expect(screen.queryByTestId('pdf-preview')).not.toBeInTheDocument();
+  });
+
+  it('closes a non-blob preview without revoking an object URL', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [baseEntries[4]],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Acknowledgment PDF' }));
+    expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(
+      'IDEXX Result-https://example.com/lab.pdf'
+    );
+    revokeObjectUrlSpy.mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: 'close pdf preview' }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('pdf-preview')).not.toBeInTheDocument();
+    });
+    expect(revokeObjectUrlSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores a late audit rejection after the timeline unmounts', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+    let rejectAudit: (reason?: unknown) => void = () => undefined;
+    (getCompanionAuditTrail as jest.Mock).mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectAudit = reject;
+      })
+    );
+
+    const { unmount } = render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Audit trail' }));
+    await screen.findByText('Loading audit trail…');
+
+    unmount();
+
+    await act(async () => {
+      rejectAudit(new Error('late audit rejection'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The cleanup flagged the request cancelled, so the rejection is swallowed
+    // without logging the audit-trail error.
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+      'Failed to load companion audit trail:',
+      expect.anything()
+    );
+  });
+
+  it('renders the empty overview when the companion id is undefined', async () => {
+    render(<CompanionHistoryTimeline companionId={undefined as unknown as string} />);
+
+    expect(await screen.findByText('No overview entries found.')).toBeInTheDocument();
+    expect(fetchCompanionHistory).not.toHaveBeenCalled();
+  });
+
+  it('keeps the newer loading state when an earlier result PDF settles first', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        baseEntries[4],
+        {
+          ...baseEntries[4],
+          id: 'entry-lab-second',
+          title: 'IDEXX Result 2',
+          link: { kind: 'lab_result', id: 'l-2', appointmentId: 'a-1', patientId: 'c-1' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 2, countsByType: { LAB_RESULT: 2 } },
+    });
+
+    let resolveFirst: (blob: Blob) => void = () => undefined;
+    let resolveSecond: (blob: Blob) => void = () => undefined;
+    (getIdexxResultPdfBlob as jest.Mock).mockImplementation(({ resultId }: { resultId: string }) =>
+      resultId === 'l-1'
+        ? new Promise((resolve) => {
+            resolveFirst = resolve;
+          })
+        : new Promise((resolve) => {
+            resolveSecond = resolve;
+          })
+    );
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    const resultButtons = await screen.findAllByRole('button', { name: 'Result PDF' });
+    // Start loading the first result; its chip flips to the loading label.
+    fireEvent.click(resultButtons[0]);
+    // The only remaining "Result PDF" chip belongs to the second entry.
+    fireEvent.click(await screen.findByRole('button', { name: 'Result PDF' }));
+
+    // Settle the first (older) request while the second is still loading: the
+    // finally clause must leave the newer entry's loading id intact.
+    await act(async () => {
+      resolveFirst(new Blob(['first'], { type: 'application/pdf' }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The second chip is still loading.
+    expect(screen.getByRole('button', { name: 'Loading…' })).toBeInTheDocument();
+
+    // Settle the second request so nothing leaks past the test.
+    await act(async () => {
+      resolveSecond(new Blob(['second'], { type: 'application/pdf' }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Loading…' })).not.toBeInTheDocument();
+    });
+  });
+
+  it('keeps the newer document loading id when an earlier document preview settles first', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        baseEntries[3],
+        {
+          ...baseEntries[3],
+          id: 'entry-document-2',
+          title: 'Second document',
+          link: { kind: 'document', id: 'd-2', patientId: 'c-1' },
+          payload: { documentId: 'd-2' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 2, countsByType: { DOCUMENT: 2 } },
+    });
+
+    let resolveFirst: (urls: Array<{ url: string }>) => void = () => undefined;
+    let resolveSecond: (urls: Array<{ url: string }>) => void = () => undefined;
+    (loadDocumentDownloadURL as jest.Mock).mockImplementation((documentId: string) =>
+      documentId === 'd-1'
+        ? new Promise((resolve) => {
+            resolveFirst = resolve;
+          })
+        : new Promise((resolve) => {
+            resolveSecond = resolve;
+          })
+    );
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Open file' }))[0]);
+    await waitFor(() => {
+      expect(loadDocumentDownloadURL).toHaveBeenCalledWith('d-1');
+    });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open file' })[1]);
+    await waitFor(() => {
+      expect(loadDocumentDownloadURL).toHaveBeenCalledWith('d-2');
+    });
+
+    // Settle the first (older) request while the second is still loading; the
+    // finally clause must not clear the newer entry's loading id.
+    await act(async () => {
+      resolveFirst([{ url: 'https://example.com/first.pdf' }]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(
+      'Blood panel PDF-https://example.com/first.pdf'
+    );
+
+    // Settle the second request so nothing leaks past the test.
+    await act(async () => {
+      resolveSecond([{ url: 'https://example.com/second.pdf' }]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  });
+
+  describe('StatusPillSelect', () => {
+    it('renders every option when no allowed keys are provided and a nullish status defaults to pending', () => {
+      const onChange = jest.fn();
+      render(
+        <StatusPillSelect
+          status={null}
+          options={[
+            { name: 'Upcoming', key: 'upcoming' },
+            { name: 'Checked-in', key: 'checked_in' },
+          ]}
+          onChange={onChange}
+        />
+      );
+
+      const trigger = screen.getByRole('button', { name: 'Status' });
+      // Nullish status resolves to the neutral dash label.
+      expect(trigger).toHaveTextContent('-');
+
+      fireEvent.click(trigger);
+      expect(screen.getByRole('menuitem', { name: 'Upcoming' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Checked-in' })).toBeInTheDocument();
+
+      fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Upcoming' }));
+      expect(onChange).toHaveBeenCalledWith('upcoming');
+    });
+
+    it('restricts the menu to the allowed keys when provided', () => {
+      const onChange = jest.fn();
+      render(
+        <StatusPillSelect
+          status="upcoming"
+          options={[
+            { name: 'Upcoming', key: 'upcoming' },
+            { name: 'Checked-in', key: 'checked_in' },
+            { name: 'Completed', key: 'completed' },
+          ]}
+          allowedKeys={['CHECKED_IN']}
+          onChange={onChange}
+        />
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+      expect(screen.getByRole('menuitem', { name: 'Checked-in' })).toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Upcoming' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: 'Completed' })).not.toBeInTheDocument();
+    });
+
+    it('renders a read-only pill with no trigger when locked', () => {
+      render(
+        <StatusPillSelect
+          status="completed"
+          options={[{ name: 'Completed', key: 'completed' }]}
+          locked
+          onChange={jest.fn()}
+        />
+      );
+
+      expect(screen.getByTitle('Completed')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Status' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('RequestedAppointmentActions', () => {
+    it('renders the open primary action for a non-requested status', () => {
+      const onOpen = jest.fn();
+      const onStatusChange = jest.fn();
+      render(
+        <RequestedAppointmentActions
+          entry={{ ...baseEntries[0], status: null } as any}
+          canEdit
+          onStatusChange={onStatusChange}
+          onOpen={onOpen}
+        />
+      );
+
+      const openButton = screen.getByRole('button', { name: 'Open' });
+      fireEvent.click(openButton);
+      expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'entry-appointment' }));
+      expect(onStatusChange).not.toHaveBeenCalled();
+    });
   });
 });

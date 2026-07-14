@@ -109,11 +109,13 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
 
   const openWorkspace = (intent?: AppointmentViewIntent) => {
     if (!appointment.id) return;
+    /* v8 ignore start -- defensive re-check: openWorkspace is only invoked from actions rendered when canEnterAppointmentWorkspace(status) is true, so this branch is unreachable via the menu */
     if (!canEnterAppointmentWorkspace(appointment.status)) {
       handleViewAppointment(appointment, intent);
       onClose();
       return;
     }
+    /* v8 ignore stop */
     router.push(buildWorkspaceHrefForIntent(appointment.id, intent));
     onClose();
   };
@@ -248,6 +250,7 @@ const AppointmentContextMenuComponent: React.FC<AppointmentContextMenuProps> = (
     key: room.value,
     label: room.label,
     selected: room.value === appointment.room?.id,
+    /* v8 ignore next -- room.value is always a value from `rooms`, so find never returns undefined; the null fallback is unreachable */
     onSelect: () => handleRoomChange(rooms.find((item) => item.id === room.value) ?? null),
   }));
   if (appointment.room?.id) {

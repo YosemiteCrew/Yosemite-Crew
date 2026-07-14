@@ -190,6 +190,7 @@ const AddRoom = ({ showModal, setShowModal }: AddRoomProps) => {
   };
 
   const addUnitDraft = () => {
+    /* v8 ignore next -- unreachable guard: the "Add unit type" control only renders for unit-capable room types */
     if (!supportsUnits) return;
 
     setFormData((prev) => ({

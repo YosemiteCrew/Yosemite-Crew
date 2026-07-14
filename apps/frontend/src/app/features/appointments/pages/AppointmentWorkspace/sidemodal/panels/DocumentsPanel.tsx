@@ -296,6 +296,7 @@ const ClinicalPacketSection = ({
     : null;
 
   const handlePrint = async () => {
+    /* v8 ignore next -- re-entrancy guard: Print is disabled without org+encounter context and while isPrinting, so this early return is unreachable via the UI */
     if (!organisationId || !encounterId || isPrinting) return;
     setIsPrinting(true);
     try {
@@ -309,6 +310,7 @@ const ClinicalPacketSection = ({
   };
 
   const handleDownloadSigned = async () => {
+    /* v8 ignore next -- re-entrancy guard: Download Signed is disabled without org+encounter context and while isPrinting, so this early return is unreachable via the UI */
     if (!organisationId || !encounterId || isPrinting) return;
     setIsPrinting(true);
     try {
@@ -325,6 +327,7 @@ const ClinicalPacketSection = ({
   };
 
   const handleSign = async () => {
+    /* v8 ignore next -- re-entrancy guard: Sign is only clickable with org+encounter context while not already signing/signed, so this early return is unreachable via the UI */
     if (!organisationId || !encounterId || isSigning || isSigned) return;
     setSignError(null);
     setIsSigning(true);
