@@ -122,7 +122,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
       <View style={styles.dateTimeRow}>
         <View style={styles.dateTimeField}>
           <TouchableInput
-            label={formData.medicineType ? 'Medication type' : undefined}
+            label="Medication type"
             value={formData.medicineType || undefined}
             placeholder="Medication type"
             onPress={onOpenMedicationTypeSheet}
@@ -202,7 +202,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
       <View style={styles.dateTimeRow}>
         <View style={styles.dateTimeField}>
           <TouchableInput
-            label={formData.startDate ? 'Start Date' : undefined}
+            label="Start Date"
             value={
               formData.startDate
                 ? formatDateForDisplay(formData.startDate)
@@ -220,7 +220,7 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
         {formData.medicationFrequency !== 'once' && (
           <View style={styles.dateTimeField}>
             <TouchableInput
-              label={formData.endDate ? 'End Date' : undefined}
+              label="End Date"
               value={
                 formData.endDate
                   ? formatDateForDisplay(formData.endDate)
