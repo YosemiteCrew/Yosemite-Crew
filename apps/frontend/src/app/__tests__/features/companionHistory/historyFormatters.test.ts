@@ -8,6 +8,8 @@ import {
   getPayloadBoolean,
   formatCurrency,
   getPrimaryActionLabel,
+  getHistoryTypeBadgeTone,
+  getHistoryStatusBadgeTone,
 } from '@/app/features/companionHistory/utils/historyFormatters';
 import { HistoryEntry } from '@/app/features/companionHistory/types/history';
 
@@ -93,6 +95,74 @@ describe('getTypeBadgeClassName', () => {
 
   it('returns emerald for INVOICE', () => {
     expect(getTypeBadgeClassName('INVOICE')).toContain('emerald');
+  });
+});
+
+describe('getHistoryTypeBadgeTone', () => {
+  it('returns brand for APPOINTMENT', () => {
+    expect(getHistoryTypeBadgeTone('APPOINTMENT')).toBe('brand');
+  });
+
+  it('returns warning for TASK', () => {
+    expect(getHistoryTypeBadgeTone('TASK')).toBe('warning');
+  });
+
+  it('returns brand for FORM_SUBMISSION', () => {
+    expect(getHistoryTypeBadgeTone('FORM_SUBMISSION')).toBe('brand');
+  });
+
+  it('returns neutral for DOCUMENT', () => {
+    expect(getHistoryTypeBadgeTone('DOCUMENT')).toBe('neutral');
+  });
+
+  it('returns success for LAB_RESULT', () => {
+    expect(getHistoryTypeBadgeTone('LAB_RESULT')).toBe('success');
+  });
+
+  it('returns brand for other types', () => {
+    expect(getHistoryTypeBadgeTone('INVOICE')).toBe('brand');
+  });
+});
+
+describe('getHistoryStatusBadgeTone', () => {
+  it('returns neutral for null status', () => {
+    expect(getHistoryStatusBadgeTone(null)).toBe('neutral');
+  });
+
+  it('returns neutral for undefined status', () => {
+    expect(getHistoryStatusBadgeTone(undefined)).toBe('neutral');
+  });
+
+  it('returns neutral for empty/blank status', () => {
+    expect(getHistoryStatusBadgeTone('   ')).toBe('neutral');
+  });
+
+  it('returns success for completed-like statuses, case-insensitively', () => {
+    expect(getHistoryStatusBadgeTone('paid')).toBe('success');
+    expect(getHistoryStatusBadgeTone('SIGNED')).toBe('success');
+    expect(getHistoryStatusBadgeTone('Approved')).toBe('success');
+    expect(getHistoryStatusBadgeTone('done')).toBe('success');
+    expect(getHistoryStatusBadgeTone('completed')).toBe('success');
+  });
+
+  it('returns warning for pending-like statuses', () => {
+    expect(getHistoryStatusBadgeTone('pending')).toBe('warning');
+    expect(getHistoryStatusBadgeTone('awaiting_payment')).toBe('warning');
+    expect(getHistoryStatusBadgeTone('in_progress')).toBe('warning');
+    expect(getHistoryStatusBadgeTone('requested')).toBe('warning');
+  });
+
+  it('returns danger for cancelled/failed-like statuses', () => {
+    expect(getHistoryStatusBadgeTone('cancelled')).toBe('danger');
+    expect(getHistoryStatusBadgeTone('canceled')).toBe('danger');
+    expect(getHistoryStatusBadgeTone('rejected')).toBe('danger');
+    expect(getHistoryStatusBadgeTone('failed')).toBe('danger');
+    expect(getHistoryStatusBadgeTone('overdue')).toBe('danger');
+    expect(getHistoryStatusBadgeTone('void')).toBe('danger');
+  });
+
+  it('returns neutral for unrecognized statuses', () => {
+    expect(getHistoryStatusBadgeTone('unknown-status')).toBe('neutral');
   });
 });
 

@@ -31,7 +31,7 @@ slug: /
 
 # 📝 Overview
 
-Yosemite Crew is an open-source operating system designed for animal health industry. At its core is a free, fully customizable Practice Management System (PMS) that unifies pet care operations, bringing together pet owners, pet businesses, and developers into one innovative ecosystem.
+Yosemite Crew is an open-source operating system designed for animal health industry. At its core is a free, fully customizable Practice Information Management System (PIMS) that unifies pet care operations, bringing together pet owners, pet businesses, and developers into one innovative ecosystem.
 
 For Pet Owners
 
