@@ -138,6 +138,10 @@ export interface IpcServices {
 
   // Manual window drag from the tab bar (see windowDragBy in preload).
   moveWindowBy: (dx: number, dy: number) => void;
+  // Caption-button controls for the frameless window (Windows/Linux).
+  minimizeWindow: () => void;
+  toggleMaximizeWindow: () => void;
+  closeWindow: () => void;
 }
 
 export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): void => {
@@ -958,4 +962,10 @@ export const registerIpc = (services: IpcServices, ipc: IpcMainType = ipcMain): 
     if (dx === 0 && dy === 0) return;
     services.moveWindowBy(dx, dy);
   });
+
+  // Fire-and-forget caption-button controls for the frameless window. No args,
+  // no return value; the main process acts on the current main window.
+  ipc.on('yc:window-minimize', () => services.minimizeWindow());
+  ipc.on('yc:window-toggle-maximize', () => services.toggleMaximizeWindow());
+  ipc.on('yc:window-close', () => services.closeWindow());
 };

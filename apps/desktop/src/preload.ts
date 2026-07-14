@@ -65,6 +65,11 @@ export interface YcDesktop {
   // `-webkit-app-region: drag` without making the whole view (controls included)
   // draggable, so the empty area drives window movement by sending pointer deltas.
   windowDragBy: (dx: number, dy: number) => void;
+  // Caption-button controls for the frameless window (Windows/Linux). macOS uses
+  // native traffic lights instead. Fire-and-forget, like windowDragBy.
+  windowMinimize: () => void;
+  windowToggleMaximize: () => void;
+  windowClose: () => void;
 }
 
 const api: YcDesktop = {
@@ -148,6 +153,9 @@ const api: YcDesktop = {
     ipcRenderer.invoke('yc:set-last-seen-version', v),
   dismissWhatsNew: (): Promise<unknown> => ipcRenderer.invoke('yc:dismiss-whats-new'),
   windowDragBy: (dx: number, dy: number): void => ipcRenderer.send('yc:window-drag-by', dx, dy),
+  windowMinimize: (): void => ipcRenderer.send('yc:window-minimize'),
+  windowToggleMaximize: (): void => ipcRenderer.send('yc:window-toggle-maximize'),
+  windowClose: (): void => ipcRenderer.send('yc:window-close'),
 };
 
 contextBridge.exposeInMainWorld('ycDesktop', api);

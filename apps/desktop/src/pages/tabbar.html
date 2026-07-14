@@ -271,6 +271,25 @@
         </button>
         <div id="sync-badge" class="not-ready" title="Sync status"></div>
       </div>
+      <div id="win-caption" class="win-caption" aria-hidden="true">
+        <button id="win-min" class="win-btn" type="button" aria-label="Minimize" title="Minimize">
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6h8" /></svg>
+        </button>
+        <button id="win-max" class="win-btn" type="button" aria-label="Maximize" title="Maximize">
+          <svg viewBox="0 0 12 12" aria-hidden="true">
+            <rect x="2.5" y="2.5" width="7" height="7" />
+          </svg>
+        </button>
+        <button
+          id="win-close"
+          class="win-btn win-close"
+          type="button"
+          aria-label="Close"
+          title="Close"
+        >
+          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" /></svg>
+        </button>
+      </div>
     </div>
 
     <div id="context-menu" class="context-menu" style="display: none"></div>
@@ -875,6 +894,19 @@
           }
         }
       });
+
+      // Windows / Linux frameless window: surface caption controls (macOS uses
+      // native traffic lights). Fire-and-forget to the main process.
+      if (!navigator.userAgent.includes('Macintosh')) {
+        const cap = document.getElementById('win-caption');
+        if (cap) cap.style.display = 'flex';
+        const minBtn = document.getElementById('win-min');
+        const maxBtn = document.getElementById('win-max');
+        const closeBtn = document.getElementById('win-close');
+        if (minBtn) minBtn.addEventListener('click', () => send('windowMinimize'));
+        if (maxBtn) maxBtn.addEventListener('click', () => send('windowToggleMaximize'));
+        if (closeBtn) closeBtn.addEventListener('click', () => send('windowClose'));
+      }
 
       poll();
       setInterval(poll, 1000);

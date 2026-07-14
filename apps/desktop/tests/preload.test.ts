@@ -280,6 +280,21 @@ describe('preload bridge', () => {
     });
   });
 
+  describe('window caption controls', () => {
+    test.each([
+      ['windowMinimize', 'yc:window-minimize'],
+      ['windowToggleMaximize', 'yc:window-toggle-maximize'],
+      ['windowClose', 'yc:window-close'],
+    ] as const)('%s sends %s with no args (fire-and-forget)', (method, channel) => {
+      mockSent.length = 0;
+      const result = (mockExposed.ycDesktop[method] as () => unknown)();
+      expect(result).toBeUndefined();
+      expect(mockSent).toHaveLength(1);
+      expect(mockSent[0].channel).toBe(channel);
+      expect(mockSent[0].args).toEqual([]);
+    });
+  });
+
   describe('api surface integrity', () => {
     test('every method on YcDesktop is a function', () => {
       const api = mockExposed.ycDesktop;

@@ -202,6 +202,9 @@ const makeServices = (overrides: Partial<IpcServices> = {}): IpcServices => {
     updateUnreadBadge: jest.fn(),
     startTelehealth: jest.fn(() => 'https://yosemitecrew.com/telehealth'),
     moveWindowBy: jest.fn(),
+    minimizeWindow: jest.fn(),
+    toggleMaximizeWindow: jest.fn(),
+    closeWindow: jest.fn(),
     ...overrides,
   };
 };
@@ -438,6 +441,20 @@ describe('ipc-handlers — happy paths', () => {
     call.emit('yc:window-drag-by', Infinity, 1);
     call.emit('yc:window-drag-by', 0, 0);
     expect(moveWindowBy).toHaveBeenCalledTimes(1);
+  });
+
+  test('window caption channels forward to the matching service', () => {
+    const minimizeWindow = jest.fn();
+    const toggleMaximizeWindow = jest.fn();
+    const closeWindow = jest.fn();
+    const services = makeServices({ minimizeWindow, toggleMaximizeWindow, closeWindow });
+    const call = register(services);
+    call.emit('yc:window-minimize');
+    call.emit('yc:window-toggle-maximize');
+    call.emit('yc:window-close');
+    expect(minimizeWindow).toHaveBeenCalledTimes(1);
+    expect(toggleMaximizeWindow).toHaveBeenCalledTimes(1);
+    expect(closeWindow).toHaveBeenCalledTimes(1);
   });
 });
 

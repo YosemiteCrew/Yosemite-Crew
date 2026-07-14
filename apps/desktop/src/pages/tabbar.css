@@ -268,6 +268,48 @@
   color: var(--ink);
 }
 
+/* ── Windows / Linux caption controls (hidden on macOS; shown by tabbar.js) ── */
+.win-caption {
+  display: none;
+  align-self: stretch;
+  align-items: stretch;
+  margin-left: 2px;
+  margin-right: -8px;
+  -webkit-app-region: no-drag;
+}
+
+.win-btn {
+  width: 44px;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.win-btn svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.1;
+}
+
+.win-btn:hover {
+  background: var(--inset);
+  color: var(--ink);
+}
+
+.win-close:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
 /* ── Hover preview (thumbnail tooltip) ── */
 .tab-preview {
   position: fixed;

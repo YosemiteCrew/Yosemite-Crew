@@ -55,6 +55,7 @@ import {
 import { createRecentsStore, BUILTIN_ACTIONS, type RecentsStore } from './ui/command-palette';
 import { PAGE_ACTION_TRIGGERS, buildPageActionScript } from './ui/page-actions';
 import { createPinWindowManager, pinWindowBounds } from './ui/pin-window';
+import { createIdleLockOverlay } from './ui/idle-lock-overlay';
 import { createOfflineCache, type OfflineCache } from './sync/offline-cache';
 import { createNotificationManager, type NotificationManager } from './ui/notifications';
 import { createSyncDaemon, type SyncDaemon } from './sync/sync-daemon';
@@ -264,6 +265,7 @@ type DesktopPage =
   | 'command-palette'
   | 'tabbar'
   | 'whats-new'
+  | 'idle-lock'
   | 'vault';
 // Local pages are loaded via file:// (loadFile), which renders reliably in
 // packaged builds; a custom protocol proved flaky behind the security fuses.
@@ -1237,6 +1239,35 @@ const setupIdleLock = (ses: Session): void => {
       : (idleLockMinutesFromEnv(process.env) ?? 0);
   };
   let locked = false;
+
+  // In-app lock screen shown over the workspace while biometric unlock is
+  // pending, so patient data isn't visible behind the OS prompt. A full-window
+  // WebContentsView added last (top-most) covers the tab chrome and content.
+  let lockOverlayView: WebContentsView | null = null;
+  const lockOverlay = createIdleLockOverlay({
+    mount: () => {
+      const win = mainWindow;
+      if (!win || win.isDestroyed()) return;
+      const view = new WebContentsView({
+        webPreferences: secureWebPreferences(path.join(__dirname, 'preload.js')),
+      });
+      lockOverlayView = view;
+      win.contentView.addChildView(view);
+      const b = win.getContentBounds();
+      view.setBounds({ x: 0, y: 0, width: b.width, height: b.height });
+      applyThemeModeToWc(view.webContents, (settingsStore?.load() || DEFAULT_SETTINGS).theme);
+      void view.webContents.loadFile(localPage('idle-lock'));
+    },
+    unmount: () => {
+      const view = lockOverlayView;
+      lockOverlayView = null;
+      if (!view) return;
+      const win = mainWindow;
+      if (win && !win.isDestroyed()) win.contentView.removeChildView(view);
+      if (!view.webContents.isDestroyed()) view.webContents.close();
+    },
+  });
+
   setInterval(() => {
     const idleMinutes = resolveIdleMinutes();
     if (!idleMinutes) return;
@@ -1249,13 +1280,16 @@ const setupIdleLock = (ses: Session): void => {
       const settings = settingsStore?.load();
       if (bio && bio.isAvailable() && settings?.biometricLockEnabled) {
         bio.lock();
+        lockOverlay.show();
         logger.info('biometric_lock_engaged');
         void bio.authenticate('Unlock Yosemite Crew PIMS').then((ok) => {
           if (ok) {
             locked = false;
+            lockOverlay.hide();
             logger.info('biometric_unlock_success');
           } else {
             logger.warn('biometric_unlock_failed');
+            lockOverlay.hide();
             void ses.clearStorageData({ storages: ['cookies'] }).finally(() => {
               persistAuthHint(false);
               loadStartUrl();
@@ -1372,6 +1406,27 @@ const moveMainWindowBy = (dx: number, dy: number): void => {
   if (!win || win.isDestroyed() || win.isMaximized() || win.isFullScreen()) return;
   const [x = 0, y = 0] = win.getPosition();
   win.setPosition(Math.round(x + dx), Math.round(y + dy));
+};
+
+// Caption-button controls for the frameless window (Windows/Linux). macOS keeps
+// its native traffic lights, so these are only surfaced by the tab bar there.
+const minimizeMainWindow = (): void => {
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return;
+  win.minimize();
+};
+
+const toggleMaximizeMainWindow = (): void => {
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return;
+  if (win.isMaximized()) win.unmaximize();
+  else win.maximize();
+};
+
+const closeMainWindow = (): void => {
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return;
+  win.close();
 };
 
 // Auto-rollback: read the tracker left by the previous session. A non-zero
@@ -1693,6 +1748,9 @@ if (gotSingleInstanceLock) {
         updateUnreadBadge,
         startTelehealth,
         moveWindowBy: moveMainWindowBy,
+        minimizeWindow: minimizeMainWindow,
+        toggleMaximizeWindow: toggleMaximizeMainWindow,
+        closeWindow: closeMainWindow,
       });
       applyRollbackDecision();
       let pendingTabModeUrl: string | undefined;
