@@ -38,6 +38,26 @@ const ensureRequiredId = (value: string, fieldName: string): string => {
   return normalized;
 };
 
+function buildValidatedUrl(baseUrl: string): string {
+  try {
+    // Minimal path validation
+    if (baseUrl.includes('/../') || /\/%2e%2e\//i.test(baseUrl)) {
+      throw new Error('Invalid path');
+    }
+    
+    const url = new URL(baseUrl);
+    
+    // Protocol check
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+    
+    return url.href;
+  } catch {
+    throw new Error('Invalid URL');
+  }
+}
+
 type PacketRecord = {
   id: string;
   organisationId: string;
@@ -632,7 +652,7 @@ export const WorkspaceDocumentPacketService = {
       if (!downloadUrl) {
         return null;
       }
-      const response = await axios.get<ArrayBuffer>(downloadUrl, {
+      const response = await axios.get<ArrayBuffer>(buildValidatedUrl(downloadUrl), {
         responseType: "arraybuffer",
       });
       return Buffer.from(response.data);

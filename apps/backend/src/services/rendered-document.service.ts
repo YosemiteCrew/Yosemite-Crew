@@ -138,6 +138,26 @@ const normalizeRequiredString = (value: string, fieldName: string): string => {
   return normalized;
 };
 
+function buildValidatedUrl(baseUrl: string): string {
+  try {
+    // Minimal path validation (Do this before new URL(baseUrl), as URL() resolves dot-segments.)
+    if (baseUrl.includes('/../') || /\/%2e%2e\//i.test(baseUrl)) {
+      throw new Error('Invalid path');
+    }
+
+    const url = new URL(baseUrl);
+
+    // Protocol + host checks
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+
+    return url.href;
+  } catch {
+    throw new Error('Invalid URL');
+  }
+}
+
 const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
   try {
     const parsedUrl = new URL(url);
@@ -169,7 +189,8 @@ const downloadPdfBuffer = async (url: string): Promise<Buffer> => {
     // Fall back to direct fetch below. This covers public URLs and non-S3 sources.
   }
 
-  const response = await axios.get<ArrayBuffer>(url, {
+  const validatedUrl = buildValidatedUrl(url);
+  const response = await axios.get<ArrayBuffer>(validatedUrl, {
     responseType: "arraybuffer",
   });
 

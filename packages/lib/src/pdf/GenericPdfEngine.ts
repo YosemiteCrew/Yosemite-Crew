@@ -81,13 +81,33 @@ const collectPdfBuffer = (
   };
 };
 
+function buildValidatedUrl(baseUrl: string): string {
+  try {
+    const url = new URL(baseUrl);
+    
+    const allowedDomains = ['example.com']; // add your allowed domains here
+    if (!allowedDomains.includes(url.hostname)) {
+      throw new Error('Invalid host');
+    }
+    
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Invalid protocol');
+    }
+    
+    return url.href;
+  } catch {
+    throw new Error('Invalid URL');
+  }
+}
+
 const resolveLogoSource = async (logoUrl?: string | null): Promise<string | Buffer | null> => {
   if (!logoUrl) {
     return null;
   }
 
   if (/^https?:\/\//i.test(logoUrl)) {
-    const response = await axios.get<ArrayBuffer>(logoUrl, {
+    const validatedUrl = buildValidatedUrl(logoUrl);
+    const response = await axios.get<ArrayBuffer>(validatedUrl, {
       responseType: 'arraybuffer',
     });
     return Buffer.from(response.data);
