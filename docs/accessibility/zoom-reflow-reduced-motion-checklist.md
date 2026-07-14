@@ -1,14 +1,16 @@
 # Zoom, Reflow, and Reduced-Motion Regression Checklist
 
+This is a manual browser checklist for the accessibility checks that automated tooling cannot cover: text zoom, small-viewport reflow, and reduced-motion behaviour. It supports the wider BFSG (Germany's accessibility act) accessibility program tracked in the [execution checklist](./frontend-bfsg-execution-checklist.md); run it against a real browser and record results in the Results Log at the bottom.
+
 Last updated: 2026-05-07
 
-Reference standard: WCAG 2.1 Success Criteria 1.4.4 (Resize text), 1.4.10 (Reflow), and 2.3.3 (Animation from Interactions — WCAG 2.1 AAA, targeted for engineering).
+Reference standard: WCAG (Web Content Accessibility Guidelines) 2.1 Success Criteria 1.4.4 (Resize text), 1.4.10 (Reflow), and 2.3.3 (Animation from Interactions - WCAG 2.1 AAA, targeted for engineering).
 
 ---
 
 ## How to use this checklist
 
-Run these checks manually in a real browser against the staging or local dev server. Automated tooling (jest-axe, axe-core) cannot validate zoom/reflow or motion behaviour — these require human verification.
+Run these checks manually in a real browser against the staging or local dev server. Automated tooling (jest-axe, axe-core) cannot validate zoom/reflow or motion behaviour - these require human verification.
 
 For each check, mark **Pass**, **Fail**, or **N/A**. Record findings in a dated row at the bottom of the Results Log.
 
@@ -40,7 +42,7 @@ Set browser zoom to 200% (`Ctrl/Cmd +` or browser settings). Verify for each rou
 
 Set viewport to 320 px wide (or browser zoom to 400% on a 1280 px screen). Verify for each route that content reflows to a single column without horizontal scrolling:
 
-- [ ] No horizontal scrollbar appears on the page (except data tables that have an explicit overflow-x: auto container — acceptable if the table itself scrolls, not the page).
+- [ ] No horizontal scrollbar appears on the page (except data tables that have an explicit overflow-x: auto container - acceptable if the table itself scrolls, not the page).
 - [ ] Calendar week view: acceptable to scroll horizontally within its container; the page chrome must not scroll.
 - [ ] Invoice table: acceptable horizontal scroll within `overflow-x: auto` wrapper.
 - [ ] All form fields stack vertically.
@@ -63,13 +65,13 @@ Open browser developer tools → Rendering → Enable "Emulate CSS media feature
 
 **Global baseline (globals.css)**
 
-- [ ] `prefers-reduced-motion: reduce` block in `globals.css` is active — all `transition-*`, `animation-*`, and `@keyframes` rules are suppressed or reduced for motion-sensitive users.
+- [ ] `prefers-reduced-motion: reduce` block in `globals.css` is active - all `transition-*`, `animation-*`, and `@keyframes` rules are suppressed or reduced for motion-sensitive users.
 
 **Calendar auto-scroll (`Calendar/helpers.ts`)**
 
 - [ ] Appointments auto-scroll to current time slot uses `smooth` behaviour for standard users.
 - [ ] With reduced-motion enabled, auto-scroll falls back to `instant` (no smooth animation).
-- [ ] Manually verify: load the Appointments calendar page with reduced-motion enabled — the timeline should jump directly to the current hour with no scroll animation.
+- [ ] Manually verify: load the Appointments calendar page with reduced-motion enabled - the timeline should jump directly to the current hour with no scroll animation.
 
 **Modals and overlays**
 
@@ -93,7 +95,7 @@ At 200% zoom, verify that focus rings remain visible and are not clipped:
 
 ---
 
-## 5. Touch target size (informative — WCAG 2.5.5 AAA)
+## 5. Touch target size (informative - WCAG 2.5.5 AAA)
 
 At native resolution (not zoom), verify interactive elements have a minimum 44×44 CSS px touch target. Not a hard blocker but document failures:
 
@@ -109,7 +111,7 @@ At native resolution (not zoom), verify interactive elements have a minimum 44×
 
 | Date        | Tester | Browser / OS | Notes                                |
 | ----------- | ------ | ------------ | ------------------------------------ |
-| _(pending)_ |        |              | First manual pass — all checks above |
+| _(pending)_ |        |              | First manual pass - all checks above |
 
 ---
 
@@ -117,4 +119,4 @@ At native resolution (not zoom), verify interactive elements have a minimum 44×
 
 - **Stripe payment iframe**: Zoom and reflow behaviour within the Stripe embedded iframe is outside our control. WCAG exception documented in the accessibility statement.
 - **IDEXX workspace iframe**: Same third-party exception.
-- **Calendar week view horizontal scroll**: Accepted — the scrolling element is the timeline container, not the page. Page-level horizontal scroll is absent.
+- **Calendar week view horizontal scroll**: Accepted - the scrolling element is the timeline container, not the page. Page-level horizontal scroll is absent.

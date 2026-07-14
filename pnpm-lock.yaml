@@ -487,15 +487,9 @@ importers:
       amazon-cognito-identity-js:
         specifier: ^6.3.15
         version: 6.3.16
-      aos:
-        specifier: ^2.3.4
-        version: 2.3.4
       axios:
         specifier: 1.16.0
         version: 1.16.0(debug@4.4.3)
-      bootstrap:
-        specifier: ^5.3.3
-        version: 5.3.8(@popperjs/core@2.11.8)
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
@@ -511,9 +505,6 @@ importers:
       lodash:
         specifier: 4.18.0
         version: 4.18.0
-      lodash.isequal:
-        specifier: ^4.5.0
-        version: 4.5.0
       next:
         specifier: 15.5.18
         version: 15.5.18(@babel/core@7.29.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.61.1)(react-dom@19.2.4)(react@19.2.4)
@@ -15425,10 +15416,6 @@ packages:
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
     dev: false
 
-  /@popperjs/core@2.11.8:
-    resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
-    dev: false
-
   /@posthog/core@1.28.4:
     resolution: {integrity: sha512-wmtUYHYqA3zIAKDKvYWRNWAQsWOIBwxV08e+bWzVy0wQQzpaS/LzzRupXWRMRrLOk+1x3JKFxbqA3n0QGvpqsQ==}
     dependencies:
@@ -20795,14 +20782,6 @@ packages:
       normalize-path: 3.0.0
       picomatch: 2.3.2
 
-  /aos@2.3.4:
-    resolution: {integrity: sha512-zh/ahtR2yME4I51z8IttIt4lC1Nw0ktsFtmeDzID1m9naJnWXhCoARaCgNOGXb5CLy3zm+wqmRAEgMYB5E2HUw==}
-    dependencies:
-      classlist-polyfill: 1.2.0
-      lodash.debounce: 4.0.8
-      lodash.throttle: 4.1.1
-    dev: false
-
   /app-builder-lib@26.15.3(dmg-builder@26.15.3)(electron-builder-squirrel-windows@26.15.3):
     resolution: {integrity: sha512-2VnyWkqsP5v5XbBhL3tD5Syx8iNPBYsoU7kY4S2fz7wg8Rj/nztWKCUzGKaFRTv0Xwf3/H058CR1Kvtd/3lRow==}
     engines: {node: '>=14.0.0'}
@@ -21836,14 +21815,6 @@ packages:
     dev: true
     optional: true
 
-  /bootstrap@5.3.8(@popperjs/core@2.11.8):
-    resolution: {integrity: sha512-HP1SZDqaLDPwsNiqRqi5NcP0SSXciX2s9E+RyqJIIqGo+vJeN5AJVM98CXmW/Wux0nQ5L7jeWUdplCEf0Ee+tg==}
-    peerDependencies:
-      '@popperjs/core': ^2.11.8
-    dependencies:
-      '@popperjs/core': 2.11.8
-    dev: false
-
   /boundary@2.0.0:
     resolution: {integrity: sha512-rJKn5ooC9u8q13IMCrW0RSp31pxBCHE3y9V/tp3TdWSLf8Em3p6Di4NBpfzbJge9YjjFEsD0RtFEjtvHL5VyEA==}
     dev: true
@@ -22563,10 +22534,6 @@ packages:
       '@types/validator': 13.15.10
       libphonenumber-js: 1.12.36
       validator: 13.15.22
-    dev: false
-
-  /classlist-polyfill@1.2.0:
-    resolution: {integrity: sha512-GzIjNdcEtH4ieA2S8NmrSxv7DfEV5fmixQeyTmqmRmRJPGpRBaSnA2a0VrCjyT8iW8JjEdMbKzDotAJf+ajgaQ==}
     dev: false
 
   /classnames@2.5.1:

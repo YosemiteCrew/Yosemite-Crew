@@ -1,4 +1,4 @@
-# Map Discovery Feature — Yosemite Crew Mobile
+# Map Discovery Feature - Yosemite Crew Mobile
 
 > Find nearby vet clinics on a live map, filter by category or availability, and book directly from a draggable bottom sheet.
 
@@ -24,27 +24,27 @@
 
 | Factor                  | Decision                                                                                                                                                                            |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Custom map styles**   | Google Maps JSON styling API (`customMapStyle`) — the only cross-platform option that supports full visual theming (road colors, POI suppression, water tint) without a tile-server |
+| **Custom map styles**   | Google Maps JSON styling API (`customMapStyle`) - the only cross-platform option that supports full visual theming (road colors, POI suppression, water tint) without a tile-server |
 | **Marker flexibility**  | `react-native-maps` renders arbitrary React Native views as markers, enabling the branded bubble pins (`ClinicMapPin`) with category color, clinic name, and live rating            |
 | **Camera control**      | `MapView.animateToRegion()` provides the smooth 350 ms camera animation on pin tap                                                                                                  |
-| **Ecosystem maturity**  | `react-native-maps` is the de-facto standard for RN mapping — well-maintained, large community, compatible with Expo and bare RN                                                    |
+| **Ecosystem maturity**  | `react-native-maps` is the de-facto standard for RN mapping - well-maintained, large community, compatible with Expo and bare RN                                                    |
 | **No tile-server cost** | `PROVIDER_GOOGLE` uses the Google Maps SDK directly; no self-hosted or third-party tile costs during prototype/MVP                                                                  |
 
 **Alternatives considered:**
 
-- **Mapbox RN SDK** — richer styling engine but requires a separate Mapbox token, heavier native binary, and adds ~4 MB to the app bundle. Overkill for the current feature scope.
-- **Apple Maps (default provider)** — no JSON style API; can't suppress POIs or set custom road colors. Ruled out for design requirements.
+- **Mapbox RN SDK** - richer styling engine but requires a separate Mapbox token, heavier native binary, and adds ~4 MB to the app bundle. Overkill for the current feature scope.
+- **Apple Maps (default provider)** - no JSON style API; can't suppress POIs or set custom road colors. Ruled out for design requirements.
 
 ---
 
 ## Map Style Approach
 
-The custom style is defined in [`utils/mapStyle.ts`](utils/mapStyle.ts) as `YC_MAP_STYLE` — a Google Maps JSON style array passed to `MapView`'s `customMapStyle` prop.
+The custom style is defined in [`utils/mapStyle.ts`](utils/mapStyle.ts) as `YC_MAP_STYLE` - a Google Maps JSON style array passed to `MapView`'s `customMapStyle` prop.
 
 ### Design goals
 
-- **Suppress noise** — all POI labels hidden (`visibility: 'off'`), keeping only park labels at `simplified` visibility. This ensures vet-clinic pins are the only points of interest on screen.
-- **Brand palette** — surface colors pulled from the Yosemite Crew design token set:
+- **Suppress noise** - all POI labels hidden (`visibility: 'off'`), keeping only park labels at `simplified` visibility. This ensures vet-clinic pins are the only points of interest on screen.
+- **Brand palette** - surface colors pulled from the Yosemite Crew design token set:
 
   | Element        | Color                 | Token reference         |
   | -------------- | --------------------- | ----------------------- |
@@ -56,8 +56,8 @@ The custom style is defined in [`utils/mapStyle.ts`](utils/mapStyle.ts) as `YC_M
   | Road labels    | `#747473`             | `colors.textSecondary`  |
   | City labels    | `#302F2E`             | `colors.text`           |
 
-- **Readable roads** — local roads white, arterials a light blue-tint, highways outlined in primary blue so navigation context is preserved without dominating the view.
-- **High-contrast text stroke** — all labels get a `#FFFFFF` stroke at weight 2, preventing any label from being lost against the light background.
+- **Readable roads** - local roads white, arterials a light blue-tint, highways outlined in primary blue so navigation context is preserved without dominating the view.
+- **High-contrast text stroke** - all labels get a `#FFFFFF` stroke at weight 2, preventing any label from being lost against the light background.
 
 ---
 
@@ -140,7 +140,7 @@ features/appointments/
 │   ├── useClinicMapDiscovery.ts      ← state management: selection, region, filters
 │   └── useMapRegionFilter.ts         ← pure memoized filter function
 ├── mocks/
-│   └── clinicMocks.ts                ← 13 realistic Bay Area clinics
+│   └── clinicMocks.ts                ← 15 realistic Bay Area clinics
 ├── screens/
 │   ├── BrowseBusinessesScreen.tsx    ← orchestrator screen
 │   └── BusinessDetailsScreen.tsx     ← detail view with distance, directions CTA
@@ -172,7 +172,7 @@ pnpm install
 
 ### 2. Google Maps API key
 
-**iOS** — add to `apps/mobileAppYC/ios/mobileAppYC/AppDelegate.mm`:
+**iOS** - add to `apps/mobileAppYC/ios/mobileAppYC/AppDelegate.mm`:
 
 ```objc
 #import <GoogleMaps/GoogleMaps.h>
@@ -183,7 +183,7 @@ pnpm install
 }
 ```
 
-**Android** — add to `apps/mobileAppYC/android/app/src/main/AndroidManifest.xml`:
+**Android** - add to `apps/mobileAppYC/android/app/src/main/AndroidManifest.xml`:
 
 ```xml
 <meta-data
@@ -201,14 +201,14 @@ cd apps/mobileAppYC/ios && pod install && cd -
 
 ### 4. Location permissions
 
-**iOS** — `Info.plist` must contain:
+**iOS** - `Info.plist` must contain:
 
 ```xml
 <key>NSLocationWhenInUseUsageDescription</key>
 <string>Allow Yosemite Crew to show clinics near you.</string>
 ```
 
-**Android** — `AndroidManifest.xml` must contain:
+**Android** - `AndroidManifest.xml` must contain:
 
 ```xml
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -226,7 +226,7 @@ pnpm --filter mobileAppYC run android
 
 ### 6. Navigate to the feature
 
-From the Appointments tab → **Find a Clinic** — this opens `BrowseBusinessesScreen`.
+From the Appointments tab → **Find a Clinic** - this opens `BrowseBusinessesScreen`.
 
 ---
 

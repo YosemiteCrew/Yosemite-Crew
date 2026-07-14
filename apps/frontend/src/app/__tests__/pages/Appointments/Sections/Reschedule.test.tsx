@@ -107,7 +107,7 @@ describe('Reschedule section', () => {
     updateAppointmentMock.mockResolvedValue({});
   });
 
-  it('blocks modal immediately for non-reschedulable status', async () => {
+  it('blocks the update and warns for non-reschedulable status', async () => {
     allowRescheduleMock.mockReturnValue(false);
     render(
       <Reschedule
@@ -120,6 +120,8 @@ describe('Reschedule section', () => {
         }}
       />
     );
+
+    fireEvent.click(screen.getByText('Send request'));
 
     await waitFor(() =>
       expect(notifyMock).toHaveBeenCalledWith(

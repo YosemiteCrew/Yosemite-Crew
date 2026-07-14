@@ -1,9 +1,11 @@
 # E2E Testing Setup (Web + Mobile)
 
-This monorepo now includes:
+This document explains how end-to-end (E2E) tests are set up and run across the two user-facing apps. E2E tests drive the real app in a browser or on a simulator to verify whole user flows, unlike unit tests that check individual functions. It is for engineers adding or running E2E specs.
 
-- `apps/frontend`: Playwright E2E setup for Next.js web app.
-- `apps/mobileAppYC`: Detox E2E setup for React Native CLI app.
+This monorepo includes:
+
+- `apps/frontend`: Playwright E2E setup for the Next.js web app.
+- `apps/mobileAppYC`: Detox E2E setup for the React Native CLI app.
 
 ## Why this stack
 
