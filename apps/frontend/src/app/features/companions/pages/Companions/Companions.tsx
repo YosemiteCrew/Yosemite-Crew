@@ -7,12 +7,12 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 
 const COMPANIONS_PAGE_SKELETON = <PageSkeleton variant="list" />;
 import Filters from '@/app/ui/filters/Filters';
-import CompanionsTable from '@/app/ui/tables/CompanionsTable';
+import CompanionsTable, { type CompanionsViewMode } from '@/app/ui/tables/CompanionsTable';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import { useCompanionsParentsForPrimaryOrg } from '@/app/hooks/useCompanion';
+import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import {
   CompanionParent,
-  CompanionsSpeciesFilters,
   CompanionsStatusFilters,
 } from '@/app/features/companions/pages/Companions/types';
 import { useSearchStore } from '@/app/stores/searchStore';
@@ -21,12 +21,26 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoAdd, IoInformationCircleOutline } from 'react-icons/io5';
+import {
+  IoAdd,
+  IoGridOutline,
+  IoInformationCircleOutline,
+  IoReorderThreeOutline,
+  IoSwapVerticalOutline,
+} from 'react-icons/io5';
+import clsx from 'clsx';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import InClinicTodayBand from '@/app/features/companions/pages/Companions/InClinicTodayBand';
+import SpeciesTabs from '@/app/features/companions/pages/Companions/SpeciesTabs';
+import {
+  getActiveCount,
+  getSpeciesCounts,
+  sortByLastVisit,
+} from '@/app/features/companions/pages/Companions/companionsDirectory';
 
 const AddCompanion = dynamic(() => import('@/app/features/companions/components/AddCompanion'));
 const AddCompanionCentralModal = dynamic(
@@ -49,6 +63,7 @@ const ChangeCompanionStatus = dynamic(
 const Companions = () => {
   const terminologyText = useCompanionTerminologyText();
   const companions = useCompanionsParentsForPrimaryOrg();
+  const appointments = useAppointmentsForPrimaryOrg();
   const permissions = usePermissions();
   const canEditCompanions = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
   const canEditAppointments = permissions.can(PERMISSIONS.APPOINTMENTS_EDIT_ANY);
@@ -68,7 +83,13 @@ const Companions = () => {
   const [bookAppointment, setBookAppointment] = useState(false);
   const [addTask, setAddTask] = useState(false);
   const [changeStatusPopup, setChangeStatusPopup] = useState(false);
+  const [viewMode, setViewMode] = useState<CompanionsViewMode>('list');
+  const [sortByRecentVisit, setSortByRecentVisit] = useState(false);
   const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
+
+  const patientsCount = companions.length;
+  const activeCount = useMemo(() => getActiveCount(companions), [companions]);
+  const speciesCounts = useMemo(() => getSpeciesCounts(companions), [companions]);
 
   useEffect(() => {
     setActiveCompanion((prev) => {
@@ -100,7 +121,7 @@ const Companions = () => {
     const filterWanted = activeFilter.toLowerCase();
     const statusWanted = activeStatus.toLowerCase();
 
-    return companions.filter((item) => {
+    const matched = companions.filter((item) => {
       const status = item.companion.status?.toLowerCase() ?? 'inactive';
       const filter = item.companion.type?.toLowerCase() ?? '';
 
@@ -115,7 +136,9 @@ const Companions = () => {
 
       return matchesStatus && matchesFilter && matchesQuery;
     });
-  }, [companions, activeStatus, activeFilter, query]);
+
+    return sortByRecentVisit ? sortByLastVisit(matched, appointments) : matched;
+  }, [companions, activeStatus, activeFilter, query, sortByRecentVisit, appointments]);
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView: 'list',
     listWrapperClassName:
@@ -127,10 +150,12 @@ const Companions = () => {
     <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
       <div className="flex justify-between items-end w-full flex-wrap gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-page-title flex items-center gap-2">
-            <span>
+          <h1 className="text-text-primary text-page-title flex items-baseline gap-2 flex-wrap">
+            <span className="flex items-baseline gap-3">
               {terminologyText('Companions')}
-              <span className="text-body-2 text-text-tertiary">{` (${companions.length})`}</span>
+              <span className="font-newsreader text-[16px] italic text-[var(--ink-faint)]">
+                {`${patientsCount} patients, ${activeCount} active`}
+              </span>
             </span>
             <GlassTooltip
               content={terminologyText(
@@ -151,30 +176,84 @@ const Companions = () => {
             {terminologyText('Every patient linked to the clinic, with their parents')}
           </p>
         </div>
-        {canEditCompanions && (
-          <button
-            type="button"
-            onClick={() => setAddPopup((e) => !e)}
-            className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-[var(--cta)] px-[18px] text-[13.5px] font-semibold text-[var(--cta-text)] transition-opacity hover:opacity-90"
-          >
-            <IoAdd size={17} aria-hidden="true" />
-            {terminologyText('Add companion')}
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="hidden items-center rounded-full border border-[var(--hairline)] bg-[var(--field-bg)] p-[3px] md:flex">
+            <button
+              type="button"
+              aria-label={terminologyText('List view')}
+              aria-pressed={viewMode === 'list'}
+              onClick={() => setViewMode('list')}
+              className={clsx(
+                'flex h-7 w-8 items-center justify-center rounded-full transition-colors',
+                viewMode === 'list'
+                  ? 'bg-[var(--screen)] text-[var(--ink)] shadow-[0_1px_2px_var(--sh10)]'
+                  : 'text-[var(--ink-faint)]'
+              )}
+            >
+              <IoReorderThreeOutline size={16} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={terminologyText('Grid view')}
+              aria-pressed={viewMode === 'grid'}
+              onClick={() => setViewMode('grid')}
+              className={clsx(
+                'flex h-7 w-8 items-center justify-center rounded-full transition-colors',
+                viewMode === 'grid'
+                  ? 'bg-[var(--screen)] text-[var(--ink)] shadow-[0_1px_2px_var(--sh10)]'
+                  : 'text-[var(--ink-faint)]'
+              )}
+            >
+              <IoGridOutline size={13} aria-hidden="true" />
+            </button>
+          </span>
+          {canEditCompanions && (
+            <button
+              type="button"
+              onClick={() => setAddPopup((e) => !e)}
+              className="hidden h-10 shrink-0 items-center gap-1.5 rounded-full bg-[var(--cta)] px-[18px] text-[13.5px] font-semibold text-[var(--cta-text)] transition-opacity hover:opacity-90 md:flex"
+            >
+              <IoAdd size={17} aria-hidden="true" />
+              {terminologyText('Add companion')}
+            </button>
+          )}
+        </div>
       </div>
       <MobileSearchBar placeholder={terminologyText('Search companions')} />
       <PermissionGate allOf={[PERMISSIONS.COMPANIONS_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>
-          <Filters
-            filterOptions={CompanionsSpeciesFilters}
-            statusOptions={CompanionsStatusFilters}
-            activeFilter={activeFilter}
-            activeStatus={activeStatus}
-            setActiveFilter={setActiveFilter}
-            setActiveStatus={setActiveStatus}
-            showAddButton={false}
-            compactFilterPills
-          />
+          <InClinicTodayBand companions={companions} />
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[var(--divider)]">
+            <div className="max-w-full overflow-x-auto scrollbar-hidden">
+              <SpeciesTabs
+                counts={speciesCounts}
+                activeFilter={activeFilter}
+                onSelect={setActiveFilter}
+              />
+            </div>
+            <div className="flex items-center gap-2 pb-[7px]">
+              <Filters
+                statusOptions={CompanionsStatusFilters}
+                activeStatus={activeStatus}
+                setActiveStatus={setActiveStatus}
+                showAddButton={false}
+              />
+              <button
+                type="button"
+                aria-pressed={sortByRecentVisit}
+                onClick={() => setSortByRecentVisit((value) => !value)}
+                className={clsx(
+                  'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-[12px] font-semibold transition-colors',
+                  sortByRecentVisit
+                    ? 'border-[var(--divider)] bg-[var(--inset)] text-[var(--ink)]'
+                    : 'border-[var(--hairline)] text-[var(--ink-muted)] hover:text-[var(--ink)]'
+                )}
+              >
+                <IoSwapVerticalOutline size={12} aria-hidden="true" />
+                {terminologyText('Last visit')}
+              </button>
+            </div>
+          </div>
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
             <CompanionsTable
               filteredList={filteredList}
@@ -187,9 +266,21 @@ const Companions = () => {
               canEditAppointments={canEditAppointments}
               canEditTasks={canEditTasks}
               canEditCompanions={canEditCompanions}
+              viewMode={viewMode}
             />
           </div>
         </div>
+
+        {canEditCompanions && (
+          <button
+            type="button"
+            onClick={() => setAddPopup((e) => !e)}
+            aria-label={terminologyText('Add companion')}
+            className="fixed bottom-[84px] right-4 z-40 flex size-[52px] items-center justify-center rounded-full bg-[var(--cta)] text-[var(--cta-text)] shadow-[0_24px_60px_var(--sh28)] transition-opacity hover:opacity-90 md:hidden"
+          >
+            <IoAdd size={24} aria-hidden="true" />
+          </button>
+        )}
 
         {isCompanionRevampEnabled() ? (
           <>

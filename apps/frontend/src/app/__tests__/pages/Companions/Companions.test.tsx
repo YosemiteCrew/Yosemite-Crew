@@ -53,6 +53,15 @@ jest.mock('@/app/hooks/useCompanion', () => ({
   useCompanionsParentsForPrimaryOrg: () => useCompanionsMock(),
 }));
 
+jest.mock('@/app/hooks/useAppointments', () => ({
+  useAppointmentsForPrimaryOrg: () => [],
+}));
+
+jest.mock('@/app/features/companions/pages/Companions/InClinicTodayBand', () => ({
+  __esModule: true,
+  default: () => <div data-testid="in-clinic-band" />,
+}));
+
 jest.mock('@/app/hooks/usePermissions', () => ({
   usePermissions: () => usePermissionsMock(),
 }));
@@ -153,6 +162,7 @@ describe('Companions page', () => {
     render(<ProtectedCompanions />);
 
     expect(screen.getByTestId('companions-table')).toBeInTheDocument();
+    expect(screen.getByTestId('in-clinic-band')).toBeInTheDocument();
     expect(companionsTableSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: [
@@ -160,10 +170,51 @@ describe('Companions page', () => {
             companion: expect.objectContaining({ id: 'c1' }),
           }),
         ],
+        viewMode: 'list',
       })
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Add companion/i }));
+    // Two triggers share the label (desktop CTA + phone FAB) — click the first.
+    fireEvent.click(screen.getAllByRole('button', { name: /Add companion/i })[0]);
     expect(screen.getByTestId('add-companion')).toBeInTheDocument();
+  });
+
+  it('shows the live patient / active counts in the title', () => {
+    render(<ProtectedCompanions />);
+    expect(screen.getByText('2 patients, 1 active')).toBeInTheDocument();
+  });
+
+  it('renders species tabs with live counts and filters by species', () => {
+    // Empty query so species filtering is observable in the passed list.
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    render(<ProtectedCompanions />);
+
+    expect(screen.getByRole('tab', { name: /All/ })).toHaveTextContent('2');
+    expect(screen.getByRole('tab', { name: /Dogs/ })).toHaveTextContent('1');
+
+    fireEvent.click(screen.getByRole('tab', { name: /Cats/ }));
+    expect(companionsTableSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filteredList: [
+          expect.objectContaining({ companion: expect.objectContaining({ id: 'c2' }) }),
+        ],
+      })
+    );
+  });
+
+  it('switches the table into grid view via the view toggle', () => {
+    render(<ProtectedCompanions />);
+    fireEvent.click(screen.getByRole('button', { name: 'Grid view' }));
+    expect(
+      companionsTableSpy.mock.calls.some(([props]) => props.viewMode === 'grid')
+    ).toBe(true);
+  });
+
+  it('toggles the last-visit sort control', () => {
+    render(<ProtectedCompanions />);
+    const sortPill = screen.getByRole('button', { name: /Last visit/ });
+    expect(sortPill).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(sortPill);
+    expect(sortPill).toHaveAttribute('aria-pressed', 'true');
   });
 });
