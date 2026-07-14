@@ -48,6 +48,343 @@ const AssumedBanner = () => (
   </span>
 );
 
+const SetupHeader = ({
+  orgInitial,
+  step,
+  label,
+}: {
+  orgInitial: string;
+  step: 1 | 2;
+  label: string;
+}) => (
+  <div className="flex items-center justify-between gap-3 px-7! py-4! border-b border-[var(--hairline)]">
+    <span className="flex items-center gap-3">
+      <span className="flex items-center justify-center size-7 rounded-lg bg-[var(--blue-soft)] text-[var(--blue-text)] text-[12px] font-extrabold">
+        {orgInitial}
+      </span>
+      <span className="text-[14px] font-bold text-[var(--ink)]">Set up online booking</span>
+    </span>
+    <span className="flex items-center gap-1.5 text-[11.5px] text-[var(--ink-faint)]">
+      <span className="flex items-center justify-center size-[22px] rounded-full bg-primary-600 text-white text-[10.5px] font-extrabold">
+        {step}
+      </span>
+      {label}
+    </span>
+  </div>
+);
+
+type ServicesStepProps = {
+  orgInitial: string;
+  step: 1 | 2;
+  bookableServices: ServiceRevamp[];
+  selected: Set<string>;
+  onToggleService: (id: string) => void;
+  bookingWindow: string;
+  onBookingWindowChange: (value: string) => void;
+  buffer: string;
+  onBufferChange: (value: string) => void;
+  needsConfirmation: boolean;
+  onToggleConfirmation: () => void;
+  onSkip: () => void;
+  onContinue: () => void;
+};
+
+const BookingServicesStep = ({
+  orgInitial,
+  step,
+  bookableServices,
+  selected,
+  onToggleService,
+  bookingWindow,
+  onBookingWindowChange,
+  buffer,
+  onBufferChange,
+  needsConfirmation,
+  onToggleConfirmation,
+  onSkip,
+  onContinue,
+}: ServicesStepProps) => (
+  <>
+    <SetupHeader orgInitial={orgInitial} step={step} label="of 2 · Services & availability" />
+    <div className="px-7! py-5! flex flex-col gap-3.5">
+      <span className="font-[var(--font-newsreader)] text-[24px] tracking-[-0.015em] text-[var(--ink)]">
+        What can pet parents book?
+      </span>
+
+      {bookableServices.length === 0 ? (
+        <div className="rounded-[14px] border border-[var(--divider)] bg-[var(--inset)] px-3.5 py-4 text-[12.5px] text-[var(--ink-muted)]">
+          No bookable services yet. Add services and mark them bookable in Organization →
+          Specialities.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {bookableServices.map((service: ServiceRevamp) => {
+            const isOn = selected.has(service.id);
+            return (
+              <button
+                type="button"
+                key={service.id}
+                onClick={() => onToggleService(service.id)}
+                aria-pressed={isOn}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] text-left ${
+                  isOn
+                    ? 'border-[1.5px] border-primary-600 bg-[var(--screen)]'
+                    : 'border-[1.5px] border-[var(--hairline)] bg-[var(--screen)]'
+                }`}
+              >
+                <span
+                  className={`flex items-center justify-center size-[18px] rounded-md ${
+                    isOn
+                      ? 'bg-primary-600 text-white'
+                      : 'border-[1.5px] border-[var(--divider)]'
+                  }`}
+                >
+                  {isOn ? <IoCheckmark size={12} /> : null}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[13.5px] font-bold text-[var(--ink)] truncate">
+                    {service.name}
+                  </span>
+                  <span className="block text-[11.5px] text-[var(--ink-faint)]">
+                    {service.durationMinutes} min · any practitioner
+                  </span>
+                </span>
+                <span className="text-[12.5px] font-bold text-[var(--ink)] tabular-nums">
+                  {formatPrice(service.grossAmount, service.currency)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
+            Bookable window
+          </span>
+          <select
+            aria-label="Bookable window"
+            value={bookingWindow}
+            onChange={(e) => onBookingWindowChange(e.target.value)}
+            className="flex-1 bg-transparent text-[13.5px] font-semibold text-[var(--ink-body)] outline-none"
+          >
+            {WINDOW_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+          <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
+            Buffer between visits
+          </span>
+          <select
+            aria-label="Buffer between visits"
+            value={buffer}
+            onChange={(e) => onBufferChange(e.target.value)}
+            className="flex-1 bg-transparent text-[13.5px] font-semibold text-[var(--ink-body)] outline-none"
+          >
+            {BUFFER_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-[14px] border border-[var(--divider)] bg-[var(--inset)]">
+        <span className="text-[12.5px] text-[var(--ink-body)]">
+          <strong className="text-[var(--ink)]">Requests need confirmation.</strong> New
+          bookings arrive as requests, not fixed slots.
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={needsConfirmation}
+          aria-label="Requests need confirmation"
+          onClick={onToggleConfirmation}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full ${
+            needsConfirmation ? 'bg-primary-600' : 'bg-neutral-300'
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform ${
+              needsConfirmation ? 'translate-x-5' : 'translate-x-0.5'
+            }`}
+          />
+        </button>
+      </div>
+    </div>
+    <div className="flex items-center justify-between gap-3 px-7! py-4! border-t border-[var(--hairline)]">
+      <button
+        type="button"
+        onClick={onSkip}
+        className="text-[12px] font-semibold text-[var(--ink-muted)]"
+      >
+        Skip for now
+      </button>
+      <button
+        type="button"
+        onClick={onContinue}
+        className="inline-flex items-center gap-1.5 h-11 px-5 rounded-full bg-[var(--cta)] text-[var(--cta-text)] text-[13.5px] font-semibold"
+      >
+        Continue
+        <IoArrowForward size={15} />
+      </button>
+    </div>
+  </>
+);
+
+type BrandingStepProps = {
+  orgInitial: string;
+  step: 1 | 2;
+  orgName: string;
+  hasLogo: boolean;
+  welcome: string;
+  onWelcomeChange: (value: string) => void;
+  replyTo: string;
+  onReplyToChange: (value: string) => void;
+  publicUrl: string;
+  copied: boolean;
+  onCopy: () => void;
+  onReplaceLogo: () => void;
+  onBack: () => void;
+  onGoLive: () => void;
+};
+
+const BookingBrandingStep = ({
+  orgInitial,
+  step,
+  orgName,
+  hasLogo,
+  welcome,
+  onWelcomeChange,
+  replyTo,
+  onReplyToChange,
+  publicUrl,
+  copied,
+  onCopy,
+  onReplaceLogo,
+  onBack,
+  onGoLive,
+}: BrandingStepProps) => (
+  <>
+    <SetupHeader orgInitial={orgInitial} step={step} label="of 2 · Branding & review" />
+    <div className="px-7! py-5! flex flex-col gap-3.5">
+      <span className="font-[var(--font-newsreader)] text-[24px] tracking-[-0.015em] text-[var(--ink)]">
+        Your booking page
+      </span>
+      <div className="flex flex-col md:flex-row gap-3.5">
+        <div className="flex-1 flex flex-col gap-2.5">
+          <div className="relative flex items-center gap-2.5 h-[52px] px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+            <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
+              Practice logo
+            </span>
+            <span className="flex items-center justify-center size-[30px] rounded-[9px] bg-[var(--blue-soft)] text-[var(--blue-text)] text-[12px] font-extrabold">
+              {orgInitial}
+            </span>
+            <span className="flex-1 text-[12.5px] text-[var(--ink-muted)] truncate">
+              {hasLogo ? 'Current logo' : 'No logo uploaded'}
+            </span>
+            <button
+              type="button"
+              onClick={onReplaceLogo}
+              className="text-[11.5px] font-semibold text-[var(--blue-text)]"
+            >
+              Replace
+            </button>
+          </div>
+          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+            <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
+              Welcome message
+            </span>
+            <input
+              aria-label="Welcome message"
+              value={welcome}
+              onChange={(e) => onWelcomeChange(e.target.value)}
+              className="flex-1 min-w-0 bg-transparent text-[13px] text-[var(--ink-body)] outline-none"
+            />
+          </label>
+          <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
+            <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
+              Confirmation email reply-to
+            </span>
+            <input
+              aria-label="Confirmation email reply-to"
+              type="email"
+              placeholder="frontdesk@your-clinic.vet"
+              value={replyTo}
+              onChange={(e) => onReplyToChange(e.target.value)}
+              className="flex-1 min-w-0 bg-transparent text-[13px] text-[var(--ink-body)] outline-none"
+            />
+          </label>
+        </div>
+        <div className="md:w-60 shrink-0 p-3.5 rounded-2xl border border-[var(--divider)] bg-[var(--inset)] flex flex-col gap-2.5">
+          <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-[var(--ink-faint)]">
+            Preview
+          </span>
+          <div className="rounded-xl border border-[var(--hairline)] bg-[var(--screen)] p-3 flex flex-col gap-1.5">
+            <span className="flex items-center justify-center size-[26px] rounded-lg bg-[var(--blue-soft)] text-[var(--blue-text)] text-[11px] font-extrabold">
+              {orgInitial}
+            </span>
+            <span className="text-[12px] font-bold text-[var(--ink)]">{orgName}</span>
+            <span className="text-[10px] text-[var(--ink-muted)] leading-relaxed line-clamp-3">
+              {welcome}
+            </span>
+            <span className="flex items-center justify-center h-[26px] rounded-full bg-[var(--cta)] text-[var(--cta-text)] text-[10px] font-bold">
+              Choose a service
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[10.5px] font-bold tracking-[0.08em] uppercase text-[var(--ink-faint)]">
+          Public URL
+        </span>
+        <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl border border-[var(--divider)] bg-[var(--inset)]">
+          <IoGlobeOutline size={15} className="text-[var(--blue-text)]" aria-hidden="true" />
+          <span className="flex-1 min-w-0 text-[13px] font-semibold text-[var(--ink)] font-mono truncate">
+            {publicUrl}
+          </span>
+          <button
+            type="button"
+            onClick={onCopy}
+            className="flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--blue-text)]"
+          >
+            <IoCopyOutline size={13} aria-hidden="true" />
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        <span className="text-[11.5px] text-[var(--ink-faint)]">
+          Slug is assumed from your clinic name — confirm the public URL with product.
+        </span>
+      </div>
+    </div>
+    <div className="flex items-center justify-between gap-3 px-7! py-4! border-t border-[var(--hairline)]">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--ink-muted)]"
+      >
+        <IoArrowBack size={13} />
+        Back
+      </button>
+      <button
+        type="button"
+        onClick={onGoLive}
+        className="inline-flex items-center gap-1.5 h-11 px-5 rounded-full bg-[var(--cta)] text-[var(--cta-text)] text-[13.5px] font-semibold"
+      >
+        <IoRocketOutline size={15} />
+        Go live
+      </button>
+    </div>
+  </>
+);
+
 const PublicBookingSetup = () => {
   const { notify } = useNotify();
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
@@ -109,26 +446,14 @@ const PublicBookingSetup = () => {
     });
   };
 
-  const stepChip = (label: string) => (
-    <span className="flex items-center gap-1.5 text-[11.5px] text-[var(--ink-faint)]">
-      <span className="flex items-center justify-center size-[22px] rounded-full bg-primary-600 text-white text-[10.5px] font-extrabold">
-        {step}
-      </span>
-      {label}
-    </span>
-  );
+  const handleSkip = () =>
+    notify('info', { title: 'Setup skipped', text: 'You can set this up later.' });
 
-  const header = (label: string) => (
-    <div className="flex items-center justify-between gap-3 px-7! py-4! border-b border-[var(--hairline)]">
-      <span className="flex items-center gap-3">
-        <span className="flex items-center justify-center size-7 rounded-lg bg-[var(--blue-soft)] text-[var(--blue-text)] text-[12px] font-extrabold">
-          {orgInitial}
-        </span>
-        <span className="text-[14px] font-bold text-[var(--ink)]">Set up online booking</span>
-      </span>
-      {stepChip(label)}
-    </div>
-  );
+  const handleReplaceLogo = () =>
+    notify('info', {
+      title: 'Logo upload coming soon',
+      text: 'Uploading a booking-page logo is not wired up yet.',
+    });
 
   return (
     <div className="flex flex-col gap-4 p-3! md:p-5!">
@@ -141,258 +466,38 @@ const PublicBookingSetup = () => {
 
       <div className="w-full max-w-[720px] rounded-[22px] border border-[var(--hairline)] bg-[var(--screen)] overflow-hidden shadow-[0_2px_6px_var(--sh05),0_24px_60px_var(--sh10)]">
         {step === 1 ? (
-          <>
-            {header('of 2 · Services & availability')}
-            <div className="px-7! py-5! flex flex-col gap-3.5">
-              <span className="font-[var(--font-newsreader)] text-[24px] tracking-[-0.015em] text-[var(--ink)]">
-                What can pet parents book?
-              </span>
-
-              {bookableServices.length === 0 ? (
-                <div className="rounded-[14px] border border-[var(--divider)] bg-[var(--inset)] px-3.5 py-4 text-[12.5px] text-[var(--ink-muted)]">
-                  No bookable services yet. Add services and mark them bookable in Organization →
-                  Specialities.
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {bookableServices.map((service: ServiceRevamp) => {
-                    const isOn = selected.has(service.id);
-                    return (
-                      <button
-                        type="button"
-                        key={service.id}
-                        onClick={() => toggleService(service.id)}
-                        aria-pressed={isOn}
-                        className={`flex items-center gap-3 px-3.5 py-2.5 rounded-[14px] text-left ${
-                          isOn
-                            ? 'border-[1.5px] border-primary-600 bg-[var(--screen)]'
-                            : 'border-[1.5px] border-[var(--hairline)] bg-[var(--screen)]'
-                        }`}
-                      >
-                        <span
-                          className={`flex items-center justify-center size-[18px] rounded-md ${
-                            isOn
-                              ? 'bg-primary-600 text-white'
-                              : 'border-[1.5px] border-[var(--divider)]'
-                          }`}
-                        >
-                          {isOn ? <IoCheckmark size={12} /> : null}
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block text-[13.5px] font-bold text-[var(--ink)] truncate">
-                            {service.name}
-                          </span>
-                          <span className="block text-[11.5px] text-[var(--ink-faint)]">
-                            {service.durationMinutes} min · any practitioner
-                          </span>
-                        </span>
-                        <span className="text-[12.5px] font-bold text-[var(--ink)] tabular-nums">
-                          {formatPrice(service.grossAmount, service.currency)}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
-                  <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
-                    Bookable window
-                  </span>
-                  <select
-                    aria-label="Bookable window"
-                    value={bookingWindow}
-                    onChange={(e) => setBookingWindow(e.target.value)}
-                    className="flex-1 bg-transparent text-[13.5px] font-semibold text-[var(--ink-body)] outline-none"
-                  >
-                    {WINDOW_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
-                  <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
-                    Buffer between visits
-                  </span>
-                  <select
-                    aria-label="Buffer between visits"
-                    value={buffer}
-                    onChange={(e) => setBuffer(e.target.value)}
-                    className="flex-1 bg-transparent text-[13.5px] font-semibold text-[var(--ink-body)] outline-none"
-                  >
-                    {BUFFER_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-[14px] border border-[var(--divider)] bg-[var(--inset)]">
-                <span className="text-[12.5px] text-[var(--ink-body)]">
-                  <strong className="text-[var(--ink)]">Requests need confirmation.</strong> New
-                  bookings arrive as requests, not fixed slots.
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={needsConfirmation}
-                  aria-label="Requests need confirmation"
-                  onClick={() => setNeedsConfirmation((v) => !v)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full ${
-                    needsConfirmation ? 'bg-primary-600' : 'bg-neutral-300'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-5 w-5 rounded-full bg-neutral-0 transition-transform ${
-                      needsConfirmation ? 'translate-x-5' : 'translate-x-0.5'
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-3 px-7! py-4! border-t border-[var(--hairline)]">
-              <button
-                type="button"
-                onClick={() =>
-                  notify('info', { title: 'Setup skipped', text: 'You can set this up later.' })
-                }
-                className="text-[12px] font-semibold text-[var(--ink-muted)]"
-              >
-                Skip for now
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="inline-flex items-center gap-1.5 h-11 px-5 rounded-full bg-[var(--cta)] text-[var(--cta-text)] text-[13.5px] font-semibold"
-              >
-                Continue
-                <IoArrowForward size={15} />
-              </button>
-            </div>
-          </>
+          <BookingServicesStep
+            orgInitial={orgInitial}
+            step={step}
+            bookableServices={bookableServices}
+            selected={selected}
+            onToggleService={toggleService}
+            bookingWindow={bookingWindow}
+            onBookingWindowChange={setBookingWindow}
+            buffer={buffer}
+            onBufferChange={setBuffer}
+            needsConfirmation={needsConfirmation}
+            onToggleConfirmation={() => setNeedsConfirmation((v) => !v)}
+            onSkip={handleSkip}
+            onContinue={() => setStep(2)}
+          />
         ) : (
-          <>
-            {header('of 2 · Branding & review')}
-            <div className="px-7! py-5! flex flex-col gap-3.5">
-              <span className="font-[var(--font-newsreader)] text-[24px] tracking-[-0.015em] text-[var(--ink)]">
-                Your booking page
-              </span>
-              <div className="flex flex-col md:flex-row gap-3.5">
-                <div className="flex-1 flex flex-col gap-2.5">
-                  <div className="relative flex items-center gap-2.5 h-[52px] px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
-                    <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
-                      Practice logo
-                    </span>
-                    <span className="flex items-center justify-center size-[30px] rounded-[9px] bg-[var(--blue-soft)] text-[var(--blue-text)] text-[12px] font-extrabold">
-                      {orgInitial}
-                    </span>
-                    <span className="flex-1 text-[12.5px] text-[var(--ink-muted)] truncate">
-                      {primaryOrg?.imageURL ? 'Current logo' : 'No logo uploaded'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        notify('info', {
-                          title: 'Logo upload coming soon',
-                          text: 'Uploading a booking-page logo is not wired up yet.',
-                        })
-                      }
-                      className="text-[11.5px] font-semibold text-[var(--blue-text)]"
-                    >
-                      Replace
-                    </button>
-                  </div>
-                  <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
-                    <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
-                      Welcome message
-                    </span>
-                    <input
-                      aria-label="Welcome message"
-                      value={welcome}
-                      onChange={(e) => setWelcome(e.target.value)}
-                      className="flex-1 min-w-0 bg-transparent text-[13px] text-[var(--ink-body)] outline-none"
-                    />
-                  </label>
-                  <label className="relative flex items-center h-12 px-3.5 border-[1.5px] border-[var(--hairline)] rounded-[14px]">
-                    <span className="absolute -top-[7px] left-3 px-1.5 bg-[var(--screen)] text-[10.5px] font-semibold text-[var(--ink-faint)]">
-                      Confirmation email reply-to
-                    </span>
-                    <input
-                      aria-label="Confirmation email reply-to"
-                      type="email"
-                      placeholder="frontdesk@your-clinic.vet"
-                      value={replyTo}
-                      onChange={(e) => setReplyTo(e.target.value)}
-                      className="flex-1 min-w-0 bg-transparent text-[13px] text-[var(--ink-body)] outline-none"
-                    />
-                  </label>
-                </div>
-                <div className="md:w-60 shrink-0 p-3.5 rounded-2xl border border-[var(--divider)] bg-[var(--inset)] flex flex-col gap-2.5">
-                  <span className="text-[10px] font-bold tracking-[0.1em] uppercase text-[var(--ink-faint)]">
-                    Preview
-                  </span>
-                  <div className="rounded-xl border border-[var(--hairline)] bg-[var(--screen)] p-3 flex flex-col gap-1.5">
-                    <span className="flex items-center justify-center size-[26px] rounded-lg bg-[var(--blue-soft)] text-[var(--blue-text)] text-[11px] font-extrabold">
-                      {orgInitial}
-                    </span>
-                    <span className="text-[12px] font-bold text-[var(--ink)]">{orgName}</span>
-                    <span className="text-[10px] text-[var(--ink-muted)] leading-relaxed line-clamp-3">
-                      {welcome}
-                    </span>
-                    <span className="flex items-center justify-center h-[26px] rounded-full bg-[var(--cta)] text-[var(--cta-text)] text-[10px] font-bold">
-                      Choose a service
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[10.5px] font-bold tracking-[0.08em] uppercase text-[var(--ink-faint)]">
-                  Public URL
-                </span>
-                <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl border border-[var(--divider)] bg-[var(--inset)]">
-                  <IoGlobeOutline size={15} className="text-[var(--blue-text)]" aria-hidden="true" />
-                  <span className="flex-1 min-w-0 text-[13px] font-semibold text-[var(--ink)] font-mono truncate">
-                    {publicUrl}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--blue-text)]"
-                  >
-                    <IoCopyOutline size={13} aria-hidden="true" />
-                    {copied ? 'Copied' : 'Copy'}
-                  </button>
-                </div>
-                <span className="text-[11.5px] text-[var(--ink-faint)]">
-                  Slug is assumed from your clinic name — confirm the public URL with product.
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-3 px-7! py-4! border-t border-[var(--hairline)]">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--ink-muted)]"
-              >
-                <IoArrowBack size={13} />
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={handleGoLive}
-                className="inline-flex items-center gap-1.5 h-11 px-5 rounded-full bg-[var(--cta)] text-[var(--cta-text)] text-[13.5px] font-semibold"
-              >
-                <IoRocketOutline size={15} />
-                Go live
-              </button>
-            </div>
-          </>
+          <BookingBrandingStep
+            orgInitial={orgInitial}
+            step={step}
+            orgName={orgName}
+            hasLogo={Boolean(primaryOrg?.imageURL)}
+            welcome={welcome}
+            onWelcomeChange={setWelcome}
+            replyTo={replyTo}
+            onReplyToChange={setReplyTo}
+            publicUrl={publicUrl}
+            copied={copied}
+            onCopy={handleCopy}
+            onReplaceLogo={handleReplaceLogo}
+            onBack={() => setStep(1)}
+            onGoLive={handleGoLive}
+          />
         )}
       </div>
     </div>

@@ -1537,6 +1537,203 @@ const useBuilderDragAutoScroll = (
   return { dragIndex, handleDragStart, handleDragOver, handleDrop, handleDragEnd };
 };
 
+// ---- Build render columns ---------------------------------------------------------
+// Extracted from Build's render so each of the three builder panes (palette / canvas /
+// settings) is its own cohesive component with identical DOM; Build stays focused on
+// schema state and passes the handlers each pane needs.
+
+type BuilderPaletteProps = {
+  structureLocked: boolean;
+  options: OptionProp[];
+  onAdd: (key: OptionKey) => void;
+};
+
+const BuilderPalette: React.FC<BuilderPaletteProps> = ({ structureLocked, options, onAdd }) => (
+  <div className="flex w-[250px] flex-none flex-col gap-2 overflow-y-auto border-r border-[var(--hairline)] bg-[var(--screen-2)] p-4 scrollbar-hidden">
+    <span className="px-1 pb-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+      Add a field
+    </span>
+    {structureLocked ? (
+      <p className="rounded-xl bg-[var(--inset)] p-3 text-[11.5px] leading-relaxed text-[var(--ink-muted)]">
+        This template has a locked structure. Field content stays editable, but fields cannot be
+        added, removed, or reordered.
+      </p>
+    ) : (
+      <>
+        {options.map((option) => (
+          <PaletteTile key={option.key} option={option} onAdd={onAdd} />
+        ))}
+        <div className="mt-auto rounded-xl bg-[var(--inset)] p-3 text-[11.5px] leading-relaxed text-[var(--ink-muted)]">
+          <span className="font-bold text-[var(--blue-text)]">Tip</span> · click a field to add it
+          to the canvas. Signature fields make the template signable in the parent app.
+        </div>
+      </>
+    )}
+  </div>
+);
+
+type BuilderCanvasProps = {
+  schema: FormField[];
+  effectiveSelectedId: string | null;
+  structureLocked: boolean;
+  buildError: string;
+  dragIndex: number | null;
+  onSelect: (id: string | null) => void;
+  onDelete: (id: string) => void;
+  onDuplicate: (index: number) => void;
+  onMove: (index: number, direction: 'up' | 'down') => void;
+  onDragStart: (index: number) => (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrop: (index: number) => (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd: (e: React.DragEvent<HTMLDivElement>) => void;
+};
+
+const BuilderCanvas: React.FC<BuilderCanvasProps> = ({
+  schema,
+  effectiveSelectedId,
+  structureLocked,
+  buildError,
+  dragIndex,
+  onSelect,
+  onDelete,
+  onDuplicate,
+  onMove,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}) => (
+  <div className="flex min-w-0 flex-[1.3] flex-col gap-2.5 overflow-y-auto bg-[var(--inset)] p-5">
+    {schema.length === 0 && (
+      <p className="text-[12.5px] text-[var(--ink-faint)]">
+        No fields yet. Add a field from the palette to start building.
+      </p>
+    )}
+    {schema.map((field, index) => (
+      <CanvasRow
+        key={field.id}
+        field={field}
+        selected={field.id === effectiveSelectedId}
+        locked={structureLocked}
+        onSelect={() => onSelect(field.id)}
+        onDelete={() => onDelete(field.id)}
+        onDuplicate={() => onDuplicate(index)}
+        onMoveUp={() => onMove(index, 'up')}
+        onMoveDown={() => onMove(index, 'down')}
+        draggable={!structureLocked}
+        onDragStart={onDragStart(index)}
+        onDragOver={onDragOver}
+        onDrop={onDrop(index)}
+        onDragEnd={onDragEnd}
+        isDragging={dragIndex === index}
+      />
+    ))}
+    {buildError && (
+      <div className="mt-1 flex items-center gap-1 px-1 text-caption-2 text-text-error">
+        <IoIosWarning className="text-text-error" size={14} />
+        <span>{buildError}</span>
+      </div>
+    )}
+    {!structureLocked && (
+      <span className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--divider)] p-3 text-[12.5px] font-semibold text-[var(--ink-faint)]">
+        <IoAddOutline size={14} aria-hidden="true" />
+        Drop a field here
+      </span>
+    )}
+  </div>
+);
+
+type BuilderSettingsPanelProps = {
+  selectedField: FormField | null;
+  renderSelectedBuilder: (field: FormField) => React.ReactNode;
+  onToggleRequired: (field: FormField) => void;
+  onToggleSummary: (field: FormField) => void;
+  linkedServices: { label: string; value: string; badge?: string }[];
+  showServicePicker: boolean;
+  onToggleServicePicker: () => void;
+  services: string[];
+  serviceOptions: { label: string; value: string; badge?: string }[];
+  onServicesChange: (values: string[]) => void;
+};
+
+const BuilderSettingsPanel: React.FC<BuilderSettingsPanelProps> = ({
+  selectedField,
+  renderSelectedBuilder,
+  onToggleRequired,
+  onToggleSummary,
+  linkedServices,
+  showServicePicker,
+  onToggleServicePicker,
+  services,
+  serviceOptions,
+  onServicesChange,
+}) => (
+  <div className="flex w-[320px] max-w-[320px] flex-none flex-col gap-3.5 overflow-y-auto border-l border-[var(--hairline)] p-5 scrollbar-hidden">
+    <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+      Field settings
+    </span>
+    {selectedField ? (
+      <>
+        {renderSelectedBuilder(selectedField)}
+        {selectedField.type !== 'group' && (
+          <>
+            <SettingToggle
+              label="Required"
+              checked={Boolean(selectedField.required)}
+              onChange={() => onToggleRequired(selectedField)}
+            />
+            <SettingToggle
+              label="Show in summary PDF"
+              checked={selectedField.meta?.showInSummaryPdf !== false}
+              onChange={() => onToggleSummary(selectedField)}
+            />
+          </>
+        )}
+        <span className="h-px bg-[var(--hairline)]" />
+        <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
+          Linked services
+        </span>
+        <div className="flex flex-col gap-2">
+          {linkedServices.length === 0 && (
+            <span className="text-[12px] text-[var(--ink-faint)]">No linked services yet.</span>
+          )}
+          {linkedServices.map((service) => (
+            <span
+              key={service.value}
+              className="flex items-center justify-between rounded-[11px] border border-[var(--hairline)] px-3 py-2 text-[12.5px] font-semibold text-[var(--ink-body)]"
+            >
+              {service.label}
+              <span className="rounded-full border border-[var(--status-in-progress-border)] bg-[var(--status-in-progress-bg)] px-2 py-0.5 text-[10px] font-bold text-[var(--status-in-progress-text)]">
+                {((service as { badge?: string }).badge ?? 'SERVICE').toUpperCase()}
+              </span>
+            </span>
+          ))}
+          {showServicePicker && (
+            <MultiSelectDropdown
+              placeholder="Link services / packages"
+              value={services}
+              onChange={onServicesChange}
+              options={serviceOptions}
+            />
+          )}
+          <button
+            type="button"
+            onClick={onToggleServicePicker}
+            className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--blue-text)]"
+          >
+            <IoAddOutline size={13} aria-hidden="true" />
+            Link another service
+          </button>
+        </div>
+      </>
+    ) : (
+      <p className="text-[12.5px] text-[var(--ink-faint)]">
+        Select a field in the canvas to edit its settings, or add one from the palette.
+      </p>
+    )}
+  </div>
+);
+
 const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
   const [buildError, setBuildError] = useState<string>('');
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
@@ -1780,135 +1977,42 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
     <StructureLockContext.Provider value={structureLocked}>
       <div ref={builderRef} className="flex h-full min-h-0 w-full flex-1 overflow-hidden">
         {/* LEFT · field palette */}
-        <div className="flex w-[250px] flex-none flex-col gap-2 overflow-y-auto border-r border-[var(--hairline)] bg-[var(--screen-2)] p-4 scrollbar-hidden">
-          <span className="px-1 pb-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-            Add a field
-          </span>
-          {structureLocked ? (
-            <p className="rounded-xl bg-[var(--inset)] p-3 text-[11.5px] leading-relaxed text-[var(--ink-muted)]">
-              This template has a locked structure. Field content stays editable, but fields cannot
-              be added, removed, or reordered.
-            </p>
-          ) : (
-            <>
-              {addOptionsForContext.map((option) => (
-                <PaletteTile key={option.key} option={option} onAdd={addField} />
-              ))}
-              <div className="mt-auto rounded-xl bg-[var(--inset)] p-3 text-[11.5px] leading-relaxed text-[var(--ink-muted)]">
-                <span className="font-bold text-[var(--blue-text)]">Tip</span> · click a field to
-                add it to the canvas. Signature fields make the template signable in the parent app.
-              </div>
-            </>
-          )}
-        </div>
+        <BuilderPalette
+          structureLocked={structureLocked}
+          options={addOptionsForContext}
+          onAdd={addField}
+        />
 
         {/* CENTER · canvas */}
-        <div className="flex min-w-0 flex-[1.3] flex-col gap-2.5 overflow-y-auto bg-[var(--inset)] p-5">
-          {schema.length === 0 && (
-            <p className="text-[12.5px] text-[var(--ink-faint)]">
-              No fields yet. Add a field from the palette to start building.
-            </p>
-          )}
-          {schema.map((field, index) => (
-            <CanvasRow
-              key={field.id}
-              field={field}
-              selected={field.id === effectiveSelectedId}
-              locked={structureLocked}
-              onSelect={() => setSelectedFieldId(field.id)}
-              onDelete={() => handleDeleteField(field.id)}
-              onDuplicate={() => duplicateField(index)}
-              onMoveUp={() => moveField(index, 'up')}
-              onMoveDown={() => moveField(index, 'down')}
-              draggable={!structureLocked}
-              onDragStart={handleDragStart(index)}
-              onDragOver={handleDragOver}
-              onDrop={handleDrop(index)}
-              onDragEnd={handleDragEnd}
-              isDragging={dragIndex === index}
-            />
-          ))}
-          {buildError && (
-            <div className="mt-1 flex items-center gap-1 px-1 text-caption-2 text-text-error">
-              <IoIosWarning className="text-text-error" size={14} />
-              <span>{buildError}</span>
-            </div>
-          )}
-          {!structureLocked && (
-            <span className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--divider)] p-3 text-[12.5px] font-semibold text-[var(--ink-faint)]">
-              <IoAddOutline size={14} aria-hidden="true" />
-              Drop a field here
-            </span>
-          )}
-        </div>
+        <BuilderCanvas
+          schema={schema}
+          effectiveSelectedId={effectiveSelectedId}
+          structureLocked={structureLocked}
+          buildError={buildError}
+          dragIndex={dragIndex}
+          onSelect={setSelectedFieldId}
+          onDelete={handleDeleteField}
+          onDuplicate={duplicateField}
+          onMove={moveField}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onDragEnd={handleDragEnd}
+        />
 
         {/* RIGHT · field settings */}
-        <div className="flex w-[320px] max-w-[320px] flex-none flex-col gap-3.5 overflow-y-auto border-l border-[var(--hairline)] p-5 scrollbar-hidden">
-          <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-            Field settings
-          </span>
-          {selectedField ? (
-            <>
-              {renderSelectedBuilder(selectedField)}
-              {selectedField.type !== 'group' && (
-                <>
-                  <SettingToggle
-                    label="Required"
-                    checked={Boolean(selectedField.required)}
-                    onChange={() => toggleRequired(selectedField)}
-                  />
-                  <SettingToggle
-                    label="Show in summary PDF"
-                    checked={selectedField.meta?.showInSummaryPdf !== false}
-                    onChange={() => toggleSummary(selectedField)}
-                  />
-                </>
-              )}
-              <span className="h-px bg-[var(--hairline)]" />
-              <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
-                Linked services
-              </span>
-              <div className="flex flex-col gap-2">
-                {linkedServices.length === 0 && (
-                  <span className="text-[12px] text-[var(--ink-faint)]">
-                    No linked services yet.
-                  </span>
-                )}
-                {linkedServices.map((service) => (
-                  <span
-                    key={service.value}
-                    className="flex items-center justify-between rounded-[11px] border border-[var(--hairline)] px-3 py-2 text-[12.5px] font-semibold text-[var(--ink-body)]"
-                  >
-                    {service.label}
-                    <span className="rounded-full border border-[var(--status-in-progress-border)] bg-[var(--status-in-progress-bg)] px-2 py-0.5 text-[10px] font-bold text-[var(--status-in-progress-text)]">
-                      {((service as { badge?: string }).badge ?? 'SERVICE').toUpperCase()}
-                    </span>
-                  </span>
-                ))}
-                {showServicePicker && (
-                  <MultiSelectDropdown
-                    placeholder="Link services / packages"
-                    value={formData.services ?? []}
-                    onChange={(values) => setFormData((prev) => ({ ...prev, services: values }))}
-                    options={serviceOptions}
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowServicePicker((v) => !v)}
-                  className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--blue-text)]"
-                >
-                  <IoAddOutline size={13} aria-hidden="true" />
-                  Link another service
-                </button>
-              </div>
-            </>
-          ) : (
-            <p className="text-[12.5px] text-[var(--ink-faint)]">
-              Select a field in the canvas to edit its settings, or add one from the palette.
-            </p>
-          )}
-        </div>
+        <BuilderSettingsPanel
+          selectedField={selectedField}
+          renderSelectedBuilder={renderSelectedBuilder}
+          onToggleRequired={toggleRequired}
+          onToggleSummary={toggleSummary}
+          linkedServices={linkedServices}
+          showServicePicker={showServicePicker}
+          onToggleServicePicker={() => setShowServicePicker((v) => !v)}
+          services={formData.services ?? []}
+          serviceOptions={serviceOptions}
+          onServicesChange={(values) => setFormData((prev) => ({ ...prev, services: values }))}
+        />
       </div>
     </StructureLockContext.Provider>
   );

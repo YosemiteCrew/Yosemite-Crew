@@ -283,6 +283,125 @@ const PHONE_FOOTER = (
   </div>
 );
 
+type IndexedRow = { item: SearchItem; index: number };
+type ResultGroup = { key: SearchGroupKey; label: string; rows: IndexedRow[] };
+
+const SearchInput = ({
+  inputRef,
+  query,
+  onQueryChange,
+  isPhone,
+  onClose,
+}: {
+  inputRef: React.Ref<HTMLInputElement>;
+  query: string;
+  onQueryChange: (value: string) => void;
+  isPhone: boolean;
+  onClose: () => void;
+}) => (
+  <div className="yc-usp-input-row">
+    <IoSearchOutline className="yc-usp-search-icon" size={18} aria-hidden />
+    <input
+      ref={inputRef}
+      value={query}
+      onChange={(e) => onQueryChange(e.target.value)}
+      placeholder="Search anything…"
+      className="yc-usp-input"
+      aria-label="Universal search input"
+    />
+    {isPhone ? (
+      <button type="button" className="yc-usp-cancel" onClick={onClose}>
+        Cancel
+      </button>
+    ) : (
+      <button type="button" className="yc-usp-esc" onClick={onClose} aria-label="Close search">
+        ESC
+      </button>
+    )}
+  </div>
+);
+
+const SearchResults = ({
+  groups,
+  activeIndex,
+  activeRowRef,
+  onActivate,
+  onSelect,
+}: {
+  groups: ResultGroup[];
+  activeIndex: number;
+  activeRowRef: React.Ref<HTMLButtonElement>;
+  onActivate: (index: number) => void;
+  onSelect: (item: SearchItem) => void;
+}) => (
+  <div className="yc-usp-results scrollbar-custom">
+    {groups.map((group) => (
+      <div key={group.key} className="yc-usp-group">
+        <div className="yc-usp-eyebrow">{group.label}</div>
+        {group.rows.map(({ item, index }) => {
+          const isActive = index === activeIndex;
+          const keycap = item.keycap ?? (isActive ? '↵' : undefined);
+          return (
+            <button
+              key={item.id}
+              ref={isActive ? activeRowRef : null}
+              type="button"
+              onMouseEnter={() => onActivate(index)}
+              onClick={() => onSelect(item)}
+              className={`yc-usp-row ${isActive ? 'yc-usp-row--active' : ''}`}
+            >
+              <RowIcon item={item} />
+              <span className="yc-usp-row-body">
+                <span className="yc-usp-row-title">{item.title}</span>
+                {item.subtitle ? (
+                  <span className="yc-usp-row-sub">{item.subtitle}</span>
+                ) : null}
+              </span>
+              {keycap ? <span className="yc-usp-keycap">{keycap}</span> : null}
+            </button>
+          );
+        })}
+      </div>
+    ))}
+  </div>
+);
+
+const PhonePanel = ({ input, results }: { input: React.ReactNode; results: React.ReactNode }) => (
+  <div className="yc-usp-overlay yc-usp-overlay--phone">
+    <dialog open className="yc-usp-panel yc-usp-panel--phone" aria-label="Universal search">
+      <div className="yc-usp-statusbar" aria-hidden />
+      {input}
+      {results}
+      {PHONE_FOOTER}
+      <span className="yc-usp-home-indicator" aria-hidden />
+    </dialog>
+  </div>
+);
+
+const DesktopPanel = ({
+  input,
+  results,
+  onClose,
+}: {
+  input: React.ReactNode;
+  results: React.ReactNode;
+  onClose: () => void;
+}) => (
+  <div className="yc-usp-overlay">
+    <button
+      type="button"
+      aria-label="Close universal search"
+      className="yc-usp-backdrop"
+      onClick={onClose}
+    />
+    <dialog open className="yc-usp-panel" aria-label="Universal search">
+      {input}
+      {results}
+      {DESKTOP_FOOTER}
+    </dialog>
+  </div>
+);
+
 const UniversalSearchPalette = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -503,91 +622,32 @@ const UniversalSearchPalette = () => {
 
   if (!isOpen || globalThis.document === undefined) return null;
 
-  const results = (
-    <div className="yc-usp-results scrollbar-custom">
-      {renderGroups.map((group) => (
-        <div key={group.key} className="yc-usp-group">
-          <div className="yc-usp-eyebrow">{group.label}</div>
-          {group.rows.map(({ item, index }) => {
-            const isActive = index === activeIndex;
-            const keycap = item.keycap ?? (isActive ? '↵' : undefined);
-            return (
-              <button
-                key={item.id}
-                ref={isActive ? activeRowRef : null}
-                type="button"
-                onMouseEnter={() => setActiveIndex(index)}
-                onClick={() => selectItem(item)}
-                className={`yc-usp-row ${isActive ? 'yc-usp-row--active' : ''}`}
-              >
-                <RowIcon item={item} />
-                <span className="yc-usp-row-body">
-                  <span className="yc-usp-row-title">{item.title}</span>
-                  {item.subtitle ? (
-                    <span className="yc-usp-row-sub">{item.subtitle}</span>
-                  ) : null}
-                </span>
-                {keycap ? <span className="yc-usp-keycap">{keycap}</span> : null}
-              </button>
-            );
-          })}
-        </div>
-      ))}
-    </div>
+  const inputRow = (
+    <SearchInput
+      inputRef={inputRef}
+      query={query}
+      onQueryChange={setQuery}
+      isPhone={isPhone}
+      onClose={close}
+    />
   );
 
-  const inputRow = (
-    <div className="yc-usp-input-row">
-      <IoSearchOutline className="yc-usp-search-icon" size={18} aria-hidden />
-      <input
-        ref={inputRef}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search anything…"
-        className="yc-usp-input"
-        aria-label="Universal search input"
-      />
-      {isPhone ? (
-        <button type="button" className="yc-usp-cancel" onClick={close}>
-          Cancel
-        </button>
-      ) : (
-        <button type="button" className="yc-usp-esc" onClick={close} aria-label="Close search">
-          ESC
-        </button>
-      )}
-    </div>
+  const results = (
+    <SearchResults
+      groups={renderGroups}
+      activeIndex={activeIndex}
+      activeRowRef={activeRowRef}
+      onActivate={setActiveIndex}
+      onSelect={selectItem}
+    />
   );
 
   if (isPhone) {
-    return createPortal(
-      <div className="yc-usp-overlay yc-usp-overlay--phone">
-        <dialog open className="yc-usp-panel yc-usp-panel--phone" aria-label="Universal search">
-          <div className="yc-usp-statusbar" aria-hidden />
-          {inputRow}
-          {results}
-          {PHONE_FOOTER}
-          <span className="yc-usp-home-indicator" aria-hidden />
-        </dialog>
-      </div>,
-      document.body
-    );
+    return createPortal(<PhonePanel input={inputRow} results={results} />, document.body);
   }
 
   return createPortal(
-    <div className="yc-usp-overlay">
-      <button
-        type="button"
-        aria-label="Close universal search"
-        className="yc-usp-backdrop"
-        onClick={close}
-      />
-      <dialog open className="yc-usp-panel" aria-label="Universal search">
-        {inputRow}
-        {results}
-        {DESKTOP_FOOTER}
-      </dialog>
-    </div>,
+    <DesktopPanel input={inputRow} results={results} onClose={close} />,
     document.body
   );
 };

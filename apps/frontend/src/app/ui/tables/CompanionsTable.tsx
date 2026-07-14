@@ -185,6 +185,162 @@ const RowMenu = ({ actions, label }: { actions: RowMenuAction[]; label: string }
   );
 };
 
+const CompanionRow = ({
+  item,
+  upcoming,
+  actions,
+  terminologyText,
+  onOpenHistory,
+  onGoToAppointment,
+}: {
+  item: CompanionParent;
+  upcoming: Appointment | null;
+  actions: RowMenuAction[];
+  terminologyText: (label: string) => string;
+  onOpenHistory: (companion: CompanionParent) => void;
+  onGoToAppointment: (appointment: Appointment) => void;
+}) => (
+  <div
+    className={`${GRID_COLS} border-t border-[var(--hairline)] px-5 py-[11px] text-[14px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]`}
+  >
+    {/* Patient */}
+    <span className="flex min-w-0 items-center gap-2.5">
+      <span className="size-[34px] shrink-0 overflow-hidden rounded-full bg-[var(--surface-soft)]">
+        <Image
+          src={getSafeImageUrl(
+            item.companion.photoUrl,
+            item.companion.type.toLowerCase() as ImageType
+          )}
+          alt=""
+          height={34}
+          width={34}
+          className="size-full object-cover"
+        />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <button
+          type="button"
+          onClick={() => onOpenHistory(item)}
+          title={terminologyText('Open companion history')}
+          className="truncate text-left text-[14px] font-bold text-text-primary underline-offset-2 hover:underline"
+        >
+          {formatCompanionNameWithOwnerLastName(item.companion.name, item.parent)}
+        </button>
+        <span className="truncate text-[12px] text-[var(--ink-faint)]">
+          {buildSpeciesLine(item.companion)}
+        </span>
+      </span>
+    </span>
+
+    {/* Parent */}
+    <span className="truncate text-[var(--ink-muted)]">{formatParentName(item.parent)}</span>
+
+    {/* Breed */}
+    <span className="truncate text-[var(--ink-muted)]">
+      {formatDisplayValue(item.companion.breed)}
+    </span>
+
+    {/* Upcoming visit */}
+    {upcoming ? (
+      <button
+        type="button"
+        onClick={() => onGoToAppointment(upcoming)}
+        title="Open appointment"
+        className="flex min-w-0 items-center gap-2 rounded-[10px] border border-[var(--hairline)] px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--surface-soft)]"
+      >
+        <span className="flex min-w-0 flex-col">
+          <span className="truncate text-[13px] text-text-primary">
+            {formatDateLabel(upcoming.appointmentDate)}
+          </span>
+          <span className="truncate text-[12px] text-[var(--ink-faint)]">
+            {formatTimeLabel(upcoming.startTime)}
+          </span>
+        </span>
+        <IoOpenOutline
+          size={14}
+          aria-hidden="true"
+          className="ml-auto shrink-0 text-[var(--ink-faint)]"
+        />
+      </button>
+    ) : (
+      <span className="text-[var(--ink-faint)]">-</span>
+    )}
+
+    {/* Status */}
+    <span>
+      <span
+        className="inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em]"
+        style={getCompanionStatusStyle(item.companion.status || 'inactive')}
+      >
+        {toTitleCase(item.companion.status || 'inactive')}
+      </span>
+    </span>
+
+    {/* Row menu */}
+    <RowMenu label={terminologyText('Companion row actions')} actions={actions} />
+  </div>
+);
+
+const TablePagination = ({
+  rangeStart,
+  rangeEnd,
+  totalItems,
+  companionsLabel,
+  totalPages,
+  safePage,
+  onPageChange,
+}: {
+  rangeStart: number;
+  rangeEnd: number;
+  totalItems: number;
+  companionsLabel: string;
+  totalPages: number;
+  safePage: number;
+  onPageChange: (page: number) => void;
+}) => (
+  <div className="flex shrink-0 items-center justify-between border-t border-[var(--hairline)] px-5 py-3 text-[12.5px] text-[var(--ink-faint)]">
+    <span>{`Showing ${rangeStart}-${rangeEnd} of ${totalItems} ${companionsLabel}`}</span>
+    {totalPages > 1 ? (
+      <span className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-label="Previous page"
+          disabled={safePage === 1}
+          onClick={() => onPageChange(Math.max(1, safePage - 1))}
+          className="flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
+        >
+          ‹
+        </button>
+        {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+          <button
+            key={pageNumber}
+            type="button"
+            aria-label={`Page ${pageNumber}`}
+            aria-current={pageNumber === safePage ? 'page' : undefined}
+            onClick={() => onPageChange(pageNumber)}
+            className={`flex size-7 items-center justify-center rounded-[9px] text-[12px] transition-colors ${
+              pageNumber === safePage
+                ? 'bg-[var(--nav-active-bg)] font-bold text-[var(--nav-active)]'
+                : 'font-semibold text-[var(--ink-muted)] hover:bg-[var(--surface-soft)]'
+            }`}
+          >
+            {pageNumber}
+          </button>
+        ))}
+        <button
+          type="button"
+          aria-label="Next page"
+          disabled={safePage === totalPages}
+          onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
+          className="flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
+        >
+          ›
+        </button>
+      </span>
+    ) : null}
+  </div>
+);
+
 const CompanionsTable = ({
   filteredList,
   setActiveCompanion,
@@ -347,142 +503,31 @@ const CompanionsTable = ({
                 No data available
               </div>
             ) : (
-              pageItems.map((item) => {
-                const upcoming = getUpcomingAppointmentForCompanion(item.companion.id);
-                return (
-                  <div
-                    key={item.companion.id || item.companion.name}
-                    className={`${GRID_COLS} border-t border-[var(--hairline)] px-5 py-[11px] text-[14px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]`}
-                  >
-                    {/* Patient */}
-                    <span className="flex min-w-0 items-center gap-2.5">
-                      <span className="size-[34px] shrink-0 overflow-hidden rounded-full bg-[var(--surface-soft)]">
-                        <Image
-                          src={getSafeImageUrl(
-                            item.companion.photoUrl,
-                            item.companion.type.toLowerCase() as ImageType
-                          )}
-                          alt=""
-                          height={34}
-                          width={34}
-                          className="size-full object-cover"
-                        />
-                      </span>
-                      <span className="flex min-w-0 flex-col">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCompanionHistoryPage(item)}
-                          title={terminologyText('Open companion history')}
-                          className="truncate text-left text-[14px] font-bold text-text-primary underline-offset-2 hover:underline"
-                        >
-                          {formatCompanionNameWithOwnerLastName(item.companion.name, item.parent)}
-                        </button>
-                        <span className="truncate text-[12px] text-[var(--ink-faint)]">
-                          {buildSpeciesLine(item.companion)}
-                        </span>
-                      </span>
-                    </span>
-
-                    {/* Parent */}
-                    <span className="truncate text-[var(--ink-muted)]">
-                      {formatParentName(item.parent)}
-                    </span>
-
-                    {/* Breed */}
-                    <span className="truncate text-[var(--ink-muted)]">
-                      {formatDisplayValue(item.companion.breed)}
-                    </span>
-
-                    {/* Upcoming visit */}
-                    {upcoming ? (
-                      <button
-                        type="button"
-                        onClick={() => goToAppointment(upcoming)}
-                        title="Open appointment"
-                        className="flex min-w-0 items-center gap-2 rounded-[10px] border border-[var(--hairline)] px-2.5 py-1.5 text-left transition-colors hover:bg-[var(--surface-soft)]"
-                      >
-                        <span className="flex min-w-0 flex-col">
-                          <span className="truncate text-[13px] text-text-primary">
-                            {formatDateLabel(upcoming.appointmentDate)}
-                          </span>
-                          <span className="truncate text-[12px] text-[var(--ink-faint)]">
-                            {formatTimeLabel(upcoming.startTime)}
-                          </span>
-                        </span>
-                        <IoOpenOutline
-                          size={14}
-                          aria-hidden="true"
-                          className="ml-auto shrink-0 text-[var(--ink-faint)]"
-                        />
-                      </button>
-                    ) : (
-                      <span className="text-[var(--ink-faint)]">-</span>
-                    )}
-
-                    {/* Status */}
-                    <span>
-                      <span
-                        className="inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em]"
-                        style={getCompanionStatusStyle(item.companion.status || 'inactive')}
-                      >
-                        {toTitleCase(item.companion.status || 'inactive')}
-                      </span>
-                    </span>
-
-                    {/* Row menu */}
-                    <RowMenu
-                      label={terminologyText('Companion row actions')}
-                      actions={buildRowActions(item)}
-                    />
-                  </div>
-                );
-              })
+              pageItems.map((item) => (
+                <CompanionRow
+                  key={item.companion.id || item.companion.name}
+                  item={item}
+                  upcoming={getUpcomingAppointmentForCompanion(item.companion.id)}
+                  actions={buildRowActions(item)}
+                  terminologyText={terminologyText}
+                  onOpenHistory={handleOpenCompanionHistoryPage}
+                  onGoToAppointment={goToAppointment}
+                />
+              ))
             )}
           </div>
 
           {/* Footer / pagination */}
           {filteredList.length > 0 ? (
-            <div className="flex shrink-0 items-center justify-between border-t border-[var(--hairline)] px-5 py-3 text-[12.5px] text-[var(--ink-faint)]">
-              <span>{`Showing ${rangeStart}-${rangeEnd} of ${filteredList.length} ${terminologyText('companions')}`}</span>
-              {totalPages > 1 ? (
-                <span className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    aria-label="Previous page"
-                    disabled={safePage === 1}
-                    onClick={() => setPage(Math.max(1, safePage - 1))}
-                    className="flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
-                  >
-                    ‹
-                  </button>
-                  {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
-                    <button
-                      key={pageNumber}
-                      type="button"
-                      aria-label={`Page ${pageNumber}`}
-                      aria-current={pageNumber === safePage ? 'page' : undefined}
-                      onClick={() => setPage(pageNumber)}
-                      className={`flex size-7 items-center justify-center rounded-[9px] text-[12px] transition-colors ${
-                        pageNumber === safePage
-                          ? 'bg-[var(--nav-active-bg)] font-bold text-[var(--nav-active)]'
-                          : 'font-semibold text-[var(--ink-muted)] hover:bg-[var(--surface-soft)]'
-                      }`}
-                    >
-                      {pageNumber}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    aria-label="Next page"
-                    disabled={safePage === totalPages}
-                    onClick={() => setPage(Math.min(totalPages, safePage + 1))}
-                    className="flex size-7 items-center justify-center rounded-[9px] border border-[var(--hairline)] text-text-primary transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
-                  >
-                    ›
-                  </button>
-                </span>
-              ) : null}
-            </div>
+            <TablePagination
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+              totalItems={filteredList.length}
+              companionsLabel={terminologyText('companions')}
+              totalPages={totalPages}
+              safePage={safePage}
+              onPageChange={setPage}
+            />
           ) : null}
         </div>
       </div>

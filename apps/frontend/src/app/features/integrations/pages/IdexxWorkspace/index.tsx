@@ -1426,9 +1426,13 @@ const useIdexxWorkspacePage = () => {
     return filteredResults.slice(start, start + pageSize);
   }, [filteredResults, currentPage, pageSize]);
 
-  useEffect(() => {
+  // Reset to the first page when the header search changes — derived during
+  // render (prev-value compare) instead of a useEffect, so there's no extra frame.
+  const [prevSearchQuery, setPrevSearchQuery] = useState(headerSearchQuery);
+  if (headerSearchQuery !== prevSearchQuery) {
+    setPrevSearchQuery(headerSearchQuery);
     setPage(1);
-  }, [headerSearchQuery]);
+  }
 
   const censusDeviceByPatientId = useMemo(
     () => buildCensusDeviceByPatientId(censusEntries),

@@ -232,6 +232,7 @@ const TaskCard = ({
         <GlassTooltip content="View task" side="bottom">
           <button
             type="button"
+            aria-label="View task"
             className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
             onClick={(event) => {
               event.preventDefault();
@@ -246,6 +247,7 @@ const TaskCard = ({
           <GlassTooltip content="Change status" side="bottom">
             <button
               type="button"
+              aria-label="Change status"
               className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
               onClick={(event) => {
                 event.preventDefault();
@@ -261,6 +263,7 @@ const TaskCard = ({
           <GlassTooltip content="Reschedule" side="bottom">
             <button
               type="button"
+              aria-label="Reschedule"
               className="size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center"
               onClick={(event) => {
                 event.preventDefault();
@@ -300,6 +303,188 @@ const normalizeId = (value?: string | null) =>
     .split('/')
     .pop()
     ?.toLowerCase() ?? '';
+
+type BoardToolbarProps = {
+  currentDate: Date;
+  setCurrentDate: React.Dispatch<React.SetStateAction<Date>>;
+  canEditTasks: boolean;
+  onAddTask?: () => void;
+  showMineOnly: boolean;
+  setShowMineOnly: (value: boolean) => void;
+};
+
+const BoardToolbar = ({
+  currentDate,
+  setCurrentDate,
+  canEditTasks,
+  onAddTask,
+  showMineOnly,
+  setShowMineOnly,
+}: BoardToolbarProps) => (
+  <div className="border-b border-card-border bg-neutral-0 px-3 py-2">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[340px]">
+        <GlassTooltip content="Select date" side="bottom">
+          <Datepicker
+            currentDate={currentDate}
+            setCurrentDate={setCurrentDate}
+            placeholder="Select Date"
+          />
+        </GlassTooltip>
+        <div className="flex items-center gap-2">
+          <Back
+            onClick={() =>
+              setCurrentDate((prev) => {
+                const next = new Date(prev);
+                next.setDate(next.getDate() - 1);
+                return next;
+              })
+            }
+          />
+          <div>
+            {formatDateInPreferredTimeZone(currentDate, {
+              weekday: 'long',
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric',
+            })}
+          </div>
+          <Next
+            onClick={() =>
+              setCurrentDate((prev) => {
+                const next = new Date(prev);
+                next.setDate(next.getDate() + 1);
+                return next;
+              })
+            }
+          />
+        </div>
+      </div>
+      <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
+        {canEditTasks && (
+          <Primary
+            text="New task"
+            ariaLabel="New task"
+            onClick={onAddTask}
+            icon={<IoAdd size={18} aria-hidden="true" />}
+            className="gap-2 px-4 whitespace-nowrap hover:scale-100"
+          />
+        )}
+        <BoardScopeToggle
+          showMineOnly={showMineOnly}
+          onChange={setShowMineOnly}
+          allLabel="All tasks"
+          mineLabel="My tasks"
+        />
+      </div>
+    </div>
+  </div>
+);
+
+type BoardColumnProps = {
+  column: { key: BoardStatus; label: string };
+  columnTasks: Task[];
+  draggedTaskId: string | null;
+  canEditTasks: boolean;
+  updatingStatusId: string | null;
+  resolveMemberIdentity: (memberId?: string) => MemberIdentity;
+  onOpen: (task: Task) => void;
+  onChangeStatus: (task: Task) => void;
+  onReschedule: (task: Task) => void;
+  onDragStart: (event: React.DragEvent<HTMLElement>, task: Task) => void;
+  onDragEnd: () => void;
+  onAddTask?: () => void;
+  onWheelBoundary: (event: React.WheelEvent<HTMLElement>) => void;
+  setDropElement: (element: HTMLDivElement | null) => void;
+  setScrollElement: (element: HTMLDivElement | null) => void;
+};
+
+const BoardColumn = ({
+  column,
+  columnTasks,
+  draggedTaskId,
+  canEditTasks,
+  updatingStatusId,
+  resolveMemberIdentity,
+  onOpen,
+  onChangeStatus,
+  onReschedule,
+  onDragStart,
+  onDragEnd,
+  onAddTask,
+  onWheelBoundary,
+  setDropElement,
+  setScrollElement,
+}: BoardColumnProps) => {
+  const hasTasks = columnTasks.length > 0;
+  const style = getStatusStyle(column.key);
+  return (
+    <div
+      ref={setDropElement}
+      className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl bg-[var(--inset)] overflow-hidden flex flex-col min-h-0"
+    >
+      <div className="px-3.5 pt-3.5 pb-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: style.borderColor }}
+            />
+            <div
+              className="text-[12px] font-bold uppercase tracking-[0.04em]"
+              style={{ color: style.color }}
+            >
+              {column.label}
+            </div>
+          </div>
+          <div className="text-[11.5px] font-bold text-text-tertiary">{columnTasks.length}</div>
+        </div>
+      </div>
+      <div
+        ref={setScrollElement}
+        className="flex-1 min-h-0 h-0 flex flex-col gap-2.5 px-2.5 pb-3 overflow-y-auto"
+        onWheel={onWheelBoundary}
+        data-calendar-scroll="true"
+      >
+        {columnTasks.map((task) => (
+          <TaskCard
+            key={task._id}
+            task={task}
+            columnLabel={column.label}
+            columnStyle={style}
+            draggedTaskId={draggedTaskId}
+            canEditTasks={canEditTasks}
+            updatingStatusId={updatingStatusId}
+            assignedBy={resolveMemberIdentity(task.assignedBy)}
+            assignedTo={resolveMemberIdentity(task.assignedTo)}
+            onOpen={onOpen}
+            onChangeStatus={onChangeStatus}
+            onReschedule={onReschedule}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+          />
+        ))}
+        {!hasTasks && (
+          <div className="rounded-[13px] border border-dashed border-card-border bg-neutral-0 px-3 py-4 text-center text-caption-1 text-text-secondary">
+            No tasks
+          </div>
+        )}
+        {canEditTasks && column.key === 'PENDING' && (
+          <button
+            type="button"
+            aria-label="Add task to Pending"
+            onClick={onAddTask}
+            className="mt-auto flex items-center justify-center gap-1.5 rounded-[11px] border border-dashed border-[var(--divider)] px-3 py-2.5 text-[12px] font-semibold text-text-tertiary transition-colors hover:border-input-border-active hover:text-text-primary"
+          >
+            <IoAdd size={14} aria-hidden="true" />
+            Add
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const TaskBoard = ({
   tasks,
@@ -531,64 +716,14 @@ const TaskBoard = ({
 
   return (
     <div className="h-full min-h-0 rounded-2xl border border-card-border bg-neutral-0 overflow-hidden flex flex-col">
-      <div className="border-b border-card-border bg-neutral-0 px-3 py-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[340px]">
-            <GlassTooltip content="Select date" side="bottom">
-              <Datepicker
-                currentDate={currentDate}
-                setCurrentDate={setCurrentDate}
-                placeholder="Select Date"
-              />
-            </GlassTooltip>
-            <div className="flex items-center gap-2">
-              <Back
-                onClick={() =>
-                  setCurrentDate((prev) => {
-                    const next = new Date(prev);
-                    next.setDate(next.getDate() - 1);
-                    return next;
-                  })
-                }
-              />
-              <div>
-                {formatDateInPreferredTimeZone(currentDate, {
-                  weekday: 'long',
-                  month: 'short',
-                  day: '2-digit',
-                  year: 'numeric',
-                })}
-              </div>
-              <Next
-                onClick={() =>
-                  setCurrentDate((prev) => {
-                    const next = new Date(prev);
-                    next.setDate(next.getDate() + 1);
-                    return next;
-                  })
-                }
-              />
-            </div>
-          </div>
-          <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
-            {canEditTasks && (
-              <Primary
-                text="New task"
-                ariaLabel="New task"
-                onClick={onAddTask}
-                icon={<IoAdd size={18} aria-hidden="true" />}
-                className="gap-2 px-4 whitespace-nowrap hover:scale-100"
-              />
-            )}
-            <BoardScopeToggle
-              showMineOnly={showMineOnly}
-              onChange={setShowMineOnly}
-              allLabel="All tasks"
-              mineLabel="My tasks"
-            />
-          </div>
-        </div>
-      </div>
+      <BoardToolbar
+        currentDate={currentDate}
+        setCurrentDate={setCurrentDate}
+        canEditTasks={canEditTasks}
+        onAddTask={onAddTask}
+        showMineOnly={showMineOnly}
+        setShowMineOnly={setShowMineOnly}
+      />
 
       <div
         ref={boardRootRef}
@@ -598,84 +733,30 @@ const TaskBoard = ({
         onWheel={onWheelHorizontal}
       >
         <div className="h-full min-w-max flex items-stretch gap-3">
-          {BOARD_COLUMNS.map((column) => {
-            const columnTasks = groupedTasks[column.key];
-            const hasTasks = columnTasks.length > 0;
-            const style = getStatusStyle(column.key);
-            return (
-              <div
-                key={column.key}
-                ref={(element) => {
-                  columnDropRefs.current[column.key] = element;
-                }}
-                className="w-[320px] min-w-[320px] max-w-[320px] h-full rounded-2xl bg-[var(--inset)] overflow-hidden flex flex-col min-h-0"
-              >
-                <div className="px-3.5 pt-3.5 pb-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        className="size-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: style.borderColor }}
-                      />
-                      <div
-                        className="text-[12px] font-bold uppercase tracking-[0.04em]"
-                        style={{ color: style.color }}
-                      >
-                        {column.label}
-                      </div>
-                    </div>
-                    <div className="text-[11.5px] font-bold text-text-tertiary">
-                      {columnTasks.length}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  ref={(element) => {
-                    columnScrollRefs.current[column.key] = element;
-                  }}
-                  className="flex-1 min-h-0 h-0 flex flex-col gap-2.5 px-2.5 pb-3 overflow-y-auto"
-                  onWheel={onWheelBoundary}
-                  data-calendar-scroll="true"
-                >
-                  {columnTasks.map((task) => (
-                    <TaskCard
-                      key={task._id}
-                      task={task}
-                      columnLabel={column.label}
-                      columnStyle={style}
-                      draggedTaskId={draggedTaskId}
-                      canEditTasks={canEditTasks}
-                      updatingStatusId={updatingStatusId}
-                      assignedBy={resolveMemberIdentity(task.assignedBy)}
-                      assignedTo={resolveMemberIdentity(task.assignedTo)}
-                      onOpen={openTask}
-                      onChangeStatus={openChangeStatus}
-                      onReschedule={openReschedule}
-                      onDragStart={handleTaskCardDragStart}
-                      onDragEnd={() => setDraggedTaskId(null)}
-                    />
-                  ))}
-                  {!hasTasks && (
-                    <div className="rounded-[13px] border border-dashed border-card-border bg-neutral-0 px-3 py-4 text-center text-caption-1 text-text-secondary">
-                      No tasks
-                    </div>
-                  )}
-                  {canEditTasks && column.key === 'PENDING' && (
-                    <button
-                      type="button"
-                      aria-label="Add task to Pending"
-                      onClick={onAddTask}
-                      className="mt-auto flex items-center justify-center gap-1.5 rounded-[11px] border border-dashed border-[var(--divider)] px-3 py-2.5 text-[12px] font-semibold text-text-tertiary transition-colors hover:border-input-border-active hover:text-text-primary"
-                    >
-                      <IoAdd size={14} aria-hidden="true" />
-                      Add
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {BOARD_COLUMNS.map((column) => (
+            <BoardColumn
+              key={column.key}
+              column={column}
+              columnTasks={groupedTasks[column.key]}
+              draggedTaskId={draggedTaskId}
+              canEditTasks={canEditTasks}
+              updatingStatusId={updatingStatusId}
+              resolveMemberIdentity={resolveMemberIdentity}
+              onOpen={openTask}
+              onChangeStatus={openChangeStatus}
+              onReschedule={openReschedule}
+              onDragStart={handleTaskCardDragStart}
+              onDragEnd={() => setDraggedTaskId(null)}
+              onAddTask={onAddTask}
+              onWheelBoundary={onWheelBoundary}
+              setDropElement={(element) => {
+                columnDropRefs.current[column.key] = element;
+              }}
+              setScrollElement={(element) => {
+                columnScrollRefs.current[column.key] = element;
+              }}
+            />
+          ))}
         </div>
       </div>
     </div>

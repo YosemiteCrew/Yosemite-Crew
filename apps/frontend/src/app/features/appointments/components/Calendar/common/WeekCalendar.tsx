@@ -406,7 +406,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
               </div>
               <div className="grid bg-neutral-0" style={dayColumnsStyle}>
                 {days.map((day) => {
-                  const weekday = day.toLocaleDateString('en-US', {
+                  const weekday = formatDateInPreferredTimeZone(day, {
                     weekday: 'short',
                   });
                   const dateNumber = day.getDate();
