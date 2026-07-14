@@ -65,7 +65,7 @@ describe('DevRouteGuard', () => {
     expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 
-  it('signs out and redirects if authenticated without developer role', () => {
+  it('signs out first (without redirecting) when authenticated without developer role', () => {
     const signout = jest.fn();
     mockUseAuthStore.mockImplementation(() => ({
       status: 'authenticated',
@@ -73,12 +73,29 @@ describe('DevRouteGuard', () => {
       signout,
     }));
 
-    render(
+    const { queryByText, rerender } = render(
       <DevRouteGuard>
         <div>child</div>
       </DevRouteGuard>
     );
+
+    // signout is triggered, but we must not redirect while still authenticated —
+    // doing so would throw before the signout effect commits and strand the session.
     expect(signout).toHaveBeenCalled();
+    expect(mockRedirect).not.toHaveBeenCalled();
+    expect(queryByText('child')).not.toBeInTheDocument();
+
+    // Once signout clears the session, the guard redirects on the next render.
+    mockUseAuthStore.mockImplementation(() => ({
+      status: 'unauthenticated',
+      role: null,
+      signout,
+    }));
+    rerender(
+      <DevRouteGuard>
+        <div>child</div>
+      </DevRouteGuard>
+    );
     expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 
@@ -111,13 +128,25 @@ describe('DevRouteGuard', () => {
       signout,
     }));
 
-    render(
+    const { rerender } = render(
       <DevRouteGuard>
         <div>child</div>
       </DevRouteGuard>
     );
 
     expect(signout).toHaveBeenCalled();
+    expect(mockRedirect).not.toHaveBeenCalled();
+
+    mockUseAuthStore.mockImplementation(() => ({
+      status: 'unauthenticated',
+      role: null,
+      signout,
+    }));
+    rerender(
+      <DevRouteGuard>
+        <div>child</div>
+      </DevRouteGuard>
+    );
     expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 });

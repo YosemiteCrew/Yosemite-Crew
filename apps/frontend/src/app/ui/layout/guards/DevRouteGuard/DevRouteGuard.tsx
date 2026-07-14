@@ -47,11 +47,12 @@ const DevRouteGuard = ({ children }: { children: React.ReactNode }) => {
     }
   }, [isPending, isDevPath, isAuthenticated, isDevRole, authStore]);
 
-  if (
-    !isPending &&
-    isDevPath &&
-    (status === 'unauthenticated' || (isAuthenticated && !isDevRole))
-  ) {
+  // Only redirect once the session is actually cleared. For an authenticated
+  // non-developer the effect above calls signout() first, which flips status to
+  // 'unauthenticated' and lands us here on the next render — redirecting eagerly
+  // during this render would throw before that signout effect ever commits,
+  // leaving the user logged in while bounced to the developer sign-in page.
+  if (!isPending && isDevPath && status === 'unauthenticated') {
     redirect('/developers/signin');
   }
 
