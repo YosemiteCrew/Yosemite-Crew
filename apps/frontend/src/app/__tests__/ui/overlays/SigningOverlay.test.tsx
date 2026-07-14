@@ -33,7 +33,7 @@ describe('SigningOverlay', () => {
     expect(iframe).toHaveAttribute('src', 'https://ds.yosemitecrew.com/sign/abc');
     expect(iframe).toHaveAttribute(
       'sandbox',
-      'allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-scripts'
+      'allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-scripts allow-same-origin'
     );
     expect(iframe).toHaveAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
   });

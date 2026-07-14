@@ -77,7 +77,7 @@ const DocSigningPortal = ({ embedded = false }: DocSigningPortalProps) => {
         className="size-full"
         title="Doc Signing Portal"
         allow="clipboard-read; clipboard-write; fullscreen"
-        sandbox="allow-downloads allow-forms allow-modals allow-popups allow-scripts"
+        sandbox="allow-downloads allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
         referrerPolicy="strict-origin"
       />
     </div>
