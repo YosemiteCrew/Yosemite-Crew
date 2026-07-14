@@ -21,7 +21,7 @@ type UseAppointmentFormDataOptions = {
   customForms: unknown;
   formsById: unknown;
   withSignatureMeta: SignatureMeta;
-  withSignatureMetaRef: React.MutableRefObject<SignatureMeta>;
+  withSignatureMetaRef: React.RefObject<SignatureMeta>;
 };
 
 const SOAP_SUB_LABELS = new Set([
