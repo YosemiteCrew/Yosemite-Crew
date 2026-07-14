@@ -165,6 +165,7 @@ export const TaskFormContent: React.FC<TaskFormContentProps> = ({
             updateField={updateField}
             onOpenCalendarSyncSheet={sheetHandlers.onOpenCalendarSyncSheet}
             theme={theme}
+            error={errors.calendarProvider}
           />
 
           <View style={styles.toggleSection}>

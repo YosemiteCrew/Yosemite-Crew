@@ -486,7 +486,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
               ? () => taskActions.handleStartObservationalTool(task.id)
               : undefined
           }
-          showEditAction={!taskMeta?.isCompleted}
+          showEditAction={!taskMeta?.isCompleted && !taskMeta?.isCancelled}
           showCompleteButton={Boolean(taskMeta?.isPending)}
           category={task.category}
           details={task.details}

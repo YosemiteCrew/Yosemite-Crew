@@ -1,4 +1,5 @@
 import React from 'react';
+import {Alert} from 'react-native';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, act, waitFor} from '@testing-library/react-native';
 import {EditAppointmentScreen} from '@/features/appointments/screens/EditAppointmentScreen';
@@ -300,6 +301,7 @@ describe('EditAppointmentScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     mockFetchBusinessDetails.mockResolvedValue({photoUrl: 'fetched-photo-url'});
     mockFetchGooglePlacesImage.mockResolvedValue({
       photoUrl: 'google-photo-url',
@@ -474,7 +476,7 @@ describe('EditAppointmentScreen', () => {
     });
   });
 
-  it('does not submit if time is invalid (null) and navigates back', async () => {
+  it('does not submit if time is invalid (null) and warns instead of navigating back', async () => {
     const {getByTestId} = setup();
 
     // 1. Clear Slot (sets time to null)
@@ -488,9 +490,14 @@ describe('EditAppointmentScreen', () => {
     const {
       rescheduleAppointment,
     } = require('@/features/appointments/appointmentsSlice');
-    // 3. Verify Reschedule NOT called, but GoBack IS called (Lines 148-149)
+    // 3. An invalid time must not be treated as a successful reschedule:
+    // no API call, no silent navigate-away, and a visible alert instead.
     expect(rescheduleAppointment).not.toHaveBeenCalled();
-    expect(mockGoBack).toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Select a time',
+      expect.stringContaining('valid appointment time'),
+    );
   });
 
   it('handles submission error gracefully', async () => {
@@ -517,6 +524,64 @@ describe('EditAppointmentScreen', () => {
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Failed to reschedule'),
         expect.any(Error),
+      );
+    });
+    // The failure must also be visible to the user, not just the console.
+    expect(Alert.alert).toHaveBeenCalledWith('Reschedule failed', 'Fail');
+    consoleSpy.mockRestore();
+  });
+
+  it('shows the rejected string message when the thunk rejects with a string', async () => {
+    const {
+      rescheduleAppointment,
+    } = require('@/features/appointments/appointmentsSlice');
+
+    (rescheduleAppointment as unknown as jest.Mock).mockReturnValueOnce({
+      type: 'appointments/reschedule',
+      unwrap: jest.fn().mockRejectedValue('Session expired'),
+    });
+
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const {getByTestId} = setup();
+    fireEvent.press(getByTestId('SelectSlotBtn'));
+
+    await act(async () => {
+      fireEvent(getByTestId('SubmitButton'), 'touchEnd');
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Reschedule failed',
+        'Session expired',
+      );
+    });
+    consoleSpy.mockRestore();
+  });
+
+  it('falls back to a generic message when the rejection has no message', async () => {
+    const {
+      rescheduleAppointment,
+    } = require('@/features/appointments/appointmentsSlice');
+
+    (rescheduleAppointment as unknown as jest.Mock).mockReturnValueOnce({
+      type: 'appointments/reschedule',
+      unwrap: jest.fn().mockRejectedValue({}),
+    });
+
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const {getByTestId} = setup();
+    fireEvent.press(getByTestId('SelectSlotBtn'));
+
+    await act(async () => {
+      fireEvent(getByTestId('SubmitButton'), 'touchEnd');
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Reschedule failed',
+        'Unable to reschedule this appointment. Please try again.',
       );
     });
     consoleSpy.mockRestore();

@@ -1,5 +1,5 @@
 import React, {useEffect as useReactEffect, useMemo, useState} from 'react';
-import {ScrollView, StyleSheet, Text} from 'react-native';
+import {Alert, ScrollView, StyleSheet, Text} from 'react-native';
 import {useSelector, useDispatch} from 'react-redux';
 import {Header} from '@/shared/components/common/Header/Header';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -408,7 +408,10 @@ export const EditAppointmentScreen: React.FC = () => {
   const handleSubmit = async () => {
     const isoTimes = getRescheduleIsoTimes(availability, date, time);
     if (!isoTimes) {
-      navigation.goBack();
+      Alert.alert(
+        'Select a time',
+        'Please choose a valid appointment time before saving.',
+      );
       return;
     }
     setSaving(true);
@@ -425,6 +428,12 @@ export const EditAppointmentScreen: React.FC = () => {
       navigation.goBack();
     } catch (error) {
       console.warn('[EditAppointment] Failed to reschedule', error);
+      const message =
+        typeof error === 'string'
+          ? error
+          : ((error as Error)?.message ??
+            'Unable to reschedule this appointment. Please try again.');
+      Alert.alert('Reschedule failed', message);
     } finally {
       setSaving(false);
     }

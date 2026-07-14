@@ -486,6 +486,11 @@ describe('ReviewScreen', () => {
           expect.stringContaining('Failed to submit'),
           expect.any(Error),
         );
+        // The user must see this, not just the developer console.
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Review not submitted',
+          'Session expired. Please sign in again.',
+        );
       });
     });
 
@@ -521,6 +526,24 @@ describe('ReviewScreen', () => {
           expect.any(Error),
         );
         expect(mockGoBack).not.toHaveBeenCalled();
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Review not submitted',
+          'API Fail',
+        );
+      });
+    });
+
+    it('falls back to a generic message when the rejection has no message', async () => {
+      (appointmentApi.rateOrganisation as jest.Mock).mockRejectedValue({});
+
+      const {getByTestId} = renderScreen();
+      fireEvent(getByTestId('submit-btn'), 'onTouchEnd');
+
+      await waitFor(() => {
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Review not submitted',
+          'Unable to submit your review. Please try again.',
+        );
       });
     });
 

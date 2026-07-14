@@ -305,8 +305,24 @@ describe('AddressFields', () => {
       expect(getByText(item.primaryText)).toBeTruthy();
     });
     expect(queryByText('6')).toBeNull();
-    expect(getByText('Suggestions')).toBeTruthy();
+    // The truncated list must say so, rather than silently hiding results.
+    expect(getByText('Top 5 of 6 suggestions')).toBeTruthy();
+    expect(queryByText('Suggestions')).toBeNull();
     expect(getByText('Powered by Google')).toBeTruthy();
+  });
+
+  it('shows the plain "Suggestions" title when the list is not truncated', () => {
+    const shortList = [
+      {placeId: '1', primaryText: '1'},
+      {placeId: '2', primaryText: '2'},
+    ];
+
+    const {getByText, queryByText} = render(
+      <AddressFields {...defaultProps} addressSuggestions={shortList} />,
+    );
+
+    expect(getByText('Suggestions')).toBeTruthy();
+    expect(queryByText(/Top 5 of/)).toBeNull();
   });
 
   it('renders field errors passed via fieldErrors prop', () => {

@@ -1,5 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {
+  Alert,
   ScrollView,
   View,
   Text,
@@ -130,6 +131,11 @@ export const ReviewScreen: React.FC = () => {
       navigation.goBack();
     } catch (error) {
       console.warn('[Review] Failed to submit rating', error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to submit your review. Please try again.';
+      Alert.alert('Review not submitted', message);
     } finally {
       setSubmitting(false);
     }

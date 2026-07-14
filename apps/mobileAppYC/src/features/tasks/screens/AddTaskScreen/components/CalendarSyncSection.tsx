@@ -14,6 +14,7 @@ interface CalendarSyncSectionProps {
   ) => void;
   onOpenCalendarSyncSheet: () => void;
   theme: any;
+  error?: string;
 }
 
 export const CalendarSyncSection: React.FC<CalendarSyncSectionProps> = ({
@@ -21,6 +22,7 @@ export const CalendarSyncSection: React.FC<CalendarSyncSectionProps> = ({
   updateField,
   onOpenCalendarSyncSheet,
   theme,
+  error,
 }) => {
   const iconStyles = React.useMemo(() => createIconStyles(theme), [theme]);
   const formStyles = React.useMemo(() => createFormStyles(theme), [theme]); // Used in JSX below
@@ -49,6 +51,7 @@ export const CalendarSyncSection: React.FC<CalendarSyncSectionProps> = ({
             value={formData.calendarProviderName || undefined}
             placeholder={defaultPlaceholder}
             onPress={onOpenCalendarSyncSheet}
+            error={error}
             rightComponent={
               <Image
                 source={Images.dropdownIcon}

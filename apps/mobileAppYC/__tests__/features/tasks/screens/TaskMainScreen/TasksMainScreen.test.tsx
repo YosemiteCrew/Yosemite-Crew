@@ -96,6 +96,8 @@ jest.mock('@/features/tasks/components', () => {
         onPressEdit={props.onPressEdit}
         onPressComplete={props.onPressComplete}
         onPressTakeObservationalTool={props.onPressTakeObservationalTool}
+        showEditAction={props.showEditAction}
+        showCompleteButton={props.showCompleteButton}
       />
     ),
   };
@@ -150,6 +152,7 @@ jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
   getTaskCardMeta: jest.fn((task: any, _authUser: any) => ({
     isPending: task.status === 'pending',
     isCompleted: task.status === 'completed',
+    isCancelled: task.status === 'cancelled',
     assignedToData: undefined,
     isObservationalToolTask:
       task.details?.taskType === 'take-observational-tool',
@@ -672,6 +675,35 @@ describe('TasksMainScreen', () => {
 
     fireEvent(card, 'pressEdit');
     expect(mockHandleEditTask).toHaveBeenCalledWith('t1');
+  });
+
+  it('does not show the edit action for a cancelled task', () => {
+    const {
+      selectRecentTasksByCategory,
+      selectTasksByCompanion,
+    } = require('@/features/tasks/selectors');
+    const mockTask = {
+      id: 't1',
+      title: 'Cancelled Task',
+      category: 'health',
+      status: 'cancelled',
+      companionId: 'c1',
+      date: '2023-01-15',
+      time: '10:00',
+    };
+
+    selectTasksByCompanion.mockReturnValue((_state: any) => [mockTask]);
+    selectRecentTasksByCategory.mockImplementation(
+      (_id: any, _d: any, category: string) => {
+        if (category === 'health') return (_state: any) => [mockTask];
+        return (_state: any) => [];
+      },
+    );
+
+    const {getByTestId} = render(<TasksMainScreen />);
+    const card = getByTestId('task-card-Cancelled Task');
+
+    expect(card.props.showEditAction).toBe(false);
   });
 
   it('navigates to Observational Tool if task type matches', () => {

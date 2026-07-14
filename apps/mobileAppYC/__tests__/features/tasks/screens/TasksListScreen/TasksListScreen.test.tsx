@@ -70,6 +70,7 @@ jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
     const statusUpper = String(task.status).toUpperCase();
     const isPending = statusUpper === 'PENDING';
     const isCompleted = statusUpper === 'COMPLETED';
+    const isCancelled = statusUpper === 'CANCELLED';
     const assignedToData =
       task.assignedTo === authUser?.id
         ? {
@@ -84,6 +85,7 @@ jest.mock('@/features/tasks/utils/taskCardHelpers', () => ({
     return {
       isPending,
       isCompleted,
+      isCancelled,
       assignedToData,
       isObservationalToolTask,
     };
@@ -462,5 +464,23 @@ describe('TasksListScreen', () => {
     const {queryByTestId} = render(<TasksListScreen />);
 
     expect(queryByTestId('start-ot-Regular Task')).toBeNull();
+  });
+
+  it('does not show edit action for a cancelled task', () => {
+    const cancelledState = {
+      ...mockState,
+      mockTasks: [
+        {
+          ...mockState.mockTasks[0],
+          title: 'Cancelled Task',
+          status: 'cancelled',
+        },
+      ],
+    };
+    mockUseSelector.mockImplementation((cb: any) => cb(cancelledState));
+
+    const {queryByTestId} = render(<TasksListScreen />);
+
+    expect(queryByTestId('edit-Cancelled Task')).toBeNull();
   });
 });

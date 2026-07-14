@@ -70,6 +70,11 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
     () => addressSuggestions.slice(0, MAX_VISIBLE_ADDRESS_SUGGESTIONS),
     [addressSuggestions],
   );
+  const hasMoreSuggestions =
+    addressSuggestions.length > MAX_VISIBLE_ADDRESS_SUGGESTIONS;
+  const suggestionTitleText = hasMoreSuggestions
+    ? `Top ${MAX_VISIBLE_ADDRESS_SUGGESTIONS} of ${addressSuggestions.length} suggestions`
+    : 'Suggestions';
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -130,7 +135,9 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
 
               return (
                 <View style={styles.suggestionContainer}>
-                  <Text style={styles.suggestionTitle}>Suggestions</Text>
+                  <Text style={styles.suggestionTitle}>
+                    {suggestionTitleText}
+                  </Text>
                   {content}
                   {isFetchingSuggestions || addressSuggestions.length > 0 ? (
                     <Text style={styles.suggestionFooter}>
