@@ -134,9 +134,12 @@ jest.mock('stream-chat-react', () => {
   return {
     Chat: ({ children }: any) => <div data-testid="stream-chat">{children}</div>,
     Channel: ({ children }: any) => <div data-testid="stream-channel">{children}</div>,
-    ChannelList: ({ filters: _filters, channelRenderFilterFn }: any) => {
+    ChannelList: ({ filters: _filters, channelRenderFilterFn, Preview }: any) => {
       if (channelRenderFilterFn) {
         (window as any).__testChannelFilter = channelRenderFilterFn;
+      }
+      if (Preview) {
+        (window as any).__testPreview = Preview;
       }
       return <div data-testid="channel-list">Channel List</div>;
     },
@@ -212,6 +215,20 @@ jest.mock(
       showModal ? <div data-testid="chat-followup-modal" /> : null,
   })
 );
+
+jest.mock('@/app/features/chat/components/NetworkDirectoryModal', () => ({
+  __esModule: true,
+  default: ({ onStarted, onClose }: any) => (
+    <div data-testid="network-modal">
+      <button type="button" onClick={() => onStarted('network-channel-id')}>
+        Start Network Chat
+      </button>
+      <button type="button" onClick={onClose}>
+        Close Network
+      </button>
+    </div>
+  ),
+}));
 
 const mockClient = {
   userID: 'user-1',
@@ -1570,6 +1587,498 @@ describe('ChatContainer', () => {
     );
     fireEvent.click(screen.getByLabelText('Conversation actions'));
     expect(screen.getByText('Mute')).toBeInTheDocument();
+  });
+
+  it('renders a client header for a channel with no members (zero member count)', async () => {
+    const noMembersChannel = {
+      ...defaultMockChannel,
+      data: { appointmentId: '123', chatCategory: 'clients' },
+      state: {},
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: noMembersChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(noMembersChannel);
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    await waitFor(() => expect(screen.getByText('Close session')).toBeInTheDocument());
+  });
+
+  it('toggles the archived filter and marks the button pressed', async () => {
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" />);
+    });
+    await waitFor(() => expect(screen.getByTestId('channel-list')).toBeInTheDocument());
+
+    const archivedBtn = screen.getByRole('button', { name: /Archived/ });
+    expect(archivedBtn).toHaveAttribute('aria-pressed', 'false');
+    await act(async () => {
+      fireEvent.click(archivedBtn);
+    });
+    expect(archivedBtn).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('invokes the preview-select handler when a conversation row is clicked', async () => {
+    const onChannelSelect = jest.fn();
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" onChannelSelect={onChannelSelect} />);
+    });
+    await waitFor(() => expect((window as any).__testPreview).toBeDefined());
+
+    const Preview = (window as any).__testPreview;
+    const previewChannel = {
+      ...defaultMockChannel,
+      id: 'preview-row-channel',
+      data: { name: 'Preview Row Channel' },
+    };
+    render(
+      <Preview channel={previewChannel} setActiveChannel={jest.fn()} active={false} unread={0} />
+    );
+    fireEvent.click(screen.getByText('Preview Row Channel'));
+
+    expect(onChannelSelect).toHaveBeenCalledWith(previewChannel);
+  });
+
+  it('logs an error when activating the appointment channel fails', async () => {
+    (streamChatService.getAppointmentChannel as jest.Mock).mockRejectedValueOnce(
+      new Error('activate failed')
+    );
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    await waitFor(() =>
+      expect(streamChatService.getAppointmentChannel).toHaveBeenCalledWith('123')
+    );
+    // Component recovers (no throw) and still renders the chat shell.
+    await waitFor(() => expect(screen.getByTestId('stream-chat')).toBeInTheDocument());
+  });
+
+  it('reads chat session channels from a bare array payload', async () => {
+    (chatService.getChatSessions as jest.Mock).mockResolvedValue([
+      { appointmentId: '123', status: 'ended' },
+    ]);
+    const clientChannel = {
+      ...defaultMockChannel,
+      data: { appointmentId: '123', chatCategory: 'clients' },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: clientChannel });
+    (streamChatService.getAppointmentChannel as jest.Mock).mockResolvedValue(clientChannel);
+
+    await act(async () => {
+      render(<ChatContainer appointmentId="123" />);
+    });
+
+    await waitFor(() => expect(screen.getByText('Session closed')).toBeInTheDocument());
+  });
+
+  it('falls back to an empty session list for an unrecognised payload shape', async () => {
+    (chatService.getChatSessions as jest.Mock).mockResolvedValue({});
+
+    await act(async () => {
+      render(<ChatContainer />);
+    });
+
+    await waitFor(() => expect(screen.getByTestId('stream-chat')).toBeInTheDocument());
+  });
+
+  it('recovers when loading org users rejects', async () => {
+    (chatService.fetchOrgUsers as jest.Mock).mockRejectedValueOnce(new Error('org users failed'));
+
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" />);
+    });
+
+    await waitFor(() => expect(chatService.fetchOrgUsers).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId('stream-chat')).toBeInTheDocument());
+  });
+
+  it('resolves an existing direct channel by member user.id when the member key differs', async () => {
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
+    const failAllChannel = {
+      ...defaultMockChannel,
+      id: 'fail-all',
+      data: { chatCategory: 'colleagues' },
+      state: {
+        members: {
+          'user-1': { user: { id: 'user-1', name: 'Me' } },
+          'sk-x': { user: { id: 'zzz', name: 'Nobody' } },
+        },
+      },
+      watch: jest.fn().mockResolvedValue({}),
+    };
+    const matchByUserIdChannel = {
+      ...defaultMockChannel,
+      id: 'match-user-id',
+      data: { chatCategory: 'colleagues' },
+      state: {
+        members: {
+          'user-1': { user: { id: 'user-1', name: 'Me' } },
+          'sk-2': { user: { id: 'user-2', name: 'User Two' } },
+        },
+      },
+      watch: jest.fn().mockResolvedValue({}),
+    };
+    mockClient.queryChannels.mockResolvedValue([failAllChannel, matchByUserIdChannel]);
+
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" />);
+    });
+    await waitFor(() => expect(chatService.fetchOrgUsers).toHaveBeenCalled());
+
+    const input = screen.getByPlaceholderText('Search teammate to chat');
+    fireEvent.change(input, { target: { value: 'User Two' } });
+    fireEvent.focus(input);
+    const userButton = await screen.findByText('User Two');
+    await act(async () => {
+      fireEvent.click(userButton.closest('button')!);
+    });
+
+    await waitFor(() => expect(matchByUserIdChannel.watch).toHaveBeenCalled());
+    expect(chatService.createOrgDirectChat).not.toHaveBeenCalled();
+
+    mockClient.queryChannels.mockResolvedValue([defaultMockChannel]);
+  });
+
+  it('resolves an existing direct channel by matching member name as a last resort', async () => {
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
+    const matchByNameChannel = {
+      ...defaultMockChannel,
+      id: 'match-name',
+      data: { chatCategory: 'colleagues' },
+      state: {
+        members: {
+          'user-1': { user: { id: 'user-1', name: 'Me' } },
+          'sk-n': { user: { id: 'other-id', name: 'User Two' } },
+        },
+      },
+      watch: jest.fn().mockResolvedValue({}),
+    };
+    mockClient.queryChannels.mockResolvedValue([matchByNameChannel]);
+
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" />);
+    });
+    await waitFor(() => expect(chatService.fetchOrgUsers).toHaveBeenCalled());
+
+    const input = screen.getByPlaceholderText('Search teammate to chat');
+    fireEvent.change(input, { target: { value: 'User Two' } });
+    fireEvent.focus(input);
+    const userButton = await screen.findByText('User Two');
+    await act(async () => {
+      fireEvent.click(userButton.closest('button')!);
+    });
+
+    await waitFor(() => expect(matchByNameChannel.watch).toHaveBeenCalled());
+    expect(chatService.createOrgDirectChat).not.toHaveBeenCalled();
+
+    mockClient.queryChannels.mockResolvedValue([defaultMockChannel]);
+  });
+
+  it('watches the freshly created direct channel when it becomes queryable', async () => {
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
+    const createdChannel = {
+      ...defaultMockChannel,
+      id: 'channel-direct-1',
+      watch: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+    };
+    // First query (existing-channel scan) finds nothing -> create path.
+    // Second query (post-create lookup by id) returns the new channel.
+    mockClient.queryChannels.mockResolvedValueOnce([]).mockResolvedValueOnce([createdChannel]);
+
+    const onChannelSelect = jest.fn();
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" onChannelSelect={onChannelSelect} />);
+    });
+    await waitFor(() => expect(chatService.fetchOrgUsers).toHaveBeenCalled());
+
+    const input = screen.getByPlaceholderText('Search teammate to chat');
+    fireEvent.change(input, { target: { value: 'User Two' } });
+    fireEvent.focus(input);
+    const userButton = await screen.findByText('User Two');
+    await act(async () => {
+      fireEvent.click(userButton.closest('button')!);
+    });
+
+    await waitFor(() => expect(chatService.createOrgDirectChat).toHaveBeenCalled());
+    await waitFor(() => expect(onChannelSelect).toHaveBeenCalledWith(createdChannel));
+    expect(createdChannel.watch).toHaveBeenCalled();
+    expect(createdChannel.update).toHaveBeenCalled();
+
+    mockClient.queryChannels.mockResolvedValue([defaultMockChannel]);
+  });
+
+  const openNetworkModalAndStart = async ({
+    onChannelSelect = jest.fn(),
+  }: { onChannelSelect?: jest.Mock } = {}) => {
+    mockUseOrgStore.mockImplementation((selector: any) =>
+      selector({
+        primaryOrgId: 'org-1',
+        status: 'loaded',
+        getPrimaryOrg: () => ({ crossOrgMessagingEnabled: true }),
+      })
+    );
+
+    await act(async () => {
+      render(<ChatContainer scope="colleagues" onChannelSelect={onChannelSelect} />);
+    });
+    await waitFor(() =>
+      expect(screen.getByText('Message a colleague at another clinic')).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByText('Message a colleague at another clinic'));
+    await waitFor(() => expect(screen.getByTestId('network-modal')).toBeInTheDocument());
+    await act(async () => {
+      fireEvent.click(screen.getByText('Start Network Chat'));
+    });
+    return onChannelSelect;
+  };
+
+  it('opens a network chat from the directory using the queried channel', async () => {
+    const networkChannel = {
+      ...defaultMockChannel,
+      id: 'network-channel-id',
+      watch: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+    };
+    mockClient.queryChannels.mockResolvedValue([networkChannel]);
+    const onChannelSelect = jest.fn();
+
+    await openNetworkModalAndStart({ onChannelSelect });
+
+    await waitFor(() => expect(onChannelSelect).toHaveBeenCalledWith(networkChannel));
+    expect(networkChannel.watch).toHaveBeenCalled();
+    expect(networkChannel.update).toHaveBeenCalled();
+
+    mockClient.queryChannels.mockResolvedValue([defaultMockChannel]);
+  });
+
+  it('opens a network chat by falling back to a fresh team channel when none is queried', async () => {
+    mockClient.queryChannels.mockResolvedValue([]);
+    const onChannelSelect = jest.fn();
+
+    await openNetworkModalAndStart({ onChannelSelect });
+
+    await waitFor(() => expect(onChannelSelect).toHaveBeenCalledWith(defaultMockChannel));
+    expect(mockClient.channel).toHaveBeenCalledWith('team', 'network-channel-id');
+
+    mockClient.queryChannels.mockResolvedValue([defaultMockChannel]);
+  });
+
+  it('logs an error when opening a network chat fails', async () => {
+    mockClient.queryChannels.mockRejectedValue(new Error('network query failed'));
+    const onChannelSelect = jest.fn();
+
+    await openNetworkModalAndStart({ onChannelSelect });
+
+    await waitFor(() => expect(mockClient.queryChannels).toHaveBeenCalled());
+    expect(onChannelSelect).not.toHaveBeenCalled();
+
+    mockClient.queryChannels.mockResolvedValue([defaultMockChannel]);
+  });
+
+  it('goes back to the conversation list from the mobile chat view', async () => {
+    const originalWidth = globalThis.innerWidth;
+    Object.defineProperty(globalThis, 'innerWidth', { value: 500, configurable: true });
+    try {
+      // A plain (non-appointment) scope: selecting a conversation on mobile opens
+      // the chat pane; Back returns to the list. Appointment chats auto-reopen, so
+      // they can't exercise this path.
+      await act(async () => {
+        render(<ChatContainer scope="colleagues" />);
+      });
+      await waitFor(() => expect((window as any).__testPreview).toBeDefined());
+
+      const Preview = (window as any).__testPreview;
+      await act(async () => {
+        render(
+          <Preview
+            channel={{ ...defaultMockChannel, id: 'mobile-row', data: { name: 'Mobile Row' } }}
+            setActiveChannel={jest.fn()}
+            active={false}
+            unread={0}
+          />
+        );
+      });
+      // Select the conversation → mobile chat view with a Back button.
+      await act(async () => {
+        fireEvent.click(screen.getByText('Mobile Row'));
+      });
+
+      const backBtn = await screen.findByText(/Back/);
+      await act(async () => {
+        fireEvent.click(backBtn);
+      });
+
+      await waitFor(() => expect(screen.queryByText(/Back/)).not.toBeInTheDocument());
+    } finally {
+      Object.defineProperty(globalThis, 'innerWidth', {
+        value: originalWidth,
+        configurable: true,
+      });
+    }
+  });
+
+  const openEditModalForChannel = async (
+    channelOverrides: Record<string, unknown>,
+    sessions: unknown[]
+  ) => {
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue(sessions);
+    const groupChannel = {
+      ...defaultMockChannel,
+      data: { chatCategory: 'group', name: 'Group Chat' },
+      ...channelOverrides,
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: groupChannel });
+    await act(async () => {
+      render(<ChatContainer scope="groups" />);
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Group Info'));
+    });
+    await waitFor(() => expect(screen.getByTestId('group-modal')).toBeInTheDocument());
+  };
+
+  const saveTitleRenamed = async () => {
+    fireEvent.change(screen.getByTestId('input-Group Chat'), { target: { value: 'Renamed' } });
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Save Title'));
+    });
+  };
+
+  it('resolves the backend group id from a stored groupId matching a session', async () => {
+    await openEditModalForChannel(
+      { data: { chatCategory: 'group', name: 'Group Chat', groupId: 'sess-gid' } },
+      [{ _id: 'sess-gid', channelId: 'other-channel', type: 'ORG_GROUP' }]
+    );
+    await saveTitleRenamed();
+    await waitFor(() =>
+      expect(chatService.updateGroup).toHaveBeenCalledWith('sess-gid', { title: 'Renamed' })
+    );
+  });
+
+  it('resolves the backend group id from a stored directId matching a session', async () => {
+    await openEditModalForChannel(
+      { data: { chatCategory: 'group', name: 'Group Chat', directId: 'sess-did' } },
+      [{ _id: 'sess-did', channelId: 'other-channel', type: 'ORG_DIRECT' }]
+    );
+    await saveTitleRenamed();
+    await waitFor(() =>
+      expect(chatService.updateGroup).toHaveBeenCalledWith('sess-did', { title: 'Renamed' })
+    );
+  });
+
+  it('resolves the backend group id by direct-session member match', async () => {
+    await openEditModalForChannel({ data: { chatCategory: 'group', name: 'Group Chat' } }, [
+      {
+        _id: 'direct-match-id',
+        channelId: 'no-match',
+        type: 'ORG_DIRECT',
+        members: ['user-1', 'user-2'],
+      },
+    ]);
+    await saveTitleRenamed();
+    await waitFor(() =>
+      expect(chatService.updateGroup).toHaveBeenCalledWith('direct-match-id', { title: 'Renamed' })
+    );
+  });
+
+  it('resolves the backend group id by group-session member match', async () => {
+    await openEditModalForChannel(
+      {
+        data: { chatCategory: 'group', name: 'Group Chat' },
+        state: {
+          members: {
+            'user-1': { user: { id: 'user-1' }, role: 'owner' },
+            'user-2': { user: { id: 'user-2' } },
+            'user-3': { user: { id: 'user-3' } },
+          },
+        },
+      },
+      [
+        {
+          _id: 'group-match-id',
+          channelId: 'no-match',
+          type: 'ORG_GROUP',
+          members: ['user-1', 'user-2', 'user-3'],
+        },
+      ]
+    );
+    await saveTitleRenamed();
+    await waitFor(() =>
+      expect(chatService.updateGroup).toHaveBeenCalledWith('group-match-id', { title: 'Renamed' })
+    );
+  });
+
+  it('falls back to the channel-derived id when no session matches', async () => {
+    await openEditModalForChannel(
+      { data: { chatCategory: 'group', name: 'Group Chat', groupId: 'fallback-id' } },
+      [{ _id: 'other-id', channelId: 'no-match', type: 'ORG_DIRECT', members: ['x', 'y'] }]
+    );
+    await saveTitleRenamed();
+    await waitFor(() =>
+      expect(chatService.updateGroup).toHaveBeenCalledWith('fallback-id', { title: 'Renamed' })
+    );
+  });
+
+  it('opens the edit modal resolving owner from created_by with an empty placeholder', async () => {
+    (chatService.listOrgChatSessions as jest.Mock).mockResolvedValue([]);
+    const groupChannel = {
+      ...defaultMockChannel,
+      data: { chatCategory: 'group' },
+      state: {
+        members: {
+          'user-1': { user: { id: 'user-1', name: 'Me' } },
+          'user-2': { user: { id: 'user-2', name: 'Other' } },
+        },
+      },
+      created_by: { id: 'created-by-owner' },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: groupChannel });
+
+    await act(async () => {
+      render(<ChatContainer scope="groups" />);
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Group Info'));
+    });
+    await waitFor(() => expect(screen.getByTestId('group-modal')).toBeInTheDocument());
+    expect(screen.getByTestId('group-modal')).toBeInTheDocument();
+  });
+
+  it('resolves the group id from channel data when the org id is unavailable', async () => {
+    const listMock = chatService.listOrgChatSessions as jest.Mock;
+    listMock.mockResolvedValue([]);
+    const groupChannel = {
+      ...defaultMockChannel,
+      data: { chatCategory: 'group', name: 'Group Chat', groupId: 'data-derived-id' },
+    };
+    mockUseChannelStateContext.mockReturnValue({ channel: groupChannel });
+
+    const { rerender } = render(<ChatContainer scope="groups" />);
+    await waitFor(() => expect(screen.getByTestId('channel-list')).toBeInTheDocument());
+
+    // Org becomes unavailable after the client is already connected.
+    mockUseOrgStore.mockImplementation((selector: any) =>
+      selector({
+        primaryOrgId: null,
+        status: 'loaded',
+        getPrimaryOrg: () => ({ crossOrgMessagingEnabled: false }),
+      })
+    );
+    await act(async () => {
+      rerender(<ChatContainer scope="groups" />);
+    });
+
+    listMock.mockClear();
+    await act(async () => {
+      fireEvent.click(await screen.findByText('Group Info'));
+    });
+    await waitFor(() => expect(screen.getByTestId('group-modal')).toBeInTheDocument());
+    // With no org id, the resolver short-circuits and never queries the sessions API.
+    expect(listMock).not.toHaveBeenCalled();
   });
 });
 

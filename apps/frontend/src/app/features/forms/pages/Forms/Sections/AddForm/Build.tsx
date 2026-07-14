@@ -1792,6 +1792,7 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
   const addField = (key: OptionKey) => {
     if (structureLocked) return;
     if (key === 'signature') {
+      /* v8 ignore next 8 -- unreachable defensive guards: BuilderPalette renders addOptionsForContext, which filters the signature tile out whenever category is SOAP or canUseSignature is false, so addField('signature') can only run when both guards are already satisfied */
       if (formData.category === 'SOAP') {
         setBuildError('SOAP templates cannot include signature fields.');
         return;

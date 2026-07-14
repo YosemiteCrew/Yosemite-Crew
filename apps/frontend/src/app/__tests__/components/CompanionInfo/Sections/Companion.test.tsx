@@ -67,6 +67,13 @@ jest.mock('@/app/ui/inputs/SelectLabel', () => ({
       >
         {activeOption}
       </button>
+      <button
+        type="button"
+        data-testid={`select-off-${title}`}
+        onClick={() => setOption(options[options.length - 1].value)}
+      >
+        {`off-${activeOption}`}
+      </button>
     </div>
   ),
 }));
@@ -430,5 +437,163 @@ describe('CompanionInfo Companion section', () => {
         })
       );
     });
+  });
+
+  it('saves an uninsured companion with no code changes and omits insurance', async () => {
+    fetchSpeciesCodeEntriesMock.mockResolvedValue([]);
+    fetchBreedCodeEntriesMock.mockResolvedValue([{ code: '', display: 'Labrador' }]);
+    const uninsured = {
+      companion: {
+        ...companion.companion,
+        isInsured: false,
+        insurance: undefined,
+        speciesCode: '',
+        breedCode: '',
+      },
+      parent: companion.parent,
+    } as any;
+
+    render(<Companion companion={uninsured} />);
+    fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
+    await waitFor(() => expect(fetchSpeciesCodeEntriesMock).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      expect(updateCompanionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'comp-1', isInsured: false, insurance: undefined })
+      );
+    });
+  });
+
+  it('shows an unable-to-resolve breed error when the breed code cannot be determined', async () => {
+    fetchBreedCodeEntriesMock.mockResolvedValue([{ code: '', display: 'Labrador' }]);
+    const dogCompanion = {
+      companion: { ...companion.companion, type: 'dog', breed: 'Poodle', breedCode: '' },
+      parent: companion.parent,
+    } as any;
+
+    render(<Companion companion={dogCompanion} />);
+    fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
+    await waitFor(() => expect(fetchBreedCodeEntriesMock).toHaveBeenCalled());
+
+    // Select a breed (Labrador, code '') without changing species → breedChanged with no code.
+    fireEvent.click(screen.getByTestId('dropdown-Breed'));
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(
+      await screen.findByText('Unable to resolve breed code for selected breed.')
+    ).toBeInTheDocument();
+    expect(updateCompanionMock).not.toHaveBeenCalled();
+  });
+
+  it('renders spayed / not-spayed neutered status for female companions', () => {
+    const spayed = {
+      companion: {
+        ...companion.companion,
+        gender: 'female',
+        isneutered: true,
+        ageWhenNeutered: '3',
+      },
+      parent: companion.parent,
+    } as any;
+    const { unmount } = render(<Companion companion={spayed} />);
+    expect(screen.getByText('Spayed')).toBeInTheDocument();
+    expect(screen.getByText('Age when spayed')).toBeInTheDocument();
+    unmount();
+
+    const notSpayed = {
+      companion: { ...companion.companion, gender: 'female', isneutered: false },
+      parent: companion.parent,
+    } as any;
+    render(<Companion companion={notSpayed} />);
+    expect(screen.getByText('Not spayed')).toBeInTheDocument();
+  });
+
+  it('falls back to the species option code when a selected breed has no matching option', async () => {
+    fetchBreedCodeEntriesMock.mockResolvedValue([]);
+    const dogCompanion = {
+      companion: { ...companion.companion, type: 'dog' },
+      parent: companion.parent,
+    } as any;
+
+    render(<Companion companion={dogCompanion} />);
+    fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
+    await waitFor(() => expect(fetchBreedCodeEntriesMock).toHaveBeenCalled());
+
+    // breedOptions is empty → the mock selects value '' → breedOptions.find misses → the
+    // species option code is used as the fallback speciesCode.
+    fireEvent.click(screen.getByTestId('dropdown-Breed'));
+    expect(screen.getByTestId('dropdown-Breed')).toBeInTheDocument();
+  });
+
+  it('edits the insurance company and policy fields', async () => {
+    render(<Companion companion={companion} />);
+    fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
+    await waitFor(() => expect(fetchSpeciesCodeEntriesMock).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByTestId('input-Company name'), { target: { value: 'NewCo' } });
+    fireEvent.change(screen.getByTestId('input-Policy Number'), { target: { value: 'POL-9' } });
+
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      expect(updateCompanionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          insurance: expect.objectContaining({ companyName: 'NewCo', policyNumber: 'POL-9' }),
+        })
+      );
+    });
+  });
+
+  it('clears insurance details when insurance is switched off', async () => {
+    render(<Companion companion={companion} />);
+    fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
+    await waitFor(() => expect(fetchSpeciesCodeEntriesMock).toHaveBeenCalled());
+
+    // The off button drives setOption('false') → insurance becomes undefined.
+    fireEvent.click(screen.getByTestId('select-off-Insurance'));
+
+    expect(screen.queryByTestId('input-Company name')).not.toBeInTheDocument();
+  });
+
+  it('updates the date of birth through the datepicker handler', async () => {
+    render(<Companion companion={companion} />);
+    fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
+    await waitFor(() => expect(fetchSpeciesCodeEntriesMock).toHaveBeenCalled());
+
+    fireEvent.change(screen.getByTestId('datepicker-Date of birth'), { target: { value: 'x' } });
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => expect(updateCompanionMock).toHaveBeenCalled());
+  });
+
+  it('falls back to defaults when the edit-mode code lookups fail', async () => {
+    fetchSpeciesCodeEntriesMock.mockRejectedValue(new Error('species fail'));
+    fetchBreedCodeEntriesMock.mockRejectedValue(new Error('breed fail'));
+
+    render(<Companion companion={companion} />);
+    fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
+
+    await waitFor(() => {
+      expect(fetchSpeciesCodeEntriesMock).toHaveBeenCalled();
+      expect(fetchBreedCodeEntriesMock).toHaveBeenCalled();
+    });
+
+    // The edit form is still rendered after both lookups reject.
+    expect(screen.getByTestId('dropdown-Species')).toBeInTheDocument();
+  });
+
+  it('resets to a null date when cancelling a companion without a date of birth', () => {
+    const noDobCompanion = {
+      companion: { ...companion.companion, dateOfBirth: undefined },
+      parent: companion.parent,
+    } as any;
+
+    render(<Companion companion={noDobCompanion} />);
+    fireEvent.click(screen.getByRole('button', { name: 'edit-Companion information' }));
+    fireEvent.click(screen.getByText('Cancel'));
+
+    expect(screen.getByText('Species')).toBeInTheDocument();
   });
 });

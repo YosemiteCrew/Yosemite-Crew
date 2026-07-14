@@ -209,7 +209,14 @@ jest.mock('@/app/features/inventory/components/InfoSection', () => ({
         if (sectionKey === 'stock') data = { current: '5', reorderLevel: '2' };
         if (sectionKey === 'basicInfo_fail') data = { name: '' };
 
-        await onSaveSection(sectionKey === 'basicInfo_fail' ? 'basicInfo' : sectionKey, data);
+        // Swallow rethrown errors here so a failing save surfaced through the
+        // imperative handle doesn't become an unhandled rejection in tests; the
+        // component still runs its own catch/log path before rethrowing.
+        try {
+          await onSaveSection(sectionKey === 'basicInfo_fail' ? 'basicInfo' : sectionKey, data);
+        } catch {
+          /* handled by the component under test */
+        }
       },
       cancel: () => {
         setEditing(false);
@@ -233,6 +240,9 @@ jest.mock('@/app/features/inventory/components/InfoSection', () => ({
           data-testid="simulate-edit-start"
         >
           Edit Section
+        </button>
+        <button onClick={() => onSaveSection(sectionKey, {})} data-testid="simulate-invalid-save">
+          Invalid Save
         </button>
       </div>
     );
@@ -656,5 +666,113 @@ describe('InventoryInfo Component', () => {
     expect(consoleSpy).toHaveBeenCalledWith('Failed to unhide inventory item:', expect.any(Error));
 
     consoleSpy.mockRestore();
+  });
+
+  it('clears an existing batch date when the datepicker is emptied', () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    const mfgInputs = screen.getAllByTestId('datepicker-Mfg Date');
+    expect(mfgInputs[0]).toHaveValue('2023-01-01');
+
+    fireEvent.change(mfgInputs[0], { target: { value: '' } });
+
+    expect(screen.getAllByTestId('datepicker-Mfg Date')[0]).toHaveValue('');
+  });
+
+  it('reuses the editable batch snapshot when re-entering edit mode', () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+
+    // First edit-click seeds editableExistingBatches; the second re-enters editing
+    // while that snapshot already exists, exercising the reuse branch.
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    expect(screen.getByText('Add new batches')).toBeInTheDocument();
+  });
+
+  it('cancels an in-progress batch edit from the secondary action', () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    // The batch tab also renders an "Add another batch" secondary, so target the
+    // modal footer action (which reads "Cancel" while a batch edit is active).
+    const footerCancel = screen
+      .getAllByTestId('secondary-btn')
+      .find((btn) => btn.textContent === 'Cancel');
+    expect(footerCancel).toBeDefined();
+
+    fireEvent.click(footerCancel as HTMLElement);
+
+    const footerClose = screen
+      .getAllByTestId('secondary-btn')
+      .find((btn) => btn.textContent === 'Close');
+    expect(footerClose).toBeDefined();
+    expect(screen.queryByText('Add new batches')).not.toBeInTheDocument();
+  });
+
+  it('logs a validation failure and skips the update for an invalid standard section', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const emptyBasicInfo = {
+      ...activeInventory,
+      basicInfo: { ...activeInventory.basicInfo, name: '', category: '' },
+    } as any;
+
+    render(<InventoryInfo {...defaultProps} activeInventory={emptyBasicInfo} />);
+    fireEvent.click(screen.getByTestId('simulate-edit-start'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('simulate-invalid-save'));
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[Inventory] Validation failed for basicInfo',
+      expect.any(String)
+    );
+    expect(mockOnUpdate).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
+
+  it('logs and rethrows when the standard section update fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockOnUpdate.mockRejectedValueOnce(new Error('Update failed'));
+
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('simulate-edit-start'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to update inventory section:',
+      expect.any(Error)
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('resets the open key when the modal is closed', () => {
+    const { rerender } = render(<InventoryInfo {...defaultProps} />);
+    expect(screen.getByTestId('modal')).toBeInTheDocument();
+
+    rerender(<InventoryInfo {...defaultProps} showModal={false} />);
+
+    expect(screen.queryByTestId('modal')).not.toBeInTheDocument();
+  });
+
+  it('renders the SKU code beside the category in the header', () => {
+    const withSku = {
+      ...activeInventory,
+      basicInfo: { ...activeInventory.basicInfo, skuCode: 'SKU-9' },
+    } as any;
+
+    const { container } = render(<InventoryInfo {...defaultProps} activeInventory={withSku} />);
+
+    expect(container.textContent).toContain('SKU-9');
   });
 });

@@ -240,6 +240,28 @@ const getCodeResolutionErrors = (resolution: CodeResolution): CompanionFormError
   return errors;
 };
 
+const resolvePayloadSpeciesCode = (
+  resolution: CodeResolution,
+  companion: CompanionParent,
+  formData: StoredCompanion
+): string => {
+  if (resolution.speciesCode) return resolution.speciesCode;
+  /* v8 ignore next -- speciesChanged is true here only when a species code resolved; getCodeResolutionErrors returns before payload build otherwise, so this branch is unreachable */
+  if (resolution.speciesChanged) return '';
+  return companion.companion.speciesCode || formData.speciesCode || '';
+};
+
+const resolvePayloadBreedCode = (
+  resolution: CodeResolution,
+  companion: CompanionParent,
+  formData: StoredCompanion
+): string => {
+  if (resolution.breedCode) return resolution.breedCode;
+  /* v8 ignore next -- breedChanged is true here only when a breed code resolved; getCodeResolutionErrors returns before payload build otherwise, so this branch is unreachable */
+  if (resolution.breedChanged) return '';
+  return companion.companion.breedCode || formData.breedCode || '';
+};
+
 const buildCompanionPayload = (
   companion: CompanionParent,
   formData: StoredCompanion,
@@ -252,14 +274,8 @@ const buildCompanionPayload = (
   dateOfBirth: currentDate ?? companion.companion.dateOfBirth,
   currentWeight: toNonNegativeNumber(formData.currentWeight),
   type: formData.type,
-  speciesCode:
-    resolution.speciesCode ||
-    (resolution.speciesChanged
-      ? ''
-      : companion.companion.speciesCode || formData.speciesCode || ''),
-  breedCode:
-    resolution.breedCode ||
-    (resolution.breedChanged ? '' : companion.companion.breedCode || formData.breedCode || ''),
+  speciesCode: resolvePayloadSpeciesCode(resolution, companion, formData),
+  breedCode: resolvePayloadBreedCode(resolution, companion, formData),
   ageWhenNeutered: formData.isneutered ? String(formData.ageWhenNeutered ?? '').trim() : '',
   isInsured,
   insurance: isInsured
@@ -616,6 +632,9 @@ const companionEditReducer = (
   };
 };
 
+const resolveStateAction = <T,>(value: React.SetStateAction<T>, previous: T): T =>
+  typeof value === 'function' ? (value as (prev: T) => T)(previous) : value;
+
 const buildCompanionEditState = (companion: CompanionParent): CompanionEditState => ({
   isEditing: false,
   isStatusEditing: false,
@@ -653,12 +672,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
     (value) => {
       dispatchEditState({
         type: 'PATCH',
-        patch: {
-          formData:
-            typeof value === 'function'
-              ? (value as (prev: StoredCompanion) => StoredCompanion)(editState.formData)
-              : value,
-        },
+        patch: { formData: resolveStateAction(value, editState.formData) },
       });
     },
     [editState.formData]
@@ -667,12 +681,7 @@ const Companion = ({ companion, canEditCompanionStatus = false }: CompanionTypeP
     (value) => {
       dispatchEditState({
         type: 'PATCH',
-        patch: {
-          currentDate:
-            typeof value === 'function'
-              ? (value as (prev: Date | null) => Date | null)(editState.currentDate)
-              : value,
-        },
+        patch: { currentDate: resolveStateAction(value, editState.currentDate) },
       });
     },
     [editState.currentDate]

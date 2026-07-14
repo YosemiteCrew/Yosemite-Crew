@@ -9,7 +9,33 @@ jest.mock('next/dynamic', () => ({
   __esModule: true,
   default: (loader: () => Promise<unknown>) => {
     const source = loader.toString();
+    // The CompanionInfo dynamic maps the module's named export — actually invoke the
+    // loader so the `.then` mapper (import().then(m => ({ default: m.CompanionInfo })))
+    // is exercised, then render the resolved component. Kept as its own component so
+    // the hooks stay unconditional.
+    if (source.includes('m.CompanionInfo')) {
+      const CompanionInfoLoadable = (props: Record<string, unknown>) => {
+        const [Comp, setComp] = React.useState<React.FC<Record<string, unknown>> | null>(null);
+        React.useEffect(() => {
+          let active = true;
+          Promise.resolve(loader()).then((mod) => {
+            if (active) {
+              setComp(() => (mod as { default: React.FC<Record<string, unknown>> }).default);
+            }
+          });
+          return () => {
+            active = false;
+          };
+        }, []);
+        return Comp ? <Comp {...props} /> : null;
+      };
+      CompanionInfoLoadable.displayName = 'MockDynamicComponent';
+      return CompanionInfoLoadable;
+    }
     const LoadableComponent = (props: Record<string, unknown>) => {
+      // Central modals (revamp branch) render nothing; matched before the AddCompanion
+      // substring so they don't pick up the plain AddCompanion mock.
+      if (source.includes('AddCompanionCentralModal')) return null;
       if (source.includes('components/AddCompanion')) {
         const Mock = jest.requireMock(
           '@/app/features/companions/components/AddCompanion'
@@ -29,9 +55,15 @@ const useCompanionsMock = jest.fn();
 const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
 const companionsTableSpy = jest.fn();
+const searchParamsGetMock = jest.fn();
+const isCompanionRevampEnabledMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  useSearchParams: () => ({ get: () => null }),
+  useSearchParams: () => ({ get: (key: string) => searchParamsGetMock(key) }),
+}));
+
+jest.mock('@/app/lib/featureFlags', () => ({
+  isCompanionRevampEnabled: () => isCompanionRevampEnabledMock(),
 }));
 
 jest.mock('@/app/ui/layout/PageSkeleton', () => ({
@@ -145,6 +177,8 @@ describe('Companions page', () => {
       can: jest.fn(() => true),
     });
     useSearchStoreMock.mockImplementation((selector: any) => selector({ query: 'buddy' }));
+    searchParamsGetMock.mockReturnValue(null);
+    isCompanionRevampEnabledMock.mockReturnValue(false);
   });
 
   it('has no axe violations', async () => {
@@ -205,9 +239,7 @@ describe('Companions page', () => {
   it('switches the table into grid view via the view toggle', () => {
     render(<ProtectedCompanions />);
     fireEvent.click(screen.getByRole('button', { name: 'Grid view' }));
-    expect(
-      companionsTableSpy.mock.calls.some(([props]) => props.viewMode === 'grid')
-    ).toBe(true);
+    expect(companionsTableSpy.mock.calls.some(([props]) => props.viewMode === 'grid')).toBe(true);
   });
 
   it('toggles the last-visit sort control', () => {
@@ -216,5 +248,53 @@ describe('Companions page', () => {
     expect(sortPill).toHaveAttribute('aria-pressed', 'false');
     fireEvent.click(sortPill);
     expect(sortPill).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('opens the companion view from a companionId deep link', async () => {
+    searchParamsGetMock.mockReturnValue('c1');
+    render(<ProtectedCompanions />);
+    // Revamp off → the CompanionInfo dynamic component is mounted and resolves.
+    expect(await screen.findByTestId('companion-info')).toBeInTheDocument();
+  });
+
+  it('ignores a deep link that does not match any companion', () => {
+    searchParamsGetMock.mockReturnValue('does-not-exist');
+    render(<ProtectedCompanions />);
+    expect(screen.queryByTestId('companion-info')).not.toBeInTheDocument();
+  });
+
+  it('renders the central modals when the companion revamp flag is enabled', () => {
+    isCompanionRevampEnabledMock.mockReturnValue(true);
+    render(<ProtectedCompanions />);
+    // The revamp branch mounts the central add/appointment modals (mocked to null);
+    // the table still renders alongside them.
+    expect(screen.getByTestId('companions-table')).toBeInTheDocument();
+  });
+
+  it('reselects the first companion when the active one leaves the list', () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    const { rerender } = render(<ProtectedCompanions />);
+
+    // Swap in an entirely different set — the previously active companion (c1) is gone,
+    // so the effect falls through to selecting the new first companion.
+    useCompanionsMock.mockReturnValue([
+      {
+        companion: { id: 'c3', name: 'Milo', status: 'active', type: 'dog' },
+        parent: { firstName: 'Kai' },
+      },
+      {
+        companion: { id: 'c4', name: 'Nala', status: 'active', type: 'cat' },
+        parent: { firstName: 'Ivy' },
+      },
+    ]);
+    rerender(<ProtectedCompanions />);
+
+    expect(companionsTableSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        filteredList: expect.arrayContaining([
+          expect.objectContaining({ companion: expect.objectContaining({ id: 'c3' }) }),
+        ]),
+      })
+    );
   });
 });

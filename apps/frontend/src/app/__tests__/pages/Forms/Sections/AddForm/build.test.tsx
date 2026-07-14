@@ -591,6 +591,98 @@ describe('Build form (single-screen builder)', () => {
         }
       }
     });
+
+    it('no-ops when a drop resolves to an out-of-bounds destination', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'input', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      const dataTransfer = dragData();
+      fireEvent.dragStart(screen.getByTestId('canvas-row-f-1'), { dataTransfer });
+      // Dropping past the midpoint of the last row resolves the destination to
+      // schema.length, which the reorder guard rejects (returns the prior schema).
+      fireEvent.drop(screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 40 });
+
+      expect(readSchema().map((field) => field.id)).toEqual(['f-1', 'f-2']);
+    });
+
+    it('auto-scrolls the builder container itself in both edge zones and runs the raf loop', () => {
+      const rafQueue: FrameRequestCallback[] = [];
+      const rafSpy = jest
+        .spyOn(globalThis, 'requestAnimationFrame')
+        .mockImplementation((cb: FrameRequestCallback) => {
+          rafQueue.push(cb);
+          return rafQueue.length;
+        });
+      const cancelSpy = jest.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {});
+      const flushFrame = () => {
+        const frame = rafQueue.shift();
+        if (frame) {
+          act(() => {
+            frame(0);
+          });
+        }
+      };
+
+      try {
+        renderBuild(
+          baseFormData({
+            schema: [
+              { id: 'f-1', type: 'input', label: 'A' } as FormField,
+              { id: 'f-2', type: 'input', label: 'B' } as FormField,
+            ],
+          })
+        );
+
+        // The builder ref is the outermost overflow-hidden wrapper around the three panes.
+        const builderEl = screen
+          .getByTestId('canvas-row-f-1')
+          .closest('div.overflow-hidden') as HTMLElement;
+        // Make the ref container itself scrollable so getScrollableContainer returns it
+        // (rather than falling back to document.scrollingElement).
+        Object.defineProperty(builderEl, 'scrollHeight', { configurable: true, value: 1000 });
+        Object.defineProperty(builderEl, 'clientHeight', { configurable: true, value: 400 });
+        builderEl.scrollTop = 50;
+        builderEl.getBoundingClientRect = () =>
+          ({
+            top: 100,
+            bottom: 500,
+            height: 400,
+            left: 0,
+            right: 0,
+            width: 0,
+            x: 0,
+            y: 0,
+          }) as DOMRect;
+
+        const dataTransfer = dragData();
+        fireEvent.dragStart(screen.getByTestId('canvas-row-f-1'), { dataTransfer });
+
+        // Top edge zone with a scrolled container → negative velocity, schedules the raf loop.
+        fireEvent.dragOver(screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 150 });
+        expect(rafSpy).toHaveBeenCalled();
+        // Run one frame with a non-zero velocity → it scrolls and reschedules itself.
+        flushFrame();
+
+        // Bottom edge zone → positive velocity (auto-scroll already running, no new schedule).
+        fireEvent.dragOver(screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 450 });
+        // Neutral zone → velocity resets to zero.
+        fireEvent.dragOver(screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 300 });
+        // Run the pending frame with a zero velocity → the loop stops itself.
+        flushFrame();
+
+        fireEvent.dragEnd(screen.getByTestId('canvas-row-f-2'));
+        expect(screen.getByTestId('canvas-row-f-1')).toBeInTheDocument();
+      } finally {
+        rafSpy.mockRestore();
+        cancelSpy.mockRestore();
+      }
+    });
   });
 
   describe('field settings panel', () => {

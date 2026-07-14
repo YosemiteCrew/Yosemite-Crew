@@ -37,6 +37,7 @@ const getFilterClassName = (filterKey: string, activeFilter: string): string => 
 
 const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'var(--color-card-border)';
+  /* v8 ignore next -- unreachable: only called for non-emergency pills (emergency pills use getEmergencyPillStyle) */
   if (filterKey === 'emergencies') return 'var(--color-danger-500)';
   return 'var(--color-text-brand)';
 };

@@ -1069,6 +1069,7 @@ const useInvoiceStepContent = ({
       return;
     }
     if (!hasItems) return;
+    /* v8 ignore start -- the Collect button is disabled whenever the visit is not ready for billing (paymentDisabled), so this guard is a defensive mirror of that UI gate and is unreachable from the rendered UI */
     if (!isReadyForBilling && (method === 'CASH' || method === 'ONLINE')) {
       notify('warning', {
         title: 'Mark ready for billing first',
@@ -1076,6 +1077,7 @@ const useInvoiceStepContent = ({
       });
       return;
     }
+    /* v8 ignore stop */
     setErrorMessage(null);
     setIsProcessingPayment(true);
     try {
@@ -1169,6 +1171,7 @@ const useInvoiceStepContent = ({
   };
 
   const handleSendToClient = async () => {
+    /* v8 ignore start -- the Send to Client button is disabled whenever the visit is not ready for billing (paymentDisabled), so this guard is a defensive mirror of that UI gate and is unreachable from the rendered UI */
     if (!hasItems || !isReadyForBilling) {
       notify('warning', {
         title: 'Mark ready for billing first',
@@ -1176,6 +1179,7 @@ const useInvoiceStepContent = ({
       });
       return;
     }
+    /* v8 ignore stop */
     setErrorMessage(null);
     setIsProcessingPayment(true);
     try {
@@ -1257,12 +1261,14 @@ const useInvoiceStepContent = ({
   };
 
   const handleFinishInvoice = () => {
+    /* v8 ignore start -- the Summary button is disabled whenever there are incomplete medications, so this guard is a defensive mirror of that UI gate and is unreachable from the rendered UI */
     if (hasIncompleteMedications) {
       setErrorMessage(
         'Fill information in previous step for prescribed medications before finalizing.'
       );
       return;
     }
+    /* v8 ignore stop */
     setStepStatus(appointmentId, 'INVOICE', 'COMPLETED');
     onOpenSummary();
   };

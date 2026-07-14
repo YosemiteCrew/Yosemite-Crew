@@ -203,14 +203,20 @@ const RowMenu = ({
     position();
   }, [open, position]);
 
+  // Keep the latest close action in a ref so the dismiss listeners subscribe
+  // once per open (deps: [open]) instead of re-subscribing whenever the parent
+  // re-creates onOpenChange.
+  const closeMenuRef = useRef(() => changeOpen(false));
+  closeMenuRef.current = () => changeOpen(false);
+
   useEffect(() => {
     if (!open) return;
     const handlePointer = (event: MouseEvent) => {
       const target = event.target as Node;
       if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return;
-      changeOpen(false);
+      closeMenuRef.current();
     };
-    const handleScroll = () => changeOpen(false);
+    const handleScroll = () => closeMenuRef.current();
     document.addEventListener('mousedown', handlePointer);
     globalThis.window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
     globalThis.window.addEventListener('resize', handleScroll);
@@ -219,7 +225,7 @@ const RowMenu = ({
       globalThis.window.removeEventListener('scroll', handleScroll, { capture: true });
       globalThis.window.removeEventListener('resize', handleScroll);
     };
-  }, [open, changeOpen]);
+  }, [open]);
 
   return (
     <div className="flex justify-center">

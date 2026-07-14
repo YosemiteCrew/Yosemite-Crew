@@ -103,6 +103,15 @@ describe('companionsDirectory helpers', () => {
     expect(result).toHaveLength(1);
   });
 
+  it('keeps an appointment whose status is missing (status ?? fallback)', () => {
+    const now = new Date('2026-07-14T12:00:00.000Z');
+    const result = getTodaysAppointments(
+      [appt({ id: 'nostatus', status: undefined, startTime: now })],
+      now
+    );
+    expect(result.map((a) => a.id)).toEqual(['nostatus']);
+  });
+
   it('maps each appointment status to a band badge', () => {
     expect(getInClinicStatusMeta('IN_PROGRESS').label).toBe('In progress');
     expect(getInClinicStatusMeta('CHECKED_IN').label).toBe('Checked in');
@@ -135,15 +144,19 @@ describe('companionsDirectory helpers', () => {
 
   it('detects a live co-parent link only', () => {
     expect(hasCoParent(companion())).toBe(false);
-    expect(
-      hasCoParent(companion({ parentLinks: [{ role: 'PRIMARY', status: 'ACTIVE' }] }))
-    ).toBe(false);
-    expect(
-      hasCoParent(companion({ parentLinks: [{ role: 'CO_PARENT', status: 'ACTIVE' }] }))
-    ).toBe(true);
+    expect(hasCoParent(companion({ parentLinks: [{ role: 'PRIMARY', status: 'ACTIVE' }] }))).toBe(
+      false
+    );
+    expect(hasCoParent(companion({ parentLinks: [{ role: 'CO_PARENT', status: 'ACTIVE' }] }))).toBe(
+      true
+    );
     expect(
       hasCoParent(companion({ parentLinks: [{ role: 'CO_PARENT', status: 'REVOKED' }] }))
     ).toBe(false);
+    // A link missing its role is not a co-parent (role ?? '' fallback).
+    expect(hasCoParent(companion({ parentLinks: [{ status: 'ACTIVE' }] }))).toBe(false);
+    // A co-parent link with no status is treated as live (status ?? '' fallback).
+    expect(hasCoParent(companion({ parentLinks: [{ role: 'CO_PARENT' }] }))).toBe(true);
   });
 
   it('recognises today vs other/invalid dates', () => {

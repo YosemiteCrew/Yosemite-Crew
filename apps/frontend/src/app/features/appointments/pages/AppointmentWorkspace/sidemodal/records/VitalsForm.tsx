@@ -334,7 +334,7 @@ type VitalsFormDraftState = {
   creating: boolean;
 };
 
-const INITIAL_VITALS_FORM_DRAFT_STATE: VitalsFormDraftState = {
+export const INITIAL_VITALS_FORM_DRAFT_STATE: VitalsFormDraftState = {
   draft: EMPTY_DRAFT,
   notes: '',
   creating: false,
@@ -346,7 +346,7 @@ type VitalsFormDraftAction =
   | { type: 'SET_CREATING'; value: boolean }
   | { type: 'RESET' };
 
-const vitalsFormDraftReducer = (
+export const vitalsFormDraftReducer = (
   state: VitalsFormDraftState,
   action: VitalsFormDraftAction
 ): VitalsFormDraftState => {

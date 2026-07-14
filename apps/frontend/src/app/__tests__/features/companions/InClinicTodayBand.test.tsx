@@ -109,4 +109,40 @@ describe('InClinicTodayBand', () => {
     fireEvent.click(screen.getByRole('button', { name: /Open today's schedule/ }));
     expect(pushMock).toHaveBeenCalledWith('/appointments');
   });
+
+  it('builds fallback cards for unlinked appointments and hides empty subtitles', () => {
+    useAppointmentsMock.mockReturnValue([
+      {
+        // companion id present but not in the directory → byId.get() misses,
+        // so name/breed/species fall back to the appointment's own companion.
+        id: 'a3',
+        status: 'BOOKED',
+        startTime: today,
+        appointmentDate: today,
+        concern: '',
+        companion: { id: 'zzz', name: 'Ghost', species: 'cat' },
+      },
+      {
+        // no companion object at all → the appointment.companion?.id ternary
+        // takes the falsy branch and species falls all the way back to ''.
+        id: 'a4',
+        status: undefined,
+        startTime: today,
+        appointmentDate: today,
+        concern: 'checkup',
+      },
+    ]);
+
+    render(<InClinicTodayBand companions={companions} />);
+
+    // Unlinked appointment: name + monogram come from the appointment itself.
+    expect(screen.getByText('Ghost')).toBeInTheDocument();
+    expect(screen.getByText('G')).toBeInTheDocument();
+    // No breed and no concern → subtitle is empty and the span is not rendered.
+    expect(screen.queryByText('Beagle · dental cleaning')).not.toBeInTheDocument();
+    // A concern-only appointment still shows the concern as the subtitle.
+    expect(screen.getByText('checkup')).toBeInTheDocument();
+    // No companion → blank name → '?' monogram fallback.
+    expect(screen.getByText('?')).toBeInTheDocument();
+  });
 });

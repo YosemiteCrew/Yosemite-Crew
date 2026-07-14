@@ -234,6 +234,9 @@ describe('CompanionsTable', () => {
     );
     // Grid card carries the name and the row menu.
     expect(screen.getByText(/Buddy/)).toBeInTheDocument();
+    // The grid card name opens the companion overview.
+    fireEvent.click(screen.getByTitle('Open companion history'));
+    expect(pushMock).toHaveBeenCalled();
     openRowMenu();
     expect(screen.getByText('Open overview')).toBeInTheDocument();
 
@@ -378,5 +381,105 @@ describe('CompanionsTable', () => {
     // Forward again via the next arrow.
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
     expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+  });
+
+  it('truncates a long patient id, blanks a missing breed, and reads a visit without a start time', () => {
+    const longId = 'abcdefghij1234';
+    // Appointment carries only appointmentDate (no startTime) so the last-visit
+    // label exercises the `startTime ?? appointmentDate` fallback.
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([
+      {
+        id: 'no-start',
+        status: 'COMPLETED',
+        appointmentDate: new Date('2025-01-06T10:00:00.000Z'),
+        companion: { id: longId },
+      },
+    ]);
+
+    const longIdCompanion: any = {
+      companion: {
+        id: longId,
+        name: 'Rex',
+        breed: undefined,
+        type: 'dog',
+        gender: 'Male',
+        dateOfBirth: '2023-01-01',
+        status: 'active',
+        photoUrl: 'photo',
+      },
+      parent: { firstName: 'Sam', lastName: 'Owner' },
+    };
+
+    render(<CompanionsTable {...baseProps} filteredList={[longIdCompanion]} />);
+
+    // Ids longer than 10 chars are truncated with an ellipsis.
+    expect(screen.getByText('abcdefghij…')).toBeInTheDocument();
+    // Missing breed (undefined) falls back to the "-" placeholder.
+    expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+    // The startTime-less appointment still resolves to a formatted date.
+    expect(screen.getByText('Jan 6, 2025')).toBeInTheDocument();
+  });
+
+  it('fades an inactive grid card and keys it by name when the id is missing', () => {
+    const inactiveNoId: any = {
+      companion: {
+        name: 'Nimbus',
+        breed: 'Ragdoll',
+        type: 'cat',
+        gender: 'Female',
+        dateOfBirth: '2022-01-01',
+        status: undefined,
+      },
+      parent: { firstName: 'Ivy', lastName: 'Stone' },
+    };
+
+    const { container } = render(
+      <CompanionsTable {...baseProps} filteredList={[inactiveNoId]} viewMode="grid" />
+    );
+
+    // Missing status defaults to inactive and fades the card.
+    expect(screen.getByText('inactive')).toBeInTheDocument();
+    expect(container.innerHTML).toContain('opacity-[0.62]');
+    expect(screen.getByText(/Nimbus/)).toBeInTheDocument();
+  });
+
+  it('renders an inactive, co-parented phone card with a missing id and blank breed', () => {
+    useIsPhoneMock.mockReturnValue(true);
+
+    const phoneEdgeCase: any = {
+      companion: {
+        name: 'Willow',
+        breed: undefined,
+        type: 'dog',
+        gender: 'Female',
+        dateOfBirth: '2021-01-01',
+        status: undefined,
+        parentLinks: [{ role: 'CO_PARENT', status: 'ACTIVE' }],
+      },
+      parent: { firstName: 'Rob', lastName: 'Fields' },
+    };
+
+    const { container } = render(<CompanionsTable {...baseProps} filteredList={[phoneEdgeCase]} />);
+
+    // Co-parent pill shows in the phone card, status falls back to inactive,
+    // the card fades, and the subline still renders (blank breed dropped).
+    expect(screen.getByText('+ CO-PARENT')).toBeInTheDocument();
+    expect(screen.getByText(/inactive/)).toBeInTheDocument();
+    expect(container.innerHTML).toContain('opacity-[0.62]');
+    expect(screen.getByText(/Willow/)).toBeInTheDocument();
+  });
+
+  it('leaves the row menu closed when the trigger has no measurable rect', () => {
+    const rectSpy = jest
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue(undefined as unknown as DOMRect);
+
+    render(<CompanionsTable {...baseProps} filteredList={[companion]} canEditCompanions />);
+
+    openRowMenu();
+    // position() bails on the missing rect, so no portal panel is positioned.
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+    rectSpy.mockRestore();
   });
 });

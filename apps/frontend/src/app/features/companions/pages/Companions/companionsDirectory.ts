@@ -14,8 +14,8 @@ const AVATAR_PALETTES: AvatarPalette[] = [
 export const getAvatarPalette = (seed?: string | null): AvatarPalette => {
   const key = String(seed ?? '');
   let hash = 0;
-  for (let index = 0; index < key.length; index += 1) {
-    hash = (hash + key.charCodeAt(index)) % AVATAR_PALETTES.length;
+  for (const char of key) {
+    hash = (hash + (char.codePointAt(0) as number)) % AVATAR_PALETTES.length;
   }
   return AVATAR_PALETTES[hash];
 };
@@ -47,7 +47,8 @@ export const getSpeciesCounts = (companions: CompanionParent[]): SpeciesCounts =
 };
 
 export const getActiveCount = (companions: CompanionParent[]): number =>
-  companions.filter((item) => String(item.companion.status ?? '').toLowerCase() === 'active').length;
+  companions.filter((item) => String(item.companion.status ?? '').toLowerCase() === 'active')
+    .length;
 
 export type SpeciesTab = {
   key: 'all' | 'dog' | 'cat' | 'horse' | 'other';
@@ -87,7 +88,9 @@ export const getTodaysAppointments = (
   limit = 4
 ): AppointmentWithCompanion[] =>
   appointments
-    .filter((appointment) => !EXCLUDED_BAND_STATUSES.has(String(appointment.status ?? '').toUpperCase()))
+    .filter(
+      (appointment) => !EXCLUDED_BAND_STATUSES.has(String(appointment.status ?? '').toUpperCase())
+    )
     .filter((appointment) => isSameDay(appointmentStart(appointment), now))
     .sort((a, b) => appointmentStart(a).getTime() - appointmentStart(b).getTime())
     .slice(0, limit);

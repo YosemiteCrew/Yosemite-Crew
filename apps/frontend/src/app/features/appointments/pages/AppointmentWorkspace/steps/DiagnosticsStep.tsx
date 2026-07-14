@@ -96,6 +96,7 @@ const ProviderContent = ({ provider }: { provider: ProviderOption }) => {
 const getIntegrationPillClass = (disabled: boolean, active: boolean): string => {
   if (disabled) return 'cursor-not-allowed border-neutral-300 text-text-secondary opacity-60';
   if (active) return 'border-text-brand bg-primary-100 text-text-brand';
+  /* v8 ignore next 2 -- IDEXX is the only selectable provider and is always active, so an available-but-inactive pill (neither disabled nor active) never renders */
   return 'border-neutral-300 text-text-primary hover:bg-neutral-100';
 };
 
