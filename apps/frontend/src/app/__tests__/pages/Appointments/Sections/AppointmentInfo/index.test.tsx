@@ -715,4 +715,182 @@ describe('AppointmentInfo modal', () => {
     });
     expect(createSubmission).not.toHaveBeenCalled();
   });
+
+  it('shows in-progress, checked-in and requested status summaries', () => {
+    const { rerender } = render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, status: 'IN_PROGRESS' }}
+      />
+    );
+    expect(screen.getByText(/In progress:/)).toBeInTheDocument();
+
+    rerender(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, status: 'CHECKED_IN' }}
+      />
+    );
+    expect(screen.getByText(/Checked in:/)).toBeInTheDocument();
+
+    rerender(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, status: 'REQUESTED' }}
+      />
+    );
+    expect(screen.getByText(/Requested:/)).toBeInTheDocument();
+
+    rerender(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, status: 'UNKNOWN_STATUS' }}
+      />
+    );
+    expect(screen.getByText(/Review appointment details/)).toBeInTheDocument();
+  });
+
+  it('falls back to activeAppointment.patient when companion is absent', () => {
+    const patientAppointment = {
+      ...appointment,
+      companion: undefined,
+      patient: {
+        id: 'patient-1',
+        name: 'Milo',
+        breed: 'Tabby',
+        species: 'feline',
+        parent: { id: 'parent-2' },
+      },
+    };
+
+    render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={patientAppointment}
+      />
+    );
+
+    expect(screen.getByText('Milo')).toBeInTheDocument();
+    expect(screen.getByText('Tabby')).toBeInTheDocument();
+  });
+
+  it('resolves equine species to horse avatar image', () => {
+    const equineAppointment = {
+      ...appointment,
+      companion: { ...appointment.companion, species: 'equine', photoUrl: '' },
+    };
+
+    render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={equineAppointment}
+      />
+    );
+
+    const headerImage = screen
+      .getAllByTestId('mock-next-image')
+      .find((node) => node.getAttribute('data-alt') === 'pet image');
+    expect(headerImage?.getAttribute('data-src')).toContain('/avatar/horse.png');
+  });
+
+  it('shows an error message when submitting a template fails', async () => {
+    (createSubmission as jest.Mock).mockRejectedValueOnce(new Error('save failed'));
+
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText(/Failed to submit form. Please try again./)).toBeInTheDocument();
+  });
+
+  it('shows an error when sending to parent without an organisation id', async () => {
+    formsStoreState.formsById['form-1'].requiredSigner = 'CLIENT';
+
+    render(
+      <AppointmentInfoModal
+        showModal
+        setShowModal={setShowModal}
+        activeAppointment={{ ...appointment, organisationId: '' }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send to parent' }));
+
+    expect(await screen.findByText('Organisation not found.')).toBeInTheDocument();
+    expect(linkAppointmentForms).not.toHaveBeenCalled();
+  });
+
+  it('shows an error message when sending to parent fails', async () => {
+    formsStoreState.formsById['form-1'].requiredSigner = 'CLIENT';
+    (linkAppointmentForms as jest.Mock).mockRejectedValueOnce(new Error('link failed'));
+
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'pick-template' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send to parent' }));
+
+    expect(await screen.findByText(/Failed to send form. Please try again./)).toBeInTheDocument();
+  });
+
+  it('renders existing form submissions with a completed badge and signed pet-parent note', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({
+      forms: [
+        {
+          form: {
+            _id: 'form-1',
+            name: 'Consent form',
+            schema: [],
+            requiredSigner: 'CLIENT',
+          },
+          submission: {
+            _id: 'sub-1',
+            answers: {},
+            signing: { status: 'SIGNED' },
+          },
+          status: 'completed',
+        },
+      ],
+    });
+
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
+
+    expect(await screen.findByText('Signed by pet parent')).toBeInTheDocument();
+    expect(screen.getByText('Signed by pet parent.')).toBeInTheDocument();
+  });
+
+  it('shows the empty previous submissions accordion when there are no forms', async () => {
+    (fetchAppointmentForms as jest.Mock).mockResolvedValue({ forms: [] });
+
+    render(
+      <AppointmentInfoModal showModal setShowModal={setShowModal} activeAppointment={appointment} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('button', { name: 'SOAP' }));
+
+    expect(await screen.findByText('No past form submissions.')).toBeInTheDocument();
+  });
 });

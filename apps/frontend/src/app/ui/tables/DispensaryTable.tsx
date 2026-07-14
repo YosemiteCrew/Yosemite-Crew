@@ -55,9 +55,14 @@ const formatDateTime = (iso?: string) => {
   if (!iso) return '—';
   const d = new Date(iso);
   return (
-    d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) +
+    d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }) +
     '\n' +
-    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
   );
 };
 

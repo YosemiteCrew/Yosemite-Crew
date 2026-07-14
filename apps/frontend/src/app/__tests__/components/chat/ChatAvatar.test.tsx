@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ChatAvatar, accentFor, initialsOf } from '@/app/features/chat/components/ChatAvatar';
+import { ChatAvatar } from '@/app/features/chat/components/ChatAvatar';
+import { accentFor, initialsOf } from '@/app/features/chat/components/chatAvatarUtils';
 
 describe('ChatAvatar helpers', () => {
   describe('initialsOf', () => {
@@ -65,12 +66,12 @@ describe('ChatAvatar', () => {
 
   it('applies the sm size classes', () => {
     const { container } = render(<ChatAvatar name="Sam" size="sm" />);
-    expect(container.querySelector('.h-9.w-9')).toBeInTheDocument();
+    expect(container.querySelector('.size-9')).toBeInTheDocument();
   });
 
   it('applies the lg size classes', () => {
     const { container } = render(<ChatAvatar name="Sam" size="lg" />);
-    expect(container.querySelector('.h-12.w-12')).toBeInTheDocument();
+    expect(container.querySelector('.size-12')).toBeInTheDocument();
   });
 
   it('applies an accent class from the palette for non-group avatars', () => {
