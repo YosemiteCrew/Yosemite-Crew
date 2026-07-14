@@ -8,11 +8,14 @@ slug: /policies/security
 
 # Security Policy
 
+This policy explains how to report a security vulnerability in Yosemite Crew and what to expect after you do. It is for anyone (contributors, users, or outside researchers) who finds a potential security issue. For everyday secret-handling rules while contributing, see the [Contributing Guide](/policies/contributing).
+
 ## Reporting a Vulnerability
 
 Reporting any potential vulnerabilities is strongly encouraged.
 
 If you suspect a vulnerability, please take the following steps:
+
 - Contact the team at `security at yosemitecrew.com`.
 - Include a comprehensive description of the potential vulnerability and steps to reproduce the issue, if possible. The more information you can provide, the quicker Yosemite Crew can address the problem.
 
@@ -29,6 +32,7 @@ While Yosemite Crew doesn't have a formal bug bounty program right now due to th
 - Yosemite Crew guarantees not to pursue any legal action as long as the vulnerability is not exploited.
 
 ## Security Features
+
 Efforts are continually made to enhance the security of the product.
 If you have any recommendations or feature request that could enhance the product's security, please share them via the discussion forum.
 

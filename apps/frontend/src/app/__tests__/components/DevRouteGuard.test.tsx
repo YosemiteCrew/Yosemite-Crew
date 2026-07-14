@@ -4,10 +4,12 @@ import DevRouteGuard from '@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard';
 import { useAuthStore } from '@/app/stores/authStore';
 
 const mockReplace = jest.fn();
+const mockRedirect = jest.fn();
 const mockUsePathname = jest.fn(() => '/developers/home');
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
   usePathname: () => mockUsePathname(),
+  redirect: (...args: string[]) => mockRedirect(...args),
 }));
 
 jest.mock('@/app/stores/authStore', () => ({
@@ -60,10 +62,10 @@ describe('DevRouteGuard', () => {
         <div>child</div>
       </DevRouteGuard>
     );
-    expect(mockReplace).toHaveBeenCalledWith('/developers/signin');
+    expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 
-  it('signs out and redirects if authenticated without developer role', () => {
+  it('signs out first (without redirecting) when authenticated without developer role', () => {
     const signout = jest.fn();
     mockUseAuthStore.mockImplementation(() => ({
       status: 'authenticated',
@@ -71,13 +73,30 @@ describe('DevRouteGuard', () => {
       signout,
     }));
 
-    render(
+    const { queryByText, rerender } = render(
       <DevRouteGuard>
         <div>child</div>
       </DevRouteGuard>
     );
+
+    // signout is triggered, but we must not redirect while still authenticated —
+    // doing so would throw before the signout effect commits and strand the session.
     expect(signout).toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith('/developers/signin');
+    expect(mockRedirect).not.toHaveBeenCalled();
+    expect(queryByText('child')).not.toBeInTheDocument();
+
+    // Once signout clears the session, the guard redirects on the next render.
+    mockUseAuthStore.mockImplementation(() => ({
+      status: 'unauthenticated',
+      role: null,
+      signout,
+    }));
+    rerender(
+      <DevRouteGuard>
+        <div>child</div>
+      </DevRouteGuard>
+    );
+    expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 
   it('only trusts devAuth on localhost when the local bypass flag is enabled', () => {
@@ -109,13 +128,25 @@ describe('DevRouteGuard', () => {
       signout,
     }));
 
-    render(
+    const { rerender } = render(
       <DevRouteGuard>
         <div>child</div>
       </DevRouteGuard>
     );
 
     expect(signout).toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith('/developers/signin');
+    expect(mockRedirect).not.toHaveBeenCalled();
+
+    mockUseAuthStore.mockImplementation(() => ({
+      status: 'unauthenticated',
+      role: null,
+      signout,
+    }));
+    rerender(
+      <DevRouteGuard>
+        <div>child</div>
+      </DevRouteGuard>
+    );
+    expect(mockRedirect).toHaveBeenCalledWith('/developers/signin');
   });
 });

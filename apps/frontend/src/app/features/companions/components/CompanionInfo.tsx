@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
@@ -68,16 +68,20 @@ const CompanionInfo = ({
       ? COMPONENT_MAP[activeLabel]?.[activeSubLabel]
       : COMPONENT_MAP[activeLabel]?.[activeLabel];
 
-  useEffect(() => {
-    const current = labels.find((l) => l.key === activeLabel);
-    if (current?.labels && current.labels.length > 0) {
-      setActiveSubLabel(current.labels[0].key as SubLabelKey);
-      return;
-    }
-    if (current?.key) {
-      setActiveSubLabel(current.key as SubLabelKey);
-    }
-  }, [activeLabel, labels]);
+  const selectActiveLabel = useCallback(
+    (labelKey: LabelKey) => {
+      const current = labels.find((l) => l.key === labelKey);
+      setActiveLabel(labelKey);
+      if (current?.labels && current.labels.length > 0) {
+        setActiveSubLabel(current.labels[0].key as SubLabelKey);
+        return;
+      }
+      if (current?.key) {
+        setActiveSubLabel(current.key as SubLabelKey);
+      }
+    },
+    [labels]
+  );
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
@@ -85,8 +89,8 @@ const CompanionInfo = ({
 
   useEffect(() => {
     if (!showModal) return;
-    setActiveLabel(initialLabel);
-  }, [showModal, initialLabel, activeCompanion?.companion.id]);
+    selectActiveLabel(initialLabel);
+  }, [showModal, initialLabel, activeCompanion?.companion.id, selectActiveLabel]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -136,7 +140,7 @@ const CompanionInfo = ({
           <Labels
             labels={labels}
             activeLabel={activeLabel}
-            setActiveLabel={setActiveLabel}
+            setActiveLabel={selectActiveLabel}
             activeSubLabel={activeSubLabel}
             setActiveSubLabel={setActiveSubLabel}
           />

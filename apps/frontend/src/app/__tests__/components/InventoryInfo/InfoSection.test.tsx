@@ -15,7 +15,7 @@ jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
     data,
     onSave,
     onEditingChange,
-    onRegisterActions,
+    ref,
     readOnly,
     footer,
     dynamicFooter,
@@ -47,7 +47,10 @@ jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
         </button>
         <button
           data-testid="trigger-register"
-          onClick={() => onRegisterActions?.({ save: async () => {} } as any)}
+          onClick={() => {
+            if (typeof ref === 'function') ref({ save: async () => {} } as any);
+            else if (ref) ref.current = { save: async () => {} } as any;
+          }}
         >
           Register
         </button>
@@ -161,7 +164,6 @@ const mockInventory: InventoryItem = {
 describe('InfoSection Component', () => {
   const mockOnSaveSection = jest.fn();
   const mockOnEditingChange = jest.fn();
-  const mockOnRegisterActions = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -345,20 +347,21 @@ describe('InfoSection Component', () => {
     expect(mockOnEditingChange).toHaveBeenCalledWith(true);
   });
 
-  it('propagates onRegisterActions callback', () => {
+  it('forwards the actions ref to the accordion', () => {
+    const actionsRef = React.createRef<{ save: () => Promise<void> } | null>();
     render(
       <InfoSection
         businessType={'vet' as BusinessType}
         sectionKey="basicInfo"
         sectionTitle="Basic Info"
         inventory={mockInventory}
-        onRegisterActions={mockOnRegisterActions}
+        ref={actionsRef as any}
       />
     );
 
     fireEvent.click(screen.getByTestId('trigger-register'));
 
-    expect(mockOnRegisterActions).toHaveBeenCalledWith(
+    expect(actionsRef.current).toEqual(
       expect.objectContaining({
         save: expect.any(Function),
       })

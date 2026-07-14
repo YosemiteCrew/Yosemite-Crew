@@ -20,6 +20,170 @@ const canUseLocalDeveloperFallback = () => {
   return hostname === 'localhost' || hostname === '127.0.0.1';
 };
 
+const YosemiteHighlightsSection = () => (
+  <section className="DevlYousmiteSec">
+    <div className="Container">
+      <div className="DevlYousmiteSecData">
+        <div className="YousmiteCrew">
+          <h2 className="text-display-1 text-text-primary">Why developers choose Yosemite Crew</h2>
+        </div>
+        <div className="DevYousmiteBoxed">
+          <div className="DevCrewBox crewbox1">
+            <div className="crewText">
+              <h3 className="text-heading-1 text-text-primary">Flexibilty</h3>
+              <div className="text-body-3 text-text-primary">
+                Create custom solutions for pet businesses, adapting to any need.
+              </div>
+            </div>
+            <Image
+              src={MEDIA_SOURCES.developerLanding.choose1}
+              alt="devchose1"
+              width={200}
+              height={140}
+            />
+          </div>
+          <div className="DevCrewBox crewbox2">
+            <Image
+              src={MEDIA_SOURCES.developerLanding.choose2}
+              alt="devchose2"
+              width={140}
+              height={140}
+            />
+            <div className="crewText">
+              <h3 className="text-heading-1 text-text-primary">Seamless integrations</h3>
+              <div className="text-body-3 text-text-primary">
+                Easily integrate with existing healthcare systems and third-party tools to enhance
+                app functionality.
+              </div>
+            </div>
+          </div>
+          <div className="DevCrewBox crewbox3">
+            <div className="crewText">
+              <h3 className="text-heading-1 text-text-primary">Open source</h3>
+              <div className="text-body-3 text-text-primary">
+                Developer-friendly API pricing based on an open source framework under the GPL V3
+                license.
+              </div>
+            </div>
+            <Image
+              src={MEDIA_SOURCES.developerLanding.choose3}
+              alt="devchose3"
+              width={140}
+              height={140}
+            />
+          </div>
+          <div className="DevCrewBox crewbox4">
+            <Image
+              src={MEDIA_SOURCES.developerLanding.choose4}
+              alt="devchose4"
+              width={102}
+              height={102}
+            />
+            <div className="crewText">
+              <h3 className="text-heading-1 text-text-primary">Scalability</h3>
+              <div className="text-body-3 text-text-primary">
+                Build apps that seamlessly grow as your user base and features expand.
+              </div>
+            </div>
+          </div>
+          <div className="DevCrewBox crewbox5">
+            <Image
+              src={MEDIA_SOURCES.developerLanding.choose5}
+              alt="devchose5"
+              width={92}
+              height={92}
+            />
+            <div className="crewText">
+              <h3 className="text-heading-1 text-text-primary">Comprehensive tools</h3>
+              <div className="text-body-3 text-text-primary">
+                Access a wide range of APIs, SDKs, and pre-built templates that simplify
+                development.
+              </div>
+            </div>
+          </div>
+          <div className="DevCrewBox crewbox6">
+            <div className="crewText">
+              <h3 className="text-heading-1 text-text-primary">Secure data handling</h3>
+              <div className="text-body-3 text-text-primary">
+                Built with industry-leading security protocols, ensuring sensitive healthcare data
+                is always protected.
+              </div>
+            </div>
+            <Image
+              src={MEDIA_SOURCES.developerLanding.choose6}
+              alt="devchose6"
+              width={129}
+              height={100}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
+const SimpleStepsSection = ({ onDeveloperCTA }: { onDeveloperCTA: () => void }) => (
+  <section className="SimpleStepSec">
+    <div className="Container">
+      <div className="StepsData">
+        <div className="leftSimpleStep">
+          <h2 className="text-display-1 text-text-primary">Get started in three simple steps</h2>
+          <Primary
+            href="/developers/signin"
+            onClick={onDeveloperCTA}
+            text="Developer portal"
+            size="large"
+          />
+        </div>
+        <div className="RytSimpleStep">
+          <div className="Stepitems">
+            <Image
+              src={MEDIA_SOURCES.developerLanding.step1}
+              alt="devstep1"
+              width={48}
+              height={114}
+            />
+            <div className="Stepstext">
+              <h3 className="text-heading-1 text-text-primary">Sign up</h3>
+              <div className="text-body-3 text-text-primary">
+                Create your developer account and access our portal.
+              </div>
+            </div>
+          </div>
+          <div className="Stepitems">
+            <Image
+              src={MEDIA_SOURCES.developerLanding.step2}
+              alt="devstep2"
+              width={48}
+              height={114}
+            />
+            <div className="Stepstext">
+              <h3 className="text-heading-1 text-text-primary">Explore</h3>
+              <div className="text-body-3 text-text-primary">
+                Browse APIs, SDKs, and templates to suit your needs.
+              </div>
+            </div>
+          </div>
+          <div className="Stepitems">
+            <Image
+              src={MEDIA_SOURCES.developerLanding.step3}
+              alt="devstep3"
+              width={48}
+              height={48}
+            />
+            <div className="Stepstext">
+              <h3 className="text-heading-1 text-text-primary">Build</h3>
+              <div className="text-body-3 text-text-primary">
+                Develop, test, and deploy your app seamlessly.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
 const DeveloperLanding = () => {
   const router = useRouter();
   const { status, user, role } = useAuthStore();
@@ -73,108 +237,7 @@ const DeveloperLanding = () => {
         </div>
       </section>
 
-      <section className="DevlYousmiteSec">
-        <div className="Container">
-          <div className="DevlYousmiteSecData">
-            <div className="YousmiteCrew">
-              <h2 className="text-display-1 text-text-primary">
-                Why developers choose Yosemite Crew
-              </h2>
-            </div>
-            <div className="DevYousmiteBoxed">
-              <div className="DevCrewBox crewbox1">
-                <div className="crewText">
-                  <h3 className="text-heading-1 text-text-primary">Flexibilty</h3>
-                  <div className="text-body-3 text-text-primary">
-                    Create custom solutions for pet businesses, adapting to any need.
-                  </div>
-                </div>
-                <Image
-                  src={MEDIA_SOURCES.developerLanding.choose1}
-                  alt="devchose1"
-                  width={200}
-                  height={140}
-                />
-              </div>
-              <div className="DevCrewBox crewbox2">
-                <Image
-                  src={MEDIA_SOURCES.developerLanding.choose2}
-                  alt="devchose2"
-                  width={140}
-                  height={140}
-                />
-                <div className="crewText">
-                  <h3 className="text-heading-1 text-text-primary">Seamless integrations</h3>
-                  <div className="text-body-3 text-text-primary">
-                    Easily integrate with existing healthcare systems and third-party tools to
-                    enhance app functionality.
-                  </div>
-                </div>
-              </div>
-              <div className="DevCrewBox crewbox3">
-                <div className="crewText">
-                  <h3 className="text-heading-1 text-text-primary">Open source</h3>
-                  <div className="text-body-3 text-text-primary">
-                    Developer-friendly API pricing based on an open source framework under the GPL
-                    V3 license.
-                  </div>
-                </div>
-                <Image
-                  src={MEDIA_SOURCES.developerLanding.choose3}
-                  alt="devchose3"
-                  width={140}
-                  height={140}
-                />
-              </div>
-              <div className="DevCrewBox crewbox4">
-                <Image
-                  src={MEDIA_SOURCES.developerLanding.choose4}
-                  alt="devchose4"
-                  width={102}
-                  height={102}
-                />
-                <div className="crewText">
-                  <h3 className="text-heading-1 text-text-primary">Scalability</h3>
-                  <div className="text-body-3 text-text-primary">
-                    Build apps that seamlessly grow as your user base and features expand.
-                  </div>
-                </div>
-              </div>
-              <div className="DevCrewBox crewbox5">
-                <Image
-                  src={MEDIA_SOURCES.developerLanding.choose5}
-                  alt="devchose5"
-                  width={92}
-                  height={92}
-                />
-                <div className="crewText">
-                  <h3 className="text-heading-1 text-text-primary">Comprehensive tools</h3>
-                  <div className="text-body-3 text-text-primary">
-                    Access a wide range of APIs, SDKs, and pre-built templates that simplify
-                    development.
-                  </div>
-                </div>
-              </div>
-              <div className="DevCrewBox crewbox6">
-                <div className="crewText">
-                  <h3 className="text-heading-1 text-text-primary">Secure data handling</h3>
-                  <div className="text-body-3 text-text-primary">
-                    Built with industry-leading security protocols, ensuring sensitive healthcare
-                    data is always protected.
-                  </div>
-                </div>
-                <Image
-                  src={MEDIA_SOURCES.developerLanding.choose6}
-                  alt="devchose6"
-                  width={129}
-                  height={100}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
+      <YosemiteHighlightsSection />
       <section className="DevlpToolSec">
         <div className="Container">
           <div className="DevlpToolData">
@@ -199,68 +262,7 @@ const DeveloperLanding = () => {
         </div>
       </section>
 
-      <section className="SimpleStepSec">
-        <div className="Container">
-          <div className="StepsData">
-            <div className="leftSimpleStep">
-              <h2 className="text-display-1 text-text-primary">
-                Get started in three simple steps
-              </h2>
-              <Primary
-                href="/developers/signin"
-                onClick={handleDeveloperCTA}
-                text="Developer portal"
-                size="large"
-              />
-            </div>
-            <div className="RytSimpleStep">
-              <div className="Stepitems">
-                <Image
-                  src={MEDIA_SOURCES.developerLanding.step1}
-                  alt="devstep1"
-                  width={48}
-                  height={114}
-                />
-                <div className="Stepstext">
-                  <h3 className="text-heading-1 text-text-primary">Sign up</h3>
-                  <div className="text-body-3 text-text-primary">
-                    Create your developer account and access our portal.
-                  </div>
-                </div>
-              </div>
-              <div className="Stepitems">
-                <Image
-                  src={MEDIA_SOURCES.developerLanding.step2}
-                  alt="devstep2"
-                  width={48}
-                  height={114}
-                />
-                <div className="Stepstext">
-                  <h3 className="text-heading-1 text-text-primary">Explore</h3>
-                  <div className="text-body-3 text-text-primary">
-                    Browse APIs, SDKs, and templates to suit your needs.
-                  </div>
-                </div>
-              </div>
-              <div className="Stepitems">
-                <Image
-                  src={MEDIA_SOURCES.developerLanding.step3}
-                  alt="devstep3"
-                  width={48}
-                  height={48}
-                />
-                <div className="Stepstext">
-                  <h3 className="text-heading-1 text-text-primary">Build</h3>
-                  <div className="text-body-3 text-text-primary">
-                    Develop, test, and deploy your app seamlessly.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
+      <SimpleStepsSection onDeveloperCTA={handleDeveloperCTA} />
       {/* <section className="DevlpPricingSec">
         <Container>
           <div className="DevPriceHead">

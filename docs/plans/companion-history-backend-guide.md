@@ -1,5 +1,9 @@
 # Companion History Backend Guide
 
+> Status: implemented as of this revision. `apps/backend/src/routers/companion-history.router.ts`, `apps/backend/src/controllers/web/companion-history.controller.ts`, and `apps/backend/src/services/companion-history.service.ts` all exist and the router is registered in `apps/backend/src/routers/index.ts`; `FormService.listSubmissionsForCompanionInOrganisation` exists in `apps/backend/src/services/form.service.ts`. Read the sections below as the design record for verifying and extending that code.
+
+This is a backend design guide for a companion (patient) medical-history timeline API that aggregates records from several existing services. It is aimed at a backend engineer; the matching frontend work is described in [companion-history-frontend-guide.md](companion-history-frontend-guide.md). "Companion" is the project's term for a patient animal; "SOAP" notes are clinical encounter notes structured as Subjective, Objective, Assessment, Plan.
+
 ## Objective
 
 Replace the current appointment-only companion history with a production-grade, org-scoped medical history timeline that can be reused in:
@@ -14,7 +18,7 @@ The new history must show a unified timeline of:
 2. Companion tasks
 3. SOAP / prescription / other form submissions
 4. Documents
-5. Labs / IDEXX results
+5. Labs / IDEXX results (IDEXX is the third-party veterinary diagnostics lab the platform integrates with)
 6. Finance / invoice events
 7. Audit trail (available as a dedicated History filter)
 
@@ -165,7 +169,7 @@ Suggested new files:
 
 Register router in:
 
-1. [index.ts](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/backend/src/routers/index.ts)
+1. `apps/backend/src/routers/index.ts`
 
 ## Service Responsibilities
 
@@ -454,7 +458,7 @@ Return:
 
 ## Permissions
 
-Add RBAC guard similar to other PMS routes.
+Add an RBAC (role-based access control) guard similar to other PMS (Practice Information Management System) routes.
 
 Suggested minimum:
 
@@ -600,11 +604,11 @@ Do not include:
 
 Primary files likely to change:
 
-1. [index.ts](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/backend/src/routers/index.ts)
-2. `/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/backend/src/routers/companion-history.router.ts`
-3. `/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/backend/src/controllers/web/companion-history.controller.ts`
-4. `/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/backend/src/services/companion-history.service.ts`
-5. [form.service.ts](/Users/harshitwandhare/Desktop/Yosemite-Crew/apps/backend/src/services/form.service.ts)
+1. `apps/backend/src/routers/index.ts`
+2. `apps/backend/src/routers/companion-history.router.ts`
+3. `apps/backend/src/controllers/web/companion-history.controller.ts`
+4. `apps/backend/src/services/companion-history.service.ts`
+5. `apps/backend/src/services/form.service.ts`
 
 ## Acceptance Criteria
 
