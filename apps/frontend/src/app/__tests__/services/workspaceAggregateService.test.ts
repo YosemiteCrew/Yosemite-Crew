@@ -2,6 +2,10 @@ import {
   createEncounterDocumentPacket,
   createEncounterTreatmentItem,
   deleteEncounterTreatmentItem,
+  deletePrescriptionTreatmentItem,
+  getEncounterDocumentPacketPdfUrl,
+  persistEncounterTreatmentLine,
+  reconcileWorkspaceDocumentPacket,
   getAppointmentWorkspaceBootstrap,
   getEncounterWorkspaceBootstrap,
   getWorkspaceDocumentPacket,
@@ -16,9 +20,11 @@ import {
   updateEncounterTreatmentItem,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 import type { LineItem } from '@/app/features/appointments/types/workspace';
-import { deleteData, getData, patchData, postData } from '@/app/services/axios';
+import api, { deleteData, getData, patchData, postData } from '@/app/services/axios';
 
 jest.mock('@/app/services/axios', () => ({
+  __esModule: true,
+  default: { get: jest.fn() },
   deleteData: jest.fn(),
   getData: jest.fn(),
   patchData: jest.fn(),
@@ -772,5 +778,212 @@ describe('workspaceAggregateService', () => {
     });
 
     expect(patch.prescription).toEqual([expect.objectContaining({ id: 'line-1', billed: false })]);
+  });
+
+  it('reconciles a document packet and builds a packet PDF blob URL', async () => {
+    (postData as jest.Mock).mockResolvedValue({ data: { packetId: 'packet-1', status: 'SIGNED' } });
+    const packet = await reconcileWorkspaceDocumentPacket('org-1', 'packet-1');
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/workspace/organisations/org-1/document-packets/packet-1/reconcile',
+      {}
+    );
+    expect(packet).toEqual({ packetId: 'packet-1', status: 'SIGNED' });
+
+    const blob = new Blob(['pdf']);
+    (api.get as jest.Mock).mockResolvedValue({ data: blob });
+    const createObjectURL = jest.fn().mockReturnValue('blob:packet-pdf');
+    Object.defineProperty(globalThis.URL, 'createObjectURL', {
+      value: createObjectURL,
+      configurable: true,
+    });
+
+    const url = await getEncounterDocumentPacketPdfUrl('org-1', 'enc-1');
+    expect(api.get).toHaveBeenCalledWith(
+      '/v1/workspace/organisations/org-1/encounters/enc-1/document-packet/pdf',
+      { responseType: 'blob' }
+    );
+    expect(createObjectURL).toHaveBeenCalledWith(blob);
+    expect(url).toBe('blob:packet-pdf');
+  });
+
+  describe('deletePrescriptionTreatmentItem', () => {
+    it('returns false without calling the backend when the prescription has no ids', async () => {
+      const deleted = await deletePrescriptionTreatmentItem('org-1', 'enc-1', {});
+      expect(deleted).toBe(false);
+      expect(getData).not.toHaveBeenCalled();
+      expect(deleteData).not.toHaveBeenCalled();
+    });
+
+    it('deletes the unbilled treatment row matched by prescription id', async () => {
+      (getData as jest.Mock).mockResolvedValue({
+        data: [
+          { id: 'ti-1', prescriptionId: 'rx-1', billingStatus: 'PENDING' },
+          { id: 'ti-2', prescriptionId: 'rx-2' },
+        ],
+      });
+
+      const deleted = await deletePrescriptionTreatmentItem('org-1', 'enc-1', { id: 'rx-1' });
+      expect(deleted).toBe(true);
+      expect(deleteData).toHaveBeenCalledWith(
+        '/v1/workspace/organisations/org-1/treatment-items/ti-1'
+      );
+    });
+
+    it('matches on inventory item id when no prescription id link exists', async () => {
+      (getData as jest.Mock).mockResolvedValue({
+        data: [{ id: 'ti-9', inventoryItemId: 'inv-9' }],
+      });
+
+      const deleted = await deletePrescriptionTreatmentItem('org-1', 'enc-1', {
+        inventoryItemId: 'inv-9',
+      });
+      expect(deleted).toBe(true);
+      expect(deleteData).toHaveBeenCalledWith(
+        '/v1/workspace/organisations/org-1/treatment-items/ti-9'
+      );
+    });
+
+    it('never deletes billed rows, whether flagged by boolean or status', async () => {
+      (getData as jest.Mock).mockResolvedValue({
+        data: [
+          { id: 'ti-bool', prescriptionId: 'rx-1', billed: true },
+          { id: 'ti-status', prescriptionId: 'rx-1', status: 'INVOICED' },
+        ],
+      });
+
+      const deleted = await deletePrescriptionTreatmentItem('org-1', 'enc-1', { id: 'rx-1' });
+      expect(deleted).toBe(false);
+      expect(deleteData).not.toHaveBeenCalled();
+    });
+
+    it('returns false when the matched row has no backend id', async () => {
+      (getData as jest.Mock).mockResolvedValue({
+        data: [{ prescriptionId: 'rx-1' }],
+      });
+
+      const deleted = await deletePrescriptionTreatmentItem('org-1', 'enc-1', { id: 'rx-1' });
+      expect(deleted).toBe(false);
+      expect(deleteData).not.toHaveBeenCalled();
+    });
+  });
+
+  it('persists a single treatment line via the create endpoint', async () => {
+    await persistEncounterTreatmentLine('org-1', 'enc-1', {
+      refId: 'svc-1',
+      kind: 'SERVICE',
+      name: 'Consultation',
+      qty: 2,
+      unitPriceCents: 4500,
+    } as never);
+
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/workspace/organisations/org-1/encounters/enc-1/treatment-items',
+      expect.objectContaining({
+        productId: 'svc-1',
+        servicePackageKind: 'SERVICE',
+        quantity: 2,
+        priceSnapshot: { unitPrice: 45 },
+        productSnapshot: expect.objectContaining({ name: 'Consultation' }),
+      })
+    );
+  });
+
+  describe('normalization fallback branches', () => {
+    it('resolves the outpatient mode from the appointment kind', () => {
+      expect(
+        normalizeWorkspaceBootstrapForEncounter({ appointment: { kind: 'OUTPATIENT' } }).mode
+      ).toBe('OUTPATIENT');
+      expect(
+        normalizeWorkspaceBootstrapForEncounter({ encounter: { encounterClass: 'AMB' } }).mode
+      ).toBe('OUTPATIENT');
+      expect(normalizeWorkspaceBootstrapForEncounter({}).mode).toBeUndefined();
+    });
+
+    it('maps every diagnostic status vocabulary onto the workspace status', () => {
+      const patch = normalizeWorkspaceBootstrapForEncounter({
+        diagnosticQueue: [
+          { id: 'd1', status: 'FINAL', createdAt: new Date('2026-01-01T00:00:00.000Z') },
+          { id: 'd2', status: 'RUNNING' },
+          { id: 'd3', status: 'AT_THE_LAB' },
+          { status: 'weird' },
+        ],
+      });
+
+      expect(patch.diagnosticOrders?.map((d) => d.status)).toEqual([
+        'COMPLETED',
+        'SUBMITTED',
+        'SUBMITTED',
+        'CREATED',
+      ]);
+      // Missing id/orderCode fall back to indexed placeholders; unparseable createdAt is stamped now.
+      expect(patch.diagnosticOrders?.[3].id).toBe('diagnostic-4');
+      expect(patch.diagnosticOrders?.[3].orderCode).toBe('DX-4');
+    });
+
+    it('picks the newest discharge summary and stringifies non-string summaries', () => {
+      const patch = normalizeWorkspaceBootstrapForEncounter({
+        clinicalArtifacts: [
+          {
+            artifact: {
+              id: 'old',
+              kind: 'DISCHARGE_SUMMARY',
+              updatedAt: '2026-01-01T00:00:00.000Z',
+            },
+            dischargeSummary: { summary: 'Old summary' },
+          },
+          {
+            artifact: {
+              id: 'new',
+              kind: 'DISCHARGE_SUMMARY',
+              updatedAt: '2026-02-01T00:00:00.000Z',
+              signedBy: 'Dr B',
+            },
+            dischargeSummary: { summary: 42, followUp: '2026-02-10' },
+          },
+          { artifact: { id: 'soap', kind: 'SOAP' } },
+        ],
+      });
+
+      expect(patch.dischargeSummaryId).toBe('new');
+      expect(patch.dischargeSummary).toBe('42');
+      expect(patch.followUpAt).toBe('2026-02-10');
+      expect(patch.dischargeSavedByName).toBe('Dr B');
+    });
+
+    it('parses string boolean capability flags and ignores junk values', () => {
+      const patch = normalizeWorkspaceBootstrapForEncounter({
+        permissions: { canEditSoap: 'true', canPrescribe: 'false', canViewFinance: 'maybe' },
+      });
+
+      expect(patch.capabilities).toEqual({ canEditSoap: true, canPrescribe: false });
+    });
+
+    it('reads flat prescription payloads with quantity/duration fallbacks', () => {
+      const patch = normalizeWorkspaceBootstrapForEncounter({
+        prescriptions: [
+          {
+            id: 'rx-flat',
+            name: 'Flatline',
+            dosage: '5mg',
+            duration: '7',
+            quantity: '14',
+            fulfillment: 'PRESCRIPTION_ONLY',
+            priceSnapshot: { unitPrice: 12.5 },
+          },
+        ],
+      });
+
+      expect(patch.prescription).toEqual([
+        expect.objectContaining({
+          id: 'rx-flat',
+          medicineName: 'Flatline',
+          strength: '5mg',
+          durationDays: '7',
+          qty: '14',
+          fulfillment: 'PRESCRIPTION_ONLY',
+          priceCents: 1250,
+        }),
+      ]);
+    });
   });
 });

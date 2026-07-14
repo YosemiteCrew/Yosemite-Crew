@@ -10,7 +10,7 @@ import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import { FormsProps } from '@/app/features/forms/types/forms';
-import FormsFilters from '@/app/ui/filters/FormsFilters';
+import FormsFilters, { type FormsFilterState } from '@/app/ui/filters/FormsFilters';
 import FormsTable from '@/app/ui/tables/FormsTable';
 import { useFormsStore } from '@/app/stores/formsStore';
 import { loadForms } from '@/app/features/forms/services/formService';
@@ -36,7 +36,7 @@ const Forms = () => {
   const headerSearchQuery = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const handledDeepLinkRef = useRef<string | null>(null);
-  const [filteredList, setFilteredList] = useState<FormsProps[]>([]);
+  const [filters, setFilters] = useState<FormsFilterState>({ status: 'All', category: 'All' });
   const [addPopup, setAddPopup] = useState(false);
   const [viewPopup, setViewPopup] = useState(false);
   const [editingForm, setEditingForm] = useState<FormsProps | null>(null);
@@ -76,6 +76,17 @@ const Forms = () => {
     [formIds, formsById]
   );
 
+  const filteredList = useMemo(() => {
+    const q = headerSearchQuery.trim().toLowerCase();
+    return list.filter((item) => {
+      const matchesStatus = filters.status === 'All' || item.status === filters.status;
+      const matchesCategory = filters.category === 'All' || item.category === filters.category;
+      const matchesQuery =
+        !q || item.name?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q);
+      return matchesStatus && matchesCategory && matchesQuery;
+    });
+  }, [filters, headerSearchQuery, list]);
+
   const activeForm: FormsProps | null = useMemo(() => {
     const current = activeFormId ? formsById[activeFormId] : null;
     if (current) {
@@ -85,35 +96,34 @@ const Forms = () => {
     return filteredList[0] ?? null;
   }, [activeFormId, filteredList, formsById]);
 
-  useEffect(() => {
-    setFilteredList(list);
-  }, [list]);
-
   const serviceOptions = useMemo(() => {
     const specialityNameById = new Map(
       orgSpecialities.map((speciality) => [String(speciality.id ?? ''), speciality.name])
     );
 
-    const catalogItems = [
-      ...services
-        .filter((service) => service.status === 'ACTIVE')
-        .map((service) => ({
+    const catalogItems = [];
+    for (const service of services) {
+      if (service.status === 'ACTIVE') {
+        catalogItems.push({
           id: service.id,
           name: String(service.name ?? '').trim(),
           specialityId: service.specialityId,
           badge: 'Service' as const,
           isInpatient: service.isInpatientPreferred === true,
-        })),
-      ...packages
-        .filter((pkg) => pkg.status === 'ACTIVE')
-        .map((pkg) => ({
+        });
+      }
+    }
+    for (const pkg of packages) {
+      if (pkg.status === 'ACTIVE') {
+        catalogItems.push({
           id: pkg.id,
           name: String(pkg.name ?? '').trim(),
           specialityId: pkg.specialityId,
           badge: 'Package' as const,
           isInpatient: pkg.isInpatientPreferred === true,
-        })),
-    ];
+        });
+      }
+    }
 
     const nameFrequency = new Map<string, number>();
     for (const item of catalogItems) {
@@ -122,19 +132,20 @@ const Forms = () => {
       nameFrequency.set(key, (nameFrequency.get(key) ?? 0) + 1);
     }
 
-    return catalogItems
-      .filter((item) => item.id && item.name)
-      .map((item) => {
-        const duplicateName = (nameFrequency.get(item.name.toLowerCase()) ?? 0) > 1;
-        const specialityLabel =
-          specialityNameById.get(String(item.specialityId ?? '')) ?? 'Unknown Speciality';
-        return {
-          label: duplicateName ? `${specialityLabel} / ${item.name}` : item.name,
-          value: item.id,
-          badge: item.badge,
-          isInpatient: item.isInpatient,
-        };
+    const options = [];
+    for (const item of catalogItems) {
+      if (!item.id || !item.name) continue;
+      const duplicateName = (nameFrequency.get(item.name.toLowerCase()) ?? 0) > 1;
+      const specialityLabel =
+        specialityNameById.get(String(item.specialityId ?? '')) ?? 'Unknown Speciality';
+      options.push({
+        label: duplicateName ? `${specialityLabel} / ${item.name}` : item.name,
+        value: item.id,
+        badge: item.badge,
+        isInpatient: item.isInpatient,
       });
+    }
+    return options;
   }, [services, packages, orgSpecialities]);
 
   useEffect(() => {
@@ -237,9 +248,8 @@ const Forms = () => {
       <PermissionGate allOf={[PERMISSIONS.FORMS_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>
           <FormsFilters
-            list={list}
-            setFilteredList={setFilteredList}
-            searchQuery={headerSearchQuery}
+            filters={filters}
+            onFiltersChange={setFilters}
             categoryAction={
               canEditForms ? <Primary href="#" text="Add" onClick={openAddForm} /> : null
             }

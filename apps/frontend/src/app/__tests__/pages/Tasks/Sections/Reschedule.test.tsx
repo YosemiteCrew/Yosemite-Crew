@@ -101,10 +101,11 @@ describe('Task Reschedule section', () => {
     (updateTask as jest.Mock).mockResolvedValue({});
   });
 
-  it('blocks modal and warns for non-reschedulable statuses', async () => {
+  it('blocks saving and warns for non-reschedulable statuses', async () => {
     (canRescheduleTask as jest.Mock).mockReturnValue(false);
 
     render(<RescheduleTask showModal setShowModal={setShowModal} activeTask={activeTask} />);
+    fireEvent.click(screen.getByText('Update'));
 
     await waitFor(() => {
       expect(notifyMock).toHaveBeenCalledWith(

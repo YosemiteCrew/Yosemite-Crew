@@ -7,7 +7,7 @@
  * the parent's activateChannelById). Mounted once inside the chat shell.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { StreamChat, Channel, ChannelFilters, ChannelSort } from 'stream-chat';
 import { LuSearch, LuCornerDownLeft, LuCommand } from 'react-icons/lu';
 import Text from '@/app/ui/Text';
@@ -33,6 +33,14 @@ export function ChatCommandPalette({
   const [channels, setChannels] = useState<Channel[]>([]);
   const userId = client.userID;
 
+  // Reset the query as soon as the palette closes, computed during render
+  // (rather than in an effect) so there's no stale-query flash on reopen.
+  const prevOpenRef = useRef(open);
+  if (prevOpenRef.current !== open) {
+    prevOpenRef.current = open;
+    if (!open && query) setQuery('');
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -52,10 +60,7 @@ export function ChatCommandPalette({
   }, []);
 
   useEffect(() => {
-    if (!open) {
-      setQuery('');
-      return;
-    }
+    if (!open) return;
     let active = true;
     client
       .queryChannels(filters, PALETTE_SORT, { limit: 30 })
@@ -99,7 +104,7 @@ export function ChatCommandPalette({
       />
       <div className="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 shadow-2xl">
         <div className="flex items-center gap-2 border-b border-chat-divider px-4 py-3">
-          <LuSearch className="h-4 w-4 shrink-0 text-neutral-400" />
+          <LuSearch className="size-4 shrink-0 text-neutral-400" />
           <input
             autoFocus
             value={query}
@@ -112,7 +117,7 @@ export function ChatCommandPalette({
             className="w-full bg-transparent font-satoshi text-sm text-neutral-900 outline-none placeholder:text-neutral-400"
           />
           <span className="flex shrink-0 items-center gap-0.5 rounded-md border border-chat-divider px-1.5 py-0.5 text-xs font-semibold text-neutral-400">
-            <LuCommand className="h-3 w-3" />K
+            <LuCommand className="size-3" />K
           </span>
         </div>
         <ul className="max-h-80 overflow-y-auto p-2">
@@ -140,7 +145,7 @@ export function ChatCommandPalette({
                     >
                       {title}
                     </Text>
-                    <LuCornerDownLeft className="h-3.5 w-3.5 shrink-0 text-neutral-300" />
+                    <LuCornerDownLeft className="size-3.5 shrink-0 text-neutral-300" />
                   </button>
                 </li>
               );

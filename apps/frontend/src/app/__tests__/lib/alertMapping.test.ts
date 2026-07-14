@@ -50,4 +50,18 @@ describe('alertMapping', () => {
     expect(isAlertSeverity('admin')).toBe(false);
     expect(isAlertSeverity(undefined)).toBe(false);
   });
+
+  it('treats a missing alerts array as empty', () => {
+    expect(storedAlertsToCompanionAlerts(undefined, 'prefix')).toEqual([]);
+  });
+
+  it('drops alerts with a valid title but an undefined severity', () => {
+    expect(storedAlertsToCompanionAlerts([{ title: 'No severity' }], 'prefix')).toEqual([]);
+  });
+
+  it('drops alerts whose title is only whitespace', () => {
+    expect(storedAlertsToCompanionAlerts([{ title: '   ', severity: 'high' }], 'prefix')).toEqual(
+      []
+    );
+  });
 });
