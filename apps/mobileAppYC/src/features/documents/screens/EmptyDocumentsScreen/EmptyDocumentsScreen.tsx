@@ -9,7 +9,6 @@ import {EmptyState} from '@/shared/components/common/EmptyState/EmptyState';
 import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
 import type {DocumentStackParamList} from '@/navigation/types';
-import {useDocumentNavigation} from '@/features/documents/hooks/useDocumentNavigation';
 
 type DocumentsNavigationProp =
   NativeStackNavigationProp<DocumentStackParamList>;
@@ -17,8 +16,15 @@ type DocumentsNavigationProp =
 export const EmptyDocumentsScreen: React.FC = () => {
   const {theme} = useTheme();
   const navigation = useNavigation<DocumentsNavigationProp>();
-  const {handleAddDocument} = useDocumentNavigation(navigation);
   const styles = React.useMemo(() => createStyles(theme), [theme]);
+
+  // Documents always belong to a companion. If none exists yet, the
+  // "AddDocument" form has no companion to attach to and can't be
+  // submitted — send the user to add a companion first instead.
+  const handleAddCompanion = () =>
+    navigation.getParent<any>()?.navigate('HomeStack', {
+      screen: 'AddCompanion',
+    });
 
   return (
     <LiquidGlassHeaderScreen
@@ -45,13 +51,13 @@ export const EmptyDocumentsScreen: React.FC = () => {
                 color={theme.colors.blueText}
               />
             }
-            title="Nothing in the drawer yet"
-            description="Insurance papers, lab results and adoption records will live here, together and searchable."
-            actionLabel="Add first document"
+            title="Add a companion to get started"
+            description="Insurance papers, lab results and adoption records are tied to a companion. Add one first to start uploading documents."
+            actionLabel="Add a companion"
             actionIcon={
               <Ionicons name="add" size={18} color={theme.colors.ctaText} />
             }
-            onAction={handleAddDocument}
+            onAction={handleAddCompanion}
           />
         </View>
       )}

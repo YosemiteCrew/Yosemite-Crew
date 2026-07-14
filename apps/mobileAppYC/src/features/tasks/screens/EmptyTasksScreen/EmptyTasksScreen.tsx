@@ -17,7 +17,13 @@ export const EmptyTasksScreen: React.FC = () => {
   const navigation = useNavigation<TasksNavigationProp>();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
-  const handleAddTask = () => navigation.navigate('AddTask');
+  // Tasks always belong to a companion. If none exists yet, the "AddTask"
+  // form has no companion to attach to and can't be submitted — send the
+  // user to add a companion first instead of a form they can't complete.
+  const handleAddCompanion = () =>
+    navigation.getParent<any>()?.navigate('HomeStack', {
+      screen: 'AddCompanion',
+    });
 
   return (
     <LiquidGlassHeaderScreen
@@ -44,13 +50,13 @@ export const EmptyTasksScreen: React.FC = () => {
                 color={theme.colors.blueText}
               />
             }
-            title="Nothing on the list"
-            description="Doses, grooming and feeding plans will land here, with reminders that arrive on time."
-            actionLabel="Add first task"
+            title="Add a companion to get started"
+            description="Tasks like doses, grooming and feeding plans are tied to a companion. Add one first to start creating tasks."
+            actionLabel="Add a companion"
             actionIcon={
               <Ionicons name="add" size={18} color={theme.colors.ctaText} />
             }
-            onAction={handleAddTask}
+            onAction={handleAddCompanion}
           />
         </View>
       )}

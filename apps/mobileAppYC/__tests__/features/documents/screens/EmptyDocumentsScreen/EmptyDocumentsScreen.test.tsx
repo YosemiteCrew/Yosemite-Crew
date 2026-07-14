@@ -5,18 +5,17 @@ import {mockTheme} from '../../../../setup/mockTheme';
 
 // --- Mocks ---
 
-const mockHandleAddDocument = jest.fn();
+const mockParentNavigate = jest.fn();
 
 jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({navigate: jest.fn()}),
-}));
-
-jest.mock('@/features/documents/hooks/useDocumentNavigation', () => ({
-  useDocumentNavigation: () => ({handleAddDocument: mockHandleAddDocument}),
+  useNavigation: () => ({
+    navigate: jest.fn(),
+    getParent: () => ({navigate: mockParentNavigate}),
+  }),
 }));
 
 jest.mock('@/shared/components/common/Header/Header', () => {
@@ -56,13 +55,13 @@ describe('EmptyDocumentsScreen', () => {
 
     expect(getByText('Documents')).toBeTruthy();
     expect(getByTestId('empty-documents')).toBeTruthy();
-    expect(getByText('Nothing in the drawer yet')).toBeTruthy();
+    expect(getByText('Add a companion to get started')).toBeTruthy();
     expect(
       getByText(
-        'Insurance papers, lab results and adoption records will live here, together and searchable.',
+        'Insurance papers, lab results and adoption records are tied to a companion. Add one first to start uploading documents.',
       ),
     ).toBeTruthy();
-    expect(getByText('Add first document')).toBeTruthy();
+    expect(getByText('Add a companion')).toBeTruthy();
   });
 
   it('does not render a back button (tab root)', () => {
@@ -70,11 +69,13 @@ describe('EmptyDocumentsScreen', () => {
     expect(queryByText('Back')).toBeNull();
   });
 
-  it('navigates to add a document when the CTA is pressed', () => {
+  it('navigates to add a companion when the CTA is pressed', () => {
     const {getByTestId} = render(<EmptyDocumentsScreen />);
 
     fireEvent.press(getByTestId('empty-documents-action'));
 
-    expect(mockHandleAddDocument).toHaveBeenCalledTimes(1);
+    expect(mockParentNavigate).toHaveBeenCalledWith('HomeStack', {
+      screen: 'AddCompanion',
+    });
   });
 });

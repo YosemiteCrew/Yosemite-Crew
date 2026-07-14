@@ -1,6 +1,7 @@
 import React, {useState, useCallback, useMemo} from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
@@ -17,6 +18,7 @@ import {Header} from '@/shared/components/common/Header/Header';
 import {Input} from '@/shared/components/common';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
+import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {addCoParent} from '../../thunks';
 import type {CoParentStackParamList} from '@/navigation/types';
 import AddCoParentBottomSheet, {
@@ -40,13 +42,22 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dispatch = useDispatch<AppDispatch>();
   const companions = useSelector(selectCompanions);
-  const selectedCompanionId = useSelector(selectSelectedCompanionId);
+  const globalSelectedCompanionId = useSelector(selectSelectedCompanionId);
+  // The invite is only ever for one companion, so the user must be able to
+  // see and change which one — defaulting silently (globally-selected
+  // companion, or just the first one) risks granting access to the wrong
+  // pet when the account has more than one.
+  const [companionOverrideId, setCompanionOverrideId] = useState<string | null>(
+    null,
+  );
   const selectedCompanion = useMemo(
     () =>
-      companions.find(c => c.id === selectedCompanionId) ??
+      companions.find(
+        c => c.id === (companionOverrideId ?? globalSelectedCompanionId),
+      ) ??
       companions[0] ??
       null,
-    [companions, selectedCompanionId],
+    [companions, companionOverrideId, globalSelectedCompanionId],
   );
   const addCoParentSheetRef = React.useRef<AddCoParentBottomSheetRef>(null);
   // Separate state for submitted data (for bottom sheet display)
@@ -145,6 +156,17 @@ export const AddCoParentScreen: React.FC<Props> = ({navigation}) => {
             keyboardShouldPersistTaps="handled">
             {/* Invite Form - always visible */}
             <View style={styles.formContainer}>
+              {companions.length > 1 && (
+                <View style={styles.formSection}>
+                  <Text style={styles.selectCompanionLabel}>Invite for</Text>
+                  <CompanionSelector
+                    companions={companions}
+                    selectedCompanionId={selectedCompanion?.id ?? null}
+                    onSelect={setCompanionOverrideId}
+                    showAddButton={false}
+                  />
+                </View>
+              )}
               <View style={styles.formSection}>
                 <Controller
                   control={control}
@@ -262,6 +284,10 @@ const createStyles = (theme: Theme) =>
     },
     formSection: {
       gap: theme.spacing['4'],
+    },
+    selectCompanionLabel: {
+      ...theme.typography.bodyMedium,
+      color: theme.colors.inkBody,
     },
     inputContainer: {
       marginBottom: 0,

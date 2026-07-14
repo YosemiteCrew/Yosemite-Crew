@@ -41,6 +41,24 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
   const [sendingInvite, setSendingInvite] = useState(false);
   const companions = useSelector(selectCompanions);
 
+  // The companion this co-parent record is actually for — never the
+  // account's first companion, which may be a different pet entirely when
+  // the account has more than one. Used for both the resend-invite call and
+  // the invite-confirmation sheet below.
+  const targetCompanionId = coParent?.companionId ?? null;
+  const targetCompanionFromRecord = coParent?.companions.find(
+    c => c.companionId === targetCompanionId,
+  );
+  const targetCompanionFallback = companions.find(
+    c => c.id === targetCompanionId,
+  );
+  const targetCompanionName =
+    targetCompanionFromRecord?.companionName ?? targetCompanionFallback?.name;
+  const targetCompanionImage =
+    targetCompanionFromRecord?.profileImage ??
+    targetCompanionFallback?.profileImage ??
+    undefined;
+
   const {
     addCoParentSheetRef,
     coParentInviteSheetRef,
@@ -59,11 +77,8 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
   };
 
   const handleSendInvite = async () => {
-    const companionId =
-      companions[0]?.id ??
-      (companions[0] as any)?._id ??
-      (companions[0] as any)?.companionId ??
-      null;
+    const companionId = targetCompanionId;
+
     if (!coParent || !companionId) {
       Alert.alert('Error', 'Unable to send invite. Please select a companion.');
       return;
@@ -89,8 +104,8 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
             phoneNumber: coParent.phoneNumber || '',
             companionId,
           },
-          companionName: companions[0]?.name,
-          companionImage: companions[0]?.profileImage ?? undefined,
+          companionName: targetCompanionName,
+          companionImage: targetCompanionImage,
         }),
       ).unwrap();
 
@@ -311,8 +326,8 @@ export const CoParentProfileScreen: React.FC<Props> = ({route, navigation}) => {
         ref={coParentInviteSheetRef}
         coParentName={coParent.firstName}
         coParentProfileImage={coParent.profilePicture}
-        companionName={companions[0]?.name || 'Companion'}
-        companionProfileImage={companions[0]?.profileImage || undefined}
+        companionName={targetCompanionName || 'Companion'}
+        companionProfileImage={targetCompanionImage}
         onAccept={handleInviteAccept}
         onDecline={handleInviteDecline}
       />

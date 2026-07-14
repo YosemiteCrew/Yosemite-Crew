@@ -169,6 +169,7 @@ describe('CoParentProfileScreen', () => {
     email: 'john@example.com',
     phoneNumber: '1234567890',
     profilePicture: 'http://profile.pic',
+    companionId: 'c1',
     companions: [
       {
         companionId: 'c1',
@@ -429,8 +430,9 @@ describe('CoParentProfileScreen', () => {
     }
   });
 
-  it('alerts if no companion is selected (Branch: !companionId)', () => {
-    mockState.companion.companions = [];
+  it('alerts if the co-parent record has no companionId (Branch: !companionId)', () => {
+    const noCompanionIdCoParent = {...mockCoParent, companionId: undefined};
+    mockState.coParent.coParents = [noCompanionIdCoParent];
 
     const {getByTestId} = render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
@@ -498,8 +500,14 @@ describe('CoParentProfileScreen', () => {
     );
   });
 
-  it('extracts companion ID from "id" property', async () => {
-    mockState.companion.companions = [{id: 'id-123', name: 'C1'}];
+  it("resends the invite for the companion this co-parent record is actually for, not the account's first companion", async () => {
+    // The global companion list's first entry ('comp-1') deliberately
+    // differs from the co-parent's own companionId ('c1') to prove the
+    // resend targets the correct pet, not just companions[0].
+    mockState.companion.companions = [
+      {id: 'comp-1', name: 'Wrong Pet', profileImage: 'wrong.png'},
+    ];
+
     const {getByTestId} = render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
     );
@@ -508,13 +516,24 @@ describe('CoParentProfileScreen', () => {
 
     expect(mockActions.addCoParent).toHaveBeenCalledWith(
       expect.objectContaining({
-        inviteRequest: expect.objectContaining({companionId: 'id-123'}),
+        inviteRequest: expect.objectContaining({companionId: 'c1'}),
+        companionName: 'Buddy',
+        companionImage: 'http://dog.pic',
       }),
     );
   });
 
-  it('extracts companion ID from "_id" property', async () => {
-    mockState.companion.companions = [{_id: 'underscore-id', name: 'C1'}];
+  it('falls back to the global companion list when the co-parent record has no matching companion entry', async () => {
+    const coParentWithUnmatchedCompanions = {
+      ...mockCoParent,
+      companionId: 'comp-1',
+      companions: [],
+    };
+    mockState.coParent.coParents = [coParentWithUnmatchedCompanions];
+    mockState.companion.companions = [
+      {id: 'comp-1', name: 'Fallback Pet', profileImage: 'fallback.png'},
+    ];
+
     const {getByTestId} = render(
       <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
     );
@@ -523,22 +542,9 @@ describe('CoParentProfileScreen', () => {
 
     expect(mockActions.addCoParent).toHaveBeenCalledWith(
       expect.objectContaining({
-        inviteRequest: expect.objectContaining({companionId: 'underscore-id'}),
-      }),
-    );
-  });
-
-  it('extracts companion ID from "companionId" property', async () => {
-    mockState.companion.companions = [{companionId: 'prop-id', name: 'C1'}];
-    const {getByTestId} = render(
-      <CoParentProfileScreen navigation={mockNavigation} route={mockRoute} />,
-    );
-
-    await act(async () => fireEvent.press(getByTestId('send-invite-btn')));
-
-    expect(mockActions.addCoParent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        inviteRequest: expect.objectContaining({companionId: 'prop-id'}),
+        inviteRequest: expect.objectContaining({companionId: 'comp-1'}),
+        companionName: 'Fallback Pet',
+        companionImage: 'fallback.png',
       }),
     );
   });
