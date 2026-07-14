@@ -156,9 +156,12 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
     );
   const overviewTitle = staticDefinition?.overviewTitle ?? toolLabel;
   const overviewParagraph = staticDefinition?.overviewParagraphs?.[0];
+  // toolLabel (the hero title) already names the specific tool, so the
+  // subtitle should not restate a category — there's no per-tool category
+  // data, and hardcoding "Pain assessment" mislabels non-pain tools.
   const heroSubtitle = submissionDateLabel
-    ? `Pain assessment · Submitted on ${submissionDateLabel}`
-    : 'Pain assessment';
+    ? `Submitted on ${submissionDateLabel}`
+    : 'Assessment record';
   const instructionText = staticDefinition?.steps?.[0]?.subtitle;
   const attribution = staticDefinition?.steps?.[0]?.footerNote;
 

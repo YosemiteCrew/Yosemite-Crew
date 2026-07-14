@@ -58,6 +58,7 @@ import type {AppDispatch} from '@/app/store';
 import {addCompanion} from '@/features/companion';
 import {useAuth} from '@/features/auth/context/AuthContext';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertWeight} from '@/shared/utils/measurementSystem';
 import {getFreshStoredTokens} from '@/features/auth/sessionManager';
 import {
   fetchBreedCodeEntries,
@@ -621,9 +622,13 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
 
     setSubmissionError('');
 
-    let weightInKg = data.currentWeight
+    const enteredWeight = data.currentWeight
       ? Number.parseFloat(data.currentWeight)
       : null;
+    const weightInKg =
+      enteredWeight === null || Number.isNaN(enteredWeight)
+        ? null
+        : convertWeight(enteredWeight, weightUnit, 'kg');
 
     const companionPayload = {
       category: data.category,

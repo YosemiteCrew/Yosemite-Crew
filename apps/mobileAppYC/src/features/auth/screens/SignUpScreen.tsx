@@ -56,6 +56,14 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
     navigation.navigate('SignIn');
   };
 
+  const handleOpenTerms = () => {
+    navigation.navigate('TermsAndConditions');
+  };
+
+  const handleOpenPrivacy = () => {
+    navigation.navigate('PrivacyPolicy');
+  };
+
   const attemptSocialAuth = async (provider: SocialProvider) => {
     try {
       await handleSocialAuth(provider);
@@ -128,8 +136,20 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
         {/* Terms */}
         <Text style={styles.terms}>
           By continuing you agree to Yosemite Crew's{' '}
-          <Text style={styles.termsLink}>terms and conditions</Text> and{' '}
-          <Text style={styles.termsLink}>privacy policy</Text>.
+          <Text
+            style={styles.termsLink}
+            accessibilityRole="link"
+            onPress={handleOpenTerms}>
+            terms and conditions
+          </Text>{' '}
+          and{' '}
+          <Text
+            style={styles.termsLink}
+            accessibilityRole="link"
+            onPress={handleOpenPrivacy}>
+            privacy policy
+          </Text>
+          .
         </Text>
 
         {/* Sign In Link */}

@@ -152,6 +152,18 @@ describe('SignUpScreen', () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith('SignIn');
   });
 
+  it('navigates to TermsAndConditions when "terms and conditions" is pressed', () => {
+    const {getByText} = renderComponent();
+    fireEvent.press(getByText('terms and conditions'));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('TermsAndConditions');
+  });
+
+  it('navigates to PrivacyPolicy when "privacy policy" is pressed', () => {
+    const {getByText} = renderComponent();
+    fireEvent.press(getByText('privacy policy'));
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('PrivacyPolicy');
+  });
+
   it('calls handleSocialAuth with "google" when Google button is pressed', () => {
     const {getByText} = renderComponent();
     fireEvent.press(getByText('Sign up with Google'));

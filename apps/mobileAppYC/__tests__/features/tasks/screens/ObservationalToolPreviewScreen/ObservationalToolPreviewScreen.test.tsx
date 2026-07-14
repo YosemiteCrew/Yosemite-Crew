@@ -232,14 +232,17 @@ describe('ObservationalToolPreviewScreen', () => {
 
   describe('Rendering Content', () => {
     it('renders submission overview correctly', async () => {
-      const {getByText, findAllByTestId} = renderScreen();
+      const {getByText, queryByText, findAllByTestId} = renderScreen();
 
       // Use findByText to wait for asynchronous rendering
       expect(await findAllByTestId('glass-card')).toBeTruthy();
 
       // Wait for content to appear
       await waitFor(() => expect(getByText('Good result')).toBeTruthy());
-      expect(getByText(/Submitted on/)).toBeTruthy();
+      // Exact match: the subtitle must not restate an invented category
+      // (e.g. "Pain assessment") for tools that aren't pain assessments.
+      expect(getByText(/^Submitted on /)).toBeTruthy();
+      expect(queryByText(/Pain assessment/)).toBeNull();
 
       const cards = await findAllByTestId('glass-card');
       expect(cards.length).toBeGreaterThanOrEqual(2);

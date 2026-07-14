@@ -14,6 +14,7 @@ import type {HomeStackParamList} from '@/navigation/types'; // Ensure this path 
 import {CompanionOverviewScreen} from '@/features/companion/screens/CompanionOverviewScreen'; // Ensure this path is correct
 // Assuming Breed type is also exported or available for import
 import type {Companion, Breed} from '@/features/companion/types'; // Ensure this path is correct
+import {usePreferences} from '@/features/preferences/PreferencesContext';
 
 // --- Global Variables for Module Mocks ---
 let mockAddEventListener: jest.Mock;
@@ -446,6 +447,19 @@ jest.mock('@/features/companion/services/codeEntriesService', () => ({
 jest.mock('@/features/auth/sessionManager', () => ({
   getFreshStoredTokens: jest.fn(),
 }));
+// Mirrors PreferencesContext's real default value so existing tests are
+// unaffected; individual tests can override via mockReturnValueOnce.
+jest.mock('@/features/preferences/PreferencesContext', () => ({
+  usePreferences: jest.fn(() => ({
+    measurementSystem: 'metric',
+    weightUnit: 'kg',
+    distanceUnit: 'km',
+    currency: 'EUR',
+    setWeightUnit: jest.fn(),
+    setDistanceUnit: jest.fn(),
+    setCurrency: jest.fn(),
+  })),
+}));
 
 // --- Mock Redux Store Interaction --- (Remain the same)
 const mockDispatch = jest.fn();
@@ -693,6 +707,53 @@ describe('CompanionOverviewScreen', () => {
           updatedAt: expect.any(String),
         }),
       }),
+    );
+  });
+
+  it('converts an lbs-entered weight to kg before saving (currentWeight is always stored in kg)', async () => {
+    (usePreferences as jest.Mock).mockReturnValueOnce({
+      measurementSystem: 'imperial',
+      weightUnit: 'lbs',
+      distanceUnit: 'mi',
+      currency: 'USD',
+      setWeightUnit: jest.fn(),
+      setDistanceUnit: jest.fn(),
+      setCurrency: jest.fn(),
+    });
+    renderWithState(mockCompanion);
+    const weightInput = screen.getByTestId('inline-edit-Current-weight');
+    const updateProfileMock = require('@/features/companion')
+      .updateCompanionProfile as jest.Mock;
+
+    fireEvent(weightInput, 'onSave', '20');
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith({
+        parentId: mockCompanion.userId,
+        updatedCompanion: expect.objectContaining({
+          // 20 lbs / 2.20462 ≈ 9.0718 kg — not 20.
+          currentWeight: expect.closeTo(9.0718, 3),
+          updatedAt: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it('displays the stored kg weight converted into the preferred unit', () => {
+    (usePreferences as jest.Mock).mockReturnValueOnce({
+      measurementSystem: 'imperial',
+      weightUnit: 'lbs',
+      distanceUnit: 'mi',
+      currency: 'USD',
+      setWeightUnit: jest.fn(),
+      setDistanceUnit: jest.fn(),
+      setCurrency: jest.fn(),
+    });
+    renderWithState({...mockCompanion, currentWeight: 10});
+
+    // 10 kg -> ~22.0 lbs.
+    expect(screen.getByTestId('inline-edit-Current-weight')).toHaveProp(
+      'value',
+      '22.0 lbs',
     );
   });
 

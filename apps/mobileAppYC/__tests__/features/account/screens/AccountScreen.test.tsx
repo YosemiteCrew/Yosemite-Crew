@@ -31,6 +31,7 @@ import {
   getFreshStoredTokens,
   isTokenExpired,
 } from '../../../../src/features/auth/sessionManager';
+import {usePreferences} from '../../../../src/features/preferences/PreferencesContext';
 
 // --- Mocks ---
 
@@ -327,6 +328,17 @@ describe('AccountScreen', () => {
     expect(normalizeImageUri).toHaveBeenCalledWith(
       'https://example.com/avatar.jpg',
     );
+  });
+
+  it('converts the stored kg weight to the preferred display unit', () => {
+    (usePreferences as jest.Mock).mockReturnValueOnce({
+      weightUnit: 'lbs',
+      temperatureUnit: 'F',
+    });
+    renderScreen();
+
+    // currentWeight is always stored in kg; 50 kg -> ~110.2 lbs.
+    expect(screen.getByText(/110\.2 lbs/)).toBeTruthy();
   });
 
   it('renders user profile correctly with only first name', () => {

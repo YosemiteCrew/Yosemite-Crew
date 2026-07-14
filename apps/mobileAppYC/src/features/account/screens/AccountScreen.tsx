@@ -50,6 +50,7 @@ import {
 } from '@/features/auth/services/accountDeletion';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
+import {convertWeight} from '@/shared/utils/measurementSystem';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Account'>;
 
@@ -471,7 +472,12 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
         let weightDisplay: string | null = null;
         if (companion.currentWeight) {
-          weightDisplay = `${companion.currentWeight.toFixed(1)} ${weightUnit}`;
+          const displayWeight = convertWeight(
+            companion.currentWeight,
+            'kg',
+            weightUnit,
+          );
+          weightDisplay = `${displayWeight.toFixed(1)} ${weightUnit}`;
         }
 
         // Dynamically build the subtitle

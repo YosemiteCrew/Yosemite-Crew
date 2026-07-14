@@ -559,6 +559,78 @@ describe('ObservationalToolScreen', () => {
       );
     });
 
+    it('resolves the exact tapped service when one business offers multiple matching services', async () => {
+      // Both services belong to the SAME business — this is the collision
+      // scenario: selection/submission must key off businessId+serviceId,
+      // not businessId alone, or the wrong service silently wins.
+      const collidingServices = [
+        {
+          id: 'svc-collision-1',
+          businessId: 'biz-1',
+          name: 'Feline Grimace Scale Assessment',
+          specialty: 'Observation',
+          basePrice: 25,
+        },
+        {
+          id: 'svc-collision-2',
+          businessId: 'biz-1',
+          name: 'Feline Grimace Scale Second Opinion',
+          specialty: 'Observation',
+          basePrice: 40,
+        },
+      ];
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        return selector({
+          ...defaultMockState,
+          businesses: {
+            businesses: [mockBusinesses[0]],
+            services: collidingServices,
+          },
+        });
+      });
+
+      const {getByTestId, getByText} = renderScreen();
+
+      await waitFor(() => {
+        expect(getByText('Feline Grimace Scale Second Opinion')).toBeTruthy();
+      });
+
+      // Tap the SECOND row specifically — same business as the first row.
+      fireEvent(getByText('Feline Grimace Scale Second Opinion'), 'press');
+      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(getByText('Step 1 of 5')).toBeTruthy();
+      });
+      [
+        'Ears facing forward',
+        'Eyes opened',
+        'Relaxed (round shape)',
+        'Loose (relaxed) and curved',
+      ].forEach(option => {
+        fireEvent(getByText(option), 'press');
+        fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      });
+      fireEvent(getByText('Head above the shoulder line'), 'press');
+      fireEvent(
+        getByTestId('btn-Submit and schedule appointment'),
+        'onTouchEnd',
+      );
+
+      await waitFor(() => {
+        expect(mockNavigate).toHaveBeenCalledWith(
+          'Appointments',
+          expect.objectContaining({
+            screen: 'BookingForm',
+            params: expect.objectContaining({
+              serviceId: 'svc-collision-2',
+              serviceName: 'Feline Grimace Scale Second Opinion',
+            }),
+          }),
+        );
+      });
+    });
+
     it('disables the landing action when no provider can be resolved', async () => {
       (useSelector as unknown as jest.Mock).mockImplementation(selector => {
         if (selector === selectAuthUser) return mockUser;

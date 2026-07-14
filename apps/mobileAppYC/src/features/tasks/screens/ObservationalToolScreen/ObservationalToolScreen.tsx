@@ -121,6 +121,13 @@ interface ProviderEntry {
   appointmentFee?: number | null;
 }
 
+// A business can offer more than one matching service/tool, so selection
+// must be keyed by business + service together — businessId alone collides
+// when a clinic has multiple matching entries.
+const getProviderEntryKey = (
+  entry: Pick<ProviderEntry, 'businessId' | 'serviceId'>,
+) => `${entry.businessId}::${entry.serviceId}`;
+
 export const ObservationalToolScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Navigation>();
@@ -155,7 +162,7 @@ export const ObservationalToolScreen: React.FC = () => {
   const [stage, setStage] = useState<'landing' | 'form'>('landing');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [responses, setResponses] = useState<ObservationalToolResponses>({});
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
+  const [selectedProviderKey, setSelectedProviderKey] = useState<string | null>(
     null,
   );
   const [providerTouched, setProviderTouched] = useState(false);
@@ -465,11 +472,11 @@ export const ObservationalToolScreen: React.FC = () => {
     });
   }, [providerEntries, requestBusinessPhoto]);
 
-  const effectiveProviderId =
-    selectedProviderId ??
-    (providerEntries.length === 1
-      ? (providerEntries[0]?.businessId ?? null)
-      : null);
+  const singleProviderKey =
+    providerEntries.length === 1
+      ? getProviderEntryKey(providerEntries[0])
+      : null;
+  const effectiveProviderKey = selectedProviderKey ?? singleProviderKey;
 
   const totalSteps = steps.length;
   const effectiveStepIndex =
@@ -563,9 +570,9 @@ export const ObservationalToolScreen: React.FC = () => {
     return nameSource ? nameSource.charAt(0).toUpperCase() : '?';
   }, [companion?.name, toolLabel]);
 
-  const toggleProvider = (businessId: string) => {
+  const toggleProvider = (providerKey: string) => {
     setProviderTouched(true);
-    setSelectedProviderId(prev => (prev === businessId ? null : businessId));
+    setSelectedProviderKey(prev => (prev === providerKey ? null : providerKey));
   };
 
   const toggleOption = (stepId: string, optionId: string) => {
@@ -588,7 +595,7 @@ export const ObservationalToolScreen: React.FC = () => {
   };
 
   const startAssessment = () => {
-    if (providerEntries.length > 0 && !effectiveProviderId) {
+    if (providerEntries.length > 0 && !effectiveProviderKey) {
       setProviderTouched(true);
       return;
     }
@@ -599,17 +606,19 @@ export const ObservationalToolScreen: React.FC = () => {
     if (!providerEntries.length) {
       return null;
     }
-    const epid =
-      selectedProviderId ??
+    const key =
+      selectedProviderKey ??
       (providerEntries.length === 1
-        ? (providerEntries[0]?.businessId ?? null)
+        ? getProviderEntryKey(providerEntries[0])
         : null);
-    if (epid) {
-      const selected = providerEntries.find(entry => entry.businessId === epid);
+    if (key) {
+      const selected = providerEntries.find(
+        entry => getProviderEntryKey(entry) === key,
+      );
       if (selected) return selected;
     }
     return providerEntries[0] ?? null;
-  }, [providerEntries, selectedProviderId]);
+  }, [providerEntries, selectedProviderKey]);
 
   const handleSubmit = useCallback(async () => {
     /* istanbul ignore next -- the screen renders a Task-not-found state before submit is reachable. */
@@ -618,13 +627,13 @@ export const ObservationalToolScreen: React.FC = () => {
     }
 
     /* istanbul ignore next -- the single-provider auto-select path is the only reachable one here. */
-    const epid =
-      selectedProviderId ??
+    const providerKey =
+      selectedProviderKey ??
       (providerEntries.length === 1
-        ? (providerEntries[0]?.businessId ?? null)
+        ? getProviderEntryKey(providerEntries[0])
         : null);
     /* istanbul ignore next -- a provider is always resolved before the form is reachable. */
-    if (providerEntries.length > 0 && !epid) {
+    if (providerEntries.length > 0 && !providerKey) {
       setProviderTouched(true);
       return;
     }
@@ -725,7 +734,7 @@ export const ObservationalToolScreen: React.FC = () => {
     remoteDefinition?.id,
     resolvedProvider,
     responses,
-    selectedProviderId,
+    selectedProviderKey,
     steps,
     submissionKeyByStepId,
     tabNavigation,
@@ -968,7 +977,8 @@ export const ObservationalToolScreen: React.FC = () => {
         fallbackStyle={styles.glassCardFallback}>
         <View style={styles.providerList}>
           {providerEntries.map(entry => {
-            const selected = effectiveProviderId === entry.businessId;
+            const providerKey = getProviderEntryKey(entry);
+            const selected = effectiveProviderKey === providerKey;
             const isLocalAsset = typeof entry.image === 'number';
             const primaryUri =
               typeof entry.image === 'string'
@@ -983,7 +993,7 @@ export const ObservationalToolScreen: React.FC = () => {
             );
             return (
               <LiquidGlassCard
-                key={entry.businessId}
+                key={providerKey}
                 glassEffect="regular"
                 interactive
                 padding="0"
@@ -996,7 +1006,7 @@ export const ObservationalToolScreen: React.FC = () => {
                   selected && styles.providerCardSelected,
                 ]}>
                 <Pressable
-                  onPress={() => toggleProvider(entry.businessId)}
+                  onPress={() => toggleProvider(providerKey)}
                   style={styles.providerInner}>
                   {imageSource ? (
                     <Image
@@ -1055,7 +1065,7 @@ export const ObservationalToolScreen: React.FC = () => {
           })}
         </View>
       </LiquidGlassCard>
-      {providerTouched && !effectiveProviderId ? (
+      {providerTouched && !effectiveProviderKey ? (
         <Text style={styles.validationText}>Please select a provider</Text>
       ) : null}
     </>
