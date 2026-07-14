@@ -1,6 +1,6 @@
 # PostHog Analytics Migration
 
-This document replaces Yosemite Crew's Microsoft Clarity integration with PostHog for product analytics on the web PMS and the mobile app.
+This document replaces Yosemite Crew's Microsoft Clarity integration with PostHog for product analytics on the web PMS (practice management system) and the mobile app. It is for engineers wiring up or reviewing analytics; the emphasis throughout is on consent-gating and keeping clinical and personal data out of the analytics pipeline.
 
 ## What changed
 
@@ -8,7 +8,7 @@ This document replaces Yosemite Crew's Microsoft Clarity integration with PostHo
   - Replaced the Clarity script loader with a consent-gated PostHog bootstrap.
   - Enabled PostHog heatmaps after consent.
   - Added URL and sensitive-property scrubbing before events leave the browser.
-  - Added PostHog CSP allowlists.
+  - Added PostHog CSP (Content Security Policy) allowlists.
   - Synced authenticated users to PostHog with `identify()` using safe person properties.
 - Mobile (`apps/mobileAppYC`)
   - Removed the Clarity SDK dependency.
@@ -61,7 +61,7 @@ Recommended production rollout for mobile:
 
 1. Ship with `enabled: false` until your in-app consent/preferences flow is complete.
 2. Once consent exists, keep `defaultOptIn: false` unless legal review approves default opt-in for your jurisdictions.
-3. Only enable session replay after validating masking on real veterinary workflows and PHI-adjacent screens.
+3. Only enable session replay after validating masking on real veterinary workflows and PHI-adjacent screens (PHI = protected health information).
 
 ## Operational guidance
 
