@@ -6,7 +6,7 @@ import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
 import { useTaskForm } from '@/app/hooks/useTaskForm';
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { getPreferredTimeValue } from '@/app/lib/date';
 import { getPreferredTimeZone } from '@/app/lib/timezone';
 import { Task } from '@/app/features/tasks/types/task';
@@ -20,10 +20,9 @@ type AddTaskProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
   prefill?: Partial<Task> | null;
-  onPrefillConsumed?: () => void;
 };
 
-const AddTask = ({ showModal, setShowModal, prefill, onPrefillConsumed }: AddTaskProps) => {
+const AddTask = ({ showModal, setShowModal, prefill }: AddTaskProps) => {
   const teams = useTeamForPrimaryOrg();
   const companions = useCompanionsForPrimaryOrg();
   const { resolveMemberName } = useMemberMap();
@@ -46,8 +45,11 @@ const AddTask = ({ showModal, setShowModal, prefill, onPrefillConsumed }: AddTas
     onSuccess: () => setShowModal(false),
   });
 
-  useEffect(() => {
-    if (!showModal || !prefill) return;
+  // Render-phase hydration: consume the prefill once per object when the
+  // modal is open (the parent clears it when the modal closes).
+  const [consumedPrefill, setConsumedPrefill] = React.useState<Partial<Task> | null>(null);
+  if (showModal && prefill && prefill !== consumedPrefill) {
+    setConsumedPrefill(prefill);
     const dueAtDate = prefill.dueAt ? new Date(prefill.dueAt) : new Date();
     setDue(dueAtDate);
     setDueTimeValue(getPreferredTimeValue(dueAtDate, '00:00'));
@@ -76,8 +78,7 @@ const AddTask = ({ showModal, setShowModal, prefill, onPrefillConsumed }: AddTas
           }
         : prev.recurrence,
     }));
-    onPrefillConsumed?.();
-  }, [onPrefillConsumed, prefill, setDue, setDueTimeValue, setFormData, showModal]);
+  }
 
   const CompanionOptions = useMemo(() => {
     const byParent = new Map<string, { label: string; value: string }>();

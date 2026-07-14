@@ -6,6 +6,8 @@ slug: /apps/frontend
 
 (Source: apps/frontend/README.md)
 
+`apps/frontend` is the Yosemite Crew (YC) web app: the staff-facing practice management (PIMS) dashboard used by veterinary teams. It talks to the [backend API](/apps/backend) and is one of two clients alongside the [mobile app](/apps/mobile-app). The sections below are the standard Next.js quick-start; run all commands from the repo root with `pnpm`.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

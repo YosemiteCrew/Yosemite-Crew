@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useReducer, useState } from 'react';
 import {
   LuArrowRight,
   LuCalendarPlus,
@@ -393,7 +393,7 @@ const isTaskStatusLocked = (status?: string | null): boolean =>
 const getRequestedButtonLabel = (status: string): string =>
   status === 'CHECKED_IN' ? 'Start' : 'Open';
 
-const StatusPillSelect = ({
+export const StatusPillSelect = ({
   status,
   options,
   onChange,
@@ -492,7 +492,7 @@ const StatusPillSelect = ({
   );
 };
 
-const CategoryPill = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
+export const CategoryPill = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
   <span
     className="inline-flex h-9 w-fit max-w-full items-center gap-2 rounded-2xl border px-4 text-body-4 text-neutral-900"
     style={{
@@ -523,7 +523,7 @@ const TABLE_DATA_STYLE = {
   lineHeight: '120%',
 } satisfies React.CSSProperties;
 
-const TableHeading = ({ children }: { children?: React.ReactNode }) => (
+export const TableHeading = ({ children }: { children?: React.ReactNode }) => (
   <div style={TABLE_HEADING_STYLE}>{children}</div>
 );
 
@@ -538,23 +538,24 @@ const TASK_GRID =
 const BILLING_GRID =
   'grid-cols-[36px_minmax(170px,0.9fr)_minmax(145px,0.75fr)_minmax(145px,0.85fr)_116px_120px_132px_112px]';
 
-const LinkedName = ({ children }: { children: React.ReactNode }) => (
+export const LinkedName = ({ children }: { children: React.ReactNode }) => (
   <span className="font-medium text-text-brand">{children}</span>
 );
 
-const MoneyText = ({ value, tone }: { value: string; tone: MoneyTone }) => {
-  const classNameByTone: Record<MoneyTone, string> = {
-    neutral: 'text-neutral-900',
-    success: 'text-pill-success-text',
-    danger: 'text-danger-700',
-    warning: 'text-pill-warning-text',
-  };
-  return <span className={`font-bold ${classNameByTone[tone]}`}>{value}</span>;
+const MONEY_CLASS_NAME_BY_TONE: Record<MoneyTone, string> = {
+  neutral: 'text-neutral-900',
+  success: 'text-pill-success-text',
+  danger: 'text-danger-700',
+  warning: 'text-pill-warning-text',
 };
 
-const LoadingIcon = () => <LuLoader className="animate-spin" aria-hidden="true" />;
+export const MoneyText = ({ value, tone }: { value: string; tone: MoneyTone }) => (
+  <span className={`font-bold ${MONEY_CLASS_NAME_BY_TONE[tone]}`}>{value}</span>
+);
 
-const TimelineMarker = ({ active }: { active: boolean }) => {
+export const LoadingIcon = () => <LuLoader className="animate-spin" aria-hidden="true" />;
+
+export const TimelineMarker = ({ active }: { active: boolean }) => {
   const ring = active ? 'border-text-brand' : 'border-neutral-300';
   const dot = active ? 'bg-text-brand' : 'bg-neutral-300';
   return (
@@ -632,9 +633,11 @@ const resolveEntryAppointmentId = (entry: HistoryEntry): string | null => {
   return null;
 };
 
+const SEARCHABLE_PAYLOAD_TYPES = new Set(['string', 'number']);
+
 const getSearchableText = (entry: HistoryEntry): string => {
   const payloadText = Object.values(entry.payload)
-    .filter((value) => ['string', 'number'].includes(typeof value))
+    .filter((value) => SEARCHABLE_PAYLOAD_TYPES.has(typeof value))
     .join(' ');
   return [
     entry.title,
@@ -649,6 +652,9 @@ const getSearchableText = (entry: HistoryEntry): string => {
     .join(' ')
     .toLowerCase();
 };
+
+const entryMatchesSearchQuery = (entry: HistoryEntry, normalizedQuery: string): boolean =>
+  getSearchableText(entry).includes(normalizedQuery);
 
 const getRecordCategory = (entry: HistoryEntry): string => {
   if (entry.type === 'DOCUMENT') {
@@ -716,7 +722,10 @@ const getRecordArray = (
   for (const key of keys) {
     const value = payload[key];
     if (!Array.isArray(value)) continue;
-    return value.map(asRecord).filter(Boolean) as Record<string, unknown>[];
+    return value.flatMap((item) => {
+      const record = asRecord(item);
+      return record ? [record] : [];
+    });
   }
   return [];
 };
@@ -735,7 +744,7 @@ const getLabResults = (entry: HistoryEntry): DetailPair[] => {
   }));
 };
 
-const StructuredResultsPanel = ({
+export const StructuredResultsPanel = ({
   entry,
   results,
 }: {
@@ -772,7 +781,7 @@ type RowActionProps = {
   onToggle: (id: string) => void;
 };
 
-const RowActions = ({ entry, expanded, canExpand, onOpen, onToggle }: RowActionProps) => (
+export const RowActions = ({ entry, expanded, canExpand, onOpen, onToggle }: RowActionProps) => (
   <div className="flex items-center justify-end gap-2">
     {canExpand ? (
       <CircleIconButton
@@ -791,7 +800,7 @@ const RowActions = ({ entry, expanded, canExpand, onOpen, onToggle }: RowActionP
   </div>
 );
 
-const RequestedAppointmentActions = ({
+export const RequestedAppointmentActions = ({
   entry,
   canEdit,
   onStatusChange,
@@ -835,7 +844,7 @@ const RequestedAppointmentActions = ({
   );
 };
 
-const AppointmentRows = ({
+export const AppointmentRows = ({
   entries,
   statusOverrides,
   onStatusChange,
@@ -912,7 +921,7 @@ const AppointmentRows = ({
   </div>
 );
 
-const DiagnosticsRows = ({
+export const DiagnosticsRows = ({
   entries,
   statusOverrides,
   expandedId,
@@ -1003,7 +1012,7 @@ const DiagnosticsRows = ({
   </div>
 );
 
-const MedicalRecordRows = ({
+export const MedicalRecordRows = ({
   entries,
   expandedId,
   onToggle,
@@ -1092,7 +1101,7 @@ const MedicalRecordRows = ({
   </div>
 );
 
-const TaskRows = ({
+export const TaskRows = ({
   entries,
   statusOverrides,
   onStatusChange,
@@ -1169,7 +1178,7 @@ const isPaidInvoice = (entry: HistoryEntry): boolean => {
   return ['PAID', 'PAID_FULL', 'COMPLETED'].includes(status);
 };
 
-const BillingRows = ({
+export const BillingRows = ({
   entries,
   statusOverrides,
   onOpen,
@@ -1263,7 +1272,7 @@ const getAuditActorDisplay = (entry: AuditTrail): string => {
   return actorName ? `${actorName} • ${actorTypeLabel}` : actorTypeLabel;
 };
 
-const AuditTimeline = ({
+export const AuditTimeline = ({
   loading,
   error,
   entries,
@@ -1316,7 +1325,7 @@ const AuditTimeline = ({
   );
 };
 
-const EmptyOrRows = ({
+export const EmptyOrRows = ({
   activeFilter,
   entries,
   statusOverrides,
@@ -1400,7 +1409,37 @@ const EmptyOrRows = ({
   );
 };
 
-const CompanionHistoryTimeline = ({
+type HistoryLoadState = {
+  entries: HistoryEntry[];
+  auditEntries: AuditTrail[];
+  loading: boolean;
+  auditLoading: boolean;
+  error: string | null;
+  auditError: string | null;
+  nextCursor: string | null;
+  loadingMore: boolean;
+  expandedId: string | null;
+};
+
+type HistoryLoadAction =
+  | { type: 'PATCH'; patch: Partial<HistoryLoadState> }
+  | { type: 'APPEND_PAGE'; response: CompanionHistoryResponse; shouldReplace: boolean };
+
+const historyLoadReducer = (
+  state: HistoryLoadState,
+  action: HistoryLoadAction
+): HistoryLoadState => {
+  if (action.type === 'APPEND_PAGE') {
+    return {
+      ...state,
+      entries: appendPage(state.entries, action.response, action.shouldReplace),
+      nextCursor: action.response.nextCursor,
+    };
+  }
+  return { ...state, ...action.patch };
+};
+
+const useCompanionHistoryTimelineView = ({
   companionId,
   activeAppointmentId,
   showDocumentUpload = false,
@@ -1418,16 +1457,47 @@ const CompanionHistoryTimeline = ({
   const appointmentsById = useAppointmentStore((state) => state.appointmentsById);
   const tasksById = useTaskStore((state) => state.tasksById);
   const { notify } = useNotify();
-  const [entries, setEntries] = useState<HistoryEntry[]>([]);
-  const [auditEntries, setAuditEntries] = useState<AuditTrail[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [auditLoading, setAuditLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [auditError, setAuditError] = useState<string | null>(null);
+  const [historyLoad, dispatchHistoryLoad] = useReducer(historyLoadReducer, {
+    entries: [] as HistoryEntry[],
+    auditEntries: [] as AuditTrail[],
+    loading: false,
+    auditLoading: false,
+    error: null as string | null,
+    auditError: null as string | null,
+    nextCursor: null as string | null,
+    loadingMore: false,
+    expandedId: null as string | null,
+  });
+  const {
+    entries,
+    auditEntries,
+    loading,
+    auditLoading,
+    error,
+    auditError,
+    nextCursor,
+    loadingMore,
+    expandedId,
+  } = historyLoad;
+  const patchHistoryLoad = useCallback(
+    (patch: Partial<HistoryLoadState>) => dispatchHistoryLoad({ type: 'PATCH', patch }),
+    []
+  );
+  const setExpandedId = useCallback<React.Dispatch<React.SetStateAction<string | null>>>(
+    (value) => {
+      dispatchHistoryLoad({
+        type: 'PATCH',
+        patch: {
+          expandedId:
+            typeof value === 'function'
+              ? (value as (prev: string | null) => string | null)(historyLoad.expandedId)
+              : value,
+        },
+      });
+    },
+    [historyLoad.expandedId]
+  );
   const [activeFilter, setActiveFilter] = useState<HistoryFilterKey>(DEFAULT_FILTER);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(STATUS_FILTER_ALL);
   const [sortKey, setSortKey] = useState<SortKey>('newest');
@@ -1446,13 +1516,12 @@ const CompanionHistoryTimeline = ({
   const loadHistory = useCallback(
     async (cursor: string | null, shouldReplace: boolean) => {
       if (!organisationId || !companionId) {
-        setEntries([]);
-        setNextCursor(null);
+        patchHistoryLoad({ entries: [], nextCursor: null });
         return;
       }
-      if (cursor) setLoadingMore(true);
-      else setLoading(true);
-      setError(null);
+      patchHistoryLoad(
+        cursor ? { loadingMore: true, error: null } : { loading: true, error: null }
+      );
       try {
         const response = await fetchCompanionHistory({
           organisationId,
@@ -1464,79 +1533,89 @@ const CompanionHistoryTimeline = ({
         if (!response || !Array.isArray(response.entries)) {
           throw new Error('Invalid companion history response');
         }
-        setEntries((prev) => appendPage(prev, response, shouldReplace));
-        setNextCursor(response.nextCursor);
+        dispatchHistoryLoad({ type: 'APPEND_PAGE', response, shouldReplace });
       } catch (historyError) {
         console.error('Failed to load companion history:', historyError);
-        setError('Unable to load overview. Please try again.');
-        if (shouldReplace) setEntries([]);
+        patchHistoryLoad({
+          error: 'Unable to load overview. Please try again.',
+          ...(shouldReplace ? { entries: [] } : {}),
+        });
       } finally {
-        setLoading(false);
-        setLoadingMore(false);
+        patchHistoryLoad({ loading: false, loadingMore: false });
       }
     },
-    [organisationId, companionId, requestedTypes]
+    [organisationId, companionId, requestedTypes, patchHistoryLoad]
   );
 
-  useLayoutEffect(() => {
+  const identityKey = `${companionId ?? ''}:${organisationId ?? ''}`;
+  const [prevIdentityKey, setPrevIdentityKey] = useState(identityKey);
+  if (identityKey !== prevIdentityKey) {
+    setPrevIdentityKey(identityKey);
     setActiveFilter(DEFAULT_FILTER);
     setQuery('');
     setExpandedId(null);
     setStatusOverrides({});
-  }, [companionId, organisationId]);
+  }
 
   useLayoutEffect(() => {
     if (activeFilter === 'AUDIT_TRAIL') return;
-    setEntries([]);
-    setAuditEntries([]);
-    setNextCursor(null);
-    setError(null);
-    setAuditError(null);
-    setExpandedId(null);
+    patchHistoryLoad({
+      entries: [],
+      auditEntries: [],
+      nextCursor: null,
+      error: null,
+      auditError: null,
+      expandedId: null,
+    });
     loadHistory(null, true).catch((historyError) => {
       console.error('Failed to initialize companion history:', historyError);
     });
-  }, [companionId, organisationId, activeFilter, loadHistory]);
+  }, [companionId, organisationId, activeFilter, loadHistory, patchHistoryLoad]);
 
   useLayoutEffect(() => {
     if (activeFilter !== 'AUDIT_TRAIL') {
-      setAuditError(null);
+      patchHistoryLoad({ auditError: null });
       return;
     }
     if (!companionId) {
-      setAuditEntries([]);
-      setAuditError(null);
+      patchHistoryLoad({ auditEntries: [], auditError: null });
       return;
     }
     let cancelled = false;
-    setAuditLoading(true);
-    setAuditError(null);
+    patchHistoryLoad({ auditLoading: true, auditError: null });
     getCompanionAuditTrail(companionId)
       .then((response) => {
-        if (!cancelled) setAuditEntries(Array.isArray(response) ? response : []);
+        if (!cancelled) patchHistoryLoad({ auditEntries: Array.isArray(response) ? response : [] });
       })
       .catch((auditTrailError) => {
         if (cancelled) return;
         console.error('Failed to load companion audit trail:', auditTrailError);
-        setAuditEntries([]);
-        setAuditError('Unable to load audit trail. Please try again.');
+        patchHistoryLoad({
+          auditEntries: [],
+          auditError: 'Unable to load audit trail. Please try again.',
+        });
       })
       .finally(() => {
-        if (!cancelled) setAuditLoading(false);
+        if (!cancelled) patchHistoryLoad({ auditLoading: false });
       });
     return () => {
       cancelled = true;
     };
-  }, [activeFilter, companionId]);
+  }, [activeFilter, companionId, patchHistoryLoad]);
+
+  const requestedTypeSet = useMemo(
+    () => (requestedTypes ? new Set(requestedTypes) : undefined),
+    [requestedTypes]
+  );
 
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const byTab =
       activeFilter === 'MEDICAL_RECORDS'
         ? entries.filter((entry) => MEDICAL_RECORD_TYPES.has(entry.type))
-        : entries.filter((entry) => requestedTypes?.includes(entry.type));
+        : entries.filter((entry) => requestedTypeSet?.has(entry.type));
     const bySearch = normalizedQuery
-      ? byTab.filter((entry) => getSearchableText(entry).includes(normalizedQuery))
+      ? byTab.filter((entry) => entryMatchesSearchQuery(entry, normalizedQuery))
       : byTab;
     const withStatusOverrides = bySearch.map((entry) => ({
       ...entry,
@@ -1555,7 +1634,7 @@ const CompanionHistoryTimeline = ({
     compact,
     entries,
     query,
-    requestedTypes,
+    requestedTypeSet,
     sortKey,
     statusFilter,
     statusOverrides,
@@ -1972,5 +2051,8 @@ const CompanionHistoryTimeline = ({
     </PermissionGate>
   );
 };
+
+const CompanionHistoryTimeline = (props: CompanionHistoryTimelineProps) =>
+  useCompanionHistoryTimelineView(props);
 
 export default CompanionHistoryTimeline;

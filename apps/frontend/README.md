@@ -8,7 +8,7 @@
 
 <div align="center">
 
-[![Next.js 15.4.9](https://img.shields.io/badge/Next.js-15.4.9-black?logo=next.js)](https://nextjs.org/)
+[![Next.js 15.5.18](https://img.shields.io/badge/Next.js-15.5.18-black?logo=next.js)](https://nextjs.org/)
 [![React 19.1.1](https://img.shields.io/badge/React-19.1.1-61DAFB?logo=react)](https://react.dev)
 [![PNPM](https://img.shields.io/badge/pnpm-F69220?logo=pnpm&logoColor=white)](https://pnpm.io)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -18,22 +18,21 @@
 </div>
 
 <div align="center">
-This directory contains the Next.js web app for Yosemite Crew. It powers the staff-facing PIMS dashboard and operational workflows for veterinary teams.
+This directory contains the Next.js web app for Yosemite Crew. It powers the staff-facing practice management (PIMS) dashboard and operational workflows for veterinary teams.
 </div>
 
 ## Release Line
 
 The frontend release line uses `pims-v*` tags.
 
-- Current released baseline: `pims-v1.3.0-beta`
-- Next major frontend release: `pims-v2.0.0-beta`
-- Tag format: `pims-v<major>.<minor>.<patch>-beta`
+- Current tagged baseline: `pims-v2.0.0-beta.0` (matches the `2.0.0-beta` version in `package.json`)
+- Tag format: `pims-v<major>.<minor>.<patch>-beta`, with an optional numeric iteration suffix (e.g. `-beta.0`)
 
 Recommended release flow:
 
 ```sh
-git tag -a pims-v2.0.0-beta -m "PIMS frontend v2.0.0-beta"
-git push origin pims-v2.0.0-beta
+git tag -a pims-v2.1.0-beta -m "PIMS frontend v2.1.0-beta"
+git push origin pims-v2.1.0-beta
 ```
 
 ## 🧭 Overview
@@ -82,7 +81,7 @@ pnpm install
 cp apps/frontend/.env.example apps/frontend/.env
 ```
 
-Required keys (see `.env.example`):
+`.env.example` is fully annotated and describes a tiered setup: UI-only work needs no secrets (set `NEXT_PUBLIC_DISABLE_AUTH_GUARD=true` and leave the rest blank), while full-stack work uses the shared dev API values already present in the file. Main keys:
 
 - `NEXT_PUBLIC_BASE_URL`
 - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`

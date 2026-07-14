@@ -3,6 +3,7 @@ import { Appointment } from '@yosemite-crew/types';
 import {
   allowCalendarDrag,
   canAssignAppointmentRoom,
+  getAppointmentCompanion,
   canShowStatusChangeAction,
   getClinicalNotesIntent,
   getClinicalNotesLabel,
@@ -44,6 +45,7 @@ const AppointmentCard = ({
     (appointment.organisationId && orgsById[appointment.organisationId]?.type) || 'HOSPITAL';
   const clinicalNotesLabel = getClinicalNotesLabel(orgType);
   const clinicalNotesIntent = getClinicalNotesIntent(orgType);
+  const appointmentCompanionName = getAppointmentCompanion(appointment).name || 'appointment';
 
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
@@ -57,6 +59,7 @@ const AppointmentCard = ({
                 className="size-10 rounded-full! flex items-center justify-center cursor-pointer"
                 style={{ background: 'var(--color-success-100)' }}
                 onClick={() => handleChangeStatusAppointment?.(appointment)}
+                aria-label={`Accept request for ${appointmentCompanionName}`}
               >
                 <FaCheckCircle size={22} color="var(--color-success-400)" />
               </button>
@@ -67,6 +70,7 @@ const AppointmentCard = ({
                 className="size-10 rounded-full! flex items-center justify-center cursor-pointer"
                 style={{ background: 'var(--color-danger-100)' }}
                 onClick={() => void rejectAppointment(appointment)}
+                aria-label={`Decline request for ${appointmentCompanionName}`}
               >
                 <IoIosCloseCircle size={24} color="var(--color-danger-600)" />
               </button>
@@ -78,6 +82,7 @@ const AppointmentCard = ({
               <button
                 type="button"
                 onClick={() => handleViewAppointment(appointment)}
+                aria-label={`View appointment for ${appointmentCompanionName}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="View"
               >
@@ -89,6 +94,7 @@ const AppointmentCard = ({
                 <button
                   type="button"
                   onClick={() => handleChangeStatusAppointment?.(appointment)}
+                  aria-label={`Change status for ${appointmentCompanionName}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Change status"
                 >
@@ -101,6 +107,7 @@ const AppointmentCard = ({
                 <button
                   type="button"
                   onClick={() => handleRescheduleAppointment(appointment)}
+                  aria-label={`Reschedule appointment for ${appointmentCompanionName}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Reschedule"
                 >
@@ -113,6 +120,7 @@ const AppointmentCard = ({
                 <button
                   type="button"
                   onClick={() => handleChangeRoomAppointment?.(appointment)}
+                  aria-label={`Assign room for ${appointmentCompanionName}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Assign room"
                 >
@@ -129,6 +137,7 @@ const AppointmentCard = ({
                     orgType === 'HOSPITAL' ? getSoapViewIntent(appointment) : clinicalNotesIntent
                   )
                 }
+                aria-label={`${clinicalNotesLabel} for ${appointmentCompanionName}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title={clinicalNotesLabel}
               >
@@ -144,6 +153,7 @@ const AppointmentCard = ({
                     subLabel: 'summary',
                   })
                 }
+                aria-label={`Finance summary for ${appointmentCompanionName}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Finance"
               >
@@ -159,6 +169,7 @@ const AppointmentCard = ({
                     subLabel: 'idexx-labs',
                   })
                 }
+                aria-label={`Lab tests for ${appointmentCompanionName}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="Lab tests"
               >

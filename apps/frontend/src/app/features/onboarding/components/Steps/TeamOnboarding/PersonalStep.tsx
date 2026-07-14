@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useImperativeHandle,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-  type Ref,
-} from 'react';
+import { useImperativeHandle, useState, type Dispatch, type SetStateAction, type Ref } from 'react';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import classNames from 'classnames';
 
@@ -110,9 +103,24 @@ function PersonalStep({
   ref,
 }: PersonalStepProps) {
   const [formDataErrors, setFormDataErrors] = useState<PersonalStepErrors>({});
-  const [currentDate, setCurrentDate] = useState<Date | null>(
-    formData.personalDetails?.dateOfBirth ? new Date(formData.personalDetails.dateOfBirth) : null
-  );
+  const currentDate = formData.personalDetails?.dateOfBirth
+    ? new Date(formData.personalDetails.dateOfBirth)
+    : null;
+  const setCurrentDate: React.Dispatch<React.SetStateAction<Date | null>> = (value) => {
+    setFormData((prev) => {
+      const prevDate = prev.personalDetails?.dateOfBirth
+        ? new Date(prev.personalDetails.dateOfBirth)
+        : null;
+      const next = typeof value === 'function' ? value(prevDate) : value;
+      return {
+        ...prev,
+        personalDetails: {
+          ...prev.personalDetails,
+          dateOfBirth: next ? formatDateLocal(next) : '',
+        },
+      };
+    });
+  };
   const initialPhoneData = findPhoneData(
     formData.personalDetails?.phoneNumber || '',
     formData.personalDetails?.address?.country
@@ -129,16 +137,6 @@ function PersonalStep({
       return Object.keys(errors).length === 0;
     },
   }));
-
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      personalDetails: {
-        ...prev.personalDetails,
-        dateOfBirth: currentDate ? formatDateLocal(currentDate) : '',
-      },
-    }));
-  }, [currentDate, setFormData]);
 
   const handleNext = async () => {
     if (isSaving) return;
