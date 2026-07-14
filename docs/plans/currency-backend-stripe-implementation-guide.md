@@ -1,5 +1,9 @@
 # Backend and Stripe Currency Modernization Guide
 
+> Status: not started as of this revision. The "Current Backend State" section below still matches the tree: `apps/backend/src/utils/billing.ts` exposes `getOrgBillingCurrency`/`currencyForCountry` with a lowercase `"usd"` default, but the centralized `SupportedCurrencyCode` contract, the renamed resolver helpers, and the public pricing presentment endpoint this guide specifies do not exist yet. Treat this as the target design, not shipped work.
+
+This is a backend and Stripe/billing design guide for rolling out multi-currency (EUR/USD/GBP) support. FX below means foreign-exchange (currency conversion). The two client-side companion guides are linked under "Related documents".
+
 ## Objective
 
 Create the backend and Stripe architecture that supports a clean `EUR/USD/GBP` rollout across the platform without breaking invoices, appointment payments, inventory pricing, expenses, subscriptions, or public pricing presentment.

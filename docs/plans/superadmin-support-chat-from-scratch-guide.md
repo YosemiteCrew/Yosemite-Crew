@@ -2,7 +2,9 @@
 
 ## Objective
 
-Build a separate Superadmin application (outside current monorepo) that uses the same Stream Chat app and backend chat APIs to handle support conversations from PMS and mobile users.
+This guide is for engineers building the operator side of Support Chat. "Superadmin" here means a Yosemite Crew company operator (the platform staff who answer support requests), as distinct from PMS clinic staff and mobile pet-parent users. The client side that opens these conversations is covered in [`pms-mobile-support-chat-guide.md`](pms-mobile-support-chat-guide.md).
+
+Build a separate Superadmin application (outside current monorepo) that uses the same Stream Chat (getstream.io realtime chat) app and backend chat APIs to handle support conversations from PMS (veterinary Practice Management System) and mobile users.
 
 This guide defines an implementation where every support conversation is scoped by requester + organization and is visible in a support queue.
 

@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Icon } from '@iconify/react/dist/iconify.js';
 
 import FormInputPass from '@/app/ui/inputs/FormInputPass/FormInputPass';
@@ -9,11 +9,11 @@ import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { useAuthStore } from '@/app/stores/authStore';
 import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
 import { Primary } from '@/app/ui/primitives/Buttons';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
-import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { resolvePostAuthRedirect, sanitizeNextPath } from '@/app/lib/postAuthRedirect';
 import { setStorageItem } from '@/app/lib/browserStorage';
 import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
 
@@ -26,15 +26,19 @@ type SignInProps = {
   isDeveloper?: boolean;
 };
 
-const SignIn = ({
+const SignInForm = ({
   redirectPath,
   signupHref = '/signup',
+  allowNext = true,
   isDeveloper = false,
 }: Readonly<SignInProps>) => {
   const { signIn, resendCode, role } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => searchParams?.get('email') ?? '');
+  const nextPath = allowNext ? sanitizeNextPath(searchParams?.get('next') ?? null) : undefined;
+  const effectiveRedirectPath = redirectPath ?? nextPath;
   const [password, setPassword] = useState('');
   const [inputErrors, setInputErrors] = useState<{
     email?: string;
@@ -91,7 +95,7 @@ const SignIn = ({
         typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
       const nextRoute = await resolvePostAuthRedirect({
         fallbackRole: signedInRole,
-        redirectPath,
+        redirectPath: effectiveRedirectPath,
         isDeveloper,
       });
       router.replace(nextRoute);
@@ -213,5 +217,13 @@ const SignIn = ({
     </section>
   );
 };
+
+// useSearchParams needs a Suspense boundary; owning it here keeps every
+// consumer of SignIn safe regardless of how the route wraps it.
+const SignIn = (props: Readonly<SignInProps>) => (
+  <Suspense fallback={null}>
+    <SignInForm {...props} />
+  </Suspense>
+);
 
 export default SignIn;

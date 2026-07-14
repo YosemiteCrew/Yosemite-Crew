@@ -2,6 +2,8 @@
 
 ## Context
 
+This is a small backend patch guide for the Yosemite Crew PMS (veterinary Practice Management System) web app. It fixes a mismatch where the frontend now sends three extra document fields that the backend create path silently drops.
+
 Frontend PMS document upload now captures these fields:
 
 - `visitType`

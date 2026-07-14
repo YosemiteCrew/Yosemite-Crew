@@ -1,4 +1,5 @@
 import type { Preview } from '@storybook/react';
+import React from 'react';
 import '../src/app/globals.css';
 
 /**
@@ -38,6 +39,24 @@ const viewports = {
 };
 
 const preview: Preview = {
+  decorators: [
+    (Story, context) =>
+      React.createElement(
+        'main',
+        {
+          'aria-labelledby': 'storybook-story-title',
+        },
+        React.createElement(
+          'h1',
+          {
+            id: 'storybook-story-title',
+            className: 'sr-only',
+          },
+          `${context.title} - ${context.name}`
+        ),
+        React.createElement(Story)
+      ),
+  ],
   parameters: {
     controls: {
       matchers: {

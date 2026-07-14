@@ -34,6 +34,15 @@ const upsertAvailabilityMock = jest.fn();
 
 jest.mock('@/app/features/organization/services/availabilityService', () => ({
   upsertAvailability: (...args: any[]) => upsertAvailabilityMock(...args),
+  upsertTeamAvailability: jest.fn(),
+}));
+
+jest.mock('@/app/features/organization/services/profileService', () => ({
+  upsertUserProfile: jest.fn(),
+}));
+
+jest.mock('@/app/features/organization/services/teamService', () => ({
+  getProfileForUserForPrimaryOrg: jest.fn().mockResolvedValue({}),
 }));
 
 jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
@@ -52,7 +61,36 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 
 jest.mock('@/app/features/organization/pages/Organization/Sections/ProfileCard', () => ({
   __esModule: true,
-  default: ({ title }: any) => <div>{title}</div>,
+  default: ({ title, onSave }: any) => (
+    <div>
+      {title}
+      <button
+        type="button"
+        onClick={() =>
+          onSave?.({
+            given_name: 'Taylor',
+            family_name: 'Fox',
+            gender: 'female',
+            dateOfBirth: '1990-05-05',
+            phoneNumber: '999',
+            country: 'India',
+            addressLine: '1 Vet Way',
+            state: 'CA',
+            city: 'Fresno',
+            postalCode: '93650',
+            linkedin: 'in/taylor',
+            medicalLicenseNumber: 'ML-1',
+            specialization: 'Surgery',
+            qualification: 'DVM',
+            biography: 'Bio',
+            yearsOfExperience: '8',
+          })
+        }
+      >
+        save-{title}
+      </button>
+    </div>
+  ),
 }));
 
 jest.mock('@/app/features/appointments/components/Availability/Availability', () => ({
@@ -119,5 +157,162 @@ describe('Settings OrgSection', () => {
     await waitFor(() => {
       expect(upsertAvailabilityMock).toHaveBeenCalled();
     });
+  });
+
+  it('does not save when no availability is selected', async () => {
+    (availabilityUtils.convertAvailability as jest.Mock).mockReturnValue([]);
+    (availabilityUtils.hasAtLeastOneAvailability as jest.Mock).mockReturnValue(false);
+
+    render(<OrgSection />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    });
+
+    expect(upsertAvailabilityMock).not.toHaveBeenCalled();
+  });
+
+  it('notifies on availability save failure', async () => {
+    (availabilityUtils.convertAvailability as jest.Mock).mockReturnValue([
+      { day: 'Monday', intervals: [] },
+    ]);
+    (availabilityUtils.hasAtLeastOneAvailability as jest.Mock).mockReturnValue(true);
+    upsertAvailabilityMock.mockRejectedValueOnce(new Error('down'));
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    render(<OrgSection />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    });
+
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+  });
+
+  it('updates the user profile, address, and professional details from the profile cards', async () => {
+    render(<OrgSection />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'save-User profile' }));
+    });
+    const { updateUser } = jest.requireMock('@/app/features/users/services/userService');
+    expect(updateUser).toHaveBeenCalledWith('Taylor', 'Fox');
+    const { upsertUserProfile } = jest.requireMock(
+      '@/app/features/organization/services/profileService'
+    );
+    expect(upsertUserProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        personalDetails: expect.objectContaining({
+          gender: 'female',
+          dateOfBirth: '1990-05-05',
+          phoneNumber: '999',
+          address: expect.objectContaining({ country: 'India' }),
+        }),
+      })
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'save-Address' }));
+    });
+    expect(upsertUserProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        personalDetails: expect.objectContaining({
+          address: expect.objectContaining({
+            addressLine: '1 Vet Way',
+            state: 'CA',
+            city: 'Fresno',
+            postalCode: '93650',
+          }),
+        }),
+      })
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'save-Professional details' }));
+    });
+    expect(upsertUserProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        professionalDetails: expect.objectContaining({
+          linkedin: 'in/taylor',
+          medicalLicenseNumber: 'ML-1',
+          specialization: 'Surgery',
+          qualification: 'DVM',
+          biography: 'Bio',
+          yearsOfExperience: '8',
+        }),
+      })
+    );
+  });
+
+  it('reports errors from each profile card save', async () => {
+    const { upsertUserProfile } = jest.requireMock(
+      '@/app/features/organization/services/profileService'
+    );
+    (upsertUserProfile as jest.Mock).mockRejectedValue(new Error('backend down'));
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    render(<OrgSection />);
+    for (const label of ['save-User profile', 'save-Address', 'save-Professional details']) {
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: label }));
+      });
+    }
+
+    expect(logSpy).toHaveBeenCalledTimes(3);
+    logSpy.mockRestore();
+    (upsertUserProfile as jest.Mock).mockReset();
+  });
+
+  it('skips address and professional saves when there is no profile', async () => {
+    usePrimaryOrgProfileMock.mockReturnValue(null);
+    const { upsertUserProfile } = jest.requireMock(
+      '@/app/features/organization/services/profileService'
+    );
+
+    render(<OrgSection />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'save-Address' }));
+      fireEvent.click(screen.getByRole('button', { name: 'save-Professional details' }));
+      fireEvent.click(screen.getByRole('button', { name: 'save-User profile' }));
+    });
+
+    expect(upsertUserProfile).not.toHaveBeenCalled();
+  });
+
+  it('loads and saves practitioner availability through the team route', async () => {
+    usePrimaryOrgWithMembershipMock.mockReturnValue({
+      org: { _id: 'org-9', name: 'Clinic' },
+      membership: { id: 'mem-1', roleDisplay: 'Vet', practitionerReference: 'prac-1' },
+    });
+    const { getProfileForUserForPrimaryOrg } = jest.requireMock(
+      '@/app/features/organization/services/teamService'
+    );
+    (getProfileForUserForPrimaryOrg as jest.Mock).mockResolvedValue({
+      baseAvailability: [{ day: 'MONDAY', slots: [] }],
+    });
+    (availabilityUtils.convertAvailability as jest.Mock).mockReturnValue([
+      { day: 'Monday', intervals: [] },
+    ]);
+    (availabilityUtils.hasAtLeastOneAvailability as jest.Mock).mockReturnValue(true);
+    const { upsertTeamAvailability } = jest.requireMock(
+      '@/app/features/organization/services/availabilityService'
+    );
+
+    render(<OrgSection />);
+    await waitFor(() => {
+      expect(getProfileForUserForPrimaryOrg).toHaveBeenCalledWith('prac-1');
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    });
+
+    await waitFor(() => {
+      expect(upsertTeamAvailability).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: 'mem-1', practionerId: 'prac-1' }),
+        [{ day: 'Monday', intervals: [] }],
+        null
+      );
+    });
+    expect(upsertAvailabilityMock).not.toHaveBeenCalled();
   });
 });

@@ -154,6 +154,7 @@ beforeEach(() => {
 
 describe("WorkspaceDocumentPacketService.createForEncounter / getById", () => {
   it("creates a packet snapshot for an encounter", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(null);
     mockedWorkspaceService.getEncounterBootstrap.mockResolvedValue({
       appointment: { id: "appt-1" },
       encounter: { id: "enc-1" },
@@ -181,6 +182,89 @@ describe("WorkspaceDocumentPacketService.createForEncounter / getById", () => {
         data: expect.objectContaining({
           encounterId: "enc-1",
           documents: expect.any(Array),
+        }),
+      }),
+    );
+  });
+
+  it("returns an existing signed encounter packet instead of creating a duplicate draft", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({
+        id: "packet-signed",
+        status: "FINAL",
+        signing: {
+          required: true,
+          provider: "DOCUMENSO",
+          status: "SIGNED",
+          documentId: "123",
+          signerId: "user-1",
+          signerEmail: "vet@example.com",
+          signerName: "Dr Jane",
+          signingUrl: null,
+          documentIds: ["d1"],
+        },
+      }),
+    );
+
+    const packet = await WorkspaceDocumentPacketService.createForEncounter({
+      organisationId: "org-1",
+      encounterId: "enc-1",
+    });
+
+    expect(packet.packetId).toBe("packet-signed");
+    expect(packet.status).toBe("FINAL");
+    expect(packet.signing?.status).toBe("SIGNED");
+    expect(mockedWorkspaceService.getEncounterBootstrap).not.toHaveBeenCalled();
+    expect(mockedPrisma.workspaceDocumentPacket.create).not.toHaveBeenCalled();
+  });
+
+  it("refreshes an existing not-started draft packet instead of inserting another one", async () => {
+    mockedPrisma.workspaceDocumentPacket.findFirst.mockResolvedValue(
+      basePacket({ id: "packet-draft", signing: { status: "NOT_STARTED" } }),
+    );
+    mockedWorkspaceService.getEncounterBootstrap.mockResolvedValue({
+      appointment: { id: "appt-1" },
+      encounter: { id: "enc-1" },
+      companion: { id: "comp-1" },
+      documents: [
+        {
+          ...docRow("doc-new", "DISCHARGE_SUMMARY"),
+          createdAt: new Date("2026-06-15T10:00:00.000Z"),
+          updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+        },
+      ],
+    });
+    mockedPrisma.workspaceDocumentPacket.update.mockResolvedValue(
+      basePacket({
+        id: "packet-draft",
+        appointmentId: "appt-1",
+        companionId: "comp-1",
+        documents: [
+          {
+            ...docRow("doc-new", "DISCHARGE_SUMMARY"),
+            createdAt: new Date("2026-06-15T10:00:00.000Z").toISOString(),
+            updatedAt: new Date("2026-06-15T10:00:00.000Z").toISOString(),
+          },
+        ],
+      }),
+    );
+
+    const packet = await WorkspaceDocumentPacketService.createForEncounter({
+      organisationId: "org-1",
+      encounterId: "enc-1",
+    });
+
+    expect(packet.packetId).toBe("packet-draft");
+    expect(packet.documents).toHaveLength(1);
+    expect(mockedPrisma.workspaceDocumentPacket.create).not.toHaveBeenCalled();
+    expect(mockedPrisma.workspaceDocumentPacket.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "packet-draft" },
+        data: expect.objectContaining({
+          appointmentId: "appt-1",
+          companionId: "comp-1",
+          documents: expect.any(Array),
+          status: "DRAFT",
         }),
       }),
     );

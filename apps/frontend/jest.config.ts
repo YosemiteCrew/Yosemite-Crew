@@ -41,6 +41,10 @@ const config: Config = {
     '!<rootDir>/src/**/*.spec.tsx',
     '!<rootDir>/src/**/tests/**',
     '!<rootDir>/src/**/__tests__/**',
+    // Storybook demo files are documentation, not product code — exclude them
+    // from the coverage denominator like tests and mocks.
+    '!<rootDir>/src/**/*.stories.ts',
+    '!<rootDir>/src/**/*.stories.tsx',
     '!<rootDir>/src/app/jest.mocks/**',
     '!<rootDir>/src/app/features/*/index.ts',
     '!<rootDir>/src/app/features/*/index.tsx',
