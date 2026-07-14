@@ -1,6 +1,10 @@
 # Desktop Performance
 
+This note records the desktop shell's startup and memory baselines and the command used to reproduce them, so contributors can spot regressions after a change. It is a local smoke reference, not a certified benchmark. See [`desktop-architecture.md`](desktop-architecture.md) for how the process model shapes these numbers.
+
 ## Cold Start + Idle RSS
+
+RSS (Resident Set Size) is the amount of physical memory the app process is holding while idle.
 
 Measurement command:
 
