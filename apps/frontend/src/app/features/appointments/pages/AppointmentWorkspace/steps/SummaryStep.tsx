@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import DOMPurify from 'dompurify';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import type {
@@ -49,6 +50,15 @@ import {
   reconcileWorkspaceDocumentPacket,
   signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
+
+function sanitizeHtml(html: string | null | undefined) {
+  return html
+    ? DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: ['span', 'p'],
+        ALLOWED_ATTR: ['class'],
+      })
+    : '';
+}
 
 type SummaryStepProps = {
   appointmentId: string;
@@ -801,7 +811,7 @@ const SummaryStep = ({
             <div
               className="text-body-4 leading-[150%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 sm:pr-12"
               dangerouslySetInnerHTML={{
-                __html: sanitizeRichText(encounter.dischargeSummary ?? '') || '-',
+                __html: sanitizeHtml(encounter.dischargeSummary) || '-',
               }}
             />
             <div className="mt-6 flex flex-wrap items-end justify-between gap-3">

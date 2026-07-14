@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
 import { IoEyeOutline, IoEyeOffOutline } from 'react-icons/io5';
 import { LuClipboardList } from 'react-icons/lu';
+import DOMPurify from 'dompurify';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import { sanitizeRichText } from '@/app/lib/richText';
+
+function sanitizeHtml(html: string | null | undefined) {
+  return html
+    ? DOMPurify.sanitize(html, {
+        ALLOWED_TAGS: ['span', 'p'],
+        ALLOWED_ATTR: ['class'],
+      })
+    : '';
+}
 
 export type SoapNoteReadField = {
   label: string;
@@ -36,7 +46,7 @@ const ReadRow = ({ field }: { field: SoapNoteReadField }) => (
       <div
         className="flex-1 text-body-4 leading-[140%] text-text-primary [&_li]:my-0 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul_ul]:pl-5"
         // Re-sanitized at render as defence-in-depth (also sanitized on write).
-        dangerouslySetInnerHTML={{ __html: sanitizeRichText(field.html ?? '') || '-' }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(field.html ?? '') || '-' }}
       />
     ) : (
       <p className="flex-1 text-body-4 leading-[140%] text-text-primary">{field.text || '-'}</p>
