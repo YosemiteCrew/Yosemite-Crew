@@ -1,6 +1,6 @@
 import React from 'react';
-import {View, Text, Switch, Image} from 'react-native';
-import {TouchableInput} from '@/shared/components/common';
+import {View, Text, Image} from 'react-native';
+import {Toggle, TouchableInput} from '@/shared/components/common';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
 import {
   MedicationFormSection,
@@ -169,14 +169,10 @@ export const TaskFormContent: React.FC<TaskFormContentProps> = ({
 
           <View style={styles.toggleSection}>
             <Text style={styles.toggleLabel}>Attach document</Text>
-            <Switch
+            <Toggle
               value={formData.attachDocuments}
               onValueChange={value => updateField('attachDocuments', value)}
-              trackColor={{
-                false: theme.colors.borderMuted,
-                true: theme.colors.primary,
-              }}
-              thumbColor={theme.colors.white}
+              accessibilityLabel="Attach document"
             />
           </View>
 
