@@ -1062,6 +1062,18 @@ describe('PaymentInvoiceScreen', () => {
     expect(screen.getAllByText('Cancelled').length).toBeGreaterThan(0);
   });
 
+  it('renders a "Due" badge (not "Paid") for an unpaid invoice status', () => {
+    const state = createSafeState({
+      appointments: {
+        invoices: {'apt-1': {...mockInvoiceData, status: 'Unpaid'}},
+      },
+    });
+    (useSelector as unknown as jest.Mock).mockImplementation(fn => fn(state));
+    render(<PaymentInvoiceScreen />);
+    expect(screen.getAllByText('Due').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Paid')).toBeNull();
+  });
+
   it('detects a cash-collected invoice from a PAID_CASH invoice status', () => {
     const state = createSafeState({
       appointments: {

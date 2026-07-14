@@ -210,6 +210,8 @@ describe('AppointmentFormScreen — final coverage push', () => {
     (useNavigation as jest.Mock).mockReturnValue({
       navigate: mockNavigate,
       goBack: mockGoBack,
+      addListener: jest.fn(() => jest.fn()),
+      dispatch: jest.fn(),
     });
     (useRoute as jest.Mock).mockReturnValue({params: defaultRouteParams});
     (useIsFocused as jest.Mock).mockReturnValue(true);
@@ -2078,6 +2080,68 @@ describe('AppointmentFormScreen — final coverage push', () => {
       await waitFor(() => expect(mockGoBack).toHaveBeenCalled());
       expect(mockNavigate).not.toHaveBeenCalled();
       expect(FormActions.startFormSigning).not.toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Signing not started',
+        expect.stringContaining('could not start the signing process'),
+      );
+    });
+
+    it('warns before discarding unsaved answers and lets the user keep editing or discard', () => {
+      const listeners: Record<string, (e: any) => void> = {};
+      const mockAddListener = jest.fn((event: string, cb: any) => {
+        listeners[event] = cb;
+        return jest.fn();
+      });
+      const mockDispatchNav = jest.fn();
+      (useNavigation as jest.Mock).mockReturnValue({
+        navigate: mockNavigate,
+        goBack: mockGoBack,
+        addListener: mockAddListener,
+        dispatch: mockDispatchNav,
+      });
+
+      const {getByTestId} = render(<AppointmentFormScreen />);
+      fireEvent.changeText(getByTestId('input-Name'), 'new value');
+
+      const preventDefault = jest.fn();
+      const action = {type: 'GO_BACK'};
+      listeners.beforeRemove({preventDefault, data: {action}});
+
+      expect(preventDefault).toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Discard changes?',
+        expect.stringContaining('have not been saved yet'),
+        expect.any(Array),
+      );
+
+      const alertButtons = (Alert.alert as jest.Mock).mock.calls[0][2];
+      const discardButton = alertButtons.find(
+        (btn: any) => btn.text === 'Discard',
+      );
+      discardButton.onPress();
+      expect(mockDispatchNav).toHaveBeenCalledWith(action);
+    });
+
+    it('does not prompt on back navigation when there are no unsaved changes', () => {
+      const listeners: Record<string, (e: any) => void> = {};
+      const mockAddListener = jest.fn((event: string, cb: any) => {
+        listeners[event] = cb;
+        return jest.fn();
+      });
+      (useNavigation as jest.Mock).mockReturnValue({
+        navigate: mockNavigate,
+        goBack: mockGoBack,
+        addListener: mockAddListener,
+        dispatch: jest.fn(),
+      });
+
+      render(<AppointmentFormScreen />);
+
+      const preventDefault = jest.fn();
+      listeners.beforeRemove({preventDefault, data: {action: {}}});
+
+      expect(preventDefault).not.toHaveBeenCalled();
+      expect(Alert.alert).not.toHaveBeenCalled();
     });
 
     it('JSON-stringifies an object value whose url is empty in read-only mode', () => {

@@ -293,6 +293,13 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
   }, [navigation, returnTo]);
 
   const handleNotifyPress = useCallback(async () => {
+    if (!email) {
+      Alert.alert(
+        'Email required',
+        'This business does not have an email on file, so we cannot send an invite.',
+      );
+      return;
+    }
     try {
       console.log(
         '[BusinessAddScreen] Sending invite to business:',
@@ -301,7 +308,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
       await dispatch(
         inviteBusiness({
           companionId,
-          email: '',
+          email,
           businessName: businessName || 'Unknown Business',
           category: category as any,
         }),
@@ -314,7 +321,7 @@ export const BusinessAddScreen: React.FC<Props> = ({route, navigation}) => {
       console.error('[BusinessAddScreen] Failed to send invite:', error);
       Alert.alert('Error', 'Failed to send invite. Please try again.');
     }
-  }, [dispatch, companionId, category, businessName]);
+  }, [dispatch, companionId, category, businessName, email]);
 
   return (
     <BusinessAddScreenView

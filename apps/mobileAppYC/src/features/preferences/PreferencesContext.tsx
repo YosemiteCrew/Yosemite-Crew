@@ -1,6 +1,6 @@
-import React, {createContext, use, useMemo, useState} from 'react';
-import {useSelector} from 'react-redux';
-import type {RootState} from '@/app/store';
+import React, {createContext, use, useCallback, useMemo} from 'react';
+import {useDispatch, useSelector} from 'react-redux';
+import type {AppDispatch, RootState} from '@/app/store';
 import {
   getMeasurementSystemFromCountryName,
   getWeightUnit,
@@ -10,6 +10,11 @@ import {
   type DistanceUnit,
 } from '@/shared/utils/measurementSystem';
 import type {CurrencyCode} from '@/shared/utils/currency';
+import {
+  setWeightOverride,
+  setDistanceOverride,
+  setCurrencyOverride,
+} from './preferencesSlice';
 
 interface PreferencesContextValue {
   measurementSystem: MeasurementSystem;
@@ -36,16 +41,33 @@ const PreferencesContext = createContext<PreferencesContextValue>({
 export const PreferencesProvider: React.FC<{children: React.ReactNode}> = ({
   children,
 }) => {
+  const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((state: RootState) => state.auth.user);
 
   // Explicit user selections override the locale-derived defaults. When unset,
-  // values follow the account country exactly as before.
-  const [weightOverride, setWeightOverride] = useState<WeightUnit | null>(null);
-  const [distanceOverride, setDistanceOverride] = useState<DistanceUnit | null>(
-    null,
+  // values follow the account country exactly as before. Overrides live in
+  // Redux (persisted via redux-persist) so they survive remounts and restarts.
+  const weightOverride = useSelector(
+    (state: RootState) => state.preferences.weightOverride,
   );
-  const [currencyOverride, setCurrencyOverride] = useState<CurrencyCode | null>(
-    null,
+  const distanceOverride = useSelector(
+    (state: RootState) => state.preferences.distanceOverride,
+  );
+  const currencyOverride = useSelector(
+    (state: RootState) => state.preferences.currencyOverride,
+  );
+
+  const setWeightUnit = useCallback(
+    (unit: WeightUnit) => dispatch(setWeightOverride(unit)),
+    [dispatch],
+  );
+  const setDistanceUnit = useCallback(
+    (unit: DistanceUnit) => dispatch(setDistanceOverride(unit)),
+    [dispatch],
+  );
+  const setCurrency = useCallback(
+    (currencyCode: CurrencyCode) => dispatch(setCurrencyOverride(currencyCode)),
+    [dispatch],
   );
 
   const value = useMemo(() => {
@@ -61,15 +83,18 @@ export const PreferencesProvider: React.FC<{children: React.ReactNode}> = ({
       weightUnit: weightOverride ?? weightUnit,
       distanceUnit: distanceOverride ?? distanceUnit,
       currency: currencyOverride ?? currency,
-      setWeightUnit: setWeightOverride,
-      setDistanceUnit: setDistanceOverride,
-      setCurrency: setCurrencyOverride,
+      setWeightUnit,
+      setDistanceUnit,
+      setCurrency,
     };
   }, [
     user?.address?.country,
     weightOverride,
     distanceOverride,
     currencyOverride,
+    setWeightUnit,
+    setDistanceUnit,
+    setCurrency,
   ]);
 
   return (

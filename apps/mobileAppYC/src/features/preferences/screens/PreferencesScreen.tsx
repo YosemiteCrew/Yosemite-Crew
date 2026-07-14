@@ -169,7 +169,7 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
             </ScrollView>
 
             <Text style={styles.footnote}>
-              Changes apply immediately and sync to your other devices.
+              Changes apply immediately and are saved on this device.
             </Text>
           </View>
         )}

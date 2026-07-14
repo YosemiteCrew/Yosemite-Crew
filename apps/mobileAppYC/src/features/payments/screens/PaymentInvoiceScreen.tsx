@@ -403,7 +403,7 @@ const resolveInvoiceStatusBadge = (
   paymentStatusLabel: string,
 ): {label: string; tone: BadgeTone} => {
   const normalized = paymentStatusLabel.toLowerCase();
-  if (normalized.includes('paid')) {
+  if (/\bpaid\b/.test(normalized)) {
     return {label: 'Paid', tone: 'success'};
   }
   if (normalized.includes('refund')) {

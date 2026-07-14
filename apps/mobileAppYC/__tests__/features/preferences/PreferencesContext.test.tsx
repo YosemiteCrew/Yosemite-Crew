@@ -7,6 +7,7 @@ import {
   PreferencesProvider,
   usePreferences,
 } from '@/features/preferences/PreferencesContext';
+import preferencesReducer from '@/features/preferences/preferencesSlice';
 
 const createStore = (country?: string | null) =>
   configureStore({
@@ -14,6 +15,7 @@ const createStore = (country?: string | null) =>
       auth: (
         state = {user: country === undefined ? null : {address: {country}}},
       ) => state,
+      preferences: preferencesReducer,
     },
   });
 
@@ -23,6 +25,7 @@ const createStoreWithoutAddress = () =>
   configureStore({
     reducer: {
       auth: (state = {user: {}}) => state,
+      preferences: preferencesReducer,
     },
   });
 

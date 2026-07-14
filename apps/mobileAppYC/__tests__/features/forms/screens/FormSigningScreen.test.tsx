@@ -292,16 +292,20 @@ describe('FormSigningScreen', () => {
       expect(Linking.openURL).not.toHaveBeenCalled();
     });
 
-    it('handles auto-open failure gracefully (resets opened flag)', async () => {
+    it('shows a retry state (not a stuck spinner) when auto-open fails', async () => {
       (Linking.openURL as jest.Mock).mockRejectedValueOnce(new Error('Fail'));
-      const {getByText} = renderScreen();
+      const {getByText, getByTestId, queryByText} = renderScreen();
       await waitFor(() => {
         expect(Linking.openURL).toHaveBeenCalled();
       });
-      // After a failed open we stay in the "pending" copy, not the signed state.
+      // We must not falsely claim the link was opened when it failed.
       await waitFor(() =>
-        expect(getByText(/We opened the signing link/)).toBeTruthy(),
+        expect(
+          getByText(/couldn't open the signing link automatically/),
+        ).toBeTruthy(),
       );
+      expect(queryByText(/We opened the signing link/)).toBeNull();
+      expect(getByTestId('btn-Open signing link')).toBeTruthy();
     });
 
     it('does not reopen when signingUrl changes after it already opened once', async () => {
@@ -371,8 +375,8 @@ describe('FormSigningScreen', () => {
       });
     });
 
-    it('swallows failure when reopening the link', async () => {
-      const {getByTestId} = renderScreen();
+    it('shows the retry state when reopening the link fails', async () => {
+      const {getByTestId, getByText} = renderScreen();
       await waitFor(() =>
         expect(getByTestId('btn-Open signing link again')).toBeTruthy(),
       );
@@ -386,8 +390,11 @@ describe('FormSigningScreen', () => {
       await flushMicrotasks();
 
       expect(Linking.openURL).toHaveBeenCalledWith(mockSigningUrl);
-      // Screen is unaffected by the rejection.
-      expect(getByTestId('btn-Open signing link again')).toBeTruthy();
+      // The failure surfaces a retry affordance instead of being swallowed.
+      expect(
+        getByText(/couldn't open the signing link automatically/),
+      ).toBeTruthy();
+      expect(getByTestId('btn-Open signing link')).toBeTruthy();
     });
 
     it('navigates back when header back button pressed', () => {

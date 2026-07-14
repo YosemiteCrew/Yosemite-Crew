@@ -217,7 +217,7 @@ describe('PreferencesScreen', () => {
     ).toBeTruthy();
     expect(getByText('Dark uses the warm espresso theme.')).toBeTruthy();
     expect(
-      getByText('Changes apply immediately and sync to your other devices.'),
+      getByText('Changes apply immediately and are saved on this device.'),
     ).toBeTruthy();
 
     // Currency + language TouchableInput values

@@ -36,6 +36,7 @@ export const FormSigningScreen: React.FC = () => {
   const isFocused = useIsFocused();
   const [refreshing, setRefreshing] = useState(false);
   const [hasOpenedOnce, setHasOpenedOnce] = useState(false);
+  const [openFailed, setOpenFailed] = useState(false);
 
   const appointment: Appointment | undefined = useSelector((state: RootState) =>
     state.appointments.items.find(a => a.id === appointmentId),
@@ -92,10 +93,14 @@ export const FormSigningScreen: React.FC = () => {
     }
     openedRef.current = true;
     Linking.openURL(signingUrl)
-      .then(() => setHasOpenedOnce(true))
+      .then(() => {
+        setHasOpenedOnce(true);
+        setOpenFailed(false);
+      })
       .catch(() => {
         openedRef.current = false;
         setHasOpenedOnce(false);
+        setOpenFailed(true);
       });
   }, [signingUrl]);
 
@@ -117,8 +122,11 @@ export const FormSigningScreen: React.FC = () => {
   const handleReopenLink = useCallback(() => {
     if (!signingUrl) return;
     Linking.openURL(signingUrl)
-      .then(() => setHasOpenedOnce(true))
-      .catch(() => {});
+      .then(() => {
+        setHasOpenedOnce(true);
+        setOpenFailed(false);
+      })
+      .catch(() => setOpenFailed(true));
   }, [signingUrl]);
 
   const formName = currentEntry?.form?.name ?? formTitle ?? 'Sign form';
@@ -176,6 +184,36 @@ export const FormSigningScreen: React.FC = () => {
           </View>
         ),
         actions: null as React.ReactNode,
+        footnote: null as React.ReactNode,
+      };
+    }
+
+    if (openFailed) {
+      return {
+        body: renderInfoBanner(
+          'warning-outline',
+          "We couldn't open the signing link automatically. Tap below to open it in your browser.",
+        ),
+        actions: (
+          <View style={styles.actionBar}>
+            <LiquidGlassButton
+              title="Open signing link"
+              onPress={handleReopenLink}
+              height={56}
+              borderRadius={theme.borderRadius.button}
+              tintColor={theme.colors.cta}
+              shadowIntensity="medium"
+              textStyle={styles.ctaText}
+              leftIcon={
+                <Ionicons
+                  name="open-outline"
+                  size={18}
+                  color={theme.colors.ctaText}
+                />
+              }
+            />
+          </View>
+        ),
         footnote: null as React.ReactNode,
       };
     }

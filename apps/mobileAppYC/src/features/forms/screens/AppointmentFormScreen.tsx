@@ -121,6 +121,7 @@ export const AppointmentFormScreen: React.FC = () => {
     entry?.submission?.answers ?? {},
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isDirty, setIsDirty] = useState(false);
 
   const isReadOnly = Boolean(
     entry?.submission &&
@@ -172,7 +173,30 @@ export const AppointmentFormScreen: React.FC = () => {
 
   useEffect(() => {
     setValues(entry?.submission?.answers ?? {});
+    setIsDirty(false);
   }, [entry?.submission]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', e => {
+      if (isReadOnly || !isDirty) {
+        return;
+      }
+      e.preventDefault();
+      Alert.alert(
+        'Discard changes?',
+        'Your answers have not been saved yet. If you leave now, they will be lost.',
+        [
+          {text: 'Keep Editing', style: 'cancel'},
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ],
+      );
+    });
+    return () => unsubscribe();
+  }, [navigation, isDirty, isReadOnly]);
 
   useEffect(() => {
     if (!entry?.form?.schema) {
@@ -268,6 +292,7 @@ export const AppointmentFormScreen: React.FC = () => {
   const handleChange = (fieldId: string, value: any) => {
     setValues(prev => ({...prev, [fieldId]: value}));
     setErrors(prev => ({...prev, [fieldId]: ''}));
+    setIsDirty(true);
   };
 
   const validateField = (field: FormField): boolean => {
@@ -321,8 +346,17 @@ export const AppointmentFormScreen: React.FC = () => {
           companionId: appointment?.companionId ?? null,
         }),
       ).unwrap();
+      setIsDirty(false);
 
-      if (activeEntry.signingRequired && result.submission?._id) {
+      if (activeEntry.signingRequired) {
+        if (!result.submission?._id) {
+          Alert.alert(
+            'Signing not started',
+            'Your answers were saved, but we could not start the signing process. Please try again from the appointment.',
+          );
+          navigation.goBack();
+          return;
+        }
         try {
           const signResult = await dispatch(
             startFormSigning({
@@ -340,6 +374,10 @@ export const AppointmentFormScreen: React.FC = () => {
             });
             return;
           }
+          Alert.alert(
+            'Signing not started',
+            'Your answers were saved, but we could not start the signing process. Please try again from the appointment.',
+          );
         } catch (error: any) {
           const message =
             typeof error === 'string'
@@ -753,13 +791,13 @@ export const AppointmentFormScreen: React.FC = () => {
                   {isReadOnly ? null : (
                     <View style={styles.helperBanner}>
                       <Ionicons
-                        name="save-outline"
+                        name="alert-circle-outline"
                         size={16}
                         color={theme.colors.blueText}
                       />
                       <Text style={styles.helperBannerText}>
-                        Answers save as you go. You can finish later from the
-                        appointment.
+                        Answers are only saved when you submit. Leaving before
+                        then will discard your progress.
                       </Text>
                     </View>
                   )}

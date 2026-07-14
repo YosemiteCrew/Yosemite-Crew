@@ -368,9 +368,25 @@ describe('BusinessAddScreen', () => {
     fireEvent.press(screen.getByTestId('btn-Notify Business'));
 
     await waitFor(() => {
-      expect(LinkedBusinessActions.inviteBusiness).toHaveBeenCalled();
+      expect(LinkedBusinessActions.inviteBusiness).toHaveBeenCalledWith(
+        expect.objectContaining({email: 'contact@vet.com'}),
+      );
       expect(mockNotifySheetOpen).toHaveBeenCalled();
     });
+  });
+
+  it('shows an alert and does not invite when the business has no email on file', () => {
+    const props = createProps({isPMSRecord: false, email: undefined});
+    render(<BusinessAddScreen {...props} />);
+
+    fireEvent.press(screen.getByTestId('btn-Notify Business'));
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Email required',
+      expect.stringContaining('does not have an email on file'),
+    );
+    expect(LinkedBusinessActions.inviteBusiness).not.toHaveBeenCalled();
+    expect(mockNotifySheetOpen).not.toHaveBeenCalled();
   });
 
   it('handles closing the Notify sheet (navigates back)', () => {
