@@ -274,22 +274,21 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           </View>
 
           <View style={styles.fieldColumn}>
-            <View style={styles.amountInputWrapper}>
-              <Input
-                label="Amount"
-                value={formData.amount}
-                onChangeText={text => {
-                  const sanitized = text.replaceAll(/[^0-9.]/g, '');
-                  onFormChange('amount', sanitized);
-                  onErrorClear('amount');
-                }}
-                keyboardType="numeric"
-                containerStyle={styles.amountInputContainer}
-                inputStyle={styles.amountInput}
-                error={errors.amount}
-              />
-              <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
-            </View>
+            <Input
+              label="Amount"
+              value={formData.amount}
+              onChangeText={text => {
+                const sanitized = text.replaceAll(/[^0-9.]/g, '');
+                onFormChange('amount', sanitized);
+                onErrorClear('amount');
+              }}
+              keyboardType="numeric"
+              inputStyle={styles.amountInput}
+              leftComponent={
+                <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
+              }
+              error={errors.amount}
+            />
           </View>
         </View>
 
@@ -487,25 +486,13 @@ const createStyles = (theme: any) =>
       height: 18,
       resizeMode: 'contain',
     },
-    amountInputWrapper: {
-      position: 'relative',
-      width: '100%',
-    },
-    amountInputContainer: {
-      marginBottom: 0,
-    },
     currencyPrefix: {
-      position: 'absolute',
-      left: theme.spacing['5'],
-      top: 16,
       ...theme.typography.label,
       color: theme.colors.ink,
       fontVariant: ['tabular-nums'],
-      zIndex: 1,
-      pointerEvents: 'none',
+      marginRight: theme.spacing['1'],
     },
     amountInput: {
-      paddingLeft: theme.spacing['4'],
       color: theme.colors.ink,
       fontVariant: ['tabular-nums'],
     },

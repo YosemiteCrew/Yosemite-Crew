@@ -31,6 +31,7 @@ interface InputProps extends TextInputProps {
   errorStyle?: TextStyle;
   icon?: React.ReactNode;
   onIconPress?: () => void;
+  leftComponent?: React.ReactNode;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -46,6 +47,7 @@ export const Input: React.FC<InputProps> = ({
   onChangeText,
   icon,
   onIconPress,
+  leftComponent,
   ...textInputProps
 }) => {
   const {theme} = useTheme();
@@ -157,6 +159,7 @@ export const Input: React.FC<InputProps> = ({
     <View style={containerStyle}>
       {label && <Text style={[getLabelStyle(), labelStyle]}>{label}</Text>}
       <View style={getInputContainerStyle()}>
+        {leftComponent}
         <TextInput
           style={[getInputStyle(), inputStyle]}
           placeholderTextColor={theme.colors.placeholder}
