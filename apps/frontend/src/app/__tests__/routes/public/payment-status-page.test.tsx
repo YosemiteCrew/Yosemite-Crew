@@ -136,10 +136,12 @@ describe('payment-status public page', () => {
 
     render(<PaymentStatusPage />);
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByText('Waiting for confirmation')).toBeInTheDocument());
 
     await act(async () => {
-      jest.advanceTimersByTime(60000);
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        await jest.advanceTimersByTimeAsync(2000);
+      }
     });
 
     await waitFor(() => expect(screen.getByText('Auto-check stopped')).toBeInTheDocument());
@@ -157,7 +159,7 @@ describe('payment-status public page', () => {
     await waitFor(() => expect(screen.getByText('Payment complete')).toBeInTheDocument());
 
     await act(async () => {
-      jest.advanceTimersByTime(6000);
+      await jest.advanceTimersByTimeAsync(6000);
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);

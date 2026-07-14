@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createPortal } from 'react-dom';
@@ -344,6 +344,7 @@ const executeMerckSearch = async ({
 
   try {
     const gateway = getMerckGateway();
+    if (reqId !== requestIdRef.current) return;
     const response = await gateway.search(
       getMerckSearchPayload({
         organisationId,
@@ -542,7 +543,7 @@ const MerckReaderPortal = ({
             className="flex-1 size-full border-0"
             loading="lazy"
             referrerPolicy="strict-origin"
-            sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
+            sandbox="allow-scripts allow-popups allow-forms"
             onLoad={() => setReaderLoading(false)}
           />
         </div>
@@ -590,13 +591,10 @@ const MerckManualsPage = ({ embedded = false }: MerckManualsPageProps) => {
     null
   );
 
+  // recentSearchesKey is a counter; bumping it re-reads recentSearches from storage on save.
   const [recentSearchesKey, setRecentSearchesKey] = useState(0);
-  // recentSearchesKey is a counter; incrementing it forces recentSearches to recompute on save
-  const recentSearches = useMemo(
-    () => (primaryOrgId ? getRecentSearches(primaryOrgId, audience) : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [primaryOrgId, audience, recentSearchesKey]
-  );
+  const recentSearches =
+    recentSearchesKey >= 0 && primaryOrgId ? getRecentSearches(primaryOrgId, audience) : [];
 
   useEffect(() => {
     if (!copied) return;

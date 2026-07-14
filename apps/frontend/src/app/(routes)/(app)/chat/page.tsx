@@ -10,7 +10,7 @@
 
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { ChatScope } from '@/app/features/chat/components/ChatContainer';
@@ -30,17 +30,20 @@ function ChatPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeScope, setActiveScope] = useState<ChatScope>('clients');
-  const [pendingAppointmentId, setPendingAppointmentId] = useState<string | null>(null);
   const appointmentId = searchParams.get('appointmentId');
+  const visibleScope = appointmentId ? 'clients' : activeScope;
+  const effectiveAppointmentId = visibleScope === 'clients' ? appointmentId : null;
 
-  useEffect(() => {
-    if (appointmentId) {
-      setPendingAppointmentId(appointmentId);
-      setActiveScope('clients');
+  const clearAppointmentDeepLink = () => {
+    router.replace('/chat', { scroll: false });
+  };
+
+  const handleScopeChange = (scope: ChatScope) => {
+    setActiveScope(scope);
+    if (appointmentId && scope !== 'clients') {
+      clearAppointmentDeepLink();
     }
-  }, [appointmentId]);
-
-  const effectiveAppointmentId = activeScope === 'clients' ? pendingAppointmentId : null;
+  };
 
   return (
     <ProtectedRoute>
@@ -51,12 +54,11 @@ function ChatPageContent() {
               <ChatContainer
                 appointmentId={effectiveAppointmentId || undefined}
                 onChannelSelect={(channel) => {
-                  if (!channel || !pendingAppointmentId) return;
-                  setPendingAppointmentId(null);
-                  router.replace('/chat', { scroll: false });
+                  if (!channel || !appointmentId) return;
+                  clearAppointmentDeepLink();
                 }}
-                scope={activeScope}
-                onScopeChange={setActiveScope}
+                scope={visibleScope}
+                onScopeChange={handleScopeChange}
                 className="chat-module"
               />
             </div>

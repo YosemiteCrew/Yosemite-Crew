@@ -29,7 +29,9 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 describe('SignatureActions', () => {
   const openOverlay = jest.fn();
   const setUrl = jest.fn();
+  const registerCloseHandler = jest.fn();
   const onStatusChange = jest.fn();
+  let closeHandler: (() => void | Promise<void>) | null = null;
 
   const baseSubmission: any = {
     _id: 'submission-1',
@@ -47,6 +49,10 @@ describe('SignatureActions', () => {
     (useSigningOverlayStore as unknown as jest.Mock).mockImplementation(() => ({
       openOverlay,
       setUrl,
+      registerCloseHandler: (submissionId: string, handler: () => void | Promise<void>) => {
+        registerCloseHandler(submissionId, handler);
+        closeHandler = handler;
+      },
       open: false,
       submissionId: null,
     }));
@@ -129,24 +135,16 @@ describe('SignatureActions', () => {
     });
   });
 
-  it('refreshes signing state after the overlay closes and hides Sign once signed', async () => {
-    (useSigningOverlayStore as unknown as jest.Mock).mockImplementationOnce(() => ({
-      openOverlay,
-      setUrl,
-      open: true,
-      submissionId: 'submission-1',
-    }));
-    const { rerender } = render(
-      <SignatureActions submission={baseSubmission} onStatusChange={onStatusChange} />
-    );
+  it('refreshes signing state after the registered overlay close handler runs', async () => {
+    render(<SignatureActions submission={baseSubmission} onStatusChange={onStatusChange} />);
 
-    (useSigningOverlayStore as unknown as jest.Mock).mockImplementationOnce(() => ({
-      openOverlay,
-      setUrl,
-      open: false,
-      submissionId: null,
-    }));
-    rerender(<SignatureActions submission={baseSubmission} onStatusChange={onStatusChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sign' }));
+
+    await waitFor(() => {
+      expect(registerCloseHandler).toHaveBeenCalledWith('submission-1', expect.any(Function));
+    });
+
+    await closeHandler?.();
 
     await waitFor(() => expect(fetchSignedDocumentIfReady).toHaveBeenCalledWith('submission-1'));
     expect(onStatusChange).toHaveBeenCalledWith(
