@@ -17,7 +17,7 @@ const BoardScopeToggle = ({
 }: BoardScopeToggleProps) => {
   const isAll = !showMineOnly;
   const sliderClass = isAll
-    ? 'translate-x-0 bg-blue-text border-blue-text'
+    ? 'translate-x-0 bg-primary-700 border-primary-700'
     : 'translate-x-full bg-success-700 border-success-700';
   const allTextClass = isAll ? 'text-neutral-0' : 'text-text-secondary';
   const mineTextClass = isAll ? 'text-text-secondary' : 'text-neutral-0';

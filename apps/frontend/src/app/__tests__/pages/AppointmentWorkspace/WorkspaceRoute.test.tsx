@@ -13,9 +13,13 @@ import {
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
+const mockRedirect = jest.fn((href: string): never => {
+  throw new Error(`NEXT_REDIRECT:${href}`);
+});
 const mockStartRouteLoader = jest.fn();
 
 jest.mock('next/navigation', () => ({
+  redirect: (href: string) => mockRedirect(href),
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
 }));
 
@@ -90,10 +94,11 @@ describe('WorkspaceRoute', () => {
   it('redirects back to appointments when the revamp flag is disabled', () => {
     (isAppointmentRevampEnabled as jest.Mock).mockReturnValue(false);
 
-    const { container } = render(<WorkspaceRoute appointmentId="appt-1" />);
+    expect(() => render(<WorkspaceRoute appointmentId="appt-1" />)).toThrow(
+      'NEXT_REDIRECT:/appointments'
+    );
 
-    expect(container).toBeEmptyDOMElement();
-    expect(mockReplace).toHaveBeenCalledWith('/appointments');
+    expect(mockRedirect).toHaveBeenCalledWith('/appointments');
   });
 
   it('renders the workspace for the matching appointment', () => {

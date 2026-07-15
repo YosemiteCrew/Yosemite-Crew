@@ -241,6 +241,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
 
     try {
       const gateway = getMerckGateway();
+      if (reqId !== requestRef.current) return;
       const response = await gateway.search({
         organisationId: primaryOrgId,
         query: query.trim(),
@@ -466,7 +467,7 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
                     className="flex-1 size-full border-0"
                     loading="lazy"
                     referrerPolicy="strict-origin"
-                    sandbox="allow-scripts allow-popups allow-forms allow-same-origin"
+                    sandbox="allow-scripts allow-popups allow-forms"
                     onLoad={() => setReaderLoading(false)}
                   />
                 </div>

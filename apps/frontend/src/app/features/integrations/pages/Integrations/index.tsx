@@ -424,9 +424,13 @@ const useIntegrationsPage = () => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'connected' | 'available'>('all');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Render-phase adjustment: surface a new store-level integration error in
+  // the local error banner without clobbering later local errors.
+  const [syncedIntegrationError, setSyncedIntegrationError] = useState<string | null>(null);
+  if (integrationError !== syncedIntegrationError) {
+    setSyncedIntegrationError(integrationError);
     if (integrationError) setError(integrationError);
-  }, [integrationError]);
+  }
 
   useEffect(() => {
     const run = async () => {

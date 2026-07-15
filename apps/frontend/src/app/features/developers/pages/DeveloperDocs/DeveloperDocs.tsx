@@ -34,7 +34,7 @@ const DeveloperDocs = () => {
             title="Yosemite Crew developer documentation"
             loading="lazy"
             allow="fullscreen"
-            sandbox="allow-popups allow-same-origin allow-scripts"
+            sandbox="allow-popups allow-scripts"
             referrerPolicy="same-origin"
           />
         </div>
