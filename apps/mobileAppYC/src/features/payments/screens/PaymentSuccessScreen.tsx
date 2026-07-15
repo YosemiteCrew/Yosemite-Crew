@@ -198,7 +198,12 @@ export const PaymentSuccessScreen: React.FC = () => {
             <PressableOpacity
               style={styles.receiptButton}
               disabled={!receiptUrl}
-              onPress={handleViewInvoice}>
+              onPress={handleViewInvoice}
+              accessibilityRole="button"
+              accessibilityLabel={
+                receiptUrl ? 'View receipt' : 'Receipt unavailable'
+              }
+              accessibilityState={{disabled: !receiptUrl}}>
               <Text
                 style={[
                   styles.receiptButtonText,

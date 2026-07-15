@@ -271,6 +271,15 @@ describe('NotificationsScreen', () => {
     expect(mockDispatch).toHaveBeenCalledWith(setSortBy('new'));
   });
 
+  it('exposes radio roles and selected state on the New/Seen segment control', () => {
+    const {getByLabelText} = render(<NotificationsScreen />);
+
+    const newOption = getByLabelText('New');
+    const seenOption = getByLabelText('Seen');
+    expect(newOption.props.accessibilityRole).toBe('radio');
+    expect(seenOption.props.accessibilityRole).toBe('radio');
+  });
+
   it('triggers refresh logic', () => {
     const {UNSAFE_getByType} = render(<NotificationsScreen />);
     // FIX: Use the imported ScrollView component reference, not a string

@@ -163,7 +163,10 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
             activeOpacity={0.85}
             onPress={onPress}
             disabled={isDragging}
-            style={styles.pressable}>
+            style={styles.pressable}
+            accessibilityRole="button"
+            accessibilityLabel={notification.title}
+            accessibilityState={{disabled: isDragging}}>
             <View style={styles.content}>
               {/* Icon */}
               <IconTile

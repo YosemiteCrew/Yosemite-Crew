@@ -439,6 +439,17 @@ describe('CoParentsScreen', () => {
     ).toBeTruthy();
   });
 
+  it('exposes a button role and label on the invite button', () => {
+    mockState.coParent.coParents = [
+      {id: 'cp-1', parentId: 'p-1', firstName: 'Jane', role: 'CO_PARENT'},
+    ];
+
+    render(<CoParentsScreen navigation={mockNavigation} route={{} as any} />);
+
+    const inviteButton = screen.getByLabelText('Invite a co-parent');
+    expect(inviteButton.props.accessibilityRole).toBe('button');
+  });
+
   it('hides the invite button in the footer when the user cannot add', () => {
     mockState.coParent.coParents = [
       {id: 'cp-1', parentId: 'p-1', firstName: 'Jane', role: 'CO_PARENT'},

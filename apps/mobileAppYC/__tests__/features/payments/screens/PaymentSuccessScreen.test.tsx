@@ -316,7 +316,12 @@ describe('PaymentSuccessScreen', () => {
       });
 
       render(<PaymentSuccessScreen />);
-      fireEvent.press(screen.getByText('View receipt'));
+      const receiptButton = screen.getByLabelText('View receipt');
+      expect(receiptButton.props.accessibilityRole).toBe('button');
+      expect(receiptButton.props.accessibilityState).toEqual({
+        disabled: false,
+      });
+      fireEvent.press(receiptButton);
 
       expect(openURLSpy).toHaveBeenCalledWith(
         'https://example.com/invoice.pdf',
@@ -408,6 +413,10 @@ describe('PaymentSuccessScreen', () => {
       render(<PaymentSuccessScreen />);
 
       expect(screen.getByText('Receipt unavailable')).toBeTruthy();
+      const disabledButton = screen.getByLabelText('Receipt unavailable');
+      expect(disabledButton.props.accessibilityState).toEqual({
+        disabled: true,
+      });
 
       let node: any = screen.getByText('Receipt unavailable');
       while (node && typeof node.props?.onPress !== 'function') {

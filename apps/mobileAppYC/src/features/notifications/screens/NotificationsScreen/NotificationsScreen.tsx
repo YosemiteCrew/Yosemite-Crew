@@ -469,7 +469,10 @@ const NotificationsListHeader: React.FC<NotificationsListHeaderProps> = ({
             style={[
               styles.segmentItem,
               sortBy === option && styles.segmentItemActive,
-            ]}>
+            ]}
+            accessibilityRole="radio"
+            accessibilityState={{selected: sortBy === option}}
+            accessibilityLabel={option === 'new' ? 'New' : 'Seen'}>
             <Text
               style={[
                 styles.segmentText,

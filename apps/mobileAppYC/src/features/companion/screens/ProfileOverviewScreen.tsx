@@ -516,7 +516,9 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
                     key={item.id}
                     style={[styles.tile, isCoParent && styles.tileWide]}
                     activeOpacity={0.7}
-                    onPress={() => handleSectionPress(item.id)}>
+                    onPress={() => handleSectionPress(item.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={item.title}>
                     <IconTile
                       size={38}
                       style={styles.tileIcon}

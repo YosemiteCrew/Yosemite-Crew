@@ -222,7 +222,9 @@ export const CoParentsScreen: React.FC<Props> = ({navigation}) => {
                     <PressableOpacity
                       activeOpacity={0.85}
                       onPress={handleAdd}
-                      style={styles.inviteButton}>
+                      style={styles.inviteButton}
+                      accessibilityRole="button"
+                      accessibilityLabel="Invite a co-parent">
                       <Icon
                         name="add"
                         size={17}

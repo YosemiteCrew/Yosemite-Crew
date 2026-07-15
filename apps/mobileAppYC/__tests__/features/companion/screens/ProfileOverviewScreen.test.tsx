@@ -347,6 +347,12 @@ describe('ProfileOverviewScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('CoParents');
   });
 
+  it('exposes a button role and title-based label on the grid tiles', () => {
+    const {getByLabelText} = setup();
+    const tile = getByLabelText('Co-parents');
+    expect(tile.props.accessibilityRole).toBe('button');
+  });
+
   it('navigates to Tasks (Health) if permission allowed', () => {
     const {getByText} = setup();
     mockGetParent.mockReturnValue(navigationMock);

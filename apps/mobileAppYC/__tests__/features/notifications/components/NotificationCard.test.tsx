@@ -290,6 +290,13 @@ describe('NotificationCard', () => {
       expect(onPress).toHaveBeenCalled();
     });
 
+    it('exposes a button role and title-based label on the card body', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+      const card = screen.getByLabelText('Test Notification');
+      expect(card.props.accessibilityRole).toBe('button');
+      expect(card.props.accessibilityState).toEqual({disabled: false});
+    });
+
     it('swipeEnabled prop defaults to true if not provided', () => {
       render(<NotificationCard notification={baseNotification as any} />);
       expect(getPanGesture().enabled).toBe(true);
