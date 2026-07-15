@@ -227,6 +227,31 @@ describe('AddressFields', () => {
     // Ensure no crash or weird render for empty secondary
   });
 
+  it('exposes button role and a combined primary/secondary accessibility label', () => {
+    const suggestions = [
+      {placeId: '1', primaryText: 'Place 1', secondaryText: 'City 1'},
+    ];
+
+    const {getByLabelText} = render(
+      <AddressFields {...defaultProps} addressSuggestions={suggestions} />,
+    );
+
+    const item = getByLabelText('Place 1, City 1');
+    expect(item.props.accessibilityRole).toBe('button');
+  });
+
+  it('falls back to just the primary text in the accessibility label when there is no secondary text', () => {
+    const suggestions = [
+      {placeId: '1', primaryText: 'Place Only', secondaryText: ''},
+    ];
+
+    const {getByLabelText} = render(
+      <AddressFields {...defaultProps} addressSuggestions={suggestions} />,
+    );
+
+    expect(getByLabelText('Place Only')).toBeTruthy();
+  });
+
   it('calls onSelectSuggestion when a suggestion is pressed', () => {
     const suggestions = [{placeId: '1', primaryText: 'Place 1'}];
 

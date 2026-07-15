@@ -64,6 +64,21 @@ describe('SearchDropdownOverlay Component', () => {
   // 2. Interaction
   // ===========================================================================
 
+  it('exposes button role and a combined title/subtitle accessibility label', () => {
+    const {getByLabelText} = render(
+      <SearchDropdownOverlay {...defaultProps} />,
+    );
+    const item = getByLabelText('Alice Smith, Admin');
+    expect(item.props.accessibilityRole).toBe('button');
+  });
+
+  it('falls back to just the title in the accessibility label when the subtitle is null', () => {
+    const {getByLabelText} = render(
+      <SearchDropdownOverlay {...defaultProps} />,
+    );
+    expect(getByLabelText('Charlie')).toBeTruthy();
+  });
+
   it('calls onPress with the correct item when an item is pressed', () => {
     const mockOnPress = jest.fn();
     const {getByText} = render(
@@ -92,13 +107,16 @@ describe('SearchDropdownOverlay Component', () => {
   });
 
   it('does NOT render subtitle container if subtitle prop is undefined', () => {
-    const {getByText} = render(
+    const {getByText, getByLabelText} = render(
       <SearchDropdownOverlay
         {...defaultProps}
         subtitle={undefined} // No subtitle mapper
       />,
     );
     expect(getByText('Alice Smith')).toBeTruthy();
+    // With no subtitle mapper at all, the accessibility label falls back to
+    // just the title instead of a "title, subtitle" combination.
+    expect(getByLabelText('Alice Smith')).toBeTruthy();
   });
 
   // --- Avatar / Initials Logic Tests ---

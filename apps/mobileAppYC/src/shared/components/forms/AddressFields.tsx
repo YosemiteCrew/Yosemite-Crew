@@ -112,7 +112,13 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
                           index === visibleAddressSuggestions.length - 1 &&
                             styles.suggestionItemLast,
                         ]}
-                        onPress={() => onSelectSuggestion(item)}>
+                        onPress={() => onSelectSuggestion(item)}
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          item.secondaryText
+                            ? `${item.primaryText}, ${item.secondaryText}`
+                            : item.primaryText
+                        }>
                         <Text style={styles.suggestionPrimary}>
                           {item.primaryText}
                         </Text>

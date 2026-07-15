@@ -50,7 +50,9 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         {showCameraButton ? (
           <PressableOpacity
             style={styles.cameraIconContainer}
-            onPress={() => pickerRef.current?.triggerPicker()}>
+            onPress={() => pickerRef.current?.triggerPicker()}
+            accessibilityRole="button"
+            accessibilityLabel="Change profile photo">
             <Image source={Images.cameraIcon} style={styles.cameraIcon} />
           </PressableOpacity>
         ) : null}
