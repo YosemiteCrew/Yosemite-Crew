@@ -2,10 +2,7 @@ import React from 'react';
 import CardHeader from '@/app/ui/cards/CardHeader/CardHeader';
 import { useDashboardAnalytics } from '@/app/features/dashboard/hooks/useDashboardAnalytics';
 
-const formatTurnoverValue = (value: number) => {
-  if (value >= 10) return value.toFixed(1);
-  return value.toFixed(1);
-};
+const formatTurnoverValue = (value: number) => value.toFixed(1);
 
 const IndividualProductTurnoverStat = () => {
   const analytics = useDashboardAnalytics('last_1_year');
