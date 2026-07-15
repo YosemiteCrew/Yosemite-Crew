@@ -30,9 +30,11 @@ pnpm --filter backend run prisma:generate
 pnpm --filter backend run prisma:migrate
 ```
 
-### Legacy MongoDB (being removed)
+### Legacy MongoDB (still required at startup, being removed)
 
-Some legacy models still connect to MongoDB via Mongoose (`apps/backend/src/config/db.ts`, initialized with `connectDB()` in `main.ts`; env-driven via `USE_INMEMORY_DB`, `LOCAL_DEVELOPMENT`, `MONGODB_URI`). Do not add new MongoDB usage — the scaffold is being retired.
+Legacy models still use MongoDB via Mongoose. `main.ts` calls `connectDB()` (`apps/backend/src/config/db.ts`) on boot, which skips MongoDB only when `READ_FROM_POSTGRES=true`; otherwise it resolves a connection from `USE_INMEMORY_DB=true` (in-memory instance), `LOCAL_DEVELOPMENT=true` (`mongodb://localhost:27017/yosemitecrew`), or `MONGODB_URI`. With none set, startup fails on an empty connection string.
+
+Do not add new MongoDB usage — the scaffold is being retired.
 
 ### Redis + BullMQ Workers
 

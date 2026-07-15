@@ -7,8 +7,11 @@ This is the backend API server for Yosemite Crew (YC), the open-source veterinar
 - Node.js 20+ and `pnpm@8.15.6` (install dependencies from the repo root with `pnpm install`)
 - PostgreSQL (the schema lives in `packages/database/prisma/schema.prisma`)
 - Redis (required by the BullMQ job queues)
+- MongoDB, unless you set `READ_FROM_POSTGRES=true` — the server still connects to Mongo at startup (see Database below)
 
 ## Database
+
+### PostgreSQL via Prisma (source of truth)
 
 Prisma is the schema source of truth (`packages/database`). From the repo root:
 
@@ -16,6 +19,17 @@ Prisma is the schema source of truth (`packages/database`). From the repo root:
 pnpm --filter backend run prisma:generate   # generate the Prisma client
 pnpm --filter backend run prisma:migrate    # apply migrations in development
 ```
+
+### Legacy MongoDB (still required at startup)
+
+`main.ts` calls `connectDB()` on boot (`src/config/db.ts`). It skips MongoDB only when `READ_FROM_POSTGRES=true`; otherwise it needs one of:
+
+- `READ_FROM_POSTGRES=true` — skip MongoDB entirely (Postgres-only path)
+- `USE_INMEMORY_DB=true` — start an in-memory MongoDB (no local install needed)
+- `LOCAL_DEVELOPMENT=true` — connect to `mongodb://localhost:27017/yosemitecrew`
+- otherwise — connect to `MONGODB_URI`
+
+With none of these set, startup fails on an empty connection string. Mongo is legacy and being retired — do not add new MongoDB usage.
 
 ## Dev server
 
