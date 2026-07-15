@@ -1176,11 +1176,17 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                 <Text style={styles.checkboxText}>
                   I agree to Yosemite Crew's{' '}
                 </Text>
-                <PressableOpacity onPress={handleOpenTerms}>
+                <PressableOpacity
+                  onPress={handleOpenTerms}
+                  accessibilityRole="link"
+                  accessibilityLabel="Terms and conditions">
                   <Text style={styles.linkText}>terms and conditions</Text>
                 </PressableOpacity>
                 <Text style={styles.checkboxText}> and </Text>
-                <PressableOpacity onPress={handleOpenPrivacy}>
+                <PressableOpacity
+                  onPress={handleOpenPrivacy}
+                  accessibilityRole="link"
+                  accessibilityLabel="Privacy policy">
                   <Text style={styles.linkText}>privacy policy.</Text>
                 </PressableOpacity>
               </View>

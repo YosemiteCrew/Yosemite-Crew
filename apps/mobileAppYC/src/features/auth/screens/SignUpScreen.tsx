@@ -93,7 +93,10 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
           <PressableOpacity
             onPress={handleEmailSignUp}
             disabled={isSocialLoading}
-            style={styles.emailButton}>
+            style={styles.emailButton}
+            accessibilityRole="button"
+            accessibilityLabel="Sign up with email"
+            accessibilityState={{disabled: isSocialLoading}}>
             <Image
               source={Images.emailIcon}
               style={[styles.buttonIcon, styles.emailIconTint]}
@@ -113,7 +116,10 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
               key={provider}
               onPress={() => attemptSocialAuth(provider)}
               disabled={isSocialLoading}
-              style={styles.socialButton}>
+              style={styles.socialButton}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              accessibilityState={{disabled: isSocialLoading}}>
               <Image
                 source={icon}
                 style={styles.buttonIcon}
@@ -154,7 +160,10 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
         {/* Sign In Link */}
         <View style={styles.signInContainer}>
           <Text style={styles.signInText}>Already have an account? </Text>
-          <PressableOpacity onPress={handleSignIn}>
+          <PressableOpacity
+            onPress={handleSignIn}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in">
             <Text style={styles.signInLink}>Sign in</Text>
           </PressableOpacity>
         </View>

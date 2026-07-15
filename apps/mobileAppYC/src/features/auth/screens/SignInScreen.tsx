@@ -277,7 +277,10 @@ const SocialAuthSection: React.FC<{
 
     <View style={styles.footerContainer}>
       <Text style={styles.footerText}>New here? </Text>
-      <PressableOpacity onPress={onCreateAccountPress}>
+      <PressableOpacity
+        onPress={onCreateAccountPress}
+        accessibilityRole="button"
+        accessibilityLabel="Create an account">
         <Text style={styles.signUpLink}>Create an account</Text>
       </PressableOpacity>
     </View>

@@ -440,6 +440,12 @@ describe('SignInScreen', () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith('SignUp');
   });
 
+  it('exposes a button role and label on the create-account link', () => {
+    const {getByLabelText} = renderComponent();
+    const link = getByLabelText('Create an account');
+    expect(link.props.accessibilityRole).toBe('button');
+  });
+
   it('calls handleSocialAuth with "google"', () => {
     const {getByLabelText} = renderComponent();
     fireEvent.press(getByLabelText('Continue with Google'));

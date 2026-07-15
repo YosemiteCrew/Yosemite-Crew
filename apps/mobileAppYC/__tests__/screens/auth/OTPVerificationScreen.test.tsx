@@ -500,6 +500,18 @@ describe('OTPVerificationScreen', () => {
     expect(queryByText('Resend')).toBeFalsy();
   });
 
+  it('exposes a button role and label on the resend button', () => {
+    const {getByLabelText} = renderComponent();
+
+    act(() => {
+      jest.advanceTimersByTime(60000);
+    });
+
+    const resendButton = getByLabelText('Resend code');
+    expect(resendButton.props.accessibilityRole).toBe('button');
+    expect(resendButton.props.accessibilityState).toEqual({disabled: false});
+  });
+
   it('handles failed OTP resend and shows error', async () => {
     mockedRequestCode.mockRejectedValue(new Error('Resend limit exceeded'));
     mockedFormatError.mockReturnValue('Resend limit exceeded');
@@ -785,6 +797,12 @@ describe('OTPVerificationScreen', () => {
       fireEvent.press(getByText('Use provided password'));
 
       expect(getByTestId('mock-demo-input').props.value).toBe('demoPass123');
+    });
+
+    it('exposes a button role and label on the prefill-password helper button', () => {
+      const {getByLabelText} = renderDemoComponent();
+      const prefillButton = getByLabelText('Use provided password');
+      expect(prefillButton.props.accessibilityRole).toBe('button');
     });
 
     it('updates the password field and clears a previous error as the user types', async () => {

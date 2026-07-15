@@ -152,6 +152,18 @@ describe('SignUpScreen', () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith('SignIn');
   });
 
+  it('exposes button roles and labels on the email, social, and sign-in buttons', () => {
+    const {getByLabelText} = renderComponent();
+    const emailButton = getByLabelText('Sign up with email');
+    const googleButton = getByLabelText('Sign up with Google');
+    const signInLink = getByLabelText('Sign in');
+    expect(emailButton.props.accessibilityRole).toBe('button');
+    expect(emailButton.props.accessibilityState).toEqual({disabled: false});
+    expect(googleButton.props.accessibilityRole).toBe('button');
+    expect(googleButton.props.accessibilityState).toEqual({disabled: false});
+    expect(signInLink.props.accessibilityRole).toBe('button');
+  });
+
   it('navigates to TermsAndConditions when "terms and conditions" is pressed', () => {
     const {getByText} = renderComponent();
     fireEvent.press(getByText('terms and conditions'));

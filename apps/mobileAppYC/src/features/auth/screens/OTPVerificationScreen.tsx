@@ -392,7 +392,9 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
                   />
                   <PressableOpacity
                     onPress={() => setOtpCode(DEMO_LOGIN_PASSWORD)}
-                    style={styles.prefillButton}>
+                    style={styles.prefillButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Use provided password">
                     <Text style={styles.prefillText}>
                       Use provided password
                     </Text>
@@ -445,7 +447,10 @@ export const OTPVerificationScreen: React.FC<OTPVerificationScreenProps> = ({
                   <PressableOpacity
                     onPress={handleResendOTP}
                     disabled={isResending}
-                    style={styles.resendButton}>
+                    style={styles.resendButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Resend code"
+                    accessibilityState={{disabled: isResending}}>
                     {isResending ? (
                       <ActivityIndicator
                         size="small"
