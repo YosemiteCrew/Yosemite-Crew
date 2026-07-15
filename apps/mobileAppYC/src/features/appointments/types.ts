@@ -93,6 +93,7 @@ export interface Appointment {
   id: string;
   companionId: string;
   businessId: string;
+  encounterId?: string | null;
   serviceId?: string | null;
   serviceName?: string | null;
   serviceCode?: string | null;
@@ -118,6 +119,7 @@ export interface Appointment {
   }[];
   status: AppointmentStatus;
   paymentStatus?: string | null;
+  bookingPaymentStatus?: string | null;
   invoiceId?: string;
   paymentIntent?: PaymentIntentInfo | null;
   species?: string | null;
@@ -147,6 +149,7 @@ export interface PaymentIntentInfo {
   amount: number;
   currency: string;
   paymentLinkUrl?: string | null;
+  connectedAccountId?: string | null;
 }
 
 export type PaymentCollectionMethod =
@@ -241,6 +244,7 @@ export interface VetPackage {
   specialty?: string;
   specialityId?: string;
   items: PackageBreakdownItem[];
+  appointmentKinds?: string[];
 }
 
 export interface AppointmentsState {

@@ -46,6 +46,14 @@ chatRouter.post("/pms/org/group", authorizeCognito, (req, res) =>
   ChatController.createOrgGroupChat(req, res),
 );
 
+chatRouter.get("/pms/network/colleagues", authorizeCognito, (req, res) =>
+  ChatController.searchNetworkColleagues(req, res),
+);
+
+chatRouter.post("/pms/network/direct", authorizeCognito, (req, res) =>
+  ChatController.createNetworkDirectChat(req, res),
+);
+
 chatRouter.post("/pms/sessions/:sessionId/open", authorizeCognito, (req, res) =>
   ChatController.openChat(req, res),
 );
@@ -78,6 +86,20 @@ chatRouter.patch("/pms/groups/:sessionId", authorizeCognito, (req, res) =>
 
 chatRouter.delete("/pms/groups/:sessionId", authorizeCognito, (req, res) =>
   ChatController.deleteGroup(req, res),
+);
+
+/* ------------------------- SHARED ENTITIES ------------------------------ */
+
+chatRouter.post("/pms/share", authorizeCognito, (req, res) =>
+  ChatController.shareEntityToChannel(req, res),
+);
+
+chatRouter.get("/pms/share/:channelId", authorizeCognito, (req, res) =>
+  ChatController.listSharedEntities(req, res),
+);
+
+chatRouter.post("/pms/share/:id/revoke", authorizeCognito, (req, res) =>
+  ChatController.revokeSharedEntity(req, res),
 );
 
 export default chatRouter;

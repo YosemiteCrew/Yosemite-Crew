@@ -11,6 +11,14 @@ import {
   buildInventoryPayload,
   defaultFilters,
   displayStatusLabel,
+  getAvailableStock,
+  getGrossProfitPerUnit,
+  getMarginPercent,
+  getMarkupPercent,
+  getStockValue,
+  formatCurrencyValue,
+  formatPercentValue,
+  getDerivedStockHealth,
 } from '@/app/features/inventory/pages/Inventory/utils';
 import { BusinessType } from '@/app/features/organization/types/org';
 import {
@@ -168,7 +176,7 @@ describe('Inventory Utils', () => {
 
     it('formatStockHealthLabel handles cases', () => {
       expect(formatStockHealthLabel('LOW_STOCK')).toBe('Low stock');
-      expect(formatStockHealthLabel('HEALTHY')).toBe('Healthy');
+      expect(formatStockHealthLabel('HEALTHY')).toBe('In stock');
       expect(formatStockHealthLabel('EXPIRED')).toBe('Expired');
       expect(formatStockHealthLabel('EXPIRING_SOON')).toBe('Expiring soon');
       expect(formatStockHealthLabel()).toBe('');
@@ -177,15 +185,15 @@ describe('Inventory Utils', () => {
     it('getStatusBadgeStyle handles cases', () => {
       // low stock
       expect(getStatusBadgeStyle('Low Stock')).toEqual({
-        color: 'var(--color-pill-progress-text)',
-        backgroundColor: 'var(--color-pill-progress-bg)',
-        borderColor: 'var(--color-pill-progress-border)',
-      });
-      // expired / out of stock
-      expect(getStatusBadgeStyle('Expired')).toEqual({
         color: 'var(--color-pill-warning-text)',
         backgroundColor: 'var(--color-pill-warning-bg)',
         borderColor: 'var(--color-pill-warning-border)',
+      });
+      // expired / out of stock
+      expect(getStatusBadgeStyle('Expired')).toEqual({
+        color: 'var(--color-danger-600)',
+        backgroundColor: 'var(--color-danger-100)',
+        borderColor: 'var(--color-danger-400)',
       });
       expect(getStatusBadgeStyle('Out of Stock')).toEqual({
         color: 'var(--color-pill-neutral-text)',
@@ -358,6 +366,31 @@ describe('Inventory Utils', () => {
       expect(result.batch.barcode).toBe('BAR-123');
       expect(result.batches?.[0].expiryWarningBefore).toBe('30 days');
       expect(result.batches?.[0].barcode).toBe('BAR-123');
+    });
+
+    it('prefers batch-specific display fields over shared attributes', () => {
+      const result = mapApiItemToInventoryItem({
+        ...mockApiItem,
+        attributes: {
+          ...mockApiItem.attributes,
+          expiryWarningBefore: 'shared warning',
+          barcode: 'SHARED-BAR',
+        },
+        batches: [
+          {
+            _id: 'b1',
+            batchNumber: 'BATCH-1',
+            quantity: 10,
+            expiryWarningBefore: 'per-batch warning',
+            barcode: 'PER-BATCH-BAR',
+          },
+        ],
+      } as unknown as InventoryApiItem);
+
+      expect(result.batch.expiryWarningBefore).toBe('per-batch warning');
+      expect(result.batch.barcode).toBe('PER-BATCH-BAR');
+      expect(result.batches?.[0].expiryWarningBefore).toBe('per-batch warning');
+      expect(result.batches?.[0].barcode).toBe('PER-BATCH-BAR');
     });
 
     it('selects first batch if no expiry dates provided', () => {
@@ -599,6 +632,17 @@ describe('Inventory Utils', () => {
         expect(payload?.expiryDate).toBe('2026-01-01T05:30:00.000Z');
       });
 
+      it('preserves per-batch expiry warning and barcode fields', () => {
+        const batch = {
+          ...mockInventoryItem.batches![0],
+          expiryWarningBefore: '30 days',
+          barcode: 'BAR-123',
+        };
+        const payload = buildBatchPayload(batch);
+        expect(payload?.expiryWarningBefore).toBe('30 days');
+        expect(payload?.barcode).toBe('BAR-123');
+      });
+
       it('falls back to current/available for quantity if quantity field missing', () => {
         const batch = {
           ...mockInventoryItem.batches![0],
@@ -607,6 +651,26 @@ describe('Inventory Utils', () => {
         } as any;
         const payload = buildBatchPayload(batch);
         expect(payload?.quantity).toBe(99);
+      });
+
+      it('sends expiryWarningBefore and barcode per batch so each batch can hold its own value', () => {
+        const batchA = {
+          ...mockInventoryItem.batches![0],
+          expiryWarningBefore: '30 days',
+          barcode: 'BAR-A',
+        } as any;
+        const batchB = {
+          ...mockInventoryItem.batches![1],
+          expiryWarningBefore: '14 days',
+          barcode: 'BAR-B',
+        } as any;
+
+        expect(buildBatchPayload(batchA)).toEqual(
+          expect.objectContaining({ expiryWarningBefore: '30 days', barcode: 'BAR-A' })
+        );
+        expect(buildBatchPayload(batchB)).toEqual(
+          expect.objectContaining({ expiryWarningBefore: '14 days', barcode: 'BAR-B' })
+        );
       });
 
       it('returns undefined if payload ends up empty (cleanObject logic)', () => {
@@ -640,13 +704,49 @@ describe('Inventory Utils', () => {
         expect(payload.organisationId).toBe('org-1');
         expect(payload.name).toBe('Payload Item');
         expect(payload.batches).toHaveLength(2);
-        // Calculated totals
-        expect(payload.onHand).toBe(100); // 50 + 50
+        // onHand/initialOnHand come from the item-level stock field, not batch totals
+        expect(payload.onHand).toBe(100);
+        expect(payload.initialOnHand).toBe(100);
         expect(payload.allocated).toBe(10);
         expect(payload.initialAllocated).toBe(10);
         // Check attributes cleaning
         expect(payload.attributes?.stockLocation).toBe('Loc A');
         expect(payload.attributes?.species).toEqual(['Dog']);
+      });
+
+      it('sends the cleared SKU as empty rather than falling back to the stale top-level sku', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            sku: 'OLD-STALE-SKU',
+            basicInfo: {
+              ...mockInventoryItem.basicInfo,
+              skuCode: '',
+            },
+          },
+          'org-1',
+          'VETERINARY' as BusinessType
+        );
+
+        expect(payload.sku).toBe('');
+      });
+
+      it('uses stock control on-hand value, not the batch quantity sum, even when they differ', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            stock: {
+              ...mockInventoryItem.stock,
+              current: '68744',
+            },
+          },
+          'org-1',
+          'HOSPITAL' as BusinessType
+        );
+
+        // batches sum to 100 (50 + 50); the edited stock.current value must win
+        expect(payload.onHand).toBe(68744);
+        expect(payload.initialOnHand).toBe(68744);
       });
 
       it('prefers stock control allocated over batch totals when batches exist', () => {
@@ -764,6 +864,29 @@ describe('Inventory Utils', () => {
         const payload = buildInventoryPayload(item, 'org-1', 'VETERINARY' as BusinessType);
         expect(payload.attributes?.available).toBe(77);
       });
+
+      it('uses inventory attributes for batch-section item attributes when present', () => {
+        const payload = buildInventoryPayload(
+          {
+            ...mockInventoryItem,
+            attributes: {
+              expiryWarningBefore: '60 days',
+              barcode: 'NEW-BAR',
+            },
+            batch: {
+              ...mockInventoryItem.batch,
+              expiryWarningBefore: '30 days',
+              barcode: 'OLD-BAR',
+            },
+          },
+          'org-1',
+          'VETERINARY' as BusinessType
+        );
+
+        expect(payload.attributes?.expiryWarningBefore).toBe('60 days');
+        expect(payload.attributes?.barcode).toBe('NEW-BAR');
+        expect(payload.attributes?.serial).toBe('NEW-BAR');
+      });
     });
   });
 
@@ -809,8 +932,90 @@ describe('Inventory Utils', () => {
       abcClasses: [],
       suppliers: [],
       status: 'ALL',
-      visibility: 'ALL',
+      visibility: 'ACTIVE',
       search: '',
     });
+  });
+});
+
+describe('inventory metric helpers', () => {
+  const metricItem = (overrides: Partial<InventoryItem> = {}): InventoryItem =>
+    ({
+      basicInfo: { name: 'Amoxicillin', status: 'ACTIVE' },
+      classification: {},
+      pricing: { selling: 20, purchaseCost: 8 },
+      stock: { current: 50, allocated: 10, reorderLevel: 5, maxStock: 100 },
+      batch: {},
+      status: 'ACTIVE',
+      ...overrides,
+    }) as unknown as InventoryItem;
+
+  it('computes available stock and returns undefined without an on-hand count', () => {
+    expect(getAvailableStock(metricItem())).toBe(40);
+    expect(getAvailableStock(metricItem({ stock: { allocated: 5 } } as never))).toBeUndefined();
+    // Missing allocated defaults to 0.
+    expect(getAvailableStock(metricItem({ stock: { current: 7 } } as never))).toBe(7);
+  });
+
+  it('computes profit, margin, and markup with divide-by-zero guards', () => {
+    expect(getGrossProfitPerUnit(metricItem())).toBe(12);
+    expect(getGrossProfitPerUnit(metricItem({ pricing: {} } as never))).toBeUndefined();
+
+    expect(getMarginPercent(metricItem())).toBe(60);
+    expect(
+      getMarginPercent(metricItem({ pricing: { selling: 0, purchaseCost: 8 } } as never))
+    ).toBeUndefined();
+
+    expect(getMarkupPercent(metricItem())).toBe(150);
+    expect(
+      getMarkupPercent(metricItem({ pricing: { selling: 20, purchaseCost: 0 } } as never))
+    ).toBeUndefined();
+  });
+
+  it('computes stock value from on-hand and unit cost', () => {
+    expect(getStockValue(metricItem())).toBe(400);
+    expect(getStockValue(metricItem({ pricing: { selling: 20 } } as never))).toBeUndefined();
+  });
+
+  it('formats currency values with USD fallback for unknown codes', () => {
+    expect(formatCurrencyValue(1200)).toBe('$1,200');
+    expect(formatCurrencyValue(19.5, 'EUR')).toBe('€19.50');
+    expect(formatCurrencyValue(10, 'NOT_A_CODE')).toBe('$10');
+    expect(formatCurrencyValue(undefined)).toBe('—');
+  });
+
+  it('formats percent values and dashes for non-finite input', () => {
+    expect(formatPercentValue(12.345)).toBe('12.35%');
+    expect(formatPercentValue(Number.NaN)).toBe('—');
+    expect(formatPercentValue(undefined)).toBe('—');
+  });
+
+  it('derives stock health across every state', () => {
+    expect(getDerivedStockHealth(metricItem())).toEqual({ key: 'IN_STOCK', label: 'In stock' });
+    expect(getDerivedStockHealth(metricItem({ status: 'HIDDEN' } as never)).label).toBe('Hidden');
+    expect(
+      getDerivedStockHealth(metricItem({ batch: { expiryDate: '2020-01-01' } } as never))
+    ).toEqual({ key: 'EXPIRED', label: 'Expired' });
+    expect(
+      getDerivedStockHealth(metricItem({ stock: { current: 5, allocated: 5 } } as never))
+    ).toEqual({ key: 'OUT_OF_STOCK', label: 'Out of stock' });
+    expect(
+      getDerivedStockHealth(
+        metricItem({ stock: { current: 6, allocated: 2, reorderLevel: 5 } } as never)
+      )
+    ).toEqual({ key: 'LOW_STOCK', label: 'Low stock' });
+    expect(
+      getDerivedStockHealth(
+        metricItem({
+          stock: { current: 150, allocated: 0, reorderLevel: 5, maxStock: 100 },
+        } as never)
+      )
+    ).toEqual({ key: 'OVERSTOCKED', label: 'Overstocked' });
+  });
+
+  it('normalizes NaN and non-primitive values in toStringSafe', () => {
+    expect(toStringSafe(Number.NaN)).toBe('');
+    expect(toStringSafe({})).toBe('');
+    expect(toStringSafe(true)).toBe('true');
   });
 });

@@ -123,7 +123,10 @@ describe('SearchBar Component', () => {
       const {getByPlaceholderText} = render(
         <SearchBar {...defaultProps} mode="input" />,
       );
-      expect(getByPlaceholderText('Find something...')).toBeTruthy();
+      const input = getByPlaceholderText('Find something...');
+      expect(input).toBeTruthy();
+      expect(input.props.multiline).toBe(false);
+      expect(input.props.numberOfLines).toBe(1);
     });
 
     it('passes value and handles text changes', () => {

@@ -1,6 +1,7 @@
 import React from 'react';
-import {render} from '@testing-library/react-native';
-import {Animated} from 'react-native';
+import {act, cleanup, render, screen} from '@testing-library/react-native/pure';
+import * as Reanimated from 'react-native-reanimated';
+jest.unmock('@/shared/components/common/customSplashScreen/customSplash');
 import CustomSplashScreen from '@/shared/components/common/customSplashScreen/customSplash';
 
 // Mock dependencies
@@ -23,53 +24,11 @@ describe('CustomSplashScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-
-    // Mock Animated API
-    jest.spyOn(Animated, 'timing').mockImplementation((_value: any, _config: any) => {
-      return {
-        start: jest.fn((callback?: any) => {
-          if (callback) callback();
-        }),
-      } as any;
-    });
-
-    jest.spyOn(Animated, 'spring').mockImplementation((_value: any, _config: any) => {
-      return {
-        start: jest.fn((callback?: any) => {
-          if (callback) callback();
-        }),
-      } as any;
-    });
-
-    jest.spyOn(Animated, 'sequence').mockImplementation((_animations: any) => {
-      return {
-        start: jest.fn((callback?: any) => {
-          if (callback) callback();
-        }),
-      } as any;
-    });
-
-    jest.spyOn(Animated, 'parallel').mockImplementation((_animations: any) => {
-      return {
-        start: jest.fn((callback?: any) => {
-          if (callback) callback();
-        }),
-      } as any;
-    });
-
-    jest.spyOn(Animated, 'loop').mockImplementation((_animation: any) => {
-      return {
-        start: jest.fn(),
-        stop: jest.fn(),
-      } as any;
-    });
-
-    jest.spyOn(Animated, 'delay').mockImplementation((_time: number) => {
-      return null as any;
-    });
   });
 
   afterEach(() => {
+    cleanup();
+    jest.clearAllTimers();
     jest.useRealTimers();
     jest.restoreAllMocks();
   });
@@ -77,44 +36,74 @@ describe('CustomSplashScreen', () => {
   describe('rendering', () => {
     it('should render without crashing', () => {
       const onAnimationEnd = jest.fn();
-      const {UNSAFE_root} = render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
+      const {UNSAFE_root} = render(
+        <CustomSplashScreen onAnimationEnd={onAnimationEnd} />,
+      );
 
       expect(UNSAFE_root).toBeDefined();
+    });
+
+    it('should render the FDA certification alongside the existing splash assets', () => {
+      const onAnimationEnd = jest.fn();
+      render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
+
+      expect(screen.getAllByTestId('certification-logo')).toHaveLength(5);
     });
   });
 
   describe('animation values', () => {
-    it('should use native driver for all animations', () => {
+    it('should schedule animations with Reanimated helpers', () => {
       const onAnimationEnd = jest.fn();
+      const timingSpy = jest.spyOn(Reanimated, 'withTiming');
+      const springSpy = jest.spyOn(Reanimated, 'withSpring');
+      const repeatSpy = jest.spyOn(Reanimated, 'withRepeat');
+
       render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
 
-      const timingCalls = (Animated.timing as jest.Mock).mock.calls;
-      timingCalls.forEach(call => {
-        if (call[1]) {
-          expect(call[1].useNativeDriver).toBe(true);
-        }
+      expect(timingSpy).toHaveBeenCalled();
+      expect(springSpy).toHaveBeenCalledWith(1, {
+        damping: 12,
+        stiffness: 120,
+      });
+      expect(repeatSpy).toHaveBeenCalledTimes(2);
+
+      act(() => {
+        jest.advanceTimersByTime(1500);
       });
 
-      const springCalls = (Animated.spring as jest.Mock).mock.calls;
-      springCalls.forEach(call => {
-        if (call[1]) {
-          expect(call[1].useNativeDriver).toBe(true);
-        }
-      });
+      expect(repeatSpy).toHaveBeenCalledTimes(4);
     });
   });
 
   describe('component lifecycle', () => {
-
     it('should only initialize animations once', () => {
       const onAnimationEnd = jest.fn();
-      const timingCallsBefore = (Animated.timing as jest.Mock).mock.calls.length;
+      const timingSpy = jest.spyOn(Reanimated, 'withTiming');
+      const timingCallsBefore = timingSpy.mock.calls.length;
 
       render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
 
-      const timingCallsAfter = (Animated.timing as jest.Mock).mock.calls.length;
+      const timingCallsAfter = timingSpy.mock.calls.length;
 
       expect(timingCallsAfter).toBeGreaterThanOrEqual(timingCallsBefore);
+    });
+
+    it('should stop active animations and scheduled timers on unmount', () => {
+      const onAnimationEnd = jest.fn();
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      const cancelAnimationSpy = jest.spyOn(Reanimated, 'cancelAnimation');
+      const {unmount} = render(
+        <CustomSplashScreen onAnimationEnd={onAnimationEnd} />,
+      );
+
+      act(() => {
+        jest.advanceTimersByTime(1500);
+      });
+
+      unmount();
+
+      expect(clearTimeoutSpy).toHaveBeenCalledTimes(2);
+      expect(cancelAnimationSpy).toHaveBeenCalledTimes(7);
     });
   });
 
@@ -123,7 +112,9 @@ describe('CustomSplashScreen', () => {
       const onAnimationEnd = jest.fn();
       render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
 
-      jest.advanceTimersByTime(4000);
+      act(() => {
+        jest.advanceTimersByTime(4000);
+      });
 
       expect(onAnimationEnd).toHaveBeenCalledWith();
     });
@@ -132,7 +123,9 @@ describe('CustomSplashScreen', () => {
       const onAnimationEnd = jest.fn();
       render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
 
-      jest.advanceTimersByTime(4000);
+      act(() => {
+        jest.advanceTimersByTime(4000);
+      });
 
       expect(onAnimationEnd).toHaveBeenCalledTimes(1);
     });

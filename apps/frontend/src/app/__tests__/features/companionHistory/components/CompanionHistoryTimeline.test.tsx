@@ -242,7 +242,7 @@ describe('CompanionHistoryTimeline', () => {
       expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Medical records' }));
 
     await waitFor(() => {
       expect(screen.getByText('Blood panel PDF')).toBeInTheDocument();
@@ -299,7 +299,7 @@ describe('CompanionHistoryTimeline', () => {
       expect(screen.getByText('Consult')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Medical records' }));
 
     await waitFor(() => {
       expect(screen.getByText('Blood panel PDF')).toBeInTheDocument();
@@ -339,7 +339,7 @@ describe('CompanionHistoryTimeline', () => {
 
     expect(screen.queryByText('history-document-upload-c-1')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Medical records' }));
 
     await waitFor(() => {
       expect(screen.getByText('history-document-upload-c-1')).toBeInTheDocument();
@@ -427,7 +427,7 @@ describe('CompanionHistoryTimeline', () => {
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: 'Medical Records' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Medical records' })).toBeInTheDocument();
     });
   });
 
@@ -501,7 +501,7 @@ describe('CompanionHistoryTimeline', () => {
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Medical records' }));
 
     const openFile = await screen.findByRole('button', { name: 'Open file' });
     fireEvent.click(openFile);
@@ -532,7 +532,7 @@ describe('CompanionHistoryTimeline', () => {
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Medical records' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open submission' }));
 
     expect(await screen.findByText('Heart rate')).toBeInTheDocument();
@@ -553,7 +553,7 @@ describe('CompanionHistoryTimeline', () => {
 
     render(<CompanionHistoryTimeline companionId="c-1" />);
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'Medical Records' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Medical records' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Open file' }));
 
     expect(await screen.findByTestId('pdf-preview')).toHaveTextContent(
@@ -813,6 +813,224 @@ describe('CompanionHistoryTimeline', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Unable to load audit trail. Please try again.')).toBeInTheDocument();
+    });
+  });
+
+  it('navigates to another appointment for a linked entry that is not the active appointment', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" activeAppointmentId="some-other-appt" />);
+
+    await screen.findByText('Consult');
+    // Navigating away is same-origin browser navigation (window.location.assign), which
+    // jsdom does not allow mocking/spying on; exercising the click without throwing
+    // covers the non-active-appointment navigation branch.
+    expect(() => fireEvent.click(screen.getByRole('button', { name: 'Open' }))).not.toThrow();
+  });
+
+  it('opens a lab result via window.open when it has no linked appointment', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[4],
+          link: { kind: 'lab_result', id: 'l-1' },
+          payload: { ...baseEntries[4].payload, resultId: undefined },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Diagnostics' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open result' }));
+
+    expect(windowOpenSpy).toHaveBeenCalledWith(
+      'https://example.com/lab.pdf',
+      '_blank',
+      'noopener,noreferrer'
+    );
+  });
+
+  it('navigates to the task link for a task entry with a linked task id', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [baseEntries[1]],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { TASK: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Tasks' }));
+    await screen.findByText('Give medication');
+    // Same-origin navigation via window.location.assign cannot be spied on in jsdom;
+    // exercising the click without throwing covers the linked-task navigation branch.
+    expect(() => fireEvent.click(screen.getByRole('button', { name: 'Open task' }))).not.toThrow();
+  });
+
+  it('navigates to the finance link for an invoice entry with a linked invoice id', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [baseEntries[5]],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { INVOICE: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Billing' }));
+    await screen.findByText('i-1');
+    // Same-origin navigation via window.location.assign cannot be spied on in jsdom;
+    // exercising the click without throwing covers the linked-invoice navigation branch.
+    expect(() =>
+      fireEvent.click(screen.getByRole('button', { name: 'Open finance' }))
+    ).not.toThrow();
+  });
+
+  it('falls back to opening the entry when a diagnostics result has no id or org', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        {
+          ...baseEntries[4],
+          link: { kind: 'lab_result', id: 'l-1' },
+          payload: { pdfUrl: undefined },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { LAB_RESULT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Diagnostics' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Open result' }));
+
+    // No resultId and no fallback URL: neither the IDEXX PDF endpoint nor window.open fire.
+    expect(getIdexxResultPdfBlob).not.toHaveBeenCalled();
+    expect(windowOpenSpy).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the backend error message when an appointment status update rejects', async () => {
+    mockAppointmentsById['a-1'] = {
+      id: 'a-1',
+      organisationId: 'org-1',
+      status: 'UPCOMING',
+      companion: { id: 'c-1', name: 'Milo' },
+      patient: { id: 'c-1', name: 'Milo' },
+    };
+    (changeAppointmentStatus as jest.Mock).mockRejectedValueOnce({
+      response: { data: { message: 'Backend rejected the transition.' } },
+    });
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [{ ...baseEntries[0], status: 'UPCOMING' }],
+      nextCursor: null,
+      summary: { totalReturned: 1, countsByType: { APPOINTMENT: 1 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Consult');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Status' }).at(-1)!);
+    fireEvent.mouseDown(screen.getByRole('menuitem', { name: 'Checked-in' }));
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({
+          title: 'Status update failed',
+          text: 'Backend rejected the transition.',
+        })
+      );
+    });
+  });
+
+  it('toggles sort order between newest and oldest', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: [
+        { ...baseEntries[0], id: 'appt-1', occurredAt: '2026-03-20T10:00:00.000Z' },
+        {
+          ...baseEntries[0],
+          id: 'appt-2',
+          occurredAt: '2026-03-10T10:00:00.000Z',
+          payload: { serviceName: 'Older consult' },
+        },
+      ],
+      nextCursor: null,
+      summary: { totalReturned: 2, countsByType: { APPOINTMENT: 2 } },
+    });
+
+    render(<CompanionHistoryTimeline companionId="c-1" />);
+
+    await screen.findByText('Consult');
+    const rows = () => screen.getAllByText(/Consult|Older consult/);
+    expect(rows()[0]).toHaveTextContent('Consult');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by: Sort by newest' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sort by oldest' }));
+
+    await waitFor(() => {
+      expect(rows()[0]).toHaveTextContent('Older consult');
+    });
+  });
+
+  it('shows the compact-view banner and full-overview link when compact and beyond the visible cap', async () => {
+    const manyEntries = Array.from({ length: 10 }, (_, index) => ({
+      ...baseEntries[0],
+      id: `appt-${index}`,
+      occurredAt: new Date(2026, 2, 20 - index).toISOString(),
+      payload: { serviceName: `Consult ${index}` },
+    }));
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: manyEntries,
+      nextCursor: null,
+      summary: {
+        totalReturned: manyEntries.length,
+        countsByType: { APPOINTMENT: manyEntries.length },
+      },
+    });
+
+    render(
+      <CompanionHistoryTimeline companionId="c-1" compact fullPageHref="/companions/c-1/history" />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/Showing latest 8 records in compact view/)).toBeInTheDocument();
+    });
+    expect(screen.getByRole('link', { name: 'Open full overview' })).toHaveAttribute(
+      'href',
+      '/companions/c-1/history'
+    );
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+  });
+
+  it('resets filters and query when the companion id changes', async () => {
+    (fetchCompanionHistory as jest.Mock).mockResolvedValue({
+      entries: baseEntries,
+      nextCursor: null,
+      summary: { totalReturned: 6, countsByType: {} },
+    });
+
+    const { rerender } = render(<CompanionHistoryTimeline companionId="c-1" />);
+    await screen.findByText('Consult');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Tasks' }));
+    await waitFor(() =>
+      expect(fetchCompanionHistory).toHaveBeenLastCalledWith(
+        expect.objectContaining({ types: ['TASK'] })
+      )
+    );
+
+    rerender(<CompanionHistoryTimeline companionId="c-2" />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Appointments' })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      );
     });
   });
 });

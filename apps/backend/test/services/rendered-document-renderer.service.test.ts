@@ -3040,6 +3040,37 @@ describe("rendered-document-renderer service", () => {
       );
     });
 
+    it("vital record treats null metadata as absent and falls back to an empty object", async () => {
+      mockedPrisma.organization.findUnique.mockResolvedValueOnce(
+        baseOrganization,
+      );
+      mockedPrisma.vitalRecord.findUnique.mockResolvedValueOnce({
+        id: "vital-null-meta",
+        measuredAt: null,
+        recordedBy: null,
+        vitals: { heartRate: 72 },
+        notes: null,
+        metadata: null,
+        artifact: templateFreeArtifact({
+          id: "art-vital-null-meta",
+          kind: "VITAL_RECORD",
+        }),
+      });
+
+      await renderRenderedDocumentPdf({
+        title: "Vital Record",
+        source: {
+          sourceKind: "CLINICAL_ARTIFACT",
+          sourceId: "vital-null-meta",
+          organisationId: "org-1",
+          templateKind: "VITAL_RECORD",
+        },
+      });
+
+      const call = mockedGenerateClinicalPdfWithMetadata.mock.calls[0][0];
+      expect(call.data.metadata).toEqual({});
+    });
+
     it("vital record falls back to metadata.vitalRows and '—' contact, defaulting recordedBy to author", async () => {
       mockedPrisma.organization.findUnique.mockResolvedValueOnce(
         baseOrganization,

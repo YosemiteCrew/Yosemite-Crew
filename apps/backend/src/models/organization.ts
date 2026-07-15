@@ -78,6 +78,7 @@ export interface OrganizationMongo {
   appointmentCheckInRadiusMeters?: number;
   appointmentLockWindowOutpatientMinutes?: number;
   appointmentLockWindowInpatientMinutes?: number;
+  crossOrgMessagingEnabled?: boolean;
 }
 
 const OrganizationSchema = new Schema(

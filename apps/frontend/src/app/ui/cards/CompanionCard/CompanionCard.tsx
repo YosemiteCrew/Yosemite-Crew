@@ -10,6 +10,7 @@ import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { toTitleCase } from '@/app/lib/validators';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 const SPECIES_LABEL: Record<string, string> = {
   dog: 'Canine',
@@ -45,6 +46,7 @@ const CompanionCard = ({
   canEditTasks,
   canEditCompanions,
 }: CompanionCardProps) => {
+  const terminologyText = useCompanionTerminologyText();
   return (
     <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-white p-3 flex flex-col justify-between gap-2 cursor-pointer">
       <div className="flex gap-2 items-center">
@@ -99,10 +101,11 @@ const CompanionCard = ({
         {toTitleCase(companion.companion.status || 'inactive')}
       </div>
       <div className="flex gap-2 justify-center">
-        <GlassTooltip content="View" side="top">
+        <GlassTooltip content={terminologyText('View companion')} side="top">
           <button
             type="button"
             onClick={() => handleViewCompanion(companion)}
+            aria-label={`${terminologyText('View companion')} ${companion.companion.name}`}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
             <IoEye size={20} color="var(--color-neutral-900)" />
@@ -113,6 +116,7 @@ const CompanionCard = ({
             <button
               type="button"
               onClick={() => handleChangeStatus(companion)}
+              aria-label={`Change status for ${companion.companion.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
               <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
@@ -124,6 +128,7 @@ const CompanionCard = ({
             <button
               type="button"
               onClick={() => handleBookAppointment(companion)}
+              aria-label={`Schedule ${companion.companion.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
               <FaCalendar size={14} color="var(--color-neutral-900)" />
@@ -135,6 +140,7 @@ const CompanionCard = ({
             <button
               type="button"
               onClick={() => handleAddTask(companion)}
+              aria-label={`Create task for ${companion.companion.name}`}
               className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
             >
               <FaTasks size={14} color="var(--color-neutral-900)" />

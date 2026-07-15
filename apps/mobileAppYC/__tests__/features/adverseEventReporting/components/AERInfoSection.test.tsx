@@ -32,9 +32,8 @@ jest.mock(
   },
 );
 
-jest.mock('../../../../src/shared/components/common/FormRowComponents', () => {
+jest.mock('../../../../src/shared/components/common/RowButton', () => {
   const {
-    View: RNView,
     Text: RNText,
     TouchableOpacity: RNTouchableOpacity,
   } = require('react-native');
@@ -45,6 +44,12 @@ jest.mock('../../../../src/shared/components/common/FormRowComponents', () => {
         <RNText>{value}</RNText>
       </RNTouchableOpacity>
     ),
+  };
+});
+
+jest.mock('../../../../src/shared/components/common/Separator', () => {
+  const {View: RNView} = require('react-native');
+  return {
     Separator: () => <RNView testID="separator" />,
   };
 });

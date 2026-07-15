@@ -143,6 +143,15 @@ router.post(
 );
 
 router.post(
+  String.raw`/organisation/:organisationId/prescription/:prescriptionId/\$cancel`,
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["prescription:edit:any"]),
+  (req, res) => ClinicalArtifactFhirController.cancelPrescription(req, res),
+);
+
+router.post(
   String.raw`/organisation/:organisationId/prescription/:prescriptionId/\$reopen`,
   authorizeCognito,
   dischargeSummaryLimiter,
@@ -167,6 +176,15 @@ router.patch(
   withOrgPermissions(),
   requirePermission(["prescription:edit:any"]),
   (req, res) => ClinicalArtifactFhirController.updatePrescription(req, res),
+);
+
+router.delete(
+  "/organisation/:organisationId/prescription/:prescriptionId",
+  authorizeCognito,
+  dischargeSummaryLimiter,
+  withOrgPermissions(),
+  requirePermission(["prescription:edit:any"]),
+  (req, res) => ClinicalArtifactFhirController.deletePrescription(req, res),
 );
 
 router.post(

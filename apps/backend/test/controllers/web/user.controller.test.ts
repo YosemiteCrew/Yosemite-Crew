@@ -121,6 +121,31 @@ describe("UserController", () => {
   });
 
   describe("getById", () => {
+    it("should return 401 when auth context is missing", async () => {
+      const req = createMockReq({ params: { id: "123" }, userId: undefined });
+      await UserController.getById(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(401);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "Missing user identity from token.",
+      });
+      expect(UserService.getById).not.toHaveBeenCalled();
+    });
+
+    it("should return 403 when requesting another user's record", async () => {
+      const req = createMockReq({
+        params: { id: "123" },
+        userId: "different-user",
+      });
+      await UserController.getById(req, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        message: "You can only view your own user.",
+      });
+      expect(UserService.getById).not.toHaveBeenCalled();
+    });
+
     it("should return 200 and user if found", async () => {
       const mockUser = { id: "123", name: "Test" };
       (UserService.getById as jest.Mock).mockResolvedValue(mockUser);

@@ -1,5 +1,5 @@
 import React, {useCallback, useMemo} from 'react';
-import {View, StyleSheet, Text, Dimensions} from 'react-native';
+import {View, StyleSheet, Text, useWindowDimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useSelector} from 'react-redux';
@@ -15,7 +15,8 @@ export const QRScannerScreen: React.FC<Props> = ({
   navigation,
 }) => {
   const {theme} = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const {width} = useWindowDimensions();
+  const styles = useMemo(() => createStyles(theme, width), [theme, width]);
   useSelector(selectLinkedBusinessesLoading);
 
   const handleBack = useCallback(() => {
@@ -58,8 +59,7 @@ export const QRScannerScreen: React.FC<Props> = ({
   );
 };
 
-const createStyles = (theme: any) => {
-  const {width} = Dimensions.get('window');
+const createStyles = (theme: any, width: number) => {
   const scannerSize = width - 80;
 
   return StyleSheet.create({

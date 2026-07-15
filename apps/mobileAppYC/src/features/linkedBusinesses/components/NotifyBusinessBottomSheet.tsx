@@ -1,4 +1,4 @@
-import React, {forwardRef} from 'react';
+import React from 'react';
 import {View, StyleSheet, Text} from 'react-native';
 import {ConfirmActionBottomSheet} from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
 import {useTheme} from '@/hooks';
@@ -17,10 +17,15 @@ interface NotifyBusinessBottomSheetProps {
   onSheetChange?: (index: number) => void;
 }
 
-export const NotifyBusinessBottomSheet = forwardRef<
-  NotifyBusinessBottomSheetRef,
-  NotifyBusinessBottomSheetProps
->(({businessName, companionName, onConfirm, onSheetChange}, ref) => {
+export const NotifyBusinessBottomSheet = ({
+  businessName,
+  companionName,
+  onConfirm,
+  onSheetChange,
+  ref,
+}: NotifyBusinessBottomSheetProps & {
+  ref?: React.Ref<NotifyBusinessBottomSheetRef>;
+}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const {sheetRef, handleConfirm} = useConfirmActionSheetRef(ref, () => {
@@ -63,7 +68,7 @@ export const NotifyBusinessBottomSheet = forwardRef<
       </View>
     </ConfirmActionBottomSheet>
   );
-});
+};
 
 NotifyBusinessBottomSheet.displayName = 'NotifyBusinessBottomSheet';
 

@@ -1,4 +1,4 @@
-import Dropdown from '@/app/ui/inputs/Dropdown/Dropdown';
+import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { FormField } from '@/app/features/forms/types/forms';
 import React, { useMemo } from 'react';
 
@@ -26,9 +26,10 @@ const DropdownRenderer: React.FC<{
     } else if (displayValue) {
       selected = [displayValue];
     }
+    const selectedSet = new Set(selected);
     const toggle = (optValue: string) => {
       if (isReadOnly) return;
-      const isSelected = selected.includes(optValue);
+      const isSelected = selectedSet.has(optValue);
       const next = isSelected
         ? selected.filter((v: string) => v !== optValue)
         : [...selected, optValue];
@@ -49,7 +50,7 @@ const DropdownRenderer: React.FC<{
                 aria-label={`${field.label}: ${opt.label}`}
                 className="size-4 shrink-0 align-middle"
                 disabled={isReadOnly}
-                checked={selected.includes(opt.value)}
+                checked={selectedSet.has(opt.value)}
                 onChange={() => toggle(opt.value)}
               />
               <span className="leading-none pl-2 translate-y-[1px] inline-block">{opt.label}</span>
@@ -90,13 +91,10 @@ const DropdownRenderer: React.FC<{
 
   return (
     <div className="flex flex-col gap-3">
-      <Dropdown
+      <LabelDropdown
         placeholder={field.label || ''}
-        value={displayValue}
-        onChange={(e) => !isReadOnly && onChange(e)}
-        className="min-h-12!"
-        dropdownClassName="top-[55px]! !h-fit max-h-[200px]!"
-        disabled={isReadOnly}
+        defaultOption={displayValue ?? ''}
+        onSelect={(option) => !isReadOnly && onChange(option.value)}
         options={options.map((opt) => ({
           label: opt.label,
           value: opt.value,

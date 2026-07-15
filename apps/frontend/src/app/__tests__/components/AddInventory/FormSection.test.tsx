@@ -166,6 +166,18 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
             options: ['Static location'],
           },
         },
+        {
+          kind: 'row',
+          fields: [
+            { name: 'current', component: 'text', placeholder: 'On hand stock', readonly: true },
+            {
+              name: 'available',
+              component: 'text',
+              placeholder: 'Available stock (dispensable)',
+              readonly: true,
+            },
+          ],
+        },
       ],
     },
   },
@@ -330,6 +342,39 @@ describe('FormSection Component', () => {
     const dropdown = screen.getByTestId('dropdown-Stock location / Storage area');
     expect(dropdown).toHaveValue('Room A');
     expect(screen.getByRole('option', { name: 'Room B' })).toBeInTheDocument();
+  });
+
+  it('renders on-hand stock and available stock as read-only badges', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'stock' as any}
+        sectionTitle="Stock details"
+        formData={{ stock: { current: '100', allocated: '20' } } as any}
+      />
+    );
+
+    expect(screen.getByText('On hand stock :')).toBeInTheDocument();
+    expect(screen.getByText('100')).toBeInTheDocument();
+    expect(screen.getByText('Available stock (dispensable) :')).toBeInTheDocument();
+    expect(screen.getByText('80')).toBeInTheDocument();
+    expect(screen.queryByTestId('input-current')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('input-available')).not.toBeInTheDocument();
+  });
+
+  it('falls back to zero for object read-only stock values', () => {
+    render(
+      <FormSection
+        {...defaultProps}
+        sectionKey={'stock' as any}
+        sectionTitle="Stock details"
+        formData={{ stock: { current: { count: 100 }, allocated: '20' } } as any}
+      />
+    );
+
+    expect(screen.getByText('On hand stock :')).toBeInTheDocument();
+    expect(screen.getAllByText('0').length).toBeGreaterThan(0);
+    expect(screen.queryByText('[object Object]')).not.toBeInTheDocument();
   });
 
   it('renders Batch section with Add/Remove buttons', () => {

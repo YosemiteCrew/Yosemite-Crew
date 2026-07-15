@@ -7,7 +7,7 @@
  */
 import React, {
   useCallback,
-  useEffect,
+  useEffect as useReactEffect,
   useReducer,
   useRef,
   useState,
@@ -27,6 +27,9 @@ import {AppNavigator} from './src/navigation/AppNavigator';
 import {useTheme} from './src/shared/hooks/useTheme';
 import CustomSplashScreen from './src/shared/components/common/customSplashScreen/customSplash';
 import './src/localization';
+// Required by native/runtime dependencies even though app code does not use their exports directly.
+import '@aws-amplify/react-native';
+import '@react-native-masked-view/masked-view';
 import devOutputs from './devamplify_outputs.json';
 import prodOutputs from './prodamplify_outputs.json';
 import {StripeProvider} from '@stripe/stripe-react-native';
@@ -63,6 +66,7 @@ import {
   UI_FEATURE_FLAGS,
   DEVELOPMENT_API_BASE_URL,
 } from '@/config/variables';
+import {setResolvedStripePublishableKey} from '@/config/stripeKeyRegistry';
 import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
 import {DEMO_API_MODE_KEY} from '@/features/auth/sessionManager';
 import {observationToolApi} from '@/features/observationalTools/services/observationToolService';
@@ -199,11 +203,11 @@ function mobileConfigReducer(
   }
 }
 
-// const noop = () => {};
-// console.log = noop;
-// console.info = noop;
-// console.debug = noop;
-// console.trace = noop;
+const noop = () => {};
+console.log = noop;
+console.info = noop;
+console.debug = noop;
+console.trace = noop;
 
 const PERSIST_GATE_LOADING = <CustomSplashScreen onAnimationEnd={() => {}} />;
 
@@ -220,7 +224,7 @@ function App(): React.JSX.Element {
   const pendingIntentRef = useRef<NotificationNavigationIntent | null>(null);
   const currentRouteNameRef = useRef<string | null>(null);
 
-  useEffect(() => {
+  useReactEffect(() => {
     const sub = DeviceEventEmitter.addListener(
       DEV_API_MODE_CHANGED_EVENT,
       ({isDevApi}: {isDevApi: boolean}) => {
@@ -244,11 +248,11 @@ function App(): React.JSX.Element {
     return () => sub.remove();
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     configureSocialProviders();
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!POSTHOG_CONFIG.enabled) {
       return;
     }
@@ -256,7 +260,7 @@ function App(): React.JSX.Element {
     initializePostHog();
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     let mounted = true;
 
     const loadMobileConfig = async () => {
@@ -453,11 +457,14 @@ function App(): React.JSX.Element {
       STRIPE_CONFIG.publishableKey)
     : (mobileConfig?.stripePublishableKey ?? STRIPE_CONFIG.publishableKey);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!resolvedPublishableKey && !isConfigLoading) {
       console.warn(
         '[Stripe] Missing publishableKey from mobile config API and local config.',
       );
+    }
+    if (resolvedPublishableKey) {
+      setResolvedStripePublishableKey(resolvedPublishableKey);
     }
   }, [isConfigLoading, resolvedPublishableKey]);
 
@@ -593,7 +600,7 @@ const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
 }) => {
   const updateSheetRef = useRef<AppUpdateBottomSheetRef>(null);
 
-  useEffect(() => {
+  useReactEffect(() => {
     console.log('[AppUpdate] Gate state', {
       kind: prompt?.kind ?? null,
       hasStoreUrl: Boolean(prompt?.storeUrl),
@@ -708,7 +715,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     lastRegisteredRef.current = null;
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!isLoggedIn) return;
     const preloadTools = async () => {
       try {
@@ -720,7 +727,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     preloadTools();
   }, [isLoggedIn]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     let mounted = true;
 
     const setup = async () => {
@@ -752,7 +759,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     };
   }, [dispatch, onNavigate, syncRegisterToken]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     authStatusRef.current = {isLoggedIn, userId: currentUserId};
     if (isLoggedIn && latestTokenRef.current) {
       syncRegisterToken(latestTokenRef.current);

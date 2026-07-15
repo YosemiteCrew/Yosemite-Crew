@@ -6,11 +6,29 @@ export type InventoryCategorySeed = {
   subcategories: string[];
 };
 
-const slugify = (value: string) =>
-  value
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "");
+const slugify = (value: string) => {
+  const lower = value.toLowerCase().trim();
+  let slug = "";
+  let pendingDash = false;
+
+  for (const char of lower) {
+    const isAlphaNumeric =
+      (char >= "a" && char <= "z") || (char >= "0" && char <= "9");
+
+    if (isAlphaNumeric) {
+      if (pendingDash && slug.length > 0) {
+        slug += "-";
+      }
+      slug += char;
+      pendingDash = false;
+      continue;
+    }
+
+    pendingDash = true;
+  }
+
+  return slug;
+};
 
 const category = (
   name: string,
@@ -32,11 +50,15 @@ export const INVENTORY_CATEGORY_SEED: InventoryCategorySeed[] = [
       "Antibiotic",
       "NSAID",
       "Analgesic",
+      "Pain management",
       "Antifungal",
       "Antiviral",
+      "Anthelmintic",
       "Sedative",
       "Anesthetic",
       "Cardiac",
+      "Endocrine",
+      "Gastrointestinal",
       "Dermatology",
       "Ophthalmic",
       "Otic",
@@ -64,11 +86,14 @@ export const INVENTORY_CATEGORY_SEED: InventoryCategorySeed[] = [
       "Syringe",
       "Needle",
       "IV catheter",
+      "Cannula",
+      "Catheter",
       "Gloves",
       "Mask",
       "Gauze",
       "Cotton",
       "Bandage",
+      "Urine collection",
     ],
     false,
     30,
@@ -79,6 +104,7 @@ export const INVENTORY_CATEGORY_SEED: InventoryCategorySeed[] = [
       "Suture",
       "Scalpel blade",
       "Surgical drape",
+      "Sterilization pouch",
       "Surgical glove",
       "Surgical pack",
     ],
@@ -93,7 +119,15 @@ export const INVENTORY_CATEGORY_SEED: InventoryCategorySeed[] = [
   ),
   category(
     "Diagnostic kit",
-    ["Rapid test", "Lateral flow", "Point of care"],
+    [
+      "Rapid test",
+      "Blood test",
+      "Urine test",
+      "Fecal test",
+      "Culture test",
+      "Lateral flow",
+      "Point of care",
+    ],
     true,
     60,
   ),
@@ -105,13 +139,21 @@ export const INVENTORY_CATEGORY_SEED: InventoryCategorySeed[] = [
   ),
   category(
     "Food",
-    ["Prescription diet", "Maintenance diet", "Treat"],
+    ["Prescription diet", "Maintenance diet", "Treat", "Supplement food"],
     false,
     80,
   ),
   category(
     "Supplement",
-    ["Vitamin", "Mineral", "Probiotic", "Omega"],
+    [
+      "Vitamin",
+      "Probiotic",
+      "Mineral mix",
+      "Joint support",
+      "Skin & coat",
+      "Mineral",
+      "Omega",
+    ],
     false,
     90,
   ),
@@ -128,19 +170,43 @@ export const INVENTORY_CATEGORY_SEED: InventoryCategorySeed[] = [
   ),
   category(
     "Cleaning supply",
-    ["Disinfectant", "Detergent", "Surface cleaner", "Laundry cleaner"],
+    [
+      "Disinfectant",
+      "Surface cleaner",
+      "Disinfectant wipes",
+      "Sterilization supply",
+      "Detergent",
+      "Laundry cleaner",
+    ],
     false,
     110,
   ),
   category(
     "Imaging consumable",
-    ["Contrast media", "X-ray consumable", "Ultrasound consumable"],
+    [
+      "X-ray film",
+      "Ultrasound gel",
+      "Probe cover",
+      "Imaging marker",
+      "Contrast media",
+      "X-ray consumable",
+      "Ultrasound consumable",
+    ],
     false,
     120,
   ),
   category(
     "Wound care",
-    ["Dressing", "Bandage", "Gauze", "Topical cream"],
+    [
+      "Bandage roll",
+      "Dressing",
+      "Antiseptic",
+      "Wound spray",
+      "Tape",
+      "Bandage",
+      "Gauze",
+      "Topical cream",
+    ],
     false,
     130,
   ),

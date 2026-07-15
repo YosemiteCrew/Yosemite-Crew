@@ -41,6 +41,19 @@ jest.mock('@/app/features/inventory/components/AddInventory/InventoryConfig', ()
         {
           kind: 'single',
           field: {
+            name: 'expiryWarningBefore',
+            component: 'dropdown',
+            placeholder: 'Expiring warning before',
+            options: ['30 days', '60 days'],
+          },
+        },
+        {
+          kind: 'single',
+          field: { name: 'barcode', component: 'text', placeholder: 'Barcode' },
+        },
+        {
+          kind: 'single',
+          field: {
             name: 'tracking',
             component: 'dropdown',
             options: ['Track A', 'Track B'],
@@ -97,11 +110,18 @@ jest.mock('@/app/ui/inputs/Datepicker', () => ({
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
-  default: ({ onSelect, defaultOption }: any) => (
-    <button data-testid="dropdown" onClick={() => onSelect({ value: 'Track A', label: 'Track A' })}>
-      Selected: {defaultOption}
-    </button>
-  ),
+  default: ({ onSelect, defaultOption, placeholder }: any) => {
+    const selectedValue = placeholder === 'Expiring warning before' ? '60 days' : 'Track A';
+    return (
+      <button
+        data-testid="dropdown"
+        onClick={() => onSelect({ value: selectedValue, label: selectedValue })}
+      >
+        {placeholder}
+        Selected: {defaultOption}
+      </button>
+    );
+  },
 }));
 
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
@@ -120,6 +140,33 @@ jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
   default: ({ showModal, children }: any) =>
     showModal ? <div data-testid="modal">{children}</div> : null,
+}));
+
+jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
+  __esModule: true,
+  default: ({ showModal, children }: any) =>
+    showModal ? <div data-testid="center-modal">{children}</div> : null,
+}));
+
+jest.mock('@/app/ui/overlays/Modal/ModalHeader', () => ({
+  __esModule: true,
+  default: ({ title, onClose }: any) => (
+    <div>
+      <span>{title}</span>
+      <button data-testid="modal-header-close" onClick={onClose}>
+        Close Header
+      </button>
+    </div>
+  ),
+}));
+
+jest.mock('@/app/ui/primitives/Buttons/Delete', () => ({
+  __esModule: true,
+  default: ({ text, onClick, isDisabled }: any) => (
+    <button onClick={onClick} disabled={isDisabled} data-testid="delete-btn">
+      {text}
+    </button>
+  ),
 }));
 
 jest.mock('@/app/ui/widgets/Labels/Labels', () => ({
@@ -146,41 +193,34 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
 
 jest.mock('@/app/features/inventory/components/InfoSection', () => ({
   __esModule: true,
-  default: function MockInfoSection({
-    onRegisterActions,
-    onEditingChange,
-    onSaveSection,
-    sectionKey,
-  }: any) {
+  default: function MockInfoSection({ ref, onEditingChange, onSaveSection, sectionKey }: any) {
     const [editing, setEditing] = React.useState(false);
 
-    React.useEffect(() => {
-      onRegisterActions({
-        save: async () => {
-          let data = {};
-          if (sectionKey === 'basicInfo')
-            data = {
-              name: 'Updated Name',
-              category: 'Cat',
-              subCategory: 'Sub',
-            };
-          if (sectionKey === 'pricing') data = { purchaseCost: '10', selling: '20' };
-          if (sectionKey === 'stock') data = { current: '5', reorderLevel: '2' };
-          if (sectionKey === 'basicInfo_fail') data = { name: '' };
+    React.useImperativeHandle(ref, () => ({
+      save: async () => {
+        let data = {};
+        if (sectionKey === 'basicInfo')
+          data = {
+            name: 'Updated Name',
+            category: 'Cat',
+            subCategory: 'Sub',
+          };
+        if (sectionKey === 'pricing') data = { purchaseCost: '10', selling: '20' };
+        if (sectionKey === 'stock') data = { current: '5', reorderLevel: '2' };
+        if (sectionKey === 'basicInfo_fail') data = { name: '' };
 
-          await onSaveSection(sectionKey === 'basicInfo_fail' ? 'basicInfo' : sectionKey, data);
-        },
-        cancel: () => {
-          setEditing(false);
-          onEditingChange(false);
-        },
-        startEditing: () => {
-          setEditing(true);
-          onEditingChange(true);
-        },
-        isEditing: () => editing,
-      });
-    }, [editing, onRegisterActions, onSaveSection, sectionKey, onEditingChange]);
+        await onSaveSection(sectionKey === 'basicInfo_fail' ? 'basicInfo' : sectionKey, data);
+      },
+      cancel: () => {
+        setEditing(false);
+        onEditingChange(false);
+      },
+      startEditing: () => {
+        setEditing(true);
+        onEditingChange(true);
+      },
+      isEditing: () => editing,
+    }));
 
     return (
       <div data-testid="info-section">
@@ -205,6 +245,7 @@ describe('InventoryInfo Component', () => {
   const mockOnHide = jest.fn();
   const mockOnUnhide = jest.fn();
   const mockOnAddBatch = jest.fn();
+  const mockOnUpdateBatch = jest.fn();
 
   // Cast as any to avoid strict union type errors in test setup
   const activeInventory = {
@@ -221,7 +262,16 @@ describe('InventoryInfo Component', () => {
     pricing: { purchaseCost: '10', selling: '15' },
     vendor: {},
     stock: { current: '100', reorderLevel: '10' },
-    batch: { batch: 'B1', quantity: '100' },
+    attributes: {
+      expiryWarningBefore: '30 days',
+      barcode: 'OLD-BAR',
+    },
+    batch: {
+      batch: 'B1',
+      quantity: '100',
+      expiryWarningBefore: '30 days',
+      barcode: 'OLD-BAR',
+    },
     batches: [
       {
         _id: 'b1',
@@ -229,6 +279,8 @@ describe('InventoryInfo Component', () => {
         quantity: '100',
         manufactureDate: '2023-01-01',
         expiryDate: '2024-01-01',
+        expiryWarningBefore: '30 days',
+        barcode: 'OLD-BAR',
         tracking: 'Track A',
         litterId: 'L1, L2',
       },
@@ -244,6 +296,7 @@ describe('InventoryInfo Component', () => {
     onHide: mockOnHide,
     onUnhide: mockOnUnhide,
     onAddBatch: mockOnAddBatch,
+    onUpdateBatch: mockOnUpdateBatch,
   };
 
   beforeEach(() => {
@@ -356,6 +409,35 @@ describe('InventoryInfo Component', () => {
     });
   });
 
+  it('saves batch-section barcode and expiry warning per batch, without mirroring to item attributes', async () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    fireEvent.change(screen.getAllByTestId('input-barcode')[0], {
+      target: { value: 'NEW-BAR' },
+    });
+    fireEvent.click(screen.getAllByText(/Expiring warning before/i)[0]);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(mockOnUpdateBatch).toHaveBeenCalledWith(
+      'item-1',
+      expect.arrayContaining([
+        expect.objectContaining({
+          _id: 'b1',
+          expiryWarningBefore: '60 days',
+          barcode: 'NEW-BAR',
+        }),
+      ])
+    );
+    // These two fields are now stored per batch by the backend, so saving a
+    // batch no longer needs to mirror the value onto the item-level attributes.
+    expect(mockOnUpdate).not.toHaveBeenCalled();
+  });
+
   it('validates empty batch list on save', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -445,5 +527,134 @@ describe('InventoryInfo Component', () => {
   it('handles saving during update state (prevent double submit)', async () => {
     render(<InventoryInfo {...defaultProps} />);
     fireEvent.click(screen.getByTestId('simulate-edit-start'));
+  });
+
+  it('renders pricing summary values on the pricing tab', () => {
+    render(<InventoryInfo {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId('tab-pricing'));
+
+    expect(screen.getByText('USD 10')).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('USD 100')).toBeInTheDocument();
+    expect(screen.getByText('on-hand stock x unit cost')).toBeInTheDocument();
+  });
+
+  it('hides drug-only batch fields for non-drug inventory items', () => {
+    const nonDrugInventory = {
+      ...activeInventory,
+      classification: { itemType: 'non-drug' },
+    } as any;
+
+    render(<InventoryInfo {...defaultProps} activeInventory={nonDrugInventory} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    expect(screen.queryByText('Selected: Track A')).not.toBeInTheDocument();
+  });
+
+  it('calls both update and add batch handlers when both changed and new batches exist', async () => {
+    render(<InventoryInfo {...defaultProps} />);
+    fireEvent.click(screen.getByTestId('tab-batch'));
+    fireEvent.click(screen.getByTestId('accordion-edit-btn'));
+
+    fireEvent.change(screen.getAllByTestId('input-barcode')[0], {
+      target: { value: 'UPDATED-BAR' },
+    });
+    fireEvent.click(screen.getByText('Add another batch'));
+    fireEvent.change(screen.getAllByTestId('input-quantity')[2], {
+      target: { value: '25' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(mockOnUpdateBatch).toHaveBeenCalledWith(
+      'item-1',
+      expect.arrayContaining([expect.objectContaining({ _id: 'b1', barcode: 'UPDATED-BAR' })])
+    );
+    expect(mockOnAddBatch).toHaveBeenCalledWith(
+      'item-1',
+      expect.arrayContaining([expect.objectContaining({ quantity: '25' })])
+    );
+  });
+
+  it('does not render destructive action when editing is disabled', () => {
+    render(<InventoryInfo {...defaultProps} canEdit={false} />);
+
+    expect(screen.queryByTestId('primary-btn')).not.toBeInTheDocument();
+    expect(screen.getByTestId('secondary-btn')).toHaveTextContent('Close');
+  });
+
+  it('closes the modal from the top-right close icon', () => {
+    render(<InventoryInfo {...defaultProps} />);
+
+    fireEvent.click(screen.getByTestId('close-icon'));
+
+    expect(mockSetShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('opens and dismisses delete confirmation without hiding the item', async () => {
+    render(<InventoryInfo {...defaultProps} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(screen.getByTestId('center-modal')).toBeInTheDocument();
+    expect(screen.getByText('Delete inventory item?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Discard'));
+
+    expect(mockOnHide).not.toHaveBeenCalled();
+  });
+
+  it('closes delete confirmation from the modal header close control', async () => {
+    render(<InventoryInfo {...defaultProps} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    fireEvent.click(screen.getByTestId('modal-header-close'));
+
+    expect(screen.queryByTestId('center-modal')).not.toBeInTheDocument();
+  });
+
+  it('logs and recovers when hiding an item fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockOnHide.mockRejectedValueOnce(new Error('Hide failed'));
+
+    render(<InventoryInfo {...defaultProps} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('delete-btn'));
+    });
+
+    expect(mockSetShowModal).not.toHaveBeenCalledWith(false);
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to hide inventory item:', expect.any(Error));
+
+    consoleSpy.mockRestore();
+  });
+
+  it('logs and recovers when unhiding an item fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockOnUnhide.mockRejectedValueOnce(new Error('Unhide failed'));
+    const hiddenItem = { ...activeInventory, status: 'HIDDEN' };
+
+    render(<InventoryInfo {...defaultProps} activeInventory={hiddenItem} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to unhide inventory item:', expect.any(Error));
+
+    consoleSpy.mockRestore();
   });
 });

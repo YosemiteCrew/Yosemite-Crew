@@ -7,7 +7,7 @@ import {
 } from '@yosemite-crew/types';
 import { useInvoiceStore } from '@/app/stores/invoiceStore';
 import { useOrgStore } from '@/app/stores/orgStore';
-import { getData, patchData, postData } from '@/app/services/axios';
+import { deleteData, getData, patchData, postData } from '@/app/services/axios';
 import type {
   InvoiceLineItem as WorkspaceInvoiceLine,
   InvoiceStatus as WorkspaceInvoiceStatus,
@@ -79,6 +79,11 @@ type PaymentSessionResponse = {
   sessionId?: string;
   providerPaymentIntentId?: string;
   providerCheckoutSessionId?: string;
+};
+
+type InvoiceCheckoutSessionResponse = {
+  checkout?: PaymentSessionResponse | null;
+  emailSent?: boolean;
 };
 
 type InvoiceBackendArtifacts = {
@@ -174,6 +179,17 @@ const markAppointmentReadyForBillingViaAppointmentRoute = async (
   const res = await patchData<FinanceResponse>(
     `/fhir/v1/appointment/pms/${input.organisationId}/${appointmentId}/ready-for-billing`,
     input
+  );
+  return unwrapFinanceData(res.data);
+};
+
+const reverseAppointmentReadyForBillingViaAppointmentRoute = async (
+  appointmentId: string,
+  input: ReadyForBillingInput
+): Promise<unknown> => {
+  if (!input.organisationId) throw new Error('Organisation ID missing');
+  const res = await deleteData<FinanceResponse>(
+    `/fhir/v1/appointment/pms/${input.organisationId}/${appointmentId}/ready-for-billing`
   );
   return unwrapFinanceData(res.data);
 };
@@ -498,16 +514,17 @@ const shouldFetchInvoices = (
   return status === 'idle' || status === 'error';
 };
 
-const normalizeInvoiceLineKey = (
-  item: Pick<InvoiceItem, 'name' | 'quantity' | 'unitPrice' | 'total'>
-) =>
+// Dedupe key for "is this line already on the invoice". Intentionally keyed on
+// name + quantity only — NOT price. The same booked service can reach the invoice
+// through two pipelines (the treatment/catalog seed and the FE bill re-seed) whose
+// prices differ by a sub-cent rounding delta (e.g. 257.127 vs 257.13), and keying
+// on price let that rounded copy slip past the guard and append a duplicate line.
+const normalizeInvoiceLineKey = (item: Pick<InvoiceItem, 'name' | 'quantity'>) =>
   [
     String(item.name ?? '')
       .trim()
       .toLowerCase(),
     Number(item.quantity),
-    Number(item.unitPrice),
-    Number(item.total),
   ].join('|');
 
 const filterNewInvoiceLineItems = (invoice: Invoice, lineItems: InvoiceItem[]): InvoiceItem[] => {
@@ -578,6 +595,28 @@ export const getPaymentLink = async (invoiceId: string): Promise<string | undefi
     return url;
   } catch (err) {
     console.error('Failed to load specialities:', err);
+    throw err;
+  }
+};
+
+export const sendInvoiceToClient = async (
+  invoiceId: string
+): Promise<InvoiceCheckoutSessionResponse> => {
+  const primaryOrgId = useOrgStore.getState().primaryOrgId;
+  if (!primaryOrgId) {
+    console.warn('No primary organization selected. Cannot send invoice to client.');
+    return {};
+  }
+  try {
+    if (!invoiceId) {
+      throw new Error('Invoice ID missing');
+    }
+    const res = await postData<
+      FinanceEnvelope<InvoiceCheckoutSessionResponse> | InvoiceCheckoutSessionResponse
+    >(`/fhir/v1/invoice/${invoiceId}/checkout-session`);
+    return unwrapFinanceData(res.data);
+  } catch (err) {
+    console.error('Failed to send invoice to client:', err);
     throw err;
   }
 };
@@ -739,6 +778,25 @@ export const markAppointmentReadyForBilling = async (
       }
       throw retryError;
     }
+  }
+};
+
+export const reverseAppointmentReadyForBilling = async (
+  appointmentId: string,
+  input: ReadyForBillingInput
+): Promise<unknown> => {
+  if (!appointmentId) throw new Error('Appointment ID missing');
+  const endpoint = `${FINANCE_BASE_PATH}/appointments/${appointmentId}/ready-for-billing`;
+  try {
+    const res = await deleteData<FinanceResponse>(endpoint);
+    return unwrapFinanceData(res.data);
+  } catch (error) {
+    // The finance route isn't deployed on every backend fork — fall back to the
+    // appointment PMS route on a 404, mirroring the forward (mark) direction.
+    if (getErrorStatus(error) === 404) {
+      return reverseAppointmentReadyForBillingViaAppointmentRoute(appointmentId, input);
+    }
+    throw error;
   }
 };
 

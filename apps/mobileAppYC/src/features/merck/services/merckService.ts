@@ -236,6 +236,10 @@ const toMerckEntryFromRawAtom = (
 const asAllowedUrl = (value: string): string | null => {
   try {
     const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') {
+      return null;
+    }
+
     const host = parsed.hostname.toLowerCase();
     const isAllowed =
       ALLOWED_MERCK_HOSTS.has(host) ||
@@ -302,11 +306,13 @@ export const normalizeMerckSearchPayload = (
     Array.isArray(maybeNormalized?.entries) &&
     maybeNormalized?.meta != null
   ) {
-    const entries = maybeNormalized.entries
-      .filter((entry): entry is MerckEntry => Boolean(entry))
-      .map(entry => withMediaMode(entry, media))
-      .map(sanitizeEntry)
-      .filter((entry): entry is MerckEntry => entry !== null);
+    const entries = maybeNormalized.entries.flatMap(entry => {
+      if (!entry) {
+        return [];
+      }
+      const sanitized = sanitizeEntry(withMediaMode(entry, media));
+      return sanitized ? [sanitized] : [];
+    });
 
     return {
       meta: {
@@ -324,12 +330,14 @@ export const normalizeMerckSearchPayload = (
   const raw = payload as RawMerckPayload;
   const feed = raw.feed;
   const audience = inferAudienceFromFeedCategories(feed);
-  const entries = ensureArray(feed?.entry)
-    .map(entry => toMerckEntryFromRawAtom(entry, audience))
-    .filter((entry): entry is MerckEntry => entry !== null)
-    .map(entry => withMediaMode(entry, media))
-    .map(sanitizeEntry)
-    .filter((entry): entry is MerckEntry => entry !== null);
+  const entries = ensureArray(feed?.entry).flatMap(entry => {
+    const normalized = toMerckEntryFromRawAtom(entry, audience);
+    if (!normalized) {
+      return [];
+    }
+    const sanitized = sanitizeEntry(withMediaMode(normalized, media));
+    return sanitized ? [sanitized] : [];
+  });
 
   return {
     meta: {

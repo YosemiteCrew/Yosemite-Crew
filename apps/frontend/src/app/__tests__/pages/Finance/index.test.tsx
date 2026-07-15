@@ -102,6 +102,11 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 
 jest.mock('@/app/ui/filters/Filters', () => () => <div data-testid="filters" />);
 
+jest.mock('@/app/features/billing/components/StripeSettingsButton', () => ({
+  __esModule: true,
+  default: () => <a href="/stripe-onboarding?orgId=org-1">Settings</a>,
+}));
+
 jest.mock('@/app/ui/tables/InvoiceTable', () => (props: any) => {
   invoiceTableSpy(props);
   return <div data-testid="invoice-table" />;
@@ -132,6 +137,10 @@ describe('Finance page', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: /Finance/ })).toBeInTheDocument();
     expect(screen.getByTestId('invoice-table')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
+      'href',
+      '/stripe-onboarding?orgId=org-1'
+    );
     expect(invoiceTableSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         filteredList: [expect.objectContaining({ id: 'inv-1' })],

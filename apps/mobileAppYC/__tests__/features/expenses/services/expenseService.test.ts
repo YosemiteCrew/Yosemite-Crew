@@ -632,5 +632,166 @@ describe('expenseService', () => {
       // 'folder/sub/file.txt' split by '/' is ['folder', 'sub', 'file.txt'] -> last is 'file.txt'
       expect(result[0].attachments[1].name).toBe('file.txt');
     });
+
+    it('falls back to a generic attachment name when the key and name are both missing', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: [
+          {
+            attachments: [
+              // No id/key/fileKey/storageKey/attachmentKey/name/fileName at all.
+              {size: 10},
+            ],
+          },
+        ],
+      });
+
+      const result = await expenseApi.fetchExpenses({
+        companionId: 'c1',
+        accessToken: 't',
+      });
+
+      expect(result[0].attachments[0].name).toBe('attachment-1');
+    });
+
+    it('normalizes an "others" category to the plural slug', async () => {
+      const input: ExpenseInputPayload = {
+        companionId: 'c1',
+        category: 'others',
+        expenseName: 'Misc',
+        date: '2023-05-20',
+        amount: 5,
+        currency: 'USD',
+        attachments: [],
+      };
+      (apiClient.post as jest.Mock).mockResolvedValue({});
+
+      await expenseApi.createExternal({input, accessToken: 't'});
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/v1/expense/',
+        expect.objectContaining({category: 'others'}),
+        expect.anything(),
+      );
+    });
+
+    it('resolves an in-app source with no invoiceId to "inApp"', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: [{source: 'IN_APP'}],
+      });
+
+      const result = await expenseApi.fetchExpenses({
+        companionId: 'c1',
+        accessToken: 't',
+      });
+
+      expect(result[0].source).toBe('inApp');
+    });
+
+    it('falls back to the current time when the date cannot be parsed', async () => {
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: [{date: 'not-a-real-date'}],
+      });
+
+      const result = await expenseApi.fetchExpenses({
+        companionId: 'c1',
+        accessToken: 't',
+      });
+
+      expect(() => new Date(result[0].date).toISOString()).not.toThrow();
+      expect(Number.isNaN(new Date(result[0].date).getTime())).toBe(false);
+    });
+  });
+
+  describe('createFinancePaymentSession clientSecret fallback', () => {
+    it('fetches the payment intent separately when the session response has no clientSecret', async () => {
+      (apiClient.post as jest.Mock).mockResolvedValue({
+        data: {
+          data: {
+            providerPaymentIntentId: 'pi_needs_fetch',
+            amount: 300,
+          },
+        },
+      });
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: {data: {clientSecret: 'sec_from_fallback'}},
+      });
+
+      const res = await expenseApi.fetchPaymentIntentByInvoice({
+        invoiceId: 'inv-fallback',
+        accessToken: 't',
+      });
+
+      expect(apiClient.get).toHaveBeenCalledWith(
+        '/v1/finance/mobile/payment-intent/pi_needs_fetch',
+        expect.objectContaining({headers: {Authorization: 'Bearer t'}}),
+      );
+      expect(res.clientSecret).toBe('sec_from_fallback');
+    });
+
+    it('returns the session result unchanged when the fallback fetch has no clientSecret either', async () => {
+      (apiClient.post as jest.Mock).mockResolvedValue({
+        data: {
+          data: {
+            providerPaymentIntentId: 'pi_still_missing',
+            amount: 300,
+          },
+        },
+      });
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: {data: {}},
+      });
+
+      const res = await expenseApi.fetchPaymentIntentByInvoice({
+        invoiceId: 'inv-fallback-2',
+        accessToken: 't',
+      });
+
+      expect(res.clientSecret).toBe('');
+    });
+  });
+
+  describe('fetchPaymentIntent invoice resolution edge cases', () => {
+    it('returns the mapped payment intent directly when the invoice already has a clientSecret', async () => {
+      (mapInvoiceFromResponse as jest.Mock).mockReturnValueOnce({
+        invoice: {id: 'inv-has-secret'},
+        paymentIntent: {
+          paymentIntentId: 'pi_direct',
+          clientSecret: 'sec_direct',
+          amount: 400,
+          currency: 'USD',
+          paymentLinkUrl: null,
+          connectedAccountId: null,
+        },
+      });
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: {invoice: {id: 'inv-has-secret'}},
+      });
+
+      const res = await expenseApi.fetchPaymentIntent({
+        paymentIntentId: 'pi_lookup_direct',
+        accessToken: 't',
+      });
+
+      expect(res.clientSecret).toBe('sec_direct');
+      expect(apiClient.post).not.toHaveBeenCalled();
+    });
+
+    it('falls back to a mapped payment session when no invoice id can be resolved', async () => {
+      (mapInvoiceFromResponse as jest.Mock).mockReturnValueOnce({
+        invoice: null,
+        paymentIntent: null,
+      });
+      (apiClient.get as jest.Mock).mockResolvedValue({
+        data: {invoice: {}},
+      });
+
+      const res = await expenseApi.fetchPaymentIntent({
+        paymentIntentId: 'pi_no_invoice',
+        accessToken: 't',
+      });
+
+      expect(res.paymentIntentId).toBe('pi_no_invoice');
+      expect(apiClient.post).not.toHaveBeenCalled();
+    });
   });
 });

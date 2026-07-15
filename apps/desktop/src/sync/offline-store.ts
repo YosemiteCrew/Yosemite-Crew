@@ -180,11 +180,13 @@ export const createOfflineStore = async (deps: StoreDeps = {}): Promise<OfflineS
 
   const getDirtyRows = (table: string): Record<string, unknown>[] => {
     if (!registered.has(table)) throw new Error(`Table ${quoteIdent(table)} not registered`);
+    if (!/^[a-zA-Z0-9_]+$/.test(table)) throw new Error('Invalid input');
     return queryAll(`SELECT * FROM ${quoteIdent(table)} ${dirtyFilter}`);
   };
 
   const getDirtyCount = (table: string): number => {
     if (!registered.has(table)) throw new Error(`Table ${quoteIdent(table)} not registered`);
+    if (!/^[a-zA-Z0-9_]+$/.test(table)) throw new Error('Invalid input');
     const row = queryOne(`SELECT COUNT(*) as cnt FROM ${quoteIdent(table)} ${dirtyFilter}`);
     return (row?.cnt as number) || 0;
   };

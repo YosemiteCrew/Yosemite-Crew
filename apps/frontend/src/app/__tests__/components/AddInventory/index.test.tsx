@@ -100,6 +100,10 @@ jest.mock('@/app/features/inventory/components/AddInventory/FormSection', () => 
         data-testid="in-controlled"
         onChange={(e) => onFieldChange('classification', 'controlledSubstance', e.target.value)}
       />
+      <input
+        data-testid="in-administration"
+        onChange={(e) => onFieldChange('classification', 'administration', e.target.value)}
+      />
 
       {/* Batch Actions */}
       <button data-testid="add-batch" onClick={onAddBatch}>
@@ -195,21 +199,21 @@ describe('AddInventory Component', () => {
       target: { value: 'Item 1 generic' },
     });
     fireEvent.click(screen.getByTestId('save-btn')); // Next
+    expect(screen.getByTestId('active-label')).toHaveTextContent('batch');
+
+    // 3. Batch
+    fireEvent.change(screen.getByTestId('in-batch-0'), {
+      target: { value: 'B1' },
+    });
+    fireEvent.click(screen.getByTestId('save-btn')); // Next
     expect(screen.getByTestId('active-label')).toHaveTextContent('stock');
 
-    // 3. Stock
+    // 4. Stock
     fireEvent.change(screen.getByTestId('in-curr'), {
       target: { value: '100' },
     });
     fireEvent.change(screen.getByTestId('in-reorder'), {
       target: { value: '10' },
-    });
-    fireEvent.click(screen.getByTestId('save-btn')); // Next
-    expect(screen.getByTestId('active-label')).toHaveTextContent('batch');
-
-    // 4. Batch
-    fireEvent.change(screen.getByTestId('in-batch-0'), {
-      target: { value: 'B1' },
     });
     fireEvent.click(screen.getByTestId('save-btn')); // Next
     expect(screen.getByTestId('active-label')).toHaveTextContent('pricing');
@@ -234,7 +238,7 @@ describe('AddInventory Component', () => {
     expect(mockSetShowModal).toHaveBeenCalledWith(false);
   });
 
-  it('requires generic name for hospital medical items before leaving Clinical Details', async () => {
+  it('requires clinical details for hospital medical items before leaving Clinical Details', async () => {
     render(<AddInventory {...props} businessType={'HOSPITAL' as BusinessType} />);
 
     fireEvent.change(screen.getByTestId('in-name'), {
@@ -250,15 +254,26 @@ describe('AddInventory Component', () => {
 
     expect(screen.getByTestId('active-label')).toHaveTextContent('classification');
 
+    // Attempt to advance without any clinical details — should stay blocked
     fireEvent.click(screen.getByTestId('save-btn'));
     expect(screen.getByTestId('active-label')).toHaveTextContent('classification');
 
+    // Fill all backend-required clinical fields
     fireEvent.change(screen.getByTestId('in-generic-name'), {
       target: { value: 'Amoxicillin' },
     });
+    fireEvent.change(screen.getByTestId('in-strength'), {
+      target: { value: '250mg' },
+    });
+    fireEvent.change(screen.getByTestId('in-form'), {
+      target: { value: 'Tablet' },
+    });
+    fireEvent.change(screen.getByTestId('in-administration'), {
+      target: { value: 'Oral' },
+    });
     fireEvent.click(screen.getByTestId('save-btn'));
 
-    expect(screen.getByTestId('active-label')).toHaveTextContent('stock');
+    expect(screen.getByTestId('active-label')).toHaveTextContent('batch');
   });
 
   it('clears drug-only clinical fields when Non-drug is selected', async () => {

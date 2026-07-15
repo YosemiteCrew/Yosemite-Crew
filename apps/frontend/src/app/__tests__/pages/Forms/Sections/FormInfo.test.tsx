@@ -62,7 +62,12 @@ jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
 
 jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
-  default: ({ title }: any) => <div>{title}</div>,
+  default: ({ title, children }: any) => (
+    <div>
+      <div>{title}</div>
+      {children}
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
@@ -218,5 +223,68 @@ describe('FormInfo', () => {
     });
     expect(publishFormMock).not.toHaveBeenCalled();
     expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('renders task templates with the task summary instead of the generic form preview', () => {
+    render(
+      <FormInfo
+        showModal
+        setShowModal={jest.fn()}
+        activeForm={
+          {
+            _id: 'tpl-task',
+            name: 'Task template',
+            category: 'Task Template',
+            status: 'Draft',
+            schema: [
+              {
+                id: 'task_blocks',
+                type: 'group',
+                meta: { taskGroup: true },
+                fields: [
+                  {
+                    id: 'task-1',
+                    type: 'group',
+                    label: 'Record vitals',
+                    fields: [
+                      {
+                        id: 'task-1_name',
+                        type: 'input',
+                        label: 'Task title',
+                        defaultValue: 'Record vitals',
+                        meta: { taskBlockKey: 'name' },
+                      },
+                      {
+                        id: 'task-1_category',
+                        type: 'dropdown',
+                        label: 'Category',
+                        defaultValue: 'CARE',
+                        meta: { taskBlockKey: 'category' },
+                        options: [{ label: 'Care', value: 'CARE' }],
+                      },
+                      {
+                        id: 'task-1_instructions',
+                        type: 'textarea',
+                        label: 'Instructions (optional)',
+                        defaultValue: 'Watch appetite and hydration',
+                        meta: { taskBlockKey: 'additionalNotes' },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          } as any
+        }
+        onEdit={jest.fn()}
+        serviceOptions={[]}
+      />
+    );
+
+    expect(screen.getByText('Tasks')).toBeInTheDocument();
+    expect(screen.queryByText('Form preview')).not.toBeInTheDocument();
+    expect(screen.getByText('Record vitals')).toBeInTheDocument();
+    expect(screen.getByText(/Care ·/)).toBeInTheDocument();
+    expect(screen.getByText('Watch appetite and hydration')).toBeInTheDocument();
   });
 });

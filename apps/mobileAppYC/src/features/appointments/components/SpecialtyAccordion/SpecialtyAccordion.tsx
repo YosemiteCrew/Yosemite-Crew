@@ -1,13 +1,12 @@
 import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Animated,
-  Platform,
-} from 'react-native';
+import {View, Text, StyleSheet, Image, Platform} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
@@ -15,7 +14,10 @@ import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/Liquid
 import {resolveCurrencySymbol} from '@/shared/utils/currency';
 import type {VetPackage} from '@/features/appointments/types';
 import {PackageItem} from '@/features/appointments/components/PackageAccordion/PackageAccordion';
-import {createAccordionSectionStyles} from '@/features/appointments/components/accordionSectionStyles';
+import {
+  createAccordionSectionStyles,
+  KIND_LABELS,
+} from '@/features/appointments/components/accordionSectionStyles';
 
 interface Service {
   id: string;
@@ -24,6 +26,7 @@ interface Service {
   basePrice?: number;
   currency?: string;
   icon?: any;
+  appointmentKinds?: string[];
 }
 
 interface SpecialtyGroup {
@@ -38,7 +41,11 @@ interface SpecialtyAccordionProps {
   icon?: any;
   specialties: SpecialtyGroup[];
   onSelectService: (serviceId: string, specialtyName: string) => void;
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 // ─── Specialty Item ───────────────────────────────────────────────────────────
@@ -47,7 +54,11 @@ interface SpecialtyItemProps {
   specialty: SpecialtyGroup;
   defaultExpanded?: boolean;
   onSelectService: (serviceId: string, specialtyName: string) => void;
-  onSelectPackage: (packageId: string, packageName: string) => void;
+  onSelectPackage: (
+    packageId: string,
+    packageName: string,
+    specialtyName?: string,
+  ) => void;
 }
 
 const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
@@ -59,26 +70,25 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [animation] = useState(new Animated.Value(defaultExpanded ? 1 : 0));
+  const animation = useSharedValue(defaultExpanded ? 1 : 0);
 
   const toggleExpanded = () => {
     const toValue = expanded ? 0 : 1;
-    Animated.timing(animation, {
-      toValue,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
+    animation.value = withTiming(toValue, {duration: 300});
     setExpanded(!expanded);
   };
 
-  const rotateInterpolate = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
+  const chevronAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotate: `${interpolate(animation.value, [0, 1], [0, 180])}deg`,
+      },
+    ],
+  }));
 
   return (
     <View style={styles.specialtyItem}>
-      <TouchableOpacity
+      <PressableOpacity
         style={styles.specialtyHeader}
         onPress={toggleExpanded}
         activeOpacity={0.7}>
@@ -90,12 +100,9 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
         </View>
         <Animated.Image
           source={Images.downArrow}
-          style={[
-            styles.chevronIcon,
-            {transform: [{rotate: rotateInterpolate}]},
-          ]}
+          style={[styles.chevronIcon, chevronAnimatedStyle]}
         />
-      </TouchableOpacity>
+      </PressableOpacity>
 
       {expanded && (
         <View style={styles.servicesList}>
@@ -115,14 +122,26 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
                   {service.name}
                 </Text>
                 {service.basePrice ? (
-                  <View style={styles.priceChip}>
-                    <Text style={styles.priceChipText}>
+                  <View style={styles.chipContainer}>
+                    <Text style={styles.chipText}>
                       {resolveCurrencySymbol(service?.currency ?? 'USD')}
                       {service.basePrice}
                     </Text>
                   </View>
                 ) : null}
               </View>
+              {service.appointmentKinds &&
+              service.appointmentKinds.length > 0 ? (
+                <View style={styles.kindBadgeRow}>
+                  {service.appointmentKinds.map(kind => (
+                    <View key={kind} style={styles.kindBadge}>
+                      <Text style={styles.kindBadgeText}>
+                        {KIND_LABELS[kind] ?? kind}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
               {service.description ? (
                 <Text style={styles.serviceDescription}>
                   {service.description}
@@ -150,6 +169,7 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
                     key={pkg.id}
                     pkg={pkg}
                     compact
+                    specialtyName={specialty.name}
                     onSelectPackage={onSelectPackage}
                   />
                 ))}
@@ -276,27 +296,6 @@ const createStyles = (theme: any) =>
       marginTop: theme.spacing['1'],
       marginBottom: theme.spacing['3'],
     },
-    priceChip: {
-      paddingHorizontal: theme.spacing['2'],
-      paddingVertical: theme.spacing['1'],
-      borderRadius: theme.borderRadius.full,
-      backgroundColor: theme.colors.primaryTint,
-    },
-    priceChipText: {
-      ...theme.typography.subtitleBold12,
-      color: theme.colors.primary,
-    },
-    selectButton: {
-      width: '100%',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: theme.borderRadius.lg,
-    },
-    selectButtonText: {
-      ...theme.typography.titleSmall,
-      color: theme.colors.white,
-    },
-
     // ── Package section inside specialty ──
     packagesSectionWrapper: {
       gap: theme.spacing['2'],

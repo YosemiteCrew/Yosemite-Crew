@@ -177,6 +177,87 @@ pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>"
 
 ---
 
+## App Store Submission
+
+Full reference: [`docs/guide/mobile-app-submission-guide.md`](../../../docs/guide/mobile-app-submission-guide.md)
+
+### Pre-Submission Checklist
+
+Before every submission run these checks — **do not bump versions mid-review**:
+
+1. **Production config** — `src/config/variables.local.ts`:
+   - `USE_DEV_API = false`
+   - `UI_FEATURE_FLAGS.forceLiquidGlassBorder = false`
+   - `MOBILE_CONFIG_BEHAVIOR.overrides.forceLiquidGlassBorder = false`
+
+2. **Silence console output** — `App.tsx` lines 203–207 must be uncommented:
+
+   ```ts
+   const noop = () => {};
+   console.log = noop;
+   console.info = noop;
+   console.debug = noop;
+   console.trace = noop;
+   ```
+
+3. **Version bumps** (only for a new submission or after rejection):
+
+   | Platform | File                              | Field                     | Current    |
+   | -------- | --------------------------------- | ------------------------- | ---------- |
+   | Android  | `android/app/build.gradle`        | `versionCode`             | 12         |
+   | Android  | `android/app/build.gradle`        | `versionName`             | `"1.0.10"` |
+   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `MARKETING_VERSION`       | `1.0.4`    |
+   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `CURRENT_PROJECT_VERSION` | `8`        |
+
+### Android Build
+
+```bash
+# From apps/mobileAppYC/android/ — clean first
+rm -rf app/build build .cxx .gradle && ./gradlew clean
+
+# APK (testing/sideload)
+./gradlew assembleRelease
+# Output: android/app/build/outputs/apk/release/app-release.apk
+
+# AAB (Play Store)
+./gradlew bundleRelease
+# Output: android/app/build/outputs/bundle/release/app-release.aab
+```
+
+Keystore `my-release-key.keystore` must be at `android/app/` and `android/gradle.properties` must have `YC_RELEASE_STORE_FILE`, `YC_RELEASE_STORE_PASSWORD`, `YC_RELEASE_KEY_ALIAS`, `YC_RELEASE_KEY_PASSWORD`.
+
+### iOS Build
+
+```bash
+# From apps/mobileAppYC/ios/ — clean first
+rm -rf Pods build Podfile.lock ~/Library/Developer/Xcode/DerivedData/*
+pod deintegrate && pod install
+```
+
+Archive in Xcode:
+
+1. Open `ios/mobileAppYC.xcworkspace` (**not** `.xcodeproj`).
+2. Select a physical device or "Any iOS Device (arm64)" — **not** a Simulator.
+3. **Product → Clean Build Folder** (`⇧⌘K`) → **Product → Archive**.
+4. In Organizer: **Distribute App** → upload to both **Preflight** and **App Store Connect**.
+
+### Post-Approval
+
+After both stores go live, update `README.md`:
+
+- **Current production releases** table with new versions.
+- **Release history** table — add a row per platform with version + feature summary.
+
+### Common Pitfalls
+
+- Opening `.xcodeproj` instead of `.xcworkspace` — Pods will not be linked.
+- Forgetting `pod install` after cleaning — build fails with missing headers.
+- `USE_DEV_API = true` left on — app hits dev backend in production.
+- Wrong keystore signing AAB — Play Store upload rejected.
+- Bumping version mid-review — Apple treats it as a new binary and restarts review.
+
+---
+
 ## Gotchas
 
 - `react-native-permissions` requires explicit permission requests before accessing camera, location, contacts — never assume granted.

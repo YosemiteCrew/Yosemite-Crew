@@ -1,7 +1,18 @@
 import React from 'react';
-import {render, fireEvent, screen, act} from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  screen,
+  act,
+  waitFor,
+} from '@testing-library/react-native';
 import ContactUsScreen from '../../../../src/features/support/screens/ContactUsScreen';
 import {mockTheme} from '../../../setup/mockTheme';
+import {Alert} from 'react-native';
+import {
+  contactService,
+  uploadContactAttachments,
+} from '@/features/support/services/contactService';
 
 // --- 1. Setup & Global Mocks ---
 
@@ -21,6 +32,14 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('react-redux', () => ({
   useDispatch: () => mockDispatch,
   useSelector: (selector: any) => mockUseSelector(selector),
+}));
+
+jest.mock('@/features/support/services/contactService', () => ({
+  CONTACT_SOURCE: 'MOBILE_APP',
+  contactService: {
+    submitContact: jest.fn(),
+  },
+  uploadContactAttachments: jest.fn(),
 }));
 
 jest.mock('@/assets/images', () => ({
@@ -197,7 +216,6 @@ jest.mock(
   () => ({
     __esModule: true,
     default: (function () {
-
       // FIX: Use ReactMock to avoid shadowing
       const ReactMock = require('react');
       const {View, Text, TouchableOpacity} = require('react-native');
@@ -231,7 +249,6 @@ jest.mock(
   '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet',
   () => ({
     UploadDocumentBottomSheet: (function () {
-
       // FIX: Use ReactMock to avoid shadowing
       const ReactMock = require('react');
       const {View, TouchableOpacity, Text} = require('react-native');
@@ -341,6 +358,35 @@ describe('ContactUsScreen', () => {
     capturedSetFiles = undefined;
     capturedClearError = undefined;
     capturedCloseSheet = undefined;
+    const hooksModule = require('@/hooks');
+    hooksModule.useFileOperations.mockImplementation((config: any) => {
+      if (config) {
+        capturedSetFiles = config.setFiles;
+        capturedClearError = config.clearError;
+        capturedCloseSheet = config.closeSheet;
+      }
+
+      return {
+        fileToDelete: null,
+        handleTakePhoto: mockHandleTakePhoto,
+        handleChooseFromGallery: mockHandleChooseFromGallery,
+        handleUploadFromDrive: mockHandleUploadFromDrive,
+        handleRemoveFile: (fileId: string) => {
+          mockHandleRemoveFile(fileId);
+          config?.openSheet?.('delete');
+          config?.deleteSheetRef?.current?.open?.();
+        },
+        confirmDeleteFile: () => {
+          mockConfirmDeleteFile();
+          config?.closeSheet?.();
+        },
+      };
+    });
+    (contactService.submitContact as jest.Mock).mockResolvedValue({});
+    (uploadContactAttachments as jest.Mock).mockResolvedValue({
+      attachments: [{key: 'uploaded-key', fileName: 'test.jpg'}],
+      uploaded: [{id: '1', name: 'test.jpg', key: 'uploaded-key'}],
+    });
 
     mockUseSelector.mockImplementation((selector: any) => selector(mockState));
   });
@@ -349,7 +395,7 @@ describe('ContactUsScreen', () => {
     globalThis.URL = originalURL;
   });
 
-  it('renders General tab and handles simple validation errors and clearing', () => {
+  it('renders General tab and handles simple validation errors, clearing, and submit', async () => {
     render(
       <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
     );
@@ -369,9 +415,42 @@ describe('ContactUsScreen', () => {
     expect(screen.queryByText('Message is required')).toBeNull();
 
     fireEvent.press(screen.getByTestId('btn-Submit'));
+
+    await waitFor(() => {
+      expect(contactService.submitContact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'GENERAL_ENQUIRY',
+          subject: 'Test Subject',
+          message: 'Test Message',
+          companionId: 'comp-1',
+        }),
+      );
+    });
   });
 
-  it('Feature Tab: validates and submits', () => {
+  it('General tab shows submit errors from the service', async () => {
+    jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    (contactService.submitContact as jest.Mock).mockRejectedValueOnce(
+      new Error('Network down'),
+    );
+
+    render(
+      <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
+    );
+
+    fireEvent.changeText(screen.getByTestId('input-Subject'), 'Subject');
+    fireEvent.changeText(screen.getByTestId('input-Your message'), 'Message');
+    fireEvent.press(screen.getByTestId('btn-Submit'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Unable to submit',
+        'Network down',
+      );
+    });
+  });
+
+  it('Feature Tab: validates and submits', async () => {
     render(
       <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
     );
@@ -390,9 +469,19 @@ describe('ContactUsScreen', () => {
 
     fireEvent.press(screen.getByTestId('btn-Send'));
     expect(screen.queryByText('Subject is required')).toBeNull();
+
+    await waitFor(() => {
+      expect(contactService.submitContact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'FEATURE_REQUEST',
+          subject: 'Feature 1',
+          message: 'Details',
+        }),
+      );
+    });
   });
 
-  it('DSAR Form: Full validation flow, conditional fields, and error clearing', () => {
+  it('DSAR Form: Full validation flow, conditional fields, and error clearing', async () => {
     render(
       <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
     );
@@ -454,6 +543,49 @@ describe('ContactUsScreen', () => {
 
     fireEvent.press(screen.getByTestId('checkbox-I confirm'));
     fireEvent.press(screen.getByTestId('btn-Submit'));
+
+    await waitFor(() => {
+      expect(contactService.submitContact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'DSAR',
+          subject: 'Data subject request: Other Request',
+          message: expect.stringContaining('Regulation: Custom Law'),
+          dsarDetails: expect.objectContaining({
+            requesterType: 'OWNER',
+            lawBasis: 'OTHER',
+            rightsRequested: ['OTHER'],
+            otherLawNotes: 'Custom Law',
+            otherRequestNotes: 'My Details',
+          }),
+        }),
+      );
+    });
+  });
+
+  it('DSAR Form: shows service failures', async () => {
+    jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    (contactService.submitContact as jest.Mock).mockRejectedValueOnce(
+      new Error('DSAR failed'),
+    );
+
+    render(
+      <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
+    );
+    fireEvent.press(screen.getByTestId('pill-data-subject'));
+    fireEvent.press(screen.getByText('Owner'));
+    fireEvent.press(screen.getByTestId('touchable-Regulation'));
+    fireEvent.press(screen.getByTestId('select-gdpr'));
+    fireEvent.press(screen.getByText('Access'));
+    fireEvent.changeText(screen.getByTestId('input-Your message'), 'My Data');
+    fireEvent.press(screen.getByTestId('checkbox-I confirm'));
+    fireEvent.press(screen.getByTestId('btn-Submit'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Unable to submit',
+        'DSAR failed',
+      );
+    });
   });
 
   it('DSAR Form: Switching from Other to Standard clears conditional fields', () => {
@@ -464,23 +596,36 @@ describe('ContactUsScreen', () => {
 
     fireEvent.press(screen.getByTestId('touchable-Regulation'));
     fireEvent.press(screen.getByTestId('select-other-law'));
-    fireEvent.changeText(screen.getByTestId('input-Please specify'), 'Notes');
+    fireEvent.changeText(screen.getByTestId('input-Please specify'), 'Draft');
+    expect(screen.queryByText('Please specify the regulation.')).toBeNull();
+    fireEvent.press(screen.getByTestId('btn-Submit'));
+    expect(screen.queryByText('Please specify the regulation.')).toBeNull();
+
+    fireEvent.changeText(screen.getByTestId('input-Please specify'), '');
+    fireEvent.press(screen.getByTestId('btn-Submit'));
+    expect(screen.getByText('Please specify the regulation.')).toBeTruthy();
 
     fireEvent.press(screen.getByTestId('touchable-Regulation'));
     fireEvent.press(screen.getByTestId('select-gdpr'));
     expect(screen.queryByTestId('input-Please specify')).toBeNull();
+    expect(screen.queryByText('Please specify the regulation.')).toBeNull();
 
     fireEvent.press(screen.getByText('Other Request'));
     fireEvent.changeText(
       screen.getByTestId('input-Additional details'),
-      'Notes',
+      'Draft',
     );
+    expect(screen.queryByText('Please add additional details.')).toBeNull();
+    fireEvent.changeText(screen.getByTestId('input-Additional details'), '');
+    fireEvent.press(screen.getByTestId('btn-Submit'));
+    expect(screen.getByText('Please add additional details.')).toBeTruthy();
 
     fireEvent.press(screen.getByText('Access'));
     expect(screen.queryByTestId('input-Additional details')).toBeNull();
+    expect(screen.queryByText('Please add additional details.')).toBeNull();
   });
 
-  it('Complaint Form: Validation, URL logic, and Error Clearing', () => {
+  it('Complaint Form: Validation, URL logic, Error Clearing, and submit', async () => {
     globalThis.URL = class extends URL {
       static canParse(url: string) {
         return url.includes('http');
@@ -518,6 +663,12 @@ describe('ContactUsScreen', () => {
 
     fireEvent.changeText(
       screen.getByTestId('input-Reference link'),
+      'still-invalid',
+    );
+    expect(screen.getByText('Please enter a valid link.')).toBeTruthy();
+
+    fireEvent.changeText(
+      screen.getByTestId('input-Reference link'),
       'http://valid.com',
     );
     expect(screen.queryByText('Please enter a valid link.')).toBeNull();
@@ -529,6 +680,112 @@ describe('ContactUsScreen', () => {
     expect(screen.getByText('Please confirm all statements.')).toBeTruthy();
     fireEvent.press(screen.getByTestId('checkbox-I confirm'));
     expect(screen.queryByText('Please confirm all statements.')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('btn-Submit'));
+
+    await waitFor(() => {
+      expect(contactService.submitContact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'COMPLAINT',
+          subject: 'Complaint',
+          message: expect.stringContaining('Complaint text'),
+        }),
+      );
+    });
+  });
+
+  it('Complaint Form: blocks attachment submission without a selected companion', async () => {
+    jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    mockUseSelector.mockImplementation((selector: any) =>
+      selector({
+        ...mockState,
+        companion: {
+          companions: [],
+          selectedCompanionId: null,
+        },
+      }),
+    );
+
+    render(
+      <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
+    );
+    fireEvent.press(screen.getByTestId('pill-complaint'));
+    fireEvent.press(screen.getByText('Owner'));
+    fireEvent.changeText(screen.getByTestId('input-Your message'), 'Details');
+    fireEvent.press(screen.getByTestId('checkbox-I confirm'));
+    act(() => {
+      capturedSetFiles?.([{id: '1', name: 'test.jpg'}]);
+    });
+    fireEvent.press(screen.getByTestId('btn-Submit'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Add a pet profile',
+        'Please add a pet profile before uploading complaint images.',
+      );
+    });
+    expect(contactService.submitContact).not.toHaveBeenCalled();
+  });
+
+  it('Complaint Form: uploads attachments before successful submission', async () => {
+    render(
+      <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
+    );
+    fireEvent.press(screen.getByTestId('pill-complaint'));
+    fireEvent.press(screen.getByText('Owner'));
+    fireEvent.changeText(screen.getByTestId('input-Your message'), 'Details');
+    fireEvent.changeText(
+      screen.getByTestId('input-Reference link'),
+      'https://example.com',
+    );
+    fireEvent.press(screen.getByTestId('checkbox-I confirm'));
+    act(() => {
+      capturedSetFiles?.([{id: '1', name: 'test.jpg', uri: 'file://test'}]);
+    });
+
+    fireEvent.press(screen.getByTestId('btn-Submit'));
+
+    await waitFor(() => {
+      expect(uploadContactAttachments).toHaveBeenCalledWith(
+        expect.objectContaining({
+          files: [expect.objectContaining({id: '1'})],
+          companionId: 'comp-1',
+        }),
+      );
+      expect(contactService.submitContact).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'COMPLAINT',
+          attachments: [{key: 'uploaded-key', fileName: 'test.jpg'}],
+        }),
+      );
+    });
+  });
+
+  it('Complaint Form: surfaces upload submit failures', async () => {
+    jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    (uploadContactAttachments as jest.Mock).mockRejectedValueOnce(
+      new Error('Upload failed'),
+    );
+
+    render(
+      <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
+    );
+    fireEvent.press(screen.getByTestId('pill-complaint'));
+    fireEvent.press(screen.getByText('Owner'));
+    fireEvent.changeText(screen.getByTestId('input-Your message'), 'Details');
+    fireEvent.press(screen.getByTestId('checkbox-I confirm'));
+    act(() => {
+      capturedSetFiles?.([{id: '1', name: 'test.jpg', uri: 'file://test'}]);
+    });
+    fireEvent.press(screen.getByTestId('btn-Submit'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Unable to submit',
+        'Upload failed',
+      );
+      expect(screen.getByText('Upload failed')).toBeTruthy();
+    });
   });
 
   it('Complaint Form: URL Validation with legacy try/catch fallback', () => {
@@ -575,6 +832,8 @@ describe('ContactUsScreen', () => {
       capturedSetFiles?.([{id: '1', name: 'test.jpg'}]);
     });
     expect(screen.getByText('Remove test.jpg')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('force-remove'));
+    expect(mockHandleRemoveFile).toHaveBeenCalledWith('test-id');
 
     act(() => {
       capturedClearError?.();
@@ -646,6 +905,32 @@ describe('ContactUsScreen', () => {
       capturedCloseSheet?.();
     });
     expect(mockDeleteSheetClose).toHaveBeenCalled();
+  });
+
+  it('Delete sheet resolves a pending file title when fileToDelete is set', () => {
+    const hooksModule = require('@/hooks');
+    const spy = jest
+      .spyOn(hooksModule, 'useFileOperations')
+      .mockImplementation((config: any) => {
+        capturedSetFiles = config.setFiles;
+        return {
+          fileToDelete: '1',
+          handleTakePhoto: jest.fn(),
+          handleChooseFromGallery: jest.fn(),
+          handleUploadFromDrive: jest.fn(),
+          handleRemoveFile: jest.fn(),
+          confirmDeleteFile: jest.fn(),
+        };
+      });
+
+    render(
+      <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
+    );
+    act(() => {
+      capturedSetFiles?.([{id: '1', name: 'test.jpg'}]);
+    });
+
+    spy.mockRestore();
   });
 
   it('Navigation: Back button', () => {

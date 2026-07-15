@@ -16,14 +16,13 @@ import {
 import {CompanionSelector} from '@/shared/components/common/CompanionSelector/CompanionSelector';
 import {CategoryBottomSheet} from '@/shared/components/common/CategoryBottomSheet/CategoryBottomSheet';
 import {SubcategoryBottomSheet} from '@/shared/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet';
+import {EXPENSE_SUBCATEGORIES} from '@/shared/components/common/SubcategoryBottomSheet/subcategoryData';
 import {VisitTypeBottomSheet} from '@/shared/components/common/VisitTypeBottomSheet/VisitTypeBottomSheet';
 import {TouchableInput} from '@/shared/components/common/TouchableInput/TouchableInput';
 import {Input} from '@/shared/components/common';
 import LiquidGlassButton from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {UploadDocumentBottomSheet} from '@/shared/components/common/UploadDocumentBottomSheet/UploadDocumentBottomSheet';
 import {DeleteDocumentBottomSheet} from '@/shared/components/common/DeleteDocumentBottomSheet/DeleteDocumentBottomSheet';
 import {DocumentAttachmentsSection} from '@/features/documents/components/DocumentAttachmentsSection';
@@ -63,7 +62,10 @@ export interface ExpenseFormProps {
   selectedCompanionId: string | null;
   onCompanionSelect: (id: string | null) => void;
   formData: ExpenseFormData;
-  onFormChange: <K extends keyof ExpenseFormData>(field: K, value: ExpenseFormData[K]) => void;
+  onFormChange: <K extends keyof ExpenseFormData>(
+    field: K,
+    value: ExpenseFormData[K],
+  ) => void;
   errors: ExpenseFormErrors;
   onErrorClear: (field: keyof ExpenseFormErrors) => void;
   loading: boolean;
@@ -176,7 +178,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               resolvedOpenSheet('category');
               categorySheetRef.current?.open();
             }}
-            rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+            rightComponent={
+              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            }
             error={errors.category}
           />
         </View>
@@ -192,7 +196,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                 subcategorySheetRef.current?.open();
               }
             }}
-            rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+            rightComponent={
+              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            }
             error={errors.subcategory}
             disabled={!formData.category}
           />
@@ -207,7 +213,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               resolvedOpenSheet('visitType');
               visitTypeSheetRef.current?.open();
             }}
-            rightComponent={<Image source={Images.dropdownIcon} style={styles.dropdownIcon} />}
+            rightComponent={
+              <Image source={Images.dropdownIcon} style={styles.dropdownIcon} />
+            }
             error={errors.visitType}
           />
         </View>
@@ -244,7 +252,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
             value={formData.date ? displayDate : undefined}
             placeholder="Date"
             onPress={() => setShowDatePicker(true)}
-            rightComponent={<Image source={Images.calendarIcon} style={styles.calendarIcon} />}
+            rightComponent={
+              <Image source={Images.calendarIcon} style={styles.calendarIcon} />
+            }
             error={errors.date}
           />
         </View>
@@ -327,7 +337,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
 export const ExpenseFormSheets: React.FC<{
   formData: ExpenseFormData;
-  onFormChange: <K extends keyof ExpenseFormData>(field: K, value: ExpenseFormData[K]) => void;
+  onFormChange: <K extends keyof ExpenseFormData>(
+    field: K,
+    value: ExpenseFormData[K],
+  ) => void;
   onErrorClear: (field: keyof ExpenseFormErrors) => void;
   fileOperations: ExpenseFormFileOperations;
   formSheetRefs: FormBottomSheetRefs;
@@ -372,6 +385,7 @@ export const ExpenseFormSheets: React.FC<{
         ref={subcategorySheetRef}
         category={formData.category}
         selectedSubcategory={formData.subcategory}
+        subcategoryMap={EXPENSE_SUBCATEGORIES}
         onSave={(subcategory: string | null) => {
           onFormChange('subcategory', subcategory);
           onErrorClear('subcategory');

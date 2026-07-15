@@ -1,9 +1,10 @@
 import {renderHook, act} from '@testing-library/react-native';
 import {Alert} from 'react-native';
 import {usePaymentHandler} from '../../../../src/features/payments/hooks/usePaymentHandler';
-import {useStripe} from '@stripe/stripe-react-native';
+import {useStripe, initStripe} from '@stripe/stripe-react-native';
 import {useDispatch} from 'react-redux';
 import {recordPayment} from '../../../../src/features/appointments/appointmentsSlice';
+import {getResolvedStripePublishableKey} from '../../../../src/config/stripeKeyRegistry';
 
 // --- Mocks ---
 
@@ -35,6 +36,11 @@ jest.mock('@/features/appointments/appointmentsSlice', () => ({
 // 3. Stripe
 jest.mock('@stripe/stripe-react-native', () => ({
   useStripe: jest.fn(),
+  initStripe: jest.fn(),
+}));
+
+jest.mock('@/config/stripeKeyRegistry', () => ({
+  getResolvedStripePublishableKey: jest.fn(),
 }));
 
 // 4. React Native Alert
@@ -77,10 +83,15 @@ describe('usePaymentHandler', () => {
     mockPresentPaymentSheet.mockResolvedValue({error: null});
 
     // Make dispatch return the action it was called with (simulate thunk)
-    mockDispatch.mockImplementation((action) => Promise.resolve(action));
+    mockDispatch.mockImplementation(action => Promise.resolve(action));
 
     // Default recordPayment matching (not rejected)
-    (recordPayment.rejected.match as unknown as jest.Mock).mockReturnValue(false);
+    (recordPayment.rejected.match as unknown as jest.Mock).mockReturnValue(
+      false,
+    );
+
+    (initStripe as jest.Mock).mockResolvedValue(undefined);
+    (getResolvedStripePublishableKey as jest.Mock).mockReturnValue('');
   });
 
   // --- 1. Basic Validations ---
@@ -138,12 +149,17 @@ describe('usePaymentHandler', () => {
     });
 
     expect(result.current.presentingSheet).toBe(false);
-    expect(Alert.alert).toHaveBeenCalledWith('Payment failed', 'User cancelled');
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Payment failed',
+      'User cancelled',
+    );
     expect(mockDispatch).not.toHaveBeenCalled(); // Should not record payment
   });
 
   it('catches exceptions during presentation and alerts', async () => {
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
     mockPresentPaymentSheet.mockRejectedValue(new Error('Crash!'));
 
     const {result} = renderHook(() => usePaymentHandler(defaultProps));
@@ -153,7 +169,7 @@ describe('usePaymentHandler', () => {
     });
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Error presenting payment sheet'),
+      expect.stringContaining('[Payment] presentPaymentSheet threw'),
       expect.any(Error),
     );
     expect(Alert.alert).toHaveBeenCalledWith(
@@ -180,7 +196,9 @@ describe('usePaymentHandler', () => {
     expect(mockPresentPaymentSheet).toHaveBeenCalled();
     // 3. Dispatch Record
     // Since recordPayment mock returns an object, mockDispatch is called with that object.
-    expect(mockDispatch).toHaveBeenCalledWith(expect.objectContaining({type: 'appointments/recordPayment/pending'}));
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({type: 'appointments/recordPayment/pending'}),
+    );
     expect(recordPayment).toHaveBeenCalledWith({appointmentId: 'apt-1'});
     // 4. Navigate
     expect(mockNavigation.replace).toHaveBeenCalledWith('PaymentSuccess', {
@@ -213,7 +231,9 @@ describe('usePaymentHandler', () => {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
     // Simulate rejection
-    (recordPayment.rejected.match as unknown as jest.Mock).mockReturnValue(true);
+    (recordPayment.rejected.match as unknown as jest.Mock).mockReturnValue(
+      true,
+    );
 
     const {result} = renderHook(() => usePaymentHandler(defaultProps));
 
@@ -278,8 +298,8 @@ describe('usePaymentHandler', () => {
   it('falls back to default "Yosemite Crew" if both config and businessName missing', async () => {
     mockStripeConfig = {};
 
-    const {result} = renderHook(() =>
-      usePaymentHandler({...defaultProps, businessName: '   '}), // Empty/Whitespace
+    const {result} = renderHook(
+      () => usePaymentHandler({...defaultProps, businessName: '   '}), // Empty/Whitespace
     );
 
     await act(async () => {
@@ -291,6 +311,72 @@ describe('usePaymentHandler', () => {
         merchantDisplayName: 'Yosemite Crew',
       }),
     );
+  });
+
+  // --- 6. Connected Account Initialization ---
+
+  it('initializes Stripe with the resolved publishable key when a connectedAccountId is provided', async () => {
+    (getResolvedStripePublishableKey as jest.Mock).mockReturnValue(
+      'pk_resolved',
+    );
+    mockStripeConfig = {
+      merchantDisplayName: 'Yosemite Crew',
+      urlScheme: 'yosemite',
+      merchantIdentifier: 'merchant.yosemite',
+      publishableKey: 'pk_config',
+    };
+
+    const {result} = renderHook(() =>
+      usePaymentHandler({...defaultProps, connectedAccountId: 'acct_123'}),
+    );
+
+    await act(async () => {
+      await result.current.handlePayNow();
+    });
+
+    expect(initStripe).toHaveBeenCalledWith({
+      publishableKey: 'pk_resolved',
+      stripeAccountId: 'acct_123',
+      merchantIdentifier: 'merchant.yosemite',
+      urlScheme: 'yosemite',
+    });
+  });
+
+  it('falls back to STRIPE_CONFIG.publishableKey when the registry has no key', async () => {
+    (getResolvedStripePublishableKey as jest.Mock).mockReturnValue('');
+    mockStripeConfig = {
+      merchantDisplayName: 'Yosemite Crew',
+      urlScheme: 'yosemite',
+      publishableKey: 'pk_config_fallback',
+    };
+
+    const {result} = renderHook(() =>
+      usePaymentHandler({...defaultProps, connectedAccountId: 'acct_123'}),
+    );
+
+    await act(async () => {
+      await result.current.handlePayNow();
+    });
+
+    expect(initStripe).toHaveBeenCalledWith(
+      expect.objectContaining({publishableKey: 'pk_config_fallback'}),
+    );
+  });
+
+  it('does not initialize Stripe when no publishable key is available at all', async () => {
+    (getResolvedStripePublishableKey as jest.Mock).mockReturnValue('');
+    mockStripeConfig = {merchantDisplayName: 'Yosemite Crew'};
+
+    const {result} = renderHook(() =>
+      usePaymentHandler({...defaultProps, connectedAccountId: 'acct_123'}),
+    );
+
+    await act(async () => {
+      await result.current.handlePayNow();
+    });
+
+    expect(initStripe).not.toHaveBeenCalled();
+    expect(mockInitPaymentSheet).toHaveBeenCalled();
   });
 
   it('handles dash ("—") guardian email by setting it undefined', async () => {

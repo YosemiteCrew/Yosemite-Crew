@@ -34,6 +34,17 @@ export const resolveActorDisplayName = async (
   return name || user.email || null;
 };
 
+export const readActorNameFromEventPayload = (
+  payload: unknown,
+): string | null => {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const name = (payload as Record<string, unknown>).actorName;
+    return typeof name === "string" && name.trim() ? name : null;
+  }
+
+  return null;
+};
+
 export const FinanceEventService = {
   async recordEvent(input: FinanceEventInput) {
     return prisma.financeEvent.create({

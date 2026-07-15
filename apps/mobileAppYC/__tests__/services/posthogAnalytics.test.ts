@@ -16,7 +16,7 @@ jest.mock('posthog-react-native', () =>
 // Modify before requiring the module (module cache is cleared in beforeEach).
 let mockEnabled = true;
 let mockApiKey = 'phc_test_key';
-let mockHost = 'https://us.i.posthog.com';
+let mockHost = 'https://eu.i.posthog.com';
 let mockCaptureScreens = true;
 
 jest.mock('@/config/variables', () => ({
@@ -38,7 +38,7 @@ describe('posthogAnalytics', () => {
     jest.resetModules();
     mockEnabled = true;
     mockApiKey = 'phc_test_key';
-    mockHost = 'https://us.i.posthog.com';
+    mockHost = 'https://eu.i.posthog.com';
     mockCaptureScreens = true;
   });
 
@@ -56,7 +56,7 @@ describe('posthogAnalytics', () => {
         captureAppLifecycleEvents: true,
         defaultOptIn: false,
         enableSessionReplay: false,
-        host: 'https://us.i.posthog.com',
+        host: 'https://eu.i.posthog.com',
         persistence: 'file',
       }),
     );

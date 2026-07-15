@@ -58,7 +58,7 @@ router.patch(
 router.get(
   "/mobile/:appointmentId",
   authorizeCognitoMobile,
-  AppointmentController.getById,
+  AppointmentController.getByIdMobile,
 );
 
 /* ======================================================

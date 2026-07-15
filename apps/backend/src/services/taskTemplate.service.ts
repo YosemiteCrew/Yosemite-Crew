@@ -16,7 +16,14 @@ export type TaskKind =
   | "OBSERVATION_TOOL"
   | "HYGIENE"
   | "DIET"
-  | "CUSTOM";
+  | "CUSTOM"
+  | "CARE"
+  | "PROCEDURE"
+  | "DIAGNOSTIC"
+  | "COMMUNICATION"
+  | "BILLING"
+  | "RECORD"
+  | "ADMIN";
 
 export type TaskTemplateDocument = Prisma.TaskTemplateGetPayload<
   Record<string, never>
@@ -28,6 +35,13 @@ const TASK_KINDS = new Set<TaskKind>([
   "HYGIENE",
   "DIET",
   "CUSTOM",
+  "CARE",
+  "PROCEDURE",
+  "DIAGNOSTIC",
+  "COMMUNICATION",
+  "BILLING",
+  "RECORD",
+  "ADMIN",
 ]);
 
 const sanitizeTaskKind = (value: unknown): TaskKind | undefined =>
@@ -173,10 +187,7 @@ export const TaskTemplateService = {
           input.defaultRole === undefined
             ? existing.defaultRole
             : toDefaultRole(input.defaultRole),
-        inpatientOnly:
-          input.inpatientOnly === undefined
-            ? existing.inpatientOnly
-            : input.inpatientOnly,
+        inpatientOnly: input.inpatientOnly ?? existing.inpatientOnly,
         defaultMedication:
           input.defaultMedication === undefined
             ? (existing.defaultMedication ?? undefined)

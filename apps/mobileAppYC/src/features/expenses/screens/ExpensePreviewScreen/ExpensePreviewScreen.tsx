@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useEffect} from 'react';
+import React, {useMemo, useState, useEffect as useReactEffect} from 'react';
 import {
   Image,
   ScrollView,
@@ -106,7 +106,7 @@ const useExpenseInvoiceDetails = ({
   const [paymentIntent, setPaymentIntent] = useState<any>(null);
   const [loadingPayment, setLoadingPayment] = useState(false);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!expense?.invoiceId || expense.source !== 'inApp') {
       return;
     }
@@ -169,7 +169,7 @@ const useBusinessPhotoFallback = ({
   setFallbackPhoto: (url: string | null) => void;
   dispatch: AppDispatch;
 }) => {
-  useEffect(() => {
+  useReactEffect(() => {
     if (!placesId || typeof placesId !== 'string' || placesId.trim() === '') {
       return;
     }
@@ -209,6 +209,7 @@ export const ExpensePreviewScreen: React.FC = () => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const {openPaymentScreen, processingPayment} = useExpensePayment();
+  const [isPdfInteracting, setIsPdfInteracting] = React.useState(false);
 
   const expenseId = (route.params as any)?.expenseId ?? '';
   const expense = useSelector(selectExpenseById(expenseId));
@@ -227,7 +228,7 @@ export const ExpensePreviewScreen: React.FC = () => {
   const [fallbackPhoto, setFallbackPhoto] = useState<string | null>(null);
 
   // Always fetch latest expense details (including external) from backend
-  useEffect(() => {
+  useReactEffect(() => {
     if (expenseId && expense?.source === 'external') {
       dispatch(fetchExpenseById({expenseId}));
     }
@@ -401,6 +402,8 @@ export const ExpensePreviewScreen: React.FC = () => {
       {contentPaddingStyle => (
         <ScrollView
           contentContainerStyle={[styles.contentContainer, contentPaddingStyle]}
+          nestedScrollEnabled
+          scrollEnabled={!isPdfInteracting}
           showsVerticalScrollIndicator={false}>
           {/* Business Info Card using SummaryCards */}
           {isInAppExpense && invoiceData && (
@@ -430,7 +433,11 @@ export const ExpensePreviewScreen: React.FC = () => {
 
           <View style={styles.previewContainer}>
             {expense.attachments && expense.attachments.length > 0 ? (
-              <DocumentAttachmentViewer attachments={expense.attachments} />
+              <DocumentAttachmentViewer
+                attachments={expense.attachments}
+                onPdfTouchStart={() => setIsPdfInteracting(true)}
+                onPdfTouchEnd={() => setIsPdfInteracting(false)}
+              />
             ) : (
               <View style={styles.fallbackCard}>
                 <Image

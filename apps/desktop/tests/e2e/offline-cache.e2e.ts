@@ -165,8 +165,19 @@ test.describe('offline-cache E2E', () => {
       );
     });
 
-    await page.waitForTimeout(500);
     const cacheFile = path.join(userDataDir as string, 'offline-cache-v1.json');
+    await expect
+      .poll(
+        () => {
+          try {
+            return (JSON.parse(fs.readFileSync(cacheFile, 'utf8')) as unknown[]).length;
+          } catch {
+            return -1;
+          }
+        },
+        { message: 'Timed out waiting for cache to clear' }
+      )
+      .toBe(0);
     const content = fs.readFileSync(cacheFile, 'utf8');
     expect(JSON.parse(content)).toEqual([]);
   });
@@ -205,22 +216,32 @@ test.describe('offline-cache E2E', () => {
     await page.getByRole('button', { name: /sign in/i }).click();
     await page.getByRole('button', { name: /appt 1/i }).click();
     await expect(page.getByRole('heading', { name: 'Appointment 1' })).toBeVisible();
-    await page.waitForTimeout(500);
+    const cachedUrl = `${pimsServer.origin}/appointments/1`;
+    const readCachedContent = (): Promise<unknown> =>
+      page.evaluate(
+        (url) =>
+          (window as Record<string, unknown>).ycDesktop &&
+          typeof (window as Record<string, unknown>).ycDesktop === 'object'
+            ? (
+                (window as Record<string, unknown>).ycDesktop as {
+                  getCachedContent: (u: string) => Promise<unknown>;
+                }
+              ).getCachedContent(url)
+            : null,
+        cachedUrl
+      );
 
-    const response: unknown = await page.evaluate(
-      (url) =>
-        (window as Record<string, unknown>).ycDesktop &&
-        typeof (window as Record<string, unknown>).ycDesktop === 'object'
-          ? (
-              (window as Record<string, unknown>).ycDesktop as {
-                getCachedContent: (u: string) => Promise<unknown>;
-              }
-            ).getCachedContent(url)
-          : null,
-      `${pimsServer.origin}/appointments/1`
-    );
+    await expect
+      .poll(
+        async () => {
+          const r = (await readCachedContent()) as { ok?: boolean } | null;
+          return Boolean(r?.ok);
+        },
+        { message: 'Timed out waiting for page to be cached' }
+      )
+      .toBe(true);
 
-    const result = response as { ok: boolean; content?: string };
+    const result = (await readCachedContent()) as { ok: boolean; content?: string };
     expect(result.ok).toBe(true);
     expect(result.content).toBeTruthy();
     const decoded = Buffer.from(result.content!, 'base64').toString('utf8');

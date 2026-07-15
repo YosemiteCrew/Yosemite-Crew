@@ -55,6 +55,20 @@ function getIsLoadingSnapshot(): boolean {
   return !_loaded;
 }
 
+const persistCurrency = async (newCurrency: CurrencyCode) => {
+  if (!SUPPORTED_CURRENCIES.includes(newCurrency)) {
+    console.warn(`Unsupported currency: ${newCurrency}. Supported: EUR, USD`);
+    return;
+  }
+  try {
+    await AsyncStorage.setItem(CURRENCY_STORAGE_KEY, newCurrency);
+    _currency = newCurrency;
+    notify();
+  } catch (error) {
+    console.warn('Failed to save currency preference:', error);
+  }
+};
+
 export const useCurrencyPreference = () => {
   const currency = useSyncExternalStore(
     subscribe,
@@ -66,20 +80,6 @@ export const useCurrencyPreference = () => {
     getIsLoadingSnapshot,
     getIsLoadingSnapshot,
   );
-
-  const persistCurrency = async (newCurrency: CurrencyCode) => {
-    if (!SUPPORTED_CURRENCIES.includes(newCurrency)) {
-      console.warn(`Unsupported currency: ${newCurrency}. Supported: EUR, USD`);
-      return;
-    }
-    try {
-      await AsyncStorage.setItem(CURRENCY_STORAGE_KEY, newCurrency);
-      _currency = newCurrency;
-      notify();
-    } catch (error) {
-      console.warn('Failed to save currency preference:', error);
-    }
-  };
 
   return {
     currency,

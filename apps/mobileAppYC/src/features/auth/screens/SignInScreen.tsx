@@ -1,16 +1,16 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect as useReactEffect, useState} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Image,
-  TouchableOpacity,
   Platform,
   KeyboardAvoidingView,
   Keyboard,
   useWindowDimensions,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SafeArea, Input} from '@/shared/components/common';
 import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -20,7 +20,7 @@ import {
   formatAuthError,
   DEMO_LOGIN_EMAIL,
 } from '@/features/auth/services/passwordlessAuth';
-import {AUTH_FEATURE_FLAGS} from '@/config/variables';
+import {AUTH_FEATURE_FLAGS, MOBILE_CONFIG_BEHAVIOR} from '@/config/variables';
 import {Amplify} from 'aws-amplify';
 import devOutputs from '../../../../devamplify_outputs.json';
 import prodOutputs from '../../../../prodamplify_outputs.json';
@@ -65,7 +65,7 @@ type SignInScreenProps = NativeStackScreenProps<AuthStackParamList, 'SignIn'>;
 const useKeyboardVisibility = () => {
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
-  useEffect(() => {
+  useReactEffect(() => {
     const showEvent =
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent =
@@ -98,7 +98,7 @@ const useRouteParamsRestore = (
     ? Object.hasOwn(route.params, 'statusMessage')
     : false;
 
-  useEffect(() => {
+  useReactEffect(() => {
     const shouldSkipRestore =
       routeEmail == null && hasStatusMessageParam === false;
     if (shouldSkipRestore) {
@@ -164,7 +164,11 @@ const useOTPHandler = (
     const isDemoLogin =
       allowReviewLogin && normalizedEmail.toLowerCase() === DEMO_LOGIN_EMAIL;
     try {
-      Amplify.configure(isDemoLogin ? devOutputs : prodOutputs);
+      Amplify.configure(
+        MOBILE_CONFIG_BEHAVIOR.useDevApi || isDemoLogin
+          ? devOutputs
+          : prodOutputs,
+      );
       const result = await requestPasswordlessEmailCode(normalizedEmail);
 
       const message = isDemoLogin
@@ -179,7 +183,7 @@ const useOTPHandler = (
         challengeLength: isDemoLogin ? result.challengeLength : undefined,
       });
     } catch (error) {
-      if (isDemoLogin) {
+      if (isDemoLogin && !MOBILE_CONFIG_BEHAVIOR.useDevApi) {
         Amplify.configure(prodOutputs);
       }
       console.error('[Auth] Failed requesting passwordless code', error);
@@ -405,7 +409,7 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
   return (
     <SafeArea style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
         <ScrollView
@@ -457,9 +461,9 @@ export const SignInScreen: React.FC<SignInScreenProps> = ({
 
               <View style={styles.footerContainer}>
                 <Text style={styles.footerText}>Not a member? </Text>
-                <TouchableOpacity onPress={navigateToSignUp}>
+                <PressableOpacity onPress={navigateToSignUp}>
                   <Text style={styles.signUpLink}>Sign up</Text>
-                </TouchableOpacity>
+                </PressableOpacity>
               </View>
             </View>
           </View>

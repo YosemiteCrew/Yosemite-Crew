@@ -407,5 +407,106 @@ describe('apiClient', () => {
         message: 'Network Error',
       });
     });
+
+    it('Response Interceptor (Success): falls back to an empty config when none is provided', () => {
+      const {responseSuccessInterceptor} = getInterceptorCallbacks();
+
+      const mockResponse = {
+        status: 200,
+        data: {id: 1},
+        config: undefined,
+      };
+
+      const result = responseSuccessInterceptor(mockResponse);
+
+      expect(consoleLogSpy).toHaveBeenCalledWith('[API] Response', {
+        method: undefined,
+        url: '',
+        status: 200,
+        data: {id: 1},
+      });
+      expect(result).toBe(mockResponse);
+    });
+
+    it('Response Interceptor (Error): falls back to an empty config for server errors', async () => {
+      const {responseErrorInterceptor} = getInterceptorCallbacks();
+
+      const mockError = {
+        response: {status: 500, data: {error: 'Server Error'}},
+        config: undefined,
+        message: 'Request failed',
+      };
+
+      if (!responseErrorInterceptor) {
+        throw new Error('Response error interceptor not found');
+      }
+
+      await expect(responseErrorInterceptor(mockError)).rejects.toBe(mockError);
+
+      expect(consoleLogSpy).toHaveBeenCalledWith('[API] Error Response', {
+        method: undefined,
+        url: '',
+        status: 500,
+        message: 'Request failed',
+        data: {error: 'Server Error'},
+      });
+    });
+
+    it('Response Interceptor (Error): falls back to an empty config for network errors', async () => {
+      const {responseErrorInterceptor} = getInterceptorCallbacks();
+
+      const mockError = {
+        config: undefined,
+        message: 'Network Error',
+      };
+
+      if (!responseErrorInterceptor) {
+        throw new Error('Response error interceptor not found');
+      }
+
+      await expect(responseErrorInterceptor(mockError)).rejects.toBe(mockError);
+
+      expect(consoleLogSpy).toHaveBeenCalledWith('[API] Error', {
+        method: undefined,
+        url: '',
+        message: 'Network Error',
+      });
+    });
+  });
+
+  describe('shouldLogNetworkActivity = false', () => {
+    let originalDev: boolean;
+
+    beforeEach(() => {
+      originalDev = (global as any).__DEV__;
+      (global as any).__DEV__ = false;
+    });
+
+    afterEach(() => {
+      (global as any).__DEV__ = originalDev;
+    });
+
+    it('skips all console logging when network activity logging is disabled', async () => {
+      const {axiosMock} = loadClientWithEnv('ios');
+
+      const requestInterceptor = mockRequestUse.mock.calls[0][0];
+      const responseSuccessInterceptor = mockResponseUse.mock.calls[0][0];
+      const responseErrorInterceptor = mockResponseUse.mock.calls[0][1];
+      const {
+        updateApiClientBaseConfig,
+      } = require('../../src/shared/services/apiClient');
+      const mockInstance =
+        axiosMock.create.mock.results[0]?.value ?? axiosMock.create();
+      mockInstance.defaults = {baseURL: '', timeout: 5000};
+
+      requestInterceptor({method: 'get', url: '/x'});
+      responseSuccessInterceptor({status: 200, config: {method: 'get'}});
+      await expect(
+        responseErrorInterceptor({message: 'err', config: {}}),
+      ).rejects.toBeDefined();
+      updateApiClientBaseConfig({baseUrl: 'https://example.com'});
+
+      expect(consoleLogSpy).not.toHaveBeenCalled();
+    });
   });
 });

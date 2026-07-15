@@ -37,6 +37,7 @@ export const MEDIA_SOURCES = {
     soc2: ycCdn('footer/soc-2.png'),
     iso: ycCdn('footer/iso.png'),
     fhir: ycCdn('footer/fhir.png'),
+    fda: ycCdn('footer/fda.png'),
     afterPattern: ycCdn('Images/ftafter.png'),
   },
   auth: {

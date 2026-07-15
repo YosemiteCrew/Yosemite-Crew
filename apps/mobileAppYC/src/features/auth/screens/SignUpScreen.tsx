@@ -1,6 +1,7 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, Image, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SafeArea} from '@/shared/components/common';
 import {LiquidGlassButton} from '@/shared/components/common/LiquidGlassButton/LiquidGlassButton';
 import {useTheme, useSocialAuth, type SocialProvider} from '@/hooks';
@@ -168,9 +169,9 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
           {/* Sign In Link */}
           <View style={styles.signInContainer}>
             <Text style={styles.signInText}>Already a member? </Text>
-            <TouchableOpacity onPress={handleSignIn}>
+            <PressableOpacity onPress={handleSignIn}>
               <Text style={styles.signInLink}>Sign in</Text>
-            </TouchableOpacity>
+            </PressableOpacity>
           </View>
         </View>
       </View>

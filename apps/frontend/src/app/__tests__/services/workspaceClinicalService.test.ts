@@ -21,8 +21,14 @@ import {
   listPrescriptionsForEncounter,
   listSoapNotesForEncounter,
   listSoapNotesForAppointment,
+  listVitalRecordsForAppointment,
   listVitalRecordsForEncounter,
   createPmsObservationSubmission,
+  deletePrescriptionArtifact,
+  generatePrescriptionLabels,
+  getRenderedDocument,
+  renderedDocumentToWorkspaceDocument,
+  signRenderedDocument,
   listObservationSubmissionsForAppointment,
   loadWorkspaceClinicalArtifacts,
   reopenDischargeSummary,
@@ -38,8 +44,10 @@ import {
 const postDataMock = jest.fn();
 const getDataMock = jest.fn();
 const patchDataMock = jest.fn();
+const deleteDataMock = jest.fn();
 
 jest.mock('@/app/services/axios', () => ({
+  deleteData: (...args: unknown[]) => deleteDataMock(...args),
   getData: (...args: unknown[]) => getDataMock(...args),
   patchData: (...args: unknown[]) => patchDataMock(...args),
   postData: (...args: unknown[]) => postDataMock(...args),
@@ -56,6 +64,7 @@ describe('workspaceClinicalService', () => {
     postDataMock.mockReset();
     getDataMock.mockReset();
     patchDataMock.mockReset();
+    deleteDataMock.mockReset();
   });
 
   it('lists SOAP notes from the clinical artifact FHIR endpoint', async () => {
@@ -515,14 +524,19 @@ describe('workspaceClinicalService', () => {
       },
       {
         medicineName: 'Gabapentin',
-        dosage: '100mg',
-        frequency: 'BID',
+        strength: '100mg',
+        dosageForm: 'Capsule',
+        route: 'Oral',
+        frequency: 'BID (twice daily)',
+        durationDays: '7',
+        qty: '14',
         fulfillment: 'IN_HOUSE',
+        inventoryItemId: 'inv-1',
       }
     );
 
-    expect(postDataMock).toHaveBeenCalledWith(
-      '/fhir/v1/clinical-artifact/organisation/org-1/prescription',
+    const [, body] = postDataMock.mock.calls[0];
+    expect(body).toEqual(
       expect.objectContaining({
         resourceType: 'MedicationRequest',
         medicationCodeableConcept: { text: 'Gabapentin' },
@@ -531,6 +545,23 @@ describe('workspaceClinicalService', () => {
         authorId: 'user-1',
       })
     );
+    const medicationsExtension = body.extension.find((entry: { url: string }) =>
+      entry.url.endsWith('/prescription-medications')
+    );
+    expect(JSON.parse(medicationsExtension.valueString)).toEqual([
+      expect.objectContaining({
+        // Flat fields map to the backend's typed columns; strength is no longer clobbered.
+        medicineName: 'Gabapentin',
+        strength: '100mg',
+        route: 'Oral',
+        frequency: 'BID (twice daily)',
+        durationDays: '7',
+        qty: '14',
+        inventoryItemId: 'inv-1',
+        // Display/unit extras with no backend column ride along under metadata so they round-trip.
+        metadata: expect.objectContaining({ dosageForm: 'Capsule', fulfillment: 'IN_HOUSE' }),
+      }),
+    ]);
   });
 
   it('updates a persisted prescription artifact instead of creating a duplicate', async () => {
@@ -559,6 +590,22 @@ describe('workspaceClinicalService', () => {
       expect.objectContaining({ resourceType: 'MedicationRequest' })
     );
     expect(postDataMock).not.toHaveBeenCalled();
+  });
+
+  it('surfaces missing prescription records instead of using the legacy delete fallback', async () => {
+    const notFound = { response: { status: 404 } };
+    deleteDataMock.mockRejectedValueOnce(notFound);
+
+    await expect(deletePrescriptionArtifact('org-1', 'rx-missing')).rejects.toBe(notFound);
+    expect(deleteDataMock).toHaveBeenCalledWith(
+      '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-missing'
+    );
+  });
+
+  it('returns false only for unavailable prescription delete routes', async () => {
+    deleteDataMock.mockRejectedValueOnce({ response: { status: 405 } });
+
+    await expect(deletePrescriptionArtifact('org-1', 'rx-legacy')).resolves.toBe(false);
   });
 
   it('loads encounter-scoped prescriptions and gets a prescription by id', async () => {
@@ -766,5 +813,127 @@ describe('workspaceClinicalService', () => {
     expect(hydrated.dischargeSavedAt).toBe('2026-04-20T10:00:00.000Z');
     expect(hydrated.dischargeSavedByName).toBe('Dr A');
     expect(hydrated.vitals).toBeUndefined();
+  });
+
+  it('lists vital records for an appointment via the appointment-scoped endpoint', async () => {
+    postDataMock.mockResolvedValueOnce({
+      data: bundle('Observation', {
+        id: 'vital-1',
+        effectiveDateTime: '2026-04-20T09:00:00.000Z',
+      }),
+    });
+
+    const records = await listVitalRecordsForAppointment('org-1', 'appt-1', {
+      authorId: 'user-1',
+      authorName: 'Dr A',
+    });
+
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/fhir/v1/clinical-artifact/organisation/org-1/appointment/appt-1/vital-records',
+      {}
+    );
+    expect(records[0].id).toBe('vital-1');
+  });
+
+  it('cancels a finalized prescription when DELETE returns 409', async () => {
+    deleteDataMock.mockRejectedValueOnce({ response: { status: 409 } });
+    postDataMock.mockResolvedValueOnce({ data: { resourceType: 'MedicationRequest' } });
+
+    const removed = await deletePrescriptionArtifact('org-1', 'rx-1');
+
+    expect(removed).toBe(true);
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/fhir/v1/clinical-artifact/organisation/org-1/prescription/rx-1/$cancel',
+      {}
+    );
+  });
+
+  it('resolves prescription label URLs from either response key', async () => {
+    postDataMock.mockResolvedValueOnce({ data: { url: 'https://cdn/label.pdf' } });
+    await expect(generatePrescriptionLabels('org-1', 'rx-1')).resolves.toBe(
+      'https://cdn/label.pdf'
+    );
+
+    postDataMock.mockResolvedValueOnce({ data: { pdfUrl: 'https://cdn/fallback.pdf' } });
+    await expect(generatePrescriptionLabels('org-1', 'rx-1')).resolves.toBe(
+      'https://cdn/fallback.pdf'
+    );
+
+    postDataMock.mockResolvedValueOnce({ data: undefined });
+    await expect(generatePrescriptionLabels('org-1', 'rx-1')).resolves.toBeUndefined();
+  });
+
+  it('maps object-id observation submissions to workspace records', async () => {
+    postDataMock.mockResolvedValueOnce({
+      data: [
+        {
+          _id: { toString: () => 'obj-1' },
+          toolCategory: 'PAIN',
+          answers: { mobility: 3, notes: 'ok', flagged: true, meta: { deep: true } },
+          createdAt: '2026-04-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    const records = await listObservationSubmissionsForAppointment('appt-1');
+
+    expect(records[0].id).toBe('obj-1');
+    expect(records[0].scores).toMatchObject({ mobility: 3, notes: 'ok' });
+  });
+
+  it('fetches and signs rendered documents', async () => {
+    getDataMock.mockResolvedValueOnce({ data: { id: 'rd-1', status: 'DRAFT' } });
+    const doc = await getRenderedDocument('org-1', 'rd-1');
+    expect(getDataMock).toHaveBeenCalledWith('/fhir/v1/rendered-document/organisation/org-1/rd-1');
+    expect(doc).toEqual({ id: 'rd-1', status: 'DRAFT' });
+
+    postDataMock.mockResolvedValueOnce({ data: { documentId: 'rd-1', signingUrl: 'https://sig' } });
+    const signed = await signRenderedDocument('org-1', 'rd-1', 'Dr A');
+    expect(postDataMock).toHaveBeenCalledWith(
+      '/fhir/v1/rendered-document/organisation/org-1/rd-1/sign',
+      { signatureText: 'Dr A' }
+    );
+    expect(signed.signingUrl).toBe('https://sig');
+  });
+
+  it('maps rendered documents onto workspace documents with category and signing fallbacks', () => {
+    const discharge = renderedDocumentToWorkspaceDocument({
+      id: 'rd-1',
+      kind: 'DISCHARGE_SUMMARY',
+      title: 'Discharge summary',
+      status: 'SIGNED',
+      createdAt: new Date('2026-04-01T00:00:00.000Z'),
+      updatedAt: '2026-04-02T00:00:00.000Z',
+      signedBy: 'Dr A',
+      pdfUrl: 'https://cdn/doc.pdf',
+      signing: { required: true, status: 'COMPLETED' },
+    } as never);
+
+    expect(discharge).toMatchObject({
+      id: 'rd-1',
+      category: 'Discharge',
+      createdAt: '2026-04-01T00:00:00.000Z',
+      lastModifiedAt: '2026-04-02T00:00:00.000Z',
+      signedByName: 'Dr A',
+      signatureRequired: true,
+      signingStatus: 'COMPLETED',
+      pdfUrl: 'https://cdn/doc.pdf',
+    });
+
+    const soap = renderedDocumentToWorkspaceDocument({
+      id: 'rd-2',
+      kind: 'SOAP_NOTE',
+      title: 'SOAP',
+      status: 'DRAFT',
+      signedBy: null,
+      signing: null,
+    } as never);
+
+    expect(soap.category).toBe('SOAP');
+    expect(soap.signedByName).toBeUndefined();
+    // No signing contract: falls back to "unsigned documents still need signing".
+    expect(soap.signatureRequired).toBe(true);
+    expect(soap.pdfUrl).toBeNull();
+    expect(typeof soap.createdAt).toBe('string');
   });
 });

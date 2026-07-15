@@ -1,6 +1,5 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, BillingInterval, SubscriptionStatus } from "@prisma/client";
 import { prisma } from "src/config/prisma";
-import { BillingInterval, SubscriptionStatus } from "@prisma/client";
 import Stripe from "stripe";
 import { FinanceEventService } from "./events";
 
@@ -906,13 +905,13 @@ export const FinanceSubscriptionService = {
         : null,
       seatQuantity: item?.quantity ?? 0,
       currentPeriodStart:
-        item?.current_period_start !== undefined
-          ? new Date(item.current_period_start * 1000)
-          : null,
+        item?.current_period_start == null
+          ? null
+          : new Date(item.current_period_start * 1000),
       currentPeriodEnd:
-        item?.current_period_end !== undefined
-          ? new Date(item.current_period_end * 1000)
-          : null,
+        item?.current_period_end == null
+          ? null
+          : new Date(item.current_period_end * 1000),
     });
   },
 
@@ -938,13 +937,13 @@ export const FinanceSubscriptionService = {
       cancelAtPeriodEnd: input.subscription.cancel_at_period_end ?? false,
       seatQuantity: item.quantity ?? 0,
       currentPeriodStart:
-        item.current_period_start !== undefined
-          ? new Date(item.current_period_start * 1000)
-          : null,
+        item.current_period_start == null
+          ? null
+          : new Date(item.current_period_start * 1000),
       currentPeriodEnd:
-        item.current_period_end !== undefined
-          ? new Date(item.current_period_end * 1000)
-          : null,
+        item.current_period_end == null
+          ? null
+          : new Date(item.current_period_end * 1000),
       livemode: input.session.livemode ?? false,
     });
   },

@@ -552,6 +552,24 @@ describe("generateClinicalPdf", () => {
     ).toBe(true);
   });
 
+  it("renders a vital record when metadata is null", async () => {
+    const buffer = await generateClinicalPdf({
+      documentType: "VITAL_RECORD",
+      organization: baseOrganization,
+      data: {
+        ...vitalRecordData,
+        metadata: null,
+      },
+    });
+
+    expect(buffer.subarray(0, 9).toString()).toBe("%PDF-FAKE");
+    expect(
+      pdfDocumentInstances[0].operations.some(
+        (op) => op.type === "text" && op.text === "Metadata",
+      ),
+    ).toBe(false);
+  });
+
   it("paginates long discharge summaries and keeps the pending signature block together", async () => {
     const buffer = await generateClinicalPdf({
       documentType: "DISCHARGE_SUMMARY",

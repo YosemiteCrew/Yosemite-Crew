@@ -138,7 +138,7 @@ const ensureHourMinute = (value: string) => {
 
 const parseTimeOfDay = (value: string) => {
   ensureHourMinute(value);
-  const [hours, minutes] = value.split(":").map((part) => Number(part));
+  const [hours, minutes] = value.split(":").map(Number);
   return { hours, minutes };
 };
 
@@ -304,7 +304,14 @@ const toTaskKind = (value: unknown): TaskKind | undefined =>
   value === "OBSERVATION_TOOL" ||
   value === "HYGIENE" ||
   value === "DIET" ||
-  value === "CUSTOM"
+  value === "CUSTOM" ||
+  value === "CARE" ||
+  value === "PROCEDURE" ||
+  value === "DIAGNOSTIC" ||
+  value === "COMMUNICATION" ||
+  value === "BILLING" ||
+  value === "RECORD" ||
+  value === "ADMIN"
     ? value
     : undefined;
 

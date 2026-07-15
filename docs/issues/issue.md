@@ -1,5 +1,7 @@
 # Issue: Availability Cross-Day Time Handling Is Inconsistent (Frontend)
 
+> Draft bug report kept as a working document. It is the source text for a GitHub issue, not tracked engineering documentation. Move it to the issue tracker or delete it once the availability cross-midnight fix has shipped.
+
 ## Summary
 
 Availability behaves inconsistently when a slot crosses midnight (for example, `9:00 PM` to `5:00 AM`).

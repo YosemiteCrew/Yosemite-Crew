@@ -56,68 +56,37 @@ import {
   fetchBusinessDetails,
   selectLinkedHospitalsForCompanion,
 } from '@/features/linkedBusinesses';
+import {
+  subscribeOnboarding,
+  getShowOnboarding,
+  getOnboardingLoading,
+  markOnboardingComplete,
+  ONBOARDING_COMPLETED_KEY,
+} from './onboardingStore';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const ONBOARDING_COMPLETED_KEY = '@onboarding_completed';
 
-let _onboardingLoaded = false;
-let _showOnboarding = false;
-let _onboardingFetching = false;
-const _onboardingListeners = new Set<() => void>();
-
-function _notifyOnboarding() {
-  _onboardingListeners.forEach(l => l());
-}
-
-function _startOnboardingFetch() {
-  if (_onboardingFetching) return;
-  _onboardingFetching = true;
-  AsyncStorage.getItem(ONBOARDING_COMPLETED_KEY)
-    .then(value => {
-      _showOnboarding = value === null;
-    })
-    .catch(() => {
-      _showOnboarding = true;
-    })
-    .finally(() => {
-      _onboardingLoaded = true;
-      _notifyOnboarding();
-    });
-}
-
-function _subscribeOnboarding(l: () => void) {
-  _onboardingListeners.add(l);
-  _startOnboardingFetch();
-  return () => {
-    _onboardingListeners.delete(l);
-  };
-}
-
-function _getShowOnboarding() {
-  return _showOnboarding;
-}
-function _getOnboardingLoading() {
-  return !_onboardingLoaded;
-}
-
-export function _resetOnboardingStoreForTesting() {
-  _onboardingLoaded = false;
-  _showOnboarding = false;
-  _onboardingFetching = false;
-  _onboardingListeners.clear();
-}
+const handleOnboardingComplete = async () => {
+  try {
+    await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+  } catch (error) {
+    console.error('Error saving onboarding status:', error);
+  } finally {
+    markOnboardingComplete();
+  }
+};
 
 export const AppNavigator: React.FC = () => {
   const {isLoggedIn, isLoading: authLoading, user} = useAuth();
   const isLoading = useSyncExternalStore(
-    _subscribeOnboarding,
-    _getOnboardingLoading,
-    _getOnboardingLoading,
+    subscribeOnboarding,
+    getOnboardingLoading,
+    getOnboardingLoading,
   );
   const showOnboarding = useSyncExternalStore(
-    _subscribeOnboarding,
-    _getShowOnboarding,
-    _getShowOnboarding,
+    subscribeOnboarding,
+    getShowOnboarding,
+    getShowOnboarding,
   );
   const {showLoader, hideLoader} = useGlobalLoader();
   const [pendingProfile, setPendingProfile] = useState<
@@ -249,17 +218,6 @@ export const AppNavigator: React.FC = () => {
     };
   }, [pendingProfile, isLoggedIn, isProfileComplete, user]);
 
-  const handleOnboardingComplete = async () => {
-    try {
-      await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
-    } catch (error) {
-      console.error('Error saving onboarding status:', error);
-    } finally {
-      _showOnboarding = false;
-      _notifyOnboarding();
-    }
-  };
-
   const isNavigatorLoading = isLoading || authLoading;
   useEffect(() => {
     if (isNavigatorLoading) {
@@ -344,7 +302,7 @@ const AppNavigatorEmergencySheet: React.FC = () => {
     selectLinkedHospitalsForCompanion(state, selectedCompanionId ?? null),
   );
 
-  const [hospitalPhone, setHospitalPhone] = React.useState<string | null>(null);
+  const hospitalPhoneRef = React.useRef<string | null>(null);
   const primaryHospital = React.useMemo(() => {
     if (!linkedHospitals?.length) {
       return null;
@@ -368,12 +326,12 @@ const AppNavigatorEmergencySheet: React.FC = () => {
 
   const fetchHospitalPhone = React.useCallback(async () => {
     if (!primaryHospital) {
-      setHospitalPhone(null);
+      hospitalPhoneRef.current = null;
       return null;
     }
     if (primaryHospital.phone?.trim()) {
       const trimmed = primaryHospital.phone.trim();
-      setHospitalPhone(trimmed);
+      hospitalPhoneRef.current = trimmed;
       return trimmed;
     }
     const placeId =
@@ -381,17 +339,17 @@ const AppNavigatorEmergencySheet: React.FC = () => {
       (primaryHospital as any)?.googlePlacesId ??
       (primaryHospital as any)?.organisation?.googlePlacesId;
     if (!placeId) {
-      setHospitalPhone(null);
+      hospitalPhoneRef.current = null;
       return null;
     }
     try {
       const details = await dispatch(fetchBusinessDetails(placeId)).unwrap();
       const phoneNumber = details?.phoneNumber?.trim() ?? null;
-      setHospitalPhone(phoneNumber);
+      hospitalPhoneRef.current = phoneNumber;
       return phoneNumber;
     } catch (error) {
       console.warn('[AppNavigator] Failed to fetch hospital phone', error);
-      setHospitalPhone(null);
+      hospitalPhoneRef.current = null;
       return null;
     }
   }, [dispatch, primaryHospital]);
@@ -418,7 +376,7 @@ const AppNavigatorEmergencySheet: React.FC = () => {
       );
       return;
     }
-    const phone = hospitalPhone ?? (await fetchHospitalPhone());
+    const phone = hospitalPhoneRef.current ?? (await fetchHospitalPhone());
     if (!phone) {
       Alert.alert(
         'Contact unavailable',
@@ -444,7 +402,7 @@ const AppNavigatorEmergencySheet: React.FC = () => {
         `Please call this number manually: ${normalizedPhone}`,
       );
     }
-  }, [fetchHospitalPhone, hospitalPhone, primaryHospital, tryOpenDialer]);
+  }, [fetchHospitalPhone, primaryHospital, tryOpenDialer]);
 
   const handleAdverseEvent = React.useCallback(() => {
     console.log(

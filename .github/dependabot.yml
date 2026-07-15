@@ -7,6 +7,7 @@ updates:
       day: monday
       time: '05:00'
       timezone: 'UTC'
+    target-branch: dev
     open-pull-requests-limit: 10
     labels:
       - dependencies
@@ -41,9 +42,10 @@ updates:
       day: monday
       time: '05:30'
       timezone: 'UTC'
+    target-branch: dev
     open-pull-requests-limit: 10
     commit-message:
-      prefix: 'ci'
+      prefix: 'ci(repo)'
     labels:
       - dependencies
       - github-actions

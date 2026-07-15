@@ -16,7 +16,10 @@ import type {
 import { normalizeTemplateKind } from "@yosemite-crew/types";
 import { z } from "zod";
 import { prisma } from "src/config/prisma";
-import { validateClinicalTemplateBlueprint } from "src/services/clinical-template-blueprints";
+import {
+  normalizeClinicalTemplateSchemaSnapshot,
+  validateClinicalTemplateBlueprint,
+} from "src/services/clinical-template-blueprints";
 import {
   createRenderedDocumentRecord,
   type PersistRenderedDocumentInput,
@@ -111,6 +114,34 @@ const templateKindSchema = z.union([
   templateStorageKindSchema,
   templateContractKindSchema,
 ]);
+
+const EMPTY_JSON_OBJECT = {} as Record<string, unknown>;
+
+const buildTemplateSearchFilter = (
+  search?: string,
+): Prisma.TemplateWhereInput => {
+  const trimmedSearch = search?.trim();
+  if (!trimmedSearch) {
+    return {};
+  }
+
+  return {
+    OR: [
+      {
+        name: {
+          contains: trimmedSearch,
+          mode: "insensitive",
+        },
+      },
+      {
+        description: {
+          contains: trimmedSearch,
+          mode: "insensitive",
+        },
+      },
+    ],
+  };
+};
 
 export const createTemplateSchema = z
   .object({
@@ -248,8 +279,8 @@ const mergeJsonObject = (
 ): Record<string, unknown> => ({
   ...(typeof base === "object" && base && !Array.isArray(base)
     ? (base as Record<string, unknown>)
-    : {}),
-  ...(patch ?? {}),
+    : EMPTY_JSON_OBJECT),
+  ...(patch ?? EMPTY_JSON_OBJECT),
 });
 
 const toJsonInput = (
@@ -781,7 +812,11 @@ export const TemplateService = {
     const parsed = createTemplateSchema.parse(input);
     const updatedBy = parsed.updatedBy ?? parsed.createdBy;
     const storageKind = toStorageTemplateKind(parsed.kind);
-    validateTemplateSchemaForKind(storageKind, parsed.schemaSnapshot);
+    const schemaSnapshot = normalizeClinicalTemplateSchemaSnapshot(
+      storageKind,
+      parsed.schemaSnapshot,
+    );
+    validateTemplateSchemaForKind(storageKind, schemaSnapshot);
     const organisationId =
       parsed.ownership === "YC_LIBRARY" ? undefined : parsed.organisationId;
     const ownerUserId =
@@ -810,7 +845,7 @@ export const TemplateService = {
         data: {
           templateId: created.id,
           version: 1,
-          schemaSnapshot: toJsonInput(parsed.schemaSnapshot),
+          schemaSnapshot: toJsonInput(schemaSnapshot),
           renderConfigSnapshot: toJsonInput(parsed.renderConfigSnapshot),
           validationSnapshot: toJsonInput(parsed.validationSnapshot),
           createdBy: parsed.createdBy,
@@ -834,17 +869,9 @@ export const TemplateService = {
 
     const nextOwnership = parsed.ownership ?? template.ownership;
     const nextOrganisationId =
-      nextOwnership === "YC_LIBRARY"
-        ? null
-        : parsed.ownership === "ORG_TEMPLATE"
-          ? template.organisationId
-          : template.organisationId;
+      nextOwnership === "YC_LIBRARY" ? null : template.organisationId;
     const nextOwnerUserId =
-      nextOwnership === "YC_LIBRARY"
-        ? null
-        : nextOwnership === "USER_TEMPLATE"
-          ? template.ownerUserId
-          : template.ownerUserId;
+      nextOwnership === "YC_LIBRARY" ? null : template.ownerUserId;
     const nextUpdatedBy = parsed.updatedBy ?? template.updatedBy;
     const nextName = parsed.name ?? template.name;
     const nextDescription =
@@ -862,10 +889,17 @@ export const TemplateService = {
     const currentVersion = hasVersionChanges
       ? await loadTemplateVersionOrThrow(template.id, targetVersion)
       : null;
-    const nextSchemaSnapshot =
+    const rawNextSchemaSnapshot =
       parsed.schemaSnapshot === undefined
         ? currentVersion?.schemaSnapshot
         : parsed.schemaSnapshot;
+    const nextSchemaSnapshot =
+      rawNextSchemaSnapshot == null
+        ? rawNextSchemaSnapshot
+        : normalizeClinicalTemplateSchemaSnapshot(
+            template.kind,
+            templateSchemaSnapshotSchema.parse(rawNextSchemaSnapshot),
+          );
 
     if (nextSchemaSnapshot != null) {
       validateTemplateSchemaForKind(template.kind, nextSchemaSnapshot);
@@ -1032,15 +1066,17 @@ export const TemplateService = {
       return TemplateService.getById(template.id, organisationId);
     }
 
-    const organisationFilter =
-      template.organisationId != null
-        ? { organisationId: template.organisationId }
-        : {};
+    const catalogItemWhere: Prisma.ProductItemWhereInput =
+      template.organisationId === null
+        ? {
+            id: { in: uniqueCatalogItemIds },
+          }
+        : {
+            id: { in: uniqueCatalogItemIds },
+            organisationId: template.organisationId,
+          };
     const catalogItems = await prisma.productItem.findMany({
-      where: {
-        id: { in: uniqueCatalogItemIds },
-        ...organisationFilter,
-      },
+      where: catalogItemWhere,
       select: {
         id: true,
       },
@@ -1103,7 +1139,6 @@ export const TemplateService = {
       search?: string;
     },
   ) {
-    const search = filters?.search?.trim();
     const items = await prisma.template.findMany({
       where: {
         organisationId: ensureId(organisationId, "organisationId"),
@@ -1111,24 +1146,7 @@ export const TemplateService = {
         kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
-        ...(search
-          ? {
-              OR: [
-                {
-                  name: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  description: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-              ],
-            }
-          : {}),
+        ...buildTemplateSearchFilter(filters?.search),
       },
       orderBy: [{ updatedAt: "desc" }],
       include: templateInclude,
@@ -1143,31 +1161,13 @@ export const TemplateService = {
     scope?: TemplateScope;
     search?: string;
   }) {
-    const search = filters?.search?.trim();
     const items = await prisma.template.findMany({
       where: {
         ownership: "YC_LIBRARY",
         kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
-        ...(search
-          ? {
-              OR: [
-                {
-                  name: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  description: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-              ],
-            }
-          : {}),
+        ...buildTemplateSearchFilter(filters?.search),
       },
       orderBy: [{ updatedAt: "desc" }],
       include: templateInclude,
@@ -1186,7 +1186,6 @@ export const TemplateService = {
       search?: string;
     },
   ) {
-    const search = filters?.search?.trim();
     const items = await prisma.template.findMany({
       where: {
         organisationId: ensureId(organisationId, "organisationId"),
@@ -1195,24 +1194,7 @@ export const TemplateService = {
         kind: filters?.kind ? toStorageTemplateKind(filters.kind) : undefined,
         status: filters?.status,
         scope: filters?.scope,
-        ...(search
-          ? {
-              OR: [
-                {
-                  name: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-                {
-                  description: {
-                    contains: search,
-                    mode: "insensitive",
-                  },
-                },
-              ],
-            }
-          : {}),
+        ...buildTemplateSearchFilter(filters?.search),
       },
       orderBy: [{ updatedAt: "desc" }],
       include: templateInclude,
@@ -1246,7 +1228,7 @@ export const TemplateService = {
     const prismaKinds = normalizeResolverKind(parsed.kind);
     const filters = {
       kind: prismaKinds[0],
-      status: undefined as TemplateStatus | undefined,
+      status: TemplateStatus.PUBLISHED,
       scope: undefined as TemplateScope | undefined,
     };
 
@@ -1494,7 +1476,7 @@ export const TemplateService = {
           title:
             normalizedTemplateKind === "FORM"
               ? "Form submission"
-              : normalizedTemplateKind.split("_").join(" "),
+              : normalizedTemplateKind.replaceAll("_", " "),
           source: {
             sourceKind: "TEMPLATE_INSTANCE",
             sourceId: instance.id,

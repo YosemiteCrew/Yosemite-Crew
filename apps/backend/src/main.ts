@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createApp } from "./app";
 import { connectDB } from "./config/db";
 import { initQueues } from "./queues";
+import { configureStreamUploadPolicy } from "./config/stream-upload-policy";
 import logger from "./utils/logger";
 import "./workers";
 
@@ -12,6 +13,7 @@ async function startServer() {
   try {
     await connectDB();
     await initQueues();
+    await configureStreamUploadPolicy();
     const app = createApp();
 
     app.listen(PORT, () => {

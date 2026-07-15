@@ -10,27 +10,48 @@ export type StockHealthStatus =
   | 'OUT_OF_STOCK'
   | 'OVERSTOCKED';
 
-export type InventoryBatchApi = {
+type InventoryBatchDetails = {
   batchNumber?: string;
   lotNumber?: string;
   regulatoryTrackingId?: string;
+  expiryWarningBefore?: string;
+  barcode?: string;
   manufactureDate?: string;
   expiryDate?: string;
   minShelfLifeAlertDate?: string;
   quantity?: number;
   allocated?: number;
-  createdAt?: string;
-  updatedAt?: string;
+};
+
+type InventoryBatchIdentity = {
   _id?: string;
   itemId?: string;
   organisationId?: string;
+  batchNumber?: string;
+  lotNumber?: string;
+  regulatoryTrackingId?: string;
+  expiryWarningBefore?: string;
+  barcode?: string;
+  manufactureDate?: string;
+  expiryDate?: string;
+  minShelfLifeAlertDate?: string;
+  quantity?: number;
+  allocated?: number;
 };
 
-export type InventoryApiItem = {
-  _id: string;
+export type InventoryBatchApi = InventoryBatchDetails &
+  InventoryBatchIdentity & {
+    createdAt?: string;
+    updatedAt?: string;
+  };
+
+type InventoryBusinessContext = {
   organisationId: string;
   businessType: BusinessType;
-  itemType?: string;
+};
+
+type InventoryItemDetails<ItemType = string> = {
+  itemType?: ItemType;
   name: string;
   sku?: string;
   category?: string;
@@ -46,6 +67,8 @@ export type InventoryApiItem = {
   storageInstructions?: string;
   unitOfMeasure?: string;
   packageQuantity?: number;
+  unitQuantity?: number;
+  stockUnitType?: string;
   storageLocation?: string;
   minimumStock?: number;
   attributes?: Record<string, any>;
@@ -57,60 +80,25 @@ export type InventoryApiItem = {
   currency?: string;
   vendorId?: string;
   status?: string;
-  stockHealth?: StockHealthStatus;
-  batches?: InventoryBatchApi[];
-  createdAt?: string;
-  updatedAt?: string;
 };
 
-export type InventoryBatchPayload = {
-  _id?: string;
-  itemId?: string;
-  organisationId?: string;
-  batchNumber?: string;
-  lotNumber?: string;
-  regulatoryTrackingId?: string;
-  manufactureDate?: string;
-  expiryDate?: string;
-  minShelfLifeAlertDate?: string;
-  quantity?: number;
-  allocated?: number;
-};
+export type InventoryApiItem = InventoryBusinessContext &
+  InventoryItemDetails & {
+    _id: string;
+    stockHealth?: StockHealthStatus;
+    batches?: InventoryBatchApi[];
+    createdAt?: string;
+    updatedAt?: string;
+  };
 
-export type InventoryRequestPayload = {
-  organisationId: string;
-  businessType: BusinessType;
-  itemType?: 'MEDICAL' | 'NON_MEDICAL';
-  name: string;
-  sku?: string;
-  category?: string;
-  subCategory?: string;
-  description?: string;
-  imageUrl?: string;
-  genericName?: string;
-  strength?: string;
-  dosageForm?: string;
-  routeOfAdministration?: string;
-  prescriptionRequired?: boolean;
-  controlledItem?: boolean;
-  storageInstructions?: string;
-  unitOfMeasure?: string;
-  packageQuantity?: number;
-  storageLocation?: string;
-  minimumStock?: number;
-  attributes?: Record<string, any>;
-  onHand?: number;
-  allocated?: number;
-  initialOnHand?: number;
-  initialAllocated?: number;
-  reorderLevel?: number;
-  unitCost?: number;
-  sellingPrice?: number;
-  currency?: string;
-  vendorId?: string;
-  status?: string;
-  batches?: InventoryBatchPayload[];
-};
+export type InventoryBatchPayload = InventoryBatchIdentity & InventoryBatchDetails;
+
+export type InventoryRequestPayload = InventoryBusinessContext &
+  InventoryItemDetails<'MEDICAL' | 'NON_MEDICAL'> & {
+    initialOnHand?: number;
+    initialAllocated?: number;
+    batches?: InventoryBatchPayload[];
+  };
 
 // Primary Information Values
 export const StatusOptions: string[] = ['Low stock', 'Expired', 'Hidden', 'This week'];
@@ -714,6 +702,7 @@ export interface DispensaryItem {
   frequency?: string;
   frequencyPerDay?: number;
   durationDays?: number;
+  durationUnit?: string;
   refillsRemaining?: number;
   stockUnitQty?: number;
   stockUnitType?: string;
@@ -742,6 +731,7 @@ export interface DispensaryRecord {
   amountCents: number;
   currency?: string;
   lead: string;
+  petParentName?: string;
   location: string;
   timeDispensed?: string;
   requestType: 'PATIENT' | 'IN_HOUSE';

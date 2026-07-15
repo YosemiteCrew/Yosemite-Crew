@@ -1,0 +1,170 @@
+import React from 'react';
+import {mockTheme} from '../setup/mockTheme';
+import {render, fireEvent} from '@testing-library/react-native';
+import * as Redux from 'react-redux';
+import MyAppointmentsEmptyScreen from '@/features/appointments/screens/MyAppointmentsEmptyScreen';
+import {setSelectedCompanion} from '@/features/companion';
+
+const mockNavigate = jest.fn();
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({navigate: mockNavigate}),
+}));
+
+jest.mock('@/hooks', () => ({
+  useTheme: () => ({theme: mockTheme, isDark: false}),
+}));
+
+jest.mock('@/assets/images', () => ({
+  Images: {
+    addIconDark: {uri: 'add-icon'},
+    emptyAppointments: {uri: 'empty-appointments'},
+    emptyTasksIllustration: {uri: 'empty-tasks'},
+  },
+}));
+
+jest.mock(
+  '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen',
+  () => {
+    const {View} = require('react-native');
+    return {
+      LiquidGlassHeaderScreen: ({header, children}: any) => (
+        <View testID="liquid-glass-header-screen">
+          {header}
+          {typeof children === 'function' ? children({}) : children}
+        </View>
+      ),
+    };
+  },
+);
+
+jest.mock('@/shared/components/common/Header/Header', () => {
+  const {View, Text, TouchableOpacity} = require('react-native');
+  return {
+    Header: ({title, rightIcon, onRightPress}: any) => (
+      <View testID="header">
+        <Text>{title}</Text>
+        {rightIcon && (
+          <TouchableOpacity testID="header-add-btn" onPress={onRightPress}>
+            <Text>Add</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    ),
+  };
+});
+
+jest.mock(
+  '@/shared/components/common/CompanionSelector/CompanionSelector',
+  () => {
+    const {View, Text, TouchableOpacity} = require('react-native');
+    return {
+      CompanionSelector: ({companions, onSelect}: any) => (
+        <View testID="companion-selector">
+          {companions.map((c: any) => (
+            <TouchableOpacity
+              key={c.id}
+              testID={`select-${c.id}`}
+              onPress={() => onSelect(c.id)}>
+              <Text>{c.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ),
+    };
+  },
+);
+
+const mockDispatch = jest.fn();
+
+describe('MyAppointmentsEmptyScreen', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(Redux, 'useDispatch').mockReturnValue(mockDispatch as any);
+  });
+
+  it('renders the empty state without a companion selector or add button when there are no companions', () => {
+    jest
+      .spyOn(Redux, 'useSelector')
+      .mockImplementation((selectorFn: any) =>
+        selectorFn({companion: {companions: [], selectedCompanionId: null}}),
+      );
+
+    const {getByText, queryByTestId} = render(<MyAppointmentsEmptyScreen />);
+
+    expect(
+      getByText("We've dug and dug… but no appointments found."),
+    ).toBeTruthy();
+    expect(queryByTestId('companion-selector')).toBeNull();
+    expect(queryByTestId('header-add-btn')).toBeNull();
+  });
+
+  it('falls back to the tasks illustration when the empty appointments image is unavailable', () => {
+    const {Images} = require('@/assets/images');
+    const originalEmptyAppointments = Images.emptyAppointments;
+    Images.emptyAppointments = undefined;
+
+    try {
+      jest
+        .spyOn(Redux, 'useSelector')
+        .mockImplementation((selectorFn: any) =>
+          selectorFn({companion: {companions: [], selectedCompanionId: null}}),
+        );
+
+      const {UNSAFE_getByType} = render(<MyAppointmentsEmptyScreen />);
+      const {Image} = require('react-native');
+      const image = UNSAFE_getByType(Image);
+
+      expect(image.props.source).toEqual({uri: 'empty-tasks'});
+    } finally {
+      Images.emptyAppointments = originalEmptyAppointments;
+    }
+  });
+
+  it('renders the companion selector and add button when companions exist', () => {
+    jest.spyOn(Redux, 'useSelector').mockImplementation((selectorFn: any) =>
+      selectorFn({
+        companion: {
+          companions: [{id: 'c1', name: 'Rex'}],
+          selectedCompanionId: 'c1',
+        },
+      }),
+    );
+
+    const {getByTestId} = render(<MyAppointmentsEmptyScreen />);
+
+    expect(getByTestId('companion-selector')).toBeTruthy();
+    expect(getByTestId('header-add-btn')).toBeTruthy();
+  });
+
+  it('navigates to BrowseBusinesses when the add button is pressed', () => {
+    jest.spyOn(Redux, 'useSelector').mockImplementation((selectorFn: any) =>
+      selectorFn({
+        companion: {
+          companions: [{id: 'c1', name: 'Rex'}],
+          selectedCompanionId: 'c1',
+        },
+      }),
+    );
+
+    const {getByTestId} = render(<MyAppointmentsEmptyScreen />);
+    fireEvent.press(getByTestId('header-add-btn'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('BrowseBusinesses');
+  });
+
+  it('dispatches setSelectedCompanion when a companion is selected', () => {
+    jest.spyOn(Redux, 'useSelector').mockImplementation((selectorFn: any) =>
+      selectorFn({
+        companion: {
+          companions: [{id: 'c1', name: 'Rex'}],
+          selectedCompanionId: 'c1',
+        },
+      }),
+    );
+
+    const {getByTestId} = render(<MyAppointmentsEmptyScreen />);
+    fireEvent.press(getByTestId('select-c1'));
+
+    expect(mockDispatch).toHaveBeenCalledWith(setSelectedCompanion('c1'));
+  });
+});

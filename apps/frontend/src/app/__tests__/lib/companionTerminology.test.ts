@@ -162,4 +162,23 @@ describe('rewriteCompanionTerminologyText', () => {
       'The companion is here'
     );
   });
+
+  it('never rewrites the fixed owner term "pet parent"', () => {
+    expect(rewriteCompanionTerminologyText('Pet parent', 'PATIENT')).toBe('Pet parent');
+    expect(rewriteCompanionTerminologyText('via pet parent app', 'PATIENT')).toBe(
+      'via pet parent app'
+    );
+  });
+
+  it('never rewrites the plural owner term "pet parents"', () => {
+    expect(rewriteCompanionTerminologyText('Pet parents & appointments', 'PATIENT')).toBe(
+      'Pet parents & appointments'
+    );
+  });
+
+  it('still rewrites the animal noun elsewhere in the same string', () => {
+    expect(rewriteCompanionTerminologyText('Pet parent of a pet', 'PATIENT')).toBe(
+      'Pet parent of a patient'
+    );
+  });
 });

@@ -34,6 +34,10 @@ jest.mock('@/app/hooks/useNotify', () => ({
   useNotify: () => ({ notify: mockNotify }),
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 const mockCompanionsParents: any[] = [];
 jest.mock('@/app/hooks/useCompanion', () => ({
   useCompanionsParentsForPrimaryOrg: jest.fn(() => mockCompanionsParents),
@@ -2058,11 +2062,11 @@ describe('AddCompanionCentralModal', () => {
       });
 
       await act(async () => {
-        fireEvent.change(screen.getByLabelText('Weight (lbs)'), { target: { value: '25' } });
+        fireEvent.change(screen.getByLabelText('Weight (kg)'), { target: { value: '25' } });
       });
 
       // FormInput mock uses type="number", toHaveValue returns number
-      expect(screen.getByLabelText('Weight (lbs)')).toHaveValue(25);
+      expect(screen.getByLabelText('Weight (kg)')).toHaveValue(25);
     });
 
     it('handles empty string weight input (NaN → undefined)', async () => {
@@ -2072,12 +2076,12 @@ describe('AddCompanionCentralModal', () => {
 
       // First set a value, then clear it
       await act(async () => {
-        fireEvent.change(screen.getByLabelText('Weight (lbs)'), { target: { value: '10' } });
-        fireEvent.change(screen.getByLabelText('Weight (lbs)'), { target: { value: '' } });
+        fireEvent.change(screen.getByLabelText('Weight (kg)'), { target: { value: '10' } });
+        fireEvent.change(screen.getByLabelText('Weight (kg)'), { target: { value: '' } });
       });
 
       // After clearing, toNonNegativeNumber returns undefined → state reflects empty string
-      expect(screen.getByLabelText('Weight (lbs)')).toHaveValue(null);
+      expect(screen.getByLabelText('Weight (kg)')).toHaveValue(null);
     });
   });
 

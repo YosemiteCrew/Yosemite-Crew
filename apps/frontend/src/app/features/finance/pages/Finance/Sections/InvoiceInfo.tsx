@@ -20,6 +20,7 @@ import clsx from 'clsx';
 import Image from 'next/image';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getInvoiceStatusStyle } from '@/app/ui/tables/tableUtils';
+import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 type ActiveTab = 'details' | 'payment';
 
@@ -28,11 +29,6 @@ const tabs: { key: ActiveTab; label: string }[] = [
   { key: 'payment', label: 'Payment' },
 ];
 
-const CompanionFields = [
-  { label: 'Pet', key: 'pet', type: 'text' },
-  { label: 'Parent', key: 'parent', type: 'text' },
-  { label: 'Service', key: 'service', type: 'text' },
-];
 const InvoiceFields = [
   { label: 'Sub-total', key: 'subTotal', type: 'text' },
   { label: 'Discount', key: 'discount', type: 'text' },
@@ -49,6 +45,7 @@ type InvoiceInfoProps = {
 };
 
 const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProps) => {
+  const terminologyText = useCompanionTerminologyText();
   const appointments = useAppointmentsForPrimaryOrg();
   const currency = useCurrencyForPrimaryOrg();
   const router = useRouter();
@@ -58,6 +55,14 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
   const paymentTabId = useId();
   const detailsPanelId = useId();
   const paymentPanelId = useId();
+  const companionFields = useMemo(
+    () => [
+      { label: terminologyText('Pet'), key: 'pet', type: 'text' },
+      { label: 'Parent', key: 'parent', type: 'text' },
+      { label: 'Service', key: 'service', type: 'text' },
+    ],
+    [terminologyText]
+  );
 
   const appointment = useMemo(
     () => getAppointmentByIdFromList(appointments, activeInvoice?.appointmentId),
@@ -168,7 +173,7 @@ const InvoiceInfo = ({ showModal, setShowModal, activeInvoice }: InvoiceInfoProp
               <EditableAccordion
                 key="Appointments-key"
                 title="Appointment details"
-                fields={CompanionFields}
+                fields={companionFields}
                 data={appointmentInfoData}
                 defaultOpen={true}
                 showEditIcon={false}

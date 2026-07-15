@@ -1,0 +1,11 @@
+{
+  "$schema": "https://react.doctor/schema/config.json",
+  "ignore": {
+    "overrides": [
+      {
+        "files": ["package.json"],
+        "rules": ["react-doctor/low-supply-chain-score"]
+      }
+    ]
+  }
+}

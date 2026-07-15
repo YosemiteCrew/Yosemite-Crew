@@ -1,17 +1,17 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect as useReactEffect} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Image,
-  TouchableOpacity,
   StyleSheet as RNStyleSheet,
   BackHandler,
   Alert,
   ToastAndroid,
   Platform,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {
@@ -92,7 +92,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   const {theme} = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteProfileBottomSheetRef>(null);
-  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const isDeleteSheetOpenRef = React.useRef(false);
   const accessMap = useSelector(
     (state: RootState) => state.coParent?.accessByCompanionId ?? {},
   );
@@ -292,7 +292,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     [canAccessFeature, showPermissionToast],
   );
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (companionId) {
       dispatch(setSelectedCompanion(companionId));
     }
@@ -476,13 +476,13 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   };
 
   // Handle Android back button for delete bottom sheet
-  useEffect(() => {
+  useReactEffect(() => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-        if (isDeleteSheetOpen) {
+        if (isDeleteSheetOpenRef.current) {
           deleteSheetRef.current?.close();
-          setIsDeleteSheetOpen(false);
+          isDeleteSheetOpenRef.current = false;
           return true;
         }
         return false;
@@ -490,10 +490,10 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
     );
 
     return () => backHandler.remove();
-  }, [isDeleteSheetOpen]);
+  }, []);
 
   const handleDeletePress = React.useCallback(() => {
-    setIsDeleteSheetOpen(true);
+    isDeleteSheetOpenRef.current = true;
     deleteSheetRef.current?.open();
   }, []);
 
@@ -508,7 +508,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
 
       if (deleteCompanion.fulfilled.match(resultAction)) {
         console.log('[ProfileOverview] Companion deleted successfully');
-        setIsDeleteSheetOpen(false);
+        isDeleteSheetOpenRef.current = false;
         navigation.goBack();
       } else {
         console.error(
@@ -530,7 +530,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
   }, [companion?.id, dispatch, navigation, parentId, showErrorAlert]);
 
   const handleDeleteCancel = React.useCallback(() => {
-    setIsDeleteSheetOpen(false);
+    isDeleteSheetOpenRef.current = false;
   }, []);
 
   if (!companion) {
@@ -585,7 +585,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
                 fallbackStyle={styles.glassFallback}>
                 <View style={styles.listContainer}>
                   {sections.map((item, index) => (
-                    <TouchableOpacity
+                    <PressableOpacity
                       key={item.id}
                       style={styles.row}
                       activeOpacity={0.7}
@@ -618,7 +618,7 @@ export const ProfileOverviewScreen: React.FC<Props> = ({route, navigation}) => {
                       {index !== sections.length - 1 && (
                         <View style={styles.separator} />
                       )}
-                    </TouchableOpacity>
+                    </PressableOpacity>
                   ))}
                 </View>
               </LiquidGlassCard>

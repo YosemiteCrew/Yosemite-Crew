@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { WorkspaceController } from "../../src/controllers/web/workspace.controller";
 import { WorkspaceService } from "src/services/workspace.prisma.service";
+import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { WorkspaceDocumentPacketService } from "src/services/workspace-document-packet.service";
 import logger from "src/utils/logger";
 
@@ -33,6 +34,14 @@ jest.mock("src/services/workspace-document-packet.service", () => ({
     createForEncounter: jest.fn(),
     getById: jest.fn(),
     sign: jest.fn(),
+    buildEncounterPacketPdf: jest.fn(),
+    buildEncounterPacketPdfForParent: jest.fn(),
+  },
+}));
+
+jest.mock("src/services/authUserMobile.service", () => ({
+  AuthUserMobileService: {
+    getByProviderUserId: jest.fn(),
   },
 }));
 
@@ -51,14 +60,18 @@ describe("WorkspaceController", () => {
   };
   let res: Partial<Response>;
   let json: jest.Mock;
+  let send: jest.Mock;
   let status: jest.Mock;
+  let setHeader: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     json = jest.fn();
-    status = jest.fn().mockReturnValue({ json });
+    send = jest.fn();
+    status = jest.fn().mockReturnValue({ json, send });
+    setHeader = jest.fn();
     req = { params: {}, userPermissions: [] };
-    res = { status, json };
+    res = { status, json, send, setHeader };
   });
 
   it("returns the appointment bootstrap payload", async () => {
@@ -207,6 +220,74 @@ describe("WorkspaceController", () => {
       encounterId: "enc-3",
     });
     expect(status).toHaveBeenCalledWith(201);
+  });
+
+  it("streams the mobile encounter document packet PDF for the linked parent", async () => {
+    req.params = {
+      encounterId: "enc-mobile",
+    };
+    req.userId = "provider-1";
+    (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({
+      parentId: "parent-1",
+    });
+    (
+      WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent as jest.Mock
+    ).mockResolvedValue(Buffer.from("pdf"));
+
+    await WorkspaceController.getMobileEncounterDocumentPacketPdf(
+      req as Request,
+      res as Response,
+    );
+
+    expect(AuthUserMobileService.getByProviderUserId).toHaveBeenCalledWith(
+      "provider-1",
+    );
+    expect(
+      WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent,
+    ).toHaveBeenCalledWith("parent-1", "enc-mobile");
+    expect(setHeader).toHaveBeenCalledWith("Content-Type", "application/pdf");
+    expect(setHeader).toHaveBeenCalledWith(
+      "Content-Disposition",
+      'inline; filename="clinical-packet-enc-mobile.pdf"',
+    );
+    expect(status).toHaveBeenCalledWith(200);
+    expect(send).toHaveBeenCalledWith(Buffer.from("pdf"));
+  });
+
+  it("rejects the mobile encounter packet PDF without an authenticated user", async () => {
+    req.params = {
+      encounterId: "enc-mobile",
+    };
+
+    await WorkspaceController.getMobileEncounterDocumentPacketPdf(
+      req as Request,
+      res as Response,
+    );
+
+    expect(status).toHaveBeenCalledWith(401);
+    expect(
+      WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("rejects the mobile encounter packet PDF when the user has no parent profile", async () => {
+    req.params = {
+      encounterId: "enc-mobile",
+    };
+    req.userId = "provider-1";
+    (AuthUserMobileService.getByProviderUserId as jest.Mock).mockResolvedValue({
+      parentId: null,
+    });
+
+    await WorkspaceController.getMobileEncounterDocumentPacketPdf(
+      req as Request,
+      res as Response,
+    );
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(
+      WorkspaceDocumentPacketService.buildEncounterPacketPdfForParent,
+    ).not.toHaveBeenCalled();
   });
 
   it("signs a document packet when the request is authenticated", async () => {

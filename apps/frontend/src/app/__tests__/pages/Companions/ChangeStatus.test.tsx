@@ -19,6 +19,10 @@ jest.mock('@/app/ui/overlays/Modal/ChangeStatusModal', () => ({
   },
 }));
 
+jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
+  useCompanionTerminologyText: () => (text: string) => text,
+}));
+
 describe('Companion ChangeStatus wrapper', () => {
   const setShowModal = jest.fn();
   const activeCompanion: any = {

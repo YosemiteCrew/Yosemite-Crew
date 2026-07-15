@@ -3,6 +3,7 @@ import apiClient from '@/shared/services/apiClient';
 import {uploadFileToPresignedUrl} from '@/shared/services/uploadService';
 import {generateId} from '@/shared/utils/helpers';
 import {buildCdnUrlFromKey} from '@/shared/utils/cdnHelpers';
+import RNFS from 'react-native-fs';
 
 // --- Mocks ---
 jest.mock('@/shared/services/apiClient', () => ({
@@ -29,6 +30,15 @@ jest.mock('@/shared/utils/cdnHelpers', () => ({
   buildCdnUrlFromKey: jest.fn(),
 }));
 
+jest.mock('react-native-fs', () => ({
+  TemporaryDirectoryPath: '/tmp',
+  CachesDirectoryPath: '/tmp',
+  mkdir: jest.fn().mockResolvedValue(undefined),
+  downloadFile: jest.fn(() => ({
+    promise: Promise.resolve({statusCode: 200}),
+  })),
+}));
+
 jest.mock('@/shared/utils/imageUri', () => ({
   normalizeImageUri: jest.fn(uri => uri),
 }));
@@ -41,6 +51,7 @@ describe('documentService', () => {
     jest.clearAllMocks();
     (generateId as jest.Mock).mockReturnValue('mock-uuid');
     (buildCdnUrlFromKey as jest.Mock).mockImplementation(k => `cdn/${k}`);
+    (apiClient.defaults as any).baseURL = '';
   });
 
   describe('requestUploadUrl', () => {
@@ -279,6 +290,38 @@ describe('documentService', () => {
       );
     });
 
+    it('should preserve provided files when a non-empty create response has no attachments', async () => {
+      const files = [
+        {id: 'file-1', key: 'existing-key', name: 'Existing file'},
+      ];
+      (apiClient.post as jest.Mock).mockResolvedValue({
+        data: {id: 'doc-without-files', title: 'Saved'},
+      });
+
+      const res = await documentApi.create({
+        companionId: mockCompanionId,
+        category: '',
+        subcategory: null,
+        visitType: '   ',
+        title: 'Saved',
+        businessName: 'Biz',
+        issueDate: 'January 2, 2023',
+        files: files as any,
+        accessToken: mockToken,
+      });
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          category: '',
+          visitType: '',
+          issueDate: '2023-01-02',
+        }),
+        expect.any(Object),
+      );
+      expect(res.files).toEqual(files);
+    });
+
     it('should handle "others" category mapping', async () => {
       const files = [{key: 'k1'}];
       (apiClient.post as jest.Mock).mockResolvedValue({data: {}});
@@ -436,6 +479,46 @@ describe('documentService', () => {
       });
       list = await documentApi.list({companionId: 'c1', accessToken: 't'});
       expect(list).toHaveLength(1);
+    });
+
+    it('should map rendered PDF documents into previewable files', async () => {
+      (RNFS.downloadFile as jest.Mock).mockReturnValue({
+        promise: Promise.resolve({statusCode: 200}),
+      });
+
+      const list = await documentApi.listForAppointment({
+        appointmentId: 'apt-1',
+        companionId: 'comp-1',
+        encounterId: 'enc-1',
+        accessToken: mockToken,
+      });
+
+      expect(list).toHaveLength(1);
+      expect(RNFS.downloadFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fromUrl: '/v1/workspace/mobile/encounters/enc-1/document-packet/pdf',
+          toFile: '/tmp/clinical-packet-apt-1.pdf',
+        }),
+      );
+      expect(list[0].files[0]).toEqual(
+        expect.objectContaining({
+          viewUrl: 'file:///tmp/clinical-packet-apt-1.pdf',
+          downloadUrl: 'file:///tmp/clinical-packet-apt-1.pdf',
+          type: 'application/pdf',
+        }),
+      );
+    });
+
+    it('should return no appointment documents when encounter id is missing', async () => {
+      const list = await documentApi.listForAppointment({
+        appointmentId: 'apt-1',
+        companionId: 'comp-1',
+        encounterId: null,
+        accessToken: mockToken,
+      });
+
+      expect(list).toEqual([]);
+      expect(RNFS.downloadFile).not.toHaveBeenCalled();
     });
   });
 
@@ -701,6 +784,14 @@ describe('documentService', () => {
       // payload.data (as array)
       list = await testCase({data: [{key: 'k'}]});
       expect(list[0].files).toHaveLength(1);
+
+      // payload.results
+      list = await testCase({results: [{key: 'k'}]});
+      expect(list[0].files).toHaveLength(1);
+
+      // payload is itself an attachment array
+      list = await testCase([{key: 'k'}]);
+      expect(list[0].files).toHaveLength(1);
     });
 
     it('formatAppointmentId: variations', async () => {
@@ -796,6 +887,128 @@ describe('documentService', () => {
       expect(list[0].visitType).toBe('follow-up-visit');
       expect(list[0].businessName).toBe('Clinic Alias');
       expect(list[0].files[0].key).toBe('stored-key');
+    });
+
+    it('normalizes slugs, pdf documents, nested collections, and fallback file urls', async () => {
+      (buildCdnUrlFromKey as jest.Mock).mockImplementation(key =>
+        key ? `cdn/${key}` : null,
+      );
+      (apiClient.get as jest.Mock).mockResolvedValueOnce({
+        data: {
+          data: {
+            data: [
+              {
+                id: 'nested-doc',
+                category: 'HEALTH',
+                subcategory: '___PASSPORT___',
+                pdfUrl: 'https://example.com/doc.pdf',
+                title: 'PDF title',
+              },
+            ],
+          },
+        },
+      });
+
+      let list = await documentApi.list({companionId: 'c', accessToken: 't'});
+
+      expect(list[0].subcategory).toBe('passport');
+      expect(list[0].files[0]).toEqual(
+        expect.objectContaining({
+          id: 'nested-doc-pdf',
+          name: 'PDF title',
+          type: 'application/pdf',
+          viewUrl: 'https://example.com/doc.pdf',
+        }),
+      );
+
+      (apiClient.get as jest.Mock).mockResolvedValueOnce({
+        data: {
+          data: 'not-a-collection',
+          documents: [{id: 'root-documents'}],
+        },
+      });
+      list = await documentApi.list({companionId: 'c', accessToken: 't'});
+      expect(list[0].id).toBe('root-documents');
+
+      (apiClient.get as jest.Mock).mockResolvedValueOnce({
+        data: {
+          data: 'not-a-collection',
+          results: [{id: 'root-results'}],
+        },
+      });
+      list = await documentApi.list({companionId: 'c', accessToken: 't'});
+      expect(list[0].id).toBe('root-results');
+
+      (apiClient.get as jest.Mock).mockResolvedValueOnce({
+        data: {
+          data: 'not-a-collection',
+          items: [{id: 'root-items'}],
+        },
+      });
+      list = await documentApi.list({companionId: 'c', accessToken: 't'});
+      expect(list[0].id).toBe('root-items');
+
+      (apiClient.get as jest.Mock).mockResolvedValueOnce({
+        data: {
+          data: 'not-a-collection',
+        },
+      });
+      list = await documentApi.list({companionId: 'c', accessToken: 't'});
+      expect(list).toEqual([]);
+
+      (apiClient.get as jest.Mock).mockResolvedValueOnce({
+        data: {
+          files: [
+            {
+              fileKey: 'k1',
+              url: {not: 'a-string'},
+            },
+          ],
+        },
+      });
+      const files = await documentApi.fetchView({
+        documentId: 'd',
+        accessToken: 't',
+        existingFiles: [
+          {
+            key: 'k1',
+            uri: 'file://local',
+            s3Url: 'https://fallback.example/file.pdf',
+          },
+        ] as any,
+      });
+
+      expect(files[0]).toEqual(
+        expect.objectContaining({
+          uri: 'file://local',
+          s3Url: 'https://fallback.example/file.pdf',
+          viewUrl: 'cdn/k1',
+          downloadUrl: 'cdn/k1',
+        }),
+      );
+    });
+
+    it('uses trimmed API base URLs and rejects failed appointment packet downloads', async () => {
+      (apiClient.defaults as any).baseURL = 'https://api.example.com///';
+      (RNFS.downloadFile as jest.Mock).mockReturnValueOnce({
+        promise: Promise.resolve({statusCode: 500}),
+      });
+
+      await expect(
+        documentApi.listForAppointment({
+          appointmentId: 'apt-1',
+          companionId: 'comp-1',
+          encounterId: '/enc-1/',
+          accessToken: mockToken,
+        }),
+      ).rejects.toThrow('Unable to load appointment document packet.');
+
+      expect(RNFS.downloadFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fromUrl:
+            'https://api.example.com/v1/workspace/mobile/encounters/%2Fenc-1%2F/document-packet/pdf',
+        }),
+      );
     });
   });
 });

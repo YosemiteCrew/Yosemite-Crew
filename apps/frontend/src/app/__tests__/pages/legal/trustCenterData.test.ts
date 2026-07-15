@@ -25,9 +25,9 @@ describe('trustCenterData', () => {
     expect(gdpr?.status).toBe('Compliant');
     expect(gdpr?.icon).toBe(MEDIA_SOURCES.footer.gdpr);
 
-    // Test text-based icons/emojis
+    // Test icon-based certifications
     const fda = trustCenterData.certifications.find((c) => c.name === '21 CFR Part 11');
-    expect(fda?.icon).toBe('📜');
+    expect(fda?.icon).toBe(MEDIA_SOURCES.footer.fda);
 
     const esign = trustCenterData.certifications.find((c) => c.name === 'ESIGN Act');
     expect(esign?.icon).toBe('🇺🇸');

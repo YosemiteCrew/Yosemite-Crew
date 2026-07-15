@@ -94,28 +94,15 @@ describe('handleWindowOpen', () => {
     expect(mockOpened).toHaveLength(0);
   });
 
-  test('sends untrusted external popup origins to the system browser', () => {
-    const result = handleWindowOpen('https://example.com/phish');
+  test.each([
+    ['https://example.com/phish', 1],
+    ['https://yosemitecrew.com/developers/home', 1],
+    ['mailto:vet@example.com', 1],
+    ['file:///etc/passwd', 0],
+  ])('denies popup %s and opens %i system-browser window(s)', (url, openedCount) => {
+    const result = handleWindowOpen(url as string);
     expect(result.action).toBe('deny');
-    expect(mockOpened).toHaveLength(1);
-  });
-
-  test('sends developer portal popups to the system browser', () => {
-    const result = handleWindowOpen('https://yosemitecrew.com/developers/home');
-    expect(result.action).toBe('deny');
-    expect(mockOpened).toHaveLength(1);
-  });
-
-  test('sends mailto links to the system browser', () => {
-    const result = handleWindowOpen('mailto:vet@example.com');
-    expect(result.action).toBe('deny');
-    expect(mockOpened).toHaveLength(1);
-  });
-
-  test('denies unsupported-protocol popups without opening anything', () => {
-    const result = handleWindowOpen('file:///etc/passwd');
-    expect(result.action).toBe('deny');
-    expect(mockOpened).toHaveLength(0);
+    expect(mockOpened).toHaveLength(openedCount as number);
   });
 });
 

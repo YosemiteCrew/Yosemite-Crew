@@ -19,6 +19,7 @@ export type AppointmentStatus =
   | 'NO_SHOW';
 
 export type AppointmentPaymentStatus = 'PAID' | 'UNPAID';
+export type AppointmentBookingPaymentStatus = 'PAID' | 'UNPAID';
 
 export type AppointmentTemplateDefault = {
   templateKind: TemplateKind;
@@ -83,6 +84,7 @@ export type Appointment = {
   endTime: Date; // Booking end timestamp
   status: AppointmentStatus;
   paymentStatus?: AppointmentPaymentStatus;
+  bookingPaymentStatus?: AppointmentBookingPaymentStatus;
   isEmergency?: boolean;
   concern?: string; // Reason for the appointment
   createdAt?: Date;
@@ -107,6 +109,8 @@ const EXT_APPOINTMENT_FORM_IDS =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-form-id';
 const EXT_APPOINTMENT_PAYMENT_STATUS =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-payment-status';
+const EXT_APPOINTMENT_BOOKING_PAYMENT_STATUS =
+  'https://yosemitecrew.com/fhir/StructureDefinition/appointment-booking-payment-status';
 const EXT_APPOINTMENT_KIND = 'https://yosemitecrew.com/fhir/StructureDefinition/appointment-kind';
 const EXT_APPOINTMENT_CASE_ID =
   'https://yosemitecrew.com/fhir/StructureDefinition/appointment-case-id';
@@ -317,6 +321,13 @@ export function toFHIRAppointment(appointment: Appointment): FHIRAppointment {
     });
   }
 
+  if (appointment.bookingPaymentStatus) {
+    extension.push({
+      url: EXT_APPOINTMENT_BOOKING_PAYMENT_STATUS,
+      valueString: appointment.bookingPaymentStatus,
+    });
+  }
+
   if (appointment.appointmentKind) {
     extension.push({
       url: EXT_APPOINTMENT_KIND,
@@ -459,6 +470,9 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
   const paymentStatus = FHIRappointment.extension?.find(
     (ext) => ext.url === EXT_APPOINTMENT_PAYMENT_STATUS
   )?.valueString as AppointmentPaymentStatus | undefined;
+  const bookingPaymentStatus = FHIRappointment.extension?.find(
+    (ext) => ext.url === EXT_APPOINTMENT_BOOKING_PAYMENT_STATUS
+  )?.valueString as AppointmentBookingPaymentStatus | undefined;
   const appointmentKind = FHIRappointment.extension?.find((ext) => ext.url === EXT_APPOINTMENT_KIND)
     ?.valueString as AppointmentKind | undefined;
   const caseId = FHIRappointment.extension?.find(
@@ -553,6 +567,7 @@ export function fromFHIRAppointment(FHIRappointment: FHIRAppointment): Appointme
     endTime: FHIRappointment.end ? new Date(FHIRappointment.end) : new Date(),
     status: normalizedStatus as any,
     paymentStatus,
+    bookingPaymentStatus,
     concern: FHIRappointment.description ?? '',
     createdAt: FHIRappointment.created ? new Date(FHIRappointment.created) : new Date(),
     updatedAt: new Date(),

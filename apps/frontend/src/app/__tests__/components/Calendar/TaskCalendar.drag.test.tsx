@@ -7,6 +7,7 @@ import { getProfileForUserForPrimaryOrg } from '@/app/features/organization/serv
 import { updateTask } from '@/app/features/tasks/services/taskService';
 import { useNotify } from '@/app/hooks/useNotify';
 import { canRescheduleTask, canShowTaskStatusChangeAction } from '@/app/lib/tasks';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 
 jest.mock('@/app/features/appointments/components/Calendar/common/Header', () => {
   return function MockHeader() {
@@ -49,6 +50,9 @@ jest.mock('@/app/features/appointments/components/Calendar/Task/DayCalendar', ()
         >
           create
         </button>
+        <div data-testid="resolved-name-known">{props.resolveDisplayName('vet-1')}</div>
+        <div data-testid="resolved-name-unknown">{props.resolveDisplayName('ghost-id')}</div>
+        <div data-testid="resolved-name-empty">{props.resolveDisplayName(undefined)}</div>
       </div>
     );
   };
@@ -305,5 +309,98 @@ describe('TaskCalendar drag and creation behavior', () => {
     expect(screen.queryByTestId('task-day-calendar')).not.toBeInTheDocument();
     expect(screen.queryByTestId('task-week-calendar')).not.toBeInTheDocument();
     expect(screen.queryByTestId('task-user-calendar')).not.toBeInTheDocument();
+  });
+
+  it('resolves display names via member map, team fallback, and empty guard', () => {
+    render(<TaskCalendar {...baseProps} />);
+
+    expect(screen.getByTestId('resolved-name-known')).toHaveTextContent('Dr One');
+    expect(screen.getByTestId('resolved-name-unknown')).toHaveTextContent('ghost-id');
+    expect(screen.getByTestId('resolved-name-empty')).toHaveTextContent('-');
+  });
+
+  it('opens reschedule flow for reschedulable tasks', () => {
+    render(<TaskCalendar {...baseProps} />);
+
+    fireEvent.click(screen.getByText('reschedule-task'));
+
+    expect(setActiveTask).toHaveBeenCalledWith(expect.objectContaining({ _id: 'task-1' }));
+    expect(setReschedulePopup).toHaveBeenCalledWith(true);
+  });
+
+  it('blocks move when task becomes non-editable before drop completes', async () => {
+    const { rerender } = render(<TaskCalendar {...baseProps} />);
+
+    fireEvent.click(screen.getByText('drag-start'));
+
+    const staleTask = { ...task, status: 'COMPLETED' };
+    rerender(<TaskCalendar {...baseProps} filteredList={[staleTask]} allTasks={[staleTask]} />);
+
+    fireEvent.click(screen.getByText('drop'));
+
+    expect(
+      await screen.findByText('Only pending or in-progress tasks can be moved.')
+    ).toBeInTheDocument();
+    expect(updateTask).not.toHaveBeenCalled();
+  });
+
+  it('auto-scrolls the viewport and nested scroll container while dragging near edges', () => {
+    render(<TaskCalendar {...baseProps} />);
+    fireEvent.click(screen.getByText('drag-start'));
+
+    const scrollBySpy = jest.fn();
+    (globalThis as any).scrollBy = scrollBySpy;
+    Object.defineProperty(globalThis, 'innerWidth', { value: 1024, configurable: true });
+    Object.defineProperty(globalThis, 'innerHeight', { value: 768, configurable: true });
+
+    const container = document.createElement('div');
+    container.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 200, bottom: 200 }) as DOMRect;
+    container.scrollBy = jest.fn() as any;
+    const hovered = document.createElement('div');
+    hovered.closest = jest.fn(() => container) as any;
+    (document as any).elementFromPoint = jest.fn(() => hovered);
+
+    const nearTopLeft = new Event('dragover') as any;
+    nearTopLeft.clientX = 1;
+    nearTopLeft.clientY = 1;
+    globalThis.dispatchEvent(nearTopLeft);
+
+    expect(scrollBySpy).toHaveBeenCalledWith({ left: -28 });
+    expect(scrollBySpy).toHaveBeenCalledWith({ top: -28 });
+    expect(container.scrollBy).toHaveBeenCalledWith({ left: -28, top: -28 });
+
+    scrollBySpy.mockClear();
+    (container.scrollBy as jest.Mock).mockClear();
+    const nearBottomRight = new Event('dragover') as any;
+    nearBottomRight.clientX = 1020;
+    nearBottomRight.clientY = 764;
+    globalThis.dispatchEvent(nearBottomRight);
+
+    expect(scrollBySpy).toHaveBeenCalledWith({ left: 28 });
+    expect(scrollBySpy).toHaveBeenCalledWith({ top: 28 });
+    expect(container.scrollBy).toHaveBeenCalledWith({ left: 28, top: 28 });
+
+    scrollBySpy.mockClear();
+    (hovered.closest as jest.Mock).mockReturnValue(null);
+    const noContainer = new Event('dragover') as any;
+    noContainer.clientX = 1;
+    noContainer.clientY = 1;
+    globalThis.dispatchEvent(noContainer);
+    expect(scrollBySpy).toHaveBeenCalledWith({ left: -28 });
+  });
+
+  it('resolves assignee ids using alternate team member id fields', () => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValueOnce([
+      { userId: 'user-alt', name: 'Alt User' },
+    ]);
+
+    render(<TaskCalendar {...baseProps} activeCalendar="team" />);
+
+    fireEvent.click(screen.getByText('team-create'));
+
+    expect(onCreateFromCalendarSlot).toHaveBeenCalledWith(
+      expect.objectContaining({ assignedTo: 'team-2' })
+    );
   });
 });

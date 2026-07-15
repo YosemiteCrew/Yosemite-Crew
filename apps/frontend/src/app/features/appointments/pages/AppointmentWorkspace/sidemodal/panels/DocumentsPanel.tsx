@@ -8,19 +8,30 @@ import {
   LuFileSignature,
   LuPrinter,
 } from 'react-icons/lu';
-import type { Form } from '@yosemite-crew/types';
+import type { Appointment, Form, TemplateLike } from '@yosemite-crew/types';
+
+type AppointmentStatus = Appointment['status'];
 import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
 import Search from '@/app/ui/inputs/Search';
 import { Secondary } from '@/app/ui/primitives/Buttons';
+import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import PdfPreviewOverlay from '@/app/ui/overlays/PdfPreviewOverlay';
 import SigningOverlay from '@/app/ui/overlays/SigningOverlay';
 import CompanionDocumentsSection from '@/app/features/documents/components/CompanionDocumentsSection';
-import { fetchAppointmentForms } from '@/app/features/forms/services/appointmentFormsService';
+import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
+import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
+import {
+  fetchAppointmentForms,
+  linkAppointmentForms,
+} from '@/app/features/forms/services/appointmentFormsService';
+import { loadTemplateForms } from '@/app/features/forms/services/templateFormsService';
 import { downloadSubmissionPdf } from '@/app/features/forms/services/formSigningService';
 import {
   createEncounterDocumentPacket,
   getEncounterDocumentPacketPdfUrl,
+  listEncounterWorkspaceDocuments,
+  reconcileWorkspaceDocumentPacket,
   signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 import { useSigningOverlayStore } from '@/app/stores/signingOverlayStore';
@@ -31,6 +42,7 @@ type DocumentsPanelProps = {
   companionId?: string;
   organisationId?: string;
   encounterId?: string;
+  appointmentStatus?: AppointmentStatus;
 };
 
 type DocsTab = 'FORMS' | 'RECORDS';
@@ -79,6 +91,20 @@ const AUDIENCE_META: Record<FormAudience, string> = {
   STAFF: 'Staff form',
   PARENT: 'Parent consent',
 };
+
+// The workspace forms search assigns questionnaire-style templates to the
+// appointment — consent forms and custom (FORM) templates. Clinical artifact
+// kinds (SOAP, vitals, prescription, discharge) and plan-definition kinds
+// (tasks, inpatient schedule) are authored elsewhere in the workspace and must
+// never appear here, so we allow-list only the two assignable kinds.
+const ASSIGNABLE_FORM_KINDS = new Set<TemplateLike['kind']>(['FORM', 'CONSENT']);
+
+// Only published templates can be filled/signed by a client, so drafts and
+// archived templates are excluded from the assignable list.
+const isAssignableFormTemplate = (template: TemplateLike): boolean =>
+  ASSIGNABLE_FORM_KINDS.has(template.kind) &&
+  template.status === 'PUBLISHED' &&
+  Boolean(template.id);
 
 // Internal forms are completed by the practice (staff); External forms are sent
 // to the pet parent for consent. `visibilityType` is the authoritative signal;
@@ -136,6 +162,9 @@ type PacketState = {
   signingStatus?: string;
 };
 
+const isSignedDocumentRow = (document: { signingStatus?: string | null }): boolean =>
+  document.signingStatus?.toUpperCase() === 'SIGNED';
+
 /**
  * Combined clinical packet (SOAP + Prescription + Discharge) surfaced at parity
  * with the Summary step. Reuses the shared aggregate-service exports — Print via
@@ -144,17 +173,44 @@ type PacketState = {
  * the existing SigningOverlay. The packet/signing state matrix is rendered as
  * plain-label badges and gates the Sign action.
  */
+const resolveSignLabel = ({
+  isSigned,
+  isInProgress,
+  isSigning,
+}: {
+  isSigned: boolean;
+  isInProgress: boolean;
+  isSigning: boolean;
+}): string => {
+  if (isSigned) return 'Signed';
+  if (isInProgress) return 'Signing in progress';
+  if (isSigning) return 'Signing…';
+  return 'Sign';
+};
+
+const downloadPacket = (url: string) => {
+  const link = globalThis.document.createElement('a');
+  link.href = url;
+  link.download = '';
+  link.rel = 'noopener noreferrer';
+  globalThis.document.body.append(link);
+  link.click();
+  link.remove();
+};
+
 const ClinicalPacketSection = ({
   organisationId,
   encounterId,
+  appointmentStatus,
 }: {
   organisationId?: string;
   encounterId?: string;
+  appointmentStatus?: AppointmentStatus;
 }) => {
   const openSigningOverlay = useSigningOverlayStore((s) => s.openOverlay);
   const setSigningUrl = useSigningOverlayStore((s) => s.setUrl);
   const closeSigningOverlay = useSigningOverlayStore((s) => s.close);
-  const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
+  const registerSigningCloseHandler = useSigningOverlayStore((s) => s.registerCloseHandler);
   const [packet, setPacket] = useState<PacketState | null>(null);
   const [isSigning, setIsSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
@@ -170,6 +226,20 @@ const ClinicalPacketSection = ({
   const refreshPacket = useCallback(async () => {
     if (!organisationId || !encounterId) return;
     try {
+      try {
+        const documents = await listEncounterWorkspaceDocuments(organisationId, encounterId);
+        if (documents.some(isSignedDocumentRow)) {
+          setPacket({
+            status: 'FINAL',
+            signingStatus: 'SIGNED',
+          });
+          return;
+        }
+      } catch (error) {
+        if (isAuthRedirectError(error)) throw error;
+        console.error('Unable to load clinical packet documents:', error);
+      }
+
       const result = await createEncounterDocumentPacket(organisationId, encounterId);
       setPacket({
         packetId: result?.packetId,
@@ -187,16 +257,39 @@ const ClinicalPacketSection = ({
     void refreshPacket();
   }, [refreshPacket]);
 
-  const signingInitiatedRef = useRef(false);
-
-  useEffect(() => {
-    if (signingOverlayOpen || !signingInitiatedRef.current) return;
-    signingInitiatedRef.current = false;
-    void refreshPacket();
-  }, [refreshPacket, signingOverlayOpen]);
+  const reconcilePacketAfterSigningClose = useCallback(
+    async (packetId: string) => {
+      if (organisationId) {
+        try {
+          const reconciled = await reconcileWorkspaceDocumentPacket(organisationId, packetId);
+          if (reconciled?.signing?.status?.toUpperCase() === 'SIGNED') {
+            setPacket({
+              packetId: reconciled.packetId,
+              status: reconciled.status ?? 'FINAL',
+              signingStatus: 'SIGNED',
+            });
+          }
+        } catch (error) {
+          if (!isAuthRedirectError(error)) {
+            console.error('Unable to reconcile packet signing:', error);
+          }
+        }
+      }
+      await refreshPacket();
+    },
+    [organisationId, refreshPacket]
+  );
 
   const isSigned = packet?.signingStatus === 'SIGNED';
   const isInProgress = packet?.signingStatus === 'IN_PROGRESS';
+  // Signing may only begin while the appointment is actively in progress; before
+  // that (e.g. checked-in/upcoming) or after completion the action is disabled and
+  // a tooltip explains why (mirrors SummaryStep).
+  const appointmentInProgress = appointmentStatus === 'IN_PROGRESS';
+  const signGateReason =
+    appointmentInProgress || isSigned || isInProgress
+      ? undefined
+      : 'Signing is available only while the appointment is In progress.';
   const statusLabel = packet?.status ? (PACKET_STATUS_LABEL[packet.status] ?? null) : null;
   const signingLabel = packet?.signingStatus
     ? (SIGNING_STATUS_LABEL[packet.signingStatus] ?? null)
@@ -210,6 +303,22 @@ const ClinicalPacketSection = ({
       setPacketPreviewUrl(url);
     } catch (error) {
       console.error('Unable to open the clinical packet:', error);
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const handleDownloadSigned = async () => {
+    if (!organisationId || !encounterId || isPrinting) return;
+    setIsPrinting(true);
+    try {
+      const url = await getEncounterDocumentPacketPdfUrl(organisationId, encounterId);
+      downloadPacket(url);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setSignError(
+        error instanceof Error ? error.message : 'Unable to download the signed document.'
+      );
     } finally {
       setIsPrinting(false);
     }
@@ -231,13 +340,15 @@ const ClinicalPacketSection = ({
       if (!signingUrl) {
         throw new Error('Signing link is not available yet.');
       }
+      registerSigningCloseHandler(`packet-${encounterId}`, () =>
+        reconcilePacketAfterSigningClose(packetId)
+      );
       setSigningUrl(signingUrl);
       setPacket({
         packetId,
         status: signed?.status ?? created?.status,
         signingStatus: signed?.signing?.status ?? 'IN_PROGRESS',
       });
-      signingInitiatedRef.current = true;
     } catch (error) {
       setSignError(error instanceof Error ? error.message : 'Unable to start signing.');
       closeSigningOverlay();
@@ -253,20 +364,7 @@ const ClinicalPacketSection = ({
     });
   };
 
-  const downloadPacket = (url: string) => {
-    const link = globalThis.document.createElement('a');
-    link.href = url;
-    link.download = '';
-    link.rel = 'noopener noreferrer';
-    globalThis.document.body.append(link);
-    link.click();
-    link.remove();
-  };
-
-  let signLabel = 'Sign';
-  if (isSigned) signLabel = 'Signed';
-  else if (isInProgress) signLabel = 'Signing in progress';
-  else if (isSigning) signLabel = 'Signing…';
+  const signLabel = resolveSignLabel({ isSigned, isInProgress, isSigning });
 
   return (
     <section
@@ -315,21 +413,44 @@ const ClinicalPacketSection = ({
           onClick={() => void handlePrint()}
           isDisabled={!hasContext || isPrinting}
         />
-        <Secondary
-          text={signLabel}
-          icon={<LuFileSignature aria-hidden="true" />}
-          onClick={() => void handleSign()}
-          isDisabled={!hasContext || isSigning || isSigned || isInProgress}
-        />
+        {isSigned && (
+          <Secondary
+            text="Download Signed"
+            icon={<LuDownload aria-hidden="true" />}
+            onClick={() => void handleDownloadSigned()}
+            isDisabled={!hasContext || isPrinting}
+          />
+        )}
+        {!isSigned &&
+          (signGateReason ? (
+            <GlassTooltip content={signGateReason} side="top">
+              <Secondary
+                text={signLabel}
+                icon={<LuFileSignature aria-hidden="true" />}
+                onClick={() => void handleSign()}
+                isDisabled
+              />
+            </GlassTooltip>
+          ) : (
+            <Secondary
+              text={signLabel}
+              icon={<LuFileSignature aria-hidden="true" />}
+              onClick={() => void handleSign()}
+              isDisabled={!hasContext || isSigning || isInProgress}
+            />
+          ))}
       </div>
     </section>
   );
 };
 
-const renderFormsPanelContent = (
-  status: 'loading' | 'loaded' | 'error',
-  filteredForms: SubmittedForm[]
-) => {
+const FormsPanelContent = ({
+  status,
+  forms,
+}: {
+  status: 'loading' | 'loaded' | 'error';
+  forms: SubmittedForm[];
+}) => {
   if (status === 'loading') {
     return <p className="py-6 text-center text-body-4 text-text-secondary">Loading forms...</p>;
   }
@@ -340,16 +461,16 @@ const renderFormsPanelContent = (
       </p>
     );
   }
-  if (filteredForms.length === 0) {
+  if (forms.length === 0) {
     return (
       <p className="py-6 text-center text-body-4 text-text-secondary">
-        No forms match this search.
+        No forms assigned yet. Use the search above to add a consent or custom form.
       </p>
     );
   }
   return (
     <ul className="rounded-2xl border border-card-border px-4">
-      {filteredForms.map((form) => (
+      {forms.map((form) => (
         <FormRow key={form.id} form={form} />
       ))}
     </ul>
@@ -435,55 +556,123 @@ const AppointmentFormsPanel = ({
   appointmentId,
   organisationId,
   encounterId,
+  appointmentStatus,
 }: {
   appointmentId: string;
   organisationId?: string;
   encounterId?: string;
+  appointmentStatus?: AppointmentStatus;
 }) => {
   const initialAppointmentId = useRef(appointmentId);
   const [query, setQuery] = useState('');
   const [forms, setForms] = useState<SubmittedForm[]>([]);
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  // Assignable form templates (consent + custom forms) the clinician can attach
+  // to this appointment from the search dropdown, mirroring the pre-revamp
+  // side-modal flow. Loaded once org context is available.
+  const [templates, setTemplates] = useState<TemplateLike[]>([]);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const searchAnchorRef = useRef<HTMLDivElement>(null);
+
+  const loadForms = useCallback(async () => {
+    try {
+      const response = await fetchAppointmentForms(initialAppointmentId.current);
+      setForms(
+        response.forms.map(({ form, submission, status: formStatus }) => {
+          const updatedAt = form.updatedAt ?? form.createdAt;
+          const audience = resolveFormAudience(form);
+          return {
+            id: submission?._id ?? form._id ?? form.name,
+            title: form.name,
+            audience,
+            auth: resolveFormAuth(audience, formStatus === 'completed'),
+            date: formatDate(updatedAt),
+            time: formatTime(updatedAt),
+            submissionId: submission?._id,
+          };
+        })
+      );
+      setStatus('loaded');
+    } catch (error) {
+      if (!isAuthRedirectError(error)) {
+        console.error('Unable to load appointment forms:', error);
+      }
+      setStatus('error');
+    }
+  }, []);
 
   useEffect(() => {
+    void loadForms();
+  }, [loadForms]);
+
+  // Load the org's assignable form templates (consent + custom forms only —
+  // clinical artifacts and plan definitions are excluded) so the search can
+  // surface everything available to attach to this appointment.
+  useEffect(() => {
+    if (!organisationId) return;
     let cancelled = false;
-    fetchAppointmentForms(initialAppointmentId.current).then(
-      (response) => {
+    loadTemplateForms(organisationId, { status: 'PUBLISHED' })
+      .then((items) => {
         if (cancelled) return;
-        setForms(
-          response.forms.map(({ form, submission, status: formStatus }) => {
-            const updatedAt = form.updatedAt ?? form.createdAt;
-            const audience = resolveFormAudience(form);
-            return {
-              id: submission?._id ?? form._id ?? form.name,
-              title: form.name,
-              audience,
-              auth: resolveFormAuth(audience, formStatus === 'completed'),
-              date: formatDate(updatedAt),
-              time: formatTime(updatedAt),
-              submissionId: submission?._id,
-            };
-          })
-        );
-        setStatus('loaded');
-      },
-      (error) => {
-        if (cancelled) return;
+        setTemplates(items.filter(isAssignableFormTemplate));
+      })
+      .catch((error) => {
         if (!isAuthRedirectError(error)) {
-          console.error('Unable to load appointment forms:', error);
+          console.error('Unable to load assignable form templates:', error);
         }
-        setStatus('error');
-      }
-    );
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [organisationId]);
 
-  const filteredForms = useMemo(
-    () => forms.filter((f) => f.title.toLowerCase().includes(query.trim().toLowerCase())),
-    [forms, query]
+  // Titles already assigned to this appointment — hidden from the search results
+  // so the clinician can't attach the same form twice.
+  const assignedTitles = useMemo(
+    () => new Set(forms.map((f) => f.title.trim().toLowerCase())),
+    [forms]
   );
+
+  // Whether the search input is focused. Focusing the field surfaces the full
+  // list of assignable forms (like the pre-revamp side-modal), so the clinician
+  // can browse without having to type a query first.
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  const templateMatches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const unassigned = templates.filter(
+      (template) => !assignedTitles.has(template.name.trim().toLowerCase())
+    );
+    // Empty query → show everything available so the dropdown is never blank when
+    // the org actually has assignable forms.
+    if (!q) return unassigned;
+    return unassigned.filter((template) => template.name.toLowerCase().includes(q));
+  }, [query, templates, assignedTitles]);
+
+  const dropdownOpen = Boolean(organisationId) && (Boolean(query.trim()) || searchFocused);
+
+  const handleAssignTemplate = async (template: TemplateLike) => {
+    if (!organisationId || assigningId) return;
+    setAssignError(null);
+    setAssigningId(template.id);
+    try {
+      await linkAppointmentForms({
+        organisationId,
+        appointmentId: initialAppointmentId.current,
+        formIds: [template.id],
+      });
+      setQuery('');
+      await loadForms();
+    } catch (error) {
+      if (!isAuthRedirectError(error)) {
+        console.error('Unable to assign form:', error);
+      }
+      setAssignError('Unable to assign this form. Please try again.');
+    } finally {
+      setAssigningId(null);
+    }
+  };
 
   return (
     <div
@@ -492,15 +681,55 @@ const AppointmentFormsPanel = ({
       aria-labelledby="tab-FORMS"
       className="flex flex-col gap-3"
     >
-      <ClinicalPacketSection organisationId={organisationId} encounterId={encounterId} />
-      <Search
-        value={query}
-        setSearch={setQuery}
-        placeholder="Search forms to add"
-        label="Search forms to add"
-        className="w-full!"
+      <ClinicalPacketSection
+        organisationId={organisationId}
+        encounterId={encounterId}
+        appointmentStatus={appointmentStatus}
       />
-      {renderFormsPanelContent(status, filteredForms)}
+      <div ref={searchAnchorRef} className="relative">
+        <Search
+          value={query}
+          setSearch={setQuery}
+          onFocus={() => setSearchFocused(true)}
+          placeholder="Search forms to add"
+          label="Search forms to add"
+          className="w-full!"
+        />
+        <SearchResultsDropdown
+          anchorRef={searchAnchorRef}
+          open={dropdownOpen}
+          onClose={() => {
+            setQuery('');
+            setSearchFocused(false);
+          }}
+        >
+          {templateMatches.length > 0 ? (
+            <ul>
+              {templateMatches.map((template) => (
+                <WorkspaceSearchResultRow
+                  key={template.id}
+                  name={template.name}
+                  leadingIcon={<LuFileSignature aria-hidden="true" className="shrink-0" />}
+                  disabled={assigningId === template.id}
+                  onSelect={() => void handleAssignTemplate(template)}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="px-4 py-3 text-body-4 text-text-secondary">
+              {query.trim()
+                ? 'No forms available to add for this search.'
+                : 'No assignable forms available to add.'}
+            </p>
+          )}
+        </SearchResultsDropdown>
+      </div>
+      {assignError && (
+        <p role="alert" className="text-[12px] text-danger-600">
+          {assignError}
+        </p>
+      )}
+      <FormsPanelContent status={status} forms={forms} />
     </div>
   );
 };
@@ -512,6 +741,7 @@ const DocumentsPanel = ({
   companionId,
   organisationId,
   encounterId,
+  appointmentStatus,
 }: DocumentsPanelProps) => {
   const [tab, setTab] = useState<DocsTab>('FORMS');
 
@@ -529,6 +759,7 @@ const DocumentsPanel = ({
           appointmentId={appointmentId}
           organisationId={organisationId}
           encounterId={encounterId}
+          appointmentStatus={appointmentStatus}
         />
       ) : (
         <div id="docs-panel-RECORDS" role="tabpanel" aria-labelledby="tab-RECORDS">

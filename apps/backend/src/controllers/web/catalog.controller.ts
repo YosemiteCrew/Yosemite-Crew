@@ -61,8 +61,8 @@ const parseIfMatchVersion = (req: Request): number | undefined => {
     req.header?.("if-match") ?? req.header?.("If-Match") ?? undefined;
   if (!header) return undefined;
 
-  const match = header.match(/(\d+)/);
-  if (!match) {
+  const match = /(\d+)/.exec(header);
+  if (match == null) {
     throw new CatalogServiceError("Invalid If-Match header.", 400);
   }
 

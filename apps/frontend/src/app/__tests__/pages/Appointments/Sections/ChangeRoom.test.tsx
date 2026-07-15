@@ -56,6 +56,10 @@ jest.mock('@/app/hooks/useRooms', () => ({
   useRoomsForPrimaryOrg: () => mockRooms,
 }));
 
+jest.mock('@/app/features/organization/services/roomService', () => ({
+  loadRoomsForOrgPrimaryOrg: jest.fn().mockResolvedValue(undefined),
+}));
+
 const mockUpdateAppointment = jest.fn();
 const mockAssignEncounterUnit = jest.fn();
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
@@ -78,6 +82,7 @@ jest.mock('@/app/stores/appointmentWorkspaceStore', () => ({
 let mockRoomState = {
   roomUnitsById: {} as Record<string, any>,
   roomUnitIdsByRoomId: {} as Record<string, string[]>,
+  setRoomUnitOccupied: jest.fn(),
 };
 jest.mock('@/app/stores/roomStore', () => ({
   useOrganisationRoomStore: Object.assign((selector: any) => selector(mockRoomState), {
@@ -99,6 +104,7 @@ describe('ChangeRoom', () => {
     mockRoomState = {
       roomUnitsById: {},
       roomUnitIdsByRoomId: {},
+      setRoomUnitOccupied: jest.fn(),
     };
   });
 
@@ -188,6 +194,7 @@ describe('ChangeRoom', () => {
         },
       },
       roomUnitIdsByRoomId: { 'room-2': ['unit-2a'] },
+      setRoomUnitOccupied: jest.fn(),
     };
     const setShowModal = jest.fn();
     render(
@@ -216,6 +223,47 @@ describe('ChangeRoom', () => {
       );
       expect(setShowModal).toHaveBeenCalledWith(false);
     });
+  });
+
+  it('does not offer occupied units for inpatient room assignment', () => {
+    mockRoomState = {
+      roomUnitsById: {
+        'unit-2a': {
+          id: 'unit-2a',
+          roomId: 'room-2',
+          displayName: 'Ward 2A',
+          code: '2A',
+          isActive: true,
+          isOccupied: true,
+        },
+        'unit-2b': {
+          id: 'unit-2b',
+          roomId: 'room-2',
+          displayName: 'Ward 2B',
+          code: '2B',
+          isActive: true,
+          isOccupied: false,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-2': ['unit-2a', 'unit-2b'] },
+      setRoomUnitOccupied: jest.fn(),
+    };
+
+    render(
+      <ChangeRoom
+        showModal={true}
+        setShowModal={jest.fn()}
+        activeAppointment={{
+          ...baseAppointment,
+          appointmentKind: 'INPATIENT',
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Room B' }));
+
+    expect(screen.queryByRole('button', { name: 'Ward 2A' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ward 2B' })).toBeInTheDocument();
   });
 
   it('shows error message on failed save', async () => {

@@ -7,6 +7,8 @@ import {useSelector} from 'react-redux';
 // ✅ FIX 2: Remove unused 'useNavigation' (keep useRoute if used in tests, or mocks)
 import {useRoute} from '@react-navigation/native';
 import {setSelectedCompanion} from '@/features/companion';
+import {markInAppExpenseStatus} from '@/features/expenses';
+import {Linking} from 'react-native';
 // --- Mocks ---
 
 const mockDispatch = jest.fn();
@@ -33,6 +35,20 @@ jest.mock('react-redux', () => ({
 // 3. Mock Actions
 jest.mock('@/features/companion', () => ({
   setSelectedCompanion: jest.fn(id => ({type: 'SET_COMPANION', payload: id})),
+}));
+
+jest.mock('@/features/expenses', () => ({
+  markInAppExpenseStatus: jest.fn(payload => ({
+    type: 'MARK_EXPENSE_STATUS',
+    payload,
+  })),
+}));
+
+jest.mock('@/features/appointments/appointmentsSlice', () => ({
+  fetchInvoiceForAppointment: jest.fn(payload => ({
+    type: 'FETCH_INVOICE',
+    payload,
+  })),
 }));
 
 // 4. Mock Theme & Assets
@@ -82,6 +98,17 @@ const mockState = {
     items: [
       {id: 'apt-1', companionId: 'comp-1'},
       {id: 'apt-2', companionId: null}, // For null branch testing
+      {
+        id: 'apt-start',
+        companionId: 'comp-1',
+        start: '2025-08-15T10:30:00Z',
+      },
+      {
+        id: 'apt-date-time',
+        companionId: 'comp-1',
+        date: '2025-08-15',
+        time: '10:30',
+      },
     ],
     invoices: [
       {
@@ -223,6 +250,88 @@ describe('PaymentSuccessScreen', () => {
 
       // No tab navigation -> should not navigate
       expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('formats the appointment date/time from a valid "start" field', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-start'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.queryByText(/Aug.*2025/)).toBeTruthy();
+    });
+
+    it('formats the appointment date/time by combining "date" and "time" fields', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-date-time'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(screen.queryByText(/Aug.*2025/)).toBeTruthy();
+    });
+
+    it('dispatches markInAppExpenseStatus and navigates to Expenses when expenseId is present', () => {
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-1', expenseId: 'exp-1'},
+      });
+
+      render(<PaymentSuccessScreen />);
+
+      expect(markInAppExpenseStatus).toHaveBeenCalledWith({
+        expenseId: 'exp-1',
+        status: 'PAID',
+      });
+
+      mockDispatch.mockClear();
+      fireEvent.press(screen.getByTestId('dashboard-btn'));
+
+      expect(mockNavigate).toHaveBeenCalledWith('HomeStack', {
+        screen: 'ExpensesStack',
+        params: {screen: 'ExpensesMain'},
+      });
+    });
+
+    it('opens the invoice URL when the view invoice link is pressed', () => {
+      const openURLSpy = jest
+        .spyOn(Linking, 'openURL')
+        .mockResolvedValue(undefined as any);
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-1'},
+      });
+
+      render(<PaymentSuccessScreen />);
+      fireEvent.press(screen.getByText('View invoice'));
+
+      expect(openURLSpy).toHaveBeenCalledWith(
+        'https://example.com/invoice.pdf',
+      );
+      openURLSpy.mockRestore();
+    });
+
+    it('logs a warning when opening the invoice URL fails', async () => {
+      const consoleWarnSpy = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {});
+      const openURLSpy = jest
+        .spyOn(Linking, 'openURL')
+        .mockRejectedValue(new Error('cannot open'));
+      (useRoute as jest.Mock).mockReturnValue({
+        params: {appointmentId: 'apt-1'},
+      });
+
+      render(<PaymentSuccessScreen />);
+      fireEvent.press(screen.getByText('View invoice'));
+
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        '[PaymentSuccess] Failed to open invoice URL',
+        expect.any(Error),
+      );
+      openURLSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
     });
   });
 });

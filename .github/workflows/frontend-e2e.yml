@@ -54,7 +54,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -68,6 +68,16 @@ jobs:
           key: next-build-${{ runner.os }}-${{ hashFiles('apps/frontend/package.json', 'apps/frontend/next.config.*', 'pnpm-lock.yaml') }}
           restore-keys: |
             next-build-${{ runner.os }}-
+
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-${{ github.job }}-
+            turbo-${{ runner.os }}-
 
       - name: Build packages
         run: pnpm run build --filter "@yosemite-crew/types" --filter "@yosemite-crew/fhirtypes"
@@ -158,6 +168,13 @@ jobs:
     needs: [preflight, build]
     if: needs.preflight.outputs.has-auth-creds == 'true'
     runs-on: ubuntu-latest
+    # This job runs PR-controlled code (the local setup action, dependency
+    # lifecycle scripts, and Playwright specs) with the YC_E2E_* credentials in
+    # scope. On a pull_request event a same-repo branch could otherwise modify
+    # that code to exfiltrate the secrets. Gate it behind the protected `e2e`
+    # environment (configure required reviewers in repo settings) so a
+    # maintainer must approve before the credentials are released to the run.
+    environment: e2e
     timeout-minutes: 30
     permissions:
       contents: read

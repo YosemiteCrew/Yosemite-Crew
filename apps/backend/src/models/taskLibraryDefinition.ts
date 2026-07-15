@@ -5,7 +5,14 @@ export type TaskKind =
   | "OBSERVATION_TOOL"
   | "HYGIENE"
   | "DIET"
-  | "CUSTOM";
+  | "CUSTOM"
+  | "CARE"
+  | "PROCEDURE"
+  | "DIAGNOSTIC"
+  | "COMMUNICATION"
+  | "BILLING"
+  | "RECORD"
+  | "ADMIN";
 
 export type Species = "dog" | "cat" | "horse";
 
@@ -86,7 +93,20 @@ const LibrarySchema = new Schema(
 
     kind: {
       type: String,
-      enum: ["MEDICATION", "OBSERVATION_TOOL", "HYGIENE", "DIET", "CUSTOM"],
+      enum: [
+        "MEDICATION",
+        "OBSERVATION_TOOL",
+        "HYGIENE",
+        "DIET",
+        "CUSTOM",
+        "CARE",
+        "PROCEDURE",
+        "DIAGNOSTIC",
+        "COMMUNICATION",
+        "BILLING",
+        "RECORD",
+        "ADMIN",
+      ],
       required: true,
     },
 

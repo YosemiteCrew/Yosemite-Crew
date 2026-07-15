@@ -43,6 +43,7 @@ type FiltersProps = {
   onAddButtonClick?: () => void;
   addButtonText?: string;
   className?: string;
+  compactFilterPills?: boolean;
 };
 
 const Filters = ({
@@ -57,6 +58,7 @@ const Filters = ({
   onAddButtonClick,
   addButtonText = 'Add Appointment',
   className,
+  compactFilterPills = false,
 }: FiltersProps) => {
   const [open, setOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -65,6 +67,7 @@ const Filters = ({
   const panelRef = useRef<HTMLDivElement>(null);
 
   const selectedStatus = statusOptions?.find((s) => s.key === activeStatus) ?? statusOptions?.[0];
+  const hasFilterOptions = Boolean(filterOptions?.length);
   const handleFilterToggle = (filterKey: string) => {
     if (!setActiveFilter) return;
     setActiveFilter(activeFilter === filterKey ? 'all' : filterKey);
@@ -76,7 +79,7 @@ const Filters = ({
     setDropdownStyle({
       position: 'fixed',
       top: rect.bottom + 6,
-      right: window.innerWidth - rect.right,
+      right: globalThis.window.innerWidth - rect.right,
       minWidth: Math.max(rect.width, 180),
       zIndex: 9999,
     });
@@ -98,65 +101,74 @@ const Filters = ({
     };
     const handleScroll = () => setOpen(false);
     document.addEventListener('mousedown', handleClose);
-    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+    globalThis.window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
     return () => {
       document.removeEventListener('mousedown', handleClose);
-      window.removeEventListener('scroll', handleScroll, { capture: true });
+      globalThis.window.removeEventListener('scroll', handleScroll, { capture: true });
     };
   }, [open]);
 
   return (
-    <div className={clsx('w-full flex items-center justify-between flex-wrap gap-2', className)}>
+    <div
+      className={clsx(
+        'flex items-center flex-wrap gap-2',
+        hasFilterOptions ? 'w-full justify-between' : 'w-auto justify-end',
+        className
+      )}
+    >
       {/* Left: filter pills (All / Emergencies) */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {filterOptions?.map((filter) => {
-          const isEmergency = filter.key === 'emergencies';
-          const isActiveEmergency = isEmergency && filter.key === activeFilter;
-          const emergencyColor = isActiveEmergency
-            ? 'var(--color-semantic-error-700)'
-            : 'var(--color-neutral-700)';
-          return (
-            <button
-              key={filter.key}
-              type="button"
-              onClick={() => handleFilterToggle(filter.key)}
-              className={clsx(
-                'relative inline-flex h-12 min-w-20 items-center justify-center text-body-4 px-3 rounded-2xl! border! transition-all duration-300',
-                isEmergency ? 'gap-2' : getFilterClassName(filter.key, activeFilter ?? '')
-              )}
-              style={
-                isEmergency
-                  ? getEmergencyPillStyle(isActiveEmergency)
-                  : {
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
-                    }
-              }
-            >
-              {isEmergency && (
-                <IoWarning
-                  size={18}
-                  aria-hidden="true"
-                  className="shrink-0"
-                  color={emergencyColor}
-                />
-              )}
-              <span>{filter.name}</span>
-              {isEmergency && hasEmergency && (
-                <span
-                  aria-label="Emergency appointments present"
-                  className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
-                  style={{
-                    backgroundColor: 'var(--color-semantic-error-700)',
-                    outline: '2px solid white',
-                  }}
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {hasFilterOptions && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {filterOptions?.map((filter) => {
+            const isEmergency = filter.key === 'emergencies';
+            const isActiveEmergency = isEmergency && filter.key === activeFilter;
+            const emergencyColor = isActiveEmergency
+              ? 'var(--color-semantic-error-700)'
+              : 'var(--color-neutral-700)';
+            return (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => handleFilterToggle(filter.key)}
+                className={clsx(
+                  'relative inline-flex items-center justify-center text-body-4 px-3 rounded-2xl! border! transition-all duration-300',
+                  compactFilterPills ? 'h-9 min-w-fit' : 'h-12 min-w-20',
+                  isEmergency ? 'gap-2' : getFilterClassName(filter.key, activeFilter ?? '')
+                )}
+                style={
+                  isEmergency
+                    ? getEmergencyPillStyle(isActiveEmergency)
+                    : {
+                        borderWidth: '1px',
+                        borderStyle: 'solid',
+                        borderColor: getFilterBorderColor(filter.key, activeFilter ?? ''),
+                      }
+                }
+              >
+                {isEmergency && (
+                  <IoWarning
+                    size={18}
+                    aria-hidden="true"
+                    className="shrink-0"
+                    color={emergencyColor}
+                  />
+                )}
+                <span>{filter.name}</span>
+                {isEmergency && hasEmergency && (
+                  <span
+                    aria-label="Emergency appointments present"
+                    className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
+                    style={{
+                      backgroundColor: 'var(--color-semantic-error-700)',
+                      outline: '2px solid white',
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Right: status dropdown + add */}
       <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -185,7 +197,9 @@ const Filters = ({
               }
             >
               <span>
-                {selectedStatus?.key === 'all' ? 'Status' : (selectedStatus?.name ?? 'Status')}
+                {selectedStatus?.key?.toLowerCase() === 'all'
+                  ? 'Status'
+                  : (selectedStatus?.name ?? 'Status')}
               </span>
               <FaCaretDown
                 size={14}

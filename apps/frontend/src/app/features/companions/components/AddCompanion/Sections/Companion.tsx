@@ -106,7 +106,7 @@ type CompanionProps = {
   onCompanionCreated?: (companion: StoredCompanion) => void;
 };
 
-const Companion = ({
+const useCompanionContent = ({
   setActiveLabel,
   formData,
   setFormData,
@@ -126,9 +126,14 @@ const Companion = ({
     insuranceNumber?: string;
     insuranceCompany?: string;
   }>({});
-  const [currentDate, setCurrentDate] = useState<Date | null>(
-    formData.dateOfBirth ? new Date(formData.dateOfBirth) : null
-  );
+  const currentDate = formData.dateOfBirth ? new Date(formData.dateOfBirth) : null;
+  const setCurrentDate: React.Dispatch<React.SetStateAction<Date | null>> = (value) => {
+    setFormData((prev) => {
+      const prevDate = prev.dateOfBirth ? new Date(prev.dateOfBirth) : null;
+      const next = typeof value === 'function' ? value(prevDate) : value;
+      return { ...prev, dateOfBirth: next ?? new Date() };
+    });
+  };
   const [query, setQuery] = useState('');
   const { notify } = useNotify();
   const [results, setResults] = useState<StoredCompanion[]>([]);
@@ -165,13 +170,6 @@ const Companion = ({
       mounted = false;
     };
   }, [parentFormData.id]);
-
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      dateOfBirth: currentDate ?? new Date(),
-    }));
-  }, [currentDate, setFormData]);
 
   useEffect(() => {
     let mounted = true;
@@ -332,7 +330,12 @@ const Companion = ({
           minChars={0}
         />
 
-        <Accordion title="Companion information" defaultOpen showEditIcon={false} isEditing={true}>
+        <Accordion
+          title={terminologyText('Companion information')}
+          defaultOpen
+          showEditIcon={false}
+          isEditing={true}
+        >
           <div className="flex flex-col gap-3">
             <FormInput
               intype="text"
@@ -449,7 +452,7 @@ const Companion = ({
                   intype="number"
                   inname="weight"
                   value={formData.currentWeight + ''}
-                  inlabel="Current weight (optional) (lbs)"
+                  inlabel="Current weight (optional) (kg)"
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -465,7 +468,7 @@ const Companion = ({
                   options={CountriesOptions}
                 />
                 <SelectLabel
-                  title="My companion comes from:"
+                  title={terminologyText('My companion comes from:')}
                   options={OriginOptions}
                   activeOption={formData.source || 'unknown'}
                   setOption={(value) => setFormData({ ...formData, source: value })}
@@ -569,5 +572,7 @@ const Companion = ({
     </div>
   );
 };
+
+const Companion = (props: CompanionProps) => useCompanionContent(props);
 
 export default Companion;
