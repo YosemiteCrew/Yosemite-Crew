@@ -130,7 +130,7 @@ describe('chatContainerUtils', () => {
     expect(formatRowTime('2026-07-07T11:30:00.000Z')).toBe('30m');
     expect(formatRowTime('2026-07-07T09:00:00.000Z')).toBe('3h');
     expect(formatRowTime('2026-07-06T12:00:00.000Z')).toBe('Yesterday');
-    expect(formatRowTime('2026-06-29T12:00:00.000Z')).toBe('29 Jun');
+    expect(formatRowTime('2026-06-29T12:00:00.000Z')).toBe('Jun 29');
 
     expect(formatClosedTime(undefined)).toBe('');
     expect(formatClosedTime('2026-07-07T11:59:30.000Z')).toBe('just now');
