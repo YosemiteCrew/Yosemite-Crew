@@ -1,8 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React from 'react';
 import { IoEye } from 'react-icons/io5';
-import Back from '@/app/ui/primitives/Icons/Back';
-import Next from '@/app/ui/primitives/Icons/Next';
+import PaginatedGridTable, { GridHeaderCell } from '@/app/ui/tables/PaginatedGridTable';
 import { DispensaryRecord, DispensaryStatus } from '@/app/features/inventory/pages/Inventory/types';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
@@ -18,7 +17,7 @@ const PAGE_SIZE = 10;
 
 const GRID_COLUMNS = '1.4fr 108px 1.6fr 116px 96px 130px 120px 116px 120px';
 
-const HEADER_CELLS: { label: string; align?: 'right' }[] = [
+const HEADER_CELLS: GridHeaderCell[] = [
   { label: 'Request type' },
   { label: 'Status' },
   { label: 'Items' },
@@ -170,152 +169,90 @@ const DispensaryRow = ({
   );
 };
 
-const DispensaryTable = ({ filteredList, onView, onDispense }: DispensaryTableProps) => {
-  const [page, setPage] = useState(1);
-
-  const total = filteredList.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  if (currentPage !== page) setPage(currentPage);
-  const startIdx = (currentPage - 1) * PAGE_SIZE;
-  const pageRows = filteredList.slice(startIdx, startIdx + PAGE_SIZE);
-  const showPagination = totalPages > 1;
-
-  return (
-    <div className="table-wrapper inventory-scroll-x h-full min-h-0 overflow-hidden">
-      <div className="inventory-table-list h-full min-h-0 flex-1">
-        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-          <div className="min-h-0 flex-1 overflow-auto">
-            <div className="min-w-[1080px]">
-              <div
-                className="sticky top-0 z-10 grid items-center gap-2.5 bg-[var(--screen-2)] px-5 py-3 text-[10px] font-bold uppercase tracking-[0.09em] text-text-tertiary"
-                style={{ gridTemplateColumns: GRID_COLUMNS }}
-              >
-                {HEADER_CELLS.map((cell, index) => (
-                  <span
-                    key={cell.label || `col-${index}`}
-                    className={cell.align === 'right' ? 'text-right' : ''}
-                  >
-                    {cell.label}
-                  </span>
-                ))}
-              </div>
-              {total === 0 ? (
-                <div className="flex w-full items-center justify-center border-t border-card-border py-10 text-body-4 text-text-primary">
-                  Looks like a quiet day… for now.
-                </div>
-              ) : (
-                pageRows.map((record) => (
-                  <DispensaryRow
-                    key={record.id}
-                    record={record}
-                    onView={onView}
-                    onDispense={onDispense}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center justify-between border-t border-card-border px-5 py-3 text-[12.5px] text-text-tertiary">
-            <span>
-              {total === 0
-                ? 'No requests'
-                : `Showing ${startIdx + 1}–${Math.min(startIdx + PAGE_SIZE, total)} of ${total} requests`}
-            </span>
-            {showPagination && (
-              <span className="flex items-center gap-2">
-                <Back
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className={currentPage === 1 ? 'cursor-not-allowed opacity-40' : ''}
-                />
-                <span className="tabular-nums text-text-secondary">
-                  {currentPage} / {totalPages}
-                </span>
-                <Next
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className={currentPage === totalPages ? 'cursor-not-allowed opacity-40' : ''}
-                />
-              </span>
-            )}
-          </div>
-        </div>
+const DispensaryCard = ({
+  record,
+  onView,
+  onDispense,
+}: {
+  record: DispensaryRecord;
+  onView?: (record: DispensaryRecord) => void;
+  onDispense?: (record: DispensaryRecord) => void;
+}) => (
+  <div className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col gap-2">
+    <div className="flex items-center justify-between gap-2">
+      <div className="text-body-3-emphasis text-text-primary truncate">
+        {record.petParentName
+          ? `${record.patient.name} • ${record.petParentName.trim().split(/\s+/).at(-1)}`
+          : record.patient.name}
       </div>
-      <div className="inventory-card-list gap-4 sm:gap-6 flex-wrap">
-        {filteredList.length === 0 ? (
-          <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-            No data available
-          </div>
-        ) : (
-          filteredList.map((record) => (
-            <div
-              key={record.id}
-              className="sm:min-w-[280px] w-full sm:w-[calc(50%-12px)] rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col gap-2"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-body-3-emphasis text-text-primary truncate">
-                  {record.petParentName
-                    ? `${record.patient.name} • ${record.petParentName.trim().split(/\s+/).at(-1)}`
-                    : record.patient.name}
-                </div>
-                <div className="appointment-status shrink-0" style={STATUS_STYLES[record.status]}>
-                  {STATUS_LABELS[record.status]}
-                </div>
-              </div>
-              {record.patient.petBreed && (
-                <div className="text-caption-1 text-text-secondary">{record.patient.petBreed}</div>
-              )}
-              <div className="flex gap-1">
-                <div className="text-caption-1 text-text-extra">Appointment:</div>
-                <div className="text-caption-1 text-text-primary truncate">
-                  {record.patient.appointmentId}
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <div className="text-caption-1 text-text-extra">Items:</div>
-                <div className="text-caption-1 text-text-primary">
-                  {(record.items ?? []).map((i) => i.name).join(', ') || '—'}
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <div className="text-caption-1 text-text-extra">Amount:</div>
-                <div className="text-caption-1 text-text-primary">
-                  {formatAmount(record.amountCents, record.currency)}
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <div className="text-caption-1 text-text-extra">Requested:</div>
-                <div className="text-caption-1 text-text-primary">
-                  {formatDateTime(record.prescriptionCreated)}
-                </div>
-              </div>
-              <div className="flex gap-2 mt-1">
-                {record.status === 'PENDING' && onDispense && (
-                  <button
-                    type="button"
-                    onClick={() => onDispense(record)}
-                    className="flex-1 h-9 rounded-2xl bg-[var(--color-success-600)] text-white text-caption-1 font-semibold hover:opacity-90 transition-opacity"
-                  >
-                    Dispense
-                  </button>
-                )}
-                {onView && (
-                  <button
-                    type="button"
-                    onClick={() => onView(record)}
-                    className="flex-1 h-9 rounded-2xl border border-card-border text-caption-1 text-text-primary hover:bg-card-hover transition-colors"
-                  >
-                    View
-                  </button>
-                )}
-              </div>
-            </div>
-          ))
-        )}
+      <div className="appointment-status shrink-0" style={STATUS_STYLES[record.status]}>
+        {STATUS_LABELS[record.status]}
       </div>
     </div>
-  );
-};
+    {record.patient.petBreed && (
+      <div className="text-caption-1 text-text-secondary">{record.patient.petBreed}</div>
+    )}
+    <div className="flex gap-1">
+      <div className="text-caption-1 text-text-extra">Appointment:</div>
+      <div className="text-caption-1 text-text-primary truncate">
+        {record.patient.appointmentId}
+      </div>
+    </div>
+    <div className="flex gap-1">
+      <div className="text-caption-1 text-text-extra">Items:</div>
+      <div className="text-caption-1 text-text-primary">
+        {(record.items ?? []).map((i) => i.name).join(', ') || '—'}
+      </div>
+    </div>
+    <div className="flex gap-1">
+      <div className="text-caption-1 text-text-extra">Amount:</div>
+      <div className="text-caption-1 text-text-primary">
+        {formatAmount(record.amountCents, record.currency)}
+      </div>
+    </div>
+    <div className="flex gap-1">
+      <div className="text-caption-1 text-text-extra">Requested:</div>
+      <div className="text-caption-1 text-text-primary">
+        {formatDateTime(record.prescriptionCreated)}
+      </div>
+    </div>
+    <div className="flex gap-2 mt-1">
+      {record.status === 'PENDING' && onDispense && (
+        <button
+          type="button"
+          onClick={() => onDispense(record)}
+          className="flex-1 h-9 rounded-2xl bg-[var(--color-success-600)] text-white text-caption-1 font-semibold hover:opacity-90 transition-opacity"
+        >
+          Dispense
+        </button>
+      )}
+      {onView && (
+        <button
+          type="button"
+          onClick={() => onView(record)}
+          className="flex-1 h-9 rounded-2xl border border-card-border text-caption-1 text-text-primary hover:bg-card-hover transition-colors"
+        >
+          View
+        </button>
+      )}
+    </div>
+  </div>
+);
+
+const DispensaryTable = ({ filteredList, onView, onDispense }: DispensaryTableProps) => (
+  <PaginatedGridTable
+    rows={filteredList}
+    pageSize={PAGE_SIZE}
+    gridColumns={GRID_COLUMNS}
+    headerCells={HEADER_CELLS}
+    itemNoun="requests"
+    renderRow={(record) => (
+      <DispensaryRow key={record.id} record={record} onView={onView} onDispense={onDispense} />
+    )}
+    renderCard={(record) => (
+      <DispensaryCard key={record.id} record={record} onView={onView} onDispense={onDispense} />
+    )}
+  />
+);
 
 export default DispensaryTable;

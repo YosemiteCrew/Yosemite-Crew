@@ -1,10 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React from 'react';
 import Image from 'next/image';
 import { IoCubeOutline, IoEye } from 'react-icons/io5';
 import InventoryCard from '@/app/ui/cards/InventoryCard';
-import Back from '@/app/ui/primitives/Icons/Back';
-import Next from '@/app/ui/primitives/Icons/Next';
+import PaginatedGridTable, { GridHeaderCell } from '@/app/ui/tables/PaginatedGridTable';
 import { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
 import {
   displayStatusLabel,
@@ -34,7 +33,7 @@ const PAGE_SIZE = 8;
 // available · unit cost · selling · margin · location · actions).
 const GRID_COLUMNS = '1.7fr 1fr 110px 46px 96px 84px 84px 84px 84px 74px 96px 96px';
 
-const HEADER_CELLS: { label: string; align?: 'right' }[] = [
+const HEADER_CELLS: GridHeaderCell[] = [
   { label: 'Item' },
   { label: 'Category' },
   { label: 'Stock health' },
@@ -208,8 +207,6 @@ const InventoryTable = ({
   onView,
   onRestock,
 }: InventoryTableProps) => {
-  const [page, setPage] = useState(1);
-
   const handleViewInventory = (inventory: InventoryItem) => {
     if (onView) {
       onView(inventory);
@@ -219,91 +216,29 @@ const InventoryTable = ({
     setViewInventory(true);
   };
 
-  const total = filteredList.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  if (currentPage !== page) setPage(currentPage);
-  const startIdx = (currentPage - 1) * PAGE_SIZE;
-  const pageRows = filteredList.slice(startIdx, startIdx + PAGE_SIZE);
-  const showPagination = totalPages > 1;
-
   return (
-    <div className="table-wrapper inventory-scroll-x h-full min-h-0 overflow-hidden">
-      <div className="inventory-table-list h-full min-h-0 flex-1">
-        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-card-border bg-neutral-0 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-          <div className="min-h-0 flex-1 overflow-auto">
-            <div className="min-w-[1080px]">
-              <div
-                className="sticky top-0 z-10 grid items-center gap-2.5 bg-[var(--screen-2)] px-5 py-3 text-[10px] font-bold uppercase tracking-[0.09em] text-text-tertiary"
-                style={{ gridTemplateColumns: GRID_COLUMNS }}
-              >
-                {HEADER_CELLS.map((cell, index) => (
-                  <span
-                    key={cell.label || `col-${index}`}
-                    className={cell.align === 'right' ? 'text-right' : ''}
-                  >
-                    {cell.label}
-                  </span>
-                ))}
-              </div>
-              {total === 0 ? (
-                <div className="flex w-full items-center justify-center border-t border-card-border py-10 text-body-4 text-text-primary">
-                  Looks like a quiet day… for now.
-                </div>
-              ) : (
-                pageRows.map((item) => (
-                  <InventoryRow
-                    key={item.id ?? item.basicInfo.name}
-                    item={item}
-                    onView={handleViewInventory}
-                    onRestock={onRestock}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center justify-between border-t border-card-border px-5 py-3 text-[12.5px] text-text-tertiary">
-            <span>
-              {total === 0
-                ? 'No items'
-                : `Showing ${startIdx + 1}–${Math.min(startIdx + PAGE_SIZE, total)} of ${total} items`}
-            </span>
-            {showPagination && (
-              <span className="flex items-center gap-2">
-                <Back
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className={currentPage === 1 ? 'cursor-not-allowed opacity-40' : ''}
-                />
-                <span className="tabular-nums text-text-secondary">
-                  {currentPage} / {totalPages}
-                </span>
-                <Next
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className={currentPage === totalPages ? 'cursor-not-allowed opacity-40' : ''}
-                />
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="inventory-card-list gap-4 sm:gap-6 flex-wrap">
-        {total === 0 ? (
-          <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-            No data available
-          </div>
-        ) : (
-          filteredList.map((item: InventoryItem) => (
-            <InventoryCard
-              key={item.id ?? item.basicInfo.name}
-              item={item}
-              handleViewInventory={handleViewInventory}
-            />
-          ))
-        )}
-      </div>
-    </div>
+    <PaginatedGridTable
+      rows={filteredList}
+      pageSize={PAGE_SIZE}
+      gridColumns={GRID_COLUMNS}
+      headerCells={HEADER_CELLS}
+      itemNoun="items"
+      renderRow={(item) => (
+        <InventoryRow
+          key={item.id ?? item.basicInfo.name}
+          item={item}
+          onView={handleViewInventory}
+          onRestock={onRestock}
+        />
+      )}
+      renderCard={(item) => (
+        <InventoryCard
+          key={item.id ?? item.basicInfo.name}
+          item={item}
+          handleViewInventory={handleViewInventory}
+        />
+      )}
+    />
   );
 };
 
