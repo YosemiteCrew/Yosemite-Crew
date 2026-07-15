@@ -35,7 +35,7 @@
     "axios": "^1.16.0",
     "bcrypt": "5.1.1",
     "body-parser": "1.20.3",
-    "bullmq": "^5.65.1",
+    "bullmq": "^5.80.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cookie-parser": "1.4.7",

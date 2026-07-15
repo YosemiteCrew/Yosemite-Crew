@@ -92,7 +92,13 @@ export const createCsDailyExport = (deps: ExportDeps): CsDailyExportService => {
 
     ensureDir();
     const dateStr = targetDate.toISOString().split('T')[0] || '';
-    const filePath = path.join(exportDir, `cs-daily-${dateStr}.csv`);
+    const base = path.resolve(exportDir);
+    const target = path.resolve(base, `cs-daily-${dateStr}.csv`);
+    const relative = path.relative(base, target);
+    if (relative.startsWith('..')) {
+      throw new Error('Invalid file path');
+    }
+    const filePath = target;
     const csv = generateCsv(rows);
     writeFile(filePath, csv, 'utf8');
 
@@ -117,7 +123,13 @@ export const createCsDailyExport = (deps: ExportDeps): CsDailyExportService => {
     ensureDir();
     const startStr = start.toISOString().split('T')[0] || '';
     const endStr = end.toISOString().split('T')[0] || '';
-    const filePath = path.join(exportDir, `cs-range-${startStr}_${endStr}.csv`);
+    const base = path.resolve(exportDir);
+    const target = path.resolve(base, `cs-range-${startStr}_${endStr}.csv`);
+    const relative = path.relative(base, target);
+    if (relative.startsWith('..')) {
+      throw new Error('Invalid file path');
+    }
+    const filePath = target;
     const csv = generateCsv(all);
     writeFile(filePath, csv, 'utf8');
 
