@@ -13,9 +13,9 @@ Auto-loaded by OpenAI Codex, Claude Code, and compatible AI agents. This is the 
 | `apps/mobileAppYC/AGENTS.md` | Mobile: React Native, Redux, navigation                                      |
 | `packages/AGENTS.md`         | Shared packages (auth, database, design-tokens, fhir, fhirtypes, lib, types) |
 
-Claude Code users: same rules also structured as skills in `.claude/skills/` (Codex/other agents: `.agents/skills/`).
+The same rules are also structured as skills: `.agents/skills/` (Codex and compatible agents), mirrored at `.claude/skills/` (Claude Code).
 
-**Start any multi-step task with the agent-loop skill** (`.agents/skills/agent-loop/SKILL.md`, mirrored at `.claude/skills/agent-loop/SKILL.md`). It defines how to run the work loop in this repo - orient, plan, act, verify, integrate, and how to coordinate across concurrent worktrees or drive a recurring/scheduled run. The per-app files above tell you the rules; the agent-loop skill tells you how to sequence your actions around them.
+**Start any multi-step task with the agent-loop skill** (`.agents/skills/agent-loop/SKILL.md`). It defines the work loop for this repo — orient, plan, act, verify, integrate — plus coordination across concurrent worktrees and recurring/scheduled runs.
 
 ---
 

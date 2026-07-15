@@ -8,7 +8,7 @@ Modular skills in `.claude/skills/` provide deep, app-specific guidance. Load th
 
 | Skill                             | When to use                                                       |
 | --------------------------------- | ----------------------------------------------------------------- |
-| `.claude/skills/agent-loop`       | Start of any multi-step task, before fan-out, or any recurring/scheduled run: how to run the work loop |
+| `.claude/skills/agent-loop`       | Start of any multi-step task, fan-out, or recurring run           |
 | `.claude/skills/frontend-design`  | UI work, new components, styling in apps/frontend                 |
 | `.claude/skills/frontend-sonar`   | SonarQube fixes or writing Sonar-clean code in apps/frontend      |
 | `.claude/skills/frontend-testing` | Writing/fixing/running tests in apps/frontend                     |
