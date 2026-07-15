@@ -49,7 +49,7 @@
     "libphonenumber-js": "^1.13.8",
     "lodash": "^4.18.0",
     "next": "15.5.18",
-    "posthog-js": "^1.372.10",
+    "posthog-js": "^1.391.7",
     "react": "^19.1.1",
     "react-datepicker": "^8.7.0",
     "react-dom": "^19.1.1",
