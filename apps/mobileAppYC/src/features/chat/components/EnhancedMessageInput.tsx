@@ -361,7 +361,10 @@ const RecordingBar: React.FC<RecordingBarProps> = ({
           onCancel();
         }}
         style={[styles.recordButton, styles.cancelButton]}
-        disabled={isRecordingLoading}>
+        disabled={isRecordingLoading}
+        accessibilityRole="button"
+        accessibilityLabel="Cancel recording"
+        accessibilityState={{disabled: isRecordingLoading}}>
         <Icon name="close" size={24} color={theme.colors.inkBody} />
       </PressableOpacity>
       <PressableOpacity
@@ -369,7 +372,10 @@ const RecordingBar: React.FC<RecordingBarProps> = ({
           onStop();
         }}
         style={[styles.recordButton, styles.stopButton]}
-        disabled={isRecordingLoading}>
+        disabled={isRecordingLoading}
+        accessibilityRole="button"
+        accessibilityLabel="Send voice message"
+        accessibilityState={{disabled: isRecordingLoading}}>
         {isRecordingLoading ? (
           <ActivityIndicator color={theme.colors.ctaText} />
         ) : (
@@ -404,7 +410,10 @@ const ComposerBar: React.FC<ComposerBarProps> = ({
           onStartRecording();
         }}
         style={styles.actionButton}
-        disabled={isRecordingLoading}>
+        disabled={isRecordingLoading}
+        accessibilityRole="button"
+        accessibilityLabel="Record voice message"
+        accessibilityState={{disabled: isRecordingLoading}}>
         {isRecordingLoading ? (
           <ActivityIndicator size="small" color={theme.colors.blueText} />
         ) : (
@@ -415,7 +424,9 @@ const ComposerBar: React.FC<ComposerBarProps> = ({
       {/* Attachment Button */}
       <PressableOpacity
         onPress={onShowAttachmentOptions}
-        style={styles.actionButton}>
+        style={styles.actionButton}
+        accessibilityRole="button"
+        accessibilityLabel="Add attachment">
         <Icon name="attach-file" size={24} color={theme.colors.blueText} />
       </PressableOpacity>
     </View>

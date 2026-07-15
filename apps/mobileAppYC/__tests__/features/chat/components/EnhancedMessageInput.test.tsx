@@ -102,6 +102,14 @@ describe('EnhancedMessageInput', () => {
     expect(getByText('attach-file')).toBeTruthy();
   });
 
+  it('exposes button roles and labels on the voice and attachment buttons', () => {
+    const {getByLabelText} = render(<EnhancedMessageInput />);
+    const micButton = getByLabelText('Record voice message');
+    const attachButton = getByLabelText('Add attachment');
+    expect(micButton.props.accessibilityRole).toBe('button');
+    expect(attachButton.props.accessibilityRole).toBe('button');
+  });
+
   // --- Voice Recording ---
 
   it('handles Android permission denial', async () => {
@@ -274,6 +282,19 @@ describe('EnhancedMessageInput', () => {
     expect(Sound.stopRecorder).toHaveBeenCalled();
     expect(mockSendMessage).not.toHaveBeenCalled();
     expect(queryByText(/Recording.../)).toBeNull();
+  });
+
+  it('exposes button roles and labels on the cancel and send-recording buttons', async () => {
+    const {getByLabelText} = render(<EnhancedMessageInput />);
+
+    await act(async () => {
+      fireEvent.press(getByLabelText('Record voice message'));
+    });
+
+    const cancelButton = getByLabelText('Cancel recording');
+    const sendButton = getByLabelText('Send voice message');
+    expect(cancelButton.props.accessibilityRole).toBe('button');
+    expect(sendButton.props.accessibilityRole).toBe('button');
   });
 
   it('handles cancel recording error silently (logs only)', async () => {

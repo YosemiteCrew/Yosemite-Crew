@@ -112,7 +112,10 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
       <PressableOpacity
         onPress={handlePlayPause}
         style={styles.playButton}
-        disabled={isLoading}>
+        disabled={isLoading}
+        accessibilityRole="button"
+        accessibilityLabel={isPlaying ? 'Pause' : 'Play'}
+        accessibilityState={{disabled: isLoading}}>
         {isLoading ? (
           <ActivityIndicator color={theme.colors.ctaText} size="small" />
         ) : (
@@ -134,7 +137,11 @@ export const VoiceMessagePlayer: React.FC<VoiceMessagePlayerProps> = ({
       </View>
 
       {isPlaying && (
-        <PressableOpacity onPress={handleStop} style={styles.stopButton}>
+        <PressableOpacity
+          onPress={handleStop}
+          style={styles.stopButton}
+          accessibilityRole="button"
+          accessibilityLabel="Stop">
           <Icon name="stop" size={20} color={theme.colors.danger} />
         </PressableOpacity>
       )}
