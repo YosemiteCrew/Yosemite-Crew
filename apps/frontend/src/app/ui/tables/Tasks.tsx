@@ -136,6 +136,7 @@ const Tasks = ({
               <button
                 type="button"
                 onClick={() => handleViewTask(item)}
+                aria-label={`View task ${item.name}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="View task"
               >
@@ -147,6 +148,7 @@ const Tasks = ({
                 <button
                   type="button"
                   onClick={() => handleChangeStatusTask(item)}
+                  aria-label={`Change status for ${item.name}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Change status"
                 >
@@ -159,6 +161,7 @@ const Tasks = ({
                 <button
                   type="button"
                   onClick={() => handleRescheduleTask(item)}
+                  aria-label={`Reschedule ${item.name}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Reschedule"
                 >

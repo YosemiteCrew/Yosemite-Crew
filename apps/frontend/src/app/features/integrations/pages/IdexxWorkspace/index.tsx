@@ -579,6 +579,7 @@ const IdexxFollowUpPortal = ({ open, followUpFrameUrl, onClose }: IdexxFollowUpP
             title="IDEXX follow-up hub"
             className="size-full border-0"
             loading="lazy"
+            sandbox="allow-scripts allow-popups allow-forms"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
             style={{ pointerEvents: 'auto' }}
@@ -1000,19 +1001,12 @@ const useIdexxWorkspacePage = () => {
   }, [results, headerSearchQuery, modalityFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredResults.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
 
   const paginatedResults = useMemo(() => {
-    const start = (page - 1) * pageSize;
+    const start = (currentPage - 1) * pageSize;
     return filteredResults.slice(start, start + pageSize);
-  }, [filteredResults, page, pageSize]);
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [headerSearchQuery]);
+  }, [filteredResults, currentPage, pageSize]);
 
   const resultsColumns = useMemo(
     () =>
@@ -1047,7 +1041,7 @@ const useIdexxWorkspacePage = () => {
     setModalityFilter,
     pageSize,
     setPageSize,
-    page,
+    page: currentPage,
     setPage,
     lastRefreshedAt,
     orderLookupId,

@@ -1,50 +1,59 @@
 /* eslint-disable @next/next/no-img-element */
-import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import "@testing-library/jest-dom";
-import Github from "@/app/ui/widgets/Github/Github";
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import '@testing-library/jest-dom';
+import Github from '@/app/ui/widgets/Github/Github';
 
-jest.mock("next/image", () => ({
+jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => {
     return <img {...props} alt={props.alt} />;
   },
 }));
 
-jest.mock("@iconify/react/dist/iconify.js", () => ({
+jest.mock('@iconify/react/dist/iconify.js', () => ({
   Icon: (props: any) => <i data-testid="mock-icon" data-icon={props.icon} />,
 }));
 
-jest.mock("react-icons/io5", () => ({
+jest.mock('react-icons/io5', () => ({
   IoCloseSharp: () => <svg data-testid="close-icon" />,
 }));
 
 const mockFetch = jest.fn();
 globalThis.fetch = mockFetch;
 
-describe("Github Component", () => {
+describe('Github Component', () => {
   beforeEach(() => {
     mockFetch.mockClear();
     localStorage.clear();
     jest.useFakeTimers();
+    // The widget defers its fetch via requestIdleCallback (falling back to a timer).
+    // Run the idle callback synchronously so the fetch fires on mount as the tests expect.
+    (globalThis.window as any).requestIdleCallback = (cb: () => void) => {
+      cb();
+      return 1;
+    };
+    (globalThis.window as any).cancelIdleCallback = jest.fn();
   });
 
   afterEach(() => {
     jest.useRealTimers();
+    delete (globalThis.window as any).requestIdleCallback;
+    delete (globalThis.window as any).cancelIdleCallback;
   });
 
-  it("should render the banner and show a loading state initially", async () => {
+  it('should render the banner and show a loading state initially', async () => {
     mockFetch.mockReturnValue(new Promise(() => {}));
     render(<Github />);
 
-    expect(screen.getByText("Star us on Github")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Star/i })).toBeInTheDocument();
-    expect(screen.getByText("…")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    expect(screen.getByText('Star us on Github')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Star/i })).toBeInTheDocument();
+    expect(screen.getByText('…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
   });
 
-  it("should fetch and display the formatted star count successfully", async () => {
+  it('should fetch and display the formatted star count successfully', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ stargazers_count: 12345 }),
@@ -56,12 +65,12 @@ describe("Github Component", () => {
       expect(screen.getByText(/12.3k/i)).toBeInTheDocument();
     });
 
-    expect(localStorage.getItem("gh:stars:YosemiteCrew/Yosemite-Crew")).toContain("12345");
+    expect(localStorage.getItem('gh:stars:YosemiteCrew/Yosemite-Crew')).toContain('12345');
   });
 
-  it("should display cached count then update from fetch", async () => {
+  it('should display cached count then update from fetch', async () => {
     const cachedValue = { value: 987, ts: Date.now() };
-    localStorage.setItem("gh:stars:YosemiteCrew/Yosemite-Crew", JSON.stringify(cachedValue));
+    localStorage.setItem('gh:stars:YosemiteCrew/Yosemite-Crew', JSON.stringify(cachedValue));
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ stargazers_count: 1234 }),
@@ -69,17 +78,17 @@ describe("Github Component", () => {
 
     render(<Github />);
 
-    expect(screen.getByText("987")).toBeInTheDocument();
+    expect(screen.getByText('987')).toBeInTheDocument();
 
     await waitFor(() => {
-        expect(screen.getByText(/1.2k/i)).toBeInTheDocument();
+      expect(screen.getByText(/1.2k/i)).toBeInTheDocument();
     });
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("should ignore expired cache and fetch new data", async () => {
+  it('should ignore expired cache and fetch new data', async () => {
     const expiredCache = { value: 500, ts: Date.now() - 2 * 60 * 60 * 1000 };
-    localStorage.setItem("gh:stars:YosemiteCrew/Yosemite-Crew", JSON.stringify(expiredCache));
+    localStorage.setItem('gh:stars:YosemiteCrew/Yosemite-Crew', JSON.stringify(expiredCache));
 
     mockFetch.mockResolvedValue({
       ok: true,
@@ -88,7 +97,7 @@ describe("Github Component", () => {
 
     render(<Github />);
 
-    expect(screen.getByText("…")).toBeInTheDocument();
+    expect(screen.getByText('…')).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText(/1.5k/i)).toBeInTheDocument();
@@ -96,8 +105,8 @@ describe("Github Component", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("should handle corrupted cache by fetching new data", async () => {
-    localStorage.setItem("gh:stars:YosemiteCrew/Yosemite-Crew", "invalid-json");
+  it('should handle corrupted cache by fetching new data', async () => {
+    localStorage.setItem('gh:stars:YosemiteCrew/Yosemite-Crew', 'invalid-json');
 
     mockFetch.mockResolvedValue({
       ok: true,
@@ -112,21 +121,21 @@ describe("Github Component", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("should handle API returning a non-finite star count", async () => {
+  it('should handle API returning a non-finite star count', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ stargazers_count: "not-a-number" }),
+      json: async () => ({ stargazers_count: 'not-a-number' }),
     });
 
     render(<Github />);
     await waitFor(() => {
-      expect(screen.getByText("—")).toBeInTheDocument();
+      expect(screen.getByText('—')).toBeInTheDocument();
     });
   });
 
-  it("should not crash if localStorage is unavailable or full", async () => {
+  it('should not crash if localStorage is unavailable or full', async () => {
     const setItemSpy = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error("Quota exceeded");
+      throw new Error('Quota exceeded');
     });
 
     mockFetch.mockResolvedValue({
@@ -144,17 +153,17 @@ describe("Github Component", () => {
     setItemSpy.mockRestore();
   });
 
-  it("should display an error state if the fetch fails", async () => {
-    mockFetch.mockRejectedValue(new Error("Network error"));
+  it('should display an error state if the fetch fails', async () => {
+    mockFetch.mockRejectedValue(new Error('Network error'));
 
     render(<Github />);
 
     await waitFor(() => {
-      expect(screen.getByText("—")).toBeInTheDocument();
+      expect(screen.getByText('—')).toBeInTheDocument();
     });
   });
 
-  it("should display an error state if the API response is not ok", async () => {
+  it('should display an error state if the API response is not ok', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
     });
@@ -162,11 +171,11 @@ describe("Github Component", () => {
     render(<Github />);
 
     await waitFor(() => {
-      expect(screen.getByText("—")).toBeInTheDocument();
+      expect(screen.getByText('—')).toBeInTheDocument();
     });
   });
 
-  it("should close the banner when the close button is clicked", async () => {
+  it('should close the banner when the close button is clicked', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     mockFetch.mockResolvedValue({
       ok: true,
@@ -174,23 +183,23 @@ describe("Github Component", () => {
     });
     render(<Github />);
 
-    await waitFor(() => expect(screen.getByText("100")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('100')).toBeInTheDocument());
 
-    const banner = screen.getByText("Star us on Github");
+    const banner = screen.getByText('Star us on Github');
     expect(banner).toBeInTheDocument();
 
-    const closeButton = screen.getByRole("button", { name: "Close" });
+    const closeButton = screen.getByRole('button', { name: 'Close' });
     await user.click(closeButton);
 
     expect(banner).not.toBeInTheDocument();
   });
 
-  it("should clear interval on unmount", () => {
+  it('should clear interval on unmount', () => {
     const clearIntervalSpy = jest.spyOn(globalThis, 'clearInterval');
     mockFetch.mockResolvedValue({
-        ok: true,
-        json: async () => ({ stargazers_count: 100 }),
-      });
+      ok: true,
+      json: async () => ({ stargazers_count: 100 }),
+    });
     const { unmount } = render(<Github />);
 
     unmount();
@@ -198,4 +207,3 @@ describe("Github Component", () => {
     clearIntervalSpy.mockRestore();
   });
 });
-

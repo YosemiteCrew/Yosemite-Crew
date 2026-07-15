@@ -30,6 +30,7 @@ import { downloadSubmissionPdf } from '@/app/features/forms/services/formSigning
 import {
   createEncounterDocumentPacket,
   getEncounterDocumentPacketPdfUrl,
+  listEncounterWorkspaceDocuments,
   reconcileWorkspaceDocumentPacket,
   signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
@@ -161,6 +162,9 @@ type PacketState = {
   signingStatus?: string;
 };
 
+const isSignedDocumentRow = (document: { signingStatus?: string | null }): boolean =>
+  document.signingStatus?.toUpperCase() === 'SIGNED';
+
 /**
  * Combined clinical packet (SOAP + Prescription + Discharge) surfaced at parity
  * with the Summary step. Reuses the shared aggregate-service exports — Print via
@@ -184,6 +188,16 @@ const resolveSignLabel = ({
   return 'Sign';
 };
 
+const downloadPacket = (url: string) => {
+  const link = globalThis.document.createElement('a');
+  link.href = url;
+  link.download = '';
+  link.rel = 'noopener noreferrer';
+  globalThis.document.body.append(link);
+  link.click();
+  link.remove();
+};
+
 const ClinicalPacketSection = ({
   organisationId,
   encounterId,
@@ -196,7 +210,7 @@ const ClinicalPacketSection = ({
   const openSigningOverlay = useSigningOverlayStore((s) => s.openOverlay);
   const setSigningUrl = useSigningOverlayStore((s) => s.setUrl);
   const closeSigningOverlay = useSigningOverlayStore((s) => s.close);
-  const signingOverlayOpen = useSigningOverlayStore((s) => s.open);
+  const registerSigningCloseHandler = useSigningOverlayStore((s) => s.registerCloseHandler);
   const [packet, setPacket] = useState<PacketState | null>(null);
   const [isSigning, setIsSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
@@ -212,6 +226,20 @@ const ClinicalPacketSection = ({
   const refreshPacket = useCallback(async () => {
     if (!organisationId || !encounterId) return;
     try {
+      try {
+        const documents = await listEncounterWorkspaceDocuments(organisationId, encounterId);
+        if (documents.some(isSignedDocumentRow)) {
+          setPacket({
+            status: 'FINAL',
+            signingStatus: 'SIGNED',
+          });
+          return;
+        }
+      } catch (error) {
+        if (isAuthRedirectError(error)) throw error;
+        console.error('Unable to load clinical packet documents:', error);
+      }
+
       const result = await createEncounterDocumentPacket(organisationId, encounterId);
       setPacket({
         packetId: result?.packetId,
@@ -229,25 +257,18 @@ const ClinicalPacketSection = ({
     void refreshPacket();
   }, [refreshPacket]);
 
-  const signingInitiatedRef = useRef(false);
-  // The packet being signed, captured when signing starts so the post-close
-  // reconcile can resolve its signing state against Documenso directly.
-  const signingPacketIdRef = useRef<string | null>(null);
-
-  // When the signing overlay closes after a sign was started, reconcile the
-  // packet against Documenso (webhook can't reach the backend in local/dev and
-  // can lag in prod), then refetch so the Sign→Download Signed swap and the
-  // Draft→Final / Signed badges reflect the completed signature. Best-effort:
-  // if the reconcile endpoint isn't deployed yet the refetch still applies
-  // webhook truth.
-  useEffect(() => {
-    if (signingOverlayOpen || !signingInitiatedRef.current) return;
-    signingInitiatedRef.current = false;
-    const packetId = signingPacketIdRef.current;
-    void (async () => {
-      if (packetId && organisationId) {
+  const reconcilePacketAfterSigningClose = useCallback(
+    async (packetId: string) => {
+      if (organisationId) {
         try {
-          await reconcileWorkspaceDocumentPacket(organisationId, packetId);
+          const reconciled = await reconcileWorkspaceDocumentPacket(organisationId, packetId);
+          if (reconciled?.signing?.status?.toUpperCase() === 'SIGNED') {
+            setPacket({
+              packetId: reconciled.packetId,
+              status: reconciled.status ?? 'FINAL',
+              signingStatus: 'SIGNED',
+            });
+          }
         } catch (error) {
           if (!isAuthRedirectError(error)) {
             console.error('Unable to reconcile packet signing:', error);
@@ -255,8 +276,9 @@ const ClinicalPacketSection = ({
         }
       }
       await refreshPacket();
-    })();
-  }, [organisationId, refreshPacket, signingOverlayOpen]);
+    },
+    [organisationId, refreshPacket]
+  );
 
   const isSigned = packet?.signingStatus === 'SIGNED';
   const isInProgress = packet?.signingStatus === 'IN_PROGRESS';
@@ -313,19 +335,20 @@ const ClinicalPacketSection = ({
       if (!packetId) {
         throw new Error('Document packet could not be created.');
       }
-      signingPacketIdRef.current = packetId;
       const signed = await signWorkspaceDocumentPacket(organisationId, packetId);
       const signingUrl = signed?.signing?.signingUrl;
       if (!signingUrl) {
         throw new Error('Signing link is not available yet.');
       }
+      registerSigningCloseHandler(`packet-${encounterId}`, () =>
+        reconcilePacketAfterSigningClose(packetId)
+      );
       setSigningUrl(signingUrl);
       setPacket({
         packetId,
         status: signed?.status ?? created?.status,
         signingStatus: signed?.signing?.status ?? 'IN_PROGRESS',
       });
-      signingInitiatedRef.current = true;
     } catch (error) {
       setSignError(error instanceof Error ? error.message : 'Unable to start signing.');
       closeSigningOverlay();
@@ -339,16 +362,6 @@ const ClinicalPacketSection = ({
       if (current) URL.revokeObjectURL(current);
       return null;
     });
-  };
-
-  const downloadPacket = (url: string) => {
-    const link = globalThis.document.createElement('a');
-    link.href = url;
-    link.download = '';
-    link.rel = 'noopener noreferrer';
-    globalThis.document.body.append(link);
-    link.click();
-    link.remove();
   };
 
   const signLabel = resolveSignLabel({ isSigned, isInProgress, isSigning });
@@ -431,10 +444,13 @@ const ClinicalPacketSection = ({
   );
 };
 
-const renderFormsPanelContent = (
-  status: 'loading' | 'loaded' | 'error',
-  filteredForms: SubmittedForm[]
-) => {
+const FormsPanelContent = ({
+  status,
+  forms,
+}: {
+  status: 'loading' | 'loaded' | 'error';
+  forms: SubmittedForm[];
+}) => {
   if (status === 'loading') {
     return <p className="py-6 text-center text-body-4 text-text-secondary">Loading forms...</p>;
   }
@@ -445,7 +461,7 @@ const renderFormsPanelContent = (
       </p>
     );
   }
-  if (filteredForms.length === 0) {
+  if (forms.length === 0) {
     return (
       <p className="py-6 text-center text-body-4 text-text-secondary">
         No forms assigned yet. Use the search above to add a consent or custom form.
@@ -454,7 +470,7 @@ const renderFormsPanelContent = (
   }
   return (
     <ul className="rounded-2xl border border-card-border px-4">
-      {filteredForms.map((form) => (
+      {forms.map((form) => (
         <FormRow key={form.id} form={form} />
       ))}
     </ul>
@@ -713,7 +729,7 @@ const AppointmentFormsPanel = ({
           {assignError}
         </p>
       )}
-      {renderFormsPanelContent(status, forms)}
+      <FormsPanelContent status={status} forms={forms} />
     </div>
   );
 };
