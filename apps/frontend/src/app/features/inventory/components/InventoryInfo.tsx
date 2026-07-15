@@ -325,12 +325,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
   const handleChange = useCallback(
     (index: number, name: keyof BatchValues, value: string) => {
       const next = [...newBatches];
-      let current = next[index];
-      /* v8 ignore next 3 -- unreachable: new-batch fields are only rendered for indices that exist in newBatches, so the emptyBatch fallback never runs */
-      if (current == null) {
-        current = emptyBatch;
-      }
-      next[index] = { ...current, [name]: value };
+      next[index] = { ...next[index], [name]: value };
       patchBatchEditor({ newBatches: next, isEditing: true });
     },
     [newBatches, patchBatchEditor]
@@ -344,12 +339,7 @@ const BatchEditor: React.FC<BatchEditorProps> = ({
         source = existingBatches.map((b) => ({ ...b }));
       }
       const next = [...source];
-      let current = next[index];
-      /* v8 ignore next 3 -- unreachable: existing-batch fields are only rendered for indices that exist in the batch list, so the emptyBatch fallback never runs */
-      if (current == null) {
-        current = emptyBatch;
-      }
-      next[index] = { ...current, [name]: value };
+      next[index] = { ...next[index], [name]: value };
       patchBatchEditor({ editableExistingBatches: next, isEditing: true });
     },
     [existingBatches, editableExistingBatches, patchBatchEditor]
@@ -701,11 +691,9 @@ const InventoryInfo = ({
     startEditing?: () => void;
     isEditing?: () => boolean;
   } | null>(null);
-  let currentLabelConfig = modalSections.find((l) => l.key === activeLabel);
-  /* v8 ignore next 3 -- unreachable: modalSections lists every InventorySectionKey and activeLabel only ever holds one of those keys, so the lookup always hits */
-  if (!currentLabelConfig) {
-    currentLabelConfig = modalSections[0];
-  }
+  // modalSections lists every InventorySectionKey and activeLabel only ever holds
+  // one of those keys, so the lookup always hits.
+  const currentLabelConfig = modalSections.find((l) => l.key === activeLabel)!;
 
   useLayoutEffect(() => {
     setIsSectionEditing(false);
