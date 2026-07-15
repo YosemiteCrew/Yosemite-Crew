@@ -121,7 +121,9 @@ export const UploadDocumentBottomSheet = ({
                 index === uploadOptions.length - 1 && styles.optionItemLast,
               ]}
               onPress={() => handleOptionPress(option.action)}
-              activeOpacity={0.7}>
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={option.label}>
               <Text style={styles.optionText}>{option.label}</Text>
               <Image source={option.icon} style={styles.optionIcon} />
             </PressableOpacity>

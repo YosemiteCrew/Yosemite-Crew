@@ -50,7 +50,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     <PressableOpacity
       activeOpacity={0.85}
       style={styles.touchable}
-      onPress={onPress}>
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={placeholder}>
       <View style={styles.content}>
         <PressableOpacity
           activeOpacity={0.85}
@@ -60,7 +62,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             bottom: theme.spacing['2'],
             left: theme.spacing['2'],
             right: theme.spacing['2'],
-          }}>
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Search">
           <Image source={Images.searchIcon} style={styles.icon} />
         </PressableOpacity>
         <Text style={styles.placeholder} numberOfLines={1} ellipsizeMode="tail">
@@ -87,7 +91,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           bottom: theme.spacing['2'],
           left: theme.spacing['2'],
           right: theme.spacing['2'],
-        }}>
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Search">
         <Image source={Images.searchIcon} style={styles.icon} />
       </PressableOpacity>
       <TextInput

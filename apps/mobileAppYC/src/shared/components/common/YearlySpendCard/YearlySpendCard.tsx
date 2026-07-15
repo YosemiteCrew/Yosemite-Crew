@@ -56,7 +56,9 @@ export const YearlySpendCard: React.FC<YearlySpendCardProps> = ({
     <PressableOpacity
       activeOpacity={0.85}
       onPress={handleViewPress}
-      style={styles.content}>
+      style={styles.content}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${formattedAmount.replaceAll(' ', ' ')}`}>
       <View style={styles.textContainer}>
         <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">
           {label}

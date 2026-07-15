@@ -80,7 +80,12 @@ export const TouchableInput: React.FC<TouchableInputProps> = ({
       <PressableOpacity
         onPress={onPress}
         activeOpacity={0.7}
-        disabled={disabled}>
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={[label, value || placeholder]
+          .filter(Boolean)
+          .join(', ')}
+        accessibilityState={{disabled}}>
         <View style={[inputContainerStyle, inputStyle]}>
           {leftComponent && (
             <View style={leftComponentWrapperStyle}>{leftComponent}</View>
