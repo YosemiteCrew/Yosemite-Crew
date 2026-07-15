@@ -1,5 +1,5 @@
 import Modal from '@/app/ui/overlays/Modal';
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import Image from 'next/image';
 import Details, {
   AddFormStepHandle,
@@ -35,6 +35,35 @@ type AddFormProps = {
 /** Single-screen builder views. The palette/canvas/settings builder is the default. */
 type BuilderView = 'build' | 'preview' | 'merck';
 
+// Builder chrome: which pane is showing and whether the details panel is open.
+// These always reset together, so they are one snapshot with one RESET action.
+type BuilderUiState = { view: BuilderView; showDetails: boolean };
+
+type BuilderUiAction =
+  | { type: 'RESET' }
+  | { type: 'TOGGLE_VIEW'; view: Exclude<BuilderView, 'build'> }
+  | { type: 'SET_DETAILS'; showDetails: boolean }
+  | { type: 'TOGGLE_DETAILS' };
+
+const INITIAL_BUILDER_UI: BuilderUiState = { view: 'build', showDetails: false };
+
+const builderUiReducer = (state: BuilderUiState, action: BuilderUiAction): BuilderUiState => {
+  switch (action.type) {
+    case 'RESET':
+      return state.view === 'build' && !state.showDetails ? state : INITIAL_BUILDER_UI;
+    // Each of these panes toggles against the builder, so re-selecting the active
+    // pane returns to 'build'.
+    case 'TOGGLE_VIEW':
+      return { ...state, view: state.view === action.view ? 'build' : action.view };
+    case 'SET_DETAILS':
+      return state.showDetails === action.showDetails
+        ? state
+        : { ...state, showDetails: action.showDetails };
+    case 'TOGGLE_DETAILS':
+      return { ...state, showDetails: !state.showDetails };
+  }
+};
+
 const defaultForm = (): FormsProps => {
   const primaryOrg = useOrgStore.getState().getPrimaryOrg?.();
   return {
@@ -64,8 +93,11 @@ const AddForm = ({
   onDraftChange,
 }: AddFormProps) => {
   const [formData, setFormData] = useState<FormsProps>(draft ?? initialForm ?? defaultForm());
-  const [view, setView] = useState<BuilderView>('build');
-  const [showDetails, setShowDetails] = useState(false);
+  // `view` and `showDetails` are both builder chrome and are always reset together
+  // when the modal opens or closes, so they move as one snapshot rather than as
+  // separate setState calls fired from the same effect.
+  const [builderUi, dispatchBuilderUi] = useReducer(builderUiReducer, INITIAL_BUILDER_UI);
+  const { view, showDetails } = builderUi;
   // Keep the last non-null handle so validation still applies while the step
   // is unmounted (e.g. validating Details/schema from the preview tab).
   const detailStepRef = useRef<AddFormStepHandle | null>(null);
@@ -90,8 +122,7 @@ const AddForm = ({
 
   useLayoutEffect(() => {
     if (showModal && !wasOpenRef.current) {
-      setView('build');
-      setShowDetails(false);
+      dispatchBuilderUi({ type: 'RESET' });
       const next = {
         ...(initialForm ?? draft ?? defaultForm()),
         businessType:
@@ -112,8 +143,7 @@ const AddForm = ({
 
   const closeModal = () => {
     setFormData(defaultForm());
-    setView('build');
-    setShowDetails(false);
+    dispatchBuilderUi({ type: 'RESET' });
     onDraftChange?.(null);
     setShowModal(false);
     onClose?.();
@@ -146,7 +176,7 @@ const AddForm = ({
     // Single-screen: validate the details and the field schema before publishing.
     // Invalid details reveal the details panel so the inline errors are visible.
     if (!(detailStepRef.current?.validate() ?? true)) {
-      setShowDetails(true);
+      dispatchBuilderUi({ type: 'SET_DETAILS', showDetails: true });
       return;
     }
     if (!(buildStepRef.current?.validate() ?? true)) {
@@ -200,7 +230,7 @@ const AddForm = ({
             <button
               type="button"
               aria-pressed={view === 'preview'}
-              onClick={() => setView((v) => (v === 'preview' ? 'build' : 'preview'))}
+              onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'preview' })}
               className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
                 view === 'preview'
                   ? 'border-[var(--blue)] text-[var(--blue-text)]'
@@ -214,7 +244,7 @@ const AddForm = ({
               <button
                 type="button"
                 aria-pressed={view === 'merck'}
-                onClick={() => setView((v) => (v === 'merck' ? 'build' : 'merck'))}
+                onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'merck' })}
                 className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
                   view === 'merck'
                     ? 'border-[var(--blue)] text-[var(--blue-text)]'
@@ -267,7 +297,7 @@ const AddForm = ({
                 <button
                   type="button"
                   aria-expanded={showDetails}
-                  onClick={() => setShowDetails((v) => !v)}
+                  onClick={() => dispatchBuilderUi({ type: 'TOGGLE_DETAILS' })}
                   className="flex items-center gap-1.5 rounded-full border border-[var(--divider)] px-3 py-1 text-caption-2 font-semibold text-text-secondary"
                 >
                   <IoCreateOutline size={14} aria-hidden="true" />
@@ -287,7 +317,7 @@ const AddForm = ({
                   setFormData={setFormData}
                   onNext={
                     /* v8 ignore next -- dead no-op leftover from the old wizard: Details renders with hideNext, so onNext is never invoked */ () =>
-                      setShowDetails(false)
+                      dispatchBuilderUi({ type: 'SET_DETAILS', showDetails: false })
                   }
                   serviceOptions={serviceOptions}
                   ref={setDetailStepHandle}
