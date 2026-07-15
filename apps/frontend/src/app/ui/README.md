@@ -25,4 +25,5 @@ Available now:
 
 Prefer importing from `src/app/ui` for shared UI.
 
-Token source of truth: `src/app/globals.css` (`@theme`). Token reference: `src/app/ui/tokens.md`.
+Token source of truth: `src/app/globals.css` (`@theme`). Token reference: [`tokens.md`](./tokens.md).
+For the full component list with taxonomy, status labels, and remaining migration work, see [`INVENTORY.md`](./INVENTORY.md).

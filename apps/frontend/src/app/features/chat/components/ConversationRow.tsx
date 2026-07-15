@@ -112,13 +112,13 @@ export function ConversationRow({
             {viaApp && (
               <LuSmartphone
                 aria-label="Messages via pet parent app"
-                className="h-3.5 w-3.5 shrink-0 text-neutral-400"
+                className="size-3.5 shrink-0 text-neutral-400"
               />
             )}
             {network && (
               <LuGlobe
                 aria-label="Across the network"
-                className="h-3.5 w-3.5 shrink-0 text-neutral-500"
+                className="size-3.5 shrink-0 text-neutral-500"
               />
             )}
             {time && (
@@ -139,7 +139,7 @@ export function ConversationRow({
               {preview}
             </Text>
             {muted && (
-              <LuBellOff aria-label="Muted" className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
+              <LuBellOff aria-label="Muted" className="size-3.5 shrink-0 text-neutral-500" />
             )}
             {unread ? <Badge tone="brand">{unread}</Badge> : null}
           </span>
@@ -153,13 +153,13 @@ export function ConversationRow({
             aria-label="Conversation actions"
             onClick={() => setMenuOpen((o) => !o)}
             className={clsx(
-              'inline-flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-0 hover:text-neutral-900',
+              'inline-flex size-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-0 hover:text-neutral-900',
               menuOpen
                 ? 'opacity-100'
                 : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100'
             )}
           >
-            <LuMoreVertical className="h-4 w-4" />
+            <LuMoreVertical className="size-4" />
           </button>
           {menuOpen && (
             <>
@@ -173,7 +173,7 @@ export function ConversationRow({
                 {muted
                   ? onUnmute && (
                       <MenuItem
-                        icon={<LuBell className="h-4 w-4 text-neutral-500" />}
+                        icon={<LuBell className="size-4 text-neutral-500" />}
                         label="Unmute"
                         onClick={() => {
                           onUnmute();
@@ -183,7 +183,7 @@ export function ConversationRow({
                     )
                   : onMute && (
                       <MenuItem
-                        icon={<LuBellOff className="h-4 w-4 text-neutral-500" />}
+                        icon={<LuBellOff className="size-4 text-neutral-500" />}
                         label="Mute"
                         onClick={() => {
                           onMute();
@@ -193,7 +193,7 @@ export function ConversationRow({
                     )}
                 {onSnooze && (
                   <MenuItem
-                    icon={<LuAlarmClock className="h-4 w-4 text-neutral-500" />}
+                    icon={<LuAlarmClock className="size-4 text-neutral-500" />}
                     label="Snooze 1 hour"
                     onClick={() => {
                       onSnooze(HOUR_MS);
@@ -203,7 +203,7 @@ export function ConversationRow({
                 )}
                 {onSnooze && (
                   <MenuItem
-                    icon={<LuAlarmClock className="h-4 w-4 text-neutral-500" />}
+                    icon={<LuAlarmClock className="size-4 text-neutral-500" />}
                     label="Snooze 1 day"
                     onClick={() => {
                       onSnooze(24 * HOUR_MS);
@@ -213,7 +213,7 @@ export function ConversationRow({
                 )}
                 {onArchive && (
                   <MenuItem
-                    icon={<LuArchive className="h-4 w-4 text-neutral-500" />}
+                    icon={<LuArchive className="size-4 text-neutral-500" />}
                     label="Archive"
                     onClick={() => {
                       onArchive();
@@ -223,7 +223,7 @@ export function ConversationRow({
                 )}
                 {onUnarchive && (
                   <MenuItem
-                    icon={<LuArchiveRestore className="h-4 w-4 text-neutral-500" />}
+                    icon={<LuArchiveRestore className="size-4 text-neutral-500" />}
                     label="Unarchive"
                     onClick={() => {
                       onUnarchive();

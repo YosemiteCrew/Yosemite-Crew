@@ -82,4 +82,47 @@ describe('roomUnitAvailability', () => {
       { label: 'Room 2', value: 'room-2' },
     ]);
   });
+
+  it('falls back to scanning all units when the room has no indexed unit ids', () => {
+    const unindexedIndexes = {
+      roomUnitsById: {
+        'unit-5': {
+          id: 'unit-5',
+          organisationId: 'org-1',
+          roomId: 'room-4',
+          code: '5',
+          displayName: 'Unit 5',
+          isActive: true,
+          isOccupied: false,
+        },
+      },
+      roomUnitIdsByRoomId: {},
+    };
+
+    expect(getAssignableRoomUnits('room-4', unindexedIndexes).map((unit) => unit.id)).toEqual([
+      'unit-5',
+    ]);
+  });
+
+  it('detects known units for a room via unindexed scan in toAssignableRoomOptions', () => {
+    const unindexedIndexes = {
+      roomUnitsById: {
+        'unit-5': {
+          id: 'unit-5',
+          organisationId: 'org-1',
+          roomId: 'room-4',
+          code: '5',
+          displayName: 'Unit 5',
+          isActive: true,
+          isOccupied: true,
+        },
+      },
+      roomUnitIdsByRoomId: {},
+    };
+    const rooms = [{ id: 'room-4', name: 'Room 4' }];
+
+    expect(toAssignableRoomOptions(rooms, unindexedIndexes, undefined, undefined, true)).toEqual(
+      []
+    );
+  });
 });

@@ -158,7 +158,7 @@ const DayCalendar = ({
                     handleViewTask={handleViewTask}
                     handleChangeStatusTask={handleChangeStatusTask}
                     handleRescheduleTask={handleRescheduleTask}
-                    canEditTasks={canEditTasks}
+                    permissions={{ canEditTasks }}
                     zoomMode={zoomMode}
                     dayIndex={0}
                     length={0}
@@ -175,9 +175,11 @@ const DayCalendar = ({
                     onDragHoverTarget={onDragHoverTarget}
                     dropAvailabilityIntervals={getDropAvailabilityIntervals?.(date) ?? []}
                     draggedTaskDurationMinutes={draggedTaskDurationMinutes}
-                    showGridLines
-                    slotOffsetMinutes={slotOffsetMinutes}
-                    isLastVisibleHour={hour === lastVisibleHour}
+                    layout={{
+                      showGridLines: true,
+                      slotOffsetMinutes,
+                      isLastVisibleHour: hour === lastVisibleHour,
+                    }}
                     resolveDisplayName={resolveDisplayName}
                   />
                 </div>

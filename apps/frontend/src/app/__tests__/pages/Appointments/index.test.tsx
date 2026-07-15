@@ -89,6 +89,7 @@ jest.mock('@/app/stores/searchStore', () => ({
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => useSearchParamsMock(),
+  redirect: jest.fn(),
   useRouter: () => ({
     push: routerPushMock,
   }),
@@ -626,6 +627,19 @@ describe('Appointments page', () => {
     });
 
     expect(calendarSpy).toHaveBeenCalledWith(expect.objectContaining({ currentDate: newDate }));
+  });
+
+  it('setActiveCalendar updates the active calendar mode passed to calendar', async () => {
+    await renderAppointments();
+
+    const calendarProps = calendarSpy.mock.calls[0][0];
+
+    await act(async () => {
+      calendarProps.setActiveCalendar('week');
+      await Promise.resolve();
+    });
+
+    expect(calendarSpy).toHaveBeenCalledWith(expect.objectContaining({ activeCalendar: 'week' }));
   });
 
   it('onReschedule from AppointmentInfo closes view and opens reschedule popup', async () => {

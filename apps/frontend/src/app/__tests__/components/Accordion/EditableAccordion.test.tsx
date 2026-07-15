@@ -237,7 +237,10 @@ describe('EditableAccordion Component', () => {
     );
 
     fireEvent.click(screen.getByText('Toggle Edit'));
-    fireEvent.click(screen.getByText('Save'));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save'));
+      await Promise.resolve();
+    });
 
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByText('Name is required')).toBeInTheDocument();
@@ -263,6 +266,7 @@ describe('EditableAccordion Component', () => {
 
     await act(async () => {
       fireEvent.click(screen.getByText('Save'));
+      await Promise.resolve();
     });
 
     expect(onSave).toHaveBeenCalledWith({ name: 'New' });
@@ -297,6 +301,7 @@ describe('EditableAccordion Component', () => {
 
     await act(async () => {
       fireEvent.click(screen.getByText('Save'));
+      await Promise.resolve();
     });
 
     expect(onSave).toHaveBeenCalledWith({
@@ -333,6 +338,7 @@ describe('EditableAccordion Component', () => {
 
     await act(async () => {
       fireEvent.click(screen.getByText('Save'));
+      await Promise.resolve();
     });
 
     expect(onSave).toHaveBeenCalledWith(
@@ -358,18 +364,23 @@ describe('EditableAccordion Component', () => {
     expect(screen.getByText('123 Main St')).toBeInTheDocument();
   });
 
-  it('registers and clears external actions', () => {
-    const onRegisterActions = jest.fn();
+  it('exposes and clears external actions through the ref', () => {
+    const actionsRef = React.createRef<{
+      save: () => Promise<void>;
+      cancel: () => void;
+      startEditing: () => void;
+      isEditing: () => boolean;
+    } | null>();
     const { unmount } = render(
       <EditableAccordion
         title="Profile"
         fields={[{ label: 'Name', key: 'name', type: 'text' }]}
         data={{ name: 'Rex' }}
-        onRegisterActions={onRegisterActions}
+        ref={actionsRef}
       />
     );
 
-    expect(onRegisterActions).toHaveBeenCalledWith(
+    expect(actionsRef.current).toEqual(
       expect.objectContaining({
         save: expect.any(Function),
         cancel: expect.any(Function),
@@ -379,7 +390,7 @@ describe('EditableAccordion Component', () => {
     );
 
     unmount();
-    expect(onRegisterActions).toHaveBeenLastCalledWith(null);
+    expect(actionsRef.current).toBeNull();
   });
 
   describe('numeric field guard', () => {
@@ -476,7 +487,7 @@ describe('EditableAccordion Component', () => {
       expect((screen.getByLabelText('Subcategory') as HTMLInputElement).value).toBe('');
     });
 
-    it('clears a dependent field error when the source field changes', () => {
+    it('clears a dependent field error when the source field changes', async () => {
       render(
         <EditableAccordion
           title="Classification"
@@ -492,7 +503,10 @@ describe('EditableAccordion Component', () => {
 
       fireEvent.click(screen.getByText('Toggle Edit'));
       fireEvent.change(screen.getByLabelText('Subcategory'), { target: { value: '' } });
-      fireEvent.click(screen.getByText('Save'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Save'));
+        await Promise.resolve();
+      });
       expect(screen.getByText('Subcategory is required')).toBeInTheDocument();
 
       fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'Food' } });
@@ -769,6 +783,7 @@ describe('EditableAccordion Component', () => {
 
       await act(async () => {
         fireEvent.click(screen.getByText('Save'));
+        await Promise.resolve();
       });
 
       expect(screen.getByText('Failed to save changes. Please try again.')).toBeInTheDocument();
@@ -1010,7 +1025,7 @@ describe('EditableAccordion Component', () => {
   });
 
   describe('required field validation branches', () => {
-    it('shows an error for a required multiSelect with no selections', () => {
+    it('shows an error for a required multiSelect with no selections', async () => {
       render(
         <EditableAccordion
           title="Tags"
@@ -1023,11 +1038,14 @@ describe('EditableAccordion Component', () => {
       );
 
       fireEvent.click(screen.getByText('Toggle Edit'));
-      fireEvent.click(screen.getByText('Save'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Save'));
+        await Promise.resolve();
+      });
       expect(screen.getByText('Tags is required')).toBeInTheDocument();
     });
 
-    it('shows and then clears an error for a required number field', () => {
+    it('shows and then clears an error for a required number field', async () => {
       render(
         <EditableAccordion
           title="Stock"
@@ -1038,11 +1056,17 @@ describe('EditableAccordion Component', () => {
       );
 
       fireEvent.click(screen.getByText('Toggle Edit'));
-      fireEvent.click(screen.getByText('Save'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Save'));
+        await Promise.resolve();
+      });
       expect(screen.getByText('Quantity is required')).toBeInTheDocument();
 
       fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '5' } });
-      fireEvent.click(screen.getByText('Save'));
+      await act(async () => {
+        fireEvent.click(screen.getByText('Save'));
+        await Promise.resolve();
+      });
       expect(screen.queryByText('Quantity is required')).not.toBeInTheDocument();
     });
   });
@@ -1088,6 +1112,8 @@ describe('EditableAccordion Component', () => {
 
       fireEvent.click(screen.getByText('Toggle Edit'));
       expect(screen.getByText('Save')).toBeInTheDocument();
+      expect(onEditingChange).toHaveBeenCalledWith(true);
+      onEditingChange.mockClear();
 
       rerender(
         <EditableAccordion
@@ -1101,24 +1127,28 @@ describe('EditableAccordion Component', () => {
       );
 
       expect(screen.queryByText('Save')).not.toBeInTheDocument();
-      expect(onEditingChange).toHaveBeenCalledWith(false);
+      expect(onEditingChange).not.toHaveBeenCalled();
     });
   });
 
   describe('registered startEditing action', () => {
     it('enters edit mode when the registered startEditing action is invoked', () => {
-      let actions: any = null;
+      const actionsRef = React.createRef<{
+        save: () => Promise<void>;
+        cancel: () => void;
+        startEditing: () => void;
+        isEditing: () => boolean;
+      } | null>();
       render(
         <EditableAccordion
           title="Profile"
           fields={[{ label: 'Name', key: 'name', type: 'text' }]}
           data={{ name: 'Rex' }}
-          onRegisterActions={(a) => {
-            if (a) actions = a;
-          }}
+          ref={actionsRef}
         />
       );
 
+      const actions = actionsRef.current!;
       expect(actions.isEditing()).toBe(false);
       act(() => {
         actions.startEditing();

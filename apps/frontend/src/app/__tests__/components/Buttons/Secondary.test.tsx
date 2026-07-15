@@ -59,4 +59,12 @@ describe('Secondary button', () => {
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
     expect(screen.getByTestId('secondary-icon')).toBeInTheDocument();
   });
+
+  test('renders the danger outlined variant for destructive secondary actions', () => {
+    render(<Secondary text="Remove" danger />);
+
+    const button = screen.getByRole('button', { name: 'Remove' });
+    expect(button.className).toContain('border-text-error!');
+    expect(button.className).toContain('hover:bg-danger-50!');
+  });
 });
