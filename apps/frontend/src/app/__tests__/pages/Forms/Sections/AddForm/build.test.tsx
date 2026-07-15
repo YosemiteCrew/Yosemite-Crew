@@ -983,37 +983,36 @@ describe('Build form (single-screen builder)', () => {
     });
   });
 
-  describe('service group seeding effect', () => {
-    it('re-seeds service groups already present in the schema on mount', () => {
-      const serviceGroup: FormField = {
+  // A legacy service group (saved before the selection checkbox existed) is ensured at
+  // render time by ensureServiceCheckbox, and normalizeServiceGroups persists it on save
+  // in the parent — so Build never writes the seeded schema back up through setFormData.
+  describe('legacy service groups without a selection checkbox', () => {
+    const legacyServiceGroup = (): FormField =>
+      ({
         id: 'svc-group',
         type: 'group',
         label: 'Services',
         meta: { serviceGroup: true } as any,
         fields: [],
-      } as FormField;
+      }) as FormField;
 
-      renderBuild(baseFormData({ schema: [serviceGroup] }));
+    it('renders the selection checkbox for a group that predates it', () => {
+      renderBuild(baseFormData({ schema: [legacyServiceGroup()] }));
 
-      const schema = readSchema();
-      const seeded = schema[0] as FormField & { fields?: FormField[] };
-      expect(seeded.fields?.some((field) => field.type === 'checkbox')).toBe(true);
+      expect(screen.getByText('Checkup')).toBeInTheDocument();
     });
 
-    it('skips the service-seed effect when there are no service options', () => {
-      const serviceGroup: FormField = {
-        id: 'svc-group',
-        type: 'group',
-        label: 'Services',
-        meta: { serviceGroup: true } as any,
-        fields: [],
-      } as FormField;
+    it('leaves the schema untouched rather than seeding it back to the parent', () => {
+      renderBuild(baseFormData({ schema: [legacyServiceGroup()] }));
 
-      renderBuild(baseFormData({ schema: [serviceGroup] }), []);
+      const stored = readSchema()[0] as FormField & { fields?: FormField[] };
+      expect(stored.fields ?? []).toHaveLength(0);
+    });
 
-      const schema = readSchema();
-      const seeded = schema[0] as FormField & { fields?: FormField[] };
-      expect(seeded.fields ?? []).toHaveLength(0);
+    it('renders no service options when there are none to offer', () => {
+      renderBuild(baseFormData({ schema: [legacyServiceGroup()] }), []);
+
+      expect(screen.queryByText('Checkup')).not.toBeInTheDocument();
     });
   });
 

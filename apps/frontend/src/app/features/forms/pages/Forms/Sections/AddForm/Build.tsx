@@ -1896,23 +1896,6 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
   const { dragIndex, handleDragStart, handleDragOver, handleDrop, handleDragEnd } =
     useBuilderDragAutoScroll(builderRef, reorderField);
 
-  // Service groups loaded from a saved draft may predate the selection checkbox, so seed one
-  // into any that lack it once service options are available — mirroring what adding a service
-  // group from the palette does. Skipped when there are no service options to seed from.
-  useEffect(() => {
-    if (serviceOptions.length === 0) return;
-    setFormData((prev) => {
-      const currentSchema = prev.schema ?? [];
-      let changed = false;
-      const nextSchema = currentSchema.map((field) => {
-        if (!isServiceGroup(field) || getServiceCheckbox(field)) return field;
-        changed = true;
-        return ensureServiceCheckbox(field, serviceOptions).group;
-      });
-      return changed ? { ...prev, schema: nextSchema } : prev;
-    });
-  }, [serviceOptions, setFormData]);
-
   const validate = React.useCallback(() => {
     if (!formData.schema || formData.schema.length === 0) {
       setBuildError('Add at least one field to continue.');
