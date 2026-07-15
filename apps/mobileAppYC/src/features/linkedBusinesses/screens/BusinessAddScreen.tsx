@@ -470,8 +470,8 @@ const ConnectionStatusBanner: React.FC<ConnectionStatusBannerProps> = ({
       <>
         <Text style={styles.statusEmoji}>🎉</Text>
         <Text style={styles.statusText}>
-          We are happy to inform you that this organisation is part of Yosemite
-          Crew PMS
+          We are happy to inform you that this organisation is part of the
+          Yosemite Crew network
         </Text>
         <Image
           source={Images.yosemiteLogo}
@@ -483,9 +483,9 @@ const ConnectionStatusBanner: React.FC<ConnectionStatusBannerProps> = ({
       <>
         <Text style={styles.statusEmoji}>😔</Text>
         <Text style={styles.statusText}>
-          We are sorry to inform you, this organisation is not a part of
-          Yosemite Crew PMS. We will soon notify you, when the organisation is
-          available on this platform.
+          We are sorry to inform you, this organisation is not yet connected to
+          Yosemite Crew. We will notify you when it becomes available on this
+          platform.
         </Text>
         <Text style={styles.statusEmoji}>🔔</Text>
       </>

@@ -142,7 +142,7 @@ export const PaymentSuccessScreen: React.FC = () => {
             </View>
             <Text style={styles.title}>Paid. All settled.</Text>
             <Text style={styles.subtitle}>
-              You have Successfully made Payment
+              Here's a summary of your invoice.
             </Text>
             <View style={styles.summaryCard}>
               <View style={styles.detailRow}>

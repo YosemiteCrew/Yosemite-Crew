@@ -78,10 +78,9 @@ export const ObservationalToolPreviewScreen: React.FC = () => {
           await loadDefinition(toolKey);
         }
       } catch (err) {
+        console.warn('[OT Preview] Failed to load submission', err);
         if (isMounted) {
-          setError(
-            err instanceof Error ? err.message : 'Unable to load submission',
-          );
+          setError('Unable to load submission. Please try again.');
         }
       } finally {
         if (isMounted) {

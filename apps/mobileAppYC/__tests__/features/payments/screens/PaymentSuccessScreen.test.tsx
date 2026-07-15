@@ -164,7 +164,7 @@ describe('PaymentSuccessScreen', () => {
 
       expect(screen.getByText('Paid. All settled.')).toBeTruthy();
       expect(
-        screen.getByText('You have Successfully made Payment'),
+        screen.getByText("Here's a summary of your invoice."),
       ).toBeTruthy();
       expect(screen.getByText('BDY024474')).toBeTruthy(); // Invoice number
       // Date format may vary, just check for month/day/year

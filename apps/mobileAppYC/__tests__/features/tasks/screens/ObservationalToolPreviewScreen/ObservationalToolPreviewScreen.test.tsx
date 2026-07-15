@@ -280,22 +280,38 @@ describe('ObservationalToolPreviewScreen', () => {
   });
 
   describe('Error Handling', () => {
-    it('shows error message on submission fetch failure', async () => {
+    it('shows a friendly error message (not the raw error) on submission fetch failure', async () => {
+      const rawError = new Error('Network Error');
       (observationToolApi.getSubmission as jest.Mock).mockRejectedValue(
-        new Error('Network Error'),
+        rawError,
+      );
+      const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const {findByText, queryByText} = renderScreen();
+      expect(
+        await findByText('Unable to load submission. Please try again.'),
+      ).toBeTruthy();
+      expect(queryByText('Network Error')).toBeNull();
+      expect(spy).toHaveBeenCalledWith(
+        '[OT Preview] Failed to load submission',
+        rawError,
       );
 
-      const {findByText} = renderScreen();
-      expect(await findByText('Network Error')).toBeTruthy();
+      spy.mockRestore();
     });
 
-    it('shows fallback error message if error is not an Error object', async () => {
+    it('shows the same friendly error message if error is not an Error object', async () => {
       (observationToolApi.getSubmission as jest.Mock).mockRejectedValue(
         'String Error',
       );
+      const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       const {findByText} = renderScreen();
-      expect(await findByText('Unable to load submission')).toBeTruthy();
+      expect(
+        await findByText('Unable to load submission. Please try again.'),
+      ).toBeTruthy();
+
+      spy.mockRestore();
     });
 
     it('handles definition fetch failure gracefully (warns but renders submission)', async () => {

@@ -84,8 +84,7 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = ({navigation}) => {
           <Image source={LOGO} style={styles.logo} resizeMode="contain" />
           <Text style={styles.title}>Create your account</Text>
           <Text style={styles.subtitle}>
-            Free for pet parents. Everything you put in comes back out whenever
-            you ask.
+            Free for pet parents. What's yours stays yours.
           </Text>
         </View>
 

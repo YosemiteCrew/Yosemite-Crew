@@ -194,8 +194,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             <Text style={styles.noteText}>
               <Text style={styles.noteLabel}>Note: </Text>
               <Text style={styles.noteMessage}>
-                Health and Hygiene are synced with the PMS and cannot be
-                modified after saving
+                Health and Hygiene are synced with your clinic's records and
+                cannot be modified after saving
               </Text>
             </Text>
           </View>
