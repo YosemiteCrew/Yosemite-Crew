@@ -17,7 +17,7 @@ Router → Controller → Service → Model
 - Routers: only route registration.
 - Controllers: input validation + response shaping. No business logic.
 - Services: all business logic. Never import `req`/`res` here.
-- Models: Mongoose schemas. Prisma for migrations.
+- Models: Prisma (Postgres) is the source of truth for all persistence (schema in `../../packages/database/prisma/schema.prisma`). Files under `src/models/` are legacy and being retired — never add new ones.
 
 ---
 
@@ -68,16 +68,16 @@ Make workers idempotent - jobs may be retried.
 
 ## Auth
 
-AWS Cognito + `jsonwebtoken` + `jwks-rsa`. Never roll custom auth flows.
+SuperTokens session auth (initialized in `src/app.ts` via `@yosemite-crew/auth`) handles web/PIMS auth. Mobile authenticates with **AWS Cognito or Firebase**: `authorizeCognitoMobile` (`src/middlewares/auth.ts`) inspects the token issuer and verifies Cognito tokens with `jsonwebtoken` + `jwks-rsa`, or Firebase tokens (issuer `securetoken.google.com`, used by social login) via Firebase Admin. Never drop the Firebase path — it would reject existing social-login users. Add web auth changes on the SuperTokens side. Never roll custom auth flows.
 
 ---
 
 ## What NOT to Do
 
-- No raw MongoDB queries outside the model/service layer.
+- No raw database queries outside the model/service layer.
 - No business logic in controllers or routers.
 - No `console.log` - use Winston.
 - No synchronous processing of work that should be queued.
 - Never re-initialize Firebase Admin SDK in a handler - it's a singleton.
 - Always verify Stripe webhook signatures before processing.
-- No more usage of Mongodb or Mongoose anymore for new code
+- All new persistence goes through Prisma (`packages/database`)

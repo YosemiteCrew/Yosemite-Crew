@@ -32,6 +32,7 @@ src/app/ui/                 ← start here
   layout/                   ← Header, Sidebar, guards
   primitives/Buttons/       ← Primary, Secondary, Delete (low-level)
   filters/                  ← Forms, Inventory, general filters
+  board/                    ← kanban board components
   widgets/                  ← domain widgets
 ```
 
@@ -49,8 +50,9 @@ The design-token source of truth is `apps/frontend/src/app/globals.css` under `@
 
 /* Typography */
 --font-satoshi     (primary - all weights 300-900)
---font-grotesk     (secondary)
 ```
+
+The web app is Satoshi-only — do not add `--font-grotesk` or `--grotesk-font` back (see `src/app/ui/tokens.md`).
 
 Reference documentation: `src/app/ui/tokens.md` (derived guide, not source of truth)
 
@@ -106,7 +108,7 @@ Font: **Satoshi** (300 Light → 900 Black). Never default to Inter, Roboto, or 
 
 Use Zustand stores in `src/app/stores/`. Each domain has its own store. Do not introduce new state management libraries.
 
-Available stores: appointment, auth, availability, companion, document, forms, integration, inventory, invoice, org, parent, profile, room, search, service, subscription, task, team, universalSearch.
+Available stores: appointment, appointmentWorkspace, auth, availability, companion, counter, document, forms, fullscreenLoader, integration, inventory, invoice, org, parent, profile, revampCatalog, room, routeLoader, search, service, signingOverlay, speciality, subscription, task, team, universalSearch. Lists drift — enumerate `src/app/stores/` before creating any store.
 
 ---
 

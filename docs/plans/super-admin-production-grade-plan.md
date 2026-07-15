@@ -1,5 +1,7 @@
 # Super Admin Implementation Plan (Industry-Standard, Production-Grade, OSS-First, Zero-Error CI)
 
+> Status: superseded. The Super Admin console was built in the separate YosemiteCrew/SuperAdmin repository, not as `apps/super-admin` in this monorepo. Kept for historical context.
+
 ## Summary
 
 This is a forward-looking plan for a Super Admin console: the internal tool Yosemite Crew platform operators use to manage every customer tenant (clinic) on the platform. The `apps/super-admin` app it describes does not exist in the repo yet, so treat this as a design target rather than current state.

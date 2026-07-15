@@ -23,7 +23,7 @@ Before every submission - **do not bump versions mid-review**:
    - `UI_FEATURE_FLAGS.forceLiquidGlassBorder = false`
    - `MOBILE_CONFIG_BEHAVIOR.overrides.forceLiquidGlassBorder = false`
 
-2. **Silence console output** - `App.tsx` lines 203-207 must be uncommented:
+2. **Silence console output** - the console-silencing noop block near the top level of `App.tsx` (search for `const noop`) must be active:
 
    ```ts
    const noop = () => {};
@@ -35,12 +35,15 @@ Before every submission - **do not bump versions mid-review**:
 
 3. **Version bumps** (only for a new submission or after rejection):
 
-   | Platform | File                              | Field                     | Current    |
-   | -------- | --------------------------------- | ------------------------- | ---------- |
-   | Android  | `android/app/build.gradle`        | `versionCode`             | 12         |
-   | Android  | `android/app/build.gradle`        | `versionName`             | `"1.0.10"` |
-   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `MARKETING_VERSION`       | `1.0.4`    |
-   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `CURRENT_PROJECT_VERSION` | `8`        |
+   | Platform | File                              | Field                     |
+   | -------- | --------------------------------- | ------------------------- |
+   | Android  | `android/app/build.gradle`        | `versionCode`             |
+   | Android  | `android/app/build.gradle`        | `versionName`             |
+   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `MARKETING_VERSION`       |
+   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `CURRENT_PROJECT_VERSION` |
+
+   Read the current values from those files and bump by one — never trust a hardcoded
+   version table in docs; they go stale after every release.
 
 ### Android Build
 
@@ -95,15 +98,19 @@ After both stores go live, update `README.md`:
 
 ```
 src/
-  screens/     ← full-screen views
-  components/  ← reusable UI components
-  navigation/  ← React Navigation config
-  store/       ← Redux Toolkit slices
-  services/    ← API calls (axios)
-  hooks/       ← custom React hooks
-  utils/       ← pure utility functions
-  i18n/        ← translation files
+  app/           ← Redux store.ts + typed hooks.ts
+  features/      ← feature slices: <domain>/{screens,components,hooks,services,<domain>Slice.ts,selectors.ts}
+  shared/        ← cross-feature components, screens, stores, services, utils
+  navigation/    ← React Navigation config
+  localization/  ← translation files (i18next)
+  theme/         ← design tokens and theming
+  config/        ← environment/config values
+  context/       ← React contexts
+  types/         ← shared TS types
+  assets/        ← images, fonts
 ```
+
+New code follows the feature-slice pattern: put screens, components, and services inside the owning `src/features/<domain>/` directory, not in global folders.
 
 ---
 
@@ -141,7 +148,7 @@ const {t} = useTranslation();
 <Text>{t('screen.title')}</Text>;
 ```
 
-Add new keys to `src/i18n/` before using them.
+Add new keys under `src/localization/resources/` before using them.
 
 ## Design System Consistency
 

@@ -105,8 +105,8 @@ For Developers
 
 - [TypeScript](https://www.typescriptlang.org/) for type safety
 - [Turborepo](https://turbo.build) and [PNPM Workspaces](https://pnpm.io/workspaces) for a powerful monorepo structure and efficient build system
-- [Express](https://expressjs.com/) as a backend framework, with [MongoDB](https://www.mongodb.com/) for data storage, [Redis](https://redis.io/) for lightning-fast caching
-- [React](https://reactjs.org/) for the frontend, with [Redux](https://redux.js.org/) for state management
+- [Express](https://expressjs.com/) as a backend framework, with [Supabase](https://supabase.com/) for data storage, [Redis](https://redis.io/) for lightning-fast caching
+- [React](https://reactjs.org/) for the frontend, with [Zustand](https://zustand.docs.pmnd.rs/) for state management
 - [React Native](https://reactnative.dev/) for mobile app development
 - [AWS](https://aws.amazon.com) to ensure reliable and scalable cloud infrastructure
 

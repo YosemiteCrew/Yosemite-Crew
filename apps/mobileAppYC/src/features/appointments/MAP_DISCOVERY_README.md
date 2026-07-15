@@ -172,23 +172,18 @@ pnpm install
 
 ### 2. Google Maps API key
 
-**iOS** - add to `apps/mobileAppYC/ios/mobileAppYC/AppDelegate.mm`:
+**iOS** - copy `config-templates/ios/Secrets.xcconfig.example` to `ios/mobileAppYC/Secrets.xcconfig` and set:
 
-```objc
-#import <GoogleMaps/GoogleMaps.h>
-
-- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:... {
-  [GMSServices provideAPIKey:@"YOUR_IOS_GOOGLE_MAPS_KEY"];
-  ...
-}
+```
+GOOGLE_MAPS_API_KEY=YOUR_IOS_GOOGLE_MAPS_KEY
 ```
 
-**Android** - add to `apps/mobileAppYC/android/app/src/main/AndroidManifest.xml`:
+`Info.plist` consumes it as `$(GOOGLE_MAPS_API_KEY)` (key `GMSApiKey`), and `AppDelegate.swift` reads it at launch. Never hardcode the key in source.
 
-```xml
-<meta-data
-  android:name="com.google.android.geo.API_KEY"
-  android:value="YOUR_ANDROID_GOOGLE_MAPS_KEY" />
+**Android** - add to `android/local.properties` (see the app README, "Android setup"):
+
+```
+MAPS_API_KEY=YOUR_ANDROID_GOOGLE_MAPS_KEY
 ```
 
 Required Google Cloud APIs: **Maps SDK for iOS**, **Maps SDK for Android**, **Places API**.

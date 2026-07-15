@@ -1,5 +1,7 @@
 # Real-Time Sync - Frontend Implementation Guide
 
+> Status: not implemented as of 2026-07. No Socket.IO/EventBus code exists in the tree and the listed dependencies are not installed. The Cognito JWT handshake described below must be re-targeted at SuperTokens session verification (see `docs/plans/supertokens-migration.md`) before building.
+
 This is the frontend (Next.js web app) half of the real-time sync feature: it opens a WebSocket to the backend, reloads the relevant Zustand store whenever the server pushes a change, and surfaces an in-app notification bell. Read it alongside its companion [realtime-backend.md](realtime-backend.md), which defines the server side and the shared `OrgEvent` contract both sides rely on. Here "org" means organisation (a clinic/practice tenant).
 
 > **Stack:** Socket.IO client · Zustand notification store · In-app notification bell

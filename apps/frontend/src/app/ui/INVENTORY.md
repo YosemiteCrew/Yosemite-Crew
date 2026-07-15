@@ -1,6 +1,6 @@
 # UI Component Inventory & Taxonomy
 
-**Last updated:** 2026-03-31
+**Last updated:** 2026-07-15
 **Maintainer:** Frontend platform workstream
 
 This document maps every component under `src/app/ui/` to a taxonomy category,
@@ -79,7 +79,7 @@ token alignment · stable API · tests · story coverage · accessibility (a11y)
 | LabelDropdown        | `inputs/Dropdown/LabelDropdown.tsx`                    | 🔄 In migration | Story added                                                       |
 | MultiSelectDropdown  | `inputs/MultiSelectDropdown/index.tsx`                 | 🔄 In migration | Story added                                                       |
 | SearchDropdown       | `inputs/SearchDropdown/index.tsx`                      | 🔄 In migration | Needs story                                                       |
-| FileInput            | `inputs/FileInput/FileInput.tsx`                       | 🔄 In migration | Story added. `react-bootstrap` dependency still pending migration |
+| FileInput            | `inputs/FileInput/FileInput.tsx`                       | 🔄 In migration | Story added. react-bootstrap removed — re-audit status            |
 | FormDesc             | `inputs/FormDesc/FormDesc.tsx`                         | 🔄 In migration | Audit                                                             |
 | Slotpicker           | `inputs/Slotpicker/index.tsx`                          | 🔄 In migration | Needs story                                                       |
 | ServiceSearch        | `inputs/ServiceSearch/ServiceSearch.tsx`               | ⚠️ Legacy       | Domain-specific - evaluate promotion vs feature-only              |
@@ -98,8 +98,8 @@ token alignment · stable API · tests · story coverage · accessibility (a11y)
 | DeleteConfirmationModal | `overlays/Modal/DeleteConfirmationModal.tsx` | ✅ Approved     | Destructive confirm dialog                                     |
 | ChangeStatusModal       | `overlays/Modal/ChangeStatusModal.tsx`       | 🔄 In migration | Needs story                                                    |
 | VideoPlayerModal        | `overlays/Modal/VideoPlayerModal.tsx`        | 🔄 In migration | Needs story + iframe a11y audit                                |
-| OtpModal                | `overlays/OtpModal/OtpModal.tsx`             | ⚠️ Legacy       | react-bootstrap dependency - migrate                           |
-| Toast (overlay)         | `overlays/Toast/Toast.tsx`                   | ⚠️ Legacy       | react-bootstrap dependency - migrate to react-toastify wrapper |
+| OtpModal                | `overlays/OtpModal/OtpModal.tsx`             | 🔄 In migration | react-bootstrap removed — re-audit status                      |
+| Toast (overlay)         | `overlays/Toast/Toast.tsx`                   | 🔄 In migration | react-bootstrap removed — re-audit status                      |
 | YosemiteLoader          | `overlays/Loader/YosemiteLoader.tsx`         | 🔄 In migration | Story added                                                    |
 | SigningOverlay          | `overlays/SigningOverlay.tsx`                | ⚠️ Legacy       | Feature-heavy - evaluate as feature-only composite             |
 | PdfPreviewOverlay       | `overlays/PdfPreviewOverlay.tsx`             | ⚠️ Legacy       | iframe / a11y audit needed                                     |
@@ -167,8 +167,8 @@ token alignment · stable API · tests · story coverage · accessibility (a11y)
 
 | Component              | File                                                   | Status          | Notes                                               |
 | ---------------------- | ------------------------------------------------------ | --------------- | --------------------------------------------------- |
-| DynamicSelect          | `widgets/DynamicSelect/DynamicSelect.tsx`              | ⚠️ Legacy       | react-bootstrap dependency - migrate                |
-| UploadImage            | `widgets/UploadImage/UploadImage.tsx`                  | ⚠️ Legacy       | react-bootstrap dependency - migrate                |
+| DynamicSelect          | `widgets/DynamicSelect/DynamicSelect.tsx`              | 🔄 In migration | react-bootstrap removed — re-audit status           |
+| UploadImage            | `widgets/UploadImage/UploadImage.tsx`                  | 🔄 In migration | react-bootstrap removed — re-audit status           |
 | Faq                    | `widgets/Faq/Faq.tsx`                                  | 🔄 In migration | Uses Accordion - should migrate to shared Accordion |
 | LaunchGrowTab          | `widgets/LaunchGrowTab/LaunchGrowTab.tsx`              | 🔄 In migration | Grotesk CSS cleaned                                 |
 | Summary / Availability | `widgets/Summary/Availability.tsx`                     | 🔄 In migration |                                                     |
@@ -196,23 +196,11 @@ token alignment · stable API · tests · story coverage · accessibility (a11y)
 
 ---
 
-## react-bootstrap remaining consumers
+## Bootstrap removal — complete
 
-These files still import `react-bootstrap` and are blocking full Bootstrap removal:
+`react-bootstrap` has been fully removed from `apps/frontend` (no dependency in `package.json`, no runtime imports). If a component below still carries a "react-bootstrap" note, the note is stale — re-audit the component and update its row.
 
-| File                                      | Component     | Migration target                |
-| ----------------------------------------- | ------------- | ------------------------------- |
-| `overlays/OtpModal/OtpModal.tsx`          | OtpModal      | Custom modal using ModalBase    |
-| `overlays/Toast/Toast.tsx`                | Toast overlay | react-toastify                  |
-| `widgets/UploadImage/UploadImage.tsx`     | UploadImage   | Custom component                |
-| `widgets/DynamicSelect/DynamicSelect.tsx` | DynamicSelect | Custom dropdown                 |
-| `inputs/FileInput/FileInput.tsx`          | FileInput     | Custom component                |
-| `features/auth/SignIn.tsx`                | Auth form     | Custom form                     |
-| `features/auth/SignUp.tsx`                | Auth form     | Custom form                     |
-| `features/auth/ForgotPassword.tsx`        | Auth form     | Custom form                     |
-| `features/marketing/LandingPage.tsx`      | Carousel      | react-slick (already installed) |
-
-Bootstrap CSS global import in `layout.tsx` must remain until **all** above are migrated.
+Not yet inventoried (exist on disk, missing or partial here): `board/` (e.g. `board/boardShared.tsx`) and several `widgets/` entries (`DynamicChart`, `Footer`, `Labels`, `TeamSlide`, `TitleCalendar`).
 
 ---
 

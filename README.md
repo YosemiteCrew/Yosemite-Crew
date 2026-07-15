@@ -122,7 +122,7 @@ Request current dev or staging access from the maintainers through a secure chan
 - [TypeScript](https://www.typescriptlang.org/) for type safety
 - [Turborepo](https://turbo.build) and [PNPM Workspaces](https://pnpm.io/workspaces) for a powerful monorepo structure and efficient build system
 - [Express](https://expressjs.com/) as a backend framework, with [Supabase](https://supabase.com/) for data storage, [Redis](https://redis.io/) for lightning-fast caching
-- [React](https://reactjs.org/) for the frontend, with [Redux](https://redux.js.org/) for state management
+- [React](https://reactjs.org/) for the frontend, with [Zustand](https://zustand.docs.pmnd.rs/) for state management
 - [React Native](https://reactnative.dev/) for mobile app development
 - [AWS](https://aws.amazon.com) to ensure reliable and scalable cloud infrastructure
 
@@ -132,7 +132,7 @@ Request current dev or staging access from the maintainers through a secure chan
 
 - Star our repo and show your support!
 - [Tik-tok](https://www.tiktok.com/@yosemitecrew) and [Instagram](https://www.instagram.com/yosemite_crew) for memes
-- Follow us on [Twitter](https://github.com/YosemiteCrew/Yosemite-Crew) or [LinkedIn](https://www.linkedin.com/company/yosemitecrew/) to get all the latest news
+- Follow us on [LinkedIn](https://www.linkedin.com/company/yosemitecrew/) to get all the latest news
 - Join our [Discord](https://discord.com/invite/SwM6mX85KD) to chat with fellow contributors and users
 - [Contribute](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) — we love contributions! Whether it’s code, docs, or ideas, your help is always welcome!
 

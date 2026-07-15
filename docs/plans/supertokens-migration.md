@@ -1,5 +1,7 @@
 # SuperTokens Migration Plan - mobileAppYC + Backend
 
+> Status: implemented on PR #1763, which is still open as of 2026-07. Until it merges, dev authenticates with `authorizeCognito`/`authorizeCognitoMobile` (`apps/backend/src/middlewares/auth.ts`); web email/password + TOTP MFA already run on SuperTokens. Once #1763 lands, the code is the source of truth and this plan is historical.
+
 **Goal:** Replace AWS Cognito (email/OTP auth, where OTP is a one-time passcode) and Firebase Auth (social login) with SuperTokens self-hosted.  
 **Scope:** `apps/mobileAppYC` + `apps/backend`  
 **Estimated effort:** 3-5 days  

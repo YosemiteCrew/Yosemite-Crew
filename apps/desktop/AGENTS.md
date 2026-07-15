@@ -121,8 +121,9 @@ for the enforced rule set, the deferral policy, and fix patterns.
 
 ## Commit Scope
 
-Desktop has **no dedicated `commitlint` scope** - use **`repo`**. Allowed scopes are exactly:
-`backend | frontend | mobile | dev-docs | types | fhir | repo | ci | docs`. Allowed types:
+Use the **`desktop`** scope for changes contained in `apps/desktop` (e.g. `feat(desktop): ...`).
+Use `repo` only when a change spans multiple workspaces. Allowed scopes are exactly:
+`backend | frontend | mobile | desktop | dev-docs | types | fhir | repo | ci | docs | lib | auth | database`. Allowed types:
 `build | chore | ci | docs | feat | fix | perf | refactor | revert | style | test`
 (`commitlint.config.cjs` is the source of truth).
 
