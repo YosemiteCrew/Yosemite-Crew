@@ -559,6 +559,40 @@ describe('ObservationalToolScreen', () => {
       );
     });
 
+    it('exposes selection state to screen readers on step options', async () => {
+      (useSelector as unknown as jest.Mock).mockImplementation(selector => {
+        if (selector === selectAuthUser) return mockUser;
+        return selector({
+          ...defaultMockState,
+          businesses: {
+            businesses: [mockBusinesses[0]],
+            services: [mockServices[0]],
+          },
+        });
+      });
+
+      const {getByTestId, getByText, getByLabelText} = renderScreen();
+
+      await waitFor(() => {
+        expect(getByText('Vet Clinic A')).toBeTruthy();
+      });
+
+      fireEvent(getByText('Vet Clinic A'), 'press');
+      fireEvent(getByTestId('btn-Next'), 'onTouchEnd');
+      await waitFor(() => {
+        expect(getByText('Step 1 of 5')).toBeTruthy();
+      });
+
+      const option = getByLabelText('Ears facing forward');
+      expect(option.props.accessibilityRole).toBe('radio');
+      expect(option.props.accessibilityState).toEqual({selected: false});
+
+      fireEvent(getByText('Ears facing forward'), 'press');
+      expect(
+        getByLabelText('Ears facing forward').props.accessibilityState,
+      ).toEqual({selected: true});
+    });
+
     it('resolves the exact tapped service when one business offers multiple matching services', async () => {
       // Both services belong to the SAME business — this is the collision
       // scenario: selection/submission must key off businessId+serviceId,
@@ -882,8 +916,13 @@ describe('ObservationalToolScreen', () => {
         }),
       );
 
-      const {getByText, queryByText, getAllByText, UNSAFE_getAllByType} =
-        renderScreen();
+      const {
+        getByText,
+        queryByText,
+        getAllByText,
+        getByLabelText,
+        UNSAFE_getAllByType,
+      } = renderScreen();
 
       expect(getByText('Vet Clinic A')).toBeTruthy();
       expect(getByText('Vet Clinic B')).toBeTruthy();
@@ -900,8 +939,21 @@ describe('ObservationalToolScreen', () => {
       expect(getByText('Great clinic')).toBeTruthy();
       expect(getByText('9am-5pm')).toBeTruthy();
 
+      // exposes selection state to screen readers
+      const providerCard = getByLabelText(
+        'Vet Clinic A, Feline Grimace Scale Assessment',
+      );
+      expect(providerCard.props.accessibilityRole).toBe('radio');
+      expect(providerCard.props.accessibilityState).toEqual({
+        selected: false,
+      });
+
       // toggle a provider on and off (covers the deselect branch)
       fireEvent(getByText('Vet Clinic A'), 'press');
+      expect(
+        getByLabelText('Vet Clinic A, Feline Grimace Scale Assessment').props
+          .accessibilityState,
+      ).toEqual({selected: true});
       fireEvent(getByText('Vet Clinic A'), 'press');
 
       const {Image: RNImage} = require('react-native');

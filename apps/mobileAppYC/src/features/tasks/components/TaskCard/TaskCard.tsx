@@ -432,7 +432,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       <PressableOpacity
         activeOpacity={onPressView ? 0.85 : 1}
         onPress={onPressView}
-        style={styles.innerContent}>
+        style={styles.innerContent}
+        accessibilityRole={onPressView ? 'button' : undefined}
+        accessibilityLabel={title}>
         <View style={styles.infoRow}>
           <TaskCardTile tileVisual={tileVisual} theme={theme} styles={styles} />
 
@@ -531,7 +533,9 @@ const TaskCardTrailing: React.FC<TaskCardTrailingProps> = ({
       <PressableOpacity
         activeOpacity={0.85}
         onPress={handleCompletePress}
-        style={styles.takePill}>
+        style={styles.takePill}
+        accessibilityRole="button"
+        accessibilityLabel="Take">
         <Text style={styles.takePillText}>Take</Text>
       </PressableOpacity>
     );
@@ -586,7 +590,9 @@ const TaskCardActionRow: React.FC<TaskCardActionRowProps> = ({
     <PressableOpacity
       activeOpacity={0.85}
       onPress={handleCompletePress}
-      style={styles.completePill}>
+      style={styles.completePill}
+      accessibilityRole="button"
+      accessibilityLabel={completeButtonLabel}>
       <Ionicons name="checkmark" size={15} color={theme.colors.ctaText} />
       <Text style={styles.completePillText}>{completeButtonLabel}</Text>
     </PressableOpacity>
@@ -594,7 +600,9 @@ const TaskCardActionRow: React.FC<TaskCardActionRowProps> = ({
       <PressableOpacity
         activeOpacity={0.85}
         onPress={onPressEdit}
-        style={styles.ellipsisButton}>
+        style={styles.ellipsisButton}
+        accessibilityRole="button"
+        accessibilityLabel="More options">
         <Ionicons
           name="ellipsis-horizontal"
           size={16}

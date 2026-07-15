@@ -199,6 +199,12 @@ describe('DosageBottomSheet', () => {
     expect(getByDisplayValue('Dose 1')).toBeTruthy();
   });
 
+  it('exposes button role and label on the "Add" row', () => {
+    const {getByLabelText} = setup({dosages: []});
+    const addButton = getByLabelText('Add dose');
+    expect(addButton.props.accessibilityRole).toBe('button');
+  });
+
   it('removes a dosage when delete button is pressed', () => {
     const {queryByTestId, UNSAFE_getAllByType} = setup({
       dosages: [{id: '1', label: 'ToRemove', time: '2023-01-01T08:00:00.000Z'}],
@@ -210,6 +216,9 @@ describe('DosageBottomSheet', () => {
     const deleteIcon = images.find(
       img => img.props.source.uri === 'delete-icon',
     );
+
+    expect(deleteIcon!.parent!.props.accessibilityRole).toBe('button');
+    expect(deleteIcon!.parent!.props.accessibilityLabel).toBe('Remove dose');
 
     // FIX: Added non-null assertion (!) for TS error
     fireEvent.press(deleteIcon!.parent!);
@@ -230,13 +239,17 @@ describe('DosageBottomSheet', () => {
 
   it('opens time picker and updates time on confirm', async () => {
     const initialTime = '2023-01-01T10:00:00.000Z';
-    const {getByTestId, queryByTestId, UNSAFE_getAllByType} = setup({
-      dosages: [{id: '1', label: 'Dose', time: initialTime}],
-    });
+    const {getByTestId, queryByTestId, getByLabelText, UNSAFE_getAllByType} =
+      setup({
+        dosages: [{id: '1', label: 'Dose', time: initialTime}],
+      });
 
     // 1. Open Picker
     const images = UNSAFE_getAllByType(Image);
     const clockIcon = images.find(img => img.props.source.uri === 'clock-icon');
+
+    const timeButton = getByLabelText(/^Time, /);
+    expect(timeButton.props.accessibilityRole).toBe('button');
 
     // FIX: Added non-null assertion (!) for TS error
     fireEvent.press(clockIcon!.parent!);

@@ -685,6 +685,18 @@ describe('TaskCard', () => {
       expect(screen.queryByText('Mark complete')).toBeNull();
     });
 
+    it('exposes button role and the visible label as the accessibility label', () => {
+      renderCard({
+        showCompleteButton: true,
+        status: 'pending',
+        category: 'general',
+        completeButtonLabel: 'Mark Done',
+        onPressComplete: jest.fn(),
+      });
+      const pill = screen.getByLabelText('Mark Done');
+      expect(pill.props.accessibilityRole).toBe('button');
+    });
+
     it('does not render the pill when there is no complete handler', () => {
       renderCard({
         showCompleteButton: true,
@@ -711,6 +723,18 @@ describe('TaskCard', () => {
         onPressComplete: jest.fn(),
       });
       expect(screen.getByText('Take')).toBeTruthy();
+    });
+
+    it('exposes button role and label on the "Take" pill', () => {
+      renderCard({
+        category: 'health',
+        details: {taskType: 'take-observational-tool'},
+        showCompleteButton: true,
+        status: 'pending',
+        onPressComplete: jest.fn(),
+      });
+      const pill = screen.getByLabelText('Take');
+      expect(pill.props.accessibilityRole).toBe('button');
     });
 
     it('does not render the "Take" pill once the task is completed', () => {
@@ -795,6 +819,19 @@ describe('TaskCard', () => {
       expect(onPressComplete).not.toHaveBeenCalled();
     });
 
+    it('exposes button role and a "More options" label on the ellipsis button', () => {
+      renderCard({
+        showCompleteButton: true,
+        status: 'pending',
+        category: 'general',
+        showEditAction: true,
+        onPressEdit: jest.fn(),
+        onPressComplete: jest.fn(),
+      });
+      const button = screen.getByLabelText('More options');
+      expect(button.props.accessibilityRole).toBe('button');
+    });
+
     it('does not render the ellipsis when showEditAction is false', () => {
       renderCard({
         showCompleteButton: true,
@@ -830,6 +867,18 @@ describe('TaskCard', () => {
       renderCard({onPressView});
       fireEvent.press(screen.getByText('Morning Walk'));
       expect(onPressView).toHaveBeenCalledTimes(1);
+    });
+
+    it('exposes button role and the task title as the accessibility label when pressable', () => {
+      renderCard({onPressView: jest.fn()});
+      const row = screen.getByLabelText('Morning Walk');
+      expect(row.props.accessibilityRole).toBe('button');
+    });
+
+    it('omits the button role when onPressView is undefined', () => {
+      renderCard({onPressView: undefined});
+      const row = screen.getByLabelText('Morning Walk');
+      expect(row.props.accessibilityRole).toBeUndefined();
     });
   });
 

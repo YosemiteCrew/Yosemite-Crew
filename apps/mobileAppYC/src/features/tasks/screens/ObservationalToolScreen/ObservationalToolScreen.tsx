@@ -816,7 +816,10 @@ export const ObservationalToolScreen: React.FC = () => {
           <Pressable
             key={option.id}
             onPress={() => toggleOption(currentStep.id, option.id)}
-            style={[styles.optionCard, selected && styles.optionCardSelected]}>
+            style={[styles.optionCard, selected && styles.optionCardSelected]}
+            accessibilityRole="radio"
+            accessibilityState={{selected}}
+            accessibilityLabel={option.title}>
             <View
               style={[
                 styles.optionTile,
@@ -1007,7 +1010,10 @@ export const ObservationalToolScreen: React.FC = () => {
                 ]}>
                 <Pressable
                   onPress={() => toggleProvider(providerKey)}
-                  style={styles.providerInner}>
+                  style={styles.providerInner}
+                  accessibilityRole="radio"
+                  accessibilityState={{selected}}
+                  accessibilityLabel={`${entry.name}, ${entry.serviceName}`}>
                   {imageSource ? (
                     <Image
                       source={imageSource}

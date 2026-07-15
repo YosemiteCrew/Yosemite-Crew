@@ -163,7 +163,9 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
         <PressableOpacity
           activeOpacity={0.7}
           onPress={handlePreviousMonth}
-          style={styles.monthArrow}>
+          style={styles.monthArrow}
+          accessibilityRole="button"
+          accessibilityLabel="Previous month">
           <Image source={Images.leftArrowIcon} style={styles.arrowIcon} />
         </PressableOpacity>
 
@@ -174,7 +176,9 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
         <PressableOpacity
           activeOpacity={0.7}
           onPress={handleNextMonth}
-          style={styles.monthArrow}>
+          style={styles.monthArrow}
+          accessibilityRole="button"
+          accessibilityLabel="Next month">
           <Image source={Images.rightArrowIcon} style={styles.arrowIcon} />
         </PressableOpacity>
       </View>

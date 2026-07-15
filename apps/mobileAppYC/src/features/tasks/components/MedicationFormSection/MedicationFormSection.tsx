@@ -163,7 +163,9 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
                 key={dosage.id}
                 style={[styles.doseRow, index > 0 && styles.doseRowDivided]}
                 activeOpacity={0.6}
-                onPress={onOpenDosageSheet}>
+                onPress={onOpenDosageSheet}
+                accessibilityRole="button"
+                accessibilityLabel={`${dosage.label}, ${formatDosageTime(dosage.time)}`}>
                 <Text style={styles.doseLabel}>{dosage.label}</Text>
                 <Text style={styles.doseMeta}>
                   {formatDosageTime(dosage.time)}
@@ -174,7 +176,9 @@ export const MedicationFormSection: React.FC<MedicationFormSectionProps> = ({
           <PressableOpacity
             style={styles.addDoseRow}
             activeOpacity={0.7}
-            onPress={onOpenDosageSheet}>
+            onPress={onOpenDosageSheet}
+            accessibilityRole="button"
+            accessibilityLabel="Add dose">
             <Image source={Images.addIcon} style={styles.addDoseIcon} />
             <Text style={styles.addDoseText}>Add dose</Text>
           </PressableOpacity>

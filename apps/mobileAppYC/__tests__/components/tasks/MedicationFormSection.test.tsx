@@ -367,6 +367,28 @@ describe('MedicationFormSection', () => {
       expect(mockOnOpenDosageSheet).toHaveBeenCalledTimes(1);
     });
 
+    it('exposes button role and a combined label/time accessibility label on dose rows', () => {
+      renderComponent({
+        formData: {dosages: [mockDosages[0]]},
+        showDosageDisplay: true,
+      });
+      const expectedTime1 = new Date(mockDosages[0].time).toLocaleTimeString(
+        'en-US',
+        {hour: 'numeric', minute: '2-digit', hour12: true},
+      );
+      const row = screen.getByLabelText(`1 Tablet, ${expectedTime1}`);
+      expect(row.props.accessibilityRole).toBe('button');
+    });
+
+    it('exposes button role and label on the "Add dose" row', () => {
+      renderComponent({
+        formData: {dosages: [mockDosages[0]]},
+        showDosageDisplay: true,
+      });
+      const addRow = screen.getByLabelText('Add dose');
+      expect(addRow.props.accessibilityRole).toBe('button');
+    });
+
     it('calls onOpenDosageSheet when the "Add dose" row is pressed', () => {
       const {mockOnOpenDosageSheet} = renderComponent({
         formData: {dosages: [mockDosages[0]]},

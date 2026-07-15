@@ -201,7 +201,9 @@ const DosageBottomSheetDraft = ({
           <PressableOpacity
             activeOpacity={0.7}
             onPress={() => handleEditTime(dosage.id)}
-            style={styles.inputField}>
+            style={styles.inputField}
+            accessibilityRole="button"
+            accessibilityLabel={`Time, ${formatTime(dosage.time)}`}>
             <Input
               label="Time"
               value={formatTime(dosage.time)}
@@ -220,7 +222,9 @@ const DosageBottomSheetDraft = ({
           <PressableOpacity
             activeOpacity={0.7}
             style={styles.removeButton}
-            onPress={() => handleRemoveDosage(dosage.id)}>
+            onPress={() => handleRemoveDosage(dosage.id)}
+            accessibilityRole="button"
+            accessibilityLabel="Remove dose">
             <Image source={Images.deleteIcon} style={styles.deleteIcon} />
           </PressableOpacity>
         </View>
@@ -268,7 +272,9 @@ const DosageBottomSheetDraft = ({
             <PressableOpacity
               activeOpacity={0.7}
               style={styles.addButton}
-              onPress={handleAddDosage}>
+              onPress={handleAddDosage}
+              accessibilityRole="button"
+              accessibilityLabel="Add dose">
               <Image source={Images.addIcon} style={styles.addIcon} />
               <Text style={styles.addText}>Add</Text>
             </PressableOpacity>

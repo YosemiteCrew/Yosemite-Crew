@@ -98,6 +98,15 @@ describe('TaskMonthDateSelector', () => {
     expect(onMonthChange).toHaveBeenCalledWith(getPreviousMonth(CURRENT_MONTH));
   });
 
+  it('exposes button roles and labels on the month navigation arrows', () => {
+    renderSelector();
+    const pressables = screen.UNSAFE_getAllByType(PressableType);
+    expect(pressables[0].props.accessibilityRole).toBe('button');
+    expect(pressables[0].props.accessibilityLabel).toBe('Previous month');
+    expect(pressables[1].props.accessibilityRole).toBe('button');
+    expect(pressables[1].props.accessibilityLabel).toBe('Next month');
+  });
+
   it('navigates to the next month when the right arrow is pressed', () => {
     renderSelector();
     const pressables = screen.UNSAFE_getAllByType(PressableType);
