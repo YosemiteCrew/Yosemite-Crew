@@ -17,7 +17,7 @@ Router → Controller → Service → Model
 - Routers: only route registration.
 - Controllers: input validation + response shaping. No business logic.
 - Services: all business logic. Never import `req`/`res` here.
-- Models: Mongoose schemas. Prisma for migrations.
+- Models: Prisma (Postgres) is the source of truth for all new persistence (schema in `../../packages/database/prisma/schema.prisma`). Existing Mongoose models under `src/models/` are legacy and being retired — never add new Mongoose usage.
 
 ---
 
@@ -68,7 +68,7 @@ Make workers idempotent - jobs may be retried.
 
 ## Auth
 
-AWS Cognito + `jsonwebtoken` + `jwks-rsa`. Never roll custom auth flows.
+SuperTokens session auth (initialized in `src/app.ts` via `@yosemite-crew/auth`) handles web/PIMS auth; mobile continues to authenticate via AWS Cognito, validated with `jsonwebtoken` + `jwks-rsa` in `src/middlewares/auth.ts`. Add web auth changes on the SuperTokens side. Never roll custom auth flows.
 
 ---
 

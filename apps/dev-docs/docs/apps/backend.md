@@ -21,13 +21,18 @@ pnpm run dev --filter backend
 
 ## Database
 
-### MongoDB
+### PostgreSQL via Prisma (source of truth)
 
-The backend uses MongoDB via Mongoose. Connection setup lives in `apps/backend/src/config/db.ts` and is initialized in `apps/backend/src/main.ts` via `connectDB()`. Behavior is environment-driven:
+The backend persists to PostgreSQL through Prisma. The schema and migrations live in `packages/database` (`prisma/schema.prisma`) — Prisma Migrate is the schema source of truth. Generate the client and apply migrations with:
 
-- `USE_INMEMORY_DB=true` starts an in-memory MongoDB instance (useful for tests/dev).
-- `LOCAL_DEVELOPMENT=true` connects to `mongodb://localhost:27017/yosemitecrew`.
-- Otherwise it uses `MONGODB_URI`.
+```bash
+pnpm --filter backend run prisma:generate
+pnpm --filter backend run prisma:migrate
+```
+
+### Legacy MongoDB (being removed)
+
+Some legacy models still connect to MongoDB via Mongoose (`apps/backend/src/config/db.ts`, initialized with `connectDB()` in `main.ts`; env-driven via `USE_INMEMORY_DB`, `LOCAL_DEVELOPMENT`, `MONGODB_URI`). Do not add new MongoDB usage — the scaffold is being retired.
 
 ### Redis + BullMQ Workers
 

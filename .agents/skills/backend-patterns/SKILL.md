@@ -60,7 +60,12 @@ const data = CreateAppointmentSchema.parse(req.body);
 
 ## Authentication
 
-AWS Cognito is the auth provider. Use `jsonwebtoken` + `jwks-rsa` for token verification. Never roll custom auth.
+Two auth stacks coexist:
+
+- **Web/PIMS session auth: SuperTokens** via `@yosemite-crew/auth` — `requireAuth()` middleware + `getSessionUserId()`, initialized with `initSuperTokens` in `app.ts`. Use this for all new web endpoints.
+- **Legacy Cognito JWT** (`authorizeCognito` middleware, `jsonwebtoken` + `jwks-rsa`) remains on existing mobile/FHIR routes only — do not use it for new web endpoints.
+
+Never roll custom auth.
 
 ---
 
@@ -97,7 +102,7 @@ logger.error('Payment failed', { error, userId });
 
 ## Gotchas
 
-- Do not refactor backend architecture unless explicitly asked — the user's AGENTS.md is explicit about this.
+- Do not refactor backend architecture unless explicitly asked — the user's CLAUDE.md is explicit about this.
 - Zod `.parse()` throws on invalid input — use `.safeParse()` when you want to handle errors gracefully.
 - BullMQ jobs are persisted in Redis — make job processors idempotent.
 - All Stripe webhook handlers must verify the signature before processing.

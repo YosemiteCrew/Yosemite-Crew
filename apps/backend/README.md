@@ -4,15 +4,42 @@ This is the backend API server for Yosemite Crew (YC), the open-source veterinar
 
 ## Prerequisites
 
+- Node.js 20+ and `pnpm@8.15.6` (install dependencies from the repo root with `pnpm install`)
+- PostgreSQL (the schema lives in `packages/database/prisma/schema.prisma`)
+- Redis (required by the BullMQ job queues)
+
 ## Database
+
+Prisma is the schema source of truth (`packages/database`). From the repo root:
+
+```bash
+pnpm --filter backend run prisma:generate   # generate the Prisma client
+pnpm --filter backend run prisma:migrate    # apply migrations in development
+```
 
 ## Dev server
 
+```bash
+pnpm --filter backend run dev
+```
+
 ## Running tests
+
+```bash
+pnpm --filter backend run test -- --testPathPattern="<pattern>"   # targeted (preferred)
+pnpm --filter backend run test:coverage                           # with coverage
+```
 
 ## Production build
 
+```bash
+pnpm --filter backend run build
+pnpm --filter backend run start
+```
+
 ## Docker
+
+`Dockerfile` builds the production API image; `Dockerfile.test` builds the image used for test runs. The repo-root `docker-compose.yml` wires supporting services for local development.
 
 ## Parent & Companion Linking
 

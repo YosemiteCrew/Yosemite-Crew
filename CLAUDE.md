@@ -29,7 +29,7 @@ Per-app `AGENTS.md` files (for Codex compatibility): `apps/frontend/AGENTS.md`, 
 apps/
   frontend/      — Next.js web app (primary)
   backend/       — API server (do not refactor unless explicitly asked)
-  desktop/       — Electron PIMS desktop shell (only on feat/desktop-pims-beta for now)
+  desktop/       — Electron PIMS desktop shell
   mobileAppYC/   — React Native mobile app
   dev-docs/      — Internal documentation site
 packages/
@@ -41,8 +41,6 @@ packages/
   lib/           — Shared errors, types, and reusable utilities
   types/         — Shared TypeScript types
 ```
-
-(`apps/anthropic` exists in the tree but is untracked/WIP — not a documented workspace.)
 
 Tooling: `pnpm` workspaces + `turbo`. Always use `--filter` to scope commands to the relevant workspace.
 
@@ -65,7 +63,7 @@ pnpm --filter frontend run test -- --testPathPattern="<relevant-file>"
 pnpm --filter frontend run test -- --testPathPattern="Availability"
 ```
 
-**Full test suite runs are forbidden.** They take 100+ seconds. Always target the test file(s) related to what you changed.
+**Targeted runs (`--testPathPattern`) by default** — the full frontend suite takes 100+ seconds. A full Jest run is allowed only when the user explicitly asks, when triaging repo-wide breakage, or when changing shared test infrastructure (same rule as `AGENTS.md`).
 
 **TypeScript check timeout:** `npx tsc --noemit` on this repo can take 60–120 seconds. Always set a 120s timeout when running it as a tool call. If it times out, note this explicitly to the user — do not silently skip it.
 
@@ -134,7 +132,7 @@ Identify and fix Sonar findings **locally before pushing** — never let issues 
 
 ## What NOT to Do
 
-- Do not run `pnpm run test` without `--testPathPattern` — full suite is forbidden.
+- Do not run `pnpm run test` without `--testPathPattern` except in the three allowed cases (explicit user request, repo-wide breakage, shared test infrastructure changes).
 - Do not commit `.env` files, secrets, tokens, or private keys.
 - Do not refactor backend code unless explicitly requested.
 - Do not add `// eslint-disable` comments to suppress warnings — fix the root cause.
@@ -153,7 +151,7 @@ Conventional commits are enforced by `commitlint`:
 ```
 <type>(<scope>): <subject>
 
-Types: feat | fix | chore | refactor | test | docs | style | perf | ci
+Types: feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert
 Scope: backend | frontend | mobile | desktop | dev-docs | types | fhir | repo | ci | docs | lib | auth | database
 
 Examples:
@@ -165,7 +163,7 @@ Examples:
   chore(repo): update agent rules with sonar patterns
 ```
 
-PR title must match the same pattern. PR body must include: what changed, why, impact area, validation performed.
+PR title must match the same pattern, and a scope is required — a scopeless title passes local commitlint but fails the "Validate PR title" CI check. PR body must include: what changed, why, impact area, validation performed.
 
 ---
 
@@ -192,13 +190,4 @@ Example prompts that work well:
 - `[SCOPE: frontend] Fix the nested ternary sonar issues in AppointmentCalendar.tsx`
 - `[SCOPE: frontend] [FILES: TaskBoard.tsx] Add keyboard accessibility to the drag handles`
 - `[SCOPE: frontend] Run targeted tests for the Availability component and fix any failures`
-- `[SCOPE: frontend] Fix all issues in the latest sonar.md dump and update the tracker`
-
----
-
-## Sonar Issue Tracker
-
-The resolved/unresolved issue log lives at [`docs/guide/sonar-tracker.md`](docs/guide/sonar-tracker.md).
-The raw sonar dump is at [`docs/guide/sonar.md`](docs/guide/sonar.md).
-Update the tracker (`resolved` column) whenever you fix an issue from that list.
-When a new sonar.md is provided, generate new tracker rows for all new issues and mark them as the fixes are applied.
+- `[SCOPE: frontend] Fix the open Sonar issues reported by the local scan`

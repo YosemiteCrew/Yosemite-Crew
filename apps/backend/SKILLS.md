@@ -18,7 +18,7 @@ This file documents the backend-specific working patterns for agents and contrib
 - Zod for request validation
 - BullMQ for background jobs
 - Winston for logging
-- AWS Cognito, `jsonwebtoken`, and `jwks-rsa` for auth
+- SuperTokens (`@yosemite-crew/auth`) for web session auth; AWS Cognito with `jsonwebtoken` + `jwks-rsa` for mobile auth
 
 ## Required Architecture
 

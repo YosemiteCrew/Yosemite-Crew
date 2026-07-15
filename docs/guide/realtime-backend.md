@@ -1,5 +1,7 @@
 # Real-Time Sync - Backend Implementation Guide
 
+> Status: not implemented as of 2026-07. No Socket.IO/EventBus code exists in the tree and the listed dependencies are not installed. The Cognito JWT handshake described below must be re-targeted at SuperTokens session verification (see `docs/plans/supertokens-migration.md`) before building.
+
 This is the backend half of the real-time sync feature: when any staff member changes an appointment, task, or invoice, every other open browser in the same organisation (org) updates within a couple of hundred milliseconds, with no page reload or polling. This guide covers the server side (event bus + WebSocket push); its companion [realtime-frontend.md](realtime-frontend.md) covers the browser side. The two share one event contract, so read them together. FCM below is Firebase Cloud Messaging, the mobile push service.
 
 > **Stack:** Redis Pub/Sub as event bus · Socket.IO for browser push · Firebase Cloud Messaging (FCM) for mobile (already live)

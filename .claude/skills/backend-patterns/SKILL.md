@@ -60,7 +60,12 @@ const data = CreateAppointmentSchema.parse(req.body);
 
 ## Authentication
 
-AWS Cognito is the auth provider. Use `jsonwebtoken` + `jwks-rsa` for token verification. Never roll custom auth.
+Two auth stacks coexist:
+
+- **Web/PIMS session auth: SuperTokens** via `@yosemite-crew/auth` — `requireAuth()` middleware + `getSessionUserId()`, initialized with `initSuperTokens` in `app.ts`. Use this for all new web endpoints.
+- **Legacy Cognito JWT** (`authorizeCognito` middleware, `jsonwebtoken` + `jwks-rsa`) remains on existing mobile/FHIR routes only — do not use it for new web endpoints.
+
+Never roll custom auth.
 
 ---
 

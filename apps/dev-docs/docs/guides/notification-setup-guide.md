@@ -4,7 +4,7 @@ title: Notification Setup Guide
 slug: /guides/notification-setup
 ---
 
-(Source: Guides/NOTIFICATION_SETUP_GUIDE.md)
+(Mirrored from `docs/guide/NOTIFICATION_SETUP_GUIDE.md` — do not edit here; update the canonical file and re-sync.)
 
 # Firebase Cloud Messaging + Notifee Implementation Playbook
 
@@ -270,7 +270,7 @@ export async function sendYosemiteNotification(input: YosemiteNotification) {
 ### 3.4 Topic & segment messaging
 
 - Devices can subscribe to topics via `messaging().subscribeToTopic(topic)` on the app side.
-- Keep topics generic (no PII, that is, no personally identifiable information). Example: `all-pet-parents`, `premium-users`, `city-san-francisco`.
+- Keep topics generic (no PII, i.e. personally identifiable information). Example: `all-pet-parents`, `premium-users`, `city-san-francisco`.
 - Backend APIs:
 
 ```ts
