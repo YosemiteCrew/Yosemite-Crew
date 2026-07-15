@@ -3,7 +3,7 @@ name: frontend-design
 description: Use when building or changing UI in apps/frontend. Covers the custom design system, component library (Button, Card, Badge, and more), design tokens, and styling conventions so UI stays consistent and on-brand.
 ---
 
-# Frontend Design System — Yosemite Crew
+# Frontend Design System - Yosemite Crew
 
 ## Description
 
@@ -32,6 +32,7 @@ src/app/ui/                 ← start here
   layout/                   ← Header, Sidebar, guards
   primitives/Buttons/       ← Primary, Secondary, Delete (low-level)
   filters/                  ← Forms, Inventory, general filters
+  board/                    ← kanban board components
   widgets/                  ← domain widgets
 ```
 
@@ -41,16 +42,17 @@ src/app/ui/                 ← start here
 
 ## Design Tokens
 
-The design-token source of truth is `apps/frontend/src/app/globals.css` under `@theme`. Never hardcode hex values or px sizes — always use tokens.
+The design-token source of truth is `apps/frontend/src/app/globals.css` under `@theme`. Never hardcode hex values or px sizes - always use tokens.
 
 ```css
 /* Colors */
 --color-*          (e.g. --color-neutral-200, --color-primary-500)
 
 /* Typography */
---font-satoshi     (primary — all weights 300–900)
---font-grotesk     (secondary)
+--font-satoshi     (primary - all weights 300-900)
 ```
+
+The web app is Satoshi-only — do not add `--font-grotesk` or `--grotesk-font` back (see `src/app/ui/tokens.md`).
 
 Reference documentation: `src/app/ui/tokens.md` (derived guide, not source of truth)
 
@@ -59,9 +61,9 @@ Reference documentation: `src/app/ui/tokens.md` (derived guide, not source of tr
 ## Styling Rules
 
 - **Tailwind CSS 4** is the styling system. Use utility classes.
-- Use `clsx` for conditional class composition — it's already in the project.
+- Use `clsx` for conditional class composition - it's already in the project.
 - Never write inline `style={{}}` unless a value cannot be expressed as a token.
-- Never add raw Bootstrap classes to new code — Bootstrap is legacy, do not spread it.
+- Never add raw Bootstrap classes to new code - Bootstrap is legacy, do not spread it.
 - Never use arbitrary Tailwind values (e.g. `w-[347px]`) unless strictly required for pixel-perfect alignment from design specs.
 
 ### Class ordering (Tailwind)
@@ -88,7 +90,7 @@ Font: **Satoshi** (300 Light → 900 Black). Never default to Inter, Roboto, or 
 
 ### Creating a new component
 
-1. Search `src/app/ui/` — if something similar exists, extend it.
+1. Search `src/app/ui/` - if something similar exists, extend it.
 2. If a new primitive is needed, place it in `src/app/ui/` alongside its peers.
 3. Domain-specific components go in the relevant `features/` subdirectory.
 4. Use TypeScript props with named types (no inline `{ prop: type }` in function signatures).
@@ -106,25 +108,25 @@ Font: **Satoshi** (300 Light → 900 Black). Never default to Inter, Roboto, or 
 
 Use Zustand stores in `src/app/stores/`. Each domain has its own store. Do not introduce new state management libraries.
 
-Available stores: appointment, auth, availability, companion, document, forms, integration, inventory, invoice, org, parent, profile, room, search, service, subscription, task, team, universalSearch.
+Available stores: appointment, appointmentWorkspace, auth, availability, companion, counter, document, forms, fullscreenLoader, integration, inventory, invoice, org, parent, profile, revampCatalog, room, routeLoader, search, service, signingOverlay, speciality, subscription, task, team, universalSearch. Lists drift — enumerate `src/app/stores/` before creating any store.
 
 ---
 
 ## Gotchas
 
-- **Do not nest `<button>` inside `<button>`** — invalid HTML, breaks tests.
-- **Do not put icons in `<button>` mocks in tests** — use `<span>` not `<button>` for react-icons mocks.
-- **Bootstrap classes** are legacy; do not add new ones — Tailwind only for new code.
-- **Never use `--font-*` values that don't exist in globals.css** — check before using.
-- **Never duplicate a store** — check `src/app/stores/` before creating new state.
+- **Do not nest `<button>` inside `<button>`** - invalid HTML, breaks tests.
+- **Do not put icons in `<button>` mocks in tests** - use `<span>` not `<button>` for react-icons mocks.
+- **Bootstrap classes** are legacy; do not add new ones - Tailwind only for new code.
+- **Never use `--font-*` values that don't exist in globals.css** - check before using.
+- **Never duplicate a store** - check `src/app/stores/` before creating new state.
 - `clsx` not `cn`, `classnames`, or template literals for conditional classes.
-- The design system does NOT use shadcn, Radix, or Material-UI — do not import them.
+- The design system does NOT use shadcn, Radix, or Material-UI - do not import them.
 
 ---
 
 ## References
 
-- Token source of truth: [apps/frontend/src/app/globals.css](../../../../../apps/frontend/src/app/globals.css)
-- Token map (reference): [src/app/ui/tokens.md](../../../../../apps/frontend/src/app/ui/tokens.md)
-- Component map: [src/app/ui/README.md](../../../../../apps/frontend/src/app/ui/README.md)
+- Token source of truth: [apps/frontend/src/app/globals.css](../../../apps/frontend/src/app/globals.css)
+- Token map (reference): [src/app/ui/tokens.md](../../../apps/frontend/src/app/ui/tokens.md)
+- Component map: [src/app/ui/README.md](../../../apps/frontend/src/app/ui/README.md)
 - Detailed API signatures: `references/components-api.md`

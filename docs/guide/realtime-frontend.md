@@ -1,4 +1,8 @@
-# Real-Time Sync — Frontend Implementation Guide
+# Real-Time Sync - Frontend Implementation Guide
+
+> Status: not implemented as of 2026-07. No Socket.IO/EventBus code exists in the tree and the listed dependencies are not installed. The Cognito JWT handshake described below must be re-targeted at SuperTokens session verification (see `docs/plans/supertokens-migration.md`) before building.
+
+This is the frontend (Next.js web app) half of the real-time sync feature: it opens a WebSocket to the backend, reloads the relevant Zustand store whenever the server pushes a change, and surfaces an in-app notification bell. Read it alongside its companion [realtime-backend.md](realtime-backend.md), which defines the server side and the shared `OrgEvent` contract both sides rely on. Here "org" means organisation (a clinic/practice tenant).
 
 > **Stack:** Socket.IO client · Zustand notification store · In-app notification bell
 >
@@ -26,11 +30,11 @@ useRealtimeSync hook (lives in SessionInitializer)
                    └──► NotificationBell badge increments, dropdown shows event
 ```
 
-**Result:** Every tab open in the same org updates its store automatically within ~100–200ms of any mutation, with no full page reload and no polling.
+**Result:** Every tab open in the same org updates its store automatically within ~100-200ms of any mutation, with no full page reload and no polling.
 
 ---
 
-## Phase 1 — Shared Event Type
+## Phase 1 - Shared Event Type
 
 > Do this first. Both sides need to agree on the contract before anything else.
 
@@ -67,7 +71,7 @@ Then export it from `packages/types/src/index.ts`:
 export * from './realtime';
 ```
 
-Both backend and frontend import from `@yosemite-crew/types` — single source of truth, compiler enforces parity.
+Both backend and frontend import from `@yosemite-crew/types` - single source of truth, compiler enforces parity.
 
 ### Option B: Local type file
 
@@ -76,7 +80,7 @@ If adding to the shared package is blocked, create locally:
 **New file:** `apps/frontend/src/app/types/realtime.ts`
 
 ```typescript
-// Mirror of packages/types/src/realtime.ts — keep in sync manually
+// Mirror of packages/types/src/realtime.ts - keep in sync manually
 export type OrgEventType =
   | 'APPOINTMENT_CREATED'
   | 'APPOINTMENT_UPDATED'
@@ -101,7 +105,7 @@ export interface OrgEvent {
 
 ---
 
-## Phase 2 — Socket Singleton
+## Phase 2 - Socket Singleton
 
 **New file:** `apps/frontend/src/app/services/socket.ts`
 
@@ -152,7 +156,7 @@ NEXT_PUBLIC_BACKEND_WS_URL=http://localhost:3000
 
 ---
 
-## Phase 3 — Notification Store
+## Phase 3 - Notification Store
 
 **New file:** `apps/frontend/src/app/stores/notificationStore.ts`
 
@@ -217,7 +221,7 @@ useNotificationStore.getState().clearAll();
 
 ---
 
-## Phase 4 — `useRealtimeSync` Hook
+## Phase 4 - `useRealtimeSync` Hook
 
 **New file:** `apps/frontend/src/app/hooks/useRealtimeSync.ts`
 
@@ -292,7 +296,7 @@ export const useRealtimeSync = () => {
         const token = session.getIdToken().getJwtToken();
         connectSocket(token);
       } catch {
-        // Auth failure — OrgGuard will redirect the user
+        // Auth failure - OrgGuard will redirect the user
       }
     };
 
@@ -350,13 +354,13 @@ export const useRealtimeSync = () => {
 
 **Key design decisions:**
 
-- `force: true, silent: true` — bypasses the "already loaded" guard because we know data changed; `silent` means no loading spinner shown to user
-- Three separate `useEffect` calls — connect/disconnect, room join/leave, and event handling are independent lifecycles. Merging them causes missed cleanup.
-- `HANDLERS` map is the single place to wire new event types — adding a new entity type is one line
+- `force: true, silent: true` - bypasses the "already loaded" guard because we know data changed; `silent` means no loading spinner shown to user
+- Three separate `useEffect` calls - connect/disconnect, room join/leave, and event handling are independent lifecycles. Merging them causes missed cleanup.
+- `HANDLERS` map is the single place to wire new event types - adding a new entity type is one line
 
 ---
 
-## Phase 5 — Notification Bell Component
+## Phase 5 - Notification Bell Component
 
 **New file:** `apps/frontend/src/app/ui/layout/Header/NotificationBell.tsx`
 
@@ -451,7 +455,7 @@ export const NotificationBell = () => {
 
 ---
 
-## Phase 6 — Wire Into `SessionInitializer` and `Header`
+## Phase 6 - Wire Into `SessionInitializer` and `Header`
 
 ### `SessionInitializer.tsx`
 
@@ -487,7 +491,7 @@ Each new file needs a test. Test file locations follow the existing `src/app/__t
 | `src/app/hooks/useRealtimeSync.ts`              | `src/app/__tests__/hooks/useRealtimeSync.test.ts`               |
 | `src/app/ui/layout/Header/NotificationBell.tsx` | `src/app/__tests__/components/Header/NotificationBell.test.tsx` |
 
-### `notificationStore.test.ts` — what to cover
+### `notificationStore.test.ts` - what to cover
 
 - `addNotification` adds to front of list and increments `unreadCount`
 - `addNotification` caps list at 50 entries
@@ -495,7 +499,7 @@ Each new file needs a test. Test file locations follow the existing `src/app/__t
 - `markAllRead` marks all read and sets `unreadCount` to 0
 - `clearAll` resets to empty state
 
-### `useRealtimeSync.test.ts` — what to cover
+### `useRealtimeSync.test.ts` - what to cover
 
 - Calls `connectSocket` with the JWT from `getValidSession()` on mount
 - Calls `disconnectSocket` on unmount
@@ -521,7 +525,7 @@ jest.mock('@/app/services/socket', () => ({
 }));
 ```
 
-### `NotificationBell.test.tsx` — what to cover
+### `NotificationBell.test.tsx` - what to cover
 
 - Renders bell icon with no badge when `unreadCount` is 0
 - Renders badge with correct count when `unreadCount > 0`

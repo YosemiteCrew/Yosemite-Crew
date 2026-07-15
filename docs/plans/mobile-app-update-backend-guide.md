@@ -1,5 +1,7 @@
 # Mobile App Update Backend Guide (iOS + Android)
 
+> Status: implemented. The `appUpdate` policy lives in `apps/backend/src/utils/mobile-config.ts` and is exposed via `apps/backend/src/routers/mobile.config.router.ts`. Kept for historical context; the code is the source of truth.
+
 ## Objective
 
 Provide a production-grade remote app update policy through the existing mobile config endpoint so the React Native app can:

@@ -1,6 +1,10 @@
 # Super Admin Implementation Plan (Industry-Standard, Production-Grade, OSS-First, Zero-Error CI)
 
+> Status: superseded. The Super Admin console was built in the separate YosemiteCrew/SuperAdmin repository, not as `apps/super-admin` in this monorepo. Kept for historical context.
+
 ## Summary
+
+This is a forward-looking plan for a Super Admin console: the internal tool Yosemite Crew platform operators use to manage every customer tenant (clinic) on the platform. The `apps/super-admin` app it describes does not exist in the repo yet, so treat this as a design target rather than current state.
 
 Build a new `apps/super-admin` (React + open-source stack) with strict multi-tenant governance:
 
@@ -8,7 +12,7 @@ Build a new `apps/super-admin` (React + open-source stack) with strict multi-ten
 2. Tenant operational financials are hidden by default.
 3. Access to sensitive tenant data only via audited, time-limited break-glass.
 4. Engineering quality gate is strict: no `tsc`, lint, test, or Sonar failures allowed to merge.
-5. Authentication is AWS Cognito with mandatory MFA for all super-admin users.
+5. Authentication is AWS Cognito with mandatory MFA (multi-factor authentication) for all super-admin users.
 
 ## Open-Source Stack (Final)
 
