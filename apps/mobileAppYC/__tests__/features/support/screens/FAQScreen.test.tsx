@@ -178,6 +178,19 @@ describe('FAQScreen', () => {
     expect(screen.getByText('Answer 1 contains keyword.')).toBeTruthy();
   });
 
+  it('exposes a button role and expanded state on the FAQ question row', () => {
+    const {getByLabelText} = render(
+      <FAQScreen navigation={mockNavigation} route={mockRoute} />,
+    );
+
+    const questionRow = getByLabelText('Question 1');
+    expect(questionRow.props.accessibilityRole).toBe('button');
+    expect(questionRow.props.accessibilityState).toEqual({expanded: true});
+
+    fireEvent.press(questionRow);
+    expect(questionRow.props.accessibilityState).toEqual({expanded: false});
+  });
+
   it('filters FAQs by Category', () => {
     render(<FAQScreen navigation={mockNavigation} route={mockRoute} />);
 
@@ -289,6 +302,15 @@ describe('FAQScreen', () => {
 
     // Verify toggle logic: FAQ 1 answer should be gone as accordion switches focus
     expect(screen.queryByText('Answer 1 contains keyword.')).toBeNull();
+  });
+
+  it('exposes a button role and label on the related-question row', () => {
+    const {getAllByLabelText} = render(
+      <FAQScreen navigation={mockNavigation} route={mockRoute} />,
+    );
+
+    const [relatedRow] = getAllByLabelText('Question 2');
+    expect(relatedRow.props.accessibilityRole).toBe('button');
   });
 
   it('Related Questions: clears filter if navigating from filtered view', () => {

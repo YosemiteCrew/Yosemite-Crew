@@ -50,7 +50,10 @@ const FAQItem: React.FC<{
     <PressableOpacity
       style={styles.questionRow}
       onPress={() => onToggle(faq.id)}
-      activeOpacity={0.7}>
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={faq.question}
+      accessibilityState={{expanded: isExpanded}}>
       <Text
         style={[
           styles.questionText,
@@ -113,7 +116,9 @@ const FAQItem: React.FC<{
                 key={related.id}
                 style={styles.relatedRow}
                 onPress={() => onRelatedPress(related.id, false)}
-                activeOpacity={0.7}>
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={related.question}>
                 <Text style={styles.relatedText}>{related.question}</Text>
                 <Image source={Images.rightArrow} style={styles.relatedArrow} />
               </PressableOpacity>
