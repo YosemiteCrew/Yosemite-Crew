@@ -6,10 +6,12 @@ export function WordsPullUp({
   text,
   className = '',
   containerClassName = '',
+  animateWords = true,
 }: Readonly<{
   text: string;
   className?: string;
   containerClassName?: string;
+  animateWords?: boolean;
 }>) {
   const splittedText = text.split(' ');
 
@@ -34,8 +36,8 @@ export function WordsPullUp({
             key={i + current}
             ref={ref}
             variants={pullupVariant}
-            initial="initial"
-            animate={isInView ? 'animate' : ''}
+            initial={animateWords ? 'initial' : false}
+            animate={!animateWords || isInView ? 'animate' : ''}
             custom={i}
             className={`pr-2! ${className}`}
           >

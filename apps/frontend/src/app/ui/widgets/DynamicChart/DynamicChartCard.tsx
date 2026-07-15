@@ -1,17 +1,59 @@
 'use client';
-import { type FC, type ReactNode } from 'react';
-import {
-  ResponsiveContainer,
-  BarChart,
-  LineChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from 'recharts';
+import { type ComponentType, type FC, type ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import type { LayoutType } from 'recharts/types/util/types';
+
+const loadRechartsComponent = async <TProps,>(
+  pick: (mod: typeof import('recharts')) => ComponentType<TProps>
+) => pick(await import('recharts'));
+
+const ResponsiveContainer = dynamic(
+  () => loadRechartsComponent((mod) => mod.ResponsiveContainer as unknown as ComponentType<any>),
+  { ssr: false }
+);
+const BarChart = dynamic(() => loadRechartsComponent((mod) => mod.BarChart as ComponentType<any>), {
+  ssr: false,
+});
+const LineChart = dynamic(
+  () => loadRechartsComponent((mod) => mod.LineChart as unknown as ComponentType<any>),
+  { ssr: false }
+);
+const Bar = dynamic(
+  () => loadRechartsComponent((mod) => mod.Bar as unknown as ComponentType<any>),
+  {
+    ssr: false,
+  }
+);
+const Line = dynamic(
+  () => loadRechartsComponent((mod) => mod.Line as unknown as ComponentType<any>),
+  {
+    ssr: false,
+  }
+);
+const XAxis = dynamic(
+  () => loadRechartsComponent((mod) => mod.XAxis as unknown as ComponentType<any>),
+  {
+    ssr: false,
+  }
+);
+const YAxis = dynamic(
+  () => loadRechartsComponent((mod) => mod.YAxis as unknown as ComponentType<any>),
+  {
+    ssr: false,
+  }
+);
+const Tooltip = dynamic(
+  () => loadRechartsComponent((mod) => mod.Tooltip as unknown as ComponentType<any>),
+  {
+    ssr: false,
+  }
+);
+const CartesianGrid = dynamic(
+  () => loadRechartsComponent((mod) => mod.CartesianGrid as unknown as ComponentType<any>),
+  {
+    ssr: false,
+  }
+);
 
 type ChartProps = {
   data: any[];

@@ -74,7 +74,7 @@ export function ChatHeaderContext({
     <div className="shrink-0">
       {flags.length > 0 && (
         <div className="flex items-center gap-2 border-b border-danger-200 bg-danger-soft px-4 py-2">
-          <LuShieldAlert className="h-4 w-4 shrink-0 text-danger-600" />
+          <LuShieldAlert className="size-4 shrink-0 text-danger-600" />
           <Text as="span" variant="caption-1" className="font-semibold text-danger-600">
             {flags.join(' · ')}
           </Text>
@@ -83,8 +83,8 @@ export function ChatHeaderContext({
       {appointment && (
         <div className="flex flex-col gap-2.5 border-b border-chat-divider bg-chat-surface px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-0 text-primary-600">
-              <LuCalendar className="h-5 w-5" />
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-neutral-0 text-primary-600">
+              <LuCalendar className="size-5" />
             </span>
             <div className="flex min-w-0 flex-col">
               <Text as="span" variant="body-4-emphasis" className="text-neutral-900">

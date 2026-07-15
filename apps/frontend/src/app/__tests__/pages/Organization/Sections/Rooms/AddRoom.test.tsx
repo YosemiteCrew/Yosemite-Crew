@@ -32,17 +32,27 @@ jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
 
 jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
-  default: ({ placeholder, onSelect, defaultOption }: any) => (
-    <button
-      type="button"
-      onClick={() =>
-        onSelect({
-          value: placeholder === 'Room Type' ? 'INPATIENT' : defaultOption || 'CONSULTATION',
-        })
-      }
-    >
-      {placeholder}
-    </button>
+  default: ({ placeholder, onSelect, defaultOption, error }: any) => (
+    <div>
+      <button
+        type="button"
+        onClick={() =>
+          onSelect({
+            value:
+              placeholder === 'Room Type'
+                ? 'INPATIENT'
+                : placeholder === 'Days'
+                  ? 'SUN'
+                  : placeholder === 'Size'
+                    ? 'Large'
+                    : defaultOption || 'CONSULTATION',
+          })
+        }
+      >
+        {placeholder}
+      </button>
+      {error && <span>{error}</span>}
+    </div>
   ),
 }));
 
@@ -52,7 +62,19 @@ jest.mock('@/app/ui/inputs/MultiSelectDropdown', () => ({
     <button
       type="button"
       aria-label={placeholder}
-      onClick={() => onChange?.(placeholder === 'Species' ? ['CANINE', 'FELINE'] : value)}
+      onClick={() => {
+        const nextValue =
+          placeholder === 'Species'
+            ? ['CANINE', 'FELINE']
+            : placeholder === 'Speciality (optional)'
+              ? ['spec-1']
+              : placeholder === 'Assigned Staff (optional)'
+                ? ['staff-1']
+                : placeholder === 'Equipment'
+                  ? ['Oxygen']
+                  : value;
+        onChange?.(nextValue);
+      }}
     >
       {placeholder}
     </button>
@@ -91,12 +113,15 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   ),
 }));
 
+const mockTeams = [{ name: 'Dr. Rivera', practionerId: 'staff-1' }];
+const mockSpecialities = [{ name: 'Surgery', _id: 'spec-1' }];
+
 jest.mock('@/app/hooks/useTeam', () => ({
-  useTeamForPrimaryOrg: () => [],
+  useTeamForPrimaryOrg: () => mockTeams,
 }));
 
 jest.mock('@/app/hooks/useSpecialities', () => ({
-  useSpecialitiesForPrimaryOrg: () => [],
+  useSpecialitiesForPrimaryOrg: () => mockSpecialities,
 }));
 
 jest.mock('@/app/features/organization/services/roomService', () => ({
@@ -134,6 +159,7 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Room code'), {
       target: { value: 'RA-01' },
     });
+    fireEvent.click(screen.getByText('Room Type'));
     fireEvent.click(screen.getByText('Add room'));
 
     await waitFor(() => {
@@ -145,10 +171,22 @@ describe('AddRoom', () => {
         code: 'RA-01',
         unitCount: 0,
         units: [],
-        equipment: ['Oxygen Tank', 'Dental Unit', 'Isolation unit'],
+        equipment: [],
       })
     );
     expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('does not prefill room type or equipment, and blocks save until a room type is chosen', () => {
+    render(<AddRoom showModal setShowModal={jest.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Room B' },
+    });
+    fireEvent.click(screen.getByText('Add room'));
+
+    expect(screen.getByText('Room type is required')).toBeInTheDocument();
+    expect(roomService.createRoom).not.toHaveBeenCalled();
   });
 
   it('creates a room without a custom code so the backend can generate one', async () => {
@@ -159,6 +197,7 @@ describe('AddRoom', () => {
     fireEvent.change(screen.getByLabelText('Name'), {
       target: { value: 'Consultation Room' },
     });
+    fireEvent.click(screen.getByText('Room Type'));
     fireEvent.click(screen.getByText('Add room'));
 
     await waitFor(() => {
@@ -186,6 +225,7 @@ describe('AddRoom', () => {
       target: { value: 'MRI Scanner' },
     });
     fireEvent.click(screen.getByLabelText('Add custom equipment'));
+    fireEvent.click(screen.getByText('Room Type'));
     fireEvent.click(screen.getByText('Add room'));
 
     await waitFor(() => {
@@ -237,6 +277,7 @@ describe('AddRoom', () => {
       target: { value: 'SW-01' },
     });
     fireEvent.click(screen.getByLabelText('Species'));
+    fireEvent.click(screen.getByText('Room Type'));
     fireEvent.click(screen.getByText('Add room'));
 
     await waitFor(() => {
@@ -246,6 +287,82 @@ describe('AddRoom', () => {
             species: ['CANINE', 'FELINE'],
           }),
         })
+      );
+    });
+  });
+
+  it('updates availability, assignments, equipment, and unit metadata in the payload', async () => {
+    roomService.createRoom.mockResolvedValue({});
+
+    render(<AddRoom showModal setShowModal={jest.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'ICU A' },
+    });
+    fireEvent.click(screen.getByText('Room Type'));
+    fireEvent.click(screen.getByLabelText('Toggle room availability'));
+    fireEvent.change(screen.getByLabelText('Start time'), { target: { value: '08:30' } });
+    fireEvent.change(screen.getByLabelText('End time'), { target: { value: '18:45' } });
+    fireEvent.click(screen.getByText('Days'));
+    fireEvent.click(screen.getByLabelText('Speciality (optional)'));
+    fireEvent.click(screen.getByLabelText('Assigned Staff (optional)'));
+    fireEvent.click(screen.getByLabelText('Equipment'));
+    fireEvent.click(screen.getByLabelText('Add unit type'));
+    fireEvent.change(screen.getAllByLabelText('Name')[1], { target: { value: 'Large ward' } });
+    fireEvent.click(screen.getByText('Size'));
+    fireEvent.change(screen.getByLabelText('Units'), { target: { value: '3' } });
+    fireEvent.click(screen.getByText('Add room'));
+
+    await waitFor(() => {
+      expect(roomService.createRoom).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assignedSpecialiteis: [{ id: 'spec-1', name: 'Surgery' }],
+          assignedStaffs: [{ id: 'staff-1', name: 'Dr. Rivera' }],
+          availableNow: false,
+          availabilityDays: ['SUN'],
+          availabilityStartTime: '08:30',
+          availabilityEndTime: '18:45',
+          capabilities: ['Oxygen'],
+          unitCount: 3,
+          units: [expect.objectContaining({ name: 'Large ward', size: 'Large', count: 3 })],
+        })
+      );
+    });
+  });
+
+  it('discards dirty form data through the confirmation modal', () => {
+    const setShowModal = jest.fn();
+    render(<AddRoom showModal setShowModal={setShowModal} />);
+
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Dirty room' },
+    });
+    fireEvent.click(screen.getByText('Close'));
+    expect(screen.getByText('Discard changes?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Keep editing'));
+    expect(setShowModal).not.toHaveBeenCalledWith(false);
+
+    fireEvent.click(screen.getByText('Close'));
+    fireEvent.click(screen.getByText('Discard'));
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('does not add blank custom equipment and reports save failures', async () => {
+    roomService.createRoom.mockRejectedValue(new Error('nope'));
+
+    render(<AddRoom showModal setShowModal={jest.fn()} />);
+
+    fireEvent.click(screen.getByLabelText('Add custom equipment'));
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Failure room' },
+    });
+    fireEvent.click(screen.getByText('Room Type'));
+    fireEvent.click(screen.getByText('Add room'));
+
+    await waitFor(() => {
+      expect(roomService.createRoom).toHaveBeenCalledWith(
+        expect.objectContaining({ equipment: [] })
       );
     });
   });

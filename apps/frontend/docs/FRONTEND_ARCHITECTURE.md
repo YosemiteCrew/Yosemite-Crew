@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-This document describes the intended boundaries for `apps/frontend`.
+This document describes the intended module boundaries for `apps/frontend`, the Yosemite Crew (YC) Next.js web app. It is aimed at contributors deciding where new code belongs. For the enforced quality bar see [`FRONTEND_QUALITY_GUIDE.md`](FRONTEND_QUALITY_GUIDE.md); for the agent-facing coding rules see [`../AGENTS.md`](../AGENTS.md).
 
 ## High-Level Structure
 
@@ -83,8 +83,8 @@ src/app
 
 ## Documentation Boundaries
 
-- Contributor-facing quality expectations live in `docs/FRONTEND_QUALITY_GUIDE.md`.
-- Release checks live in `docs/FRONTEND_RELEASE_CHECKLIST.md`.
+- Contributor-facing quality expectations live in [`FRONTEND_QUALITY_GUIDE.md`](FRONTEND_QUALITY_GUIDE.md).
+- Release checks live in [`FRONTEND_RELEASE_CHECKLIST.md`](FRONTEND_RELEASE_CHECKLIST.md).
 - Long-running quality debt should be tracked in focused issues or implementation docs, not temporary local reports.
 
 ## Anti-Patterns

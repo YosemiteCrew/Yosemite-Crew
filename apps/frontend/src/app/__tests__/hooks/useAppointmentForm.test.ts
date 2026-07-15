@@ -1350,4 +1350,316 @@ describe('useAppointmentForm', () => {
     const errors = result.current.validateForm();
     expect(errors.leadId).toBe('Multiple leads are available. Please choose a lead.');
   });
+
+  it('validateForm rejects past dates', async () => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr Vet', practionerId: 'vet-1' },
+    ]);
+    const slot = { startTime: '09:00', endTime: '09:30', vetIds: ['vet-1'] };
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([slot]);
+    (normalizeSlotsForSelectedDay as jest.Mock).mockReturnValue([
+      { slot, meta: { localStartMinute: 540, localEndMinute: 570, dayOffset: 0 } },
+    ]);
+
+    const { result } = renderHook(() => useAppointmentForm());
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+      result.current.handleServiceSelect({ label: 'Consult', value: 'svc-1' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.formData.lead?.id).toBe('vet-1');
+    });
+
+    await act(async () => {
+      result.current.setSelectedDate(new Date('2020-01-01'));
+    });
+
+    const errors = result.current.validateForm(false);
+    expect(errors.slot).toBe('Appointments cannot be booked for past dates.');
+  });
+
+  it('validateForm flags a selected service that is no longer bookable', async () => {
+    setRevampCatalogState({
+      services: [
+        {
+          id: 'svc-nb',
+          code: 'CS-001',
+          name: 'Lab item',
+          description: 'Not bookable',
+          type: 'CONSULTATION',
+          specialityId: 'spec-1',
+          organisationId: 'org-1',
+          grossAmount: 40,
+          defaultDiscount: 0,
+          maxDiscount: 0,
+          durationMinutes: 0,
+          isBookable: false,
+          isInpatientPreferred: false,
+          status: 'ACTIVE',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+    const { result } = renderHook(() => useAppointmentForm());
+    await act(async () => {
+      result.current.setFormData((prev) => ({
+        ...prev,
+        appointmentType: {
+          id: 'svc-nb',
+          name: 'Lab item',
+          speciality: { id: 'spec-1', name: 'G' },
+        },
+      }));
+    });
+    await waitFor(() => {
+      expect(result.current.formDataErrors.serviceId).toBe('Select a bookable service.');
+      expect(result.current.formData.appointmentType?.id).toBe('');
+    });
+  });
+
+  it('handleServiceSelect blocks selecting a non-bookable service', async () => {
+    setRevampCatalogState({
+      services: [
+        {
+          id: 'svc-nb',
+          code: 'CS-001',
+          name: 'Lab item',
+          description: 'Not bookable',
+          type: 'CONSULTATION',
+          specialityId: 'spec-1',
+          organisationId: 'org-1',
+          grossAmount: 40,
+          defaultDiscount: 0,
+          maxDiscount: 0,
+          durationMinutes: 0,
+          isBookable: false,
+          isInpatientPreferred: false,
+          status: 'ACTIVE',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+    const { result } = renderHook(() => useAppointmentForm());
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+    });
+    await act(async () => {
+      result.current.handleServiceSelect({ label: 'Lab item', value: 'svc-nb' });
+    });
+    expect(result.current.formDataErrors.serviceId).toBe('Select a bookable service.');
+    expect(result.current.formData.appointmentType?.id).toBe('');
+  });
+
+  it('logs an error when loading the speciality catalog fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    setRevampCatalogState({
+      loadSpecialityCatalog: jest.fn(() => Promise.reject(new Error('load failed'))),
+    });
+    const { result } = renderHook(() => useAppointmentForm());
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+    });
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to load services for speciality:',
+        expect.any(Error)
+      );
+    });
+    consoleSpy.mockRestore();
+  });
+
+  it('logs an error when calendar slot flow speciality catalog load fails', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'spec-1', name: 'General' },
+    ]);
+    setRevampCatalogState({
+      loadSpecialityCatalog: jest.fn(() => Promise.reject(new Error('load failed'))),
+    });
+    const prefill = { date: new Date('2026-04-01T00:00:00.000Z'), minuteOfDay: 600 };
+    renderHook(() => useAppointmentForm({ initialPrefill: prefill, calendarSlotFlow: true }));
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to load calendar slot services:',
+        expect.any(Error)
+      );
+    });
+    consoleSpy.mockRestore();
+  });
+
+  it('clears the timeslot selection when loading time slots throws', async () => {
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockRejectedValue(new Error('boom'));
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const { result } = renderHook(() => useAppointmentForm());
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+      result.current.handleServiceSelect({ label: 'Consult', value: 'svc-1' });
+    });
+    await waitFor(() => {
+      expect(result.current.timeSlots).toEqual([]);
+      expect(result.current.selectedSlot).toBeNull();
+    });
+    consoleLogSpy.mockRestore();
+  });
+
+  it('sets a slot-unavailable error when no calendar prefill match is found', async () => {
+    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'spec-1', name: 'General' },
+    ]);
+    jest.requireMock('@/app/stores/serviceStore').useServiceStore.getState.mockReturnValue({
+      getServicesBySpecialityId: jest.fn(() => [{ id: 'svc-1', name: 'Consult' }]),
+    });
+    (getCalendarPrefillMatchesForPrimaryOrg as jest.Mock).mockResolvedValue([]);
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([]);
+    (normalizeSlotsForSelectedDay as jest.Mock).mockReturnValue([]);
+
+    const prefill = {
+      date: new Date('2026-04-01T00:00:00.000Z'),
+      minuteOfDay: 600,
+      leadId: 'vet-1',
+    };
+    const { result } = renderHook(() =>
+      useAppointmentForm({ initialPrefill: prefill, calendarSlotFlow: true })
+    );
+
+    await waitFor(() => {
+      expect(result.current.formDataErrors.slot).toBe(
+        'Selected calendar slot is unavailable. Please choose another slot.'
+      );
+    });
+    expect(result.current.timeSlots).toEqual([]);
+  });
+
+  it('clears slot-scoped options when resolving calendar prefill options throws', async () => {
+    (useSpecialitiesForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'spec-1', name: 'General' },
+    ]);
+    jest.requireMock('@/app/stores/serviceStore').useServiceStore.getState.mockReturnValue({
+      getServicesBySpecialityId: jest.fn(() => [{ id: 'svc-1', name: 'Consult' }]),
+    });
+    (getCalendarPrefillMatchesForPrimaryOrg as jest.Mock).mockRejectedValue(new Error('fail'));
+
+    const prefill = {
+      date: new Date('2026-04-01T00:00:00.000Z'),
+      minuteOfDay: 600,
+      leadId: 'vet-1',
+    };
+    const { result } = renderHook(() =>
+      useAppointmentForm({ initialPrefill: prefill, calendarSlotFlow: true })
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoadingSlotScopedOptions).toBe(false);
+    });
+  });
+
+  it('logs a rejected follow-up sync without failing the booking', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (createAppointment as jest.Mock).mockResolvedValue({ id: 'appt-2' });
+    (loadAppointmentsForPrimaryOrg as jest.Mock).mockRejectedValue(new Error('sync failed'));
+    const refetch = jest.fn().mockResolvedValue(undefined);
+    (useSubscriptionCounterUpdate as jest.Mock).mockReturnValue({ refetch });
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr Vet', practionerId: 'vet-1' },
+    ]);
+    const slot = { startTime: '09:00', endTime: '09:30', vetIds: ['vet-1'] };
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([slot]);
+    (normalizeSlotsForSelectedDay as jest.Mock).mockReturnValue([
+      { slot, meta: { localStartMinute: 540, localEndMinute: 570, dayOffset: 0 } },
+    ]);
+
+    const { result } = renderHook(() => useAppointmentForm());
+    await act(async () => {
+      result.current.setFormData((prev) => ({
+        ...prev,
+        companion: {
+          id: 'comp-1',
+          name: 'Fido',
+          species: 'Dog',
+          breed: '',
+          parent: { id: '', name: '' },
+        },
+      }));
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+      result.current.handleServiceSelect({ label: 'Checkup', value: 'svc-1' });
+      result.current.setFormData((prev) => ({
+        ...prev,
+        concern: 'limp',
+        durationMinutes: 30,
+      }));
+    });
+
+    await waitFor(() => {
+      expect(result.current.formData.lead?.id).toBe('vet-1');
+    });
+
+    let created = false;
+    await act(async () => {
+      created = await result.current.handleCreate();
+    });
+
+    expect(created).toBe(true);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Appointment created but follow-up refresh failed:',
+      expect.any(Error)
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('non-calendar prefill auto-selects the only available lead for a matching slot', async () => {
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+      { _id: 'team-1', name: 'Dr Vet', practionerId: 'vet-1' },
+    ]);
+    const slot = { startTime: '10:00', endTime: '10:30', vetIds: ['vet-1'] };
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([slot]);
+    (normalizeSlotsForSelectedDay as jest.Mock).mockReturnValue([
+      { slot, meta: { localStartMinute: 600, localEndMinute: 630, dayOffset: 0 } },
+    ]);
+    (utcClockTimeToPreferredTimeZoneClock as jest.Mock).mockReturnValue({
+      minutes: 600,
+      dayOffset: 0,
+    });
+
+    const prefill = { date: new Date('2026-04-01T00:00:00.000Z'), minuteOfDay: 600 };
+    const { result } = renderHook(() => useAppointmentForm({ initialPrefill: prefill }));
+
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+      result.current.handleServiceSelect({ label: 'Consult', value: 'svc-1' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.formData.lead?.id).toBe('vet-1');
+      expect(result.current.selectedSlot?.startTime).toBe('10:00');
+    });
+  });
+
+  it('non-calendar prefill clears itself when no timeslot is close enough to match', async () => {
+    const slot = { startTime: '10:00', endTime: '10:30', vetIds: ['vet-1'] };
+    (getSlotsForServiceAndDateForPrimaryOrg as jest.Mock).mockResolvedValue([slot]);
+    (normalizeSlotsForSelectedDay as jest.Mock).mockReturnValue([
+      { slot, meta: { localStartMinute: 600, localEndMinute: 630, dayOffset: 0 } },
+    ]);
+    (utcClockTimeToPreferredTimeZoneClock as jest.Mock).mockReturnValue({
+      minutes: 600,
+      dayOffset: 0,
+    });
+
+    // minuteOfDay far from any available slot (>240 minutes away)
+    const prefill = { date: new Date('2026-04-01T00:00:00.000Z'), minuteOfDay: 0 };
+    const { result } = renderHook(() => useAppointmentForm({ initialPrefill: prefill }));
+
+    await act(async () => {
+      result.current.handleSpecialitySelect({ label: 'General', value: 'spec-1' });
+      result.current.handleServiceSelect({ label: 'Consult', value: 'svc-1' });
+    });
+
+    await waitFor(() => {
+      expect(result.current.timeSlots).toHaveLength(1);
+    });
+    await waitFor(() => {
+      expect(result.current.formData.lead).toBeUndefined();
+    });
+  });
 });
