@@ -112,6 +112,74 @@ describe('LiquidGlassButton', () => {
     });
   });
 
+  describe('Accessibility', () => {
+    it('exposes button role and defaults the label to the title on the native glass branch', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(<LiquidGlassButton title="Save" onPress={() => {}} />),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityRole).toBe('button');
+      expect(touchable.props.accessibilityLabel).toBe('Save');
+      expect(touchable.props.accessibilityState).toEqual({
+        disabled: false,
+        busy: false,
+      });
+    });
+
+    it('lets an explicit accessibilityLabel override the visible title', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="Save"
+              onPress={() => {}}
+              accessibilityLabel="Save changes to your pet's profile"
+            />,
+          ),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityLabel).toBe(
+        "Save changes to your pet's profile",
+      );
+    });
+
+    it('marks disabled and busy state for screen readers while loading', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(<LiquidGlassButton title="Submit" onPress={() => {}} loading />),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityState).toEqual({
+        disabled: true,
+        busy: true,
+      });
+    });
+
+    it('exposes button role and label on the Android fallback branch', () => {
+      Platform.OS = 'android';
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(<LiquidGlassButton title="Continue" onPress={() => {}} />),
+        );
+      });
+
+      const touchable = tree.root.findByType(PressableType);
+      expect(touchable.props.accessibilityRole).toBe('button');
+      expect(touchable.props.accessibilityLabel).toBe('Continue');
+    });
+  });
+
   describe('Size Variants', () => {
     it('should render small size', () => {
       let tree!: TestRenderer.ReactTestRenderer;

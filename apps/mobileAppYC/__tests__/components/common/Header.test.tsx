@@ -99,6 +99,36 @@ describe('Header', () => {
     expect(onRightPressMock).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes accessible labels for the back and right-icon buttons', () => {
+    const rightIcon = 456;
+    const {UNSAFE_getAllByType} = render(
+      <Header
+        title="My Title"
+        showBackButton={true}
+        rightIcon={rightIcon}
+        rightAccessibilityLabel="Add companion"
+      />,
+    );
+
+    const {Pressable} = require('react-native');
+    const [backButton, rightButton] = UNSAFE_getAllByType(
+      (Pressable as any).type,
+    );
+    expect(backButton.props.accessibilityRole).toBe('button');
+    expect(backButton.props.accessibilityLabel).toBe('Back');
+    expect(rightButton.props.accessibilityLabel).toBe('Add companion');
+  });
+
+  it('falls back to a generic right-icon label when none is provided', () => {
+    const {UNSAFE_getAllByType} = render(
+      <Header title="My Title" rightIcon={456} />,
+    );
+
+    const {Pressable} = require('react-native');
+    const [rightButton] = UNSAFE_getAllByType((Pressable as any).type);
+    expect(rightButton.props.accessibilityLabel).toBe('More options');
+  });
+
   it('renders without glass and keeps default press handlers safe', () => {
     const rightIcon = 456;
     const {UNSAFE_getAllByType} = render(

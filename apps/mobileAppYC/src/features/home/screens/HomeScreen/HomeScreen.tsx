@@ -1335,7 +1335,8 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               <LiquidGlassIconButton
                 onPress={handleEmergencyPress}
                 size={actionIconSize}
-                style={styles.actionIcon}>
+                style={styles.actionIcon}
+                accessibilityLabel="Emergency">
                 <Image
                   source={Images.emergencyIcon}
                   style={styles.actionImage}
@@ -1346,7 +1347,12 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
               <LiquidGlassIconButton
                 onPress={() => navigation.navigate('Notifications')}
                 size={actionIconSize}
-                style={styles.actionIcon}>
+                style={styles.actionIcon}
+                accessibilityLabel={
+                  hasUnreadNotifications
+                    ? 'Notifications, unread'
+                    : 'Notifications'
+                }>
                 <View style={styles.notificationIconWrapper}>
                   <Image
                     source={Images.notificationIcon}

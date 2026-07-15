@@ -102,7 +102,8 @@ export const UploadDocumentBottomSheet = ({
           <LiquidGlassIconButton
             onPress={handleClose}
             size={closeButtonSize}
-            style={styles.closeButton}>
+            style={styles.closeButton}
+            accessibilityLabel="Close">
             <Image
               source={Images.crossIcon}
               style={styles.closeIcon}

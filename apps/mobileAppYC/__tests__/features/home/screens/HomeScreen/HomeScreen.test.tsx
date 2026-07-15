@@ -164,8 +164,11 @@ jest.mock(
       View: RNView,
     } = require('react-native');
     return {
-      LiquidGlassIconButton: ({onPress, children}: any) => (
-        <RNTouchableOpacity onPress={onPress} testID="liquid-glass-icon-button">
+      LiquidGlassIconButton: ({onPress, children, accessibilityLabel}: any) => (
+        <RNTouchableOpacity
+          onPress={onPress}
+          testID="liquid-glass-icon-button"
+          accessibilityLabel={accessibilityLabel}>
           <RNView>{children}</RNView>
         </RNTouchableOpacity>
       ),
@@ -605,6 +608,30 @@ describe('HomeScreen', () => {
       );
       expect(getByText('Hello, John')).toBeTruthy();
       expect(getByText('Spend: 500')).toBeTruthy();
+    });
+
+    it('labels the emergency and notifications header buttons for screen readers', () => {
+      const store = createStore();
+      const {getByLabelText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByLabelText('Emergency')).toBeTruthy();
+      expect(getByLabelText('Notifications')).toBeTruthy();
+    });
+
+    it('marks the notifications button as unread for screen readers when there are unread notifications', () => {
+      const store = createStore({notifications: {unreadCount: 3}});
+      const {getByLabelText, queryByLabelText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+
+      expect(getByLabelText('Notifications, unread')).toBeTruthy();
+      expect(queryByLabelText('Notifications')).toBeNull();
     });
 
     it('does not start stored location lookup for home business search', () => {

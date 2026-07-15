@@ -12,6 +12,7 @@ interface HeaderProps {
   onBack?: () => void;
   rightIcon?: any;
   onRightPress?: () => void;
+  rightAccessibilityLabel?: string;
   style?: object;
   glass?: boolean;
   /**
@@ -27,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   onBack,
   rightIcon,
   onRightPress,
+  rightAccessibilityLabel = 'More options',
   style,
   glass = true,
   variant = 'default',
@@ -44,7 +46,8 @@ export const Header: React.FC<HeaderProps> = ({
             <LiquidGlassIconButton
               onPress={onBack ?? (() => {})}
               size={iconButtonSize}
-              style={styles.iconButton}>
+              style={styles.iconButton}
+              accessibilityLabel="Back">
               <Image
                 source={Images.backIcon}
                 style={[styles.icon, {tintColor: theme.colors.text}]}
@@ -68,7 +71,8 @@ export const Header: React.FC<HeaderProps> = ({
           <LiquidGlassIconButton
             onPress={onRightPress ?? (() => {})}
             size={iconButtonSize}
-            style={styles.iconButton}>
+            style={styles.iconButton}
+            accessibilityLabel={rightAccessibilityLabel}>
             <Image source={rightIcon} style={styles.icon} />
           </LiquidGlassIconButton>
         </View>

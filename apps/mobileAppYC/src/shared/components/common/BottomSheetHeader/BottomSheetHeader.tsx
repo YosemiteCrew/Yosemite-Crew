@@ -33,7 +33,8 @@ export const BottomSheetHeader: React.FC<BottomSheetHeaderProps> = ({
         <LiquidGlassIconButton
           onPress={onClose}
           size={closeButtonSize}
-          style={styles.closeButton}>
+          style={styles.closeButton}
+          accessibilityLabel="Close">
           <Image
             source={closeIconSource}
             style={styles.closeIcon}

@@ -338,6 +338,7 @@ interface GlassButtonProps {
   forceBorder?: boolean; // Force border even with dark colors
   borderColor?: string; // Custom border color
   shadowIntensity?: 'none' | 'light' | 'medium' | 'strong'; // Control shadow for visibility
+  accessibilityLabel?: string;
 }
 
 export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
@@ -365,6 +366,7 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
   forceBorder = false,
   borderColor,
   shadowIntensity = 'light',
+  accessibilityLabel,
 }) => {
   const {theme, isDark} = useTheme();
   const forceGlobalBorder = UI_FEATURE_FLAGS.forceLiquidGlassBorder;
@@ -587,7 +589,10 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
           style={pressableStyle}
           onPress={onPress}
           disabled={disabled || loading}
-          activeOpacity={1}>
+          activeOpacity={1}
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel ?? title}
+          accessibilityState={{disabled: disabled || loading, busy: loading}}>
           {buttonContent}
         </PressableOpacity>
       </LiquidGlassView>
@@ -600,7 +605,10 @@ export const LiquidGlassButton: React.FC<GlassButtonProps> = ({
       style={[buttonStyle, style]}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.7}>
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityState={{disabled: disabled || loading, busy: loading}}>
       {buttonContent}
     </PressableOpacity>
   );
