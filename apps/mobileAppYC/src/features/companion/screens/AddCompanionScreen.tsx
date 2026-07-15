@@ -747,7 +747,10 @@ export const AddCompanionScreen: React.FC<AddCompanionScreenProps> = ({
                   clearErrors('category');
                   hasUnsavedChangesRef.current = true;
                 }}
-                activeOpacity={0.85}>
+                activeOpacity={0.85}
+                accessibilityRole="radio"
+                accessibilityState={{selected: isSelected}}
+                accessibilityLabel={`${cat.label}, ${cat.subtitle}`}>
                 <View style={[styles.speciesAvatar, avatarStyles[cat.value]]}>
                   <Image
                     source={imageSources[cat.value]}

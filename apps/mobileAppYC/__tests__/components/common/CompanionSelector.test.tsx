@@ -535,6 +535,23 @@ describe('CompanionSelector Component', () => {
     expect(mockOnSelect).toHaveBeenCalledWith('1');
   });
 
+  it('exposes the selected state to screen readers via accessibilityState', () => {
+    const {getByLabelText} = render(
+      <CompanionSelector
+        companions={mockCompanions}
+        selectedCompanionId="1"
+        onSelect={mockOnSelect}
+      />,
+    );
+
+    const selected = getByLabelText('Buddy, 2 Tasks');
+    expect(selected.props.accessibilityRole).toBe('radio');
+    expect(selected.props.accessibilityState).toEqual({selected: true});
+
+    const unselected = getByLabelText('Bella');
+    expect(unselected.props.accessibilityState).toEqual({selected: false});
+  });
+
   it('does not toggle a companion image out of the failed state twice', () => {
     const {getByText, UNSAFE_getByType} = render(
       <CompanionSelector

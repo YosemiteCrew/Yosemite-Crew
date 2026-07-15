@@ -186,7 +186,12 @@ export const CompanionSelector = <T extends CompanionBase = CompanionBase>({
           }
 
           onSelect(companionId);
-        }}>
+        }}
+        accessibilityRole="radio"
+        accessibilityState={{selected: isSelected}}
+        accessibilityLabel={
+          badgeText ? `${companion.name}, ${badgeText}` : companion.name
+        }>
         <View
           style={[
             styles.companionItem,
