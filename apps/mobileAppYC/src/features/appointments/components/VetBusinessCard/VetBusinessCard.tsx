@@ -133,7 +133,9 @@ export const VetBusinessCard: React.FC<VetBusinessCardProps> = ({
             <PressableOpacity
               style={styles.cta}
               onPress={onPress}
-              activeOpacity={0.7}>
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={cta}>
               <Text style={styles.ctaText}>{cta}</Text>
             </PressableOpacity>
           )}

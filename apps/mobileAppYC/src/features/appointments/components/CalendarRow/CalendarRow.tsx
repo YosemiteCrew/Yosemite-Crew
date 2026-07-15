@@ -59,11 +59,17 @@ export const CalendarRow: React.FC<{
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <PressableOpacity onPress={() => shift(-7)}>
+        <PressableOpacity
+          onPress={() => shift(-7)}
+          accessibilityRole="button"
+          accessibilityLabel="Previous week">
           <Text style={styles.nav}>{'<'}</Text>
         </PressableOpacity>
         <Text style={styles.month}>{formatMonthYear(selectedDate)}</Text>
-        <PressableOpacity onPress={() => shift(7)}>
+        <PressableOpacity
+          onPress={() => shift(7)}
+          accessibilityRole="button"
+          accessibilityLabel="Next week">
           <Text style={styles.nav}>{'>'}</Text>
         </PressableOpacity>
       </View>

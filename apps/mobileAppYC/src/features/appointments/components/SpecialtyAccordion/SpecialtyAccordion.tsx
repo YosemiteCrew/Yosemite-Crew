@@ -91,7 +91,9 @@ const SpecialtyItem: React.FC<SpecialtyItemProps> = ({
       <PressableOpacity
         style={styles.specialtyHeader}
         onPress={toggleExpanded}
-        activeOpacity={0.7}>
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{expanded}}>
         <View style={styles.specialtyHeaderContent}>
           <Text style={styles.specialtyName}>{specialty.name}</Text>
           <Text style={styles.doctorCount}>

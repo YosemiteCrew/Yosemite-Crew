@@ -105,6 +105,14 @@ describe('CalendarMonthStrip', () => {
     expect(screen.getByText(formatMonthYear(nextMonth))).toBeTruthy();
   });
 
+  it('exposes button roles and labels on the month navigation arrows', () => {
+    render(<CalendarMonthStrip selectedDate={TODAY} onChange={onChange} />);
+    const prevButton = screen.getByLabelText('Previous month');
+    const nextButton = screen.getByLabelText('Next month');
+    expect(prevButton.props.accessibilityRole).toBe('button');
+    expect(nextButton.props.accessibilityRole).toBe('button');
+  });
+
   it('calls onChange when a date is pressed', () => {
     render(<CalendarMonthStrip selectedDate={TODAY} onChange={onChange} />);
     // Press a day that should be visible — day 1

@@ -419,5 +419,16 @@ describe('CalendarRow', () => {
       const unselected = getByLabelText('Tue 16');
       expect(unselected.props.accessibilityState).toEqual({selected: false});
     });
+
+    it('exposes button roles and labels on the week navigation arrows', () => {
+      const {getByLabelText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
+
+      const prevButton = getByLabelText('Previous week');
+      const nextButton = getByLabelText('Next week');
+      expect(prevButton.props.accessibilityRole).toBe('button');
+      expect(nextButton.props.accessibilityRole).toBe('button');
+    });
   });
 });

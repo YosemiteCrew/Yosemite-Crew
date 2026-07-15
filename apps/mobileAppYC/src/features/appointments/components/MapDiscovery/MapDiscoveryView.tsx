@@ -420,7 +420,9 @@ const SelectedClinicOverlay: React.FC<SelectedClinicOverlayProps> = ({
     <Pressable
       style={styles.selectedClinicDismiss}
       onPress={onDismiss}
-      hitSlop={8}>
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel="Dismiss clinic details">
       <Text style={styles.selectedClinicDismissText}>✕</Text>
     </Pressable>
     <BusinessCard

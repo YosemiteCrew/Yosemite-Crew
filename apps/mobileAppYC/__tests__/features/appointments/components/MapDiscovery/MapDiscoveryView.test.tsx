@@ -330,6 +330,12 @@ describe('MapDiscoveryView', () => {
     expect(onSelectClinic).toHaveBeenCalledWith(null);
   });
 
+  it('exposes a button role and label on the dismiss button', () => {
+    const {getByLabelText} = renderView({selectedClinicId: 'c1'});
+    const dismissButton = getByLabelText('Dismiss clinic details');
+    expect(dismissButton.props.accessibilityRole).toBe('button');
+  });
+
   it('calls onCategoryChange when filter pill pressed', () => {
     const onCategoryChange = jest.fn();
     const {getByTestId} = renderView({onCategoryChange});

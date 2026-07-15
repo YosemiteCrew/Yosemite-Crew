@@ -150,14 +150,18 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
         <PressableOpacity
           onPress={() => setCurrentMonth(getPreviousMonth(currentMonth))}
           style={styles.navButton}
-          activeOpacity={0.7}>
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Previous month">
           <Image source={Images.leftArrowIcon} style={styles.arrowIcon} />
         </PressableOpacity>
         <Text style={styles.monthTitle}>{formatMonthYear(currentMonth)}</Text>
         <PressableOpacity
           onPress={() => setCurrentMonth(getNextMonth(currentMonth))}
           style={styles.navButton}
-          activeOpacity={0.7}>
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Next month">
           <Image source={Images.rightArrowIcon} style={styles.arrowIcon} />
         </PressableOpacity>
       </View>
