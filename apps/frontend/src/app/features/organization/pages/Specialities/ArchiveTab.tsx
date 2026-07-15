@@ -64,6 +64,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
   }, [loadSpecialityCatalog, organisationId, specialityId]);
 
   const handleDeleteConfirm = async () => {
+    /* v8 ignore next -- unreachable: the Delete control lives inside the confirm modal, which is only mounted while deleteTarget is non-null */
     if (!deleteTarget) return;
     try {
       if (deleteTarget.kind === 'service') {

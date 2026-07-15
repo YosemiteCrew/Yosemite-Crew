@@ -136,6 +136,7 @@ const AppointmentPopoverComponent: React.FC<AppointmentPopoverProps> = ({
     appointment.status === 'UPCOMING' ? 'Start Appointment' : 'View Appointment';
   const openWorkspace = (intent?: AppointmentViewIntent) => {
     if (!appointment.id) return;
+    /* v8 ignore next 4 -- unreachable: both openWorkspace callers (WorkspaceQuickActions and the primary action button) are only rendered when canOpenWorkspace is true, and both read the same render's value */
     if (!canOpenWorkspace) {
       onClose();
       return;

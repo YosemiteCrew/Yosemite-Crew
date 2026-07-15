@@ -64,6 +64,7 @@ const ImageUploadField = ({ label, value, organisationId, onChange }: Props) => 
   };
 
   const handleRemove = () => {
+    /* v8 ignore next -- unreachable: the Remove button only renders while !isUploading, and preview is only non-null while isUploading is true, so preview is always null here */
     if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview);
     setPreview(null);
     setError(null);
@@ -109,7 +110,10 @@ const ImageUploadField = ({ label, value, organisationId, onChange }: Props) => 
         >
           <IoCloudUpload size={34} className="text-blue-text" aria-hidden="true" />
           <span className="mt-2 text-body-4-emphasis">
-            {isUploading ? 'Uploading…' : 'Upload image'}
+            {
+              /* v8 ignore next -- unreachable 'Uploading…' state: this placeholder only renders while displayUrl is empty, but isUploading is only true while a blob preview is set, which always makes displayUrl non-empty */
+              isUploading ? 'Uploading…' : 'Upload image'
+            }
           </span>
           <span className="text-caption-1 text-text-secondary">PNG, JPG, WebP · Max 2 MB</span>
         </button>

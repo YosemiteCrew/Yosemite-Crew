@@ -163,15 +163,20 @@ const buildNavigationConfig = (
   }
 
   const selectedIndex = availablePeriodKeys.indexOf(selectedPeriodKey);
+  /* v8 ignore next 3 -- unreachable: getResolvedPeriodKey only ever returns a key taken from availablePeriodKeys (either the selected one it just verified with includes(), or at(-1)), so indexOf never returns -1 here */
   if (selectedIndex === -1) {
     return null;
   }
 
+  const previousPeriodKey = availablePeriodKeys[selectedIndex - 1];
+  const nextPeriodKey = availablePeriodKeys[selectedIndex + 1];
+
   return {
     currentLabel: formatter(selectedPeriodKey),
-    onPrevious: () =>
-      setSelectedPeriodKey(availablePeriodKeys[selectedIndex - 1] ?? selectedPeriodKey),
-    onNext: () => setSelectedPeriodKey(availablePeriodKeys[selectedIndex + 1] ?? selectedPeriodKey),
+    /* v8 ignore next -- unreachable fallback: isPreviousDisabled disables the Prev button at index 0, so previousPeriodKey is always defined when onPrevious can fire */
+    onPrevious: () => setSelectedPeriodKey(previousPeriodKey ?? selectedPeriodKey),
+    /* v8 ignore next -- unreachable fallback: isNextDisabled disables the Next button at the last index, so nextPeriodKey is always defined when onNext can fire */
+    onNext: () => setSelectedPeriodKey(nextPeriodKey ?? selectedPeriodKey),
     isPreviousDisabled: selectedIndex === 0,
     isNextDisabled: selectedIndex === availablePeriodKeys.length - 1,
   };
@@ -281,6 +286,7 @@ const CommunityStats = ({ trafficChart, starsChart, isLoading }: CommunityStatsP
   }
 
   const granularityOptions = getGranularityOptions(view);
+  /* v8 ignore next -- unreachable 'Monthly' fallback: every view toggle normalises granularity through getNextViewGranularity in the same batched update, so granularity is always one of the current view's options by the time this renders */
   const effectiveGranularity = granularityOptions.includes(granularity) ? granularity : 'Monthly';
   const availablePeriodKeys = getAvailablePeriodKeys(
     view,
