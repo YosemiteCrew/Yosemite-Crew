@@ -8,7 +8,6 @@ overrides:
   protobufjs: 7.6.3
   '@protobufjs/utf8': 1.1.1
   qs: 6.15.2
-  tar: 7.5.16
   serialize-javascript: 7.0.5
   undici: 7.28.0
   svgo: 3.3.3
@@ -28,7 +27,6 @@ overrides:
   glob@11.0.3: 11.1.0
   jws@3.2.2: 3.2.3
   jws@4.0.0: 4.0.1
-  fast-xml-parser: 5.7.0
   minimatch@3: 3.1.4
   minimatch@5: 5.1.8
   minimatch@8: 8.0.6
@@ -46,18 +44,15 @@ overrides:
   '@aws-cdk/toolkit-lib>yaml': 1.10.2
   '@xmldom/xmldom': 0.8.13
   path-to-regexp@0.1.12: 0.1.13
-  brace-expansion@1.1.12: 1.1.13
   '@babel/plugin-transform-modules-systemjs': 7.29.4
-  fast-xml-builder: 1.1.7
+  fast-xml-builder: 1.2.1
   postcss: 8.5.14
-  nodemailer: 9.0.1
   fast-uri: 3.1.2
   uuid@11.1.0: 11.1.1
   ip-address: 10.1.1
   '@grpc/grpc-js@1.9.15': 1.9.16
   '@grpc/grpc-js@1.14.3': 1.14.4
   axios@1.15.2: 1.16.0
-  brace-expansion@5.0.4: 5.0.6
   esbuild@0.25.12: 0.28.1
   esbuild@0.27.2: 0.28.1
   esbuild@0.27.7: 0.28.1
@@ -76,7 +71,6 @@ overrides:
   protobufjs@7.5.5: 7.6.3
   qs@6.14.2: 6.15.2
   shell-quote@1.8.3: 1.8.4
-  tar@7.5.11: 7.5.16
   tmp@0.2.5: 0.2.6
   undici@7.24.0: 7.28.0
   uuid@9.0.1: 11.1.1
@@ -92,6 +86,17 @@ overrides:
   '@babel/core@7.29.0': 7.29.6
   next: 15.5.18
   sitemap@7.1.2: https://npm.aikido.io/1d09dbcde8c03de80d3f8/sitemap@7.1.2-tuxcare.2
+  '@tiptap/core@<=3.27.0': 3.27.0
+  '@jsonjoy.com/fs-snapshot@<=4.57.7': 4.57.7
+  '@tiptap/extension-link@<=3.27.0': 3.27.0
+  '@ungap/structured-clone@<=1.3.1': 1.3.1
+  brace-expansion@<2.0.0: 1.1.13
+  brace-expansion@>=5.0.0: 5.0.7
+  fast-xml-parser: 5.7.2
+  inline-style-parser@<=0.2.9: 0.2.9
+  nodemailer: 9.0.2
+  tar: 7.5.17
+  tar-fs@<=3.1.3: 3.1.3
 
 importers:
 
@@ -507,10 +512,10 @@ importers:
         version: 4.18.0
       next:
         specifier: 15.5.18
-        version: 15.5.18(@babel/core@7.29.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.61.1)(react-dom@19.2.4)(react@19.2.4)
+        version: 15.5.18(@babel/core@7.29.6)(@playwright/test@1.61.1)(react-dom@19.2.4)(react@19.2.4)
       posthog-js:
-        specifier: ^1.372.10
-        version: 1.372.10
+        specifier: ^1.391.7
+        version: 1.402.0
       react:
         specifier: ^19.1.1
         version: 19.2.4
@@ -1020,8 +1025,8 @@ importers:
         specifier: latest
         version: 0.5.17
       tar:
-        specifier: 7.5.16
-        version: 7.5.16
+        specifier: 7.5.17
+        version: 7.5.17
       tsx:
         specifier: latest
         version: 4.22.4
@@ -2678,7 +2683,7 @@ packages:
       '@smithy/md5-js': 2.0.7
       buffer: 4.9.2
       crc-32: 1.2.2
-      fast-xml-parser: 5.7.0
+      fast-xml-parser: 5.7.2
       tslib: 2.8.1
     dev: false
 
@@ -4915,7 +4920,7 @@ packages:
       '@smithy/smithy-client': 3.7.0
       '@smithy/types': 3.7.2
       '@smithy/util-middleware': 3.0.11
-      fast-xml-parser: 5.7.0
+      fast-xml-parser: 5.7.2
       tslib: 2.8.1
     dev: true
 
@@ -4932,7 +4937,7 @@ packages:
       '@smithy/smithy-client': 4.11.2
       '@smithy/types': 4.12.0
       '@smithy/util-middleware': 4.2.8
-      fast-xml-parser: 5.7.0
+      fast-xml-parser: 5.7.2
       tslib: 2.8.1
     dev: false
 
@@ -4949,7 +4954,7 @@ packages:
       '@smithy/smithy-client': 4.11.2
       '@smithy/types': 4.12.0
       '@smithy/util-middleware': 4.2.8
-      fast-xml-parser: 5.7.0
+      fast-xml-parser: 5.7.2
       tslib: 2.8.1
     dev: false
 
@@ -6403,7 +6408,7 @@ packages:
     engines: {node: '>=20.0.0'}
     dependencies:
       '@smithy/types': 4.12.0
-      fast-xml-parser: 5.7.0
+      fast-xml-parser: 5.7.2
       tslib: 2.8.1
 
   /@aws/lambda-invoke-store@0.2.3:
@@ -10816,7 +10821,7 @@ packages:
     dependencies:
       '@docusaurus/types': 3.9.2(react-dom@18.3.1)(react@18.3.1)
       '@types/history': 4.7.11
-      '@types/react': 19.2.14
+      '@types/react': 19.2.17
       '@types/react-router-config': 5.0.11
       '@types/react-router-dom': 5.3.3
       react: 18.3.1
@@ -12913,7 +12918,7 @@ packages:
       abort-controller: 3.0.0
       async-retry: 1.3.3
       duplexify: 4.1.3
-      fast-xml-parser: 5.7.0
+      fast-xml-parser: 5.7.2
       gaxios: 6.7.1
       google-auth-library: 9.15.1
       html-entities: 2.6.0
@@ -13837,7 +13842,7 @@ packages:
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
     dependencies:
-      minipass: 7.1.2
+      minipass: 7.1.3
 
   /@isaacs/ttlcache@1.4.1:
     resolution: {integrity: sha512-RQgQ4uQ+pLbqXfOmieB91ejmLwvSgv9nLx6sT6sD83s7umBypgg+OIBOBbEUiJXrfpnp9j0mRhYYdzp9uqq3lA==}
@@ -14340,6 +14345,15 @@ packages:
       tslib: 2.8.1
     dev: false
 
+  /@jsonjoy.com/fs-node-builtins@4.57.7(tslib@2.8.1):
+    resolution: {integrity: sha512-LWqfY1m+uAosjwM1RrKhMkUnP9jcq1RUczHsNO779ovm1E9v8I/pmj04eBAcoBjhC7ltcPbNFGyRJ5JqSJ7Jdg==}
+    engines: {node: '>=10.0'}
+    peerDependencies:
+      tslib: '2'
+    dependencies:
+      tslib: 2.8.1
+    dev: false
+
   /@jsonjoy.com/fs-node-to-fsa@4.56.10(tslib@2.8.1):
     resolution: {integrity: sha512-oH+O6Y4lhn9NyG6aEoFwIBNKZeYy66toP5LJcDOMBgL99BKQMUf/zWJspdRhMdn/3hbzQsZ8EHHsuekbFLGUWw==}
     engines: {node: '>=10.0'}
@@ -14362,6 +14376,16 @@ packages:
       tslib: 2.8.1
     dev: false
 
+  /@jsonjoy.com/fs-node-utils@4.57.7(tslib@2.8.1):
+    resolution: {integrity: sha512-jjWSDOsfcog2cZnUCwX5AHmlIq6b6wx5Pz/2LAcNjJ62Rajwg89Fy7ubN+lDHew0/1reLDa9Z5urybYadhh37g==}
+    engines: {node: '>=10.0'}
+    peerDependencies:
+      tslib: '2'
+    dependencies:
+      '@jsonjoy.com/fs-node-builtins': 4.57.7(tslib@2.8.1)
+      tslib: 2.8.1
+    dev: false
+
   /@jsonjoy.com/fs-node@4.56.10(tslib@2.8.1):
     resolution: {integrity: sha512-7R4Gv3tkUdW3dXfXiOkqxkElxKNVdd8BDOWC0/dbERd0pXpPY+s2s1Mino+aTvkGrFPiY+mmVxA7zhskm4Ue4Q==}
     engines: {node: '>=10.0'}
@@ -14372,7 +14396,7 @@ packages:
       '@jsonjoy.com/fs-node-builtins': 4.56.10(tslib@2.8.1)
       '@jsonjoy.com/fs-node-utils': 4.56.10(tslib@2.8.1)
       '@jsonjoy.com/fs-print': 4.56.10(tslib@2.8.1)
-      '@jsonjoy.com/fs-snapshot': 4.56.10(tslib@2.8.1)
+      '@jsonjoy.com/fs-snapshot': 4.57.7(tslib@2.8.1)
       glob-to-regex.js: 1.2.0(tslib@2.8.1)
       thingies: 2.5.0(tslib@2.8.1)
       tslib: 2.8.1
@@ -14389,14 +14413,14 @@ packages:
       tslib: 2.8.1
     dev: false
 
-  /@jsonjoy.com/fs-snapshot@4.56.10(tslib@2.8.1):
-    resolution: {integrity: sha512-DkR6l5fj7+qj0+fVKm/OOXMGfDFCGXLfyHkORH3DF8hxkpDgIHbhf/DwncBMs2igu/ST7OEkexn1gIqoU6Y+9g==}
+  /@jsonjoy.com/fs-snapshot@4.57.7(tslib@2.8.1):
+    resolution: {integrity: sha512-1GS3+plfm2giB3PqokiqyydyqYTPLcCQIKSkp0TdMNRh3KVk7rqRM6U785FLlVRG7XLmkc0KWr215OY+22K3QA==}
     engines: {node: '>=10.0'}
     peerDependencies:
       tslib: '2'
     dependencies:
       '@jsonjoy.com/buffers': 17.65.0(tslib@2.8.1)
-      '@jsonjoy.com/fs-node-utils': 4.56.10(tslib@2.8.1)
+      '@jsonjoy.com/fs-node-utils': 4.57.7(tslib@2.8.1)
       '@jsonjoy.com/json-pack': 17.65.0(tslib@2.8.1)
       '@jsonjoy.com/util': 17.65.0(tslib@2.8.1)
       tslib: 2.8.1
@@ -14514,7 +14538,7 @@ packages:
       npmlog: 5.0.1
       rimraf: 3.0.2
       semver: 7.7.3
-      tar: 7.5.16
+      tar: 7.5.17
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -14957,13 +14981,6 @@ packages:
       react-native: 0.81.4(@babel/core@7.29.7)(@react-native-community/cli@20.0.0)(@react-native/metro-config@0.81.4)(@types/react@19.2.11)(react@19.1.0)
     dev: false
 
-  /@opentelemetry/api-logs@0.208.0:
-    resolution: {integrity: sha512-CjruKY9V6NMssL/T1kAFgzosF1v9o6oeN+aX5JB/C/xPNtmgIJqcXHG7fA82Ou1zCpWGl4lROQUKwUNE1pMCyg==}
-    engines: {node: '>=8.0.0'}
-    dependencies:
-      '@opentelemetry/api': 1.9.0
-    dev: false
-
   /@opentelemetry/api@1.9.0:
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
     engines: {node: '>=8.0.0'}
@@ -14986,47 +15003,7 @@ packages:
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/semantic-conventions': 1.39.0
-
-  /@opentelemetry/exporter-logs-otlp-http@0.208.0(@opentelemetry/api@1.9.0):
-    resolution: {integrity: sha512-jOv40Bs9jy9bZVLo/i8FwUiuCvbjWDI+ZW13wimJm4LjnlwJxGgB+N/VWOZUTpM+ah/awXeQqKdNlpLf2EjvYg==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-    dependencies:
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/api-logs': 0.208.0
-      '@opentelemetry/core': 2.8.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/otlp-exporter-base': 0.208.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/otlp-transformer': 0.208.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-logs': 0.208.0(@opentelemetry/api@1.9.0)
-    dev: false
-
-  /@opentelemetry/otlp-exporter-base@0.208.0(@opentelemetry/api@1.9.0):
-    resolution: {integrity: sha512-gMd39gIfVb2OgxldxUtOwGJYSH8P1kVFFlJLuut32L6KgUC4gl1dMhn+YC2mGn0bDOiQYSk/uHOdSjuKp58vvA==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-    dependencies:
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/core': 2.8.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/otlp-transformer': 0.208.0(@opentelemetry/api@1.9.0)
-    dev: false
-
-  /@opentelemetry/otlp-transformer@0.208.0(@opentelemetry/api@1.9.0):
-    resolution: {integrity: sha512-DCFPY8C6lAQHUNkzcNT9R+qYExvsk6C5Bto2pbNxgicpcSWbe2WHShLxkOxIdNcBiYPdVHv/e7vH7K6TI+C+fQ==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': ^1.3.0
-    dependencies:
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/api-logs': 0.208.0
-      '@opentelemetry/core': 2.8.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 2.8.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-logs': 0.208.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-metrics': 2.8.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 2.8.0(@opentelemetry/api@1.9.0)
-      protobufjs: 7.6.3
-    dev: false
+    dev: true
 
   /@opentelemetry/resources@2.8.0(@opentelemetry/api@1.9.0):
     resolution: {integrity: sha512-qmXQ27ilDbUK/vGMqwL8D4/rhn76C+sherM4wTbjlfknR8Nvfc/hCxjRJPhkzZzUsPiNg16SA31NxMabwttRjg==}
@@ -15037,29 +15014,7 @@ packages:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 2.8.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/semantic-conventions': 1.39.0
-
-  /@opentelemetry/sdk-logs@0.208.0(@opentelemetry/api@1.9.0):
-    resolution: {integrity: sha512-QlAyL1jRpOeaqx7/leG1vJMp84g0xKP6gJmfELBpnI4O/9xPX+Hu5m1POk9Kl+veNkyth5t19hRlN6tNY1sjbA==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.4.0 <1.10.0'
-    dependencies:
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/api-logs': 0.208.0
-      '@opentelemetry/core': 2.8.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 2.8.0(@opentelemetry/api@1.9.0)
-    dev: false
-
-  /@opentelemetry/sdk-metrics@2.8.0(@opentelemetry/api@1.9.0):
-    resolution: {integrity: sha512-UDBGaj6W0Rgy5rTTaoxs8gVGF/aGkAKyjurJv7se6wjRxJu7FoquTLT/vt54DZfo4crbprYfhX/SOK9+BPw1qg==}
-    engines: {node: ^18.19.0 || >=20.6.0}
-    peerDependencies:
-      '@opentelemetry/api': '>=1.9.0 <1.10.0'
-    dependencies:
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/core': 2.8.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 2.8.0(@opentelemetry/api@1.9.0)
-    dev: false
+    dev: true
 
   /@opentelemetry/sdk-trace-base@2.8.0(@opentelemetry/api@1.9.0):
     resolution: {integrity: sha512-mhU4jp+vW0mGbFRd+GeXHvmfA4aDqWjBjLC3pE5XMpLs0IE2ryYb019Ts2AQrOq67gaTF25D91+fgvEHDZEnuQ==}
@@ -15071,10 +15026,12 @@ packages:
       '@opentelemetry/core': 2.8.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/resources': 2.8.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/semantic-conventions': 1.39.0
+    dev: true
 
   /@opentelemetry/semantic-conventions@1.39.0:
     resolution: {integrity: sha512-R5R9tb2AXs2IRLNKLBJDynhkfmx7mX0vi8NkhZb3gUkPWHn6HXk5J8iQ/dql0U3ApfWym4kXXmBDRGO+oeOfjg==}
     engines: {node: '>=14'}
+    dev: true
 
   /@oxc-parser/binding-android-arm-eabi@0.132.0:
     resolution: {integrity: sha512-KrLaPWa5c9Y7LkW+rKkaUE3y7DBDrQtaf7rlsSDfv6KAHUjgzAIRA761Lrrp6//Yd/Rlie/yEOt9YENCoJnOcw==}
@@ -15921,8 +15878,18 @@ packages:
       '@posthog/types': 1.372.10
     dev: false
 
+  /@posthog/core@1.41.1:
+    resolution: {integrity: sha512-lKjPdeawDSvRhHnP14RwTSI5CofuyluhG3ISHRa+Kj6PyfSrEUyIkoVOpYWicFGgWikeaJCZzFQpo7ngHt9BcA==}
+    dependencies:
+      '@posthog/types': 1.395.0
+    dev: false
+
   /@posthog/types@1.372.10:
     resolution: {integrity: sha512-KuT3vLu3LSFsNWCwasS4gqjH/ysAyIUcB/aJSmKyNhDd/85hAznHRz1eSSl0sMvtsDTYiQIq0I0ybduVbrpPew==}
+    dev: false
+
+  /@posthog/types@1.395.0:
+    resolution: {integrity: sha512-Ty0gbVc6d9ku9H3caF54PmEfu4PHUGpJKTriMyDb4rjCTsEYOOjD4r6Fw/UMYSSWg8Ls3KnCtTow8LL6ciqNDg==}
     dev: false
 
   /@prisma/client@5.22.0(prisma@5.22.0):
@@ -15977,14 +15944,17 @@ packages:
 
   /@protobufjs/codegen@2.0.5:
     resolution: {integrity: sha512-zgXFLzW3Ap33e6d0Wlj4MGIm6Ce8O89n/apUaGNB/jx+hw+ruWEp7EwGUshdLKVRCxZW12fp9r40E1mQrf/34g==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/eventemitter@1.1.1:
     resolution: {integrity: sha512-vW1GmwMZNnL+gMRaovlh9yZX74kc+TTU3FObkkurpMaRtBfLP3ldjS9KQWlwZgraRE0+dheEEoAxdzcJQ8eXZg==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/fetch@1.1.1:
     resolution: {integrity: sha512-GpptLrs57adMSuHi3VNj0mAF8dwh36LMaYF6XyJ6JMWlVsc+t42tm1HSEDmOs3A8fC9yyeisgLhsTVQokOZ0zw==}
+    requiresBuild: true
     dependencies:
       '@protobufjs/aspromise': 1.1.2
     dev: false
@@ -15996,6 +15966,7 @@ packages:
 
   /@protobufjs/inquire@1.1.2:
     resolution: {integrity: sha512-pa0vFRuws4wkvaXKK1uXZMAwAX4/t8ANaJo45iw/oQHNQ9q5xUzwgFmVJGXiga2BeN+zpX7Vf9vmsiIa2J+MUw==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/path@1.1.2:
@@ -16010,6 +15981,7 @@ packages:
 
   /@protobufjs/utf8@1.1.1:
     resolution: {integrity: sha512-oOAWABowe8EAbMyWKM0tYDKi8Yaox52D+HWZhAIJqQXbqe0xI/GV7FhLWqlEKreMkfDjshR5FKgi3mnle0h6Eg==}
+    requiresBuild: true
     dev: false
 
   /@react-aria/focus@3.21.4(react-dom@19.2.4)(react@19.2.4):
@@ -16108,7 +16080,7 @@ packages:
       '@react-native-community/cli-tools': 18.0.1
       chalk: 4.1.2
       fast-glob: 3.3.3
-      fast-xml-parser: 5.7.0
+      fast-xml-parser: 5.7.2
     dev: false
 
   /@react-native-community/cli-config-android@20.0.0:
@@ -16117,7 +16089,7 @@ packages:
       '@react-native-community/cli-tools': 20.0.0
       chalk: 4.1.2
       fast-glob: 3.3.3
-      fast-xml-parser: 5.7.0
+      fast-xml-parser: 5.7.2
 
   /@react-native-community/cli-config-apple@18.0.1:
     resolution: {integrity: sha512-ybr1ZrOSd/Z+oCJ1qVSKVQauvneObTu3VjvYPhhrme7tUUSaYmd3iikaWonbKk5rVp+2WqOFR6Cy7XqVfwwG8A==}
@@ -16185,7 +16157,7 @@ packages:
       '@react-native-community/cli-tools': 20.0.0
       chalk: 4.1.2
       execa: 5.1.1
-      fast-xml-parser: 5.7.0
+      fast-xml-parser: 5.7.2
 
   /@react-native-community/cli-platform-ios@20.0.0:
     resolution: {integrity: sha512-Z35M+4gUJgtS4WqgpKU9/XYur70nmj3Q65c9USyTq6v/7YJ4VmBkmhC9BticPs6wuQ9Jcv0NyVCY0Wmh6kMMYw==}
@@ -18259,7 +18231,7 @@ packages:
       '@storybook/builder-vite': 9.1.20(storybook@9.1.20)(vite@7.3.5)
       '@storybook/react': 9.1.20(react-dom@19.2.4)(react@19.2.4)(storybook@9.1.20)(typescript@5.9.3)
       '@storybook/react-vite': 9.1.20(react-dom@19.2.4)(react@19.2.4)(storybook@9.1.20)(typescript@5.9.3)(vite@7.3.5)
-      next: 15.5.18(@babel/core@7.29.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.61.1)(react-dom@19.2.4)(react@19.2.4)
+      next: 15.5.18(@babel/core@7.29.6)(@playwright/test@1.61.1)(react-dom@19.2.4)(react@19.2.4)
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
       storybook: 9.1.20(@testing-library/dom@10.4.1)(prettier@3.9.5)(vite@7.3.5)
@@ -19120,7 +19092,7 @@ packages:
   /@tiptap/extension-underline@3.24.0(@tiptap/core@3.27.4):
     resolution: {integrity: sha512-D4W4X3UMq9dLVIOfPB9+UodQ4eAJ8yDcm8qFWAwq0a15YWH6bnwulCuIdV+U5dEG+yaRxN8haB9GrrID9jmrSA==}
     peerDependencies:
-      '@tiptap/core': 3.24.0
+      '@tiptap/core': 3.27.0
     dependencies:
       '@tiptap/core': 3.27.4(@tiptap/pm@3.27.4)
     dev: false
@@ -19164,7 +19136,7 @@ packages:
   /@tiptap/react@3.24.0(@floating-ui/dom@1.8.0)(@tiptap/core@3.27.4)(@tiptap/pm@3.27.4)(@types/react-dom@19.2.3)(@types/react@19.2.11)(react-dom@19.2.4)(react@19.2.4):
     resolution: {integrity: sha512-KxnrlQbzOgA02EMsfuGGHtNhfkJQGqVlQttmQctI9DOl/F3gcaRqg+wNTBY1Fof8yDaZ8Z1LL1F0C05W0o3vUw==}
     peerDependencies:
-      '@tiptap/core': 3.24.0
+      '@tiptap/core': 3.27.0
       '@tiptap/pm': 3.24.0
       '@types/react': ^17.0.0 || ^18.0.0 || ^19.0.0
       '@types/react-dom': ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -19796,7 +19768,7 @@ packages:
     resolution: {integrity: sha512-WmSAg7WgqW7m4x8Mt4N6ZyKz0BubSj/2tVUMsAHp+Yd2AMwcSbeFq9WympT19p5heCFmF97R9eD5uUR/t4HEqw==}
     dependencies:
       '@types/history': 4.7.11
-      '@types/react': 19.2.14
+      '@types/react': 19.2.17
       '@types/react-router': 5.1.20
     dev: false
 
@@ -19830,6 +19802,7 @@ packages:
     resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
     dependencies:
       csstype: 3.2.3
+    dev: true
 
   /@types/react@19.2.17:
     resolution: {integrity: sha512-MXfmqaVPEVgkBT/aY0aGCkRWWtByiYQXo3xdQ8r5RzuFrPiRn8Gar2tQdXSUQ2GKV3bkXckek89V8wQBY2Q/Aw==}
@@ -20609,8 +20582,8 @@ packages:
       - supports-color
     dev: true
 
-  /@ungap/structured-clone@1.3.0:
-    resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+  /@ungap/structured-clone@1.3.1:
+    resolution: {integrity: sha512-mUFwbeTqrVgDQxFveS+df2yfap6iuP20NAKAsBt5jDEoOTDew+zwLAOilHCeQJOVSvmgCX4ogqIrA0mnyr08yQ==}
 
   /@unrs/resolver-binding-android-arm-eabi@1.11.1:
     resolution: {integrity: sha512-ppLRUgHVaGRWUx0R0Ut06Mjo9gBaBkg3v/8AxusGLhsIotbBLuRk51rAzqLC8gq6NyyAojEXglNjzf6R948DNw==}
@@ -21346,7 +21319,7 @@ packages:
       proper-lockfile: 4.1.2
       resedit: 1.7.2
       semver: 7.7.4
-      tar: 7.5.16
+      tar: 7.5.17
       temp-file: 3.4.0
       tiny-async-pool: 1.3.0
       unzipper: 0.12.3
@@ -22395,8 +22368,8 @@ packages:
     dependencies:
       balanced-match: 1.0.2
 
-  /brace-expansion@5.0.6:
-    resolution: {integrity: sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==}
+  /brace-expansion@5.0.7:
+    resolution: {integrity: sha512-7oFy703dxfY3/NLxC1fh2SUCQ0H9rmAY+5EpDVfXjUTTs+HEwR2nYaqLv+GWcTsumwxPfiz6CzCNkwXwBUwqCA==}
     engines: {node: 18 || 20 || >=22}
     dependencies:
       balanced-match: 4.0.4
@@ -22958,10 +22931,6 @@ packages:
       readdirp: 3.6.0
     optionalDependencies:
       fsevents: 2.3.3
-
-  /chownr@1.1.4:
-    resolution: {integrity: sha512-jJ0bqzaylmJtVnNgzTeSOs8DPavpbYgEr/b0YL8/2GO3xJEhInFmhKMUnEJQjZumK7KXGFhUy89PrsJWlakBVg==}
-    dev: false
 
   /chownr@3.0.0:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
@@ -23577,6 +23546,11 @@ packages:
   /core-js@3.48.0:
     resolution: {integrity: sha512-zpEHTy1fjTMZCKLHUZoVeylt9XrzaIN2rbPXEt0k+q7JE5CkCZdo6bNq55bn24a69CH7ErAVLKijxJja4fw+UQ==}
     requiresBuild: true
+
+  /core-js@3.49.0:
+    resolution: {integrity: sha512-es1U2+YTtzpwkxVLwAFdSpaIMyQaq0PBgm3YD1W3Qpsn1NAmO3KSgZfu+oGSWVu6NvLHoHCV/aYcsE5wiB7ALg==}
+    requiresBuild: true
+    dev: false
 
   /core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
@@ -25666,7 +25640,7 @@ packages:
       '@humanwhocodes/config-array': 0.13.0
       '@humanwhocodes/module-importer': 1.0.1
       '@nodelib/fs.walk': 1.2.8
-      '@ungap/structured-clone': 1.3.0
+      '@ungap/structured-clone': 1.3.1
       ajv: 6.14.0
       chalk: 4.1.2
       cross-spawn: 7.0.6
@@ -26242,17 +26216,18 @@ packages:
   /fast-uri@3.1.2:
     resolution: {integrity: sha512-rVjf7ArG3LTk+FS6Yw81V1DLuZl1bRbNrev6Tmd/9RaroeeRRJhAt7jg/6YFxbvAQXUCavSoZhPPj6oOx+5KjQ==}
 
-  /fast-xml-builder@1.1.7:
-    resolution: {integrity: sha512-Yh7/7rQuMXICNr0oMYDR2yHP6oUvmQsTToFeOWj/kIDhAwQ+c4Ol/lbcwOmEM5OHYQmh6S6EQSQ1sljCKP36bQ==}
+  /fast-xml-builder@1.2.1:
+    resolution: {integrity: sha512-tPb5TTWfgfVx5BNSi2xV0eLr89POeXXn0dXIsCJ9m1narrWxeIyx6je9d7Rce/3NyXLbvuQmLkxq+RuxMWejvw==}
     dependencies:
       path-expression-matcher: 1.5.0
+      xml-naming: 0.1.0
 
-  /fast-xml-parser@5.7.0:
-    resolution: {integrity: sha512-MTcrUoRQ1GSQ9iG3QJzBGquYYYeA7piZaJoIWbPFGbRn6Jj6z7xgoAyi4DrZX4y2ZIQQBF59gc/zmvvejjgoFQ==}
+  /fast-xml-parser@5.7.2:
+    resolution: {integrity: sha512-P7oW7tLbYnhOLQk/Gv7cZgzgMPP/XN03K02/Jy6Y/NHzyIAIpxuZIM/YqAkfiXFPxA2CTm7NtCijK9EDu09u2w==}
     hasBin: true
     dependencies:
       '@nodable/entities': 2.1.0
-      fast-xml-builder: 1.1.7
+      fast-xml-builder: 1.2.1
       path-expression-matcher: 1.5.0
       strnum: 2.2.3
 
@@ -26747,10 +26722,6 @@ packages:
     engines: {node: '>= 0.8'}
     dev: true
 
-  /fs-constants@1.0.0:
-    resolution: {integrity: sha512-y6OAwoSIf7FyjMIv94u+b5rdheZEjzR63GTyZJm5qh4Bi+2YgwLCcI/fPFZkL5PSixOt6ZNKm+w+Hfp/Bciwow==}
-    dev: false
-
   /fs-extra@10.1.0:
     resolution: {integrity: sha512-oRXApq54ETRj4eMiFzGnHWGy+zo5raudjuxN0b8H7s/RU2oW0Wvsx9O0ACRN/kRq9E8Vu/ReskGB5o3ji+FzHQ==}
     engines: {node: '>=12'}
@@ -27082,7 +27053,7 @@ packages:
       foreground-child: 3.3.1
       jackspeak: 3.4.3
       minimatch: 9.0.7
-      minipass: 7.1.2
+      minipass: 7.1.3
       package-json-from-dist: 1.0.1
       path-scurry: 1.11.1
 
@@ -27095,7 +27066,7 @@ packages:
       foreground-child: 3.3.1
       jackspeak: 4.1.1
       minimatch: 10.2.3
-      minipass: 7.1.2
+      minipass: 7.1.3
       package-json-from-dist: 1.0.1
       path-scurry: 2.0.1
     dev: true
@@ -27554,7 +27525,7 @@ packages:
     dependencies:
       '@types/hast': 3.0.4
       '@types/unist': 3.0.3
-      '@ungap/structured-clone': 1.3.0
+      '@ungap/structured-clone': 1.3.1
       hast-util-from-parse5: 8.0.3
       hast-util-to-parse5: 8.0.1
       html-void-elements: 3.0.0
@@ -28173,8 +28144,8 @@ packages:
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
     dev: true
 
-  /inline-style-parser@0.2.7:
-    resolution: {integrity: sha512-Nb2ctOyNR8DqQoR0OwRG95uNWIC0C1lCgf5Naz5H6Ji72KZ8OcFZLz2P5sNgwlyoJ8Yif11oMuYs5pBQa86csA==}
+  /inline-style-parser@0.2.9:
+    resolution: {integrity: sha512-IttN8BqKLxzUrnTqHI+/hwAJQItBAUjdoHERCDv+oOuX48VP6bzW8+QjOXSfoevzq3YrYAwX1uLHp8TqO9yIeg==}
     dev: false
 
   /internal-slot@1.1.0:
@@ -30837,7 +30808,7 @@ packages:
     dependencies:
       '@types/hast': 3.0.4
       '@types/mdast': 4.0.4
-      '@ungap/structured-clone': 1.3.0
+      '@ungap/structured-clone': 1.3.1
       devlop: 1.1.0
       micromark-util-sanitize-uri: 2.0.1
       trim-lines: 3.0.1
@@ -30899,7 +30870,7 @@ packages:
       '@jsonjoy.com/fs-node-to-fsa': 4.56.10(tslib@2.8.1)
       '@jsonjoy.com/fs-node-utils': 4.56.10(tslib@2.8.1)
       '@jsonjoy.com/fs-print': 4.56.10(tslib@2.8.1)
-      '@jsonjoy.com/fs-snapshot': 4.56.10(tslib@2.8.1)
+      '@jsonjoy.com/fs-snapshot': 4.57.7(tslib@2.8.1)
       '@jsonjoy.com/json-pack': 1.21.0(tslib@2.8.1)
       '@jsonjoy.com/util': 1.9.0(tslib@2.8.1)
       glob-to-regex.js: 1.2.0(tslib@2.8.1)
@@ -31637,7 +31608,7 @@ packages:
     resolution: {integrity: sha512-Rwi3pnapEqirPSbWbrZaa6N3nmqq4Xer/2XooiOKyV3q12ML06f7MOuc5DVH8ONZIFhwIYQ3yzPH4nt7iWHaTg==}
     engines: {node: 18 || 20 || >=22}
     dependencies:
-      brace-expansion: 5.0.6
+      brace-expansion: 5.0.7
 
   /minimatch@3.1.4:
     resolution: {integrity: sha512-twmL+S8+7yIsE9wsqgzU3E8/LumN3M3QELrBZ20OdmQ9jB2JvW5oZtBEmft84k/Gs5CG9mqtWc6Y9vW+JEzGxw==}
@@ -31661,7 +31632,7 @@ packages:
     resolution: {integrity: sha512-MOwgjc8tfrpn5QQEvjijjmDVtMw2oL88ugTevzxQnzRLm6l3fVEF2gzU0kYeYYKD8C66+IdGX6peJ4MyUlUnPg==}
     engines: {node: '>=16 || 14 >=14.17'}
     dependencies:
-      brace-expansion: 5.0.6
+      brace-expansion: 5.0.7
 
   /minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
@@ -31722,20 +31693,15 @@ packages:
     engines: {node: '>=8'}
     dev: true
 
-  /minipass@7.1.2:
-    resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
-    engines: {node: '>=16 || 14 >=14.17'}
-
   /minipass@7.1.3:
     resolution: {integrity: sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A==}
     engines: {node: '>=16 || 14 >=14.17'}
-    dev: false
 
   /minizlib@3.1.0:
     resolution: {integrity: sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==}
     engines: {node: '>= 18'}
     dependencies:
-      minipass: 7.1.2
+      minipass: 7.1.3
 
   /mitt@3.0.1:
     resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
@@ -32086,7 +32052,7 @@ packages:
     resolution: {integrity: sha512-CXdUiJembsNjuToQvxayPZF9Vqht7hewsvy2sOWafLvi2awflj9mOC6bHIg50orX8IJvWKY9wYQ/zB2kogPslQ==}
     dev: false
 
-  /next@15.5.18(@babel/core@7.29.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.61.1)(react-dom@19.2.4)(react@19.2.4):
+  /next@15.5.18(@babel/core@7.29.6)(@playwright/test@1.61.1)(react-dom@19.2.4)(react@19.2.4):
     resolution: {integrity: sha512-eKL8zUJkX9Y5lE+RX/2YJoItVdGlIscyVyboeD9wSpp0PaGqjoA4tTpT2qPqz9ax+5IzGESyLSeZ/RCwbSZ2uQ==}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
     hasBin: true
@@ -32108,7 +32074,6 @@ packages:
         optional: true
     dependencies:
       '@next/env': 15.5.18
-      '@opentelemetry/api': 1.9.0
       '@playwright/test': 1.61.1
       '@swc/helpers': 0.5.15
       caniuse-lite: 1.0.30001792
@@ -32234,7 +32199,7 @@ packages:
       nopt: 9.0.0
       proc-log: 6.1.0
       semver: 7.7.4
-      tar: 7.5.16
+      tar: 7.5.17
       tinyglobby: 0.2.16
       undici: 7.28.0
       which: 6.0.1
@@ -32274,8 +32239,8 @@ packages:
     resolution: {integrity: sha512-LN4fydt9TqhZhThkZIVQnF9cwjU3qmUH9h78Mx/K7d3VvfRqqwthLwJEUOEL0QPZ0XQmNN7be5Ggit5+4dq3Bw==}
     engines: {node: '>=0.12.0'}
 
-  /nodemailer@9.0.1:
-    resolution: {integrity: sha512-Gwv8SQewT616ZM/URn0H54b8PWo/Wum7md3EW2aWy1lO27+WZCX+Xyak3J+NlmHUjDh5ME+uesJUDRbR3Ye8Bw==}
+  /nodemailer@9.0.2:
+    resolution: {integrity: sha512-Rnve6ToHDjq8GKDB+AYAXgGTSL9XLn3UBCLpJ0eV19an4LZLQdUp+i9SD8wenURjarIBNG11b/biucIgkxEeAg==}
     engines: {node: '>=6.0.0'}
     dev: false
 
@@ -32986,14 +32951,14 @@ packages:
     engines: {node: '>=16 || 14 >=14.18'}
     dependencies:
       lru-cache: 10.4.3
-      minipass: 7.1.2
+      minipass: 7.1.3
 
   /path-scurry@2.0.1:
     resolution: {integrity: sha512-oWyT4gICAu+kaA7QWk/jvCHWarMKNs6pXOGWKDTr7cw4IGcUbW+PeTfbaQiLGheFRpjo6O9J0PmyMfQPjH71oA==}
     engines: {node: 20 || >=22}
     dependencies:
       lru-cache: 11.2.5
-      minipass: 7.1.2
+      minipass: 7.1.3
     dev: true
 
   /path-scurry@2.0.2:
@@ -34020,22 +33985,19 @@ packages:
       xtend: 4.0.2
     dev: true
 
-  /posthog-js@1.372.10:
-    resolution: {integrity: sha512-ZQslIenDM8UpwKhmeeEnJ+t2nXr8mOIjCG+Ej3DCJnTBk9NX9Sr5RMuwHeGG8UJitwvtGOADyiY7DignOXaZwg==}
+  /posthog-js@1.402.0:
+    resolution: {integrity: sha512-HVgg9DmRLdiZP9nQHXcmDgCZmjbTr9s7Ttf23r5lcPWOxV/3PEhItJdRCYYZVGefvL+AYLpudGHu7rGWByT/xg==}
     dependencies:
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/api-logs': 0.208.0
-      '@opentelemetry/exporter-logs-otlp-http': 0.208.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 2.8.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-logs': 0.208.0(@opentelemetry/api@1.9.0)
-      '@posthog/core': 1.28.4
-      '@posthog/types': 1.372.10
-      core-js: 3.48.0
+      '@posthog/core': 1.41.1
+      '@posthog/types': 1.395.0
+      core-js: 3.49.0
       dompurify: 3.4.11
       fflate: 0.4.8
-      preact: 10.29.1
+      preact: 10.29.7
       query-selector-shadow-dom: 1.0.1
-      web-vitals: 5.2.0
+      web-vitals: 5.3.0
+    transitivePeerDependencies:
+      - preact-render-to-string
     dev: false
 
   /posthog-react-native@4.44.4(@react-native-async-storage/async-storage@2.2.0)(@react-navigation/native@7.1.28)(react-native-device-info@14.1.1)(react-native-localize@3.6.1)(react-native-safe-area-context@5.6.2)(react-native-svg@15.15.2):
@@ -34099,8 +34061,13 @@ packages:
     dev: true
     optional: true
 
-  /preact@10.29.1:
-    resolution: {integrity: sha512-gQCLc/vWroE8lIpleXtdJhTFDogTdZG9AjMUpVkDf2iTCNwYNWA+u16dL41TqUDJO4gm2IgrcMv3uTpjd4Pwmg==}
+  /preact@10.29.7:
+    resolution: {integrity: sha512-DCHYrK/B10yUD3ZjLfhZ3WIE/9Vf9VFUODcRE2dRomTYDpJk6z6L9wecSfhfE6M9ZTHUdyQkoC46arIDhEV84Q==}
+    peerDependencies:
+      preact-render-to-string: '>=5'
+    peerDependenciesMeta:
+      preact-render-to-string:
+        optional: true
     dev: false
 
   /prebuild-install@7.1.3:
@@ -34118,8 +34085,12 @@ packages:
       pump: 3.0.3
       rc: 1.2.8
       simple-get: 4.0.1
-      tar-fs: 2.1.4
+      tar-fs: 3.1.3
       tunnel-agent: 0.6.0
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - react-native-b4a
     dev: false
 
   /prelude-ls@1.2.1:
@@ -36638,7 +36609,7 @@ packages:
       prebuild-install: 7.1.3
       semver: 7.7.4
       simple-get: 4.0.1
-      tar-fs: 3.1.1
+      tar-fs: 3.1.3
       tunnel-agent: 0.6.0
     transitivePeerDependencies:
       - bare-abort-controller
@@ -37171,7 +37142,7 @@ packages:
     dependencies:
       '@gorhom/bottom-sheet': 5.1.8(@types/react@19.2.11)(react-native-gesture-handler@2.30.0)(react-native-reanimated@4.2.1)(react-native@0.81.4)(react@19.1.0)
       '@react-native-community/netinfo': 11.5.2(react-native@0.81.4)(react@19.1.0)
-      '@ungap/structured-clone': 1.3.0
+      '@ungap/structured-clone': 1.3.1
       dayjs: 1.11.13
       emoji-regex: 10.6.0
       i18next: 25.8.1(typescript@5.9.3)
@@ -37644,7 +37615,7 @@ packages:
   /style-to-object@1.0.14:
     resolution: {integrity: sha512-LIN7rULI0jBscWQYaSswptyderlarFkjQ+t79nzty8tcIAceVomEVlLzH5VP4Cmsv6MtKhs7qaAiwlcp+Mgaxw==}
     dependencies:
-      inline-style-parser: 0.2.7
+      inline-style-parser: 0.2.9
     dev: false
 
   /styled-jsx@5.1.6(@babel/core@7.29.6)(react@19.2.4):
@@ -37698,7 +37669,7 @@ packages:
       debug: 4.4.3(supports-color@5.5.0)
       jose: 4.15.9
       libphonenumber-js: 1.13.8
-      nodemailer: 9.0.1
+      nodemailer: 9.0.2
       pako: 2.1.0
       pkce-challenge: 3.1.0
       process: 0.11.10
@@ -37810,17 +37781,8 @@ packages:
     engines: {node: '>=6'}
     dev: false
 
-  /tar-fs@2.1.4:
-    resolution: {integrity: sha512-mDAjwmZdh7LTT6pNleZ05Yt65HC3E+NiQzl672vQG38jIrehtJk/J3mNwIg+vShQPcLF/LV7CMnDW6vjj6sfYQ==}
-    dependencies:
-      chownr: 1.1.4
-      mkdirp-classic: 0.5.3
-      pump: 3.0.3
-      tar-stream: 2.2.0
-    dev: false
-
-  /tar-fs@3.1.1:
-    resolution: {integrity: sha512-LZA0oaPOc2fVo82Txf3gw+AkEd38szODlptMYejQUhndHMLQ9M059uXR+AfS7DNo0NpINvSqDsvyaCrBVkptWg==}
+  /tar-fs@3.1.3:
+    resolution: {integrity: sha512-/hU4AXnIdZu+Gvl1pk0oI5f5HxWsCJRtY2aFaJdk9VvyL48DWU6iU5WAIPG+wIi1YvWA6eTJvIviP/tMAZZNwQ==}
     dependencies:
       pump: 3.0.3
       tar-stream: 3.1.7
@@ -37833,17 +37795,6 @@ packages:
       - react-native-b4a
     dev: false
 
-  /tar-stream@2.2.0:
-    resolution: {integrity: sha512-ujeqbceABgwMZxEJnk2HDY2DlnUZ+9oEcb1KzTVfYHio0UE6dG71n60d8D2I4qNvleWrrXpmjpt7vZeF1LnMZQ==}
-    engines: {node: '>=6'}
-    dependencies:
-      bl: 4.1.0
-      end-of-stream: 1.4.5
-      fs-constants: 1.0.0
-      inherits: 2.0.4
-      readable-stream: 3.6.2
-    dev: false
-
   /tar-stream@3.1.7:
     resolution: {integrity: sha512-qJj60CXt7IU1Ffyc3NJMjh6EkuCFej46zUqJ4J7pqYlThyd9bO0XBTmcOIhSzZJVWfsLks0+nle/j538YAW9RQ==}
     dependencies:
@@ -37854,13 +37805,13 @@ packages:
       - bare-abort-controller
       - react-native-b4a
 
-  /tar@7.5.16:
-    resolution: {integrity: sha512-56adEpPMouktRlBLXiaYFFzZ/3+JXa8P9n7WbR+ibIjtviN55mEaOkiysCnPnWm+7kkui1Dn8J9l+g6zV8731w==}
+  /tar@7.5.17:
+    resolution: {integrity: sha512-wPEBwzapC+2PaTYPH6e2L+cNOEE227S47wUYFqlegcs8zlLLmeb9Fcff1HVZY4Fwku/1Eyv38n7GYwB2aaS71g==}
     engines: {node: '>=18'}
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
-      minipass: 7.1.2
+      minipass: 7.1.3
       minizlib: 3.1.0
       yallist: 5.0.0
 
@@ -39344,7 +39295,7 @@ packages:
       image-size: 2.0.2
       magic-string: 0.30.21
       module-alias: 2.3.4
-      next: 15.5.18(@babel/core@7.29.6)(@opentelemetry/api@1.9.0)(@playwright/test@1.61.1)(react-dom@19.2.4)(react@19.2.4)
+      next: 15.5.18(@babel/core@7.29.6)(@playwright/test@1.61.1)(react-dom@19.2.4)(react@19.2.4)
       storybook: 9.1.20(@testing-library/dom@10.4.1)(prettier@3.9.5)(vite@7.3.5)
       ts-dedent: 2.2.0
       vite: 7.3.5(@types/node@20.19.31)
@@ -39488,8 +39439,8 @@ packages:
     resolution: {integrity: sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw==}
     dev: false
 
-  /web-vitals@5.2.0:
-    resolution: {integrity: sha512-i2z98bEmaCqSDiHEDu+gHl/dmR4Q+TxFmG3/13KkMO+o8UxQzCqWaDRCiLgEa41nlO4VpXSI0ASa1xWmO9sBlA==}
+  /web-vitals@5.3.0:
+    resolution: {integrity: sha512-q6LWsLatGYZp5VGBIOvbTj6JBV2nOmC8KvWztXBmwJcfFAzhwKwbOxhUH306XY3CcaZDUlSmSuNPBsCn0bFu+g==}
     dev: false
 
   /webcrypto-core@1.9.2:
@@ -40075,6 +40026,10 @@ packages:
     resolution: {integrity: sha512-EvGK8EJ3DhaHfbRlETOWAS5pO9MZITeauHKJyb8wyajUfQUenkIg2MvLDTZ4T/TgIcm3HU0TFBgWWboAZ30UHg==}
     engines: {node: '>=18'}
     dev: true
+
+  /xml-naming@0.1.0:
+    resolution: {integrity: sha512-k8KO9hrMyNk6tUWqUfkTEZbezRRpONVOzUTnc97VnCvyj6Tf9lyUR9EDAIeiVLv56jsMcoXEwjW8Kv5yPY52lw==}
+    engines: {node: '>=16.0.0'}
 
   /xml-parser-xo@4.1.5:
     resolution: {integrity: sha512-TxyRxk9sTOUg3glxSIY6f0nfuqRll2OEF8TspLgh5mZkLuBgheCn3zClcDSGJ58TvNmiwyCCuat4UajPud/5Og==}
