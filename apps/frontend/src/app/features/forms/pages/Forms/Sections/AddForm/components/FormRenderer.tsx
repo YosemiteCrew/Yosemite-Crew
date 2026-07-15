@@ -51,6 +51,7 @@ const runtimeComponentMap: Record<FormFieldType, React.ComponentType<RuntimeRend
 };
 
 const getInteractiveTarget = (target: EventTarget | null): HTMLElement | null => {
+  /* v8 ignore next -- event targets in this rendered tree are always HTMLElements (div/span/input); the non-HTMLElement guard is defensive and unreachable */
   if (!(target instanceof HTMLElement)) return null;
   const closest = target.closest(
     "input, textarea, select, button, a, [tabindex], [contenteditable='true']"

@@ -106,12 +106,14 @@ preloadDynamic(AppointmentBoard);
 
 const revampEnabled = isAppointmentRevampEnabled();
 
-const normalizeLeadId = (value?: string | null) =>
-  String(value ?? '')
+const normalizeLeadId = (value?: string | null): string => {
+  const lastSegment = String(value ?? '')
     .trim()
     .split('/')
-    .pop()
-    ?.toLowerCase() ?? '';
+    .pop();
+  /* v8 ignore next -- String().split('/') always yields a non-empty array, so pop() is never undefined */
+  return lastSegment?.toLowerCase() ?? '';
+};
 
 const getNextSelectedAppointment = (
   current: Appointment | null,

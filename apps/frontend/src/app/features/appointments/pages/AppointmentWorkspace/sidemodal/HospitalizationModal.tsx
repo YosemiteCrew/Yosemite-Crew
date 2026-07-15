@@ -197,6 +197,9 @@ const HospitalizationModal = ({
   };
 
   const handleConvert = async () => {
+    // Re-entrancy guard: the Convert button is disabled while isConverting, so this
+    // early return cannot be reached through the UI.
+    /* v8 ignore next -- unreachable via UI: the convert button is disabled while converting */
     if (isConverting) return;
     setHasSubmitted(true);
     if (hasValidationErrors) return;

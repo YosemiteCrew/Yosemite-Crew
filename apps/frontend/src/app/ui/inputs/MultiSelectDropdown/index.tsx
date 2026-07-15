@@ -34,6 +34,7 @@ const usePortalPositioning = (
   const [portalStyle, setPortalStyle] = React.useState<React.CSSProperties | null>(null);
 
   const computeStyle = useCallback(() => {
+    /* v8 ignore next 2 -- dropdownRef is always mounted while the dropdown is open (computeStyle only runs behind an `open` guard), so getBoundingClientRect never returns undefined */
     const rect = dropdownRef.current?.getBoundingClientRect();
     if (!rect) return;
     const spaceBelow = globalThis.window.innerHeight - rect.bottom;

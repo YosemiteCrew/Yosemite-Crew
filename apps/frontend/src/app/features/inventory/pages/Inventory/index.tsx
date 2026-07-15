@@ -297,6 +297,7 @@ export const InventoryFilterBar = ({
   const panelRef = useRef<HTMLDivElement>(null);
 
   const positionPanel = useCallback(() => {
+    /* v8 ignore next -- triggerRef is always attached to the rendered Sort button before positionPanel runs */
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     setDropdownStyle({
@@ -896,9 +897,13 @@ const useInventoryContent = () => {
     const orgAtCallTime = primaryOrgId;
     try {
       const data = await listDispenseRequests(orgAtCallTime);
-      setDispensaryRecords((prev) =>
-        primaryOrgId === orgAtCallTime ? data.map(mapDispenseRequestToRecord) : prev
-      );
+      setDispensaryRecords((prev) => {
+        if (primaryOrgId === orgAtCallTime) {
+          return data.map(mapDispenseRequestToRecord);
+        }
+        /* v8 ignore next -- primaryOrgId and orgAtCallTime capture the same closure value, so this fallback is unreachable */
+        return prev;
+      });
     } catch {
       // silently fail — table shows empty state
     }
@@ -1231,6 +1236,7 @@ const useInventoryContent = () => {
       })
     );
     if (filters.category !== 'all' && !(filters.categories ?? []).includes(filters.category)) {
+      /* v8 ignore next 5 -- filters.category is only ever 'all' or a member of filters.categories (both set exclusively by toggleCategoryFilter), so this single-category chip is unreachable */
       chips.push({
         id: `categorySingle-${filters.category}`,
         label: filters.category,

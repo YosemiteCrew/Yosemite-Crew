@@ -45,6 +45,12 @@ jest.mock('next/dynamic', () => ({
   default: (loader: () => Promise<unknown>, options?: { loading?: React.FC }) => {
     options?.loading?.({});
     const source = loader.toString();
+    // Execute the real InventoryInfo loader once so its `import().then(module =>
+    // ({ default: module.InventoryInfo }))` mapper is exercised for coverage. The
+    // underlying module is mocked, so this resolves synchronously to the stub.
+    if (source.includes('module.InventoryInfo')) {
+      void loader().catch(() => {});
+    }
     const LoadableComponent = (props: Record<string, unknown>) => {
       if (source.includes('ui/tables/InventoryTable')) {
         const MockInventoryTable = (
@@ -194,7 +200,28 @@ jest.mock('@/app/ui/filters/InventoryFilters', () => ({
 
 jest.mock('@/app/ui/filters/InventoryTurnoverFilters', () => ({
   __esModule: true,
-  default: () => <div data-testid="turnover-filters" />,
+  default: ({ setFilters }: any) => (
+    <div data-testid="turnover-filters">
+      <button
+        data-testid="tf-cat-food"
+        onClick={() => setFilters((prev: any) => ({ ...prev, category: 'Food' }))}
+      >
+        cat food
+      </button>
+      <button
+        data-testid="tf-cat-ghost"
+        onClick={() => setFilters((prev: any) => ({ ...prev, category: 'Ghost' }))}
+      >
+        cat ghost
+      </button>
+      <button
+        data-testid="tf-status-high"
+        onClick={() => setFilters((prev: any) => ({ ...prev, status: 'HIGH' }))}
+      >
+        status high
+      </button>
+    </div>
+  ),
 }));
 
 jest.mock('@/app/ui/tables/DispensaryTable', () => ({
@@ -270,7 +297,9 @@ jest.mock('@/app/ui/tables/InventoryTable', () => ({
 
 jest.mock('@/app/ui/tables/InventoryTurnoverTable', () => ({
   __esModule: true,
-  default: () => <div data-testid="turnover-table" />,
+  default: ({ filteredList }: any) => (
+    <div data-testid="turnover-table" data-count={filteredList?.length ?? 0} />
+  ),
 }));
 
 // Mock Modals (Updated to handle async errors in onClick to prevent Unhandled Promise Rejections)
@@ -1384,6 +1413,45 @@ describe('Inventory Page', () => {
     expect(screen.getByTestId('turnover-filters')).toBeInTheDocument();
   });
 
+  it('filters the turnover list by category and status, resetting unknown categories', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: mockInventory,
+      turnover: [
+        { id: 't1', name: 'Food Rotation', category: 'Food', status: 'high' },
+        { id: 't2', name: 'Med Rotation', category: 'Medicine', status: 'low' },
+      ],
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+
+    const count = () => screen.getByTestId('turnover-table').getAttribute('data-count');
+
+    // Default (category 'all', status 'ALL') → both rows pass.
+    expect(count()).toBe('2');
+
+    // Category 'Food' is a known option → only the Food row matches.
+    fireEvent.click(screen.getByTestId('tf-cat-food'));
+    expect(count()).toBe('1');
+
+    // Category 'Ghost' is not among the derived options → effective category resets
+    // to 'all', so both rows pass again.
+    fireEvent.click(screen.getByTestId('tf-cat-ghost'));
+    expect(count()).toBe('2');
+
+    // Status 'HIGH' → only the high-status row matches.
+    fireEvent.click(screen.getByTestId('tf-status-high'));
+    expect(count()).toBe('1');
+  });
+
   it('selects an item and opens info modal when clicked', () => {
     render(<ProtectedInventory />);
     fireEvent.click(screen.getByTestId('item-1'));
@@ -1478,6 +1546,28 @@ describe('Inventory Page', () => {
     });
 
     consoleSpy.mockRestore();
+  });
+
+  it('throws (without calling the service) when creating inventory with no organisation', async () => {
+    const { rerender } = render(<ProtectedInventory />);
+
+    // Open the add modal while an org is selected.
+    fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
+    expect(screen.getByTestId('add-modal')).toBeInTheDocument();
+
+    // Org is cleared while the modal stays open — submitting now hits the guard.
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
+      selector({ primaryOrgId: null, orgsById: {} })
+    );
+    rerender(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByTestId('submit-add'));
+
+    await waitFor(() => {
+      expect(mockCreateItem).not.toHaveBeenCalled();
+    });
+    // The guard throws before any saving/error state is set, so the modal remains open.
+    expect(screen.getByTestId('add-modal')).toBeInTheDocument();
   });
 
   it('handles update item success', async () => {

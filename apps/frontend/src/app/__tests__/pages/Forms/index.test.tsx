@@ -9,6 +9,17 @@ expect.extend(toHaveNoViolations);
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useOrgStore } from '@/app/stores/orgStore';
 
+// Controllable mocks (prefixed with `mock` so jest hoisting permits references).
+const mockCan = jest.fn(() => true);
+const mockSearchQuery = { value: '' };
+const mockSearchParamsGet = jest.fn((_key: string): string | null => null);
+
+jest.mock('next/navigation', () => ({
+  useSearchParams: () => ({ get: mockSearchParamsGet }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
+  usePathname: () => '/',
+}));
+
 jest.mock('next/dynamic', () => ({
   __esModule: true,
   default: (loader: () => Promise<unknown>) => {
@@ -49,7 +60,7 @@ jest.mock('@/app/stores/revampCatalogStore');
 jest.mock('@/app/stores/orgStore');
 jest.mock('@/app/hooks/usePermissions', () => ({
   usePermissions: () => ({
-    can: () => true,
+    can: mockCan,
     canAll: () => true,
     canAny: () => true,
     permissions: [],
@@ -65,7 +76,8 @@ jest.mock('@/app/ui/overlays/Fallback', () => ({
   default: () => <div data-testid="fallback">No permission</div>,
 }));
 jest.mock('@/app/stores/searchStore', () => ({
-  useSearchStore: () => '',
+  useSearchStore: (selector: (s: { query: string }) => unknown) =>
+    selector({ query: mockSearchQuery.value }),
 }));
 
 // 2. Mock Guards
@@ -215,6 +227,9 @@ describe('Forms Page', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCan.mockReturnValue(true);
+    mockSearchQuery.value = '';
+    mockSearchParamsGet.mockReturnValue(null);
 
     // Default Hook Returns
     const catalogState = {
@@ -464,5 +479,216 @@ describe('Forms Page', () => {
       { label: 'Vaccination', value: 'srv-3', badge: 'Service', isInpatient: false },
       { label: 'Wellness Package', value: 'pkg-1', badge: 'Package', isInpatient: false },
     ]);
+  });
+
+  // --- Section 5: Org-scoped catalog loading & edge cases ---
+
+  it('skips catalog loading and yields no org specialities when primaryOrgId is missing', () => {
+    const loadOrganisationCatalog = jest.fn().mockResolvedValue(undefined);
+    const loadSpecialityCatalog = jest.fn().mockResolvedValue(undefined);
+    (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({
+        specialities: mockSpecialities,
+        services: [],
+        packages: [],
+        loadOrganisationCatalog,
+        loadSpecialityCatalog,
+      })
+    );
+    (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({ primaryOrgId: null })
+    );
+
+    render(<ProtectedForms />);
+
+    // Both org-gated effects bail out early (line: `if (!primaryOrgId) return`).
+    expect(loadOrganisationCatalog).not.toHaveBeenCalled();
+    expect(loadSpecialityCatalog).not.toHaveBeenCalled();
+
+    // orgSpecialities resolves to [] (the ternary's false branch) and the empty
+    // catalog yields no service options.
+    fireEvent.click(screen.getByTestId('btn-add'));
+    const serviceOptions = JSON.parse(screen.getByTestId('service-options').textContent ?? '[]');
+    expect(serviceOptions).toEqual([]);
+  });
+
+  it('drops form ids that are missing from the store map when building the list', () => {
+    (useFormsStore as unknown as jest.Mock).mockReturnValue({
+      formsById: { 'form-1': { _id: 'form-1', name: 'Form One' } },
+      formIds: ['form-1', 'ghost-form'], // ghost-form has no entry in formsById
+      activeFormId: 'form-1',
+      setActiveForm: mockSetActiveForm,
+      loading: false,
+    });
+
+    render(<ProtectedForms />);
+
+    // Only the resolvable form contributes to the count.
+    expect(screen.getByRole('heading', { level: 1, name: /Templates \(1\)/ })).toBeInTheDocument();
+  });
+
+  it('filters the list by the header search query (name and category matches)', () => {
+    (useFormsStore as unknown as jest.Mock).mockReturnValue({
+      formsById: {
+        'form-1': { _id: 'form-1', name: 'Vaccination Consent', category: 'Medical' },
+        'form-2': { _id: 'form-2', name: 'Intake', category: 'Onboarding' },
+      },
+      formIds: ['form-1', 'form-2'],
+      activeFormId: 'form-1',
+      setActiveForm: mockSetActiveForm,
+      loading: false,
+    });
+
+    // Query matches form-1 by name only.
+    mockSearchQuery.value = 'vaccination';
+    const { unmount } = render(<ProtectedForms />);
+    expect(screen.getByTestId('forms-table')).toBeInTheDocument();
+    unmount();
+
+    // Query matches form-2 by category only.
+    mockSearchQuery.value = 'onboarding';
+    render(<ProtectedForms />);
+    expect(screen.getByTestId('forms-table')).toBeInTheDocument();
+  });
+
+  it('builds catalog options across missing names, blank ids, inactive rows, and unknown specialities', () => {
+    (useRevampCatalogStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+      selector({
+        specialities: [
+          { id: 'spec-1', name: 'General Practice', organisationId: ORG_ID },
+          { id: null, name: 'Nameless Speciality', organisationId: ORG_ID }, // id ?? '' branch
+        ],
+        services: [
+          {
+            id: 'srv-a',
+            name: 'Duplicate Service',
+            specialityId: 'spec-1',
+            organisationId: ORG_ID,
+            status: 'ACTIVE',
+            isInpatientPreferred: true,
+          },
+          {
+            id: 'srv-b',
+            name: 'Duplicate Service',
+            specialityId: 'spec-unknown', // not in speciality map -> 'Unknown Speciality'
+            organisationId: ORG_ID,
+            status: 'ACTIVE',
+          },
+          {
+            id: 'srv-c',
+            name: undefined, // name ?? '' branch, then skipped by !item.name guard
+            specialityId: 'spec-1',
+            organisationId: ORG_ID,
+            status: 'ACTIVE',
+          },
+          {
+            id: '', // blank id skipped by !item.id guard
+            name: 'Has No Id',
+            specialityId: 'spec-1',
+            organisationId: ORG_ID,
+            status: 'ACTIVE',
+          },
+          {
+            id: 'srv-d',
+            name: 'Inactive Service',
+            specialityId: 'spec-1',
+            organisationId: ORG_ID,
+            status: 'INACTIVE', // status !== ACTIVE branch
+          },
+        ],
+        packages: [
+          {
+            id: 'pkg-a',
+            name: undefined, // package name ?? '' branch, then skipped
+            specialityId: 'spec-1',
+            organisationId: ORG_ID,
+            status: 'ACTIVE',
+          },
+          {
+            id: 'pkg-b',
+            name: 'Inactive Package',
+            specialityId: 'spec-1',
+            organisationId: ORG_ID,
+            status: 'INACTIVE',
+          },
+        ],
+        loadOrganisationCatalog: jest.fn().mockResolvedValue(undefined),
+        loadSpecialityCatalog: jest.fn().mockResolvedValue(undefined),
+      })
+    );
+
+    render(<ProtectedForms />);
+    fireEvent.click(screen.getByTestId('btn-add'));
+
+    const serviceOptions = JSON.parse(screen.getByTestId('service-options').textContent ?? '[]');
+    expect(serviceOptions).toEqual([
+      {
+        label: 'General Practice / Duplicate Service',
+        value: 'srv-a',
+        badge: 'Service',
+        isInpatient: true,
+      },
+      {
+        label: 'Unknown Speciality / Duplicate Service',
+        value: 'srv-b',
+        badge: 'Service',
+        isInpatient: false,
+      },
+    ]);
+  });
+
+  it('does not re-run the initial fetch once it has already fired', () => {
+    const { rerender } = render(<ProtectedForms />);
+    expect(loadForms).not.toHaveBeenCalled();
+
+    // Force the [list.length] effect to re-run; the fetchedRef guard should short-circuit it.
+    (useFormsStore as unknown as jest.Mock).mockReturnValue({
+      formsById: {
+        'form-1': { _id: 'form-1', name: 'Form One' },
+        'form-2': { _id: 'form-2', name: 'Form Two' },
+        'form-3': { _id: 'form-3', name: 'Form Three' },
+      },
+      formIds: ['form-1', 'form-2', 'form-3'],
+      activeFormId: 'form-1',
+      setActiveForm: mockSetActiveForm,
+      loading: false,
+    });
+    rerender(<ProtectedForms />);
+
+    expect(loadForms).not.toHaveBeenCalled();
+  });
+
+  it('opens the info modal for a valid deep-linked formId and ignores repeat handling', () => {
+    mockSearchParamsGet.mockReturnValue('form-1');
+
+    const { rerender } = render(<ProtectedForms />);
+
+    // Deep link resolves -> active form set + view popup opened.
+    expect(mockSetActiveForm).toHaveBeenCalledWith('form-1');
+    expect(screen.getByTestId('form-info-modal')).toBeInTheDocument();
+
+    mockSetActiveForm.mockClear();
+    // Re-render re-runs the effect; handledDeepLinkRef guard short-circuits it.
+    rerender(<ProtectedForms />);
+    expect(mockSetActiveForm).not.toHaveBeenCalled();
+  });
+
+  it('ignores a deep-linked formId that is not present in the list', () => {
+    mockSearchParamsGet.mockReturnValue('missing-form');
+
+    render(<ProtectedForms />);
+
+    // Target not found -> effect returns before opening the view popup.
+    expect(screen.queryByTestId('form-info-modal')).not.toBeInTheDocument();
+  });
+
+  it('hides the Add action when the user cannot edit forms', () => {
+    mockCan.mockReturnValue(false);
+
+    render(<ProtectedForms />);
+
+    // categoryAction resolves to null, so the Add button is not rendered.
+    expect(screen.queryByTestId('btn-add')).not.toBeInTheDocument();
+    expect(screen.getByTestId('forms-filters')).toBeInTheDocument();
   });
 });
