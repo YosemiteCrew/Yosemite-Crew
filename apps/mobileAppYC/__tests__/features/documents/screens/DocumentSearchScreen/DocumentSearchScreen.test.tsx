@@ -305,6 +305,36 @@ describe('DocumentSearchScreen', () => {
     });
   });
 
+  it('shows a visible, accessible edit button for editable documents (not just long-press)', () => {
+    setupStore([
+      makeDoc({
+        id: 'd1',
+        title: 'Vaccination record',
+        isUserAdded: true,
+        uploadedByPmsUserId: null,
+      }),
+    ]);
+    const {getByTestId} = render(<DocumentSearchScreen />);
+
+    const editButton = getByTestId('doc-item-edit-d1');
+    expect(editButton.props.accessibilityRole).toBe('button');
+    expect(editButton.props.accessibilityLabel).toBe('Edit Vaccination record');
+
+    fireEvent.press(editButton);
+    expect(mockNavigate).toHaveBeenCalledWith('EditDocument', {
+      documentId: 'd1',
+    });
+  });
+
+  it('omits the visible edit button for PMS-synced documents', () => {
+    setupStore([
+      makeDoc({id: 'd1', isUserAdded: false, uploadedByPmsUserId: 'pms-1'}),
+    ]);
+    const {queryByTestId} = render(<DocumentSearchScreen />);
+
+    expect(queryByTestId('doc-item-edit-d1')).toBeNull();
+  });
+
   it('re-searches when the companion changes while a query exists', () => {
     setupStore();
     const {getByTestId, update} = render(<DocumentSearchScreen />);

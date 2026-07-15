@@ -272,40 +272,55 @@ export const DocumentSearchScreen: React.FC = () => {
               <Text style={styles.resultsCount}>{resultsCountLabel}</Text>
               <View style={styles.resultsContainer}>
                 {searchResults.map(doc => (
-                  <PressableOpacity
-                    key={doc.id}
-                    style={styles.resultRow}
-                    activeOpacity={0.85}
-                    onPress={() => handleViewDocument(doc.id)}
-                    onLongPress={
-                      canEditDocument(doc)
-                        ? () => handleEditDocument(doc.id)
-                        : undefined
-                    }
-                    accessibilityRole="button"
-                    accessibilityLabel={doc.title}
-                    testID={`doc-item-${doc.id}`}>
-                    <View style={styles.resultIconTile}>
-                      <Ionicons
-                        name="document-text-outline"
-                        size={20}
-                        color={theme.colors.blueText}
-                      />
-                    </View>
-                    <View style={styles.resultTextBlock}>
-                      <Text style={styles.resultTitle} numberOfLines={1}>
-                        {renderHighlightedTitle(doc.title)}
-                      </Text>
-                      <Text style={styles.resultMeta} numberOfLines={1}>
-                        {buildMetaLine(doc)}
-                      </Text>
-                    </View>
+                  <View key={doc.id} style={styles.resultRow}>
+                    <PressableOpacity
+                      style={styles.resultRowContent}
+                      activeOpacity={0.85}
+                      onPress={() => handleViewDocument(doc.id)}
+                      onLongPress={
+                        canEditDocument(doc)
+                          ? () => handleEditDocument(doc.id)
+                          : undefined
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={doc.title}
+                      testID={`doc-item-${doc.id}`}>
+                      <View style={styles.resultIconTile}>
+                        <Ionicons
+                          name="document-text-outline"
+                          size={20}
+                          color={theme.colors.blueText}
+                        />
+                      </View>
+                      <View style={styles.resultTextBlock}>
+                        <Text style={styles.resultTitle} numberOfLines={1}>
+                          {renderHighlightedTitle(doc.title)}
+                        </Text>
+                        <Text style={styles.resultMeta} numberOfLines={1}>
+                          {buildMetaLine(doc)}
+                        </Text>
+                      </View>
+                    </PressableOpacity>
+                    {canEditDocument(doc) && (
+                      <PressableOpacity
+                        style={styles.resultEditButton}
+                        onPress={() => handleEditDocument(doc.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Edit ${doc.title}`}
+                        testID={`doc-item-edit-${doc.id}`}>
+                        <Ionicons
+                          name="create-outline"
+                          size={18}
+                          color={theme.colors.blueText}
+                        />
+                      </PressableOpacity>
+                    )}
                     <Ionicons
                       name="chevron-forward"
                       size={15}
                       color={theme.colors.inkFaint2}
                     />
-                  </PressableOpacity>
+                  </View>
                 ))}
               </View>
             </>
@@ -404,6 +419,15 @@ const createStyles = (theme: any) => {
       borderColor: theme.colors.hairline,
       borderRadius: theme.borderRadius.cardSmall,
       ...theme.shadows.card,
+    },
+    resultRowContent: {
+      flex: 1,
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      gap: theme.spacing['3'],
+    },
+    resultEditButton: {
+      padding: theme.spacing['2'],
     },
     resultIconTile: {
       width: 42,
