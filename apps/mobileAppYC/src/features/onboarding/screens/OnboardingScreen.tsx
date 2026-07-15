@@ -6,6 +6,7 @@ import {
   useWindowDimensions,
   FlatList,
   Image,
+  ScrollView,
   ViewToken,
   type ListRenderItem,
 } from 'react-native';
@@ -196,67 +197,77 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
 
           {/* Content */}
           <View style={styles.content}>
-            <View style={styles.contentTop}>
-              {index === 0 ? (
-                <View style={styles.cluster}>
-                  {CLUSTER.map(avatar => (
+            <ScrollView
+              testID="onboarding-content-scroll"
+              style={styles.contentScroll}
+              contentContainerStyle={styles.contentScrollInner}
+              showsVerticalScrollIndicator={false}
+              bounces={false}>
+              <View style={styles.contentTop}>
+                {index === 0 ? (
+                  <View style={styles.cluster}>
+                    {CLUSTER.map(avatar => (
+                      <View
+                        key={avatar.key}
+                        style={[styles.avatar, styles[avatar.variant]]}>
+                        <Image
+                          source={avatar.source}
+                          style={styles.avatarImg}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+
+                <View style={styles.headline}>
+                  <Text style={styles.lead}>{item.lead}</Text>
+                  <InkAnnotation
+                    color={theme.colors.pink}
+                    type="circle"
+                    italic
+                    delay={item.accentDelay}
+                    active={isActive}
+                    textStyle={accentTextStyle}>
+                    {item.accent}
+                  </InkAnnotation>
+                </View>
+
+                <Text style={styles.subtitle}>{item.subtitle}</Text>
+
+                <View style={styles.dots}>
+                  {SLIDES.map((slide, dotIndex) => (
                     <View
-                      key={avatar.key}
-                      style={[styles.avatar, styles[avatar.variant]]}>
-                      <Image source={avatar.source} style={styles.avatarImg} />
-                    </View>
+                      key={slide.id}
+                      style={[
+                        styles.dot,
+                        dotIndex === currentIndex
+                          ? styles.dotActive
+                          : styles.dotIdle,
+                      ]}
+                    />
                   ))}
                 </View>
-              ) : null}
-
-              <View style={styles.headline}>
-                <Text style={styles.lead}>{item.lead}</Text>
-                <InkAnnotation
-                  color={theme.colors.pink}
-                  type="circle"
-                  italic
-                  delay={item.accentDelay}
-                  active={isActive}
-                  textStyle={accentTextStyle}>
-                  {item.accent}
-                </InkAnnotation>
               </View>
 
-              <Text style={styles.subtitle}>{item.subtitle}</Text>
+              <View style={styles.contentBottom}>
+                <PressableOpacity
+                  style={styles.ctaButton}
+                  onPress={() => goNext(index)}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.cta}>
+                  <Text style={styles.ctaText}>{item.cta}</Text>
+                </PressableOpacity>
 
-              <View style={styles.dots}>
-                {SLIDES.map((slide, dotIndex) => (
-                  <View
-                    key={slide.id}
-                    style={[
-                      styles.dot,
-                      dotIndex === currentIndex
-                        ? styles.dotActive
-                        : styles.dotIdle,
-                    ]}
-                  />
-                ))}
+                <View style={styles.signInRow}>
+                  <Text style={styles.signInMuted}>
+                    Already have an account?{' '}
+                  </Text>
+                  <Text style={styles.signInLink} onPress={onComplete}>
+                    Sign in
+                  </Text>
+                </View>
               </View>
-            </View>
-
-            <View style={styles.contentBottom}>
-              <PressableOpacity
-                style={styles.ctaButton}
-                onPress={() => goNext(index)}
-                accessibilityRole="button"
-                accessibilityLabel={item.cta}>
-                <Text style={styles.ctaText}>{item.cta}</Text>
-              </PressableOpacity>
-
-              <View style={styles.signInRow}>
-                <Text style={styles.signInMuted}>
-                  Already have an account?{' '}
-                </Text>
-                <Text style={styles.signInLink} onPress={onComplete}>
-                  Sign in
-                </Text>
-              </View>
-            </View>
+            </ScrollView>
           </View>
         </View>
       );
@@ -355,6 +366,12 @@ const createStyles = (theme: Theme) =>
       right: 0,
       bottom: 0,
       top: '52%',
+    },
+    contentScroll: {
+      flex: 1,
+    },
+    contentScrollInner: {
+      flexGrow: 1,
       paddingHorizontal: theme.spacing['6'],
       paddingBottom: theme.spacing['8'],
       justifyContent: 'space-between',

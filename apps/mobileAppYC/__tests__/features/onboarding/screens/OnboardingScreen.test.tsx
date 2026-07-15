@@ -2,7 +2,7 @@ import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, screen, act} from '@testing-library/react-native';
 import {OnboardingScreen} from '../../../../src/features/onboarding/screens/OnboardingScreen';
-import {AccessibilityInfo, FlatList} from 'react-native';
+import {AccessibilityInfo, FlatList, StyleSheet} from 'react-native';
 
 // --- Mocks ---
 
@@ -107,6 +107,20 @@ describe('OnboardingScreen', () => {
     });
 
     expect(screen.getByText('Every companion has a story.')).toBeTruthy();
+  });
+
+  it('wraps the copy block in a scrollable container so it never clips on small screens or large text', () => {
+    render(<OnboardingScreen onComplete={jest.fn()} />);
+
+    const [scrollView] = screen.getAllByTestId('onboarding-content-scroll');
+    const contentStyle = StyleSheet.flatten(
+      scrollView.props.contentContainerStyle,
+    );
+
+    // flexGrow (not a fixed height) lets the box grow past the screen and
+    // scroll instead of forcing content into a rigid, clip-prone box.
+    expect(contentStyle.flexGrow).toBe(1);
+    expect(scrollView.props.showsVerticalScrollIndicator).toBe(false);
   });
 
   it('extracts keys via keyExtractor', () => {
