@@ -263,6 +263,30 @@ describe('CalendarMonthStrip', () => {
     expect((globalThis as any).__calendarStripScrollCalls).toBe(0);
   });
 
+  it('exposes the selected state to screen readers via accessibilityState', () => {
+    render(<CalendarMonthStrip selectedDate={TODAY} onChange={onChange} />);
+
+    // Day 15 is the selected date (TODAY).
+    const selected = screen.getByLabelText(/\b15$/);
+    expect(selected.props.accessibilityRole).toBe('radio');
+    expect(selected.props.accessibilityState).toEqual({selected: true});
+
+    const unselected = screen.getByLabelText(/\b16$/);
+    expect(unselected.props.accessibilityState).toEqual({selected: false});
+  });
+
+  it('mentions markers in the accessibility label when a date has one', () => {
+    render(
+      <CalendarMonthStrip
+        selectedDate={TODAY}
+        onChange={onChange}
+        datesWithMarkers={['2025-06-16']}
+      />,
+    );
+
+    expect(screen.getByLabelText(/16, has appointments$/)).toBeTruthy();
+  });
+
   it('applies the today style to the cell matching the real current date', () => {
     // Rendering with the real current date makes one cell isToday=true, driving
     // the `item.isToday && styles.dateItemToday` branch in renderDateItem.

@@ -219,7 +219,10 @@ const SelectionList: React.FC<{
               isSelected && styles.optionRowSelected,
             ]}
             onPress={() => onSelect(option.id)}
-            activeOpacity={0.8}>
+            activeOpacity={0.8}
+            accessibilityRole="radio"
+            accessibilityState={{selected: isSelected}}
+            accessibilityLabel={option.label}>
             <Text
               style={
                 isSelected ? styles.optionTextSelected : styles.optionText

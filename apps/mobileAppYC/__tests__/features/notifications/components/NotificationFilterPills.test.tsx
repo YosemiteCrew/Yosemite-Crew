@@ -65,6 +65,29 @@ describe('NotificationFilterPills', () => {
     );
   });
 
+  describe('Accessibility', () => {
+    it('exposes the selected state and a plain label when there is no unread count', () => {
+      render(
+        <NotificationFilterPills {...defaultProps} selectedFilter="tasks" />,
+      );
+
+      const selected = screen.getByLabelText('Tasks');
+      expect(selected.props.accessibilityRole).toBe('radio');
+      expect(selected.props.accessibilityState).toEqual({selected: true});
+
+      const unselected = screen.getByLabelText('All');
+      expect(unselected.props.accessibilityState).toEqual({selected: false});
+    });
+
+    it('includes the unread count in the accessibility label', () => {
+      render(
+        <NotificationFilterPills {...defaultProps} unreadCounts={{tasks: 5}} />,
+      );
+
+      expect(screen.getByLabelText('Tasks, 5 unread')).toBeTruthy();
+    });
+  });
+
   describe('Badge Logic (Branch Coverage)', () => {
     it('renders numbers > 9 as "9+"', () => {
       render(

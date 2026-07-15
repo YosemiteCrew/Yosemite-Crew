@@ -113,7 +113,14 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
           item.isToday && styles.dateItemToday,
           !item.isCurrentMonth && styles.dateItemDisabled,
         ]}
-        onPress={() => onChange(item.date)}>
+        onPress={() => onChange(item.date)}
+        accessibilityRole="radio"
+        accessibilityState={{selected: item.isSelected}}
+        accessibilityLabel={
+          showMarker
+            ? `${item.dayName} ${item.dayNumber}, has appointments`
+            : `${item.dayName} ${item.dayNumber}`
+        }>
         <Text
           style={[styles.dateDay, item.isSelected && styles.dateDaySelected]}>
           {item.dayName}

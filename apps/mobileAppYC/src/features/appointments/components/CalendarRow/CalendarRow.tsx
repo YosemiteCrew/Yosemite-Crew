@@ -22,7 +22,10 @@ const CalendarDay = React.memo(({item, onChange, styles}: CalendarDayProps) => (
       item.isSelected && styles.dayActive,
       item.isToday && styles.dayToday,
     ]}
-    onPress={() => onChange(item.date)}>
+    onPress={() => onChange(item.date)}
+    accessibilityRole="radio"
+    accessibilityState={{selected: item.isSelected}}
+    accessibilityLabel={`${item.dayName} ${item.dayNumber}`}>
     <Text style={[styles.dayText, item.isSelected && styles.dayTextActive]}>
       {item.dayName}
     </Text>

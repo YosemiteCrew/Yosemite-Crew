@@ -61,7 +61,10 @@ export function FilterPills<T>({
               }}
               style={[styles.pill, isActive && styles.pillActive]}
               activeOpacity={0.8}
-              onPress={() => onSelect(option.id)}>
+              onPress={() => onSelect(option.id)}
+              accessibilityRole="radio"
+              accessibilityState={{selected: isActive}}
+              accessibilityLabel={option.label}>
               <Text
                 style={[styles.pillText, isActive && styles.pillTextActive]}>
                 {option.label}

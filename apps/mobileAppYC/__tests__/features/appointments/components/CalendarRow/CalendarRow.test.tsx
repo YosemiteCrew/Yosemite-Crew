@@ -78,20 +78,26 @@ describe('CalendarRow', () => {
 
   describe('rendering', () => {
     it('should render without crashing', () => {
-      const {getByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       expect(getByText('January 2024')).toBeDefined();
     });
 
     it('should display month and year from formatMonthYear', () => {
-      const {getByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       expect(dateHelpers.formatMonthYear).toHaveBeenCalledWith(baseDate);
       expect(getByText('January 2024')).toBeDefined();
     });
 
     it('should render navigation arrows', () => {
-      const {getByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       const leftArrows = getByText('<');
       const rightArrows = getByText('>');
@@ -101,7 +107,9 @@ describe('CalendarRow', () => {
     });
 
     it('should render all week dates', () => {
-      const {getByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       mockWeekDates.forEach(dateInfo => {
         expect(getByText(dateInfo.dayName)).toBeDefined();
@@ -118,7 +126,9 @@ describe('CalendarRow', () => {
 
   describe('date selection', () => {
     it('should call onChange when a date is clicked', () => {
-      const {getByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       const tuesdayElement = getByText('Tue');
       fireEvent.press(tuesdayElement);
@@ -127,7 +137,9 @@ describe('CalendarRow', () => {
     });
 
     it('should call onChange with correct date for each day', () => {
-      const {getByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       mockWeekDates.forEach(dateInfo => {
         mockOnChange.mockClear();
@@ -139,7 +151,9 @@ describe('CalendarRow', () => {
     });
 
     it('should allow selecting already selected date', () => {
-      const {getByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       const mondayElement = getByText('Mon'); // Already selected
       fireEvent.press(mondayElement);
@@ -150,7 +164,9 @@ describe('CalendarRow', () => {
 
   describe('week navigation', () => {
     it('should shift backward by 7 days when clicking left arrow', () => {
-      const {getByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       const leftArrow = getByText('<');
       fireEvent.press(leftArrow);
@@ -161,7 +177,9 @@ describe('CalendarRow', () => {
     });
 
     it('should shift forward by 7 days when clicking right arrow', () => {
-      const {getByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       const rightArrow = getByText('>');
       fireEvent.press(rightArrow);
@@ -231,7 +249,9 @@ describe('CalendarRow', () => {
     });
 
     it('should allow multiple navigation clicks', () => {
-      const {getByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       const rightArrow = getByText('>');
 
@@ -257,7 +277,9 @@ describe('CalendarRow', () => {
 
   describe('memoization', () => {
     it('should recompute weekDates when selectedDate changes', () => {
-      const {rerender} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {rerender} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       expect(dateHelpers.getWeekDates).toHaveBeenCalledWith(baseDate);
 
@@ -270,7 +292,9 @@ describe('CalendarRow', () => {
     });
 
     it('should not recompute weekDates when unrelated props change', () => {
-      const {rerender} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {rerender} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       (dateHelpers.getWeekDates as jest.Mock).mockClear();
 
@@ -282,10 +306,14 @@ describe('CalendarRow', () => {
     });
 
     it('should recompute formatMonthYear when selectedDate changes', () => {
-      const {rerender} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {rerender} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       const newDate = new Date('2024-02-15T12:00:00Z');
-      (dateHelpers.formatMonthYear as jest.Mock).mockReturnValue('February 2024');
+      (dateHelpers.formatMonthYear as jest.Mock).mockReturnValue(
+        'February 2024',
+      );
 
       rerender(<CalendarRow selectedDate={newDate} onChange={mockOnChange} />);
 
@@ -298,7 +326,9 @@ describe('CalendarRow', () => {
     it('should handle empty week dates array', () => {
       (dateHelpers.getWeekDates as jest.Mock).mockReturnValue([]);
 
-      const {queryByText} = render(<CalendarRow selectedDate={baseDate} onChange={mockOnChange} />);
+      const {queryByText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
 
       expect(queryByText('Mon')).toBeNull();
       expect(queryByText('15')).toBeNull();
@@ -306,7 +336,9 @@ describe('CalendarRow', () => {
 
     it('should handle dates in different timezones', () => {
       const utcDate = new Date('2024-01-15T00:00:00Z');
-      const {getByText} = render(<CalendarRow selectedDate={utcDate} onChange={mockOnChange} />);
+      const {getByText} = render(
+        <CalendarRow selectedDate={utcDate} onChange={mockOnChange} />,
+      );
 
       const rightArrow = getByText('>');
       fireEvent.press(rightArrow);
@@ -373,6 +405,19 @@ describe('CalendarRow', () => {
       mockWeekDates.forEach(dateInfo => {
         expect(getByText(dateInfo.dayName)).toBeDefined();
       });
+    });
+
+    it('exposes the selected state to screen readers via accessibilityState', () => {
+      const {getByLabelText} = render(
+        <CalendarRow selectedDate={baseDate} onChange={mockOnChange} />,
+      );
+
+      const selected = getByLabelText('Mon 15');
+      expect(selected.props.accessibilityRole).toBe('radio');
+      expect(selected.props.accessibilityState).toEqual({selected: true});
+
+      const unselected = getByLabelText('Tue 16');
+      expect(unselected.props.accessibilityState).toEqual({selected: false});
     });
   });
 });

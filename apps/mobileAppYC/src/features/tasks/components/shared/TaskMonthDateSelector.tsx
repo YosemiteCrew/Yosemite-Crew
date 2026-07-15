@@ -119,7 +119,17 @@ export const TaskMonthDateSelector: React.FC<TaskMonthDateSelectorProps> = ({
             !dateInfo.isCurrentMonth && styles.dateItemDisabled,
           ]}
           onPress={() => onDateSelect(dateInfo.date)}
-          disabled={!dateInfo.isCurrentMonth}>
+          disabled={!dateInfo.isCurrentMonth}
+          accessibilityRole="radio"
+          accessibilityState={{
+            selected: dateInfo.isSelected,
+            disabled: !dateInfo.isCurrentMonth,
+          }}
+          accessibilityLabel={
+            dateInfo.hasTask
+              ? `${dateInfo.dayName} ${dateInfo.dayNumber}, has tasks`
+              : `${dateInfo.dayName} ${dateInfo.dayNumber}`
+          }>
           <Text
             style={[
               styles.dayName,

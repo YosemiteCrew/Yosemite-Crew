@@ -51,7 +51,10 @@ export const ReminderSection: React.FC<ReminderSectionProps> = ({
                   } else {
                     updateField('reminderOptions', option);
                   }
-                }}>
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{selected: isSelected}}
+                accessibilityLabel={option}>
                 <Text
                   style={[
                     formStyles.reminderPillText,

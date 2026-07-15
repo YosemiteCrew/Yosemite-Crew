@@ -574,6 +574,22 @@ describe('ContactUsScreen', () => {
     });
   });
 
+  it('DSAR Form: exposes the selected submitter option to screen readers', () => {
+    render(
+      <ContactUsScreen navigation={mockNavigationProp} route={mockRoute} />,
+    );
+    fireEvent.press(screen.getByTestId('pill-data-subject'));
+
+    const owner = screen.getByLabelText('Owner');
+    expect(owner.props.accessibilityRole).toBe('radio');
+    expect(owner.props.accessibilityState).toEqual({selected: false});
+
+    fireEvent.press(owner);
+    expect(screen.getByLabelText('Owner').props.accessibilityState).toEqual({
+      selected: true,
+    });
+  });
+
   it('DSAR Form: shows service failures', async () => {
     jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     (contactService.submitContact as jest.Mock).mockRejectedValueOnce(

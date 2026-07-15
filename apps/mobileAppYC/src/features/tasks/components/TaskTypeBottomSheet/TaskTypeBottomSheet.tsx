@@ -182,7 +182,10 @@ export const TaskTypeBottomSheet = ({
         <PressableOpacity
           key={child.option.id}
           style={[styles.pillButton, isSelected && styles.pillButtonSelected]}
-          onPress={() => handlePillPress(child.option, child.ancestors)}>
+          onPress={() => handlePillPress(child.option, child.ancestors)}
+          accessibilityRole="radio"
+          accessibilityState={{selected: isSelected}}
+          accessibilityLabel={child.option.label}>
           <Ionicons
             name={getOptionIcon(child.option)}
             size={14}
@@ -279,7 +282,10 @@ export const TaskTypeBottomSheet = ({
                 styles.pillButton,
                 isSelected && styles.pillButtonSelected,
               ]}
-              onPress={() => handlePillPress(section.category, [])}>
+              onPress={() => handlePillPress(section.category, [])}
+              accessibilityRole="radio"
+              accessibilityState={{selected: isSelected}}
+              accessibilityLabel={section.category.label}>
               <Ionicons
                 name={getOptionIcon(section.category)}
                 size={14}

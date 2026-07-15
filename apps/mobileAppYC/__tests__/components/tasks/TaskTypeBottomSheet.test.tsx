@@ -393,6 +393,23 @@ describe('TaskTypeBottomSheet', () => {
       expect(mockClose).toHaveBeenCalledTimes(1);
     });
 
+    it('exposes the selected state to screen readers for both single and nested pills', () => {
+      renderComponent();
+
+      const customTask = screen.getByLabelText('Custom Task');
+      expect(customTask.props.accessibilityRole).toBe('radio');
+      expect(customTask.props.accessibilityState).toEqual({selected: false});
+
+      const vitals = screen.getByLabelText('Vitals');
+      expect(vitals.props.accessibilityRole).toBe('radio');
+      expect(vitals.props.accessibilityState).toEqual({selected: false});
+
+      fireEvent.press(vitals);
+      expect(screen.getByLabelText('Vitals').props.accessibilityState).toEqual({
+        selected: true,
+      });
+    });
+
     it('calls close on the header close button', () => {
       renderComponent();
       fireEvent.press(screen.getByTestId('mock-header-close'));

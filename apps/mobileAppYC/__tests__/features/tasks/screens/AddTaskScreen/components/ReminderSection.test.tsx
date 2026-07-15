@@ -128,6 +128,26 @@ describe('ReminderSection', () => {
     expect(mockUpdateField).toHaveBeenCalledWith('reminderOptions', null);
   });
 
+  it('exposes the selected state to screen readers via accessibilityState', () => {
+    const props = {
+      ...defaultProps,
+      formData: {
+        ...defaultProps.formData,
+        reminderEnabled: true,
+        reminderOptions: '5-mins-prior',
+      },
+    };
+
+    render(<ReminderSection {...props} />);
+
+    const selected = screen.getByLabelText('5-mins-prior');
+    expect(selected.props.accessibilityRole).toBe('radio');
+    expect(selected.props.accessibilityState).toEqual({selected: true});
+
+    const unselected = screen.getByLabelText('1-hour-prior');
+    expect(unselected.props.accessibilityState).toEqual({selected: false});
+  });
+
   it('applies correct styles for selected vs unselected options', () => {
     const props = {
       ...defaultProps,

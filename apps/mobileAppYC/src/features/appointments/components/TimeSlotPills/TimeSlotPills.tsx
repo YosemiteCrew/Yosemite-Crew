@@ -22,7 +22,10 @@ const TimeSlotColumn = React.memo(
           <PressableOpacity
             key={slot}
             style={[styles.pill, isSelected && styles.active]}
-            onPress={() => onSelect(slot)}>
+            onPress={() => onSelect(slot)}
+            accessibilityRole="radio"
+            accessibilityState={{selected: isSelected}}
+            accessibilityLabel={slot}>
             <Text style={[styles.text, isSelected && styles.activeText]}>
               {slot}
             </Text>

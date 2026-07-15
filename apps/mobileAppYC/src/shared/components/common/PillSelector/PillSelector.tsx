@@ -98,7 +98,10 @@ export const PillSelector: React.FC<PillSelectorProps> = ({
           key={option.id}
           style={[styles.pill, isSelected && styles.pillActive]}
           onPress={() => onSelect(option.id)}
-          activeOpacity={0.85}>
+          activeOpacity={0.85}
+          accessibilityRole="radio"
+          accessibilityState={{selected: isSelected}}
+          accessibilityLabel={option.label}>
           <Text style={[styles.pillText, isSelected && styles.pillTextActive]}>
             {option.label}
           </Text>

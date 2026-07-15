@@ -92,6 +92,13 @@ export const NotificationFilterPills: React.FC<
                 styles.pill,
                 selectedFilter === option.id && styles.pillActive,
               ]}
+              accessibilityRole="radio"
+              accessibilityState={{selected: selectedFilter === option.id}}
+              accessibilityLabel={
+                unreadCounts[option.id]
+                  ? `${option.label}, ${unreadCounts[option.id]} unread`
+                  : option.label
+              }
               onLayout={e => {
                 itemLayouts.current[option.id] = {
                   x: e.nativeEvent.layout.x,
