@@ -1,5 +1,5 @@
 'use client';
-import React, { Suspense, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { FaUser, FaCalendar } from 'react-icons/fa';
 import { IoDocument } from 'react-icons/io5';
@@ -9,7 +9,7 @@ import { StepContent } from '@/app/features/onboarding/components/Steps/types';
 import type { StepHandle } from '@/app/features/onboarding/components/Steps/TeamOnboarding/PersonalStep';
 
 import './TeamOnboarding.css';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { redirect, useSearchParams } from 'next/navigation';
 import { useTeamOnboarding } from '@/app/hooks/useTeamOnboarding';
 import { UserProfile } from '@/app/features/users/types/profile';
 import {
@@ -88,9 +88,143 @@ const EMPTY_PROFILE: UserProfile = {
   updatedAt: '',
 };
 
+const createDefaultAvailability = () =>
+  daysOfWeek.reduce<AvailabilityState>((acc, day) => {
+    const isWeekday =
+      day === 'Monday' ||
+      day === 'Tuesday' ||
+      day === 'Wednesday' ||
+      day === 'Thursday' ||
+      day === 'Friday';
+
+    acc[day] = {
+      enabled: isWeekday,
+      intervals: [{ ...DEFAULT_INTERVAL }],
+    };
+    return acc;
+  }, {} as AvailabilityState);
+
+type TeamOnboardingStepProps = {
+  activeStep: number;
+  personalRef: React.RefObject<StepHandle | null>;
+  professionalRef: React.RefObject<StepHandle | null>;
+  availabilityRef: React.RefObject<StepHandle | null>;
+  formData: UserProfile;
+  setFormData: React.Dispatch<React.SetStateAction<UserProfile>>;
+  orgIdFromQuery: string | null;
+  isSaving: boolean;
+  setIsSaving: React.Dispatch<React.SetStateAction<boolean>>;
+  availability: AvailabilityState;
+  setAvailability: React.Dispatch<React.SetStateAction<AvailabilityState>>;
+  setIsRedirecting: React.Dispatch<React.SetStateAction<boolean>>;
+  nextStep: () => void;
+  prevStep: () => void;
+};
+
+const TeamOnboardingStep = ({
+  activeStep,
+  personalRef,
+  professionalRef,
+  availabilityRef,
+  formData,
+  setFormData,
+  orgIdFromQuery,
+  isSaving,
+  setIsSaving,
+  availability,
+  setAvailability,
+  setIsRedirecting,
+  nextStep,
+  prevStep,
+}: TeamOnboardingStepProps) => {
+  if (activeStep === 0) {
+    return (
+      <PersonalStep
+        ref={personalRef}
+        nextStep={nextStep}
+        formData={formData}
+        setFormData={setFormData}
+        orgIdFromQuery={orgIdFromQuery}
+        isSaving={isSaving}
+        setIsSaving={setIsSaving}
+      />
+    );
+  }
+
+  if (activeStep === 1) {
+    return (
+      <ProfessionalStep
+        ref={professionalRef}
+        nextStep={nextStep}
+        prevStep={prevStep}
+        formData={formData}
+        setFormData={setFormData}
+        orgIdFromQuery={orgIdFromQuery}
+        isSaving={isSaving}
+        setIsSaving={setIsSaving}
+      />
+    );
+  }
+
+  return (
+    <AvailabilityStep
+      ref={availabilityRef}
+      prevStep={prevStep}
+      orgIdFromQuery={orgIdFromQuery}
+      availability={availability}
+      setAvailability={setAvailability}
+      isSaving={isSaving}
+      setIsSaving={setIsSaving}
+      setIsRedirecting={setIsRedirecting}
+    />
+  );
+};
+
+type StoreAvailabilitySlots = Parameters<typeof convertFromGetApi>[0];
+
+const useTeamOnboardingHydration = ({
+  isReady,
+  computedStep,
+  profile,
+  storeSlots,
+  setActiveStep,
+  setFormData,
+  setAvailability,
+}: {
+  isReady: boolean;
+  computedStep: number;
+  profile: UserProfile | null | undefined;
+  storeSlots: StoreAvailabilitySlots;
+  setActiveStep: React.Dispatch<React.SetStateAction<number>>;
+  setFormData: React.Dispatch<React.SetStateAction<UserProfile>>;
+  setAvailability: React.Dispatch<React.SetStateAction<AvailabilityState>>;
+}) => {
+  const [initialStepApplied, setInitialStepApplied] = useState(false);
+  const [hydratedProfile, setHydratedProfile] = useState<UserProfile | null>(null);
+  const [hydratedSlots, setHydratedSlots] = useState<StoreAvailabilitySlots | null>(null);
+
+  if (!isReady) return { initialStepApplied };
+
+  if (!initialStepApplied) {
+    setInitialStepApplied(true);
+    if (computedStep >= 0 && computedStep <= 2) setActiveStep(computedStep);
+  }
+
+  if (profile && profile !== hydratedProfile) {
+    setHydratedProfile(profile);
+    setFormData(profile);
+  }
+
+  if (storeSlots.length > 0 && storeSlots !== hydratedSlots) {
+    setHydratedSlots(storeSlots);
+    setAvailability(convertFromGetApi(storeSlots));
+  }
+
+  return { initialStepApplied };
+};
+
 const TeamOnboarding = () => {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const orgIdFromQuery = searchParams.get('orgId');
 
   const {
@@ -102,24 +236,8 @@ const TeamOnboarding = () => {
   } = useTeamOnboarding(orgIdFromQuery);
 
   const [activeStep, setActiveStep] = useState(0);
-  const [initialStepApplied, setInitialStepApplied] = useState(false);
   const [formData, setFormData] = useState<UserProfile>(EMPTY_PROFILE);
-  const [availability, setAvailability] = useState<AvailabilityState>(() =>
-    daysOfWeek.reduce<AvailabilityState>((acc, day) => {
-      const isWeekday =
-        day === 'Monday' ||
-        day === 'Tuesday' ||
-        day === 'Wednesday' ||
-        day === 'Thursday' ||
-        day === 'Friday';
-
-      acc[day] = {
-        enabled: isWeekday,
-        intervals: [{ ...DEFAULT_INTERVAL }],
-      };
-      return acc;
-    }, {} as AvailabilityState)
-  );
+  const [availability, setAvailability] = useState<AvailabilityState>(createDefaultAvailability);
   // Shown while saving a step (API in-flight)
   const [isSaving, setIsSaving] = useState(false);
   // Shown after the final step saves and we're about to redirect
@@ -139,45 +257,16 @@ const TeamOnboarding = () => {
     availabilityRef,
   ];
 
-  useEffect(() => {
-    // Once the page has initialised, don't let store loading states cause a blank screen.
-    // isReady can flip false again when a save triggers a store reload — we stay visible.
-    if (!isReady && initialStepApplied) return;
-
-    if (!isReady) return;
-
-    if (shouldRedirectToOrganizations) {
-      setIsRedirecting(true);
-      router.replace('/organizations');
-      return;
-    }
-    if (computedStep === 3) {
-      setIsRedirecting(true);
-      router.replace('/dashboard');
-      return;
-    }
-    if (!initialStepApplied) {
-      setInitialStepApplied(true);
-      if (computedStep >= 0 && computedStep <= 2) {
-        setActiveStep(computedStep);
-      }
-    }
-    if (profile) {
-      setFormData(profile);
-    }
-    if (storeSlots.length > 0) {
-      const temp = convertFromGetApi(storeSlots);
-      setAvailability(temp);
-    }
-  }, [
-    profile,
-    computedStep,
-    shouldRedirectToOrganizations,
+  // Render-phase hydration: adjust local editable state when the store data changes.
+  const { initialStepApplied } = useTeamOnboardingHydration({
     isReady,
-    router,
+    computedStep,
+    profile,
     storeSlots,
-    initialStepApplied,
-  ]);
+    setActiveStep,
+    setFormData,
+    setAvailability,
+  });
 
   // Show initial load spinner (first page load, before store is ready)
   if (!isReady && !initialStepApplied) {
@@ -192,7 +281,7 @@ const TeamOnboarding = () => {
   }
 
   if (shouldBlockForRedirect) {
-    return null;
+    redirect(shouldRedirectToOrganizations ? '/organizations' : '/dashboard');
   }
 
   const nextStep = () => setActiveStep((s) => Math.min(s + 1, TeamSteps.length - 1));
@@ -233,41 +322,22 @@ const TeamOnboarding = () => {
       />
       <div className="flex flex-col gap-6">
         <h1 className="create-profile-title">Create organization profile</h1>
-        {activeStep === 0 && (
-          <PersonalStep
-            ref={personalRef}
-            nextStep={nextStep}
-            formData={formData}
-            setFormData={setFormData}
-            orgIdFromQuery={orgIdFromQuery}
-            isSaving={isSaving}
-            setIsSaving={setIsSaving}
-          />
-        )}
-        {activeStep === 1 && (
-          <ProfessionalStep
-            ref={professionalRef}
-            nextStep={nextStep}
-            prevStep={prevStep}
-            formData={formData}
-            setFormData={setFormData}
-            orgIdFromQuery={orgIdFromQuery}
-            isSaving={isSaving}
-            setIsSaving={setIsSaving}
-          />
-        )}
-        {activeStep === 2 && (
-          <AvailabilityStep
-            ref={availabilityRef}
-            prevStep={prevStep}
-            orgIdFromQuery={orgIdFromQuery}
-            availability={availability}
-            setAvailability={setAvailability}
-            isSaving={isSaving}
-            setIsSaving={setIsSaving}
-            setIsRedirecting={setIsRedirecting}
-          />
-        )}
+        <TeamOnboardingStep
+          activeStep={activeStep}
+          personalRef={personalRef}
+          professionalRef={professionalRef}
+          availabilityRef={availabilityRef}
+          formData={formData}
+          setFormData={setFormData}
+          orgIdFromQuery={orgIdFromQuery}
+          isSaving={isSaving}
+          setIsSaving={setIsSaving}
+          availability={availability}
+          setAvailability={setAvailability}
+          setIsRedirecting={setIsRedirecting}
+          nextStep={nextStep}
+          prevStep={prevStep}
+        />
       </div>
     </div>
   );

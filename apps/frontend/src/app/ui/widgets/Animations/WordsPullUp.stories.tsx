@@ -22,6 +22,7 @@ const meta = {
     text: 'Better animal health together',
     containerClassName: 'flex flex-wrap justify-center',
     className: 'text-heading-1 text-text-primary',
+    animateWords: false,
   },
 } satisfies Meta<typeof WordsPullUp>;
 

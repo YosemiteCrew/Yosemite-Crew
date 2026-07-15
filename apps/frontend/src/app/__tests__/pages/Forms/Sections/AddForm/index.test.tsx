@@ -23,8 +23,10 @@ jest.mock('@/app/ui/primitives/Icons/Close', () => ({
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/Details', () => ({
   __esModule: true,
-  default: ({ onNext, registerValidator }: any) => {
-    registerValidator(() => isDetailValid);
+  default: ({ onNext, ref }: any) => {
+    jest.requireActual<typeof import('react')>('react').useImperativeHandle(ref, () => ({
+      validate: () => isDetailValid,
+    }));
     return (
       <div>
         <div>Details Step</div>
@@ -38,8 +40,11 @@ jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/Details', () => ({
 
 jest.mock('@/app/features/forms/pages/Forms/Sections/AddForm/Build', () => ({
   __esModule: true,
-  default: ({ onNext, registerValidator }: any) => {
-    registerValidator(() => isBuildValid);
+  normalizeServiceGroups: (schema: any) => schema,
+  default: ({ onNext, ref }: any) => {
+    jest.requireActual<typeof import('react')>('react').useImperativeHandle(ref, () => ({
+      validate: () => isBuildValid,
+    }));
     return (
       <div>
         <div>Build Step</div>

@@ -20,16 +20,21 @@ import {
   FREQUENCY_OPTIONS,
   inventoryToPrescriptionItem,
 } from '@/app/features/appointments/lib/inventoryPrescription';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { use, useEffect, useRef, useState } from 'react';
+import type { AddFormStepHandle } from '@/app/features/forms/pages/Forms/Sections/AddForm/Details';
+import {
+  ensureServiceCheckbox,
+  getServiceCheckbox,
+  isServiceGroup,
+} from '@/app/features/forms/pages/Forms/Sections/AddForm/serviceGroupHelpers';
 import { IoIosAddCircleOutline, IoIosWarning } from 'react-icons/io';
 import TextBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Text/TextBuilder';
 import RichTextBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/RichText/RichTextBuilder';
 import InputBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Input/InputBuilder';
 import DropdownBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Dropdown/DropdownBuilder';
 import SignatureBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Signature/SignatureBuilder';
-import BuilderWrapper, {
-  StructureLockContext,
-} from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import BuilderWrapper from '@/app/features/forms/pages/Forms/Sections/AddForm/components/BuildWrapper';
+import { StructureLockContext } from '@/app/features/forms/pages/Forms/Sections/AddForm/components/structureLockContext';
 import BooleanBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Boolean/BooleanBuilder';
 import DateBuilder from '@/app/features/forms/pages/Forms/Sections/AddForm/components/Date/DateBuilder';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -57,7 +62,7 @@ type BuildProps = {
   setFormData: React.Dispatch<React.SetStateAction<FormsProps>>;
   onNext: () => void;
   serviceOptions: { label: string; value: string; badge?: string }[];
-  registerValidator?: (fn: () => boolean) => void;
+  ref?: React.Ref<AddFormStepHandle>;
 };
 
 type OptionKey = FormFieldType | 'medication' | 'service-group' | 'task-group';
@@ -341,56 +346,8 @@ const isTreatmentPlanGroup = (field: FormField): field is FormField & { type: 'g
 const isMedicationGroup = (field: FormField): field is FormField & { type: 'group' } =>
   field.type === 'group' && Boolean(field.meta?.medicationGroup);
 
-const isServiceGroup = (field: FormField): field is FormField & { type: 'group' } =>
-  field.type === 'group' && Boolean(field.meta?.serviceGroup);
-
 const isTaskGroup = (field: FormField): field is FormField & { type: 'group' } =>
   field.type === 'group' && Boolean(field.meta?.taskGroup);
-
-const getServiceCheckbox = (
-  field: FormField & { type: 'group'; fields?: FormField[] }
-): (FormField & { type: 'checkbox'; options?: { label: string; value: string }[] }) | undefined =>
-  (field.fields ?? []).find(
-    (f): f is FormField & { type: 'checkbox'; options?: { label: string; value: string }[] } =>
-      f.type === 'checkbox'
-  );
-
-const ensureServiceCheckbox = (
-  field: FormField & { type: 'group' },
-  serviceOptions: { label: string; value: string; badge?: string }[]
-): { group: FormField & { type: 'group' }; selected: string[] } => {
-  const existingCheckbox = getServiceCheckbox(field);
-  const selected = existingCheckbox?.options?.map((opt) => opt.value) ?? [];
-
-  const nextMeta = field.meta
-    ? { ...field.meta, serviceGroup: true, serviceIds: selected }
-    : { serviceGroup: true, serviceIds: selected };
-
-  const checkbox: FormField = {
-    id: existingCheckbox?.id || `${field.id}_services`,
-    type: 'checkbox',
-    label: '', // Empty label to avoid duplicate "Services" text
-    options: selected.map((val) => {
-      const match = serviceOptions.find((o) => o.value === val);
-      return match ?? { label: val, value: val };
-    }),
-    multiple: true,
-    meta: existingCheckbox?.meta
-      ? { ...existingCheckbox.meta, serviceIds: selected }
-      : { serviceIds: selected },
-  };
-
-  const otherFields = (field.fields ?? []).filter((f) => f.id !== checkbox.id);
-
-  return {
-    group: {
-      ...field,
-      meta: nextMeta,
-      fields: [...otherFields, checkbox],
-    },
-    selected,
-  };
-};
 
 const buildLabeledMedication = (fields: FormField[] | undefined, baseMedication: FormField) => {
   const medCount = (fields ?? []).filter(isMedicationGroup).length;
@@ -490,7 +447,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   createField,
   serviceOptions,
 }) => {
-  const structureLocked = React.useContext(StructureLockContext);
+  const structureLocked = use(StructureLockContext);
   const groupField: FormField & { type: 'group'; fields?: FormField[] } = {
     ...field,
     fields: field.fields ?? [],
@@ -784,7 +741,7 @@ type MedicationGroupBuilderProps = {
 };
 
 const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, onChange }) => {
-  const structureLocked = React.useContext(StructureLockContext);
+  const structureLocked = use(StructureLockContext);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const [medicines, setMedicines] = useState<InventoryApiItem[]>([]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
@@ -795,6 +752,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
         .filter((value): value is string => Boolean(value)),
     [field.fields]
   );
+  const selectedMedicineSet = React.useMemo(() => new Set(selectedMedicines), [selectedMedicines]);
 
   useEffect(() => {
     if (!primaryOrgId) return;
@@ -820,7 +778,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
   });
 
   const handleMedicineSelect = (medicineId: string) => {
-    if (!medicineId || selectedMedicines.includes(medicineId)) return;
+    if (!medicineId || selectedMedicineSet.has(medicineId)) return;
 
     const medicine = medicines.find((m) => m._id === medicineId);
     if (!medicine) return;
@@ -961,7 +919,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
           even on YC-default (structure-locked) templates. */}
       <LabelDropdown
         placeholder={loadingMedicines ? 'Loading medicines…' : 'Add medicine from inventory'}
-        options={medicineOptions.filter((opt) => !selectedMedicines.includes(opt.value))}
+        options={medicineOptions.filter((opt) => !selectedMedicineSet.has(opt.value))}
         onSelect={(option) => handleMedicineSelect(option.value)}
         noOptionsMessage={loadingMedicines ? 'Loading medicines…' : 'No medicines available'}
       />
@@ -997,6 +955,12 @@ const taskBlockFieldValue = (field?: FormField): string => {
   return value === undefined || value === null ? '' : String(value);
 };
 
+const taskBlockFieldOptions = (f?: FormField): { label: string; value: string }[] =>
+  ((f as { options?: { label: string; value: string }[] } | undefined)?.options ?? []) as {
+    label: string;
+    value: string;
+  }[];
+
 /**
  * One task block in the "Building a template" task builder, rendered as the
  * mockup card: Task title, Category, Instructions, Repeat, Reminder, Duration —
@@ -1014,11 +978,7 @@ const TaskBlockCard: React.FC<{
   const fieldByKey = (key: string) =>
     (block.fields ?? []).find((f) => (f.meta as { taskBlockKey?: string })?.taskBlockKey === key);
 
-  const fieldOptions = (f?: FormField): { label: string; value: string }[] =>
-    ((f as { options?: { label: string; value: string }[] } | undefined)?.options ?? []) as {
-      label: string;
-      value: string;
-    }[];
+  const fieldOptions = taskBlockFieldOptions;
 
   const setKeyValue = (key: string, value: string) => {
     onChange({
@@ -1219,18 +1179,114 @@ const removeFieldById = (form: FormsProps, id: string): FormsProps => ({
   schema: (form.schema || []).filter((field) => field.id !== id),
 });
 
-const Build = ({
-  formData,
-  setFormData,
-  onNext,
-  serviceOptions,
-  registerValidator,
-}: BuildProps) => {
-  const [buildError, setBuildError] = useState<string>('');
+// Drag-to-reorder with edge auto-scroll for the builder field list. Owns the
+// drag index plus the scroll velocity/animation refs so Build stays focused on
+// schema state; `onReorder` receives the (from, to) indices on drop.
+const useBuilderDragAutoScroll = (
+  builderRef: React.RefObject<HTMLDivElement | null>,
+  onReorder: (from: number, to: number) => void
+) => {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
-  const builderRef = React.useRef<HTMLDivElement | null>(null);
   const scrollVelocityRef = React.useRef<number>(0);
   const scrollAnimRef = React.useRef<number | null>(null);
+
+  const handleDragStart = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
+    setDragIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const getScrollableContainer = () => {
+    if (builderRef.current && builderRef.current.scrollHeight > builderRef.current.clientHeight) {
+      return builderRef.current;
+    }
+    return document.scrollingElement as HTMLElement | null;
+  };
+
+  const updateScrollVelocity = (scrollable: HTMLElement, clientY: number) => {
+    const rect =
+      scrollable === builderRef.current
+        ? scrollable.getBoundingClientRect()
+        : { top: 0, bottom: globalThis.innerHeight, height: globalThis.innerHeight };
+    const softZone = Math.min(300, (rect.bottom - rect.top) / 2);
+    const turboZone = softZone / 3;
+    const distanceToTop = Math.max(0, clientY - rect.top);
+    const distanceToBottom = Math.max(0, rect.bottom - clientY);
+
+    if (distanceToTop < softZone && scrollable.scrollTop > 0) {
+      const ratio = (softZone - distanceToTop) / softZone;
+      const turbo = distanceToTop < turboZone ? 14 : 0;
+      const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
+      scrollVelocityRef.current = -speed;
+      return;
+    }
+
+    if (distanceToBottom < softZone) {
+      const ratio = (softZone - distanceToBottom) / softZone;
+      const turbo = distanceToBottom < turboZone ? 14 : 0;
+      const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
+      scrollVelocityRef.current = speed;
+      return;
+    }
+
+    scrollVelocityRef.current = 0;
+  };
+
+  const startAutoScroll = (scrollable: HTMLElement) => {
+    if (scrollAnimRef.current !== null) return;
+    const step = () => {
+      const vel = scrollVelocityRef.current;
+      if (vel === 0) {
+        scrollAnimRef.current = null;
+        return;
+      }
+      scrollable.scrollTop += vel;
+      scrollAnimRef.current = requestAnimationFrame(step);
+    };
+    scrollAnimRef.current = requestAnimationFrame(step);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (dragIndex === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const scrollable = getScrollableContainer();
+    if (!scrollable) return;
+    updateScrollVelocity(scrollable, e.clientY);
+    startAutoScroll(scrollable);
+  };
+
+  const stopAutoScroll = () => {
+    scrollVelocityRef.current = 0;
+    if (scrollAnimRef.current !== null) {
+      cancelAnimationFrame(scrollAnimRef.current);
+      scrollAnimRef.current = null;
+    }
+  };
+
+  const handleDrop = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (dragIndex === null) return;
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const isAfter = e.clientY > rect.top + rect.height / 2;
+    const destination = isAfter ? index + 1 : index;
+    onReorder(dragIndex, destination);
+    setDragIndex(null);
+    stopAutoScroll();
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    stopAutoScroll();
+  };
+
+  return { dragIndex, handleDragStart, handleDragOver, handleDrop, handleDragEnd };
+};
+
+const Build = ({ formData, setFormData, onNext, serviceOptions, ref }: BuildProps) => {
+  const [buildError, setBuildError] = useState<string>('');
+  const builderRef = React.useRef<HTMLDivElement | null>(null);
   const createField = (key: OptionKey): FormField => {
     const id = crypto.randomUUID();
     return fieldFactory[key](id, serviceOptions);
@@ -1351,106 +1407,8 @@ const Build = ({
     });
   };
 
-  const handleDragStart = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
-    setDragIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-  };
-
-  const getScrollableContainer = () => {
-    if (builderRef.current && builderRef.current.scrollHeight > builderRef.current.clientHeight) {
-      return builderRef.current;
-    }
-    return document.scrollingElement as HTMLElement | null;
-  };
-
-  const updateScrollVelocity = (scrollable: HTMLElement, clientY: number) => {
-    const rect =
-      scrollable === builderRef.current
-        ? scrollable.getBoundingClientRect()
-        : { top: 0, bottom: globalThis.innerHeight, height: globalThis.innerHeight };
-    const softZone = Math.min(300, (rect.bottom - rect.top) / 2);
-    const turboZone = softZone / 3;
-    const distanceToTop = Math.max(0, clientY - rect.top);
-    const distanceToBottom = Math.max(0, rect.bottom - clientY);
-
-    if (distanceToTop < softZone && scrollable.scrollTop > 0) {
-      const ratio = (softZone - distanceToTop) / softZone;
-      const turbo = distanceToTop < turboZone ? 14 : 0;
-      const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
-      scrollVelocityRef.current = -speed;
-      return;
-    }
-
-    if (distanceToBottom < softZone) {
-      const ratio = (softZone - distanceToBottom) / softZone;
-      const turbo = distanceToBottom < turboZone ? 14 : 0;
-      const speed = Math.min(30, Math.max(6, ratio * 20 + turbo));
-      scrollVelocityRef.current = speed;
-      return;
-    }
-
-    scrollVelocityRef.current = 0;
-  };
-
-  const startAutoScroll = (scrollable: HTMLElement) => {
-    if (scrollAnimRef.current !== null) return;
-    const step = () => {
-      const vel = scrollVelocityRef.current;
-      if (vel === 0) {
-        scrollAnimRef.current = null;
-        return;
-      }
-      scrollable.scrollTop += vel;
-      scrollAnimRef.current = requestAnimationFrame(step);
-    };
-    scrollAnimRef.current = requestAnimationFrame(step);
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    if (dragIndex === null) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const scrollable = getScrollableContainer();
-    if (!scrollable) return;
-    updateScrollVelocity(scrollable, e.clientY);
-    startAutoScroll(scrollable);
-  };
-
-  const handleDrop = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    if (dragIndex === null) return;
-    const target = e.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const isAfter = e.clientY > rect.top + rect.height / 2;
-    const destination = isAfter ? index + 1 : index;
-    reorderField(dragIndex, destination);
-    setDragIndex(null);
-    scrollVelocityRef.current = 0;
-    if (scrollAnimRef.current !== null) {
-      cancelAnimationFrame(scrollAnimRef.current);
-      scrollAnimRef.current = null;
-    }
-  };
-
-  const handleDragEnd = () => {
-    setDragIndex(null);
-    scrollVelocityRef.current = 0;
-    if (scrollAnimRef.current !== null) {
-      cancelAnimationFrame(scrollAnimRef.current);
-      scrollAnimRef.current = null;
-    }
-  };
-
-  useEffect(() => {
-    if (!serviceOptions.length) return;
-    setFormData((prev) => ({
-      ...prev,
-      schema: (prev.schema ?? []).map((field) =>
-        isServiceGroup(field) ? ensureServiceCheckbox(field, serviceOptions).group : field
-      ),
-    }));
-  }, [serviceOptions, setFormData]);
+  const { dragIndex, handleDragStart, handleDragOver, handleDrop, handleDragEnd } =
+    useBuilderDragAutoScroll(builderRef, reorderField);
 
   const validate = React.useCallback(() => {
     if (!formData.schema || formData.schema.length === 0) {
@@ -1461,9 +1419,7 @@ const Build = ({
     return true;
   }, [formData.schema]);
 
-  React.useEffect(() => {
-    registerValidator?.(validate);
-  }, [registerValidator, validate]);
+  React.useImperativeHandle(ref, () => ({ validate }), [validate]);
 
   return (
     <StructureLockContext.Provider value={structureLocked}>
