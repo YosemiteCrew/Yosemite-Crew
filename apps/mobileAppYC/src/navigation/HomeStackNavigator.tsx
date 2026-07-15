@@ -6,8 +6,9 @@ import {HomeScreen} from '@/features/home/screens';
 import {AddCompanionScreen} from '@/features/companion/screens/AddCompanionScreen';
 import {HomeStackParamList} from './types';
 import {ProfileOverviewScreen} from '@/features/companion/screens/ProfileOverviewScreen';
-import { CompanionOverviewScreen } from '@/features/companion/screens/CompanionOverviewScreen';
-import { EditParentScreen } from '@/features/account/screens/EditParentScreen';
+import {PassportScreen} from '@/features/passport/screens/PassportScreen/PassportScreen';
+import {CompanionOverviewScreen} from '@/features/companion/screens/CompanionOverviewScreen';
+import {EditParentScreen} from '@/features/account/screens/EditParentScreen';
 import {ExpenseStackNavigator} from './ExpenseStackNavigator';
 import {LinkedBusinessesStackNavigator} from './LinkedBusinessesStackNavigator';
 import {FAQScreen} from '@/features/support/screens/FAQScreen';
@@ -78,19 +79,25 @@ export const HomeStackNavigator: React.FC = () => {
         component={NotificationsScreen}
         options={{headerShown: false}}
       />
-        <Stack.Screen
+      <Stack.Screen
         name="ProfileOverview"
         component={ProfileOverviewScreen}
         options={{headerShown: false}}
       />
 
-         <Stack.Screen
+      <Stack.Screen
+        name="Passport"
+        component={PassportScreen}
+        options={{headerShown: false}}
+      />
+
+      <Stack.Screen
         name="EditCompanionOverview" // Renamed for clarity in navigation
         component={CompanionOverviewScreen}
         options={{headerShown: false}}
       />
 
-        <Stack.Screen
+      <Stack.Screen
         name="EditParentOverview" // Renamed for clarity in navigation
         component={EditParentScreen}
         options={{headerShown: false}}
@@ -130,7 +137,6 @@ export const HomeStackNavigator: React.FC = () => {
         component={CoParentProfileScreen}
         options={{headerShown: false}}
       />
-
     </Stack.Navigator>
   );
 };
