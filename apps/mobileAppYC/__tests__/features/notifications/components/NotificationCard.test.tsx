@@ -285,8 +285,8 @@ describe('NotificationCard', () => {
         />,
       );
 
-      const card = screen.getByTestId('liquid-glass-card');
-      fireEvent.press(card.parent!);
+      const [touchable] = screen.UNSAFE_getAllByType(PressableType);
+      fireEvent.press(touchable);
       expect(onPress).toHaveBeenCalled();
     });
 
@@ -412,6 +412,66 @@ describe('NotificationCard', () => {
       expect(() =>
         triggerGestureHandler('onEnd', {translationX: SWIPE_THRESHOLD + 10}),
       ).not.toThrow();
+    });
+  });
+
+  describe('Visible action row (non-swipe alternative)', () => {
+    it('renders "Mark as read" and "Archive" buttons for an unread notification when swipe is enabled', () => {
+      const onDismiss = jest.fn();
+      const onArchive = jest.fn();
+      render(
+        <NotificationCard
+          notification={baseNotification as any}
+          onDismiss={onDismiss}
+          onArchive={onArchive}
+        />,
+      );
+
+      const markAsRead = screen.getByLabelText('Mark as read');
+      const archive = screen.getByLabelText('Archive notification');
+      expect(markAsRead.props.accessibilityRole).toBe('button');
+      expect(archive.props.accessibilityRole).toBe('button');
+
+      fireEvent.press(markAsRead);
+      expect(onDismiss).toHaveBeenCalledTimes(1);
+
+      fireEvent.press(archive);
+      expect(onArchive).toHaveBeenCalledTimes(1);
+    });
+
+    it('omits "Mark as read" for an already-read notification but keeps Archive', () => {
+      const readNotif = {...baseNotification, status: 'read' as const};
+      render(
+        <NotificationCard
+          notification={readNotif as any}
+          onDismiss={jest.fn()}
+          onArchive={jest.fn()}
+        />,
+      );
+
+      expect(screen.queryByLabelText('Mark as read')).toBeNull();
+      expect(screen.getByLabelText('Archive notification')).toBeTruthy();
+    });
+
+    it('hides the action row entirely when swipeEnabled is false', () => {
+      render(
+        <NotificationCard
+          notification={baseNotification as any}
+          onDismiss={jest.fn()}
+          onArchive={jest.fn()}
+          swipeEnabled={false}
+        />,
+      );
+
+      expect(screen.queryByLabelText('Mark as read')).toBeNull();
+      expect(screen.queryByLabelText('Archive notification')).toBeNull();
+    });
+
+    it('hides the action row when neither onDismiss nor onArchive is provided', () => {
+      render(<NotificationCard notification={baseNotification as any} />);
+
+      expect(screen.queryByLabelText('Mark as read')).toBeNull();
+      expect(screen.queryByLabelText('Archive notification')).toBeNull();
     });
   });
 });

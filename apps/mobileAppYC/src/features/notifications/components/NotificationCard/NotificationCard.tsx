@@ -1,5 +1,6 @@
 import React, {useMemo, useCallback} from 'react';
 import {View, Text, Image, StyleSheet, useWindowDimensions} from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import {scheduleOnRN} from 'react-native-worklets';
@@ -152,17 +153,17 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
           isUnread && styles.containerUnread,
           animatedStyle,
         ]}>
-        <PressableOpacity
-          activeOpacity={0.85}
-          onPress={onPress}
-          disabled={isDragging}
-          style={styles.pressable}>
-          <LiquidGlassCard
-            glassEffect="none"
-            interactive={false}
-            shadow="none"
-            style={styles.card}
-            fallbackStyle={styles.cardFallback}>
+        <LiquidGlassCard
+          glassEffect="none"
+          interactive={false}
+          shadow="none"
+          style={styles.card}
+          fallbackStyle={styles.cardFallback}>
+          <PressableOpacity
+            activeOpacity={0.85}
+            onPress={onPress}
+            disabled={isDragging}
+            style={styles.pressable}>
             <View style={styles.content}>
               {/* Icon */}
               <IconTile
@@ -210,8 +211,44 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
                 {isUnread && <View style={styles.unreadDot} />}
               </View>
             </View>
-          </LiquidGlassCard>
-        </PressableOpacity>
+          </PressableOpacity>
+
+          {/* Visible alternative to the swipe gestures above, for keyboard/
+              screen-reader users. Mirrors the same two actions swipe already
+              performs, only when swipe itself is enabled for this list. */}
+          {swipeEnabled && (onDismiss || onArchive) && (
+            <View style={styles.actionRow}>
+              {isUnread && onDismiss && (
+                <PressableOpacity
+                  style={styles.actionButton}
+                  onPress={onDismiss}
+                  accessibilityRole="button"
+                  accessibilityLabel="Mark as read">
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={15}
+                    color={theme.colors.inkFaint2}
+                  />
+                  <Text style={styles.actionButtonText}>Mark as read</Text>
+                </PressableOpacity>
+              )}
+              {onArchive && (
+                <PressableOpacity
+                  style={styles.actionButton}
+                  onPress={onArchive}
+                  accessibilityRole="button"
+                  accessibilityLabel="Archive notification">
+                  <Ionicons
+                    name="archive-outline"
+                    size={15}
+                    color={theme.colors.inkFaint2}
+                  />
+                  <Text style={styles.actionButtonText}>Archive</Text>
+                </PressableOpacity>
+              )}
+            </View>
+          )}
+        </LiquidGlassCard>
       </Reanimated.View>
     </GestureDetector>
   );
@@ -247,6 +284,26 @@ const createStyles = (theme: any) =>
     },
     pressable: {
       flex: 1,
+    },
+    actionRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: theme.spacing['3'],
+      marginTop: theme.spacing['2.5'],
+      paddingTop: theme.spacing['2.5'],
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.hairline,
+    },
+    actionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['1'],
+      paddingVertical: theme.spacing['1'],
+      paddingHorizontal: theme.spacing['1.5'],
+    },
+    actionButtonText: {
+      ...theme.typography.body12,
+      color: theme.colors.inkFaint2,
     },
     iconDragging: {
       opacity: 0.7,
