@@ -153,7 +153,10 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
         style={styles.cardContent}
         activeOpacity={0.8}
         onPress={onPress}
-        disabled={!onPress}>
+        disabled={!onPress}
+        accessibilityRole="button"
+        accessibilityLabel={business.businessName}
+        accessibilityState={{disabled: !onPress}}>
         <View style={styles.content}>
           <IconTile
             size={44}
@@ -218,13 +221,17 @@ export const LinkedBusinessCard: React.FC<LinkedBusinessCardProps> = ({
           <PressableOpacity
             style={styles.actionButton}
             onPress={handleGetDirections}
-            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+            accessibilityRole="button"
+            accessibilityLabel="Get directions">
             <Image source={Images.getDirection} style={styles.actionIcon} />
           </PressableOpacity>
           <PressableOpacity
             style={styles.actionButton}
             onPress={handleDeletePress}
-            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${business.businessName}`}>
             <Image source={Images.deleteIconRed} style={styles.actionIcon} />
           </PressableOpacity>
         </View>

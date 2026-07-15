@@ -575,6 +575,7 @@ export const BusinessSearchScreen: React.FC<Props> = ({route, navigation}) => {
         <Pressable
           style={styles.searchBackdrop}
           onPress={handleCloseDropdown}
+          accessible={false}
         />
       ) : null}
 

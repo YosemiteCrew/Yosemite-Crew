@@ -851,6 +851,7 @@ describe('BusinessSearchScreen', () => {
       expect(getByTestId('dropdown-overlay')).toBeTruthy();
 
       const backdrop = view.UNSAFE_getAllByType(PressableType)[0];
+      expect(backdrop.props.accessible).toBe(false);
       fireEvent.press(backdrop);
 
       expect(queryByTestId('dropdown-overlay')).toBeNull();

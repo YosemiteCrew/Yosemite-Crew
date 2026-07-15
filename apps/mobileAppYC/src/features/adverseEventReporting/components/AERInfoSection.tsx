@@ -28,7 +28,10 @@ export const AERInfoSection: React.FC<Props> = ({title, rows, onEdit}) => {
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {onEdit ? (
-          <PressableOpacity onPress={onEdit}>
+          <PressableOpacity
+            onPress={onEdit}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${title}`}>
             <Image source={Images.blackEdit} style={styles.editIcon} />
           </PressableOpacity>
         ) : null}

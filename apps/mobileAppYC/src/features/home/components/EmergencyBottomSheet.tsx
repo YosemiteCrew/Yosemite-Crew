@@ -125,7 +125,9 @@ export const EmergencyBottomSheet = ({
           <PressableOpacity
             key={option.id}
             onPress={() => handleOptionPress(option.id)}
-            activeOpacity={0.85}>
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={option.title}>
             <LiquidGlassCard
               glassEffect="clear"
               interactive

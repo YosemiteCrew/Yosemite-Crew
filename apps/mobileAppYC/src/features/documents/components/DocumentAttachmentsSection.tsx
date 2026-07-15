@@ -102,7 +102,9 @@ const FilePreviewTile: React.FC<FilePreviewTileProps> = ({
       <PressableOpacity
         style={styles.removeButton}
         onPress={() => onRequestRemove(file)}
-        activeOpacity={0.7}>
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`Remove ${file.name}`}>
         <Image source={Images.closeIcon} style={styles.removeIcon} />
       </PressableOpacity>
     </View>
@@ -129,7 +131,9 @@ export const DocumentAttachmentsSection: React.FC<
         <PressableOpacity
           style={styles.emptyStateContainer}
           onPress={onAddPress}
-          activeOpacity={0.7}>
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={emptyTitle}>
           <Image source={Images.uploadIcon} style={styles.emptyStateIcon} />
           <Text style={styles.emptyStateTitle}>{emptyTitle}</Text>
           <Text style={styles.emptyStateSubtitle}>{emptySubtitle}</Text>
@@ -150,7 +154,9 @@ export const DocumentAttachmentsSection: React.FC<
               <PressableOpacity
                 style={styles.addMoreBox}
                 onPress={onAddPress}
-                activeOpacity={0.7}>
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Add more documents">
                 <Image
                   source={Images.addIconWhite}
                   style={styles.addMoreIcon}

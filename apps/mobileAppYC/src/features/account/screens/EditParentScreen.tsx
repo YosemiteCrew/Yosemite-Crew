@@ -421,6 +421,8 @@ export const EditParentScreen: React.FC<EditParentScreenProps> = ({
                   <PressableOpacity
                     style={styles.copyIconButton}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Copy email"
                     onPress={() => {
                       const email = safeUser.email?.trim();
                       if (!email) {

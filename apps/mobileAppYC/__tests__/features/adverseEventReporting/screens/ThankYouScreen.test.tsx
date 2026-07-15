@@ -374,11 +374,13 @@ describe('ThankYouScreen', () => {
 
     mockOpenURL.mockResolvedValue(true);
 
-    const {getByText} = render(
+    const {getByText, getByLabelText} = render(
       <ThankYouScreen navigation={mockNavigation} route={{} as any} />,
     );
 
-    fireEvent.press(getByText('Call regulatory authority'));
+    const callButton = getByLabelText('Call regulatory authority');
+    expect(callButton.props.accessibilityRole).toBe('button');
+    fireEvent.press(callButton);
 
     expect(getByText('Fetching authority contact...')).toBeTruthy();
 

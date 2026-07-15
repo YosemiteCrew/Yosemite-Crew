@@ -728,7 +728,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
       <PressableOpacity
         activeOpacity={0.85}
         onPress={onPress}
-        testID={`${key}-empty-tile`}>
+        testID={`${key}-empty-tile`}
+        accessibilityRole="button"
+        accessibilityLabel={title}>
         {content}
       </PressableOpacity>
     );
@@ -1308,7 +1310,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
           <PressableOpacity
             style={styles.profileButton}
             onPress={() => navigation.navigate('Account')}
-            activeOpacity={0.85}>
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Your profile">
             <View style={styles.avatar}>
               {headerAvatarUri && !headerAvatarError ? (
                 <Image
@@ -1413,7 +1417,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                 <PressableOpacity
                   activeOpacity={0.9}
                   onPress={handleAddCompanion}
-                  style={styles.heroButton}>
+                  style={styles.heroButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add companion">
                   <Image
                     source={Images.plusIcon}
                     style={styles.heroButtonIcon}
@@ -1500,7 +1506,9 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
                     key={action.id}
                     style={styles.quickAction}
                     activeOpacity={0.88}
-                    onPress={() => handleQuickActionPress(action.id)}>
+                    onPress={() => handleQuickActionPress(action.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={action.label}>
                     <View
                       style={[
                         styles.quickActionIconWrapper,

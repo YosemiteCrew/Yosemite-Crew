@@ -206,7 +206,9 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             onPress={() => {
               resolvedOpenSheet('category');
               categorySheetRef.current?.open();
-            }}>
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={`Category, ${getCategoryLabel()}`}>
             <Input
               label="Category"
               value={getCategoryLabel()}
@@ -234,7 +236,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 subcategorySheetRef.current?.open();
               }
             }}
-            disabled={!formData.category}>
+            disabled={!formData.category}
+            accessibilityRole="button"
+            accessibilityLabel={`Sub category, ${getSubcategoryLabel()}`}
+            accessibilityState={{disabled: !formData.category}}>
             <Input
               label="Sub category"
               value={getSubcategoryLabel()}
@@ -258,7 +263,9 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
           onPress={() => {
             resolvedOpenSheet('visitType');
             visitTypeSheetRef.current?.open();
-          }}>
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={`Visit type, ${getVisitTypeLabel()}`}>
           <Input
             label="Visit type"
             value={getVisitTypeLabel()}

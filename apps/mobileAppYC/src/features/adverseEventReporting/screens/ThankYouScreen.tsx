@@ -387,7 +387,10 @@ const RegulatoryAuthoritySection: React.FC<RegulatoryAuthoritySectionProps> = ({
     <PressableOpacity
       style={styles.callAuthorityAction}
       onPress={loading ? undefined : onCall}
-      disabled={loading}>
+      disabled={loading}
+      accessibilityRole="button"
+      accessibilityLabel="Call regulatory authority"
+      accessibilityState={{disabled: loading}}>
       <Ionicons name="call-outline" size={17} color={theme.colors.blueText} />
       <Text style={styles.callAuthorityText}>
         {loading

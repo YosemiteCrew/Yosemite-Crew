@@ -176,7 +176,9 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
       <PressableOpacity
         activeOpacity={onPressView ? 0.85 : 1}
         onPress={onPressView}
-        style={baseStyles.innerContent}>
+        style={baseStyles.innerContent}
+        accessibilityRole="button"
+        accessibilityLabel={`View expense: ${title}`}>
         <View style={styles.row}>
           <View
             style={[
@@ -207,7 +209,10 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
                 <PressableOpacity
                   style={[styles.paidBadge, styles.paidBadgeInteractive]}
                   activeOpacity={0.8}
-                  onPress={paidToggle}>
+                  onPress={paidToggle}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel="Paid"
+                  accessibilityState={{checked: true}}>
                   <Text style={styles.paidText}>Paid</Text>
                 </PressableOpacity>
               ) : (

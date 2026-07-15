@@ -209,6 +209,30 @@ describe('LinkedBusinessCard', () => {
     expect(mockOnPress).toHaveBeenCalled();
   });
 
+  it('exposes a button role and business name as the card label', () => {
+    render(
+      <LinkedBusinessCard business={mockBusiness} onPress={mockOnPress} />,
+    );
+
+    const card = screen.getByLabelText('City General Hospital');
+    expect(card.props.accessibilityRole).toBe('button');
+    expect(card.props.accessibilityState).toEqual({disabled: false});
+  });
+
+  it('exposes button roles and labels on the directions and delete buttons', () => {
+    render(
+      <LinkedBusinessCard
+        business={mockBusiness}
+        onDeletePress={mockOnDeletePress}
+      />,
+    );
+
+    const directionsButton = screen.getByLabelText('Get directions');
+    const deleteButton = screen.getByLabelText('Remove City General Hospital');
+    expect(directionsButton.props.accessibilityRole).toBe('button');
+    expect(deleteButton.props.accessibilityRole).toBe('button');
+  });
+
   it('handles Delete button press', () => {
     render(
       <LinkedBusinessCard

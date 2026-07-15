@@ -222,7 +222,9 @@ export const ExpensesMainScreen: React.FC = () => {
 
               <PressableOpacity
                 onPress={() => handleViewMore('inApp')}
-                activeOpacity={0.85}>
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="View yearly spend summary">
                 <YearlySpendCard
                   amount={yearlyTotal}
                   currencyCode={summaryCurrency}

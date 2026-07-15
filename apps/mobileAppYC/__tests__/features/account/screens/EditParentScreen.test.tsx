@@ -805,6 +805,8 @@ describe('EditParentScreen', () => {
       const {Pressable} = require('react-native');
       const PressableType = (Pressable as any).type;
       const [copyButton] = UNSAFE_getAllByType(PressableType);
+      expect(copyButton.props.accessibilityRole).toBe('button');
+      expect(copyButton.props.accessibilityLabel).toBe('Copy email');
       fireEvent.press(copyButton);
 
       expect(Clipboard.setString).toHaveBeenCalledWith('test@example.com');

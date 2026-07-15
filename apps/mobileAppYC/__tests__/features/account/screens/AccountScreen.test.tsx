@@ -468,6 +468,14 @@ describe('AccountScreen', () => {
     });
   });
 
+  it('exposes button roles and labels on the companion edit buttons', () => {
+    renderScreen();
+    const johnEditButton = screen.getByLabelText('Edit John Doe');
+    const buddyEditButton = screen.getByLabelText('Edit Buddy');
+    expect(johnEditButton.props.accessibilityRole).toBe('button');
+    expect(buddyEditButton.props.accessibilityRole).toBe('button');
+  });
+
   it('navigates to Edit Companion Profile when allowed (Primary Parent)', () => {
     renderScreen();
     const allImages = screen.UNSAFE_getAllByType(Image);

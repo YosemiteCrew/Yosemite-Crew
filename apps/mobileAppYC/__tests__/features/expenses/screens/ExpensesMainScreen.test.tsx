@@ -642,6 +642,12 @@ describe('ExpensesMainScreen', () => {
         mode: 'inApp',
       });
     });
+
+    it('exposes a button role and label on the yearly spend card', () => {
+      const {getByLabelText} = render(<ExpensesMainScreen />);
+      const card = getByLabelText('View yearly spend summary');
+      expect(card.props.accessibilityRole).toBe('button');
+    });
   });
 
   describe('In-app expense payment status', () => {

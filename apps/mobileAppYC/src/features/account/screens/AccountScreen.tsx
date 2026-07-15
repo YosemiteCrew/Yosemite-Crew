@@ -290,6 +290,8 @@ const CompanionProfilesCard: React.FC<CompanionProfilesCardProps> = ({
           <PressableOpacity
             activeOpacity={0.7}
             style={styles.editButton}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${profile.name}`}
             onPress={() => {
               // Index 0 is the primary user profile
               if (index === 0) {

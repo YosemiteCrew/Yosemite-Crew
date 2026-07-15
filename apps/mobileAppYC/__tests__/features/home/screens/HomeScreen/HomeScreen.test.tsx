@@ -689,6 +689,17 @@ describe('HomeScreen', () => {
       fireEvent.press(getByText('Add companion'));
       expect(mockNavigate).toHaveBeenCalledWith('AddCompanion');
     });
+
+    it('exposes a button role and label on the add companion hero button', () => {
+      const store = createStore({companion: {list: [], selectedId: null}});
+      const {getByLabelText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+      const button = getByLabelText('Add companion');
+      expect(button.props.accessibilityRole).toBe('button');
+    });
   });
 
   // 3. Interactions
@@ -702,6 +713,17 @@ describe('HomeScreen', () => {
       );
       fireEvent.press(getByText('Hello, John'));
       expect(mockNavigate).toHaveBeenCalledWith('Account');
+    });
+
+    it('exposes a button role and label on the profile button', () => {
+      const store = createStore();
+      const {getByLabelText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+      const button = getByLabelText('Your profile');
+      expect(button.props.accessibilityRole).toBe('button');
     });
     it('navigates to Expenses stack', () => {
       const store = createStore();
@@ -1001,6 +1023,17 @@ describe('HomeScreen', () => {
       });
     });
 
+    it('exposes a button role and label on quick action buttons', () => {
+      const store = createStore();
+      const {getByLabelText} = renderAndWait(
+        <Provider store={store}>
+          <HomeScreen navigation={mockNavigationProp} route={{} as any} />
+        </Provider>,
+      );
+      const button = getByLabelText('Manage health');
+      expect(button.props.accessibilityRole).toBe('button');
+    });
+
     it('navigates to merck manuals from quick actions when linked hospital is available', () => {
       const store = createStore({
         linkedBusinesses: {
@@ -1187,6 +1220,10 @@ describe('HomeScreen', () => {
           <HomeScreen navigation={mockNavigationProp} route={{} as any} />
         </Provider>,
       );
+
+      expect(
+        getByTestId('appointments-empty-tile').props.accessibilityRole,
+      ).toBe('button');
 
       fireEvent.press(getByTestId('appointments-empty-tile'));
       fireEvent.press(getByTestId('tasks-empty-tile'));

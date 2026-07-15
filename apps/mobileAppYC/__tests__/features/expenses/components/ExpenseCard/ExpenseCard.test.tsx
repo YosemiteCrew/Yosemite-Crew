@@ -125,6 +125,12 @@ describe('ExpenseCard', () => {
     expect(onPressView).toHaveBeenCalled();
   });
 
+  it('exposes a button role and title-based label on the card body', () => {
+    const {getByLabelText} = render(<ExpenseCard {...defaultProps} />);
+    const card = getByLabelText('View expense: Vet Visit');
+    expect(card.props.accessibilityRole).toBe('button');
+  });
+
   // --- 3. Payment Status & Buttons ---
 
   it('shows Pay button when an unpaid payment CTA is provided', () => {
@@ -175,6 +181,19 @@ describe('ExpenseCard', () => {
     fireEvent.press(paidText);
 
     expect(onToggle).toHaveBeenCalled();
+  });
+
+  it('exposes checkbox role, label, and checked state on the interactive Paid badge', () => {
+    const {getByLabelText} = render(
+      <ExpenseCard
+        {...defaultProps}
+        payment={{status: 'paid', onToggleStatus: jest.fn()}}
+      />,
+    );
+
+    const paidBadge = getByLabelText('Paid');
+    expect(paidBadge.props.accessibilityRole).toBe('checkbox');
+    expect(paidBadge.props.accessibilityState).toEqual({checked: true});
   });
 
   it('renders non-interactive Paid badge if onToggleStatus is missing', () => {
