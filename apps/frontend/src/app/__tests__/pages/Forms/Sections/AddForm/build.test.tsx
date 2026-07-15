@@ -199,6 +199,22 @@ const addFromPalette = (optionLabel: string) => {
   fireEvent.click(screen.getAllByRole('button', { name: optionLabel })[0]);
 };
 
+// jsdom implements no DragEvent, so RTL's fireEvent.dragOver/drop fall back to a bare Event
+// and silently drop `clientY` (only dataTransfer is re-attached). The builder's auto-scroll and
+// drop-position maths read clientY, so dispatch a MouseEvent — which does carry clientY — under
+// the drag event's name instead.
+const fireDrag = (
+  type: 'dragstart' | 'dragover' | 'drop' | 'dragend',
+  element: Element,
+  { clientY = 0, dataTransfer }: { clientY?: number; dataTransfer?: unknown } = {}
+) => {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientY });
+  if (dataTransfer) {
+    Object.defineProperty(event, 'dataTransfer', { value: dataTransfer });
+  }
+  fireEvent(element, event);
+};
+
 describe('Build form (single-screen builder)', () => {
   beforeEach(() => {
     stepRef = React.createRef<{ validate: () => boolean }>();
@@ -515,9 +531,9 @@ describe('Build form (single-screen builder)', () => {
       );
 
       const dataTransfer = dragData();
-      fireEvent.dragStart(screen.getByTestId('canvas-row-f-1'), { dataTransfer });
-      fireEvent.dragEnd(screen.getByTestId('canvas-row-f-1'));
-      fireEvent.drop(screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 40 });
+      fireDrag('dragstart', screen.getByTestId('canvas-row-f-1'), { dataTransfer });
+      fireDrag('dragend', screen.getByTestId('canvas-row-f-1'));
+      fireDrag('drop', screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 40 });
 
       expect(readSchema().map((field) => field.id)).toEqual(['f-1', 'f-2']);
     });
@@ -603,10 +619,11 @@ describe('Build form (single-screen builder)', () => {
       );
 
       const dataTransfer = dragData();
-      fireEvent.dragStart(screen.getByTestId('canvas-row-f-1'), { dataTransfer });
+      fireDrag('dragstart', screen.getByTestId('canvas-row-f-1'), { dataTransfer });
       // Dropping past the midpoint of the last row resolves the destination to
       // schema.length, which the reorder guard rejects (returns the prior schema).
-      fireEvent.drop(screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 40 });
+      // (jsdom gives every row a zero-sized rect, so any clientY > 0 lands "after".)
+      fireDrag('drop', screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 40 });
 
       expect(readSchema().map((field) => field.id)).toEqual(['f-1', 'f-2']);
     });
@@ -661,22 +678,32 @@ describe('Build form (single-screen builder)', () => {
           }) as DOMRect;
 
         const dataTransfer = dragData();
-        fireEvent.dragStart(screen.getByTestId('canvas-row-f-1'), { dataTransfer });
+        fireDrag('dragstart', screen.getByTestId('canvas-row-f-1'), { dataTransfer });
 
-        // Top edge zone with a scrolled container → negative velocity, schedules the raf loop.
-        fireEvent.dragOver(screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 150 });
+        // Deep in the top edge zone (inside the turbo band) → negative velocity, schedules the
+        // raf loop. rect is top 100 / bottom 500, so softZone is 200 and turboZone is ~66.
+        fireDrag('dragover', screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 150 });
         expect(rafSpy).toHaveBeenCalled();
         // Run one frame with a non-zero velocity → it scrolls and reschedules itself.
         flushFrame();
+        expect(builderEl.scrollTop).toBeLessThan(50);
 
-        // Bottom edge zone → positive velocity (auto-scroll already running, no new schedule).
-        fireEvent.dragOver(screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 450 });
+        // Still in the top soft zone but outside the turbo band → no turbo boost.
+        fireDrag('dragover', screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 220 });
+        flushFrame();
+
+        // Bottom edge zone, outside the turbo band → positive velocity, no turbo boost.
+        fireDrag('dragover', screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 380 });
+        flushFrame();
+        // Deep in the bottom edge zone → turbo boost.
+        fireDrag('dragover', screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 450 });
+        flushFrame();
         // Neutral zone → velocity resets to zero.
-        fireEvent.dragOver(screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 300 });
+        fireDrag('dragover', screen.getByTestId('canvas-row-f-2'), { dataTransfer, clientY: 300 });
         // Run the pending frame with a zero velocity → the loop stops itself.
         flushFrame();
 
-        fireEvent.dragEnd(screen.getByTestId('canvas-row-f-2'));
+        fireDrag('dragend', screen.getByTestId('canvas-row-f-2'));
         expect(screen.getByTestId('canvas-row-f-1')).toBeInTheDocument();
       } finally {
         rafSpy.mockRestore();
@@ -1267,6 +1294,567 @@ describe('Build form (single-screen builder)', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Remove task 1' }));
       expect((readSchema()[0] as any).fields).toHaveLength(2);
+    });
+  });
+
+  // `FormsProps.schema` is optional and saved drafts predate several field shapes, so the builder
+  // has to cope with a missing schema array, groups without a `fields` array, blank labels and
+  // field types it no longer knows about.
+  describe('forms with no schema array', () => {
+    it('renders an empty canvas and an empty settings panel', () => {
+      renderBuild(baseFormData({ schema: undefined }));
+
+      expect(screen.getByText(/No fields yet/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Select a field in the canvas to edit its settings/i)
+      ).toBeInTheDocument();
+    });
+
+    it('adds the first field to a form that has no schema array', () => {
+      renderBuild(baseFormData({ schema: undefined }));
+
+      addFromPalette('Short Text');
+
+      expect(readSchema().map((field) => field.type)).toEqual(['input']);
+    });
+
+    it('adds the first medication to a form that has no schema array', () => {
+      renderBuild(baseFormData({ schema: undefined }));
+
+      // No treatment_plan group exists, so this appends a standalone medication group.
+      addFromPalette('Medications');
+
+      expect(readSchema()).toHaveLength(1);
+      expect((readSchema()[0] as any).meta?.medicationGroup).toBe(true);
+    });
+
+    it('adds a signature to a Prescription form that has no schema array', () => {
+      renderBuild(
+        baseFormData({ schema: undefined, category: 'Prescription', requiredSigner: 'CLIENT' })
+      );
+
+      addFromPalette('Signature');
+
+      expect(ensureSingleSignatureAtEnd).toHaveBeenCalledTimes(1);
+      expect(readSchema().map((field) => field.type)).toEqual(['signature']);
+    });
+  });
+
+  describe('canvas rows for unusual field shapes', () => {
+    it('updates only the selected field and leaves its siblings untouched', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            {
+              id: 'f-1',
+              type: 'input',
+              label: 'A',
+              meta: { showInSummaryPdf: true },
+            } as unknown as FormField,
+            { id: 'f-2', type: 'number', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      fireEvent.click(screen.getByRole('switch', { name: 'Required' }));
+      expect(readSchema()[0].required).toBe(true);
+      expect(readSchema()[1].required).toBeUndefined();
+
+      // The selected field already carries meta, so the toggle reads the existing flag.
+      fireEvent.click(screen.getByRole('switch', { name: 'Show in summary PDF' }));
+      expect((readSchema()[0] as any).meta?.showInSummaryPdf).toBe(false);
+      expect((readSchema()[1] as any).meta).toBeUndefined();
+    });
+
+    it('names an unlabeled row by its type and keeps an unknown type as its own name', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'number' } as FormField,
+            // A legacy type from a saved draft: it still gets a readable row (its builder is
+            // never rendered because it is not the selected field).
+            { id: 'f-3', type: 'legacy-widget' } as unknown as FormField,
+          ],
+        })
+      );
+
+      expect(within(screen.getByTestId('canvas-row-f-2')).getAllByText('Number')).not.toHaveLength(
+        0
+      );
+      expect(
+        within(screen.getByTestId('canvas-row-f-3')).getAllByText('legacy-widget')
+      ).not.toHaveLength(0);
+    });
+
+    it('marks an unselected signature row as signable', () => {
+      renderBuild(
+        baseFormData({
+          requiredSigner: 'CLIENT',
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'sig-1', type: 'signature', label: 'Sign here' } as FormField,
+          ],
+        })
+      );
+
+      const row = screen.getByTestId('canvas-row-sig-1');
+      expect(row).toHaveAttribute('aria-pressed', 'false');
+      expect(row.className).toContain('border-dashed');
+      expect(within(row).getByText(/signed in the pet-parent app/i)).toBeInTheDocument();
+    });
+
+    it('selects a field with the space key', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'number', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      fireEvent.keyDown(screen.getByTestId('canvas-row-f-2'), { key: ' ' });
+      expect(screen.getByTestId('builder-f-2')).toBeInTheDocument();
+    });
+
+    it('leaves the selection alone for a key that is not Enter or Space', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'number', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      fireEvent.keyDown(screen.getByTestId('canvas-row-f-2'), { key: 'Tab' });
+      expect(screen.getByTestId('builder-f-1')).toBeInTheDocument();
+    });
+
+    it('duplicates a group field and gives every nested field a fresh id', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            {
+              id: 'grp-1',
+              type: 'group',
+              label: 'Section',
+              fields: [{ id: 'n-1', type: 'input', label: 'Nested' } as FormField],
+            } as FormField,
+          ],
+        })
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Duplicate Section' }));
+
+      const schema = readSchema();
+      expect(schema).toHaveLength(2);
+      const clone = schema[1] as FormField & { fields?: FormField[] };
+      expect(clone.id).not.toBe('grp-1');
+      expect(clone.fields?.[0].id).not.toBe('n-1');
+      expect(clone.fields?.[0].label).toBe('Nested');
+    });
+
+    it('ignores a drag reorder while the structure is locked', () => {
+      renderBuild(
+        baseFormData({
+          templateSource: 'YC_LIBRARY',
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'input', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      // The rows are not `draggable`, but the handlers stay wired — a synthesised drag must
+      // still be refused by the structure lock rather than reordering the schema.
+      const dataTransfer = { effectAllowed: '', dropEffect: '', setData: jest.fn() };
+      fireDrag('dragstart', screen.getByTestId('canvas-row-f-1'), { dataTransfer });
+      fireDrag('drop', screen.getByTestId('canvas-row-f-2'), { dataTransfer });
+
+      expect(readSchema().map((field) => field.id)).toEqual(['f-1', 'f-2']);
+    });
+
+    it('no-ops when a duplicate resolves to an index the schema no longer has', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'f-1', type: 'input', label: 'A' } as FormField,
+            { id: 'f-2', type: 'input', label: 'B' } as FormField,
+          ],
+        })
+      );
+
+      fireEvent.click(screen.getByTestId('canvas-row-f-2'));
+      const row = screen.getByTestId('canvas-row-f-2');
+
+      // Both clicks land in one React batch, so the duplicate's updater runs against a schema
+      // the delete has already shortened — index 1 no longer exists and the guard bails.
+      act(() => {
+        fireEvent.click(within(row).getByRole('button', { name: 'delete-f-2' }));
+        fireEvent.click(within(row).getByRole('button', { name: 'Duplicate B' }));
+      });
+
+      expect(readSchema().map((field) => field.id)).toEqual(['f-1']);
+    });
+
+    it('falls back to the raw value for a linked service that is not in the options', () => {
+      renderBuild(
+        baseFormData({
+          services: ['svc-unknown'],
+          schema: [{ id: 'f-1', type: 'input', label: 'A' } as FormField],
+        })
+      );
+
+      expect(screen.getByText('svc-unknown')).toBeInTheDocument();
+      expect(screen.getByText('SERVICE')).toBeInTheDocument();
+    });
+  });
+
+  describe('groups that have no fields array', () => {
+    it('adds a medication into a treatment plan with no fields, leaving other fields alone', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            { id: 'notes', type: 'input', label: 'Notes' } as FormField,
+            { id: 'treatment_plan', type: 'group', label: 'Treatment plan' } as FormField,
+          ],
+        })
+      );
+
+      addFromPalette('Medications');
+
+      const schema = readSchema();
+      expect(schema[0].id).toBe('notes');
+      const plan = schema[1] as FormField & { fields?: FormField[] };
+      expect(plan.fields).toHaveLength(1);
+      expect(plan.fields?.[0].label).toBe('Medication 1');
+    });
+
+    it('renders a generic group that has neither a label nor a fields array', () => {
+      renderBuild(
+        baseFormData({ schema: [{ id: 'grp-1', type: 'group', label: '' } as FormField] })
+      );
+
+      expect(screen.getByText('Group')).toBeInTheDocument();
+      expect(screen.getByTestId('group-grp-1-label')).toHaveValue('');
+    });
+
+    it('renders a medication group that has neither a label nor a fields array', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            {
+              id: 'mg-1',
+              type: 'group',
+              label: '',
+              meta: { medicationGroup: true } as any,
+            } as FormField,
+          ],
+        })
+      );
+
+      expect(screen.getByText('Medication')).toBeInTheDocument();
+      expect(screen.getByTestId('group-mg-1-label')).toHaveValue('');
+      expect(screen.getByTestId('medicine-dropdown')).toBeInTheDocument();
+    });
+
+    it('skips a non-group entry inside a medication group', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            {
+              id: 'mg-1',
+              type: 'group',
+              label: 'Medication',
+              meta: { medicationGroup: true } as any,
+              fields: [{ id: 'stray', type: 'input', label: 'Stray' } as FormField],
+            } as FormField,
+          ],
+        })
+      );
+
+      // Only medicine *groups* render as cards; a stray leaf renders nothing.
+      expect(screen.queryByTestId('stray-duration')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Remove / })).not.toBeInTheDocument();
+    });
+
+    it('adds the first task block to a task group with no fields array', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            {
+              id: 'task_blocks',
+              type: 'group',
+              label: 'Tasks',
+              meta: { taskGroup: true } as any,
+            } as FormField,
+          ],
+        })
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /Add task block/i }));
+
+      expect((readSchema()[0] as any).fields).toHaveLength(1);
+    });
+  });
+
+  describe('service groups carrying stale selections', () => {
+    it('keeps an unknown selection, its sibling fields and its blank label intact', () => {
+      const serviceGroup: FormField = {
+        id: 'svc-group',
+        type: 'group',
+        label: '',
+        meta: { serviceGroup: true } as any,
+        fields: [
+          { id: 'svc-note', type: 'input', label: 'Note' } as FormField,
+          {
+            id: 'svc-group_services',
+            type: 'checkbox',
+            label: '',
+            multiple: true,
+            // A package that has since been retired: it is not in serviceOptions any more.
+            options: [{ label: 'Retired package', value: 'svc-gone' }],
+          } as FormField,
+        ],
+      } as FormField;
+
+      renderBuild(baseFormData({ schema: [serviceGroup] }));
+
+      // Blank group label → the builder falls back to the default heading and an empty input.
+      expect(screen.getAllByText('Services / Packages')).not.toHaveLength(0);
+      expect(screen.getByTestId('group-svc-group-label')).toHaveValue('');
+
+      fireEvent.click(screen.getByText('Checkup'));
+
+      const group = readSchema()[0] as FormField & {
+        fields?: FormField[];
+        meta?: Record<string, any>;
+      };
+      expect(group.meta?.serviceIds).toEqual(['svc-gone', 'svc-1']);
+      const checkbox = (group.fields || []).find((field) => field.type === 'checkbox') as any;
+      // The retired value has no option to match, so it is echoed back as its own label.
+      expect(checkbox?.options).toEqual([
+        { label: 'svc-gone', value: 'svc-gone' },
+        { label: 'Checkup', value: 'svc-1' },
+      ]);
+      // The sibling field is preserved by the checkbox-only rewrite.
+      expect((group.fields || []).some((field) => field.id === 'svc-note')).toBe(true);
+    });
+  });
+
+  describe('medicine cards for saved medicine groups', () => {
+    const medicationGroupWith = (fields: FormField[]): FormField =>
+      ({
+        id: 'mg-1',
+        type: 'group',
+        label: 'Medication',
+        meta: { medicationGroup: true } as any,
+        fields,
+      }) as FormField;
+
+    it('renders a medicine group with no label or fields and edits it independently', () => {
+      renderBuild(
+        baseFormData({
+          schema: [
+            medicationGroupWith([
+              { id: 'med-x', type: 'group' } as FormField,
+              { id: 'med-y', type: 'group', label: 'Other', fields: [] } as FormField,
+            ]),
+          ],
+        })
+      );
+
+      // No medicineName field and no label → the card falls back to a generic name.
+      expect(screen.getByText('Medicine')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Remove Medicine' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Remove Other' })).toBeInTheDocument();
+
+      // Editing the card writes into a fields array that did not exist, and must not disturb
+      // the sibling medicine group.
+      fireEvent.change(screen.getByTestId('med-x-duration'), { target: { value: '4' } });
+
+      const medGroup = readSchema()[0] as FormField & { fields?: FormField[] };
+      expect(medGroup.fields?.[0].id).toBe('med-x');
+      expect((medGroup.fields?.[1] as any).label).toBe('Other');
+    });
+
+    it('summarises a medicine card from its authored prescription fields', () => {
+      const leaf = (suffix: string, prescriptionField: string, defaultValue: string): FormField =>
+        ({
+          id: `med-s_${suffix}`,
+          type: 'input',
+          label: suffix,
+          defaultValue,
+          meta: { prescriptionField },
+        }) as unknown as FormField;
+
+      renderBuild(
+        baseFormData({
+          schema: [
+            medicationGroupWith([
+              {
+                id: 'med-s',
+                type: 'group',
+                label: 'Amoxi',
+                fields: [
+                  leaf('name', 'medicineName', 'Amoxicillin'),
+                  leaf('brand', 'brand', 'Amoxil'),
+                  leaf('strength', 'strength', '250'),
+                  leaf('strengthUnit', 'strengthUnit', 'mg'),
+                  leaf('form', 'dosageForm', 'Tablet'),
+                  leaf('sku', 'sku', 'AMX-1'),
+                  leaf('drugSchedule', 'drugSchedule', 'IV'),
+                ],
+              } as unknown as FormField,
+            ]),
+          ],
+        })
+      );
+
+      expect(screen.getByText('Amoxicillin')).toBeInTheDocument();
+      expect(screen.getByText('Amoxil • 250 mg • Tablet • SKU AMX-1 • IV')).toBeInTheDocument();
+    });
+  });
+
+  describe('inventory medicines with sparse data', () => {
+    const medicationGroup: FormField = {
+      id: 'mg-1',
+      type: 'group',
+      label: 'Medication',
+      meta: { medicationGroup: true } as any,
+      fields: [],
+    } as FormField;
+
+    beforeEach(() => {
+      (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
+        selector({ primaryOrgId: 'org-1' })
+      );
+    });
+
+    it('falls back to generic labels for a medicine with no name, strength, route or type', async () => {
+      (fetchInventoryItems as jest.Mock).mockResolvedValue([
+        // Categorised as a medicine, but carrying none of the descriptive fields the option
+        // label, badge and summary are normally built from.
+        { _id: 'med-blank', name: '', category: 'Medicine', controlledItem: 'true' },
+      ]);
+
+      renderBuild(baseFormData({ schema: [medicationGroup] }));
+
+      const option = await screen.findByRole('option', { name: 'Medicine' });
+      fireEvent.click(option);
+
+      await waitFor(() => {
+        expect((readSchema()[0] as any).fields).toHaveLength(1);
+      });
+
+      const medicine = (readSchema()[0] as any).fields[0];
+      expect(medicine.label).toBe('Medicine');
+      // A boolean inventory flag is stringified into the readonly leaf field.
+      const controlled = medicine.fields.find(
+        (f: any) => f.meta?.prescriptionField === 'controlledSubstance'
+      );
+      expect(controlled.defaultValue).toBe('true');
+    });
+
+    it('ignores a medicine option that has no inventory id', async () => {
+      (fetchInventoryItems as jest.Mock).mockResolvedValue([
+        { _id: '', name: 'Ghost', category: 'Medicine' },
+      ]);
+
+      renderBuild(baseFormData({ schema: [medicationGroup] }));
+
+      fireEvent.click(await screen.findByRole('option', { name: 'Ghost' }));
+
+      await waitFor(() => {
+        expect(fetchInventoryItems).toHaveBeenCalledWith('org-1');
+      });
+      expect((readSchema()[0] as any).fields).toHaveLength(0);
+    });
+  });
+
+  describe('task blocks with sparse data', () => {
+    const taskGroupWith = (fields: FormField[]): FormField =>
+      ({
+        id: 'task_blocks',
+        type: 'group',
+        label: 'Tasks',
+        meta: { taskGroup: true } as any,
+        fields,
+      }) as FormField;
+
+    const emptyBlock = (id: string, label: string): FormField =>
+      ({
+        id,
+        type: 'group',
+        label,
+        meta: { taskBlock: true, taskBlockId: id } as any,
+      }) as unknown as FormField;
+
+    it('renders a task block with no fields using the default captions and option sets', () => {
+      renderBuild(baseFormData({ schema: [taskGroupWith([emptyBlock('tb-empty', 'Task 1')])] }));
+
+      // Every caption falls back because no taskBlockKey leaf exists to read a label from.
+      expect(screen.getByText('Category')).toBeInTheDocument();
+      expect(screen.getByText('Repeat')).toBeInTheDocument();
+      expect(screen.getByText('Reminder (optional)')).toBeInTheDocument();
+      // The default option sets are offered instead of per-field options.
+      expect(screen.getByRole('option', { name: 'Care' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Every 12 hours' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: '15 minutes before' })).toBeInTheDocument();
+      // With no leaf fields there is no authored value to show.
+      expect(screen.getByTestId('tb-empty-title')).toHaveValue('');
+      expect(screen.getByTestId('tb-empty-duration')).toHaveValue('');
+    });
+
+    it('edits and duplicates a task block that has no fields array', () => {
+      renderBuild(baseFormData({ schema: [taskGroupWith([emptyBlock('tb-empty', 'Task 1')])] }));
+
+      // Duplicate first, so the clone is cloned from a block that never had a fields array.
+      fireEvent.click(screen.getByRole('button', { name: 'Duplicate task 1' }));
+
+      const blocks = (readSchema()[0] as any).fields;
+      expect(blocks).toHaveLength(2);
+      expect(blocks[1].fields).toEqual([]);
+      expect(blocks[1].id).not.toBe('tb-empty');
+
+      // Nothing to write into, but the edit must not throw or drop either block.
+      fireEvent.change(screen.getByTestId('tb-empty-title'), {
+        target: { value: 'Record vitals' },
+      });
+      expect((readSchema()[0] as any).fields).toHaveLength(2);
+    });
+
+    it('updates one task block without touching the others', () => {
+      const titledBlock = (id: string, title: string): FormField =>
+        ({
+          id,
+          type: 'group',
+          label: id,
+          meta: { taskBlock: true, taskBlockId: id } as any,
+          fields: [
+            {
+              id: `${id}_name`,
+              type: 'input',
+              label: 'Task title',
+              defaultValue: title,
+              meta: { taskBlockKey: 'name' },
+            },
+          ],
+        }) as unknown as FormField;
+
+      renderBuild(
+        baseFormData({
+          schema: [taskGroupWith([titledBlock('tb-1', 'First'), titledBlock('tb-2', 'Second')])],
+        })
+      );
+
+      fireEvent.change(screen.getByTestId('tb-1-title'), { target: { value: 'Only first' } });
+
+      const blocks = (readSchema()[0] as any).fields;
+      expect(blocks[0].fields[0].defaultValue).toBe('Only first');
+      expect(blocks[1].fields[0].defaultValue).toBe('Second');
     });
   });
 });

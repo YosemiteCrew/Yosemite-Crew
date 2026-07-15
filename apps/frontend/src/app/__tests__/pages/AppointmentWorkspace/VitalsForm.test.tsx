@@ -1,9 +1,10 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import VitalsForm, {
+import VitalsForm from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/VitalsForm';
+import {
   INITIAL_VITALS_FORM_DRAFT_STATE,
   vitalsFormDraftReducer,
-} from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/VitalsForm';
+} from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/vitalsFormDraft';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { saveVitalRecord } from '@/app/features/appointments/services/workspaceClinicalService';
 import { listVitalsTemplates } from '@/app/features/appointments/services/workspaceTemplateService';

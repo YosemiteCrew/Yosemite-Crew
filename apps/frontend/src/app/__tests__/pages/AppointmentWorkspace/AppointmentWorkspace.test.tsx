@@ -28,11 +28,17 @@ import {
 } from '@/app/features/billing/services/invoiceService';
 import { updateCompanion } from '@/app/features/companions/services/companionService';
 import { useCompanionStore } from '@/app/stores/companionStore';
+import { useParentStore } from '@/app/stores/parentStore';
+import { useAuthStore } from '@/app/stores/authStore';
+import { persistEncounterTreatmentLine } from '@/app/features/appointments/services/workspaceAggregateService';
+import { buildEmptyEncounter } from '@/app/features/appointments/services/workspaceInitialData';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
 const mockNotify = jest.fn();
 let mockStepParam: string | null = null;
+/** Date handed to `setCurrentDate` by the Datepicker mock's "pick" control. */
+let mockPickedDate = new Date('2026-05-01T08:00:00.000Z');
 const mockLoadOrganisationCatalog = jest.fn().mockResolvedValue(undefined);
 const mockLoadSpecialityCatalog = jest.fn().mockResolvedValue(undefined);
 let mockRevampCatalogState = {
@@ -127,26 +133,66 @@ jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceS
 
 jest.mock('@/app/features/appointments/pages/AppointmentWorkspace/steps/SummaryStep', () => ({
   __esModule: true,
-  default: ({ encounter }: { encounter: AppointmentEncounter }) => (
-    <div>Summary read only: {String(encounter.viewOnly)}</div>
+  default: ({
+    encounter,
+    resolvedEncounterId,
+  }: {
+    encounter: AppointmentEncounter;
+    resolvedEncounterId?: string;
+  }) => (
+    <div>
+      <div>Summary read only: {String(encounter.viewOnly)}</div>
+      <div>Summary encounter: {resolvedEncounterId ?? 'none'}</div>
+    </div>
   ),
 }));
 
+// Datepicker/Timepicker stand-ins. Beyond the read-only display button that the
+// existing assertions target, each exposes the setter props the real controls
+// drive: react-datepicker hands `null` to `setCurrentDate` when the field is
+// cleared, and Timepicker emits `''` from its own `onChange` for a null time.
 jest.mock('@/app/ui/inputs/Datepicker', () => ({
   __esModule: true,
-  default: ({ placeholder }: { placeholder: string }) => (
-    <button type="button" aria-label={placeholder}>
-      {placeholder}
-    </button>
+  default: ({
+    placeholder,
+    setCurrentDate,
+  }: {
+    placeholder: string;
+    setCurrentDate: (next: Date | null) => void;
+  }) => (
+    <>
+      <button type="button" aria-label={placeholder}>
+        {placeholder}
+      </button>
+      <button
+        type="button"
+        aria-label={`${placeholder} clear`}
+        onClick={() => setCurrentDate(null)}
+      >
+        clear
+      </button>
+      <button
+        type="button"
+        aria-label={`${placeholder} pick`}
+        onClick={() => setCurrentDate(mockPickedDate)}
+      >
+        pick
+      </button>
+    </>
   ),
 }));
 
 jest.mock('@/app/ui/inputs/Timepicker', () => ({
   __esModule: true,
-  default: ({ label }: { label: string }) => (
-    <button type="button" aria-label={label}>
-      {label}
-    </button>
+  default: ({ label, onChange }: { label: string; onChange: (next: string) => void }) => (
+    <>
+      <button type="button" aria-label={label}>
+        {label}
+      </button>
+      <button type="button" aria-label={`${label} clear`} onClick={() => onChange('')}>
+        clear
+      </button>
+    </>
   ),
 }));
 
@@ -193,6 +239,7 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
   return {
     ...actual,
     getAppointmentWorkspaceBootstrap: jest.fn().mockResolvedValue({}),
+    persistEncounterTreatmentLine: jest.fn().mockResolvedValue(undefined),
   };
 });
 
@@ -280,7 +327,29 @@ const resetStore = () => {
   });
   (updateCompanion as jest.Mock).mockReset();
   (updateCompanion as jest.Mock).mockResolvedValue(undefined);
+  (resolveSoapTemplate as jest.Mock).mockResolvedValue(null);
+  (persistEncounterTreatmentLine as jest.Mock).mockClear();
+  (persistEncounterTreatmentLine as jest.Mock).mockResolvedValue(undefined);
   useCompanionStore.setState({ companionsById: {} });
+  useParentStore.setState({ parentsById: {} });
+  useAuthStore.setState({ attributes: null });
+  mockPickedDate = new Date('2026-05-01T08:00:00.000Z');
+};
+
+/**
+ * Seed the store with an encounter before render. `initEncounter` is a no-op when
+ * one already exists, so this is how a test drives encounter shapes the
+ * appointment-derived seed can't produce (e.g. a unit with no room).
+ */
+const seedEncounter = (patch: Partial<AppointmentEncounter> = {}) => {
+  useAppointmentWorkspaceStore.setState({
+    encountersById: {
+      'appt-workspace': {
+        ...buildEmptyEncounter('appt-workspace', 'INPATIENT'),
+        ...patch,
+      },
+    },
+  });
 };
 
 describe('AppointmentWorkspace container', () => {
@@ -2057,5 +2126,1185 @@ describe('AppointmentWorkspace container', () => {
       )
     );
     consoleError.mockRestore();
+  });
+
+  /** Let every promise a just-fired interaction created settle before the test ends. */
+  const settle = async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  };
+
+  it('renders nothing when the appointment has no id', async () => {
+    const { container } = render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date()), id: undefined } as Appointment}
+      />
+    );
+
+    await settle();
+    expect(container).toBeEmptyDOMElement();
+    // With no appointment id there is no encounter to hydrate.
+    expect(getAppointmentWorkspaceBootstrap).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a default reason when the appointment records no concern', async () => {
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date()), concern: '   ' } as Appointment}
+      />
+    );
+
+    expect(
+      await screen.findByText('SOAP reason: No appointment reason recorded.')
+    ).toBeInTheDocument();
+  });
+
+  it('uses the signed-in user as the clinical author', async () => {
+    useAuthStore.setState({
+      attributes: { sub: 'user-9', given_name: 'Ada', family_name: 'Lovelace' },
+    });
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(loadWorkspaceClinicalArtifacts).toHaveBeenCalledWith(
+        expect.objectContaining({ authorId: 'user-9', authorName: 'Ada Lovelace' })
+      )
+    );
+  });
+
+  it('passes the booked service and speciality into the step bodies', async () => {
+    const appointment = {
+      ...makeAppointment(new Date()),
+      appointmentType: {
+        id: 'svc-1',
+        name: 'Dental cleaning',
+        speciality: { id: 'spec-1', name: 'Dentistry' },
+      },
+    } as Appointment;
+    render(<AppointmentWorkspace appointment={appointment} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(resolveSoapTemplate).toHaveBeenCalledWith(
+        expect.objectContaining({ serviceId: 'svc-1', mode: 'OUTPATIENT' })
+      )
+    );
+  });
+
+  it('surfaces client alerts stored on the parent record', async () => {
+    useParentStore.setState({
+      parentsById: {
+        'parent-1': {
+          id: 'parent-1',
+          alerts: [{ title: 'Unpaid balance', severity: 'high' }],
+        } as never,
+      },
+    });
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    expect(screen.getByText('Client: Unpaid balance')).toBeInTheDocument();
+  });
+
+  it('keeps the workspace usable when every hydration source fails', async () => {
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockRejectedValue(new Error('bootstrap down'));
+    (loadWorkspaceClinicalArtifacts as jest.Mock).mockRejectedValue(new Error('clinical down'));
+    (listSoapTemplatesForWorkspace as jest.Mock).mockRejectedValue(new Error('templates down'));
+    (resolveSoapTemplate as jest.Mock).mockRejectedValue(new Error('resolve down'));
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    // Every source is settled independently, so a total outage still renders the
+    // workspace with empty data rather than logging a hydration failure.
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await waitFor(() => expect(resolveSoapTemplate).toHaveBeenCalled());
+    await settle();
+    const encounter = useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace');
+    expect(encounter?.soapTemplates).toEqual([]);
+    expect(encounter?.soap).toEqual([]);
+  });
+
+  it('logs when the bootstrap payload cannot be normalized', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue(null);
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        'Unable to hydrate workspace data:',
+        expect.anything()
+      )
+    );
+    consoleError.mockRestore();
+  });
+
+  it.each([
+    ['no encounter id', {}],
+    ['a blank encounter id', { id: '   ' }],
+    ['a non-string encounter id', { id: 7 }],
+  ])('ignores a bootstrap encounter with %s', async (_label, encounterPayload) => {
+    mockStepParam = 'SUMMARY';
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({
+      encounter: encounterPayload,
+    });
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    await settle();
+    // No usable id came back, so the appointment's own (absent) encounter id stands.
+    expect(screen.getByText('Summary encounter: none')).toBeInTheDocument();
+  });
+
+  it('advances to the next step from the SOAP save-and-next control', async () => {
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Mock soap save next' }));
+
+    expect(useAppointmentWorkspaceStore.getState().activeStep).toBe('DIAGNOSTICS');
+    expect(mockReplace).toHaveBeenCalledWith(
+      '/appointments/appt-workspace/workspace?step=DIAGNOSTICS',
+      { scroll: false }
+    );
+  });
+
+  it('scrolls the main content container back to the top on step change', async () => {
+    const mainContent = document.createElement('div');
+    mainContent.id = 'main-content';
+    mainContent.scrollTo = jest.fn();
+    document.body.append(mainContent);
+
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+
+    expect(mainContent.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    mainContent.remove();
+  });
+
+  it('opens the companion history route from the context card', async () => {
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /view details/i }));
+
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('appt-workspace'));
+  });
+
+  it('names the booked item on the invoice step', async () => {
+    mockStepParam = 'INVOICE';
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date()),
+            appointmentType: { id: 'svc-2', name: 'Vaccination' },
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByRole('button', { name: 'Mock open summary' })).toBeInTheDocument();
+    await settle();
+  });
+
+  // --- hospitalization catalog effects ---------------------------------------
+
+  it('skips the catalog load and encounter refresh without an organisation', async () => {
+    mockStepParam = 'TREATMENT';
+    render(
+      <AppointmentWorkspace
+        appointment={
+          // The type marks organisationId required, but the workspace guards against
+          // an appointment that reaches it without one.
+          { ...makeAppointment(new Date()), organisationId: undefined } as unknown as Appointment
+        }
+      />
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Mock ensure encounter' }));
+    await settle();
+
+    expect(mockLoadOrganisationCatalog).not.toHaveBeenCalled();
+    // Check-in still runs, but there is no organisation to read the bootstrap from.
+    expect(changeAppointmentStatus).toHaveBeenCalled();
+    expect(getAppointmentWorkspaceBootstrap).not.toHaveBeenCalled();
+  });
+
+  it('logs when the hospitalization catalog fails to load', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockLoadOrganisationCatalog.mockRejectedValueOnce(new Error('catalog down'));
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to load hospitalization catalog:',
+        expect.any(Error)
+      )
+    );
+    consoleError.mockRestore();
+  });
+
+  it('loads the speciality catalog only for the appointment organisation', async () => {
+    mockRevampCatalogState.specialities = [
+      { id: 'spec-1', organisationId: 'org-1', name: 'Dentistry' },
+      { id: 'spec-2', organisationId: 'org-other', name: 'Oncology' },
+    ];
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await waitFor(() => expect(mockLoadSpecialityCatalog).toHaveBeenCalledWith('org-1', 'spec-1'));
+    expect(mockLoadSpecialityCatalog).toHaveBeenCalledTimes(1);
+  });
+
+  // --- admission --------------------------------------------------------------
+
+  it('admits an inpatient appointment that has no room or unit yet', async () => {
+    seedEncounter({ nurseId: 'nurse-1', nurseName: 'Nina' });
+    render(
+      <AppointmentWorkspace
+        appointment={
+          { ...makeAppointment(new Date()), appointmentKind: 'INPATIENT' } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith('org-1', 'appt-workspace', {
+        admittedAt: expect.any(String),
+        expectedStayDays: undefined,
+        lead: undefined,
+        // No support staff on the appointment, so the encounter's nurse is sent.
+        supportStaff: [{ id: 'nurse-1', name: 'Nina' }],
+        room: undefined,
+        roomUnitId: undefined,
+        assignedAt: expect.any(String),
+        assignedBy: 'You',
+        assignmentReason: 'Admitted from appointment workspace',
+      })
+    );
+  });
+
+  it('sends the appointment lead and names an unknown room by its id when admitting', async () => {
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date(), true),
+            lead: { id: 'lead-1', name: 'Dr House', profileUrl: 'lead.png' },
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        expect.objectContaining({
+          lead: { id: 'lead-1', name: 'Dr House' },
+          // The rooms index hasn't loaded, so the room id stands in for the name.
+          room: { id: 'room-1', name: 'room-1' },
+        })
+      )
+    );
+  });
+
+  it('sends only support staff entries that carry both an id and a name', async () => {
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date(), true),
+            lead: { id: 'lead-1', name: 'Dr House' },
+            supportStaff: [
+              { id: 'ss-blank' },
+              { name: 'Nameless Id' },
+              { id: 'ss-1', name: 'Nina' },
+            ],
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        expect.objectContaining({ supportStaff: [{ id: 'ss-1', name: 'Nina' }] })
+      )
+    );
+  });
+
+  it('logs when the post-admission workspace refresh fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date(), true)} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockRejectedValue(new Error('refresh down'));
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        'Unable to refresh workspace after admission:',
+        expect.any(Error)
+      )
+    );
+    consoleError.mockRestore();
+  });
+
+  it.each([
+    ['a non-Error rejection', 'plain string failure'],
+    ['a non-object error payload', { response: { data: 'oops' } }],
+    ['an error payload with no message', { response: { data: {} } }],
+  ])('falls back to a generic admit message for %s', async (_label, rejection) => {
+    (admitAppointment as jest.Mock).mockRejectedValue(rejection);
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date(), true)} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Unable to admit',
+        text: 'Please try again.',
+      })
+    );
+  });
+
+  it('treats a bare admission stamp with no matching start time as a real admission', async () => {
+    seedEncounter({ admittedAt: '2026-04-20T09:00:00.000Z' });
+    render(
+      <AppointmentWorkspace
+        appointment={
+          // startTime is typed as required; this models a record that reaches the
+          // workspace without one.
+          {
+            ...makeAppointment(new Date()),
+            appointmentKind: 'INPATIENT',
+            startTime: undefined,
+          } as unknown as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    // The admission can't be a bare check-in stamp without a start time to match,
+    // so it counts as a real admission and the Admit action is gone.
+    expect(screen.queryByRole('button', { name: 'Admit' })).not.toBeInTheDocument();
+  });
+
+  it('blocks admitting an appointment with an unrecognised status', async () => {
+    render(
+      <AppointmentWorkspace
+        appointment={
+          // An unset status normalizes to null, which is not admissible.
+          { ...makeAppointment(new Date()), status: undefined } as unknown as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /hospitalize patient/i }));
+
+    expect(mockNotify).toHaveBeenCalledWith(
+      'error',
+      expect.objectContaining({ title: 'Check in required' })
+    );
+  });
+
+  // --- room / unit backfill effects -------------------------------------------
+
+  it('shows the raw unit id when the unit is not in the rooms index', async () => {
+    seedEncounter({ unitId: 'unit-x' });
+    render(
+      <AppointmentWorkspace
+        appointment={
+          { ...makeAppointment(new Date()), appointmentKind: 'INPATIENT' } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    // The unit maps to no known room, so the room backfill effect bails out and
+    // the unit dropdown falls back to showing the raw id.
+    expect(screen.getByRole('button', { name: 'Unit: unit-x' })).toBeInTheDocument();
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.roomId
+    ).toBeUndefined();
+  });
+
+  it('backfills the room from the assigned unit when the encounter has no room', async () => {
+    seedEncounter({ unitId: 'unit-a' });
+    useOrganisationRoomStore.setState({
+      roomUnitsById: {
+        'unit-a': {
+          id: 'unit-a',
+          organisationId: 'org-1',
+          roomId: 'room-9',
+          code: 'A',
+          displayName: 'A',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-9': ['unit-a'] },
+    });
+    render(
+      <AppointmentWorkspace
+        appointment={
+          { ...makeAppointment(new Date()), appointmentKind: 'INPATIENT' } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.roomId).toBe(
+        'room-9'
+      )
+    );
+  });
+
+  it('does not auto-assign a unit when an outpatient encounter takes the booked room', async () => {
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date(), true),
+            appointmentKind: 'OUTPATIENT',
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    const encounter = useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace');
+    expect(encounter?.roomId).toBe('room-1');
+    expect(encounter?.unitId).toBeUndefined();
+  });
+
+  it('falls back to a unit code when the unit has no display name', async () => {
+    (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([{ id: 'room-1', name: 'Ward A' }]);
+    useOrganisationRoomStore.setState({
+      roomUnitsById: {
+        'unit-a': {
+          id: 'unit-a',
+          organisationId: 'org-1',
+          roomId: 'room-1',
+          code: 'CODE-A',
+          displayName: '',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-1': ['unit-a'] },
+    });
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date(), true)} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Unit: CODE-A' })).toBeInTheDocument();
+  });
+
+  // --- ready toggles ----------------------------------------------------------
+
+  it('keeps ready-for-discharge local when no encounter id can be resolved', async () => {
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date(), true)} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /ready for discharge/i }));
+    });
+
+    // The refresh found no encounter id, so nothing is persisted, but the
+    // optimistic flip stands.
+    expect(markEncounterReadyForDischarge).not.toHaveBeenCalled();
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.readyForDischarge
+        .value
+    ).toBe(true);
+  });
+
+  it('reverts and warns when un-marking ready for discharge fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    seedEncounter({ readyForDischarge: { value: true } });
+    (undoEncounterReadyForDischarge as jest.Mock).mockRejectedValue(new Error('500 boom'));
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('Summary read only: true')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /ready for discharge/i }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Couldn’t unmark ready for discharge' })
+      )
+    );
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.readyForDischarge
+        .value
+    ).toBe(true);
+    consoleError.mockRestore();
+  });
+
+  it('reverts and warns when un-marking ready for billing fails', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockStepParam = 'SOAP';
+    seedEncounter({ readyForBilling: { value: true } });
+    (reverseAppointmentReadyForBilling as jest.Mock).mockRejectedValueOnce(new Error('nope'));
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /ready for billing/i }));
+    });
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Couldn’t unmark ready for billing' })
+      )
+    );
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.readyForBilling.value
+    ).toBe(true);
+    consoleError.mockRestore();
+  });
+
+  it('marks ready for billing without a visit id when no encounter exists', async () => {
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date(), true)} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /ready for billing/i }));
+    });
+
+    expect(markAppointmentReadyForBilling).toHaveBeenCalledWith(
+      'appt-workspace',
+      expect.objectContaining({ visitId: undefined })
+    );
+  });
+
+  it('locks the billing toggle once an invoice for the visit is settled', async () => {
+    seedEncounter({
+      pastInvoices: [{ id: 'inv-1', status: 'PAID_FULL', outstandingCents: 0 } as never],
+    });
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /ready for billing/i }));
+    });
+
+    expect(markAppointmentReadyForBilling).not.toHaveBeenCalled();
+  });
+
+  it('treats an invoice with nothing outstanding as settled', async () => {
+    seedEncounter({
+      pastInvoices: [{ id: 'inv-1', status: 'PARTIAL', outstandingCents: 0 } as never],
+    });
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /ready for billing/i }));
+    });
+
+    expect(markAppointmentReadyForBilling).not.toHaveBeenCalled();
+  });
+
+  it('treats a non-numeric error status as unrecoverable when persisting discharge readiness', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    (markEncounterReadyForDischarge as jest.Mock).mockRejectedValue({
+      response: { status: 'oops' },
+    });
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /ready for discharge/i }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Couldn’t mark ready for discharge' })
+      )
+    );
+    // The status isn't a number, so it is not treated as a stale-encounter 404.
+    expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledTimes(1);
+    consoleError.mockRestore();
+  });
+
+  // --- alerts -----------------------------------------------------------------
+
+  it('notifies when removing a patient alert fails', async () => {
+    useCompanionStore.setState({
+      companionsById: {
+        'comp-1': {
+          id: 'comp-1',
+          name: 'Gigi',
+          alerts: [{ title: 'Bites', severity: 'high' }],
+        } as never,
+      },
+    });
+    (updateCompanion as jest.Mock).mockRejectedValue(new Error('save failed'));
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /remove alert bites/i }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Failed to remove alert',
+        text: 'Please try again.',
+      })
+    );
+  });
+
+  // --- discharge date/time modal ----------------------------------------------
+
+  /** The always-mounted discharge modal's own <dialog>; `open` tracks visibility. */
+  const dischargeDialog = () => screen.getByText('Discharge date & time').closest('dialog')!;
+
+  const openDischargeModal = async (appointment: Appointment = inpatientWithEncounter()) => {
+    mockStepParam = 'SUMMARY';
+    render(<AppointmentWorkspace appointment={appointment} />);
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^discharge$/i }));
+    expect(dischargeDialog()).toHaveAttribute('open');
+  };
+
+  it('closes the discharge modal from its Cancel control', async () => {
+    await openDischargeModal();
+
+    fireEvent.click(within(dischargeDialog()).getByRole('button', { name: /^cancel$/i }));
+
+    expect(dischargeDialog()).not.toHaveAttribute('open');
+    expect(dischargeEncounter).not.toHaveBeenCalled();
+  });
+
+  it('ignores the discharge modal close control while the discharge is in flight', async () => {
+    let finishDischarge!: () => void;
+    (dischargeEncounter as jest.Mock).mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishDischarge = () => resolve();
+      })
+    );
+    await openDischargeModal();
+
+    fireEvent.click(within(dischargeDialog()).getByRole('button', { name: /confirm discharge/i }));
+    await waitFor(() =>
+      expect(within(dischargeDialog()).getByText('Discharging...')).toBeInTheDocument()
+    );
+
+    // The header close control isn't disabled, but it must not abandon an
+    // in-flight discharge.
+    fireEvent.click(within(dischargeDialog()).getByRole('button', { name: 'Close' }));
+    expect(dischargeDialog()).toHaveAttribute('open');
+
+    await act(async () => {
+      finishDischarge();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await waitFor(() => expect(dischargeDialog()).not.toHaveAttribute('open'));
+  });
+
+  it('explains a blocked discharge gate that carries no reason', async () => {
+    seedEncounter({ finalizationGate: { enabled: false } });
+    await openDischargeModal();
+
+    expect(
+      within(dischargeDialog()).getByText('This encounter is not ready for discharge.')
+    ).toBeInTheDocument();
+    expect(
+      within(dischargeDialog()).getByRole('button', { name: /override & discharge/i })
+    ).toBeDisabled();
+  });
+
+  it('discharges at midnight today when the date and time are both cleared', async () => {
+    await openDischargeModal();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discharge date clear' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discharge time clear' }));
+    fireEvent.click(within(dischargeDialog()).getByRole('button', { name: /confirm discharge/i }));
+
+    const expected = new Date();
+    expected.setHours(0, 0, 0, 0);
+    await waitFor(() =>
+      expect(dischargeEncounter).toHaveBeenCalledWith('enc-1', expected.toISOString(), {
+        overrideReason: undefined,
+      })
+    );
+  });
+
+  it('discharges without a resolved encounter id when the appointment has none', async () => {
+    await openDischargeModal(makeAppointment(new Date(), true));
+
+    fireEvent.click(within(dischargeDialog()).getByRole('button', { name: /confirm discharge/i }));
+
+    await waitFor(() =>
+      expect(dischargeEncounter).toHaveBeenCalledWith(undefined, expect.any(String), {
+        overrideReason: undefined,
+      })
+    );
+  });
+
+  it('falls back to a generic message when the discharge error carries no message', async () => {
+    (dischargeEncounter as jest.Mock).mockRejectedValue('exploded');
+    await openDischargeModal();
+
+    fireEvent.click(within(dischargeDialog()).getByRole('button', { name: /confirm discharge/i }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Unable to discharge',
+        text: 'Please try again.',
+      })
+    );
+  });
+
+  // --- outpatient completion ---------------------------------------------------
+
+  it('skips the status write when completing an already-completed appointment', async () => {
+    mockStepParam = 'SUMMARY';
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date()), status: 'COMPLETED' } as Appointment}
+      />
+    );
+
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^complete$/i }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'success',
+        expect.objectContaining({ title: 'Appointment completed' })
+      )
+    );
+    expect(changeAppointmentStatus).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a generic message when the completion error carries no message', async () => {
+    mockStepParam = 'SUMMARY';
+    (changeAppointmentStatus as jest.Mock).mockRejectedValue('exploded');
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('Summary read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^complete$/i }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Unable to complete',
+        text: 'Please try again.',
+      })
+    );
+  });
+
+  // --- unit assignment recovery -------------------------------------------------
+
+  it('falls back to a generic message when the unit assign error carries no message', async () => {
+    singleUnitInpatientRooms();
+    (assignEncounterUnit as jest.Mock).mockRejectedValue('exploded');
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unit: A' }));
+    fireEvent.click(screen.getByRole('button', { name: 'B' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Unable to assign unit',
+        text: 'Please try again.',
+      })
+    );
+  });
+
+  it('re-admits against the booked room when the encounter has no room of its own', async () => {
+    seedEncounter({ unitId: 'unit-x' });
+    (assignEncounterUnit as jest.Mock).mockRejectedValue(new Error('Admission not found'));
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date()),
+            appointmentKind: 'INPATIENT',
+            encounterId: 'enc-1',
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unit: unit-x' }));
+    fireEvent.click(screen.getByRole('button', { name: 'unit-x' }));
+
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        // Neither the encounter nor the appointment carries a room.
+        expect.objectContaining({ room: undefined, roomUnitId: 'unit-x' })
+      )
+    );
+  });
+
+  it('ignores a re-admit fired while an admission is already in flight', async () => {
+    seedEncounter({ unitId: 'unit-x' });
+    (assignEncounterUnit as jest.Mock).mockRejectedValue(new Error('Admission not found'));
+    let finishAdmit!: () => void;
+    (admitAppointment as jest.Mock).mockReturnValue(
+      new Promise((resolve) => {
+        finishAdmit = () => resolve({});
+      })
+    );
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date()),
+            appointmentKind: 'INPATIENT',
+            encounterId: 'enc-1',
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    const reselectUnit = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Unit: unit-x' }));
+      fireEvent.click(screen.getByRole('button', { name: 'unit-x' }));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    };
+
+    await reselectUnit();
+    await waitFor(() => expect(admitAppointment).toHaveBeenCalledTimes(1));
+
+    // A second re-selection while the first admission is still in flight is dropped.
+    await reselectUnit();
+    expect(admitAppointment).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      finishAdmit();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  });
+
+  it('reverts the room selection when its auto-assigned unit cannot be persisted', async () => {
+    (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([
+      { id: 'room-1', name: 'Ward A' },
+      { id: 'room-2', name: 'Ward B' },
+    ]);
+    useOrganisationRoomStore.setState({
+      roomUnitsById: {
+        'unit-b': {
+          id: 'unit-b',
+          organisationId: 'org-1',
+          roomId: 'room-2',
+          code: 'B',
+          displayName: 'B',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-2': ['unit-b'] },
+    });
+    (assignEncounterUnit as jest.Mock).mockRejectedValue(new Error('Boom'));
+    render(<AppointmentWorkspace appointment={inpatientWithEncounter()} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /room: ward a/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ward B' }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to assign unit' })
+      )
+    );
+    const encounter = useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace');
+    expect(encounter?.roomId).toBe('room-1');
+    expect(encounter?.unitId).toBeUndefined();
+  });
+
+  // --- hospitalization conversion ------------------------------------------------
+
+  const hospitalizationRooms = () => {
+    (useRoomsForPrimaryOrg as jest.Mock).mockReturnValue([{ id: 'room-1', name: 'Ward A' }]);
+    useOrganisationRoomStore.setState({
+      roomUnitsById: {
+        'unit-a': {
+          id: 'unit-a',
+          organisationId: 'org-1',
+          roomId: 'room-1',
+          code: 'A',
+          displayName: 'A',
+          isActive: true,
+        },
+      },
+      roomUnitIdsByRoomId: { 'room-1': ['unit-a'] },
+    });
+  };
+
+  const openHospitalizationAndPickRoom = async (appointment: Appointment) => {
+    render(<AppointmentWorkspace appointment={appointment} />);
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /hospitalize patient/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: /room/i }).at(-1)!);
+    fireEvent.click(screen.getByRole('button', { name: 'Ward A' }));
+  };
+
+  it('omits the expected stay when the tentative discharge date is cleared', async () => {
+    hospitalizationRooms();
+    await openHospitalizationAndPickRoom(makeAppointment(new Date()));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Date of discharge (tentative) clear' }));
+    fireEvent.click(screen.getByRole('button', { name: /convert to inpatient/i }));
+
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        expect.objectContaining({ expectedStayDays: undefined })
+      )
+    );
+  });
+
+  it('omits the expected stay when discharge lands on the admission instant', async () => {
+    hospitalizationRooms();
+    await openHospitalizationAndPickRoom(makeAppointment(new Date()));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Date of admission pick' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Date of discharge (tentative) pick' }));
+    fireEvent.click(screen.getByRole('button', { name: /convert to inpatient/i }));
+
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        expect.objectContaining({ expectedStayDays: undefined })
+      )
+    );
+  });
+
+  it('adds the chosen support staff to an admission that has none from the appointment', async () => {
+    hospitalizationRooms();
+    seedEncounter({ mode: 'OUTPATIENT', nurseId: 'nurse-1', nurseName: 'Nina' });
+    await openHospitalizationAndPickRoom(makeAppointment(new Date()));
+
+    fireEvent.click(screen.getByRole('button', { name: /assigned support/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nina' }));
+    fireEvent.click(screen.getByRole('button', { name: /convert to inpatient/i }));
+
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        expect.objectContaining({ supportStaff: [{ id: 'nurse-1', name: 'Nina' }] })
+      )
+    );
+  });
+
+  it('keeps the hospitalization modal open when the admission is rejected', async () => {
+    hospitalizationRooms();
+    (admitAppointment as jest.Mock).mockRejectedValue(new Error('Admit failed'));
+    await openHospitalizationAndPickRoom(makeAppointment(new Date()));
+
+    fireEvent.click(screen.getByRole('button', { name: /convert to inpatient/i }));
+
+    await waitFor(() =>
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to admit' })
+      )
+    );
+    expect(screen.getByRole('button', { name: /convert to inpatient/i })).toBeInTheDocument();
+    expect(useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.mode).toBe(
+      'OUTPATIENT'
+    );
+  });
+
+  it('persists hospitalization services and packages against the encounter', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    hospitalizationRooms();
+    mockRevampCatalogState = {
+      ...mockRevampCatalogState,
+      services: [
+        {
+          id: 'svc-hosp',
+          organisationId: 'org-1',
+          status: 'ACTIVE',
+          isBookable: true,
+          isInpatientPreferred: true,
+          name: 'Hospitalization monitoring',
+          grossAmount: 50,
+          maxDiscount: 5,
+        },
+      ],
+      packages: [
+        {
+          id: 'pkg-care',
+          organisationId: 'org-1',
+          status: 'ACTIVE',
+          isBookable: true,
+          isInpatientPreferred: true,
+          name: 'Inpatient care package',
+          // No serverFinalAmount: the package falls back to a zero cost.
+          additionalDiscount: 12,
+        },
+      ],
+    };
+    (persistEncounterTreatmentLine as jest.Mock)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('line save failed'));
+
+    await openHospitalizationAndPickRoom({
+      ...makeAppointment(new Date()),
+      encounterId: 'enc-1',
+    } as Appointment);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Additional Service / Package' }));
+    fireEvent.click(screen.getByRole('button', { name: /Hospitalization monitoring Service/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Inpatient care package Package/i }));
+    fireEvent.click(screen.getByRole('button', { name: /convert to inpatient/i }));
+
+    await waitFor(() =>
+      expect(persistEncounterTreatmentLine).toHaveBeenCalledWith(
+        'org-1',
+        'enc-1',
+        expect.objectContaining({ refId: 'svc-hosp', kind: 'SERVICE', amountCents: 5000 })
+      )
+    );
+    expect(persistEncounterTreatmentLine).toHaveBeenCalledWith(
+      'org-1',
+      'enc-1',
+      expect.objectContaining({ refId: 'pkg-care', kind: 'PACKAGE', amountCents: 0 })
+    );
+    // A single failed line is logged and does not fail the conversion.
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        'Failed to persist hospitalization service/package:',
+        expect.any(Error)
+      )
+    );
+    expect(useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')?.mode).toBe(
+      'INPATIENT'
+    );
+    consoleError.mockRestore();
+  });
+
+  // --- partial records from the API --------------------------------------------
+
+  it.each([
+    ['a lead with no name', { id: 'lead-1' }],
+    ['a lead with no id', { name: 'Dr House' }],
+  ])('omits the admission lead for %s', async (_label, lead) => {
+    render(
+      <AppointmentWorkspace
+        appointment={{ ...makeAppointment(new Date(), true), lead } as Appointment}
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+
+    // A half-populated lead can't be sent: the backend needs both id and name.
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        expect.objectContaining({ lead: undefined })
+      )
+    );
+  });
+
+  it('admits without a room when the booked room carries a blank id', async () => {
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date()),
+            appointmentKind: 'INPATIENT',
+            room: { id: '', name: '' },
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Admit' }));
+
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        expect.objectContaining({ room: undefined })
+      )
+    );
+  });
+
+  it('re-admits without a room when the booked room carries a blank id', async () => {
+    seedEncounter({ unitId: 'unit-x' });
+    (assignEncounterUnit as jest.Mock).mockRejectedValue(new Error('Admission not found'));
+    render(
+      <AppointmentWorkspace
+        appointment={
+          {
+            ...makeAppointment(new Date()),
+            appointmentKind: 'INPATIENT',
+            encounterId: 'enc-1',
+            room: { id: '', name: '' },
+          } as Appointment
+        }
+      />
+    );
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unit: unit-x' }));
+    fireEvent.click(screen.getByRole('button', { name: 'unit-x' }));
+
+    await waitFor(() =>
+      expect(admitAppointment).toHaveBeenCalledWith(
+        'org-1',
+        'appt-workspace',
+        expect.objectContaining({ room: undefined, roomUnitId: 'unit-x' })
+      )
+    );
+  });
+
+  it('prefills the resolved SOAP template when the encounter is dropped mid-hydration', async () => {
+    let finishBootstrap!: () => void;
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockReturnValue(
+      new Promise((resolve) => {
+        finishBootstrap = () => resolve({});
+      })
+    );
+    (resolveSoapTemplate as jest.Mock).mockResolvedValue({
+      id: 'tmpl-race',
+      content: { subjective: '<p>Prefilled</p>' },
+    });
+    render(<AppointmentWorkspace appointment={makeAppointment(new Date())} />);
+
+    expect(await screen.findByText('SOAP read only: false')).toBeInTheDocument();
+    // The workspace store is cleared (e.g. navigating away) before the in-flight
+    // bootstrap lands, so the hydration reads back no live encounter.
+    act(() => {
+      useAppointmentWorkspaceStore.setState({ encountersById: {} });
+    });
+    await act(async () => {
+      finishBootstrap();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(useAppointmentWorkspaceStore.getState().getEncounter('appt-workspace')).toBeUndefined();
   });
 });

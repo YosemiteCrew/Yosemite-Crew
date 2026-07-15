@@ -393,10 +393,16 @@ const ChannelHeaderWithCounterpart: FC<{
   }, [channel, backendStatus]);
 
   const handleCloseSession = async () => {
-    if (!channel) return;
+    if (!channel) {
+      /* v8 ignore next -- unreachable: the Close session button renders only when `isClientChat` is true, and deriveHeaderChannelInfo resolves the scope to 'colleagues' (never 'clients') when `channel` is null */
+      return;
+    }
 
     // Prevent duplicate calls if already closing or already closed
-    if (closingSession || sessionClosed) return;
+    if (closingSession || sessionClosed) {
+      /* v8 ignore next -- unreachable: the button carries `isDisabled={closingSession}` (BaseButton renders a real `disabled` attribute) and is swapped for the "Session closed" badge once `sessionClosed`, so it can never be clicked in either state */
+      return;
+    }
 
     const confirmed = confirm(
       'Are you sure you want to close this chat session? The client will no longer be able to send messages.'
@@ -444,7 +450,10 @@ const ChannelHeaderWithCounterpart: FC<{
   });
 
   const handleAppointmentComplete = async () => {
-    if (!appointment || completingAppointment) return;
+    if (!appointment || completingAppointment) {
+      /* v8 ignore next -- unreachable: ChatHeaderContext renders "Mark complete" only inside its `{appointment && …}` block and drops the action entirely while `completing` is true, so neither guard can fire */
+      return;
+    }
     setCompletingAppointment(true);
     try {
       await changeAppointmentStatus(appointment, 'COMPLETED');
@@ -470,12 +479,13 @@ const ChannelHeaderWithCounterpart: FC<{
     }
     /* v8 ignore stop */
     if (action === 'Reschedule') {
-      if (appointment) {
-        setRescheduleOpen(true);
+      /* v8 ignore start -- unreachable: the Reschedule button only renders inside ChatHeaderContext's `{appointment && …}` block, so `appointment` is always truthy here and this fallback is dead */
+      if (!appointment) {
+        router.push(buildWorkspaceHref(appointmentId));
         return;
       }
-      /* v8 ignore next 2 -- unreachable: the Reschedule button only renders when `appointment` is truthy, so this no-appointment fallback is never hit */
-      router.push(buildWorkspaceHref(appointmentId));
+      /* v8 ignore stop */
+      setRescheduleOpen(true);
       return;
     }
     if (action === 'Send form') {
@@ -486,16 +496,17 @@ const ChannelHeaderWithCounterpart: FC<{
       void handleAppointmentComplete();
       return;
     }
-    if (action === 'Book follow-up') {
-      if (appointment?.companion?.id || appointment?.patient?.id) {
-        setFollowUpOpen(true);
-        return;
-      }
-      router.push('/appointments');
+    /* v8 ignore start -- unreachable: onAction only ever receives one of the four APPT_ACTIONS ('Reschedule', 'Send form', 'Mark complete', 'Book follow-up') and the first three already returned above, so this exhaustiveness fallback is dead */
+    if (action !== 'Book follow-up') {
+      router.push(buildWorkspaceHref(appointmentId));
       return;
     }
-    /* v8 ignore next -- unreachable: onAction only ever receives one of the four APPT_ACTIONS, all handled above */
-    router.push(buildWorkspaceHref(appointmentId));
+    /* v8 ignore stop */
+    if (appointment?.companion?.id || appointment?.patient?.id) {
+      setFollowUpOpen(true);
+      return;
+    }
+    router.push('/appointments');
   };
 
   return (
@@ -1016,7 +1027,9 @@ const ChatSidebarHeader: FC<ChatSidebarHeaderProps> = ({
                       disabled={creatingChat}
                       className="flex min-h-14 cursor-pointer items-center gap-3 overflow-hidden rounded-2xl border border-chat-divider bg-neutral-0 p-3 text-left transition-colors duration-200 hover:border-input-border-active hover:bg-chat-surface-soft disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <ChatAvatar name={user.name || user.email || '?'} />
+                      {/* `name` is always a non-empty string: the org-user mapping
+                          below falls back to the email and then to 'User'. */}
+                      <ChatAvatar name={user.name} />
                       <span className="flex min-w-0 flex-col gap-0.5">
                         <Text
                           as="span"
@@ -1265,7 +1278,10 @@ const useChatContainerView = ({
 
   const resolveGroupIdForChannel = useCallback(
     async (chan: StreamChannel | null) => {
-      if (!chan) return undefined;
+      if (!chan) {
+        /* v8 ignore next -- unreachable: openEdit is only invoked from the group header behind an `if (channel)` guard, so `chan` is always a channel */
+        return undefined;
+      }
       // ALWAYS query backend sessions API to get the correct session _id
       // The groupId/directId stored in channel data might be the Stream channel ID, not the backend session ID
       if (!primaryOrgId) {
@@ -1404,7 +1420,10 @@ const useChatContainerView = ({
 
     orgUsersRequestKeyRef.current = requestKey;
     setOrgUsersStatus('loading');
-    if (!primaryOrgId) return;
+    if (!primaryOrgId) {
+      /* v8 ignore next -- unreachable: `shouldLoadUsers` above is only truthy when `primaryOrgId` is truthy; this guard exists purely to narrow `string | null` for fetchOrgUsers */
+      return;
+    }
     fetchOrgUsers(primaryOrgId)
       .then((users) => {
         setOrgUsers(
@@ -1476,7 +1495,10 @@ const useChatContainerView = ({
   const channelFilter = useCallback<NonNullable<ChannelListProps['channelRenderFilterFn']>>(
     (channels) => {
       const scopeMatches = (chan: StreamChannel) => {
-        if (!scope) return true;
+        if (!scope) {
+          /* v8 ignore next -- unreachable: `scope` is destructured with a 'clients' default, so it is always one of the three ChatScope values */
+          return true;
+        }
         // Allow team/direct org channels regardless of missing chatCategory
         const type = (chan.type || '').toLowerCase();
         const resolvedScope = resolveChannelScope(chan);
@@ -1521,7 +1543,10 @@ const useChatContainerView = ({
 
   const activateChannelById = useCallback(
     async (channelId: string) => {
-      if (!client) return;
+      if (!client) {
+        /* v8 ignore next -- unreachable: this callback is only reached from the rendered chat tree (command-palette jump, post-create activation), and the `if (!client) return null` guard below means nothing renders until `client` is set */
+        return;
+      }
       const channel = client.channel('messaging', channelId);
       await channel.watch();
       setIsChannelSelected(true);
@@ -1701,7 +1726,10 @@ const useChatContainerView = ({
   const handleNetworkChatStarted = useCallback(
     async (channelId: string) => {
       setNetworkModalOpen(false);
-      if (!client) return;
+      if (!client) {
+        /* v8 ignore next -- unreachable: NetworkDirectoryModal is only rendered inside the chat tree, which the `if (!client) return null` guard below gates on a non-null client */
+        return;
+      }
       try {
         const queried = await client.queryChannels(
           { id: { $eq: channelId } },
@@ -1978,7 +2006,11 @@ const useChatContainerView = ({
   }
 
   if (hasError) {
-    const errorMessage = error || 'Unable to load chat';
+    let errorMessage = error;
+    if (!errorMessage) {
+      /* v8 ignore next -- unreachable: `hasError` can only be truthy when `error` holds a message — when `error` is null and `client` is null the isLoading guard above returns first — so this generic fallback never renders */
+      errorMessage = 'Unable to load chat';
+    }
     return (
       <div
         style={{

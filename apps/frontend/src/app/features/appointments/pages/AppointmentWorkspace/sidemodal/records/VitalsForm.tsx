@@ -16,6 +16,11 @@ import { formatStampDate } from '@/app/lib/appointmentWorkspace';
 import { saveVitalRecord } from '@/app/features/appointments/services/workspaceClinicalService';
 import { listVitalsTemplates } from '@/app/features/appointments/services/workspaceTemplateService';
 import { getCategoryTemplate } from '@/app/lib/forms';
+import {
+  INITIAL_VITALS_FORM_DRAFT_STATE,
+  vitalsFormDraftReducer,
+  type DraftVitals,
+} from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/records/vitalsFormDraft';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
 import type { FormField } from '@/app/features/forms/types/forms';
 import type {
@@ -41,28 +46,6 @@ type Field = {
   inputMode?: 'text' | 'numeric' | 'decimal';
   min?: number;
   max?: number;
-};
-
-type DraftVitals = {
-  weightLbs: string;
-  tempF: string;
-  heartRateBpm: string;
-  respRateBpm: string;
-  crtSec: string;
-  mucousMembrane: string;
-  painScore: string;
-  bcs: string;
-};
-
-const EMPTY_DRAFT: DraftVitals = {
-  weightLbs: '',
-  tempF: '',
-  heartRateBpm: '',
-  respRateBpm: '',
-  crtSec: '',
-  mucousMembrane: '',
-  painScore: '',
-  bcs: '',
 };
 
 const FIELD_FALLBACKS: Record<keyof DraftVitals, Field> = {
@@ -328,45 +311,6 @@ const formatWeightDelta = (delta: number) => {
 // that ever ends up depending on this state (none does today — see the audit
 // note above the component) can still bail out via React's `Object.is` check
 // instead of looping forever (the lesson from the StripeOnboarding OOM).
-type VitalsFormDraftState = {
-  draft: DraftVitals;
-  notes: string;
-  creating: boolean;
-};
-
-export const INITIAL_VITALS_FORM_DRAFT_STATE: VitalsFormDraftState = {
-  draft: EMPTY_DRAFT,
-  notes: '',
-  creating: false,
-};
-
-type VitalsFormDraftAction =
-  | { type: 'SET_FIELD'; key: keyof DraftVitals; value: string }
-  | { type: 'SET_NOTES'; value: string }
-  | { type: 'SET_CREATING'; value: boolean }
-  | { type: 'RESET' };
-
-export const vitalsFormDraftReducer = (
-  state: VitalsFormDraftState,
-  action: VitalsFormDraftAction
-): VitalsFormDraftState => {
-  switch (action.type) {
-    case 'SET_FIELD': {
-      if (state.draft[action.key] === action.value) return state;
-      return { ...state, draft: { ...state.draft, [action.key]: action.value } };
-    }
-    case 'SET_NOTES':
-      return state.notes === action.value ? state : { ...state, notes: action.value };
-    case 'SET_CREATING':
-      return state.creating === action.value ? state : { ...state, creating: action.value };
-    case 'RESET':
-      return state.draft === EMPTY_DRAFT && state.notes === '' && !state.creating
-        ? state
-        : INITIAL_VITALS_FORM_DRAFT_STATE;
-    default:
-      return state;
-  }
-};
 
 const parseNumber = (value: string): number | undefined => {
   const trimmed = value.trim();

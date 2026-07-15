@@ -62,17 +62,21 @@ import { InventoryApiItem } from '@/app/features/inventory/pages/Inventory/types
 import { mapApiItemToInventoryItem } from '@/app/features/inventory/pages/Inventory/utils';
 import { ensureSingleSignatureAtEnd, hasSignatureField } from '@/app/lib/forms';
 
+// `FormsProps.schema` is optional (a draft may never have had one), so every read/mutation of
+// the field list normalises through here rather than repeating the fallback at each call site.
+const schemaOf = (form: FormsProps): FormField[] => form.schema ?? [];
+
 // Builds a nested-field updater for a group field. Shared by the service/medication/task
 // group builders so their (otherwise identical) update handlers aren't duplicated.
 const makeNestedFieldUpdater =
   (
-    group: FormField & { type: 'group'; fields?: FormField[] },
+    group: FormField & { type: 'group'; fields: FormField[] },
     onChange: (next: FormField) => void
   ) =>
   (id: string, updatedField: FormField): void => {
     onChange({
       ...group,
-      fields: (group.fields ?? []).map((f) => (f.id === id ? updatedField : f)),
+      fields: group.fields.map((f) => (f.id === id ? updatedField : f)),
     });
   };
 
@@ -186,13 +190,15 @@ const MEDICINE_INVENTORY_CATEGORIES = new Set([
   'iv/fluid therapy',
 ]);
 
+// `mapApiItemToInventoryItem` already folds the raw item's own `category` / `itemType` into the
+// normalized shape (`basicInfo.category` is `apiItem.category ?? ''`, and both `basicInfo.itemType`
+// and `classification.itemType` come from the same `normalizeItemTypeForForm(...)` call), so the
+// normalized values are the only ones worth reading here.
 const isMedicineInventoryItem = (item: InventoryApiItem): boolean => {
   const normalized = mapApiItemToInventoryItem(item);
-  const category = `${normalized.basicInfo.category ?? item.category ?? ''}`.trim().toLowerCase();
-  const itemType =
-    `${normalized.classification.itemType ?? normalized.basicInfo.itemType ?? item.itemType ?? ''}`
-      .trim()
-      .toLowerCase();
+  const category = normalized.basicInfo.category.trim().toLowerCase();
+  /* v8 ignore next -- `normalizeItemTypeForForm` always returns a string, so `classification.itemType` is never nullish; the fallback only satisfies the optional type */
+  const itemType = (normalized.classification.itemType ?? '').trim().toLowerCase();
   return (
     MEDICINE_INVENTORY_CATEGORIES.has(category) || itemType === 'drug' || itemType === 'medical'
   );
@@ -466,7 +472,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   serviceOptions,
 }) => {
   const structureLocked = use(StructureLockContext);
-  const groupField: FormField & { type: 'group'; fields?: FormField[] } = {
+  const groupField: FormField & { type: 'group'; fields: FormField[] } = {
     ...field,
     fields: field.fields ?? [],
   };
@@ -482,14 +488,14 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
           const match = serviceOptions.find((o) => o.value === val);
           return match ?? { label: val, value: val };
         }),
-        meta: checkbox?.meta ? { ...checkbox.meta, serviceIds: values } : { serviceIds: values },
+        // Spreading a nullish meta is a no-op, so this keeps any existing meta without
+        // needing to branch on it.
+        meta: { ...checkbox?.meta, serviceIds: values },
       };
       onChange({
         ...group,
-        meta: group.meta ? { ...group.meta, serviceIds: values } : { serviceIds: values },
-        fields: (group.fields ?? []).map((f) =>
-          f.id === checkbox?.id ? (nextCheckbox as FormField) : f
-        ),
+        meta: { ...group.meta, serviceIds: values },
+        fields: group.fields.map((f) => (f.id === checkbox?.id ? (nextCheckbox as FormField) : f)),
       });
     };
 
@@ -524,14 +530,14 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
   const removeNestedField = (id: string) =>
     onChange({
       ...groupField,
-      fields: (groupField.fields ?? []).filter((f) => f.id !== id),
+      fields: groupField.fields.filter((f) => f.id !== id),
     });
 
   const addNestedField = (key: OptionKey) => {
     const newField = createField(key);
     onChange({
       ...groupField,
-      fields: [...(groupField.fields ?? []), newField],
+      fields: [...groupField.fields, newField],
     });
   };
 
@@ -554,7 +560,7 @@ const GroupBuilder: React.FC<GroupBuilderProps> = ({
         />
       )}
 
-      {(groupField.fields ?? []).map((nested) => {
+      {groupField.fields.map((nested) => {
         if (nested.type === 'group') {
           // Check if this is a medication group
           if (isMedicationGroup(nested)) {
@@ -761,12 +767,15 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const [medicines, setMedicines] = useState<InventoryApiItem[]>([]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
+  // A group saved before it held any medicine has no `fields` array at all; normalise once so
+  // the handlers and the render below can treat the medicine list as an array.
+  const medicineGroups = React.useMemo(() => field.fields ?? [], [field.fields]);
   const selectedMedicines = React.useMemo(
     () =>
-      (field.fields ?? [])
+      medicineGroups
         .map((item) => (item.meta as { medicineId?: string } | undefined)?.medicineId)
         .filter((value): value is string => Boolean(value)),
-    [field.fields]
+    [medicineGroups]
   );
   const selectedMedicineSet = React.useMemo(() => new Set(selectedMedicines), [selectedMedicines]);
 
@@ -797,11 +806,12 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
     if (!medicineId || selectedMedicineSet.has(medicineId)) return;
 
     const medicine = medicines.find((m) => m._id === medicineId);
+    /* v8 ignore next -- defensive: the picker's options are derived from `medicines`, so a selected id always resolves back to an item */
     if (!medicine) return;
     const normalizedMedicine = mapApiItemToInventoryItem(medicine);
     const inventoryItemId = medicine._id;
 
-    const medicineCount = (field.fields ?? []).length + 1;
+    const medicineCount = medicineGroups.length + 1;
     const fieldPrefix = `${field.id}_med_${medicineCount}`;
 
     // Read inventory-sourced values through the same mapper used by the Treatment step so the
@@ -899,18 +909,18 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
 
     onChange({
       ...field,
-      fields: [...(field.fields ?? []), newMedicineGroup],
+      fields: [...medicineGroups, newMedicineGroup],
     });
   };
 
   const removeMedicine = (medFieldId: string) => {
     onChange({
       ...field,
-      fields: (field.fields ?? []).filter((f) => f.id !== medFieldId),
+      fields: medicineGroups.filter((f) => f.id !== medFieldId),
     });
   };
 
-  const updateNestedField = makeNestedFieldUpdater(field, onChange);
+  const updateNestedField = makeNestedFieldUpdater({ ...field, fields: medicineGroups }, onChange);
 
   return (
     <div className="flex flex-col gap-4">
@@ -939,7 +949,7 @@ const MedicationGroupBuilder: React.FC<MedicationGroupBuilderProps> = ({ field, 
         noOptionsMessage={loadingMedicines ? 'Loading medicines…' : 'No medicines available'}
       />
 
-      {(field.fields ?? []).map((nested) => {
+      {medicineGroups.map((nested) => {
         const medicineGroup = nested as FormField & { type: 'group'; fields?: FormField[] };
         if (medicineGroup.type !== 'group') return null;
         return (
@@ -1095,19 +1105,23 @@ const TaskBlockCard: React.FC<{
 };
 
 const TaskGroupBuilder: React.FC<TaskGroupBuilderProps> = ({ field, onChange }) => {
+  // A task group saved before it held any block has no `fields` array at all; normalise once so
+  // the handlers below can treat the block list as an array.
+  const taskFields = field.fields ?? [];
+
   const buildTaskBlock = (): FormField => {
     const id = `${field.id}_task_${crypto.randomUUID()}`;
     return {
       id,
       type: 'group',
-      label: `Task ${(field.fields ?? []).length + 1}`,
+      label: `Task ${taskFields.length + 1}`,
       meta: { taskBlock: true, taskBlockId: id } as any,
       fields: defaultTaskBlockFields(id),
     };
   };
 
   const addTaskBlock = () => {
-    onChange({ ...field, fields: [...(field.fields ?? []), buildTaskBlock()] });
+    onChange({ ...field, fields: [...taskFields, buildTaskBlock()] });
   };
 
   // Duplicate a block with fresh field ids so the new block is independently editable.
@@ -1116,23 +1130,23 @@ const TaskGroupBuilder: React.FC<TaskGroupBuilderProps> = ({ field, onChange }) 
     const clone: FormField = {
       ...source,
       id,
-      label: `Task ${(field.fields ?? []).length + 1}`,
+      label: `Task ${taskFields.length + 1}`,
       meta: { taskBlock: true, taskBlockId: id } as any,
       fields: (source.fields ?? []).map((f) => ({ ...f, id: `${id}_${f.id.split('_').pop()}` })),
     };
-    onChange({ ...field, fields: [...(field.fields ?? []), clone] });
+    onChange({ ...field, fields: [...taskFields, clone] });
   };
 
   const removeTask = (taskFieldId: string) =>
-    onChange({ ...field, fields: (field.fields ?? []).filter((f) => f.id !== taskFieldId) });
+    onChange({ ...field, fields: taskFields.filter((f) => f.id !== taskFieldId) });
 
   const updateBlock = (id: string, updated: FormField) =>
     onChange({
       ...field,
-      fields: (field.fields ?? []).map((f) => (f.id === id ? updated : f)),
+      fields: taskFields.map((f) => (f.id === id ? updated : f)),
     });
 
-  const blocks = (field.fields ?? []).filter(
+  const blocks = taskFields.filter(
     (f): f is FormField & { type: 'group'; fields?: FormField[] } => f.type === 'group'
   );
 
@@ -1184,12 +1198,12 @@ const updateFieldInForm = (
   updatedField: FormField
 ): FormsProps => ({
   ...prev,
-  schema: (prev.schema || []).map((field) => (field.id === fieldId ? updatedField : field)),
+  schema: schemaOf(prev).map((field) => (field.id === fieldId ? updatedField : field)),
 });
 
 const removeFieldById = (form: FormsProps, id: string): FormsProps => ({
   ...form,
-  schema: (form.schema || []).filter((field) => field.id !== id),
+  schema: schemaOf(form).filter((field) => field.id !== id),
 });
 
 // ---- Single-screen builder pieces -------------------------------------------------
@@ -1765,7 +1779,7 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
   };
 
   const canDeleteField = (fieldId: string): boolean => {
-    const field = (formData.schema ?? []).find((f) => f.id === fieldId);
+    const field = schemaOf(formData).find((f) => f.id === fieldId);
     const signerRequired = formData.requiredSigner !== undefined && formData.requiredSigner !== '';
     if (signerRequired && field?.type === 'signature') {
       setBuildError("Cannot remove signature while 'Signed by' is selected.");
@@ -1775,6 +1789,7 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
   };
 
   const handleDeleteField = (fieldId: string) => {
+    /* v8 ignore next -- defensive: CanvasRow only renders the delete control on an unlocked row, so this cannot be reached from the UI */
     if (structureLocked) return;
     if (!canDeleteField(fieldId)) return;
     setBuildError('');
@@ -1784,12 +1799,13 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
   const addMedicationGroup = () => {
     setFormData((prev) => {
       const medField = createField('medication');
-      const updatedSchema = addMedicationToTreatmentPlan(prev.schema ?? [], medField);
+      const updatedSchema = addMedicationToTreatmentPlan(schemaOf(prev), medField);
       return { ...prev, schema: updatedSchema };
     });
   };
 
   const addField = (key: OptionKey) => {
+    /* v8 ignore next -- defensive: BuilderPalette renders no tiles at all while locked, so this cannot be reached from the UI */
     if (structureLocked) return;
     if (key === 'signature') {
       /* v8 ignore next 8 -- unreachable defensive guards: BuilderPalette renders addOptionsForContext, which filters the signature tile out whenever category is SOAP or canUseSignature is false, so addField('signature') can only run when both guards are already satisfied */
@@ -1801,14 +1817,15 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
         setBuildError("Select 'Signed by' in Form details before adding a signature field.");
         return;
       }
-      if (hasSignatureField(formData.schema ?? [])) {
+      if (hasSignatureField(schemaOf(formData))) {
         setBuildError('Only one signature field is allowed per form.');
         return;
       }
     }
 
-    const hasTreatmentPlan =
-      formData.schema?.some((f) => f.id === 'treatment_plan' && f.type === 'group') ?? false;
+    const hasTreatmentPlan = schemaOf(formData).some(
+      (f) => f.id === 'treatment_plan' && f.type === 'group'
+    );
 
     if (key === 'medication' && hasTreatmentPlan) {
       addMedicationGroup();
@@ -1823,8 +1840,8 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
       ...prev,
       schema:
         key === 'signature' && new Set(['Prescription', 'Discharge Form']).has(prev.category)
-          ? ensureSingleSignatureAtEnd([...(prev.schema ?? []), newField])
-          : [...(prev.schema ?? []), newField],
+          ? ensureSingleSignatureAtEnd([...schemaOf(prev), newField])
+          : [...schemaOf(prev), newField],
     }));
     setSelectedFieldId(newField.id);
     setBuildError('');
@@ -1832,9 +1849,10 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
 
   // Duplicate a top-level field (with fresh ids) directly below the original.
   const duplicateField = (index: number) => {
+    /* v8 ignore next -- defensive: CanvasRow only renders the duplicate control on an unlocked row, so this cannot be reached from the UI */
     if (structureLocked) return;
     setFormData((prev) => {
-      const schema = [...(prev.schema ?? [])];
+      const schema = [...schemaOf(prev)];
       if (index < 0 || index >= schema.length) return prev;
       const clone = cloneFieldWithNewIds(schema[index]);
       schema.splice(index + 1, 0, clone);
@@ -1844,9 +1862,10 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
   };
 
   const moveField = (index: number, direction: 'up' | 'down') => {
+    /* v8 ignore next -- defensive: CanvasRow only renders the move controls on an unlocked row, so this cannot be reached from the UI */
     if (structureLocked) return;
     setFormData((prev) => {
-      const schema = [...(prev.schema ?? [])];
+      const schema = [...schemaOf(prev)];
       const newIndex = direction === 'up' ? index - 1 : index + 1;
 
       if (newIndex < 0 || newIndex >= schema.length) return prev;
@@ -1863,7 +1882,7 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
     if (structureLocked) return;
     if (from === to) return;
     setFormData((prev) => {
-      const schema = [...(prev.schema ?? [])];
+      const schema = [...schemaOf(prev)];
       if (from < 0 || to < 0 || from >= schema.length || to >= schema.length) {
         return prev;
       }
@@ -1905,7 +1924,7 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
 
   React.useImperativeHandle(ref, () => ({ validate }), [validate]);
 
-  const schema = formData.schema ?? [];
+  const schema = schemaOf(formData);
   // Derive the effective selection while rendering: default to the first field,
   // and re-point when the selected field was removed from the schema. Computing
   // this here (instead of syncing it through a useEffect) avoids a stale frame.

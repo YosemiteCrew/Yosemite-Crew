@@ -13,6 +13,10 @@ import {
   AppointmentStatusOptions,
   Slot,
 } from '@/app/features/appointments/types/appointments';
+import {
+  validateAppointmentForm,
+  type FormErrors,
+} from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/Info/appointmentInfoValidation';
 import { buildUtcDateFromDateAndTime, getDurationMinutes, toUtcCalendarDate } from '@/app/lib/date';
 import { Appointment } from '@yosemite-crew/types';
 import React, { useCallback, useLayoutEffect, useMemo, useReducer, useState } from 'react';
@@ -107,73 +111,11 @@ const ReadOnlyEditField = ({ label, value }: { label: string; value?: string | n
   </div>
 );
 
-type FormErrors = {
-  specialityId?: string;
-  serviceId?: string;
-  slot?: string;
-  leadId?: string;
-};
-
 const toIsoTimePart = (value?: Date | string | null): string => {
   if (!value) return '';
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '';
   return parsed.toISOString().substring(11, 16);
-};
-
-export const validateSlotLeadErrors = (
-  selectedSlot: Slot | null,
-  slotLeadOptions: { label: string; value: string }[],
-  leadId: string,
-  normalizeId: (value?: string | null) => string | undefined
-): Pick<FormErrors, 'slot' | 'leadId'> => {
-  if (!selectedSlot) return { slot: 'Please select a slot' };
-  if (slotLeadOptions.length === 0) {
-    return {
-      slot: 'No lead is available for this slot. Please choose another slot.',
-      leadId: 'No lead is available for this slot.',
-    };
-  }
-  if (slotLeadOptions.length > 1 && !leadId) {
-    return { leadId: 'Multiple leads are available. Please choose a lead.' };
-  }
-  if (
-    leadId &&
-    !slotLeadOptions.some((option) => normalizeId(option.value) === normalizeId(leadId))
-  ) {
-    return { leadId: 'Selected lead is not available for this slot.' };
-  }
-  return {};
-};
-
-export const validateAppointmentForm = ({
-  appointmentValues,
-  selectedSlot,
-  slotLeadOptions,
-  normalizeId,
-  requireScheduleSelection,
-}: {
-  appointmentValues: {
-    specialityId: string;
-    serviceId: string;
-    leadId: string;
-  };
-  selectedSlot: Slot | null;
-  slotLeadOptions: { label: string; value: string }[];
-  normalizeId: (value?: string | null) => string | undefined;
-  requireScheduleSelection: boolean;
-}): FormErrors => {
-  const formErrors: FormErrors = {};
-  if (!requireScheduleSelection) return formErrors;
-  if (!appointmentValues.specialityId) formErrors.specialityId = 'Please select a speciality';
-  if (!appointmentValues.serviceId) formErrors.serviceId = 'Please select a service';
-  const slotLeadErrors = validateSlotLeadErrors(
-    selectedSlot,
-    slotLeadOptions,
-    appointmentValues.leadId,
-    normalizeId
-  );
-  return { ...formErrors, ...slotLeadErrors };
 };
 
 type AppointmentValuesState = {
@@ -303,8 +245,8 @@ const buildUpdatedAppointment = (ctx: AppointmentSaveContext): Appointment => {
     const id = member.practionerId || member._id;
     if (!id || !supportIdSet.has(id)) return items;
     items.push({
-      id: member.practionerId || member._id || '',
-      name: member.name || member.practionerId || member._id || '',
+      id,
+      name: member.name || id,
     });
     return items;
   }, []);
@@ -331,11 +273,12 @@ const buildUpdatedAppointment = (ctx: AppointmentSaveContext): Appointment => {
     lead:
       canRescheduleByStatus && leadMember
         ? {
-            id: leadMember.practionerId || leadMember._id || '',
-            name: leadMember.name || leadMember.practionerId || leadMember._id || '',
+            // leadMember was matched on `practionerId || _id === leadId`, so its id is leadId.
+            id: appointmentValues.leadId,
+            name: leadMember.name || appointmentValues.leadId,
             profileUrl:
               (typeof (leadMember as { image?: unknown }).image === 'string'
-                ? ((leadMember as { image: string }).image ?? '')
+                ? (leadMember as { image: string }).image
                 : '') || activeAppointment.lead?.profileUrl,
           }
         : activeAppointment.lead,
@@ -493,7 +436,7 @@ const useAppointmentInfoView = ({
   const RoomOptions = useMemo(
     () =>
       toAssignableRoomOptions(
-        rooms ?? [],
+        rooms,
         roomIndexes,
         activeAppointment.room?.id,
         appointmentRoomUnitId,
@@ -519,10 +462,10 @@ const useAppointmentInfoView = ({
 
   const SpecialitiesOptions = useMemo(
     () =>
-      specialities?.map((speciality) => ({
+      specialities.map((speciality) => ({
         label: speciality.name,
         value: speciality._id || speciality.name,
-      })) ?? [],
+      })),
     [specialities]
   );
 
@@ -533,10 +476,10 @@ const useAppointmentInfoView = ({
 
   const ServicesOptions = useMemo(
     () =>
-      services?.map((service) => ({
+      services.map((service) => ({
         label: service.name,
         value: service.id,
-      })) ?? [],
+      })),
     [services]
   );
 
@@ -723,7 +666,6 @@ const useAppointmentInfoView = ({
     const hasScheduleChanged =
       new Date(activeAppointment.startTime).getTime() !== new Date(nextStartTime).getTime() ||
       new Date(activeAppointment.endTime).getTime() !== new Date(nextEndTime).getTime();
-    /* v8 ignore next 7 -- defensive guard: the date/time picker only renders when canRescheduleByStatus is true, and computeNextTimes keeps the original times otherwise, so a schedule change with !canRescheduleByStatus cannot occur via the UI */
     if (hasScheduleChanged && !canRescheduleByStatus) {
       notify('warning', {
         title: 'Reschedule blocked',
@@ -800,6 +742,7 @@ const useAppointmentInfoView = ({
 
     await updateAppointment(updatedAppointment);
     const succeeded = await applyStatusChange(appointmentValues.status);
+    /* v8 ignore next -- unreachable: applyStatusChange only returns false from its two defensive guards, and both are impossible via the UI — the status dropdown renders solely when canChangeStatusByStatus is true, and it offers only the transitions canTransitionAppointmentStatus accepts, so any selectable status either equals the current one (early true) or is a valid transition */
     if (!succeeded) return;
     setIsEditingAppointment(false);
     dispatchFormState({ type: 'SET_ERRORS', errors: {} });
