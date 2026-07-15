@@ -7,7 +7,7 @@ This is the backend API server for Yosemite Crew (YC), the open-source veterinar
 - Node.js 20+ and `pnpm@8.15.6` (install dependencies from the repo root with `pnpm install`)
 - PostgreSQL (the schema lives in `packages/database/prisma/schema.prisma`)
 - Redis (required by the BullMQ job queues)
-- MongoDB, unless you set `READ_FROM_POSTGRES=true` — the server still connects to Mongo at startup (see Database below)
+- The legacy datastore, unless you set `READ_FROM_POSTGRES=true` (recommended) — the server still connects to it at startup (see Database below)
 
 ## Database
 
@@ -20,16 +20,16 @@ pnpm --filter backend run prisma:generate   # generate the Prisma client
 pnpm --filter backend run prisma:migrate    # apply migrations in development
 ```
 
-### Legacy MongoDB (still required at startup)
+### Legacy datastore (still required at startup — being removed in #1819)
 
-`main.ts` calls `connectDB()` on boot (`src/config/db.ts`). It skips MongoDB only when `READ_FROM_POSTGRES=true`; otherwise it needs one of:
+`main.ts` calls `connectDB()` on boot (`src/config/db.ts`). It skips the legacy MongoDB connection only when `READ_FROM_POSTGRES=true`; otherwise it needs one of:
 
 - `READ_FROM_POSTGRES=true` — skip MongoDB entirely (Postgres-only path)
 - `USE_INMEMORY_DB=true` — start an in-memory MongoDB (no local install needed)
 - `LOCAL_DEVELOPMENT=true` — connect to `mongodb://localhost:27017/yosemitecrew`
 - otherwise — connect to `MONGODB_URI`
 
-With none of these set, startup fails on an empty connection string. Mongo is legacy and being retired — do not add new MongoDB usage.
+With none of these set, startup fails on an empty connection string. Prefer `READ_FROM_POSTGRES=true`: the legacy datastore is being removed (#1819), and this whole section goes away with it. All new persistence goes through Prisma.
 
 ## Dev server
 
@@ -53,7 +53,9 @@ pnpm --filter backend run start
 
 ## Docker
 
-`Dockerfile` builds the production API image; `Dockerfile.test` builds the image used for test runs. The repo-root `docker-compose.yml` wires supporting services for local development.
+`Dockerfile` builds the production API image; `Dockerfile.test` builds the image used for test runs.
+
+The repo-root `docker-compose.yml` is stale — it builds only `website` and `api` from `apps/website/Dockerfile` and `apps/api/Dockerfile`, neither of which exists, and it provisions no database or Redis. Do not use it to bring up local dependencies; provision PostgreSQL and Redis yourself.
 
 ## Parent & Companion Linking
 
