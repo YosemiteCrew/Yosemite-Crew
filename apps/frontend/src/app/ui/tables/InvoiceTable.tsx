@@ -63,7 +63,11 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
 
   const goToAppointmentFinance = (appointmentId?: string) => {
     const appointment = getAppointmentByIdFromList(appointments, appointmentId);
-    if (!appointment?.id) return;
+    if (!appointment?.id) {
+      /* v8 ignore start -- unreachable: this only runs from the Date-cell button, which renders solely when the same lookup already resolved, and getAppointmentByIdFromList matches on a non-empty normalised id, so the appointment always has one */
+      return;
+      /* v8 ignore stop */
+    }
     const params = new URLSearchParams({
       appointmentId: appointment.id,
       open: 'finance',

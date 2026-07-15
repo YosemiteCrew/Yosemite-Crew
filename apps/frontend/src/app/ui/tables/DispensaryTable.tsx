@@ -99,72 +99,76 @@ const DispensaryRow = ({
   record: DispensaryRecord;
   onView?: (record: DispensaryRecord) => void;
   onDispense?: (record: DispensaryRecord) => void;
-}) => (
-  <div
-    className="grid items-center gap-2.5 border-t border-card-border px-5 py-2.5 text-[13px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
-    style={{ gridTemplateColumns: GRID_COLUMNS }}
-  >
+}) => {
+  const items = record.items ?? [];
+
+  return (
     <div
-      className="min-w-0 truncate text-[13px] font-bold text-text-primary"
-      title={getDisplayName(record)}
+      className="grid items-center gap-2.5 border-t border-card-border px-5 py-2.5 text-[13px] text-text-primary transition-colors hover:bg-[var(--surface-soft)]"
+      style={{ gridTemplateColumns: GRID_COLUMNS }}
     >
-      {getDisplayName(record)}
-    </div>
-    <div>
-      <StatusPill status={record.status} />
-    </div>
-    <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
-      {(record.items ?? []).length === 0 ? (
-        <li className="text-[12px] text-text-tertiary">—</li>
-      ) : (
-        (record.items ?? []).map((item) => (
-          <li key={item.name} className="truncate text-[12px] text-text-secondary">
-            • {item.name}
-          </li>
-        ))
-      )}
-    </ul>
-    <div className="whitespace-pre-line text-[12px] tabular-nums text-[var(--color-success-600)]">
-      {formatDateTime(record.prescriptionCreated)}
-    </div>
-    <div className="text-right font-semibold tabular-nums">
-      {formatAmount(record.amountCents, record.currency)}
-    </div>
-    <div className="truncate text-[12.5px] text-text-secondary">{record.lead || '—'}</div>
-    <div className="truncate text-[12.5px] text-text-secondary">{record.location || '—'}</div>
-    <div
-      className={`whitespace-pre-line text-[12px] tabular-nums ${
-        record.timeDispensed ? 'text-[var(--color-success-600)]' : 'text-text-tertiary'
-      }`}
-    >
-      {formatDateTime(record.timeDispensed)}
-    </div>
-    <div className="flex items-center justify-end gap-1.5">
-      {record.status === 'PENDING' && onDispense && (
-        <button
-          type="button"
-          onClick={() => onDispense(record)}
-          aria-label={`Dispense prescription for ${record.patient.name}`}
-          className="flex h-8 items-center rounded-full! bg-[var(--cta)] px-3.5 text-[11.5px] font-bold text-[var(--cta-text)] transition-opacity hover:opacity-90"
-        >
-          Dispense
-        </button>
-      )}
-      {onView && (
-        <GlassTooltip content="View details" side="top">
+      <div
+        className="min-w-0 truncate text-[13px] font-bold text-text-primary"
+        title={getDisplayName(record)}
+      >
+        {getDisplayName(record)}
+      </div>
+      <div>
+        <StatusPill status={record.status} />
+      </div>
+      <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
+        {items.length === 0 ? (
+          <li className="text-[12px] text-text-tertiary">—</li>
+        ) : (
+          items.map((item) => (
+            <li key={item.name} className="truncate text-[12px] text-text-secondary">
+              • {item.name}
+            </li>
+          ))
+        )}
+      </ul>
+      <div className="whitespace-pre-line text-[12px] tabular-nums text-[var(--color-success-600)]">
+        {formatDateTime(record.prescriptionCreated)}
+      </div>
+      <div className="text-right font-semibold tabular-nums">
+        {formatAmount(record.amountCents, record.currency)}
+      </div>
+      <div className="truncate text-[12.5px] text-text-secondary">{record.lead || '—'}</div>
+      <div className="truncate text-[12.5px] text-text-secondary">{record.location || '—'}</div>
+      <div
+        className={`whitespace-pre-line text-[12px] tabular-nums ${
+          record.timeDispensed ? 'text-[var(--color-success-600)]' : 'text-text-tertiary'
+        }`}
+      >
+        {formatDateTime(record.timeDispensed)}
+      </div>
+      <div className="flex items-center justify-end gap-1.5">
+        {record.status === 'PENDING' && onDispense && (
           <button
             type="button"
-            onClick={() => onView(record)}
-            aria-label={`View prescription for ${record.patient.name}`}
-            className="flex size-[30px] items-center justify-center rounded-full! border border-card-border text-text-secondary transition-colors hover:bg-card-hover"
+            onClick={() => onDispense(record)}
+            aria-label={`Dispense prescription for ${record.patient.name}`}
+            className="flex h-8 items-center rounded-full! bg-[var(--cta)] px-3.5 text-[11.5px] font-bold text-[var(--cta-text)] transition-opacity hover:opacity-90"
           >
-            <IoEye size={15} />
+            Dispense
           </button>
-        </GlassTooltip>
-      )}
+        )}
+        {onView && (
+          <GlassTooltip content="View details" side="top">
+            <button
+              type="button"
+              onClick={() => onView(record)}
+              aria-label={`View prescription for ${record.patient.name}`}
+              className="flex size-[30px] items-center justify-center rounded-full! border border-card-border text-text-secondary transition-colors hover:bg-card-hover"
+            >
+              <IoEye size={15} />
+            </button>
+          </GlassTooltip>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const DispensaryTable = ({ filteredList, onView, onDispense }: DispensaryTableProps) => {
   const [page, setPage] = useState(1);

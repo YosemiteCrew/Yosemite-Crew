@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
@@ -72,6 +72,9 @@ const defaultProps = {
 describe('AddSpecialityModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // clearMocks only resets calls, not implementations — reset the resolved
+    // value so a rejection queued by one test cannot leak into the next.
+    mockAddSpeciality.mockResolvedValue(undefined);
     mockSpecialities = [];
   });
 
@@ -162,5 +165,55 @@ describe('AddSpecialityModal', () => {
     render(<AddSpecialityModal {...defaultProps} setShowModal={setShowModal} />);
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('notifies with an error and keeps the modal open when addSpeciality rejects', async () => {
+    const setShowModal = jest.fn();
+    mockAddSpeciality.mockRejectedValue(new Error('network down'));
+    render(<AddSpecialityModal {...defaultProps} setShowModal={setShowModal} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Neurology' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add speciality' }));
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith('error', {
+        title: 'Unable to add speciality',
+        text: 'Please try again.',
+      });
+    });
+    expect(mockNotify).not.toHaveBeenCalledWith('success', expect.anything());
+    expect(setShowModal).not.toHaveBeenCalled();
+  });
+
+  it('submitting the form prevents default navigation and adds the speciality', async () => {
+    const setShowModal = jest.fn();
+    const { container } = render(
+      <AddSpecialityModal {...defaultProps} setShowModal={setShowModal} />
+    );
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Radiology' } });
+
+    const form = container.querySelector('form') as HTMLFormElement;
+    const submitEvent = createEvent.submit(form);
+    fireEvent(form, submitEvent);
+
+    expect(submitEvent.defaultPrevented).toBe(true);
+    await waitFor(() => {
+      expect(mockAddSpeciality).toHaveBeenCalledWith('Radiology', 'org-1');
+    });
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('form submit swallows rejections from the submit handler', async () => {
+    mockAddSpeciality.mockRejectedValue(new Error('boom'));
+    const { container } = render(<AddSpecialityModal {...defaultProps} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Oncology' } });
+
+    fireEvent.submit(container.querySelector('form') as HTMLFormElement);
+
+    await waitFor(() => {
+      expect(mockNotify).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Unable to add speciality' })
+      );
+    });
   });
 });

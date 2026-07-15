@@ -45,6 +45,19 @@ describe('FormCard Component', () => {
     expect(screen.getByText('2023-01-15')).toBeInTheDocument(); // Last Updated
   });
 
+  it('resolves the updater through getUserName when provided', () => {
+    // FormsTable passes a getUserName resolver so the raw user id is not shown.
+    const getUserName = jest.fn(() => 'Dr. Casey Nolan');
+
+    render(
+      <FormCard form={mockForm} handleViewForm={mockHandleViewForm} getUserName={getUserName} />
+    );
+
+    expect(getUserName).toHaveBeenCalledWith('Admin User');
+    expect(screen.getByText('Dr. Casey Nolan')).toBeInTheDocument();
+    expect(screen.queryByText('Admin User')).not.toBeInTheDocument();
+  });
+
   // --- 2. Status Logic ---
 
   it('renders status with correct style', () => {

@@ -197,6 +197,35 @@ describe('GuidePlayerModal', () => {
     expect(screen.queryByRole('button', { name: 'Copied' })).not.toBeInTheDocument();
   });
 
+  it('resets the copied affordance when the guide changes while open', async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    setClipboard(writeText);
+    const { rerender } = render(
+      <GuidePlayerModal
+        showModal
+        setShowModal={jest.fn()}
+        guide={guide}
+        nextGuide={null}
+        onNext={jest.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Copy link/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument());
+
+    // Swapping the guide changes the render key, so the prev-prop reset runs.
+    rerender(
+      <GuidePlayerModal
+        showModal
+        setShowModal={jest.fn()}
+        guide={nextGuide}
+        nextGuide={null}
+        onNext={jest.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: /Copy link/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Copied' })).not.toBeInTheDocument();
+  });
+
   it('renders a guide without chapters or progress at 0:00', () => {
     render(
       <GuidePlayerModal

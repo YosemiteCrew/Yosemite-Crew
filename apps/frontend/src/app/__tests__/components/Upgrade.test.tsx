@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import Upgrade from '@/app/ui/widgets/Upgrade';
@@ -37,6 +37,31 @@ jest.mock('@/app/lib/logger', () => ({
 }));
 
 import { logger } from '@/app/lib/logger';
+
+/**
+ * `window.location` and its `href` accessor are both non-configurable in jsdom,
+ * so the redirect cannot be stubbed. jsdom instead reports the attempted
+ * navigation as a "Not implemented: navigation" jsdomError on console.error,
+ * which jest.setup turns into a thrown failure. Swap in a collector for the
+ * duration of the redirect timer, restore the strict mock afterwards, and
+ * return whatever jsdom reported so the test can assert on the attempt.
+ */
+const runTimersCollectingJsdomErrors = (): string[] => {
+  const errorMock = console.error as jest.Mock;
+  const strictImpl = errorMock.getMockImplementation();
+  const collected: string[] = [];
+  errorMock.mockImplementation((...args: unknown[]) => {
+    collected.push(String(args[0]));
+  });
+  try {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+  } finally {
+    errorMock.mockImplementation(strictImpl as (...args: unknown[]) => void);
+  }
+  return collected;
+};
 
 describe('Upgrade widget', () => {
   beforeEach(() => {
@@ -85,5 +110,63 @@ describe('Upgrade widget', () => {
       expect(logger.error).toHaveBeenCalled();
     });
     expect(screen.getAllByText('Upgrade').length).toBeGreaterThan(0);
+  });
+
+  it('navigates to the checkout URL once the redirect timeout elapses', async () => {
+    (getUpgradeLink as jest.Mock).mockResolvedValue(
+      'https://checkout.stripe.com/c/pay/cs_test_456'
+    );
+
+    render(<Upgrade />);
+
+    fireEvent.click(screen.getAllByText('Upgrade')[0]);
+    fireEvent.click(screen.getAllByText('Upgrade')[1]);
+
+    await waitFor(() => {
+      expect(getUpgradeLink).toHaveBeenCalledWith('month');
+    });
+    // The modal closes as soon as a safe URL is resolved, before the redirect.
+    await waitFor(() => {
+      expect(screen.queryByTestId('upgrade-modal')).not.toBeInTheDocument();
+    });
+
+    const jsdomErrors = runTimersCollectingJsdomErrors();
+
+    // Exactly one navigation was attempted out of the redirect timer.
+    expect(jsdomErrors).toHaveLength(1);
+    expect(jsdomErrors[0]).toContain('Not implemented: navigation');
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('throws and logs when the upgrade URL is not a trusted Stripe URL', async () => {
+    (getUpgradeLink as jest.Mock).mockResolvedValue('https://evil.example.com/checkout');
+
+    render(<Upgrade />);
+
+    fireEvent.click(screen.getAllByText('Upgrade')[0]);
+    fireEvent.click(screen.getAllByText('Upgrade')[1]);
+
+    await waitFor(() => {
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to start upgrade checkout',
+        expect.objectContaining({ message: 'Received an unexpected upgrade URL.' })
+      );
+    });
+
+    // The modal stays open and no redirect is scheduled for a rejected URL.
+    expect(screen.getByTestId('upgrade-modal')).toBeInTheDocument();
+    expect(runTimersCollectingJsdomErrors()).toHaveLength(0);
+  });
+
+  it('closes the modal when the header close button is clicked', () => {
+    render(<Upgrade />);
+
+    fireEvent.click(screen.getAllByText('Upgrade')[0]);
+    expect(screen.getByTestId('upgrade-modal')).toBeInTheDocument();
+
+    // The first `close` is the invisible spacer; the second runs handleCancel.
+    fireEvent.click(screen.getAllByText('close')[1]);
+
+    expect(screen.queryByTestId('upgrade-modal')).not.toBeInTheDocument();
   });
 });

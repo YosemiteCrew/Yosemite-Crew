@@ -87,7 +87,7 @@ export const AppointmentDetails = ({ appointment }: AppointmentCardContentProps)
     <>
       <AppointmentDetailField
         label="Breed / Species"
-        value={`${getAppointmentCompanion(appointment).breed || '-'} / ${getAppointmentCompanion(appointment).species}`}
+        value={`${getAppointmentCompanion(appointment).breed || '-'} / ${getAppointmentCompanion(appointment).species || '-'}`}
       />
       <AppointmentDetailField
         label="Date / Time"

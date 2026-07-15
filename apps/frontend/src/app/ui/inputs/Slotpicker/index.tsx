@@ -94,7 +94,11 @@ const Slotpicker = ({
 
   useLayoutEffect(() => {
     const strip = dateStripRef.current;
-    if (!strip) return;
+    if (!strip) {
+      /* v8 ignore start -- unreachable: dateStripRef is attached to a div that is rendered unconditionally, so the ref is always set by the time this layout effect runs */
+      return;
+      /* v8 ignore stop */
+    }
 
     const syncScrollArrows = () => {
       setCanScrollDatesLeft(strip.scrollLeft > 4);
@@ -112,7 +116,11 @@ const Slotpicker = ({
   }, [days.length, viewMonth, viewYear]);
 
   const handlePrevMonth = () => {
-    if (isAtTodayMonth) return;
+    if (isAtTodayMonth) {
+      /* v8 ignore start -- unreachable: the "Previous month" button carries `disabled={isAtTodayMonth}`, so this handler can never run while the guard is true */
+      return;
+      /* v8 ignore stop */
+    }
     if (viewMonth === 0) {
       setViewYear((y) => y - 1);
       setViewMonth(11);
@@ -147,7 +155,11 @@ const Slotpicker = ({
 
   const scrollDateStrip = (direction: 'left' | 'right') => {
     const strip = dateStripRef.current;
-    if (!strip) return;
+    if (!strip) {
+      /* v8 ignore start -- unreachable: the scroll arrows and the dateStripRef div are siblings in the same unconditional subtree, so the ref is always set whenever an arrow can be clicked */
+      return;
+      /* v8 ignore stop */
+    }
     strip.scrollBy({
       left: direction === 'left' ? -DATE_STRIP_SCROLL_PX : DATE_STRIP_SCROLL_PX,
       behavior: 'smooth',

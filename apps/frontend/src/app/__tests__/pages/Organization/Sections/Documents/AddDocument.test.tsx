@@ -1,14 +1,14 @@
-import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import "@testing-library/jest-dom";
-import AddDocument from "@/app/features/organization/pages/Organization/Sections/Documents/AddDocument";
+import React from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import AddDocument from '@/app/features/organization/pages/Organization/Sections/Documents/AddDocument';
 
-jest.mock("@/app/ui/overlays/Modal", () => ({
+jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
   default: ({ children }: any) => <div data-testid="modal">{children}</div>,
 }));
 
-jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
+jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
   __esModule: true,
   default: ({ title, children }: any) => (
     <div>
@@ -18,7 +18,7 @@ jest.mock("@/app/ui/primitives/Accordion/Accordion", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
+jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange, error }: any) => (
     <label>
@@ -29,7 +29,7 @@ jest.mock("@/app/ui/inputs/FormInput/FormInput", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => ({
+jest.mock('@/app/ui/inputs/FormDesc/FormDesc', () => ({
   __esModule: true,
   default: ({ inlabel, value, onChange }: any) => (
     <label>
@@ -39,26 +39,28 @@ jest.mock("@/app/ui/inputs/FormDesc/FormDesc", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/widgets/UploadImage/DocUploader", () => ({
+jest.mock('@/app/ui/widgets/UploadImage/DocUploader', () => ({
   __esModule: true,
   default: ({ onChange, error }: any) => (
     <div>
-      <button type="button" onClick={() => onChange("file-url")}>Upload</button>
+      <button type="button" onClick={() => onChange('file-url')}>
+        Upload
+      </button>
       {error && <span>{error}</span>}
     </div>
   ),
 }));
 
-jest.mock("@/app/ui/inputs/Dropdown/LabelDropdown", () => ({
+jest.mock('@/app/ui/inputs/Dropdown/LabelDropdown', () => ({
   __esModule: true,
   default: ({ placeholder, onSelect }: any) => (
-    <button type="button" onClick={() => onSelect({ value: "CANCELLATION_POLICY" })}>
+    <button type="button" onClick={() => onSelect({ value: 'CANCELLATION_POLICY' })}>
       {placeholder}
     </button>
   ),
 }));
 
-jest.mock("@/app/ui/primitives/Buttons", () => ({
+jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick }: any) => (
     <button type="button" onClick={onClick}>
       {text}
@@ -66,7 +68,7 @@ jest.mock("@/app/ui/primitives/Buttons", () => ({
   ),
 }));
 
-jest.mock("@/app/ui/primitives/Icons/Close", () => ({
+jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   __esModule: true,
   default: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>
@@ -75,52 +77,118 @@ jest.mock("@/app/ui/primitives/Icons/Close", () => ({
   ),
 }));
 
-jest.mock("@iconify/react/dist/iconify.js", () => ({
+jest.mock('@iconify/react/dist/iconify.js', () => ({
   Icon: () => <span data-testid="icon" />,
 }));
 
-jest.mock("@/app/stores/orgStore", () => ({
+const getStateMock = jest.fn();
+
+jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: {
-    getState: () => ({ primaryOrgId: "org-1" }),
+    getState: () => getStateMock(),
   },
 }));
 
-jest.mock("@/app/features/documents/services/documentService", () => ({
+const notifyMock = jest.fn();
+
+jest.mock('@/app/hooks/useNotify', () => ({
+  useNotify: () => ({ notify: notifyMock }),
+}));
+
+jest.mock('@/app/features/documents/services/documentService', () => ({
   createDocument: jest.fn(),
 }));
 
-const documentService = jest.requireMock("@/app/features/documents/services/documentService");
+const documentService = jest.requireMock('@/app/features/documents/services/documentService');
 
-describe("AddDocument", () => {
+describe('AddDocument', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    getStateMock.mockReturnValue({ primaryOrgId: 'org-1' });
   });
 
-  it("shows validation errors", () => {
+  it('shows validation errors', () => {
     render(<AddDocument showModal setShowModal={jest.fn()} />);
 
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByText('Save'));
 
-    expect(screen.getByText("Name is required")).toBeInTheDocument();
-    expect(screen.getAllByText("File is required")).toHaveLength(2);
+    expect(screen.getByText('Name is required')).toBeInTheDocument();
+    expect(screen.getAllByText('File is required')).toHaveLength(2);
   });
 
-  it("creates a document", async () => {
+  it('creates a document', async () => {
     documentService.createDocument.mockResolvedValue({});
     const setShowModal = jest.fn();
 
     render(<AddDocument showModal setShowModal={setShowModal} />);
 
-    fireEvent.change(screen.getByLabelText("Document title"), {
-      target: { value: "Policy" },
+    fireEvent.change(screen.getByLabelText('Document title'), {
+      target: { value: 'Policy' },
     });
-    fireEvent.click(screen.getByText("Upload"));
+    fireEvent.click(screen.getByText('Upload'));
 
-    fireEvent.click(screen.getByText("Save"));
+    fireEvent.click(screen.getByText('Save'));
 
     await waitFor(() => {
       expect(documentService.createDocument).toHaveBeenCalled();
     });
     expect(setShowModal).toHaveBeenCalledWith(false);
+    expect(notifyMock).toHaveBeenCalledWith('success', {
+      title: 'Document created',
+      text: 'Document has been created successfully.',
+    });
+  });
+
+  it('notifies and keeps the modal open when creating the document fails', async () => {
+    documentService.createDocument.mockRejectedValue(new Error('boom'));
+    const setShowModal = jest.fn();
+
+    render(<AddDocument showModal setShowModal={setShowModal} />);
+
+    fireEvent.change(screen.getByLabelText('Document title'), {
+      target: { value: 'Policy' },
+    });
+    fireEvent.click(screen.getByText('Upload'));
+    fireEvent.click(screen.getByText('Save'));
+
+    await waitFor(() => {
+      expect(notifyMock).toHaveBeenCalledWith('error', {
+        title: 'Unable to create document',
+        text: 'Failed to create document. Please try again.',
+      });
+    });
+    expect(setShowModal).not.toHaveBeenCalled();
+  });
+
+  it('renders nothing when there is no primary organisation', () => {
+    getStateMock.mockReturnValue({ primaryOrgId: '' });
+
+    const { container } = render(<AddDocument showModal setShowModal={jest.fn()} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('closes the modal from the header close button', () => {
+    const setShowModal = jest.fn();
+    render(<AddDocument showModal setShowModal={setShowModal} />);
+
+    // The first Close is the hidden spacer and is inert; the second is the real control.
+    const [spacerClose, realClose] = screen.getAllByText('Close');
+    fireEvent.click(spacerClose);
+    expect(setShowModal).not.toHaveBeenCalled();
+
+    fireEvent.click(realClose);
+    expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  it('updates the category and description fields', () => {
+    render(<AddDocument showModal setShowModal={jest.fn()} />);
+
+    fireEvent.click(screen.getByText('Type'));
+    fireEvent.change(screen.getByLabelText('Description'), {
+      target: { value: 'Some notes' },
+    });
+
+    expect(screen.getByLabelText('Description')).toHaveValue('Some notes');
   });
 });

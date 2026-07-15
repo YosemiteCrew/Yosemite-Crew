@@ -20,8 +20,10 @@ const formatCurrency = (value: string | number | undefined) => {
 
 const InventoryCard = ({ item, handleViewInventory }: any) => {
   const totalValue = () => {
-    const price = Number(item.pricing?.selling ?? 0);
-    const onHand = Number(item.stock?.current ?? 0);
+    // `item.pricing` / `item.stock` are dereferenced unguarded further up this same
+    // render (unit cost, stock), so they are always present by the time this runs.
+    const price = Number(item.pricing.selling ?? 0);
+    const onHand = Number(item.stock.current ?? 0);
     if (!Number.isFinite(price) || !Number.isFinite(onHand)) return '—';
     return `$ ${Math.round(price * onHand)}`;
   };

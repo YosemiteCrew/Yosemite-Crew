@@ -147,4 +147,93 @@ describe('InvoiceTable', () => {
       borderColor: 'var(--color-pill-neutral-border)',
     });
   });
+
+  it('shows only the companion name when the parent name is missing', () => {
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([
+      {
+        id: 'appt-1',
+        appointmentDate: new Date('2025-01-01T10:00:00.000Z'),
+        startTime: new Date('2025-01-01T10:00:00.000Z'),
+        companion: { id: 'comp-1', name: 'Buddy' },
+      },
+    ]);
+
+    render(<InvoiceTable filteredList={[invoice]} />);
+
+    expect(screen.getByTestId('cell-appointment-id')).toHaveTextContent('Buddy');
+    expect(screen.getByTestId('cell-appointment-id')).not.toHaveTextContent('/');
+  });
+
+  it('falls back to a dash when neither parent nor companion name is known', () => {
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([
+      {
+        id: 'appt-1',
+        appointmentDate: new Date('2025-01-01T10:00:00.000Z'),
+        startTime: new Date('2025-01-01T10:00:00.000Z'),
+      },
+    ]);
+
+    render(<InvoiceTable filteredList={[invoice]} />);
+
+    const cell = screen.getByTestId('cell-appointment-id');
+    expect(cell.querySelector('.appointment-profile-title')).toHaveAttribute('title', '-');
+  });
+
+  it('shows only the parent name when the companion name is missing', () => {
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([
+      {
+        id: 'appt-1',
+        appointmentDate: new Date('2025-01-01T10:00:00.000Z'),
+        startTime: new Date('2025-01-01T10:00:00.000Z'),
+        companion: { id: 'comp-1', parent: { name: 'Sam' } },
+      },
+    ]);
+
+    render(<InvoiceTable filteredList={[invoice]} />);
+
+    expect(screen.getByTestId('cell-appointment-id')).toHaveTextContent('Sam');
+  });
+
+  it('renders the appointment type in the subtitle and falls back to appointmentDate for the time', () => {
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([
+      {
+        id: 'appt-1',
+        appointmentDate: new Date('2025-01-01T10:00:00.000Z'),
+        startTime: undefined,
+        appointmentType: { name: 'Wellness exam' },
+        companion: { id: 'comp-1', name: 'Buddy', parent: { name: 'Sam' } },
+      },
+    ]);
+
+    render(<InvoiceTable filteredList={[invoice]} />);
+
+    expect(screen.getByTitle('Wellness exam · Jan 1 10:00 AM')).toBeInTheDocument();
+  });
+
+  it('renders an empty subtitle and no date cell when the appointment is not found', () => {
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([]);
+
+    render(<InvoiceTable filteredList={[invoice]} />);
+
+    expect(
+      screen.getByTestId('cell-appointment-id').querySelector('.appointment-profile-sub')
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Open finance details/ })).not.toBeInTheDocument();
+  });
+
+  it('falls back to defaults for a bare invoice with no id, number, tax or total', () => {
+    const bare = {
+      appointmentId: undefined,
+      subtotal: 5,
+      discountTotal: 1,
+      items: [],
+      status: 'PENDING',
+    } as unknown as Invoice;
+
+    render(<InvoiceTable filteredList={[bare]} />);
+
+    expect(screen.getByTestId('cell-invoice-number')).toHaveTextContent('-');
+    expect(screen.getByRole('button', { name: 'View invoice' })).toBeInTheDocument();
+    expect(screen.getByTestId('invoice-card')).toBeInTheDocument();
+  });
 });

@@ -145,4 +145,25 @@ describe('InClinicTodayBand', () => {
     // No companion → blank name → '?' monogram fallback.
     expect(screen.getByText('?')).toBeInTheDocument();
   });
+
+  it('falls back to appointmentDate, an index key and an empty concern when fields are missing', () => {
+    useAppointmentsMock.mockReturnValue([
+      {
+        // No `id` → the card key falls back to `${name}-${index}`.
+        // No `startTime` → the time label reads `appointmentDate`.
+        // No `concern` → the String(...) coalesces to '' and the subtitle is breed-only.
+        status: 'CHECKED_IN',
+        appointmentDate: today,
+        companion: { id: 'c1', name: 'Poppy', species: 'dog' },
+      },
+    ]);
+
+    render(<InClinicTodayBand companions={companions} />);
+
+    expect(screen.getByText('Poppy')).toBeInTheDocument();
+    // Linked companion supplies the breed; with no concern the subtitle has no separator.
+    expect(screen.getByText('Beagle')).toBeInTheDocument();
+    expect(screen.queryByText(/·/)).not.toBeInTheDocument();
+    expect(screen.getByText('Checked in')).toBeInTheDocument();
+  });
 });

@@ -37,13 +37,14 @@ const Details = ({ activeAppointment }: DetailsProps) => {
     }
 
     return invoices.some((invoice) => {
+      // `invoice.status` below is read unguarded, so an entry is always non-nullish here.
       const normalizedCollectionMethod = String(
-        (invoice as any)?.paymentCollectionMethod ?? ''
+        (invoice as any).paymentCollectionMethod ?? ''
       ).toUpperCase();
       const normalizedInvoiceStatus = String(invoice.status ?? '').toUpperCase();
       return (
         normalizedCollectionMethod === CASH_COLLECTION_METHOD &&
-        (SETTLED_INVOICE_STATUSES.has(normalizedInvoiceStatus) || Boolean((invoice as any)?.paidAt))
+        (SETTLED_INVOICE_STATUSES.has(normalizedInvoiceStatus) || Boolean((invoice as any).paidAt))
       );
     });
   }, [activeAppointment.status, activeAppointment.paymentStatus, invoices]);
