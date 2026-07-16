@@ -954,6 +954,35 @@ describe('TreatmentStep', () => {
     ).toBeInTheDocument();
   });
 
+  it('clears the stale prescription error once the clinician edits the row', () => {
+    const enc = {
+      ...seedAndGet(),
+      prescription: [
+        {
+          id: 'rx-incomplete',
+          medicineName: 'Amoxicillin',
+          route: 'Oral',
+          dosageForm: 'Tablet',
+          fulfillment: 'IN_HOUSE' as const,
+        },
+      ],
+    };
+    render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+    expect(
+      screen.getByText(/Amoxicillin: add frequency, duration, quantity to dispense/i)
+    ).toBeInTheDocument();
+
+    // The message is only recomputed on the next save, so editing the row must drop it —
+    // otherwise a problem the clinician has already fixed keeps showing.
+    fireEvent.change(screen.getByLabelText('Qty'), { target: { value: '14' } });
+
+    expect(
+      screen.queryByText(/Amoxicillin: add frequency, duration, quantity to dispense/i)
+    ).not.toBeInTheDocument();
+  });
+
   it('does not fetch a label when no organisation is available', () => {
     const enc = seedAndGet();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);

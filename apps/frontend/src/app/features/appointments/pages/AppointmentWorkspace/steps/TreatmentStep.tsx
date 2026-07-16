@@ -457,6 +457,7 @@ const usePrescriptionActions = ({
 }) => {
   const addPrescription = useAppointmentWorkspaceStore((s) => s.addPrescription);
   const removePrescription = useAppointmentWorkspaceStore((s) => s.removePrescription);
+  const updatePrescription = useAppointmentWorkspaceStore((s) => s.updatePrescription);
   const [prescriptionError, setPrescriptionError] = useState<string | null>(null);
   const [printingLabels, setPrintingLabels] = useState(false);
 
@@ -551,6 +552,17 @@ const usePrescriptionActions = ({
     addPrescription(appointmentId, item);
   };
 
+  // Editing a row clears the save-time validation message: it is only recomputed on the next
+  // save, so without this a message the clinician has already fixed keeps showing. Only the
+  // first error is ever rendered, so a stale one also masks the remaining rows' errors.
+  const handleUpdatePrescription = (
+    id: string,
+    patch: Parameters<typeof updatePrescription>[2]
+  ) => {
+    setPrescriptionError(null);
+    updatePrescription(appointmentId, id, patch);
+  };
+
   const handleApplyPrescriptionTemplate = (template: PrescriptionTemplateOption) => {
     setPrescriptionError(null);
     addPrescriptionRowsFromTemplate(template.items);
@@ -635,6 +647,7 @@ const usePrescriptionActions = ({
     printingLabels,
     handleAddPrescription,
     handleApplyPrescriptionTemplate,
+    handleUpdatePrescription,
     handleRemovePrescription,
     handlePrintPrescriptionLabels,
   };
@@ -658,7 +671,6 @@ const TreatmentStep = ({
   const addLineItem = useAppointmentWorkspaceStore((s) => s.addLineItem);
   const updateLineItem = useAppointmentWorkspaceStore((s) => s.updateLineItem);
   const removeLineItem = useAppointmentWorkspaceStore((s) => s.removeLineItem);
-  const updatePrescription = useAppointmentWorkspaceStore((s) => s.updatePrescription);
   const setPrescriptions = useAppointmentWorkspaceStore((s) => s.setPrescriptions);
   const setStepStatus = useAppointmentWorkspaceStore((s) => s.setStepStatus);
   const mergeEncounterData = useAppointmentWorkspaceStore((s) => s.mergeEncounterData);
@@ -728,6 +740,7 @@ const TreatmentStep = ({
     printingLabels,
     handleAddPrescription,
     handleApplyPrescriptionTemplate,
+    handleUpdatePrescription,
     handleRemovePrescription,
     handlePrintPrescriptionLabels,
   } = usePrescriptionActions({
@@ -894,7 +907,7 @@ const TreatmentStep = ({
           deleteLocked={readOnly}
           onAddItem={handleAddPrescription}
           onApplyTemplate={handleApplyPrescriptionTemplate}
-          onUpdateItem={(id, patch) => updatePrescription(appointmentId, id, patch)}
+          onUpdateItem={handleUpdatePrescription}
           onRemoveItem={(id) => void handleRemovePrescription(id)}
           onPrint={() => void handlePrintPrescriptionLabels()}
         />
