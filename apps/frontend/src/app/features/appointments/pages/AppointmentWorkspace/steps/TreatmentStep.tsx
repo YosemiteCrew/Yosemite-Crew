@@ -239,6 +239,11 @@ const useTreatmentCatalog = ({
       inventoryIds
         .map((id) => inventoryById[id])
         .filter((item): item is InventoryItem => {
+          // A HIDDEN item is withdrawn from circulation, so it must not be offered for
+          // prescribing — the same rule the Invoice step's picker already applies
+          // (`buildInventoryCandidates` in invoiceStepUtils). `status` is undefined for
+          // items the API sent without one, which normalizes to ACTIVE and stays eligible.
+          if (item?.status === 'HIDDEN') return false;
           const category = item?.basicInfo.category?.toLowerCase();
           return Boolean(category && PRESCRIPTION_INVENTORY_CATEGORIES.has(category));
         })

@@ -136,6 +136,7 @@ jest.mock('@/app/lib/appointmentWorkspace', () => ({
 
 const mockHandleCreate = jest.fn();
 const mockSetFormData = jest.fn();
+const mockSetFormDataErrors = jest.fn();
 let mockTaskForm: Record<string, unknown>;
 jest.mock('@/app/hooks/useTaskForm', () => ({
   useTaskForm: jest.fn(() => mockTaskForm),
@@ -185,14 +186,22 @@ beforeEach(() => {
   mockChangeTaskStatus.mockResolvedValue(undefined);
   mockLoadTasks.mockResolvedValue(undefined);
   mockUpdateTask.mockResolvedValue(undefined);
+  // A valid task: the edit path now runs the same validateTaskForm rules as
+  // create, so the base fixture has to satisfy them for an edit to reach the API.
   mockTaskForm = {
-    formData: { name: 'FD' },
+    formData: {
+      name: 'FD',
+      assignedTo: 'u1',
+      category: 'CARE',
+      dueAt: new Date('2026-02-01T09:30:00Z'),
+    },
     setFormData: mockSetFormData,
     due: new Date('2026-02-01T00:00:00Z'),
     setDue: jest.fn(),
     dueTimeValue: '09:00',
     setDueTimeValue: jest.fn(),
     formDataErrors: {},
+    setFormDataErrors: mockSetFormDataErrors,
     error: null,
     isLoading: false,
     templateOptions: [],
@@ -510,6 +519,55 @@ describe('TasksPanel — new/edit form', () => {
     const call = (useTaskForm as jest.Mock).mock.calls.at(-1)?.[0];
     // editingTask.companionId is absent, so the panel companion id fills it in.
     expect(call.initialTask.companionId).toBe('comp-1');
+  });
+
+  // Bug 28: a repeating task with no end date used to be PATCHed anyway and fail
+  // server-side with the generic "Unable to update task", even though the form's
+  // own rule requires an end date. The edit path must validate like create does.
+  it('blocks an edit of a repeating task that has no end date and surfaces the field error', async () => {
+    mockTaskForm.formData = {
+      name: 'Feed renal diet',
+      assignedTo: 'u1',
+      category: 'DIET',
+      dueAt: new Date('2026-07-01T09:00:00Z'),
+      // "Every 12 hours" with the End date left empty — exactly the QA screenshot.
+      recurrence: { type: 'CUSTOM', isMaster: true, cronExpression: '0 */12 * * *' },
+    };
+    mockTasksById = { e9: makeTask({ _id: 'e9', name: 'Feed renal diet' }) };
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Feed renal diet' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save task' }));
+    await settle();
+
+    expect(mockUpdateTask).not.toHaveBeenCalled();
+    expect(mockSetFormDataErrors).toHaveBeenCalledWith(
+      expect.objectContaining({ endDate: 'End date is required for a repeating task' })
+    );
+  });
+
+  it('saves an edit of a repeating task once an end date is set', async () => {
+    mockTaskForm.formData = {
+      name: 'Feed renal diet',
+      assignedTo: 'u1',
+      category: 'DIET',
+      dueAt: new Date('2026-07-01T09:00:00Z'),
+      recurrence: {
+        type: 'CUSTOM',
+        isMaster: true,
+        cronExpression: '0 */12 * * *',
+        endDate: new Date('2026-07-10T09:00:00Z'),
+      },
+    };
+    mockTasksById = { e10: makeTask({ _id: 'e10', name: 'Feed renal diet' }) };
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Feed renal diet' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save task' }));
+
+    await waitFor(() => expect(mockUpdateTask).toHaveBeenCalled());
+    expect(mockSetFormDataErrors).toHaveBeenCalledWith({});
+    await settle();
   });
 
   it('routes a recurring-series edit through the scope modal and surfaces a save failure', async () => {

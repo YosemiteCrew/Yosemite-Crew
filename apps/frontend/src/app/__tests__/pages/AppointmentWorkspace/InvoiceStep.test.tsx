@@ -885,6 +885,50 @@ describe('<InvoiceStep /> component', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/deposit failed/i);
   });
 
+  it('shows the backend reason, not the raw axios text, when a deposit 409s', async () => {
+    invoiceServiceMock.recordManualInvoicePayment.mockRejectedValueOnce(
+      Object.assign(new Error('Request failed with status code 409'), {
+        response: { status: 409, data: { message: 'Cannot modify a closed invoice' } },
+      })
+    );
+    renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+    await screen.findByTestId('total-bill-container');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Collect Deposit' }));
+    const modalSubmit = screen
+      .getAllByRole('button')
+      .find((btn) => btn.textContent === 'Collect deposit');
+    await act(async () => {
+      await userEvent.click(modalSubmit as HTMLElement);
+    });
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/cannot modify a closed invoice/i);
+    expect(alert).not.toHaveTextContent(/status code/i);
+  });
+
+  it('falls back to readable copy when a failed deposit carries no backend message', async () => {
+    invoiceServiceMock.recordManualInvoicePayment.mockRejectedValueOnce(
+      Object.assign(new Error('Request failed with status code 409'), {
+        response: { status: 409, data: undefined },
+      })
+    );
+    renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+    await screen.findByTestId('total-bill-container');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Collect Deposit' }));
+    const modalSubmit = screen
+      .getAllByRole('button')
+      .find((btn) => btn.textContent === 'Collect deposit');
+    await act(async () => {
+      await userEvent.click(modalSubmit as HTMLElement);
+    });
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/unable to collect deposit/i);
+    expect(alert).not.toHaveTextContent(/status code/i);
+  });
+
   it('errors when the invoice cannot be prepared for sending to the client', async () => {
     invoiceServiceMock.createFinanceInvoice.mockResolvedValueOnce({});
     renderInvoiceStep({ mode: 'INPATIENT', invoiceLineItems: [invoiceLine('Consultation')] });

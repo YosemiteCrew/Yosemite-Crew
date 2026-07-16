@@ -20,6 +20,7 @@ import {
   createEncounterDocumentPacket,
   getAppointmentWorkspaceBootstrap,
   getEncounterDocumentPacketPdfUrl,
+  listAppointmentWorkspaceDocuments,
   listEncounterWorkspaceDocuments,
   reconcileWorkspaceDocumentPacket,
   signWorkspaceDocumentPacket,
@@ -52,6 +53,7 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
   getEncounterDocumentPacketPdfUrl: jest.fn().mockResolvedValue('blob:packet-pdf'),
   reconcileWorkspaceDocumentPacket: jest.fn().mockResolvedValue({ packetId: 'packet-1' }),
   listEncounterWorkspaceDocuments: jest.fn(),
+  listAppointmentWorkspaceDocuments: jest.fn(),
   getAppointmentWorkspaceBootstrap: jest.fn().mockResolvedValue({}),
   normalizeWorkspaceBootstrapForEncounter: jest.fn(() => ({})),
 }));
@@ -164,6 +166,7 @@ const reset = () => {
   (resolveDischargeTemplate as jest.Mock).mockResolvedValue(null);
   (extractFollowUpInDays as jest.Mock).mockReturnValue(undefined);
   (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([]);
+  (listAppointmentWorkspaceDocuments as jest.Mock).mockResolvedValue([]);
   (reconcileWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({ packetId: 'packet-1' });
   (getRenderedDocument as jest.Mock).mockResolvedValue({ pdfUrl: 'https://files.test/doc.pdf' });
   // Reset the aggregate-service mocks that individual tests override so failures
@@ -838,6 +841,60 @@ describe('SummaryStep', () => {
       expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
     );
     expect(screen.queryByText('Missing organisation or encounter for signing.')).toBeNull();
+  });
+
+  it('lists the appointment documents when no encounter id can be resolved', async () => {
+    // The backend only creates an encounter at check-in, so a visit that has not
+    // been checked in has no encounter and the bootstrap carries none either.
+    // The appointment's documents must still render instead of a false empty state.
+    const appointmentWithoutEncounter = {
+      id: APPT,
+      organisationId: 'org-1',
+      status: 'IN_PROGRESS',
+    } as any;
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({ encounter: null });
+    (listAppointmentWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ documentId: 'doc-appt', title: 'Appointment SOAP note' }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep
+          appointmentId={APPT}
+          appointment={appointmentWithoutEncounter}
+          encounter={seedAndGet()}
+        />
+      );
+    });
+
+    await waitFor(() =>
+      expect(listAppointmentWorkspaceDocuments).toHaveBeenCalledWith('org-1', APPT)
+    );
+    expect(listEncounterWorkspaceDocuments).not.toHaveBeenCalled();
+    expect(await screen.findByText('Appointment SOAP note')).toBeInTheDocument();
+    expect(screen.queryByText('No documents recorded yet.')).toBeNull();
+  });
+
+  it('surfaces an error when the appointment document fallback fails', async () => {
+    const appointmentWithoutEncounter = {
+      id: APPT,
+      organisationId: 'org-1',
+      status: 'IN_PROGRESS',
+    } as any;
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({ encounter: null });
+    (listAppointmentWorkspaceDocuments as jest.Mock).mockRejectedValue(new Error('boom'));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    await act(async () => {
+      render(
+        <SummaryStep
+          appointmentId={APPT}
+          appointment={appointmentWithoutEncounter}
+          encounter={seedAndGet()}
+        />
+      );
+    });
+
+    expect(await screen.findByText('Unable to load documents.')).toBeInTheDocument();
+    errorSpy.mockRestore();
   });
 
   it('hydrates the encounter id from the bootstrap when none is supplied', async () => {

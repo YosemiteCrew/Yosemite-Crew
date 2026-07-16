@@ -41,7 +41,7 @@ import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { deletePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
 import { useNotify } from '@/app/hooks/useNotify';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { buildBillableItems, normalizeLineName } from './invoiceStepUtils';
+import { buildBillableItems, getInvoiceErrorMessage, normalizeLineName } from './invoiceStepUtils';
 import {
   type PaymentProgressState,
   computeIncompleteMedicationNames,
@@ -1102,7 +1102,7 @@ const useInvoiceStepContent = ({
       }
       setConfirmation(`${PAYMENT_LABELS[method]} recorded`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to process payment.');
+      setErrorMessage(getInvoiceErrorMessage(error, 'Unable to process payment.'));
     } finally {
       setIsProcessingPayment(false);
     }
@@ -1164,7 +1164,7 @@ const useInvoiceStepContent = ({
       setIsDepositModalOpen(false);
       await reloadBilling();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to collect deposit.');
+      setErrorMessage(getInvoiceErrorMessage(error, 'Unable to collect deposit.'));
     } finally {
       setIsProcessingPayment(false);
     }
@@ -1202,7 +1202,7 @@ const useInvoiceStepContent = ({
       setConfirmation(confirmationMessage);
       await reloadBilling();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to send invoice to client.');
+      setErrorMessage(getInvoiceErrorMessage(error, 'Unable to send invoice to client.'));
     } finally {
       setIsProcessingPayment(false);
     }

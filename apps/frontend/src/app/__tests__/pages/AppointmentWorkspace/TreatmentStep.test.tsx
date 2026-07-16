@@ -407,6 +407,34 @@ describe('TreatmentStep', () => {
     expect(screen.getByRole('button', { name: /carprofen/i })).toBeInTheDocument();
   });
 
+  it('excludes HIDDEN inventory items from the medication add list', () => {
+    const enc = seedAndGet();
+    useInventoryStore
+      .getState()
+      .setInventoryForOrg(ORG, [
+        { ...inventoryItem('inv-active', 'Visible Medicine'), status: 'ACTIVE' },
+        { ...inventoryItem('inv-hidden', 'Hidden Medicine'), status: 'HIDDEN' },
+        inventoryItem('inv-nostatus', 'Unstatused Medicine'),
+      ]);
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounter={enc}
+        onOpenInvoice={jest.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText(/search medicines/i), {
+      target: { value: 'medicine' },
+    });
+
+    expect(screen.getByRole('button', { name: /visible medicine/i })).toBeInTheDocument();
+    // An item with no status normalizes to ACTIVE, so it stays prescribable.
+    expect(screen.getByRole('button', { name: /unstatused medicine/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /hidden medicine/i })).not.toBeInTheDocument();
+  });
+
   it('renders services, packages and prescription sections', () => {
     const enc = seedAndGet();
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);

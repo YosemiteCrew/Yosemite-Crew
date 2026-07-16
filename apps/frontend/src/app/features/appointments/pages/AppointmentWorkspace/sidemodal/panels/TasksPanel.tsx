@@ -39,6 +39,7 @@ import {
 } from '@/app/features/tasks/constants/taskTaxonomy';
 import RecurrenceScopeModal from '@/app/features/tasks/components/RecurrenceScopeModal';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
+import { validateTaskForm } from '@/app/lib/taskForm';
 
 const EMPTY_PARENT_OPTIONS: AssigneeOption[] = [];
 
@@ -295,6 +296,7 @@ const PanelTaskForm = ({
     dueTimeValue,
     setDueTimeValue,
     formDataErrors,
+    setFormDataErrors,
     error,
     isLoading,
     templateOptions,
@@ -337,6 +339,13 @@ const PanelTaskForm = ({
       await handleCreate();
       return;
     }
+    // Editing does not go through handleCreate, so run the SAME validation here.
+    // Without this an invalid payload (e.g. a repeating task whose end date was
+    // never set) is PATCHed anyway and the user only sees the generic "Unable to
+    // update task" instead of the actionable field-level error.
+    const errors = validateTaskForm({ ...formData, _id: editingTask._id, appointmentId, audience });
+    setFormDataErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     // A task in a recurring series asks which occurrences the edit applies to.
     if (isSeriesTask(editingTask.recurrence)) {
       setScopeModalOpen(true);

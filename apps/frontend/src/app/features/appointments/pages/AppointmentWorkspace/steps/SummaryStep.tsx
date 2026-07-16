@@ -46,6 +46,7 @@ import {
   createEncounterDocumentPacket,
   getAppointmentWorkspaceBootstrap,
   getEncounterDocumentPacketPdfUrl,
+  listAppointmentWorkspaceDocuments,
   listEncounterWorkspaceDocuments,
   normalizeWorkspaceBootstrapForEncounter,
   reconcileWorkspaceDocumentPacket,
@@ -484,16 +485,22 @@ const useSummaryStepContent = ({
   // encounter. The refetch is reused after signing so the list, statuses, and
   // signing state stay in sync without a full page reload.
   const refreshDocuments = useCallback(async () => {
-    if (!organisationId || !encounterId) return;
+    if (!organisationId) return;
     try {
-      const rows = await listEncounterWorkspaceDocuments(organisationId, encounterId);
+      // The encounter id is the preferred scope, but an appointment whose visit
+      // has not been checked in yet has no encounter at all. Its documents are
+      // still readable by appointment, so fall back to the appointment-scoped
+      // read-model instead of silently rendering an empty "no documents" state.
+      const rows = await (encounterId
+        ? listEncounterWorkspaceDocuments(organisationId, encounterId)
+        : listAppointmentWorkspaceDocuments(organisationId, appointmentId));
       setDocuments(rows);
       setDocumentsError(null);
     } catch (error) {
       console.error('Unable to load documents:', error);
       setDocumentsError('Unable to load documents.');
     }
-  }, [organisationId, encounterId]);
+  }, [organisationId, encounterId, appointmentId]);
 
   useEffect(() => {
     void refreshDocuments();
