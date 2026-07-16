@@ -25,7 +25,6 @@ import Sound from 'react-native-nitro-sound';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {
   pick as pickDocuments,
-  types as DocumentPickerTypes,
   errorCodes as DocumentPickerErrorCodes,
   isErrorWithCode as isDocumentPickerErrorWithCode,
 } from '@react-native-documents/picker';
@@ -33,6 +32,8 @@ import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {useTheme} from '@/hooks';
 import type {Theme} from '@/theme';
+import {ALLOWED_FILE_TYPES} from '@/features/documents/constants';
+import {normalizeMimeType} from '@/shared/utils/mime';
 
 // Request audio recording permission (Android)
 const requestAudioPermission = async () => {
@@ -212,45 +213,53 @@ export const EnhancedMessageInput: React.FC = () => {
 
     try {
       const result = await pickDocuments({
-        type: [DocumentPickerTypes.allFiles],
+        type: ALLOWED_FILE_TYPES,
         allowMultiSelection: true,
       });
 
       if (result && result.length > 0 && channel) {
+        const allowedFiles = result.filter(
+          file =>
+            Boolean(file.uri) &&
+            ALLOWED_FILE_TYPES.includes(normalizeMimeType(file.type)),
+        );
+
+        if (allowedFiles.length === 0) {
+          Alert.alert(
+            'Unsupported file',
+            'That file type is not supported. Please choose a photo or document instead.',
+          );
+          return;
+        }
+
         ReactNativeHapticFeedback.trigger('impactMedium');
 
         await Promise.all(
-          result.flatMap(file => {
-            if (!file.uri) {
-              return [];
-            }
+          allowedFiles.map(file => {
+            const fileUri = file.uri as string;
+            return (async () => {
+              const fileName = file.name ?? 'Document';
+              const mimeType = normalizeMimeType(file.type);
 
-            const fileUri = file.uri;
-            return [
-              (async () => {
-                const fileName = file.name ?? 'Document';
-                const mimeType = file.type ?? 'application/octet-stream';
+              const response = await channel.sendFile(
+                fileUri,
+                fileName,
+                mimeType,
+              );
 
-                const response = await channel.sendFile(
-                  fileUri,
-                  fileName,
-                  mimeType,
-                );
-
-                await channel.sendMessage({
-                  text: `📎 ${fileName}`,
-                  attachments: [
-                    {
-                      type: 'file',
-                      asset_url: response.file,
-                      title: fileName,
-                      mime_type: mimeType,
-                      file_size: file.size ?? undefined,
-                    },
-                  ],
-                });
-              })(),
-            ];
+              await channel.sendMessage({
+                text: `📎 ${fileName}`,
+                attachments: [
+                  {
+                    type: 'file',
+                    asset_url: response.file,
+                    title: fileName,
+                    mime_type: mimeType,
+                    file_size: file.size ?? undefined,
+                  },
+                ],
+              });
+            })();
           }),
         );
 

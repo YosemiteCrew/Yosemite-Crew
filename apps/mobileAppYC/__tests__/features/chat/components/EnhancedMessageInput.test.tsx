@@ -466,16 +466,52 @@ describe('EnhancedMessageInput', () => {
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
-  it('handles document with missing metadata defaults', async () => {
+  it('rejects a file with a missing/unrecognized mime type instead of sending it as octet-stream', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
     (pickDocuments as jest.Mock).mockResolvedValue([
       {uri: 'uri', name: null, type: null, size: null},
     ]);
     await triggerAttachmentOption(2);
 
+    expect(mockSendFile).not.toHaveBeenCalled();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Unsupported file',
+      expect.stringContaining('not supported'),
+    );
+  });
+
+  it('rejects a disallowed mime type (e.g. an executable) even when the picker returns one', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    (pickDocuments as jest.Mock).mockResolvedValue([
+      {
+        uri: 'uri',
+        name: 'app.exe',
+        type: 'application/x-msdownload',
+        size: 10,
+      },
+    ]);
+    await triggerAttachmentOption(2);
+
+    expect(mockSendFile).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Unsupported file',
+      expect.stringContaining('not supported'),
+    );
+  });
+
+  it('sends only the allowed files when a multi-select includes a disallowed type', async () => {
+    (pickDocuments as jest.Mock).mockResolvedValue([
+      {uri: 'ok-uri', name: 'ok.pdf', type: 'application/pdf', size: 100},
+      {uri: 'bad-uri', name: 'bad.exe', type: 'application/x-msdownload'},
+    ]);
+    await triggerAttachmentOption(2);
+
+    expect(mockSendFile).toHaveBeenCalledTimes(1);
     expect(mockSendFile).toHaveBeenCalledWith(
-      'uri',
-      'Document',
-      'application/octet-stream',
+      'ok-uri',
+      'ok.pdf',
+      'application/pdf',
     );
   });
 
