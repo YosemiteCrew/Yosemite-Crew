@@ -39,8 +39,10 @@ const SettingsSwitch = ({ label, checked, onChange }: SwitchProps) => (
 
 const DeveloperSettings = () => {
   const { notify } = useNotify();
-  const { session, user } = useAuthStore();
-  const payload: Record<string, unknown> = session?.getIdToken?.()?.decodePayload?.() ?? {};
+  const { attributes, user } = useAuthStore();
+  // SuperTokens replaced the Cognito ID token with a flat attributes record, so
+  // the claims are read straight off the store rather than decoded from a JWT.
+  const payload: Record<string, unknown> = attributes ?? {};
 
   const displayName = useMemo(() => {
     const name = `${claimString(payload?.given_name)} ${claimString(payload?.family_name)}`.trim();
@@ -52,8 +54,7 @@ const DeveloperSettings = () => {
 
   const email = (payload?.email as string) || '—';
   const company = (payload?.['custom:company'] as string) || 'Not set';
-  const emailVerified =
-    payload?.email_verified === true || payload?.email_verified === 'true';
+  const emailVerified = payload?.email_verified === true || payload?.email_verified === 'true';
 
   const [emailFailures, setEmailFailures] = useState(true);
   const [weeklyDigest, setWeeklyDigest] = useState(true);
@@ -139,7 +140,11 @@ const DeveloperSettings = () => {
                 <span className="dev-danger-actions">
                   {confirmRevoke ? (
                     <>
-                      <button type="button" className="dev-confirm-btn confirm" onClick={handleRevoke}>
+                      <button
+                        type="button"
+                        className="dev-confirm-btn confirm"
+                        onClick={handleRevoke}
+                      >
                         Confirm revoke
                       </button>
                       <button

@@ -49,7 +49,10 @@ const RichTextEditor = ({
     {
       immediatelyRender: false,
       editable: !readOnly,
-      extensions: [StarterKit.configure({ underline: false }), Underline],
+      // Tiptap packages are resolved from two adjacent 3.x minors in this repo.
+      // Cast the extension list locally so the editor config stays type-safe
+      // enough for the app while avoiding cross-minor type incompatibility.
+      extensions: [StarterKit.configure({ underline: false }), Underline] as never,
       content: value || '',
       editorProps: {
         attributes: {

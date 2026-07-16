@@ -48,6 +48,12 @@ interface SpecialtyAccordionProps {
   ) => void;
 }
 
+const getSpecialtyKey = (specialty: SpecialtyGroup): string => {
+  const serviceIds = specialty.services.map(service => service.id).join('-');
+  const packageIds = specialty.packages.map(item => item.id).join('-');
+  return `${specialty.name}-${serviceIds}-${packageIds}`;
+};
+
 // ─── Specialty Item ───────────────────────────────────────────────────────────
 
 interface SpecialtyItemProps {
@@ -206,7 +212,7 @@ export const SpecialtyAccordion: React.FC<SpecialtyAccordionProps> = ({
       <View style={styles.specialtiesList}>
         {specialties.map((specialty, index) => (
           <SpecialtyItem
-            key={`${specialty.name}-${index}`}
+            key={getSpecialtyKey(specialty)}
             specialty={specialty}
             defaultExpanded={index === 0}
             onSelectService={onSelectService}

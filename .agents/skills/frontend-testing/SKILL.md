@@ -32,7 +32,7 @@ TRIGGER: any task involving test files in apps/frontend, or when asked to write/
 | Unit      | Jest                                             | Every service, store, hook, utility, helper                          |
 | Component | React Testing Library (RTL)                      | Every UI component — render + interaction + conditional rendering    |
 | Snapshot  | Jest `toMatchSnapshot` / `toMatchInlineSnapshot` | Stable UI layouts — complement behavioural tests, never replace them |
-| E2E       | Playwright (`e2e/`)                       | Auth flows, booking, checkout, payment, any critical user journey    |
+| E2E       | Playwright (`e2e/`)                              | Auth flows, booking, checkout, payment, any critical user journey    |
 
 All four layers must grow together. Do not add 20 RTL tests while leaving Playwright untouched for a critical flow, and vice versa.
 
@@ -60,7 +60,7 @@ If adding a test for a previously-uncovered branch, note it in the COMMIT CHECKP
 | Custom hook                                          | `renderHook` covering all return values and state branches  |
 | Utility / lib function                               | Jest unit with full branch coverage                         |
 | UI component                                         | RTL render + at least one user interaction test             |
-| E2E-critical flow (auth, booking, checkout, payment) | Playwright test in `e2e/`                            |
+| E2E-critical flow (auth, booking, checkout, payment) | Playwright test in `e2e/`                                   |
 
 **Coverage bar for any new file you author: Statements ≥ 90%, Branches ≥ 90%, Functions ≥ 90%.**
 

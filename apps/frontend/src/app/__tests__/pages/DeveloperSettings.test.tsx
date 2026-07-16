@@ -26,7 +26,7 @@ jest.mock('@/app/stores/authStore', () => ({
 import DeveloperSettings from '@/app/features/developers/pages/DeveloperSettings/DeveloperSettings';
 
 const makeAuth = (payload: any, username = 'devuser') => ({
-  session: payload ? { getIdToken: () => ({ decodePayload: () => payload }) } : undefined,
+  attributes: payload ?? null,
   user: { getUsername: () => username },
 });
 
@@ -89,7 +89,7 @@ describe('DeveloperSettings', () => {
   });
 
   it('falls back to a generic developer name with no session or user', () => {
-    authState = { session: undefined, user: undefined };
+    authState = { attributes: null, user: undefined };
     render(<DeveloperSettings />);
 
     // "Developer" appears as the kicker and as the profile name fallback

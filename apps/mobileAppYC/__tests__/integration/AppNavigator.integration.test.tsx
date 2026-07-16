@@ -249,7 +249,7 @@ describe('AppNavigator integration', () => {
       userId: 'pending-user',
       email: 'pending@example.com',
       profileToken: 'pending-token',
-      tokens: {idToken: 'id', accessToken: 'access', provider: 'amplify'},
+      tokens: {idToken: 'id', accessToken: 'access', provider: 'supertokens'},
       initialAttributes: {},
     };
 

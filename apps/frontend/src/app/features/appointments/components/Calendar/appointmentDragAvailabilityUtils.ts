@@ -95,8 +95,7 @@ export const resolveTeamMemberPrimaryId = (
 ) => {
   if (!candidateId) return '';
   const member = findTeamMemberByIdentity(teams, candidateId, normalizeId) as
-    | Partial<TeamMember>
-    | undefined;
+    Partial<TeamMember> | undefined;
   return (
     member?.practionerId ||
     (member as any)?.userId ||

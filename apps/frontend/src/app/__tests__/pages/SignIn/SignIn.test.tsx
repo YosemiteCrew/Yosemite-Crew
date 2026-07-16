@@ -27,8 +27,12 @@ jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
 }));
 
 jest.mock('@/app/lib/postAuthRedirect', () => ({
-  ...jest.requireActual('@/app/lib/postAuthRedirect'),
   resolvePostAuthRedirect: jest.fn(),
+  sanitizeNextPath: jest.fn((value: string | null) => {
+    if (!value) return undefined;
+    if (!value.startsWith('/')) return undefined;
+    return value;
+  }),
 }));
 
 // Mock Components

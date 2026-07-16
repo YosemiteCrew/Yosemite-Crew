@@ -182,12 +182,12 @@ describe('createCsDailyExport', () => {
       // cannot escape the export directory even if they contained malicious characters
       const exportDir = path.join(rootDir, `exports-${testCounter}`);
       const svc = createCsDailyExport({ logbook, exportDir, now: () => now });
-      
+
       // Should succeed - the date-based filename is safe
       const result = svc.exportDailyLog(new Date(now));
       expect(result).not.toBeNull();
       expect(result!.filePath).toContain(exportDir);
-      
+
       // Verify the file is actually within the export directory
       const relativePath = path.relative(exportDir, result!.filePath);
       expect(relativePath.startsWith('..')).toBe(false);
@@ -210,12 +210,12 @@ describe('createCsDailyExport', () => {
       // Normal export directory - security check prevents path traversal
       const exportDir = path.join(rootDir, `exports-${testCounter}`);
       const svc = createCsDailyExport({ logbook, exportDir });
-      
+
       // Should succeed with safe date-based filename
       const result = svc.exportRange(new Date('2020-01-01'), new Date('2030-01-01'));
       expect(result).not.toBeNull();
       expect(result!.filePath).toContain(exportDir);
-      
+
       // Verify the file is actually within the export directory
       const relativePath = path.relative(exportDir, result!.filePath);
       expect(relativePath.startsWith('..')).toBe(false);

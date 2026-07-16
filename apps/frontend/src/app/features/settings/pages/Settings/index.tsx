@@ -43,6 +43,10 @@ const AppearancePreference = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/AppearancePreference'),
   { loading: () => <SettingsSectionSkeleton /> }
 );
+const SecuritySection = dynamic(
+  () => import('@/app/features/settings/pages/Settings/Sections/SecuritySection'),
+  { loading: () => <SettingsSectionSkeleton /> }
+);
 const DeleteProfile = dynamic(
   () => import('@/app/features/settings/pages/Settings/Sections/DeleteProfile'),
   {
@@ -67,6 +71,7 @@ const Settings = () => {
         <CrossClinicMessagingPreference />
         <AppearancePreference />
       </div>
+      <SecuritySection />
       <DeleteProfile />
     </div>
   );

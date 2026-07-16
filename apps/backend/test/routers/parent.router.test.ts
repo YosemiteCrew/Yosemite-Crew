@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -22,8 +22,8 @@ const CompanionController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -62,8 +62,8 @@ describe("parent.router", () => {
   it("guards the PMS parent update route with org membership + companions:edit", () => {
     const route = findRoute("/pms/parents/:id", "put");
     expect(route).toBeDefined();
-    // authorizeCognito, then withOrgPermissions, requirePermission, then the controller.
-    expect(route?.stack[0]?.handle).toBe(authorizeCognito);
+    // requireWebAuth, then withOrgPermissions, requirePermission, then the controller.
+    expect(route?.stack[0]?.handle).toBe(requireWebAuth);
     expect(route?.stack.length).toBeGreaterThanOrEqual(4);
     expect(requirePermission).toHaveBeenCalledWith("companions:edit:any");
   });
@@ -71,7 +71,7 @@ describe("parent.router", () => {
   it("guards the PMS parent create route with org membership + companions:edit", () => {
     const route = findRoute("/pms/parents", "post");
     expect(route).toBeDefined();
-    expect(route?.stack[0]?.handle).toBe(authorizeCognito);
+    expect(route?.stack[0]?.handle).toBe(requireWebAuth);
     expect(route?.stack.length).toBeGreaterThanOrEqual(4);
   });
 
@@ -79,7 +79,7 @@ describe("parent.router", () => {
     const route = findRoute("/:id", "put");
     expect(route).toBeDefined();
     // Mobile updates authorise by self-ownership only — no withOrgPermissions layer.
-    expect(route?.stack[0]?.handle).toBe(authorizeCognitoMobile);
+    expect(route?.stack[0]?.handle).toBe(requireMobileAuth);
     expect(route?.stack.length).toBe(2);
   });
 });

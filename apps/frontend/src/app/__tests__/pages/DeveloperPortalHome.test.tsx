@@ -37,10 +37,8 @@ jest.mock('@iconify/react', () => ({
 
 import DeveloperPortalHome from '@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome';
 
-const createSession = (payload: any) => ({
-  getIdToken: () => ({
-    decodePayload: () => payload,
-  }),
+const createState = (attributes: Record<string, string>) => ({
+  attributes,
 });
 
 describe('DeveloperPortalHome page', () => {
@@ -50,7 +48,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('renders developer home content when authenticated', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({
+      ...createState({
         given_name: 'Ada',
         family_name: 'Lovelace',
       }),
@@ -71,7 +69,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('shows fallback name when no user name is available', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({}),
+      ...createState({}),
     });
 
     render(<DeveloperPortalHome />);
@@ -81,7 +79,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('uses email as fallback when name is not provided', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({
+      ...createState({
         email: 'test@example.com',
       }),
     });
@@ -95,7 +93,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('has no axe violations', async () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     const { container } = render(<DeveloperPortalHome />);
     const results = await axe(container);
@@ -104,7 +102,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('the Welcome back greeting is the page h1 and no Developer Home heading remains', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     render(<DeveloperPortalHome />);
     expect(
@@ -115,7 +113,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('quick status card shows the Next step and Portal access rows', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     render(<DeveloperPortalHome />);
     expect(screen.getByText('Quick status')).toBeInTheDocument();
@@ -126,7 +124,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('renders the FHIR-native hero card with a Create an API key action', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     render(<DeveloperPortalHome />);
     expect(screen.getByText('FHIR-NATIVE API')).toBeInTheDocument();
@@ -141,7 +139,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('quick status card shows the Requests 24h metric row', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     render(<DeveloperPortalHome />);
     expect(screen.getByText('Requests · 24h')).toBeInTheDocument();
@@ -150,7 +148,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('renders all four quick links including Quickstart and GitHub', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     render(<DeveloperPortalHome />);
     expect(screen.getByText(/Quickstart · first request in 5 minutes/i)).toBeInTheDocument();
@@ -163,7 +161,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('renders the Your plugin card in review', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     render(<DeveloperPortalHome />);
     expect(screen.getByRole('heading', { name: 'Your plugin' })).toBeInTheDocument();
@@ -177,7 +175,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('recent activity card lists request log rows with status codes', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     render(<DeveloperPortalHome />);
     expect(screen.getByText(/POST \/fhir\/Appointment/)).toBeInTheDocument();

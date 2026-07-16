@@ -186,8 +186,8 @@ describe('SignUp page', () => {
     setFieldValue('First name', 'Jane');
     setFieldValue('Last name', 'Doe');
     setFieldValue('Enter email', 'not-an-email');
-    setFieldValue('Set up password', 'Secret!23');
-    setFieldValue('Confirm password', 'Secret!23');
+    setFieldValue('Set up password', 'Test-password-3!');
+    setFieldValue('Confirm password', 'Test-password-3!');
     checkTermsBox();
     fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
 
@@ -196,24 +196,26 @@ describe('SignUp page', () => {
   });
 
   test('submits signup data and opens verification modal without newsletter opt-in', async () => {
-    authStoreMock.signUp.mockResolvedValue(true);
+    authStoreMock.signUp.mockResolvedValue({ userId: 'user-1' });
     render(<SignUp />);
 
     setFieldValue('First name', 'Jane');
     setFieldValue('Last name', 'Doe');
     setFieldValue('Enter email', 'jane@example.com');
-    setFieldValue('Set up password', 'Secret!23');
-    setFieldValue('Confirm password', 'Secret!23');
+    setFieldValue('Set up password', 'Test-password-3!');
+    setFieldValue('Confirm password', 'Test-password-3!');
     checkTermsBox();
     fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
     await waitFor(() =>
       expect(authStoreMock.signUp).toHaveBeenCalledWith(
         'jane@example.com',
-        'Secret!23',
+        'Test-password-3!',
         'Jane',
         'Doe'
       )
     );
+    await waitFor(() => expect(latestOtpModalProps?.showVerifyModal).toBe(true));
+    expect(latestOtpModalProps?.email).toBe('jane@example.com');
   });
 
   test('shows a loader while signup is pending', async () => {
@@ -230,8 +232,8 @@ describe('SignUp page', () => {
     setFieldValue('First name', 'Jane');
     setFieldValue('Last name', 'Doe');
     setFieldValue('Enter email', 'jane@example.com');
-    setFieldValue('Set up password', 'Secret!23');
-    setFieldValue('Confirm password', 'Secret!23');
+    setFieldValue('Set up password', 'Test-password-3!');
+    setFieldValue('Confirm password', 'Test-password-3!');
     checkTermsBox();
     fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
 
@@ -247,22 +249,120 @@ describe('SignUp page', () => {
     });
   });
 
-  test('surfaces toast error when Cognito returns UsernameExistsException', async () => {
+  test('surfaces toast error when the email is already registered', async () => {
     authStoreMock.signUp.mockRejectedValue({
-      code: 'UsernameExistsException',
-      message: 'Already exists',
+      code: 'EMAIL_ALREADY_EXISTS',
+      message: 'An account with the given email already exists.',
     });
     render(<SignUp />);
 
     setFieldValue('First name', 'Jane');
     setFieldValue('Last name', 'Doe');
     setFieldValue('Enter email', 'jane@example.com');
-    setFieldValue('Set up password', 'Secret!23');
-    setFieldValue('Confirm password', 'Secret!23');
+    setFieldValue('Set up password', 'Test-password-3!');
+    setFieldValue('Confirm password', 'Test-password-3!');
     checkTermsBox();
     fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
     await waitFor(() => expect(showErrorTostMock).toHaveBeenCalled());
     expect(latestOtpModalProps?.showVerifyModal).toBeFalsy();
+  });
+
+  test('renders developer copy when isDeveloper is set', () => {
+    render(<SignUp isDeveloper signinHref="/developers/signin" />);
+
+    expect(screen.getByText('Sign up for developer access')).toBeInTheDocument();
+    expect(screen.getByText('Build, test, and ship apps on Yosemite Crew')).toBeInTheDocument();
+    expect(screen.getByText('Sign In')).toHaveAttribute('href', '/developers/signin');
+  });
+
+  test('passes the developer role to signUp in developer mode', async () => {
+    authStoreMock.signUp.mockResolvedValue({ userId: 'user-1' });
+    render(<SignUp isDeveloper />);
+
+    setFieldValue('First name', 'Dev');
+    setFieldValue('Last name', 'Eloper');
+    setFieldValue('Enter email', 'dev@example.com');
+    setFieldValue('Set up password', 'Test-password-3!');
+    setFieldValue('Confirm password', 'Test-password-3!');
+    checkTermsBox();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    await waitFor(() =>
+      expect(authStoreMock.signUp).toHaveBeenCalledWith(
+        'dev@example.com',
+        'Test-password-3!',
+        'Dev',
+        'Eloper',
+        'developer'
+      )
+    );
+  });
+
+  test('rejects weak passwords before submitting', () => {
+    render(<SignUp />);
+
+    setFieldValue('First name', 'Jane');
+    setFieldValue('Last name', 'Doe');
+    setFieldValue('Enter email', 'jane@example.com');
+    setFieldValue('Set up password', 'weak');
+    setFieldValue('Confirm password', 'weak');
+    checkTermsBox();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    expect(
+      screen.getByText(
+        'Password must be at least 8 characters long, include uppercase, lowercase, number, and special character'
+      )
+    ).toBeInTheDocument();
+    expect(authStoreMock.signUp).not.toHaveBeenCalled();
+  });
+
+  test('rejects mismatched password confirmation', () => {
+    render(<SignUp />);
+
+    setFieldValue('First name', 'Jane');
+    setFieldValue('Last name', 'Doe');
+    setFieldValue('Enter email', 'jane@example.com');
+    setFieldValue('Set up password', 'Test-password-3!');
+    setFieldValue('Confirm password', 'Test-password-4!');
+    checkTermsBox();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    expect(screen.getByText('Passwords do not match')).toBeInTheDocument();
+    expect(authStoreMock.signUp).not.toHaveBeenCalled();
+  });
+
+  test('requires the confirm password field when only the password is set', () => {
+    render(<SignUp />);
+
+    setFieldValue('First name', 'Jane');
+    setFieldValue('Last name', 'Doe');
+    setFieldValue('Enter email', 'jane@example.com');
+    setFieldValue('Set up password', 'Test-password-3!');
+    checkTermsBox();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    expect(screen.getByText('Confirm Password is required')).toBeInTheDocument();
+    expect(authStoreMock.signUp).not.toHaveBeenCalled();
+  });
+
+  test('shows a generic toast when the signup error has no message', async () => {
+    authStoreMock.signUp.mockRejectedValue({});
+    render(<SignUp />);
+
+    setFieldValue('First name', 'Jane');
+    setFieldValue('Last name', 'Doe');
+    setFieldValue('Enter email', 'jane@example.com');
+    setFieldValue('Set up password', 'Test-password-3!');
+    setFieldValue('Confirm password', 'Test-password-3!');
+    checkTermsBox();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign up' }));
+
+    await waitFor(() =>
+      expect(showErrorTostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Something went wrong.', errortext: 'Signup Error' })
+      )
+    );
   });
 
   test('has no axe accessibility violations', async () => {

@@ -1,7 +1,7 @@
 import { Schema, model, HydratedDocument, Types } from "mongoose";
 
 export interface AuthUserMobile {
-  authProvider: "cognito" | "firebase";
+  authProvider: "cognito" | "firebase" | "supertokens";
   providerUserId: string;
   email: string;
   parentId?: Types.ObjectId | null;
@@ -12,7 +12,7 @@ export interface AuthUserMobile {
 const AuthUserMobileSchema = new Schema({
   authProvider: {
     type: String,
-    enum: ["cognito", "firebase"],
+    enum: ["cognito", "firebase", "supertokens"],
     required: true,
   },
   providerUserId: { type: String, required: true, index: true },

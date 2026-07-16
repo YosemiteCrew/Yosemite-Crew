@@ -5,7 +5,11 @@ import Settings from '@/app/features/settings/pages/Settings';
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
-  default: (loader: () => Promise<unknown>) => {
+  default: (loader: () => Promise<unknown>, options?: { loading?: () => unknown }) => {
+    // Exercise the loader and loading callbacks so the dynamic wiring in the
+    // page is covered; rendering still goes through the mocks below.
+    loader().catch(() => undefined);
+    options?.loading?.();
     const source = loader.toString();
     const LoadableComponent = (props: Record<string, unknown>) => {
       if (source.includes('Sections/Personal')) {
@@ -47,6 +51,10 @@ jest.mock('next/dynamic', () => ({
           }
         ).default;
         return <MockCompanionTerminologyPreference {...props} />;
+      }
+
+      if (source.includes('Sections/SecuritySection')) {
+        return <div>Security Section</div>;
       }
 
       if (source.includes('Sections/DeleteProfile')) {
@@ -100,6 +108,7 @@ describe('Settings page', () => {
     expect(screen.getByText('Org Section')).toBeInTheDocument();
     expect(screen.getByText('Companion Terminology')).toBeInTheDocument();
     expect(screen.getByText('Appearance Preference')).toBeInTheDocument();
+    expect(screen.getByText('Security Section')).toBeInTheDocument();
     expect(screen.getByText('Delete Profile')).toBeInTheDocument();
   });
 });
