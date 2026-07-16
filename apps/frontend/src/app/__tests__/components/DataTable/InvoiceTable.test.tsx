@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 
@@ -29,21 +29,47 @@ jest.mock('next/image', () => ({
   default: ({ alt }: any) => <span data-testid="companion-avatar">{alt}</span>,
 }));
 
+const mockGenericTableCalls: { columns: any[]; tableClassName?: string }[] = [];
+
+const isDesktopVariant = (tableClassName?: string) =>
+  String(tableClassName ?? '').includes('invoice-table-fixed');
+
+const capturedColumnWidths = () => {
+  const widthOf = (columns: any[], key: string) => columns.find((c) => c.key === key)?.width;
+  const columnsFor = (desktop: boolean) =>
+    mockGenericTableCalls.find((c) => isDesktopVariant(c.tableClassName) === desktop)!.columns;
+  return {
+    desktop: { status: widthOf(columnsFor(true), 'status') },
+    tablet: {
+      status: widthOf(columnsFor(false), 'status'),
+      parent: widthOf(columnsFor(false), 'appointment-id'),
+    },
+  };
+};
+
+// InvoiceTable renders two GenericTables — the 11-column desktop set and the
+// 6-column tablet set — and hides one with CSS. jsdom applies no CSS, so both
+// are always in the tree; the mock namespaces the tablet one so queries can
+// target a single variant.
 jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => ({
   __esModule: true,
-  default: ({ data, columns }: any) => (
-    <div data-testid="generic-table">
-      {data.map((item: any, idx: number) => (
-        <div key={item.id + idx} data-testid="row">
-          {columns.map((col: any) => (
-            <div key={col.key} data-testid={`cell-${col.key}`}>
-              {col.render ? col.render(item) : item[col.key]}
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  ),
+  default: ({ data, columns, tableClassName }: any) => {
+    mockGenericTableCalls.push({ columns, tableClassName });
+    const prefix = String(tableClassName ?? '').includes('invoice-table-fixed') ? '' : 'tablet-';
+    return (
+      <div data-testid={`${prefix}generic-table`}>
+        {data.map((item: any, idx: number) => (
+          <div key={item.id + idx} data-testid={`${prefix}row`}>
+            {columns.map((col: any) => (
+              <div key={col.key} data-testid={`${prefix}cell-${col.key}`}>
+                {col.render ? col.render(item) : item[col.key]}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  },
 }));
 
 jest.mock('@/app/ui/cards/InvoiceCard', () => ({
@@ -85,6 +111,7 @@ describe('InvoiceTable', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGenericTableCalls.length = 0;
     useAppointmentsForPrimaryOrgMock.mockReturnValue([
       {
         id: 'appt-1',
@@ -111,15 +138,16 @@ describe('InvoiceTable', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'View invoice inv-1' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Open finance details for Buddy' }));
+    const desktop = within(screen.getByTestId('generic-table'));
+    fireEvent.click(desktop.getByRole('button', { name: 'View invoice inv-1' }));
+    fireEvent.click(desktop.getByRole('button', { name: 'Open finance details for Buddy' }));
 
-    expect(screen.getByText('Sam / Buddy')).toBeInTheDocument();
-    expect(screen.getByText('#inv-1')).toBeInTheDocument();
-    expect(screen.getByText('Jan 1')).toBeInTheDocument();
-    expect(screen.getByText('10:00 AM')).toBeInTheDocument();
+    expect(desktop.getByText('Sam / Buddy')).toBeInTheDocument();
+    expect(desktop.getByText('#inv-1')).toBeInTheDocument();
+    expect(desktop.getByText('Jan 1')).toBeInTheDocument();
+    expect(desktop.getByText('10:00 AM')).toBeInTheDocument();
     expect(screen.queryByText('Finance')).not.toBeInTheDocument();
-    expect(screen.getByText('Paid in cash')).toBeInTheDocument();
+    expect(desktop.getByText('Paid in cash')).toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith(
       '/appointments?appointmentId=appt-1&open=finance&subLabel=summary'
     );
@@ -207,7 +235,9 @@ describe('InvoiceTable', () => {
 
     render(<InvoiceTable filteredList={[invoice]} />);
 
-    expect(screen.getByTitle('Wellness exam · Jan 1 10:00 AM')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('generic-table')).getByTitle('Wellness exam · Jan 1 10:00 AM')
+    ).toBeInTheDocument();
   });
 
   it('renders an empty subtitle and no date cell when the appointment is not found', () => {
@@ -219,6 +249,70 @@ describe('InvoiceTable', () => {
       screen.getByTestId('cell-appointment-id').querySelector('.appointment-profile-sub')
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Open finance details/ })).not.toBeInTheDocument();
+  });
+
+  describe('tablet column set (768-1279)', () => {
+    it('prunes to six columns and folds the dropped meta into the sub-lines', () => {
+      useAppointmentsForPrimaryOrgMock.mockReturnValue([
+        {
+          id: 'appt-1',
+          appointmentDate: new Date('2025-01-01T10:00:00.000Z'),
+          startTime: new Date('2025-01-01T10:00:00.000Z'),
+          appointmentType: { name: 'Wellness exam' },
+          companion: { id: 'comp-1', name: 'Buddy', parent: { name: 'Sam' } },
+        },
+      ]);
+
+      render(
+        <InvoiceTable
+          filteredList={[{ ...invoice, items: [{ name: 'Dental cleaning' }] } as Invoice]}
+        />
+      );
+
+      const tablet = within(screen.getByTestId('tablet-generic-table'));
+      const row = within(screen.getByTestId('tablet-row'));
+
+      // <= 6 columns, per the design's tablet adaptation rule
+      expect(screen.getByTestId('tablet-row').children).toHaveLength(6);
+
+      // Services + Date are gone as columns...
+      expect(screen.queryByTestId('tablet-cell-service')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('tablet-cell-date')).not.toBeInTheDocument();
+      // ...and fold into the Parent / patient sub-line instead
+      expect(
+        row.getByTitle('Wellness exam · Jan 1 10:00 AM · Dental cleaning')
+      ).toBeInTheDocument();
+
+      // Subtotal / Discount / Tax are gone as columns...
+      expect(screen.queryByTestId('tablet-cell-sub-total')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('tablet-cell-discount')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('tablet-cell-tax')).not.toBeInTheDocument();
+      // ...and fold under Total
+      expect(screen.getByTestId('tablet-cell-total')).toHaveTextContent(/Sub .*Disc .*Tax/);
+
+      // the six that survive
+      expect(screen.getByTestId('tablet-cell-invoice-number')).toBeInTheDocument();
+      expect(screen.getByTestId('tablet-cell-appointment-id')).toBeInTheDocument();
+      expect(screen.getByTestId('tablet-cell-status')).toBeInTheDocument();
+      expect(screen.getByTestId('tablet-cell-payment')).toBeInTheDocument();
+      expect(tablet.getByRole('button', { name: 'View invoice inv-1' })).toBeInTheDocument();
+    });
+
+    it('gives Status a column wide enough for the widest badge', () => {
+      render(<InvoiceTable filteredList={[invoice]} />);
+
+      // "AWAITING PAYMENT" measures 133.7px + 22px td padding; anything under
+      // ~156px lets the pill bleed over the Payment cell.
+      const widths = capturedColumnWidths();
+      expect(Number.parseInt(widths.desktop.status, 10)).toBeGreaterThanOrEqual(156);
+      expect(Number.parseInt(widths.tablet.status, 10)).toBeGreaterThanOrEqual(156);
+    });
+
+    it('leaves the Parent / patient column fluid so it absorbs the slack', () => {
+      render(<InvoiceTable filteredList={[invoice]} />);
+
+      expect(capturedColumnWidths().tablet.parent).toBeUndefined();
+    });
   });
 
   it('falls back to defaults for a bare invoice with no id, number, tax or total', () => {
@@ -233,7 +327,10 @@ describe('InvoiceTable', () => {
     render(<InvoiceTable filteredList={[bare]} />);
 
     expect(screen.getByTestId('cell-invoice-number')).toHaveTextContent('-');
-    expect(screen.getByRole('button', { name: 'View invoice' })).toBeInTheDocument();
+    expect(screen.getByTestId('tablet-cell-invoice-number')).toHaveTextContent('-');
+    expect(
+      within(screen.getByTestId('generic-table')).getByRole('button', { name: 'View invoice' })
+    ).toBeInTheDocument();
     expect(screen.getByTestId('invoice-card')).toBeInTheDocument();
   });
 });
