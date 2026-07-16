@@ -4,16 +4,12 @@ import dynamic from 'next/dynamic';
 import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
-import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import {
   buildWorkspaceHref,
   buildWorkspaceHrefForIntent,
   canEnterAppointmentWorkspace,
 } from '@/app/lib/appointmentWorkspace';
 import { startRouteLoader } from '@/app/lib/routeLoader';
-const AddAppointment = React.lazy(
-  () => import('@/app/features/appointments/pages/Appointments/Sections/AddAppointment')
-);
 const AddAppointmentCentralModal = React.lazy(
   () => import('@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal')
 );
@@ -104,8 +100,6 @@ const preloadDynamic = (c: unknown) => (c as { preload?: () => void }).preload?.
 preloadDynamic(AppointmentsTable);
 preloadDynamic(AppointmentCalendar);
 preloadDynamic(AppointmentBoard);
-
-const revampEnabled = isAppointmentRevampEnabled();
 
 const normalizeLeadId = (value?: string | null): string => {
   const lastSegment = String(value ?? '')
@@ -429,10 +423,9 @@ const useAppointmentsView = () => {
       setHandledDeepLink(deepLink.deepLinkKey);
       setActiveAppointment(deepLink.target);
       setViewIntent(deepLink.initialIntent);
-      const workspaceHref =
-        revampEnabled && canEnterAppointmentWorkspace(deepLink.target.status)
-          ? buildWorkspaceHrefForIntent(deepLink.appointmentId, deepLink.initialIntent)
-          : null;
+      const workspaceHref = canEnterAppointmentWorkspace(deepLink.target.status)
+        ? buildWorkspaceHrefForIntent(deepLink.appointmentId, deepLink.initialIntent)
+        : null;
       setDeepLinkWorkspaceHref(workspaceHref);
       if (!workspaceHref) setViewPopup(true);
     }
@@ -614,26 +607,15 @@ const useAppointmentsView = () => {
           </div>
 
           <React.Suspense fallback={null}>
-            {revampEnabled ? (
-              <AddAppointmentCentralModal
-                showModal={addPopup}
-                setShowModal={setAddPopup}
-                setActiveFilter={setActiveFilter}
-                setActiveStatus={setActiveStatus}
-                prefill={addAppointmentPrefill}
-                onPrefillConsumed={() => setAddAppointmentPrefill(null)}
-              />
-            ) : (
-              <AddAppointment
-                showModal={addPopup}
-                setShowModal={setAddPopup}
-                setActiveFilter={setActiveFilter}
-                setActiveStatus={setActiveStatus}
-                prefill={addAppointmentPrefill}
-                onPrefillConsumed={() => setAddAppointmentPrefill(null)}
-              />
-            )}
-            {activeAppointment && revampEnabled && (
+            <AddAppointmentCentralModal
+              showModal={addPopup}
+              setShowModal={setAddPopup}
+              setActiveFilter={setActiveFilter}
+              setActiveStatus={setActiveStatus}
+              prefill={addAppointmentPrefill}
+              onPrefillConsumed={() => setAddAppointmentPrefill(null)}
+            />
+            {activeAppointment && (
               <ViewAppointmentOverviewModal
                 showModal={viewPopup}
                 setShowModal={setViewPopup}
@@ -652,15 +634,14 @@ const useAppointmentsView = () => {
             )}
             {activeAppointment && (
               <AppoitmentInfo
-                showModal={revampEnabled ? detailPopup : viewPopup}
-                setShowModal={revampEnabled ? setDetailPopup : setViewPopup}
+                showModal={detailPopup}
+                setShowModal={setDetailPopup}
                 activeAppointment={activeAppointment}
                 initialViewIntent={viewIntent}
                 canEditAppointments={canEditActiveAppointment}
                 onReschedule={(appointment) => {
                   setActiveAppointment(appointment);
-                  if (revampEnabled) setDetailPopup(false);
-                  else setViewPopup(false);
+                  setDetailPopup(false);
                   if (!allowReschedule(appointment.status as any)) {
                     notify('warning', {
                       title: 'Reschedule blocked',

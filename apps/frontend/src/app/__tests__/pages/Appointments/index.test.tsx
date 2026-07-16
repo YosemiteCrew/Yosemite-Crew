@@ -50,6 +50,7 @@ const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
 const useSearchParamsMock = jest.fn();
 const routerPushMock = jest.fn();
+const redirectMock = jest.fn();
 const usePrimaryOrgProfileMock = jest.fn();
 const useAppointmentStoreMock = jest.fn();
 const useTeamForPrimaryOrgMock = jest.fn();
@@ -60,6 +61,7 @@ const tableSpy = jest.fn();
 const boardSpy = jest.fn();
 const addAppointmentSpy = jest.fn();
 const appointmentInfoSpy = jest.fn();
+const overviewModalSpy = jest.fn();
 
 jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   __esModule: true,
@@ -92,7 +94,7 @@ jest.mock('@/app/stores/searchStore', () => ({
 
 jest.mock('next/navigation', () => ({
   useSearchParams: () => useSearchParamsMock(),
-  redirect: jest.fn(),
+  redirect: (href: string) => redirectMock(href),
   useRouter: () => ({
     push: routerPushMock,
   }),
@@ -169,14 +171,6 @@ jest.mock('@/app/ui/tables/Appointments', () => (props: any) => {
 });
 
 jest.mock(
-  '@/app/features/appointments/pages/Appointments/Sections/AddAppointment',
-  () => (props: any) => {
-    addAppointmentSpy(props);
-    return props.showModal ? <div data-testid="add-appointment" /> : null;
-  }
-);
-
-jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo',
   () => (props: any) => {
     appointmentInfoSpy(props);
@@ -198,17 +192,19 @@ jest.mock('@/app/features/appointments/pages/Appointments/Sections/ChangeRoom', 
 
 jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal',
-  () => () => <div data-testid="add-appointment-central-modal" />
+  () => (props: any) => {
+    addAppointmentSpy(props);
+    return props.showModal ? <div data-testid="add-appointment-central-modal" /> : null;
+  }
 );
 
 jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal',
-  () => () => <div data-testid="view-appointment-overview-modal" />
+  () => (props: any) => {
+    overviewModalSpy(props);
+    return <div data-testid="view-appointment-overview-modal" />;
+  }
 );
-
-jest.mock('@/app/lib/featureFlags', () => ({
-  isAppointmentRevampEnabled: () => false,
-}));
 
 describe('Appointments page', () => {
   const renderAppointments = async () => {
@@ -301,7 +297,7 @@ describe('Appointments page', () => {
 
   it('opens the add appointment modal when the phone shell FAB fires its primary action', async () => {
     await renderAppointments();
-    expect(screen.queryByTestId('add-appointment')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('add-appointment-central-modal')).not.toBeInTheDocument();
 
     act(() => {
       globalThis.window.dispatchEvent(
@@ -311,7 +307,7 @@ describe('Appointments page', () => {
       );
     });
 
-    expect(screen.getByTestId('add-appointment')).toBeInTheDocument();
+    expect(screen.getByTestId('add-appointment-central-modal')).toBeInTheDocument();
   });
 
   it('ignores a phone primary action aimed at another page', async () => {
@@ -325,7 +321,7 @@ describe('Appointments page', () => {
       );
     });
 
-    expect(screen.queryByTestId('add-appointment')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('add-appointment-central-modal')).not.toBeInTheDocument();
   });
 
   it('opens appointment modal directly on finance section for finance deep links', async () => {
@@ -350,10 +346,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'finance', subLabel: 'summary' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('opens appointment modal directly on info overview sub-section for info deep links', async () => {
@@ -378,10 +374,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'info', subLabel: 'history' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('normalizes overview sub-label for details deep links', async () => {
@@ -406,10 +402,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'info', subLabel: 'history' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: opens appointment modal for tasks open param', async () => {
@@ -429,10 +425,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'tasks', subLabel: 'parent-chat' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: opens appointment modal for prescription open param', async () => {
@@ -452,10 +448,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'prescription', subLabel: 'subjective' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: opens appointment modal for labs open param', async () => {
@@ -475,10 +471,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'labs', subLabel: 'idexx-labs' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: resolves subLabel-based intent for forms subLabel', async () => {
@@ -498,10 +494,10 @@ describe('Appointments page', () => {
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        showModal: true,
         initialViewIntent: { label: 'prescription', subLabel: 'forms' },
       })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: does not open when appointmentId is empty', async () => {
@@ -740,7 +736,7 @@ describe('Appointments page', () => {
     expect(appointmentInfoSpy).toHaveBeenCalled();
   });
 
-  it('deep link: opens info modal when appointmentId matches with care open param', async () => {
+  it('deep link: opens the overview modal for a care open param', async () => {
     useAppointmentsMock.mockReturnValue([
       { id: 'a3', status: 'upcoming', isEmergency: false, companion: { id: 'c3', name: 'Max' } },
     ]);
@@ -756,7 +752,7 @@ describe('Appointments page', () => {
 
     await renderAppointments();
 
-    expect(appointmentInfoSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('activeAppointment updates reactively when appointments list changes', async () => {
@@ -831,7 +827,7 @@ describe('Appointments page', () => {
     );
   });
 
-  it('deep link: unrecognized open param and subLabel resolves a null intent but still opens', async () => {
+  it('deep link: unrecognized open param resolves a null intent but still opens', async () => {
     useAppointmentsMock.mockReturnValue([
       { id: 'a3', status: 'upcoming', isEmergency: false, companion: { id: 'c3', name: 'Max' } },
     ]);
@@ -848,8 +844,9 @@ describe('Appointments page', () => {
     await renderAppointments();
 
     expect(appointmentInfoSpy).toHaveBeenLastCalledWith(
-      expect.objectContaining({ showModal: true, initialViewIntent: null })
+      expect.objectContaining({ initialViewIntent: null })
     );
+    expect(overviewModalSpy).toHaveBeenLastCalledWith(expect.objectContaining({ showModal: true }));
   });
 
   it('deep link: does not open when the appointmentId matches no appointment', async () => {

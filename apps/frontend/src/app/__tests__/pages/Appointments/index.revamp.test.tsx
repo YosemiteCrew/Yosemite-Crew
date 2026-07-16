@@ -4,15 +4,8 @@ import '@testing-library/jest-dom';
 
 import ProtectedAppointments from '@/app/features/appointments/pages/Appointments';
 
-// This suite pins the appointment revamp flag ON so the revamp-only render
-// branches (central add modal, overview modal, deep-link workspace redirect)
-// are exercised. The flag is read once at module import, so it must be a
-// separate file from the flag-off suite.
-jest.mock('@/app/lib/featureFlags', () => ({
-  isAppointmentRevampEnabled: () => true,
-  isCompanionRevampEnabled: () => false,
-}));
-
+// Covers the central add modal, the overview modal, and the deep-link
+// workspace redirect.
 jest.mock('next/dynamic', () => ({
   __esModule: true,
   default: (loader: () => Promise<unknown>) => {
@@ -142,10 +135,6 @@ jest.mock('@/app/features/appointments/components/AppointmentBoard', () => () =>
 
 jest.mock('@/app/ui/tables/Appointments', () => () => <div data-testid="appointments-table" />);
 
-jest.mock('@/app/features/appointments/pages/Appointments/Sections/AddAppointment', () => () => (
-  <div data-testid="add-appointment" />
-));
-
 jest.mock(
   '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo',
   () => (props: any) => {
@@ -182,7 +171,7 @@ jest.mock(
   }
 );
 
-describe('Appointments page (revamp enabled)', () => {
+describe('Appointments page (workspace + overview modals)', () => {
   const renderAppointments = async () => {
     await act(async () => {
       render(<ProtectedAppointments />);
@@ -210,7 +199,7 @@ describe('Appointments page (revamp enabled)', () => {
     );
   });
 
-  it('renders the central add modal and overview modal when the flag is on', async () => {
+  it('renders the central add modal and overview modal', async () => {
     await renderAppointments();
 
     expect(centralModalSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: false }));
@@ -254,7 +243,7 @@ describe('Appointments page (revamp enabled)', () => {
     );
   });
 
-  it('onReschedule closes the detail popup on the revamp branch', async () => {
+  it('onReschedule closes the detail popup', async () => {
     await renderAppointments();
 
     const infoProps = appointmentInfoSpy.mock.calls[appointmentInfoSpy.mock.calls.length - 1][0];
