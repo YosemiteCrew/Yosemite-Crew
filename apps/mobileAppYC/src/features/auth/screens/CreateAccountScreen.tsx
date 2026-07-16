@@ -469,7 +469,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
           onPress={handleAvatarPress}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="Add photo"
+          accessibilityLabel={t('auth.add_photo')}
           style={styles.avatarTouchable}>
           <View style={styles.avatarCircle}>{avatarInner}</View>
           <View style={styles.avatarBadge} pointerEvents="none">
@@ -480,7 +480,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
           onPress={handleAvatarPress}
           accessibilityRole="button"
           style={styles.addPhotoButton}>
-          <Text style={styles.addPhotoText}>Add photo</Text>
+          <Text style={styles.addPhotoText}>{t('auth.add_photo')}</Text>
         </PressableOpacity>
         <View style={styles.hiddenPicker}>
           <ProfileImagePicker
@@ -965,7 +965,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
             }}
             render={({field: {onChange}}) => (
               <Input
-                label="First name"
+                label={t('auth.first_name')}
                 value={step1Data.firstName}
                 onChangeText={text => {
                   handleStep1FieldChange('firstName', text);
@@ -994,7 +994,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
             }}
             render={({field: {onChange}}) => (
               <Input
-                label="Last name"
+                label={t('auth.last_name')}
                 value={step1Data.lastName}
                 onChangeText={text => {
                   handleStep1FieldChange('lastName', text);
@@ -1020,9 +1020,9 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
           }}
           render={() => (
             <TouchableInput
-              label="Mobile number"
+              label={t('auth.mobile_number')}
               value={step1Data.mobileNumber}
-              placeholder="Phone number"
+              placeholder={t('auth.phone_number_placeholder')}
               onPress={handleCountryMobilePress}
               error={errors.mobileNumber?.message}
               leftComponent={
@@ -1174,20 +1174,26 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
               />
               <View style={styles.termsTextContainer}>
                 <Text style={styles.checkboxText}>
-                  I agree to Yosemite Crew's{' '}
+                  {t('auth.terms_agreement_prefix')}
                 </Text>
                 <PressableOpacity
                   onPress={handleOpenTerms}
                   accessibilityRole="link"
-                  accessibilityLabel="Terms and conditions">
-                  <Text style={styles.linkText}>terms and conditions</Text>
+                  accessibilityLabel={t('auth.terms_and_conditions')}>
+                  <Text style={styles.linkText}>
+                    {t('auth.terms_and_conditions_link')}
+                  </Text>
                 </PressableOpacity>
-                <Text style={styles.checkboxText}> and </Text>
+                <Text style={styles.checkboxText}>
+                  {t('auth.terms_agreement_and')}
+                </Text>
                 <PressableOpacity
                   onPress={handleOpenPrivacy}
                   accessibilityRole="link"
-                  accessibilityLabel="Privacy policy">
-                  <Text style={styles.linkText}>privacy policy.</Text>
+                  accessibilityLabel={t('auth.privacy_policy')}>
+                  <Text style={styles.linkText}>
+                    {t('auth.privacy_policy_link')}
+                  </Text>
                 </PressableOpacity>
               </View>
             </View>
@@ -1207,12 +1213,12 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
           <PressableOpacity
             onPress={handleGoBack}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('auth.go_back')}
             style={styles.headerBackButton}>
             <Image source={Images.backIcon} style={styles.headerBackIcon} />
           </PressableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>
-            Create account
+            {t('auth.create_account_title')}
           </Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -1304,13 +1310,14 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                     style={styles.successIllustration}
                     resizeMode="contain"
                   />
-                  <Text style={styles.successTitle}>Code verified</Text>
+                  <Text style={styles.successTitle}>
+                    {t('auth.code_verified_title')}
+                  </Text>
                   <Text style={styles.successMessage}>
-                    Nice! Now let's finish setting up your Yosemite Crew
-                    profile.
+                    {t('auth.code_verified_message')}
                   </Text>
                   <LiquidGlassButton
-                    title="Continue"
+                    title={t('auth.continue')}
                     onPress={handleSuccessClose}
                     style={styles.successButton}
                     textStyle={styles.successButtonText}
