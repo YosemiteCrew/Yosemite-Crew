@@ -653,6 +653,21 @@ const usePrescriptionActions = ({
   };
 };
 
+// A save the backend rejects with 409 is NOT retryable: it refuses a plain save against an
+// already-final prescription rather than silently reopening it to DRAFT and wiping its items.
+// Every save sends status 'draft', so once the first save finalizes an in-house prescription
+// each later save of that encounter conflicts — the generic "please try again" copy is actively
+// misleading there, because retrying can only ever fail the same way.
+// The server's own message ("Artifact is final. Reopen or amend it before editing.") is
+// deliberately NOT surfaced verbatim: it names an internal concept ("artifact") this UI never
+// shows, and directs the clinician to reopen/amend, which has no affordance on this screen —
+// that would just trade one misleading message for another. The mapped copy mirrors the
+// finalized/billed wording handleRemovePrescription already uses for the same 409.
+const getTreatmentSaveErrorMessage = (error: unknown): string =>
+  (error as { response?: { status?: number } })?.response?.status === 409
+    ? 'This prescription is already finalized and can no longer be edited.'
+    : 'Unable to save treatment items. Please try again.';
+
 /**
  * Treatment step: services/packages, prescription, and inpatient schedule.
  * Add/edit actions update the workspace store; backend-backed catalog and
@@ -838,7 +853,7 @@ const TreatmentStep = ({
       // Do NOT open Invoice when persistence fails — staged rows would otherwise
       // appear billable without a backing record.
       console.error('Failed to save treatment items:', error);
-      setTreatmentSaveError('Unable to save treatment items. Please try again.');
+      setTreatmentSaveError(getTreatmentSaveErrorMessage(error));
       setIsSavingTreatment(false);
       return;
     }

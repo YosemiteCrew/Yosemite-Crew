@@ -1064,6 +1064,71 @@ describe('TreatmentStep', () => {
     errorSpy.mockRestore();
   });
 
+  // The backend refuses a plain save against an already-final prescription (409) instead of
+  // silently reopening it to DRAFT and wiping its items. Retrying can never succeed, so the
+  // generic retry copy must give way to the real reason.
+  it('surfaces the real reason when the prescription is already finalized (409)', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: { message: 'Artifact is final. Reopen or amend it before editing.' },
+      },
+    });
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(
+      await screen.findByText(/already finalized and can no longer be edited/i)
+    ).toBeInTheDocument();
+    // The misleading "just try again" copy must NOT be what the clinician is left with.
+    expect(screen.queryByText(/Unable to save treatment items/)).not.toBeInTheDocument();
+    // A rejected save still must not advance to billing.
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    expect(
+      useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.stepStatus.TREATMENT
+    ).not.toBe('COMPLETED');
+    errorSpy.mockRestore();
+  });
+
+  // Guards the other direction: a transport-level failure has no response/status and stays
+  // retryable, so the 409 mapping must not swallow every prescription-save failure.
+  it('keeps the generic retry copy when the prescription save fails without a 409', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (savePrescriptionArtifact as jest.Mock).mockRejectedValueOnce(new Error('Network Error'));
+    const onOpenInvoice = jest.fn();
+    const enc = seedAndGet();
+    render(
+      <TreatmentStep
+        appointmentId={APPT}
+        organisationId={ORG}
+        encounterId="enc-1"
+        encounter={enc}
+        onOpenInvoice={onOpenInvoice}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /save treatment/i }));
+
+    expect(await screen.findByText(/Unable to save treatment items/)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/already finalized and can no longer be edited/i)
+    ).not.toBeInTheDocument();
+    expect(onOpenInvoice).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
   it('renders inpatient schedule and opens Quick Actions to add a task', () => {
     const enc = seedAndGet('INPATIENT');
     render(<TreatmentStep appointmentId={APPT} encounter={enc} onOpenInvoice={jest.fn()} />);

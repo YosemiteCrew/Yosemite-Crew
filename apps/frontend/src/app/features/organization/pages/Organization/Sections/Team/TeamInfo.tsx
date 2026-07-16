@@ -26,7 +26,11 @@ import Close from '@/app/ui/primitives/Icons/Close';
 import { RoleOptions } from '@/app/features/organization/pages/Organization/types';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
-import { UserEmploymentTypeOptions, UserGenderOptions } from '@/app/features/users/types/profile';
+import {
+  UserEmploymentTypeOptions,
+  UserGenderOptions,
+  UserProfile,
+} from '@/app/features/users/types/profile';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
@@ -34,7 +38,6 @@ import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import { upsertTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { useNotify } from '@/app/hooks/useNotify';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
-import { UserProfile } from '@/app/features/users/types/profile';
 import { IoTrash } from 'react-icons/io5';
 
 type TeamInfoProps = {
