@@ -107,11 +107,14 @@ export function withOrgPermissions() {
     }
 
     try {
-      // Matching both raw ID and FHIR-style reference
+      // Matching both raw ID and FHIR-style reference.
+      // `active` is required: a deactivated membership must not resolve any
+      // permissions, otherwise offboarded staff keep org access indefinitely.
       const mapping = isReadFromPostgres()
         ? await prisma.userOrganization.findFirst({
             where: {
               practitionerReference: userId,
+              active: true,
               OR: [
                 { organizationReference: orgId },
                 { organizationReference: `Organization/${orgId}` },
@@ -120,6 +123,7 @@ export function withOrgPermissions() {
           })
         : await UserOrganizationModel.findOne({
             practitionerReference: userId,
+            active: true,
             $or: [
               { organizationReference: orgId },
               { organizationReference: `Organization/${orgId}` },
@@ -173,166 +177,241 @@ export function withOrgPermissions() {
   };
 }
 
-export function withAppointmentOrgPermissions() {
+/**
+ * Build a middleware that derives the organisation from the *target resource*
+ * rather than from client-supplied input, then delegates to
+ * `withOrgPermissions()` for the membership and permission checks.
+ *
+ * `withOrgPermissions()` on its own only proves the caller belongs to whatever
+ * organisation the request names (params, `x-org-id`, query or body). On a
+ * route addressed by a resource id that is not sufficient: the caller can name
+ * an organisation they legitimately belong to while targeting a record owned by
+ * another tenant. Resolving the organisation from the record and overwriting
+ * `req.params.organisationId` closes that gap, because the params extractor has
+ * the highest precedence in `extractOrgId`.
+ *
+ * The loader is wrapped so that a malformed identifier (for example a value the
+ * Mongo driver cannot cast) is answered with 400 instead of rejecting inside an
+ * async handler, which Express 4 does not forward to the error middleware.
+ */
+function withResourceOrgPermissions(
+  paramName: string,
+  notFoundMessage: string,
+  loadOrganisationId: (resourceId: string) => Promise<unknown>,
+) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const appointmentId = req.params.appointmentId;
-    if (!appointmentId) {
-      return res.status(400).json({ message: "Missing appointmentId" });
+    const resourceId = req.params[paramName];
+    if (!resourceId) {
+      return res.status(400).json({ message: `Missing ${paramName}` });
     }
 
-    const appointment = isReadFromPostgres()
-      ? await prisma.appointment.findUnique({
-          where: { id: appointmentId },
-          select: { organisationId: true },
-        })
-      : Types.ObjectId.isValid(appointmentId)
-        ? await AppointmentModel.findById(appointmentId, {
-            organisationId: 1,
-          }).lean()
-        : null;
-
-    const organisationId = appointment?.organisationId ?? null;
-    if (!organisationId) {
-      return res.status(404).json({ message: "Appointment not found" });
+    let organisationId: unknown;
+    try {
+      organisationId = await loadOrganisationId(resourceId);
+    } catch (err) {
+      console.error(`Error resolving organisation from ${paramName}:`, err);
+      return res.status(400).json({ message: `Invalid ${paramName}` });
     }
 
-    req.params.organisationId = organisationId.toString();
+    if (typeof organisationId !== "string" || !organisationId.trim()) {
+      return res.status(404).json({ message: notFoundMessage });
+    }
+
+    req.params.organisationId = organisationId.trim();
 
     return withOrgPermissions()(req, res, next);
   };
+}
+
+/** Read an organisation id off a Mongo document without trusting its shape. */
+function orgIdFromLean(doc: unknown): string | null {
+  if (typeof doc !== "object" || doc === null) return null;
+  const value = (doc as { organisationId?: unknown }).organisationId;
+  return value ? String(value) : null;
+}
+
+export function withAppointmentOrgPermissions() {
+  return withResourceOrgPermissions(
+    "appointmentId",
+    "Appointment not found",
+    async (appointmentId) => {
+      if (isReadFromPostgres()) {
+        const appointment = await prisma.appointment.findUnique({
+          where: { id: appointmentId },
+          select: { organisationId: true },
+        });
+        return appointment?.organisationId ?? null;
+      }
+      if (!Types.ObjectId.isValid(appointmentId)) return null;
+      return orgIdFromLean(
+        await AppointmentModel.findById(appointmentId, {
+          organisationId: 1,
+        }).lean(),
+      );
+    },
+  );
 }
 
 export function withInvoiceOrgPermissions() {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const invoiceId = req.params.invoiceId;
-    if (!invoiceId) {
-      return res.status(400).json({ message: "Missing invoiceId" });
-    }
-
-    const invoice = isReadFromPostgres()
-      ? await prisma.invoice.findUnique({
+  return withResourceOrgPermissions(
+    "invoiceId",
+    "Invoice not found",
+    async (invoiceId) => {
+      if (isReadFromPostgres()) {
+        const invoice = await prisma.invoice.findUnique({
           where: { id: invoiceId },
           select: { organisationId: true },
-        })
-      : await InvoiceModel.findById(invoiceId, {
-          organisationId: 1,
-        }).lean();
-
-    const organisationId = invoice?.organisationId ?? null;
-    if (!organisationId) {
-      return res.status(404).json({ message: "Invoice not found" });
-    }
-
-    req.params.organisationId = organisationId.toString();
-
-    return withOrgPermissions()(req, res, next);
-  };
+        });
+        return invoice?.organisationId ?? null;
+      }
+      if (!Types.ObjectId.isValid(invoiceId)) return null;
+      return orgIdFromLean(
+        await InvoiceModel.findById(invoiceId, { organisationId: 1 }).lean(),
+      );
+    },
+  );
 }
 
 export function withPaymentOrgPermissions() {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const paymentId = req.params.paymentId;
-    if (!paymentId) {
-      return res.status(400).json({ message: "Missing paymentId" });
-    }
-
-    const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
-      select: { invoice: { select: { organisationId: true } } },
-    });
-
-    const organisationId = payment?.invoice?.organisationId ?? null;
-    if (!organisationId) {
-      return res.status(404).json({ message: "Payment not found" });
-    }
-
-    req.params.organisationId = organisationId.toString();
-
-    return withOrgPermissions()(req, res, next);
-  };
+  return withResourceOrgPermissions(
+    "paymentId",
+    "Payment not found",
+    async (paymentId) => {
+      const payment = await prisma.payment.findUnique({
+        where: { id: paymentId },
+        select: { invoice: { select: { organisationId: true } } },
+      });
+      return payment?.invoice?.organisationId ?? null;
+    },
+  );
 }
 
 export function withPaymentIntentOrgPermissions() {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const paymentIntentId = req.params.paymentIntentId;
-    if (!paymentIntentId) {
-      return res.status(400).json({ message: "Missing paymentIntentId" });
-    }
-
-    const invoice = await prisma.paymentAttempt.findFirst({
-      where: { providerPaymentIntentId: paymentIntentId },
-      select: {
-        invoice: {
-          select: { organisationId: true },
-        },
-      },
-    });
-
-    const organisationId = invoice?.invoice?.organisationId ?? null;
-    if (!organisationId) {
-      return res.status(404).json({ message: "Invoice not found" });
-    }
-
-    req.params.organisationId = organisationId.toString();
-
-    return withOrgPermissions()(req, res, next);
-  };
+  return withResourceOrgPermissions(
+    "paymentIntentId",
+    "Invoice not found",
+    async (paymentIntentId) => {
+      const attempt = await prisma.paymentAttempt.findFirst({
+        where: { providerPaymentIntentId: paymentIntentId },
+        select: { invoice: { select: { organisationId: true } } },
+      });
+      return attempt?.invoice?.organisationId ?? null;
+    },
+  );
 }
 
 export function withTaskOrgPermissions() {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const taskId = req.params.taskId;
-    if (!taskId) {
-      return res.status(400).json({ message: "Missing taskId" });
-    }
-
-    const task = isReadFromPostgres()
-      ? await prisma.task.findUnique({
+  return withResourceOrgPermissions(
+    "taskId",
+    "Task not found",
+    async (taskId) => {
+      if (isReadFromPostgres()) {
+        const task = await prisma.task.findUnique({
           where: { id: taskId },
           select: { organisationId: true },
-        })
-      : Types.ObjectId.isValid(taskId)
-        ? await TaskModel.findById(taskId, {
-            organisationId: 1,
-          }).lean()
-        : null;
-
-    const organisationId = task?.organisationId ?? null;
-    if (!organisationId) {
-      return res.status(404).json({ message: "Task not found" });
-    }
-
-    req.params.organisationId = organisationId.toString();
-
-    return withOrgPermissions()(req, res, next);
-  };
+        });
+        return task?.organisationId ?? null;
+      }
+      if (!Types.ObjectId.isValid(taskId)) return null;
+      return orgIdFromLean(
+        await TaskModel.findById(taskId, { organisationId: 1 }).lean(),
+      );
+    },
+  );
 }
 
 export function withInventoryItemOrgPermissions() {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const itemId = req.params.itemId;
-    if (!itemId) {
-      return res.status(400).json({ message: "Missing itemId" });
-    }
-
-    const item = isReadFromPostgres()
-      ? await prisma.inventoryItem.findUnique({
+  return withResourceOrgPermissions(
+    "itemId",
+    "Inventory item not found",
+    async (itemId) => {
+      if (isReadFromPostgres()) {
+        const item = await prisma.inventoryItem.findUnique({
           where: { id: itemId },
           select: { organisationId: true },
-        })
-      : await InventoryItemModel.findById(itemId, {
+        });
+        return item?.organisationId ?? null;
+      }
+      if (!Types.ObjectId.isValid(itemId)) return null;
+      return orgIdFromLean(
+        await InventoryItemModel.findById(itemId, {
           organisationId: 1,
-        }).lean();
+        }).lean(),
+      );
+    },
+  );
+}
 
-    const organisationId = item?.organisationId ?? null;
-    if (!organisationId) {
-      return res.status(404).json({ message: "Inventory item not found" });
-    }
+export function withEncounterOrgPermissions(paramName = "id") {
+  return withResourceOrgPermissions(
+    paramName,
+    "Encounter not found",
+    async (encounterId) => {
+      const encounter = await prisma.encounter.findUnique({
+        where: { id: encounterId },
+        select: { organisationId: true },
+      });
+      return encounter?.organisationId ?? null;
+    },
+  );
+}
 
-    req.params.organisationId = organisationId.toString();
+export function withCaseOrgPermissions(paramName = "id") {
+  return withResourceOrgPermissions(
+    paramName,
+    "Case not found",
+    async (caseId) => {
+      const record = await prisma.case.findUnique({
+        where: { id: caseId },
+        select: { organisationId: true },
+      });
+      return record?.organisationId ?? null;
+    },
+  );
+}
 
-    return withOrgPermissions()(req, res, next);
-  };
+export function withRenderedDocumentOrgPermissions(
+  paramName = "renderedDocumentId",
+) {
+  return withResourceOrgPermissions(
+    paramName,
+    "Rendered document not found",
+    async (renderedDocumentId) => {
+      const document = await prisma.renderedDocument.findUnique({
+        where: { id: renderedDocumentId },
+        select: { organisationId: true },
+      });
+      return document?.organisationId ?? null;
+    },
+  );
+}
+
+export function withRoomUnitOrgPermissions(paramName = "id") {
+  return withResourceOrgPermissions(
+    paramName,
+    "Room unit not found",
+    async (roomUnitId) => {
+      const unit = await prisma.roomUnit.findUnique({
+        where: { id: roomUnitId },
+        select: { organisationId: true },
+      });
+      return unit?.organisationId ?? null;
+    },
+  );
+}
+
+export function withRoomUnitGroupOrgPermissions(paramName = "id") {
+  return withResourceOrgPermissions(
+    paramName,
+    "Room unit group not found",
+    async (groupId) => {
+      const group = await prisma.roomUnitGroup.findUnique({
+        where: { id: groupId },
+        select: { organisationId: true },
+      });
+      return group?.organisationId ?? null;
+    },
+  );
 }
 
 export function requirePermission(required: Permission | Permission[]) {

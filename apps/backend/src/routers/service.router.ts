@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { ServiceController } from "../controllers/web/service.controller";
-import { requireWebAuth } from "src/middlewares/auth";
+import { requireAnyAuth, requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
@@ -19,20 +19,31 @@ router.post(
   requirePermission("specialities:edit:any"),
   ServiceController.createMany,
 );
+// Read paths are consumed by both the staff web app and the pet-parent mobile
+// app, so they take `requireAnyAuth` rather than a product-specific guard.
+// They are not part of a signed-out surface: without authentication these
+// expose organisation and practitioner data to anonymous callers.
 router.get(
   "/organisation/search",
+  requireAnyAuth,
   ServiceController.listOrganisationByServiceName,
 );
 router.get(
   "/organisation/:organisationId",
+  requireAnyAuth,
   ServiceController.listByOrganisation,
 );
-router.post("/bookable-slots", ServiceController.getBookableSlotsForService);
+router.post(
+  "/bookable-slots",
+  requireAnyAuth,
+  ServiceController.getBookableSlotsForService,
+);
 router.post(
   "/bookable-slots/calendar-prefill",
+  requireAnyAuth,
   ServiceController.getCalendarPrefill,
 );
-router.get("/:id", ServiceController.getServiceById);
+router.get("/:id", requireAnyAuth, ServiceController.getServiceById);
 router.patch(
   "/:id",
   requireWebAuth,

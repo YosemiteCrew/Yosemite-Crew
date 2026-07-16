@@ -247,6 +247,7 @@ describe("rbac middleware", () => {
 
     expect(UserOrganizationModel.findOne).toHaveBeenCalledWith({
       practitionerReference: "user_1",
+      active: true,
       $or: [
         { organizationReference: "org_1" },
         { organizationReference: "Organization/org_1" },
@@ -254,6 +255,60 @@ describe("rbac middleware", () => {
     });
     expect(UserOrganizationModel.findByIdAndUpdate).toHaveBeenCalled();
     expect(middlewareNext).toHaveBeenCalled();
+  });
+
+  it("scopes the postgres mapping lookup to active memberships", async () => {
+    (isReadFromPostgres as jest.Mock).mockReturnValue(true);
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue({
+      id: "map_1",
+      roleCode: "TECHNICIAN",
+      extraPermissions: [],
+      revokedPermissions: [],
+      effectivePermissions: [],
+    } as never);
+
+    await withOrgPermissions()(
+      {
+        userId: "user_1",
+        params: { orgId: "org_1" },
+        headers: {},
+        body: {},
+      } as unknown as OrgRequest as Request,
+      mockRes(),
+      next(),
+    );
+
+    expect(prisma.userOrganization.findFirst).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        practitionerReference: "user_1",
+        active: true,
+      }),
+    });
+  });
+
+  it("returns 403 when the membership exists but is deactivated", async () => {
+    // A deactivated mapping must not resolve permissions: the query filters on
+    // `active`, so an offboarded user's row is simply not found.
+    (isReadFromPostgres as jest.Mock).mockReturnValue(true);
+    (prisma.userOrganization.findFirst as jest.Mock).mockResolvedValue(
+      null as never,
+    );
+    const res = mockRes();
+    const middlewareNext = next();
+
+    await withOrgPermissions()(
+      {
+        userId: "deactivated_user",
+        params: { orgId: "org_1" },
+        headers: {},
+        body: {},
+      } as unknown as OrgRequest as Request,
+      res,
+      middlewareNext,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(middlewareNext).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the user is not associated with the organisation", async () => {
