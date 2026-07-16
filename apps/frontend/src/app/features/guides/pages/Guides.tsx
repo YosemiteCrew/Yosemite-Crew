@@ -69,8 +69,7 @@ const Guides = () => {
   const activeIndex = activeVideo
     ? guidesData.findIndex((guide) => guide.id === activeVideo.id)
     : -1;
-  const nextGuide =
-    activeIndex >= 0 ? guidesData[(activeIndex + 1) % guidesData.length] : null;
+  const nextGuide = activeIndex >= 0 ? guidesData[(activeIndex + 1) % guidesData.length] : null;
 
   const handleOpenVideo = (video: GuideVideo) => {
     setActiveVideo(video);
@@ -80,7 +79,7 @@ const Guides = () => {
   const handleNextGuide = () => setActiveVideo(nextGuide);
 
   return (
-    <div className="flex flex-col gap-[18px] pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!">
+    <div className="yc-page-content">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-[3px]">
           <h1

@@ -576,7 +576,7 @@ const useAppointmentsView = () => {
   return (
     <div className="flex flex-col relative min-w-0">
       {deepLinkWorkspaceHref && <AppointmentWorkspaceRedirect href={deepLinkWorkspaceHref} />}
-      <div className="flex flex-col gap-3 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-4! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-4! lg:pb-3!">
+      <div className="yc-page-content">
         <TitleCalendar
           title="Appointments"
           description="Schedule and manage appointments across day, week, and team views"

@@ -1193,7 +1193,7 @@ html[data-theme='dark'] {
   --pink-soft: rgba(255, 144, 212, 0.16);
   --pink-text: #ff9dd8;
 
-/* Dark overrides for coloured ramps, status chips, and semantic one-offs so tinted
+  /* Dark overrides for coloured ramps, status chips, and semantic one-offs so tinted
    badges, alerts, pills, chat, and calendar surfaces flip with the theme. Status values
    match the DS dark set. Light mode is unaffected (these only apply under data-theme=dark). */
   /* tinted chip backgrounds + text (success / warning / danger / brand) */
@@ -1356,5 +1356,25 @@ html[data-theme='dark'] [data-yc-app] ::selection {
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .Toastify .Toastify__toast {
     background: var(--screen);
+  }
+}
+
+/* Shared page-content container.
+   The desktop shell recipe in PIMS Rebuild - Spec.md specifies content
+   padding 26px 30px and gap 22px. That was previously copy-pasted into each
+   page root as Tailwind utilities and had drifted into five conflicting
+   variants, none matching the spec. This is the single source of truth.
+   Phone/tablet keep the tighter 12px gutter the build already shipped; the
+   spec only fixes the 1440 desktop frame. */
+.yc-page-content {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 12px;
+}
+
+@media (min-width: 1024px) {
+  .yc-page-content {
+    padding: 26px 30px;
   }
 }

@@ -216,7 +216,7 @@ const Tasks = () => {
 
   return (
     <div className="flex flex-col relative">
-      <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+      <div className="yc-page-content">
         <TitleCalendar
           title="Tasks"
           description="Track to-dos, assign the team or pet parents, follow through"

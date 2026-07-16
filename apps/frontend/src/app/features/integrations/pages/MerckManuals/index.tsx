@@ -144,9 +144,7 @@ const getMerckErrorMessage = (error: unknown) => {
 };
 
 const getMerckContainerClassName = (embedded: boolean) =>
-  embedded
-    ? 'w-full p-4 md:p-6 bg-neutral-0 min-h-screen'
-    : 'flex flex-col gap-6 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-5! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-5!';
+  embedded ? 'w-full p-4 md:p-6 bg-neutral-0 min-h-screen' : 'yc-page-content';
 
 const getMerckResultsContainerClassName = (embedded: boolean) =>
   embedded
