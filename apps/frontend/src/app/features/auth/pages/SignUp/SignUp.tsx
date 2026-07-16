@@ -17,7 +17,7 @@ import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useSignUpDraft } from '@/app/hooks/useSignUpDraft';
 import { setStorageItem } from '@/app/lib/browserStorage';
-import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
+import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
 
 import '../AuthPages.css';
 
@@ -186,7 +186,7 @@ const SignUp = ({
   }>({});
 
   const handleSignupSuccess = () => {
-    defaultSidebarToCollapsed();
+    resetSidebarPreference();
     clearSignUpDraft();
     globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
     setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');

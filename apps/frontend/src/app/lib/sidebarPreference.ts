@@ -27,16 +27,3 @@ export const setSidebarCollapsedPreference = (collapsed: boolean): void => {
 export const resetSidebarPreference = (): void => {
   removeStorageItem('local', SIDEBAR_COLLAPSED_KEY);
 };
-
-/**
- * @deprecated Back-compat alias for {@link resetSidebarPreference}. It used to
- * pin the sidebar collapsed after auth; it now clears the stored preference so
- * the viewport-aware default applies.
- *
- * Only `features/auth/pages/SignIn` and `SignUp` still call it — those pages are
- * separately owned and deliberately untouched by this PR, which is the sole
- * reason the alias exists. Every other caller has migrated to
- * {@link resetSidebarPreference}. Delete this alias once those two pages move
- * over; nothing else should start using it.
- */
-export const defaultSidebarToCollapsed = resetSidebarPreference;
