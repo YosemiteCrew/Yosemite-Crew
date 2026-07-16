@@ -236,7 +236,9 @@ const BoardCardRequestActions = ({
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          void rejectAppointment(appointment);
+          void rejectAppointment(appointment).catch((error) => {
+            console.error('Failed to decline appointment request:', error);
+          });
         }}
       >
         <IoIosCloseCircle size={16} color="var(--color-danger-600)" />

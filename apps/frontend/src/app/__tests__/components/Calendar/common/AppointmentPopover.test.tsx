@@ -232,6 +232,39 @@ describe('AppointmentPopover', () => {
     });
   });
 
+  it('logs and keeps the popover open when declining fails', async () => {
+    const onClose = jest.fn();
+    const error = new Error('Cannot reject appointment: appointment ID missing.');
+    mockRejectAppointment.mockRejectedValueOnce(error);
+    // jest.setup turns an unhandled console.error into a failure, so take it over.
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <AppointmentPopover
+        appointment={appointment}
+        invoicesByAppointmentId={{}}
+        canEditAppointments
+        popoverId="popover-1"
+        popoverDialogRef={{ current: null }}
+        popoverStyle={{}}
+        handleRescheduleAppointment={jest.fn()}
+        handleAcceptAppointment={jest.fn()}
+        onClose={onClose}
+        registerAnchorEl={jest.fn(() => jest.fn())}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Decline request' }));
+
+    // The rejection is handled (no unhandled rejection) and a failed decline
+    // must not close the popover as though it had worked.
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to decline appointment request:', error);
+    });
+    expect(onClose).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
   it('shows the workspace action and reschedule path for non-requested appointments', () => {
     const handleRescheduleAppointment = jest.fn();
     const handleChangeRoomAppointment = jest.fn();

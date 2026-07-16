@@ -47,7 +47,9 @@ jest.mock('@/app/config/statusConfig', () => ({
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   acceptAppointment: jest.fn(),
   changeAppointmentStatus: jest.fn(),
-  rejectAppointment: jest.fn(),
+  // Async in the real service, so it must resolve a promise here — callers
+  // attach a .catch() to surface failures.
+  rejectAppointment: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('@/app/lib/timezone', () => ({
@@ -406,6 +408,38 @@ describe('AppointmentBoard', () => {
     expect(rejectAppointment).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'appt-requested' })
     );
+  });
+
+  it('logs instead of crashing when declining a requested appointment fails', async () => {
+    const error = new Error('Cannot reject appointment: appointment ID missing.');
+    (rejectAppointment as jest.Mock).mockRejectedValueOnce(error);
+    // jest.setup turns an unhandled console.error into a failure, so take it over.
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-requested', status: 'REQUESTED' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        setActiveAppointment={jest.fn()}
+        setViewPopup={jest.fn()}
+        setDetailPopup={jest.fn()}
+        setViewIntent={jest.fn()}
+        setReschedulePopup={jest.fn()}
+        setChangeStatusPopup={jest.fn()}
+        setChangeStatusPreferredStatus={jest.fn()}
+        canEditAppointments
+      />
+    );
+
+    const card = screen.getByLabelText('Draggable appointment Buddy');
+    fireEvent.click(within(card).getAllByRole('button')[2]);
+
+    // The service rejection is caught, so it never becomes an unhandled rejection.
+    await waitFor(() => {
+      expect(consoleSpy).toHaveBeenCalledWith('Failed to decline appointment request:', error);
+    });
+    consoleSpy.mockRestore();
   });
 
   const createDataTransfer = () => ({

@@ -75,7 +75,11 @@ const AppointmentCard = ({
                 type="button"
                 className="size-10 rounded-full! flex items-center justify-center cursor-pointer"
                 style={{ background: 'var(--color-danger-100)' }}
-                onClick={() => void rejectAppointment(appointment)}
+                onClick={() =>
+                  void rejectAppointment(appointment).catch((error) => {
+                    console.error('Failed to decline appointment request:', error);
+                  })
+                }
                 aria-label={`Decline request for ${appointmentCompanionName}`}
               >
                 <IoIosCloseCircle size={24} color="var(--color-danger-600)" />
