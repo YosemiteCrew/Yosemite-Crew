@@ -5,6 +5,10 @@ import { FinanceEventService } from "../../src/services/finance/events";
 import { StripeController } from "../../src/controllers/web/stripe.controller";
 import { InvoiceService } from "../../src/services/invoice.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
+import {
+  AppointmentPrismaService,
+  AppointmentPrismaServiceError,
+} from "../../src/services/appointment.prisma.service";
 import { StripeService } from "../../src/services/stripe.service";
 import { Request, Response } from "express";
 
@@ -49,6 +53,15 @@ jest.mock("../../src/services/invoice.service", () => ({
     markAppointmentReadyForBilling: jest.fn(),
     reverseAppointmentReadyForBilling: jest.fn(),
   },
+  InvoiceServiceError: class InvoiceServiceError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode = 400,
+    ) {
+      super(message);
+      this.name = "InvoiceServiceError";
+    }
+  },
 }));
 
 jest.mock("../../src/services/finance/subscription", () => ({
@@ -72,6 +85,22 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
   __esModule: true,
   AuthUserMobileService: {
     getByProviderUserId: jest.fn(),
+  },
+}));
+
+jest.mock("../../src/services/appointment.prisma.service", () => ({
+  __esModule: true,
+  AppointmentPrismaService: {
+    getById: jest.fn(),
+  },
+  AppointmentPrismaServiceError: class AppointmentPrismaServiceError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode = 400,
+    ) {
+      super(message);
+      this.name = "AppointmentPrismaServiceError";
+    }
   },
 }));
 
@@ -490,6 +519,12 @@ describe("FinanceController", () => {
   });
 
   it("bootstraps an appointment invoice for mobile seed flows", async () => {
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce({ parentId: "parent_1" });
+    (AppointmentPrismaService.getById as jest.Mock).mockResolvedValueOnce({
+      id: "appt_1",
+    });
     (InvoiceService.bootstrapForAppointment as jest.Mock).mockResolvedValueOnce(
       {
         id: "inv_seed",
@@ -498,6 +533,7 @@ describe("FinanceController", () => {
 
     const req = {
       params: { appointmentId: "appt_1" },
+      userId: "mobile_user_1",
     } as unknown as Request;
     const res = {
       status: jest.fn().mockReturnThis(),
@@ -506,6 +542,9 @@ describe("FinanceController", () => {
 
     await FinanceController.bootstrapInvoiceForAppointment(req, res);
 
+    expect(AppointmentPrismaService.getById).toHaveBeenCalledWith("appt_1", {
+      parentId: "parent_1",
+    });
     expect(InvoiceService.bootstrapForAppointment).toHaveBeenCalledWith(
       "appt_1",
     );
@@ -515,6 +554,50 @@ describe("FinanceController", () => {
       meta: null,
       error: null,
     });
+  });
+
+  it("does not seed an invoice for an appointment the mobile caller is not linked to", async () => {
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce({ parentId: "parent_1" });
+    (AppointmentPrismaService.getById as jest.Mock).mockRejectedValueOnce(
+      new AppointmentPrismaServiceError("Appointment not found", 404),
+    );
+
+    const req = {
+      params: { appointmentId: "appt_of_another_parent" },
+      userId: "mobile_user_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.bootstrapInvoiceForAppointment(req, res);
+
+    expect(InvoiceService.bootstrapForAppointment).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("refuses to seed an invoice when the caller resolves to no parent", async () => {
+    (
+      AuthUserMobileService.getByProviderUserId as jest.Mock
+    ).mockResolvedValueOnce(null);
+
+    const req = {
+      params: { appointmentId: "appt_1" },
+      userId: "mobile_user_1",
+    } as unknown as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn(),
+    } as unknown as Response;
+
+    await FinanceController.bootstrapInvoiceForAppointment(req, res);
+
+    expect(AppointmentPrismaService.getById).not.toHaveBeenCalled();
+    expect(InvoiceService.bootstrapForAppointment).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   it("finalizes invoice tax snapshots", async () => {

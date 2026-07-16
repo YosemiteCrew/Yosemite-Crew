@@ -2,6 +2,10 @@ import { Request, Response } from "express";
 import { StripeService } from "src/services/stripe.service";
 import { FinancePaymentError } from "src/services/finance/payment";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import {
+  AppointmentPrismaService,
+  AppointmentPrismaServiceError,
+} from "src/services/appointment.prisma.service";
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthenticatedRequest } from "src/middlewares/auth";
@@ -178,12 +182,32 @@ export const StripeController = {
   createPaymentIntent: async (req: Request, res: Response) => {
     try {
       const { appointmentId } = req.params;
+      if (!appointmentId) {
+        return res.status(400).json({ error: "Appointment ID is required" });
+      }
+
+      const scope = await resolveInvoiceScope(req);
+      if (!scope.organisationId && !scope.parentId) {
+        return sendScopeError(res);
+      }
+
+      // Resolving through the caller's scope rejects an appointment they are
+      // not bound to before a payment intent is minted for it.
+      await AppointmentPrismaService.getById(
+        appointmentId,
+        scope.organisationId
+          ? { organisationId: scope.organisationId }
+          : { parentId: scope.parentId as string },
+      );
+
       const paymentIntent =
         await StripeService.createPaymentIntentForAppointment(appointmentId);
       return res.status(200).json(paymentIntent);
     } catch (err) {
       logger.error("Error createPaymentIntent:", err);
-      return res.status(400).json({
+      const statusCode =
+        err instanceof AppointmentPrismaServiceError ? err.statusCode : 400;
+      return res.status(statusCode).json({
         error: err instanceof Error ? err.message : "Unknown error",
       });
     }

@@ -16,6 +16,10 @@ import {
   InvoiceServiceError,
 } from "src/services/invoice.service";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
+import {
+  AppointmentPrismaService,
+  AppointmentPrismaServiceError,
+} from "src/services/appointment.prisma.service";
 import logger from "src/utils/logger";
 import { OrgRequest } from "src/middlewares/rbac";
 import { AuthenticatedRequest } from "src/middlewares/auth";
@@ -555,16 +559,24 @@ export const FinanceController = {
         return res.status(400).json({ message: "Appointment Id is required" });
       }
 
+      const parentId = await resolveMobileParentId(req);
+      if (!parentId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Resolving through the parent scope rejects an appointment the caller
+      // is not linked to before any invoice is created for it.
+      await AppointmentPrismaService.getById(appointmentId, { parentId });
+
       const invoice =
         await InvoiceService.bootstrapForAppointment(appointmentId);
       return res.status(200).json(toFinanceSuccess(invoice));
     } catch (error) {
-      const statusCode =
-        error instanceof InvoiceServiceError ? error.statusCode : 500;
-      const message =
-        error instanceof InvoiceServiceError
-          ? error.message
-          : "Internal server error";
+      const isKnownError =
+        error instanceof InvoiceServiceError ||
+        error instanceof AppointmentPrismaServiceError;
+      const statusCode = isKnownError ? error.statusCode : 500;
+      const message = isKnownError ? error.message : "Internal server error";
 
       logger.error("Error bootstrapping appointment invoice", error);
       return res.status(statusCode).json({ message });
