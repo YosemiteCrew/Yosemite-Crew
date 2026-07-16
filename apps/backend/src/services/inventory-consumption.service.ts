@@ -6,6 +6,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "src/config/prisma";
+import logger from "src/utils/logger";
 
 export class InventoryConsumptionServiceError extends Error {
   constructor(
@@ -196,6 +197,67 @@ const readDoseParts = (
     doseQty: Number.isFinite(doseQty) && doseQty > 0 ? doseQty : undefined,
     doseUnit: trimmed.slice(index).trim() || undefined,
   };
+};
+
+/**
+ * The prescriber picks a duration unit alongside the number (the UI offers
+ * days, weeks and months), so the raw value is not a day count. Multiplying a
+ * weekly duration as if it were days under-dispenses the course.
+ */
+const DURATION_UNIT_IN_DAYS: Record<string, number> = {
+  DAY: 1,
+  DAYS: 1,
+  D: 1,
+  WEEK: 7,
+  WEEKS: 7,
+  W: 7,
+  MONTH: 30,
+  MONTHS: 30,
+  M: 30,
+};
+
+/**
+ * The unit arrives either as its own field or inline in the duration text
+ * (`"2 weeks"`), because the numeric parser keeps only the leading digits.
+ */
+const readDurationUnit = (
+  explicitUnit: unknown,
+  durationText: unknown,
+): string | undefined => {
+  const explicit = asNonEmptyString(explicitUnit)?.toUpperCase();
+  if (explicit) {
+    return explicit;
+  }
+
+  if (typeof durationText !== "string") {
+    return undefined;
+  }
+
+  const match = /\d+(?:\.\d+)?\s*([A-Za-z]+)/.exec(durationText.trim());
+  return match?.[1]?.toUpperCase();
+};
+
+const resolveDurationInDays = (item: {
+  durationDays?: unknown;
+  duration?: unknown;
+  days?: unknown;
+  durationUnit?: unknown;
+}) => {
+  const durationText = item.durationDays ?? item.duration ?? item.days;
+  const rawDuration =
+    readPositiveInteger(item.durationDays) ??
+    readPositiveInteger(item.duration ?? item.days);
+  if (rawDuration === undefined) {
+    return undefined;
+  }
+
+  const unit = readDurationUnit(item.durationUnit, durationText);
+  if (!unit) {
+    return rawDuration;
+  }
+
+  const multiplier = DURATION_UNIT_IN_DAYS[unit];
+  return multiplier === undefined ? undefined : rawDuration * multiplier;
 };
 
 const resolveFrequencyPerDay = (frequency?: string | null) => {
@@ -609,9 +671,7 @@ const enrichDispenseRequestMedications = async (
       asNonEmptyString(item.name);
     const frequency = asNonEmptyString(item.frequency ?? item.freq);
     const doseParts = readDoseParts(item.dosage ?? item.dose);
-    const durationDays =
-      readPositiveInteger(item.durationDays) ??
-      readPositiveInteger(item.duration ?? item.days);
+    const durationDays = resolveDurationInDays(item);
     const refillsRemaining =
       readPositiveInteger(item.refillsRemaining) ??
       readPositiveInteger(item.refill);
@@ -1208,7 +1268,19 @@ const normalizePrescriptionLines = (medications: unknown) => {
         record.count ??
         record.dispenseQuantity,
     );
-    if (!quantity) return [];
+    if (!quantity) {
+      // The line is skipped for stock purposes while the request can still be
+      // marked dispensed, so record it rather than dropping it silently.
+      logger.warn("Prescription line skipped: no resolvable quantity", {
+        index,
+        medicationCode:
+          asNonEmptyString(record.medicationCode) ??
+          asNonEmptyString(record.drugCode) ??
+          asNonEmptyString(record.code) ??
+          null,
+      });
+      return [];
+    }
     const stockUnitQuantity = resolvePackQuantity(record);
 
     const sourceLineKey =

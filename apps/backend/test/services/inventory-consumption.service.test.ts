@@ -615,6 +615,78 @@ describe("InventoryConsumptionService", () => {
     );
   });
 
+  it.each([
+    ["2 weeks", undefined, 28],
+    ["1 month", undefined, 60],
+    ["2", "weeks", 28],
+    ["2", "WEEKS", 28],
+    ["14", undefined, 28],
+    ["14 days", undefined, 28],
+  ])(
+    "converts a duration of %s (unit %s) into a full course quantity",
+    async (duration, durationUnit, expectedQuantity) => {
+      mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
+        {
+          id: "item-duration-1",
+          sku: "tab-1",
+          name: "Course Medicine",
+          stockUnitType: "bottle",
+          unitOfMeasure: "tablet",
+          packageQuantity: 30,
+          sellingPrice: 12.34,
+          unitCost: 8.5,
+          prescriptionRequired: true,
+          controlledItem: false,
+        },
+      ]);
+      mockedPrisma.prescriptionDispenseRequest.findFirst.mockResolvedValueOnce(
+        null,
+      );
+      mockedPrisma.prescriptionDispenseRequest.create.mockResolvedValueOnce({
+        id: "request-duration-1",
+        prescriptionId: "rx-duration-1",
+        organisationId: "org-1",
+        status: "PENDING",
+        medications: [],
+        metadata: null,
+        requestedBy: "user-1",
+        reviewedBy: null,
+        reviewedAt: null,
+        requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      });
+
+      await InventoryConsumptionService.createPrescriptionDispenseRequest({
+        organisationId: "org-1",
+        prescriptionId: "rx-duration-1",
+        medications: [
+          {
+            inventoryItemId: "item-duration-1",
+            frequency: "BID",
+            duration,
+            ...(durationUnit ? { durationUnit } : {}),
+            dosage: "1 Tablet",
+            sourceLineKey: "line-duration-1",
+          },
+        ],
+        requestedBy: "user-1",
+      });
+
+      expect(
+        mockedPrisma.prescriptionDispenseRequest.create,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            medications: [
+              expect.objectContaining({ quantity: expectedQuantity }),
+            ],
+          }),
+        }),
+      );
+    },
+  );
+
   it("derives frequency from hourly and times-per-day strings", async () => {
     mockedPrisma.inventoryItem.findMany.mockResolvedValueOnce([
       {
