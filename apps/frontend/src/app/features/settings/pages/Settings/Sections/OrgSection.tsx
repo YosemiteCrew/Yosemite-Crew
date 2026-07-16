@@ -17,11 +17,15 @@ import {
 } from '@/app/features/organization/services/availabilityService';
 import { usePrimaryAvailability } from '@/app/hooks/useAvailabiities';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
-import { Gender, UserProfile } from '@/app/features/users/types/profile';
+import {
+  Gender,
+  UserProfile,
+  UserEmploymentTypeOptions,
+  UserGenderOptions,
+} from '@/app/features/users/types/profile';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
 import { updateUser } from '@/app/features/users/services/userService';
-import { GenderOptions } from '@/app/features/companions/types/companion';
-import { EmploymentTypes, RoleOptions } from '@/app/features/organization/pages/Organization/types';
+import { RoleOptions } from '@/app/features/organization/pages/Organization/types';
 import { useNotify } from '@/app/hooks/useNotify';
 import { resolveTimezoneFromCountry, setPreferredTimeZone } from '@/app/lib/timezone';
 import { useAuthStore } from '@/app/stores/authStore';
@@ -123,7 +127,7 @@ const UserOrgProfileFields = [
     required: false,
     editable: false,
     type: 'select',
-    options: EmploymentTypes,
+    options: UserEmploymentTypeOptions,
   },
   { label: '', key: '_sep1', required: false, editable: false, type: 'separator' },
   {
@@ -132,7 +136,7 @@ const UserOrgProfileFields = [
     required: false,
     editable: true,
     type: 'select',
-    options: GenderOptions,
+    options: UserGenderOptions,
   },
   {
     label: 'Date of birth',
