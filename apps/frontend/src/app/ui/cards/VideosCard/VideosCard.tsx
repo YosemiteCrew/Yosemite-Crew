@@ -35,12 +35,19 @@ const VideosCard = () => {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-0">
+        {/* The heading is the flexible half: it wraps. The actions must not -
+            without min-w-0 + shrink-0 the heading squeezes the button until
+            "View more" breaks across two lines on a phone. */}
         <div className="flex items-center justify-between w-full gap-3">
-          <div className="text-body-1 text-text-primary">
+          <div className="min-w-0 text-body-1 text-text-primary">
             {'Make the most of your wait, start exploring instead'}
           </div>
-          <div className="flex items-center gap-2">
-            <Primary text="View more" href="/guides" className="px-5! py-2! text-body-4" />
+          <div className="flex shrink-0 items-center gap-2">
+            <Primary
+              text="View more"
+              href="/guides"
+              className="px-5! py-2! text-body-4 whitespace-nowrap"
+            />
             <Close onClick={handleClose} />
           </div>
         </div>
