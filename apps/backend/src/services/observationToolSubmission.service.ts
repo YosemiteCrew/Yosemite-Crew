@@ -381,8 +381,8 @@ const loadAppointmentPatientId = async (
   const safeOrganisationId = assertObjectId(organisationId, "organisationId");
 
   const appointment = await AppointmentModel.findOne({
-    _id: safeAppointmentId,
-    organisationId: safeOrganisationId,
+    _id: { $eq: safeAppointmentId },
+    organisationId: { $eq: safeOrganisationId },
   })
     .setOptions({ sanitizeFilter: true })
     .select({ companion: 1 })
