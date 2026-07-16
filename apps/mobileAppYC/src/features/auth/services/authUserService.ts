@@ -114,7 +114,7 @@ export const syncAuthUser = async ({
   console.log('[AuthUserService] Sync response', {
     endpoint: AUTH_USER_ENDPOINT,
     status: response.status,
-    data: response.data,
+    hasBody: response.data != null,
   });
 
   const parentSummary = normalizeParentSummary(response.data.parent);
