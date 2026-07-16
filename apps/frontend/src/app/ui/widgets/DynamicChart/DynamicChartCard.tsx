@@ -1,64 +1,26 @@
 'use client';
-import { type ComponentType, type FC, type ReactNode } from 'react';
+import { type FC, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import type { LayoutType } from 'recharts/types/util/types';
 
-const loadRechartsComponent = async <TProps,>(
-  pick: (mod: typeof import('recharts')) => ComponentType<TProps>
-) => pick(await import('recharts'));
+import { type ChartKey, getMonthLabelFromData } from '@/app/ui/widgets/DynamicChart/chartAxis';
 
-const ResponsiveContainer = dynamic(
-  () => loadRechartsComponent((mod) => mod.ResponsiveContainer as unknown as ComponentType<any>),
-  { ssr: false }
+const ChartSkeleton = ({ height }: { height: number }) => (
+  <div className="rounded-2xl bg-card-hover animate-pulse" style={{ height }} aria-hidden="true" />
 );
-const BarChart = dynamic(() => loadRechartsComponent((mod) => mod.BarChart as ComponentType<any>), {
+
+/* The whole recharts canvas is one lazy chunk. Splitting at this boundary - rather
+   than wrapping each recharts element in next/dynamic - is what keeps recharts out
+   of the initial bundle without hiding the real component types from recharts. */
+const ChartCanvas = dynamic(() => import('@/app/ui/widgets/DynamicChart/ChartCanvas'), {
   ssr: false,
+  loading: () => <ChartSkeleton height={300} />,
 });
-const LineChart = dynamic(
-  () => loadRechartsComponent((mod) => mod.LineChart as unknown as ComponentType<any>),
-  { ssr: false }
-);
-const Bar = dynamic(
-  () => loadRechartsComponent((mod) => mod.Bar as unknown as ComponentType<any>),
-  {
-    ssr: false,
-  }
-);
-const Line = dynamic(
-  () => loadRechartsComponent((mod) => mod.Line as unknown as ComponentType<any>),
-  {
-    ssr: false,
-  }
-);
-const XAxis = dynamic(
-  () => loadRechartsComponent((mod) => mod.XAxis as unknown as ComponentType<any>),
-  {
-    ssr: false,
-  }
-);
-const YAxis = dynamic(
-  () => loadRechartsComponent((mod) => mod.YAxis as unknown as ComponentType<any>),
-  {
-    ssr: false,
-  }
-);
-const Tooltip = dynamic(
-  () => loadRechartsComponent((mod) => mod.Tooltip as unknown as ComponentType<any>),
-  {
-    ssr: false,
-  }
-);
-const CartesianGrid = dynamic(
-  () => loadRechartsComponent((mod) => mod.CartesianGrid as unknown as ComponentType<any>),
-  {
-    ssr: false,
-  }
-);
 
 type ChartProps = {
   data: any[];
   type?: 'bar' | 'line';
-  keys: { name: string; color: string }[];
+  keys: ChartKey[];
   isEmpty?: boolean;
   yTickFormatter?: (value: number) => string;
   yAxisWidth?: number;
@@ -79,240 +41,6 @@ type ChartProps = {
   headerContent?: ReactNode;
   footerContent?: ReactNode;
 };
-
-type TiltedTickProps = { x: number; y: number; payload: { value: string } };
-type ChartKey = { name: string; color: string };
-type AxisLabelConfig = {
-  value: string;
-  position: 'insideBottom' | 'insideLeft';
-  offset: number;
-  dy?: number;
-  dx?: number;
-  angle?: number;
-};
-
-const MONTH_NAME_PATTERN = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)\b/i;
-const DAY_PATTERN = /\b([12]?\d|3[01])\b/;
-const axisMonthYearFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  year: 'numeric',
-});
-const axisDayFormatter = new Intl.DateTimeFormat('en-US', { day: 'numeric' });
-
-const parseAxisValueAsDate = (value: string): Date | null => {
-  const timestamp = Date.parse(value);
-  if (!Number.isNaN(timestamp)) {
-    return new Date(timestamp);
-  }
-
-  const withCurrentYear = Date.parse(`${value} ${new Date().getFullYear()}`);
-  if (!Number.isNaN(withCurrentYear)) {
-    return new Date(withCurrentYear);
-  }
-
-  return null;
-};
-
-const getMonthLabelFromData = (data: any[]): string | undefined => {
-  const labels = data
-    .map((point) => point?.month)
-    .filter(
-      (monthValue): monthValue is string =>
-        typeof monthValue === 'string' && monthValue.trim().length > 0
-    );
-
-  if (labels.length === 0) return undefined;
-
-  const parsedDates = labels.map(parseAxisValueAsDate);
-  if (parsedDates.every((date): date is Date => date instanceof Date)) {
-    const first = parsedDates[0];
-    const allSameMonthAndYear = parsedDates.every(
-      (date) => date.getMonth() === first.getMonth() && date.getFullYear() === first.getFullYear()
-    );
-
-    if (allSameMonthAndYear) {
-      return axisMonthYearFormatter.format(first);
-    }
-  }
-
-  const monthToken = MONTH_NAME_PATTERN.exec(labels[0])?.[0];
-  return monthToken ? monthToken[0].toUpperCase() + monthToken.slice(1).toLowerCase() : undefined;
-};
-
-const getDayTickLabel = (value: string): string => {
-  const parsed = parseAxisValueAsDate(value);
-  if (parsed) {
-    return axisDayFormatter.format(parsed);
-  }
-
-  const dayToken = DAY_PATTERN.exec(value)?.[0];
-  return dayToken ?? value;
-};
-
-const TiltedYTick = ({ x, y, payload }: TiltedTickProps) => (
-  <g transform={`translate(${x},${y})`}>
-    <text
-      x={0}
-      y={0}
-      dx={-4}
-      textAnchor="end"
-      fontSize={11}
-      fill="var(--ink-faint)"
-      transform="rotate(-30)"
-    >
-      {payload.value}
-    </text>
-  </g>
-);
-
-const getXAxisLabel = (xAxisLabel?: string): AxisLabelConfig | undefined =>
-  xAxisLabel ? { value: xAxisLabel, position: 'insideBottom', offset: -2, dy: 16 } : undefined;
-
-const getYAxisLabel = (
-  yAxisLabel?: string,
-  isVerticalLayout = false
-): AxisLabelConfig | undefined => {
-  if (!yAxisLabel || isVerticalLayout) return undefined;
-  return { value: yAxisLabel, angle: -90, position: 'insideLeft', offset: 0, dx: -12 };
-};
-
-type LineChartContentProps = {
-  data: any[];
-  width?: number;
-  height?: number;
-  chartMargin: { top: number; right: number; left: number; bottom: number };
-  keys: ChartKey[];
-  yTickFormatter?: (value: number) => string;
-  xAxisLabel?: string;
-  yAxisLabel?: string;
-  compactMonthAxis?: boolean;
-  xAxisDataKey?: string;
-  xAxisType?: 'category' | 'number';
-  xAxisTicks?: Array<string | number>;
-  xAxisDomain?: [number | 'auto' | 'dataMin' | 'dataMax', number | 'auto' | 'dataMin' | 'dataMax'];
-  xTickFormatter?: (value: string | number) => string;
-  tooltipLabelFormatter?: (label: string | number, payload?: any[]) => ReactNode;
-};
-
-const LineChartContent = ({
-  data,
-  width,
-  height,
-  chartMargin,
-  keys,
-  yTickFormatter,
-  xAxisLabel,
-  yAxisLabel,
-  compactMonthAxis,
-  xAxisDataKey = 'month',
-  xAxisType = 'category',
-  xAxisTicks,
-  xAxisDomain,
-  xTickFormatter,
-  tooltipLabelFormatter,
-}: LineChartContentProps) => (
-  <LineChart data={data} margin={chartMargin} width={width} height={height}>
-    <XAxis
-      dataKey={xAxisDataKey}
-      type={xAxisType}
-      scale={xAxisType === 'number' ? 'linear' : 'point'}
-      tick={{ fontSize: 11 }}
-      ticks={xAxisTicks}
-      domain={xAxisDomain}
-      allowDataOverflow={xAxisType === 'number'}
-      interval={compactMonthAxis ? 'preserveStartEnd' : 0}
-      minTickGap={compactMonthAxis ? 12 : undefined}
-      tickFormatter={
-        xTickFormatter ??
-        (compactMonthAxis && xAxisType === 'category' ? getDayTickLabel : undefined)
-      }
-      label={getXAxisLabel(xAxisLabel)}
-    />
-    <YAxis
-      tickFormatter={yTickFormatter}
-      label={
-        yAxisLabel
-          ? { value: yAxisLabel, angle: -90, position: 'insideLeft', offset: 4, dx: -16 }
-          : undefined
-      }
-    />
-    <Tooltip labelFormatter={tooltipLabelFormatter} />
-    {keys.map((key) => (
-      <Line
-        key={key.name}
-        type="monotone"
-        dataKey={key.name}
-        stroke={key.color}
-        strokeWidth={2}
-        dot={false}
-      />
-    ))}
-  </LineChart>
-);
-
-type BarChartContentProps = {
-  data: any[];
-  width?: number;
-  height?: number;
-  layout?: LayoutType;
-  isVerticalLayout: boolean;
-  chartMargin: { top: number; right: number; left: number; bottom: number };
-  keys: ChartKey[];
-  yTickFormatter?: (value: number) => string;
-  yAxisWidth?: number;
-  xAxisLabel?: string;
-  yAxisLabel?: string;
-  barSize?: number;
-  compactMonthAxis?: boolean;
-};
-
-const BarChartContent = ({
-  data,
-  width,
-  height,
-  layout,
-  isVerticalLayout,
-  chartMargin,
-  keys,
-  yTickFormatter,
-  yAxisWidth,
-  xAxisLabel,
-  yAxisLabel,
-  barSize,
-  compactMonthAxis,
-}: BarChartContentProps) => (
-  <BarChart
-    data={data}
-    layout={layout}
-    style={{ height: '100%', maxHeight: '100%', width: '100%', maxWidth: '100%' }}
-    margin={chartMargin}
-    width={width}
-    height={height}
-  >
-    <CartesianGrid strokeDasharray="4 4" vertical={false} />
-    <XAxis
-      dataKey={isVerticalLayout ? undefined : 'month'}
-      type={isVerticalLayout ? 'number' : 'category'}
-      tick={{ fontSize: 11 }}
-      interval={compactMonthAxis && !isVerticalLayout ? 'preserveStartEnd' : 0}
-      minTickGap={compactMonthAxis && !isVerticalLayout ? 12 : undefined}
-      tickFormatter={compactMonthAxis && !isVerticalLayout ? getDayTickLabel : undefined}
-      label={getXAxisLabel(xAxisLabel)}
-    />
-    <YAxis
-      dataKey={isVerticalLayout ? 'month' : undefined}
-      type={isVerticalLayout ? 'category' : 'number'}
-      tickFormatter={isVerticalLayout ? undefined : yTickFormatter}
-      width={isVerticalLayout ? 100 : yAxisWidth}
-      tick={isVerticalLayout ? TiltedYTick : { fontSize: 11 }}
-      label={getYAxisLabel(yAxisLabel, isVerticalLayout)}
-    />
-    <Tooltip />
-    {keys.map((key) => (
-      <Bar key={key.name} dataKey={key.name} fill={key.color} stackId="a" barSize={barSize} />
-    ))}
-  </BarChart>
-);
 
 const ChartLegend = ({ keys }: { keys: ChartKey[] }) => (
   <div className="flex items-center justify-center w-full gap-6">
@@ -390,39 +118,27 @@ const DynamicChartCard: FC<ChartProps> = ({
       {isEmpty ? (
         <EmptyChartState height={chartHeight} />
       ) : (
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          {type === 'line' ? (
-            <LineChartContent
-              data={data}
-              chartMargin={chartMargin}
-              keys={keys}
-              yTickFormatter={yTickFormatter}
-              xAxisLabel={effectiveXAxisLabel}
-              yAxisLabel={yAxisLabel}
-              compactMonthAxis={compactMonthAxis}
-              xAxisDataKey={xAxisDataKey}
-              xAxisType={xAxisType}
-              xAxisTicks={xAxisTicks}
-              xAxisDomain={xAxisDomain}
-              xTickFormatter={xTickFormatter}
-              tooltipLabelFormatter={tooltipLabelFormatter}
-            />
-          ) : (
-            <BarChartContent
-              data={data}
-              layout={layout}
-              isVerticalLayout={isVerticalLayout}
-              chartMargin={chartMargin}
-              keys={keys}
-              yTickFormatter={yTickFormatter}
-              yAxisWidth={yAxisWidth}
-              xAxisLabel={effectiveXAxisLabel}
-              yAxisLabel={yAxisLabel}
-              barSize={barSize}
-              compactMonthAxis={compactMonthAxis}
-            />
-          )}
-        </ResponsiveContainer>
+        <ChartCanvas
+          data={data}
+          type={type}
+          keys={keys}
+          chartHeight={chartHeight}
+          chartMargin={chartMargin}
+          isVerticalLayout={isVerticalLayout}
+          layout={layout}
+          yTickFormatter={yTickFormatter}
+          yAxisWidth={yAxisWidth}
+          barSize={barSize}
+          xAxisLabel={effectiveXAxisLabel}
+          yAxisLabel={yAxisLabel}
+          compactMonthAxis={compactMonthAxis}
+          xAxisDataKey={xAxisDataKey}
+          xAxisType={xAxisType}
+          xAxisTicks={xAxisTicks}
+          xAxisDomain={xAxisDomain}
+          xTickFormatter={xTickFormatter}
+          tooltipLabelFormatter={tooltipLabelFormatter}
+        />
       )}
       {footerContent}
     </div>

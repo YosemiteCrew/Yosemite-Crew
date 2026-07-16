@@ -6,29 +6,22 @@ import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
 let yAxisProps: any = {};
 let xAxisProps: any = {};
 
+// The card lazy-loads one module (ChartCanvas), so resolve it synchronously and
+// let the real canvas render against the mocked recharts below.
 jest.mock('next/dynamic', () => ({
   __esModule: true,
   default: (loader: () => Promise<unknown>) => {
-    const source = loader.toString();
-    // Exercise the real loader (loadRechartsComponent) so its import path is covered.
+    // Exercise the real loader so its import path is covered.
     void loader().catch(() => undefined);
-    const LoadableRechartsComponent = (props: Record<string, unknown>) => {
-      const recharts = jest.requireMock('recharts') as Record<string, React.ComponentType<any>>;
-      if (source.includes('ResponsiveContainer'))
-        return React.createElement(recharts.ResponsiveContainer, props);
-      if (source.includes('BarChart')) return React.createElement(recharts.BarChart, props);
-      if (source.includes('LineChart')) return React.createElement(recharts.LineChart, props);
-      if (source.includes('CartesianGrid'))
-        return React.createElement(recharts.CartesianGrid, props);
-      if (source.includes('XAxis')) return React.createElement(recharts.XAxis, props);
-      if (source.includes('YAxis')) return React.createElement(recharts.YAxis, props);
-      if (source.includes('Tooltip')) return React.createElement(recharts.Tooltip, props);
-      if (source.includes('Line')) return React.createElement(recharts.Line, props);
-      if (source.includes('Bar')) return React.createElement(recharts.Bar, props);
-      return null;
+    const LoadableChartCanvas = (props: Record<string, unknown>) => {
+      // requireActual only un-mocks the canvas itself; its own `recharts` import
+      // still resolves to the mock below.
+      const Canvas = jest.requireActual('@/app/ui/widgets/DynamicChart/ChartCanvas')
+        .default as React.ComponentType<any>;
+      return React.createElement(Canvas, props);
     };
-    LoadableRechartsComponent.displayName = 'MockDynamicRechartsComponent';
-    return LoadableRechartsComponent;
+    LoadableChartCanvas.displayName = 'MockDynamicChartCanvas';
+    return LoadableChartCanvas;
   },
 }));
 
