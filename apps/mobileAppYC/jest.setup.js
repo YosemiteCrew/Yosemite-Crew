@@ -669,6 +669,11 @@ jest.mock('react-native-image-picker', () => {
 
 jest.mock('react-native-fs', () => ({
   stat: jest.fn(() => Promise.resolve({size: 1024})),
+  mkdir: jest.fn(() => Promise.resolve()),
+  copyFile: jest.fn(() => Promise.resolve()),
+  downloadFile: jest.fn(() => ({promise: Promise.resolve({statusCode: 200})})),
+  DocumentDirectoryPath: '/mock/document-directory',
+  DownloadDirectoryPath: '/mock/download-directory',
 }));
 
 // Mock native-stack navigator to a simple host component

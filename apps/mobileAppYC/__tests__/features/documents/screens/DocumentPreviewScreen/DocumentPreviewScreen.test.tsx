@@ -1,5 +1,5 @@
 import React from 'react';
-import {Alert, PermissionsAndroid, Platform, Share} from 'react-native';
+import {Alert, Platform, Share} from 'react-native';
 import RNFS from 'react-native-fs';
 import {mockTheme} from '../setup/mockTheme';
 import {render, fireEvent, waitFor} from '@testing-library/react-native';
@@ -127,6 +127,7 @@ jest.mock('react-native-fs', () => ({
     DownloadDirectoryPath: '/downloads',
     DocumentDirectoryPath: '/documents',
     mkdir: jest.fn(() => Promise.resolve()),
+    copyFile: jest.fn(() => Promise.resolve()),
     downloadFile: jest.fn(() => ({promise: Promise.resolve()})),
     stat: jest.fn(() => Promise.resolve({size: 1024})),
   },
@@ -684,13 +685,13 @@ describe('DocumentPreviewScreen', () => {
       await waitFor(() =>
         expect(Alert.alert).toHaveBeenCalledWith(
           'Download complete',
-          expect.stringContaining('/downloads/report.pdf'),
+          expect.stringContaining('/documents/Downloads/report.pdf'),
         ),
       );
       expect(RNFS.downloadFile).toHaveBeenCalledWith(
         expect.objectContaining({
           fromUrl: 'https://s3.example/report.pdf',
-          toFile: '/downloads/report.pdf',
+          toFile: '/documents/Downloads/report.pdf',
           discretionary: true,
         }),
       );
@@ -725,45 +726,9 @@ describe('DocumentPreviewScreen', () => {
       );
     });
 
-    it('requests storage permission on legacy Android and aborts when denied', async () => {
+    it('downloads on legacy Android without requesting storage permission', async () => {
       (Platform as any).OS = 'android';
       (Platform as any).Version = 30;
-      (PermissionsAndroid as any).PERMISSIONS = {
-        READ_EXTERNAL_STORAGE: 'read_ext',
-      };
-      (PermissionsAndroid as any).RESULTS = {
-        GRANTED: 'granted',
-        DENIED: 'denied',
-      };
-      (PermissionsAndroid as any).request = jest
-        .fn()
-        .mockResolvedValue('denied');
-      const {getByLabelText} = renderWithRedux();
-      fireEvent.press(getByLabelText('Download document'));
-      await waitFor(() =>
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'Permission needed',
-          expect.stringContaining('storage permission'),
-        ),
-      );
-      expect(PermissionsAndroid.request).toHaveBeenCalledWith('read_ext');
-      expect(RNFS.downloadFile).not.toHaveBeenCalled();
-    });
-
-    it('downloads on legacy Android when permission is granted', async () => {
-      (Platform as any).OS = 'android';
-      (Platform as any).Version = 30;
-      (RNFS as any).DownloadDirectoryPath = undefined;
-      (PermissionsAndroid as any).PERMISSIONS = {
-        READ_EXTERNAL_STORAGE: 'read_ext',
-      };
-      (PermissionsAndroid as any).RESULTS = {
-        GRANTED: 'granted',
-        DENIED: 'denied',
-      };
-      (PermissionsAndroid as any).request = jest
-        .fn()
-        .mockResolvedValue('granted');
       const doc = {
         ...mockDoc,
         files: [{id: 'f1', viewUrl: 'https://example.com/legacy.pdf'}],
@@ -777,12 +742,42 @@ describe('DocumentPreviewScreen', () => {
       await waitFor(() =>
         expect(Alert.alert).toHaveBeenCalledWith(
           'Download complete',
-          expect.stringContaining('/documents/document'),
+          expect.stringContaining('/documents/Downloads/document'),
         ),
       );
       expect(RNFS.downloadFile).toHaveBeenCalledWith(
-        expect.objectContaining({toFile: '/documents/document'}),
+        expect.objectContaining({toFile: '/documents/Downloads/document'}),
       );
+    });
+
+    it('copies (not downloads) a local file:// source uri', async () => {
+      const doc = {
+        ...mockDoc,
+        files: [
+          {
+            id: 'f1',
+            name: 'picked.pdf',
+            uri: 'file:///storage/emulated/0/picked.pdf',
+          },
+        ],
+      };
+      const state = {
+        ...initialState,
+        documents: {documents: [doc], viewLoading: {}},
+      };
+      const {getByLabelText} = renderWithRedux(state);
+      fireEvent.press(getByLabelText('Download document'));
+      await waitFor(() =>
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Download complete',
+          expect.stringContaining('/documents/Downloads/picked.pdf'),
+        ),
+      );
+      expect(RNFS.copyFile).toHaveBeenCalledWith(
+        'file:///storage/emulated/0/picked.pdf',
+        '/documents/Downloads/picked.pdf',
+      );
+      expect(RNFS.downloadFile).not.toHaveBeenCalled();
     });
   });
 });

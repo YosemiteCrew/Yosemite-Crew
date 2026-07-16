@@ -1,18 +1,9 @@
 import React, {useMemo} from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  Share,
-  Platform,
-  PermissionsAndroid,
-} from 'react-native';
+import {View, Text, ScrollView, StyleSheet, Alert, Share} from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import RNFS from 'react-native-fs';
+import {downloadDocumentToAppStorage} from '@/shared/utils/documentDownload';
 import {SafeArea} from '@/shared/components/common';
 import {Header} from '@/shared/components/common/Header/Header';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
@@ -230,30 +221,11 @@ export const DocumentPreviewScreen: React.FC = () => {
       return;
     }
     try {
-      if (Platform.OS === 'android' && Number(Platform.Version) < 33) {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert(
-            'Permission needed',
-            'Please grant storage permission to download files.',
-          );
-          return;
-        }
-      }
-      const dir = RNFS.DownloadDirectoryPath ?? RNFS.DocumentDirectoryPath;
       const safeName = (primaryFile?.name || 'document').replace(
         /[\\/:]/g,
         '_',
       );
-      const target = `${dir}/${safeName}`;
-      await RNFS.mkdir(dir);
-      await RNFS.downloadFile({
-        fromUrl: primaryUri,
-        toFile: target,
-        discretionary: true,
-      }).promise;
+      const target = await downloadDocumentToAppStorage(primaryUri, safeName);
       Alert.alert('Download complete', `Saved to:\n${target}`);
     } catch {
       Alert.alert(
