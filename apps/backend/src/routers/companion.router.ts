@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { CompanionController } from "../controllers/app/companion.controller";
-import { authorizeCognitoMobile, authorizeCognito } from "src/middlewares/auth";
+import { requireMobileAuth, requireWebAuth } from "src/middlewares/auth";
 import { withOrgPermissions, requirePermission } from "src/middlewares/rbac";
 
 const router = Router();
@@ -9,29 +9,17 @@ const router = Router();
    MOBILE ROUTES (PARENT / OWN CONTEXT)
    ====================================================== */
 
-router.post(
-  "/",
-  authorizeCognitoMobile,
-  CompanionController.createCompanionMobile,
-);
+router.post("/", requireMobileAuth, CompanionController.createCompanionMobile);
 
-router.get(
-  "/:id",
-  authorizeCognitoMobile,
-  CompanionController.getCompanionById,
-);
+router.get("/:id", requireMobileAuth, CompanionController.getCompanionById);
 
-router.put("/:id", authorizeCognitoMobile, CompanionController.updateCompanion);
+router.put("/:id", requireMobileAuth, CompanionController.updateCompanion);
 
-router.delete(
-  "/:id",
-  authorizeCognitoMobile,
-  CompanionController.deleteCompanion,
-);
+router.delete("/:id", requireMobileAuth, CompanionController.deleteCompanion);
 
 router.post(
   "/profile/presigned",
-  authorizeCognitoMobile,
+  requireMobileAuth,
   CompanionController.getProfileUploadUrl,
 );
 
@@ -42,7 +30,7 @@ router.post(
 // PMS routes that are NOT org-scoped (search)
 router.get(
   "/org/search",
-  authorizeCognito,
+  requireWebAuth,
   requirePermission("companions:view:any"),
   CompanionController.searchCompanionByName,
 );
@@ -50,19 +38,19 @@ router.get(
 // Create companion in organisation
 router.post(
   "/org/:orgId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:edit:any"),
   CompanionController.createCompanionPMS,
 );
 
 // Get companion by id (PMS)
-router.get("/org/:id", authorizeCognito, CompanionController.getCompanionById);
+router.get("/org/:id", requireWebAuth, CompanionController.getCompanionById);
 
 // Update companion (PMS)
 router.put(
   "/org/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:edit:any"),
   CompanionController.updateCompanion,
@@ -71,7 +59,7 @@ router.put(
 // List parent companions not linked to organisation
 router.get(
   "/pms/:parentId/:organisationId/list",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("companions:view:any"),
   CompanionController.listParentCompanionsNotInOrganisation,

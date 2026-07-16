@@ -363,7 +363,7 @@ export const EditAppointmentScreen: React.FC = () => {
   );
   const [date, setDate] = useState<string>(apt?.date ?? firstAvailableDate);
   const [dateObj, setDateObj] = useState<Date>(
-    new Date(apt?.date ?? firstAvailableDate),
+    () => new Date(apt?.date ?? firstAvailableDate),
   );
   const initialTimeLabel = getInitialTimeLabel(apt);
   const [time, setTime] = useState<string | null>(initialTimeLabel);

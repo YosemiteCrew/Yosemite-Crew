@@ -60,10 +60,22 @@ const data = CreateAppointmentSchema.parse(req.body);
 
 ## Authentication
 
+SuperTokens is the auth provider behind the provider-neutral boundary in
+`packages/auth` (#1672). Product code uses `requireWebAuth`/`requireMobileAuth`
+from `src/middlewares/auth.ts` and never imports a provider SDK
+(eslint-enforced).
+
 Two auth stacks coexist:
 
-- **Web/PIMS session auth: SuperTokens** via `@yosemite-crew/auth` — `requireAuth()` middleware + `getSessionUserId()`, initialized with `initSuperTokens` in `app.ts`. Use this for all new web endpoints.
-- **Legacy mobile/FHIR JWT** (`authorizeCognito` / `authorizeCognitoMobile` in `src/middlewares/auth.ts`) remains on existing mobile/FHIR routes only — do not use it for new web endpoints. It accepts **both** AWS Cognito tokens (verified with `jsonwebtoken` + `jwks-rsa`) and Firebase tokens (issuer `securetoken.google.com`, social login, verified via Firebase Admin). Never remove the Firebase path — it would reject existing social-login users.
+- **Web/PIMS session auth: SuperTokens** via `@yosemite-crew/auth` -
+  `requireAuth()` middleware + `getSessionUserId()`, initialized with
+  `initSuperTokens` in `app.ts`. Use this for all new web endpoints.
+- **Legacy mobile/FHIR JWT** (`authorizeCognito` / `authorizeCognitoMobile`
+  in `src/middlewares/auth.ts`) remains on existing mobile/FHIR routes only -
+  do not use it for new web endpoints. It accepts **both** AWS Cognito tokens
+  (verified with `jsonwebtoken` + `jwks-rsa`) and Firebase tokens (issuer
+  `securetoken.google.com`, social login, verified via Firebase Admin). Never
+  remove the Firebase path - it would reject existing social-login users.
 
 Never roll custom auth.
 

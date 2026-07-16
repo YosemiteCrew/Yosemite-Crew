@@ -1,10 +1,9 @@
 import { createControlledSubstanceLogbook } from '../src/compliance/controlled-substance';
 import { createAuditLog } from '../src/compliance/audit-log';
-import fs from 'node:fs';
 
 /**
  * Security tests for path traversal vulnerability mitigation in controlled substance logbook.
- * 
+ *
  * These tests verify that the logbook rejects malicious path inputs that could lead to
  * path traversal attacks, where an attacker might try to read/write files outside the
  * intended directory.
@@ -32,7 +31,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
   test('blocks path traversal with .. in directory path', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
-    
+
     // Attacker tries to traverse to sensitive directory
     const maliciousPath = '../../../etc';
     const logbook = createControlledSubstanceLogbook(maliciousPath, {
@@ -43,7 +42,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
     // Security check prevents reading from traversed path
     expect(logbook.getTransactions()).toEqual([]);
     expect(logbook.size()).toBe(0);
-    
+
     // Verify no file system access occurred with the malicious path
     expect(deps.readFileSync).not.toHaveBeenCalled();
   });
@@ -51,7 +50,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
   test('blocks path traversal with multiple .. sequences', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
-    
+
     // Multiple traversal attempts
     const maliciousPath = '../../../../../../root';
     const logbook = createControlledSubstanceLogbook(maliciousPath, {
@@ -68,7 +67,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
   test('blocks path traversal in mixed paths', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
-    
+
     // Traversal hidden in seemingly safe path
     const maliciousPath = 'data/../../../etc';
     const logbook = createControlledSubstanceLogbook(maliciousPath, {
@@ -84,7 +83,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
   test('blocks path traversal with encoded sequences', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
-    
+
     // Path with encoded .. (though Node.js path.join normalizes this)
     const maliciousPath = '..%2F..%2Fetc';
     const logbook = createControlledSubstanceLogbook(maliciousPath, {
@@ -100,7 +99,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
   test('allows safe relative paths without traversal', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-directory', deps);
-    
+
     // Safe relative path without any traversal
     const safePath = 'safe-directory';
     const logbook = createControlledSubstanceLogbook(safePath, {
@@ -123,7 +122,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
     expect(tx.id).toMatch(/^cs-/);
     expect(tx.drugName).toBe('Ketamine');
     expect(logbook.size()).toBe(1);
-    
+
     // Verify the transaction can be retrieved
     const transactions = logbook.getTransactions();
     expect(transactions).toHaveLength(1);
@@ -133,7 +132,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
   test('prevents reading sensitive files via path traversal', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
-    
+
     // Simulate attacker trying to read /etc/passwd
     mockFs['../../../etc/passwd/controlled-substance-log.json'] = JSON.stringify([
       {
@@ -142,7 +141,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
         timestamp: 1000,
       },
     ]);
-    
+
     const maliciousPath = '../../../etc/passwd';
     const logbook = createControlledSubstanceLogbook(maliciousPath, {
       auditLog,
@@ -152,7 +151,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
     // Should not be able to read the sensitive file
     expect(logbook.getTransactions()).toEqual([]);
     expect(logbook.size()).toBe(0);
-    
+
     // Verify readFileSync was not called (security check prevented it)
     expect(deps.readFileSync).not.toHaveBeenCalled();
   });
@@ -160,7 +159,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
   test('record operation fails silently with malicious path', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
-    
+
     const maliciousPath = '../../sensitive';
     const logbook = createControlledSubstanceLogbook(maliciousPath, {
       auditLog,
@@ -181,7 +180,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
 
     // Transaction is created but not persisted
     expect(tx.id).toMatch(/^cs-/);
-    
+
     // But reading back should return empty due to security check
     expect(logbook.getTransactions()).toEqual([]);
     expect(logbook.size()).toBe(0);
@@ -190,7 +189,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
   test('blocks absolute paths on Unix-like systems', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
-    
+
     // Absolute path attempt
     const maliciousPath = '/etc/passwd';
     const logbook = createControlledSubstanceLogbook(maliciousPath, {
@@ -207,7 +206,7 @@ describe('Controlled Substance Logbook - Path Traversal Security', () => {
   test('blocks absolute paths on Windows-like systems', async () => {
     const deps = makeFsDeps(1000);
     const auditLog = await createAuditLog('safe-dir', deps);
-    
+
     // Windows absolute path attempt
     const maliciousPath = 'C:\\Windows\\System32';
     const logbook = createControlledSubstanceLogbook(maliciousPath, {

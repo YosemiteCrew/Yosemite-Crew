@@ -93,12 +93,7 @@ Return a normalized timeline payload instead of raw domain objects.
 
 ```ts
 type HistoryEntryType =
-  | 'APPOINTMENT'
-  | 'TASK'
-  | 'FORM_SUBMISSION'
-  | 'DOCUMENT'
-  | 'LAB_RESULT'
-  | 'INVOICE';
+  'APPOINTMENT' | 'TASK' | 'FORM_SUBMISSION' | 'DOCUMENT' | 'LAB_RESULT' | 'INVOICE';
 
 type HistoryEntryStatus =
   | 'REQUESTED'

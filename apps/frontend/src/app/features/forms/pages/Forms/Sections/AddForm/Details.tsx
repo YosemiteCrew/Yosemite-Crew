@@ -222,8 +222,7 @@ const Details = ({ formData, setFormData, onNext, serviceOptions, ref }: Details
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
-    | Organisation['type']
-    | undefined;
+    Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
   // Ownership: a "YC default" template is structure-locked (content-only, see
   // Build.tsx `structureLocked`); a "Custom" template is fully editable and may

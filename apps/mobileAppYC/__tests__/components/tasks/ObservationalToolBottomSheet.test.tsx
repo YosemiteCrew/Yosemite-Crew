@@ -35,7 +35,7 @@ jest.mock('@/features/auth/sessionManager', () => ({
       idToken: 'mock-id-token',
       userId: 'mock-user-id',
       expiresAt: Date.now() + 3600000,
-      provider: 'amplify',
+      provider: 'supertokens',
     }),
   ),
   isTokenExpired: jest.fn(() => false),

@@ -401,8 +401,7 @@ const ViewAppointmentOverviewModal = ({
   }, [showModal]);
   const isInpatient = activeAppointment.appointmentKind === 'INPATIENT';
   const appointmentParent = companion.parent as
-    | (typeof companion.parent & ParentImageFields)
-    | undefined;
+    (typeof companion.parent & ParentImageFields) | undefined;
   const leadPhotoUrl = useMemo(() => {
     const appointmentLeadId = normalizePersonId(activeAppointment.lead?.id);
     const teamLead = team.find((member) => {

@@ -191,7 +191,7 @@ export const formatRowTime = (value?: Date | string | null): string => {
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return date.toLocaleDateString(undefined, { weekday: 'short' });
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
 export const isCounterpartOnline = (

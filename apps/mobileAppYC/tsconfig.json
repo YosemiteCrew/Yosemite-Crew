@@ -1,14 +1,8 @@
 {
   "extends": "@react-native/typescript-config",
-  "include": [
-    "App.tsx",
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.d.ts",
-    "amplify_outputs.d.ts"
-  ],
+  "include": ["App.tsx", "src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
   "exclude": ["**/node_modules", "**/Pods", "**/__tests__/**"],
-    "compilerOptions": {
+  "compilerOptions": {
     "strict": true,
     "types": ["react", "react-native", "jest"],
     "baseUrl": ".",

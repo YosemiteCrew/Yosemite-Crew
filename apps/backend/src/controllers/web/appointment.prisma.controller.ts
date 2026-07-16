@@ -280,7 +280,7 @@ export const AppointmentController = {
         {
           admittedAt: body.admittedAt ? new Date(body.admittedAt) : undefined,
           // The admitting user is whoever is signed in and clicked
-          // "Convert to Inpatient" (the verified Cognito token), never the body.
+          // "Convert to Inpatient" (the verified session), never the body.
           admittedBy: (req as { userId?: string }).userId,
           expectedStayDays: body.expectedStayDays,
           lead: body.lead,

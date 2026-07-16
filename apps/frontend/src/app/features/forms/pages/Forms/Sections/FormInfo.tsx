@@ -107,8 +107,7 @@ const FormInfo = ({
   );
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
-    | Organisation['type']
-    | undefined;
+    Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const [publishLoading, setPublishLoading] = React.useState(false);
