@@ -25,9 +25,16 @@ describe('mediaSources', () => {
     );
   });
 
-  it('catalogs species portraits and onboarding media (video + poster)', () => {
+  it('catalogs species portraits and onboarding media', () => {
     expect(MEDIA_SOURCES.species.horse).toContain('/avatar/horse.png');
-    expect(MEDIA_SOURCES.onboarding.slide1.video).toMatch(/\.mp4$/);
-    expect(MEDIA_SOURCES.onboarding.slide3.poster).toMatch(/\.jpg$/);
+    expect(MEDIA_SOURCES.onboarding.slide1.video).toBe(
+      'https://d2il6osz49gpup.cloudfront.net/mobile/videos/loop-cat.mp4',
+    );
+    expect(MEDIA_SOURCES.onboarding.slide2.video).toBe(
+      'https://d2il6osz49gpup.cloudfront.net/mobile/videos/loop-dog.mp4',
+    );
+    expect(MEDIA_SOURCES.onboarding.slide3.video).toBe(
+      'https://d2il6osz49gpup.cloudfront.net/mobile/videos/loop-care.mp4',
+    );
   });
 });

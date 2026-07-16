@@ -39,21 +39,16 @@ export const MEDIA_SOURCES = {
     horse: ycCdn('avatar/horse.png'),
   },
 
-  // Onboarding hero loops + posters (warm-bone). These currently reuse the
-  // marketing landing loops on the shared CDN; swap the keys for dedicated
-  // onboarding cuts once they are uploaded to S3.
+  // Onboarding hero loops (warm-bone) + the matching splash-screen loop.
   onboarding: {
     slide1: {
-      video: ycCdn('assets/landing/parents-cat-kid.mp4'),
-      poster: ycCdn('assets/landing/parents-cat-portrait.jpg'),
+      video: ycCdn('mobile/videos/loop-cat.mp4'),
     },
     slide2: {
-      video: ycCdn('assets/landing/home-dog-field.mp4'),
-      poster: ycCdn('assets/landing/home-dog-portrait.jpg'),
+      video: ycCdn('mobile/videos/loop-dog.mp4'),
     },
     slide3: {
-      video: ycCdn('assets/landing/businesses-horse-vet.mp4'),
-      poster: ycCdn('assets/landing/businesses-horse-portrait.jpg'),
+      video: ycCdn('mobile/videos/loop-care.mp4'),
     },
   },
 } as const;

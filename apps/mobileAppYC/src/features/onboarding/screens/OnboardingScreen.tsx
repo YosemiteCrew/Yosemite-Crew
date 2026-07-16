@@ -18,6 +18,7 @@ import {useTheme} from '@/hooks';
 import {InkAnnotation} from '@/shared/components/common/InkAnnotation';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useReducedMotion} from '@/shared/components/common/Skeleton/useReducedMotion';
+import {MEDIA_SOURCES} from '@/shared/constants/mediaSources';
 import type {Theme} from '@/theme';
 
 interface OnboardingScreenProps {
@@ -36,9 +37,12 @@ interface Slide {
   cta: string;
 }
 
-const VIDEO_CAT = require('../../../assets/video/loop-cat.mp4');
-const VIDEO_DOG = require('../../../assets/video/loop-dog.mp4');
-const VIDEO_CARE = require('../../../assets/video/loop-care.mp4');
+// Served from the curated media CDN instead of bundled locally to keep the
+// app binary smaller and allow the source video to be updated without a
+// release.
+const VIDEO_CAT = {uri: MEDIA_SOURCES.onboarding.slide1.video};
+const VIDEO_DOG = {uri: MEDIA_SOURCES.onboarding.slide2.video};
+const VIDEO_CARE = {uri: MEDIA_SOURCES.onboarding.slide3.video};
 
 const SLIDE_META = [
   {id: '1', video: VIDEO_CAT, accentDelay: 1000},
