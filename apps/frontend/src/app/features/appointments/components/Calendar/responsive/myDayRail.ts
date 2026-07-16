@@ -62,6 +62,8 @@ export type MyDaySummary = {
   nextAppointmentId: string | null;
   taskCount: number;
   overdueTaskCount: number;
+  /** Rounds on today's rail at all — 0 suppresses the Rounds chip entirely. */
+  roundCount: number;
   roundsDueCount: number;
   nextRoundDueAt: Date | null;
 };
@@ -274,6 +276,7 @@ export const buildMyDayRail = ({ now, appointments, tasks, rounds }: MyDayRailIn
     nextAppointmentId: next?.id ?? null,
     taskCount: taskEntries.length,
     overdueTaskCount: taskEntries.filter((entry) => entry.isOverdue).length,
+    roundCount: entries.filter((entry) => entry.kind === 'round').length,
     roundsDueCount: entries.reduce(
       (total, entry) => (entry.kind === 'round' ? total + entry.dueCount : total),
       0
@@ -311,8 +314,19 @@ const roundChipValue = (summary: MyDaySummary): string => {
   return `${summary.roundsDueCount} due`;
 };
 
-export const buildMyDaySummaryChips = (summary: MyDaySummary): MyDaySummaryChip[] => [
-  { key: 'appointments', label: 'Appointments', value: appointmentChipValue(summary) },
-  { key: 'tasks', label: 'Tasks', value: taskChipValue(summary) },
-  { key: 'rounds', label: 'Rounds', value: roundChipValue(summary) },
-];
+/**
+ * The Rounds chip is dropped when the day carries no rounds at all. Rounds have
+ * no backend representation yet, so a permanent "None due" chip would advertise
+ * an affordance that does not exist; a day that genuinely has rounds, all of
+ * them signed, still reports "None due".
+ */
+export const buildMyDaySummaryChips = (summary: MyDaySummary): MyDaySummaryChip[] => {
+  const chips: MyDaySummaryChip[] = [
+    { key: 'appointments', label: 'Appointments', value: appointmentChipValue(summary) },
+    { key: 'tasks', label: 'Tasks', value: taskChipValue(summary) },
+  ];
+  if (summary.roundCount > 0) {
+    chips.push({ key: 'rounds', label: 'Rounds', value: roundChipValue(summary) });
+  }
+  return chips;
+};

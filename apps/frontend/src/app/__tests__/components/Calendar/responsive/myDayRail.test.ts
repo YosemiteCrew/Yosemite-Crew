@@ -236,6 +236,7 @@ describe('buildMyDayRail — empty inputs', () => {
       nextAppointmentId: null,
       taskCount: 0,
       overdueTaskCount: 0,
+      roundCount: 0,
       roundsDueCount: 0,
       nextRoundDueAt: null,
     });
@@ -574,12 +575,22 @@ describe('buildMyDaySummaryChips', () => {
     ]);
   });
 
-  it('reports empty days', () => {
+  // Rounds have no backend representation yet, so a day with no rounds must not
+  // advertise a Rounds chip at all.
+  it('reports empty days and drops the rounds chip entirely', () => {
     expect(chipsFor(emptyInput)).toEqual({
       appointments: 'None today',
       tasks: 'None today',
-      rounds: 'None due',
     });
+  });
+
+  it('keeps a "None due" rounds chip when the day has rounds but none are due', () => {
+    expect(
+      chipsFor({
+        ...emptyInput,
+        rounds: [makeRound({ items: [{ id: 'i-1', label: 'Kennel 2', status: 'SIGNED' }] })],
+      })
+    ).toMatchObject({ rounds: 'None due' });
   });
 
   it('reports a finished day and on-track tasks', () => {

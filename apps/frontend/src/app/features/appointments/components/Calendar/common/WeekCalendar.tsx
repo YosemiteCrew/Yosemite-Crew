@@ -22,7 +22,6 @@ import Back from '@/app/ui/primitives/Icons/Back';
 import Next from '@/app/ui/primitives/Icons/Next';
 import {
   CalendarZoomMode,
-  getCalendarColumnGridStyle,
   getHourRowHeightPx,
 } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import CalendarHourLabel from '@/app/features/appointments/components/Calendar/common/CalendarHourLabel';
@@ -43,8 +42,23 @@ import {
   useSlotOffsetMinutes,
 } from '@/app/features/appointments/components/Calendar/useCalendarSlots';
 import type { AppointmentViewIntent } from '@/app/features/appointments/types/calendar';
+import './WeekCalendar.css';
 
 const HOUR_ROW_TOP_OFFSET_PX = 0;
+
+/**
+ * Day-column track for the week grid. Both the minimum column width and the
+ * gutter live in `WeekCalendar.css` as custom properties so the tablet band can
+ * collapse the week to fit the viewport — an inline style cannot carry a media
+ * query, and the tablet keeps a real seven-day week rather than a phone shape.
+ */
+const getWeekDayColumnsStyle = (columnCount: number): React.CSSProperties => {
+  const safeColumns = Math.max(1, columnCount);
+  return {
+    gridTemplateColumns: `repeat(${safeColumns}, minmax(var(--yc-week-day-min), 1fr))`,
+    width: `max(100%, calc(${safeColumns} * var(--yc-week-day-min)))`,
+  };
+};
 
 const getAllDayAppointmentAriaLabel = (appointment: Appointment) => {
   const concernSuffix = appointment.concern ? `. ${appointment.concern}` : '';
@@ -169,9 +183,9 @@ const NowIndicatorOverlay = ({
   nowTimeLabel: string | null;
 }) => (
   <div className="pointer-events-none absolute inset-0" style={{ top: 0 }}>
-    <div className="grid h-full grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+    <div className="yc-week-grid__shell yc-week-grid__track h-full">
       <div />
-      <div className="grid min-w-max" style={dayColumnsStyle}>
+      <div className="grid yc-week-grid__track" style={dayColumnsStyle}>
         {days.map((day, dayIndex) => (
           <div key={`appointment-now-${day.toISOString()}`} className="relative">
             {dayIndex === nowPosition.todayIndex && (
@@ -277,10 +291,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       year: 'numeric',
     }
   )}`;
-  const dayColumnsStyle = useMemo(
-    () => getCalendarColumnGridStyle(days.length, zoomMode === 'out' ? 96 : 140),
-    [days.length, zoomMode]
-  );
+  const dayColumnsStyle = useMemo(() => getWeekDayColumnsStyle(days.length), [days.length]);
 
   const { allDayByDay, timedEvents } = useMemo(() => {
     const byDay: Appointment[][] = days.map(() => []);
@@ -391,16 +402,16 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
   const { slotOffsetMinutes, showSlotTimeLabels } = useSlotOffsetMinutes(slotStepMinutes, zoomMode);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="yc-week-grid h-full flex flex-col" data-zoom-mode={zoomMode}>
       <section
         className="w-full flex-1 overflow-x-auto relative rounded-2xl scrollbar-x-float"
         data-calendar-scroll="true"
         aria-label={weekTimelineLabel}
         onWheel={onWheelHorizontal}
       >
-        <div className="min-w-max h-full flex flex-col">
+        <div className="yc-week-grid__track h-full flex flex-col">
           <div className="z-30 bg-neutral-0 shrink-0">
-            <div className="grid border-b border-card-border py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max bg-neutral-0">
+            <div className="yc-week-grid__shell yc-week-grid__track border-b border-card-border py-2 bg-neutral-0">
               <div className="sticky left-0 z-40 bg-neutral-0 flex items-center justify-center">
                 <Back onClick={handlePrevWeek} />
               </div>
@@ -439,11 +450,11 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
             {hasAnyAllDay && (
               <div className="border-b border-card-border bg-slate-50">
-                <div className="grid py-2 grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                <div className="yc-week-grid__shell yc-week-grid__track py-2">
                   <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-grey-text flex items-start pr-2">
                     All-day
                   </div>
-                  <div className="grid min-w-max" style={dayColumnsStyle}>
+                  <div className="grid yc-week-grid__track" style={dayColumnsStyle}>
                     {days.map((day, idx) => {
                       const dayAllEvents = allDayByDay[idx];
                       return (
@@ -483,7 +494,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
 
           <div
             ref={scrollRef}
-            className="min-w-max flex-1 min-h-0"
+            className="yc-week-grid__track flex-1 min-h-0"
             style={{
               height: '100%',
               maxHeight: '100%',
@@ -496,7 +507,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
           >
             <div className="relative pb-4">
               {visibleHours.map((hour) => (
-                <div key={hour} className="grid grid-cols-[64px_minmax(0,1fr)_64px] min-w-max">
+                <div key={hour} className="yc-week-grid__shell yc-week-grid__track">
                   <CalendarHourLabel
                     hour={hour}
                     height={height}
@@ -504,9 +515,9 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                     showSlotTimeLabels={showSlotTimeLabels}
                     pinFirstHour
                     firstHour={visibleHours[0]}
-                    className="sticky left-0 z-20 bg-neutral-0"
+                    className="yc-week-grid__hour-label sticky left-0 z-20 bg-neutral-0"
                   />
-                  <div className="grid min-w-max" style={dayColumnsStyle}>
+                  <div className="grid yc-week-grid__track" style={dayColumnsStyle}>
                     {days.map((day, dayIndex) => {
                       const slotEvents =
                         timedEventsByDayHour.get(`${day.toISOString()}-${hour}`) ?? [];

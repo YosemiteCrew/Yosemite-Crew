@@ -17,6 +17,7 @@ import { useNotify } from '@/app/hooks/useNotify';
 import { allowCalendarDrag, canAssignAppointmentRoom } from '@/app/lib/appointments';
 import { useAvailabilityStore } from '@/app/stores/availabilityStore';
 import { useOrgStore } from '@/app/stores/orgStore';
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 
 const dayCalendarSpy = jest.fn();
 const weekCalendarSpy = jest.fn();
@@ -56,6 +57,20 @@ jest.mock('@/app/features/appointments/components/Calendar/common/Header', () =>
 jest.mock('@/app/hooks/useTeam', () => ({
   useTeamForPrimaryOrg: jest.fn(),
 }));
+
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  __esModule: true,
+  default: jest.fn(() => false),
+}));
+
+const phoneCalendarSpy = jest.fn();
+jest.mock(
+  '@/app/features/appointments/components/Calendar/responsive/PhoneCalendar',
+  () => (props: any) => {
+    phoneCalendarSpy(props);
+    return <div data-testid="phone-calendar" />;
+  }
+);
 
 jest.mock('@/app/features/appointments/services/appointmentService', () => ({
   getSlotsForServiceAndDateForPrimaryOrg: jest.fn(),
@@ -202,6 +217,7 @@ describe('AppointmentCalendar', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (useIsPhone as jest.Mock).mockReturnValue(false);
     (useNotify as jest.Mock).mockReturnValue({ notify: notifyMock });
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector: any) =>
       selector({ primaryOrgId: 'org-1' })
@@ -989,6 +1005,54 @@ describe('AppointmentCalendar', () => {
     });
 
     expect(props.getDropAvailabilityIntervals).toBeDefined();
+  });
+
+  describe('phone', () => {
+    beforeEach(() => {
+      (useIsPhone as jest.Mock).mockReturnValue(true);
+    });
+
+    it('renders the phone calendar instead of the desktop header and grids', () => {
+      renderCalendar();
+
+      expect(screen.getByTestId('phone-calendar')).toBeInTheDocument();
+      expect(screen.queryByTestId('calendar-header')).not.toBeInTheDocument();
+      expect(dayCalendarSpy).not.toHaveBeenCalled();
+      expect(weekCalendarSpy).not.toHaveBeenCalled();
+      expect(userCalendarSpy).not.toHaveBeenCalled();
+    });
+
+    it('forwards day events, the active calendar and the page callbacks', () => {
+      renderCalendar({ activeCalendar: 'team' });
+
+      const props = phoneCalendarSpy.mock.calls.at(-1)![0];
+      expect(props.activeCalendar).toBe('team');
+      expect(props.dayEvents.map((event: { id: string }) => event.id)).toEqual(['a1', 'a2']);
+      expect(props.canEditAppointments).toBe(true);
+      expect(props.onCreateFromCalendarSlot).toBe(onCreateFromCalendarSlot);
+      expect(props.currentUserPractitionerId).toBe('');
+    });
+
+    it('resolves the signed-in practitioner for the My day filter', () => {
+      (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([
+        { _id: 'team-1', practionerId: 'vet-1', userId: 'user-1', name: 'Dr Vet' },
+      ]);
+      renderCalendar();
+
+      expect(phoneCalendarSpy.mock.calls.at(-1)![0].currentUserPractitionerId).toBe('vet-1');
+    });
+
+    it('opens an appointment through the page view flow', () => {
+      renderCalendar();
+      const props = phoneCalendarSpy.mock.calls.at(-1)![0];
+
+      act(() => {
+        props.onSelectAppointment(appointments[0]);
+      });
+
+      expect(setActiveAppointment).toHaveBeenCalledWith(appointments[0]);
+      expect(setViewPopup).toHaveBeenCalledWith(true);
+    });
   });
 
   it('builds contiguous and gapped drop availability intervals', async () => {
