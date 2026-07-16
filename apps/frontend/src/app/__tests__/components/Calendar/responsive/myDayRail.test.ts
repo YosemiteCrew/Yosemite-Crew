@@ -524,12 +524,15 @@ describe('buildMyDayRail — now marker', () => {
     expect(rail.nowMarkerIndex).toBe(0);
   });
 
-  it('sits at the end when the day is done', () => {
+  it('is null once the whole day has passed, rather than trailing the last entry', () => {
+    // The marker divides done from upcoming. With nothing upcoming it would
+    // render as a line across the empty space below the last row, marking
+    // nothing - so it is withheld.
     const rail = buildMyDayRail({
       ...emptyInput,
       appointments: [makeAppointment({ startTime: at(9) })],
     });
-    expect(rail.nowMarkerIndex).toBe(1);
+    expect(rail.nowMarkerIndex).toBeNull();
   });
 
   it('is null when the rail has no dated entries', () => {

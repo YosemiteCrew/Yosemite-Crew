@@ -284,8 +284,12 @@ export const buildMyDayRail = ({ now, appointments, tasks, rounds }: MyDayRailIn
     nextRoundDueAt: findNextRoundDueAt(dated),
   };
 
-  const nowMarkerIndex =
-    dated.length === 0 ? null : dated.filter((entry) => entry.at.getTime() <= now.getTime()).length;
+  // The marker exists to divide what has happened from what is still coming, so
+  // it only earns its place when there is something on both... or at least an
+  // upcoming entry below it. Once the whole day is behind you it would trail the
+  // last row as a line across empty space, marking nothing.
+  const pastCount = dated.filter((entry) => entry.at.getTime() <= now.getTime()).length;
+  const nowMarkerIndex = pastCount === dated.length ? null : pastCount;
 
   return { dated, anytime, summary, nowMarkerIndex };
 };

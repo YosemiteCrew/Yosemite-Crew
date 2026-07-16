@@ -306,9 +306,11 @@ describe('PhoneMyDayRail', () => {
       expect(within(marker).getByText('10:20')).toBeInTheDocument();
     });
 
-    it('renders the marker at the end when the whole day has passed', () => {
+    it('withholds the marker once the whole day has passed', () => {
+      // Reported from the running app: with everything behind you the marker
+      // trailed the last row as a lone line over empty space.
       renderRail({ appointments: [makeAppointment({ startTime: at(9) })] });
-      expect(screen.getByTestId('my-day-now-marker')).toBeInTheDocument();
+      expect(screen.queryByTestId('my-day-now-marker')).not.toBeInTheDocument();
     });
   });
 

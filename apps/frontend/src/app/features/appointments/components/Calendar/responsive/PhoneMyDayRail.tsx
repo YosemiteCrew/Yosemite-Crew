@@ -513,10 +513,6 @@ const PhoneMyDayRail = ({
             </div>
           </React.Fragment>
         ))}
-        {rail.nowMarkerIndex !== null && rail.nowMarkerIndex === rail.dated.length && (
-          <NowMarker now={now} />
-        )}
-
         {rail.anytime.length > 0 && (
           <div className="mt-auto flex flex-col gap-[7px] pb-0.5">
             <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
