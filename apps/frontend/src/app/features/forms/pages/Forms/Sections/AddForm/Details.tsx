@@ -11,6 +11,7 @@ import {
   FormsUsage,
   FormsUsageOptions,
   getFormCategoryDisplayLabel,
+  getFormCategoryOptionsForOrgType,
 } from '@/app/features/forms/types/forms';
 import {
   getCategoryTemplate,
@@ -231,8 +232,7 @@ const Details = ({
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
-    | Organisation['type']
-    | undefined;
+    Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
   // Ownership: a "YC default" template is structure-locked (content-only, see
   // Build.tsx `structureLocked`); a "Custom" template is fully editable and may
@@ -243,30 +243,7 @@ const Details = ({
     if (isYcDefault) {
       return FormsCategoryOptions.filter((c) => YC_DEFAULT_CATEGORIES.has(c));
     }
-    const base = new Set([
-      'Consent form',
-      'Prescription',
-      'SOAP',
-      'Discharge Form',
-      'Vitals',
-      'Prescription Template',
-      'Inpatient Schedule',
-      'Task Template',
-      'Custom',
-    ]);
-    if (effectiveOrgType === 'HOSPITAL') {
-      return FormsCategoryOptions.filter((c) => base.has(c));
-    }
-    if (effectiveOrgType === 'BOARDER') {
-      return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Boarder'));
-    }
-    if (effectiveOrgType === 'BREEDER') {
-      return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Breeder'));
-    }
-    if (effectiveOrgType === 'GROOMER') {
-      return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Groomer'));
-    }
-    return FormsCategoryOptions;
+    return getFormCategoryOptionsForOrgType(effectiveOrgType);
   }, [effectiveOrgType, isYcDefault]);
 
   // Task / Inpatient-Schedule templates only apply to in-patient services & packages, so the

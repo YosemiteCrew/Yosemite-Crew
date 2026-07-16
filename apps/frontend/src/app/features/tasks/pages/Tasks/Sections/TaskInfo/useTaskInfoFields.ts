@@ -14,6 +14,7 @@ import {
   canRescheduleTask,
   canShowTaskStatusChangeAction,
   getAllowedTaskStatusTransitions,
+  getTaskInstructions,
   normalizeTaskStatus,
 } from '@/app/lib/tasks';
 
@@ -217,6 +218,7 @@ export const useTaskInfoFields = ({
     const dueParts = getDatePartsInPreferredTimeZone(new Date(activeTask.dueAt));
     return {
       ...activeTask,
+      description: getTaskInstructions(activeTask),
       assignedBy: resolveMemberDisplay(activeTask.assignedBy),
       assignedTo: resolveMemberDisplay(activeTask.assignedTo),
       assignedToId: activeTask.assignedTo,

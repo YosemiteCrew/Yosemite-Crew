@@ -18,8 +18,10 @@ jest.mock('@/app/lib/tasks', () => ({
   canShowTaskStatusChangeAction: jest.fn(() => true),
   getTaskQuickDetails: jest.fn((task: any) => [
     { label: 'Category', value: task.category || '-' },
-    { label: 'Description', value: task.description || '-' },
-    { label: 'Additional notes', value: task.additionalNotes || '-' },
+    {
+      label: 'Instructions (optional)',
+      value: task.description || task.additionalNotes || '-',
+    },
   ]),
 }));
 
@@ -99,7 +101,7 @@ describe('TaskCard Component', () => {
     // Header
     expect(screen.getByText('Order supplies')).toBeInTheDocument();
 
-    expect(screen.getByText('Description:')).toBeInTheDocument();
+    expect(screen.getByText('Instructions (optional):')).toBeInTheDocument();
     expect(screen.getByText('Buy gloves and masks')).toBeInTheDocument();
 
     // Category
@@ -141,7 +143,7 @@ describe('TaskCard Component', () => {
     );
 
     // Still renders labels and doesn't crash
-    expect(screen.getByText('Description:')).toBeInTheDocument();
+    expect(screen.getByText('Instructions (optional):')).toBeInTheDocument();
     expect(screen.getByText('Category:')).toBeInTheDocument();
     expect(screen.getByText('From:')).toBeInTheDocument();
     expect(screen.getByText('To:')).toBeInTheDocument();
