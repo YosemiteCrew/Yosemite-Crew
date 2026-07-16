@@ -30,6 +30,14 @@ const renderTable = (rows: Row[], pageSize = 3) =>
     />
   );
 
+/* The two branches are gated by CSS media queries (DataTable.css), which jsdom does
+   not apply — so both are in the DOM here and every pager query must say which branch
+   it means. Unscoped queries are what let the card branch ship unpaginated. */
+const tableBranch = (container: HTMLElement) =>
+  within(container.querySelector('.inventory-table-list') as HTMLElement);
+const cardBranch = (container: HTMLElement) =>
+  within(container.querySelector('.inventory-card-list') as HTMLElement);
+
 describe('PaginatedGridTable', () => {
   it('renders every header cell and applies right alignment only where asked', () => {
     const { container } = renderTable(makeRows(1));
@@ -73,44 +81,83 @@ describe('PaginatedGridTable', () => {
     expect(screen.getByText('No requests')).toBeInTheDocument();
   });
 
-  it('renders only the current page of rows but every card', () => {
-    renderTable(makeRows(7));
+  it('renders only the current page in BOTH the row branch and the card branch', () => {
+    const { container } = renderTable(makeRows(7));
 
-    expect(screen.getAllByTestId('row')).toHaveLength(3);
-    expect(screen.getAllByTestId('card')).toHaveLength(7);
-    expect(screen.getByText('Showing 1–3 of 7 items')).toBeInTheDocument();
+    // The card branch used to render rows.map (all 7). Below 1023 the card list is
+    // the only visible branch and its parent height is auto (max-lg:h-auto), so an
+    // unpaged list grows the page to the full row count instead of one page of 3.
+    expect(tableBranch(container).getAllByTestId('row')).toHaveLength(3);
+    expect(cardBranch(container).getAllByTestId('card')).toHaveLength(3);
+    expect(tableBranch(container).getByText('Showing 1–3 of 7 items')).toBeInTheDocument();
+  });
+
+  it('shows the pager inside the card branch, not only the row branch', () => {
+    const { container } = renderTable(makeRows(7));
+
+    // The pager used to live only inside .inventory-table-list, which is display:none
+    // at <=1023 — leaving the card branch with rows 4..7 unreachable and no control.
+    expect(cardBranch(container).getByLabelText('Next')).toBeInTheDocument();
+    expect(cardBranch(container).getByLabelText('Previous')).toBeInTheDocument();
+    expect(cardBranch(container).getByText('Showing 1–3 of 7 items')).toBeInTheDocument();
+  });
+
+  it('pages the cards forward from the card branch pager', () => {
+    const { container } = renderTable(makeRows(7));
+
+    expect(cardBranch(container).getAllByTestId('card')).toHaveLength(3);
+
+    fireEvent.click(cardBranch(container).getByLabelText('Next'));
+
+    expect(cardBranch(container).getByText('Showing 4–6 of 7 items')).toBeInTheDocument();
+    expect(cardBranch(container).getAllByTestId('card')).toHaveLength(3);
+
+    // Last page is short: the card branch must render the remainder, not a full page.
+    fireEvent.click(cardBranch(container).getByLabelText('Next'));
+    expect(cardBranch(container).getAllByTestId('card')).toHaveLength(1);
+    expect(cardBranch(container).getByText('Showing 7–7 of 7 items')).toBeInTheDocument();
+  });
+
+  it('omits the card-branch pager entirely when there are no rows', () => {
+    const { container } = renderTable([]);
+
+    expect(cardBranch(container).getByText('No data available')).toBeInTheDocument();
+    expect(cardBranch(container).queryByText('No items')).not.toBeInTheDocument();
+    expect(cardBranch(container).queryByLabelText('Next')).not.toBeInTheDocument();
   });
 
   it('hides pagination when everything fits on one page', () => {
-    renderTable(makeRows(3));
+    const { container } = renderTable(makeRows(3));
 
     expect(screen.queryByLabelText('Next')).not.toBeInTheDocument();
-    expect(screen.getByText('Showing 1–3 of 3 items')).toBeInTheDocument();
+    expect(tableBranch(container).getByText('Showing 1–3 of 3 items')).toBeInTheDocument();
   });
 
   it('pages forward and back, updating the indicator and the summary', () => {
-    renderTable(makeRows(7));
+    const { container } = renderTable(makeRows(7));
+    const pager = () => tableBranch(container);
 
-    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    expect(pager().getByText('1 / 3')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText('Next'));
-    expect(screen.getByText('2 / 3')).toBeInTheDocument();
-    expect(screen.getByText('Showing 4–6 of 7 items')).toBeInTheDocument();
+    fireEvent.click(pager().getByLabelText('Next'));
+    expect(pager().getByText('2 / 3')).toBeInTheDocument();
+    expect(pager().getByText('Showing 4–6 of 7 items')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText('Next'));
-    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+    fireEvent.click(pager().getByLabelText('Next'));
+    expect(pager().getByText('3 / 3')).toBeInTheDocument();
     // Last page is short — the summary clamps to the total.
-    expect(screen.getByText('Showing 7–7 of 7 items')).toBeInTheDocument();
+    expect(pager().getByText('Showing 7–7 of 7 items')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText('Previous'));
-    expect(screen.getByText('2 / 3')).toBeInTheDocument();
+    fireEvent.click(pager().getByLabelText('Previous'));
+    expect(pager().getByText('2 / 3')).toBeInTheDocument();
   });
 
   it('disables Back on the first page and Next on the last page', () => {
-    renderTable(makeRows(7));
+    const { container } = renderTable(makeRows(7));
+    const pager = () => tableBranch(container);
 
-    const back = screen.getByLabelText('Previous');
-    const next = screen.getByLabelText('Next');
+    const back = pager().getByLabelText('Previous');
+    const next = pager().getByLabelText('Next');
 
     expect(back).toBeDisabled();
     expect(back).toHaveClass('cursor-not-allowed', 'opacity-40');
@@ -120,33 +167,35 @@ describe('PaginatedGridTable', () => {
     fireEvent.click(next);
     fireEvent.click(next);
 
-    expect(screen.getByLabelText('Next')).toBeDisabled();
-    expect(screen.getByLabelText('Next')).toHaveClass('cursor-not-allowed', 'opacity-40');
-    expect(screen.getByLabelText('Previous')).toBeEnabled();
+    expect(pager().getByLabelText('Next')).toBeDisabled();
+    expect(pager().getByLabelText('Next')).toHaveClass('cursor-not-allowed', 'opacity-40');
+    expect(pager().getByLabelText('Previous')).toBeEnabled();
   });
 
   it('does not page past either end when the disabled control is clicked anyway', () => {
-    renderTable(makeRows(7));
+    const { container } = renderTable(makeRows(7));
+    const pager = () => tableBranch(container);
 
     // Clicking a disabled button is a no-op in the DOM, so drive the guard by
     // firing the handler directly on the enabled edge instead.
-    fireEvent.click(screen.getByLabelText('Next'));
-    fireEvent.click(screen.getByLabelText('Next'));
-    fireEvent.click(screen.getByLabelText('Next'));
-    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+    fireEvent.click(pager().getByLabelText('Next'));
+    fireEvent.click(pager().getByLabelText('Next'));
+    fireEvent.click(pager().getByLabelText('Next'));
+    expect(pager().getByText('3 / 3')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText('Previous'));
-    fireEvent.click(screen.getByLabelText('Previous'));
-    fireEvent.click(screen.getByLabelText('Previous'));
-    expect(screen.getByText('1 / 3')).toBeInTheDocument();
+    fireEvent.click(pager().getByLabelText('Previous'));
+    fireEvent.click(pager().getByLabelText('Previous'));
+    fireEvent.click(pager().getByLabelText('Previous'));
+    expect(pager().getByText('1 / 3')).toBeInTheDocument();
   });
 
   it('clamps the current page when the row set shrinks under it', () => {
-    const { rerender } = renderTable(makeRows(7));
+    const { rerender, container } = renderTable(makeRows(7));
+    const pager = () => tableBranch(container);
 
-    fireEvent.click(screen.getByLabelText('Next'));
-    fireEvent.click(screen.getByLabelText('Next'));
-    expect(screen.getByText('3 / 3')).toBeInTheDocument();
+    fireEvent.click(pager().getByLabelText('Next'));
+    fireEvent.click(pager().getByLabelText('Next'));
+    expect(pager().getByText('3 / 3')).toBeInTheDocument();
 
     const shrunk = (rows: Row[]) => (
       <PaginatedGridTable
@@ -162,13 +211,15 @@ describe('PaginatedGridTable', () => {
 
     // 4 rows -> 2 pages: page 3 must clamp to 2.
     rerender(shrunk(makeRows(4)));
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
-    expect(screen.getByText('Showing 4–4 of 4 items')).toBeInTheDocument();
+    expect(pager().getByText('2 / 2')).toBeInTheDocument();
+    expect(pager().getByText('Showing 4–4 of 4 items')).toBeInTheDocument();
+    // The clamp must reach the cards too, not just the rows.
+    expect(cardBranch(container).getAllByTestId('card')).toHaveLength(1);
 
     // 2 rows -> 1 page: pagination disappears entirely.
     rerender(shrunk(makeRows(2)));
     expect(screen.queryByLabelText('Next')).not.toBeInTheDocument();
-    expect(screen.getByText('Showing 1–2 of 2 items')).toBeInTheDocument();
+    expect(pager().getByText('Showing 1–2 of 2 items')).toBeInTheDocument();
   });
 
   it('delegates row and card rendering to the caller', () => {
@@ -190,6 +241,7 @@ describe('PaginatedGridTable', () => {
     expect(renderRow).toHaveBeenCalledTimes(2);
     expect(renderCard).toHaveBeenCalledTimes(2);
     expect(renderRow).toHaveBeenCalledWith({ id: 'r-0', name: 'Row 0' });
+    // Assert the rendered output, not just that the spy fired.
     expect(screen.getByText(/row:Row 0/)).toBeInTheDocument();
     expect(screen.getByText(/card:Row 1/)).toBeInTheDocument();
   });
@@ -197,11 +249,8 @@ describe('PaginatedGridTable', () => {
   it('keeps the desktop rows and the phone cards in separate regions', () => {
     const { container } = renderTable(makeRows(2));
 
-    const cardList = container.querySelector('.inventory-card-list') as HTMLElement;
-    const tableList = container.querySelector('.inventory-table-list') as HTMLElement;
-
-    expect(within(cardList).getAllByTestId('card')).toHaveLength(2);
-    expect(within(tableList).getAllByTestId('row')).toHaveLength(2);
-    expect(within(tableList).queryByTestId('card')).not.toBeInTheDocument();
+    expect(cardBranch(container).getAllByTestId('card')).toHaveLength(2);
+    expect(tableBranch(container).getAllByTestId('row')).toHaveLength(2);
+    expect(tableBranch(container).queryByTestId('card')).not.toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import DispensaryTable from '@/app/ui/tables/DispensaryTable';
@@ -27,6 +27,13 @@ const baseRecord: DispensaryRecord = {
     { name: 'Calpol', quantity: 2, priceCents: 1000 },
   ],
 };
+
+/* Both branches are in the DOM under jsdom (their CSS media-query gate is not
+   applied), so pager queries must name the branch they mean. */
+const tableBranch = (container: HTMLElement) =>
+  within(container.querySelector('.inventory-table-list') as HTMLElement);
+const cardBranch = (container: HTMLElement) =>
+  within(container.querySelector('.inventory-card-list') as HTMLElement);
 
 describe('DispensaryTable', () => {
   it('renders the empty state when there are no records', () => {
@@ -189,23 +196,26 @@ describe('DispensaryTable', () => {
       patient: { ...baseRecord.patient, name: `Pat ${i}` },
     }));
 
-    render(<DispensaryTable filteredList={many} />);
+    const { container } = render(<DispensaryTable filteredList={many} />);
+    const pager = () => tableBranch(container);
 
-    expect(screen.getByText('Showing 1–10 of 11 requests')).toBeInTheDocument();
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    expect(pager().getByText('Showing 1–10 of 11 requests')).toBeInTheDocument();
+    expect(pager().getByText('1 / 2')).toBeInTheDocument();
 
-    const prev = screen.getByRole('button', { name: 'Previous' });
-    const next = screen.getByRole('button', { name: 'Next' });
+    const prev = pager().getByRole('button', { name: 'Previous' });
+    const next = pager().getByRole('button', { name: 'Next' });
     expect(prev).toBeDisabled();
     expect(next).not.toBeDisabled();
 
     fireEvent.click(next);
-    expect(screen.getByText('Showing 11–11 of 11 requests')).toBeInTheDocument();
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(pager().getByText('Showing 11–11 of 11 requests')).toBeInTheDocument();
+    expect(pager().getByText('2 / 2')).toBeInTheDocument();
+    expect(pager().getByRole('button', { name: 'Next' })).toBeDisabled();
+    // The card branch is the only one visible below 1023 — it must page in step.
+    expect(cardBranch(container).getByText('Showing 11–11 of 11 requests')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-    expect(screen.getByText('Showing 1–10 of 11 requests')).toBeInTheDocument();
+    fireEvent.click(pager().getByRole('button', { name: 'Previous' }));
+    expect(pager().getByText('Showing 1–10 of 11 requests')).toBeInTheDocument();
   });
 
   it('clamps the current page when the list shrinks below it', () => {
@@ -215,11 +225,11 @@ describe('DispensaryTable', () => {
       patient: { ...baseRecord.patient, name: `Pat ${i}` },
     }));
 
-    const { rerender } = render(<DispensaryTable filteredList={many} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+    const { rerender, container } = render(<DispensaryTable filteredList={many} />);
+    fireEvent.click(tableBranch(container).getByRole('button', { name: 'Next' }));
+    expect(tableBranch(container).getByText('2 / 2')).toBeInTheDocument();
 
     rerender(<DispensaryTable filteredList={[baseRecord]} />);
-    expect(screen.getByText('Showing 1–1 of 1 requests')).toBeInTheDocument();
+    expect(tableBranch(container).getByText('Showing 1–1 of 1 requests')).toBeInTheDocument();
   });
 });

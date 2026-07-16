@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InventoryTable from '@/app/ui/tables/InventoryTable';
 
@@ -64,6 +64,14 @@ jest.mock('@/app/features/inventory/pages/Inventory/utils', () => ({
   getStatusBadgeStyle: () => ({ backgroundColor: '#000', color: '#fff' }),
 }));
 
+/* The row branch and the card branch are gated by CSS media queries (DataTable.css),
+   which jsdom does not apply — both are in the DOM, so pager queries must name a
+   branch or they match twice. */
+const tableBranch = (container: HTMLElement) =>
+  within(container.querySelector('.inventory-table-list') as HTMLElement);
+const cardBranch = (container: HTMLElement) =>
+  within(container.querySelector('.inventory-card-list') as HTMLElement);
+
 describe('InventoryTable', () => {
   const item = {
     id: 'item-1',
@@ -124,7 +132,7 @@ describe('InventoryTable', () => {
   });
 
   it('renders the footer summary', () => {
-    render(
+    const { container } = render(
       <InventoryTable
         filteredList={[item]}
         setActiveInventory={jest.fn()}
@@ -132,7 +140,9 @@ describe('InventoryTable', () => {
       />
     );
 
-    expect(screen.getByText('Showing 1–1 of 1 items')).toBeInTheDocument();
+    expect(tableBranch(container).getByText('Showing 1–1 of 1 items')).toBeInTheDocument();
+    // The card branch carries its own pager: below 1023 it is the only visible branch.
+    expect(cardBranch(container).getByText('Showing 1–1 of 1 items')).toBeInTheDocument();
   });
 
   it('handles view action', () => {
@@ -460,29 +470,32 @@ describe('InventoryTable', () => {
       makeItem({ id: `p${i}`, basicInfo: { name: `Item ${i + 1}` } })
     );
 
-    render(
+    const { container } = render(
       <InventoryTable
         filteredList={many}
         setActiveInventory={jest.fn()}
         setViewInventory={jest.fn()}
       />
     );
+    const pager = () => tableBranch(container);
 
-    expect(screen.getByText('Showing 1–8 of 9 items')).toBeInTheDocument();
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    expect(pager().getByText('Showing 1–8 of 9 items')).toBeInTheDocument();
+    expect(pager().getByText('1 / 2')).toBeInTheDocument();
 
-    const prev = screen.getByRole('button', { name: 'Previous' });
-    const next = screen.getByRole('button', { name: 'Next' });
+    const prev = pager().getByRole('button', { name: 'Previous' });
+    const next = pager().getByRole('button', { name: 'Next' });
     expect(prev).toBeDisabled();
     expect(next).not.toBeDisabled();
 
     fireEvent.click(next);
-    expect(screen.getByText('Showing 9–9 of 9 items')).toBeInTheDocument();
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(pager().getByText('Showing 9–9 of 9 items')).toBeInTheDocument();
+    expect(pager().getByText('2 / 2')).toBeInTheDocument();
+    expect(pager().getByRole('button', { name: 'Next' })).toBeDisabled();
+    // Paging is shared state: the card branch must land on the same short last page.
+    expect(cardBranch(container).getByText('Showing 9–9 of 9 items')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-    expect(screen.getByText('Showing 1–8 of 9 items')).toBeInTheDocument();
+    fireEvent.click(pager().getByRole('button', { name: 'Previous' }));
+    expect(pager().getByText('Showing 1–8 of 9 items')).toBeInTheDocument();
   });
 
   it('clamps the current page when the list shrinks below it', () => {
@@ -490,7 +503,7 @@ describe('InventoryTable', () => {
       makeItem({ id: `p${i}`, basicInfo: { name: `Item ${i + 1}` } })
     );
 
-    const { rerender } = render(
+    const { rerender, container } = render(
       <InventoryTable
         filteredList={many}
         setActiveInventory={jest.fn()}
@@ -498,8 +511,8 @@ describe('InventoryTable', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+    fireEvent.click(tableBranch(container).getByRole('button', { name: 'Next' }));
+    expect(tableBranch(container).getByText('2 / 2')).toBeInTheDocument();
 
     rerender(
       <InventoryTable
@@ -509,6 +522,6 @@ describe('InventoryTable', () => {
       />
     );
 
-    expect(screen.getByText('Showing 1–1 of 1 items')).toBeInTheDocument();
+    expect(tableBranch(container).getByText('Showing 1–1 of 1 items')).toBeInTheDocument();
   });
 });

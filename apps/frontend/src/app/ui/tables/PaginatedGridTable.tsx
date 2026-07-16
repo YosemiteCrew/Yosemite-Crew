@@ -41,6 +41,36 @@ const PaginatedGridTable = <T,>({
   const pageRows = rows.slice(startIdx, startIdx + pageSize);
   const showPagination = totalPages > 1;
 
+  // Rendered in BOTH branches: the card list is the only visible branch at <=1023
+  // (`.inventory-table-list` is display:none there), so a pager that lived only
+  // inside the table branch left the card list with no way to reach page 2+.
+  const footer = (
+    <div className="flex w-full shrink-0 items-center justify-between border-t border-card-border px-5 py-3 text-[12.5px] text-text-tertiary">
+      <span>
+        {total === 0
+          ? `No ${itemNoun}`
+          : `Showing ${startIdx + 1}–${Math.min(startIdx + pageSize, total)} of ${total} ${itemNoun}`}
+      </span>
+      {showPagination && (
+        <span className="flex items-center gap-2">
+          <Back
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className={currentPage === 1 ? 'cursor-not-allowed opacity-40' : ''}
+          />
+          <span className="tabular-nums text-text-secondary">
+            {currentPage} / {totalPages}
+          </span>
+          <Next
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className={currentPage === totalPages ? 'cursor-not-allowed opacity-40' : ''}
+          />
+        </span>
+      )}
+    </div>
+  );
+
   return (
     <div className="table-wrapper inventory-scroll-x h-full min-h-0 overflow-hidden">
       <div className="inventory-table-list h-full min-h-0 flex-1">
@@ -69,30 +99,7 @@ const PaginatedGridTable = <T,>({
               )}
             </div>
           </div>
-          <div className="flex shrink-0 items-center justify-between border-t border-card-border px-5 py-3 text-[12.5px] text-text-tertiary">
-            <span>
-              {total === 0
-                ? `No ${itemNoun}`
-                : `Showing ${startIdx + 1}–${Math.min(startIdx + pageSize, total)} of ${total} ${itemNoun}`}
-            </span>
-            {showPagination && (
-              <span className="flex items-center gap-2">
-                <Back
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className={currentPage === 1 ? 'cursor-not-allowed opacity-40' : ''}
-                />
-                <span className="tabular-nums text-text-secondary">
-                  {currentPage} / {totalPages}
-                </span>
-                <Next
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className={currentPage === totalPages ? 'cursor-not-allowed opacity-40' : ''}
-                />
-              </span>
-            )}
-          </div>
+          {footer}
         </div>
       </div>
       <div className="inventory-card-list gap-4 sm:gap-6 flex-wrap">
@@ -101,8 +108,9 @@ const PaginatedGridTable = <T,>({
             No data available
           </div>
         ) : (
-          rows.map((row) => renderCard(row))
+          pageRows.map((row) => renderCard(row))
         )}
+        {total > 0 && footer}
       </div>
     </div>
   );
