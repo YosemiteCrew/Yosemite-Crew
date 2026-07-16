@@ -670,9 +670,12 @@ input[type='number'] {
     @apply font-satoshi text-[2.5rem] font-medium leading-[3rem] tracking-[-0.8px];
   }
 
-  /* Page title - 46px/2.875rem - Serif module page titles (Newsreader) */
+  /* Page title - Serif module page titles (Newsreader).
+     Fluid 30px -> 40px. It sits beside a body-size count and description, so a
+     fixed 46px overpowered that pairing at every width; unlike the display and
+     heading classes it had no step-down of its own. */
   .text-page-title {
-    @apply font-newsreader text-[2.875rem] font-medium leading-[1.05] tracking-[-0.02em];
+    @apply font-newsreader text-[clamp(1.875rem,1.35rem+1.6vw,2.5rem)] font-medium leading-[1.1] tracking-[-0.02em];
   }
 
   /* Heading - 28px/1.75rem - Main section titles | 24px Mobile */
