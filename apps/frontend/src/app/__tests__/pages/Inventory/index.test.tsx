@@ -1789,6 +1789,36 @@ describe('Inventory Page', () => {
     expect(screen.queryByTestId('dispense-dr-1')).not.toBeInTheDocument();
   });
 
+  it('does not fetch dispensary records without the prescription view permission', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+    mockPermissions = {
+      [PERMISSIONS.INVENTORY_EDIT_ANY]: true,
+      [PERMISSIONS.INVENTORY_VIEW_ANY]: true,
+      [PERMISSIONS.PRESCRIPTION_VIEW_ANY]: false,
+      [PERMISSIONS.PRESCRIPTION_EDIT_ANY]: false,
+    };
+
+    render(<ProtectedInventory />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+    });
+    // The toggle is already hidden by permission; the point here is that the
+    // records never reach the browser in the first place.
+    expect(listDispenseRequests).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Dispensary' })).not.toBeInTheDocument();
+  });
+
+  it('fetches dispensary records when the prescription view permission is granted', async () => {
+    (listDispenseRequests as jest.Mock).mockResolvedValue([baseDispenseRequest()]);
+
+    render(<ProtectedInventory />);
+
+    await waitFor(() => {
+      expect(listDispenseRequests).toHaveBeenCalledWith('org-1');
+    });
+  });
+
   it('silently handles errors from listDispenseRequests', async () => {
     (listDispenseRequests as jest.Mock).mockRejectedValue(new Error('Network error'));
     render(<ProtectedInventory />);

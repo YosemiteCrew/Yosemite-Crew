@@ -4,6 +4,11 @@ import { buildContentSecurityPolicy, securityHeaders } from '@/securityHeaders';
 const CSP_HEADER = 'Content-Security-Policy';
 const NONCE_HEADER = 'x-nonce';
 
+// Only routes that are server-rendered on demand belong here: a nonce is minted
+// per request, and a prerendered page's inline bootstrap scripts would not carry
+// it. Every entry must be a route that opts out of static generation — the `(app)`
+// routes via the group layout's `connection()`, the auth/payment routes below via
+// their own `export const dynamic = 'force-dynamic'`.
 const STRICT_CSP_PATH_PREFIXES = [
   '/appointments',
   '/book-onboarding',
@@ -16,18 +21,26 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/developers/home',
   '/developers/plugins',
   '/developers/settings',
+  '/developers/signin',
+  '/developers/signup',
   '/developers/website-builder',
   '/finance',
+  '/forgot-password',
   '/forms',
   '/guides',
   '/integrations',
   '/inventory',
   '/organization',
   '/organizations',
+  '/payment-status',
+  '/reset-password',
   '/settings',
+  '/signin',
+  '/signup',
   '/stripe-onboarding',
   '/tasks',
   '/team-onboarding',
+  '/verify-email',
 ];
 
 const createNonce = () => {

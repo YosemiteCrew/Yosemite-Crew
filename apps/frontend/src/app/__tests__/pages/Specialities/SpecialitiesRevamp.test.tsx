@@ -33,6 +33,20 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => ({ get: mockSearchParamsGet }),
 }));
 
+jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="protected-route">{children}</div>
+  ),
+}));
+
+jest.mock('@/app/ui/layout/guards/OrgGuard', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="org-guard">{children}</div>
+  ),
+}));
+
 jest.mock('@/app/features/organization/pages/Specialities/SpecialityAccordionRevamp', () => ({
   __esModule: true,
   default: ({ speciality, defaultOpen }: any) => (
@@ -232,5 +246,17 @@ describe('SpecialitiesRevamp', () => {
     render(<SpecialitiesRevamp />);
     expect(screen.getByTestId('accordion-spec-2')).toHaveAttribute('data-default-open', 'true');
     expect(screen.getByTestId('accordion-spec-1')).toHaveAttribute('data-default-open', 'false');
+  });
+
+  // --- Section 6: route guards ---
+
+  it('mounts the page behind both the auth and org guards', () => {
+    render(<SpecialitiesRevamp />);
+
+    const protectedRoute = screen.getByTestId('protected-route');
+    const orgGuard = screen.getByTestId('org-guard');
+
+    expect(protectedRoute).toContainElement(orgGuard);
+    expect(orgGuard).toContainElement(screen.getByTestId('accordion-spec-1'));
   });
 });

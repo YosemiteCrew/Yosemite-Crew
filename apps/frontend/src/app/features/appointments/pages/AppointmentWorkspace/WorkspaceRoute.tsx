@@ -9,11 +9,16 @@ import { useAppointmentStore } from '@/app/stores/appointmentStore';
 import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import AppointmentWorkspace from '@/app/features/appointments/pages/AppointmentWorkspace';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
+import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
+import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
+import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import {
   canEnterAppointmentWorkspace,
   getWorkspaceBlockedMessage,
 } from '@/app/lib/appointmentWorkspace';
 import { startRouteLoader } from '@/app/lib/routeLoader';
+
+const WORKSPACE_SKELETON = <PageSkeleton variant="planner" />;
 
 type WorkspaceRouteProps = {
   appointmentId: string;
@@ -24,7 +29,7 @@ type WorkspaceRouteProps = {
  * named in the URL, and renders the workspace. Falls back to /appointments when
  * the revamp flag is off or the appointment cannot be found.
  */
-const WorkspaceRoute = ({ appointmentId }: WorkspaceRouteProps) => {
+const WorkspaceRouteContent = ({ appointmentId }: WorkspaceRouteProps) => {
   const router = useRouter();
   useLoadAppointmentsForPrimaryOrg();
   const appointments = useAppointmentsForPrimaryOrg();
@@ -85,6 +90,16 @@ const WorkspaceRoute = ({ appointmentId }: WorkspaceRouteProps) => {
         Back to appointments
       </button>
     </div>
+  );
+};
+
+const WorkspaceRoute = ({ appointmentId }: WorkspaceRouteProps) => {
+  return (
+    <ProtectedRoute skeleton={WORKSPACE_SKELETON}>
+      <OrgGuard skeleton={WORKSPACE_SKELETON}>
+        <WorkspaceRouteContent appointmentId={appointmentId} />
+      </OrgGuard>
+    </ProtectedRoute>
   );
 };
 

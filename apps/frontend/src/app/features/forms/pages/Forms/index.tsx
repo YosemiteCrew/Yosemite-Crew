@@ -103,7 +103,7 @@ const Forms = () => {
 
     const catalogItems = [];
     for (const service of services) {
-      if (service.status === 'ACTIVE') {
+      if (service.status === 'ACTIVE' && service.organisationId === primaryOrgId) {
         catalogItems.push({
           id: service.id,
           name: String(service.name ?? '').trim(),
@@ -114,7 +114,7 @@ const Forms = () => {
       }
     }
     for (const pkg of packages) {
-      if (pkg.status === 'ACTIVE') {
+      if (pkg.status === 'ACTIVE' && pkg.organisationId === primaryOrgId) {
         catalogItems.push({
           id: pkg.id,
           name: String(pkg.name ?? '').trim(),
@@ -146,7 +146,7 @@ const Forms = () => {
       });
     }
     return options;
-  }, [services, packages, orgSpecialities]);
+  }, [services, packages, orgSpecialities, primaryOrgId]);
 
   useEffect(() => {
     if (fetchedRef.current) return;

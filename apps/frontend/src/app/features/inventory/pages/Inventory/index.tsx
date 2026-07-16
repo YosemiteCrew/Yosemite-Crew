@@ -875,7 +875,7 @@ const useInventoryContent = () => {
   const [dispensaryRecords, setDispensaryRecords] = useState<DispensaryRecord[]>([]);
 
   const fetchDispensaryRecords = useCallback(async () => {
-    if (!primaryOrgId) return;
+    if (!primaryOrgId || !canViewPrescription) return;
     const orgAtCallTime = primaryOrgId;
     try {
       const data = await listDispenseRequests(orgAtCallTime);
@@ -885,7 +885,7 @@ const useInventoryContent = () => {
     } catch {
       // silently fail — table shows empty state
     }
-  }, [primaryOrgId]);
+  }, [primaryOrgId, canViewPrescription]);
 
   useEffect(() => {
     setDispensaryRecords([]);
