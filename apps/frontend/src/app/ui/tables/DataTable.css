@@ -63,6 +63,21 @@
 .inventory-table-list {
   display: flex;
 }
+/* Companions keeps a real table down to the phone breakpoint: the design's
+   adaptation rule is "tablet prunes to <=6 columns", not "tablet gets cards".
+   It therefore cannot use the shared `.table-list` class, which Appointments,
+   Tasks, Forms, Invoice and InventoryTurnover correctly hide at 1280 in favour
+   of their `xl:hidden` card lists. Below 768 CompanionsTable swaps to phone
+   cards in JS (useIsPhone); the media query below only suppresses the table for
+   the first paint, before useIsPhone flips from its SSR-safe `false`. */
+.companions-table-list {
+  display: flex;
+}
+@media screen and (max-width: 767px) {
+  .companions-table-list {
+    display: none;
+  }
+}
 @media screen and (max-width: 1280px) {
   .table-list {
     display: none;

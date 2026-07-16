@@ -244,6 +244,19 @@ describe('CompanionsTable', () => {
     expect(screen.getAllByText('No data available').length).toBeGreaterThan(0);
   });
 
+  // Regression: the non-phone table used to carry the shared `.table-list`
+  // class, which DataTable.css hides at max-width:1280 so that Appointments and
+  // Tasks can swap to their `xl:hidden` card lists. CompanionsTable has no card
+  // list and only swaps to cards below 768, so 768-1279 rendered a hidden table
+  // and nothing else — a completely empty list body. It must own a class that no
+  // 1280 rule hides.
+  it('renders the tablet/desktop table under its own class, not the shared table-list', () => {
+    const { container } = render(<CompanionsTable {...baseProps} filteredList={[companion]} />);
+
+    expect(container.querySelector('.companions-table-list')).toBeInTheDocument();
+    expect(container.querySelector('.table-list')).not.toBeInTheDocument();
+  });
+
   it('renders the phone card variant and opens overview on tap', () => {
     useIsPhoneMock.mockReturnValue(true);
     render(<CompanionsTable {...baseProps} filteredList={[companion]} />);
