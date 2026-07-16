@@ -13,6 +13,19 @@ const wrapActiveIndex = (current: number, optionCount: number, delta: 1 | -1): n
   return current <= 0 ? optionCount - 1 : current - 1;
 };
 
+/** Compute the active option index when the open/options/selection context changes. */
+const resolveActiveIndex = (
+  open: boolean,
+  options: Option[],
+  activeIndex: number,
+  selectedKey?: string
+): number => {
+  if (!open || options.length === 0) return -1;
+  if (activeIndex >= 0 && activeIndex < options.length) return activeIndex;
+  const selectedIndex = options.findIndex((option) => option.key === selectedKey);
+  return Math.max(selectedIndex, 0);
+};
+
 type DropdownProps = {
   placeholder: string;
   options: Option[];
@@ -32,11 +45,21 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
       ? `${listboxId}-option-${options[activeIndex].key}`
       : undefined;
 
-  useEffect(() => {
-    if (!defaultOption) return;
-    const found = options.find((option) => option.key === defaultOption);
-    if (found) setSelected(found);
-  }, [defaultOption, options]);
+  const [prevDefaultDeps, setPrevDefaultDeps] = useState<{
+    defaultOption?: string;
+    options: Option[];
+  } | null>(null);
+  if (
+    prevDefaultDeps === null ||
+    defaultOption !== prevDefaultDeps.defaultOption ||
+    options !== prevDefaultDeps.options
+  ) {
+    setPrevDefaultDeps({ defaultOption, options });
+    if (defaultOption) {
+      const found = options.find((option) => option.key === defaultOption);
+      if (found) setSelected(found);
+    }
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -50,17 +73,19 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
     };
   }, []);
 
-  useEffect(() => {
-    if (!open || options.length === 0) {
-      setActiveIndex(-1);
-      return;
-    }
-    setActiveIndex((current) => {
-      if (current >= 0 && current < options.length) return current;
-      const selectedIndex = options.findIndex((option) => option.key === selected?.key);
-      return Math.max(selectedIndex, 0);
-    });
-  }, [open, options, selected?.key]);
+  const [activeIndexDeps, setActiveIndexDeps] = useState({
+    options,
+    open,
+    selectedKey: selected?.key,
+  });
+  if (
+    options !== activeIndexDeps.options ||
+    open !== activeIndexDeps.open ||
+    selected?.key !== activeIndexDeps.selectedKey
+  ) {
+    setActiveIndexDeps({ options, open, selectedKey: selected?.key });
+    setActiveIndex(resolveActiveIndex(open, options, activeIndex, selected?.key));
+  }
 
   useEffect(() => {
     if (!open || !activeOptionId) return;

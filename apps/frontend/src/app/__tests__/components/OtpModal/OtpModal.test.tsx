@@ -1,49 +1,56 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { axe, toHaveNoViolations } from 'jest-axe';
-
 import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
 import { useAuthStore } from '@/app/stores/authStore';
+import { useRouter } from 'next/navigation';
+import { postData } from '@/app/services/axios';
+import { axe, toHaveNoViolations } from 'jest-axe';
 
 // --- Mocks ---
 
+// Mock Next.js Router
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+}));
+
+// Mock Axios
+jest.mock('@/app/services/axios', () => ({
+  postData: jest.fn(),
+  isAuthRedirectError: jest.fn(() => false),
+}));
+
+// Mock Auth Store
 jest.mock('@/app/stores/authStore', () => ({
   useAuthStore: jest.fn(),
 }));
 
-jest.mock('@/app/ui/overlays/Modal/ModalBase', () => ({
-  __esModule: true,
-  default: ({ children, showModal, canClose }: any) => {
-    // Exercise the canClose guard the way the real ModalBase does before
-    // dismissing on overlay clicks.
-    canClose?.();
-    return showModal ? <div data-testid="modal-base">{children}</div> : null;
-  },
-}));
-
-jest.mock('@/app/ui', () => ({
-  Button: ({ text, onClick, isDisabled }: any) => (
-    <button type="button" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
-}));
-
-jest.mock('@/app/ui/primitives/Icons/Close', () => ({
-  __esModule: true,
-  default: () => <span data-testid="close-icon" />,
+// Mock Iconify
+jest.mock('@iconify/react/dist/iconify.js', () => ({
+  Icon: () => <span data-testid="mock-icon" />,
 }));
 
 expect.extend(toHaveNoViolations);
 
-describe('OtpModal (email verification link modal)', () => {
-  const mockResendVerificationEmail = jest.fn();
+describe('OtpModal Component', () => {
+  const testPassword = process.env.TEST_PASSWORD ?? 'test-password';
   const mockShowErrorTost = jest.fn();
   const mockSetShowVerifyModal = jest.fn();
+  const mockConfirmSignUp = jest.fn();
+  const mockResendCode = jest.fn();
+  const mockSignIn = jest.fn();
+  const mockPush = jest.fn();
+
+  const fillCode = (digits: string[] = ['1', '1', '1', '1', '1', '1']) => {
+    for (let i = 0; i < digits.length; i++) {
+      const inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+      fireEvent.change(inputs[i], { target: { value: digits[i] } });
+    }
+  };
 
   const defaultProps = {
-    email: 'jane@example.com',
+    email: 'test@example.com',
+    password: testPassword,
     showErrorTost: mockShowErrorTost,
     showVerifyModal: true,
     setShowVerifyModal: mockSetShowVerifyModal,
@@ -51,125 +58,371 @@ describe('OtpModal (email verification link modal)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useAuthStore as unknown as jest.Mock).mockImplementation((selector: any) =>
-      selector({ resendVerificationEmail: mockResendVerificationEmail })
-    );
-    Object.defineProperty(globalThis, 'scrollTo', { value: jest.fn(), writable: true });
+    jest.useFakeTimers();
+
+    window.scrollTo = jest.fn();
+
+    (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
+    (useAuthStore as unknown as jest.Mock).mockReturnValue({
+      confirmSignUp: mockConfirmSignUp,
+      resendCode: mockResendCode,
+      signIn: mockSignIn,
+    });
   });
 
-  it('renders the verification link instructions with the email', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // --- 1. Rendering & Timer Tests ---
+
+  it('renders the modal with correct email and initial state', () => {
     render(<OtpModal {...defaultProps} />);
 
-    expect(screen.getByText('Verify Email Address')).toBeInTheDocument();
-    expect(screen.getByText('jane@example.com')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Verify Email Address' })).toBeInTheDocument();
+    expect(screen.getByText('test@example.com')).toBeInTheDocument();
+    expect(screen.getAllByRole('textbox')).toHaveLength(6);
+    expect(screen.getByText('Verify Code')).toBeInTheDocument();
+    expect(screen.getByText('02:30 sec')).toBeInTheDocument();
     expect(
-      screen.getByText(/click the verification link to activate your account/i)
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Resend Verification Link' })).toBeInTheDocument();
+      screen.getByRole('group', { name: 'Email verification code' })
+    ).toHaveAccessibleDescription('Enter the 6-digit code from your email.');
   });
 
-  it('renders nothing when hidden', () => {
+  it('does not render when showVerifyModal is false', () => {
     render(<OtpModal {...defaultProps} showVerifyModal={false} />);
     expect(screen.queryByText('Verify Email Address')).not.toBeInTheDocument();
   });
 
-  it('resends the verification link and shows a success toast', async () => {
-    mockResendVerificationEmail.mockResolvedValue('OK');
+  it('decrements the timer correctly', () => {
     render(<OtpModal {...defaultProps} />);
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Resend Verification Link' }));
+    act(() => {
+      jest.advanceTimersByTime(1000);
+    });
+    expect(screen.getByText('02:29 sec')).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(60000); // 1 minute
+    });
+    expect(screen.getByText('01:29 sec')).toBeInTheDocument();
+  });
+
+  it('disables verify after the countdown ends and prompts for a resend', () => {
+    render(<OtpModal {...defaultProps} />);
+    fillCode();
+
+    act(() => {
+      jest.advanceTimersByTime(151000); // > 150 seconds
     });
 
-    expect(mockResendVerificationEmail).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Didn’t get the code? Request a new one below.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Verify Code/i })).toBeDisabled();
+  });
+
+  // --- 2. Input Handling Logic ---
+
+  it('handles digit input and moves focus to next input', () => {
+    render(<OtpModal {...defaultProps} />);
+    // FIX: Use Generic <HTMLInputElement> instead of 'as' assertion
+    let inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+
+    // Type '1' in first input
+    fireEvent.change(inputs[0], { target: { value: '1' } });
+
+    // Re-query inputs because key prop change causes remount
+    inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+
+    // Logic Check: Focus moved to index 1
+    expect(inputs[1]).toHaveFocus();
+
+    // Type '2' in second input
+    fireEvent.change(inputs[1], { target: { value: '2' } });
+
+    inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+    // Logic Check: Focus moved to index 2
+    expect(inputs[2]).toHaveFocus();
+  });
+
+  it('ignores non-digit input', () => {
+    render(<OtpModal {...defaultProps} />);
+    const inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+
+    fireEvent.change(inputs[0], { target: { value: 'a' } });
+
+    // Logic Check: Value remains empty
+    expect(inputs[0]).toHaveValue('');
+  });
+
+  it('handles Backspace: clears current input if filled', () => {
+    render(<OtpModal {...defaultProps} />);
+    let inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+
+    // Fill first one
+    fireEvent.change(inputs[0], { target: { value: '1' } });
+
+    // Re-query
+    inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+
+    // Hit backspace on first one
+    fireEvent.keyDown(inputs[0], { key: 'Backspace' });
+
+    // Re-query again
+    inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+
+    // Logic Check: Input is cleared
+    expect(inputs[0]).toHaveValue('');
+  });
+
+  it('handles Backspace: moves to previous input if current is empty', () => {
+    render(<OtpModal {...defaultProps} />);
+    let inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+
+    // Focus 2nd input by typing in 1st
+    fireEvent.change(inputs[0], { target: { value: '1' } });
+
+    inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+    expect(inputs[1]).toHaveFocus();
+
+    // Backspace on empty 2nd input
+    fireEvent.keyDown(inputs[1], { key: 'Backspace' });
+
+    // Logic Check: Focus moved back
+    expect(inputs[0]).toHaveFocus();
+  });
+
+  it('handles Arrow keys navigation', () => {
+    render(<OtpModal {...defaultProps} />);
+    const inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+
+    // Focus 1st, Arrow Right -> 2nd
+    inputs[0].focus();
+    fireEvent.keyDown(inputs[0], { key: 'ArrowRight' });
+    expect(inputs[1]).toHaveFocus();
+
+    // Focus 2nd, Arrow Left -> 1st
+    fireEvent.keyDown(inputs[1], { key: 'ArrowLeft' });
+    expect(inputs[0]).toHaveFocus();
+  });
+
+  // --- 3. Verification Logic ---
+
+  it('disables verify button if code is incomplete', async () => {
+    render(<OtpModal {...defaultProps} />);
+    const button = screen.getByRole('button', { name: /Verify Code/i });
+
+    expect(button).toBeDisabled();
+  });
+
+  it('handles successful verification flow', async () => {
+    mockConfirmSignUp.mockResolvedValue(true);
+    mockSignIn.mockResolvedValue(true);
+    (postData as jest.Mock).mockResolvedValue({});
+
+    render(<OtpModal {...defaultProps} />);
+    let inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+    const button = screen.getByRole('button', { name: /Verify Code/i });
+
+    const code = ['0', '1', '2', '3', '4', '5'];
+
+    for (let i = 0; i < code.length; i++) {
+      inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+      fireEvent.change(inputs[i], { target: { value: code[i] } });
+    }
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(mockConfirmSignUp).toHaveBeenCalledWith(defaultProps.email, '012345');
+    expect(mockSetShowVerifyModal).toHaveBeenCalledWith(false);
+    expect(mockSignIn).toHaveBeenCalledWith(defaultProps.email, defaultProps.password);
+    expect(postData).toHaveBeenCalledWith('/fhir/v1/user');
+    expect(mockPush).toHaveBeenCalledWith('/appointments');
+  });
+
+  it('handles confirmSignUp failure (Invalid OTP)', async () => {
+    mockConfirmSignUp.mockRejectedValue(new Error('Mismatch'));
+
+    render(<OtpModal {...defaultProps} />);
+    let inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+    const button = screen.getByRole('button', { name: /Verify Code/i });
+
+    for (let i = 0; i < 6; i++) {
+      inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+      fireEvent.change(inputs[i], { target: { value: '1' } });
+    }
+
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(mockConfirmSignUp).toHaveBeenCalled();
+    expect(await screen.findByText('Invalid OTP')).toBeInTheDocument();
+    expect(window.scrollTo).toHaveBeenCalled();
+  });
+
+  it('redirects to sign in with the email prefilled when auto sign in fails after confirm', async () => {
+    mockConfirmSignUp.mockResolvedValue(true);
+    mockSignIn.mockRejectedValue(new Error('Signin failed'));
+
+    render(<OtpModal {...defaultProps} />);
+    fillCode();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code/i }));
+    });
+
+    expect(mockSignIn).toHaveBeenCalled();
     expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'A new verification link has been sent to your email.',
-        errortext: 'Link Sent',
-      })
+      expect.objectContaining({ errortext: 'Account created' })
+    );
+    expect(mockPush).toHaveBeenCalledWith('/signin?email=test%40example.com');
+  });
+
+  it('includes next and developer sign-in path in the fallback redirect', async () => {
+    mockConfirmSignUp.mockResolvedValue(true);
+    mockSignIn.mockRejectedValue(new Error('Signin failed'));
+
+    render(<OtpModal {...defaultProps} redirectPath="/developers/home" isDeveloper />);
+    fillCode();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code/i }));
+    });
+
+    expect(mockPush).toHaveBeenCalledWith(
+      '/developers/signin?email=test%40example.com&next=%2Fdevelopers%2Fhome'
     );
   });
 
-  it('tells the user when the email is already verified', async () => {
-    mockResendVerificationEmail.mockResolvedValue('ALREADY_VERIFIED');
+  it('retries backend provisioning and continues after a transient failure', async () => {
+    mockConfirmSignUp.mockResolvedValue(true);
+    mockSignIn.mockResolvedValue(true);
+    (postData as jest.Mock)
+      .mockRejectedValueOnce(new Error('cold start timeout'))
+      .mockResolvedValueOnce({});
+
     render(<OtpModal {...defaultProps} />);
+    fillCode();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Resend Verification Link' }));
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code/i }));
+      await jest.advanceTimersByTimeAsync(5000);
+    });
+
+    expect(postData).toHaveBeenCalledTimes(2);
+    expect(mockPush).toHaveBeenCalledWith('/appointments');
+  });
+
+  it('stays signed in and still redirects when provisioning keeps failing', async () => {
+    mockConfirmSignUp.mockResolvedValue(true);
+    mockSignIn.mockResolvedValue(true);
+    (postData as jest.Mock).mockRejectedValue(new Error('FHIR Error'));
+
+    render(<OtpModal {...defaultProps} />);
+    fillCode();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Verify Code/i }));
+      await jest.advanceTimersByTimeAsync(10_000);
+    });
+
+    expect(postData).toHaveBeenCalledTimes(3);
+    // No sign-out, no dead end: the verified user still lands in the app.
+    expect(mockPush).toHaveBeenCalledWith('/appointments');
+    expect(mockShowErrorTost).not.toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Sign in failed' })
+    );
+  });
+
+  // --- 4. Resend Logic ---
+
+  it('handles successful resend code', async () => {
+    mockResendCode.mockResolvedValue(true);
+
+    render(<OtpModal {...defaultProps} />);
+    const resendLink = screen.getByText('Request New Code');
+
+    let inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+    fireEvent.change(inputs[0], { target: { value: '5' } });
+
+    await act(async () => {
+      fireEvent.click(resendLink);
+    });
+
+    expect(mockResendCode).toHaveBeenCalledWith(defaultProps.email);
+    expect(mockShowErrorTost).toHaveBeenCalledWith(
+      expect.objectContaining({ errortext: 'Code Resent' })
+    );
+
+    inputs = screen.getAllByRole<HTMLInputElement>('textbox');
+    // Logic Check: Inputs are reset
+    expect(inputs[0]).toHaveValue('');
+
+    expect(screen.getByText('02:30 sec')).toBeInTheDocument();
+  });
+
+  it('handles resend code failure', async () => {
+    mockResendCode.mockRejectedValue(new Error('Network Error'));
+
+    render(<OtpModal {...defaultProps} />);
+    const resendLink = screen.getByText('Request New Code');
+
+    await act(async () => {
+      fireEvent.click(resendLink);
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'Your email is already verified. You can sign in now.',
-        errortext: 'Already Verified',
-      })
+      expect.objectContaining({ message: 'Network Error' })
     );
+    expect(window.scrollTo).toHaveBeenCalled();
   });
 
-  it('shows an error toast when the resend fails', async () => {
-    mockResendVerificationEmail.mockRejectedValue(new Error('mail down'));
+  it('handles resend code failure with default message', async () => {
+    mockResendCode.mockRejectedValue({});
+
     render(<OtpModal {...defaultProps} />);
+    const resendLink = screen.getByText('Request New Code');
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Resend Verification Link' }));
+      fireEvent.click(resendLink);
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'mail down', errortext: 'Error' })
+      expect.objectContaining({ message: 'Error resending code.' })
     );
   });
 
-  it('shows a generic error for non-Error rejections', async () => {
-    mockResendVerificationEmail.mockRejectedValue('nope');
+  // --- 5. Navigation Links ---
+
+  it("closes modal when 'Change Email' is clicked", () => {
     render(<OtpModal {...defaultProps} />);
+    const changeEmailLink = screen.getByText('. Change Email');
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Resend Verification Link' }));
-    });
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Error resending the link.' })
-    );
-  });
-
-  it('disables the resend button while sending', async () => {
-    let resolveResend: ((value: string) => void) | undefined;
-    mockResendVerificationEmail.mockImplementation(
-      () =>
-        new Promise<string>((resolve) => {
-          resolveResend = resolve;
-        })
-    );
-    render(<OtpModal {...defaultProps} />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Resend Verification Link' }));
-    });
-
-    expect(screen.getByRole('button', { name: 'Sending...' })).toBeDisabled();
-
-    await act(async () => {
-      resolveResend?.('OK');
-    });
-  });
-
-  it('closes via the close button', () => {
-    render(<OtpModal {...defaultProps} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close verification modal' }));
+    fireEvent.click(changeEmailLink);
 
     expect(mockSetShowVerifyModal).toHaveBeenCalledWith(false);
   });
 
-  it('closes via the change email action', () => {
+  it('closes modal using the close button', () => {
     render(<OtpModal {...defaultProps} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Change Email' }));
-
+    const closeButton = screen.getByRole('button', { name: 'Close OTP modal' });
+    fireEvent.click(closeButton);
     expect(mockSetShowVerifyModal).toHaveBeenCalledWith(false);
+  });
+
+  it('does not close modal on Escape key', () => {
+    render(<OtpModal {...defaultProps} />);
+    fireEvent.keyDown(screen.getByRole('dialog'), {
+      key: 'Escape',
+      code: 'Escape',
+    });
+    expect(mockSetShowVerifyModal).not.toHaveBeenCalled();
   });
 
   it('has no axe accessibility violations', async () => {
+    jest.useRealTimers();
     const { container } = render(<OtpModal {...defaultProps} />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();

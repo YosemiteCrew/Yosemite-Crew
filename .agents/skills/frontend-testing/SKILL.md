@@ -32,7 +32,7 @@ TRIGGER: any task involving test files in apps/frontend, or when asked to write/
 | Unit      | Jest                                             | Every service, store, hook, utility, helper                          |
 | Component | React Testing Library (RTL)                      | Every UI component — render + interaction + conditional rendering    |
 | Snapshot  | Jest `toMatchSnapshot` / `toMatchInlineSnapshot` | Stable UI layouts — complement behavioural tests, never replace them |
-| E2E       | Playwright (`playwright/`)                       | Auth flows, booking, checkout, payment, any critical user journey    |
+| E2E       | Playwright (`e2e/`)                              | Auth flows, booking, checkout, payment, any critical user journey    |
 
 All four layers must grow together. Do not add 20 RTL tests while leaving Playwright untouched for a critical flow, and vice versa.
 
@@ -60,7 +60,7 @@ If adding a test for a previously-uncovered branch, note it in the COMMIT CHECKP
 | Custom hook                                          | `renderHook` covering all return values and state branches  |
 | Utility / lib function                               | Jest unit with full branch coverage                         |
 | UI component                                         | RTL render + at least one user interaction test             |
-| E2E-critical flow (auth, booking, checkout, payment) | Playwright test in `playwright/`                            |
+| E2E-critical flow (auth, booking, checkout, payment) | Playwright test in `e2e/`                                   |
 
 **Coverage bar for any new file you author: Statements ≥ 90%, Branches ≥ 90%, Functions ≥ 90%.**
 
@@ -215,7 +215,7 @@ Test file naming: `ComponentName.test.tsx` mirrors the source file name.
 - Never use `screen.getByDisplayValue` for controlled inputs — use `getByRole('textbox')` + check value.
 - `userEvent` needs `await` in v14+ — always `await userEvent.click(el)`.
 - If a test imports from `@/app/ui`, make sure the mock is at module level, not inside `describe`.
-- Playwright tests live in `playwright/` and run separately — don't confuse them with Jest tests.
+- Playwright tests live in `e2e/` and run separately — don't confuse them with Jest tests.
 - If `--testPathPattern` matches multiple files unintentionally, be more specific with the path.
 
 ---

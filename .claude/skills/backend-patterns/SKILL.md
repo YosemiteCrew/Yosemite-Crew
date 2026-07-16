@@ -20,7 +20,7 @@ apps/backend/src/
   routers/        ← Express route definitions (thin — just register handlers)
   controllers/    ← Request/response handling, input validation
   services/       ← Business logic (no req/res objects here)
-  models/         ← Prisma models (PostgreSQL); legacy Mongoose only, no new usage
+  models/         ← legacy data models; no new files here (use Prisma via packages/database)
   queues/         ← BullMQ job definitions
   workers/        ← BullMQ worker processors
   integrations/   ← External services (IDEXX, Merck, Stripe, Firebase, AWS)
@@ -53,14 +53,31 @@ const data = CreateAppointmentSchema.parse(req.body);
 ## Database
 
 - **PostgreSQL via Prisma** is the database for all new code; Prisma owns schema + migrations (see `@yosemite-crew/database`).
-- **No new Mongoose/MongoDB.** Legacy Mongoose models may still exist, but do not add new models or queries — this matches `apps/backend/AGENTS.md`.
+- **Prisma only for new persistence.** All new models and queries go through Prisma (`packages/database`); do not add new files under `src/models/` — this matches `apps/backend/AGENTS.md`.
 - Never access data directly from controllers — always go through services/models.
 
 ---
 
 ## Authentication
 
-SuperTokens is the auth provider behind the provider-neutral boundary in `packages/auth` (#1672). Product code uses `requireWebAuth`/`requireMobileAuth` from `src/middlewares/auth.ts` and never imports a provider SDK (eslint-enforced). Never roll custom auth.
+SuperTokens is the auth provider behind the provider-neutral boundary in
+`packages/auth` (#1672). Product code uses `requireWebAuth`/`requireMobileAuth`
+from `src/middlewares/auth.ts` and never imports a provider SDK
+(eslint-enforced).
+
+Two auth stacks coexist:
+
+- **Web/PIMS session auth: SuperTokens** via `@yosemite-crew/auth` -
+  `requireAuth()` middleware + `getSessionUserId()`, initialized with
+  `initSuperTokens` in `app.ts`. Use this for all new web endpoints.
+- **Legacy mobile/FHIR JWT** (`authorizeCognito` / `authorizeCognitoMobile`
+  in `src/middlewares/auth.ts`) remains on existing mobile/FHIR routes only -
+  do not use it for new web endpoints. It accepts **both** AWS Cognito tokens
+  (verified with `jsonwebtoken` + `jwks-rsa`) and Firebase tokens (issuer
+  `securetoken.google.com`, social login, verified via Firebase Admin). Never
+  remove the Firebase path - it would reject existing social-login users.
+
+Never roll custom auth.
 
 ---
 

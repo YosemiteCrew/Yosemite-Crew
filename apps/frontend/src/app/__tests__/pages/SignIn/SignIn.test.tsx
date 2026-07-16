@@ -4,21 +4,21 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import SignIn from '@/app/features/auth/pages/SignIn/SignIn';
 import { useAuthStore } from '@/app/stores/authStore';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
-import { provisionPendingSignUpUser } from '@/app/features/auth/services/provisioning';
 
 // --- Mocks ---
 
 // Mock Next.js Navigation
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  useSearchParams: jest.fn(),
 }));
 
-// Mock Auth Store (hook + getState consumer)
+// Mock Auth Store
 jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: Object.assign(jest.fn(), { getState: jest.fn() }),
+  useAuthStore: jest.fn(),
 }));
 
 // Mock Toast
@@ -28,25 +28,21 @@ jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
 
 jest.mock('@/app/lib/postAuthRedirect', () => ({
   resolvePostAuthRedirect: jest.fn(),
-}));
-
-jest.mock('@/app/features/auth/services/provisioning', () => ({
-  provisionPendingSignUpUser: jest.fn(),
+  sanitizeNextPath: jest.fn((value: string | null) => {
+    if (!value) return undefined;
+    if (!value.startsWith('/')) return undefined;
+    return value;
+  }),
 }));
 
 // Mock Components
 jest.mock('@/app/ui/inputs/FormInput/FormInput', () => ({
   __esModule: true,
-  default: ({ value, onChange, error, inlabel, inname }: any) => (
-    <div data-testid={`${inname}-input-wrapper`}>
-      <label htmlFor={`signin-${inname}`}>{inlabel}</label>
-      <input
-        id={`signin-${inname}`}
-        data-testid={`${inname}-input`}
-        value={value}
-        onChange={onChange}
-      />
-      {error && <span data-testid={`${inname}-error`}>{error}</span>}
+  default: ({ value, onChange, error, inlabel }: any) => (
+    <div data-testid="email-input-wrapper">
+      <label htmlFor="signin-email">{inlabel}</label>
+      <input id="signin-email" data-testid="email-input" value={value} onChange={onChange} />
+      {error && <span data-testid="email-error">{error}</span>}
     </div>
   ),
 }));
@@ -71,17 +67,12 @@ jest.mock('@/app/ui/inputs/FormInputPass/FormInputPass', () => ({
 jest.mock('@/app/ui/overlays/OtpModal/OtpModal', () => ({
   __esModule: true,
   default: ({ showVerifyModal }: any) =>
-    showVerifyModal ? <div data-testid="otp-modal">Verification Modal Open</div> : null,
+    showVerifyModal ? <div data-testid="otp-modal">OTP Modal Open</div> : null,
 }));
 
 jest.mock('@/app/ui/primitives/Buttons', () => ({
   Primary: ({ text, onClick, isDisabled }: any) => (
     <button data-testid="signin-btn" onClick={onClick} disabled={isDisabled}>
-      {text}
-    </button>
-  ),
-  Secondary: ({ text, onClick }: any) => (
-    <button data-testid="secondary-btn" onClick={onClick}>
       {text}
     </button>
   ),
@@ -106,38 +97,17 @@ expect.extend(toHaveNoViolations);
 
 describe('SignIn Page', () => {
   const mockSignIn = jest.fn();
-  const mockCompleteTotpChallenge = jest.fn();
-  const mockCompleteEmailOtpChallenge = jest.fn();
-  const mockRequestEmailOtp = jest.fn();
-  const mockSignout = jest.fn();
+  const mockResendCode = jest.fn();
   const mockRouterPush = jest.fn();
   const mockRouterReplace = jest.fn();
   const mockShowErrorTost = jest.fn();
-
-  const fillCredentials = (email = 'test@example.com', password = 'pass123') => {
-    fireEvent.change(screen.getByTestId('email-input'), { target: { value: email } });
-    fireEvent.change(screen.getByTestId('password-input'), { target: { value: password } });
-  };
-
-  const submitSignIn = async () => {
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('signin-btn'));
-    });
-  };
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     (useAuthStore as unknown as jest.Mock).mockReturnValue({
       signIn: mockSignIn,
-      completeTotpChallenge: mockCompleteTotpChallenge,
-      completeEmailOtpChallenge: mockCompleteEmailOtpChallenge,
-      requestEmailOtp: mockRequestEmailOtp,
-      role: null,
-    });
-    (useAuthStore.getState as jest.Mock).mockReturnValue({
-      role: null,
-      signout: mockSignout,
+      resendCode: mockResendCode,
     });
 
     (useRouter as jest.Mock).mockReturnValue({
@@ -145,15 +115,14 @@ describe('SignIn Page', () => {
       replace: mockRouterReplace,
     });
 
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams());
+
     (useErrorTost as jest.Mock).mockReturnValue({
       showErrorTost: mockShowErrorTost,
       ErrorTostPopup: <div data-testid="toast-popup" />,
     });
 
     (resolvePostAuthRedirect as jest.Mock).mockResolvedValue('/create-org');
-    (provisionPendingSignUpUser as jest.Mock).mockResolvedValue(undefined);
-    mockRequestEmailOtp.mockResolvedValue(undefined);
-    mockSignout.mockResolvedValue(undefined);
   });
 
   // --- 1. Rendering ---
@@ -172,6 +141,7 @@ describe('SignIn Page', () => {
     render(<SignIn isDeveloper={true} signupHref="/dev-signup" />);
 
     expect(screen.getByText('Sign in to your developer account')).toBeInTheDocument();
+    // Check background style application (indirectly via class or structure implies it handled props)
     expect(screen.getByText('Sign up')).toHaveAttribute('href', '/dev-signup');
   });
 
@@ -230,17 +200,25 @@ describe('SignIn Page', () => {
 
   // --- 3. Success Flow ---
 
-  it('calls signIn, provisions pending sign-ups, and redirects on success', async () => {
-    mockSignIn.mockResolvedValue({ status: 'OK' });
+  it('calls signIn and redirects on success', async () => {
+    mockSignIn.mockResolvedValue({}); // Success
 
     render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
+
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
 
     expect(mockSignIn).toHaveBeenCalledWith('test@example.com', 'pass123');
-    expect(provisionPendingSignUpUser).toHaveBeenCalled();
     expect(resolvePostAuthRedirect).toHaveBeenCalledWith({
-      fallbackRole: null,
+      fallbackRole: undefined,
       redirectPath: undefined,
       isDeveloper: false,
     });
@@ -249,33 +227,27 @@ describe('SignIn Page', () => {
   });
 
   it('sets devAuth to true in storage when isDeveloper is true', async () => {
-    mockSignIn.mockResolvedValue({ status: 'OK' });
+    mockSignIn.mockResolvedValue({});
 
     render(<SignIn isDeveloper={true} />);
-    fillCredentials('dev@example.com');
-    await submitSignIn();
+
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'dev@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
 
     expect(mockSessionStorage.setItem).toHaveBeenCalledWith('devAuth', 'true');
     expect(resolvePostAuthRedirect).toHaveBeenCalledWith({
-      fallbackRole: null,
+      fallbackRole: undefined,
       redirectPath: undefined,
       isDeveloper: true,
     });
-  });
-
-  it('signs the user out when post-signup provisioning fails', async () => {
-    mockSignIn.mockResolvedValue({ status: 'OK' });
-    (provisionPendingSignUpUser as jest.Mock).mockRejectedValue(new Error('provisioning down'));
-
-    render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
-
-    expect(mockSignout).toHaveBeenCalled();
-    expect(mockRouterReplace).not.toHaveBeenCalled();
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Sign in failed' })
-    );
   });
 
   it('shows a loader while the sign-in request is pending', async () => {
@@ -283,13 +255,22 @@ describe('SignIn Page', () => {
     mockSignIn.mockImplementation(
       () =>
         new Promise((resolve) => {
-          resolveSignIn = () => resolve({ status: 'OK' });
+          resolveSignIn = () => resolve({});
         })
     );
 
     render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
+
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
 
     expect(screen.getByTestId('signin-loader')).toHaveTextContent('Signing you in...');
     expect(screen.getByTestId('signin-btn')).toBeDisabled();
@@ -302,215 +283,201 @@ describe('SignIn Page', () => {
   // --- 4. Error Handling & Edge Cases ---
 
   it('handles generic sign-in error', async () => {
-    mockSignIn.mockRejectedValue(new Error('Incorrect username or password.'));
+    mockSignIn.mockRejectedValue(new Error('Invalid credentials'));
 
     render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
+
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Incorrect username or password.',
+        message: 'Invalid credentials',
         errortext: 'Error',
       })
     );
+  });
+
+  it('handles UserNotConfirmedException by resending code and showing modal', async () => {
+    const error = { code: 'UserNotConfirmedException' };
+    mockSignIn.mockRejectedValue(error);
+    mockResendCode.mockResolvedValue(true);
+
+    render(<SignIn />);
+
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'unconfirmed@test.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
+
+    expect(mockResendCode).toHaveBeenCalledWith('unconfirmed@test.com');
+    // Wait for state update to show modal (OtpModal mock renders based on showVerifyModal prop)
+    expect(screen.getByTestId('otp-modal')).toBeInTheDocument();
+  });
+
+  it('handles error during resend code (UserNotConfirmed flow)', async () => {
+    const error = { code: 'UserNotConfirmedException' };
+    mockSignIn.mockRejectedValue(error);
+    mockResendCode.mockRejectedValue(new Error('Resend failed'));
+
+    render(<SignIn />);
+
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'unconfirmed@test.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
+
+    expect(mockResendCode).toHaveBeenCalled();
+    expect(window.scrollTo).toHaveBeenCalledWith({
+      top: 0,
+      behavior: 'smooth',
+    });
+    expect(mockShowErrorTost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Resend failed',
+      })
+    );
+    // Modal should not open on resend failure
+    expect(screen.queryByTestId('otp-modal')).not.toBeInTheDocument();
   });
 
   it('uses default error message if error object has no message', async () => {
     mockSignIn.mockRejectedValue({}); // No message
 
     render(<SignIn />);
-    fillCredentials('t@t.com', 'p');
-    await submitSignIn();
+
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 't@t.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'p' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Sign in failed' })
     );
   });
 
-  // --- 5. Email verification required ---
-
-  it('shows the verification modal when the account email is unverified', async () => {
-    mockSignIn.mockResolvedValue({ status: 'EMAIL_VERIFICATION_REQUIRED' });
-
-    render(<SignIn />);
-    fillCredentials('unconfirmed@test.com');
-    await submitSignIn();
-
-    expect(screen.getByTestId('otp-modal')).toBeInTheDocument();
-    expect(mockRouterReplace).not.toHaveBeenCalled();
-  });
-
-  // --- 6. MFA challenge ---
-
-  it('shows the email OTP challenge and requests a code', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['otp-email'] });
+  it('uses default error message for resend failure', async () => {
+    const error = { code: 'UserNotConfirmedException' };
+    mockSignIn.mockRejectedValue(error);
+    mockResendCode.mockRejectedValue({}); // No message
 
     render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
 
-    expect(mockRequestEmailOtp).toHaveBeenCalled();
-    expect(screen.getByText('Two-factor authentication')).toBeInTheDocument();
-    expect(
-      screen.getByText('We sent a 6-digit code to your email. Enter it below to continue.')
-    ).toBeInTheDocument();
-  });
-
-  it('surfaces a toast when the email OTP request fails', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['otp-email'] });
-    mockRequestEmailOtp.mockRejectedValue(new Error('mail down'));
-
-    render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'mail down' })
-    );
-  });
-
-  it('shows the authenticator prompt for the TOTP factor without requesting a code', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['totp'] });
-
-    render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
-
-    expect(mockRequestEmailOtp).not.toHaveBeenCalled();
-    expect(
-      screen.getByText('Enter the 6-digit code from your authenticator app.')
-    ).toBeInTheDocument();
-  });
-
-  it('completes the email OTP challenge and redirects', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['otp-email'] });
-    mockCompleteEmailOtpChallenge.mockResolvedValue({ status: 'OK' });
-
-    render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
-
-    fireEvent.change(screen.getByTestId('mfa-code-input'), { target: { value: '123456' } });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Verify' }));
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 't@t.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'p' },
     });
 
-    expect(mockCompleteEmailOtpChallenge).toHaveBeenCalledWith('123456');
-    expect(mockRouterReplace).toHaveBeenCalledWith('/create-org');
-  });
-
-  it('completes the TOTP challenge and redirects', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['totp'] });
-    mockCompleteTotpChallenge.mockResolvedValue({ status: 'OK' });
-
-    render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
-
-    fireEvent.change(screen.getByTestId('mfa-code-input'), { target: { value: '654321' } });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Verify' }));
-    });
-
-    expect(mockCompleteTotpChallenge).toHaveBeenCalledWith('654321');
-    expect(mockRouterReplace).toHaveBeenCalledWith('/create-org');
-  });
-
-  it('requires a code before verifying the challenge', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['totp'] });
-
-    render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Verify' }));
-    });
-
-    expect(screen.getByTestId('mfa-code-error')).toHaveTextContent('Enter the 6-digit code');
-    expect(mockCompleteTotpChallenge).not.toHaveBeenCalled();
-  });
-
-  it('shows the challenge error when the code is rejected', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['totp'] });
-    mockCompleteTotpChallenge.mockRejectedValue(new Error('Invalid code. Please try again.'));
-
-    render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
-
-    fireEvent.change(screen.getByTestId('mfa-code-input'), { target: { value: '000000' } });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Verify' }));
-    });
-
-    expect(screen.getByTestId('mfa-code-error')).toHaveTextContent(
-      'Invalid code. Please try again.'
-    );
-  });
-
-  it('resends the email OTP from the challenge panel', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['otp-email'] });
-
-    render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
-
-    mockRequestEmailOtp.mockClear();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Resend code' }));
-    });
-
-    expect(mockRequestEmailOtp).toHaveBeenCalledTimes(1);
-  });
-
-  it('surfaces resend failures as a toast', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['otp-email'] });
-
-    render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
-
-    mockRequestEmailOtp.mockRejectedValueOnce(new Error('resend down'));
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Resend code' }));
+      fireEvent.click(screen.getByTestId('signin-btn'));
     });
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'resend down' })
+      expect.objectContaining({ message: 'Error resending code.' })
     );
   });
 
-  it('cancels the challenge, signs out, and returns to the form', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['totp'] });
+  it('prefills the email field from the email query param', () => {
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams({ email: 'new-user@example.com' })
+    );
 
     render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Back to sign in' }));
-    });
-
-    expect(mockSignout).toHaveBeenCalled();
-    expect(screen.getByTestId('email-input')).toBeInTheDocument();
-    expect(screen.queryByText('Two-factor authentication')).not.toBeInTheDocument();
+    expect(screen.getByTestId('email-input')).toHaveValue('new-user@example.com');
   });
 
-  it('swallows signout failures when cancelling the challenge', async () => {
-    mockSignIn.mockResolvedValue({ status: 'MFA_REQUIRED', factors: ['totp'] });
-    mockSignout.mockRejectedValue(new Error('signout down'));
+  it('honors a safe next query param as the post-auth redirect', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams({ next: '/create-org' }));
+    mockSignIn.mockResolvedValue({});
 
     render(<SignIn />);
-    fillCredentials();
-    await submitSignIn();
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Back to sign in' }));
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
     });
 
-    expect(screen.getByTestId('email-input')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
+
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectPath: '/create-org' })
+    );
+  });
+
+  it('ignores unsafe or external next values', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams({ next: 'https://evil.example.com/phish' })
+    );
+    mockSignIn.mockResolvedValue({});
+
+    render(<SignIn />);
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
+
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectPath: undefined })
+    );
+  });
+
+  it('ignores next when allowNext is false', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams({ next: '/create-org' }));
+    mockSignIn.mockResolvedValue({});
+
+    render(<SignIn allowNext={false} redirectPath="/developers/home" isDeveloper />);
+    fireEvent.change(screen.getByTestId('email-input'), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('password-input'), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('signin-btn'));
+    });
+
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectPath: '/developers/home' })
+    );
   });
 
   it('has no axe accessibility violations', async () => {

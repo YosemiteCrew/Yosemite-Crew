@@ -23,8 +23,12 @@ const importFreshWithAdmin = (
   apps: unknown[],
   initializeApp: jest.Mock,
   cert: jest.Mock,
+  existsSync: jest.Mock,
 ) => {
   jest.isolateModules(() => {
+    jest.doMock("fs", () => ({
+      existsSync,
+    }));
     jest.doMock("firebase-admin", () => ({
       __esModule: true,
       default: {
@@ -51,9 +55,11 @@ describe("notification.service firebase-admin init", () => {
     process.env.GOOGLE_APPLICATION_CREDENTIALS = "/creds.json";
     const initializeApp = jest.fn();
     const cert = jest.fn(() => "resolved-cred");
+    const existsSync = jest.fn(() => true);
 
-    importFreshWithAdmin([], initializeApp, cert);
+    importFreshWithAdmin([], initializeApp, cert, existsSync);
 
+    expect(existsSync).toHaveBeenCalledWith("/creds.json");
     expect(cert).toHaveBeenCalledWith("/creds.json");
     expect(initializeApp).toHaveBeenCalledWith({ credential: "resolved-cred" });
   });
@@ -61,8 +67,9 @@ describe("notification.service firebase-admin init", () => {
   it("does not initialize when an app already exists", () => {
     process.env.GOOGLE_APPLICATION_CREDENTIALS = "/creds.json";
     const initializeApp = jest.fn();
+    const existsSync = jest.fn(() => true);
 
-    importFreshWithAdmin([{}], initializeApp, jest.fn());
+    importFreshWithAdmin([{}], initializeApp, jest.fn(), existsSync);
 
     expect(initializeApp).not.toHaveBeenCalled();
   });
@@ -70,8 +77,9 @@ describe("notification.service firebase-admin init", () => {
   it("does not initialize when no credentials are configured", () => {
     delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
     const initializeApp = jest.fn();
+    const existsSync = jest.fn();
 
-    importFreshWithAdmin([], initializeApp, jest.fn());
+    importFreshWithAdmin([], initializeApp, jest.fn(), existsSync);
 
     expect(initializeApp).not.toHaveBeenCalled();
   });

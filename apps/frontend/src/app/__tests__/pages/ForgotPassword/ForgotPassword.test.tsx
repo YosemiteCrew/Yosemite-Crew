@@ -68,7 +68,7 @@ describe('ForgotPassword page (reset link flow)', () => {
     fireEvent.change(screen.getByLabelText('Email Address'), {
       target: { value: email },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
     await waitFor(() => expect(authStoreMock.forgotPassword).toHaveBeenCalled());
   };
 
@@ -77,14 +77,14 @@ describe('ForgotPassword page (reset link flow)', () => {
 
     expect(screen.getByRole('heading', { name: 'Forgot password?' })).toBeInTheDocument();
     expect(screen.getByLabelText('Email Address')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send reset link' })).toBeInTheDocument();
-    expect(screen.getByText(/send you a link to reset it/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send code' })).toBeInTheDocument();
+    expect(screen.getByText(/send you a code to reset it/i)).toBeInTheDocument();
   });
 
   test('requires email before sending the link and exposes inline email error', () => {
     render(<ForgotPassword />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
 
     expect(screen.getByText('Email is required')).toBeInTheDocument();
     expect(screen.getByLabelText('Email Address')).toHaveAttribute('aria-invalid', 'true');
@@ -100,7 +100,7 @@ describe('ForgotPassword page (reset link flow)', () => {
     fireEvent.change(screen.getByLabelText('Email Address'), {
       target: { value: 'not-an-email' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
 
     expect(showErrorTostMock).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Enter a valid email' })
@@ -111,7 +111,7 @@ describe('ForgotPassword page (reset link flow)', () => {
   test('clears the inline email error when the user edits the field', () => {
     render(<ForgotPassword />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
     expect(screen.getByText('Email is required')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Email Address'), {
@@ -128,9 +128,8 @@ describe('ForgotPassword page (reset link flow)', () => {
     await requestLink();
 
     expect(authStoreMock.forgotPassword).toHaveBeenCalledWith('user@example.com');
-    await screen.findByRole('heading', { name: 'Check your email' });
-    expect(screen.getByText('user@example.com')).toBeInTheDocument();
-    expect(screen.getByText(/link in the email to set a new password/)).toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Verify code' });
+    expect(screen.getByText(/Enter the 6-digit code from your email/i)).toBeInTheDocument();
     expect(showErrorTostMock).toHaveBeenCalledWith(
       expect.objectContaining({ errortext: 'Success' })
     );
@@ -141,10 +140,10 @@ describe('ForgotPassword page (reset link flow)', () => {
     render(<ForgotPassword />);
 
     await requestLink();
-    await screen.findByRole('heading', { name: 'Check your email' });
+    await screen.findByRole('heading', { name: 'Verify code' });
 
     authStoreMock.forgotPassword.mockClear();
-    fireEvent.click(screen.getByRole('button', { name: 'Resend link' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Request New Code' }));
 
     await waitFor(() =>
       expect(authStoreMock.forgotPassword).toHaveBeenCalledWith('user@example.com')
@@ -158,22 +157,21 @@ describe('ForgotPassword page (reset link flow)', () => {
     expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/signin');
 
     await requestLink();
-    await screen.findByRole('heading', { name: 'Check your email' });
+    await screen.findByRole('heading', { name: 'Verify code' });
 
-    expect(screen.getByRole('link', { name: 'Back to sign in' })).toHaveAttribute(
-      'href',
-      '/signin'
-    );
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '#');
   });
 
   test('surfaces request failures with the provider message', async () => {
-    authStoreMock.forgotPassword.mockRejectedValue(new Error('Not allowed'));
+    authStoreMock.forgotPassword.mockRejectedValue({
+      response: { data: { message: 'Not allowed' } },
+    });
     render(<ForgotPassword />);
 
     await requestLink();
 
     expect(showErrorTostMock).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Reset link failed: Not allowed' })
+      expect.objectContaining({ message: 'OTP failed: Not allowed' })
     );
     expect(screen.getByRole('heading', { name: 'Forgot password?' })).toBeInTheDocument();
   });
@@ -186,7 +184,7 @@ describe('ForgotPassword page (reset link flow)', () => {
 
     expect(showErrorTostMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Reset link failed: Unable to connect to the server.',
+        message: 'OTP failed: Unable to connect to the server.',
       })
     );
   });

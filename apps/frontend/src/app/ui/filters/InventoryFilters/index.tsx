@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
@@ -98,14 +98,9 @@ const InventoryFilters = ({
   categoryAction,
 }: InventoryFiltersProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const isMounted = typeof document !== 'undefined';
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const filtersRef = useRef(filters);
-  filtersRef.current = filters;
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
 
   const categoryOptions = useMemo(
     () =>
@@ -116,32 +111,12 @@ const InventoryFilters = ({
     [categories]
   );
 
-  useEffect(() => {
-    const f = filtersRef.current;
-    if (f.category !== 'all' && !categories.includes(f.category)) {
-      onChangeRef.current({ ...f, category: 'all' });
-    }
-  }, [categories]);
-
   const updateFilters = (patch: Partial<InventoryFiltersState>) => {
     onChange({ ...filters, ...patch });
   };
-
-  const positionPanel = useCallback(() => {
-    if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    setDropdownStyle({
-      position: 'fixed',
-      top: rect.bottom + 6,
-      right: window.innerWidth - rect.right,
-      minWidth: Math.max(rect.width, 180),
-      zIndex: 9999,
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (dropdownOpen) positionPanel();
-  }, [dropdownOpen, positionPanel]);
+  if (filters.category !== 'all' && !categories.includes(filters.category)) {
+    onChange({ ...filters, category: 'all' });
+  }
 
   useEffect(() => {
     if (!dropdownOpen) return;
@@ -168,6 +143,19 @@ const InventoryFilters = ({
   const visibility = filters.visibility ?? 'ALL';
 
   const sliderTranslate = getSliderTranslate(visibility);
+  const dropdownStyle =
+    dropdownOpen && triggerRef.current
+      ? (() => {
+          const rect = triggerRef.current.getBoundingClientRect();
+          return {
+            position: 'fixed',
+            top: rect.bottom + 6,
+            right: globalThis.window.innerWidth - rect.right,
+            minWidth: Math.max(rect.width, 180),
+            zIndex: 9999,
+          } satisfies React.CSSProperties;
+        })()
+      : undefined;
 
   return (
     <div className="w-full flex items-start justify-between flex-wrap gap-x-6 gap-y-3">

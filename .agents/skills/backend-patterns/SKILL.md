@@ -20,7 +20,7 @@ apps/backend/src/
   routers/        ← Express route definitions (thin — just register handlers)
   controllers/    ← Request/response handling, input validation
   services/       ← Business logic (no req/res objects here)
-  models/         ← Prisma models (PostgreSQL); legacy Mongoose only, no new usage
+  models/         ← legacy data models; no new files here (use Prisma via packages/database)
   queues/         ← BullMQ job definitions
   workers/        ← BullMQ worker processors
   integrations/   ← External services (IDEXX, Merck, Stripe, Firebase, AWS)
@@ -53,14 +53,19 @@ const data = CreateAppointmentSchema.parse(req.body);
 ## Database
 
 - **PostgreSQL via Prisma** is the database for all new code; Prisma owns schema + migrations (see `@yosemite-crew/database`).
-- **No new Mongoose/MongoDB.** Legacy Mongoose models may still exist, but do not add new models or queries — this matches `apps/backend/AGENTS.md`.
+- **Prisma only for new persistence.** All new models and queries go through Prisma (`packages/database`); do not add new files under `src/models/` — this matches `apps/backend/AGENTS.md`.
 - Never access data directly from controllers — always go through services/models.
 
 ---
 
 ## Authentication
 
-AWS Cognito is the auth provider. Use `jsonwebtoken` + `jwks-rsa` for token verification. Never roll custom auth.
+Two auth stacks coexist:
+
+- **Web/PIMS session auth: SuperTokens** via `@yosemite-crew/auth` — `requireAuth()` middleware + `getSessionUserId()`, initialized with `initSuperTokens` in `app.ts`. Use this for all new web endpoints.
+- **Legacy mobile/FHIR JWT** (`authorizeCognito` / `authorizeCognitoMobile` in `src/middlewares/auth.ts`) remains on existing mobile/FHIR routes only — do not use it for new web endpoints. It accepts **both** AWS Cognito tokens (verified with `jsonwebtoken` + `jwks-rsa`) and Firebase tokens (issuer `securetoken.google.com`, social login, verified via Firebase Admin). Never remove the Firebase path — it would reject existing social-login users.
+
+Never roll custom auth.
 
 ---
 
@@ -97,7 +102,7 @@ logger.error('Payment failed', { error, userId });
 
 ## Gotchas
 
-- Do not refactor backend architecture unless explicitly asked — the user's AGENTS.md is explicit about this.
+- Do not refactor backend architecture unless explicitly asked — the user's CLAUDE.md is explicit about this.
 - Zod `.parse()` throws on invalid input — use `.safeParse()` when you want to handle errors gracefully.
 - BullMQ jobs are persisted in Redis — make job processors idempotent.
 - All Stripe webhook handlers must verify the signature before processing.

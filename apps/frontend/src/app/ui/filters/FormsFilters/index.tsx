@@ -1,39 +1,32 @@
 import {
-  FormsCategory,
   FormsCategoryOptions,
-  FormsProps,
-  FormsStatus,
   FormsStatusFilters,
   getFormCategoryDisplayLabel,
 } from '@/app/features/forms/types/forms';
-import React, { useEffect, useMemo, useState } from 'react';
+import type { FormsCategory, FormsStatus } from '@/app/features/forms/types/forms';
+import React, { useMemo } from 'react';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { getFormsStatusStyle } from '@/app/ui/tables/tableUtils';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { Organisation } from '@yosemite-crew/types';
 
+export type FormsFilterState = {
+  status: FormsStatus | 'All';
+  category: FormsCategory | 'All';
+};
+
 type FormsFiltersProps = {
-  list: FormsProps[];
-  setFilteredList: any;
-  searchQuery?: string;
+  filters: FormsFilterState;
+  onFiltersChange: (filters: FormsFilterState) => void;
   categoryAction?: React.ReactNode;
 };
 
-const FormsFilters = ({
-  list,
-  setFilteredList,
-  searchQuery = '',
-  categoryAction,
-}: FormsFiltersProps) => {
-  const [activeStatus, setActiveStatus] = useState<FormsStatus | 'All'>('All');
-  const [activeCategory, setActiveCategory] = useState<FormsCategory | 'All'>('All');
-
+const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFiltersProps) => {
   const orgType = useOrgStore((s) =>
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
-    | Organisation['type']
-    | undefined;
+    Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
 
   const filteredCategoryOptions = useMemo(() => {
@@ -64,32 +57,13 @@ const FormsFilters = ({
     () => new Set(filteredCategoryOptions.map((opt) => opt.value)),
     [filteredCategoryOptions]
   );
-  const effectiveCategory = allowedCategoryValues.has(activeCategory) ? activeCategory : 'All';
-
-  useEffect(() => {
-    if (effectiveCategory !== activeCategory) setActiveCategory(effectiveCategory);
-  }, [activeCategory, effectiveCategory]);
-
-  const filteredList = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return list.filter((item) => {
-      const matchesStatus = activeStatus === 'All' || item.status === activeStatus;
-      const matchesCategory = effectiveCategory === 'All' || item.category === effectiveCategory;
-      const matchesQuery =
-        !q || item.name?.toLowerCase().includes(q) || item.category?.toLowerCase().includes(q);
-      return matchesStatus && matchesCategory && matchesQuery;
-    });
-  }, [list, effectiveCategory, activeStatus, searchQuery]);
-
-  useEffect(() => {
-    setFilteredList(filteredList);
-  }, [filteredList, setFilteredList]);
+  const effectiveCategory = allowedCategoryValues.has(filters.category) ? filters.category : 'All';
 
   return (
     <div className="w-full flex items-center justify-between flex-wrap gap-3">
       <div className="flex items-center gap-2 flex-wrap">
         {FormsStatusFilters.map((status) => {
-          const isActive = status === activeStatus;
+          const isActive = status === filters.status;
           const statusStyle =
             status === 'All'
               ? {
@@ -105,7 +79,7 @@ const FormsFilters = ({
             <button
               type="button"
               key={status}
-              onClick={() => setActiveStatus(status)}
+              onClick={() => onFiltersChange({ ...filters, status })}
               className={`min-w-20 text-body-4 px-3 py-1.5 rounded-2xl! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
               style={isActive ? statusStyle : undefined}
             >
@@ -120,9 +94,12 @@ const FormsFilters = ({
           <LabelDropdown
             placeholder="Category"
             options={filteredCategoryOptions}
-            defaultOption={activeCategory}
+            defaultOption={effectiveCategory}
             onSelect={(option) => {
-              setActiveCategory(option.value as FormsCategory | 'All');
+              onFiltersChange({
+                ...filters,
+                category: option.value as FormsCategory | 'All',
+              });
             }}
           />
         </div>

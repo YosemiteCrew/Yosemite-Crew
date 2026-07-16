@@ -160,6 +160,212 @@ const RoomSelectorSection = ({
   </div>
 );
 
+type OverviewLeftColumnProps = {
+  companion: ReturnType<typeof getAppointmentCompanion>;
+  terminologyText: ReturnType<typeof useCompanionTerminologyText>;
+  clientPhotoUrl: string | undefined;
+  activeAppointment: Appointment;
+  leadPhotoUrl: string | undefined;
+  supportDisplay: string;
+  dateDisplay: string;
+  timeDisplay: string;
+  durationDisplay: string;
+};
+
+const OverviewLeftColumn = ({
+  companion,
+  terminologyText,
+  clientPhotoUrl,
+  activeAppointment,
+  leadPhotoUrl,
+  supportDisplay,
+  dateDisplay,
+  timeDisplay,
+  durationDisplay,
+}: OverviewLeftColumnProps) => (
+  <div className="flex flex-col gap-4">
+    {/* Patient */}
+    <div className="flex items-center gap-3 p-3 rounded-2xl border border-card-border">
+      <AppointmentAvatar
+        name={companion.name}
+        photoUrl={(companion as Appointment['patient'] & { photoUrl?: string }).photoUrl}
+      />
+      <div className="min-w-0">
+        <div className="text-sm text-text-extra">{terminologyText('Patient')}</div>
+        <div className="font-satoshi text-base text-text-primary truncate">
+          {companion.name || '-'}
+        </div>
+      </div>
+    </div>
+
+    {/* Client */}
+    {companion.parent?.name && (
+      <div className="flex items-center gap-3 p-3 rounded-2xl border border-card-border">
+        <AppointmentAvatar name={companion.parent.name} photoUrl={clientPhotoUrl} />
+        <div className="min-w-0">
+          <div className="text-sm text-text-extra">Client</div>
+          <div className="font-satoshi text-base text-text-primary truncate">
+            {companion.parent.name}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Lead */}
+    {activeAppointment.lead && (
+      <div className="flex items-center gap-3 p-3 rounded-2xl border border-card-border">
+        <AppointmentAvatar name={activeAppointment.lead.name ?? ''} photoUrl={leadPhotoUrl} />
+        <div className="min-w-0">
+          <div className="text-sm text-text-extra">Lead</div>
+          <div className="font-satoshi text-base text-text-primary truncate">
+            {activeAppointment.lead.name || '-'}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Support */}
+    {(activeAppointment.supportStaff?.length ?? 0) > 0 && (
+      <div className="p-3 rounded-2xl border border-card-border">
+        <div className="text-sm text-text-extra mb-1">Support</div>
+        <div className="font-satoshi text-sm text-text-primary">{supportDisplay}</div>
+      </div>
+    )}
+
+    {/* Date / Time / Duration */}
+    <div className="rounded-2xl border border-card-border px-4 py-2">
+      <OverviewRow label="Date" value={dateDisplay} />
+      <OverviewRow label="Time" value={timeDisplay} />
+      <OverviewRow label="Duration" value={durationDisplay} />
+    </div>
+  </div>
+);
+
+type OverviewRightColumnProps = {
+  activeAppointment: Appointment;
+  canEditAppointments: boolean;
+  savingRoom: boolean;
+  canEditRoom: boolean;
+  roomOptions: Array<{ label: string; value: string }>;
+  effectiveRoomId: string | undefined;
+  handleRoomChange: (option: { label: string; value: string }) => void;
+  rooms: ReturnType<typeof useRoomsForPrimaryOrg>;
+  isInpatient: boolean;
+  unitOptions: Array<{ label: string; value: string }>;
+  effectiveUnitId: string | undefined;
+  handleUnitChange: (option: { label: string; value: string }) => void;
+  serviceInfo: ReturnType<typeof useServiceStore.getState>['getServicesBySpecialityId'] extends (
+    ...args: never[]
+  ) => (infer Item)[]
+    ? Item | null
+    : never;
+  estimateDisplay: string;
+};
+
+const OverviewRightColumn = ({
+  activeAppointment,
+  canEditAppointments,
+  savingRoom,
+  canEditRoom,
+  roomOptions,
+  effectiveRoomId,
+  handleRoomChange,
+  rooms,
+  isInpatient,
+  unitOptions,
+  effectiveUnitId,
+  handleUnitChange,
+  serviceInfo,
+  estimateDisplay,
+}: OverviewRightColumnProps) => (
+  <div className="flex flex-col gap-4">
+    {/* Appointment detail rows */}
+    <div className="rounded-2xl border border-card-border px-4 py-2">
+      <div className="flex items-center justify-between py-2 border-b border-card-border">
+        <span className="font-satoshi text-sm font-medium text-text-secondary">Status</span>
+        <AppointmentStatusPill appointment={activeAppointment} canEdit={canEditAppointments} />
+      </div>
+      <OverviewRow label="Speciality" value={activeAppointment.appointmentType?.speciality?.name} />
+      <OverviewRow label="Service" value={activeAppointment.appointmentType?.name} />
+      <OverviewRow label="Chief Complaint" value={activeAppointment.concern} />
+      <OverviewRow label="Emergency" value={activeAppointment.isEmergency ? 'Yes' : 'No'} />
+    </div>
+
+    {/* Room */}
+    <RoomSelectorSection
+      label="Room"
+      savingRoom={savingRoom}
+      canEditRoom={canEditRoom}
+      options={roomOptions}
+      defaultOption={effectiveRoomId ?? ''}
+      onSelect={handleRoomChange}
+      fallback={
+        rooms.find((room) => room.id === effectiveRoomId)?.name ||
+        activeAppointment.room?.name ||
+        '-'
+      }
+    />
+
+    {isInpatient ? (
+      <RoomSelectorSection
+        label="Unit"
+        savingRoom={savingRoom}
+        canEditRoom={canEditRoom}
+        options={unitOptions}
+        defaultOption={effectiveUnitId ?? ''}
+        onSelect={handleUnitChange}
+        fallback={
+          unitOptions.find((unit) => unit.value === effectiveUnitId)?.label ||
+          effectiveUnitId ||
+          '-'
+        }
+      />
+    ) : null}
+
+    {/* Estimate panel */}
+    {activeAppointment.status !== 'COMPLETED' && (
+      <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-2">
+        {serviceInfo && (
+          <>
+            <div className="flex items-center justify-between">
+              <span className="font-satoshi text-sm font-medium text-text-secondary">Cost:</span>
+              <span className="font-satoshi text-sm font-bold text-text-primary">
+                {serviceInfo.cost ? `$ ${Number(serviceInfo.cost).toFixed(2)}` : '-'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-satoshi text-sm font-medium text-text-secondary">
+                Max discount:
+              </span>
+              <span className="font-satoshi text-sm font-bold text-text-primary">
+                {serviceInfo.maxDiscount ? `$${Number(serviceInfo.maxDiscount).toFixed(2)}` : '-'}
+              </span>
+            </div>
+          </>
+        )}
+        <div className="flex items-center justify-between mt-1">
+          <span
+            className="font-satoshi text-sm font-medium"
+            style={{ color: 'var(--color-neutral-900)', letterSpacing: '-0.28px' }}
+          >
+            Estimate
+          </span>
+          <span
+            className="font-satoshi text-2xl font-bold"
+            style={{
+              color:
+                estimateDisplay === '-' ? 'var(--color-neutral-500)' : 'var(--color-primary-600)',
+              letterSpacing: '-0.48px',
+            }}
+          >
+            {estimateDisplay}
+          </span>
+        </div>
+      </div>
+    )}
+  </div>
+);
+
 const ViewAppointmentOverviewModal = ({
   showModal,
   setShowModal,
@@ -195,8 +401,7 @@ const ViewAppointmentOverviewModal = ({
   }, [showModal]);
   const isInpatient = activeAppointment.appointmentKind === 'INPATIENT';
   const appointmentParent = companion.parent as
-    | (typeof companion.parent & ParentImageFields)
-    | undefined;
+    (typeof companion.parent & ParentImageFields) | undefined;
   const leadPhotoUrl = useMemo(() => {
     const appointmentLeadId = normalizePersonId(activeAppointment.lead?.id);
     const teamLead = team.find((member) => {
@@ -387,163 +592,34 @@ const ViewAppointmentOverviewModal = ({
       title="Appointment Details"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-        {/* ── LEFT COLUMN ── */}
-        <div className="flex flex-col gap-4">
-          {/* Patient */}
-          <div className="flex items-center gap-3 p-3 rounded-2xl border border-card-border">
-            <AppointmentAvatar
-              name={companion.name}
-              photoUrl={(companion as Appointment['patient'] & { photoUrl?: string }).photoUrl}
-            />
-            <div className="min-w-0">
-              <div className="text-sm text-text-extra">{terminologyText('Patient')}</div>
-              <div className="font-satoshi text-base text-text-primary truncate">
-                {companion.name || '-'}
-              </div>
-            </div>
-          </div>
+        <OverviewLeftColumn
+          companion={companion}
+          terminologyText={terminologyText}
+          clientPhotoUrl={clientPhotoUrl}
+          activeAppointment={activeAppointment}
+          leadPhotoUrl={leadPhotoUrl}
+          supportDisplay={supportDisplay}
+          dateDisplay={dateDisplay}
+          timeDisplay={timeDisplay}
+          durationDisplay={durationDisplay}
+        />
 
-          {/* Client */}
-          {companion.parent?.name && (
-            <div className="flex items-center gap-3 p-3 rounded-2xl border border-card-border">
-              <AppointmentAvatar name={companion.parent.name} photoUrl={clientPhotoUrl} />
-              <div className="min-w-0">
-                <div className="text-sm text-text-extra">Client</div>
-                <div className="font-satoshi text-base text-text-primary truncate">
-                  {companion.parent.name}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Lead */}
-          {activeAppointment.lead && (
-            <div className="flex items-center gap-3 p-3 rounded-2xl border border-card-border">
-              <AppointmentAvatar name={activeAppointment.lead.name ?? ''} photoUrl={leadPhotoUrl} />
-              <div className="min-w-0">
-                <div className="text-sm text-text-extra">Lead</div>
-                <div className="font-satoshi text-base text-text-primary truncate">
-                  {activeAppointment.lead.name || '-'}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Support */}
-          {(activeAppointment.supportStaff?.length ?? 0) > 0 && (
-            <div className="p-3 rounded-2xl border border-card-border">
-              <div className="text-sm text-text-extra mb-1">Support</div>
-              <div className="font-satoshi text-sm text-text-primary">{supportDisplay}</div>
-            </div>
-          )}
-
-          {/* Date / Time / Duration */}
-          <div className="rounded-2xl border border-card-border px-4 py-2">
-            <OverviewRow label="Date" value={dateDisplay} />
-            <OverviewRow label="Time" value={timeDisplay} />
-            <OverviewRow label="Duration" value={durationDisplay} />
-          </div>
-        </div>
-
-        {/* ── RIGHT COLUMN ── */}
-        <div className="flex flex-col gap-4">
-          {/* Appointment detail rows */}
-          <div className="rounded-2xl border border-card-border px-4 py-2">
-            <div className="flex items-center justify-between py-2 border-b border-card-border">
-              <span className="font-satoshi text-sm font-medium text-text-secondary">Status</span>
-              <AppointmentStatusPill
-                appointment={activeAppointment}
-                canEdit={canEditAppointments}
-              />
-            </div>
-            <OverviewRow
-              label="Speciality"
-              value={activeAppointment.appointmentType?.speciality?.name}
-            />
-            <OverviewRow label="Service" value={activeAppointment.appointmentType?.name} />
-            <OverviewRow label="Chief Complaint" value={activeAppointment.concern} />
-            <OverviewRow label="Emergency" value={activeAppointment.isEmergency ? 'Yes' : 'No'} />
-          </div>
-
-          {/* Room */}
-          <RoomSelectorSection
-            label="Room"
-            savingRoom={savingRoom}
-            canEditRoom={canEditRoom}
-            options={roomOptions}
-            defaultOption={effectiveRoomId ?? ''}
-            onSelect={handleRoomChange}
-            fallback={
-              rooms.find((room) => room.id === effectiveRoomId)?.name ||
-              activeAppointment.room?.name ||
-              '-'
-            }
-          />
-
-          {isInpatient ? (
-            <RoomSelectorSection
-              label="Unit"
-              savingRoom={savingRoom}
-              canEditRoom={canEditRoom}
-              options={unitOptions}
-              defaultOption={effectiveUnitId ?? ''}
-              onSelect={handleUnitChange}
-              fallback={
-                unitOptions.find((unit) => unit.value === effectiveUnitId)?.label ||
-                effectiveUnitId ||
-                '-'
-              }
-            />
-          ) : null}
-
-          {/* Estimate panel */}
-          {activeAppointment.status !== 'COMPLETED' && (
-            <div className="rounded-2xl border border-card-border p-4 flex flex-col gap-2">
-              {serviceInfo && (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className="font-satoshi text-sm font-medium text-text-secondary">
-                      Cost:
-                    </span>
-                    <span className="font-satoshi text-sm font-bold text-text-primary">
-                      {serviceInfo.cost ? `$ ${Number(serviceInfo.cost).toFixed(2)}` : '-'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-satoshi text-sm font-medium text-text-secondary">
-                      Max discount:
-                    </span>
-                    <span className="font-satoshi text-sm font-bold text-text-primary">
-                      {serviceInfo.maxDiscount
-                        ? `$${Number(serviceInfo.maxDiscount).toFixed(2)}`
-                        : '-'}
-                    </span>
-                  </div>
-                </>
-              )}
-              <div className="flex items-center justify-between mt-1">
-                <span
-                  className="font-satoshi text-sm font-medium"
-                  style={{ color: 'var(--color-neutral-900)', letterSpacing: '-0.28px' }}
-                >
-                  Estimate
-                </span>
-                <span
-                  className="font-satoshi text-2xl font-bold"
-                  style={{
-                    color:
-                      estimateDisplay === '-'
-                        ? 'var(--color-neutral-500)'
-                        : 'var(--color-primary-600)',
-                    letterSpacing: '-0.48px',
-                  }}
-                >
-                  {estimateDisplay}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
+        <OverviewRightColumn
+          activeAppointment={activeAppointment}
+          canEditAppointments={canEditAppointments}
+          savingRoom={savingRoom}
+          canEditRoom={canEditRoom}
+          roomOptions={roomOptions}
+          effectiveRoomId={effectiveRoomId}
+          handleRoomChange={handleRoomChange}
+          rooms={rooms}
+          isInpatient={isInpatient}
+          unitOptions={unitOptions}
+          effectiveUnitId={effectiveUnitId}
+          handleUnitChange={handleUnitChange}
+          serviceInfo={serviceInfo}
+          estimateDisplay={estimateDisplay}
+        />
       </div>
 
       {!canOpenWorkspace && (

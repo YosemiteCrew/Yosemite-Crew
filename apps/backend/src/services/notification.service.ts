@@ -1,3 +1,4 @@
+import { existsSync } from "fs";
 import admin from "firebase-admin";
 import { NotificationType } from "@prisma/client";
 import logger from "src/utils/logger";
@@ -11,11 +12,20 @@ import { isReadFromPostgres } from "src/config/read-switch";
 // firebase-admin is used here ONLY for FCM push delivery (device messaging),
 // not for authentication. Initialized lazily so environments without push
 // credentials (CI, local API-only work) never require them.
-if (!admin.apps?.length && process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+const getFirebaseCredentialsPath = () => {
+  const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (!credentialsPath || !existsSync(credentialsPath)) {
+    return null;
+  }
+
+  return credentialsPath;
+};
+
+const credentialsPath = getFirebaseCredentialsPath();
+
+if (!admin.apps?.length && credentialsPath) {
   admin.initializeApp({
-    credential: admin.credential.cert(
-      process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    ),
+    credential: admin.credential.cert(credentialsPath),
   });
 }
 

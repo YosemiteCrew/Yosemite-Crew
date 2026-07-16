@@ -148,7 +148,6 @@ type FieldChangeHandler = (
 
 type InventoryFieldRenderParams = {
   field: FieldDef<any>;
-  key?: React.Key;
   index?: number;
   sectionKey: InventorySectionKey;
   formData: InventoryItem;
@@ -201,7 +200,6 @@ const getReadOnlyStockDisplayValue = (
 
 const renderTextInventoryField = ({
   field,
-  key,
   index,
   sectionKey,
   formData,
@@ -210,7 +208,6 @@ const renderTextInventoryField = ({
   handleChange,
 }: {
   field: FieldDef<any>;
-  key?: React.Key;
   index?: number;
   sectionKey: InventorySectionKey;
   formData: InventoryItem;
@@ -222,10 +219,7 @@ const renderTextInventoryField = ({
   if (isReadOnlyStockField) {
     const displayValue = getReadOnlyStockDisplayValue(field, formData, value);
     return (
-      <div
-        key={key ?? field.name}
-        className="flex items-center gap-2 px-2 text-body-4 text-text-primary"
-      >
+      <div className="flex items-center gap-2 px-2 text-body-4 text-text-primary">
         <span>{field.placeholder} :</span>
         <span className="rounded-full bg-badge-blue-bg px-2 font-semibold text-badge-blue-text">
           {displayValue}
@@ -236,7 +230,6 @@ const renderTextInventoryField = ({
 
   return (
     <FormInput
-      key={key ?? field.name}
       intype="text"
       inname={field.name}
       value={value}
@@ -254,7 +247,6 @@ const renderTextInventoryField = ({
 
 const renderInventoryField = ({
   field,
-  key,
   index,
   sectionKey,
   formData,
@@ -278,7 +270,6 @@ const renderInventoryField = ({
   if (component === 'text') {
     return renderTextInventoryField({
       field,
-      key,
       index,
       sectionKey,
       formData,
@@ -291,7 +282,7 @@ const renderInventoryField = ({
   if (component === 'date') {
     const currentDate = parseDate(value);
     return (
-      <div key={key ?? field.name} className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1">
         <Datepicker
           currentDate={currentDate}
           setCurrentDate={(next: Date | null | ((prev: Date | null) => Date | null)) => {
@@ -320,7 +311,6 @@ const renderInventoryField = ({
     );
     return (
       <LabelDropdown
-        key={key ?? field.name}
         placeholder={placeholder || ''}
         defaultOption={value}
         onSelect={(opt) => handleChange(field, opt.value, index)}
@@ -334,7 +324,6 @@ const renderInventoryField = ({
     const arrayValue = getMultiSelectValues(value);
     return (
       <MultiSelectDropdown
-        key={key ?? field.name}
         placeholder={placeholder || ''}
         value={arrayValue}
         onChange={(vals) => handleChange(field, vals, index)}
@@ -347,7 +336,6 @@ const renderInventoryField = ({
   if (component === 'textarea') {
     return (
       <FormDesc
-        key={key ?? field.name}
         intype="text"
         inname={field.name}
         value={value}
@@ -361,10 +349,7 @@ const renderInventoryField = ({
   if (component === 'checkbox') {
     const checked = value === 'true' || value === 'Yes';
     return (
-      <label
-        key={key ?? field.name}
-        className="flex min-h-10 cursor-pointer items-center gap-3 text-body-4 text-text-primary"
-      >
+      <label className="flex min-h-10 cursor-pointer items-center gap-3 text-body-4 text-text-primary">
         <input
           type="checkbox"
           checked={checked}
@@ -379,7 +364,6 @@ const renderInventoryField = ({
   if (component === 'upload') {
     return (
       <ImageUploadField
-        key={key ?? field.name}
         label={placeholder}
         value={value}
         organisationId={organisationId}
@@ -390,6 +374,8 @@ const renderInventoryField = ({
 
   return null;
 };
+
+const InventoryFieldRenderer = (props: InventoryFieldRenderParams) => renderInventoryField(props);
 
 const FormSection: React.FC<FormSectionProps> = ({
   businessType,
@@ -422,19 +408,17 @@ const FormSection: React.FC<FormSectionProps> = ({
     onFieldChange(sectionKey, field.name, value, batchIndex);
   };
 
-  const renderField = (field: FieldDef<any>, key?: React.Key, index?: number) =>
-    renderInventoryField({
-      field,
-      key,
-      index,
-      sectionKey,
-      formData,
-      sectionData,
-      sectionErrors,
-      stockLocationOptions,
-      organisationId,
-      handleChange,
-    });
+  const getFieldProps = (field: FieldDef<any>, index?: number) => ({
+    field,
+    index,
+    sectionKey,
+    formData,
+    sectionData,
+    sectionErrors,
+    stockLocationOptions,
+    organisationId,
+    handleChange,
+  });
 
   const renderItem = (item: ConfigItem<any>, index: number, batchIndex?: number) => {
     const itemKey =
@@ -443,14 +427,16 @@ const FormSection: React.FC<FormSectionProps> = ({
     if ('fields' in item && item.kind === 'row') {
       return (
         <div key={fullKey} className="grid grid-cols-2 gap-3">
-          {item.fields.map((field, i) => renderField(field, `${index}-${i}`, batchIndex))}
+          {item.fields.map((field) => (
+            <InventoryFieldRenderer key={field.name} {...getFieldProps(field, batchIndex)} />
+          ))}
         </div>
       );
     }
 
     return (
       <div key={fullKey} className="w-full">
-        {renderField(item.field, index, batchIndex)}
+        <InventoryFieldRenderer {...getFieldProps(item.field, batchIndex)} />
       </div>
     );
   };

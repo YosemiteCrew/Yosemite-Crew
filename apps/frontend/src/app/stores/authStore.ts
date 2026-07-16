@@ -79,8 +79,10 @@ type AuthStore = {
     lastName: string,
     role?: string
   ) => Promise<{ userId: string } | undefined>;
+  confirmSignUp: (email: string, code: string) => Promise<boolean>;
   verifyEmail: () => Promise<'OK' | 'INVALID_TOKEN'>;
   resendVerificationEmail: () => Promise<'OK' | 'ALREADY_VERIFIED'>;
+  resendCode: (email: string) => Promise<boolean>;
   clearPendingSignUp: () => void;
   signIn: (email: string, password: string) => Promise<SignInResult>;
   completeTotpChallenge: (code: string) => Promise<{ status: 'OK' }>;
@@ -226,7 +228,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         formFields: emailPasswordFormFields(email, password),
       });
       if (response.status === 'FIELD_ERROR') {
-        const emailError = response.formFields.find((field) => field.id === 'email');
+        const emailError = response.formFields.find(
+          (field: { id: string; error: string }) => field.id === 'email'
+        );
         if (emailError && /already exists/i.test(emailError.error)) {
           throw makeAuthError(
             'An account with the given email already exists.',
@@ -259,6 +263,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     return 'OK';
   },
 
+  confirmSignUp: async () => (await get().verifyEmail()) === 'OK',
+
   resendVerificationEmail: async () => {
     const response = await EmailVerification.sendVerificationEmail();
     if (response.status === 'EMAIL_ALREADY_VERIFIED_ERROR') {
@@ -266,6 +272,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
     return 'OK';
   },
+
+  resendCode: async () => (await get().resendVerificationEmail()) !== 'ALREADY_VERIFIED',
 
   clearPendingSignUp: () => {
     set({ pendingSignUp: null });

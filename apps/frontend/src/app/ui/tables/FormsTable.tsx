@@ -36,8 +36,7 @@ const FormsTable = ({
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
-    | Organisation['type']
-    | undefined;
+    Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
 
   // Create a lookup map from practitioner ID to team member name
@@ -118,6 +117,7 @@ const FormsTable = ({
           <button
             type="button"
             onClick={() => handleViewForm(item)}
+            aria-label={`View form ${item.name}`}
             className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
           >
             <IoEye size={20} color="var(--color-neutral-900)" />

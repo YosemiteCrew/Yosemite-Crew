@@ -1,6 +1,6 @@
 # Frontend Quality Guide
 
-This guide defines the minimum engineering bar for changes in `apps/frontend`.
+This guide defines the minimum engineering bar for changes in `apps/frontend`, the Yosemite Crew (YC) Next.js web app. It is written for both internal and outside contributors. For where code should live see [`FRONTEND_ARCHITECTURE.md`](FRONTEND_ARCHITECTURE.md); for the pre-release gate see [`FRONTEND_RELEASE_CHECKLIST.md`](FRONTEND_RELEASE_CHECKLIST.md).
 
 ## Objectives
 
@@ -24,9 +24,9 @@ This guide defines the minimum engineering bar for changes in `apps/frontend`.
 - Use shared URL and embed helpers for third-party or cross-origin content.
 - Prefer shared browser storage helpers from `src/app/lib/browserStorage.ts` over ad hoc `localStorage` or `sessionStorage` access.
 - Fail closed when a required URL, token, or config value is invalid.
-- Keep the nonce-based CSP and critical response headers intact. Regressions must fail tests or CI.
-- Do not add inline scripts. Load third-party scripts as external sources allowed by CSP.
-- `style-src-attr 'unsafe-inline'` is retained only for existing React inline style attributes. Do not expand inline script or style-element allowances.
+- Keep the CSP (Content Security Policy) and critical response headers intact: `script-src` is nonce-based on authenticated/app routes, while statically-generated public routes intentionally allow `unsafe-inline` scripts (no per-request nonce exists at prerender time). Regressions must fail tests or CI.
+- Do not add inline scripts on app routes. Load third-party scripts as external sources allowed by CSP.
+- `style-src`/`style-src-elem`/`style-src-attr` retain `unsafe-inline` only for existing React inline styles and pre-rendered styles. Do not expand the inline allowances.
 - Do not introduce new client-side persistence for secrets or signing/session tokens.
 
 ## Accessibility Expectations

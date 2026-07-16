@@ -1,8 +1,11 @@
 import Modal from '@/app/ui/overlays/Modal';
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import Details from '@/app/features/forms/pages/Forms/Sections/AddForm/Details';
+import Details, {
+  AddFormStepHandle,
+} from '@/app/features/forms/pages/Forms/Sections/AddForm/Details';
 import Build from '@/app/features/forms/pages/Forms/Sections/AddForm/Build';
+import { normalizeServiceGroups } from '@/app/features/forms/pages/Forms/Sections/AddForm/serviceGroupHelpers';
 import Review from '@/app/features/forms/pages/Forms/Sections/AddForm/Review';
 import AppointmentMerckSearch from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/AppointmentMerckSearch';
 import { FormsCategory, FormsProps } from '@/app/features/forms/types/forms';
@@ -77,6 +80,9 @@ const defaultForm = (): FormsProps => {
   };
 };
 
+const resolveActiveLabel = (label: string, merckEnabled: boolean) =>
+  !merckEnabled && label === 'merck-manuals' ? 'form-details' : label;
+
 const AddForm = ({
   showModal,
   setShowModal,
@@ -89,8 +95,16 @@ const AddForm = ({
   const [activeLabel, setActiveLabel] = useState('form-details');
   const [formData, setFormData] = useState<FormsProps>(draft ?? initialForm ?? defaultForm());
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const detailValidatorRef = useRef<() => boolean>(() => true);
-  const buildValidatorRef = useRef<() => boolean>(() => true);
+  // Keep the last non-null handle so validation still applies while the step
+  // is unmounted (e.g. checking Details validity from the Merck tab).
+  const detailStepRef = useRef<AddFormStepHandle | null>(null);
+  const buildStepRef = useRef<AddFormStepHandle | null>(null);
+  const setDetailStepHandle = (handle: AddFormStepHandle | null) => {
+    if (handle) detailStepRef.current = handle;
+  };
+  const setBuildStepHandle = (handle: AddFormStepHandle | null) => {
+    if (handle) buildStepRef.current = handle;
+  };
   const [isSaving, setIsSaving] = useState(false);
   const wasOpenRef = useRef(false);
   const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
@@ -102,10 +116,31 @@ const AddForm = ({
       merckEnabled ? LabelOptions : LabelOptions.filter((label) => label.key !== 'merck-manuals'),
     [merckEnabled]
   );
+  const visibleActiveLabel = resolveActiveLabel(activeLabel, merckEnabled);
+
+  const selectActiveLabel = useCallback(
+    (label: string) => {
+      setActiveLabel(resolveActiveLabel(label, merckEnabled));
+    },
+    [merckEnabled]
+  );
+  const updateFormData = useCallback<React.Dispatch<React.SetStateAction<FormsProps>>>(
+    (nextFormData) => {
+      setFormData((previousFormData) => {
+        const resolvedFormData =
+          typeof nextFormData === 'function' ? nextFormData(previousFormData) : nextFormData;
+        if (!initialForm) {
+          onDraftChange?.(resolvedFormData);
+        }
+        return resolvedFormData;
+      });
+    },
+    [initialForm, onDraftChange]
+  );
 
   useLayoutEffect(() => {
     if (showModal && !wasOpenRef.current) {
-      setActiveLabel('form-details');
+      selectActiveLabel('form-details');
       const next = {
         ...(initialForm ?? draft ?? defaultForm()),
         businessType:
@@ -114,47 +149,43 @@ const AddForm = ({
           useOrgStore.getState().getPrimaryOrg?.()?.type,
       };
       setFormData(next);
+      if (!initialForm) {
+        onDraftChange?.(next);
+      }
       wasOpenRef.current = true;
     }
     if (!showModal) {
       wasOpenRef.current = false;
     }
-  }, [showModal, initialForm, draft]);
-
-  useEffect(() => {
-    if (!initialForm) {
-      onDraftChange?.(formData);
-    }
-  }, [formData, onDraftChange, initialForm]);
+  }, [showModal, initialForm, draft, selectActiveLabel, onDraftChange]);
 
   const closeModal = () => {
     setFormData(defaultForm());
-    setActiveLabel('form-details');
     onDraftChange?.(null);
-    setActiveLabel('form-details');
+    selectActiveLabel('form-details');
     setShowModal(false);
     onClose?.();
   };
 
   const goToNextStep = () => {
-    if (activeLabel === 'form-details') {
-      if (!detailValidatorRef.current()) return;
-      setActiveLabel('build-form');
-    } else if (activeLabel === 'build-form') {
-      if (!buildValidatorRef.current()) return;
-      setActiveLabel('review');
+    if (visibleActiveLabel === 'form-details') {
+      if (!(detailStepRef.current?.validate() ?? true)) return;
+      selectActiveLabel('build-form');
+    } else if (visibleActiveLabel === 'build-form') {
+      if (!(buildStepRef.current?.validate() ?? true)) return;
+      selectActiveLabel('review');
     }
   };
 
   const handleLabelClick = (target: string) => {
-    if (target === activeLabel) return;
+    if (target === visibleActiveLabel) return;
     if (target === 'build-form' || target === 'review') {
-      if (!detailValidatorRef.current()) return;
+      if (!(detailStepRef.current?.validate() ?? true)) return;
     }
     if (target === 'review') {
-      if (!buildValidatorRef.current()) return;
+      if (!(buildStepRef.current?.validate() ?? true)) return;
     }
-    setActiveLabel(target);
+    selectActiveLabel(target);
   };
 
   const handleSaveDraft = async () => {
@@ -162,6 +193,7 @@ const AddForm = ({
     try {
       const draftData = {
         ...formData,
+        schema: normalizeServiceGroups(formData.schema ?? [], serviceOptions),
         status: 'Draft' as const,
       };
       const saved =
@@ -171,7 +203,7 @@ const AddForm = ({
       setFormData(saved);
       onDraftChange?.(null);
       setFormData(defaultForm());
-      setActiveLabel('form-details');
+      selectActiveLabel('form-details');
       closeModal();
     } catch (err) {
       console.error('Failed to save draft', err);
@@ -183,10 +215,14 @@ const AddForm = ({
   const handlePublish = async () => {
     setIsSaving(true);
     try {
+      const publishData = {
+        ...formData,
+        schema: normalizeServiceGroups(formData.schema ?? [], serviceOptions),
+      };
       const saved =
-        shouldUseTemplateApi(formData) && primaryOrgId
-          ? await saveTemplateFormDraft(formData, primaryOrgId)
-          : await saveFormDraft(formData);
+        shouldUseTemplateApi(publishData) && primaryOrgId
+          ? await saveTemplateFormDraft(publishData, primaryOrgId)
+          : await saveFormDraft(publishData);
       if (saved._id) {
         const published =
           saved.isTemplateBacked && primaryOrgId
@@ -196,7 +232,7 @@ const AddForm = ({
       }
       onDraftChange?.(null);
       setFormData(defaultForm());
-      setActiveLabel('form-details');
+      selectActiveLabel('form-details');
       closeModal();
     } catch (err) {
       console.error('Failed to publish form', err);
@@ -207,13 +243,7 @@ const AddForm = ({
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-  }, [activeLabel]);
-
-  useEffect(() => {
-    if (!merckEnabled && activeLabel === 'merck-manuals') {
-      setActiveLabel('form-details');
-    }
-  }, [merckEnabled, activeLabel]);
+  }, [visibleActiveLabel]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
@@ -230,32 +260,32 @@ const AddForm = ({
           <Close onClick={closeModal} />
         </div>
 
-        <Labels labels={labelOptions} activeLabel={activeLabel} setActiveLabel={handleLabelClick} />
+        <Labels
+          labels={labelOptions}
+          activeLabel={visibleActiveLabel}
+          setActiveLabel={handleLabelClick}
+        />
 
         <div ref={scrollRef} className="flex flex-1 min-h-0 scrollbar-hidden overflow-y-auto">
-          {activeLabel === 'form-details' && (
+          {visibleActiveLabel === 'form-details' && (
             <Details
               formData={formData}
-              setFormData={setFormData}
+              setFormData={updateFormData}
               onNext={goToNextStep}
               serviceOptions={serviceOptions}
-              registerValidator={(fn) => {
-                detailValidatorRef.current = fn;
-              }}
+              ref={setDetailStepHandle}
             />
           )}
-          {activeLabel === 'build-form' && (
+          {visibleActiveLabel === 'build-form' && (
             <Build
               formData={formData}
-              setFormData={setFormData}
+              setFormData={updateFormData}
               onNext={goToNextStep}
               serviceOptions={serviceOptions}
-              registerValidator={(fn) => {
-                buildValidatorRef.current = fn;
-              }}
+              ref={setBuildStepHandle}
             />
           )}
-          {activeLabel === 'review' && (
+          {visibleActiveLabel === 'review' && (
             <Review
               formData={formData}
               onPublish={handlePublish}
@@ -265,7 +295,7 @@ const AddForm = ({
               isEditing={isEditing}
             />
           )}
-          {merckEnabled && activeLabel === 'merck-manuals' && (
+          {merckEnabled && visibleActiveLabel === 'merck-manuals' && (
             <AppointmentMerckSearch activeAppointment={null} />
           )}
         </div>

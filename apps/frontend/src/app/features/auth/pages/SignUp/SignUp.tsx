@@ -84,49 +84,76 @@ const validateSignUpInputs = (
 };
 
 type SignUpProps = {
+  postAuthRedirect?: string;
   signinHref?: string;
   allowNext?: boolean;
   isDeveloper?: boolean;
 };
 
-const featureBullets = [
+const FEATURE_ITEMS = [
   {
-    developer: {
-      title: 'API-first, self-host or managed',
-      description:
-        'Open source core with APIs built for integrations. Run it yourself or use our managed stack.',
-    },
-    member: {
-      title: 'Enjoy smooth online solutions with us!',
-      description:
-        'Our services are built on a strong foundation for great performance and flexibility.',
-    },
+    developerTitle: 'API-first, self-host or managed',
+    developerDescription:
+      'Open source core with APIs built for integrations. Run it yourself or use our managed stack.',
+    title: 'Enjoy smooth online solutions with us!',
+    description:
+      'Our services are built on a strong foundation for great performance and flexibility.',
   },
   {
-    developer: {
-      title: 'Local dev + production ready',
-      description:
-        'Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted.',
-    },
-    member: {
-      title: 'Start free and upgrade as needed.',
-      description: 'Enjoy generous free usage. Upgrade only when you need.',
-    },
+    developerTitle: 'Local dev + production ready',
+    developerDescription:
+      'Develop locally against the same APIs you deploy. No lock-in between self-hosted and hosted.',
+    title: 'Start free and upgrade as needed.',
+    description: 'Enjoy generous free usage. Upgrade only when you need.',
   },
   {
-    developer: {
-      title: 'Secure by default',
-      description:
-        'Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed.',
-    },
-    member: {
-      title: 'Our servers are EU-based and GDPR compliant.',
-      description: 'All data is securely stored in the EU, fully GDPR compliant.',
-    },
+    developerTitle: 'Secure by default',
+    developerDescription:
+      'Encrypted storage, audit-friendly logs, and least-privilege access for integrations whether self-hosted or managed.',
+    title: 'Our servers are EU-based and GDPR compliant.',
+    description: 'All data is securely stored in the EU, fully GDPR compliant.',
   },
 ];
 
-const SignUp = ({ signinHref = '/signin', isDeveloper = false }: Readonly<SignUpProps>) => {
+const SignUpFeatureItem = ({ title, description }: { title: string; description: string }) => (
+  <div className="flex gap-2">
+    <div className="w-[20px]">
+      <GoCheckCircleFill color="var(--color-primary-500)" size={20} className="mt-[3px]" />
+    </div>
+    <div className="flex flex-col gap-1">
+      <div className="text-body-3-emphasis text-text-primary auth-feature-title">{title}</div>
+      <p className="text-caption-1 text-text-primary auth-feature-desc">{description}</p>
+    </div>
+  </div>
+);
+
+const SignUpFeaturePanel = ({ isDeveloper }: { isDeveloper: boolean }) => (
+  <div className="flex align-center justify-center flex-col gap-8 w-[90%] sm:w-[70%] md:w-1/2 md:mt-16">
+    <div className="flex w-full items-center justify-center">
+      <p className="text-display-2 text-text-primary text-center max-w-87.5 auth-title">
+        {isDeveloper
+          ? 'Build, test, and ship apps on Yosemite Crew'
+          : 'Built for everyone, from day one'}
+      </p>
+    </div>
+
+    <div className="flex flex-col gap-6">
+      {FEATURE_ITEMS.map((item) => (
+        <SignUpFeatureItem
+          key={item.title}
+          title={isDeveloper ? item.developerTitle : item.title}
+          description={isDeveloper ? item.developerDescription : item.description}
+        />
+      ))}
+    </div>
+  </div>
+);
+
+const SignUp = ({
+  postAuthRedirect,
+  signinHref = '/signin',
+  isDeveloper = false,
+}: Readonly<SignUpProps>) => {
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
   const { signUp } = useAuthStore();
 
@@ -171,7 +198,7 @@ const SignUp = ({ signinHref = '/signin', isDeveloper = false }: Readonly<SignUp
     if (typeof globalThis !== 'undefined') {
       globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    const status = error.code === 'EMAIL_ALREADY_EXISTS' ? 409 : undefined;
+    const status = error.code === 'UsernameExistsException' ? 409 : undefined;
     const message = error.message || 'Something went wrong.';
 
     showErrorTost({
@@ -234,37 +261,7 @@ const SignUp = ({ signinHref = '/signin', isDeveloper = false }: Readonly<SignUp
         />
       ) : null}
       <div className="flex gap-10 xl:gap-20 w-full md:max-w-[900px] mx-3 py-3 sm:mx-12 md:flex-row flex-col items-center md:items-start">
-        <div className="flex align-center justify-center flex-col gap-8 w-[90%] sm:w-[70%] md:w-1/2 md:mt-16">
-          <div className="flex w-full items-center justify-center">
-            <p className="text-display-2 text-text-primary text-center max-w-87.5 auth-title">
-              {isDeveloper
-                ? 'Build, test, and ship apps on Yosemite Crew'
-                : 'Built for everyone, from day one'}
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-6">
-            {featureBullets.map((bullet) => (
-              <div key={bullet.developer.title} className="flex gap-2">
-                <div className="w-[20px]">
-                  <GoCheckCircleFill
-                    color="var(--color-primary-500)"
-                    size={20}
-                    className="mt-[3px]"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <div className="text-body-3-emphasis text-text-primary auth-feature-title">
-                    {isDeveloper ? bullet.developer.title : bullet.member.title}
-                  </div>
-                  <p className="text-caption-1 text-text-primary auth-feature-desc">
-                    {isDeveloper ? bullet.developer.description : bullet.member.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <SignUpFeaturePanel isDeveloper={isDeveloper} />
 
         <div className="w-full sm:w-[70%] md:w-1/2 bg-white p-[20px] border border-card-border rounded-3xl elevation-1">
           <form onSubmit={handleSignUp} method="post" className="flex flex-col gap-6">
@@ -386,9 +383,12 @@ const SignUp = ({ signinHref = '/signin', isDeveloper = false }: Readonly<SignUp
       </div>
       <OtpModal
         email={normalizeEmail(email)}
+        password={password}
         showErrorTost={showErrorTost}
         showVerifyModal={showVerifyModal}
         setShowVerifyModal={setShowVerifyModal}
+        redirectPath={postAuthRedirect}
+        isDeveloper={isDeveloper}
       />
       {ErrorTostPopup}
     </section>

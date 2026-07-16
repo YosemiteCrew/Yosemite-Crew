@@ -6,6 +6,30 @@ import DynamicChartCard from '@/app/ui/widgets/DynamicChart/DynamicChartCard';
 let yAxisProps: any = {};
 let xAxisProps: any = {};
 
+jest.mock('next/dynamic', () => ({
+  __esModule: true,
+  default: (loader: () => Promise<unknown>) => {
+    const source = loader.toString();
+    const LoadableRechartsComponent = (props: Record<string, unknown>) => {
+      const recharts = jest.requireMock('recharts') as Record<string, React.ComponentType<any>>;
+      if (source.includes('ResponsiveContainer'))
+        return React.createElement(recharts.ResponsiveContainer, props);
+      if (source.includes('BarChart')) return React.createElement(recharts.BarChart, props);
+      if (source.includes('LineChart')) return React.createElement(recharts.LineChart, props);
+      if (source.includes('CartesianGrid'))
+        return React.createElement(recharts.CartesianGrid, props);
+      if (source.includes('XAxis')) return React.createElement(recharts.XAxis, props);
+      if (source.includes('YAxis')) return React.createElement(recharts.YAxis, props);
+      if (source.includes('Tooltip')) return React.createElement(recharts.Tooltip, props);
+      if (source.includes('Line')) return React.createElement(recharts.Line, props);
+      if (source.includes('Bar')) return React.createElement(recharts.Bar, props);
+      return null;
+    };
+    LoadableRechartsComponent.displayName = 'MockDynamicRechartsComponent';
+    return LoadableRechartsComponent;
+  },
+}));
+
 jest.mock('recharts', () => {
   const Recharts = jest.requireActual('recharts');
   return {
