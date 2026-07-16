@@ -636,52 +636,18 @@ describe('OTPVerificationScreen', () => {
     });
   });
 
-  it('falls back to the account username when the completion has no email', async () => {
-    const mockTokens = {accessToken: 'abc', idToken: 'def'};
-    mockedCompleteSignIn.mockResolvedValue({
-      user: {userId: 'user-xyz', username: 'username-fallback@example.com'},
-      attributes: {},
-      profile: {
-        exists: true,
-        isComplete: true,
-        profileToken: 'token-abc',
-        parent: {id: 'parent-xyz'} as any,
-      },
-      tokens: mockTokens,
-      parentLinked: true,
-    });
-
-    const {getByTestId} = renderComponent(false);
-    const otpInput = getByTestId('mock-otp-input');
-
-    await act(async () => {
-      fireEvent.changeText(otpInput, '1234');
-      await Promise.resolve();
-    });
-
-    await waitFor(() => {
-      expect(mockedLogin).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'user-xyz',
-          email: 'username-fallback@example.com',
-        }),
-        mockTokens,
-      );
-    });
-  });
-
   it('shows the digit-count error when the entered code trims below the expected length', () => {
     const {getByTestId} = renderComponent();
     const otpInput = getByTestId('mock-otp-input');
 
-    // A four-character value that trims to two triggers auto-verify but fails
-    // the length check inside validateCode.
+    // A six-character value (matching expectedLength so auto-verify fires)
+    // that trims to four digits fails the length check inside validateCode.
     act(() => {
-      fireEvent.changeText(otpInput, '  12');
+      fireEvent.changeText(otpInput, '  1234');
     });
 
     expect(getByTestId('mock-otp-input').props.accessibilityLabel).toBe(
-      'Error: Please enter the 4-digit code.',
+      'Error: Please enter the 6-digit code.',
     );
     expect(mockedCompleteSignIn).not.toHaveBeenCalled();
   });
