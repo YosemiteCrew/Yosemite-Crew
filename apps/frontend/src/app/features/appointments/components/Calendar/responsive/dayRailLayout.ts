@@ -28,6 +28,9 @@ export type DayRailWindow = {
   endHour: number;
 };
 
+/** Clinic day the design draws: 08:00 through 16:00. */
+export const DEFAULT_DAY_RAIL_WINDOW: DayRailWindow = { startHour: 8, endHour: 16 };
+
 export type DayRailSegmentKind = 'hour' | 'folded';
 
 export type DayRailSegment = {

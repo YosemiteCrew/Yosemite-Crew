@@ -6,6 +6,7 @@ import { IoAdd, IoSwapVerticalOutline } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 
 import {
+  DEFAULT_DAY_RAIL_WINDOW,
   buildDayRailLayout,
   formatRailTime,
   minutesToPct,
@@ -15,8 +16,6 @@ import {
 } from './dayRailLayout';
 
 import './PhoneDayRail.css';
-
-export const DEFAULT_DAY_RAIL_WINDOW: DayRailWindow = { startHour: 8, endHour: 16 };
 
 const STATUS_LABELS: Record<Appointment['status'], string> = {
   REQUESTED: 'Requested',
@@ -122,15 +121,18 @@ const PhoneDayRail = ({
         </span>
       ))}
 
-      {layout.labels
-        .filter((label) => label.hasLine)
-        .map((label) => (
-          <span
-            key={`line-${label.key}`}
-            className="yc-day-rail__line"
-            style={{ top: `${label.topPct}%` }}
-          />
-        ))}
+      {layout.labels.reduce<React.ReactElement[]>((lines, label) => {
+        if (label.hasLine) {
+          lines.push(
+            <span
+              key={`line-${label.key}`}
+              className="yc-day-rail__line"
+              style={{ top: `${label.topPct}%` }}
+            />
+          );
+        }
+        return lines;
+      }, [])}
 
       {layout.folds.map((fold) => (
         <div

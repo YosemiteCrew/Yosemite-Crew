@@ -392,6 +392,11 @@ const AnytimePill = ({
   );
 };
 
+const VIEW_TOGGLE_OPTIONS: { value: MyDayView; label: string }[] = [
+  { value: 'clinic', label: 'Clinic' },
+  { value: 'my-day', label: 'My day' },
+];
+
 const ViewToggle = ({
   view,
   onViewChange,
@@ -399,13 +404,9 @@ const ViewToggle = ({
   view: MyDayView;
   onViewChange?: (view: MyDayView) => void;
 }) => {
-  const options: { value: MyDayView; label: string }[] = [
-    { value: 'clinic', label: 'Clinic' },
-    { value: 'my-day', label: 'My day' },
-  ];
   return (
     <span className="flex rounded-full border border-[var(--hairline)] bg-[var(--band)] p-[3px]">
-      {options.map((option) => {
+      {VIEW_TOGGLE_OPTIONS.map((option) => {
         const isActive = option.value === view;
         return (
           <button

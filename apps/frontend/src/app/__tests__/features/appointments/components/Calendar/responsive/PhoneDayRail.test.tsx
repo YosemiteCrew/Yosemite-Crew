@@ -3,9 +3,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Appointment } from '@yosemite-crew/types';
 
-import PhoneDayRail, {
-  DEFAULT_DAY_RAIL_WINDOW,
-} from '@/app/features/appointments/components/Calendar/responsive/PhoneDayRail';
+import PhoneDayRail from '@/app/features/appointments/components/Calendar/responsive/PhoneDayRail';
+import { DEFAULT_DAY_RAIL_WINDOW } from '@/app/features/appointments/components/Calendar/responsive/dayRailLayout';
 
 jest.mock('react-icons/io5', () => ({
   IoAdd: () => <span data-testid="icon-add" />,
