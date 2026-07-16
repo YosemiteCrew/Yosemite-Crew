@@ -28,22 +28,9 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'Preferences'>;
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
-const DISTANCE_OPTIONS = [
-  {label: 'Kilometres', value: 'km'},
-  {label: 'Miles', value: 'mi'},
-];
-
-const WEIGHT_OPTIONS = [
-  {label: 'Kilograms', value: 'kg'},
-  {label: 'Pounds', value: 'lbs'},
-];
-
-const APPEARANCE_OPTIONS = [
-  {label: 'System', value: 'system'},
-  {label: 'Light', value: 'light'},
-  {label: 'Dark', value: 'dark'},
-];
-
+// Language option labels are autonyms (each language's name in itself) and are
+// intentionally not translated - they must read "English"/"Español" the same
+// way regardless of the app's current locale.
 const LANGUAGE_OPTIONS: SelectItem[] = [
   {id: 'en', label: 'English'},
   {id: 'es', label: 'Español'},
@@ -52,7 +39,23 @@ const LANGUAGE_OPTIONS: SelectItem[] = [
 export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
   const {theme, themeMode, setTheme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const {i18n} = useTranslation();
+  const {t, i18n} = useTranslation();
+
+  const DISTANCE_OPTIONS = [
+    {label: t('preferences.distance_km'), value: 'km'},
+    {label: t('preferences.distance_mi'), value: 'mi'},
+  ];
+
+  const WEIGHT_OPTIONS = [
+    {label: t('preferences.weight_kg'), value: 'kg'},
+    {label: t('preferences.weight_lbs'), value: 'lbs'},
+  ];
+
+  const APPEARANCE_OPTIONS = [
+    {label: t('preferences.appearance_system'), value: 'system'},
+    {label: t('preferences.appearance_light'), value: 'light'},
+    {label: t('preferences.appearance_dark'), value: 'dark'},
+  ];
 
   const {
     weightUnit,
@@ -91,7 +94,7 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
       <LiquidGlassHeaderScreen
         header={
           <Header
-            title="Preferences"
+            title={t('preferences.title')}
             showBackButton
             onBack={handleBack}
             glass={false}
@@ -109,7 +112,7 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
               showsVerticalScrollIndicator={false}>
               {/* Distance */}
               <View>
-                <Text style={styles.label}>Distance</Text>
+                <Text style={styles.label}>{t('preferences.distance')}</Text>
                 <SegmentedControl
                   options={DISTANCE_OPTIONS}
                   value={distanceUnit}
@@ -120,7 +123,7 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
 
               {/* Weight */}
               <View>
-                <Text style={styles.label}>Weight</Text>
+                <Text style={styles.label}>{t('preferences.weight')}</Text>
                 <SegmentedControl
                   options={WEIGHT_OPTIONS}
                   value={weightUnit}
@@ -132,20 +135,19 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
               {/* Currency */}
               <View>
                 <TouchableInput
-                  label="Currency"
+                  label={t('preferences.currency')}
                   value={currencyLabel}
                   onPress={() => currencySheetRef.current?.open()}
                   rightComponent={chevron}
                 />
                 <Text style={styles.caption}>
-                  Used for expenses and invoices. Existing entries are not
-                  converted.
+                  {t('preferences.currency_caption')}
                 </Text>
               </View>
 
               {/* Appearance */}
               <View>
-                <Text style={styles.label}>Appearance</Text>
+                <Text style={styles.label}>{t('preferences.appearance')}</Text>
                 <SegmentedControl
                   options={APPEARANCE_OPTIONS}
                   value={themeMode}
@@ -153,14 +155,14 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
                   testID="appearance-control"
                 />
                 <Text style={styles.caption}>
-                  Dark uses the warm espresso theme.
+                  {t('preferences.appearance_caption')}
                 </Text>
               </View>
 
               {/* Language */}
               <View>
                 <TouchableInput
-                  label="Language"
+                  label={t('preferences.language')}
                   value={selectedLanguage.label}
                   onPress={() => languageSheetRef.current?.open()}
                   rightComponent={chevron}
@@ -168,9 +170,7 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
               </View>
             </ScrollView>
 
-            <Text style={styles.footnote}>
-              Changes apply immediately and are saved on this device.
-            </Text>
+            <Text style={styles.footnote}>{t('preferences.footnote')}</Text>
           </View>
         )}
       </LiquidGlassHeaderScreen>
@@ -183,7 +183,7 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
 
       <GenericSelectBottomSheet
         ref={languageSheetRef}
-        title="Language"
+        title={t('preferences.language')}
         items={LANGUAGE_OPTIONS}
         selectedItem={selectedLanguage}
         onSave={item => {
@@ -194,7 +194,7 @@ export const PreferencesScreen: React.FC<Props> = ({navigation}) => {
         mode="select"
         hasSearch={false}
         snapPoints={['40%', '45%']}
-        emptyMessage="No languages available"
+        emptyMessage={t('preferences.no_languages_available')}
       />
     </>
   );

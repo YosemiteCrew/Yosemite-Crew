@@ -308,9 +308,19 @@ const formatDateTimeDisplay = (iso?: string) => {
 };
 
 const formatDateOnlyDisplay = (iso?: string | null) => {
-  if (!iso) return 'the stated due date';
+  if (!iso) {
+    return getLocalizedText(
+      'payments.statedDueDateFallback',
+      'the stated due date',
+    );
+  }
   const ts = Date.parse(iso);
-  if (Number.isFinite(ts) === false) return 'the stated due date';
+  if (Number.isFinite(ts) === false) {
+    return getLocalizedText(
+      'payments.statedDueDateFallback',
+      'the stated due date',
+    );
+  }
   return new Date(ts).toLocaleDateString('en-US', {
     day: '2-digit',
     month: 'short',
@@ -374,11 +384,16 @@ const resolveInvoicePaymentStatusLabel = (invoice: Invoice | null) => {
   const normalizedStatus = normalizeStatusToken(invoice.status);
   const isPaid = isInvoicePaid(invoice);
   if (normalizedStatus === 'PAID_CASH') {
-    return 'Paid - Cash';
+    return getLocalizedText('payments.statusPaidCash', 'Paid - Cash');
   }
   const method = normalizeStatusToken(invoice.paymentCollectionMethod);
   if (method === 'PAYMENT_AT_CLINIC') {
-    return isPaid ? 'Paid - Cash' : 'Payment at Provider';
+    return isPaid
+      ? getLocalizedText('payments.statusPaidCash', 'Paid - Cash')
+      : getLocalizedText(
+          'payments.statusPaymentAtProvider',
+          'Payment at Provider',
+        );
   }
   const metadataSuggestsCash = isInvoiceCashCollected(invoice);
   const hasStripeEvidence = Boolean(
@@ -391,10 +406,10 @@ const resolveInvoicePaymentStatusLabel = (invoice: Invoice | null) => {
     invoice.stripeReceiptUrl,
   );
   if (isPaid && (metadataSuggestsCash || !hasStripeEvidence)) {
-    return 'Paid - Cash';
+    return getLocalizedText('payments.statusPaidCash', 'Paid - Cash');
   }
   if (isPaid) {
-    return 'Paid';
+    return getLocalizedText('payments.statusPaid', 'Paid');
   }
   return toFriendlyInvoiceStatus(invoice.status);
 };
@@ -404,23 +419,39 @@ const resolveInvoiceStatusBadge = (
 ): {label: string; tone: BadgeTone} => {
   const normalized = paymentStatusLabel.toLowerCase();
   if (/\bpaid\b/.test(normalized)) {
-    return {label: 'Paid', tone: 'success'};
+    return {
+      label: getLocalizedText('payments.statusPaid', 'Paid'),
+      tone: 'success',
+    };
   }
   if (normalized.includes('refund')) {
-    return {label: 'Refunded', tone: 'info'};
+    return {
+      label: getLocalizedText('payments.statusRefunded', 'Refunded'),
+      tone: 'info',
+    };
   }
   if (normalized.includes('cancel')) {
-    return {label: 'Cancelled', tone: 'danger'};
+    return {
+      label: getLocalizedText('payments.statusCancelled', 'Cancelled'),
+      tone: 'danger',
+    };
   }
-  return {label: 'Due', tone: 'warning'};
+  return {
+    label: getLocalizedText('payments.statusDue', 'Due'),
+    tone: 'warning',
+  };
 };
 
 const DEFAULT_CASH_CANCELLATION_NOTICE_TITLE = 'Important';
 const DEFAULT_CASH_CANCELLATION_NOTICE_BODY =
   'This appointment was paid in cash and has been cancelled. If a refund is needed, it must be handled directly by the service provider.';
 
-const getLocalizedText = (key: string, fallback: string) => {
-  const translated = i18n.t(key);
+const getLocalizedText = (
+  key: string,
+  fallback: string,
+  options?: Record<string, unknown>,
+) => {
+  const translated = i18n.t(key, options);
   return translated === key ? fallback : translated;
 };
 
@@ -474,27 +505,38 @@ const InvoiceDetailsCard = ({
       fallbackStyle={styles.cardFallback}>
       <View style={styles.cardContent}>
         <View style={styles.cardHeaderRow}>
-          <Text style={styles.metaTitle}>Invoice details</Text>
+          <Text style={styles.metaTitle}>
+            {getLocalizedText(
+              'payments.invoiceDetailsTitle',
+              'Invoice details',
+            )}
+          </Text>
           <Badge
             label={resolveInvoiceStatusBadge(paymentStatusLabel).label}
             tone={resolveInvoiceStatusBadge(paymentStatusLabel).tone}
             size="sm"
           />
         </View>
-        <MetaRow label="Invoice number" value={invoiceNumberDisplay} />
         <MetaRow
-          label="Appointment ID"
+          label={getLocalizedText('payments.invoiceNumber', 'Invoice number')}
+          value={invoiceNumberDisplay}
+        />
+        <MetaRow
+          label={getLocalizedText('payments.appointmentId', 'Appointment ID')}
           value={effectiveInvoice?.appointmentId ?? apt?.id ?? '—'}
         />
         <MetaRow
-          label="Invoice date"
+          label={getLocalizedText('payments.invoiceDate', 'Invoice date')}
           value={formatDateTimeDisplay(effectiveInvoice?.invoiceDate)}
         />
         <MetaRow
-          label="Due till"
+          label={getLocalizedText('payments.dueTill', 'Due till')}
           value={formatDateTimeDisplay(effectiveInvoice?.dueDate)}
         />
-        <MetaRow label="Payment status" value={paymentStatusLabel} />
+        <MetaRow
+          label={getLocalizedText('payments.paymentStatus', 'Payment status')}
+          value={paymentStatusLabel}
+        />
       </View>
     </LiquidGlassCard>
   </View>
@@ -512,21 +554,32 @@ const RefundSection = ({
   styles: any;
 }) => (
   <>
-    <Text style={styles.metaTitle}>Refund</Text>
-    <MetaRow label="Refund ID" value={effectiveInvoice?.refundId ?? '—'} />
+    <Text style={styles.metaTitle}>
+      {getLocalizedText('payments.refundTitle', 'Refund')}
+    </Text>
     <MetaRow
-      label="Refund status"
+      label={getLocalizedText('payments.refundId', 'Refund ID')}
+      value={effectiveInvoice?.refundId ?? '—'}
+    />
+    <MetaRow
+      label={getLocalizedText('payments.refundStatus', 'Refund status')}
       value={effectiveInvoice?.refundStatus ?? effectiveInvoice?.status ?? '—'}
     />
-    <MetaRow label="Refund amount" value={refundAmountDisplay} />
     <MetaRow
-      label="Refund date"
+      label={getLocalizedText('payments.refundAmount', 'Refund amount')}
+      value={refundAmountDisplay}
+    />
+    <MetaRow
+      label={getLocalizedText('payments.refundDate', 'Refund date')}
       value={formatDateTimeDisplay(effectiveInvoice?.refundDate ?? undefined)}
     />
     {effectiveInvoice?.refundReceiptUrl || effectiveInvoice?.downloadUrl ? (
       <View style={styles.refundLinkRow}>
         <LiquidGlassButton
-          title="View refund receipt"
+          title={getLocalizedText(
+            'payments.viewRefundReceipt',
+            'View refund receipt',
+          )}
           onPress={() => {
             const url =
               effectiveInvoice?.refundReceiptUrl ??
@@ -573,7 +626,9 @@ const InvoiceForCard = ({
       style={styles.glassCard}
       fallbackStyle={styles.cardFallback}>
       <View style={styles.cardContent}>
-        <Text style={styles.metaTitle}>Invoice for</Text>
+        <Text style={styles.metaTitle}>
+          {getLocalizedText('payments.invoiceForTitle', 'Invoice for')}
+        </Text>
         <View style={styles.invoiceForRow}>
           <AvatarGroup
             avatars={[
@@ -638,7 +693,9 @@ const BreakdownCard = ({
       style={styles.glassCard}
       fallbackStyle={styles.cardFallback}>
       <View style={styles.cardContent}>
-        <Text style={styles.metaTitle}>Description</Text>
+        <Text style={styles.metaTitle}>
+          {getLocalizedText('payments.descriptionTitle', 'Description')}
+        </Text>
         {effectiveInvoice?.items?.map((item: InvoiceItem) => (
           <BreakdownRow
             key={buildInvoiceItemKey(item)}
@@ -658,7 +715,13 @@ const BreakdownCard = ({
               const rawLabel =
                 pc.code?.text ??
                 pc.type?.toString().replaceAll('_', ' ').replaceAll('-', ' ') ??
-                `Line ${idx + 1}`;
+                getLocalizedText(
+                  'payments.lineItemFallback',
+                  `Line ${idx + 1}`,
+                  {
+                    index: idx + 1,
+                  },
+                );
               const label =
                 rawLabel.length > 0
                   ? rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1)
@@ -680,26 +743,36 @@ const BreakdownCard = ({
         ) : (
           <>
             <BreakdownRow
-              label="Sub Total"
+              label={getLocalizedText('payments.subTotal', 'Sub Total')}
               value={formatMoney(subtotal)}
               subtle
             />
             {!!discountAmount && (
               <BreakdownRow
-                label="Discount"
+                label={getLocalizedText('payments.discount', 'Discount')}
                 value={`-${formatMoney(discountAmount)}`}
                 subtle
               />
             )}
             {!!taxAmount && (
-              <BreakdownRow label="Tax" value={formatMoney(taxAmount)} subtle />
+              <BreakdownRow
+                label={getLocalizedText('payments.tax', 'Tax')}
+                value={formatMoney(taxAmount)}
+                subtle
+              />
             )}
           </>
         )}
-        <BreakdownRow label="Total" value={formatMoney(total)} highlight />
+        <BreakdownRow
+          label={getLocalizedText('payments.total', 'Total')}
+          value={formatMoney(total)}
+          highlight
+        />
         <Text style={styles.breakdownNote}>
-          Price calculated as: Sum of line-item (Qty × Unit Price) – Discounts +
-          Taxes.
+          {getLocalizedText(
+            'payments.breakdownNote',
+            'Price calculated as: Sum of line-item (Qty × Unit Price) – Discounts + Taxes.',
+          )}
         </Text>
       </View>
     </LiquidGlassCard>
@@ -725,9 +798,14 @@ const ReceiptCard = ({
         style={styles.glassCard}
         fallbackStyle={styles.cardFallback}>
         <View style={styles.cardContent}>
-          <Text style={styles.metaTitle}>Invoice & receipt</Text>
+          <Text style={styles.metaTitle}>
+            {getLocalizedText(
+              'payments.invoiceAndReceiptTitle',
+              'Invoice & receipt',
+            )}
+          </Text>
           <LiquidGlassButton
-            title="View invoice"
+            title={getLocalizedText('payments.viewInvoice', 'View invoice')}
             onPress={() => {
               Linking.canOpenURL(receiptUrl)
                 .then(canOpen => {
@@ -738,8 +816,14 @@ const ReceiptCard = ({
                 })
                 .catch(() =>
                   Alert.alert(
-                    'Unable to open invoice',
-                    'Please try again or copy the link from your receipt.',
+                    getLocalizedText(
+                      'payments.unableToOpenInvoiceTitle',
+                      'Unable to open invoice',
+                    ),
+                    getLocalizedText(
+                      'payments.unableToOpenInvoiceMessage',
+                      'Please try again or copy the link from your receipt.',
+                    ),
                   ),
                 );
             }}
@@ -750,7 +834,10 @@ const ReceiptCard = ({
             textStyle={styles.confirmPrimaryButtonText}
           />
           <Text style={styles.missingSubtitle}>
-            You will be redirected to the secure Stripe receipt in your browser.
+            {getLocalizedText(
+              'payments.receiptRedirectNotice',
+              'You will be redirected to the secure Stripe receipt in your browser.',
+            )}
           </Text>
         </View>
       </LiquidGlassCard>
@@ -777,29 +864,47 @@ const TermsCard = ({
       style={styles.glassCard}
       fallbackStyle={styles.cardFallback}>
       <View style={styles.cardContent}>
-        <Text style={styles.metaTitle}>Payment terms & legal</Text>
-        <Text style={styles.termsLine}>
-          Payment is due by {paymentDueLabel}. Late or failed payments may
-          result in rescheduling or cancellation; card transactions are
-          processed securely via Stripe.
+        <Text style={styles.metaTitle}>
+          {getLocalizedText(
+            'payments.termsAndLegalTitle',
+            'Payment terms & legal',
+          )}
         </Text>
         <Text style={styles.termsLine}>
-          Services are provided by {businessName}
-          {businessAddress && businessAddress !== '—'
-            ? ` (${businessAddress})`
-            : ''}
-          . Charges reflect veterinary/professional services rendered and may
-          include taxes or approved follow-up care.
+          {getLocalizedText(
+            'payments.termsPaymentDue',
+            `Payment is due by ${paymentDueLabel}. Late or failed payments may result in rescheduling or cancellation; card transactions are processed securely via Stripe.`,
+            {paymentDueLabel},
+          )}
         </Text>
         <Text style={styles.termsLine}>
-          Refunds or billing disputes are handled by the service provider in
-          line with applicable consumer laws. Keep your receipt and contact the
-          service provider directly for questions or adjustments.
+          {getLocalizedText(
+            'payments.termsServicesProvidedBy',
+            `Services are provided by ${businessName}${
+              businessAddress && businessAddress !== '—'
+                ? ` (${businessAddress})`
+                : ''
+            }. Charges reflect veterinary/professional services rendered and may include taxes or approved follow-up care.`,
+            {
+              businessName,
+              businessAddress:
+                businessAddress && businessAddress !== '—'
+                  ? ` (${businessAddress})`
+                  : '',
+            },
+          )}
         </Text>
         <Text style={styles.termsLine}>
-          This invoice is not emergency advice. If your companion needs urgent
-          care, contact the service provider or local emergency services
-          immediately.
+          {getLocalizedText(
+            'payments.termsRefundsDisputes',
+            'Refunds or billing disputes are handled by the service provider in line with applicable consumer laws. Keep your receipt and contact the service provider directly for questions or adjustments.',
+          )}
+        </Text>
+        <Text style={styles.termsLine}>
+          {getLocalizedText(
+            'payments.termsNotEmergencyAdvice',
+            'This invoice is not emergency advice. If your companion needs urgent care, contact the service provider or local emergency services immediately.',
+          )}
         </Text>
       </View>
     </LiquidGlassCard>
@@ -932,8 +1037,11 @@ const useEnsurePaymentData = ({
     const hasInvoiceFromRoute = Boolean(routeInvoice);
     if (!appointmentId && !hasInvoiceFromRoute) {
       Alert.alert(
-        'Missing data',
-        'Could not open payment screen without appointment or invoice.',
+        getLocalizedText('payments.missingDataTitle', 'Missing data'),
+        getLocalizedText(
+          'payments.missingDataMessage',
+          'Could not open payment screen without appointment or invoice.',
+        ),
       );
       navigation.goBack();
       return;
@@ -979,9 +1087,19 @@ const getHeaderTitle = (
   isInvoiceBasedFlow: boolean,
   isPaymentPendingStatus: boolean,
 ) => {
-  if (isInvoiceBasedFlow) return 'Invoice payment';
-  if (isPaymentPendingStatus) return 'Book appointment';
-  return 'Invoice details';
+  if (isInvoiceBasedFlow) {
+    return getLocalizedText(
+      'payments.headerTitleInvoicePayment',
+      'Invoice payment',
+    );
+  }
+  if (isPaymentPendingStatus) {
+    return getLocalizedText(
+      'payments.headerTitleBookAppointment',
+      'Book appointment',
+    );
+  }
+  return getLocalizedText('payments.invoiceDetailsTitle', 'Invoice details');
 };
 
 const resolveInvoice = ({
@@ -1168,7 +1286,12 @@ const buildInvoiceContent = ({
     return (
       <View style={styles.loadingBox}>
         <ActivityIndicator size="small" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Preparing payment details…</Text>
+        <Text style={styles.loadingText}>
+          {getLocalizedText(
+            'payments.preparingPaymentDetails',
+            'Preparing payment details…',
+          )}
+        </Text>
       </View>
     );
   }
@@ -1250,7 +1373,11 @@ const buildInvoiceContent = ({
           clientSecret={clientSecret}
           theme={theme}
           handlePayNow={handlePayNow}
-          payLabel={`Pay ${formatMoney(total)}`}
+          payLabel={getLocalizedText(
+            'payments.payButtonLabel',
+            `Pay ${formatMoney(total)}`,
+            {amount: formatMoney(total)},
+          )}
           styles={styles}
         />
       </>
@@ -1260,8 +1387,11 @@ const buildInvoiceContent = ({
   return (
     <PaymentsEmptyState
       testID="payment-invoice-empty"
-      title="Nothing due"
-      description="Invoices from your linked practices appear here the moment they are issued."
+      title={getLocalizedText('payments.nothingDueTitle', 'Nothing due')}
+      description={getLocalizedText(
+        'payments.nothingDueDescription',
+        'Invoices from your linked practices appear here the moment they are issued.',
+      )}
     />
   );
 };

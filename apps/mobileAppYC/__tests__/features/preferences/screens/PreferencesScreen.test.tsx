@@ -25,10 +25,35 @@ const mockSetWeightUnit = jest.fn();
 const mockSetDistanceUnit = jest.fn();
 const mockSetCurrency = jest.fn();
 
-// i18n — the screen reads `i18n.language` and calls `i18n.changeLanguage`.
+// i18n — the screen reads `i18n.language` and calls `i18n.changeLanguage`,
+// and translates its copy via `t()`.
 const mockI18n = {language: 'en', changeLanguage: jest.fn()};
+const PREFERENCES_TRANSLATIONS: Record<string, string> = {
+  'preferences.title': 'Preferences',
+  'preferences.distance': 'Distance',
+  'preferences.distance_km': 'Kilometres',
+  'preferences.distance_mi': 'Miles',
+  'preferences.weight': 'Weight',
+  'preferences.weight_kg': 'Kilograms',
+  'preferences.weight_lbs': 'Pounds',
+  'preferences.currency': 'Currency',
+  'preferences.currency_caption':
+    'Used for expenses and invoices. Existing entries are not converted.',
+  'preferences.appearance': 'Appearance',
+  'preferences.appearance_system': 'System',
+  'preferences.appearance_light': 'Light',
+  'preferences.appearance_dark': 'Dark',
+  'preferences.appearance_caption': 'Dark uses the warm espresso theme.',
+  'preferences.language': 'Language',
+  'preferences.no_languages_available': 'No languages available',
+  'preferences.footnote':
+    'Changes apply immediately and are saved on this device.',
+};
 jest.mock('react-i18next', () => ({
-  useTranslation: () => ({i18n: mockI18n}),
+  useTranslation: () => ({
+    i18n: mockI18n,
+    t: (key: string) => PREFERENCES_TRANSLATIONS[key] ?? key,
+  }),
 }));
 
 // Theme + preferences hooks are explicit jest.fns we drive per test.
