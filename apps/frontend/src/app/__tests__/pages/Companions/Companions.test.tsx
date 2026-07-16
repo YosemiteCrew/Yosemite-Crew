@@ -168,8 +168,13 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
 }));
 
 describe('Companions page', () => {
+  let replaceStateSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // The consumed deep link is stripped by rewriting the history entry in
+    // place, so assert on history rather than on the router.
+    replaceStateSpy = jest.spyOn(window.history, 'replaceState').mockImplementation(() => {});
     useCompanionsMock.mockReturnValue([
       {
         companion: { id: 'c1', name: 'Buddy', status: 'active', type: 'dog' },
@@ -187,6 +192,10 @@ describe('Companions page', () => {
     searchParamsGetMock.mockReturnValue(null);
     searchParamsToStringMock.mockReturnValue('');
     isCompanionRevampEnabledMock.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    replaceStateSpy.mockRestore();
   });
 
   it('has no axe violations', async () => {
@@ -331,8 +340,10 @@ describe('Companions page', () => {
     render(<ProtectedCompanions />);
     await screen.findByTestId('companion-info');
     // Bug 20b: leaving `companionId` on the history entry makes browser Back
-    // replay the deep link and re-open the patient modal.
-    expect(routerReplaceMock).toHaveBeenCalledWith('/companions', { scroll: false });
+    // replay the deep link and re-open the patient modal. The entry is rewritten
+    // in place rather than navigated, so the router must not be involved.
+    expect(replaceStateSpy).toHaveBeenCalledWith(null, '', '/companions');
+    expect(routerReplaceMock).not.toHaveBeenCalled();
   });
 
   it('preserves unrelated query params when stripping the consumed deep link', async () => {
@@ -340,7 +351,7 @@ describe('Companions page', () => {
     searchParamsToStringMock.mockReturnValue('companionId=c1&tab=active');
     render(<ProtectedCompanions />);
     await screen.findByTestId('companion-info');
-    expect(routerReplaceMock).toHaveBeenCalledWith('/companions?tab=active', { scroll: false });
+    expect(replaceStateSpy).toHaveBeenCalledWith(null, '', '/companions?tab=active');
   });
 
   it('does not rewrite the URL when the deep link matches no companion', () => {
@@ -349,12 +360,12 @@ describe('Companions page', () => {
     render(<ProtectedCompanions />);
     // The deep link was never consumed, so it must stay in the URL for a later
     // render (the companions list may still be loading).
-    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(replaceStateSpy).not.toHaveBeenCalled();
   });
 
   it('does not rewrite the URL when there is no deep link', () => {
     render(<ProtectedCompanions />);
-    expect(routerReplaceMock).not.toHaveBeenCalled();
+    expect(replaceStateSpy).not.toHaveBeenCalled();
   });
 
   it('renders the central modals when the companion revamp flag is enabled', () => {
