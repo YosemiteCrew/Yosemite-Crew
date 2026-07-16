@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { IoIosArrowBack } from 'react-icons/io';
-import { IoAddOutline, IoCheckmarkOutline } from 'react-icons/io5';
+import { IoAddOutline, IoCheckmarkOutline, IoPencilOutline } from 'react-icons/io5';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -14,6 +14,11 @@ import {
   useLoadCompanionsForPrimaryOrg,
 } from '@/app/hooks/useCompanion';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import {
+  useAppointmentsForPrimaryOrg,
+  useLoadAppointmentsForPrimaryOrg,
+} from '@/app/hooks/useAppointments';
+import { getLastVisitStart } from '@/app/features/companions/pages/Companions/companionsDirectory';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { startRouteLoader } from '@/app/lib/routeLoader';
@@ -27,10 +32,15 @@ import {
   storedAlertsToCompanionAlerts,
 } from '@/app/features/appointments/lib/alertMapping';
 import AddAppointmentCentralModal from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal';
+import AddCompanionCentralModal from '@/app/features/companions/components/AddCompanionCentralModal';
+import CompanionInfo from '@/app/features/companions/components/CompanionInfo';
 import { updateCompanion, updateParent } from '@/app/features/companions/services/companionService';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useNotify } from '@/app/hooks/useNotify';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
+import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
 import type {
   CompanionParent,
   StoredParent,
@@ -113,8 +123,16 @@ const ProfileDetail = ({
   </div>
 );
 
-const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
+const CompanionProfilePanel = ({
+  record,
+  onEdit,
+}: {
+  record: CompanionParent;
+  onEdit?: () => void;
+}) => {
   const replaceCompanionText = useCompanionTerminologyText();
+  useLoadAppointmentsForPrimaryOrg();
+  const appointments = useAppointmentsForPrimaryOrg();
   const details = buildCompanionDetails(
     {
       id: record.companion.id,
@@ -126,6 +144,13 @@ const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
     replaceCompanionText
   );
   const idLabel = replaceCompanionText('Patient ID');
+  // "Last visit" reuses the Companions directory's definition (the most recent
+  // appointment that has already started) so both surfaces agree. A dash means
+  // no past appointment is on record — it is not a claim about the patient.
+  const lastVisitStart = useMemo(
+    () => getLastVisitStart(appointments, record.companion.id),
+    [appointments, record.companion.id]
+  );
   const selectedDetails = [
     details.find((detail) => detail.label === 'Name'),
     details.find((detail) => detail.label === idLabel),
@@ -136,6 +161,7 @@ const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
     details.find((detail) => detail.label === 'Blood Group'),
     details.find((detail) => detail.label === 'Microchip ID'),
     details.find((detail) => detail.label === 'Allergies'),
+    { label: 'Last visit', value: formatDisplayDate(lastVisitStart ?? undefined, '-') },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
@@ -158,6 +184,18 @@ const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
           <ProfileDetail key={detail.label} label={detail.label} value={detail.value} />
         ))}
       </div>
+      {onEdit ? (
+        <GlassTooltip content={replaceCompanionText('Edit patient details')} side="bottom">
+          <button
+            type="button"
+            aria-label={replaceCompanionText('Edit patient details')}
+            onClick={onEdit}
+            className="flex size-6 shrink-0 items-center justify-center self-start rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+          >
+            <IoPencilOutline size={13} aria-hidden="true" />
+          </button>
+        </GlassTooltip>
+      ) : null}
     </section>
   );
 };
@@ -243,6 +281,9 @@ const CompanionHistoryPageInner = () => {
   const searchParams = useSearchParams();
   const replaceCompanionText = useCompanionTerminologyText();
   const { notify } = useNotify();
+  const permissions = usePermissions();
+  const canEditCompanions = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
+  const [editCompanionOpen, setEditCompanionOpen] = useState(false);
   const [addAppointmentOpen, setAddAppointmentOpen] = useState(false);
   const appointmentFilterStateRef = useRef('all');
   const appointmentStatusStateRef = useRef('all');
@@ -433,7 +474,10 @@ const CompanionHistoryPageInner = () => {
 
             {activeCompanion ? (
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,1fr)]">
-                <CompanionProfilePanel record={activeCompanion} />
+                <CompanionProfilePanel
+                  record={activeCompanion}
+                  onEdit={canEditCompanions ? () => setEditCompanionOpen(true) : undefined}
+                />
                 <ParentProfilePanel
                   parent={activeCompanion.parent}
                   companionId={activeCompanion.companion.id}
@@ -462,6 +506,26 @@ const CompanionHistoryPageInner = () => {
             setActiveStatus={setAppointmentStatusState}
             initialCompanionId={companionId || null}
           />
+
+          {/* Reuses the Companions directory's editor so the overview edits the
+              patient and client through the same validated mutations. */}
+          {activeCompanion &&
+            canEditCompanions &&
+            (isCompanionRevampEnabled() ? (
+              <AddCompanionCentralModal
+                showModal={editCompanionOpen}
+                setShowModal={setEditCompanionOpen}
+                viewCompanion={activeCompanion}
+                canEditCompanionStatus={canEditCompanions}
+              />
+            ) : (
+              <CompanionInfo
+                showModal={editCompanionOpen}
+                setShowModal={setEditCompanionOpen}
+                activeCompanion={activeCompanion}
+                canEditCompanionStatus={canEditCompanions}
+              />
+            ))}
 
           <AddAlertModal
             open={alertTarget !== null}

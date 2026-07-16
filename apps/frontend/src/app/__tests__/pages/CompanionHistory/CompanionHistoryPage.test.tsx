@@ -42,6 +42,9 @@ const withCompanionId = (key: string) => {
   return null;
 };
 
+const canMock = jest.fn();
+const useAppointmentsForPrimaryOrgMock = jest.fn();
+
 expect.extend(toHaveNoViolations);
 
 jest.mock('next/dynamic', () => ({
@@ -161,6 +164,29 @@ jest.mock('@/app/stores/companionStore', () => ({
     useCompanionStoreMock(selector),
 }));
 
+jest.mock('@/app/hooks/usePermissions', () => ({
+  usePermissions: () => ({ can: (permission: string) => canMock(permission) }),
+}));
+
+jest.mock('@/app/hooks/useAppointments', () => ({
+  useLoadAppointmentsForPrimaryOrg: jest.fn(),
+  useAppointmentsForPrimaryOrg: () => useAppointmentsForPrimaryOrgMock(),
+}));
+
+jest.mock('@/app/features/companions/components/AddCompanionCentralModal', () => ({
+  __esModule: true,
+  default: ({ showModal, viewCompanion }: any) =>
+    showModal ? <div data-testid="edit-companion-modal">{viewCompanion?.companion?.id}</div> : null,
+}));
+
+jest.mock('@/app/features/companions/components/CompanionInfo', () => ({
+  __esModule: true,
+  default: ({ showModal, activeCompanion }: any) =>
+    showModal ? (
+      <div data-testid="legacy-companion-modal">{activeCompanion?.companion?.id}</div>
+    ) : null,
+}));
+
 jest.mock('@/app/ui/layout/PageSkeleton', () => ({
   __esModule: true,
   default: () => <div className="animate-pulse" data-testid="page-skeleton" />,
@@ -181,6 +207,8 @@ describe('CompanionHistoryPage', () => {
     );
     mockUpdateCompanion.mockResolvedValue(undefined);
     mockUpdateParent.mockResolvedValue(undefined);
+    canMock.mockReturnValue(true);
+    useAppointmentsForPrimaryOrgMock.mockReturnValue([]);
   });
 
   it('shows missing companion notice and uses fallback back path', () => {
@@ -638,5 +666,71 @@ describe('CompanionHistoryPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Add appointment' }));
     expect(screen.getByTestId('add-appointment-modal')).toHaveTextContent('c-1');
+  });
+
+  describe('editing patient details', () => {
+    it('opens the companion editor from the profile panel', () => {
+      searchGetMock.mockImplementation(withCompanionId);
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([buildRecord()]);
+
+      render(<CompanionHistoryPage />);
+
+      expect(screen.queryByTestId('legacy-companion-modal')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Edit patient details' }));
+      expect(screen.getByTestId('legacy-companion-modal')).toHaveTextContent('c-1');
+    });
+
+    it('hides the edit control without the companion-edit permission', () => {
+      canMock.mockReturnValue(false);
+      searchGetMock.mockImplementation(withCompanionId);
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([buildRecord()]);
+
+      render(<CompanionHistoryPage />);
+
+      expect(
+        screen.queryByRole('button', { name: 'Edit patient details' })
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('last visit', () => {
+    it('shows the most recent appointment that has already started', () => {
+      searchGetMock.mockImplementation(withCompanionId);
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([buildRecord()]);
+      useAppointmentsForPrimaryOrgMock.mockReturnValue([
+        {
+          companion: { id: 'c-1' },
+          startTime: '2020-03-02T10:00:00Z',
+          appointmentDate: '2020-03-02T10:00:00Z',
+        },
+        {
+          companion: { id: 'c-1' },
+          startTime: '2020-05-09T10:00:00Z',
+          appointmentDate: '2020-05-09T10:00:00Z',
+        },
+        // A different companion's later visit must not leak into this panel.
+        {
+          companion: { id: 'c-2' },
+          startTime: '2021-01-01T10:00:00Z',
+          appointmentDate: '2021-01-01T10:00:00Z',
+        },
+      ]);
+
+      render(<CompanionHistoryPage />);
+
+      expect(screen.getByText('Last visit:')).toBeInTheDocument();
+      expect(screen.getByText('May 9, 2020')).toBeInTheDocument();
+    });
+
+    it('shows a dash rather than a claim when no past appointment is on record', () => {
+      searchGetMock.mockImplementation(withCompanionId);
+      useCompanionsParentsForPrimaryOrgMock.mockReturnValue([buildRecord()]);
+      useAppointmentsForPrimaryOrgMock.mockReturnValue([]);
+
+      render(<CompanionHistoryPage />);
+
+      const row = screen.getByText('Last visit:').parentElement as HTMLElement;
+      expect(within(row).getByText('-')).toBeInTheDocument();
+    });
   });
 });

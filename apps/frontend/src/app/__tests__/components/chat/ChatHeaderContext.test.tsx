@@ -98,6 +98,37 @@ describe('ChatHeaderContext', () => {
     expect(screen.queryByRole('button', { name: 'Mark complete' })).not.toBeInTheDocument();
   });
 
+  // Bug 21: "Send form" deep-links into the clinical workspace, which refuses
+  // these statuses outright. Offering it stranded the user on the
+  // "<Status> appointments cannot be opened in the clinical workspace" screen.
+  it.each(['NO_SHOW', 'CANCELLED', 'REQUESTED'])(
+    'hides send form for %s appointments, which the workspace refuses',
+    (status) => {
+      render(
+        <ChatHeaderContext
+          appointment={{ ...appointment, status } as Appointment}
+          onAction={jest.fn()}
+        />
+      );
+      expect(screen.queryByRole('button', { name: 'Send form' })).not.toBeInTheDocument();
+      // The chip itself still renders — the appointment is still linked.
+      expect(screen.getByText('Appointment')).toBeInTheDocument();
+    }
+  );
+
+  it.each(['UPCOMING', 'CHECKED_IN', 'IN_PROGRESS', 'COMPLETED'])(
+    'keeps send form for %s appointments, which the workspace accepts',
+    (status) => {
+      render(
+        <ChatHeaderContext
+          appointment={{ ...appointment, status } as Appointment}
+          onAction={jest.fn()}
+        />
+      );
+      expect(screen.getByRole('button', { name: 'Send form' })).toBeInTheDocument();
+    }
+  );
+
   it.each(['Reschedule', 'Send form', 'Book follow-up'])(
     'calls onAction with "%s" when that button is clicked',
     (label) => {
