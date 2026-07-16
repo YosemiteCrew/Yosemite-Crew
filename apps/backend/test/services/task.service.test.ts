@@ -95,7 +95,13 @@ describe("TaskService", () => {
   const dueAt = new Date("2026-01-01T12:00:00.000Z");
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    // resetAllMocks, not clearAllMocks: clearAllMocks only wipes call records
+    // and leaves queued mockResolvedValueOnce values in place, so a test that
+    // throws before consuming its queue poisons the next test with its
+    // leftovers and one real failure cascades into several phantom ones.
+    // Nothing here sets a base implementation outside a test, so dropping
+    // implementations costs nothing.
+    jest.resetAllMocks();
   });
 
   it("creates a custom task and sends an assignment email", async () => {
