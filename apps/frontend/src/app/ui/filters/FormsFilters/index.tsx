@@ -26,8 +26,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
-    | Organisation['type']
-    | undefined;
+    Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
 
   const filteredCategoryOptions = useMemo(() => {
@@ -89,7 +88,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
           );
         })}
       </div>
-      <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
+      <div className="flex w-full shrink-0 items-end justify-end gap-2 sm:w-auto">
         {categoryAction}
         <div className="w-full sm:w-55 min-w-45">
           <LabelDropdown

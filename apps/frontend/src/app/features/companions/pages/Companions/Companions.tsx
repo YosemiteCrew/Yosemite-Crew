@@ -21,6 +21,7 @@ import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { usePermissions } from '@/app/hooks/usePermissions';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import {
   IoAdd,
   IoGridOutline,
@@ -215,14 +216,12 @@ const Companions = () => {
             </button>
           </span>
           {canEditCompanions && (
-            <button
-              type="button"
+            <Primary
+              text={terminologyText('Add companion')}
               onClick={openAddCompanion}
-              className="hidden h-10 shrink-0 items-center gap-1.5 rounded-full bg-[var(--cta)] px-[18px] text-[13.5px] font-semibold text-[var(--cta-text)] transition-opacity hover:opacity-90 md:flex"
-            >
-              <IoAdd size={17} aria-hidden="true" />
-              {terminologyText('Add companion')}
-            </button>
+              icon={<IoAdd size={18} aria-hidden="true" />}
+              className="max-md:hidden! shrink-0"
+            />
           )}
         </div>
       </div>

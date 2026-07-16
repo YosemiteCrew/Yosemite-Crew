@@ -8,7 +8,7 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 const FORMS_PAGE_SKELETON = <PageSkeleton variant="list" />;
 import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoInformationCircleOutline } from 'react-icons/io5';
+import { IoAdd, IoInformationCircleOutline } from 'react-icons/io5';
 import { FormsProps } from '@/app/features/forms/types/forms';
 import FormsFilters, { type FormsFilterState } from '@/app/ui/filters/FormsFilters';
 import FormsTable from '@/app/ui/tables/FormsTable';
@@ -254,7 +254,14 @@ const Forms = () => {
             filters={filters}
             onFiltersChange={setFilters}
             categoryAction={
-              canEditForms ? <Primary href="#" text="Add" onClick={openAddForm} /> : null
+              canEditForms ? (
+                <Primary
+                  href="#"
+                  text="Add template"
+                  onClick={openAddForm}
+                  icon={<IoAdd size={18} aria-hidden="true" />}
+                />
+              ) : null
             }
           />
           <div ref={plannerSectionRef} className={plannerSectionClassName}>

@@ -155,7 +155,7 @@ const Finance = () => {
                 setActiveStatus={setActiveStatus}
                 className="w-auto"
               />
-              <StripeSettingsButton />
+              <StripeSettingsButton className="h-12!" />
             </div>
           </div>
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
