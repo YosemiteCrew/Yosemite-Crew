@@ -273,6 +273,10 @@ const ParentProfilePanel = ({
   );
 };
 
+/** Applies a setState-style updater (value or callback) against the current ref value. */
+const resolveRefUpdate = (value: string | ((prev: string) => string), current: string): string =>
+  typeof value === 'function' ? value(current) : value;
+
 const CompanionHistoryPageInner = () => {
   useLoadCompanionsForPrimaryOrg();
   const companions = useCompanionsParentsForPrimaryOrg();
@@ -288,12 +292,10 @@ const CompanionHistoryPageInner = () => {
   const appointmentFilterStateRef = useRef('all');
   const appointmentStatusStateRef = useRef('all');
   const setAppointmentFilterState = useCallback((value: string | ((prev: string) => string)) => {
-    appointmentFilterStateRef.current =
-      typeof value === 'function' ? value(appointmentFilterStateRef.current) : value;
+    appointmentFilterStateRef.current = resolveRefUpdate(value, appointmentFilterStateRef.current);
   }, []);
   const setAppointmentStatusState = useCallback((value: string | ((prev: string) => string)) => {
-    appointmentStatusStateRef.current =
-      typeof value === 'function' ? value(appointmentStatusStateRef.current) : value;
+    appointmentStatusStateRef.current = resolveRefUpdate(value, appointmentStatusStateRef.current);
   }, []);
   const [alertTarget, setAlertTarget] = useState<'companion' | 'client' | null>(null);
 

@@ -62,6 +62,16 @@ export function getAgeInMonths(dateOfBirth: Date | string): number {
   return months;
 }
 
+const AGE_UNIT_FORMS = {
+  month: { long: ['month', 'months'], short: ['Mo', 'Mos'] },
+  year: { long: ['year', 'years'], short: ['Yr', 'Yrs'] },
+} as const;
+
+const ageUnit = (kind: keyof typeof AGE_UNIT_FORMS, value: number, long: boolean): string => {
+  const [singular, plural] = AGE_UNIT_FORMS[kind][long ? 'long' : 'short'];
+  return value === 1 ? singular : plural;
+};
+
 /**
  * Companion age label. Under a year it reads in months, so a newborn shows
  * "0 Mos" rather than a misleading "0 Yrs"; a year and over it reads in years.
@@ -81,13 +91,11 @@ export function formatCompanionAge(
   const long = options?.long ?? false;
 
   if (months < 12) {
-    const unit = long ? (months === 1 ? 'month' : 'months') : months === 1 ? 'Mo' : 'Mos';
-    return `${months} ${unit}`;
+    return `${months} ${ageUnit('month', months, long)}`;
   }
 
   const years = Math.floor(months / 12);
-  const unit = long ? (years === 1 ? 'year' : 'years') : years === 1 ? 'Yr' : 'Yrs';
-  return `${years} ${unit}`;
+  return `${years} ${ageUnit('year', years, long)}`;
 }
 
 export const buildUtcDateFromDateAndTime = (selectedDate: Date, startTime: string): Date => {

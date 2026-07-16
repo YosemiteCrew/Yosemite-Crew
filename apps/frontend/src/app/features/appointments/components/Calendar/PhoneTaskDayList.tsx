@@ -56,7 +56,7 @@ const getInitials = (name: string): string =>
     .join('');
 
 const addDays = (date: Date, days: number): Date => {
-  const next = new Date(date.getTime());
+  const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
 };

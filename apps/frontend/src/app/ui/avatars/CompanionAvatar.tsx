@@ -56,10 +56,12 @@ const CompanionAvatar = ({
     <span
       className={`flex shrink-0 items-center justify-center rounded-full font-newsreader shadow-[0_0_0_1px_var(--hairline-soft)] ${textClassName}`}
       style={{ width: size, height: size, background: palette.bg, color: palette.ink }}
-      aria-label={alt || undefined}
-      role={alt ? 'img' : undefined}
     >
-      {getMonogram(name)}
+      {/* The monogram is decoration. `alt` carries the accessible name so a reader
+          announces the companion rather than spelling out the initials; with no
+          alt the disc stays silent beside the name that is already on screen. */}
+      <span aria-hidden="true">{getMonogram(name)}</span>
+      {alt ? <span className="sr-only">{alt}</span> : null}
     </span>
   );
 };

@@ -57,24 +57,28 @@ describe('CompanionAvatar', () => {
 
   it('keeps the monogram palette stable for a given seed', () => {
     const { rerender } = render(<CompanionAvatar name="Axel" seed="companion-1" size={40} />);
-    const first = screen.getByText('A').getAttribute('style');
+    const first = screen.getByText('A').parentElement?.getAttribute('style');
+    // Guard against both reads being null, which would pass against nothing.
+    expect(first).toEqual(expect.stringContaining('background'));
 
     rerender(<CompanionAvatar name="Axel" seed="companion-1" size={40} />);
-    expect(screen.getByText('A').getAttribute('style')).toBe(first);
+    expect(screen.getByText('A').parentElement?.getAttribute('style')).toBe(first);
   });
 
-  it('exposes the monogram disc as an image only when an alt is supplied', () => {
+  it('names the monogram disc only when an alt is supplied', () => {
     const { rerender } = render(<CompanionAvatar name="Axel" size={40} alt="pet image" />);
-    expect(screen.getByRole('img', { name: 'pet image' })).toBeInTheDocument();
+    // The initials are decoration; the alt is what a reader announces.
+    expect(screen.getByText('A')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('pet image')).toHaveClass('sr-only');
 
     rerender(<CompanionAvatar name="Axel" size={40} />);
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByText('pet image')).not.toBeInTheDocument();
   });
 
   it('applies the requested size and text class to the monogram disc', () => {
     render(<CompanionAvatar name="Axel" size={64} textClassName="text-body-1" />);
 
-    const disc = screen.getByText('A');
+    const disc = screen.getByText('A').parentElement as HTMLElement;
     expect(disc).toHaveClass('text-body-1');
     expect(disc).toHaveStyle({ width: '64px', height: '64px' });
   });

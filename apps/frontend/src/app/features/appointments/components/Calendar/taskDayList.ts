@@ -81,7 +81,7 @@ export const formatTaskDueTime = (value: Date): string => {
 };
 
 const addDays = (date: Date, days: number): Date => {
-  const next = new Date(date.getTime());
+  const next = new Date(date);
   next.setDate(next.getDate() + days);
   return next;
 };
@@ -202,7 +202,7 @@ export const buildTaskDayList = ({ tasks, now, anchor }: TaskDayListInput): Task
       id,
       label: labels[id],
       count: entries.length,
-      entries: entries.sort(compareEntries),
+      entries: [...entries].sort(compareEntries),
     }))
     .sort((a, b) => BUCKET_ORDER[a.id] - BUCKET_ORDER[b.id]);
 

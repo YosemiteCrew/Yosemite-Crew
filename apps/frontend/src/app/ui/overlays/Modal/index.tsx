@@ -50,6 +50,22 @@ const isIgnoredOutsideTarget = (target: HTMLElement | null) =>
     )
   );
 
+/** Opacity fade shared by every overlay and the centered panel. */
+const fadeClass = (showModal: boolean): string =>
+  showModal ? 'opacity-100' : 'opacity-0 pointer-events-none';
+
+/** Right-side drawer slide. */
+const drawerSlideClass = (showModal: boolean): string =>
+  showModal ? 'translate-x-0' : 'translate-x-[120%]';
+
+/** Phone panel: `centered` re-forms into a bottom sheet, `drawer` goes full-screen. */
+const phonePanelClass = (isSheet: boolean, showModal: boolean): string => {
+  if (isSheet) {
+    return `yc-phone-sheet yc-modal-sheet ${showModal ? '' : 'yc-modal-sheet-closed'}`;
+  }
+  return `yc-modal-fullscreen ${showModal ? '' : 'yc-modal-fullscreen-closed'}`;
+};
+
 const Modal = ({
   children,
   showModal,
@@ -67,9 +83,7 @@ const Modal = ({
 
   if (isPhone) {
     const isSheet = variant === 'centered';
-    const panelClassName = isSheet
-      ? `yc-phone-sheet yc-modal-sheet ${showModal ? '' : 'yc-modal-sheet-closed'}`
-      : `yc-modal-fullscreen ${showModal ? '' : 'yc-modal-fullscreen-closed'}`;
+    const panelClassName = phonePanelClass(isSheet, showModal);
 
     return (
       <ModalBase
@@ -80,9 +94,9 @@ const Modal = ({
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         ignoreOutsideClick={isIgnoredOutsideTarget}
-        overlayClassName={`fixed backdrop-blur-[6px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${
-          showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
+        overlayClassName={`fixed backdrop-blur-[6px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${fadeClass(
+          showModal
+        )}`}
         overlayStyle={{ backgroundColor: 'var(--sh55)' }}
         containerClassName={panelClassName}
       >
@@ -104,16 +118,16 @@ const Modal = ({
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
         ignoreOutsideClick={isIgnoredOutsideTarget}
-        overlayClassName={`fixed backdrop-blur-[6px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out ${
-          showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
+        overlayClassName={`fixed backdrop-blur-[6px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out ${fadeClass(
+          showModal
+        )}`}
         overlayStyle={{ backgroundColor: 'var(--sh55)' }}
         containerClassName={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-3
         flex flex-col overflow-hidden max-h-[calc(100%-1.5rem)]
         w-[calc(100%-1.5rem)] ${CENTERED_WIDTHS[size]}
         bg-neutral-0 border border-card-border rounded-[20px] z-[1200]
         transition-opacity duration-300 ease-in-out
-        ${showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        ${fadeClass(showModal)}`}
       >
         {children}
       </ModalBase>
@@ -129,14 +143,14 @@ const Modal = ({
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
       ignoreOutsideClick={isIgnoredOutsideTarget}
-      overlayClassName={`fixed backdrop-blur-[2px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out ${
-        showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
-      }`}
+      overlayClassName={`fixed backdrop-blur-[2px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out ${fadeClass(
+        showModal
+      )}`}
       overlayStyle={{ backgroundColor: 'var(--color-overlay-backdrop)' }}
       containerClassName={`fixed top-0 right-0 bottom-0 m-3 p-3 h-[calc(100%-2rem)] w-[calc(100%-2rem)] sm:w-[530px]
         bg-neutral-0 border border-card-border rounded-2xl z-[1200]
         transition-transform duration-300 ease-in-out
-        ${showModal ? 'translate-x-0' : 'translate-x-[120%]'}`}
+        ${drawerSlideClass(showModal)}`}
     >
       {children}
     </ModalBase>
