@@ -42,17 +42,43 @@ const buildAppointmentSubtitle = (
    Adaptation rules: "tablet prunes to <=6 columns, meta folds into the sub-line".
    Services and the appointment date/time fold into the Parent / patient sub-line;
    Subtotal / Discount / Tax fold under Total. */
-const joinMeta = (...parts: (string | undefined)[]): string =>
-  parts
-    .map((part) => part?.trim())
-    .filter((part) => Boolean(part) && part !== '-')
-    .join(' · ');
+const joinMeta = (...parts: (string | undefined)[]): string => {
+  const kept: string[] = [];
+  for (const part of parts) {
+    const text = part?.trim();
+    if (text && text !== '-') kept.push(text);
+  }
+  return kept.join(' · ');
+};
 
 /* The status micro-badge is `white-space: nowrap` + `width: fit-content`, so the
    column has to hold the widest label ("AWAITING PAYMENT" measures 133.7px at
    10px/700/0.08em Satoshi) plus the 22px of td padding, or the pill bleeds over
    the Payment cell. 160px is the measured-safe floor. */
 const STATUS_COLUMN_WIDTH = '160px';
+
+const renderInvoiceNumber = (item: Invoice) => (
+  <div
+    className="appointment-profile-title tabular-nums"
+    title={getInvoiceNumberLabel(item) || undefined}
+  >
+    {getInvoiceNumberLabel(item) || '-'}
+  </div>
+);
+
+const renderServices = (item: Invoice) => (
+  <div className="appointment-profile-title">{getInvoiceItemNames(item.items)}</div>
+);
+
+const renderStatus = (item: Invoice) => (
+  <div className="appointment-status" style={getInvoiceStatusStyle(item?.status)}>
+    {toTitle(item?.status)}
+  </div>
+);
+
+const renderPayment = (item: Invoice) => (
+  <div className="appointment-profile-title">{getInvoicePaymentMethodLabel(item)}</div>
+);
 
 type Column<T> = {
   label: string;
@@ -102,15 +128,6 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
     () => (appointmentId: string | undefined) =>
       getParentNameFromAppointments(appointments, appointmentId),
     [appointments]
-  );
-
-  const renderInvoiceNumber = (item: Invoice) => (
-    <div
-      className="appointment-profile-title tabular-nums"
-      title={getInvoiceNumberLabel(item) || undefined}
-    >
-      {getInvoiceNumberLabel(item) || '-'}
-    </div>
   );
 
   const renderParent = (item: Invoice, foldMeta: boolean) => {
@@ -167,10 +184,6 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       </div>
     );
   };
-
-  const renderServices = (item: Invoice) => (
-    <div className="appointment-profile-title">{getInvoiceItemNames(item.items)}</div>
-  );
 
   const renderDate = (item: Invoice) => {
     const appointment = getAppointmentByIdFromList(appointments, item.appointmentId);
@@ -238,16 +251,6 @@ const InvoiceTable = ({ filteredList, setActiveInvoice, setViewInvoice }: Invoic
       </div>
     );
   };
-
-  const renderStatus = (item: Invoice) => (
-    <div className="appointment-status" style={getInvoiceStatusStyle(item?.status)}>
-      {toTitle(item?.status)}
-    </div>
-  );
-
-  const renderPayment = (item: Invoice) => (
-    <div className="appointment-profile-title">{getInvoicePaymentMethodLabel(item)}</div>
-  );
 
   const renderActions = (item: Invoice) => (
     <div className="action-btn-col">
