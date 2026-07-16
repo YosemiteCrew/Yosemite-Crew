@@ -19,7 +19,10 @@ export const RatingStars: React.FC<{
           <PressableOpacity
             key={i}
             onPress={() => onChange?.(i)}
-            activeOpacity={0.8}>
+            activeOpacity={0.8}
+            accessibilityRole="radio"
+            accessibilityState={{selected: filled}}
+            accessibilityLabel={`Rate ${i} star${i === 1 ? '' : 's'}`}>
             <Image
               source={filled ? Images.starSolid : Images.starOutline}
               style={[

@@ -146,4 +146,15 @@ describe('SubcategoryAccordion', () => {
     expect(queryByText('Accordion Content')).toBeNull();
     expect(withTiming).toHaveBeenCalledWith(0, expect.any(Object));
   });
+
+  it('exposes a button role, title label, and expanded state on the header', () => {
+    const {getByLabelText} = render(<SubcategoryAccordion {...defaultProps} />);
+
+    const header = getByLabelText('Test Title');
+    expect(header.props.accessibilityRole).toBe('button');
+    expect(header.props.accessibilityState).toEqual({expanded: false});
+
+    fireEvent.press(header);
+    expect(header.props.accessibilityState).toEqual({expanded: true});
+  });
 });

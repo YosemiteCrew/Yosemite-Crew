@@ -55,7 +55,9 @@ export const CategoryTile: React.FC<CategoryTileProps> = ({
       testID={testID}
       activeOpacity={0.85}
       onPress={onPress}
-      style={[styles.card, containerStyle]}>
+      style={[styles.card, containerStyle]}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${subtitle}`}>
       <View style={iconTileStyle}>
         <Image source={icon} style={styles.iconImage} />
       </View>

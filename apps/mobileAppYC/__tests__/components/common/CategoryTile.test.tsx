@@ -108,6 +108,13 @@ describe('CategoryTile', () => {
     expect(mockOnPress).toHaveBeenCalledTimes(1);
   });
 
+  it('exposes a button role and combined label on the tile', () => {
+    const {getByTestId} = renderTile();
+    const tile = getByTestId('category-tile');
+    expect(tile.props.accessibilityRole).toBe('button');
+    expect(tile.props.accessibilityLabel).toBe('Health, Vaccination records');
+  });
+
   it('renders the count badge when a count is provided', () => {
     const {getByTestId, getByText} = renderTile({count: 7});
 
