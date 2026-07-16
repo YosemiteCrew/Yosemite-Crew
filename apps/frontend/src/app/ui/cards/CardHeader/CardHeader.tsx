@@ -37,10 +37,15 @@ const CardHeader = ({ title, options, selected, onSelect }: CardHeaderProps) => 
     };
   }, []);
 
+  // The title is the flexible half: it wraps. The filter must not - without
+  // min-w-0 + shrink-0 + a gap, a long title ("Appointment leaders") squeezes
+  // against the filter until the two touch. Measured at 768 (tablet icon rail,
+  // two stat columns): the title collapsed to 188px, wrapped onto a second line
+  // and its right edge landed exactly on the filter's left edge - a 0px gap.
   return (
-    <div className="flex items-center justify-between w-full ">
-      <div className="text-body-1 text-text-primary">{title}</div>
-      <div className="relative" ref={filterRef}>
+    <div className="flex items-center justify-between w-full gap-3">
+      <div className="min-w-0 text-body-1 text-text-primary">{title}</div>
+      <div className="relative shrink-0" ref={filterRef}>
         <button
           type="button"
           onClick={() => setOpen((e) => !e)}

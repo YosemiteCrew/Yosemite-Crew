@@ -321,9 +321,15 @@ const BoardToolbar = ({
   showMineOnly,
   setShowMineOnly,
 }: BoardToolbarProps) => (
+  /* The two halves each claim a pixel minimum so they sit side by side on a wide
+     board and wrap when they cannot. A phone is narrower than either minimum, so
+     an unconditional min-w pushed the row past the board's overflow-hidden edge
+     rather than wrapping: measured at 390, the actions half stayed 420px wide
+     inside a 364px board and clipped 67px off the scope toggle, hiding "My
+     tasks" entirely. Below sm each half takes the full row instead. */
   <div className="border-b border-card-border bg-neutral-0 px-3 py-2">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-[340px]">
+      <div className="flex items-center gap-2 text-body-4-emphasis text-text-primary flex-1 min-w-full sm:min-w-[340px]">
         <GlassTooltip content="Select date" side="bottom">
           <Datepicker
             currentDate={currentDate}
@@ -360,7 +366,7 @@ const BoardToolbar = ({
           />
         </div>
       </div>
-      <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-[420px]">
+      <div className="relative z-20 flex items-center justify-end gap-2 flex-1 min-w-full sm:min-w-[420px]">
         {canEditTasks && (
           <Primary
             text="New task"

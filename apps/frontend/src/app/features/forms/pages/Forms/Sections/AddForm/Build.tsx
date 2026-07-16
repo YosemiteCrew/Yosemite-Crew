@@ -1308,9 +1308,7 @@ const PaletteTile: React.FC<{ option: OptionProp; onAdd: (key: OptionKey) => voi
     onClick={() => onAdd(option.key)}
     className="flex items-center gap-2.5 rounded-xl border border-[var(--hairline)] bg-[var(--screen)] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--ink-body)] transition-colors hover:border-[var(--blue)]"
   >
-    <span className={option.key === 'signature' ? 'text-[var(--pink)]' : 'text-[var(--blue-text)]'}>
-      {paletteIconFor(option.key)}
-    </span>
+    <span className={'text-[var(--blue-text)]'}>{paletteIconFor(option.key)}</span>
     {option.name}
   </button>
 );
@@ -1379,7 +1377,7 @@ const CanvasRow: React.FC<{
     >
       <span data-drag-handle className={draggable ? 'cursor-grab' : ''}>
         {isSignature ? (
-          <IoCreateOutline size={15} className="text-[var(--pink)]" aria-hidden="true" />
+          <IoCreateOutline size={15} className="text-[var(--blue-text)]" aria-hidden="true" />
         ) : (
           <IoReorderTwoOutline size={15} className="text-[var(--ink-faint2)]" aria-hidden="true" />
         )}
