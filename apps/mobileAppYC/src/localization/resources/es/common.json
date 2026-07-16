@@ -233,5 +233,24 @@
     "emptyNoCompanionTitle": "Añade un compañero para empezar",
     "emptyNoCompanionDescription": "Tareas como dosis, aseo y planes de alimentación están vinculadas a un compañero. Añade uno primero para empezar a crear tareas.",
     "emptyNoCompanionAction": "Añadir un compañero"
+  },
+  "observationalTool": {
+    "headerTitleFallback": "Herramienta de observación",
+    "taskNotFound": "Tarea no encontrada",
+    "loading": "Cargando herramienta de observación...",
+    "unableToLoad": "No se pudo cargar la herramienta de observación.",
+    "providerRequiredTitle": "Proveedor requerido",
+    "providerRequiredMessage": "Selecciona un proveedor que ofrezca esta herramienta de observación.",
+    "submissionFailedTitle": "Error al enviar",
+    "submissionFailedFallback": "No se pudieron enviar las respuestas",
+    "stepMeta": "Paso {{current}} de {{total}}",
+    "selectOptionToContinue": "Selecciona una opción para continuar.",
+    "appointmentFeeSharedDuringBooking": "La tarifa de la cita se compartirá durante la reserva",
+    "appointmentFee": "Tarifa de la cita",
+    "pleaseSelectProvider": "Selecciona un proveedor",
+    "evaluationOfferedBy": "Evaluación ofrecida por",
+    "submitAndSchedule": "Enviar y programar cita",
+    "back": "Atrás",
+    "next": "Siguiente"
   }
 }

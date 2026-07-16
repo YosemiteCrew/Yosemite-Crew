@@ -14,6 +14,38 @@ import {setSelectedCompanion} from '../../../../../src/features/companion';
 
 // --- Mocks ---
 
+const OBSERVATIONAL_TOOL_TRANSLATIONS: Record<string, string> = {
+  'observationalTool.headerTitleFallback': 'Observational Tool',
+  'observationalTool.taskNotFound': 'Task not found',
+  'observationalTool.loading': 'Loading observational tool...',
+  'observationalTool.unableToLoad': 'Unable to load observational tool.',
+  'observationalTool.providerRequiredTitle': 'Provider required',
+  'observationalTool.providerRequiredMessage':
+    'Please select a provider offering this observational tool.',
+  'observationalTool.submissionFailedTitle': 'Submission failed',
+  'observationalTool.submissionFailedFallback': 'Unable to submit responses',
+  'observationalTool.selectOptionToContinue':
+    'Please select an option to continue.',
+  'observationalTool.appointmentFeeSharedDuringBooking':
+    'Appointment fee shared during booking',
+  'observationalTool.appointmentFee': 'Appointment Fee',
+  'observationalTool.pleaseSelectProvider': 'Please select a provider',
+  'observationalTool.evaluationOfferedBy': 'Evaluation offered by',
+  'observationalTool.submitAndSchedule': 'Submit and schedule appointment',
+  'observationalTool.back': 'Back',
+  'observationalTool.next': 'Next',
+};
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) => {
+      if (key === 'observationalTool.stepMeta' && options) {
+        return `Step ${options.current} of ${options.total}`;
+      }
+      return OBSERVATIONAL_TOOL_TRANSLATIONS[key] ?? key;
+    },
+  }),
+}));
+
 jest.mock('react-redux', () => ({
   useDispatch: jest.fn(),
   useSelector: jest.fn(),

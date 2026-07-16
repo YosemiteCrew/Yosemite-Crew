@@ -17,6 +17,7 @@ import {
 } from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux';
+import {useTranslation} from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import {Header} from '@/shared/components/common/Header/Header';
@@ -129,6 +130,7 @@ const getProviderEntryKey = (
 ) => `${entry.businessId}::${entry.serviceId}`;
 
 export const ObservationalToolScreen: React.FC = () => {
+  const {t} = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Navigation>();
   const route = useRoute<Route>();
@@ -647,8 +649,8 @@ export const ObservationalToolScreen: React.FC = () => {
     /* istanbul ignore next -- the landing CTA is disabled when there are zero providers. */
     if (!resolvedProvider) {
       Alert.alert(
-        'Provider required',
-        'Please select a provider offering this observational tool.',
+        t('observationalTool.providerRequiredTitle'),
+        t('observationalTool.providerRequiredMessage'),
       );
       return;
     }
@@ -723,8 +725,10 @@ export const ObservationalToolScreen: React.FC = () => {
       } as any);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Unable to submit responses';
-      Alert.alert('Submission failed', message);
+        error instanceof Error
+          ? error.message
+          : t('observationalTool.submissionFailedFallback');
+      Alert.alert(t('observationalTool.submissionFailedTitle'), message);
     }
   }, [
     companion,
@@ -737,6 +741,7 @@ export const ObservationalToolScreen: React.FC = () => {
     selectedProviderKey,
     steps,
     submissionKeyByStepId,
+    t,
     tabNavigation,
     task,
     toolDisplayName,
@@ -748,7 +753,7 @@ export const ObservationalToolScreen: React.FC = () => {
       <LiquidGlassHeaderScreen
         header={
           <Header
-            title="Observational Tool"
+            title={t('observationalTool.headerTitleFallback')}
             showBackButton
             onBack={() => navigation.goBack()}
             glass={false}
@@ -757,7 +762,9 @@ export const ObservationalToolScreen: React.FC = () => {
         contentPadding={theme.spacing['3']}>
         {contentPaddingStyle => (
           <View style={[styles.errorContainer, contentPaddingStyle]}>
-            <Text style={styles.errorText}>Task not found</Text>
+            <Text style={styles.errorText}>
+              {t('observationalTool.taskNotFound')}
+            </Text>
           </View>
         )}
       </LiquidGlassHeaderScreen>
@@ -778,7 +785,9 @@ export const ObservationalToolScreen: React.FC = () => {
         contentPadding={theme.spacing['3']}>
         {contentPaddingStyle => (
           <View style={[styles.errorContainer, contentPaddingStyle]}>
-            <Text style={styles.errorText}>Loading observational tool...</Text>
+            <Text style={styles.errorText}>
+              {t('observationalTool.loading')}
+            </Text>
           </View>
         )}
       </LiquidGlassHeaderScreen>
@@ -800,7 +809,7 @@ export const ObservationalToolScreen: React.FC = () => {
         {contentPaddingStyle => (
           <View style={[styles.errorContainer, contentPaddingStyle]}>
             <Text style={styles.errorText}>
-              Unable to load observational tool.
+              {t('observationalTool.unableToLoad')}
             </Text>
           </View>
         )}
@@ -873,7 +882,7 @@ export const ObservationalToolScreen: React.FC = () => {
       return (
         <View style={[styles.stepActions, styles.stepActionsStacked]}>
           <LiquidGlassButton
-            title="Submit and schedule appointment"
+            title={t('observationalTool.submitAndSchedule')}
             onPress={handleSubmit}
             height={56}
             borderRadius={16}
@@ -884,7 +893,7 @@ export const ObservationalToolScreen: React.FC = () => {
             style={styles.stepActionButtonFull}
           />
           <LiquidGlassButton
-            title="Back"
+            title={t('observationalTool.back')}
             onPress={handleStepBack}
             height={56}
             borderRadius={16}
@@ -903,7 +912,7 @@ export const ObservationalToolScreen: React.FC = () => {
     return (
       <View style={[styles.stepActions, styles.stepActionsRow]}>
         <LiquidGlassButton
-          title="Back"
+          title={t('observationalTool.back')}
           onPress={handleStepBack}
           height={56}
           borderRadius={16}
@@ -915,7 +924,7 @@ export const ObservationalToolScreen: React.FC = () => {
           style={styles.stepActionButtonRow}
         />
         <LiquidGlassButton
-          title="Next"
+          title={t('observationalTool.next')}
           onPress={goToNextStep}
           height={56}
           borderRadius={16}
@@ -946,7 +955,10 @@ export const ObservationalToolScreen: React.FC = () => {
             ))}
           </View>
           <Text style={styles.stepMeta}>
-            Step {effectiveStepIndex + 1} of {totalSteps}
+            {t('observationalTool.stepMeta', {
+              current: effectiveStepIndex + 1,
+              total: totalSteps,
+            })}
           </Text>
           <Text style={styles.stepHeading}>{currentStep.title}</Text>
           {currentStep.subtitle ? (
@@ -958,7 +970,7 @@ export const ObservationalToolScreen: React.FC = () => {
           /* istanbul ignore next -- selecting an option always completes the step, so this copy is unreachable. */
           showValidationMessage ? (
             <Text style={styles.validationText}>
-              Please select an option to continue.
+              {t('observationalTool.selectOptionToContinue')}
             </Text>
           ) : null
         }
@@ -1052,12 +1064,16 @@ export const ObservationalToolScreen: React.FC = () => {
                     {entry.appointmentFee === null ||
                     entry.appointmentFee === undefined ? (
                       <Text style={styles.costLabel}>
-                        Appointment fee shared during booking
+                        {t(
+                          'observationalTool.appointmentFeeSharedDuringBooking',
+                        )}
                       </Text>
                     ) : (
                       <View style={styles.providerCosts}>
                         <View style={styles.costColumn}>
-                          <Text style={styles.costLabel}>Appointment Fee</Text>
+                          <Text style={styles.costLabel}>
+                            {t('observationalTool.appointmentFee')}
+                          </Text>
                           <Text style={styles.costValue}>
                             ${entry.appointmentFee.toFixed(2)}
                           </Text>
@@ -1072,7 +1088,9 @@ export const ObservationalToolScreen: React.FC = () => {
         </View>
       </LiquidGlassCard>
       {providerTouched && !effectiveProviderKey ? (
-        <Text style={styles.validationText}>Please select a provider</Text>
+        <Text style={styles.validationText}>
+          {t('observationalTool.pleaseSelectProvider')}
+        </Text>
       ) : null}
     </>
   );
@@ -1135,7 +1153,9 @@ export const ObservationalToolScreen: React.FC = () => {
 
       {providerEntries.length > 0 && (
         <View style={styles.providersHeader}>
-          <Text style={styles.providersTitle}>Evaluation offered by</Text>
+          <Text style={styles.providersTitle}>
+            {t('observationalTool.evaluationOfferedBy')}
+          </Text>
         </View>
       )}
 
@@ -1143,7 +1163,7 @@ export const ObservationalToolScreen: React.FC = () => {
 
       <View style={styles.actions}>
         <LiquidGlassButton
-          title="Next"
+          title={t('observationalTool.next')}
           onPress={startAssessment}
           height={56}
           borderRadius={16}

@@ -233,5 +233,24 @@
     "emptyNoCompanionTitle": "Add a companion to get started",
     "emptyNoCompanionDescription": "Tasks like doses, grooming and feeding plans are tied to a companion. Add one first to start creating tasks.",
     "emptyNoCompanionAction": "Add a companion"
+  },
+  "observationalTool": {
+    "headerTitleFallback": "Observational Tool",
+    "taskNotFound": "Task not found",
+    "loading": "Loading observational tool...",
+    "unableToLoad": "Unable to load observational tool.",
+    "providerRequiredTitle": "Provider required",
+    "providerRequiredMessage": "Please select a provider offering this observational tool.",
+    "submissionFailedTitle": "Submission failed",
+    "submissionFailedFallback": "Unable to submit responses",
+    "stepMeta": "Step {{current}} of {{total}}",
+    "selectOptionToContinue": "Please select an option to continue.",
+    "appointmentFeeSharedDuringBooking": "Appointment fee shared during booking",
+    "appointmentFee": "Appointment Fee",
+    "pleaseSelectProvider": "Please select a provider",
+    "evaluationOfferedBy": "Evaluation offered by",
+    "submitAndSchedule": "Submit and schedule appointment",
+    "back": "Back",
+    "next": "Next"
   }
 }
