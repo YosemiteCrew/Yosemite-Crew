@@ -17,6 +17,7 @@ import { getTaskStatusStyle } from '@/app/ui/tables/tableUtils';
 import './DataTable.css';
 import { toTitleCase } from '@/app/lib/validators';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
+import PaginatedCardList from '@/app/ui/tables/PaginatedCardList';
 
 type Column<T> = {
   label: string;
@@ -186,29 +187,24 @@ const Tasks = ({
           tableClassName="tasks-table-fixed"
         />
       </div>
-      <div className="xl:hidden h-full min-h-0 overflow-y-auto pr-1 pb-2 flex gap-4 sm:gap-6 flex-wrap content-start">
-        {(() => {
-          if (filteredList.length === 0) {
-            return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
-              </div>
-            );
-          }
-          return filteredList.map((item: Task, i) => (
-            <TaskCard
-              key={item.name + i}
-              item={item}
-              assignedByLabel={getMemberNameById(item.assignedBy)}
-              assignedToLabel={getMemberNameById(item.assignedTo)}
-              handleViewTask={handleViewTask}
-              handleChangeStatusTask={handleChangeStatusTask}
-              handleRescheduleTask={handleRescheduleTask}
-              canEditTasks={canEditTasks}
-            />
-          ));
-        })()}
-      </div>
+      <PaginatedCardList
+        items={filteredList}
+        pageSize={small ? 5 : 10}
+        className="xl:hidden"
+        listClassName="pb-2"
+        renderCard={(item: Task, i) => (
+          <TaskCard
+            key={item.name + i}
+            item={item}
+            assignedByLabel={getMemberNameById(item.assignedBy)}
+            assignedToLabel={getMemberNameById(item.assignedTo)}
+            handleViewTask={handleViewTask}
+            handleChangeStatusTask={handleChangeStatusTask}
+            handleRescheduleTask={handleRescheduleTask}
+            canEditTasks={canEditTasks}
+          />
+        )}
+      />
     </div>
   );
 };
