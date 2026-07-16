@@ -59,12 +59,7 @@ const items: NotificationItem[] = [
 describe('NotificationsPanel', () => {
   it('renders the empty "All caught up" state when there are no items', () => {
     render(
-      <NotificationsPanel
-        layout="dropdown"
-        items={[]}
-        unreadCount={0}
-        onMarkAllRead={jest.fn()}
-      />
+      <NotificationsPanel layout="dropdown" items={[]} unreadCount={0} onMarkAllRead={jest.fn()} />
     );
 
     expect(screen.getByText('All caught up')).toBeInTheDocument();
@@ -81,6 +76,7 @@ describe('NotificationsPanel', () => {
         items={items}
         unreadCount={4}
         onMarkAllRead={jest.fn()}
+        onViewAll={jest.fn()}
       />
     );
 
@@ -94,6 +90,40 @@ describe('NotificationsPanel', () => {
     expect(screen.getAllByLabelText('Unread')).toHaveLength(4);
     // Footer only renders in the dropdown layout.
     expect(screen.getByText('View all')).toBeInTheDocument();
+    expect(screen.getByText('Notification settings')).toBeInTheDocument();
+  });
+
+  it('invokes onViewAll when the footer "View all" button is clicked', () => {
+    const onViewAll = jest.fn();
+    render(
+      <NotificationsPanel
+        layout="dropdown"
+        items={items}
+        unreadCount={4}
+        onMarkAllRead={jest.fn()}
+        onViewAll={onViewAll}
+      />
+    );
+
+    fireEvent.click(screen.getByText('View all'));
+    expect(onViewAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits "View all" when no onViewAll destination is supplied', () => {
+    render(
+      <NotificationsPanel
+        layout="dropdown"
+        items={items}
+        unreadCount={4}
+        onMarkAllRead={jest.fn()}
+        onSettings={jest.fn()}
+      />
+    );
+
+    // Without a destination the control must not render at all, rather than
+    // shipping a button that looks live but goes nowhere.
+    expect(screen.queryByText('View all')).not.toBeInTheDocument();
+    // The rest of the footer is unaffected.
     expect(screen.getByText('Notification settings')).toBeInTheDocument();
   });
 

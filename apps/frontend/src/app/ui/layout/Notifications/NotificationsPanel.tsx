@@ -27,6 +27,7 @@ export type NotificationsPanelProps = {
   unreadCount: number;
   onMarkAllRead: () => void;
   onItemClick?: (item: NotificationItem) => void;
+  /** Omit to hide "View all" entirely — there is no destination to send the user to. */
   onViewAll?: () => void;
   onSettings?: () => void;
 };
@@ -128,9 +129,11 @@ const NotificationsPanel = ({
 
       {layout === 'dropdown' ? (
         <div className="yc-noti-foot">
-          <button type="button" className="yc-noti-viewall" onClick={onViewAll}>
-            View all
-          </button>
+          {onViewAll ? (
+            <button type="button" className="yc-noti-viewall" onClick={onViewAll}>
+              View all
+            </button>
+          ) : null}
           <button type="button" className="yc-noti-settings" onClick={onSettings}>
             <IoSettingsOutline size={13} aria-hidden />
             Notification settings

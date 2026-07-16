@@ -271,19 +271,6 @@
   text-align: right;
 }
 
-.yc-usp-filters {
-  flex: 0 0 auto;
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
-  background: var(--pill-raised);
-  color: var(--ink-muted);
-  font-family: var(--font-satoshi);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 5px 12px;
-  cursor: pointer;
-}
-
 /* ==========================================================================
    Phone full-screen variant.
    ========================================================================== */

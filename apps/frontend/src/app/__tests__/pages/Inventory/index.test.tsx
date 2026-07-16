@@ -4,7 +4,6 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import ProtectedInventory, {
   ActiveFilterBar,
   DispensaryFilterBar,
-  DispensaryFilterModal,
   InventoryFilterBar,
   compareInventoryRows,
   filterAndSortInventory,
@@ -776,7 +775,7 @@ describe('Inventory Page', () => {
       expect(defaultDurationUnit.items?.[0]?.prescription?.duration).toBe('5 days');
     });
 
-    it('filters dispensary records by request type, status, lead, location, and item name', () => {
+    it('filters dispensary records by status, lead, location, and item name', () => {
       const records = [
         {
           id: 'patient',
@@ -816,12 +815,12 @@ describe('Inventory Page', () => {
         },
       ] as any[];
 
-      expect(filterDispensaryRecords(records, 'PATIENT', 'PENDING', 'lead')).toHaveLength(1);
-      expect(filterDispensaryRecords(records, 'IN_HOUSE', 'ALL', 'pharmacy')).toHaveLength(1);
-      expect(filterDispensaryRecords(records, 'ALL', 'DISPENSED', 'bandage')).toHaveLength(1);
-      expect(filterDispensaryRecords(records, 'PATIENT', 'PENDING', 'surgery')).toHaveLength(1);
-      expect(filterDispensaryRecords(records, 'PATIENT', 'PENDING', 'cephalexin')).toHaveLength(1);
-      expect(filterDispensaryRecords(records, 'PATIENT', 'DISPENSED', '')).toEqual([]);
+      expect(filterDispensaryRecords(records, 'PENDING', 'lead')).toHaveLength(1);
+      expect(filterDispensaryRecords(records, 'ALL', 'pharmacy')).toHaveLength(1);
+      expect(filterDispensaryRecords(records, 'DISPENSED', 'bandage')).toHaveLength(1);
+      expect(filterDispensaryRecords(records, 'PENDING', 'surgery')).toHaveLength(1);
+      expect(filterDispensaryRecords(records, 'PENDING', 'cephalexin')).toHaveLength(1);
+      expect(filterDispensaryRecords(records, 'DISPENSED', 'catty')).toEqual([]);
     });
 
     it('returns labels and toggled set values for inventory controls', () => {
@@ -971,53 +970,6 @@ describe('Inventory Page', () => {
 
     fireEvent.mouseDown(screen.getByRole('button', { name: /^Name/ }));
     expect(screen.getByRole('button', { name: 'Expiry date' })).toBeInTheDocument();
-  });
-
-  it('exercises dispensary filter modal clear, apply, discard, and radio callbacks directly', () => {
-    const setDispensaryFilterOpen = jest.fn();
-    const setDispensaryStatusFilter = jest.fn();
-    const setDispensaryRequestType = jest.fn();
-    const toggleFilterSection = jest.fn();
-
-    render(
-      <DispensaryFilterModal
-        dispensaryFilterOpen
-        setDispensaryFilterOpen={setDispensaryFilterOpen}
-        dispensaryStatusFilter="PENDING"
-        setDispensaryStatusFilter={setDispensaryStatusFilter}
-        dispensaryRequestType="PATIENT"
-        setDispensaryRequestType={setDispensaryRequestType}
-        filterOpenSections={new Set(['disp-status', 'disp-type'])}
-        toggleFilterSection={toggleFilterSection}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
-    expect(setDispensaryStatusFilter).toHaveBeenLastCalledWith('ALL');
-    expect(setDispensaryRequestType).toHaveBeenLastCalledWith('ALL');
-
-    fireEvent.click(screen.getByRole('button', { name: /Status/ }));
-    expect(toggleFilterSection).toHaveBeenCalledWith('disp-status');
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Dispensed' }));
-    expect(setDispensaryStatusFilter).toHaveBeenLastCalledWith('DISPENSED');
-
-    fireEvent.click(screen.getByRole('button', { name: /Request type/ }));
-    expect(toggleFilterSection).toHaveBeenCalledWith('disp-type');
-
-    fireEvent.click(screen.getByRole('radio', { name: 'In-house' }));
-    expect(setDispensaryRequestType).toHaveBeenLastCalledWith('IN_HOUSE');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Apply dispensary filters' }));
-    expect(setDispensaryFilterOpen).toHaveBeenLastCalledWith(false);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(setDispensaryFilterOpen).toHaveBeenLastCalledWith(false);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
-    expect(setDispensaryStatusFilter).toHaveBeenLastCalledWith('ALL');
-    expect(setDispensaryRequestType).toHaveBeenLastCalledWith('ALL');
-    expect(setDispensaryFilterOpen).toHaveBeenLastCalledWith(false);
   });
 
   it('displays loading state when fetching data', () => {
@@ -1435,6 +1387,32 @@ describe('Inventory Page', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Inventory' })).toBeInTheDocument();
   });
 
+  it('returns to the catalog from the analytics header Catalog button', () => {
+    render(<ProtectedInventory />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Turnover' })).toBeInTheDocument();
+
+    // The analytics header exposes its own Catalog button, distinct from the
+    // TurnoverAnalytics sub-nav "Stock" segment.
+    fireEvent.click(screen.getByRole('button', { name: 'Catalog' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Inventory' })).toBeInTheDocument();
+  });
+
+  it('switches between Catalog and Dispensary via the segmented control', () => {
+    render(<ProtectedInventory />);
+
+    const dispensarySegment = screen.getByRole('button', { name: 'Dispensary' });
+    fireEvent.click(dispensarySegment);
+    expect(dispensarySegment).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('textbox', { name: 'Search dispensary' })).toBeInTheDocument();
+
+    const catalogSegment = screen.getByRole('button', { name: 'Catalog' });
+    fireEvent.click(catalogSegment);
+    expect(catalogSegment).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('textbox', { name: 'Search dispensary' })).not.toBeInTheDocument();
+  });
+
   it('derives turnover categories from non-empty turnover entries', () => {
     (useInventoryModule as jest.Mock).mockReturnValue({
       inventory: mockInventory,
@@ -1494,6 +1472,42 @@ describe('Inventory Page', () => {
     expect(count()).toBe('2');
 
     // Status 'HIGH' → only the high-status row matches.
+    fireEvent.click(screen.getByTestId('tf-status-high'));
+    expect(count()).toBe('1');
+  });
+
+  it('excludes turnover rows missing a category or status from narrowed filters', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: mockInventory,
+      turnover: [
+        { id: 't1', name: 'Food Rotation', category: 'Food', status: 'high' },
+        // Rows with absent category/status must not match a narrowed filter.
+        { id: 't2', name: 'Uncategorised Rotation', status: 'high' },
+        { id: 't3', name: 'Statusless Rotation', category: 'Food' },
+      ],
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByRole('button', { name: 'Turnover analytics' }));
+
+    const count = () => screen.getByTestId('turnover-table').getAttribute('data-count');
+
+    expect(count()).toBe('3');
+
+    // Category 'Food' → the row with no category falls back to '' and drops out.
+    fireEvent.click(screen.getByTestId('tf-cat-food'));
+    expect(count()).toBe('2');
+
+    // Status 'HIGH' → the row with no status falls back to '' and drops out too,
+    // leaving only the row that matches on both axes.
     fireEvent.click(screen.getByTestId('tf-status-high'));
     expect(count()).toBe('1');
   });

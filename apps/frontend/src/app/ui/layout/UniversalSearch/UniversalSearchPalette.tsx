@@ -31,26 +31,12 @@ import { getAppointmentCompanion } from '@/app/lib/appointments';
 import './UniversalSearch.css';
 
 type SearchModule =
-  | 'appointments'
-  | 'tasks'
-  | 'companions'
-  | 'forms'
-  | 'inventory'
-  | 'finance'
-  | 'idexx';
+  'appointments' | 'tasks' | 'companions' | 'forms' | 'inventory' | 'finance' | 'idexx';
 
 type SearchGroupKey = SearchModule | 'jump';
 
 type IconKey =
-  | 'paw'
-  | 'calendar'
-  | 'tasks'
-  | 'receipt'
-  | 'form'
-  | 'cube'
-  | 'add'
-  | 'dashboard'
-  | 'wallet';
+  'paw' | 'calendar' | 'tasks' | 'receipt' | 'form' | 'cube' | 'add' | 'dashboard' | 'wallet';
 
 type SearchItem = {
   id: string;
@@ -277,9 +263,6 @@ const DESKTOP_FOOTER = (
 const PHONE_FOOTER = (
   <div className="yc-usp-foot yc-usp-foot--phone">
     <span className="yc-usp-foot-scope">Searches patients, visits, invoices, team</span>
-    <button type="button" className="yc-usp-filters">
-      Filters
-    </button>
   </div>
 );
 
@@ -353,9 +336,7 @@ const SearchResults = ({
               <RowIcon item={item} />
               <span className="yc-usp-row-body">
                 <span className="yc-usp-row-title">{item.title}</span>
-                {item.subtitle ? (
-                  <span className="yc-usp-row-sub">{item.subtitle}</span>
-                ) : null}
+                {item.subtitle ? <span className="yc-usp-row-sub">{item.subtitle}</span> : null}
               </span>
               {keycap ? <span className="yc-usp-keycap">{keycap}</span> : null}
             </button>
@@ -456,19 +437,17 @@ const UniversalSearchPalette = () => {
   const resultItems = useMemo<SearchItem[]>(() => {
     const q = query.trim().toLowerCase();
     if (!q) {
-      return JUMP_LINKS.map(
-        (link): SearchItem => ({
-          id: `jump:${link.href}`,
-          module: 'appointments',
-          groupKey: 'jump',
-          iconKey: link.iconKey,
-          title: link.title,
-          subtitle: '',
-          keywords: link.title,
-          href: link.href,
-          keycap: link.keycap,
-        })
-      );
+      return JUMP_LINKS.map((link): SearchItem => ({
+        id: `jump:${link.href}`,
+        module: 'appointments',
+        groupKey: 'jump',
+        iconKey: link.iconKey,
+        title: link.title,
+        subtitle: '',
+        keywords: link.title,
+        href: link.href,
+        keycap: link.keycap,
+      }));
     }
 
     const tokens = q.split(/\s+/).filter(Boolean);
@@ -511,15 +490,16 @@ const UniversalSearchPalette = () => {
     if (!hasQuery) {
       return [{ key: 'jump' as SearchGroupKey, label: GROUP_LABELS.jump, rows: indexed }];
     }
-    return GROUP_ORDER.reduce<
-      Array<{ key: SearchGroupKey; label: string; rows: typeof indexed }>
-    >((groups, mod) => {
-      const rows = indexed.filter((entry) => entry.item.groupKey === mod);
-      if (rows.length > 0) {
-        groups.push({ key: mod, label: GROUP_LABELS[mod], rows });
-      }
-      return groups;
-    }, []);
+    return GROUP_ORDER.reduce<Array<{ key: SearchGroupKey; label: string; rows: typeof indexed }>>(
+      (groups, mod) => {
+        const rows = indexed.filter((entry) => entry.item.groupKey === mod);
+        if (rows.length > 0) {
+          groups.push({ key: mod, label: GROUP_LABELS[mod], rows });
+        }
+        return groups;
+      },
+      []
+    );
   }, [resultItems, hasQuery]);
 
   const selectItem = useCallback(

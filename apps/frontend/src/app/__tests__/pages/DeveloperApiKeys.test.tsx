@@ -35,6 +35,19 @@ describe('DeveloperApiKeys page', () => {
     expect(screen.getByTestId('primary-Create key')).toBeInTheDocument();
   });
 
+  test('exposes the per-row action control as disabled while key management is unavailable', () => {
+    render(<DeveloperApiKeys />);
+
+    const rowActions = screen.getAllByRole('button', { name: /^Actions for .+ \(coming soon\)$/ });
+    expect(rowActions.length).toBeGreaterThan(0);
+
+    // The banner excuses an absent feature; the control must not look live.
+    // A disabled button is inert, unfocusable and drops clicks.
+    for (const action of rowActions) {
+      expect(action).toBeDisabled();
+    }
+  });
+
   test('renders the sample key rows with environment and status badges', () => {
     render(<DeveloperApiKeys />);
     expect(screen.getByText('Monitor sync · sandbox')).toBeInTheDocument();

@@ -276,11 +276,12 @@ describe('AddAppointmentCentralModal', () => {
     expect(screen.getByRole('button', { name: /add appointment/i })).toBeInTheDocument();
   });
 
-  it('renders notify checkboxes', () => {
+  // The notify-channel checkboxes were removed: the create-appointment API carries no
+  // notify field, so the selection was silently discarded on submit. Do not re-add the
+  // control without a backend field to persist it to.
+  it('does not render notify-channel checkboxes', () => {
     render(<AddAppointmentCentralModal {...defaultProps} />);
-    expect(screen.getByLabelText(/Notify by Notify via App/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Notify by Notify via SMS/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Notify by Notify via Email/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/notify/i)).not.toBeInTheDocument();
   });
 
   it('renders emergency checkbox', () => {
@@ -297,18 +298,6 @@ describe('AddAppointmentCentralModal', () => {
     });
 
     expect(mockAppointmentForm.setFormData).toHaveBeenCalled();
-  });
-
-  it('toggles notify channel checkboxes', async () => {
-    render(<AddAppointmentCentralModal {...defaultProps} />);
-    const smsCheckbox = screen.getByLabelText(/Notify by Notify via SMS/i);
-
-    await act(async () => {
-      fireEvent.click(smsCheckbox);
-    });
-
-    // SMS checkbox was toggled (state update happened)
-    expect(smsCheckbox).toBeTruthy();
   });
 
   it('shows booking error after failed submit attempt', async () => {
@@ -711,20 +700,6 @@ describe('AddAppointmentCentralModal', () => {
     expect(handleCreateMock).not.toHaveBeenCalled();
   });
 
-  // ── Reducer + notify toggle branches ───────────────────────────────────────
-  it('toggling an already-selected notify channel removes it (delete branch)', async () => {
-    render(<AddAppointmentCentralModal {...defaultProps} />);
-    // "Notify via App" is checked by default → toggling it hits the Set.delete branch
-    const appCheckbox = screen.getByLabelText(/Notify by Notify via App/i) as HTMLInputElement;
-    expect(appCheckbox).toBeChecked();
-
-    await act(async () => {
-      fireEvent.click(appCheckbox);
-    });
-
-    expect(appCheckbox).not.toBeChecked();
-  });
-
   // ── Populated formData: default-option wiring + support staff + emergency ───
   it('wires selected lead / speciality / service / support staff and emergency into the form', async () => {
     mockAppointmentForm.formData = {
@@ -1009,6 +984,36 @@ describe('AddAppointmentCentralModal', () => {
     });
 
     expect(mockAppointmentForm.setFormDataErrors).toHaveBeenCalled();
+  });
+
+  // setFormData is a mock, so the updater it receives is never run by React. Execute it
+  // to assert the companion/parent the selection actually writes into the form, rather
+  // than only that the setter fired.
+  it('writes the selected companion and its parent into the form data', async () => {
+    render(<AddAppointmentCentralModal {...defaultProps} />);
+
+    const patientInput = screen.getByLabelText('Patient');
+    await act(async () => {
+      fireEvent.focus(patientInput);
+      fireEvent.change(patientInput, { target: { value: 'Buddy' } });
+    });
+    await act(async () => {
+      fireEvent.mouseDown(screen.getByText('Buddy'));
+    });
+
+    const updater = (mockAppointmentForm.setFormData as jest.Mock).mock.calls.at(-1)?.[0];
+    expect(typeof updater).toBe('function');
+    expect(updater({ ...mockFormData })).toEqual(
+      expect.objectContaining({
+        companion: {
+          id: 'c1',
+          name: 'Buddy',
+          species: 'Dog',
+          breed: undefined,
+          parent: { id: 'p1', name: 'John Doe' },
+        },
+      })
+    );
   });
 
   // ── canCloseModal guards ───────────────────────────────────────────────────

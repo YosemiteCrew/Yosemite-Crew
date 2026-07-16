@@ -89,8 +89,6 @@ type AddAppointmentCentralModalProps = {
   initialCompanionId?: string | null;
 };
 
-type NotifyChannel = 'app' | 'sms' | 'email';
-
 type ModalUiState = {
   submitAttempted: boolean;
   addCompanionTarget: 'patient' | 'client' | null;
@@ -100,7 +98,6 @@ type ModalUiState = {
   patientQuery: string;
   clientQuery: string;
   selectedClientId: string | null;
-  notifyChannels: Set<NotifyChannel>;
   prefillDismissed: boolean;
 };
 
@@ -114,7 +111,6 @@ type ModalUiAction =
   | { type: 'setPatientQuery'; value: string }
   | { type: 'setClientQuery'; value: string }
   | { type: 'setSelectedClientId'; value: string | null }
-  | { type: 'toggleNotify'; value: NotifyChannel }
   | { type: 'dismissPrefill' };
 
 const createInitialModalUiState = (): ModalUiState => ({
@@ -126,7 +122,6 @@ const createInitialModalUiState = (): ModalUiState => ({
   patientQuery: '',
   clientQuery: '',
   selectedClientId: null,
-  notifyChannels: new Set(['app']),
   prefillDismissed: false,
 });
 
@@ -150,12 +145,6 @@ const modalUiReducer = (state: ModalUiState, action: ModalUiAction): ModalUiStat
       return { ...state, clientQuery: action.value };
     case 'setSelectedClientId':
       return { ...state, selectedClientId: action.value };
-    case 'toggleNotify': {
-      const next = new Set(state.notifyChannels);
-      if (next.has(action.value)) next.delete(action.value);
-      else next.add(action.value);
-      return { ...state, notifyChannels: next };
-    }
     case 'dismissPrefill':
       return state.prefillDismissed ? state : { ...state, prefillDismissed: true };
     /* v8 ignore next 2 -- exhaustive ModalUiAction union; the default arm is unreachable */
@@ -163,12 +152,6 @@ const modalUiReducer = (state: ModalUiState, action: ModalUiAction): ModalUiStat
       return state;
   }
 };
-
-const NOTIFY_OPTIONS: Array<{ key: NotifyChannel; label: string }> = [
-  { key: 'app', label: 'Notify via App' },
-  { key: 'sms', label: 'Notify via SMS' },
-  { key: 'email', label: 'Notify via Email' },
-];
 
 const VISIT_TYPE_OPTIONS = [
   { label: 'Outpatient', value: 'Outpatient' },
@@ -715,8 +698,6 @@ type AppointmentFormContentProps = {
   setFormData: Dispatch<SetStateAction<any>>;
   ServiceInfoData: any;
   showError: (field: string) => string | undefined;
-  toggleNotify: (key: NotifyChannel) => void;
-  notifyChannels: Set<NotifyChannel>;
   handleSubmit: () => void;
 };
 
@@ -762,8 +743,6 @@ export const AppointmentFormContent = ({
   setFormData,
   ServiceInfoData,
   showError,
-  toggleNotify,
-  notifyChannels,
   handleSubmit,
 }: AppointmentFormContentProps) => (
   <div className="relative">
@@ -927,22 +906,7 @@ export const AppointmentFormContent = ({
       </div>
     )}
 
-    <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-4">
-        {NOTIFY_OPTIONS.map(({ key, label }) => (
-          <label key={key} className="flex cursor-pointer select-none items-center gap-2">
-            <input
-              type="checkbox"
-              aria-label={`Notify by ${label}`}
-              checked={notifyChannels.has(key)}
-              onChange={() => toggleNotify(key)}
-              className="size-4 shrink-0 cursor-pointer"
-            />
-            <span style={text14M}>{label}</span>
-          </label>
-        ))}
-      </div>
-
+    <div className="mt-6 flex flex-col gap-3 border-t border-card-border pt-4 sm:flex-row sm:items-center sm:justify-end">
       <button
         type="button"
         onClick={handleSubmit}
@@ -1289,8 +1253,6 @@ const useAddAppointmentCentralModalView = ({
     }
   };
 
-  const toggleNotify = (key: NotifyChannel) => dispatchUi({ type: 'toggleNotify', value: key });
-
   const handleVisitTypeSelect = useCallback(
     (opt: string | { label: string; value: string }) => {
       const nextVisitType = getDropdownValue(opt);
@@ -1437,8 +1399,6 @@ const useAddAppointmentCentralModalView = ({
           setFormData={setFormData}
           ServiceInfoData={ServiceInfoData}
           showError={(field) => showError(field as keyof typeof formDataErrors)}
-          toggleNotify={toggleNotify}
-          notifyChannels={uiState.notifyChannels}
           handleSubmit={handleSubmit}
         />
       </AppointmentCentralModalShell>

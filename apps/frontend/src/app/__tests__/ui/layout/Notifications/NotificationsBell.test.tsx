@@ -74,7 +74,7 @@ describe('NotificationsBell', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('marks all read, navigates to settings, and closes on row / view-all clicks', () => {
+  it('marks all read, navigates to settings, and closes on row clicks', () => {
     render(<NotificationsBell />);
     const trigger = screen.getByRole('button', { name: 'Notifications' });
 
@@ -92,10 +92,17 @@ describe('NotificationsBell', () => {
     fireEvent.click(trigger);
     fireEvent.click(screen.getByText('Lab results ready'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 
-    fireEvent.click(trigger);
-    fireEvent.click(screen.getByText('View all'));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  it('does not render "View all" while there is no notifications route to open', () => {
+    render(<NotificationsBell />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
+
+    // The bell withholds onViewAll: a "View all" button here could only close
+    // the panel, which is a dead control. The real footer action still works.
+    expect(screen.queryByText('View all')).not.toBeInTheDocument();
+    expect(screen.getByText('Notification settings')).toBeInTheDocument();
   });
 
   it('renders the phone bottom-sheet variant and closes via its backdrop', () => {

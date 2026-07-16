@@ -168,7 +168,8 @@ const DeveloperApiKeys = () => {
                   <button
                     type="button"
                     className="dev-key-action-btn"
-                    aria-label={`Actions for ${row.name}`}
+                    disabled
+                    aria-label={`Actions for ${row.name} (coming soon)`}
                   >
                     <Icon
                       icon="ion:ellipsis-horizontal"

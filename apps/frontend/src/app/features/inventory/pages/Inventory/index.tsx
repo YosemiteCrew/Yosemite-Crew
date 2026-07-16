@@ -17,7 +17,6 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 import {
   CategoryOptionsByBusiness,
   DispensaryRecord,
-  DispensaryRequestType,
   DispensaryStatus,
   InventoryFiltersState,
   InventoryItem,
@@ -42,10 +41,7 @@ import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import {
   IoAddOutline,
   IoCaretDown,
-  IoCheckmarkOutline,
   IoChevronDownOutline,
-  IoChevronUpOutline,
-  IoClose,
   IoDocumentTextOutline,
   IoFilterOutline,
   IoGridOutline,
@@ -62,7 +58,6 @@ import { dispensePrescription } from '@/app/features/appointments/services/presc
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
-import Modal from '@/app/ui/overlays/Modal';
 import Filters from '@/app/ui/filters/Filters';
 import type { InventoryTurnoverFilterState } from '@/app/ui/filters/InventoryTurnoverFilters';
 import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
@@ -545,14 +540,12 @@ export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
 
 export const filterDispensaryRecords = (
   records: DispensaryRecord[],
-  requestType: DispensaryRequestType,
   statusFilter: DispensaryStatus | 'ALL',
   search: string
 ) => {
   const normalizedSearch = search.trim().toLowerCase();
 
   return records.filter((record) => {
-    const typeMatch = requestType === 'ALL' || record.requestType === requestType;
     const statusMatch = statusFilter === 'ALL' || record.status === statusFilter;
     const searchMatch =
       normalizedSearch === '' ||
@@ -561,7 +554,7 @@ export const filterDispensaryRecords = (
       (record.location || '').toLowerCase().includes(normalizedSearch) ||
       (record.items ?? []).some((item) => item.name.toLowerCase().includes(normalizedSearch));
 
-    return typeMatch && statusMatch && searchMatch;
+    return statusMatch && searchMatch;
   });
 };
 
@@ -670,180 +663,6 @@ export const toggleSetItem = (prev: Set<string>, key: string): Set<string> => {
 import { InventoryFilterModal } from './InventoryFilterModal';
 export { InventoryFilterModal, type FilterChip } from './InventoryFilterModal';
 
-type DispensaryFilterModalProps = {
-  dispensaryFilterOpen: boolean;
-  setDispensaryFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  dispensaryStatusFilter: DispensaryStatus | 'ALL';
-  setDispensaryStatusFilter: React.Dispatch<React.SetStateAction<DispensaryStatus | 'ALL'>>;
-  dispensaryRequestType: DispensaryRequestType;
-  setDispensaryRequestType: React.Dispatch<React.SetStateAction<DispensaryRequestType>>;
-  filterOpenSections: Set<string>;
-  toggleFilterSection: (key: string) => void;
-};
-
-export const DispensaryFilterModal = ({
-  dispensaryFilterOpen,
-  setDispensaryFilterOpen,
-  dispensaryStatusFilter,
-  setDispensaryStatusFilter,
-  dispensaryRequestType,
-  setDispensaryRequestType,
-  filterOpenSections,
-  toggleFilterSection,
-}: DispensaryFilterModalProps) => {
-  return (
-    <Modal showModal={dispensaryFilterOpen} setShowModal={setDispensaryFilterOpen}>
-      <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between pb-4 shrink-0">
-          <div className="flex items-center gap-2 text-body-3-emphasis text-text-primary">
-            <IoOptionsOutline size={18} aria-hidden="true" />
-            <span>Filter</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {(dispensaryStatusFilter !== 'ALL' || dispensaryRequestType !== 'ALL') && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDispensaryStatusFilter('ALL');
-                  setDispensaryRequestType('ALL');
-                }}
-                className="rounded-full border border-blue-text px-4 py-1.5 text-body-4 text-blue-text hover:bg-blue-light transition-colors"
-              >
-                Clear all
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setDispensaryFilterOpen(false)}
-              aria-label="Close"
-              className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors"
-            >
-              <IoClose size={18} />
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-1 flex-col overflow-y-auto pr-1 divide-y divide-card-border">
-          <div>
-            <button
-              type="button"
-              onClick={() => toggleFilterSection('disp-status')}
-              className="flex w-full items-center justify-between py-3 text-left"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-body-4 text-text-primary">Status</span>
-                {dispensaryStatusFilter !== 'ALL' && (
-                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-badge-blue-bg text-[10px] font-bold text-badge-blue-text">
-                    1
-                  </span>
-                )}
-              </div>
-              {filterOpenSections.has('disp-status') ? (
-                <IoChevronUpOutline size={16} className="text-text-secondary" />
-              ) : (
-                <IoChevronDownOutline size={16} className="text-text-secondary" />
-              )}
-            </button>
-            {filterOpenSections.has('disp-status') && (
-              <div className="flex flex-col gap-3 pb-3">
-                {(
-                  [
-                    { value: 'ALL', label: 'All' },
-                    { value: 'PENDING', label: 'Pending' },
-                    { value: 'DISPENSED', label: 'Dispensed' },
-                    { value: 'NOT_DISPENSED', label: 'Not dispensed' },
-                  ] as const
-                ).map(({ value, label }) => (
-                  <label
-                    key={value}
-                    className="flex items-center gap-3 text-body-4 text-text-primary cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name="dispensary-status"
-                      checked={dispensaryStatusFilter === value}
-                      onChange={() => setDispensaryStatusFilter(value)}
-                      className="accent-blue-text"
-                    />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-          <div>
-            <button
-              type="button"
-              onClick={() => toggleFilterSection('disp-type')}
-              className="flex w-full items-center justify-between py-3 text-left"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-body-4 text-text-primary">Request type</span>
-                {dispensaryRequestType !== 'ALL' && (
-                  <span className="inline-flex size-5 items-center justify-center rounded-full bg-badge-blue-bg text-[10px] font-bold text-badge-blue-text">
-                    1
-                  </span>
-                )}
-              </div>
-              {filterOpenSections.has('disp-type') ? (
-                <IoChevronUpOutline size={16} className="text-text-secondary" />
-              ) : (
-                <IoChevronDownOutline size={16} className="text-text-secondary" />
-              )}
-            </button>
-            {filterOpenSections.has('disp-type') && (
-              <div className="flex flex-col gap-3 pb-3">
-                {(
-                  [
-                    { value: 'ALL', label: 'All requests' },
-                    { value: 'PATIENT', label: 'Patient' },
-                    { value: 'IN_HOUSE', label: 'In-house' },
-                  ] as const
-                ).map(({ value, label }) => (
-                  <label
-                    key={value}
-                    className="flex items-center gap-3 text-body-4 text-text-primary cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name="dispensary-type"
-                      checked={dispensaryRequestType === value}
-                      onChange={() => setDispensaryRequestType(value)}
-                      className="accent-blue-text"
-                    />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 border-t border-card-border pt-5 mt-5 shrink-0">
-          <button
-            type="button"
-            aria-label="Apply dispensary filters"
-            onClick={() => setDispensaryFilterOpen(false)}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-text-primary px-4 text-body-3-emphasis text-white hover:opacity-90 transition-opacity"
-          >
-            <IoCheckmarkOutline size={18} aria-hidden="true" />
-            Apply
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDispensaryStatusFilter('ALL');
-              setDispensaryRequestType('ALL');
-              setDispensaryFilterOpen(false);
-            }}
-            className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-card-border bg-neutral-0 px-4 text-body-3-emphasis text-text-primary hover:bg-card-hover transition-colors"
-          >
-            Discard
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-};
-
 const resolveActiveInventory = (
   filteredInventory: InventoryItem[],
   activeInventory: InventoryItem | null
@@ -918,9 +737,7 @@ const useInventoryContent = () => {
     null
   );
   const [dispensaryModalOpen, setDispensaryModalOpen] = useState(false);
-  const [dispensaryRequestType, setDispensaryRequestType] = useState<DispensaryRequestType>('ALL');
   const [dispensarySearch, setDispensarySearch] = useState('');
-  const [dispensaryFilterOpen, setDispensaryFilterOpen] = useState(false);
   const [dispensaryStatusFilter, setDispensaryStatusFilter] = useState<DispensaryStatus | 'ALL'>(
     'ALL'
   );
@@ -1257,14 +1074,8 @@ const useInventoryContent = () => {
 
   const pageTitle = getInventoryPageTitle(activeView);
   const filteredDispensaryRecords = useMemo(
-    () =>
-      filterDispensaryRecords(
-        dispensaryRecords,
-        dispensaryRequestType,
-        dispensaryStatusFilter,
-        dispensarySearch
-      ),
-    [dispensaryRecords, dispensaryRequestType, dispensaryStatusFilter, dispensarySearch]
+    () => filterDispensaryRecords(dispensaryRecords, dispensaryStatusFilter, dispensarySearch),
+    [dispensaryRecords, dispensaryStatusFilter, dispensarySearch]
   );
 
   const handleDispense = useCallback(
@@ -1455,17 +1266,6 @@ const useInventoryContent = () => {
           toggleCategoryFilter={toggleCategoryFilter}
           toggleExpandedCategory={toggleExpandedCategory}
           supplierFilterOptions={supplierFilterOptions}
-        />
-
-        <DispensaryFilterModal
-          dispensaryFilterOpen={dispensaryFilterOpen}
-          setDispensaryFilterOpen={setDispensaryFilterOpen}
-          dispensaryStatusFilter={dispensaryStatusFilter}
-          setDispensaryStatusFilter={setDispensaryStatusFilter}
-          dispensaryRequestType={dispensaryRequestType}
-          setDispensaryRequestType={setDispensaryRequestType}
-          filterOpenSections={filterOpenSections}
-          toggleFilterSection={toggleFilterSection}
         />
 
         {activeInventory && (

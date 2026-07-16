@@ -42,9 +42,7 @@ const Upgrade = () => {
       </div>
       <CenterModal showModal={selectPopup} setShowModal={setSelectPopup} onClose={handleCancel}>
         <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
+          <div className="size-8" aria-hidden="true" />
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">Select billing cycle</div>
           </div>

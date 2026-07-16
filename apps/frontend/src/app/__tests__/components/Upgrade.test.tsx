@@ -164,8 +164,9 @@ describe('Upgrade widget', () => {
     fireEvent.click(screen.getAllByText('Upgrade')[0]);
     expect(screen.getByTestId('upgrade-modal')).toBeInTheDocument();
 
-    // The first `close` is the invisible spacer; the second runs handleCancel.
-    fireEvent.click(screen.getAllByText('close')[1]);
+    // The centring spacer is inert markup, so there is exactly one `close`
+    // control and it runs handleCancel.
+    fireEvent.click(screen.getByText('close'));
 
     expect(screen.queryByTestId('upgrade-modal')).not.toBeInTheDocument();
   });

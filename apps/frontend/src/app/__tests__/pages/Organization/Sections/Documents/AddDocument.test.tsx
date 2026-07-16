@@ -172,11 +172,9 @@ describe('AddDocument', () => {
     const setShowModal = jest.fn();
     render(<AddDocument showModal setShowModal={setShowModal} />);
 
-    // The first Close is the hidden spacer and is inert; the second is the real control.
-    const [spacerClose, realClose] = screen.getAllByText('Close');
-    fireEvent.click(spacerClose);
-    expect(setShowModal).not.toHaveBeenCalled();
-
+    // The header centring spacer is inert markup, not a second Close button, so
+    // exactly one close control is exposed and it is the working one.
+    const realClose = screen.getByText('Close');
     fireEvent.click(realClose);
     expect(setShowModal).toHaveBeenCalledWith(false);
   });

@@ -3,7 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import {
   ActiveFilterBar,
   DispensaryFilterBar,
-  DispensaryFilterModal,
   InventoryFilterBar,
   InventoryFilterModal,
   InventoryTableContent,
@@ -379,49 +378,5 @@ describe('Inventory page inner components', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
     expect(setFilterOpen).toHaveBeenCalledWith(false);
     expect(setFilters).toHaveBeenCalled();
-  });
-
-  it('handles dispensary filter modal status, request type, clear-all, apply, and discard', () => {
-    const setDispensaryFilterOpen = jest.fn();
-    const setDispensaryStatusFilter = jest.fn();
-    const setDispensaryRequestType = jest.fn();
-    const toggleFilterSection = jest.fn();
-
-    render(
-      <DispensaryFilterModal
-        dispensaryFilterOpen
-        setDispensaryFilterOpen={setDispensaryFilterOpen}
-        dispensaryStatusFilter="DISPENSED"
-        setDispensaryStatusFilter={setDispensaryStatusFilter}
-        dispensaryRequestType="PATIENT"
-        setDispensaryRequestType={setDispensaryRequestType}
-        filterOpenSections={new Set(['disp-status', 'disp-type'])}
-        toggleFilterSection={toggleFilterSection}
-      />
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
-    expect(setDispensaryStatusFilter).toHaveBeenCalledWith('ALL');
-    expect(setDispensaryRequestType).toHaveBeenCalledWith('ALL');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Status 1' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Request type 1' }));
-    expect(toggleFilterSection).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Pending' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'In-house' }));
-    expect(setDispensaryStatusFilter).toHaveBeenCalledWith('PENDING');
-    expect(setDispensaryRequestType).toHaveBeenCalledWith('IN_HOUSE');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-    expect(setDispensaryFilterOpen).toHaveBeenCalledWith(false);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Apply dispensary filters' }));
-    expect(setDispensaryFilterOpen).toHaveBeenCalledWith(false);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
-    expect(setDispensaryStatusFilter).toHaveBeenCalledWith('ALL');
-    expect(setDispensaryRequestType).toHaveBeenCalledWith('ALL');
-    expect(setDispensaryFilterOpen).toHaveBeenCalledWith(false);
   });
 });

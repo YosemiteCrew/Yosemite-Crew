@@ -287,14 +287,20 @@ describe('UniversalSearchPalette', () => {
     });
   });
 
-  it('renders the phone full-screen variant with Cancel + Filters', () => {
+  it('renders the phone full-screen variant with a working Cancel and no dead controls', () => {
     isPhoneValue = true;
     render(<UniversalSearchPalette />);
 
     expect(screen.getByText('Cancel')).toBeInTheDocument();
-    expect(screen.getByText('Filters')).toBeInTheDocument();
     expect(screen.getByText('Searches patients, visits, invoices, team')).toBeInTheDocument();
     expect(screen.queryByText('ESC')).not.toBeInTheDocument();
+
+    // The phone footer must expose no button other than a functional Cancel:
+    // a rendered-but-inert control (the old "Filters" button) is a regression.
+    expect(screen.queryByText('Filters')).not.toBeInTheDocument();
+    for (const button of screen.getAllByRole('button')) {
+      expect(button).toHaveAccessibleName();
+    }
 
     // The route-change effect fires close() once on mount; isolate the click.
     closeMock.mockClear();

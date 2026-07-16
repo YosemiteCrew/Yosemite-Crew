@@ -216,10 +216,6 @@ describe('HospitalizationModal', () => {
       'data-default-option',
       's1'
     );
-    // Default notify channel is App only.
-    expect(screen.getByRole('checkbox', { name: 'Notify by Notify via App' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Notify by Notify via SMS' })).not.toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Notify by Notify via Email' })).not.toBeChecked();
     // Discharge picker receives the admission date as its min bound.
     expect(screen.getByTestId('dp-min-Date of discharge (tentative)')).not.toHaveTextContent(
       'none'
@@ -344,16 +340,15 @@ describe('HospitalizationModal', () => {
     expect(onConvert).not.toHaveBeenCalled();
   });
 
-  it('toggles notify channels on and off', () => {
+  // The notify-channel checkboxes were removed: nothing downstream accepts a notify
+  // channel (no field in packages/types, apps/backend, or the Prisma schema), and the
+  // onConvert handler in AppointmentWorkspace dropped the payload field on the floor,
+  // so the user's choice was silently discarded on convert. Do not re-add the control
+  // without a real backend field to persist it to.
+  it('does not render notify-channel checkboxes', () => {
     render(<HospitalizationModal {...makeProps()} />);
 
-    const app = screen.getByRole('checkbox', { name: 'Notify by Notify via App' });
-    const sms = screen.getByRole('checkbox', { name: 'Notify by Notify via SMS' });
-
-    fireEvent.click(app); // remove app
-    expect(app).not.toBeChecked();
-    fireEvent.click(sms); // add sms
-    expect(sms).toBeChecked();
+    expect(screen.queryByRole('checkbox', { name: /notify/i })).not.toBeInTheDocument();
   });
 
   it('updates the ripple css variables on pointer interactions', () => {
@@ -381,9 +376,10 @@ describe('HospitalizationModal', () => {
         unitId: 'u1',
         supportStaffId: 's1',
         servicePackageIds: [],
-        notifyChannels: ['app'],
       })
     );
+    // The payload carries no notify field — nothing downstream can persist one.
+    expect(onConvert.mock.calls[0][0]).not.toHaveProperty('notifyChannels');
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 

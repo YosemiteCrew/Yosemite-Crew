@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 
 import DateTimePickerSection from '@/app/features/appointments/components/DateTimePickerSection';
@@ -115,20 +116,14 @@ describe('DateTimePickerSection', () => {
     expect(screen.getByTestId('support-value')).toHaveTextContent('empty');
   });
 
-  it('leaves the date input editable when the slot picker is shown', () => {
-    render(<DateTimePickerSection {...baseProps} />);
-
-    const dateInput = screen.getByTestId('input-date');
-    expect(dateInput).not.toHaveAttribute('readonly');
-    expect(dateInput).not.toHaveAttribute('tabindex');
-    // The locked-state class is only applied when the picker is hidden.
-    expect(dateInput).not.toHaveClass('cursor-default');
-  });
-
-  it('hides the slot picker and locks the date input when hideDateSlotPicker is set', () => {
-    render(<DateTimePickerSection {...baseProps} hideDateSlotPicker />);
-
-    expect(screen.queryByTestId('slotpicker')).not.toBeInTheDocument();
+  // The date is only ever set via the Slotpicker, so the field is display-only on
+  // every path — including the default one, where it previously accepted keystrokes
+  // that were silently discarded by a no-op onChange.
+  it.each([
+    ['the slot picker is shown', false],
+    ['the slot picker is hidden', true],
+  ])('locks the date input when %s', (_label, hideDateSlotPicker) => {
+    render(<DateTimePickerSection {...baseProps} hideDateSlotPicker={hideDateSlotPicker} />);
 
     const dateInput = screen.getByTestId('input-date') as HTMLInputElement;
     expect(dateInput).toHaveAttribute('readonly');
@@ -143,6 +138,23 @@ describe('DateTimePickerSection', () => {
     const clickEvent = createBubbledClick();
     dateInput.dispatchEvent(clickEvent);
     expect(clickEvent.defaultPrevented).toBe(true);
+  });
+
+  it('does not let typing change the displayed date on the default path', async () => {
+    render(<DateTimePickerSection {...baseProps} />);
+
+    const dateInput = screen.getByTestId('input-date') as HTMLInputElement;
+    await userEvent.type(dateInput, '25 Dec 2027');
+
+    // The real effect: the value is unchanged, and the parent was never asked to change it.
+    expect(dateInput).toHaveValue('01 Mar 2026');
+    expect(baseProps.setSelectedDate).not.toHaveBeenCalled();
+  });
+
+  it('hides the slot picker when hideDateSlotPicker is set', () => {
+    render(<DateTimePickerSection {...baseProps} hideDateSlotPicker />);
+
+    expect(screen.queryByTestId('slotpicker')).not.toBeInTheDocument();
   });
 
   it('always locks the time input', () => {

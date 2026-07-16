@@ -1,4 +1,4 @@
-import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
+import { Primary } from '@/app/ui/primitives/Buttons';
 import TaskFormFields from '@/app/features/tasks/components/TaskFormFields';
 import Modal from '@/app/ui/overlays/Modal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
@@ -26,7 +26,6 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
     templateOptions,
     selectTemplate,
     handleCreate,
-    handleCreateTemplate,
     resetForm,
   } = useTaskForm({
     isCompanionTask: true,
@@ -69,12 +68,6 @@ const AddTask = ({ showModal, setShowModal, activeCompanion }: AddTaskProps) => 
         <div className="flex justify-end items-end gap-3 w-full flex-col">
           {error && <div className="text-text-error text-sm text-center">{error}</div>}
           <div className="flex gap-3 w-full">
-            <Secondary
-              href="#"
-              text="Save as template"
-              className="w-full hidden"
-              onClick={handleCreateTemplate}
-            />
             <Primary
               href="#"
               text={isLoading ? 'Saving...' : 'Save'}

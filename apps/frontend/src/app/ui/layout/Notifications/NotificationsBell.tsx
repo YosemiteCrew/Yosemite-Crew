@@ -62,6 +62,9 @@ const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
     router.push('/settings');
   };
 
+  // Rows are unreachable today (`useNotifications` reports an empty feed), so
+  // closing the panel is the whole behaviour. When a durable feed lands, route
+  // to the item's subject here instead of discarding it.
   const handleItemClick = (_item: NotificationItem) => {
     close();
   };
@@ -91,7 +94,10 @@ const NotificationsBell = ({ variant = 'desktop' }: NotificationsBellProps) => {
       unreadCount={unreadCount}
       onMarkAllRead={markAllRead}
       onItemClick={handleItemClick}
-      onViewAll={close}
+      // No `/notifications` route exists, so "View all" has nowhere to go and is
+      // omitted rather than shipped as a control that only closes the panel.
+      // Pass a real navigation handler here once that route lands.
+      onViewAll={undefined}
       onSettings={goToSettings}
     />
   );

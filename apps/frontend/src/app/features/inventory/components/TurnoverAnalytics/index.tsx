@@ -66,15 +66,7 @@ const barHeight = (value: number | null, maxValue: number): number => {
   return Math.max(4, Math.min(100, (value / maxValue) * 100));
 };
 
-const MiniKpi = ({
-  label,
-  value,
-  danger,
-}: {
-  label: string;
-  value: string;
-  danger?: boolean;
-}) => (
+const MiniKpi = ({ label, value, danger }: { label: string; value: string; danger?: boolean }) => (
   <span className={`${insetBoxClass} rounded-[12px] px-3 py-2.5`}>
     <span className="block text-[9.5px] font-bold uppercase tracking-[0.08em] text-[var(--ink-faint)]">
       {label}
@@ -187,9 +179,7 @@ const KpiCards = ({
         {formatCurrency(expiredWriteOff, currency)}
       </span>
       <span className={kpiCaptionClass}>
-        {expiredShare === null
-          ? 'of stock value'
-          : `${expiredShare.toFixed(1)}% of stock value`}
+        {expiredShare === null ? 'of stock value' : `${expiredShare.toFixed(1)}% of stock value`}
       </span>
     </div>
   </div>
@@ -258,9 +248,7 @@ const AbcTable = ({ rows, onSelectClass }: AbcTableProps) => (
   <div className={`${cardClass} flex flex-col overflow-hidden`}>
     <div className="flex items-center justify-between border-b border-[var(--hairline)] px-[18px] pb-2.5 pt-3">
       <span className="text-[14px] font-bold text-[var(--ink)]">ABC classification</span>
-      <span className="text-[11px] text-[var(--ink-faint)]">
-        by consumption value · YTD
-      </span>
+      <span className="text-[11px] text-[var(--ink-faint)]">by consumption value · YTD</span>
     </div>
     {rows.length === 0 ? (
       <div className="px-[18px] py-6 text-center text-[12px] text-[var(--ink-faint)]">
@@ -368,13 +356,6 @@ const ProductDetailPanel = ({ panel, reorderLabel, onReorder }: ProductPanelProp
       >
         <IoCartOutline size={14} aria-hidden="true" />
         {reorderLabel}
-      </button>
-      <button
-        type="button"
-        onClick={onReorder}
-        className="flex h-10 items-center justify-center rounded-full border border-[var(--hairline)] px-[15px] text-[12px] font-semibold text-[var(--ink-body)]"
-      >
-        History
       </button>
     </div>
   </div>

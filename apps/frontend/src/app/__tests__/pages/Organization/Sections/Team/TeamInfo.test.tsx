@@ -296,7 +296,7 @@ describe('TeamInfo', () => {
     expect(screen.getByText('Dr Vet')).toBeInTheDocument();
     expect(screen.getByText('availability-editable')).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'close' })[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'close' }));
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
 

@@ -108,9 +108,7 @@ const SpecialityInfo = ({
         <div className="flex flex-col h-full gap-6">
           {/* Header */}
           <div className="flex justify-between items-center">
-            <div className="opacity-0 pointer-events-none">
-              <Close onClick={() => {}} />
-            </div>
+            <div className="size-8" aria-hidden="true" />
             <div className="flex items-center gap-2 text-body-1 text-text-primary">
               <IoPeopleOutline size={20} color="var(--color-neutral-700)" aria-hidden="true" />
               Manage team
