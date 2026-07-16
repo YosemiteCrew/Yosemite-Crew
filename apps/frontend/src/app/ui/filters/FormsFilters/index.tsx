@@ -26,8 +26,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
-    | Organisation['type']
-    | undefined;
+    Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
 
   const filteredCategoryOptions = useMemo(() => {

@@ -45,7 +45,7 @@ describe('devSession', () => {
       expect(dispatch).toHaveBeenCalledTimes(4);
       expect(dispatch.mock.calls[0][0]).toMatchObject({
         type: 'auth/setAuthenticated',
-        payload: {user: MOCK_USER, provider: 'amplify'},
+        payload: {user: MOCK_USER, provider: 'supertokens'},
       });
       expect(dispatch.mock.calls[3][0]).toMatchObject({
         type: 'companion/setSelectedCompanion',

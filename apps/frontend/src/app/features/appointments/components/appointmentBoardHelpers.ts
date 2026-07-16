@@ -3,13 +3,7 @@ import { Appointment } from '@yosemite-crew/types';
 import { normalizeAppointmentStatus } from '@/app/lib/appointments';
 
 export type BoardStatus =
-  | 'REQUESTED'
-  | 'UPCOMING'
-  | 'CHECKED_IN'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'NO_SHOW';
+  'REQUESTED' | 'UPCOMING' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 export const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
   { key: 'REQUESTED', label: 'Requested' },

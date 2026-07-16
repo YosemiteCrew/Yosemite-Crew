@@ -413,7 +413,7 @@ const ForgotPassword = () => {
 
     try {
       clearPasswordErrors();
-      const success = await resetPassword(email, otp.join(''), password);
+      const success = await resetPassword(password);
       if (success) {
         showErrorTost(successToast('Password Changed successfully'));
         setTimeout(() => {

@@ -36,8 +36,7 @@ const FormsTable = ({
     s.primaryOrgId ? s.orgsById[s.primaryOrgId]?.type : undefined
   );
   const orgTypeOverride = process.env.NEXT_PUBLIC_ORG_TYPE_OVERRIDE as
-    | Organisation['type']
-    | undefined;
+    Organisation['type'] | undefined;
   const effectiveOrgType = orgTypeOverride || orgType;
 
   // Create a lookup map from practitioner ID to team member name

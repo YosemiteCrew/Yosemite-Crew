@@ -20,22 +20,32 @@ const buildSegments = (
 ) => {
   if (!Array.isArray(segments)) return null;
 
+  const segmentKeyCounts = new Map<string, number>();
+
   return (
     <Text
       style={[
         styles.paragraphText,
         isCenter ? styles.paragraphTextCenter : undefined,
       ]}>
-      {segments.map(segment => (
-        <Text
-          key={`${segment.bold ? 'b' : ''}${segment.underline ? 'u' : ''}:${segment.text}`}
-          style={[
-            segment.bold && styles.boldText,
-            segment.underline && styles.underlineText,
-          ]}>
-          {segment.text}
-        </Text>
-      ))}
+      {segments.map(segment => {
+        const fontStyle = segment.bold ? 'bold' : 'regular';
+        const textDecoration = segment.underline ? 'underlined' : 'plain';
+        const baseKey = `${segment.text}-${fontStyle}-${textDecoration}`;
+        const occurrence = segmentKeyCounts.get(baseKey) ?? 0;
+        segmentKeyCounts.set(baseKey, occurrence + 1);
+
+        return (
+          <Text
+            key={`${baseKey}-${occurrence}`}
+            style={[
+              segment.bold && styles.boldText,
+              segment.underline && styles.underlineText,
+            ]}>
+            {segment.text}
+          </Text>
+        );
+      })}
     </Text>
   );
 };
@@ -65,15 +75,42 @@ const buildOrderedListItems = (
   );
 };
 
+const getBlockBaseKey = (block: LegalContentBlock): string => {
+  if (block.type === 'paragraph') {
+    const segmentKey = Array.isArray(block.segments)
+      ? block.segments
+          .map(
+            segment => `${segment.text}-${segment.bold}-${segment.underline}`,
+          )
+          .join('-')
+      : 'empty';
+    return `paragraph-${segmentKey}`;
+  }
+
+  if (block.type === 'ordered-list') {
+    const itemKey = Array.isArray(block.items)
+      ? block.items
+          .map(
+            item =>
+              `${item.marker}-${item.markerBold}-${(item.segments || [])
+                .map(segment => segment.text)
+                .join('-')}`,
+          )
+          .join('-')
+      : 'empty';
+    return `ordered-list-${itemKey}`;
+  }
+
+  return 'unknown-block';
+};
+
 const renderBlock = (
   block: LegalContentBlock,
   styles: ReturnType<typeof createStyles>,
+  key: string,
   isCenter = false,
 ) => {
   if (block.type === 'paragraph') {
-    const key = Array.isArray(block.segments)
-      ? block.segments.map(segment => segment.text).join('-')
-      : 'paragraph';
     return (
       <View key={key} style={styles.paragraph}>
         {buildSegments(block.segments, styles, isCenter)}
@@ -82,9 +119,6 @@ const renderBlock = (
   }
 
   if (block.type === 'ordered-list') {
-    const key = Array.isArray(block.items)
-      ? block.items.map(item => item.marker).join('-')
-      : 'ordered-list';
     return (
       <View key={key} style={styles.paragraph}>
         {buildOrderedListItems(block.items, styles, isCenter)}
@@ -138,6 +172,7 @@ export const LegalContentRenderer: React.FC<LegalContentRendererProps> = ({
             return [];
           }
           const isCenter = section.align === 'center';
+          const blockKeyCounts = new Map<string, number>();
           return [
             <LiquidGlassCard
               key={section.id}
@@ -157,7 +192,15 @@ export const LegalContentRenderer: React.FC<LegalContentRendererProps> = ({
               <View style={styles.sectionContent}>
                 {Array.isArray(section.blocks)
                   ? section.blocks.flatMap(block => {
-                      const r = renderBlock(block, styles, isCenter);
+                      const baseKey = getBlockBaseKey(block);
+                      const occurrence = blockKeyCounts.get(baseKey) ?? 0;
+                      blockKeyCounts.set(baseKey, occurrence + 1);
+                      const r = renderBlock(
+                        block,
+                        styles,
+                        `${baseKey}-${occurrence}`,
+                        isCenter,
+                      );
                       return r ? [r] : [];
                     })
                   : null}

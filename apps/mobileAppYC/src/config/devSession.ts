@@ -100,7 +100,7 @@ const MOCK_ACCESS: ParentCompanionAccess = {
 
 /** Seed the store with a mock authenticated session + companions + access. */
 export const seedDevSession = (dispatch: AppDispatch): void => {
-  dispatch(setAuthenticated({user: MOCK_USER, provider: 'amplify'}));
+  dispatch(setAuthenticated({user: MOCK_USER, provider: 'supertokens'}));
   dispatch(
     fetchParentAccess.fulfilled([MOCK_ACCESS], 'dev-access', {
       parentId: MOCK_USER.parentId ?? MOCK_USER.id,

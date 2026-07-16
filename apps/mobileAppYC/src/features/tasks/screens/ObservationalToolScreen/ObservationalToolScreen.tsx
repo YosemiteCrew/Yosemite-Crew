@@ -491,10 +491,12 @@ export const ObservationalToolScreen: React.FC = () => {
     /* istanbul ignore next -- responses are always stored as arrays. */
     return value ? [value] : [];
   })();
-  const selectionSet = new Set(selectionsForStep);
+  const selectionsForStepSet = new Set(selectionsForStep);
   const isStepCompleted = currentStep
     ? !currentStep.required || selectionsForStep.length > 0
     : false;
+  const isImageOptionLayout =
+    currentStep?.options?.some(option => option.image) ?? false;
 
   useEffect(() => {
     scrollToTop();
@@ -820,7 +822,7 @@ export const ObservationalToolScreen: React.FC = () => {
   const renderOptions = () =>
     currentStep.options.map(
       (option: ObservationalToolOption, index: number) => {
-        const selected = selectionSet.has(option.id);
+        const selected = selectionsForStepSet.has(option.id);
         return (
           <Pressable
             key={option.id}
@@ -875,6 +877,39 @@ export const ObservationalToolScreen: React.FC = () => {
         );
       },
     );
+
+  const renderImageOptions = () =>
+    currentStep.options.map((option: ObservationalToolOption) => {
+      const selected = selectionsForStepSet.has(option.id);
+      return (
+        <Pressable
+          key={option.id}
+          onPress={() => toggleOption(currentStep.id, option.id)}
+          style={[
+            styles.optionImageCard,
+            selected && styles.optionImageCardSelected,
+          ]}>
+          {option.image ? (
+            <Image source={option.image} style={styles.optionImageLarge} />
+          ) : null}
+          <View style={styles.optionTextBlock}>
+            <Text
+              style={[
+                styles.optionTitle,
+                selected && styles.optionTitleSelected,
+              ]}>
+              {option.title}
+            </Text>
+            {option.subtitle ? (
+              <Text style={styles.optionSubtitle}>{option.subtitle}</Text>
+            ) : null}
+          </View>
+        </Pressable>
+      );
+    });
+
+  const buildOptions = () =>
+    isImageOptionLayout ? renderImageOptions() : renderOptions();
 
   const buildFormActions = () => {
     const isLastStep = effectiveStepIndex === totalSteps - 1;
@@ -965,7 +1000,7 @@ export const ObservationalToolScreen: React.FC = () => {
             <Text style={styles.stepSubtitle}>{currentStep.subtitle}</Text>
           ) : null}
         </View>
-        <View style={styles.optionsContainer}>{renderOptions()}</View>
+        <View style={styles.optionsContainer}>{buildOptions()}</View>
         {
           /* istanbul ignore next -- selecting an option always completes the step, so this copy is unreachable. */
           showValidationMessage ? (
@@ -1491,6 +1526,28 @@ const createStyles = (theme: any) => {
     optionTileImage: {
       width: '100%',
       height: '100%',
+      resizeMode: 'cover',
+    },
+    optionImageCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing['3'],
+      padding: theme.spacing['3'],
+      borderRadius: theme.borderRadius.card,
+      borderWidth: 1,
+      borderColor: theme.colors.hairline,
+      backgroundColor: theme.colors.screen,
+      ...theme.shadows.card,
+    },
+    optionImageCardSelected: {
+      borderColor: theme.colors.blue,
+      borderWidth: 1.5,
+      boxShadow: `0px 0px 0px 3px ${theme.colors.blueSoft}`,
+    },
+    optionImageLarge: {
+      width: theme.spacing['25'],
+      height: theme.spacing['25'],
+      borderRadius: theme.borderRadius.lg,
       resizeMode: 'cover',
     },
     optionTextBlock: {

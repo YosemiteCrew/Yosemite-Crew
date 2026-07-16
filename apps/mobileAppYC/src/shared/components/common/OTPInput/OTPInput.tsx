@@ -166,7 +166,9 @@ const createStyles = (theme: any) =>
     inputContainer: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 9,
+      width: '100%',
+      gap: theme.spacing['2'] * 2,
+      paddingHorizontal: theme.spacing['2.5'],
     },
     input: {
       width: 50,

@@ -1,8 +1,8 @@
 # Yosemite Crew - Veterinary PIMS: Complete Architecture & Implementation Guide
 
-> **Status:** Living document - source of truth for all new module design  
-> **Last Updated:** 2026-05-18  
-> **Team:** 1 frontend engineer · 1 backend engineer · 1 designer  
+> **Status:** Living document - source of truth for all new module design
+> **Last Updated:** 2026-05-18
+> **Team:** 1 frontend engineer · 1 backend engineer · 1 designer
 > **Stack:** Next.js · React Native · Node.js · PostgreSQL (Prisma) · pnpm workspaces · Turbo
 
 PIMS stands for Practice Information Management System: the software a veterinary clinic runs its day on (appointments, clinical records, billing, inventory). This document is the design blueprint for building out that system module by module; it describes the target design, so parts of it are forward-looking rather than a description of code that exists today. It is written for engineers picking up a module for the first time. For the real-time sync and notification pieces referenced throughout, see the related documents linked at the end. SOAP, used in Section 8 and after, is the standard clinical note format (Subjective, Objective, Assessment, Plan).
@@ -214,13 +214,7 @@ model User {
 interface OrgSessionClaim {
   orgId: string;
   role:
-    | 'OWNER'
-    | 'ADMIN'
-    | 'SUPERVISOR'
-    | 'VETERINARIAN'
-    | 'TECHNICIAN'
-    | 'ASSISTANT'
-    | 'RECEPTIONIST';
+    'OWNER' | 'ADMIN' | 'SUPERVISOR' | 'VETERINARIAN' | 'TECHNICIAN' | 'ASSISTANT' | 'RECEPTIONIST';
   permissions: string[]; // e.g. ['appointments:view:any', 'prescription:write']
 }
 ```

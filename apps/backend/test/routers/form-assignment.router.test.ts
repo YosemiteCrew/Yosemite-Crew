@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -14,7 +14,7 @@ const FormAssignmentController = {
 };
 
 jest.mock("src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("src/middlewares/rbac", () => ({
@@ -93,7 +93,7 @@ describe("form-assignment.router", () => {
     );
 
     expect(createRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(withOrgPermissions).toHaveBeenCalled();
     expect(requirePermission).toHaveBeenCalledWith("forms:edit:any");

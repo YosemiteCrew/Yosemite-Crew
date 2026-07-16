@@ -20,10 +20,7 @@ import {
   Platform,
 } from 'react-native';
 import {deleteParentProfile} from '../../../../src/features/account/services/profileService';
-import {
-  deleteAmplifyAccount,
-  deleteFirebaseAccount,
-} from '../../../../src/features/auth/services/accountDeletion';
+import {deleteSupertokensAccount} from '../../../../src/features/auth/services/accountDeletion';
 import {normalizeImageUri} from '../../../../src/shared/utils/imageUri';
 import {calculateAgeFromDateOfBirth} from '../../../../src/shared/utils/helpers';
 import {setSelectedCompanion} from '../../../../src/features/companion';
@@ -91,8 +88,7 @@ jest.mock('../../../../src/features/account/services/profileService', () => ({
   deleteParentProfile: jest.fn(),
 }));
 jest.mock('../../../../src/features/auth/services/accountDeletion', () => ({
-  deleteAmplifyAccount: jest.fn(),
-  deleteFirebaseAccount: jest.fn(),
+  deleteSupertokensAccount: jest.fn(),
 }));
 jest.mock('../../../../src/features/auth/sessionManager', () => ({
   getFreshStoredTokens: jest.fn(() =>
@@ -296,7 +292,6 @@ describe('AccountScreen', () => {
 
     (useAuth as jest.Mock).mockReturnValue({
       logout: mockLogout,
-      provider: 'firebase',
     });
 
     store = mockStore({
@@ -693,11 +688,7 @@ describe('AccountScreen', () => {
     expect(hardwareBackPressHandler?.()).toBe(false);
   });
 
-  it('handles Delete Account confirmation flow (Amplify)', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
-      logout: mockLogout,
-      provider: 'amplify',
-    });
+  it('handles Delete Account confirmation flow (SuperTokens)', async () => {
     renderScreen();
 
     fireEvent.press(screen.getByTestId('menu-item-delete'));
@@ -708,39 +699,9 @@ describe('AccountScreen', () => {
     });
 
     expect(deleteParentProfile).toHaveBeenCalledWith('parent-1', 'valid-token');
-    expect(deleteAmplifyAccount).toHaveBeenCalled();
+    expect(deleteSupertokensAccount).toHaveBeenCalled();
     expect(mockLogout).toHaveBeenCalled();
   });
-
-  it('handles Delete Account confirmation flow (Firebase)', async () => {
-    renderScreen();
-    fireEvent.press(screen.getByTestId('menu-item-delete'));
-
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('confirm-delete-btn'));
-    });
-
-    expect(deleteFirebaseAccount).toHaveBeenCalled();
-  });
-
-  it('deletes the profile without provider-specific deletion for other providers', async () => {
-    (useAuth as jest.Mock).mockReturnValue({
-      logout: mockLogout,
-      provider: 'custom',
-    });
-    renderScreen();
-    fireEvent.press(screen.getByTestId('menu-item-delete'));
-
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('confirm-delete-btn'));
-    });
-
-    expect(deleteParentProfile).toHaveBeenCalledWith('parent-1', 'valid-token');
-    expect(deleteAmplifyAccount).not.toHaveBeenCalled();
-    expect(deleteFirebaseAccount).not.toHaveBeenCalled();
-    expect(mockLogout).toHaveBeenCalled();
-  });
-
   it('handles Delete Account error (expired token)', async () => {
     (isTokenExpired as jest.Mock).mockReturnValue(true);
 

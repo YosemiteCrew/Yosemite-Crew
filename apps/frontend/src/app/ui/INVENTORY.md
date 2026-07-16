@@ -71,39 +71,39 @@ token alignment · stable API · tests · story coverage · accessibility (a11y)
 
 ## Inputs
 
-| Component            | File                                                   | Status          | Notes                                                             |
-| -------------------- | ------------------------------------------------------ | --------------- | ----------------------------------------------------------------- |
-| Search               | `inputs/Search/index.tsx`                              | 🔄 In migration | Story added                                                       |
-| Datepicker           | `inputs/Datepicker/index.tsx`                          | 🔄 In migration | Needs story + a11y audit                                          |
-| Dropdown             | `inputs/Dropdown/Dropdown.tsx`                         | 🔄 In migration | Story added                                                       |
-| LabelDropdown        | `inputs/Dropdown/LabelDropdown.tsx`                    | 🔄 In migration | Story added                                                       |
-| MultiSelectDropdown  | `inputs/MultiSelectDropdown/index.tsx`                 | 🔄 In migration | Story added                                                       |
-| SearchDropdown       | `inputs/SearchDropdown/index.tsx`                      | 🔄 In migration | Needs story                                                       |
-| FileInput            | `inputs/FileInput/FileInput.tsx`                       | 🔄 In migration | Story added. react-bootstrap removed — re-audit status            |
-| FormDesc             | `inputs/FormDesc/FormDesc.tsx`                         | 🔄 In migration | Audit                                                             |
-| Slotpicker           | `inputs/Slotpicker/index.tsx`                          | 🔄 In migration | Needs story                                                       |
-| ServiceSearch        | `inputs/ServiceSearch/ServiceSearch.tsx`               | ⚠️ Legacy       | Domain-specific - evaluate promotion vs feature-only              |
-| SpecialitySearch     | `inputs/SpecialitySearch/SpecialitySearch.tsx`         | ⚠️ Legacy       | Domain-specific                                                   |
-| GoogleSearchDropDown | `inputs/GoogleSearchDropDown/GoogleSearchDropDown.tsx` | ⚠️ Legacy       | Google Maps dependency; feature-only candidate                    |
+| Component            | File                                                   | Status          | Notes                                                  |
+| -------------------- | ------------------------------------------------------ | --------------- | ------------------------------------------------------ |
+| Search               | `inputs/Search/index.tsx`                              | 🔄 In migration | Story added                                            |
+| Datepicker           | `inputs/Datepicker/index.tsx`                          | 🔄 In migration | Needs story + a11y audit                               |
+| Dropdown             | `inputs/Dropdown/Dropdown.tsx`                         | 🔄 In migration | Story added                                            |
+| LabelDropdown        | `inputs/Dropdown/LabelDropdown.tsx`                    | 🔄 In migration | Story added                                            |
+| MultiSelectDropdown  | `inputs/MultiSelectDropdown/index.tsx`                 | 🔄 In migration | Story added                                            |
+| SearchDropdown       | `inputs/SearchDropdown/index.tsx`                      | 🔄 In migration | Needs story                                            |
+| FileInput            | `inputs/FileInput/FileInput.tsx`                       | 🔄 In migration | Story added. react-bootstrap removed — re-audit status |
+| FormDesc             | `inputs/FormDesc/FormDesc.tsx`                         | 🔄 In migration | Audit                                                  |
+| Slotpicker           | `inputs/Slotpicker/index.tsx`                          | 🔄 In migration | Needs story                                            |
+| ServiceSearch        | `inputs/ServiceSearch/ServiceSearch.tsx`               | ⚠️ Legacy       | Domain-specific - evaluate promotion vs feature-only   |
+| SpecialitySearch     | `inputs/SpecialitySearch/SpecialitySearch.tsx`         | ⚠️ Legacy       | Domain-specific                                        |
+| GoogleSearchDropDown | `inputs/GoogleSearchDropDown/GoogleSearchDropDown.tsx` | ⚠️ Legacy       | Google Maps dependency; feature-only candidate         |
 
 ---
 
 ## Overlays
 
-| Component               | File                                         | Status          | Notes                                                          |
-| ----------------------- | -------------------------------------------- | --------------- | -------------------------------------------------------------- |
-| ModalBase               | `overlays/Modal/ModalBase.tsx`               | ✅ Approved     | Focus trap + escape key + role=dialog added. Stories added.    |
-| CenterModal             | `overlays/Modal/CenterModal.tsx`             | ✅ Approved     | Layout wrapper for ModalBase                                   |
-| ModalHeader             | `overlays/Modal/ModalHeader.tsx`             | ✅ Approved     | Standard modal header with close button                        |
-| DeleteConfirmationModal | `overlays/Modal/DeleteConfirmationModal.tsx` | ✅ Approved     | Destructive confirm dialog                                     |
-| ChangeStatusModal       | `overlays/Modal/ChangeStatusModal.tsx`       | 🔄 In migration | Needs story                                                    |
-| VideoPlayerModal        | `overlays/Modal/VideoPlayerModal.tsx`        | 🔄 In migration | Needs story + iframe a11y audit                                |
-| OtpModal                | `overlays/OtpModal/OtpModal.tsx`             | 🔄 In migration | react-bootstrap removed — re-audit status                      |
-| Toast (overlay)         | `overlays/Toast/Toast.tsx`                   | 🔄 In migration | react-bootstrap removed — re-audit status                      |
-| YosemiteLoader          | `overlays/Loader/YosemiteLoader.tsx`         | 🔄 In migration | Story added                                                    |
-| SigningOverlay          | `overlays/SigningOverlay.tsx`                | ⚠️ Legacy       | Feature-heavy - evaluate as feature-only composite             |
-| PdfPreviewOverlay       | `overlays/PdfPreviewOverlay.tsx`             | ⚠️ Legacy       | iframe / a11y audit needed                                     |
-| Fallback                | `overlays/Fallback/index.tsx`                | 🔄 In migration | Needs story                                                    |
+| Component               | File                                         | Status          | Notes                                                       |
+| ----------------------- | -------------------------------------------- | --------------- | ----------------------------------------------------------- |
+| ModalBase               | `overlays/Modal/ModalBase.tsx`               | ✅ Approved     | Focus trap + escape key + role=dialog added. Stories added. |
+| CenterModal             | `overlays/Modal/CenterModal.tsx`             | ✅ Approved     | Layout wrapper for ModalBase                                |
+| ModalHeader             | `overlays/Modal/ModalHeader.tsx`             | ✅ Approved     | Standard modal header with close button                     |
+| DeleteConfirmationModal | `overlays/Modal/DeleteConfirmationModal.tsx` | ✅ Approved     | Destructive confirm dialog                                  |
+| ChangeStatusModal       | `overlays/Modal/ChangeStatusModal.tsx`       | 🔄 In migration | Needs story                                                 |
+| VideoPlayerModal        | `overlays/Modal/VideoPlayerModal.tsx`        | 🔄 In migration | Needs story + iframe a11y audit                             |
+| OtpModal                | `overlays/OtpModal/OtpModal.tsx`             | 🔄 In migration | react-bootstrap removed — re-audit status                   |
+| Toast (overlay)         | `overlays/Toast/Toast.tsx`                   | 🔄 In migration | react-bootstrap removed — re-audit status                   |
+| YosemiteLoader          | `overlays/Loader/YosemiteLoader.tsx`         | 🔄 In migration | Story added                                                 |
+| SigningOverlay          | `overlays/SigningOverlay.tsx`                | ⚠️ Legacy       | Feature-heavy - evaluate as feature-only composite          |
+| PdfPreviewOverlay       | `overlays/PdfPreviewOverlay.tsx`             | ⚠️ Legacy       | iframe / a11y audit needed                                  |
+| Fallback                | `overlays/Fallback/index.tsx`                | 🔄 In migration | Needs story                                                 |
 
 ---
 

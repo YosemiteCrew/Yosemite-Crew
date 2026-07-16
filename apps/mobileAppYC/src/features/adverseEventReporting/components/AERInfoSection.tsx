@@ -44,7 +44,7 @@ export const AERInfoSection: React.FC<Props> = ({title, rows, onEdit}) => {
         fallbackStyle={styles.infoCardFallback}>
         <View style={styles.cardContent}>
           {rows.map((row, idx) => (
-            <View key={row.label}>
+            <View key={`${row.label}-${row.value}`}>
               <RowButton
                 label={row.label}
                 value={row.value}

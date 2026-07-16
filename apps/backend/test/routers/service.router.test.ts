@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
 
@@ -17,7 +17,7 @@ const ServiceController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -56,7 +56,7 @@ describe("service.router", () => {
     const route = findRoute("/", "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       ServiceController.createService,
@@ -67,7 +67,7 @@ describe("service.router", () => {
     const route = findRoute("/bulk", "post");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       ServiceController.createMany,
@@ -78,7 +78,7 @@ describe("service.router", () => {
     const route = findRoute("/:id", "patch");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       ServiceController.updateService,
@@ -89,7 +89,7 @@ describe("service.router", () => {
     const route = findRoute("/:id", "delete");
 
     expect(route?.stack.map((layer) => layer.handle)).toEqual([
-      authorizeCognito,
+      requireWebAuth,
       withOrgPermissionsMiddleware,
       requirePermissionMiddleware,
       ServiceController.deleteService,
@@ -106,8 +106,8 @@ describe("service.router", () => {
 
     for (const route of [patchRoute, deleteRoute]) {
       const handlers = route?.stack.map((layer) => layer.handle) ?? [];
-      // The very first handler on every mutation route is the Cognito guard.
-      expect(handlers[0]).toBe(authorizeCognito);
+      // The very first handler on every mutation route is the web auth guard.
+      expect(handlers[0]).toBe(requireWebAuth);
 
       const status = jest.fn().mockReturnThis();
       const json = jest.fn();

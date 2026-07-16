@@ -1,6 +1,6 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -12,7 +12,7 @@ const RenderedDocumentFhirController = {
 };
 
 jest.mock("../../src/middlewares/auth", () => ({
-  authorizeCognito,
+  requireWebAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -76,9 +76,7 @@ describe("rendered-document.fhir.router", () => {
       "get",
     );
 
-    expect(route?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
-    );
+    expect(route?.stack.map((layer) => layer.handle)).toContain(requireWebAuth);
     expect(withOrgPermissions).toHaveBeenCalled();
     expect(requirePermission).toHaveBeenCalledWith([
       "forms:view:any",
@@ -93,9 +91,7 @@ describe("rendered-document.fhir.router", () => {
       "post",
     );
 
-    expect(route?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
-    );
+    expect(route?.stack.map((layer) => layer.handle)).toContain(requireWebAuth);
     expect(requirePermission).toHaveBeenCalledWith([
       "forms:edit:any",
       "prescription:edit:any",
