@@ -1398,7 +1398,7 @@ export const HomeScreen: React.FC<Props> = ({navigation}) => {
         ]}
         showsVerticalScrollIndicator={false}>
         {companions.length === 0 ? (
-          <View style={[styles.heroShadowWrapper, styles.heroTouchable]}>
+          <View style={styles.heroShadowWrapper}>
             <LiquidGlassCard
               glassEffect="clear"
               interactive
@@ -1639,12 +1639,6 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.error,
       borderWidth: 1,
       borderColor: theme.colors.cardBackground,
-    },
-    heroTouchable: {
-      alignSelf: 'flex-start',
-      width: '50%',
-      minWidth: theme.spacing['40'],
-      maxWidth: theme.spacing['40'],
     },
     heroShadowWrapper: {
       borderRadius: theme.borderRadius.lg,
