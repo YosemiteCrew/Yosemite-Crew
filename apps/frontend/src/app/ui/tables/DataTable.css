@@ -78,7 +78,11 @@
     display: none;
   }
 }
-@media screen and (max-width: 1280px) {
+/* 1279.98px, not 1280px: CSS max-width is inclusive, so `max-width: 1280px`
+   and Tailwind's `xl:` (min-width: 1280px) both match at exactly 1280 - the
+   table hides itself while the cards are already hidden by `xl:hidden`, and
+   the list renders empty. Every `.table-list` consumer shares this boundary. */
+@media screen and (max-width: 1279.98px) {
   .table-list {
     display: none;
   }
@@ -107,7 +111,7 @@
     gap: 24px;
   }
 }
-@media screen and (min-width: 640px) and (max-width: 1280px) {
+@media screen and (min-width: 640px) and (max-width: 1279.98px) {
   .card-list {
     gap: 24px;
   }
