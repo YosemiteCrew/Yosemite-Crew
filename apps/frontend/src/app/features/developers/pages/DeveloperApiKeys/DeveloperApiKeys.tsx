@@ -141,7 +141,6 @@ const DeveloperApiKeys = () => {
               <span>Created</span>
               <span>Last used</span>
               <span>Status</span>
-              <span aria-hidden="true" />
             </div>
             {SAMPLE_KEYS.map((row) => (
               <div
@@ -163,21 +162,6 @@ const DeveloperApiKeys = () => {
                   <span className={`dev-key-status ${row.status} text-caption-2`}>
                     {STATUS_LABEL[row.status]}
                   </span>
-                </span>
-                <span className="dev-key-actions">
-                  <button
-                    type="button"
-                    className="dev-key-action-btn"
-                    disabled
-                    aria-label={`Actions for ${row.name} (coming soon)`}
-                  >
-                    <Icon
-                      icon="ion:ellipsis-horizontal"
-                      width={16}
-                      height={16}
-                      aria-hidden="true"
-                    />
-                  </button>
                 </span>
               </div>
             ))}

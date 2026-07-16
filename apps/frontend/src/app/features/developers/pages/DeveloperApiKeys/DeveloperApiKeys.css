@@ -109,7 +109,7 @@
 
 .dev-keys-row {
   display: grid;
-  grid-template-columns: 1.5fr 1.3fr 1fr 1fr 1fr 120px 48px;
+  grid-template-columns: 1.5fr 1.3fr 1fr 1fr 1fr 120px;
   gap: 12px;
   align-items: center;
   padding: 12px 20px;
@@ -175,27 +175,6 @@
   background: var(--status-cancelled-bg);
   color: var(--status-cancelled-text);
   border-color: var(--status-cancelled-border);
-}
-
-.dev-key-actions {
-  display: flex;
-  justify-content: center;
-}
-
-.dev-key-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-  padding: 4px;
-}
-
-.dev-key-action-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
 }
 
 .dev-keys-usage {

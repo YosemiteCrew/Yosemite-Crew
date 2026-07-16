@@ -35,16 +35,16 @@ describe('DeveloperApiKeys page', () => {
     expect(screen.getByTestId('primary-Create key')).toBeInTheDocument();
   });
 
-  test('exposes the per-row action control as disabled while key management is unavailable', () => {
+  test('renders no dead per-row action control while key management is unavailable', () => {
     render(<DeveloperApiKeys />);
 
-    const rowActions = screen.getAllByRole('button', { name: /^Actions for .+ \(coming soon\)$/ });
-    expect(rowActions.length).toBeGreaterThan(0);
+    // Key management has no destination yet, so the rows must not ship an
+    // affordance for it at all — a disabled ellipsis button is still a dead
+    // control. Every button that survives must be live and clickable.
+    expect(screen.queryByRole('button', { name: /Actions for/ })).not.toBeInTheDocument();
 
-    // The banner excuses an absent feature; the control must not look live.
-    // A disabled button is inert, unfocusable and drops clicks.
-    for (const action of rowActions) {
-      expect(action).toBeDisabled();
+    for (const button of screen.getAllByRole('button')) {
+      expect(button).toBeEnabled();
     }
   });
 
