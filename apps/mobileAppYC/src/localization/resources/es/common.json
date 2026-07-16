@@ -43,7 +43,13 @@
     "create_account_title": "Crear cuenta",
     "code_verified_title": "Código verificado",
     "code_verified_message": "¡Genial! Ahora terminemos de configurar tu perfil de Yosemite Crew.",
-    "continue": "Continuar"
+    "continue": "Continuar",
+    "address_optional": "Dirección (opcional)",
+    "state_optional": "Estado (opcional)",
+    "state_province_optional": "Estado/Provincia (opcional)",
+    "city_optional": "Ciudad (opcional)",
+    "postal_code_optional": "Código postal (opcional)",
+    "country_optional": "País (opcional)"
   },
   "navigation": {
     "home": "Inicio",
@@ -252,5 +258,19 @@
     "submitAndSchedule": "Enviar y programar cita",
     "back": "Atrás",
     "next": "Siguiente"
+  },
+  "addressFields": {
+    "addressLine": "Dirección",
+    "state": "Estado",
+    "stateProvince": "Estado/Provincia",
+    "city": "Ciudad",
+    "postalCode": "Código postal",
+    "country": "País",
+    "suggestionsTitle": "Sugerencias",
+    "topSuggestionsTitle": "Las {{count}} de {{total}} sugerencias principales",
+    "noSuggestionsFound": "No se encontraron sugerencias.",
+    "poweredByGoogle": "Desarrollado por Google",
+    "bottomSheetTitle": "Dirección",
+    "close": "Cerrar"
   }
 }

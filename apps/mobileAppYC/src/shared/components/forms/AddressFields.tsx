@@ -8,6 +8,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import {useTranslation} from 'react-i18next';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {Input} from '@/shared/components/common/Input/Input';
 import {useTheme} from '@/hooks';
@@ -52,16 +53,20 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
   labels,
 }) => {
   const {theme} = useTheme();
+  const {t} = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const resolvedLabels = {
-    addressLine: labels?.addressLine ?? 'Address',
+    addressLine: labels?.addressLine ?? t('addressFields.addressLine'),
     stateProvince:
       labels?.stateProvince ??
-      Platform.select({ios: 'State', default: 'State/Province'}) ??
-      'State/Province',
-    city: labels?.city ?? 'City',
-    postalCode: labels?.postalCode ?? 'Postal code',
-    country: labels?.country ?? 'Country',
+      Platform.select({
+        ios: t('addressFields.state'),
+        default: t('addressFields.stateProvince'),
+      }) ??
+      t('addressFields.stateProvince'),
+    city: labels?.city ?? t('addressFields.city'),
+    postalCode: labels?.postalCode ?? t('addressFields.postalCode'),
+    country: labels?.country ?? t('addressFields.country'),
   };
 
   const shouldShowSuggestionList =
@@ -73,8 +78,11 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
   const hasMoreSuggestions =
     addressSuggestions.length > MAX_VISIBLE_ADDRESS_SUGGESTIONS;
   const suggestionTitleText = hasMoreSuggestions
-    ? `Top ${MAX_VISIBLE_ADDRESS_SUGGESTIONS} of ${addressSuggestions.length} suggestions`
-    : 'Suggestions';
+    ? t('addressFields.topSuggestionsTitle', {
+        count: MAX_VISIBLE_ADDRESS_SUGGESTIONS,
+        total: addressSuggestions.length,
+      })
+    : t('addressFields.suggestionsTitle');
 
   return (
     <View style={[styles.container, containerStyle]}>
@@ -134,7 +142,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
               } else {
                 content = (
                   <Text style={styles.suggestionEmpty}>
-                    {error ?? 'No suggestions found.'}
+                    {error ?? t('addressFields.noSuggestionsFound')}
                   </Text>
                 );
               }
@@ -147,7 +155,7 @@ export const AddressFields: React.FC<AddressFieldsProps> = ({
                   {content}
                   {isFetchingSuggestions || addressSuggestions.length > 0 ? (
                     <Text style={styles.suggestionFooter}>
-                      Powered by Google
+                      {t('addressFields.poweredByGoogle')}
                     </Text>
                   ) : null}
                 </View>

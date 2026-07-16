@@ -7,6 +7,7 @@ import {
   View,
   Keyboard,
 } from 'react-native';
+import {useTranslation} from 'react-i18next';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
@@ -43,6 +44,7 @@ export const AddressBottomSheet = ({
   ref,
 }: AddressBottomSheetProps & {ref?: React.Ref<AddressBottomSheetRef>}) => {
   const {theme} = useTheme();
+  const {t} = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const closeButtonSize = theme.spacing['9'];
   const bottomSheetRef = useRef<BottomSheetRef>(null);
@@ -160,12 +162,14 @@ export const AddressBottomSheet = ({
         accessible={false}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.title}>Address</Text>
+            <Text style={styles.title}>
+              {t('addressFields.bottomSheetTitle')}
+            </Text>
             <LiquidGlassIconButton
               onPress={handleCancel}
               size={closeButtonSize}
               style={styles.closeButton}
-              accessibilityLabel="Close">
+              accessibilityLabel={t('addressFields.close')}>
               <Image
                 source={Images.crossIcon}
                 style={styles.closeIcon}

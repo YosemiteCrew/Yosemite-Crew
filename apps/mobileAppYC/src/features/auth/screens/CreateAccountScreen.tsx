@@ -1132,15 +1132,15 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
             onSelectSuggestion={handleAddressSuggestionPress}
             fieldErrors={addressFieldErrors}
             labels={{
-              addressLine: 'Address (optional)',
+              addressLine: t('auth.address_optional'),
               stateProvince:
                 Platform.select({
-                  ios: 'State (optional)',
-                  default: 'State/Province (optional)',
-                }) ?? 'State/Province (optional)',
-              city: 'City (optional)',
-              postalCode: 'Postal code (optional)',
-              country: 'Country (optional)',
+                  ios: t('auth.state_optional'),
+                  default: t('auth.state_province_optional'),
+                }) ?? t('auth.state_province_optional'),
+              city: t('auth.city_optional'),
+              postalCode: t('auth.postal_code_optional'),
+              country: t('auth.country_optional'),
             }}
           />
 

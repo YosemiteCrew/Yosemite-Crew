@@ -32,6 +32,32 @@ jest.mock('../../../src/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
+// 3. Mock react-i18next with the real English defaults so label/suggestion
+// assertions below keep matching the same strings as before translation.
+const ADDRESS_FIELDS_TRANSLATIONS: Record<string, string> = {
+  'addressFields.addressLine': 'Address',
+  'addressFields.state': 'State',
+  'addressFields.stateProvince': 'State/Province',
+  'addressFields.city': 'City',
+  'addressFields.postalCode': 'Postal code',
+  'addressFields.country': 'Country',
+  'addressFields.suggestionsTitle': 'Suggestions',
+  'addressFields.noSuggestionsFound': 'No suggestions found.',
+  'addressFields.poweredByGoogle': 'Powered by Google',
+  'addressFields.bottomSheetTitle': 'Address',
+  'addressFields.close': 'Close',
+};
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) => {
+      if (key === 'addressFields.topSuggestionsTitle' && options) {
+        return `Top ${options.count} of ${options.total} suggestions`;
+      }
+      return ADDRESS_FIELDS_TRANSLATIONS[key] ?? key;
+    },
+  }),
+}));
+
 // --- Test Suite ---
 
 describe('AddressFields', () => {
