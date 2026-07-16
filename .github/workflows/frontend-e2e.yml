@@ -212,18 +212,25 @@ jobs:
           E2E_WEB_SERVER_COMMAND: pnpm exec next start -p 3001 -H 127.0.0.1
         run: pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts
 
-      - name: Upload Playwright HTML report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-playwright-auth-report
-          path: apps/frontend/playwright-report
-          if-no-files-found: ignore
-
-      - name: Upload Playwright test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-playwright-auth-test-results
-          path: apps/frontend/test-results
-          if-no-files-found: ignore
+      # This job's artifacts are deliberately NOT uploaded.
+      #
+      # auth-flow.spec.ts types YC_E2E_PASSWORD into a real password field, and
+      # Playwright records input values verbatim: every failure snapshot wrote
+      # the secret in plaintext into error-context.md and into trace.zip, which
+      # any account with repo read access could download. That silently defeated
+      # the protected-environment gate above, whose whole purpose is to keep
+      # these credentials away from untrusted code.
+      #
+      # Redacting was rejected: the secret lands inside a zipped trace and in
+      # the HTML report's embedded copy of it, so a scrub step would have to
+      # rewrite archives and would fail open the first time Playwright changed
+      # its format - the failure mode being a leak nobody notices.
+      #
+      # The job log still carries the assertion, the stack and the step output,
+      # which is what a CI failure is normally triaged from. Reproduce locally
+      # with `pnpm --filter frontend exec playwright test e2e/auth-flow.spec.ts`
+      # to get a trace, using your own credentials.
+      #
+      # Only restore uploads here if the spec stops handling a real secret (for
+      # example a provider-mocked sign-in). The public smoke job keeps its
+      # artifacts: it handles no credentials.
