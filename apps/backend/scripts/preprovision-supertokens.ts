@@ -40,6 +40,7 @@ import Passwordless from "supertokens-node/recipe/passwordless";
 import EmailVerification from "supertokens-node/recipe/emailverification";
 import UserMetadata from "supertokens-node/recipe/usermetadata";
 import { initSuperTokens } from "@yosemite-crew/auth";
+import { resolveSafeInputFilePath } from "./preprovision-supertokens.helpers";
 import { prisma } from "../src/config/prisma";
 
 dotenv.config({
@@ -166,11 +167,12 @@ async function importStaff(
   options: CliOptions,
   counters: ImportCounters,
 ): Promise<void> {
-  const payload = JSON.parse(readFileSync(file, "utf8")) as {
+  const inputFile = resolveSafeInputFilePath(file);
+  const payload = JSON.parse(readFileSync(inputFile, "utf8")) as {
     Users?: LegacyPoolUser[];
   };
   const users = (payload.Users ?? []).slice(0, options.limit);
-  console.log(`[staff] importing ${users.length} users from ${file}`);
+  console.log(`[staff] importing ${users.length} users from ${inputFile}`);
 
   for (const legacy of users) {
     const sub = attr(legacy, "sub") ?? legacy.Username;
@@ -375,7 +377,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
+
+export { parseArgs };
