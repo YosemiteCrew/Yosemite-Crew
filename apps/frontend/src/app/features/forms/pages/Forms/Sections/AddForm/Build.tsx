@@ -183,11 +183,13 @@ const defaultRadioOptions = [
   { label: 'Option B', value: 'option_b' },
 ];
 
+/* Must match the lower-cased inventory categories in `Inventory/types.ts` exactly,
+   spacing included: the canonical 'IV / Fluid therapy' has spaces around the slash. */
 const MEDICINE_INVENTORY_CATEGORIES = new Set([
   'medicine',
   'vaccine',
   'supplement',
-  'iv/fluid therapy',
+  'iv / fluid therapy',
 ]);
 
 // `mapApiItemToInventoryItem` already folds the raw item's own `category` / `itemType` into the

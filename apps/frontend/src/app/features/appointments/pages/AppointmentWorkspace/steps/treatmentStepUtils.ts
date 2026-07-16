@@ -12,11 +12,14 @@ import {
   computePackageTotals,
 } from '@/app/features/organization/services/catalogCalculations';
 
+/* Lower-cased forms of the inventory categories in `Inventory/types.ts`. They must match
+   that list character for character once lower-cased, spacing included: the canonical
+   'IV / Fluid therapy' lower-cases with spaces around the slash. */
 export const PRESCRIPTION_INVENTORY_CATEGORIES = new Set([
   'medicine',
   'vaccine',
   'supplement',
-  'iv/fluid therapy',
+  'iv / fluid therapy',
 ]);
 
 export const moneyToCents = (amount: number): number => Math.max(0, Math.round(amount * 100));
