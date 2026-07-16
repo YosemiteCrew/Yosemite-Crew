@@ -1,6 +1,7 @@
 import type { Router } from "express";
 
 const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireAnyAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissionsMiddleware = jest.fn((_req, _res, next) => next());
 const requirePermissionMiddleware = jest.fn((_req, _res, next) => next());
 
@@ -18,6 +19,7 @@ const ServiceController = {
 
 jest.mock("../../src/middlewares/auth", () => ({
   requireWebAuth,
+  requireAnyAuth,
 }));
 
 jest.mock("../../src/middlewares/rbac", () => ({
@@ -40,7 +42,10 @@ type Layer = {
   };
 };
 
-const findRoute = (path: string, method: "post" | "patch" | "delete") => {
+const findRoute = (
+  path: string,
+  method: "post" | "patch" | "delete" | "get",
+) => {
   const layer = (
     (serviceRouter as unknown as { stack: Layer[] }).stack ?? []
   ).find(
@@ -95,6 +100,28 @@ describe("service.router", () => {
       ServiceController.deleteService,
     ]);
   });
+
+  it.each([
+    ["/organisation/search", "get" as const, "listOrganisationByServiceName"],
+    ["/organisation/:organisationId", "get" as const, "listByOrganisation"],
+    ["/bookable-slots", "post" as const, "getBookableSlotsForService"],
+    ["/bookable-slots/calendar-prefill", "post" as const, "getCalendarPrefill"],
+    ["/:id", "get" as const, "getServiceById"],
+  ])(
+    "requires authentication on %s before reaching the controller",
+    (path, method, controllerKey) => {
+      const route = findRoute(path, method);
+      const handlers = route?.stack.map((layer) => layer.handle) ?? [];
+
+      expect(handlers[0]).toBe(requireAnyAuth);
+      expect(handlers).toContain(
+        ServiceController[controllerKey as keyof typeof ServiceController],
+      );
+      expect(handlers[0]).not.toBe(
+        ServiceController[controllerKey as keyof typeof ServiceController],
+      );
+    },
+  );
 
   it("rejects an unauthenticated mutation before reaching the controller", () => {
     const rejectingAuth = jest.fn((_req, res, _next) =>

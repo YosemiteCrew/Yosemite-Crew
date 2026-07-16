@@ -123,7 +123,7 @@ router.patch(
 router.patch(
   "/pms/:organisationId/:appointmentId/checkin",
   requireWebAuth,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.checkInAppointmentForPMS,
 );
@@ -131,7 +131,7 @@ router.patch(
 router.post(
   "/pms/:organisationId/:appointmentId/admit",
   requireWebAuth,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.admitFromPMS,
 );
@@ -156,7 +156,7 @@ router.delete(
 router.post(
   "/pms/:organisationId/:appointmentId/forms",
   requireWebAuth,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.attachFormsToAppointment,
 );
@@ -165,7 +165,7 @@ router.post(
 router.patch(
   "/pms/:organisationId/:appointmentId",
   requireWebAuth,
-  withOrgPermissions(),
+  withAppointmentOrgPermissions(),
   requirePermission("appointments:edit:any"),
   AppointmentController.updateFromPms,
 );

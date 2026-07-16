@@ -42,7 +42,11 @@ describe("AppointmentPrismaController", () => {
     res = buildResponse();
   });
 
-  it("creates a requested appointment", async () => {
+  it("creates a requested appointment for the authenticated parent", async () => {
+    (req as any).userId = "user_1";
+    mockedAuth.getByProviderUserId.mockResolvedValue({
+      parentId: "parent_1",
+    } as any);
     mockedService.createRequestedFromMobile.mockResolvedValue({
       id: "appt_1",
     } as any);
@@ -54,12 +58,36 @@ describe("AppointmentPrismaController", () => {
 
     expect(mockedService.createRequestedFromMobile).toHaveBeenCalledWith(
       req.body,
+      "parent_1",
     );
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
       message: "Appointment created",
       data: { id: "appt_1" },
     });
+  });
+
+  it("returns 401 when creating a mobile appointment without a session", async () => {
+    await AppointmentController.createRequestedFromMobile(
+      req as any,
+      res as any,
+    );
+
+    expect(mockedService.createRequestedFromMobile).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it("returns 400 when the authenticated mobile user has no parent", async () => {
+    (req as any).userId = "user_1";
+    mockedAuth.getByProviderUserId.mockResolvedValue({} as any);
+
+    await AppointmentController.createRequestedFromMobile(
+      req as any,
+      res as any,
+    );
+
+    expect(mockedService.createRequestedFromMobile).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it("reschedules mobile appointments after auth lookup", async () => {
@@ -100,12 +128,9 @@ describe("AppointmentPrismaController", () => {
     await AppointmentController.getByIdMobile(req as any, res as any);
 
     expect(mockedAuth.getByProviderUserId).toHaveBeenCalledWith("user_1");
-    expect(mockedService.getById).toHaveBeenCalledWith(
-      "appt_1",
-      undefined,
-      undefined,
-      "parent_1",
-    );
+    expect(mockedService.getById).toHaveBeenCalledWith("appt_1", {
+      parentId: "parent_1",
+    });
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -149,6 +174,10 @@ describe("AppointmentPrismaController", () => {
   });
 
   it("logs and surfaces service errors", async () => {
+    (req as any).userId = "user_1";
+    mockedAuth.getByProviderUserId.mockResolvedValue({
+      parentId: "parent_1",
+    } as any);
     mockedService.createRequestedFromMobile.mockRejectedValue(
       Object.assign(new Error("Bad"), { statusCode: 400 }),
     );
@@ -203,7 +232,7 @@ describe("AppointmentPrismaController", () => {
   });
 
   it("checks in and updates appointments from PMS", async () => {
-    req.params = { appointmentId: "appt_1" };
+    req.params = { appointmentId: "appt_1", organisationId: "org_1" };
     req.body = {
       admittedAt: "2026-06-11T12:00:00.000Z",
       expectedStayDays: 3,
@@ -244,9 +273,13 @@ describe("AppointmentPrismaController", () => {
     await AppointmentController.admitFromPMS(req as any, res as any);
     await AppointmentController.updateFromPms(req as any, res as any);
 
-    expect(mockedService.checkInAppointment).toHaveBeenCalledWith("appt_1");
+    expect(mockedService.checkInAppointment).toHaveBeenCalledWith(
+      "appt_1",
+      "org_1",
+    );
     expect(mockedService.admitAppointmentToInpatient).toHaveBeenCalledWith(
       "appt_1",
+      "org_1",
       expect.objectContaining({
         admittedAt: new Date("2026-06-11T12:00:00.000Z"),
         admittedBy: "actor-1",
@@ -322,7 +355,7 @@ describe("AppointmentPrismaController", () => {
   });
 
   it("attaches forms, cancels, and fetches appointments", async () => {
-    req.params = { appointmentId: "appt_1" };
+    req.params = { appointmentId: "appt_1", organisationId: "org_1" };
     req.body = { formIds: ["form_1", "form_2"] };
     mockedService.attachFormsToAppointment.mockResolvedValue({
       id: "appt_1",
@@ -374,6 +407,7 @@ describe("AppointmentPrismaController", () => {
 
     expect(mockedService.attachFormsToAppointment).toHaveBeenCalledWith(
       "appt_1",
+      "org_1",
       ["form_1", "form_2"],
     );
     expect(mockedService.cancelAppointmentFromParent).toHaveBeenCalledWith(
@@ -381,11 +415,10 @@ describe("AppointmentPrismaController", () => {
       "parent_1",
     );
     expect(mockedService.cancelAppointment).toHaveBeenCalledWith("appt_1");
-    expect(mockedService.getById).toHaveBeenCalledWith(
-      "appt_1",
-      undefined,
-      undefined,
-    );
+    expect(mockedService.getById).toHaveBeenCalledWith("appt_1", {
+      organisationId: "org_1",
+      actorId: undefined,
+    });
     expect(mockedService.getAppointmentsForCompanion).toHaveBeenCalledWith(
       "comp_1",
     );
@@ -406,11 +439,10 @@ describe("AppointmentPrismaController", () => {
 
     await AppointmentController.getById(req as any, res as any);
 
-    expect(mockedService.getById).toHaveBeenCalledWith(
-      "appt_1",
-      "org_1",
-      "lead_1",
-    );
+    expect(mockedService.getById).toHaveBeenCalledWith("appt_1", {
+      organisationId: "org_1",
+      actorId: "lead_1",
+    });
   });
 
   it("handles mobile auth and upload validation errors", async () => {
@@ -439,18 +471,14 @@ describe("AppointmentPrismaController", () => {
   });
 
   describe("getById org-scoping and own-scope (IDOR)", () => {
-    it("mobile path (no org context) calls getById unscoped", async () => {
+    it("refuses to read without an authorized organisation", async () => {
       mockedService.getById.mockResolvedValue({ id: "appt_1" } as any);
       req.params = { appointmentId: "appt_1" };
 
       await AppointmentController.getById(req as any, res as any);
 
-      expect(mockedService.getById).toHaveBeenCalledWith(
-        "appt_1",
-        undefined,
-        undefined,
-      );
-      expect(res.status).toHaveBeenCalledWith(200);
+      expect(mockedService.getById).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
     });
 
     it("PMS view:any caller passes the authorized org and no own-scope restriction", async () => {
@@ -462,11 +490,10 @@ describe("AppointmentPrismaController", () => {
 
       await AppointmentController.getById(req as any, res as any);
 
-      expect(mockedService.getById).toHaveBeenCalledWith(
-        "appt_1",
-        "org_1",
-        undefined,
-      );
+      expect(mockedService.getById).toHaveBeenCalledWith("appt_1", {
+        organisationId: "org_1",
+        actorId: undefined,
+      });
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
@@ -479,11 +506,10 @@ describe("AppointmentPrismaController", () => {
 
       await AppointmentController.getById(req as any, res as any);
 
-      expect(mockedService.getById).toHaveBeenCalledWith(
-        "appt_1",
-        "org_1",
-        "vet_1",
-      );
+      expect(mockedService.getById).toHaveBeenCalledWith("appt_1", {
+        organisationId: "org_1",
+        actorId: "vet_1",
+      });
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
@@ -496,11 +522,10 @@ describe("AppointmentPrismaController", () => {
 
       await AppointmentController.getById(req as any, res as any);
 
-      expect(mockedService.getById).toHaveBeenCalledWith(
-        "appt_1",
-        "org_authorized",
-        undefined,
-      );
+      expect(mockedService.getById).toHaveBeenCalledWith("appt_1", {
+        organisationId: "org_authorized",
+        actorId: undefined,
+      });
     });
 
     it("surfaces a service 404 for a cross-org id", async () => {
@@ -514,6 +539,52 @@ describe("AppointmentPrismaController", () => {
       (req as any).userPermissions = ["appointments:view:any"];
 
       await AppointmentController.getById(req as any, res as any);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+  });
+  describe("PMS org scoping", () => {
+    it.each([
+      ["checkInAppointmentForPMS", "checkInAppointment"],
+      ["admitFromPMS", "admitAppointmentToInpatient"],
+      ["attachFormsToAppointment", "attachFormsToAppointment"],
+    ])(
+      "%s refuses to act without an authorized organisation",
+      async (handler, serviceMethod) => {
+        req.params = { appointmentId: "appt_1" };
+
+        await (AppointmentController as any)[handler](req as any, res as any);
+
+        expect((mockedService as any)[serviceMethod]).not.toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(400);
+      },
+    );
+
+    it("passes the middleware-derived org, not the org named in the URL", async () => {
+      req.params = { appointmentId: "appt_1", organisationId: "org_attacker" };
+      (req as any).organisationId = "org_owner";
+      mockedService.checkInAppointment.mockResolvedValue({
+        id: "appt_1",
+      } as any);
+
+      await AppointmentController.checkInAppointmentForPMS(
+        req as any,
+        res as any,
+      );
+
+      expect(mockedService.checkInAppointment).toHaveBeenCalledWith(
+        "appt_1",
+        "org_owner",
+      );
+    });
+
+    it("surfaces a service 404 for a cross-tenant admit", async () => {
+      req.params = { appointmentId: "appt_in_org_b", organisationId: "org_a" };
+      mockedService.admitAppointmentToInpatient.mockRejectedValue(
+        Object.assign(new Error("Appointment not found"), { statusCode: 404 }),
+      );
+
+      await AppointmentController.admitFromPMS(req as any, res as any);
 
       expect(res.status).toHaveBeenCalledWith(404);
     });

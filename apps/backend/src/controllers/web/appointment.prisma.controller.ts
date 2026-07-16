@@ -72,6 +72,19 @@ const sendAppointmentError = (
   return res.status(status).json({ message });
 };
 
+/**
+ * The organisation the RBAC middleware authorized the caller against. On
+ * resource-scoped routes that is the appointment's own organisation, not
+ * whatever the URL named, so it is the only value safe to filter on.
+ */
+const resolveAuthorizedOrganisationId = (req: Request): string | undefined => {
+  const orgReq = req as OrgRequest;
+  const organisationId = orgReq.organisationId ?? orgReq.params?.organisationId;
+  return typeof organisationId === "string" && organisationId.trim()
+    ? organisationId
+    : undefined;
+};
+
 const admitAppointmentSchema = z.object({
   admittedAt: z.string().datetime().optional(),
   expectedStayDays: z.number().int().nonnegative().optional(),
@@ -108,8 +121,22 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
+      const authUserId = resolveUserIdFromRequest(req);
+      if (!authUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const authUser =
+        await AuthUserMobileService.getByProviderUserId(authUserId);
+      if (!authUser?.parentId) {
+        return res
+          .status(400)
+          .json({ message: "Parent information missing for user" });
+      }
+
       const data = await AppointmentPrismaService.createRequestedFromMobile(
         req.body,
+        authUser.parentId.toString(),
       );
       return res.status(201).json({ message: "Appointment created", data });
     } catch (err: unknown) {
@@ -258,8 +285,14 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
+      const organisationId = resolveAuthorizedOrganisationId(req);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
+
       const data = await AppointmentPrismaService.checkInAppointment(
         req.params.appointmentId,
+        organisationId,
       );
       return res.status(200).json({ message: "Appointment checked in", data });
     } catch (err: unknown) {
@@ -273,10 +306,16 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
+      const organisationId = resolveAuthorizedOrganisationId(req);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
+
       const body = admitAppointmentSchema.parse(req.body);
 
       const data = await AppointmentPrismaService.admitAppointmentToInpatient(
         req.params.appointmentId,
+        organisationId,
         {
           admittedAt: body.admittedAt ? new Date(body.admittedAt) : undefined,
           // The admitting user is whoever is signed in and clicked
@@ -368,8 +407,14 @@ export const AppointmentController = {
     res: Response,
   ) => {
     try {
+      const organisationId = resolveAuthorizedOrganisationId(req);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
+
       const data = await AppointmentPrismaService.attachFormsToAppointment(
         req.params.appointmentId,
+        organisationId,
         req.body.formIds ?? [],
       );
       return res.status(200).json({ message: "Forms attached", data });
@@ -430,20 +475,22 @@ export const AppointmentController = {
   ) => {
     try {
       const orgReq = req as OrgRequest;
-      const organisationId =
-        orgReq.organisationId ?? req.params.organisationId ?? undefined;
+      const organisationId = resolveAuthorizedOrganisationId(req);
+      if (!organisationId) {
+        return res.status(400).json({ message: "Missing organisationId" });
+      }
+
       const actorId = resolveUserIdFromRequest(req);
       const canViewAny =
         orgReq.userPermissions?.includes("appointments:view:any") ?? false;
 
-      if (organisationId && !canViewAny && !actorId) {
+      if (!canViewAny && !actorId) {
         return res.status(403).json({ message: "User not authenticated" });
       }
 
       const data = await AppointmentPrismaService.getById(
         req.params.appointmentId,
-        organisationId,
-        canViewAny ? undefined : actorId,
+        { organisationId, actorId: canViewAny ? undefined : actorId },
       );
       return res.status(200).json({ data });
     } catch (err: unknown) {
@@ -471,9 +518,7 @@ export const AppointmentController = {
 
       const data = await AppointmentPrismaService.getById(
         req.params.appointmentId,
-        undefined,
-        undefined,
-        authUser.parentId.toString(),
+        { parentId: authUser.parentId.toString() },
       );
 
       return res.status(200).json({ data });

@@ -353,6 +353,111 @@ const ensureAppointmentInOrganisation = async (
   }
 };
 
+/**
+ * Reads the companion recorded on the appointment. The appointment is looked up
+ * with the organisation in the filter, so a record owned by another tenant is
+ * indistinguishable from a missing one.
+ */
+const loadAppointmentPatientId = async (
+  appointmentId: string,
+  organisationId: string,
+): Promise<string | undefined> => {
+  if (isReadFromPostgres()) {
+    const appointment = await prisma.appointment.findFirst({
+      where: { id: appointmentId, organisationId },
+      select: { patient: true },
+    });
+
+    if (!appointment) {
+      throw new ObservationToolSubmissionServiceError("Forbidden", 403);
+    }
+
+    return asNonEmptyString(
+      (appointment.patient as unknown as { id?: unknown } | null)?.id,
+    );
+  }
+
+  const safeAppointmentId = ensureMongoObjectId(appointmentId, "appointmentId");
+  const safeOrganisationId = assertObjectId(organisationId, "organisationId");
+
+  const appointment = await AppointmentModel.findOne({
+    _id: safeAppointmentId,
+    organisationId: safeOrganisationId,
+  })
+    .setOptions({ sanitizeFilter: true })
+    .select({ companion: 1 })
+    .lean();
+
+  if (!appointment) {
+    throw new ObservationToolSubmissionServiceError("Forbidden", 403);
+  }
+
+  return asNonEmptyString(
+    (appointment as unknown as { companion?: { id?: unknown } }).companion?.id,
+  );
+};
+
+const ensureCompanionIsAppointmentPatient = async (
+  appointmentId: string,
+  organisationId: string,
+  patientId: string,
+): Promise<void> => {
+  const appointmentPatientId = await loadAppointmentPatientId(
+    appointmentId,
+    organisationId,
+  );
+
+  if (!appointmentPatientId || appointmentPatientId !== patientId) {
+    throw new ObservationToolSubmissionServiceError(
+      "patientId does not match appointment",
+      403,
+    );
+  }
+};
+
+const assertAppointmentTaskSubmission = async (
+  taskId: string,
+  input: {
+    appointmentId: string;
+    organisationId: string;
+    patientId: string;
+    toolId: string;
+  },
+): Promise<void> => {
+  const task = isReadFromPostgres()
+    ? await prisma.task.findFirst({ where: { id: taskId } })
+    : await TaskModel.findById(taskId).lean();
+
+  if (!task) {
+    throw new ObservationToolSubmissionServiceError("Task not found", 404);
+  }
+
+  if (task.organisationId !== input.organisationId) {
+    throw new ObservationToolSubmissionServiceError("Forbidden", 403);
+  }
+
+  if (task.appointmentId !== input.appointmentId) {
+    throw new ObservationToolSubmissionServiceError(
+      "taskId does not match appointment",
+      400,
+    );
+  }
+
+  if (task.patientId !== input.patientId) {
+    throw new ObservationToolSubmissionServiceError(
+      "patientId does not match task",
+      400,
+    );
+  }
+
+  if (String(task.observationToolId ?? "") !== input.toolId) {
+    throw new ObservationToolSubmissionServiceError(
+      "toolId does not match task observationToolId",
+      400,
+    );
+  }
+};
+
 const toPrismaObservationToolSubmissionData = (
   doc: ObservationToolSubmissionDocument,
 ) => {
@@ -567,6 +672,20 @@ export const ObservationToolSubmissionService = {
 
     await ensureAppointmentInOrganisation(appointmentId, organisationId);
     await ensureCompanionInOrganisation(input.patientId, organisationId);
+    await ensureCompanionIsAppointmentPatient(
+      appointmentId,
+      organisationId,
+      input.patientId,
+    );
+
+    if (taskId) {
+      await assertAppointmentTaskSubmission(taskId, {
+        appointmentId,
+        organisationId,
+        patientId: input.patientId,
+        toolId: input.toolId,
+      });
+    }
 
     if (isReadFromPostgres()) {
       const tool = await prisma.observationToolDefinition.findFirst({
@@ -891,8 +1010,7 @@ export const ObservationToolSubmissionService = {
       });
 
       const submissionAnswers = submission?.answers as
-        | ObservationToolAnswers
-        | undefined;
+        ObservationToolAnswers | undefined;
 
       const toolFields =
         tool.fields as unknown as ObservationToolDefinitionDocument["fields"];
@@ -955,8 +1073,7 @@ export const ObservationToolSubmissionService = {
 
     // small preview: only include answers for first N fields (frontend can expand later)
     const submissionAnswers = submission?.answers as
-      | ObservationToolAnswers
-      | undefined;
+      ObservationToolAnswers | undefined;
 
     const answersPreview =
       submissionAnswers && tool.fields.length

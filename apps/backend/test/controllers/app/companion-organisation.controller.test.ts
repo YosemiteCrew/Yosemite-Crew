@@ -21,6 +21,7 @@ jest.mock("../../../src/services/companion-organisation.service", () => {
     CompanionOrganisationService: {
       linkByParent: jest.fn(),
       linkByPmsUser: jest.fn(),
+      assertOrganisationMayLinkCompanion: jest.fn(),
       parentApproveLink: jest.fn(),
       parentRejectLink: jest.fn(),
       sendInvite: jest.fn(),
@@ -324,6 +325,29 @@ describe("CompanionOrganisationController", () => {
         res as Response,
       );
       expect(statusMock).toHaveBeenCalledWith(201);
+      expect(
+        mockedCompanionService.assertOrganisationMayLinkCompanion,
+      ).toHaveBeenCalledWith("c1", "o1");
+    });
+
+    it("does not create a link for a companion the organisation has no relationship with", async () => {
+      (req as any).userId = "pms";
+      req.params = {
+        patientId: "someone-elses-companion",
+        organisationId: "o1",
+      };
+      mockedOrgModel.findById.mockResolvedValue({ type: "GROOMER" } as any);
+      mockedCompanionService.assertOrganisationMayLinkCompanion.mockRejectedValueOnce(
+        new CompanionOrganisationServiceError("Companion not found.", 404),
+      );
+
+      await CompanionOrganisationController.linkByPmsUser(
+        req as Request,
+        res as Response,
+      );
+
+      expect(statusMock).toHaveBeenCalledWith(404);
+      expect(mockedCompanionService.linkByPmsUser).not.toHaveBeenCalled();
     });
 
     it("should handle service errors", async () => {

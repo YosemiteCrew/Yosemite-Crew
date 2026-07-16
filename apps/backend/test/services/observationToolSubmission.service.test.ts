@@ -632,7 +632,7 @@ describe("ObservationToolSubmissionService", () => {
     it("creates and links the submission to the appointment (mongo path)", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (AppointmentModel.findOne as any).mockReturnValue(
-        mockChain({ _id: appointmentId }),
+        mockChain({ _id: appointmentId, companion: { id: companionId } }),
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (CompanionOrganisationModel.findOne as any).mockReturnValue(
@@ -692,7 +692,7 @@ describe("ObservationToolSubmissionService", () => {
     it("throws when the tool is not found or inactive", async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (AppointmentModel.findOne as any).mockReturnValue(
-        mockChain({ _id: appointmentId }),
+        mockChain({ _id: appointmentId, companion: { id: companionId } }),
       );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (CompanionOrganisationModel.findOne as any).mockReturnValue(
@@ -712,6 +712,7 @@ describe("ObservationToolSubmissionService", () => {
       process.env.READ_FROM_POSTGRES = "true";
       (prismaMock.appointment.findFirst as any).mockResolvedValue({
         id: appointmentId,
+        patient: { id: companionId },
       });
       (prismaMock.patientOrganisation.findFirst as any).mockResolvedValue({
         id: "co1",
@@ -743,6 +744,134 @@ describe("ObservationToolSubmissionService", () => {
       expect(res).toEqual(
         expect.objectContaining({ evaluationAppointmentId: appointmentId }),
       );
+    });
+
+    describe("rejects spoofed identifiers", () => {
+      const otherCompanionId = new Types.ObjectId().toString();
+      const taskId = new Types.ObjectId().toString();
+
+      const mockAppointmentAndCompanion = () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (AppointmentModel.findOne as any).mockReturnValue(
+          mockChain({ _id: appointmentId, companion: { id: companionId } }),
+        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (CompanionOrganisationModel.findOne as any).mockReturnValue(
+          mockChain({ _id: "link1" }),
+        );
+      };
+
+      it("rejects a companion that is not the appointment's patient", async () => {
+        mockAppointmentAndCompanion();
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            patientId: otherCompanionId,
+          }),
+        ).rejects.toThrow("patientId does not match appointment");
+
+        expect(ObservationToolSubmissionModel.create).not.toHaveBeenCalled();
+      });
+
+      it("rejects a taskId owned by another organisation", async () => {
+        mockAppointmentAndCompanion();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (TaskModel.findById as any).mockReturnValue(
+          mockChain({
+            _id: taskId,
+            organisationId: new Types.ObjectId().toString(),
+            appointmentId,
+            patientId: companionId,
+            observationToolId: toolId,
+          }),
+        );
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            taskId,
+          }),
+        ).rejects.toThrow("Forbidden");
+
+        expect(ObservationToolSubmissionModel.create).not.toHaveBeenCalled();
+      });
+
+      it("rejects a taskId belonging to another appointment", async () => {
+        mockAppointmentAndCompanion();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (TaskModel.findById as any).mockReturnValue(
+          mockChain({
+            _id: taskId,
+            organisationId,
+            appointmentId: new Types.ObjectId().toString(),
+            patientId: companionId,
+            observationToolId: toolId,
+          }),
+        );
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            taskId,
+          }),
+        ).rejects.toThrow("taskId does not match appointment");
+      });
+
+      it("rejects a taskId belonging to another patient", async () => {
+        mockAppointmentAndCompanion();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (TaskModel.findById as any).mockReturnValue(
+          mockChain({
+            _id: taskId,
+            organisationId,
+            appointmentId,
+            patientId: otherCompanionId,
+            observationToolId: toolId,
+          }),
+        );
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            taskId,
+          }),
+        ).rejects.toThrow("patientId does not match task");
+      });
+
+      it("rejects a taskId raised for a different observation tool", async () => {
+        mockAppointmentAndCompanion();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (TaskModel.findById as any).mockReturnValue(
+          mockChain({
+            _id: taskId,
+            organisationId,
+            appointmentId,
+            patientId: companionId,
+            observationToolId: new Types.ObjectId().toString(),
+          }),
+        );
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            taskId,
+          }),
+        ).rejects.toThrow("toolId does not match task observationToolId");
+      });
+
+      it("rejects a taskId that does not exist", async () => {
+        mockAppointmentAndCompanion();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (TaskModel.findById as any).mockReturnValue(mockChain(null));
+
+        await expect(
+          ObservationToolSubmissionService.createForAppointment({
+            ...validInput,
+            taskId,
+          }),
+        ).rejects.toThrow("Task not found");
+      });
     });
   });
 

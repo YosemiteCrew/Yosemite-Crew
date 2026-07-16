@@ -5,6 +5,7 @@ import {
   ClinicalArtifactServiceError,
 } from "src/services/clinical-artifact.service";
 import { clinicalArtifactFhirMapper } from "src/services/fhir-clinical-artifact.mapper";
+import type { OrgRequest } from "src/middlewares/rbac";
 import {
   InventoryConsumptionService,
   InventoryConsumptionServiceError,
@@ -164,9 +165,16 @@ export const PrescriptionController = {
 
   async finalize(req: Request, res: Response) {
     try {
+      const orgRequest = req as OrgRequest;
       const prescription = await ClinicalArtifactService.finalizePrescription(
         req.params.prescriptionId,
         req.params.organisationId,
+        {
+          actorId: orgRequest.userId?.trim() ?? "",
+          canEditAny:
+            orgRequest.userPermissions?.includes("prescription:edit:any") ??
+            false,
+        },
       );
       return res
         .status(200)

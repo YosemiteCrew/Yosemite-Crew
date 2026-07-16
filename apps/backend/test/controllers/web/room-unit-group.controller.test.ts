@@ -71,7 +71,8 @@ describe("RoomUnitGroupController", () => {
   });
 
   it("lists room unit groups", async () => {
-    req.query = { organizationId: "org_1" };
+    req = { ...req, organisationId: "org_1" } as Partial<Request>;
+    req.query = {};
     mockedService.list.mockResolvedValue([
       {
         id: "group_1",

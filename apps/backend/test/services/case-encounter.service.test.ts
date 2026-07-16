@@ -42,12 +42,14 @@ jest.mock("../../src/config/prisma", () => ({
     case: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
     },
     encounter: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
     },
@@ -97,6 +99,7 @@ jest.mock("../../src/config/prisma", () => ({
     },
     admission: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
     },
@@ -186,15 +189,18 @@ describe("CaseEncounterService", () => {
   it("creates a case", async () => {
     mockedPrisma.case.create.mockResolvedValue(baseCaseRow as never);
 
-    const result = await CaseEncounterService.createCase({
-      organisationId: "org_1",
-      patientId: "comp_1",
-      parentId: "parent_1",
-      status: "active",
-      appointmentKind: "INPATIENT",
-      title: "Case title",
-      description: "Case description",
-    });
+    const result = await CaseEncounterService.createCase(
+      {
+        organisationId: "org_1",
+        patientId: "comp_1",
+        parentId: "parent_1",
+        status: "active",
+        appointmentKind: "INPATIENT",
+        title: "Case title",
+        description: "Case description",
+      },
+      "org_1",
+    );
 
     expect(mockedPrisma.case.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -209,13 +215,16 @@ describe("CaseEncounterService", () => {
 
   it("rejects invalid case and encounter status values", async () => {
     await expect(
-      CaseEncounterService.createCase({
-        organisationId: "org_1",
-        patientId: "comp_1",
-        parentId: "parent_1",
-        status: "bogus" as never,
-        appointmentKind: "INPATIENT",
-      } as never),
+      CaseEncounterService.createCase(
+        {
+          organisationId: "org_1",
+          patientId: "comp_1",
+          parentId: "parent_1",
+          status: "bogus" as never,
+          appointmentKind: "INPATIENT",
+        } as never,
+        "org_1",
+      ),
     ).rejects.toMatchObject({
       message: "Invalid case status.",
       statusCode: 400,
@@ -223,14 +232,17 @@ describe("CaseEncounterService", () => {
 
     mockedPrisma.case.findUnique.mockResolvedValue(baseCaseRow as never);
     await expect(
-      CaseEncounterService.createEncounter({
-        caseId: "case_1",
-        organisationId: "org_1",
-        patientId: "comp_1",
-        status: "planned",
-        encounterClass: "bogus" as never,
-        appointmentKind: "INPATIENT",
-      } as never),
+      CaseEncounterService.createEncounter(
+        {
+          caseId: "case_1",
+          organisationId: "org_1",
+          patientId: "comp_1",
+          status: "planned",
+          encounterClass: "bogus" as never,
+          appointmentKind: "INPATIENT",
+        } as never,
+        "org_1",
+      ),
     ).rejects.toMatchObject({
       message: "Invalid encounter class.",
       statusCode: 400,
@@ -251,20 +263,23 @@ describe("CaseEncounterService", () => {
       id: "appt_1",
     } as never);
 
-    const result = await CaseEncounterService.createEncounter({
-      caseId: "case_1",
-      appointmentId: "appt_1",
-      organisationId: "org_1",
-      patientId: "comp_1",
-      parentId: "parent_1",
-      status: "planned",
-      encounterClass: "IMP",
-      appointmentKind: "INPATIENT",
-      title: "Admission encounter",
-      reason: "Observation",
-      periodStart: new Date("2026-06-11T10:30:00.000Z"),
-      periodEnd: new Date("2026-06-11T11:00:00.000Z"),
-    });
+    const result = await CaseEncounterService.createEncounter(
+      {
+        caseId: "case_1",
+        appointmentId: "appt_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        parentId: "parent_1",
+        status: "planned",
+        encounterClass: "IMP",
+        appointmentKind: "INPATIENT",
+        title: "Admission encounter",
+        reason: "Observation",
+        periodStart: new Date("2026-06-11T10:30:00.000Z"),
+        periodEnd: new Date("2026-06-11T11:00:00.000Z"),
+      },
+      "org_1",
+    );
 
     expect(mockedPrisma.encounter.create).toHaveBeenCalled();
     expect(mockedPrisma.appointment.update).toHaveBeenCalledWith({
@@ -288,16 +303,19 @@ describe("CaseEncounterService", () => {
     } as never);
 
     await expect(
-      CaseEncounterService.createEncounter({
-        caseId: "case_1",
-        appointmentId: "appt_1",
-        organisationId: "org_1",
-        patientId: "comp_1",
-        parentId: "parent_1",
-        status: "planned",
-        encounterClass: "IMP",
-        appointmentKind: "INPATIENT",
-      } as never),
+      CaseEncounterService.createEncounter(
+        {
+          caseId: "case_1",
+          appointmentId: "appt_1",
+          organisationId: "org_1",
+          patientId: "comp_1",
+          parentId: "parent_1",
+          status: "planned",
+          encounterClass: "IMP",
+          appointmentKind: "INPATIENT",
+        } as never,
+        "org_1",
+      ),
     ).rejects.toMatchObject({
       message: "Appointment is already linked to a different encounter.",
       statusCode: 409,
@@ -409,20 +427,23 @@ describe("CaseEncounterService", () => {
       ],
     } as never);
 
-    const result = await CaseEncounterService.createEncounter({
-      caseId: "case_1",
-      appointmentId: "appt_pkg",
-      organisationId: "org_1",
-      patientId: "comp_1",
-      parentId: "parent_1",
-      status: "planned",
-      encounterClass: "IMP",
-      appointmentKind: "INPATIENT",
-      title: "Admission encounter",
-      reason: "Observation",
-      periodStart: new Date("2026-06-11T10:30:00.000Z"),
-      periodEnd: new Date("2026-06-11T11:00:00.000Z"),
-    });
+    const result = await CaseEncounterService.createEncounter(
+      {
+        caseId: "case_1",
+        appointmentId: "appt_pkg",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        parentId: "parent_1",
+        status: "planned",
+        encounterClass: "IMP",
+        appointmentKind: "INPATIENT",
+        title: "Admission encounter",
+        reason: "Observation",
+        periodStart: new Date("2026-06-11T10:30:00.000Z"),
+        periodEnd: new Date("2026-06-11T11:00:00.000Z"),
+      },
+      "org_1",
+    );
 
     expect(mockedCatalogService.resolveSelection).toHaveBeenCalledWith(
       "pkg_1",
@@ -563,15 +584,18 @@ describe("CaseEncounterService", () => {
       includedItems: [],
     } as never);
 
-    await CaseEncounterService.createEncounter({
-      caseId: "case_1",
-      appointmentId: "appt_pkg",
-      organisationId: "org_1",
-      patientId: "comp_1",
-      status: "planned",
-      encounterClass: "IMP",
-      appointmentKind: "INPATIENT",
-    });
+    await CaseEncounterService.createEncounter(
+      {
+        caseId: "case_1",
+        appointmentId: "appt_pkg",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        status: "planned",
+        encounterClass: "IMP",
+        appointmentKind: "INPATIENT",
+      },
+      "org_1",
+    );
 
     expect(mockedPrisma.workspaceTreatmentItem.create).not.toHaveBeenCalled();
     expect(mockedPrisma.clinicalArtifact.create).not.toHaveBeenCalled();
@@ -590,15 +614,18 @@ describe("CaseEncounterService", () => {
     } as never);
 
     await expect(
-      CaseEncounterService.createEncounter({
-        caseId: "case_1",
-        appointmentId: "appt_1",
-        organisationId: "org_1",
-        patientId: "comp_1",
-        status: "planned",
-        encounterClass: "IMP",
-        appointmentKind: "INPATIENT",
-      }),
+      CaseEncounterService.createEncounter(
+        {
+          caseId: "case_1",
+          appointmentId: "appt_1",
+          organisationId: "org_1",
+          patientId: "comp_1",
+          status: "planned",
+          encounterClass: "IMP",
+          appointmentKind: "INPATIENT",
+        },
+        "org_1",
+      ),
     ).rejects.toMatchObject({
       message: "Encounter appointment companion mismatch.",
       statusCode: 409,
@@ -606,7 +633,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("updates an encounter and re-links the appointment", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue(
+    mockedPrisma.encounter.findFirst.mockResolvedValue(
       baseEncounterRow as never,
     );
     mockedPrisma.appointment.findFirst.mockResolvedValue({
@@ -631,10 +658,14 @@ describe("CaseEncounterService", () => {
       { id: "appt_new", encounterId: "enc_1" },
     ] as never);
 
-    const result = await CaseEncounterService.updateEncounter("enc_1", {
-      appointmentId: "appt_new",
-      status: "arrived",
-    });
+    const result = await CaseEncounterService.updateEncounter(
+      "enc_1",
+      "org_1",
+      {
+        appointmentId: "appt_new",
+        status: "arrived",
+      },
+    );
 
     expect(mockedPrisma.appointment.update).toHaveBeenNthCalledWith(1, {
       where: { id: "appt_old" },
@@ -652,7 +683,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("gets an encounter with its linked appointment id", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue(
+    mockedPrisma.encounter.findFirst.mockResolvedValue(
       baseEncounterRow as never,
     );
     mockedPrisma.appointment.findMany.mockResolvedValue([
@@ -672,7 +703,10 @@ describe("CaseEncounterService", () => {
       },
     ] as never);
 
-    const result = await CaseEncounterService.getEncounterById("enc_1");
+    const result = await CaseEncounterService.getEncounterById(
+      "enc_1",
+      "org_1",
+    );
 
     expect(result.id).toBe("enc_1");
     expect(result.appointmentId).toBe("appt_1");
@@ -711,7 +745,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("discharges an inpatient encounter and closes admission", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue(
+    mockedPrisma.encounter.findFirst.mockResolvedValue(
       baseEncounterRow as never,
     );
     mockedPrisma.admission.findUnique.mockResolvedValue({
@@ -765,9 +799,13 @@ describe("CaseEncounterService", () => {
       },
     ] as never);
 
-    const result = await CaseEncounterService.dischargeEncounter("enc_1", {
-      dischargedAt: new Date("2026-06-11T12:00:00.000Z"),
-    });
+    const result = await CaseEncounterService.dischargeEncounter(
+      "enc_1",
+      "org_1",
+      {
+        dischargedAt: new Date("2026-06-11T12:00:00.000Z"),
+      },
+    );
 
     expect(mockedPrisma.admission.update).toHaveBeenCalledWith({
       where: { encounterId: "enc_1" },
@@ -796,7 +834,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("blocks discharge when the finalization gate is disabled and no override reason is provided", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue({
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
       ...baseEncounterRow,
       status: "onleave",
     } as never);
@@ -824,7 +862,7 @@ describe("CaseEncounterService", () => {
     });
 
     await expect(
-      CaseEncounterService.dischargeEncounter("enc_1", {
+      CaseEncounterService.dischargeEncounter("enc_1", "org_1", {
         dischargedAt: new Date("2026-06-11T12:00:00.000Z"),
       }),
     ).rejects.toMatchObject({
@@ -834,7 +872,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("allows discharge with an override reason and records the audit trail", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue({
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
       ...baseEncounterRow,
       status: "onleave",
     } as never);
@@ -871,11 +909,15 @@ describe("CaseEncounterService", () => {
     } as never);
     mockedAuditTrailService.recordSafely.mockResolvedValue(undefined);
 
-    const result = await CaseEncounterService.dischargeEncounter("enc_1", {
-      dischargedAt: new Date("2026-06-11T12:00:00.000Z"),
-      overrideReason: "Clinical lead approved override.",
-      actorUserId: "user_1",
-    });
+    const result = await CaseEncounterService.dischargeEncounter(
+      "enc_1",
+      "org_1",
+      {
+        dischargedAt: new Date("2026-06-11T12:00:00.000Z"),
+        overrideReason: "Clinical lead approved override.",
+        actorUserId: "user_1",
+      },
+    );
 
     expect(
       mockedWorkspaceService.getEncounterFinalizationGate,
@@ -908,13 +950,13 @@ describe("CaseEncounterService", () => {
   });
 
   it("rejects closing a finished encounter when marking ready for discharge", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue({
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
       ...baseEncounterRow,
       status: "finished",
     } as never);
 
     await expect(
-      CaseEncounterService.markEncounterReadyForDischarge("enc_1"),
+      CaseEncounterService.markEncounterReadyForDischarge("enc_1", "org_1"),
     ).rejects.toMatchObject({
       message: "Cannot mark ready for discharge a closed encounter.",
       statusCode: 409,
@@ -922,7 +964,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("assigns a unit to an active admission", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue(
+    mockedPrisma.encounter.findFirst.mockResolvedValue(
       baseEncounterRow as never,
     );
     mockedPrisma.admission.findUnique.mockResolvedValue({
@@ -977,7 +1019,7 @@ describe("CaseEncounterService", () => {
       },
     ] as never);
 
-    const result = await CaseEncounterService.assignUnit("enc_1", {
+    const result = await CaseEncounterService.assignUnit("enc_1", "org_1", {
       unitId: "unit_1",
       assignedBy: "user_1",
       reason: "Post-op monitoring",
@@ -1004,7 +1046,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("rejects assignment when the unit species constraints do not match", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue(
+    mockedPrisma.encounter.findFirst.mockResolvedValue(
       baseEncounterRow as never,
     );
     mockedPrisma.admission.findUnique.mockResolvedValue({
@@ -1037,7 +1079,7 @@ describe("CaseEncounterService", () => {
     } as never);
 
     await expect(
-      CaseEncounterService.assignUnit("enc_1", {
+      CaseEncounterService.assignUnit("enc_1", "org_1", {
         unitId: "unit_1",
         assignedAt: new Date("2026-06-11T11:00:00.000Z"),
       }),
@@ -1048,7 +1090,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("rejects assignment when the unit group species constraints do not match", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue(
+    mockedPrisma.encounter.findFirst.mockResolvedValue(
       baseEncounterRow as never,
     );
     mockedPrisma.admission.findUnique.mockResolvedValue({
@@ -1093,7 +1135,7 @@ describe("CaseEncounterService", () => {
     } as never);
 
     await expect(
-      CaseEncounterService.assignUnit("enc_1", {
+      CaseEncounterService.assignUnit("enc_1", "org_1", {
         unitId: "unit_1",
         assignedAt: new Date("2026-06-11T11:00:00.000Z"),
       }),
@@ -1105,7 +1147,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("rejects assignment when the unit is already occupied by another admission", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue(
+    mockedPrisma.encounter.findFirst.mockResolvedValue(
       baseEncounterRow as never,
     );
     mockedPrisma.admission.findUnique.mockResolvedValue({
@@ -1145,7 +1187,7 @@ describe("CaseEncounterService", () => {
     } as never);
 
     await expect(
-      CaseEncounterService.assignUnit("enc_1", {
+      CaseEncounterService.assignUnit("enc_1", "org_1", {
         unitId: "unit_1",
         assignedAt: new Date("2026-06-11T11:00:00.000Z"),
       }),
@@ -1183,7 +1225,12 @@ describe("CaseEncounterService", () => {
       },
     ] as never);
 
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
+      id: "enc_1",
+    } as never);
+
     const result = await CaseEncounterService.listUnitAssignments({
+      organisationId: "org_1",
       encounterId: "enc_1",
     });
 
@@ -1193,6 +1240,7 @@ describe("CaseEncounterService", () => {
         admissionId: undefined,
         unitId: undefined,
         releasedAt: undefined,
+        admission: { organisationId: "org_1" },
       },
       orderBy: { assignedAt: "asc" },
     });
@@ -1202,7 +1250,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("lists unit assignment history for an admission", async () => {
-    mockedPrisma.admission.findUnique.mockResolvedValue({
+    mockedPrisma.admission.findFirst.mockResolvedValue({
       encounterId: "enc_1",
       organisationId: "org_1",
       patientId: "comp_1",
@@ -1228,11 +1276,13 @@ describe("CaseEncounterService", () => {
       },
     ] as never);
 
-    const result =
-      await CaseEncounterService.listAdmissionUnitAssignments("enc_1");
+    const result = await CaseEncounterService.listAdmissionUnitAssignments(
+      "enc_1",
+      "org_1",
+    );
 
-    expect(mockedPrisma.admission.findUnique).toHaveBeenCalledWith({
-      where: { encounterId: "enc_1" },
+    expect(mockedPrisma.admission.findFirst).toHaveBeenCalledWith({
+      where: { encounterId: "enc_1", organisationId: "org_1" },
     });
     expect(mockedPrisma.roomUnitAssignment.findMany).toHaveBeenCalledWith({
       where: {
@@ -1245,7 +1295,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("starts an encounter and keeps the original periodStart when present", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue({
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
       ...baseEncounterRow,
       status: "arrived",
     } as never);
@@ -1270,7 +1320,7 @@ describe("CaseEncounterService", () => {
       },
     ] as never);
 
-    const result = await CaseEncounterService.startEncounter("enc_1", {
+    const result = await CaseEncounterService.startEncounter("enc_1", "org_1", {
       startedAt: new Date("2026-06-11T12:00:00.000Z"),
     });
 
@@ -1285,7 +1335,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("marks an encounter ready for discharge", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue({
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
       ...baseEncounterRow,
       status: "in-progress",
     } as never);
@@ -1310,8 +1360,10 @@ describe("CaseEncounterService", () => {
       },
     ] as never);
 
-    const result =
-      await CaseEncounterService.markEncounterReadyForDischarge("enc_1");
+    const result = await CaseEncounterService.markEncounterReadyForDischarge(
+      "enc_1",
+      "org_1",
+    );
 
     expect(mockedPrisma.encounter.update).toHaveBeenCalledWith({
       where: { id: "enc_1" },
@@ -1323,7 +1375,7 @@ describe("CaseEncounterService", () => {
   });
 
   it("reverts ready for discharge back to in-progress", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue({
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
       ...baseEncounterRow,
       status: "onleave",
     } as never);
@@ -1335,8 +1387,10 @@ describe("CaseEncounterService", () => {
       { id: "appt_1", encounterId: "enc_1" },
     ] as never);
 
-    const result =
-      await CaseEncounterService.markEncounterNotReadyForDischarge("enc_1");
+    const result = await CaseEncounterService.markEncounterNotReadyForDischarge(
+      "enc_1",
+      "org_1",
+    );
 
     expect(mockedPrisma.encounter.update).toHaveBeenCalledWith({
       where: { id: "enc_1" },
@@ -1348,13 +1402,13 @@ describe("CaseEncounterService", () => {
   });
 
   it("rejects undo ready for discharge when encounter is not onleave", async () => {
-    mockedPrisma.encounter.findUnique.mockResolvedValue({
+    mockedPrisma.encounter.findFirst.mockResolvedValue({
       ...baseEncounterRow,
       status: "in-progress",
     } as never);
 
     await expect(
-      CaseEncounterService.markEncounterNotReadyForDischarge("enc_1"),
+      CaseEncounterService.markEncounterNotReadyForDischarge("enc_1", "org_1"),
     ).rejects.toMatchObject({
       message:
         "Cannot undo ready for discharge unless the encounter is ready for discharge.",
@@ -1456,5 +1510,215 @@ describe("CaseEncounterService", () => {
     expect(result).toHaveLength(2);
     expect(result[0]?.appointmentId).toBe("appt_1");
     expect(result[0]?.admission?.unitId).toBe("unit_1");
+  });
+
+  describe("organisation scoping", () => {
+    it("scopes every single-resource read to the authorized organisation", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(null as never);
+      mockedPrisma.case.findFirst.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.getEncounterById("enc_1", "org_2"),
+      ).rejects.toMatchObject({
+        message: "Encounter not found.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+      expect(mockedPrisma.encounter.findFirst).toHaveBeenCalledWith({
+        where: { id: "enc_1", organisationId: "org_2" },
+      });
+
+      await expect(
+        CaseEncounterService.getCaseById("case_1", "org_2"),
+      ).rejects.toMatchObject({
+        message: "Case not found.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+      expect(mockedPrisma.case.findFirst).toHaveBeenCalledWith({
+        where: { id: "case_1", organisationId: "org_2" },
+      });
+    });
+
+    it("does not mutate an encounter owned by another organisation", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(null as never);
+
+      for (const operation of [
+        () => CaseEncounterService.startEncounter("enc_1", "org_2"),
+        () =>
+          CaseEncounterService.markEncounterReadyForDischarge("enc_1", "org_2"),
+        () =>
+          CaseEncounterService.markEncounterNotReadyForDischarge(
+            "enc_1",
+            "org_2",
+          ),
+        () => CaseEncounterService.dischargeEncounter("enc_1", "org_2"),
+        () =>
+          CaseEncounterService.assignUnit("enc_1", "org_2", {
+            unitId: "unit_1",
+          }),
+        () => CaseEncounterService.updateEncounter("enc_1", "org_2", {}),
+      ]) {
+        await expect(operation()).rejects.toMatchObject({
+          message: "Encounter not found.",
+          statusCode: 404,
+        } satisfies Partial<CaseEncounterServiceError>);
+      }
+
+      expect(mockedPrisma.encounter.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.admission.update).not.toHaveBeenCalled();
+      expect(mockedPrisma.roomUnitAssignment.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a payload organisation that differs from the authorized one", async () => {
+      await expect(
+        CaseEncounterService.createCase(
+          {
+            organisationId: "org_2",
+            patientId: "comp_1",
+            status: "active",
+            appointmentKind: "INPATIENT",
+          } as never,
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "organisationId does not match the authorized organisation.",
+        statusCode: 403,
+      } satisfies Partial<CaseEncounterServiceError>);
+
+      await expect(
+        CaseEncounterService.createEncounter(
+          {
+            caseId: "case_1",
+            organisationId: "org_2",
+            patientId: "comp_1",
+            status: "planned",
+            encounterClass: "IMP",
+            appointmentKind: "INPATIENT",
+          } as never,
+          "org_1",
+        ),
+      ).rejects.toMatchObject({
+        message: "organisationId does not match the authorized organisation.",
+        statusCode: 403,
+      } satisfies Partial<CaseEncounterServiceError>);
+
+      expect(mockedPrisma.case.create).not.toHaveBeenCalled();
+      expect(mockedPrisma.encounter.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses to assign a unit owned by another organisation", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(
+        baseEncounterRow as never,
+      );
+      mockedPrisma.admission.findUnique.mockResolvedValue({
+        encounterId: "enc_1",
+        organisationId: "org_1",
+        patientId: "comp_1",
+        unitId: null,
+        expectedStayDays: null,
+        admittedAt: new Date("2026-06-11T10:30:00.000Z"),
+        dischargedAt: null,
+        createdAt: new Date("2026-06-11T10:30:00.000Z"),
+        updatedAt: new Date("2026-06-11T10:30:00.000Z"),
+      } as never);
+      mockedPrisma.roomUnit.findUnique.mockResolvedValue({
+        id: "unit_1",
+        organisationId: "org_2",
+        roomId: "room_1",
+        code: "KEN-01",
+        displayName: "Kennel 1",
+        size: "M",
+        speciesConstraints: ["dog"],
+        isActive: true,
+        createdAt: new Date("2026-06-11T10:00:00.000Z"),
+        updatedAt: new Date("2026-06-11T10:00:00.000Z"),
+      } as never);
+
+      await expect(
+        CaseEncounterService.assignUnit("enc_1", "org_1", {
+          unitId: "unit_1",
+        }),
+      ).rejects.toMatchObject({
+        message: "Unit organisation mismatch.",
+        statusCode: 409,
+      } satisfies Partial<CaseEncounterServiceError>);
+
+      expect(mockedPrisma.roomUnitAssignment.create).not.toHaveBeenCalled();
+    });
+
+    it("never lists assignments for a blank encounterId", async () => {
+      for (const encounterId of ["", "   "]) {
+        await expect(
+          CaseEncounterService.listUnitAssignments({
+            organisationId: "org_1",
+            encounterId,
+          }),
+        ).rejects.toMatchObject({
+          message: "encounterId is required.",
+          statusCode: 400,
+        } satisfies Partial<CaseEncounterServiceError>);
+      }
+
+      expect(mockedPrisma.roomUnitAssignment.findMany).not.toHaveBeenCalled();
+    });
+
+    it("does not list assignments for an encounter in another organisation", async () => {
+      mockedPrisma.encounter.findFirst.mockResolvedValue(null as never);
+      mockedPrisma.admission.findFirst.mockResolvedValue(null as never);
+
+      await expect(
+        CaseEncounterService.listUnitAssignments({
+          organisationId: "org_2",
+          encounterId: "enc_1",
+        }),
+      ).rejects.toMatchObject({
+        message: "Encounter not found.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+
+      await expect(
+        CaseEncounterService.listAdmissionUnitAssignments("enc_1", "org_2"),
+      ).rejects.toMatchObject({
+        message: "Admission not found for encounter.",
+        statusCode: 404,
+      } satisfies Partial<CaseEncounterServiceError>);
+
+      expect(mockedPrisma.roomUnitAssignment.findMany).not.toHaveBeenCalled();
+    });
+
+    it("always constrains list queries to the authorized organisation", async () => {
+      mockedPrisma.case.findMany.mockResolvedValue([] as never);
+      mockedPrisma.encounter.findMany.mockResolvedValue([] as never);
+
+      await CaseEncounterService.listCases({ organisationId: "org_1" });
+      await CaseEncounterService.listEncounters({ organisationId: "org_1" });
+
+      expect(mockedPrisma.case.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ organisationId: "org_1" }),
+        }),
+      );
+      expect(mockedPrisma.encounter.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ organisationId: "org_1" }),
+        }),
+      );
+
+      for (const listWithBlankOrg of [
+        () => CaseEncounterService.listCases({ organisationId: "  " }),
+        () => CaseEncounterService.listEncounters({ organisationId: "" }),
+        () =>
+          CaseEncounterService.listActiveInpatientEncounters({
+            organisationId: "",
+          }),
+      ]) {
+        await expect(listWithBlankOrg()).rejects.toMatchObject({
+          message: "organisationId is required.",
+          statusCode: 400,
+        } satisfies Partial<CaseEncounterServiceError>);
+      }
+
+      expect(mockedPrisma.case.findMany).toHaveBeenCalledTimes(1);
+      expect(mockedPrisma.encounter.findMany).toHaveBeenCalledTimes(1);
+    });
   });
 });

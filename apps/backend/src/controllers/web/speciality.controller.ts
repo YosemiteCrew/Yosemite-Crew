@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import type { OrgRequest } from "src/middlewares/rbac";
 import logger from "../../utils/logger";
 import {
   fromSpecialityRequestDTO,
@@ -206,15 +207,37 @@ export const SpecialityController = {
         return;
       }
 
-      const organisationId =
+      const authorisedOrganisationId = (req as OrgRequest).organisationId;
+      if (!authorisedOrganisationId) {
+        res
+          .status(400)
+          .json({ message: "Organisation identifier is required." });
+        return;
+      }
+
+      // `organization` is not one of the keys the org extractor reads, so a
+      // value supplied here was never authorized. Honour it only when it agrees
+      // with the organisation the caller was authorized for.
+      const requestedOrganisationId =
         typeof req.query.organization === "string"
           ? req.query.organization.replace(/^Organization\//, "")
           : typeof req.query.organisationId === "string"
             ? req.query.organisationId
             : undefined;
+
+      if (
+        requestedOrganisationId &&
+        requestedOrganisationId !== authorisedOrganisationId
+      ) {
+        res
+          .status(403)
+          .json({ message: "You are not associated with this organisation" });
+        return;
+      }
+
       const resource = await CatalogService.getSpecialityById(
         id,
-        organisationId,
+        authorisedOrganisationId,
       );
 
       res

@@ -133,6 +133,24 @@ const mapOrganizationFromPrisma = (organization: {
     : undefined,
 });
 
+/**
+ * A PENDING link is a request the organisation raised on its own; the parent has
+ * not accepted it yet. Their home address is therefore withheld until the link
+ * reaches ACTIVE.
+ */
+const toLinkParent = (
+  parent: Parameters<typeof toFHIRParentFromPrisma>[0] | null | undefined,
+  status: PatientOrganisationStatus,
+) => {
+  if (!parent) return null;
+
+  return toFHIRParentFromPrisma(
+    status === PatientOrganisationStatus.ACTIVE
+      ? parent
+      : { ...parent, address: null },
+  );
+};
+
 const findActiveOrPendingLink = async (params: {
   patientId: string;
   organisationId: string;
@@ -240,6 +258,60 @@ export const CompanionOrganisationService = {
     });
 
     return toRecord(link);
+  },
+
+  /**
+   * Proves the organisation already has a relationship with the companion
+   * before a PMS user may raise a link request for it: either an earlier link
+   * of any status for this companion, or another companion of the same parent
+   * that is already ACTIVE here. `linkByPmsUser` itself creates a PENDING link
+   * without parent consent, so without this an authenticated staff member could
+   * name any companion id and read the parent back off the organisation's link
+   * list. Failures report "not found" so the endpoint cannot be used to confirm
+   * that a companion id exists.
+   */
+  async assertOrganisationMayLinkCompanion(
+    patientId: string | Types.ObjectId,
+    organisationId: string | Types.ObjectId,
+  ): Promise<void> {
+    const companion = requireId(patientId, "patientId");
+    const org = requireId(organisationId, "organisationId");
+
+    const existingLink = await prisma.patientOrganisation.findFirst({
+      where: { patientId: companion, organisationId: org },
+      select: { id: true },
+    });
+    if (existingLink) return;
+
+    const parentLinks = await prisma.parentPatient.findMany({
+      where: { patientId: companion, status: "ACTIVE" },
+      select: { parentId: true },
+    });
+
+    const siblingLinks = parentLinks.length
+      ? await prisma.parentPatient.findMany({
+          where: {
+            parentId: { in: parentLinks.map((link) => link.parentId) },
+            status: "ACTIVE",
+          },
+          select: { patientId: true },
+        })
+      : [];
+
+    const knownCompanion = siblingLinks.length
+      ? await prisma.patientOrganisation.findFirst({
+          where: {
+            organisationId: org,
+            patientId: { in: siblingLinks.map((link) => link.patientId) },
+            status: PatientOrganisationStatus.ACTIVE,
+          },
+          select: { id: true },
+        })
+      : null;
+
+    if (!knownCompanion) {
+      throw new CompanionOrganisationServiceError("Companion not found.", 404);
+    }
   },
 
   async linkByPmsUser({
@@ -752,7 +824,7 @@ export const CompanionOrganisationService = {
         organisationType: link.organisationType,
         status: link.status,
         companion: companion ? toFHIRCompanionFromPrisma(companion) : null,
-        parent: parent ? toFHIRParentFromPrisma(parent) : null,
+        parent: toLinkParent(parent, link.status),
       };
     });
   },

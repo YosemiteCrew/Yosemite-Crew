@@ -84,6 +84,9 @@ jest.mock("../../src/config/prisma", () => ({
     template: {
       findFirst: jest.fn(),
     },
+    form: {
+      findMany: jest.fn(),
+    },
     occupancy: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -289,9 +292,12 @@ describe("AppointmentPrismaService", () => {
     );
     mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-    const result = await AppointmentPrismaService.createRequestedFromMobile({
-      resourceType: "Appointment",
-    } as any);
+    const result = await AppointmentPrismaService.createRequestedFromMobile(
+      {
+        resourceType: "Appointment",
+      } as any,
+      "parent_1",
+    );
 
     expect(mockedPrisma.appointment.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -385,9 +391,12 @@ describe("AppointmentPrismaService", () => {
     );
     mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-    const result = await AppointmentPrismaService.createRequestedFromMobile({
-      resourceType: "Appointment",
-    } as any);
+    const result = await AppointmentPrismaService.createRequestedFromMobile(
+      {
+        resourceType: "Appointment",
+      } as any,
+      "parent_1",
+    );
 
     expect(mockedPrisma.template.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -418,9 +427,12 @@ describe("AppointmentPrismaService", () => {
     );
     mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-    const result = await AppointmentPrismaService.createRequestedFromMobile({
-      resourceType: "Appointment",
-    } as any);
+    const result = await AppointmentPrismaService.createRequestedFromMobile(
+      {
+        resourceType: "Appointment",
+      } as any,
+      "parent_1",
+    );
 
     expect(mockedPrisma.case.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -451,7 +463,7 @@ describe("AppointmentPrismaService", () => {
     mockedPrisma.appointment.create.mockResolvedValue(
       makeRow({ status: "UPCOMING", caseId: "case_1" }),
     );
-    mockedPrisma.appointment.findUnique.mockResolvedValue(
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
       makeRow({ status: "UPCOMING", caseId: "case_1" }),
     );
     mockedPrisma.invoice.findMany.mockResolvedValue([]);
@@ -512,10 +524,10 @@ describe("AppointmentPrismaService", () => {
   });
 
   it("returns 404 when appointment is missing", async () => {
-    mockedPrisma.appointment.findUnique.mockResolvedValue(null);
+    mockedPrisma.appointment.findFirst.mockResolvedValue(null);
 
     await expect(
-      AppointmentPrismaService.getById("missing"),
+      AppointmentPrismaService.getById("missing", { organisationId: "org_1" }),
     ).rejects.toMatchObject({
       message: "Appointment not found",
       statusCode: 404,
@@ -523,11 +535,13 @@ describe("AppointmentPrismaService", () => {
   });
 
   describe("getById org-scoping and own-scope (IDOR)", () => {
-    it("uses findUnique unscoped when no organisationId is supplied (mobile/internal preserved)", async () => {
+    it("resolves a parent-scoped read without an organisation (mobile preserved)", async () => {
       mockedPrisma.appointment.findUnique.mockResolvedValue(makeRow());
       mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-      const result = await AppointmentPrismaService.getById("appt_1");
+      const result = await AppointmentPrismaService.getById("appt_1", {
+        parentId: "parent_1",
+      });
 
       expect(mockedPrisma.appointment.findUnique).toHaveBeenCalledWith({
         where: { id: "appt_1" },
@@ -542,7 +556,9 @@ describe("AppointmentPrismaService", () => {
       );
       mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-      const result = await AppointmentPrismaService.getById("appt_1", "org_1");
+      const result = await AppointmentPrismaService.getById("appt_1", {
+        organisationId: "org_1",
+      });
 
       expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
         where: { id: "appt_1", organisationId: "org_1" },
@@ -555,7 +571,9 @@ describe("AppointmentPrismaService", () => {
       mockedPrisma.appointment.findFirst.mockResolvedValue(null);
 
       await expect(
-        AppointmentPrismaService.getById("appt_in_org_b", "org_a"),
+        AppointmentPrismaService.getById("appt_in_org_b", {
+          organisationId: "org_a",
+        }),
       ).rejects.toMatchObject({
         message: "Appointment not found",
         statusCode: 404,
@@ -571,11 +589,10 @@ describe("AppointmentPrismaService", () => {
       );
       mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-      const result = await AppointmentPrismaService.getById(
-        "appt_1",
-        "org_1",
-        "vet_1",
-      );
+      const result = await AppointmentPrismaService.getById("appt_1", {
+        organisationId: "org_1",
+        actorId: "vet_1",
+      });
 
       expect(result.id).toBe("appt_1");
     });
@@ -589,7 +606,10 @@ describe("AppointmentPrismaService", () => {
       );
 
       await expect(
-        AppointmentPrismaService.getById("appt_1", "org_1", "vet_1"),
+        AppointmentPrismaService.getById("appt_1", {
+          organisationId: "org_1",
+          actorId: "vet_1",
+        }),
       ).rejects.toMatchObject({
         message: "Appointment not found",
         statusCode: 404,
@@ -611,12 +631,10 @@ describe("AppointmentPrismaService", () => {
       );
       mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-      const result = await AppointmentPrismaService.getById(
-        "appt_1",
-        "org_2",
-        undefined,
-        "parent_1",
-      );
+      const result = await AppointmentPrismaService.getById("appt_1", {
+        organisationId: "org_2",
+        parentId: "parent_1",
+      });
 
       expect(result).toMatchObject({ id: "appt_1" });
     });
@@ -631,11 +649,10 @@ describe("AppointmentPrismaService", () => {
       );
       mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-      const result = await AppointmentPrismaService.getById(
-        "appt_1",
-        "org_1",
-        "staff_1",
-      );
+      const result = await AppointmentPrismaService.getById("appt_1", {
+        organisationId: "org_1",
+        actorId: "staff_1",
+      });
 
       expect(result.id).toBe("appt_1");
     });
@@ -656,7 +673,9 @@ describe("AppointmentPrismaService", () => {
       },
     ]);
 
-    const result = await AppointmentPrismaService.getById("appt_1", "org_2");
+    const result = await AppointmentPrismaService.getById("appt_1", {
+      organisationId: "org_2",
+    });
 
     expect((result as any).paymentStatus).toBe("UNPAID");
     expect((result as any).bookingPaymentStatus).toBe("PAID");
@@ -678,7 +697,9 @@ describe("AppointmentPrismaService", () => {
       },
     ]);
 
-    const result = await AppointmentPrismaService.getById("appt_1", "org_2");
+    const result = await AppointmentPrismaService.getById("appt_1", {
+      organisationId: "org_2",
+    });
 
     expect((result as any).paymentStatus).toBe("UNPAID");
     expect((result as any).bookingPaymentStatus).toBe("PAID");
@@ -743,7 +764,7 @@ describe("AppointmentPrismaService", () => {
   });
 
   it("creates an encounter on check-in when one does not exist", async () => {
-    mockedPrisma.appointment.findUnique.mockResolvedValue(
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
       makeRow({ status: "UPCOMING", caseId: "case_1", encounterId: null }),
     );
     mockedPrisma.encounter.create.mockResolvedValue({ id: "enc_1" } as any);
@@ -758,7 +779,10 @@ describe("AppointmentPrismaService", () => {
       );
     mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-    const result = await AppointmentPrismaService.checkInAppointment("appt_1");
+    const result = await AppointmentPrismaService.checkInAppointment(
+      "appt_1",
+      "org_1",
+    );
 
     expect(mockedPrisma.encounter.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -796,7 +820,7 @@ describe("AppointmentPrismaService", () => {
   });
 
   it("creates an outpatient case on check-in when one does not exist", async () => {
-    mockedPrisma.appointment.findUnique.mockResolvedValue(
+    mockedPrisma.appointment.findFirst.mockResolvedValue(
       makeRow({
         status: "UPCOMING",
         appointmentKind: "OUTPATIENT",
@@ -818,7 +842,10 @@ describe("AppointmentPrismaService", () => {
       );
     mockedPrisma.invoice.findMany.mockResolvedValue([]);
 
-    const result = await AppointmentPrismaService.checkInAppointment("appt_1");
+    const result = await AppointmentPrismaService.checkInAppointment(
+      "appt_1",
+      "org_1",
+    );
 
     expect(mockedPrisma.case.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -939,6 +966,7 @@ describe("AppointmentPrismaService", () => {
 
     const result = await AppointmentPrismaService.admitAppointmentToInpatient(
       "appt_1",
+      "org_1",
       {
         admittedAt: new Date("2026-06-11T12:00:00.000Z"),
         expectedStayDays: 5,
@@ -1120,6 +1148,7 @@ describe("AppointmentPrismaService", () => {
 
     const result = await AppointmentPrismaService.admitAppointmentToInpatient(
       "appt_1",
+      "org_1",
       {
         admittedAt: new Date("2026-06-11T12:00:00.000Z"),
         expectedStayDays: 5,
@@ -1197,6 +1226,7 @@ describe("AppointmentPrismaService", () => {
 
     const result = await AppointmentPrismaService.admitAppointmentToInpatient(
       "appt_1",
+      "org_1",
       {
         admittedAt: new Date("2026-06-11T12:00:00.000Z"),
       },
@@ -1238,7 +1268,7 @@ describe("AppointmentPrismaService", () => {
     );
 
     await expect(
-      AppointmentPrismaService.admitAppointmentToInpatient("appt_1"),
+      AppointmentPrismaService.admitAppointmentToInpatient("appt_1", "org_1"),
     ).rejects.toMatchObject({
       message: "Only checked-in or in-progress appointments can be admitted.",
       statusCode: 409,
@@ -1311,9 +1341,12 @@ describe("AppointmentPrismaService", () => {
     }));
 
     await expect(
-      AppointmentPrismaService.createRequestedFromMobile({
-        resourceType: "Appointment",
-      } as any),
+      AppointmentPrismaService.createRequestedFromMobile(
+        {
+          resourceType: "Appointment",
+        } as any,
+        "parent_1",
+      ),
     ).rejects.toMatchObject({
       message: "Selected product is not bookable for inpatient appointments.",
       statusCode: 400,
@@ -1345,12 +1378,179 @@ describe("AppointmentPrismaService", () => {
     } as any);
 
     await expect(
-      AppointmentPrismaService.createRequestedFromMobile({
-        resourceType: "Appointment",
-      } as any),
+      AppointmentPrismaService.createRequestedFromMobile(
+        {
+          resourceType: "Appointment",
+        } as any,
+        "parent_1",
+      ),
     ).rejects.toMatchObject({
       message: "caseId is required when encounterId is provided.",
       statusCode: 400,
+    });
+  });
+  describe("cross-tenant scoping (IDOR)", () => {
+    it("checks in an appointment that belongs to the caller's organisation", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ status: "UPCOMING", caseId: "case_1", encounterId: "enc_1" }),
+      );
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ status: "CHECKED_IN", encounterId: "enc_1" }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      const result = await AppointmentPrismaService.checkInAppointment(
+        "appt_1",
+        "org_1",
+      );
+
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_1", organisationId: "org_1" },
+      });
+      expect(result.id).toBe("appt_1");
+    });
+
+    it("returns 404 when checking in another tenant's appointment", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.checkInAppointment("appt_in_org_b", "org_a"),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.appointment.findFirst).toHaveBeenCalledWith({
+        where: { id: "appt_in_org_b", organisationId: "org_a" },
+      });
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 when admitting another tenant's appointment", async () => {
+      mockedPrisma.appointment.findUnique.mockResolvedValue(
+        makeRow({
+          status: "CHECKED_IN",
+          caseId: "case_1",
+          encounterId: "enc_1",
+          organisationId: "org_b",
+        }),
+      );
+
+      await expect(
+        AppointmentPrismaService.admitAppointmentToInpatient(
+          "appt_in_org_b",
+          "org_a",
+        ),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.admission.upsert).not.toHaveBeenCalled();
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("attaches forms owned by the caller's organisation", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ formIds: ["form_1"] }),
+      );
+      mockedPrisma.form.findMany.mockResolvedValue([{ id: "form_2" }] as any);
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ formIds: ["form_1", "form_2"] }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await AppointmentPrismaService.attachFormsToAppointment(
+        "appt_1",
+        "org_1",
+        ["form_2"],
+      );
+
+      expect(mockedPrisma.form.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ["form_2"] }, orgId: "org_1" },
+        select: { id: true },
+      });
+      expect(mockedPrisma.appointment.update).toHaveBeenCalledWith({
+        where: { id: "appt_1" },
+        data: expect.objectContaining({ formIds: ["form_1", "form_2"] }),
+      });
+    });
+
+    it("returns 404 when attaching forms to another tenant's appointment", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await expect(
+        AppointmentPrismaService.attachFormsToAppointment(
+          "appt_in_org_b",
+          "org_a",
+          ["form_1"],
+        ),
+      ).rejects.toMatchObject({
+        message: "Appointment not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects forms that belong to another organisation", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ formIds: ["form_1"] }),
+      );
+      mockedPrisma.form.findMany.mockResolvedValue([{ id: "form_2" }] as any);
+
+      await expect(
+        AppointmentPrismaService.attachFormsToAppointment("appt_1", "org_1", [
+          "form_2",
+          "form_from_org_b",
+        ]),
+      ).rejects.toMatchObject({
+        message: "Form not found",
+        statusCode: 404,
+      });
+      expect(mockedPrisma.appointment.update).not.toHaveBeenCalled();
+    });
+
+    it("does not query forms when none are supplied", async () => {
+      mockedPrisma.appointment.findFirst.mockResolvedValue(
+        makeRow({ formIds: ["form_1"] }),
+      );
+      mockedPrisma.appointment.update.mockResolvedValue(
+        makeRow({ formIds: ["form_1"] }),
+      );
+      mockedPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await AppointmentPrismaService.attachFormsToAppointment(
+        "appt_1",
+        "org_1",
+        [],
+      );
+
+      expect(mockedPrisma.form.findMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects a mobile booking for a parent the caller is not", async () => {
+      await expect(
+        AppointmentPrismaService.createRequestedFromMobile(
+          { resourceType: "Appointment" } as any,
+          "other_parent",
+        ),
+      ).rejects.toMatchObject({
+        message: "You are not allowed to book appointments for this parent.",
+        statusCode: 403,
+      });
+      expect(mockedPrisma.appointment.create).not.toHaveBeenCalled();
+      expect(mockedCompanionOrgService.linkByParent).not.toHaveBeenCalled();
+    });
+
+    it("requires an authenticated parent for a mobile booking", async () => {
+      await expect(
+        AppointmentPrismaService.createRequestedFromMobile(
+          { resourceType: "Appointment" } as any,
+          "",
+        ),
+      ).rejects.toMatchObject({
+        message: "authParentId is required",
+        statusCode: 400,
+      });
+      expect(mockedPrisma.appointment.create).not.toHaveBeenCalled();
     });
   });
 });

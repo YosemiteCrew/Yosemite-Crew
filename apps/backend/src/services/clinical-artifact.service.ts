@@ -753,6 +753,42 @@ const persistClinicalArtifactRenderedDocumentPdf = async (
   });
 };
 
+/**
+ * Who is asking, and whether they hold the org-wide prescription edit
+ * permission. Roles that only hold `prescription:edit:own` may act on the
+ * prescriptions they authored, so the record's author is the deciding factor
+ * and cannot be inferred from the permission set alone.
+ */
+export interface PrescriptionActor {
+  actorId: string;
+  canEditAny: boolean;
+}
+
+const assertActorMayMutatePrescription = async (
+  prescriptionId: string,
+  organisationId: string | undefined,
+  actor: PrescriptionActor,
+) => {
+  if (actor.canEditAny) {
+    return;
+  }
+
+  const record = await loadPrescriptionOrThrow(prescriptionId);
+  assertArtifactKind(
+    record.artifact,
+    "PRESCRIPTION",
+    "prescription",
+    organisationId,
+  );
+
+  if (!actor.actorId || record.artifact.authorId !== actor.actorId) {
+    throw new ClinicalArtifactServiceError(
+      "Prescription was authored by another user",
+      403,
+    );
+  }
+};
+
 const assertArtifactKind = (
   artifact: { kind: ClinicalArtifactKind; organisationId: string },
   expectedKind: ClinicalArtifactKind,
@@ -1424,8 +1460,7 @@ export const ClinicalArtifactService = {
         prescriptionId: artifact.prescription.id,
         medications: artifact.prescription.medications,
         metadata: artifact.prescription.metadata as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
         requestedBy: artifact.artifact.authorId,
         context: {
           appointmentId: artifact.artifact.appointmentId,
@@ -1523,8 +1558,7 @@ export const ClinicalArtifactService = {
         prescriptionId: updated.prescription.id,
         medications: updated.prescription.medications,
         metadata: updated.prescription.metadata as
-          | Prisma.InputJsonValue
-          | undefined,
+          Prisma.InputJsonValue | undefined,
         requestedBy: updated.artifact.authorId,
         context: {
           appointmentId: updated.artifact.appointmentId,
@@ -1537,8 +1571,7 @@ export const ClinicalArtifactService = {
           organisationId: updated.artifact.organisationId,
           prescriptionId: updated.prescription.id,
           metadata: updated.prescription.metadata as
-            | Prisma.InputJsonValue
-            | undefined,
+            Prisma.InputJsonValue | undefined,
         },
       );
     }
@@ -2214,8 +2247,14 @@ export const ClinicalArtifactService = {
 
   async finalizePrescription(
     prescriptionId: string,
-    organisationId?: string,
+    organisationId: string | undefined,
+    actor: PrescriptionActor,
   ): Promise<PrescriptionRecord> {
+    await assertActorMayMutatePrescription(
+      prescriptionId,
+      organisationId,
+      actor,
+    );
     return ClinicalArtifactService.updatePrescription(
       prescriptionId,
       { status: "COMPLETED" },
@@ -2225,8 +2264,14 @@ export const ClinicalArtifactService = {
 
   async reopenPrescription(
     prescriptionId: string,
-    organisationId?: string,
+    organisationId: string | undefined,
+    actor: PrescriptionActor,
   ): Promise<PrescriptionRecord> {
+    await assertActorMayMutatePrescription(
+      prescriptionId,
+      organisationId,
+      actor,
+    );
     return ClinicalArtifactService.updatePrescription(
       prescriptionId,
       { status: "IN_PROGRESS" },
@@ -2236,8 +2281,14 @@ export const ClinicalArtifactService = {
 
   async amendPrescription(
     prescriptionId: string,
-    organisationId?: string,
+    organisationId: string | undefined,
+    actor: PrescriptionActor,
   ): Promise<PrescriptionRecord> {
+    await assertActorMayMutatePrescription(
+      prescriptionId,
+      organisationId,
+      actor,
+    );
     const record = await ClinicalArtifactService.getPrescription(
       prescriptionId,
       organisationId,

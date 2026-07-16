@@ -12,6 +12,23 @@ import {
 import { clinicalArtifactFhirMapper } from "src/services/fhir-clinical-artifact.mapper";
 import { createFhirErrorHandler } from "src/controllers/web/fhir-controller.shared";
 import { resolveUserIdFromRequest } from "src/utils/request";
+import type { PrescriptionActor } from "src/services/clinical-artifact.service";
+import type { OrgRequest } from "src/middlewares/rbac";
+
+/**
+ * Read the actor straight off the verified session rather than via
+ * `resolveUserIdFromRequest`, which falls back to the client-supplied
+ * `x-user-id` header. That fallback is acceptable for attribution but must
+ * never decide an authorization outcome.
+ */
+const resolvePrescriptionActor = (req: Request): PrescriptionActor => {
+  const orgRequest = req as OrgRequest;
+  return {
+    actorId: orgRequest.userId?.trim() ?? "",
+    canEditAny:
+      orgRequest.userPermissions?.includes("prescription:edit:any") ?? false,
+  };
+};
 
 const compositionSchema = z
   .object({ resourceType: z.literal("Composition") })
@@ -512,6 +529,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.finalizePrescription(
         req.params.prescriptionId,
         req.params.organisationId,
+        resolvePrescriptionActor(req),
       );
       return res
         .status(200)
@@ -528,6 +546,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.reopenPrescription(
         req.params.prescriptionId,
         req.params.organisationId,
+        resolvePrescriptionActor(req),
       );
       return res
         .status(200)
@@ -544,6 +563,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.amendPrescription(
         req.params.prescriptionId,
         req.params.organisationId,
+        resolvePrescriptionActor(req),
       );
       return res
         .status(201)

@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { requireWebAuth } from "src/middlewares/auth";
-import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
+import {
+  requirePermission,
+  withEncounterOrgPermissions,
+  withOrgPermissions,
+} from "src/middlewares/rbac";
 import { EncounterController } from "src/controllers/web/case-encounter.controller";
 
 const router = Router();
@@ -16,7 +20,7 @@ router.post(
 router.patch(
   "/:id",
   requireWebAuth,
-  withOrgPermissions(),
+  withEncounterOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.update,
 );
@@ -24,7 +28,7 @@ router.patch(
 router.post(
   String.raw`/:id/\$discharge`,
   requireWebAuth,
-  withOrgPermissions(),
+  withEncounterOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.discharge,
 );
@@ -32,7 +36,7 @@ router.post(
 router.post(
   String.raw`/:id/\$assign-unit`,
   requireWebAuth,
-  withOrgPermissions(),
+  withEncounterOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.assignUnit,
 );
@@ -40,7 +44,7 @@ router.post(
 router.get(
   String.raw`/:id/\$unit-assignments`,
   requireWebAuth,
-  withOrgPermissions(),
+  withEncounterOrgPermissions(),
   requirePermission("appointments:view:any"),
   EncounterController.listUnitAssignments,
 );
@@ -48,7 +52,7 @@ router.get(
 router.get(
   String.raw`/:id/\$admission-unit-assignments`,
   requireWebAuth,
-  withOrgPermissions(),
+  withEncounterOrgPermissions(),
   requirePermission("appointments:view:any"),
   EncounterController.listAdmissionUnitAssignments,
 );
@@ -56,7 +60,7 @@ router.get(
 router.post(
   String.raw`/:id/\$start`,
   requireWebAuth,
-  withOrgPermissions(),
+  withEncounterOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.start,
 );
@@ -64,7 +68,7 @@ router.post(
 router.post(
   String.raw`/:id/\$ready-for-discharge`,
   requireWebAuth,
-  withOrgPermissions(),
+  withEncounterOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.readyForDischarge,
 );
@@ -72,7 +76,7 @@ router.post(
 router.post(
   String.raw`/:id/\$undo-ready-for-discharge`,
   requireWebAuth,
-  withOrgPermissions(),
+  withEncounterOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.undoReadyForDischarge,
 );
@@ -88,7 +92,7 @@ router.get(
 router.get(
   "/:id",
   requireWebAuth,
-  withOrgPermissions(),
+  withEncounterOrgPermissions(),
   requirePermission("appointments:view:any"),
   EncounterController.getById,
 );
