@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import TeamInfo from '@/app/features/organization/pages/Organization/Sections/Team/TeamInfo';
 import {
@@ -70,10 +70,29 @@ jest.mock('@/app/ui/primitives/Accordion/Accordion', () => ({
 
 jest.mock('@/app/ui/primitives/Accordion/EditableAccordion', () => ({
   __esModule: true,
-  default: ({ title, showEditIcon, onSave, data }: any) => (
+  // `fields` is rendered as real <option> elements so tests can assert on the
+  // option VALUES the component actually offers. Values live in the value
+  // attribute, not in text, so they cannot collide with the findByText(/FULL_TIME/)
+  // queries that read the `data` JSON above.
+  default: ({ title, showEditIcon, onSave, data, fields }: any) => (
     <div data-testid={`editable-${title}`}>
       <div>{title}</div>
       <div>{JSON.stringify(data)}</div>
+      {(fields ?? [])
+        .filter((field: any) => Array.isArray(field.options))
+        .map((field: any) => (
+          <select
+            key={field.key}
+            aria-label={field.label}
+            data-testid={`field-options-${field.key}`}
+          >
+            {field.options.map((option: any) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ))}
       {showEditIcon ? (
         <button type="button" onClick={() => onSave(editableSavePayloads[title] ?? {})}>
           {`save-${title}`}
@@ -249,6 +268,13 @@ jest.mock('@/app/features/appointments/components/Availability/utils', () => ({
   })),
   hasAtLeastOneAvailability: jest.fn(() => true),
 }));
+
+const optionValuesFor = (accordionTitle: string, fieldKey: string) =>
+  Array.from(
+    within(screen.getByTestId(`editable-${accordionTitle}`))
+      .getByTestId(`field-options-${fieldKey}`)
+      .querySelectorAll('option')
+  ).map((option) => option.value);
 
 describe('TeamInfo', () => {
   const setShowModal = jest.fn();
@@ -745,6 +771,75 @@ describe('TeamInfo', () => {
         'error',
         expect.objectContaining({ title: 'Unable to update professional details' })
       );
+    });
+  });
+
+  // Regression guard: TeamInfo renders a USER PROFILE (profile.personalDetails), so both
+  // selects must offer the profile enums from features/users/types/profile. The pet
+  // GenderOptions ('OTHERS') and the invite-facing EmploymentTypes ('CONTRACTOR') look
+  // interchangeable but the profile API rejects both values.
+  //
+  // These assertions deliberately target the DIVERGENT values. MALE, FEMALE, FULL_TIME and
+  // PART_TIME are identical across the right and wrong lists — that overlap is the only
+  // reason the rest of this suite stayed green while the wrong enums were wired up.
+  describe('profile enum wiring', () => {
+    it('offers the profile gender OTHER and never the pet gender OTHERS', async () => {
+      render(
+        <TeamInfo
+          showModal
+          setShowModal={setShowModal}
+          activeTeam={activeTeam}
+          canEditTeam={true}
+        />
+      );
+
+      await screen.findByText(/FULL_TIME/);
+
+      const genderValues = optionValuesFor('Personal details', 'gender');
+      expect(genderValues).toContain('OTHER');
+      expect(genderValues).not.toContain('OTHERS');
+      expect(genderValues).toEqual(['MALE', 'FEMALE', 'OTHER']);
+    });
+
+    it('offers the profile employment type CONTRACT and never the invite-facing CONTRACTOR', async () => {
+      render(
+        <TeamInfo
+          showModal
+          setShowModal={setShowModal}
+          activeTeam={activeTeam}
+          canEditTeam={true}
+        />
+      );
+
+      await screen.findByText(/FULL_TIME/);
+
+      const employmentValues = optionValuesFor('Org details', 'employmentType');
+      expect(employmentValues).toContain('CONTRACT');
+      expect(employmentValues).not.toContain('CONTRACTOR');
+      expect(employmentValues).toEqual(['FULL_TIME', 'PART_TIME', 'CONTRACT']);
+    });
+
+    // Both enums label this option 'Contract' — byte-identical. Only the value differs,
+    // so any label-based assertion here would pass against the wrong enum.
+    it('backs the Contract option with the CONTRACT value, not the identically labelled CONTRACTOR', async () => {
+      render(
+        <TeamInfo
+          showModal
+          setShowModal={setShowModal}
+          activeTeam={activeTeam}
+          canEditTeam={true}
+        />
+      );
+
+      await screen.findByText(/FULL_TIME/);
+
+      const contractOption = within(screen.getByTestId('editable-Org details')).getByRole(
+        'option',
+        {
+          name: 'Contract',
+        }
+      );
+      expect((contractOption as HTMLOptionElement).value).toBe('CONTRACT');
     });
   });
 });

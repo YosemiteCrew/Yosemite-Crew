@@ -23,10 +23,10 @@ import {
   updateMember,
 } from '@/app/features/organization/services/teamService';
 import Close from '@/app/ui/primitives/Icons/Close';
-import { EmploymentTypes, RoleOptions } from '@/app/features/organization/pages/Organization/types';
+import { RoleOptions } from '@/app/features/organization/pages/Organization/types';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
-import { GenderOptions } from '@/app/features/companions/types/companion';
+import { UserEmploymentTypeOptions, UserGenderOptions } from '@/app/features/users/types/profile';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
@@ -69,7 +69,10 @@ const getFields = ({
       label: 'Employment type',
       key: 'employmentType',
       type: 'select',
-      options: EmploymentTypes,
+      // personalDetails is a user profile, so it takes the profile enums. The
+      // invite-facing EmploymentTypes ('CONTRACTOR') and the pet GenderOptions
+      // ('OTHERS') look interchangeable but the API rejects both.
+      options: UserEmploymentTypeOptions,
       editable: canEditEmploymentType,
     },
     {
@@ -83,7 +86,7 @@ const getFields = ({
 
 const PersonalFields = [
   { label: 'Name', key: 'name', type: 'text' },
-  { label: 'Gender', key: 'gender', type: 'select', options: GenderOptions },
+  { label: 'Gender', key: 'gender', type: 'select', options: UserGenderOptions },
   { label: 'Date of birth', key: 'dateOfBirth', type: 'date' },
   { label: 'Country', key: 'country', type: 'country' },
   { label: 'Phone number', key: 'phoneNumber', type: 'text' },

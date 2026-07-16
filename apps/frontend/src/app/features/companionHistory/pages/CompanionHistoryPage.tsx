@@ -277,6 +277,33 @@ const ParentProfilePanel = ({
 const resolveRefUpdate = (value: string | ((prev: string) => string), current: string): string =>
   typeof value === 'function' ? value(current) : value;
 
+/** Add-alert affordance beside the title. Owns its own gate so the page body stays flat. */
+const AddAlertButton = ({
+  show,
+  tooltip,
+  label,
+  onClick,
+}: {
+  show: boolean;
+  tooltip: string;
+  label: string;
+  onClick: () => void;
+}) => {
+  if (!show) return null;
+  return (
+    <GlassTooltip content={tooltip} side="bottom">
+      <button
+        type="button"
+        aria-label={label}
+        onClick={onClick}
+        className="flex size-6 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+      >
+        <IoAddOutline size={14} aria-hidden="true" />
+      </button>
+    </GlassTooltip>
+  );
+};
+
 const CompanionHistoryPageInner = () => {
   useLoadCompanionsForPrimaryOrg();
   const companions = useCompanionsParentsForPrimaryOrg();
@@ -447,21 +474,12 @@ const CompanionHistoryPageInner = () => {
                       onRemove={handleRemoveCompanionAlert}
                     />
                   ))}
-                  {activeCompanion ? (
-                    <GlassTooltip
-                      content={replaceCompanionText('Add alerts for patient')}
-                      side="bottom"
-                    >
-                      <button
-                        type="button"
-                        aria-label={replaceCompanionText('Add companion alert')}
-                        onClick={() => setAlertTarget('companion')}
-                        className="flex size-6 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-                      >
-                        <IoAddOutline size={14} aria-hidden="true" />
-                      </button>
-                    </GlassTooltip>
-                  ) : null}
+                  <AddAlertButton
+                    show={Boolean(activeCompanion)}
+                    tooltip={replaceCompanionText('Add alerts for patient')}
+                    label={replaceCompanionText('Add companion alert')}
+                    onClick={() => setAlertTarget('companion')}
+                  />
                 </div>
               </div>
 
