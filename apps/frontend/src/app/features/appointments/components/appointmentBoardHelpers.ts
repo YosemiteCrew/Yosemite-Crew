@@ -3,13 +3,7 @@ import { Appointment } from '@yosemite-crew/types';
 import { normalizeAppointmentStatus } from '@/app/lib/appointments';
 
 export type BoardStatus =
-  | 'REQUESTED'
-  | 'UPCOMING'
-  | 'CHECKED_IN'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'NO_SHOW';
+  'REQUESTED' | 'UPCOMING' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 export const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
   { key: 'REQUESTED', label: 'Requested' },
@@ -24,6 +18,16 @@ export const BOARD_COLUMNS: Array<{ key: BoardStatus; label: string }> = [
 export const normalizeStatus = (status?: string): BoardStatus | null => {
   return normalizeAppointmentStatus(status);
 };
+
+const MUTED_BOARD_STATUSES: ReadonlySet<BoardStatus> = new Set<BoardStatus>([
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW',
+]);
+
+/** Closed-out columns recede on the board so live work stays dominant. */
+export const isMutedBoardStatus = (status: BoardStatus | null): boolean =>
+  !!status && MUTED_BOARD_STATUSES.has(status);
 
 export const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
   backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',

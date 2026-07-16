@@ -195,8 +195,9 @@ describe('AppointmentBoard', () => {
 
     fireEvent.click(screen.getByLabelText('Open appointment Buddy'));
 
-    expect(screen.getByText('Speciality: Wellness')).toBeInTheDocument();
-    expect(screen.getByText('Service: Consultation')).toBeInTheDocument();
+    // Design card anatomy: "Service · Lead" line plus a "Breed · Owner" sub-line.
+    expect(screen.getByText('Consultation · Dr. Lee')).toBeInTheDocument();
+    expect(screen.getByText('dog · Sam')).toBeInTheDocument();
     expect(setActiveAppointment).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'appt-completed' })
     );
@@ -260,7 +261,8 @@ describe('AppointmentBoard', () => {
       />
     );
 
-    expect(screen.getByText('Room / Unit: Ward 1 / Kennel A')).toBeInTheDocument();
+    // Design meta row shows the room value behind a location icon, unprefixed.
+    expect(screen.getByText('Ward 1 / Kennel A')).toBeInTheDocument();
   });
 
   it('triggers add appointment and date navigation callbacks', () => {
@@ -624,5 +626,140 @@ describe('AppointmentBoard', () => {
 
     expect(changeAppointmentStatus).not.toHaveBeenCalled();
     expect(mockNotify).not.toHaveBeenCalled();
+  });
+
+  it('flags an emergency card with the danger treatment and badge', () => {
+    render(
+      <AppointmentBoard
+        appointments={[
+          {
+            ...baseAppointment,
+            id: 'appt-emergency',
+            status: 'IN_PROGRESS',
+            isEmergency: true,
+          } as any,
+        ]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByLabelText('Emergency appointment')).toBeInTheDocument();
+    expect(screen.getByLabelText('Draggable appointment Buddy').className).toContain(
+      'border-l-[var(--danger)]'
+    );
+  });
+
+  it('mutes a completed card and keeps a live card at full strength', () => {
+    const { rerender } = render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-done', status: 'COMPLETED' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByLabelText('Appointment Buddy').className).toContain('opacity-[0.72]');
+
+    rerender(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-live', status: 'UPCOMING' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    const liveCard = screen.getByLabelText('Draggable appointment Buddy');
+    expect(liveCard.className).not.toContain('opacity-[0.72]');
+    expect(liveCard.className).toContain('shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]');
+  });
+
+  it('prefers the breed over the species in the card sub-line', () => {
+    render(
+      <AppointmentBoard
+        appointments={[
+          {
+            ...baseAppointment,
+            id: 'appt-breed',
+            status: 'UPCOMING',
+            companion: { ...baseAppointment.companion, breed: 'Beagle' },
+          } as any,
+        ]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByText('Beagle · Sam')).toBeInTheDocument();
+  });
+
+  it('omits the room chip and falls back to a dash when the card has no service or lead', () => {
+    render(
+      <AppointmentBoard
+        appointments={[
+          {
+            ...baseAppointment,
+            id: 'appt-bare',
+            status: 'UPCOMING',
+            room: undefined,
+            lead: undefined,
+            appointmentType: undefined,
+          } as any,
+        ]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getByText('-')).toBeInTheDocument();
+    expect(screen.queryByText('Room 1')).not.toBeInTheDocument();
+  });
+
+  it('opens each workspace intent from the card action rail', () => {
+    const setChangeStatusPopup = jest.fn();
+    const setChangeStatusPreferredStatus = jest.fn();
+    render(
+      <AppointmentBoard
+        appointments={[{ ...baseAppointment, id: 'appt-actions', status: 'IN_PROGRESS' } as any]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+        setActiveAppointment={setActiveAppointment}
+        setViewPopup={setViewPopup}
+        setChangeStatusPopup={setChangeStatusPopup}
+        setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('View appointment'));
+    expect(setViewPopup).toHaveBeenCalledWith(true);
+
+    fireEvent.click(screen.getByLabelText('Change status'));
+    expect(setChangeStatusPopup).toHaveBeenCalledWith(true);
+
+    fireEvent.click(screen.getByLabelText('Finance summary'));
+    expect(pushMock).toHaveBeenCalledWith('/appointments/appt-actions/workspace?step=INVOICE');
+
+    fireEvent.click(screen.getByLabelText('Lab tests'));
+    expect(pushMock).toHaveBeenCalledWith(expect.stringContaining('/workspace?step='));
+  });
+
+  it('renders the empty column panel and the add affordance per column', () => {
+    render(
+      <AppointmentBoard
+        appointments={[]}
+        currentDate={new Date('2026-03-16T00:00:00.000Z')}
+        setCurrentDate={setCurrentDate}
+        canEditAppointments
+      />
+    );
+
+    expect(screen.getAllByText('No appointments')).toHaveLength(7);
+    expect(screen.getByLabelText('Add appointment to Requested')).toBeInTheDocument();
   });
 });

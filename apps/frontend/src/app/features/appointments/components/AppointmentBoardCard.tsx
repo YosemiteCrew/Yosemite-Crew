@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import clsx from 'clsx';
 import { Appointment } from '@yosemite-crew/types';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { formatDateInPreferredTimeZone } from '@/app/lib/timezone';
@@ -12,7 +13,14 @@ import { AppointmentModePill } from '@/app/features/appointments/components/Appo
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { FaCheckCircle } from 'react-icons/fa';
 import { IoIosCalendar, IoIosCloseCircle } from 'react-icons/io';
-import { IoCardOutline, IoDocumentTextOutline, IoEyeOutline } from 'react-icons/io5';
+import {
+  IoCardOutline,
+  IoDocumentTextOutline,
+  IoEyeOutline,
+  IoLocationOutline,
+  IoTimeOutline,
+  IoWarning,
+} from 'react-icons/io5';
 import { RiHistoryLine } from 'react-icons/ri';
 import { MdMeetingRoom, MdOutlineAutorenew, MdScience } from 'react-icons/md';
 import { rejectAppointment } from '@/app/features/appointments/services/appointmentService';
@@ -28,7 +36,11 @@ import {
 } from '@/app/lib/appointments';
 import { canEnterAppointmentWorkspace } from '@/app/lib/appointmentWorkspace';
 import AppointmentPaymentBadge from '@/app/features/appointments/components/AppointmentPaymentBadge';
-import { getBoardOrgType } from '@/app/features/appointments/components/appointmentBoardHelpers';
+import {
+  getBoardOrgType,
+  isMutedBoardStatus,
+  normalizeStatus,
+} from '@/app/features/appointments/components/appointmentBoardHelpers';
 
 type AppointmentBoardCardProps = {
   appointment: Appointment;
@@ -51,6 +63,17 @@ type AppointmentBoardCardProps = {
   openAppointmentWorkspace: (appointment: Appointment, intent?: AppointmentViewIntent) => void;
   updatingStatusId: string | null;
 };
+
+const iconButtonClass =
+  'size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center';
+
+/** "Beagle · Lena Hartmann" — falls back to species when the breed is unknown. */
+const buildCompanionSubtitle = (companion: NonNullable<Appointment['companion']>) =>
+  [companion.breed || companion.species, companion.parent?.name].filter(Boolean).join(' · ');
+
+/** "Annual check-up · Dr. Weber" — the design's service line under the companion. */
+const buildServiceLine = (appointment: Appointment) =>
+  [appointment.appointmentType?.name, appointment.lead?.name].filter(Boolean).join(' · ') || '-';
 
 const AppointmentBoardCard = ({
   appointment,
@@ -78,6 +101,12 @@ const AppointmentBoardCard = ({
     companion.name,
     companion.parent
   );
+  const isDragging = draggedAppointmentId === (appointment.id ?? null);
+  const isEmergency = !!appointment.isEmergency;
+  // Completed / cancelled / no-show cards recede — design drops them to 72% and
+  // removes the lift shadow so live work stays dominant in the column.
+  const isMuted = isMutedBoardStatus(normalizeStatus(appointment.status));
+  const isRequested = isRequestedLikeStatus(appointment.status);
 
   return (
     <article
@@ -86,11 +115,19 @@ const AppointmentBoardCard = ({
           ? `Draggable appointment ${companionDisplayName}`
           : `Appointment ${companionDisplayName}`
       }
-      className={`relative w-full min-h-[142px] shrink-0 rounded-2xl! overflow-hidden border border-card-border bg-white px-4 py-3 text-left transition-colors flex flex-col items-stretch justify-start ${
-        draggedAppointmentId === (appointment.id ?? null)
+      className={clsx(
+        'relative w-full shrink-0 overflow-hidden rounded-[13px]! bg-neutral-0 px-3.5 py-3 text-left transition-colors flex flex-col items-stretch justify-start gap-2 border',
+        isEmergency
+          ? 'border-[var(--danger-border)] border-l-[3px] border-l-[var(--danger)]'
+          : 'border-card-border',
+        isMuted
+          ? 'opacity-[0.72] shadow-none'
+          : 'shadow-[0_1px_2px_var(--sh03),0_6px_16px_var(--sh05)]',
+        isDragging
           ? 'opacity-60 shadow-none'
-          : 'hover:border-input-border-active! hover:bg-card-hover!'
-      } ${isCardDraggable ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          : 'hover:border-input-border-active! hover:bg-card-hover!',
+        isCardDraggable && 'cursor-grab active:cursor-grabbing'
+      )}
       draggable={isCardDraggable}
       onDragStart={(event) => handleAppointmentDragStart(event, appointment.id)}
       onDragEnd={() => setDraggedAppointmentId(null)}
@@ -103,12 +140,23 @@ const AppointmentBoardCard = ({
           onClick={() => openAppointment(appointment)}
         />
       )}
-      <div className="relative z-10 flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="text-caption-1 font-semibold text-text-primary">
+
+      <div className="relative z-10 flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Image
+            src={getSafeImageUrl(
+              getAppointmentCompanionPhotoUrl(companion),
+              companion.species.toLowerCase() as ImageType
+            )}
+            height={28}
+            width={28}
+            className="size-7 shrink-0 rounded-full border border-card-border bg-neutral-0 object-cover"
+            alt=""
+          />
+          <div className="min-w-0">
             <button
               type="button"
-              className="break-words cursor-pointer hover:underline underline-offset-2 text-left"
+              className="block max-w-full truncate text-[13px] leading-4 font-bold text-[var(--ink)] cursor-pointer hover:underline underline-offset-2 text-left"
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -118,55 +166,57 @@ const AppointmentBoardCard = ({
             >
               {companionDisplayName}
             </button>
-            <div className="break-words text-[10px] font-normal text-text-secondary">
-              Speciality: {appointment.appointmentType?.speciality?.name || '-'}
-            </div>
-            <div className="break-words text-[10px] font-normal text-text-secondary">
-              Service: {appointment.appointmentType?.name || '-'}
-            </div>
-            <div className="break-words text-[10px] font-normal text-text-secondary">
-              Reason: {appointment.concern || '-'}
-            </div>
-            <div className="break-words text-[10px] font-normal text-text-secondary">
-              {roomDisplay.label}: {roomDisplay.value}
+            <div className="truncate text-[11px] leading-4 text-text-tertiary">
+              {buildCompanionSubtitle(companion)}
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <Image
-            src={getSafeImageUrl(
-              getAppointmentCompanionPhotoUrl(companion),
-              companion.species.toLowerCase() as ImageType
-            )}
-            height={24}
-            width={24}
-            className="size-6 rounded-full border border-card-border bg-white object-cover"
-            alt=""
-          />
-          <div className="text-[10px] text-text-secondary whitespace-nowrap">
+        {isEmergency && (
+          <span
+            className="shrink-0 inline-flex items-center gap-1 rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-2 py-[3px] text-[9px] font-bold uppercase leading-none tracking-[0.08em] text-[var(--danger-text)]"
+            aria-label="Emergency appointment"
+          >
+            <IoWarning size={9} aria-hidden="true" />
+            Emergency
+          </span>
+        )}
+      </div>
+
+      <div className="relative z-10 line-clamp-2 text-[12px] leading-4 text-text-secondary">
+        {buildServiceLine(appointment)}
+      </div>
+
+      <div className="relative z-10 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5 text-[11.5px] font-semibold text-text-tertiary">
+          <span className="flex shrink-0 items-center gap-1">
+            <IoTimeOutline size={12} aria-hidden="true" />
             {formatDateInPreferredTimeZone(appointment.startTime, {
               hour: 'numeric',
               minute: '2-digit',
             })}
-          </div>
+          </span>
+          {roomDisplay.value && roomDisplay.value !== '-' && (
+            <span className="flex min-w-0 items-center gap-1">
+              <IoLocationOutline size={12} aria-hidden="true" className="shrink-0" />
+              <span className="truncate">{roomDisplay.value}</span>
+            </span>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
           <AppointmentModePill
             appointment={appointment}
             className="h-6 px-2.5 text-[10px]"
             iconSize={12}
           />
+          <AppointmentPaymentBadge
+            appointment={appointment}
+            invoicesByAppointmentId={invoicesByAppointmentId}
+          />
         </div>
       </div>
-      <div className="relative z-10 pt-1 pb-1 border-t border-card-border/60 flex items-center justify-between gap-2">
-        <div className="text-[10px] text-text-secondary break-words">
-          Lead: {appointment.lead?.name || '-'}
-        </div>
-        <AppointmentPaymentBadge
-          appointment={appointment}
-          invoicesByAppointmentId={invoicesByAppointmentId}
-        />
-      </div>
-      {isRequestedLikeStatus(appointment.status) && (
-        <div className="relative z-10 mt-2 flex items-center justify-end gap-1">
+
+      {isRequested && (
+        <div className="relative z-10 flex items-center justify-end gap-1">
           <GlassTooltip content="Accept request" side="bottom">
             <button
               type="button"
@@ -197,21 +247,22 @@ const AppointmentBoardCard = ({
           </GlassTooltip>
         </div>
       )}
-      {!isRequestedLikeStatus(appointment.status) && (
-        <div className="relative z-10 mt-2 flex items-center gap-1.5 flex-wrap max-w-[184px]">
+
+      {!isRequested && (
+        <div className="relative z-10 flex items-center gap-1.5 flex-wrap max-w-[184px]">
           {canEnterAppointmentWorkspace(appointment.status) && (
             <GlassTooltip content="View appointment" side="bottom">
               <button
                 type="button"
                 aria-label="View appointment"
-                className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                className={iconButtonClass}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   openAppointment(appointment);
                 }}
               >
-                <IoEyeOutline size={16} color="var(--color-neutral-900)" />
+                <IoEyeOutline size={14} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
           )}
@@ -219,7 +270,7 @@ const AppointmentBoardCard = ({
             <button
               type="button"
               aria-label="Overview"
-              className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+              className={iconButtonClass}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -227,7 +278,7 @@ const AppointmentBoardCard = ({
               }}
               title="Appointment overview"
             >
-              <RiHistoryLine size={15} color="var(--color-neutral-900)" />
+              <RiHistoryLine size={13} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
           {canEditAppointments && canShowStatusChangeAction(appointment.status) && (
@@ -235,14 +286,14 @@ const AppointmentBoardCard = ({
               <button
                 type="button"
                 aria-label="Change status"
-                className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                className={iconButtonClass}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   openChangeStatus(appointment);
                 }}
               >
-                <MdOutlineAutorenew size={15} color="var(--color-neutral-900)" />
+                <MdOutlineAutorenew size={13} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
           )}
@@ -251,14 +302,14 @@ const AppointmentBoardCard = ({
               <button
                 type="button"
                 aria-label="Reschedule"
-                className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                className={iconButtonClass}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   openReschedule(appointment);
                 }}
               >
-                <IoIosCalendar size={15} color="var(--color-neutral-900)" />
+                <IoIosCalendar size={13} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
           )}
@@ -267,14 +318,14 @@ const AppointmentBoardCard = ({
               <button
                 type="button"
                 aria-label="Assign room"
-                className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+                className={iconButtonClass}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
                   openChangeRoom(appointment);
                 }}
               >
-                <MdMeetingRoom size={15} color="var(--color-neutral-900)" />
+                <MdMeetingRoom size={13} color="var(--color-neutral-900)" />
               </button>
             </GlassTooltip>
           )}
@@ -285,7 +336,7 @@ const AppointmentBoardCard = ({
             <button
               type="button"
               aria-label={getClinicalNotesLabel(getBoardOrgType(appointment, orgsById))}
-              className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+              className={iconButtonClass}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -296,41 +347,42 @@ const AppointmentBoardCard = ({
               }}
               title={getClinicalNotesLabel(getBoardOrgType(appointment, orgsById))}
             >
-              <IoDocumentTextOutline size={15} color="var(--color-neutral-900)" />
+              <IoDocumentTextOutline size={13} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
           <GlassTooltip content="Finance summary" side="bottom">
             <button
               type="button"
               aria-label="Finance summary"
-              className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+              className={iconButtonClass}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 openAppointmentWorkspace(appointment, { label: 'finance', subLabel: 'summary' });
               }}
             >
-              <IoCardOutline size={15} color="var(--color-neutral-900)" />
+              <IoCardOutline size={13} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
           <GlassTooltip content="Lab tests" side="bottom">
             <button
               type="button"
               aria-label="Lab tests"
-              className="size-8 rounded-full! border border-black-text! bg-white flex items-center justify-center"
+              className={iconButtonClass}
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 openAppointmentWorkspace(appointment, { label: 'labs', subLabel: 'idexx-labs' });
               }}
             >
-              <MdScience size={15} color="var(--color-neutral-900)" />
+              <MdScience size={13} color="var(--color-neutral-900)" />
             </button>
           </GlassTooltip>
         </div>
       )}
+
       {updatingStatusId === appointment.id && (
-        <div className="relative z-10 mt-1 text-[10px] text-text-secondary">Updating…</div>
+        <div className="relative z-10 text-[10px] text-text-tertiary">Updating…</div>
       )}
     </article>
   );
