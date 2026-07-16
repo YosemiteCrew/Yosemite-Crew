@@ -13,6 +13,19 @@ jest.mock('@/hooks', () => ({
   useTheme: () => ({theme: mockTheme, isDark: false}),
 }));
 
+const TASKS_TRANSLATIONS: Record<string, string> = {
+  'tasks.title': 'Tasks',
+  'tasks.emptyNoCompanionTitle': 'Add a companion to get started',
+  'tasks.emptyNoCompanionDescription':
+    'Tasks like doses, grooming and feeding plans are tied to a companion. Add one first to start creating tasks.',
+  'tasks.emptyNoCompanionAction': 'Add a companion',
+};
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => TASKS_TRANSLATIONS[key] ?? key,
+  }),
+}));
+
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: mockNavigate,

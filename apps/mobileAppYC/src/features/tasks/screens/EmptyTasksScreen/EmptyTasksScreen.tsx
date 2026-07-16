@@ -1,6 +1,7 @@
 import React from 'react';
 import {View, StyleSheet} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import {useTranslation} from 'react-i18next';
 import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {Header} from '@/shared/components/common/Header/Header';
@@ -14,6 +15,7 @@ type TasksNavigationProp = NativeStackNavigationProp<TaskStackParamList>;
 
 export const EmptyTasksScreen: React.FC = () => {
   const {theme} = useTheme();
+  const {t} = useTranslation();
   const navigation = useNavigation<TasksNavigationProp>();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
@@ -29,7 +31,7 @@ export const EmptyTasksScreen: React.FC = () => {
     <LiquidGlassHeaderScreen
       header={
         <Header
-          title="Tasks"
+          title={t('tasks.title')}
           variant="root"
           showBackButton={false}
           glass={false}
@@ -50,9 +52,9 @@ export const EmptyTasksScreen: React.FC = () => {
                 color={theme.colors.blueText}
               />
             }
-            title="Add a companion to get started"
-            description="Tasks like doses, grooming and feeding plans are tied to a companion. Add one first to start creating tasks."
-            actionLabel="Add a companion"
+            title={t('tasks.emptyNoCompanionTitle')}
+            description={t('tasks.emptyNoCompanionDescription')}
+            actionLabel={t('tasks.emptyNoCompanionAction')}
             actionIcon={
               <Ionicons name="add" size={18} color={theme.colors.ctaText} />
             }

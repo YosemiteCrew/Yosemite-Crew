@@ -227,5 +227,11 @@
     "locationPermissionMessage": "Permite que Yosemite Crew muestre negocios veterinarios cerca de ti.",
     "locationPermissionAllow": "Permitir",
     "locationPermissionDeny": "Denegar"
+  },
+  "tasks": {
+    "title": "Tareas",
+    "emptyNoCompanionTitle": "Añade un compañero para empezar",
+    "emptyNoCompanionDescription": "Tareas como dosis, aseo y planes de alimentación están vinculadas a un compañero. Añade uno primero para empezar a crear tareas.",
+    "emptyNoCompanionAction": "Añadir un compañero"
   }
 }
