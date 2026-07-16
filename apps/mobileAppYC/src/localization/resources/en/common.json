@@ -272,5 +272,23 @@
     "poweredByGoogle": "Powered by Google",
     "bottomSheetTitle": "Address",
     "close": "Close"
+  },
+  "onboarding": {
+    "slide1_lead": "Every companion has a story.",
+    "slide1_accent": "Keep it whole.",
+    "slide1_subtitle": "Cats, dogs and horses: visits, doses and documents on one timeline you own.",
+    "slide2_lead": "Share the care,",
+    "slide2_accent": "together.",
+    "slide2_subtitle": "Partners, kids, dog walkers and sitters see the same reminders, the same doses, the same vet thread.",
+    "slide3_lead": "Book without",
+    "slide3_accent": "the phone call.",
+    "slide3_subtitle": "Real openings at your linked clinic, records that travel with you, bills settled in two taps.",
+    "continue": "Continue",
+    "getStarted": "Get started",
+    "back": "Back",
+    "skip": "Skip",
+    "skipOnboarding": "Skip onboarding",
+    "alreadyHaveAccount": "Already have an account? ",
+    "signIn": "Sign in"
   }
 }

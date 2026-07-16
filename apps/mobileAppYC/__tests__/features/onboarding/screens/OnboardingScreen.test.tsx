@@ -20,6 +20,35 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({top: 0, bottom: 0, left: 0, right: 0}),
 }));
 
+// 3. react-i18next — real English defaults so text/label assertions below
+// keep matching the same strings as before translation.
+const ONBOARDING_TRANSLATIONS: Record<string, string> = {
+  'onboarding.slide1_lead': 'Every companion has a story.',
+  'onboarding.slide1_accent': 'Keep it whole.',
+  'onboarding.slide1_subtitle':
+    'Cats, dogs and horses: visits, doses and documents on one timeline you own.',
+  'onboarding.slide2_lead': 'Share the care,',
+  'onboarding.slide2_accent': 'together.',
+  'onboarding.slide2_subtitle':
+    'Partners, kids, dog walkers and sitters see the same reminders, the same doses, the same vet thread.',
+  'onboarding.slide3_lead': 'Book without',
+  'onboarding.slide3_accent': 'the phone call.',
+  'onboarding.slide3_subtitle':
+    'Real openings at your linked clinic, records that travel with you, bills settled in two taps.',
+  'onboarding.continue': 'Continue',
+  'onboarding.getStarted': 'Get started',
+  'onboarding.back': 'Back',
+  'onboarding.skip': 'Skip',
+  'onboarding.skipOnboarding': 'Skip onboarding',
+  'onboarding.alreadyHaveAccount': 'Already have an account? ',
+  'onboarding.signIn': 'Sign in',
+};
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => ONBOARDING_TRANSLATIONS[key] ?? key,
+  }),
+}));
+
 // react-native-svg, react-native-reanimated and react-native-linear-gradient
 // are mocked globally in jest.setup.js, so InkAnnotation + the gradient render
 // as plain hosts here.

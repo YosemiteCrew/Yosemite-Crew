@@ -13,6 +13,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import Video from 'react-native-video';
+import {useTranslation} from 'react-i18next';
 import {useTheme} from '@/hooks';
 import {InkAnnotation} from '@/shared/components/common/InkAnnotation';
 import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
@@ -39,38 +40,11 @@ const VIDEO_CAT = require('../../../assets/video/loop-cat.mp4');
 const VIDEO_DOG = require('../../../assets/video/loop-dog.mp4');
 const VIDEO_CARE = require('../../../assets/video/loop-care.mp4');
 
-const SLIDES: Slide[] = [
-  {
-    id: '1',
-    video: VIDEO_CAT,
-    lead: 'Every companion has a story.',
-    accent: 'Keep it whole.',
-    accentDelay: 1000,
-    subtitle:
-      'Cats, dogs and horses: visits, doses and documents on one timeline you own.',
-    cta: 'Continue',
-  },
-  {
-    id: '2',
-    video: VIDEO_DOG,
-    lead: 'Share the care,',
-    accent: 'together.',
-    accentDelay: 600,
-    subtitle:
-      'Partners, kids, dog walkers and sitters see the same reminders, the same doses, the same vet thread.',
-    cta: 'Continue',
-  },
-  {
-    id: '3',
-    video: VIDEO_CARE,
-    lead: 'Book without',
-    accent: 'the phone call.',
-    accentDelay: 600,
-    subtitle:
-      'Real openings at your linked clinic, records that travel with you, bills settled in two taps.',
-    cta: 'Get started',
-  },
-];
+const SLIDE_META = [
+  {id: '1', video: VIDEO_CAT, accentDelay: 1000},
+  {id: '2', video: VIDEO_DOG, accentDelay: 600},
+  {id: '3', video: VIDEO_CARE, accentDelay: 600},
+] as const;
 
 const CLUSTER = [
   {
@@ -96,10 +70,38 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
   onComplete,
 }) => {
   const {theme} = useTheme();
+  const {t} = useTranslation();
   const {width, height} = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<Slide>>(null);
   const reduceMotion = useReducedMotion();
+
+  const SLIDES: Slide[] = useMemo(
+    () => [
+      {
+        ...SLIDE_META[0],
+        lead: t('onboarding.slide1_lead'),
+        accent: t('onboarding.slide1_accent'),
+        subtitle: t('onboarding.slide1_subtitle'),
+        cta: t('onboarding.continue'),
+      },
+      {
+        ...SLIDE_META[1],
+        lead: t('onboarding.slide2_lead'),
+        accent: t('onboarding.slide2_accent'),
+        subtitle: t('onboarding.slide2_subtitle'),
+        cta: t('onboarding.continue'),
+      },
+      {
+        ...SLIDE_META[2],
+        lead: t('onboarding.slide3_lead'),
+        accent: t('onboarding.slide3_accent'),
+        subtitle: t('onboarding.slide3_subtitle'),
+        cta: t('onboarding.getStarted'),
+      },
+    ],
+    [t],
+  );
 
   const onViewableItemsChanged = useRef(
     ({viewableItems}: {viewableItems: ViewToken[]}) => {
@@ -128,7 +130,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
       }
       flatListRef.current?.scrollToIndex({index: index + 1, animated: true});
     },
-    [onComplete],
+    [SLIDES.length, onComplete],
   );
 
   const renderSlide = useCallback<ListRenderItem<Slide>>(
@@ -177,7 +179,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
                     })
                   }
                   accessibilityRole="button"
-                  accessibilityLabel="Back">
+                  accessibilityLabel={t('onboarding.back')}>
                   <Text style={styles.chevron}>‹</Text>
                 </PressableOpacity>
               )}
@@ -186,8 +188,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
                   style={styles.skipPill}
                   onPress={onComplete}
                   accessibilityRole="button"
-                  accessibilityLabel="Skip onboarding">
-                  <Text style={styles.skipText}>Skip</Text>
+                  accessibilityLabel={t('onboarding.skipOnboarding')}>
+                  <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
                 </PressableOpacity>
               ) : (
                 <View style={styles.glassCircle} />
@@ -260,10 +262,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
 
                 <View style={styles.signInRow}>
                   <Text style={styles.signInMuted}>
-                    Already have an account?{' '}
+                    {t('onboarding.alreadyHaveAccount')}
                   </Text>
                   <Text style={styles.signInLink} onPress={onComplete}>
-                    Sign in
+                    {t('onboarding.signIn')}
                   </Text>
                 </View>
               </View>
@@ -273,6 +275,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
       );
     },
     [
+      SLIDES,
       accentTextStyle,
       currentIndex,
       goNext,
@@ -280,6 +283,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({
       onComplete,
       reduceMotion,
       styles,
+      t,
       theme.colors.pink,
       theme.colors.screen,
       width,

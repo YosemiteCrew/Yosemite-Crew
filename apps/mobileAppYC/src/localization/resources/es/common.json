@@ -272,5 +272,23 @@
     "poweredByGoogle": "Desarrollado por Google",
     "bottomSheetTitle": "Dirección",
     "close": "Cerrar"
+  },
+  "onboarding": {
+    "slide1_lead": "Cada compañero tiene una historia.",
+    "slide1_accent": "Consérvala entera.",
+    "slide1_subtitle": "Gatos, perros y caballos: visitas, dosis y documentos en una sola línea de tiempo que tú controlas.",
+    "slide2_lead": "Comparte el cuidado,",
+    "slide2_accent": "juntos.",
+    "slide2_subtitle": "Parejas, hijos, paseadores y cuidadores ven los mismos recordatorios, las mismas dosis, el mismo hilo con el veterinario.",
+    "slide3_lead": "Reserva sin",
+    "slide3_accent": "la llamada telefónica.",
+    "slide3_subtitle": "Horarios reales en tu clínica vinculada, registros que viajan contigo, pagos resueltos en dos toques.",
+    "continue": "Continuar",
+    "getStarted": "Comenzar",
+    "back": "Atrás",
+    "skip": "Omitir",
+    "skipOnboarding": "Omitir introducción",
+    "alreadyHaveAccount": "¿Ya tienes una cuenta? ",
+    "signIn": "Iniciar sesión"
   }
 }
