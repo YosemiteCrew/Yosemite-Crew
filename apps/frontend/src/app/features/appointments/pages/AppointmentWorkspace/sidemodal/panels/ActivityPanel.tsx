@@ -1,9 +1,9 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { IoReaderOutline } from 'react-icons/io5';
 import type { Appointment } from '@yosemite-crew/types';
 import type { AuditTrail } from '@/app/features/audit/types/audit';
-import { getAppointmentAuditTrail } from '@/app/features/audit/services/auditService';
+import { useAppointmentAuditTrail } from '@/app/features/audit/hooks/useAppointmentAuditTrail';
 import { toTitle } from '@/app/lib/validators';
 import { formatDateTimeLocal } from '@/app/lib/date';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
@@ -54,27 +54,7 @@ const getEntityLabel = (entityType?: string | null): string => {
  */
 const ActivityPanel = ({ appointment }: ActivityPanelProps) => {
   const appointmentId = appointment.id;
-  const [entries, setEntries] = useState<AuditTrail[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!appointmentId) {
-        setEntries([]);
-        return;
-      }
-      try {
-        const data = await getAppointmentAuditTrail(appointmentId);
-        if (!cancelled) setEntries(data ?? []);
-      } catch {
-        if (!cancelled) setEntries([]);
-      }
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [appointmentId]);
+  const entries = useAppointmentAuditTrail(appointmentId);
 
   return (
     <PermissionGate allOf={[PERMISSIONS.AUDIT_VIEW_ANY]} fallback={<Fallback />}>
