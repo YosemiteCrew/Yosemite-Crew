@@ -277,6 +277,34 @@ describe('AppUpdateBottomSheet', () => {
       openURL.mockRestore();
     });
 
+    it('refuses to open an untrusted store URL and never calls Linking.openURL', async () => {
+      const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const openURL = jest
+        .spyOn(Linking, 'openURL')
+        .mockResolvedValue(undefined as any);
+
+      render(
+        <AppUpdateBottomSheet
+          prompt={{...optionalPrompt, storeUrl: 'https://evil.example.com/x'}}
+        />,
+      );
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('appUpdate.updateNowButton'));
+      });
+
+      expect(openURL).not.toHaveBeenCalled();
+      expect(alertSpy).toHaveBeenCalledWith(
+        'common.error',
+        'appUpdate.openStoreFailed',
+      );
+      expect(warnSpy).toHaveBeenCalled();
+
+      alertSpy.mockRestore();
+      warnSpy.mockRestore();
+      openURL.mockRestore();
+    });
+
     it('disables the primary button for a required prompt with no store URL', () => {
       const openURL = jest
         .spyOn(Linking, 'openURL')

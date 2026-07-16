@@ -1,6 +1,7 @@
 import {
   compareVersions,
   evaluateAppUpdatePrompt,
+  isTrustedStoreUrl,
   shouldShowOptionalPrompt,
 } from '@/features/appUpdate/services/appUpdatePolicy';
 import {Platform} from 'react-native';
@@ -370,6 +371,54 @@ describe('appUpdatePolicy', () => {
       currentVersion: '9.9.9',
       currentBuildNumber: 0,
       bundleId: 'unknown.bundle.id',
+    });
+  });
+
+  describe('isTrustedStoreUrl', () => {
+    it('trusts the Apple App Store domain', () => {
+      expect(
+        isTrustedStoreUrl('https://apps.apple.com/us/app/yc/id123456'),
+      ).toBe(true);
+    });
+
+    it('trusts the legacy itunes.apple.com domain', () => {
+      expect(isTrustedStoreUrl('https://itunes.apple.com/app/id123456')).toBe(
+        true,
+      );
+    });
+
+    it('trusts the itms-apps:// scheme used for direct App Store links', () => {
+      expect(
+        isTrustedStoreUrl('itms-apps://itunes.apple.com/app/id123456'),
+      ).toBe(true);
+    });
+
+    it('trusts the Google Play Store domain', () => {
+      expect(
+        isTrustedStoreUrl(
+          'https://play.google.com/store/apps/details?id=com.yc',
+        ),
+      ).toBe(true);
+    });
+
+    it('trusts the market:// scheme used for direct Play Store links', () => {
+      expect(isTrustedStoreUrl('market://details?id=com.yc')).toBe(true);
+    });
+
+    it('rejects a lookalike domain that merely contains a trusted hostname', () => {
+      expect(
+        isTrustedStoreUrl('https://apps.apple.com.evil.com/app/id123456'),
+      ).toBe(false);
+    });
+
+    it('rejects a userinfo-spoofed URL', () => {
+      expect(
+        isTrustedStoreUrl('https://apps.apple.com@evil.com/app/id123456'),
+      ).toBe(false);
+    });
+
+    it('rejects an arbitrary untrusted URL', () => {
+      expect(isTrustedStoreUrl('https://evil.example.com/payload')).toBe(false);
     });
   });
 });

@@ -10,7 +10,10 @@ import {PrimaryActionButton} from '@/shared/components/common/PrimaryActionButto
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import type {Theme} from '@/theme';
-import type {AppUpdatePrompt} from '@/features/appUpdate/services/appUpdatePolicy';
+import {
+  isTrustedStoreUrl,
+  type AppUpdatePrompt,
+} from '@/features/appUpdate/services/appUpdatePolicy';
 
 export type AppUpdateBottomSheetRef = {
   open: () => void;
@@ -80,6 +83,15 @@ const AppUpdateBottomSheet = ({
   const handleOpenStore = async () => {
     if (!prompt.storeUrl) {
       Alert.alert(t('common.error'), t('appUpdate.missingStoreUrl'));
+      return;
+    }
+
+    if (!isTrustedStoreUrl(prompt.storeUrl)) {
+      console.warn(
+        '[AppUpdate] Refusing to open untrusted store URL',
+        prompt.storeUrl,
+      );
+      Alert.alert(t('common.error'), t('appUpdate.openStoreFailed'));
       return;
     }
 
