@@ -29,7 +29,7 @@ const STATUS_LABELS: Record<Appointment['status'], string> = {
 
 /** `CHECKED_IN` -> `checked-in`, matching the `--status-*` token names. */
 const statusToken = (status: Appointment['status']): string =>
-  status.toLowerCase().replace(/_/g, '-');
+  status.toLowerCase().replaceAll('_', '-');
 
 const blockTitle = (appointment: Appointment): string => {
   const detail = appointment.concern ?? appointment.appointmentType?.name;

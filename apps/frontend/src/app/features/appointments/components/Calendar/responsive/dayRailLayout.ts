@@ -188,7 +188,9 @@ export const minutesToPct = (layout: DayRailLayout, minutesFromMidnight: number)
   if (segments.length === 0) return 0;
 
   const first = segments[0];
-  const last = segments[segments.length - 1];
+  // Non-null: the empty case returned above, so `.at(-1)` cannot miss. A runtime
+  // guard here would be an unreachable branch.
+  const last = segments.at(-1)!;
   if (minutesFromMidnight <= first.startMinutes) return 0;
   if (minutesFromMidnight >= last.endMinutes) return 100;
 

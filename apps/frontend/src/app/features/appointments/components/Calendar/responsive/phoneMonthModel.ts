@@ -140,7 +140,10 @@ export const getIsoWeekNumber = (year: number, month: number, day: number): numb
 
 /** Maps an appointment count onto the dot band it belongs to, capped at MAX_LOAD_DOTS. */
 export const getLoadDotCount = (appointmentCount: number): number => {
-  if (!(appointmentCount > 0)) return 0;
+  // NaN is checked explicitly rather than relying on `!(count > 0)`: a bare
+  // `count <= 0` is false for NaN, which would fall through to findIndex and
+  // report a NaN day as MAX_LOAD_DOTS - a full day - instead of an empty one.
+  if (Number.isNaN(appointmentCount) || appointmentCount <= 0) return 0;
   const band = LOAD_DOT_THRESHOLDS.findIndex((threshold) => appointmentCount <= threshold);
   return band === -1 ? MAX_LOAD_DOTS : band + 1;
 };
@@ -228,7 +231,9 @@ const buildPeek = (
       visible.length
     )}`,
     appointmentCount: visible.length,
-    items: visible.slice(0, DAY_PEEK_LIMIT).map(buildPeekItem),
+    items: visible
+      .slice(0, DAY_PEEK_LIMIT)
+      .map((appointment, index) => buildPeekItem(appointment, index)),
     hiddenCount: Math.max(visible.length - DAY_PEEK_LIMIT, 0),
   };
 };
