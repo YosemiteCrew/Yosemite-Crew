@@ -1,6 +1,11 @@
 // test/services/stripe.service.test.ts
 import { StripeService } from "../../src/services/stripe.service";
-import { FinancePaymentService } from "../../src/services/finance/payment";
+import {
+  FinancePaymentService,
+  FinancePaymentError,
+  assertInvoiceInScope,
+  resolveStripeConnectedAccountId,
+} from "../../src/services/finance/payment";
 import { FinanceSubscriptionService } from "../../src/services/finance/subscription";
 import { NotificationService } from "../../src/services/notification.service";
 import { prisma } from "src/config/prisma";
@@ -55,6 +60,17 @@ jest.mock("../../src/services/invoice.service", () => ({
 
 jest.mock("../../src/services/finance/payment", () => ({
   __esModule: true,
+  resolveStripeConnectedAccountId: jest.fn().mockResolvedValue(null),
+  assertInvoiceInScope: jest.fn(),
+  FinancePaymentError: class FinancePaymentError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+    ) {
+      super(message);
+      this.name = "FinancePaymentError";
+    }
+  },
   FinancePaymentService: {
     createPaymentIntentForInvoice: jest.fn(),
     createCheckoutSessionForInvoice: jest.fn(),
@@ -493,11 +509,16 @@ describe("StripeService", () => {
         currency: "usd",
       });
 
-      const result = await StripeService.createPaymentIntentForInvoice("inv_1");
+      const result = await StripeService.createPaymentIntentForInvoice(
+        "inv_1",
+        {
+          organisationId: "org_1",
+        },
+      );
 
       expect(
         FinancePaymentService.createPaymentIntentForInvoice,
-      ).toHaveBeenCalledWith("inv_1");
+      ).toHaveBeenCalledWith("inv_1", { organisationId: "org_1" });
 
       expect(result).toEqual({
         paymentIntentId: "pi_inv",
@@ -512,7 +533,9 @@ describe("StripeService", () => {
         FinancePaymentService.createPaymentIntentForInvoice as jest.Mock
       ).mockRejectedValueOnce(new Error("Invoice is not payable"));
       await expect(
-        StripeService.createPaymentIntentForInvoice("inv_1"),
+        StripeService.createPaymentIntentForInvoice("inv_1", {
+          organisationId: "org_1",
+        }),
       ).rejects.toThrow("Invoice is not payable");
     });
   });
@@ -578,6 +601,114 @@ describe("StripeService", () => {
 
       const result = await StripeService.retrieveCheckoutSession("sess_1");
       expect(result).toEqual({ status: "paid", total: 123 });
+    });
+
+    it("retrieves the session on the connected account it was created on", async () => {
+      (resolveStripeConnectedAccountId as jest.Mock).mockResolvedValueOnce(
+        "acct_session",
+      );
+      mStripe.checkout.sessions.retrieve.mockResolvedValueOnce({
+        payment_status: "paid",
+        amount_total: 5000,
+      });
+
+      await StripeService.retrieveCheckoutSession("sess_2");
+
+      expect(mStripe.checkout.sessions.retrieve).toHaveBeenCalledWith(
+        "sess_2",
+        {},
+        { stripeAccount: "acct_session" },
+      );
+    });
+
+    it("projects only status and total, never the raw session", async () => {
+      // This route is public for the success/cancel pages.
+      mStripe.checkout.sessions.retrieve.mockResolvedValueOnce({
+        payment_status: "paid",
+        amount_total: 999,
+        customer_details: { email: "owner@example.com" },
+        payment_intent: { id: "pi_secret", client_secret: "cs_secret" },
+        metadata: { invoiceId: "inv_1" },
+      });
+
+      const result = await StripeService.retrieveCheckoutSession("sess_3");
+
+      expect(Object.keys(result).sort()).toEqual(["status", "total"]);
+    });
+  });
+
+  describe("retrievePaymentIntent scoping", () => {
+    it("hides a payment intent belonging to another parent", async () => {
+      (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+        invoice: {
+          id: "inv_1",
+          organisationId: "org_1",
+          parentId: "parent_owner",
+        },
+      });
+      (assertInvoiceInScope as jest.Mock).mockImplementationOnce(() => {
+        throw new FinancePaymentError("Invoice not found", 404);
+      });
+
+      await expect(
+        StripeService.retrievePaymentIntent("pi_1", {
+          parentId: "parent_attacker",
+        }),
+      ).rejects.toThrow("Invoice not found");
+      expect(mStripe.paymentIntents.retrieve).not.toHaveBeenCalled();
+    });
+
+    it("throws when no local attempt binds the payment intent", async () => {
+      (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce(
+        null,
+      );
+
+      await expect(
+        StripeService.retrievePaymentIntent("pi_unknown", {
+          organisationId: "org_1",
+        }),
+      ).rejects.toThrow("Payment intent not found");
+      expect(mStripe.paymentIntents.retrieve).not.toHaveBeenCalled();
+    });
+
+    it("retrieves the payment intent on its connected account", async () => {
+      (prisma.paymentAttempt.findFirst as jest.Mock).mockResolvedValueOnce({
+        invoice: { id: "inv_1", organisationId: "org_1", parentId: "parent_1" },
+      });
+      (resolveStripeConnectedAccountId as jest.Mock).mockResolvedValueOnce(
+        "acct_pi",
+      );
+      mStripe.paymentIntents.retrieve.mockResolvedValueOnce({ id: "pi_1" });
+
+      await StripeService.retrievePaymentIntent("pi_1", {
+        organisationId: "org_1",
+      });
+
+      expect(mStripe.paymentIntents.retrieve).toHaveBeenCalledWith(
+        "pi_1",
+        {},
+        { stripeAccount: "acct_pi" },
+      );
+    });
+  });
+
+  describe("createBusinessCheckoutSession readiness gate", () => {
+    it("refuses checkout while the connected account cannot accept payments", async () => {
+      (
+        FinanceSubscriptionService.prepareBusinessCheckoutSession as jest.Mock
+      ).mockResolvedValueOnce({
+        orgName: "Test Org",
+        connectAccountId: "acct_1",
+        externalCustomerId: "cus_1",
+        priceId: "price_month_mock",
+        seats: 2,
+        canAcceptPayments: false,
+      });
+
+      await expect(
+        StripeService.createBusinessCheckoutSession("org_1", "month"),
+      ).rejects.toThrow("Organisation cannot accept payments yet");
+      expect(mStripe.checkout.sessions.create).not.toHaveBeenCalled();
     });
   });
 
@@ -652,6 +783,7 @@ describe("StripeService", () => {
         externalCustomerId: null,
         priceId: "price_month_mock",
         seats: 3,
+        canAcceptPayments: true,
       });
       mStripe.customers.create.mockResolvedValueOnce({ id: "cus_1" });
       mStripe.checkout.sessions.create.mockResolvedValueOnce({
@@ -710,6 +842,7 @@ describe("StripeService", () => {
         externalCustomerId: "cus_existing",
         priceId: "price_year_mock",
         seats: 4,
+        canAcceptPayments: true,
       });
       mStripe.checkout.sessions.create.mockResolvedValueOnce({
         url: "http://checkout.url",

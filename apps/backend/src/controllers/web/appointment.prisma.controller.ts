@@ -340,13 +340,16 @@ export const AppointmentController = {
   },
 
   markReadyForBillingForPMS: async (
-    req: Request<{ appointmentId: string }>,
+    req: Request<{ appointmentId: string; organisationId: string }>,
     res: Response,
   ) => {
     try {
       await InvoiceService.markAppointmentReadyForBilling(
         req.params.appointmentId,
-        resolveUserIdFromRequest(req),
+        {
+          organisationId: req.params.organisationId,
+          actorUserId: resolveUserIdFromRequest(req),
+        },
       );
       return res
         .status(200)
@@ -362,13 +365,16 @@ export const AppointmentController = {
   },
 
   reverseReadyForBillingForPMS: async (
-    req: Request<{ appointmentId: string }>,
+    req: Request<{ appointmentId: string; organisationId: string }>,
     res: Response,
   ) => {
     try {
       const invoice = await InvoiceService.reverseAppointmentReadyForBilling(
         req.params.appointmentId,
-        resolveUserIdFromRequest(req),
+        {
+          organisationId: req.params.organisationId,
+          actorUserId: resolveUserIdFromRequest(req),
+        },
       );
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });

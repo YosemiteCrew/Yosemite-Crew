@@ -1,6 +1,32 @@
 import { Request, Response } from "express";
 import { StripeService } from "src/services/stripe.service";
+import { FinancePaymentError } from "src/services/finance/payment";
+import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import logger from "src/utils/logger";
+import { OrgRequest } from "src/middlewares/rbac";
+import { AuthenticatedRequest } from "src/middlewares/auth";
+
+// PMS routes are bound to the organisation the RBAC middleware authorized;
+// mobile routes fall back to the pet parent linked to the session.
+const resolveInvoiceScope = async (req: Request) => {
+  const organisationId = (req as OrgRequest).organisationId;
+  if (organisationId) {
+    return { organisationId, parentId: null };
+  }
+
+  const authReq = req as AuthenticatedRequest;
+  if (!authReq.userId) {
+    return { organisationId: null, parentId: null };
+  }
+
+  const authUser = await AuthUserMobileService.getByProviderUserId(
+    authReq.userId,
+  );
+  return { organisationId: null, parentId: authUser?.parentId ?? null };
+};
+
+const sendScopeError = (res: Response) =>
+  res.status(403).json({ error: "Caller is not bound to a tenant" });
 
 export const StripeController = {
   createOrGetConnectedAccount: async (req: Request, res: Response) => {
@@ -166,10 +192,21 @@ export const StripeController = {
   createPaymentIntentForInvoice: async (req: Request, res: Response) => {
     try {
       const { invoiceId } = req.params;
-      const paymentIntent =
-        await StripeService.createPaymentIntentForInvoice(invoiceId);
+      const scope = await resolveInvoiceScope(req);
+      if (!scope.organisationId && !scope.parentId) {
+        return sendScopeError(res);
+      }
+
+      const paymentIntent = await StripeService.createPaymentIntentForInvoice(
+        invoiceId,
+        scope,
+      );
       return res.status(200).json(paymentIntent);
     } catch (err) {
+      if (err instanceof FinancePaymentError) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
+
       logger.error("Error createPaymentIntentForInvoice:", err);
       return res.status(400).json({
         error: err instanceof Error ? err.message : "Unknown error",
@@ -180,10 +217,21 @@ export const StripeController = {
   retrievePaymentIntent: async (req: Request, res: Response) => {
     try {
       const { paymentIntentId } = req.params;
-      const paymentIntent =
-        await StripeService.retrievePaymentIntent(paymentIntentId);
+      const scope = await resolveInvoiceScope(req);
+      if (!scope.organisationId && !scope.parentId) {
+        return sendScopeError(res);
+      }
+
+      const paymentIntent = await StripeService.retrievePaymentIntent(
+        paymentIntentId,
+        scope,
+      );
       return res.status(200).json(paymentIntent);
     } catch (err) {
+      if (err instanceof FinancePaymentError) {
+        return res.status(err.statusCode).json({ error: err.message });
+      }
+
       logger.error("Error retrievePaymentIntent:", err);
       return res.status(400).json({
         error: err instanceof Error ? err.message : "Unknown error",

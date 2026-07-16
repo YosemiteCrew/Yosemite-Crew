@@ -30,6 +30,15 @@ jest.mock("../../../src/services/invoice.service", () => ({
 }));
 
 jest.mock("../../../src/services/finance/payment", () => ({
+  FinancePaymentError: class FinancePaymentError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+    ) {
+      super(message);
+      this.name = "FinancePaymentError";
+    }
+  },
   FinancePaymentService: {
     recordInvoicePayment: jest.fn(),
     refundPaymentById: jest.fn(),
@@ -100,7 +109,12 @@ describe("FinanceController", () => {
     jsonMock = jest.fn();
     statusMock = jest.fn().mockReturnValue({ json: jsonMock });
 
-    req = { params: {}, body: {}, query: {} };
+    req = {
+      params: {},
+      body: {},
+      query: {},
+      organisationId: "org-1",
+    } as unknown as Partial<Request>;
     res = {
       status: statusMock,
       json: jsonMock,
@@ -122,6 +136,7 @@ describe("FinanceController", () => {
 
     expect(mockedStripeService.retrievePaymentIntent).toHaveBeenCalledWith(
       "pi_123",
+      { organisationId: "org-1", parentId: null },
     );
     expect(statusMock).toHaveBeenCalledWith(200);
     expect(jsonMock).toHaveBeenCalledWith({
@@ -181,7 +196,7 @@ describe("FinanceController", () => {
       // invoice in the organisation or another org's appointment invoices.
       expect(mockedInvoiceService.getByAppointmentId).toHaveBeenCalledWith(
         "appt-1",
-        "org-1",
+        { organisationId: "org-1" },
       );
       expect(mockedInvoiceService.listForOrganisation).not.toHaveBeenCalled();
       expect(statusMock).toHaveBeenCalledWith(200);
@@ -203,7 +218,7 @@ describe("FinanceController", () => {
 
       expect(mockedInvoiceService.getByAppointmentId).toHaveBeenCalledWith(
         "appt-other-org",
-        "org-auth",
+        { organisationId: "org-auth" },
       );
       expect(statusMock).toHaveBeenCalledWith(200);
     });

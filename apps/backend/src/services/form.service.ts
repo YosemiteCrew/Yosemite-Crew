@@ -186,10 +186,7 @@ const loadAppointmentForFormsRecord = async (
 };
 
 type NormalizableObjectId =
-  | Types.ObjectId
-  | string
-  | { toHexString(): string }
-  | { toString(): string };
+  Types.ObjectId | string | { toHexString(): string } | { toString(): string };
 
 const normalizeObjectId = (
   id: NormalizableObjectId | null | undefined,
@@ -681,6 +678,56 @@ const getTemplateOrUndefined = async (
   }
 };
 
+/**
+ * The mobile submit route carries no organisation context, so the template id is
+ * a bare identifier chosen by the caller. Submitting it creates (and completes)
+ * a template instance inside the template's own organisation, which is a write
+ * into whatever tenant owns that id. The parent must therefore be shown to have
+ * been asked for this form before the instance is created.
+ */
+const assertTemplateSubmittableByParent = async (params: {
+  organisationId: string;
+  templateId: string;
+  parentId: string;
+  appointmentId?: string;
+}) => {
+  if (params.appointmentId) {
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        id: params.appointmentId,
+        organisationId: params.organisationId,
+      },
+      select: { patient: true },
+    });
+
+    if (
+      !appointment ||
+      resolveAppointmentParentId(appointment) !== params.parentId
+    ) {
+      throw new FormServiceError("Forbidden", 403);
+    }
+  }
+
+  // With an appointment the parent link is already proven above, so the
+  // assignment only has to exist for it. Without one there is no such anchor and
+  // the assignment itself must name the parent as the signer.
+  const assignment = await prisma.formAssignment.findFirst({
+    where: {
+      organisationId: params.organisationId,
+      templateId: params.templateId,
+      status: { notIn: ["CANCELLED", "EXPIRED"] },
+      ...(params.appointmentId
+        ? { appointmentId: params.appointmentId }
+        : { signerUserId: params.parentId }),
+    },
+    select: { id: true },
+  });
+
+  if (!assignment) {
+    throw new FormServiceError("Forbidden", 403);
+  }
+};
+
 const pushAppointmentFormIdInPostgres = async (
   appointmentId: string,
   formId: string,
@@ -792,11 +839,7 @@ const assertSoapAppointmentAccess = (params: {
 };
 
 type SoapNoteType =
-  | "Subjective"
-  | "Objective"
-  | "Assessment"
-  | "Plan"
-  | "Discharge";
+  "Subjective" | "Objective" | "Assessment" | "Plan" | "Discharge";
 
 type SoapNoteEntry = {
   submissionId: string;
@@ -1675,6 +1718,7 @@ export const FormService = {
     response: FormSubmissionRequestDTO,
     schema?: FormField[],
     submittedByOverride?: string,
+    actor?: { parentId: string } | { organisationId: string },
   ): Promise<FormSubmission> {
     const initialSubmission: FormSubmission = fromFormSubmissionRequestDTO(
       response,
@@ -1712,6 +1756,26 @@ export const FormService = {
       if (!formOrganisation) {
         const template = await getTemplateOrUndefined(formIdString);
         if (!template?.organisationId) {
+          throw new FormServiceError("Form not found", 404);
+        }
+
+        if (actor && "parentId" in actor) {
+          await assertTemplateSubmittableByParent({
+            organisationId: template.organisationId,
+            templateId: formIdString,
+            parentId: actor.parentId,
+            appointmentId: submission.appointmentId ?? undefined,
+          });
+        }
+
+        // RBAC on the PMS submit route authorizes the organisation the caller
+        // named, but the instance below is written into the template's own
+        // organisation. Without this they can diverge.
+        if (
+          actor &&
+          "organisationId" in actor &&
+          template.organisationId !== actor.organisationId
+        ) {
           throw new FormServiceError("Form not found", 404);
         }
 

@@ -117,6 +117,9 @@ describe("InvoiceService", () => {
     (prisma.payment.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.creditNote.findMany as jest.Mock).mockResolvedValue([]);
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.appointment.findFirst as jest.Mock).mockResolvedValue({
+      id: appointmentId,
+    });
   });
 
   it("creates a draft invoice and persists invoice-level discounts", async () => {
@@ -638,10 +641,14 @@ describe("InvoiceService", () => {
       updatedAt: new Date(),
     });
 
-    const updated =
-      await InvoiceService.markAppointmentReadyForBilling(appointmentId);
-    const prepay =
-      await InvoiceService.markAppointmentReadyForBilling(appointmentId);
+    const updated = await InvoiceService.markAppointmentReadyForBilling(
+      appointmentId,
+      { organisationId },
+    );
+    const prepay = await InvoiceService.markAppointmentReadyForBilling(
+      appointmentId,
+      { organisationId },
+    );
 
     expect(prisma.invoice.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -731,7 +738,7 @@ describe("InvoiceService", () => {
 
     const updated = await InvoiceService.reverseAppointmentReadyForBilling(
       appointmentId,
-      "user-1",
+      { organisationId, actorUserId: "user-1" },
     );
 
     expect(getInvoiceFinancialSummary).toHaveBeenCalledWith(
@@ -764,8 +771,10 @@ describe("InvoiceService", () => {
   it("returns null when the appointment invoice is not marked ready for billing", async () => {
     (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce(null);
 
-    const updated =
-      await InvoiceService.reverseAppointmentReadyForBilling(appointmentId);
+    const updated = await InvoiceService.reverseAppointmentReadyForBilling(
+      appointmentId,
+      { organisationId },
+    );
 
     expect(updated).toBeNull();
     expect(getInvoiceFinancialSummary).not.toHaveBeenCalled();
@@ -806,7 +815,9 @@ describe("InvoiceService", () => {
     });
 
     await expect(
-      InvoiceService.reverseAppointmentReadyForBilling(appointmentId),
+      InvoiceService.reverseAppointmentReadyForBilling(appointmentId, {
+        organisationId,
+      }),
     ).rejects.toMatchObject({
       message: "Invoice already has payments applied and cannot be reverted",
       statusCode: 409,
@@ -2174,7 +2185,7 @@ describe("InvoiceService", () => {
       { id: "credit_1", amount: 10 },
     ]);
 
-    const result = await InvoiceService.getById("inv_7");
+    const result = await InvoiceService.getById("inv_7", { organisationId });
     expect(result.invoice.id).toBe("inv_7");
     expect(result.organistion.name).toBe("Org");
     expect(result.invoice.payments).toEqual(
@@ -2265,7 +2276,9 @@ describe("InvoiceService", () => {
       },
     ]);
 
-    const result = await InvoiceService.getByPaymentIntentId("pi_lookup");
+    const result = await InvoiceService.getByPaymentIntentId("pi_lookup", {
+      organisationId,
+    });
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -2326,5 +2339,133 @@ describe("InvoiceService", () => {
     ).toHaveBeenCalledWith("inv_8");
     expect(result.emailSent).toBe(true);
     expect(sendEmailTemplate).toHaveBeenCalled();
+  });
+  it("refuses to re-mark an already paid invoice as paid at the clinic", async () => {
+    // At-clinic invoices settled before the Payment backfill have no Payment
+    // rows, so a second mark-paid would recompute the full total as owed.
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_already_paid",
+      organisationId,
+      status: "PAID",
+      paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+      totalAmount: 250,
+      currency: "usd",
+    });
+
+    await expect(
+      InvoiceService.markInvoicePaidManually(
+        "inv_already_paid",
+        organisationId,
+      ),
+    ).rejects.toMatchObject({
+      message: "Invoice is already paid.",
+      statusCode: 409,
+    });
+    expect(FinancePaymentService.recordManualPayment).not.toHaveBeenCalled();
+  });
+
+  it("refuses to mark an invoice paid from another organisation", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_other_org",
+      organisationId: "org_owner",
+      status: "AWAITING_PAYMENT",
+      paymentCollectionMethod: "PAYMENT_AT_CLINIC",
+      totalAmount: 100,
+      currency: "usd",
+    });
+
+    await expect(
+      InvoiceService.markInvoicePaidManually("inv_other_org", "org_attacker"),
+    ).rejects.toMatchObject({ message: "Invoice not found.", statusCode: 404 });
+    expect(FinancePaymentService.recordManualPayment).not.toHaveBeenCalled();
+  });
+
+  it("refuses to draft an invoice for an appointment in another organisation", async () => {
+    (prisma.appointment.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    await expect(
+      InvoiceService.createDraftForAppointment({
+        appointmentId,
+        parentId,
+        patientId,
+        organisationId: "org_attacker",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        items: [
+          {
+            name: "Consult",
+            description: "Consult",
+            quantity: 1,
+            unitPrice: 10,
+            total: 10,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      message: "Appointment not found for organisation",
+      statusCode: 404,
+    });
+    expect(prisma.invoice.create).not.toHaveBeenCalled();
+  });
+
+  it("hides an invoice from a parent who does not own it", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_private",
+      organisationId,
+      parentId: "parent_owner",
+      status: "AWAITING_PAYMENT",
+    });
+
+    await expect(
+      InvoiceService.getById("inv_private", { parentId: "parent_attacker" }),
+    ).rejects.toMatchObject({ message: "Invoice not found.", statusCode: 404 });
+  });
+
+  it("rejects an unscoped invoice read", async () => {
+    (prisma.invoice.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "inv_unscoped",
+      organisationId,
+      parentId,
+      status: "AWAITING_PAYMENT",
+    });
+
+    await expect(
+      InvoiceService.getById("inv_unscoped", {}),
+    ).rejects.toMatchObject({
+      message: "Invoice scope is required.",
+      statusCode: 403,
+    });
+  });
+
+  it("scopes parent and companion invoice lists to the organisation when one is given", async () => {
+    (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+    await InvoiceService.listForParent(parentId, organisationId);
+    expect(prisma.invoice.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { parentId, organisationId } }),
+    );
+
+    await InvoiceService.listForCompanion(patientId, organisationId);
+    expect(prisma.invoice.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ where: { patientId, organisationId } }),
+    );
+  });
+
+  it("scopes the ready-for-billing lookup to the organisation", async () => {
+    (prisma.invoice.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const result = await InvoiceService.markAppointmentReadyForBilling(
+      appointmentId,
+      { organisationId: "org_attacker" },
+    );
+
+    expect(result).toBeNull();
+    expect(prisma.invoice.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          appointmentId,
+          organisationId: "org_attacker",
+        }),
+      }),
+    );
   });
 });

@@ -82,6 +82,7 @@ describe("SearchController", () => {
       params: { organisationId: "org-1" },
       query: {},
       body: {},
+      ...({ userId: "user-1" } as object),
     };
     buildResponse();
   });
@@ -309,5 +310,112 @@ describe("SearchController", () => {
         items: [expect.objectContaining({ scope: "PACKAGE", id: "pkg-1" })],
       }),
     );
+  });
+
+  describe("scope", () => {
+    it("only returns the caller's own USER_TEMPLATEs alongside org templates", async () => {
+      mockedPrisma.template.findMany.mockResolvedValueOnce([]);
+
+      await SearchController.searchTemplates(req as Request, res as Response);
+
+      expect(mockedPrisma.template.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            organisationId: "org-1",
+            AND: expect.arrayContaining([
+              {
+                OR: [
+                  { ownership: "ORG_TEMPLATE" },
+                  { ownership: "USER_TEMPLATE", ownerUserId: "user-1" },
+                ],
+              },
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it("keeps the ownership predicate when a free-text query is supplied", async () => {
+      mockedPrisma.template.findMany.mockResolvedValueOnce([]);
+
+      await SearchController.searchTemplates(
+        { ...req, query: { q: "soap" } } as Request,
+        res as Response,
+      );
+
+      // Both predicates must survive: an `OR` at the top level would have been
+      // overwritten by the free-text `OR`, re-opening the leak.
+      const where = mockedPrisma.template.findMany.mock.calls[0][0].where;
+      expect(where.AND).toHaveLength(2);
+      expect(where.AND[0]).toEqual({
+        OR: [
+          { ownership: "ORG_TEMPLATE" },
+          { ownership: "USER_TEMPLATE", ownerUserId: "user-1" },
+        ],
+      });
+      expect(where.OR).toBeUndefined();
+    });
+
+    it("rejects an unauthenticated template search rather than trusting a header", async () => {
+      const anonymousReq = {
+        params: { organisationId: "org-1" },
+        query: {},
+        body: {},
+        headers: { "x-user-id": "someone-else" },
+      } as unknown as Request;
+
+      await SearchController.searchTemplates(anonymousReq, res as Response);
+
+      expect(statusMock).toHaveBeenCalledWith(401);
+      expect(mockedPrisma.template.findMany).not.toHaveBeenCalled();
+    });
+
+    it("scopes documents through patientOrganisation and hides parent-private uploads", async () => {
+      mockedPrisma.document.findMany.mockResolvedValueOnce([]);
+
+      await SearchController.searchDocuments(req as Request, res as Response);
+
+      expect(mockedPrisma.document.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            pmsVisible: true,
+            patient: {
+              organisations: {
+                some: {
+                  organisationId: "org-1",
+                  status: { in: ["ACTIVE", "PENDING"] },
+                },
+              },
+            },
+          }),
+        }),
+      );
+    });
+
+    it("does not echo pmsVisible back in document search metadata", async () => {
+      mockedPrisma.document.findMany.mockResolvedValueOnce([
+        {
+          id: "doc-1",
+          title: "Vaccination",
+          category: "HEALTH",
+          subcategory: null,
+          visitType: null,
+          appointmentId: "appt-1",
+          patientId: "patient-1",
+          pmsVisible: true,
+          updatedAt: new Date("2026-06-15T00:00:00.000Z"),
+        },
+      ]);
+
+      await SearchController.searchDocuments(req as Request, res as Response);
+
+      const payload = jsonMock.mock.calls[0][0] as {
+        items: Array<{ metadata: Record<string, unknown> }>;
+      };
+      expect(payload.items[0].metadata).toEqual({
+        appointmentId: "appt-1",
+        patientId: "patient-1",
+      });
+    });
   });
 });

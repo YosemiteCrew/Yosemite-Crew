@@ -7,6 +7,7 @@ import {
   resolveActorDisplayName,
 } from "./finance/events";
 import { InvoiceService, InvoiceServiceError } from "./invoice.service";
+import { documentWhereForOrg } from "./document-scope";
 import { createRenderedDocumentRecord } from "./rendered-document.service";
 import { roundMoney } from "./finance/pricing";
 import type {
@@ -276,6 +277,55 @@ const buildPermissionSnapshot = (
     canCancelSchedules,
   };
 };
+
+/**
+ * Opt out of permission gating for callers that are not acting on behalf of a
+ * request (see `SYSTEM_WORKSPACE_ACCESS`).
+ */
+export type WorkspaceAccessOptions = { systemAccess?: boolean };
+
+/**
+ * Which slices of the workspace aggregate the caller may receive. The bootstrap
+ * routes only gate on `appointments:view:*`, so every other slice has to be
+ * resolved here rather than at the router.
+ */
+type WorkspaceAccess = {
+  forms: boolean;
+  clinical: boolean;
+  prescriptions: boolean;
+  tasks: boolean;
+  labs: boolean;
+  documents: boolean;
+  treatmentItems: boolean;
+};
+
+/**
+ * Internal callers (clinical packet assembly, packet PDF rendering, companion
+ * document lookups) run outside any request's permission context. They must see
+ * the whole aggregate: gating them on an empty permission set would silently
+ * hand back an empty clinical packet.
+ */
+const SYSTEM_WORKSPACE_ACCESS: WorkspaceAccess = {
+  forms: true,
+  clinical: true,
+  prescriptions: true,
+  tasks: true,
+  labs: true,
+  documents: true,
+  treatmentItems: true,
+};
+
+const buildWorkspaceAccess = (
+  snapshot: WorkspacePermissionSnapshot,
+): WorkspaceAccess => ({
+  forms: snapshot.canViewForms,
+  clinical: snapshot.canViewForms || snapshot.canViewPrescriptions,
+  prescriptions: snapshot.canViewPrescriptions,
+  tasks: snapshot.canViewTasks,
+  labs: snapshot.canViewLabs,
+  documents: snapshot.canViewDocuments,
+  treatmentItems: snapshot.permissions.includes("billing:view:any"),
+});
 
 const resolvePrimaryActionDisabledReason = (input: {
   kind: WorkspacePrimaryAction["kind"];
@@ -933,8 +983,7 @@ const readNumber = (value: unknown): number | null =>
 
 const readText = (...values: unknown[]) =>
   values.find((value) => typeof value === "string" && value.trim()) as
-    | string
-    | undefined;
+    string | undefined;
 
 const buildInvoiceLineFromTreatmentItem = (row: TreatmentItemRow) => {
   const priceSnapshot = isRecord(row.priceSnapshot) ? row.priceSnapshot : {};
@@ -1081,8 +1130,7 @@ const buildTreatmentItemsFromPrescriptions = (
       ? record.prescription.medications
       : [];
     const firstMedication = medications.find((entry) => isRecord(entry)) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const productId =
       (firstMedication &&
         typeof firstMedication.inventoryItemId === "string" &&
@@ -1755,6 +1803,7 @@ const loadDocuments = async (params: {
   const [documents, renderedDocuments] = await Promise.all([
     prisma.document.findMany({
       where: {
+        ...documentWhereForOrg(params.organisationId),
         ...(params.appointmentId
           ? { appointmentId: params.appointmentId }
           : {}),
@@ -1818,8 +1867,12 @@ const loadDocuments = async (params: {
 const buildBootstrapAggregate = async (
   input: WorkspaceBootstrapInput,
   permissions?: string[],
-  options?: { requireAppointment?: boolean },
+  options?: { requireAppointment?: boolean; systemAccess?: boolean },
 ): Promise<WorkspaceBootstrapResponse> => {
+  const permissionsSnapshot = buildPermissionSnapshot(permissions);
+  const access = options?.systemAccess
+    ? SYSTEM_WORKSPACE_ACCESS
+    : buildWorkspaceAccess(permissionsSnapshot);
   const context = await buildContext(input);
   const organisation = (await prisma.organization.findUnique({
     where: { id: input.organisationId },
@@ -1855,11 +1908,13 @@ const buildBootstrapAggregate = async (
       appointmentId,
       encounterId,
     }),
-    loadTreatmentItems({
-      organisationId: input.organisationId,
-      appointmentId,
-      encounterId,
-    }),
+    access.treatmentItems
+      ? loadTreatmentItems({
+          organisationId: input.organisationId,
+          appointmentId,
+          encounterId,
+        })
+      : [],
     loadTasks({
       organisationId: input.organisationId,
       appointmentId,
@@ -1871,12 +1926,14 @@ const buildBootstrapAggregate = async (
       encounterId,
       companionId,
     }),
-    loadTemplateInstances({
-      organisationId: input.organisationId,
-      appointmentId,
-      encounterId,
-      caseId,
-    }),
+    access.forms
+      ? loadTemplateInstances({
+          organisationId: input.organisationId,
+          appointmentId,
+          encounterId,
+          caseId,
+        })
+      : [],
     loadOrdersAndResults({
       organisationId: input.organisationId,
       appointmentId,
@@ -1902,19 +1959,23 @@ const buildBootstrapAggregate = async (
     ]),
   );
 
-  const documents = await loadDocuments({
-    organisationId: input.organisationId,
-    appointmentId,
-    encounterId,
-    companionId,
-    scheduleIds: schedules.map((schedule) => schedule.id),
-    scheduleContext,
-  });
+  const documents = access.documents
+    ? await loadDocuments({
+        organisationId: input.organisationId,
+        appointmentId,
+        encounterId,
+        companionId,
+        scheduleIds: schedules.map((schedule) => schedule.id),
+        scheduleContext,
+      })
+    : [];
 
-  const diagnosticPreloads = await loadDiagnosticPreloads({
-    organisationId: input.organisationId,
-    treatmentItems,
-  });
+  const diagnosticPreloads = access.labs
+    ? await loadDiagnosticPreloads({
+        organisationId: input.organisationId,
+        treatmentItems,
+      })
+    : [];
 
   const labSummary = buildLabSummary(
     ordersAndResults.orders,
@@ -1949,7 +2010,9 @@ const buildBootstrapAggregate = async (
     appointmentId,
     encounter: context.encounter,
   });
-  const permissionsSnapshot = buildPermissionSnapshot(permissions);
+  // The gate and the primary action are computed from the full aggregate on
+  // purpose: they are permission-aware summaries, and a caller who cannot see
+  // labs must still be told that labs block finalization.
   const finalizationGate = buildFinalizationGate({
     appointment: context.appointment,
     encounter: context.encounter,
@@ -2021,30 +2084,34 @@ const buildBootstrapAggregate = async (
         })
       : null,
     templateInstances,
-    clinicalArtifacts: clinical.clinicalArtifacts,
-    vitals: clinical.vitalRecords,
-    prescriptions: clinical.prescriptions,
-    treatmentItems: dedupeTreatmentItemsByPrescription(
-      buildTreatmentItemsFromPrescriptions(
-        clinical.prescriptions as never,
-        locked,
-      ).map((item) => ({
-        ...item,
-        organisationId: input.organisationId,
-        appointmentId: appointmentId ?? null,
-        encounterId: encounterId ?? appointmentId ?? "",
-      })),
-      treatmentItems.map(mapTreatmentItemRow),
-    ),
-    diagnosticQueue: buildDiagnosticQueue(
-      ordersAndResults.orders as never,
-      ordersAndResults.results as never,
-      diagnosticPreloads,
-    ),
-    labSummary,
-    tasks,
-    schedules,
-    forms: forms.items,
+    clinicalArtifacts: access.clinical ? clinical.clinicalArtifacts : [],
+    vitals: access.clinical ? clinical.vitalRecords : [],
+    prescriptions: access.prescriptions ? clinical.prescriptions : [],
+    treatmentItems: access.treatmentItems
+      ? dedupeTreatmentItemsByPrescription(
+          buildTreatmentItemsFromPrescriptions(
+            clinical.prescriptions as never,
+            locked,
+          ).map((item) => ({
+            ...item,
+            organisationId: input.organisationId,
+            appointmentId: appointmentId ?? null,
+            encounterId: encounterId ?? appointmentId ?? "",
+          })),
+          treatmentItems.map(mapTreatmentItemRow),
+        )
+      : [],
+    diagnosticQueue: access.labs
+      ? buildDiagnosticQueue(
+          ordersAndResults.orders as never,
+          ordersAndResults.results as never,
+          diagnosticPreloads,
+        )
+      : [],
+    labSummary: access.labs ? labSummary : buildLabSummary([], []),
+    tasks: access.tasks ? tasks : [],
+    schedules: access.tasks ? schedules : [],
+    forms: access.forms ? forms.items : [],
     documents,
     locks: buildLocks(locked),
     permissions: permissionsSnapshot,
@@ -2074,15 +2141,18 @@ export const WorkspaceService = {
   async getAppointmentBootstrap(
     input: WorkspaceBootstrapInput,
     permissions?: string[],
+    options?: WorkspaceAccessOptions,
   ): Promise<WorkspaceBootstrapResponse> {
     return buildBootstrapAggregate(input, permissions, {
       requireAppointment: true,
+      systemAccess: options?.systemAccess,
     });
   },
 
   async getEncounterBootstrap(
     input: WorkspaceBootstrapInput,
     permissions?: string[],
+    options?: WorkspaceAccessOptions,
   ): Promise<WorkspaceBootstrapResponse> {
     const context = await buildContext({
       organisationId: input.organisationId,
@@ -2100,6 +2170,7 @@ export const WorkspaceService = {
         encounterId: context.encounter.id,
       },
       permissions,
+      { systemAccess: options?.systemAccess },
     );
   },
 
@@ -2118,17 +2189,25 @@ export const WorkspaceService = {
   async getAppointmentDocuments(
     input: WorkspaceBootstrapInput,
     permissions?: string[],
+    options?: WorkspaceAccessOptions,
   ): Promise<WorkspaceDocumentRow[]> {
-    return (await WorkspaceService.getAppointmentBootstrap(input, permissions))
-      .documents;
+    return (
+      await WorkspaceService.getAppointmentBootstrap(
+        input,
+        permissions,
+        options,
+      )
+    ).documents;
   },
 
   async getEncounterDocuments(
     input: WorkspaceBootstrapInput,
     permissions?: string[],
+    options?: WorkspaceAccessOptions,
   ): Promise<WorkspaceDocumentRow[]> {
-    return (await WorkspaceService.getEncounterBootstrap(input, permissions))
-      .documents;
+    return (
+      await WorkspaceService.getEncounterBootstrap(input, permissions, options)
+    ).documents;
   },
 
   async getEncounterTreatmentItems(
@@ -2247,11 +2326,16 @@ export const WorkspaceService = {
     organisationId: string;
     companionId: string;
   }): Promise<WorkspaceDocumentRow[]> {
-    const companion = await prisma.patient.findFirst({
-      where: { id: input.companionId },
+    const membership = await prisma.patientOrganisation.findFirst({
+      where: {
+        patientId: input.companionId,
+        organisationId: input.organisationId,
+        status: { in: ["ACTIVE", "PENDING"] },
+      },
+      select: { id: true },
     });
 
-    if (!companion) {
+    if (!membership) {
       throw new WorkspaceServiceError("Companion not found", 404);
     }
 
@@ -2263,12 +2347,18 @@ export const WorkspaceService = {
       select: { id: true },
     });
 
+    // The route already gates on `document:view:any`; the per-encounter reads
+    // below are this method's own implementation detail, not a caller.
     const encounterDocuments = await Promise.all(
       encounters.map(async (encounter) =>
-        WorkspaceService.getEncounterDocuments({
-          organisationId: input.organisationId,
-          encounterId: encounter.id,
-        }),
+        WorkspaceService.getEncounterDocuments(
+          {
+            organisationId: input.organisationId,
+            encounterId: encounter.id,
+          },
+          undefined,
+          { systemAccess: true },
+        ),
       ),
     );
 

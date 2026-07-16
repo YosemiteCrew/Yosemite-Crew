@@ -162,13 +162,15 @@ describe('templateFormsService', () => {
     );
   });
 
-  it('skips catalog-link sync for YC library templates', async () => {
+  // A library starting point is persisted as an organisation template, so its
+  // catalog links belong to the caller's org and must be synced like any other.
+  it('never posts YC_LIBRARY ownership and still syncs catalog links', async () => {
     (postData as jest.Mock).mockResolvedValue({
       data: {
         id: 'tpl-new',
         name: 'SOAP',
-        ownership: 'YC_LIBRARY',
-        source: 'YC_LIBRARY',
+        ownership: 'ORG_TEMPLATE',
+        source: 'ORGANISATION',
       },
     });
 
@@ -186,13 +188,19 @@ describe('templateFormsService', () => {
       'org-1'
     );
 
-    expect(patchData).not.toHaveBeenCalledWith(
-      expect.stringContaining('/catalog-links'),
-      expect.anything()
-    );
+    const [, body] = (postData as jest.Mock).mock.calls[0] as [
+      string,
+      { ownership: string; organisationId?: string },
+    ];
+    expect(body.ownership).toBe('ORG_TEMPLATE');
+    expect(body.organisationId).toBe('org-1');
+
+    expect(patchData).toHaveBeenCalledWith(expect.stringContaining('/catalog-links'), {
+      catalogItemIds: ['svc-1'],
+    });
   });
 
-  it('preserves selected YC_LIBRARY ownership when the API response is incomplete', async () => {
+  it('does not echo a YC_LIBRARY selection back as the stored source', async () => {
     (postData as jest.Mock).mockResolvedValue({
       data: {
         id: 'tpl-new',
@@ -213,7 +221,33 @@ describe('templateFormsService', () => {
       'org-1'
     );
 
-    expect(result.templateSource).toBe('YC_LIBRARY');
+    // What was persisted is an org template; reporting it as library-owned
+    // would misdescribe the stored record.
+    expect(result.templateSource).not.toBe('YC_LIBRARY');
+  });
+
+  it('preserves a selected USER_TEMPLATE ownership when the API response is incomplete', async () => {
+    (postData as jest.Mock).mockResolvedValue({
+      data: {
+        id: 'tpl-new',
+        name: 'SOAP',
+      },
+    });
+
+    const result = await saveTemplateFormDraft(
+      {
+        name: 'SOAP',
+        category: 'SOAP',
+        usage: 'Internal',
+        updatedBy: '',
+        lastUpdated: '',
+        schema: [],
+        templateSource: 'USER_TEMPLATE',
+      },
+      'org-1'
+    );
+
+    expect(result.templateSource).toBe('USER_TEMPLATE');
   });
 
   it('updates an existing template-backed form draft', async () => {

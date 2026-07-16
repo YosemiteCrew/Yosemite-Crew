@@ -1658,7 +1658,9 @@ export const AppointmentPrismaService = {
       if (resolvedPaymentCollectionMethod === "PAYMENT_LINK") {
         await InvoiceService.createCheckoutSessionAndEmailParent(invoice.id);
       } else if (resolvedPaymentCollectionMethod === "PAYMENT_INTENT") {
-        await FinancePaymentService.createPaymentIntentForInvoice(invoice.id);
+        await FinancePaymentService.createPaymentIntentForInvoice(invoice.id, {
+          organisationId: invoice.organisationId,
+        });
       }
     }
 
@@ -2171,7 +2173,9 @@ export const AppointmentPrismaService = {
     });
 
     if (patch.status === "COMPLETED") {
-      await InvoiceService.markAppointmentReadyForBilling(appointmentId);
+      await InvoiceService.markAppointmentReadyForBilling(appointmentId, {
+        organisationId: row.organisationId,
+      });
     }
 
     return toResponse(updated as AppointmentRow);

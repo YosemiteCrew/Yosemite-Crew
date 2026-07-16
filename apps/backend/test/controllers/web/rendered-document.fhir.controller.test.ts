@@ -27,7 +27,17 @@ jest.mock("../../../src/models/user", () => ({
     findOne: jest.fn(),
   },
 }));
-jest.mock("../../../src/services/rendered-document.service");
+// `toRenderedDocumentReadDto` is the projection under test on the read paths, so
+// it keeps its real implementation while the I/O-bound exports are stubbed.
+jest.mock("../../../src/services/rendered-document.service", () => ({
+  ...(jest.requireActual(
+    "../../../src/services/rendered-document.service",
+  ) as object),
+  getPersistedRenderedDocument: jest.fn(),
+  getPersistedRenderedDocumentPdf: jest.fn(),
+  rerenderPersistedClinicalRenderedDocumentPdf: jest.fn(),
+  signPersistedRenderedDocument: jest.fn(),
+}));
 jest.mock("../../../src/utils/logger");
 
 const mockedUserFindUnique = prisma.user.findUnique as jest.Mock;
@@ -89,6 +99,8 @@ describe("RenderedDocumentFhirController", () => {
     mockedGetPersistedRenderedDocument.mockResolvedValueOnce({
       id: "doc-1",
       organisationId: "org-1",
+      kind: "SOAP_NOTE",
+      signing: null,
     } as never);
 
     await RenderedDocumentFhirController.getRenderedDocument(
@@ -101,13 +113,117 @@ describe("RenderedDocumentFhirController", () => {
       "org-1",
     );
     expect(statusMock).toHaveBeenCalledWith(200);
-    expect(jsonMock).toHaveBeenCalledWith({
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "doc-1",
+        organisationId: "org-1",
+        signing: null,
+      }),
+    );
+  });
+
+  it("never returns the signing bearer url on the read path", async () => {
+    mockedGetPersistedRenderedDocument.mockResolvedValueOnce({
       id: "doc-1",
       organisationId: "org-1",
+      kind: "SOAP_NOTE",
+      signing: {
+        required: true,
+        provider: "DOCUMENSO",
+        status: "IN_PROGRESS",
+        documentId: "42",
+        signerName: "User One",
+        signerEmail: "user-1@example.com",
+        signingUrl: "https://documenso.example/sign/secret-token",
+      },
+    } as never);
+
+    await RenderedDocumentFhirController.getRenderedDocument(
+      req as Request,
+      res as Response,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(200);
+    const payload = jsonMock.mock.calls[0][0] as { signing: unknown };
+    expect(payload.signing).toEqual({
+      required: true,
+      provider: "DOCUMENSO",
+      status: "IN_PROGRESS",
+      signerName: "User One",
+    });
+    expect(JSON.stringify(payload)).not.toContain("secret-token");
+    expect(JSON.stringify(payload)).not.toContain("signingUrl");
+  });
+
+  it("hides invoice-kind rendered documents from clinical-only permissions", async () => {
+    (req as { userPermissions?: string[] }).userPermissions = [
+      "forms:view:any",
+    ];
+    mockedGetPersistedRenderedDocument.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId: "org-1",
+      kind: "INVOICE",
+      signing: null,
+    } as never);
+
+    await RenderedDocumentFhirController.getRenderedDocument(
+      req as Request,
+      res as Response,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(403);
+    expect(jsonMock).toHaveBeenCalledWith({
+      message: "Forbidden – insufficient permissions",
     });
   });
 
+  it("serves an invoice-kind rendered document to a billing viewer", async () => {
+    (req as { userPermissions?: string[] }).userPermissions = [
+      "forms:view:any",
+      "billing:view:any",
+    ];
+    mockedGetPersistedRenderedDocument.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId: "org-1",
+      kind: "INVOICE",
+      signing: null,
+    } as never);
+
+    await RenderedDocumentFhirController.getRenderedDocument(
+      req as Request,
+      res as Response,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(200);
+  });
+
+  it("refuses to stream an invoice-kind pdf without a billing permission", async () => {
+    (req as { userPermissions?: string[] }).userPermissions = [
+      "prescription:view:any",
+    ];
+    mockedGetPersistedRenderedDocument.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId: "org-1",
+      kind: "INVOICE",
+      signing: null,
+    } as never);
+
+    await RenderedDocumentFhirController.getRenderedDocumentPdf(
+      req as Request,
+      res as Response,
+    );
+
+    expect(statusMock).toHaveBeenCalledWith(403);
+    expect(mockedGetPersistedRenderedDocumentPdf).not.toHaveBeenCalled();
+  });
+
   it("returns a rendered document pdf by id", async () => {
+    mockedGetPersistedRenderedDocument.mockResolvedValueOnce({
+      id: "doc-1",
+      organisationId: "org-1",
+      kind: "SOAP_NOTE",
+      signing: null,
+    } as never);
     mockedGetPersistedRenderedDocumentPdf.mockResolvedValueOnce({
       pdf: Buffer.from("%PDF-FAKE"),
       filename: "soap-note-doc-1.pdf",

@@ -13,8 +13,12 @@ router.get(
   (req, res) => TemplateController.resolve(req, res),
 );
 
-router.get("/pms/templates/library", requireWebAuth, (req, res) =>
-  TemplateController.listLibrary(req, res),
+router.get(
+  "/pms/templates/library",
+  requireWebAuth,
+  withOrgPermissions(),
+  requirePermission(["forms:view:any"]),
+  (req, res) => TemplateController.listLibrary(req, res),
 );
 
 router.get(

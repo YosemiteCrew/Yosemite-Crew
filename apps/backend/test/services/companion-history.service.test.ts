@@ -405,14 +405,6 @@ describe("CompanionHistoryService", () => {
         currency: "USD",
         createdAt: new Date("2024-01-01T00:00:00.000Z"),
       },
-      {
-        id: "inv-2",
-        organisationId: "other",
-        status: "PAID",
-        totalAmount: 50,
-        currency: "USD",
-        createdAt: new Date("2024-01-01T00:00:00.000Z"),
-      },
     ]);
 
     const result = await CompanionHistoryService.listForCompanion({
@@ -421,6 +413,11 @@ describe("CompanionHistoryService", () => {
       types: ["INVOICE"],
     });
 
+    // The organisation filter is a query predicate now, not a post-fetch filter.
+    expect(InvoiceService.listForCompanion).toHaveBeenCalledWith(
+      companionId,
+      organisationId,
+    );
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].link.id).toBe("inv-1");
   });

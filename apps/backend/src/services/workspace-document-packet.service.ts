@@ -26,8 +26,6 @@ type SignPacketInput = {
   packetId: string;
   signerId: string;
   signerName?: string;
-  /** Optional explicit signer email; resolved from the user record otherwise. */
-  signerEmail?: string;
 };
 
 const ensureRequiredId = (value: string, fieldName: string): string => {
@@ -120,6 +118,19 @@ const mapPacket = (row: PacketRecord): WorkspaceDocumentPacketRow => ({
 });
 
 /**
+ * `signing.signingUrl` carries the Documenso recipient token: anyone holding the
+ * URL can sign the packet. Read paths are open to `document:view:any`, which is
+ * a far wider audience than the signer, so they project the signing state down
+ * to its non-bearer fields.
+ */
+const toReadOnlyPacket = (
+  packet: WorkspaceDocumentPacketRow,
+): WorkspaceDocumentPacketRow =>
+  packet.signing
+    ? { ...packet, signing: { ...packet.signing, signingUrl: null } }
+    : packet;
+
+/**
  * Only rendered documents can be merged into the signing PDF — the merge loader
  * resolves bytes from the rendered-document pipeline. Direct uploads
  * (`sourceKind: "DOCUMENT"`) have no rendered source (their content lives in
@@ -170,7 +181,11 @@ const isAllClinicalArtifacts = (docs: WorkspaceDocumentRow[]): boolean =>
   docs.length > 0 &&
   docs.every(
     (doc) =>
-      doc.sourceKind === "CLINICAL_ARTIFACT" && CLINICAL_KINDS.has(doc.kind),
+      doc.sourceKind === "CLINICAL_ARTIFACT" &&
+      CLINICAL_KINDS.has(doc.kind) &&
+      // A templated artifact's fields only exist in its own rendered PDF; the
+      // combined renderer would re-render it from the artifact and drop them.
+      !doc.templateId,
   );
 
 const mergeOrderRank = (kind: string): number =>
@@ -239,13 +254,12 @@ const ensurePacket = async (
   return packet;
 };
 
-const resolveSignerEmail = async (
-  signerId: string,
-  explicit?: string,
-): Promise<string | null> => {
-  if (explicit?.trim()) {
-    return explicit.trim();
-  }
+/**
+ * The signing packet is always sent to the authenticated signer's own address.
+ * The recipient decides who can sign a clinical record, so it must never be
+ * taken from the request.
+ */
+const resolveSignerEmail = async (signerId: string): Promise<string | null> => {
   const user = await prisma.user.findFirst({
     where: { userId: signerId },
     select: { email: true },
@@ -296,7 +310,8 @@ export const WorkspaceDocumentPacketService = {
         organisationId: input.organisationId,
         encounterId: input.encounterId,
       },
-      [],
+      undefined,
+      { systemAccess: true },
     );
 
     if (existingPacket) {
@@ -331,7 +346,9 @@ export const WorkspaceDocumentPacketService = {
     organisationId: string,
     packetId: string,
   ): Promise<WorkspaceDocumentPacketRow> {
-    return mapPacket(await ensurePacket(organisationId, packetId));
+    return toReadOnlyPacket(
+      mapPacket(await ensurePacket(organisationId, packetId)),
+    );
   },
 
   /**
@@ -362,10 +379,7 @@ export const WorkspaceDocumentPacketService = {
       );
     }
 
-    const signerEmail = await resolveSignerEmail(
-      input.signerId,
-      input.signerEmail,
-    );
+    const signerEmail = await resolveSignerEmail(input.signerId);
     if (!signerEmail) {
       throw new WorkspaceServiceError(
         "Unable to resolve signer email for packet signing",
@@ -706,7 +720,8 @@ export const WorkspaceDocumentPacketService = {
 
     const bootstrap = await WorkspaceService.getEncounterBootstrap(
       { organisationId, encounterId },
-      [],
+      undefined,
+      { systemAccess: true },
     );
 
     const documents = orderDocumentsForMerge(

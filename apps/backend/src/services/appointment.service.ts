@@ -372,8 +372,7 @@ export const resolveCatalogSelectionSafe = async (
 
 const assertParentCanCancelAppointment = (params: {
   appointment:
-    | ParentCancelableAppointment
-    | ParentCancelableAppointmentDocument;
+    ParentCancelableAppointment | ParentCancelableAppointmentDocument;
   parentId: string;
   context: string;
 }) => {
@@ -1823,8 +1822,7 @@ const toDomainFromPrisma = (row: {
     supportStaff: (row.supportStaff ?? []) as Appointment["supportStaff"],
     room: (row.room ?? undefined) as Appointment["room"] | undefined,
     appointmentType: (row.appointmentType ?? undefined) as
-      | Appointment["appointmentType"]
-      | undefined,
+      Appointment["appointmentType"] | undefined,
     organisationId: row.organisationId,
     appointmentDate: row.appointmentDate,
     startTime: row.startTime,
@@ -1837,8 +1835,7 @@ const toDomainFromPrisma = (row: {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     attachments: (row.attachments ?? undefined) as
-      | Appointment["attachments"]
-      | undefined,
+      Appointment["attachments"] | undefined,
     formIds: row.formIds ?? [],
   });
 
@@ -2309,7 +2306,9 @@ export const AppointmentService = {
       }
 
       const paymentIntent = invoiceId
-        ? await StripeService.createPaymentIntentForInvoice(invoiceId)
+        ? await StripeService.createPaymentIntentForInvoice(invoiceId, {
+            organisationId: appointment.organisationId,
+          })
         : undefined;
 
       if (service) {
@@ -2436,7 +2435,9 @@ export const AppointmentService = {
         : undefined);
 
     const paymentIntent = invoiceId
-      ? await StripeService.createPaymentIntentForInvoice(invoiceId)
+      ? await StripeService.createPaymentIntentForInvoice(invoiceId, {
+          organisationId: appointment.organisationId,
+        })
       : undefined;
 
     if (service) {

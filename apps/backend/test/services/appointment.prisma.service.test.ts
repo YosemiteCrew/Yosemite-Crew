@@ -1309,7 +1309,7 @@ describe("AppointmentPrismaService", () => {
 
     expect(
       mockedInvoiceService.markAppointmentReadyForBilling,
-    ).toHaveBeenCalledWith("appt_1");
+    ).toHaveBeenCalledWith("appt_1", { organisationId: "org_1" });
   });
 
   it("lists appointments for organisation with filters", async () => {

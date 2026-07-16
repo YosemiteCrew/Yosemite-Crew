@@ -72,8 +72,10 @@ const toUpdateBody = (body: TemplateCreateBody): TemplateUpdateBody => ({
   validationSnapshot: body.validationSnapshot,
 });
 
+// A YC_LIBRARY selection is not preserved: the save persists an organisation
+// template, so echoing the library source back would misreport what was stored.
 const preserveSelectedOwnership = (form: FormsProps, template: FormsProps): FormsProps => {
-  if (form.templateSource === undefined) {
+  if (form.templateSource === undefined || form.templateSource === 'YC_LIBRARY') {
     return template;
   }
 
@@ -100,11 +102,7 @@ export const saveTemplateFormDraft = async (form: FormsProps, organisationId: st
     // selected catalog items. Until this was wired, the Details step validated a required
     // service but the link was never written (catalog-links endpoint was never called).
     const catalogItemIds = form.services ?? [];
-    if (
-      catalogItemIds.length > 0 &&
-      form.templateSource !== 'YC_LIBRARY' &&
-      (normalized.templateId ?? normalized._id)
-    ) {
+    if (catalogItemIds.length > 0 && (normalized.templateId ?? normalized._id)) {
       try {
         return await updateTemplateFormCatalogLinks(normalized, organisationId, catalogItemIds);
       } catch (linkError) {

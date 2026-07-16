@@ -61,10 +61,12 @@ const templateKindToCategoryMap: Record<TemplateKind, FormsCategory> = {
   INPATIENT_SCHEDULE: 'Inpatient Schedule',
 };
 
+// YC_LIBRARY is deliberately absent: the library is global, seeded out of band,
+// and the API rejects it on every write. A library template used as a starting
+// point is saved into the caller's own organisation.
 const templateSourceToOwnership = (
   source?: FormsProps['templateSource']
 ): TemplateOwnershipType => {
-  if (source === 'YC_LIBRARY') return 'YC_LIBRARY';
   if (source === 'USER_TEMPLATE') return 'USER_TEMPLATE';
   return 'ORG_TEMPLATE';
 };
@@ -1106,7 +1108,7 @@ export const buildTemplatePayload = (
   // the encounter mode so resolution never surfaces them in an out-patient workspace.
   const linkedCatalogIds = form.services ?? [];
   return {
-    organisationId: ownership === 'YC_LIBRARY' ? undefined : orgId,
+    organisationId: orgId,
     ownership,
     kind,
     name: form.name,

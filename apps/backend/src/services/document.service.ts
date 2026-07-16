@@ -4,6 +4,7 @@ import {
   generatePresignedDownloadUrl,
 } from "src/middlewares/upload";
 import { assertSafeString } from "src/utils/sanitize";
+import { documentWhereForOrg } from "./document-scope";
 import { AuditTrailService } from "./audit-trail.service";
 
 export class DocumentServiceError extends Error {
@@ -162,23 +163,6 @@ const getParentAccessibleCompanionIds = async (
   const links = await prisma.parentPatient.findMany({
     where: {
       parentId: normalizeStringId(parentId, "parentId"),
-      status: { in: ["ACTIVE", "PENDING"] },
-    },
-    select: { patientId: true },
-  });
-
-  return links
-    .map((link) => normalizeStringId(link.patientId, "patientId"))
-    .filter(Boolean);
-};
-
-const getOrganisationAccessibleCompanionIds = async (
-  organisationId: string,
-): Promise<string[]> => {
-  assertSafeString(organisationId, "organisationId");
-  const links = await prisma.patientOrganisation.findMany({
-    where: {
-      organisationId,
       status: { in: ["ACTIVE", "PENDING"] },
     },
     select: { patientId: true },
@@ -688,8 +672,11 @@ export const DocumentService = {
       return [];
     }
 
+    // An appointment whose patient cannot be resolved is not provably the
+    // parent's, so it must fail closed rather than fall through to the
+    // appointment's own organisation.
     if (
-      appointmentLookup.patientId &&
+      !appointmentLookup.patientId ||
       !companionIds.includes(appointmentLookup.patientId)
     ) {
       return [];
@@ -729,33 +716,37 @@ export const DocumentService = {
       params.appointmentId,
       "appointmentId",
     );
-    const companionIds = params.patientId
-      ? [normalizeStringId(params.patientId, "patientId")]
-      : await getOrganisationAccessibleCompanionIds(params.organisationId);
+    assertSafeString(params.organisationId, "organisationId");
+    const patientId = params.patientId
+      ? normalizeStringId(params.patientId, "patientId")
+      : null;
     const appointmentLookup =
       await loadAppointmentForDocumentLookup(appointmentId);
 
-    if (params.patientId) {
-      await assertPmsCanAccessCompanion(params.organisationId, companionIds[0]);
+    if (
+      !appointmentLookup ||
+      appointmentLookup.organisationId !== params.organisationId
+    ) {
+      throw new DocumentServiceError("Appointment not found.", 404);
     }
 
-    if (!appointmentLookup) {
-      return [];
+    if (patientId) {
+      await assertPmsCanAccessCompanion(params.organisationId, patientId);
     }
 
     const [docs, renderedDocs] = await Promise.all([
       prisma.document.findMany({
         where: {
-          patientId: { in: companionIds },
+          ...documentWhereForOrg(params.organisationId),
           appointmentId,
-          pmsVisible: true,
+          ...(patientId ? { patientId } : {}),
         },
         orderBy: { createdAt: "desc" },
         include: { attachments: true },
       }),
       loadRenderedAppointmentDocuments({
         appointmentId,
-        organisationId: appointmentLookup.organisationId,
+        organisationId: params.organisationId,
       }),
     ]);
 

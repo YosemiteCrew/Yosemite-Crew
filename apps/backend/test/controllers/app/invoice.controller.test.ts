@@ -99,6 +99,7 @@ describe("InvoiceController", () => {
   describe("listInvoicesForAppointment", () => {
     it("should success (200)", async () => {
       req.params = { appointmentId: "apt1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockedInvoiceService.getByAppointmentId.mockResolvedValue([]);
 
       await InvoiceController.listInvoicesForAppointment(
@@ -108,7 +109,7 @@ describe("InvoiceController", () => {
 
       expect(mockedInvoiceService.getByAppointmentId).toHaveBeenCalledWith(
         "apt1",
-        undefined,
+        { organisationId: "org_1", parentId: null },
       );
       expect(statusMock).toHaveBeenCalledWith(200);
       expectFinanceEnvelope([]);
@@ -116,6 +117,7 @@ describe("InvoiceController", () => {
 
     it("should handle generic error (500)", async () => {
       req.params = { appointmentId: "apt1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockGenericError("getByAppointmentId");
 
       await InvoiceController.listInvoicesForAppointment(
@@ -131,6 +133,7 @@ describe("InvoiceController", () => {
   describe("getInvoiceById", () => {
     it("should 404 if invoice not found", async () => {
       req.params = { invoiceId: "inv1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       // Cast null to any to bypass strict type check on getById return type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockedInvoiceService.getById.mockResolvedValue(null as any);
@@ -143,6 +146,7 @@ describe("InvoiceController", () => {
 
     it("should success (200)", async () => {
       req.params = { invoiceId: "inv1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockedInvoiceService.getById.mockResolvedValue({ id: "inv1" } as any);
 
       await InvoiceController.getInvoiceById(req as Request, res as Response);
@@ -153,6 +157,7 @@ describe("InvoiceController", () => {
 
     it("should handle generic error (500)", async () => {
       req.params = { invoiceId: "inv1" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockGenericError("getById");
 
       await InvoiceController.getInvoiceById(req as Request, res as Response);
@@ -164,6 +169,7 @@ describe("InvoiceController", () => {
   describe("getInvoiceByPaymentIntentId", () => {
     it("should 404 if invoice not found", async () => {
       req.params = { paymentIntentId: "pi_123" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       // Cast null to any
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockedInvoiceService.getByPaymentIntentId.mockResolvedValue(null as any);
@@ -175,13 +181,14 @@ describe("InvoiceController", () => {
 
       expect(mockedInvoiceService.getByPaymentIntentId).toHaveBeenCalledWith(
         "pi_123",
-        undefined,
+        { organisationId: "org_1", parentId: null },
       );
       expect(statusMock).toHaveBeenCalledWith(404);
     });
 
     it("should success (200)", async () => {
       req.params = { paymentIntentId: "pi_123" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockedInvoiceService.getByPaymentIntentId.mockResolvedValue({
         id: "inv1",
       } as any);
@@ -193,13 +200,14 @@ describe("InvoiceController", () => {
 
       expect(mockedInvoiceService.getByPaymentIntentId).toHaveBeenCalledWith(
         "pi_123",
-        undefined,
+        { organisationId: "org_1", parentId: null },
       );
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
     it("should handle generic error (500)", async () => {
       req.params = { paymentIntentId: "pi_123" };
+      (req as { organisationId?: string }).organisationId = "org_1";
       mockGenericError("getByPaymentIntentId");
 
       await InvoiceController.getInvoiceByPaymentIntentId(

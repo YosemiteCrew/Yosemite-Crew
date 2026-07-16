@@ -229,6 +229,7 @@ describe("Task Controllers", () => {
       it("should success (200)", async () => {
         req.params = { taskId: "t1" };
         (req as any).userId = "u1";
+        (req as any).organisationId = "org-1";
         (req as any).userPermissions = ["tasks:view:own"];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (mockedTaskService.getById as any).mockResolvedValue({
@@ -241,6 +242,65 @@ describe("Task Controllers", () => {
           id: "t1",
           assignedTo: "u1",
           createdBy: "u2",
+        });
+      });
+
+      // Mobile carries no org context, so resolveOrganisationId() is undefined
+      // and the PMS permission branch never runs. The parent identity is the
+      // only authority there.
+      describe("mobile (no organisation context)", () => {
+        beforeEach(() => {
+          req.params = { taskId: "t1" };
+          (req as any).userId = "provider-1";
+          (req as any).organisationId = undefined;
+          (req as any).userPermissions = undefined;
+        });
+
+        it("404s for a task the parent neither created nor is assigned to", async () => {
+          (mockedAuthService.getByProviderUserId as any).mockResolvedValue({
+            parentId: "parent-1",
+          });
+          (mockedTaskService.getById as any).mockResolvedValue({
+            id: "t1",
+            assignedTo: "other-parent",
+            createdBy: "other-parent",
+          });
+
+          await TaskController.getById(req as any, res as Response);
+
+          expect(statusMock).toHaveBeenCalledWith(404);
+          expect(jsonMock).toHaveBeenCalledWith({ message: "Task not found" });
+        });
+
+        it("404s when the caller has no parent account", async () => {
+          (mockedAuthService.getByProviderUserId as any).mockResolvedValue(
+            null,
+          );
+          (mockedTaskService.getById as any).mockResolvedValue({
+            id: "t1",
+            assignedTo: "parent-1",
+            createdBy: "parent-1",
+          });
+
+          await TaskController.getById(req as any, res as Response);
+
+          expect(statusMock).toHaveBeenCalledWith(404);
+        });
+
+        it("returns the task to its own parent", async () => {
+          (mockedAuthService.getByProviderUserId as any).mockResolvedValue({
+            parentId: "parent-1",
+          });
+          const task = {
+            id: "t1",
+            assignedTo: "parent-1",
+            createdBy: "someone-else",
+          };
+          (mockedTaskService.getById as any).mockResolvedValue(task);
+
+          await TaskController.getById(req as any, res as Response);
+
+          expect(jsonMock).toHaveBeenCalledWith(task);
         });
       });
 
