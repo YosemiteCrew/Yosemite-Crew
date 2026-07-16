@@ -15,7 +15,8 @@
   height: 100%;
   flex-direction: column;
   overflow: visible;
-  padding: 18px 14px 14px;
+  /* Spec (PIMS Rebuild - Spec.md, desktop shell recipe): 20px 14px 16px. */
+  padding: 20px 14px 16px;
   border-right: 1px solid var(--hairline);
   background: var(--screen-2);
   transition:
