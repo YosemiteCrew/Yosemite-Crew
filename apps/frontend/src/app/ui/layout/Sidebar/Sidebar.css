@@ -299,7 +299,10 @@
   justify-content: center;
 }
 
-@media screen and (max-width: 1024px) {
+/* Phones (< 768px) move navigation to the PhoneShell bottom tab bar, so the rail
+   is hidden there and only there. Tablet (768-1279px) keeps the 76px icon rail
+   per the Foundations breakpoint contract. */
+@media screen and (max-width: 767px) {
   .sidebar {
     display: none;
   }

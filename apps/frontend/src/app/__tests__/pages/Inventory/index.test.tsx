@@ -23,6 +23,7 @@ import { dispensePrescription } from '@/app/features/appointments/services/presc
 import { useRoomsForPrimaryOrg } from '@/app/hooks/useRooms';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
+import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
 
 expect.extend(toHaveNoViolations);
 
@@ -1361,6 +1362,51 @@ describe('Inventory Page', () => {
     expect(screen.queryByTestId('add-modal')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Add product' }));
     expect(screen.getByTestId('add-modal')).toBeInTheDocument();
+  });
+
+  it('opens the add modal when the phone shell FAB fires its primary action', () => {
+    render(<ProtectedInventory />);
+    expect(screen.queryByTestId('add-modal')).not.toBeInTheDocument();
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'product', href: '/inventory' },
+        })
+      );
+    });
+
+    expect(screen.getByTestId('add-modal')).toBeInTheDocument();
+  });
+
+  it('ignores a phone primary action aimed at another page', () => {
+    render(<ProtectedInventory />);
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'appointment', href: '/appointments' },
+        })
+      );
+    });
+
+    expect(screen.queryByTestId('add-modal')).not.toBeInTheDocument();
+  });
+
+  it('ignores the phone primary action on the turnover view, where Add product is hidden', () => {
+    render(<ProtectedInventory />);
+    fireEvent.click(screen.getByRole('button', { name: 'Dispensary' }));
+    expect(screen.queryByRole('button', { name: 'Add product' })).not.toBeInTheDocument();
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'product', href: '/inventory' },
+        })
+      );
+    });
+
+    expect(screen.queryByTestId('add-modal')).not.toBeInTheDocument();
   });
 
   it('closes the sort menu on outside click and scroll', () => {

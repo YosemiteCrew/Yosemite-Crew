@@ -54,25 +54,6 @@
   gap: 10px;
 }
 
-.yc-header-mobile-brand {
-  display: none;
-  min-width: 0;
-}
-
-.yc-header-logo-link {
-  display: inline-flex;
-  height: 52px;
-  align-items: center;
-  border-radius: 16px;
-}
-
-.yc-header-logo-link img {
-  width: auto;
-  height: 52px;
-  max-width: 112px;
-  object-fit: contain;
-}
-
 .yc-header-dropdown-wrap,
 .yc-profile-wrap {
   position: relative;
@@ -386,94 +367,6 @@
   margin-left: 2px;
 }
 
-.yc-mobile-menu-shell {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.yc-mobile-org-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-
-.yc-mobile-org-trigger,
-.yc-mobile-route {
-  display: flex;
-  width: 100%;
-  min-height: 42px;
-  align-items: center;
-  border: 1px solid color-mix(in srgb, var(--color-card-border) 72%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--color-neutral-0) 58%, transparent);
-  color: var(--color-text-primary);
-  font-family: var(--font-satoshi);
-  letter-spacing: -0.26px;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-neutral-0) 72%, transparent);
-}
-
-.yc-mobile-org-trigger {
-  gap: 10px;
-  padding: 5px 10px 5px 5px;
-}
-
-.yc-mobile-dropdown-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  border: 1px solid color-mix(in srgb, var(--color-card-border) 72%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--color-neutral-0) 58%, transparent);
-  padding: 6px;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-neutral-0) 72%, transparent);
-}
-
-.yc-mobile-route-group {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.yc-mobile-route {
-  gap: 10px;
-  justify-content: flex-start;
-  padding: 10px 12px;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 20px;
-}
-
-.yc-mobile-route-icon {
-  display: inline-flex;
-  width: 20px;
-  height: 20px;
-  flex: 0 0 20px;
-  align-items: center;
-  justify-content: center;
-  color: currentColor;
-}
-
-.yc-mobile-route-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.yc-mobile-route-active {
-  border-color: color-mix(in srgb, var(--color-brand-950) 30%, transparent);
-  background: color-mix(in srgb, var(--color-brand-100) 72%, var(--color-neutral-0));
-  color: var(--color-brand-950);
-}
-
-.yc-mobile-route-disabled {
-  color: var(--color-neutral-500);
-  opacity: 0.7;
-}
-
 @media screen and (max-width: 1180px) {
   .yc-command-button {
     display: none;
@@ -484,54 +377,24 @@
   }
 }
 
-@media screen and (max-width: 1024px) {
+/* Tablet (768-1279px): the 76px icon rail is the navigation, so the header keeps
+   its desktop content but on a tighter frame. The desktop grid reserves a fixed
+   220-300px first column, which starved the search pill down to ~81px once the
+   rail took 76px off the viewport. Size the org column to its content instead and
+   hold the search near the 200px of the Foundations tablet template. */
+@media screen and (min-width: 768px) and (max-width: 1279px) {
   .yc-user-header {
-    display: grid;
-    height: 72px;
-    grid-template-columns: minmax(0, 1fr) 48px;
-    align-items: center;
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
     gap: 12px;
-    padding: 0 16px;
+    padding: 0 18px;
   }
 
-  .yc-header-left,
-  .yc-profile-wrap,
-  .yc-header-search,
-  .yc-command-button,
-  .yc-icon-button {
-    display: none;
+  .yc-header-search {
+    width: 200px !important;
+    flex: none;
   }
 
-  .yc-header-mobile-brand {
-    display: flex;
-    width: min-content;
-    height: 52px;
-    align-items: center;
-    justify-self: start;
-    overflow: visible;
-  }
-
-  .yc-header-logo-link {
-    display: inline-flex;
-    width: 116px;
-    height: 52px;
-    align-items: center;
-    justify-content: flex-start;
-  }
-
-  .yc-header-logo-link img {
-    width: auto;
-    height: 52px;
-    max-width: 112px;
-    object-fit: contain;
-  }
-
-  .yc-header-actions {
-    width: 48px;
-    height: 48px;
-    align-items: center;
-    justify-content: center;
-    justify-self: end;
-    gap: 0;
+  .yc-profile-trigger {
+    max-width: 150px;
   }
 }

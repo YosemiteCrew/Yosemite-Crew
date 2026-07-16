@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import ProtectedAppointments from '@/app/features/appointments/pages/Appointments';
+import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
@@ -296,6 +297,35 @@ describe('Appointments page', () => {
     fireEvent.click(screen.getByText('List'));
     fireEvent.click(screen.getByRole('button', { name: 'New appointment' }));
     expect(addAppointmentSpy).toHaveBeenCalledWith(expect.objectContaining({ showModal: true }));
+  });
+
+  it('opens the add appointment modal when the phone shell FAB fires its primary action', async () => {
+    await renderAppointments();
+    expect(screen.queryByTestId('add-appointment')).not.toBeInTheDocument();
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'appointment', href: '/appointments' },
+        })
+      );
+    });
+
+    expect(screen.getByTestId('add-appointment')).toBeInTheDocument();
+  });
+
+  it('ignores a phone primary action aimed at another page', async () => {
+    await renderAppointments();
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'companion', href: '/companions' },
+        })
+      );
+    });
+
+    expect(screen.queryByTestId('add-appointment')).not.toBeInTheDocument();
   });
 
   it('opens appointment modal directly on finance section for finance deep links', async () => {

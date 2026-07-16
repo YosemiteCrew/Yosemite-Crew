@@ -74,6 +74,7 @@ import {
   normalizePmsPreferences,
 } from '@/app/features/settings/utils/pmsPreferences';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 
 const AppointmentsSkeleton = () => <PageSkeleton variant="planner" />;
 const APPOINTMENTS_SKELETON = <AppointmentsSkeleton />;
@@ -484,6 +485,10 @@ const useAppointmentsView = () => {
     setAddAppointmentPrefill(null);
     setAddPopup(true);
   };
+
+  // The phone shell's FAB has no reference to this page's create flow; opt in so
+  // "New appointment" opens the same modal the desktop button does.
+  usePhonePrimaryAction('appointment', openAddAppointment);
 
   const openWorkspace = (appointment: Appointment, intent?: AppointmentViewIntent) => {
     if (!appointment.id) return;

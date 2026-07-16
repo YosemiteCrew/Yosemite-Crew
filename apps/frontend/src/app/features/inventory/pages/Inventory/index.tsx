@@ -60,6 +60,7 @@ import {
 } from '@/app/features/inventory/services/dispensaryService';
 import { dispensePrescription } from '@/app/features/appointments/services/prescriptionWorkflowService';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
+import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
 import Modal from '@/app/ui/overlays/Modal';
 import Filters from '@/app/ui/filters/Filters';
@@ -943,6 +944,14 @@ const useInventoryContent = () => {
   const [activeView, setActiveView] = useState<InventoryView>('inventory');
   const [sortMode, setSortMode] = useState<'name' | 'expiry' | 'stock'>('name');
   const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
+
+  // The phone shell's FAB has no reference to this page's create flow; opt in so
+  // "New product" opens the same modal the desktop "Add product" button does,
+  // under the same guards that enable that button.
+  usePhonePrimaryAction('product', () => {
+    if (!canEditInventory || activeView === 'turnover' || savingItem || !primaryOrgId) return;
+    setAddPopup(true);
+  });
 
   const loadingList = status === 'loading';
   const error = actionError ?? loadError;

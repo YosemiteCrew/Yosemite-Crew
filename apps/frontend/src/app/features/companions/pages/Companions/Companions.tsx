@@ -32,6 +32,7 @@ import clsx from 'clsx';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import InClinicTodayBand from '@/app/features/companions/pages/Companions/InClinicTodayBand';
@@ -86,6 +87,12 @@ const Companions = () => {
   const [viewMode, setViewMode] = useState<CompanionsViewMode>('list');
   const [sortByRecentVisit, setSortByRecentVisit] = useState(false);
   const { plannerSectionRef } = usePlannerAutoLock({ activeView: 'list', topOffset: 72 });
+
+  const openAddCompanion = () => setAddPopup(true);
+
+  // The phone shell's FAB has no reference to this page's create flow; opt in so
+  // "New companion" opens the same modal the desktop button does.
+  usePhonePrimaryAction('companion', openAddCompanion);
 
   const patientsCount = companions.length;
   const activeCount = useMemo(() => getActiveCount(companions), [companions]);
@@ -210,7 +217,7 @@ const Companions = () => {
           {canEditCompanions && (
             <button
               type="button"
-              onClick={() => setAddPopup((e) => !e)}
+              onClick={openAddCompanion}
               className="hidden h-10 shrink-0 items-center gap-1.5 rounded-full bg-[var(--cta)] px-[18px] text-[13.5px] font-semibold text-[var(--cta-text)] transition-opacity hover:opacity-90 md:flex"
             >
               <IoAdd size={17} aria-hidden="true" />
@@ -270,17 +277,6 @@ const Companions = () => {
             />
           </div>
         </div>
-
-        {canEditCompanions && (
-          <button
-            type="button"
-            onClick={() => setAddPopup((e) => !e)}
-            aria-label={terminologyText('Add companion')}
-            className="fixed bottom-[84px] right-4 z-40 flex size-[52px] items-center justify-center rounded-full bg-[var(--cta)] text-[var(--cta-text)] shadow-[0_24px_60px_var(--sh28)] transition-opacity hover:opacity-90 md:hidden"
-          >
-            <IoAdd size={24} aria-hidden="true" />
-          </button>
-        )}
 
         {isCompanionRevampEnabled() ? (
           <>

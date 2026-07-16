@@ -141,15 +141,24 @@ const PhoneDayRail = ({
           data-testid="day-rail-fold"
           style={{ top: `${fold.topPct}%`, height: `${fold.heightPct}%` }}
         >
-          <button
-            type="button"
-            className="yc-day-rail__fold-expand"
-            disabled={!onExpandFold}
-            onClick={() => onExpandFold?.(fold)}
-          >
-            <IoSwapVerticalOutline className="yc-day-rail__fold-icon" aria-hidden />
-            {`${fold.rangeLabel} free · folded`}
-          </button>
+          {/* A fold only ever collapses empty hours, so expanding it reveals blank
+              space - Book is the action that matters on a free band. Without a
+              handler this stays a static label rather than a dead button. */}
+          {onExpandFold ? (
+            <button
+              type="button"
+              className="yc-day-rail__fold-expand"
+              onClick={() => onExpandFold(fold)}
+            >
+              <IoSwapVerticalOutline className="yc-day-rail__fold-icon" aria-hidden />
+              {`${fold.rangeLabel} free · folded`}
+            </button>
+          ) : (
+            <span className="yc-day-rail__fold-expand">
+              <IoSwapVerticalOutline className="yc-day-rail__fold-icon" aria-hidden />
+              {`${fold.rangeLabel} free · folded`}
+            </span>
+          )}
           {onBookFold ? (
             <button
               type="button"

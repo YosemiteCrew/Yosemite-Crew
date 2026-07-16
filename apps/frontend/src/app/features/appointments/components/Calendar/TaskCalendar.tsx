@@ -1,9 +1,14 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import Header from '@/app/features/appointments/components/Calendar/common/Header';
 import { TaskCalendarBody } from '@/app/features/appointments/components/Calendar/TaskCalendarBody';
+import PhoneTaskDayList from '@/app/features/appointments/components/Calendar/PhoneTaskDayList';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
 import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { useCompanionsForPrimaryOrg } from '@/app/hooks/useCompanion';
 import { useAuthStore } from '@/app/stores/authStore';
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
+import { useNotify } from '@/app/hooks/useNotify';
+import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { useTaskCalendarDrag } from '@/app/features/appointments/components/Calendar/useTaskCalendarDrag';
 import { useTaskCalendarActions } from '@/app/features/appointments/components/Calendar/useTaskCalendarActions';
@@ -49,6 +54,27 @@ const TaskCalendar = ({
     (s) => s.attributes?.sub || s.attributes?.email || s.attributes?.['cognito:username'] || ''
   );
   const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
+  const isPhone = useIsPhone();
+  const companions = useCompanionsForPrimaryOrg();
+  const { notify } = useNotify();
+
+  const companionNameById = useMemo(
+    () => Object.fromEntries(companions.map((companion) => [companion.id, companion.name])),
+    [companions]
+  );
+
+  const handleToggleTask = useCallback(
+    (task: Task) => {
+      const nextStatus = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+      void changeTaskStatus({ ...task, status: nextStatus }).catch(() => {
+        notify('warning', {
+          title: 'Task not updated',
+          text: 'Unable to update this task. Please try again.',
+        });
+      });
+    },
+    [notify]
+  );
 
   const {
     canEditTask,
@@ -82,6 +108,26 @@ const TaskCalendar = ({
     setReschedulePopup,
     onCreateFromCalendarSlot,
   });
+
+  // A task time grid cannot shrink to a phone, so below 768px the planner
+  // becomes a thumb-checkable day list. Tablet and desktop keep the real grid.
+  if (isPhone) {
+    return (
+      <div className="border border-card-border rounded-2xl size-full min-h-0 flex flex-col overflow-hidden">
+        <PhoneTaskDayList
+          tasks={filteredList}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          canEditTasks={canEditTasks}
+          currentUserId={authUserId}
+          resolveDisplayName={resolveDisplayName}
+          companionNameById={companionNameById}
+          onToggleTask={handleToggleTask}
+          onViewTask={handleViewTask}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="border border-card-border rounded-2xl size-full min-h-0 flex flex-col overflow-hidden">

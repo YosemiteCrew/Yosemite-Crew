@@ -35,6 +35,7 @@ import {
 } from '@/app/lib/sidebarPreference';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
+import { useIsTabletRail } from './useIsTabletRail';
 
 import './Sidebar.css';
 
@@ -86,7 +87,11 @@ const Sidebar = () => {
   useLoadSpecialitiesForPrimaryOrg();
   const pathname = usePathname();
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(() => isSidebarCollapsedByDefault());
+  const [prefersCollapsed, setPrefersCollapsed] = useState(() => isSidebarCollapsedByDefault());
+  // Tablet is always the icon rail, so it overrides a stored desktop preference
+  // (which would otherwise render the 224px sidebar after a desktop -> tablet resize).
+  const isTabletRail = useIsTabletRail();
+  const isCollapsed = isTabletRail || prefersCollapsed;
 
   const isDevPortal = pathname?.startsWith('/developers') || false;
   const routes = isDevPortal ? devRoutes : appRoutes;
@@ -115,7 +120,7 @@ const Sidebar = () => {
   };
 
   const handleToggleCollapse = () => {
-    setIsCollapsed((prev) => {
+    setPrefersCollapsed((prev) => {
       const next = !prev;
       setSidebarCollapsedPreference(next);
       return next;
@@ -241,23 +246,27 @@ const Sidebar = () => {
             {'All systems live'}
           </span>
         )}
-        <GlassTooltip
-          content={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          side={isCollapsed ? 'right' : 'top'}
-        >
-          <button
-            type="button"
-            onClick={handleToggleCollapse}
-            className="sidebar-collapse-btn"
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        {/* Tablet is locked to the rail by the breakpoint contract, so there is
+            nothing to toggle between there. */}
+        {!isTabletRail && (
+          <GlassTooltip
+            content={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            side={isCollapsed ? 'right' : 'top'}
           >
-            {isCollapsed ? (
-              <IoChevronForwardOutline size={17} />
-            ) : (
-              <IoChevronBackOutline size={17} />
-            )}
-          </button>
-        </GlassTooltip>
+            <button
+              type="button"
+              onClick={handleToggleCollapse}
+              className="sidebar-collapse-btn"
+              aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {isCollapsed ? (
+                <IoChevronForwardOutline size={17} />
+              ) : (
+                <IoChevronBackOutline size={17} />
+              )}
+            </button>
+          </GlassTooltip>
+        )}
       </div>
     </div>
   );

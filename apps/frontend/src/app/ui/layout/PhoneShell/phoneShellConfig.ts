@@ -93,6 +93,18 @@ export const PHONE_TABS: PhoneTabConfig[] = [
 
 export type FabActionKey = 'appointment' | 'task' | 'companion' | 'product';
 
+/**
+ * Custom event the FAB dispatches so the active page can open its create flow.
+ * Lives here (not in `PhoneShell.tsx`) so a page can subscribe via
+ * `usePhonePrimaryAction` without importing the whole shell component.
+ */
+export const PHONE_PRIMARY_ACTION_EVENT = 'yc:phone-primary-action';
+
+export type PhonePrimaryActionDetail = {
+  key: FabActionKey;
+  href: string;
+};
+
 export type FabAction = {
   key: FabActionKey;
   label: string;

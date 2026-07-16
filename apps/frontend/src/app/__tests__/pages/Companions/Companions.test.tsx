@@ -1,7 +1,8 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
+import { PHONE_PRIMARY_ACTION_EVENT } from '@/app/ui/layout/PhoneShell/phoneShellConfig';
 
 expect.extend(toHaveNoViolations);
 
@@ -208,9 +209,63 @@ describe('Companions page', () => {
       })
     );
 
-    // Two triggers share the label (desktop CTA + phone FAB) — click the first.
-    fireEvent.click(screen.getAllByRole('button', { name: /Add companion/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /Add companion/i }));
     expect(screen.getByTestId('add-companion')).toBeInTheDocument();
+  });
+
+  it('opens the add modal when the phone shell FAB fires its primary action', () => {
+    render(<ProtectedCompanions />);
+    expect(screen.queryByTestId('add-companion')).not.toBeInTheDocument();
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'companion', href: '/companions' },
+        })
+      );
+    });
+
+    expect(screen.getByTestId('add-companion')).toBeInTheDocument();
+  });
+
+  it('ignores a phone primary action aimed at another page', () => {
+    render(<ProtectedCompanions />);
+
+    act(() => {
+      globalThis.window.dispatchEvent(
+        new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+          detail: { key: 'product', href: '/inventory' },
+        })
+      );
+    });
+
+    expect(screen.queryByTestId('add-companion')).not.toBeInTheDocument();
+  });
+
+  it('renders with no companions and selects none', () => {
+    useCompanionsMock.mockReturnValue([]);
+    render(<ProtectedCompanions />);
+
+    expect(screen.getByText('0 patients, 0 active')).toBeInTheDocument();
+    expect(companionsTableSpy).toHaveBeenCalledWith(expect.objectContaining({ filteredList: [] }));
+  });
+
+  it('falls back to inactive / empty species for companions missing status and type', () => {
+    useSearchStoreMock.mockImplementation((selector: any) => selector({ query: '' }));
+    useCompanionsMock.mockReturnValue([
+      { companion: { id: 'c3', name: 'Buddy' }, parent: { firstName: 'Sam' } },
+    ]);
+    render(<ProtectedCompanions />);
+
+    // Status defaults to 'inactive', so the companion counts as not active.
+    expect(screen.getByText('1 patients, 0 active')).toBeInTheDocument();
+    expect(companionsTableSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filteredList: [
+          expect.objectContaining({ companion: expect.objectContaining({ id: 'c3' }) }),
+        ],
+      })
+    );
   });
 
   it('shows the live patient / active counts in the title', () => {

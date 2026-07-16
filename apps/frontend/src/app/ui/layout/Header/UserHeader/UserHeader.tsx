@@ -2,22 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   IoBookOutline,
-  IoBusinessOutline,
-  IoCalendarOutline,
   IoCaretDown,
-  IoChatbubbleEllipsesOutline,
-  IoCubeOutline,
-  IoExtensionPuzzleOutline,
-  IoGitNetworkOutline,
-  IoGlobeOutline,
-  IoGridOutline,
   IoHelpCircleOutline,
-  IoKeyOutline,
-  IoListOutline,
   IoLogOutOutline,
-  IoPaw,
   IoSettingsOutline,
-  IoWalletOutline,
 } from 'react-icons/io5';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSignOut } from '@/app/hooks/useAuth';
@@ -34,95 +22,14 @@ import { getSafeImageUrl } from '@/app/lib/urls';
 import Search from '@/app/ui/inputs/Search';
 import { useSearchStore } from '@/app/stores/searchStore';
 import { useUniversalSearchStore } from '@/app/stores/universalSearchStore';
-import HamburgerMenuButton from '@/app/ui/layout/Header/HamburgerMenuButton';
-import MobileMenu from '@/app/ui/layout/Header/MobileMenu';
-import { headerAppRoutes, headerDevRoutes } from '@/app/config/routes';
-import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import { startRouteLoader, stopRouteLoader } from '@/app/lib/routeLoader';
 import { useFullscreenLoaderStore } from '@/app/stores/fullscreenLoaderStore';
 import { resolveOrgScopedRedirect } from '@/app/lib/postAuthRedirect';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
-import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
 import { ThemeToggle } from '@/app/ui/theme';
 import NotificationsBell from '@/app/ui/layout/Notifications/NotificationsBell';
 import './UserHeader.css';
-
-const ROUTE_ICONS = {
-  Dashboard: IoGridOutline,
-  Organization: IoBusinessOutline,
-  Appointments: IoCalendarOutline,
-  Tasks: IoListOutline,
-  Chat: IoChatbubbleEllipsesOutline,
-  Finance: IoWalletOutline,
-  Companions: IoPaw,
-  Inventory: IoCubeOutline,
-  Integrations: IoGitNetworkOutline,
-  Templates: IoBookOutline,
-  'API Keys': IoKeyOutline,
-  'Website - Builder': IoGlobeOutline,
-  Plugins: IoExtensionPuzzleOutline,
-  Documentation: IoBookOutline,
-  Settings: IoSettingsOutline,
-  Guides: IoHelpCircleOutline,
-  'MSD Veterinary Manual': IoBookOutline,
-  'Sign out': IoLogOutOutline,
-} as const;
-
-const APP_MOBILE_ROUTE_GROUPS = [
-  { label: 'Overview', routeNames: ['Dashboard'] },
-  { label: 'Schedule & Work', routeNames: ['Appointments', 'Tasks', 'Chat'] },
-  { label: 'Clients & Records', routeNames: ['Companions', 'Templates'] },
-  { label: 'Business', routeNames: ['Finance', 'Inventory'] },
-  { label: 'Administration', routeNames: ['Organization', 'Integrations'] },
-  { label: 'Support', routeNames: ['Guides', 'MSD Veterinary Manual'] },
-  { label: 'Account', routeNames: ['Settings', 'Sign out'] },
-] as const;
-
-const DEV_MOBILE_ROUTE_GROUPS = [
-  { label: 'Developer', routeNames: ['Dashboard', 'API Keys', 'Website - Builder'] },
-  { label: 'Platform', routeNames: ['Plugins', 'Documentation'] },
-  { label: 'Account', routeNames: ['Settings', 'Sign out'] },
-] as const;
-
-const buildMobileRoutes = (
-  routes: typeof headerAppRoutes,
-  merckEnabled: boolean
-): typeof headerAppRoutes => {
-  const next = [...routes];
-  const signOutIndex = next.findIndex((route) => route.name === 'Sign out');
-  /* v8 ignore next -- headerAppRoutes always contains "Sign out" and buildMobileRoutes runs only for app routes, so the next.length fallback is unreachable */
-  const insertIndex = signOutIndex === -1 ? next.length : signOutIndex;
-  if (merckEnabled) {
-    next.splice(insertIndex, 0, {
-      name: 'MSD Veterinary Manual',
-      href: '/integrations/merck-manuals',
-      verify: true,
-    });
-  }
-  next.splice(insertIndex, 0, { name: 'Guides', href: '/guides', verify: false });
-  return next;
-};
-
-const groupRoutesByName = (
-  routes: typeof headerAppRoutes,
-  groups: readonly { label: string; routeNames: readonly string[] }[]
-) =>
-  groups.reduce<Array<{ label: string; routes: Array<(typeof routes)[number]> }>>(
-    (visibleGroups, group) => {
-      const groupRoutes = group.routeNames.reduce<Array<(typeof routes)[number]>>(
-        (items, routeName) => {
-          const route = routes.find((item) => item.name === routeName);
-          if (route) items.push(route);
-          return items;
-        },
-        []
-      );
-      if (groupRoutes.length > 0) visibleGroups.push({ label: group.label, routes: groupRoutes });
-      return visibleGroups;
-    },
-    []
-  );
 
 const shouldHideSearch = (pathname: string): boolean =>
   pathname.startsWith('/chat') ||
@@ -154,7 +61,7 @@ const getSearchPlaceholder = (
   return 'Search';
 };
 
-const CLOSED_MENUS = { menuOpen: false, selectOrg: false, selectProfile: false };
+const CLOSED_MENUS = { selectOrg: false, selectProfile: false };
 
 const useUserHeaderContent = () => {
   const terminologyText = useCompanionTerminologyText();
@@ -164,12 +71,7 @@ const useUserHeaderContent = () => {
   const attributes = useAuthStore((s) => s.attributes);
   const profile = usePrimaryOrgProfile();
   const [openMenus, setOpenMenus] = useState(CLOSED_MENUS);
-  const { menuOpen, selectOrg, selectProfile } = openMenus;
-  const setMenuOpen = (value: boolean | ((prev: boolean) => boolean)) =>
-    setOpenMenus((m) => ({
-      ...m,
-      menuOpen: typeof value === 'function' ? value(m.menuOpen) : value,
-    }));
+  const { selectOrg, selectProfile } = openMenus;
   const setSelectOrg = (value: boolean | ((prev: boolean) => boolean)) =>
     setOpenMenus((m) => ({
       ...m,
@@ -183,12 +85,6 @@ const useUserHeaderContent = () => {
   const mounted = useHasMounted();
   const isDev = pathname.startsWith('/developers');
   const { isEnabled: merckEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
-  const routes = isDev ? headerDevRoutes : headerAppRoutes;
-  const mobileRoutes = isDev ? routes : buildMobileRoutes(routes, merckEnabled);
-  const mobileRouteGroups = groupRoutesByName(
-    mobileRoutes,
-    isDev ? DEV_MOBILE_ROUTE_GROUPS : APP_MOBILE_ROUTE_GROUPS
-  );
   const orgs = useOrgList();
   const primaryOrg = usePrimaryOrg();
   const setPrimaryOrg = useOrgStore((s) => s.setPrimaryOrg);
@@ -198,13 +94,9 @@ const useUserHeaderContent = () => {
   const clear = useSearchStore((s) => s.clear);
   const openUniversalSearch = useUniversalSearchStore((s) => s.open);
   const desktopOrgDropdownRef = useRef<HTMLDivElement>(null);
-  const mobileOrgDropdownRef = useRef<HTMLDivElement>(null);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
-  const mobileMenuId = 'user-mobile-menu';
   const orgMenuId = 'user-header-org-menu';
   const profileMenuId = 'user-header-profile-menu';
-
-  const toggleMenu = () => setMenuOpen((prev) => !prev);
 
   const logoutRedirect = pathname.startsWith('/developers') ? '/developers/signin' : '/signin';
   // Reset transient header UI when the route changes. Menus reset during
@@ -220,18 +112,6 @@ const useUserHeaderContent = () => {
   useEffect(() => {
     clear();
   }, [pathname, clear]);
-
-  useEffect(() => {
-    const closeMenuOnDesktop = () => {
-      if (globalThis.window.innerWidth >= 1024) {
-        setOpenMenus(CLOSED_MENUS);
-      }
-    };
-
-    closeMenuOnDesktop();
-    globalThis.window.addEventListener('resize', closeMenuOnDesktop);
-    return () => globalThis.window.removeEventListener('resize', closeMenuOnDesktop);
-  }, []);
 
   const handleLogout = async () => {
     startRouteLoader();
@@ -261,40 +141,6 @@ const useUserHeaderContent = () => {
     }
   };
 
-  const handleMobileOrgClick = (orgId: string) => {
-    setPrimaryOrg(orgId);
-    setSelectOrg(false);
-    setMenuOpen(false);
-    const { show, hide } = useFullscreenLoaderStore.getState();
-    show('org-switch');
-    setTimeout(() => navigateToOrg(orgId, hide), 300);
-  };
-
-  const navigateToOrg = (orgId: string, hide: (key: string) => void) => {
-    startRouteLoader();
-    const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
-    void resolveOrgScopedRedirect({ orgId, fallbackRole: role })
-      .then((nextRoute) => {
-        router.push(nextRoute);
-      })
-      .catch(() => {
-        hide('org-switch');
-        stopRouteLoader();
-      });
-  };
-
-  const handleClick = (item: any) => {
-    setMenuOpen(false);
-    if (item.name === 'Sign out') {
-      handleLogout();
-      return;
-    }
-    setTimeout(() => {
-      startRouteLoader();
-      router.push(item.href);
-    }, 400);
-  };
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -314,8 +160,7 @@ const useUserHeaderContent = () => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
       const clickedInsideDesktopOrgMenu = desktopOrgDropdownRef.current?.contains(target) ?? false;
-      const clickedInsideMobileOrgMenu = mobileOrgDropdownRef.current?.contains(target) ?? false;
-      if (!clickedInsideDesktopOrgMenu && !clickedInsideMobileOrgMenu) {
+      if (!clickedInsideDesktopOrgMenu) {
         setSelectOrg(false);
       }
     };
@@ -325,150 +170,16 @@ const useUserHeaderContent = () => {
     };
   }, []);
 
-  const orgMissing = !primaryOrg;
   const orgVerified = !!primaryOrg?.isVerified;
 
   const searchPlaceholder = getSearchPlaceholder(pathname, terminologyText, mounted);
 
   const hideSearch = shouldHideSearch(pathname);
-  const primaryOrgId = primaryOrg?._id?.toString();
-  const currentMembership = primaryOrgId ? membershipsByOrgId[primaryOrgId] : null;
-  const currentRole = currentMembership?.roleDisplay ?? currentMembership?.roleCode;
-  // Computed client-side only to avoid SSR/client hydration mismatch — store
-  // is empty on the server so the resolved href would differ from the client.
-  const [authenticatedLogoHref, setAuthenticatedLogoHref] = useState('/');
-  useEffect(() => {
-    if (isDev) {
-      setAuthenticatedLogoHref('/developers/home');
-    } else {
-      setAuthenticatedLogoHref(
-        resolveDefaultOpenScreenRouteForProfile({
-          profile,
-          orgType: primaryOrg?.type,
-          role: currentRole ?? 'owner',
-        })
-      );
-    }
-  }, [isDev, profile, primaryOrg?.type, currentRole]);
   const displayName =
     `${attributes?.given_name ?? ''} ${attributes?.family_name ?? ''}`.trim() || 'Account';
 
   return (
     <div className="yc-user-header">
-      <MobileMenu
-        isOpen={menuOpen}
-        id={mobileMenuId}
-        onClose={() => {
-          setMenuOpen(false);
-          setSelectOrg(false);
-        }}
-      >
-        <div className="yc-mobile-menu-shell">
-          {primaryOrg && !isDev && (
-            <div className="yc-mobile-org-card" ref={mobileOrgDropdownRef}>
-              <button
-                type="button"
-                className="yc-mobile-org-trigger"
-                onClick={() => setSelectOrg((e) => !e)}
-                aria-expanded={selectOrg}
-                aria-controls={orgMenuId}
-                aria-haspopup="menu"
-              >
-                <Image
-                  src={getSafeImageUrl(primaryOrg.imageURL, 'business')}
-                  alt=""
-                  height={34}
-                  width={34}
-                  className="yc-header-avatar"
-                />
-                <span className="yc-mobile-org-copy">
-                  <span className="yc-header-kicker">Organization</span>
-                  <span className="yc-header-primary-text">{primaryOrg?.name}</span>
-                </span>
-                <IoCaretDown className={selectOrg ? 'yc-chevron-open' : ''} size={16} />
-              </button>
-              {selectOrg && (
-                <div id={orgMenuId} className="yc-mobile-dropdown-list" role="menu">
-                  {orgs.slice(0, 4).map((org) => (
-                    <button
-                      key={org._id?.toString() || org.name}
-                      type="button"
-                      className="yc-menu-row"
-                      onClick={() => handleMobileOrgClick(org._id?.toString() || org.name)}
-                      role="menuitem"
-                    >
-                      {org.name}
-                    </button>
-                  ))}
-                  <Link
-                    href="/organizations"
-                    onClick={() => {
-                      setSelectOrg(false);
-                      setMenuOpen(false);
-                    }}
-                    className="yc-menu-row yc-menu-row-accent"
-                    role="menuitem"
-                  >
-                    View all organizations
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
-          {mobileRouteGroups.map((group) => (
-            <div className="yc-mobile-route-group" key={group.label}>
-              <div className="yc-mobile-section-label">{group.label}</div>
-              {group.routes.map((route) => {
-                /* v8 ignore next 2 -- every mobile route name has a ROUTE_ICONS entry, so the IoBookOutline fallback is unreachable */
-                const RouteIcon =
-                  ROUTE_ICONS[route.name as keyof typeof ROUTE_ICONS] ?? IoBookOutline;
-                const needsVerifiedOrg = route.verify;
-                const isDisabled = isDev
-                  ? false
-                  : route.name !== 'Sign out' &&
-                    route.name !== 'Settings' &&
-                    (orgMissing || (needsVerifiedOrg && !orgVerified));
-
-                const isActive = pathname === route.href;
-
-                const onClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
-                  e.preventDefault();
-                  if (isDisabled) return;
-                  handleClick(route);
-                };
-
-                return (
-                  <button
-                    type="button"
-                    key={route.name}
-                    onClick={onClick}
-                    className={`yc-mobile-route ${isActive ? 'yc-mobile-route-active' : ''} ${isDisabled ? 'yc-mobile-route-disabled' : ''}`}
-                  >
-                    <span className="yc-mobile-route-icon" aria-hidden>
-                      <RouteIcon size={18} />
-                    </span>
-                    <span className="yc-mobile-route-label">{route.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </MobileMenu>
-
-      <div className="yc-header-mobile-brand">
-        <Link href={authenticatedLogoHref} className="yc-header-logo-link">
-          <Image
-            src={MEDIA_SOURCES.logo}
-            alt="Logo"
-            width={112}
-            height={72}
-            priority
-            fetchPriority="high"
-            style={{ width: 'auto' }}
-          />
-        </Link>
-      </div>
       <div className="yc-header-left">
         {primaryOrg && !isDev && (
           <div className="yc-header-dropdown-wrap" ref={desktopOrgDropdownRef}>
@@ -629,8 +340,6 @@ const useUserHeaderContent = () => {
             </div>
           )}
         </div>
-
-        <HamburgerMenuButton menuOpen={menuOpen} onClick={toggleMenu} controlsId={mobileMenuId} />
       </div>
     </div>
   );

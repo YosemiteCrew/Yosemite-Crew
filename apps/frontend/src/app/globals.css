@@ -1371,8 +1371,10 @@ html[data-theme='dark'] [data-yc-app] ::selection {
    padding 26px 30px and gap 22px. That was previously copy-pasted into each
    page root as Tailwind utilities and had drifted into five conflicting
    variants, none matching the spec. This is the single source of truth.
-   Phone/tablet keep the tighter 12px gutter the build already shipped; the
-   spec only fixes the 1440 desktop frame. */
+   Phones keep the tighter 12px gutter the build already shipped; the tablet band
+   follows the 20px 22px of the Foundations tablet template (it is a real tablet
+   shell with the icon rail, not a widened phone); the spec fixes the 1440 desktop
+   frame at 26px 30px. */
 .yc-page-content {
   display: flex;
   flex-direction: column;
@@ -1380,7 +1382,13 @@ html[data-theme='dark'] [data-yc-app] ::selection {
   padding: 12px;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) and (max-width: 1279px) {
+  .yc-page-content {
+    padding: 20px 22px;
+  }
+}
+
+@media (min-width: 1280px) {
   .yc-page-content {
     padding: 26px 30px;
   }

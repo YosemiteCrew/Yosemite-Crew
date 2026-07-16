@@ -187,7 +187,11 @@ describe('PhoneDayRail', () => {
   it('makes the fold label tappable only when an expand handler is supplied', async () => {
     const onExpandFold = jest.fn();
     const { rerender } = render(<PhoneDayRail appointments={designDay()} />);
-    expect(screen.getByRole('button', { name: /free · folded/ })).toBeDisabled();
+    // No handler: the label stays informational text. It must NOT render as a
+    // button - PhoneCalendar does not pass onExpandFold, so a disabled button
+    // here would be permanently inert chrome.
+    expect(screen.getByText(/free · folded/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /free · folded/ })).not.toBeInTheDocument();
 
     rerender(<PhoneDayRail appointments={designDay()} onExpandFold={onExpandFold} />);
     await userEvent.click(screen.getByRole('button', { name: /free · folded/ }));

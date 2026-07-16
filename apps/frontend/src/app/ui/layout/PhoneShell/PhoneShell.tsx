@@ -12,19 +12,20 @@ import { usePhoneShellStore } from './phoneShellStore';
 import {
   PHONE_MORE_LINKS,
   PHONE_MORE_SECTIONS,
+  PHONE_PRIMARY_ACTION_EVENT,
   PHONE_TABS,
   resolveFabAction,
   type FabAction,
+  type PhonePrimaryActionDetail,
 } from './phoneShellConfig';
 
 import './PhoneShell.css';
 
-/** Custom event the FAB dispatches so the active page can open its create flow. */
-export const PHONE_PRIMARY_ACTION_EVENT = 'yc:phone-primary-action';
+export { PHONE_PRIMARY_ACTION_EVENT };
 
 const handleFabAction = (action: FabAction) => {
   globalThis.window.dispatchEvent(
-    new CustomEvent(PHONE_PRIMARY_ACTION_EVENT, {
+    new CustomEvent<PhonePrimaryActionDetail>(PHONE_PRIMARY_ACTION_EVENT, {
       detail: { key: action.key, href: action.matchHref },
     })
   );

@@ -1,12 +1,19 @@
 import React from 'react';
 import ModalBase from '@/app/ui/overlays/Modal/ModalBase';
+import SheetChrome from '@/app/ui/overlays/Sheet/SheetChrome';
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
 
 /**
- * Panel layout for the shared Modal.
+ * Panel layout for the shared Modal on tablet (768-1279px) and desktop (>= 1280px).
  * - `drawer` (default): right-side full-height drawer — the behaviour every existing
  *   caller has always used. Left untouched so opting in never regresses a current screen.
  * - `centered`: centered dialog panel per the PIMS Modal recipe (backdrop var(--sh55),
  *   radius 20, widths sm 480 / md 640 / lg 840). Opt-in only.
+ *
+ * On phones (< 768px) both variants are re-formed per the Foundations adaptation rule
+ * "Modals -> bottom sheets. Phones get a grabber, top radius 24, full-width buttons;
+ * drawers go full-screen" — `centered` becomes a bottom sheet, `drawer` goes full-screen.
+ * Callers pass nothing extra: the swap happens here, so all 26 call sites follow.
  */
 type ModalVariant = 'drawer' | 'centered';
 type ModalSize = 'sm' | 'md' | 'lg';
@@ -54,6 +61,39 @@ const Modal = ({
   'aria-label': ariaLabel,
   'aria-labelledby': ariaLabelledBy,
 }: ModalProps) => {
+  // `false` during SSR and the first client render, so the tablet/desktop markup
+  // below is what renders everywhere until the phone media query is measured.
+  const isPhone = useIsPhone();
+
+  if (isPhone) {
+    const isSheet = variant === 'centered';
+    const panelClassName = isSheet
+      ? `yc-phone-sheet yc-modal-sheet ${showModal ? '' : 'yc-modal-sheet-closed'}`
+      : `yc-modal-fullscreen ${showModal ? '' : 'yc-modal-fullscreen-closed'}`;
+
+    return (
+      <ModalBase
+        showModal={showModal}
+        setShowModal={setShowModal}
+        onClose={onClose}
+        canClose={canClose}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
+        ignoreOutsideClick={isIgnoredOutsideTarget}
+        overlayClassName={`fixed backdrop-blur-[6px] inset-0 z-[1100] transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${
+          showModal ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        overlayStyle={{ backgroundColor: 'var(--sh55)' }}
+        containerClassName={panelClassName}
+      >
+        {/* The sheet gets the grabber; its title/close row is left to the caller's
+            own header so the two never double up. The full-screen drawer has no
+            sheet edge, so it takes the caller's content as-is. */}
+        {isSheet ? <SheetChrome>{children}</SheetChrome> : children}
+      </ModalBase>
+    );
+  }
+
   if (variant === 'centered') {
     return (
       <ModalBase

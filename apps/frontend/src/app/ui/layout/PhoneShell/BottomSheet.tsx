@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useId, useRef } from 'react';
-import { IoClose } from 'react-icons/io5';
+
+import SheetChrome from '@/app/ui/overlays/Sheet/SheetChrome';
 
 export type BottomSheetProps = {
   open: boolean;
@@ -29,6 +30,10 @@ const FOCUSABLE_SELECTOR = [
  * stacked buttons. Traps focus while open, closes on backdrop click or Escape,
  * and restores focus to the trigger on close. The close button guarantees at
  * least one focusable element, so the trap never operates on an empty set.
+ *
+ * The chrome itself (grabber, title row, body, footer) comes from the shared
+ * `overlays/Sheet/SheetChrome`, which `overlays/Modal` also uses for the phone
+ * form of a modal.
  */
 const BottomSheet = ({ open, title, onClose, children, footer, className }: BottomSheetProps) => {
   const panelRef = useRef<HTMLDialogElement>(null);
@@ -101,22 +106,9 @@ const BottomSheet = ({ open, title, onClose, children, footer, className }: Bott
         aria-labelledby={titleId}
         tabIndex={-1}
       >
-        <span className="yc-phone-sheet-grabber" aria-hidden />
-        <div className="yc-phone-sheet-head">
-          <h2 id={titleId} className="yc-phone-sheet-title">
-            {title}
-          </h2>
-          <button
-            type="button"
-            className="yc-phone-sheet-close"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <IoClose size={20} aria-hidden />
-          </button>
-        </div>
-        <div className="yc-phone-sheet-body">{children}</div>
-        {footer ? <div className="yc-phone-sheet-footer">{footer}</div> : null}
+        <SheetChrome title={title} titleId={titleId} onClose={onClose} footer={footer}>
+          {children}
+        </SheetChrome>
       </dialog>
     </div>
   );

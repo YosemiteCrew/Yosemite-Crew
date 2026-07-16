@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import UserHeader from '@/app/ui/layout/Header/UserHeader/UserHeader';
 import { usePathname, useRouter } from 'next/navigation';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -123,68 +123,22 @@ describe('UserHeader Component', () => {
 
     render(<UserHeader />);
 
-    // Logo check
-    expect(screen.getByTestId('next-link')).toHaveAttribute('href', '/dashboard');
-
     // Notification Icon
     expect(screen.getByTestId('IoNotifications')).toBeInTheDocument();
 
-    // Menu Toggle Button (Hamburger)
-    expect(screen.getByLabelText('Open menu')).toBeInTheDocument();
+    // The account control is the header's own nav affordance
+    expect(screen.getByRole('button', { name: /account/i })).toBeInTheDocument();
   });
 
-  // --- 2. Menu Interaction & Navigation ---
-
-  it('opens the menu and displays App routes', async () => {
+  it('renders no hamburger menu at any width', () => {
+    // Navigation is the sidebar rail (>= 768px) or the PhoneShell tab bar (< 768px);
+    // the signed-in header never owns a hamburger drawer.
     (usePathname as jest.Mock).mockReturnValue('/dashboard');
-    render(<UserHeader />);
-
-    const toggleBtn = screen.getByLabelText('Open menu');
-
-    // Open menu
-    await act(async () => {
-      fireEvent.click(toggleBtn);
-    });
-
-    // Check App Routes are visible
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('Organization')).toBeInTheDocument();
-    expect(screen.getByText('Appointments')).toBeInTheDocument();
-    expect(screen.getByText('Sign out')).toBeInTheDocument();
-
-    // Verify toggle button state changes
-    expect(screen.getByLabelText('Close menu')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Close menu' })).toHaveAttribute(
-      'aria-controls',
-      'user-mobile-menu'
-    );
-  });
-
-  it('opens the menu and displays Developer routes when path starts with /developers', async () => {
-    (usePathname as jest.Mock).mockReturnValue('/developers/home');
-    render(<UserHeader />);
-
-    const toggleBtn = screen.getByLabelText('Open menu');
-
-    await act(async () => {
-      fireEvent.click(toggleBtn);
-    });
-
-    // Check Developer Routes are visible
-    expect(screen.getByText('API Keys')).toBeInTheDocument();
-    expect(screen.getByText('Website - Builder')).toBeInTheDocument();
-    expect(screen.getByText('Documentation')).toBeInTheDocument();
-
-    // Ensure standard app routes are NOT visible (e.g. "Finance")
-    expect(screen.queryByText('Finance')).not.toBeInTheDocument();
-  });
-
-  it('uses the developer home link for the authenticated logo on developer routes', () => {
-    (usePathname as jest.Mock).mockReturnValue('/developers/home');
 
     render(<UserHeader />);
 
-    expect(screen.getByTestId('next-link')).toHaveAttribute('href', '/developers/home');
+    expect(screen.queryByLabelText('Open menu')).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Mobile navigation' })).not.toBeInTheDocument();
   });
 
   it('updates the companions search placeholder with organization terminology after mount', async () => {
@@ -207,66 +161,42 @@ describe('UserHeader Component', () => {
   // --- 3. Sign Out Logic ---
 
   it('handles Sign out correctly for App users', async () => {
-    jest.useFakeTimers();
     (usePathname as jest.Mock).mockReturnValue('/dashboard');
     render(<UserHeader />);
 
-    // Open Menu
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Open menu'));
+      fireEvent.click(screen.getByRole('button', { name: /account/i }));
     });
 
-    const signOutBtn = screen.getByText('Sign out');
-
-    // Click Sign Out
     await act(async () => {
-      fireEvent.click(signOutBtn);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
     });
 
-    // Fast-forward delay
-    await act(async () => {
-      jest.advanceTimersByTime(400);
-    });
-
-    // Wait for async sign out logic
     await waitFor(() => {
       expect(mockSignOut).toHaveBeenCalled();
       expect(mockReplace).toHaveBeenCalledWith('/signin');
     });
-
-    jest.useRealTimers();
   });
 
   it('handles Sign out correctly for Developer users (redirects to dev signin)', async () => {
-    jest.useFakeTimers();
     (usePathname as jest.Mock).mockReturnValue('/developers/home');
     render(<UserHeader />);
 
-    // Open Menu
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Open menu'));
-    });
-
-    const signOutBtn = screen.getByText('Sign out');
-
-    await act(async () => {
-      fireEvent.click(signOutBtn);
+      fireEvent.click(screen.getByRole('button', { name: /account/i }));
     });
 
     await act(async () => {
-      jest.advanceTimersByTime(400);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
     });
 
     await waitFor(() => {
       expect(mockSignOut).toHaveBeenCalled();
       expect(mockReplace).toHaveBeenCalledWith('/developers/signin');
     });
-
-    jest.useRealTimers();
   });
 
   it('handles Sign out errors gracefully', async () => {
-    jest.useFakeTimers();
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     mockSignOut.mockRejectedValueOnce(new Error('Sign out failed'));
 
@@ -274,15 +204,11 @@ describe('UserHeader Component', () => {
     render(<UserHeader />);
 
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Open menu'));
+      fireEvent.click(screen.getByRole('button', { name: /account/i }));
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByText('Sign out'));
-    });
-
-    await act(async () => {
-      jest.advanceTimersByTime(400);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
     });
 
     await waitFor(() => {
@@ -292,7 +218,6 @@ describe('UserHeader Component', () => {
     });
 
     consoleSpy.mockRestore();
-    jest.useRealTimers();
   });
 
   it('wires desktop account controls with expanded and controlled menu semantics', async () => {
@@ -327,68 +252,6 @@ describe('UserHeader Component', () => {
     });
   });
 
-  it('switches organizations from the mobile menu and closes the drawer', async () => {
-    jest.useFakeTimers();
-    (usePathname as jest.Mock).mockReturnValue('/dashboard');
-
-    useOrgStore
-      .getState()
-      .setOrgs(
-        [
-          { _id: 'org-1', name: 'Alpha Vet', type: 'HOSPITAL' } as Organisation,
-          { _id: 'org-2', name: 'Beta Vet', type: 'HOSPITAL' } as Organisation,
-        ],
-        { keepPrimaryIfPresent: false }
-      );
-    useOrgStore
-      .getState()
-      .setUserOrgMappings([
-        { organizationReference: 'org-1', roleDisplay: 'OWNER' } as any,
-        { organizationReference: 'org-2', roleDisplay: 'OWNER' } as any,
-      ]);
-
-    render(<UserHeader />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
-    });
-
-    const mobileNavigation = screen.getByRole('navigation', { name: 'Mobile navigation' });
-
-    const mobileOrgTrigger = within(mobileNavigation)
-      .getAllByRole('button', { name: /organization/i })
-      .find((element) => element.className.includes('yc-mobile-org-trigger'));
-
-    expect(mobileOrgTrigger).toBeDefined();
-
-    await act(async () => {
-      fireEvent.click(mobileOrgTrigger!);
-    });
-
-    await act(async () => {
-      fireEvent.click(within(mobileNavigation).getAllByRole('menuitem', { name: 'Beta Vet' })[0]);
-      jest.advanceTimersByTime(300);
-    });
-
-    await waitFor(() => {
-      expect(resolveOrgScopedRedirect).toHaveBeenCalledWith({
-        orgId: 'org-2',
-        fallbackRole: 'OWNER',
-      });
-      expect(mockPush).toHaveBeenCalledWith('/dashboard');
-    });
-
-    expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-    expect(
-      within(mobileNavigation).queryByRole('menuitem', { name: 'Beta Vet' })
-    ).not.toBeInTheDocument();
-
-    jest.useRealTimers();
-  });
-
   it('switches organizations from the desktop dropdown', async () => {
     (usePathname as jest.Mock).mockReturnValue('/dashboard');
     seedVerifiedOrgs();
@@ -412,6 +275,123 @@ describe('UserHeader Component', () => {
         fallbackRole: 'OWNER',
       });
       expect(mockPush).toHaveBeenCalledWith('/dashboard');
+    });
+  });
+
+  it.each([
+    ['Settings', /settings/i],
+    ['MSD Veterinary Manual', /MSD Veterinary Manual/i],
+    ['Guides', /guides/i],
+  ])('closes the account dropdown when the %s link is clicked', async (_label, name) => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    seedVerifiedOrgs();
+
+    render(<UserHeader />);
+
+    const profileTrigger = screen.getByRole('button', { name: /account/i });
+    await act(async () => {
+      fireEvent.click(profileTrigger);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name }));
+    });
+
+    await waitFor(() => {
+      expect(profileTrigger).toHaveAttribute('aria-expanded', 'false');
+    });
+  });
+
+  it('closes the desktop organization dropdown from the "View all organizations" link', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    seedVerifiedOrgs();
+
+    render(<UserHeader />);
+
+    const trigger = getDesktopOrgTrigger();
+    await act(async () => {
+      fireEvent.click(trigger!);
+    });
+
+    const viewAll = screen.getByRole('menuitem', { name: 'View all organizations' });
+    expect(viewAll).toHaveAttribute('href', '/organizations');
+
+    await act(async () => {
+      fireEvent.click(viewAll);
+    });
+
+    await waitFor(() => {
+      expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    });
+  });
+
+  it('falls back to the membership roleCode when no roleDisplay is set', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    useOrgStore
+      .getState()
+      .setOrgs(
+        [
+          { _id: 'org-1', name: 'Alpha Vet', type: 'HOSPITAL', isVerified: true } as Organisation,
+          { _id: 'org-2', name: 'Beta Vet', type: 'HOSPITAL', isVerified: true } as Organisation,
+        ],
+        { keepPrimaryIfPresent: false }
+      );
+    // roleCode only exercises the `roleDisplay ?? roleCode` fallback.
+    useOrgStore
+      .getState()
+      .setUserOrgMappings([
+        { organizationReference: 'org-1', roleCode: 'vet' } as any,
+        { organizationReference: 'org-2', roleCode: 'vet' } as any,
+      ]);
+
+    render(<UserHeader />);
+
+    await act(async () => {
+      fireEvent.click(getDesktopOrgTrigger()!);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Beta Vet' }));
+    });
+
+    await waitFor(() => {
+      expect(resolveOrgScopedRedirect).toHaveBeenCalledWith({
+        orgId: 'org-2',
+        fallbackRole: 'vet',
+      });
+    });
+  });
+
+  it('falls back to the org name when an organization has no id', async () => {
+    (usePathname as jest.Mock).mockReturnValue('/dashboard');
+    useOrgStore
+      .getState()
+      .setOrgs(
+        [
+          { _id: 'org-1', name: 'Alpha Vet', type: 'HOSPITAL', isVerified: true } as Organisation,
+          { name: 'Nameless Vet', type: 'HOSPITAL', isVerified: true } as Organisation,
+        ],
+        { keepPrimaryIfPresent: false }
+      );
+    useOrgStore
+      .getState()
+      .setUserOrgMappings([{ organizationReference: 'org-1', roleDisplay: 'OWNER' } as any]);
+
+    render(<UserHeader />);
+
+    await act(async () => {
+      fireEvent.click(getDesktopOrgTrigger()!);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Nameless Vet' }));
+    });
+
+    await waitFor(() => {
+      expect(resolveOrgScopedRedirect).toHaveBeenCalledWith({
+        orgId: 'Nameless Vet',
+        fallbackRole: undefined,
+      });
     });
   });
 
@@ -495,169 +475,23 @@ describe('UserHeader Component', () => {
     });
   });
 
-  it('recovers the fullscreen loader when the mobile org switch fails', async () => {
-    jest.useFakeTimers();
-    (usePathname as jest.Mock).mockReturnValue('/dashboard');
-    (resolveOrgScopedRedirect as jest.Mock).mockRejectedValue(new Error('redirect failed'));
-    seedVerifiedOrgs();
-
-    render(<UserHeader />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
-    });
-
-    const mobileNavigation = screen.getByRole('navigation', { name: 'Mobile navigation' });
-    const mobileOrgTrigger = within(mobileNavigation)
-      .getAllByRole('button', { name: /organization/i })
-      .find((element) => element.className.includes('yc-mobile-org-trigger'));
-
-    await act(async () => {
-      fireEvent.click(mobileOrgTrigger!);
-    });
-
-    await act(async () => {
-      fireEvent.click(within(mobileNavigation).getAllByRole('menuitem', { name: 'Beta Vet' })[0]);
-      jest.advanceTimersByTime(300);
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(resolveOrgScopedRedirect).toHaveBeenCalledWith({
-      orgId: 'org-2',
-      fallbackRole: 'OWNER',
-    });
-    expect(mockPush).not.toHaveBeenCalled();
-
-    jest.useRealTimers();
-  });
-
-  it('closes the mobile drawer from the "View all organizations" link', async () => {
-    (usePathname as jest.Mock).mockReturnValue('/dashboard');
-    seedVerifiedOrgs();
-
-    render(<UserHeader />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
-    });
-
-    const mobileNavigation = screen.getByRole('navigation', { name: 'Mobile navigation' });
-    const mobileOrgTrigger = within(mobileNavigation)
-      .getAllByRole('button', { name: /organization/i })
-      .find((element) => element.className.includes('yc-mobile-org-trigger'));
-
-    await act(async () => {
-      fireEvent.click(mobileOrgTrigger!);
-    });
-
-    await act(async () => {
-      fireEvent.click(
-        within(mobileNavigation).getByRole('menuitem', { name: 'View all organizations' })
-      );
-    });
-
-    expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-  });
-
-  it('navigates to an enabled route from the mobile menu after the transition delay', async () => {
-    jest.useFakeTimers();
-    (usePathname as jest.Mock).mockReturnValue('/dashboard');
-    seedVerifiedOrgs();
-
-    render(<UserHeader />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByLabelText('Open menu'));
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Appointments'));
-    });
-
-    await act(async () => {
-      jest.advanceTimersByTime(400);
-    });
-
-    expect(mockPush).toHaveBeenCalledWith('/appointments');
-
-    jest.useRealTimers();
-  });
-
-  it('does not navigate when a disabled route is clicked in the mobile menu', async () => {
-    jest.useFakeTimers();
-    (usePathname as jest.Mock).mockReturnValue('/dashboard');
-    // Org present but unverified => verify-gated routes are disabled.
-    useOrgStore
-      .getState()
-      .setOrgs(
-        [{ _id: 'org-1', name: 'Alpha Vet', type: 'HOSPITAL', isVerified: false } as Organisation],
-        {
-          keepPrimaryIfPresent: false,
-        }
-      );
-
-    render(<UserHeader />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByLabelText('Open menu'));
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Appointments'));
-    });
-
-    await act(async () => {
-      jest.advanceTimersByTime(400);
-    });
-
-    expect(mockPush).not.toHaveBeenCalled();
-
-    jest.useRealTimers();
-  });
-
-  it('closes the mobile drawer when Escape is pressed', async () => {
-    (usePathname as jest.Mock).mockReturnValue('/dashboard');
-
-    render(<UserHeader />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByLabelText('Open menu'));
-    });
-
-    expect(screen.getByLabelText('Close menu')).toBeInTheDocument();
-
-    await act(async () => {
-      fireEvent.keyDown(document, { key: 'Escape' });
-    });
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute(
-        'aria-expanded',
-        'false'
-      );
-    });
-  });
-
   it('resets open menus when the pathname changes', async () => {
     (usePathname as jest.Mock).mockReturnValue('/dashboard');
 
     const { rerender } = render(<UserHeader />);
 
+    const profileTrigger = screen.getByRole('button', { name: /account/i });
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Open menu'));
+      fireEvent.click(profileTrigger);
     });
-    expect(screen.getByLabelText('Close menu')).toBeInTheDocument();
+    expect(profileTrigger).toHaveAttribute('aria-expanded', 'true');
 
     (usePathname as jest.Mock).mockReturnValue('/tasks');
     await act(async () => {
       rerender(<UserHeader />);
     });
 
-    expect(screen.getByRole('button', { name: 'Open menu' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /account/i })).toHaveAttribute(
       'aria-expanded',
       'false'
     );

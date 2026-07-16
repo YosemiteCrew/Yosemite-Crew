@@ -18,6 +18,7 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 
 const TASKS_PAGE_SKELETON = <PageSkeleton variant="planner" />;
 
@@ -154,6 +155,10 @@ const Tasks = () => {
     setAddTaskPrefill(null);
     setAddPopup(true);
   }, []);
+  // The phone FAB is rendered by PhoneShell, outside this page's tree, so it
+  // reaches the same create flow the desktop "New task" button uses via the
+  // primary-action event rather than through props.
+  usePhonePrimaryAction('task', openAddTask);
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView,
     listWrapperClassName:
