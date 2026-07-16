@@ -71,14 +71,6 @@
   flex-direction: column;
 }
 
-.sidebar-wordmark {
-  font-size: 14.5px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--ink);
-  white-space: nowrap;
-}
-
 /* ---- developer portal cyan accent (gated to /developers routes) ---- */
 .sidebar-dev-sublabel {
   font-size: 9.5px;

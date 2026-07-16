@@ -152,10 +152,11 @@ const Sidebar = () => {
           aria-label="Yosemite Crew dashboard"
         >
           <Image src="/icon.svg" alt="Yosemite Crew" width={30} height={30} priority />
-          {!isCollapsed && (
+          {/* The mark alone carries the brand here; the link keeps its aria-label
+              so the accessible name survives dropping the wordmark. */}
+          {!isCollapsed && isDevPortal && (
             <span className="sidebar-wordmark-group">
-              <span className="sidebar-wordmark">Yosemite Crew</span>
-              {isDevPortal && <span className="sidebar-dev-sublabel">Developers</span>}
+              <span className="sidebar-dev-sublabel">Developers</span>
             </span>
           )}
         </Link>
