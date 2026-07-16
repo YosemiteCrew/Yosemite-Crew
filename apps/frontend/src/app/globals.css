@@ -569,6 +569,7 @@ textarea:focus-visible {
   --glow-b10: rgba(37, 123, 237, 0.1);
   --glow-b12: rgba(37, 123, 237, 0.12);
   --glow-b14: rgba(37, 123, 237, 0.14);
+  --glow-b26: rgba(37, 123, 237, 0.26);
   --glow-c10: rgba(92, 225, 230, 0.1);
   --glow-c14: rgba(92, 225, 230, 0.14);
   --glow-p10: rgba(244, 121, 190, 0.1);
@@ -584,6 +585,8 @@ textarea:focus-visible {
      ramps and the pink accent so tinted discs read consistently in light mode. */
   --danger-bg: #fdebea;
   --danger-text: #d53225;
+  --danger: #ea3729;
+  --danger-border: #f17970;
   --warn-bg: #fef3e9;
   --warn-text: #af5e19;
   --warn-border: #f9ad6c;
@@ -1173,9 +1176,11 @@ html[data-theme='dark'] {
   --sh22: rgba(0, 0, 0, 0.55);
   --sh28: rgba(0, 0, 0, 0.62);
   --sh55: rgba(0, 0, 0, 0.8);
+  --glow-b07: rgba(37, 123, 237, 0.13);
   --glow-b10: rgba(37, 123, 237, 0.18);
   --glow-b12: rgba(37, 123, 237, 0.22);
   --glow-b14: rgba(37, 123, 237, 0.25);
+  --glow-b26: rgba(37, 123, 237, 0.42);
   --glow-c10: rgba(92, 225, 230, 0.18);
   --glow-c14: rgba(92, 225, 230, 0.25);
   --glow-p10: rgba(244, 121, 190, 0.18);
@@ -1187,6 +1192,8 @@ html[data-theme='dark'] {
   /* Dark tint-on-dark equivalents for the chrome/state semantic surfaces. */
   --danger-bg: rgba(234, 55, 41, 0.18);
   --danger-text: #f2938a;
+  --danger: #ea3729;
+  --danger-border: rgba(241, 121, 112, 0.5);
   --warn-bg: rgba(245, 168, 60, 0.16);
   --warn-text: #f2b56b;
   --warn-border: rgba(249, 173, 108, 0.5);
