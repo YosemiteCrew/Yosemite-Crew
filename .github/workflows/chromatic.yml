@@ -23,30 +23,13 @@ env:
   NODE_VERSION: '20'
 
 jobs:
-  # `secrets` is not available in a job-level `if:` — gate on a preflight output instead.
-  preflight:
-    runs-on: ubuntu-latest
-    outputs:
-      has-token: ${{ steps.check.outputs.has-token }}
-    steps:
-      - id: check
-        env:
-          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
-        run: |
-          if [ -n "$CHROMATIC_PROJECT_TOKEN" ]; then
-            echo "has-token=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has-token=false" >> "$GITHUB_OUTPUT"
-          fi
-
   chromatic:
     name: Chromatic Publish & Visual Tests
     runs-on: ubuntu-latest
-    needs: preflight
-    if: needs.preflight.outputs.has-token == 'true'
+    if: vars.CHROMATIC_CONFIGURED == 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
@@ -56,7 +39,7 @@ jobs:
           run_install: false
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
