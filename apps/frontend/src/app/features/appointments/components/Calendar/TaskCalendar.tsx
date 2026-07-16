@@ -12,6 +12,7 @@ import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import { useTaskCalendarDrag } from '@/app/features/appointments/components/Calendar/useTaskCalendarDrag';
 import { useTaskCalendarActions } from '@/app/features/appointments/components/Calendar/useTaskCalendarActions';
+import RecurrenceScopeModal from '@/app/features/tasks/components/RecurrenceScopeModal';
 
 type TaskCalendarProps = {
   filteredList: Task[];
@@ -81,6 +82,8 @@ const TaskCalendar = ({
     resolveAssigneeId,
     resolveDisplayName,
     getDropAvailabilityIntervals,
+    cancelSeriesMove,
+    confirmSeriesMove,
     dragError,
     draggedTaskId,
     draggedTaskLabel,
@@ -88,7 +91,16 @@ const TaskCalendar = ({
     handleTaskDragEnd,
     handleTaskDragStart,
     moveTask,
+    pendingSeriesMove,
+    seriesMoveBusy,
   } = useTaskCalendarDrag({ allTaskItems, teams, authUserId });
+
+  // The scope prompt is mounted only while a drop is held, and the only thing it
+  // asks for is to close (Cancel, the header X, or the backdrop) — confirming goes
+  // through onConfirm instead. So every close request is a cancel.
+  const handleSeriesScopeModalClose = useCallback(() => {
+    cancelSeriesMove();
+  }, [cancelSeriesMove]);
 
   const {
     dayEvents,
@@ -130,45 +142,57 @@ const TaskCalendar = ({
   }
 
   return (
-    <div className="border border-card-border rounded-2xl size-full min-h-0 flex flex-col overflow-hidden">
-      <Header
-        currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
-        zoomMode={zoomMode}
-        setZoomMode={setZoomMode}
-        activeCalendar={activeCalendar}
-        setActiveCalendar={setActiveCalendar}
-      />
-      {dragError ? (
-        <div className="px-3 py-2 text-caption-1 text-text-error border-b border-card-border">
-          {dragError}
-        </div>
-      ) : null}
-      <TaskCalendarBody
-        activeCalendar={activeCalendar}
-        dayEvents={dayEvents}
-        filteredList={filteredList}
-        currentDate={currentDate}
-        zoomMode={zoomMode}
-        handleViewTask={handleViewTask}
-        handleChangeStatusTask={handleChangeStatusTask}
-        handleRescheduleTask={handleRescheduleTask}
-        setCurrentDate={setCurrentDate}
-        canEditTasks={canEditTasks}
-        draggedTaskId={draggedTaskId}
-        draggedTaskLabel={draggedTaskLabel}
-        canDragTask={canEditTask}
-        handleTaskDragStart={handleTaskDragStart}
-        handleTaskDragEnd={handleTaskDragEnd}
-        moveTask={moveTask}
-        onCreateTaskAt={handleCreateTaskAt}
-        onDragHoverTarget={handleDragHoverTarget}
-        getDropAvailabilityIntervals={getDropAvailabilityIntervals}
-        resolveDisplayName={resolveDisplayName}
-        weekStart={weekStart}
-        setWeekStart={setWeekStart}
-      />
-    </div>
+    <>
+      <div className="border border-card-border rounded-2xl size-full min-h-0 flex flex-col overflow-hidden">
+        <Header
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          zoomMode={zoomMode}
+          setZoomMode={setZoomMode}
+          activeCalendar={activeCalendar}
+          setActiveCalendar={setActiveCalendar}
+        />
+        {dragError ? (
+          <div className="px-3 py-2 text-caption-1 text-text-error border-b border-card-border">
+            {dragError}
+          </div>
+        ) : null}
+        <TaskCalendarBody
+          activeCalendar={activeCalendar}
+          dayEvents={dayEvents}
+          filteredList={filteredList}
+          currentDate={currentDate}
+          zoomMode={zoomMode}
+          handleViewTask={handleViewTask}
+          handleChangeStatusTask={handleChangeStatusTask}
+          handleRescheduleTask={handleRescheduleTask}
+          setCurrentDate={setCurrentDate}
+          canEditTasks={canEditTasks}
+          draggedTaskId={draggedTaskId}
+          draggedTaskLabel={draggedTaskLabel}
+          canDragTask={canEditTask}
+          handleTaskDragStart={handleTaskDragStart}
+          handleTaskDragEnd={handleTaskDragEnd}
+          moveTask={moveTask}
+          onCreateTaskAt={handleCreateTaskAt}
+          onDragHoverTarget={handleDragHoverTarget}
+          getDropAvailabilityIntervals={getDropAvailabilityIntervals}
+          resolveDisplayName={resolveDisplayName}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
+        />
+      </div>
+      {pendingSeriesMove && (
+        <RecurrenceScopeModal
+          showModal
+          setShowModal={handleSeriesScopeModalClose}
+          action="edit"
+          taskName={pendingSeriesMove.taskName}
+          busy={seriesMoveBusy}
+          onConfirm={confirmSeriesMove}
+        />
+      )}
+    </>
   );
 };
 
