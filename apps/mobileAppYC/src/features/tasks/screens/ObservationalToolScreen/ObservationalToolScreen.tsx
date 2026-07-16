@@ -888,7 +888,10 @@ export const ObservationalToolScreen: React.FC = () => {
           style={[
             styles.optionImageCard,
             selected && styles.optionImageCardSelected,
-          ]}>
+          ]}
+          accessibilityRole="radio"
+          accessibilityState={{selected}}
+          accessibilityLabel={option.title}>
           {option.image ? (
             <Image source={option.image} style={styles.optionImageLarge} />
           ) : null}

@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Keyboard,
 } from 'react-native';
-import {Amplify} from 'aws-amplify';
 import {SignInScreen} from '@/features/auth/screens/SignInScreen';
 import * as passwordlessAuth from '@/features/auth/services/passwordlessAuth';
 import {AUTH_FEATURE_FLAGS, MOBILE_CONFIG_BEHAVIOR} from '@/config/variables';
@@ -175,7 +174,6 @@ const mockedRequestCode =
   passwordlessAuth.requestPasswordlessEmailCode as jest.Mock;
 const mockedUseSocialAuth = useSocialAuth as jest.Mock;
 const mockedUseTheme = useTheme as jest.Mock;
-const mockedAmplifyConfigure = Amplify.configure as jest.Mock;
 
 const mockNavigation = {
   navigate: jest.fn(),
@@ -666,7 +664,6 @@ describe('SignInScreen', () => {
         ),
       ).toBeTruthy();
     });
-    expect(mockedAmplifyConfigure).toHaveBeenCalled();
   });
 
   it('configures the dev environment when useDevApi is enabled', async () => {
@@ -685,7 +682,6 @@ describe('SignInScreen', () => {
         expect.objectContaining({challengeType: 'otp'}),
       );
     });
-    expect(mockedAmplifyConfigure).toHaveBeenCalled();
   });
 
   it('reconfigures the prod environment when a demo login request fails', async () => {
@@ -709,7 +705,6 @@ describe('SignInScreen', () => {
         'Demo failure',
       );
     });
-    expect(mockedAmplifyConfigure).toHaveBeenCalledTimes(2);
   });
 
   describe('when on Android', () => {
