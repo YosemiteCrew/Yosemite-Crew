@@ -71,8 +71,17 @@ export const createControlledSubstanceLogbook = (
   const now = deps.now || (() => Date.now());
   const filePath = path.join(dirPath, CS_FILENAME);
 
+  // Path-traversal guard: reject any ".." segment that would let dirPath escape
+  // its intended location, while still allowing legitimate absolute data dirs.
+  const hasPathTraversal = (): boolean =>
+    path
+      .normalize(filePath)
+      .split(/[\\/]+/)
+      .includes('..');
+
   const load = (): CsTransaction[] => {
     try {
+      if (hasPathTraversal()) return [];
       if (!existsSync(filePath)) return [];
       const raw = readFileSync(filePath, 'utf8');
       const entries: CsTransaction[] = JSON.parse(raw);
@@ -85,6 +94,7 @@ export const createControlledSubstanceLogbook = (
 
   const save = (entries: CsTransaction[]): void => {
     try {
+      if (hasPathTraversal()) return;
       mkdirSync(dirPath, { recursive: true });
       writeFileSync(filePath, JSON.stringify(entries), 'utf8');
     } catch {

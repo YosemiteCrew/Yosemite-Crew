@@ -1,20 +1,20 @@
 # E2E Testing Setup (Web + Mobile)
 
-This monorepo now includes:
+This document explains how end-to-end (E2E) tests are set up and run across the two user-facing apps. E2E tests drive the real app in a browser or on a simulator to verify whole user flows, unlike unit tests that check individual functions. It is for engineers adding or running E2E specs.
 
-- `apps/frontend`: Playwright E2E setup for Next.js web app.
-- `apps/mobileAppYC`: Detox E2E setup for React Native CLI app.
+This monorepo includes:
+
+- `apps/frontend`: Playwright E2E setup for the Next.js web app.
+- `apps/mobileAppYC`: Detox E2E setup for the React Native CLI app.
 
 ## Why this stack
 
 - Web (`Next.js`): `Playwright` is the best fit for fast, stable browser E2E and good CI support.
 - Mobile (`React Native CLI`): `Detox` is the best fit for true device/simulator-level E2E.
 
-## Important install note
+## Setup
 
-In this environment, package download was blocked (no access to npm registry), so dependencies were added to `package.json` but not fetched locally.
-
-Run this once on your machine:
+Run once:
 
 ```bash
 pnpm install
@@ -29,14 +29,17 @@ pnpm exec playwright install
 
 ## Web E2E (Playwright)
 
-Files added:
+Files:
 
 - `apps/frontend/playwright.config.ts`
 - `apps/frontend/e2e/smoke.spec.ts`
+- `apps/frontend/e2e/a11y.spec.ts`
+- `apps/frontend/e2e/auth-flow.spec.ts`
 
-Scripts:
+Scripts (see `apps/frontend/package.json` for the full list, including `e2e:ci:*` variants):
 
-- `pnpm --filter frontend e2e`
+- `pnpm --filter frontend e2e` — runs the axe a11y Jest suite first, then all Playwright specs
+- `pnpm --filter frontend e2e:smoke` / `e2e:a11y` / `e2e:auth` — individual specs
 - `pnpm --filter frontend e2e:headed`
 - `pnpm --filter frontend e2e:ui`
 

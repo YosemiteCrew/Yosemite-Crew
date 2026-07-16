@@ -1,10 +1,12 @@
 # UI Component Inventory & Taxonomy
 
-**Last updated:** 2026-03-31
+**Last updated:** 2026-07-15
 **Maintainer:** Frontend platform workstream
 
 This document maps every component under `src/app/ui/` to a taxonomy category,
-a status label, and notes on what still needs work.
+a status label, and notes on what still needs work. It is the authoritative list
+for the shared UI layer described in [`README.md`](./README.md); design tokens are
+documented in [`tokens.md`](./tokens.md). "Stories" below means Storybook stories.
 
 **Story coverage snapshot (2026-03-31):** `31 / 104` components currently have stories.
 Missing stories by area: cards `7`, inputs `4`, layout `14`, overlays `7`, primitives `5`, tables `13`, widgets `28`.
@@ -18,7 +20,7 @@ Missing stories by area: cards `7`, inputs `4`, layout `14`, overlays `7`, primi
 | **Tokens**                  | Design variables, not components. CSS custom properties and Tailwind theme        |
 | **Primitives**              | Lowest-level building blocks: Button, Text, Stack, Badge, Input, icons, Accordion |
 | **Inputs**                  | Form control components: Datepicker, Dropdown, Search, FileInput, etc.            |
-| **Overlays**                | Modal, Toast, Loader — components that render above page content                  |
+| **Overlays**                | Modal, Toast, Loader - components that render above page content                  |
 | **Layout / Navigation**     | Page shells, headers, sidebars, routing guards                                    |
 | **Cards**                   | Card-shaped display units                                                         |
 | **Tables**                  | Data table components                                                             |
@@ -38,7 +40,7 @@ Missing stories by area: cards `7`, inputs `4`, layout `14`, overlays `7`, primi
 | ❌ Deprecated   | Replacement required; removal planned                  |
 
 **Approval criteria:** A component is only `Approved` when it has:
-token alignment · stable API · tests · story coverage · a11y review · usage docs
+token alignment · stable API · tests · story coverage · accessibility (a11y) review · usage docs
 
 ---
 
@@ -53,12 +55,12 @@ token alignment · stable API · tests · story coverage · a11y review · usage
 | Input                | `Input.tsx`                                        | ✅ Approved     | Base input with token borders and error state           |
 | Card                 | `Card.tsx`                                         | ✅ Approved     | 3 variants: default / bordered / subtle                 |
 | Accordion            | `primitives/Accordion/Accordion.tsx`               | ✅ Approved     | Semantic buttons for expand/edit/delete. Stories added. |
-| EditableAccordion    | `primitives/Accordion/EditableAccordion.tsx`       | 🔄 In migration | Wraps Accordion — audit once Accordion is stable        |
+| EditableAccordion    | `primitives/Accordion/EditableAccordion.tsx`       | 🔄 In migration | Wraps Accordion - audit once Accordion is stable        |
 | AccordionButton      | `primitives/Accordion/AccordionButton.tsx`         | ⚠️ Legacy       | Review vs Accordion primitive                           |
 | SmallAccordionButton | `primitives/Accordion/SmallAccordionButton.tsx`    | ⚠️ Legacy       | Potentially redundant                                   |
-| Primary (button)     | `primitives/Buttons/Primary.tsx`                   | ✅ Approved     | Internal — use Button wrapper                           |
-| Secondary (button)   | `primitives/Buttons/Secondary.tsx`                 | ✅ Approved     | Internal — use Button wrapper                           |
-| Delete (button)      | `primitives/Buttons/Delete.tsx`                    | ✅ Approved     | Internal — use Button wrapper                           |
+| Primary (button)     | `primitives/Buttons/Primary.tsx`                   | ✅ Approved     | Internal - use Button wrapper                           |
+| Secondary (button)   | `primitives/Buttons/Secondary.tsx`                 | ✅ Approved     | Internal - use Button wrapper                           |
+| Delete (button)      | `primitives/Buttons/Delete.tsx`                    | ✅ Approved     | Internal - use Button wrapper                           |
 | BoardScopeToggle     | `primitives/BoardScopeToggle/BoardScopeToggle.tsx` | 🔄 In migration | Story added. Review API and ownership scope.            |
 | Close icon           | `primitives/Icons/Close.tsx`                       | ✅ Approved     |                                                         |
 | Back icon            | `primitives/Icons/Back.tsx`                        | ✅ Approved     |                                                         |
@@ -77,10 +79,10 @@ token alignment · stable API · tests · story coverage · a11y review · usage
 | LabelDropdown        | `inputs/Dropdown/LabelDropdown.tsx`                    | 🔄 In migration | Story added                                                       |
 | MultiSelectDropdown  | `inputs/MultiSelectDropdown/index.tsx`                 | 🔄 In migration | Story added                                                       |
 | SearchDropdown       | `inputs/SearchDropdown/index.tsx`                      | 🔄 In migration | Needs story                                                       |
-| FileInput            | `inputs/FileInput/FileInput.tsx`                       | 🔄 In migration | Story added. `react-bootstrap` dependency still pending migration |
+| FileInput            | `inputs/FileInput/FileInput.tsx`                       | 🔄 In migration | Story added. react-bootstrap removed — re-audit status            |
 | FormDesc             | `inputs/FormDesc/FormDesc.tsx`                         | 🔄 In migration | Audit                                                             |
 | Slotpicker           | `inputs/Slotpicker/index.tsx`                          | 🔄 In migration | Needs story                                                       |
-| ServiceSearch        | `inputs/ServiceSearch/ServiceSearch.tsx`               | ⚠️ Legacy       | Domain-specific — evaluate promotion vs feature-only              |
+| ServiceSearch        | `inputs/ServiceSearch/ServiceSearch.tsx`               | ⚠️ Legacy       | Domain-specific - evaluate promotion vs feature-only              |
 | SpecialitySearch     | `inputs/SpecialitySearch/SpecialitySearch.tsx`         | ⚠️ Legacy       | Domain-specific                                                   |
 | GoogleSearchDropDown | `inputs/GoogleSearchDropDown/GoogleSearchDropDown.tsx` | ⚠️ Legacy       | Google Maps dependency; feature-only candidate                    |
 
@@ -96,10 +98,10 @@ token alignment · stable API · tests · story coverage · a11y review · usage
 | DeleteConfirmationModal | `overlays/Modal/DeleteConfirmationModal.tsx` | ✅ Approved     | Destructive confirm dialog                                     |
 | ChangeStatusModal       | `overlays/Modal/ChangeStatusModal.tsx`       | 🔄 In migration | Needs story                                                    |
 | VideoPlayerModal        | `overlays/Modal/VideoPlayerModal.tsx`        | 🔄 In migration | Needs story + iframe a11y audit                                |
-| OtpModal                | `overlays/OtpModal/OtpModal.tsx`             | ⚠️ Legacy       | react-bootstrap dependency — migrate                           |
-| Toast (overlay)         | `overlays/Toast/Toast.tsx`                   | ⚠️ Legacy       | react-bootstrap dependency — migrate to react-toastify wrapper |
+| OtpModal                | `overlays/OtpModal/OtpModal.tsx`             | 🔄 In migration | react-bootstrap removed — re-audit status                      |
+| Toast (overlay)         | `overlays/Toast/Toast.tsx`                   | 🔄 In migration | react-bootstrap removed — re-audit status                      |
 | YosemiteLoader          | `overlays/Loader/YosemiteLoader.tsx`         | 🔄 In migration | Story added                                                    |
-| SigningOverlay          | `overlays/SigningOverlay.tsx`                | ⚠️ Legacy       | Feature-heavy — evaluate as feature-only composite             |
+| SigningOverlay          | `overlays/SigningOverlay.tsx`                | ⚠️ Legacy       | Feature-heavy - evaluate as feature-only composite             |
 | PdfPreviewOverlay       | `overlays/PdfPreviewOverlay.tsx`             | ⚠️ Legacy       | iframe / a11y audit needed                                     |
 | Fallback                | `overlays/Fallback/index.tsx`                | 🔄 In migration | Needs story                                                    |
 
@@ -157,7 +159,7 @@ token alignment · stable API · tests · story coverage · a11y review · usage
 | OrgInvites             | `tables/OrgInvites.tsx`                | ⚠️ Legacy       | Domain-specific                    |
 | RoomTable              | `tables/RoomTable.tsx`                 | ⚠️ Legacy       | Domain-specific                    |
 | SpecialitiesTable      | `tables/SpecialitiesTable.tsx`         | ⚠️ Legacy       | Domain-specific                    |
-| common                 | `tables/common.tsx`                    | 🔄 In migration | Shared table cell helpers — review |
+| common                 | `tables/common.tsx`                    | 🔄 In migration | Shared table cell helpers - review |
 
 ---
 
@@ -165,9 +167,9 @@ token alignment · stable API · tests · story coverage · a11y review · usage
 
 | Component              | File                                                   | Status          | Notes                                               |
 | ---------------------- | ------------------------------------------------------ | --------------- | --------------------------------------------------- |
-| DynamicSelect          | `widgets/DynamicSelect/DynamicSelect.tsx`              | ⚠️ Legacy       | react-bootstrap dependency — migrate                |
-| UploadImage            | `widgets/UploadImage/UploadImage.tsx`                  | ⚠️ Legacy       | react-bootstrap dependency — migrate                |
-| Faq                    | `widgets/Faq/Faq.tsx`                                  | 🔄 In migration | Uses Accordion — should migrate to shared Accordion |
+| DynamicSelect          | `widgets/DynamicSelect/DynamicSelect.tsx`              | 🔄 In migration | react-bootstrap removed — re-audit status           |
+| UploadImage            | `widgets/UploadImage/UploadImage.tsx`                  | 🔄 In migration | react-bootstrap removed — re-audit status           |
+| Faq                    | `widgets/Faq/Faq.tsx`                                  | 🔄 In migration | Uses Accordion - should migrate to shared Accordion |
 | LaunchGrowTab          | `widgets/LaunchGrowTab/LaunchGrowTab.tsx`              | 🔄 In migration | Grotesk CSS cleaned                                 |
 | Summary / Availability | `widgets/Summary/Availability.tsx`                     | 🔄 In migration |                                                     |
 | DashboardProfile       | `widgets/DashboardProfile/DashboardProfile.tsx`        | 🔄 In migration |                                                     |
@@ -194,23 +196,11 @@ token alignment · stable API · tests · story coverage · a11y review · usage
 
 ---
 
-## react-bootstrap remaining consumers
+## Bootstrap removal — complete
 
-These files still import `react-bootstrap` and are blocking full Bootstrap removal:
+`react-bootstrap` has been fully removed from `apps/frontend` (no dependency in `package.json`, no runtime imports). If a component below still carries a "react-bootstrap" note, the note is stale — re-audit the component and update its row.
 
-| File                                      | Component     | Migration target                |
-| ----------------------------------------- | ------------- | ------------------------------- |
-| `overlays/OtpModal/OtpModal.tsx`          | OtpModal      | Custom modal using ModalBase    |
-| `overlays/Toast/Toast.tsx`                | Toast overlay | react-toastify                  |
-| `widgets/UploadImage/UploadImage.tsx`     | UploadImage   | Custom component                |
-| `widgets/DynamicSelect/DynamicSelect.tsx` | DynamicSelect | Custom dropdown                 |
-| `inputs/FileInput/FileInput.tsx`          | FileInput     | Custom component                |
-| `features/auth/SignIn.tsx`                | Auth form     | Custom form                     |
-| `features/auth/SignUp.tsx`                | Auth form     | Custom form                     |
-| `features/auth/ForgotPassword.tsx`        | Auth form     | Custom form                     |
-| `features/marketing/LandingPage.tsx`      | Carousel      | react-slick (already installed) |
-
-Bootstrap CSS global import in `layout.tsx` must remain until **all** above are migrated.
+Not yet inventoried (exist on disk, missing or partial here): `board/` (e.g. `board/boardShared.tsx`) and several `widgets/` entries (`DynamicChart`, `Footer`, `Labels`, `TeamSlide`, `TitleCalendar`).
 
 ---
 

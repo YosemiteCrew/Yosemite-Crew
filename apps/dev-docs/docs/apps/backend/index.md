@@ -4,9 +4,12 @@ title: Backend API Index
 slug: /apps/backend/api
 ---
 
-API docs are split by router. Base paths reflect the registration in `apps/backend/src/routers/index.ts`.
+This index lists the Yosemite Crew backend REST API, split by router (one page per feature area). Base paths reflect the registration in `apps/backend/src/routers/index.ts`. For how the server itself boots and models data, see the [Backend App README](/apps/backend).
+
+> Note: these pages were generated from an older code snapshot and have drifted — some endpoints are missing and some path-to-controller mappings are stale. The routers in `apps/backend/src/routers/` are the source of truth until the pages are regenerated.
 
 **Routers**
+
 - [Account Withdrawal API](/apps/backend/api/account-withdrawal)
 - [Adverse Event API](/apps/backend/api/adverse-event)
 - [Appointment API](/apps/backend/api/appointment)

@@ -1,4 +1,4 @@
-# Mobile App — Agent Rules
+# Mobile App - Agent Rules
 
 Inherits all root `AGENTS.md` rules. This file adds mobile-specific rules.
 
@@ -6,7 +6,9 @@ Inherits all root `AGENTS.md` rules. This file adds mobile-specific rules.
 
 **Reference guides:**
 
-- [App Store Submission Guide](../../docs/guide/mobile-app-submission-guide.md) — full reference for pre-submission checklist, Android/iOS build steps, store submission workflow, version reference, and post-approval README updates.
+- [Mobile app README](./README.md) - local setup, environment/credential configuration, and release versioning for the React Native app. Start here if you have not built the app yet.
+- [App Store Submission Guide](../../docs/guide/mobile-app-submission-guide.md) - full reference for pre-submission checklist, Android/iOS build steps, store submission workflow, version reference, and post-approval README updates.
+- [Liquid glass UI guide](./guides/liquidGlassDoc.md) - how the iOS 26 "liquid glass" material (the `@callstack/liquid-glass` library) is used; the `forceLiquidGlassBorder` flags below toggle its behaviour.
 
 ---
 
@@ -14,14 +16,14 @@ Inherits all root `AGENTS.md` rules. This file adds mobile-specific rules.
 
 ### Pre-Submission Checklist
 
-Before every submission — **do not bump versions mid-review**:
+Before every submission - **do not bump versions mid-review**:
 
-1. **Production config** — `src/config/variables.local.ts`:
+1. **Production config** - `src/config/variables.local.ts`:
    - `USE_DEV_API = false`
    - `UI_FEATURE_FLAGS.forceLiquidGlassBorder = false`
    - `MOBILE_CONFIG_BEHAVIOR.overrides.forceLiquidGlassBorder = false`
 
-2. **Silence console output** — `App.tsx` lines 203–207 must be uncommented:
+2. **Silence console output** - the console-silencing noop block near the top level of `App.tsx` (search for `const noop`) must be active:
 
    ```ts
    const noop = () => {};
@@ -33,17 +35,20 @@ Before every submission — **do not bump versions mid-review**:
 
 3. **Version bumps** (only for a new submission or after rejection):
 
-   | Platform | File                              | Field                     | Current    |
-   | -------- | --------------------------------- | ------------------------- | ---------- |
-   | Android  | `android/app/build.gradle`        | `versionCode`             | 12         |
-   | Android  | `android/app/build.gradle`        | `versionName`             | `"1.0.10"` |
-   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `MARKETING_VERSION`       | `1.0.4`    |
-   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `CURRENT_PROJECT_VERSION` | `8`        |
+   | Platform | File                              | Field                     |
+   | -------- | --------------------------------- | ------------------------- |
+   | Android  | `android/app/build.gradle`        | `versionCode`             |
+   | Android  | `android/app/build.gradle`        | `versionName`             |
+   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `MARKETING_VERSION`       |
+   | iOS      | `mobileAppYC.xcodeproj` (pbxproj) | `CURRENT_PROJECT_VERSION` |
+
+   Read the current values from those files and bump by one — never trust a hardcoded
+   version table in docs; they go stale after every release.
 
 ### Android Build
 
 ```bash
-# From apps/mobileAppYC/android/ — clean first
+# From apps/mobileAppYC/android/ - clean first
 rm -rf app/build build .cxx .gradle && ./gradlew clean
 
 # APK (testing/sideload)
@@ -60,7 +65,7 @@ Keystore `my-release-key.keystore` must be at `android/app/` and `android/gradle
 ### iOS Build
 
 ```bash
-# From apps/mobileAppYC/ios/ — clean first
+# From apps/mobileAppYC/ios/ - clean first
 rm -rf Pods build Podfile.lock ~/Library/Developer/Xcode/DerivedData/*
 pod deintegrate && pod install
 ```
@@ -68,7 +73,7 @@ pod deintegrate && pod install
 Archive in Xcode:
 
 1. Open `ios/mobileAppYC.xcworkspace` (**not** `.xcodeproj`).
-2. Select a physical device or "Any iOS Device (arm64)" — **not** a Simulator.
+2. Select a physical device or "Any iOS Device (arm64)" - **not** a Simulator.
 3. **Product → Clean Build Folder** (`⇧⌘K`) → **Product → Archive**.
 4. In Organizer: **Distribute App** → upload to both **Preflight** and **App Store Connect**.
 
@@ -77,15 +82,15 @@ Archive in Xcode:
 After both stores go live, update `README.md`:
 
 - **Current production releases** table with new versions.
-- **Release history** table — add a row per platform with version + feature summary.
+- **Release history** table - add a row per platform with version + feature summary.
 
 ### Common Pitfalls
 
-- Opening `.xcodeproj` instead of `.xcworkspace` — Pods will not be linked.
-- Forgetting `pod install` after cleaning — build fails with missing headers.
-- `USE_DEV_API = true` left on — app hits dev backend in production.
-- Wrong keystore signing AAB — Play Store upload rejected.
-- Bumping version mid-review — Apple treats it as a new binary and restarts review.
+- Opening `.xcodeproj` instead of `.xcworkspace` - Pods will not be linked.
+- Forgetting `pod install` after cleaning - build fails with missing headers.
+- `USE_DEV_API = true` left on - app hits dev backend in production.
+- Wrong keystore signing AAB - Play Store upload rejected.
+- Bumping version mid-review - Apple treats it as a new binary and restarts review.
 
 ---
 
@@ -93,25 +98,29 @@ After both stores go live, update `README.md`:
 
 ```
 src/
-  screens/     ← full-screen views
-  components/  ← reusable UI components
-  navigation/  ← React Navigation config
-  store/       ← Redux Toolkit slices
-  services/    ← API calls (axios)
-  hooks/       ← custom React hooks
-  utils/       ← pure utility functions
-  i18n/        ← translation files
+  app/           ← Redux store.ts + typed hooks.ts
+  features/      ← feature slices: <domain>/{screens,components,hooks,services,<domain>Slice.ts,selectors.ts}
+  shared/        ← cross-feature components, screens, stores, services, utils
+  navigation/    ← React Navigation config
+  localization/  ← translation files (i18next)
+  theme/         ← design tokens and theming
+  config/        ← environment/config values
+  context/       ← React contexts
+  types/         ← shared TS types
+  assets/        ← images, fonts
 ```
+
+New code follows the feature-slice pattern: put screens, components, and services inside the owning `src/features/<domain>/` directory, not in global folders.
 
 ---
 
 ## State Management
 
-**Redux Toolkit** (not Zustand — that's frontend only).
+**Redux Toolkit** (not Zustand - that's frontend only).
 
 - Redux for shared/persisted state across screens.
 - `useState` for ephemeral UI state (modal open, input focus, animation state).
-- Redux Persist is active — bump the persist `version` key when changing slice shape.
+- Redux Persist is active - bump the persist `version` key when changing slice shape.
 
 ---
 
@@ -126,7 +135,7 @@ type RootStackParamList = {
 };
 ```
 
-Never use bare string literals for route names — use the typed `ParamList`.
+Never use bare string literals for route names - use the typed `ParamList`.
 
 ---
 
@@ -139,7 +148,7 @@ const {t} = useTranslation();
 <Text>{t('screen.title')}</Text>;
 ```
 
-Add new keys to `src/i18n/` before using them.
+Add new keys under `src/localization/resources/` before using them.
 
 ## Design System Consistency
 
@@ -167,23 +176,23 @@ const {control, handleSubmit} = useForm({
 pnpm --filter mobileAppYC run test -- --testPathPattern="path/to/File.test.tsx"
 ```
 
-### Coverage Mandate — Non-Negotiable
+### Coverage Mandate - Non-Negotiable
 
 **Target: ≥ 95% Statements, Branches, Functions, Lines across `apps/mobileAppYC`. Every change must move coverage upward, never downward.**
 
 1. **Any file you touch** must finish with equal or higher coverage than you found it.
-2. **Any file you create** must hit ≥ 90% on first commit — no new file ships without tests.
+2. **Any file you create** must hit ≥ 90% on first commit - no new file ships without tests.
 3. **When you delete code**, delete the matching test code too.
 4. **When you modify behaviour**, update existing tests for the changed path AND add new cases for new branches.
-5. **Snapshot tests do not substitute** for behavioural assertions — every logical branch needs at least one outcome assertion.
+5. **Snapshot tests do not substitute** for behavioural assertions - every logical branch needs at least one outcome assertion.
 
 #### All four test layers must grow together
 
 | Layer     | Tool                         | When required                                                                      |
 | --------- | ---------------------------- | ---------------------------------------------------------------------------------- |
 | Unit      | Jest                         | Every service, Redux slice, hook, utility, helper                                  |
-| Component | React Testing Library for RN | Every screen and reusable component — render + interaction + conditional rendering |
-| Snapshot  | Jest `toMatchSnapshot`       | Stable UI layouts — complement behavioural tests, never replace them               |
+| Component | React Testing Library for RN | Every screen and reusable component - render + interaction + conditional rendering |
+| Snapshot  | Jest `toMatchSnapshot`       | Stable UI layouts - complement behavioural tests, never replace them               |
 | E2E       | Detox                        | Auth, booking, checkout, payment, and any critical user journey                    |
 
 #### Coverage check workflow
@@ -223,15 +232,15 @@ pnpm --filter mobileAppYC run test -- --testPathPattern="<YourFile>"
 - Any code change that alters behavior must include matching test updates in the same batch.
 - If your change breaks existing targeted tests, fix or update those tests before handoff.
 - Before handoff/checkpoint, run and report: mobile lint + mobile `tsc --noemit` + targeted mobile tests for touched areas.
-- Detox for E2E — runs separately from unit tests.
+- Detox for E2E - runs separately from unit tests.
 - Guard Reactotron with `__DEV__`.
 
 ---
 
 ## What NOT to Do
 
-- Never assume permissions are granted — request explicitly via `react-native-permissions`.
-- Never hardcode file paths — use `RNFS.DocumentDirectoryPath` and platform constants.
-- Never add new state management libraries — Redux Toolkit is the standard here.
-- Never navigate with raw strings — use typed `ParamList`.
-- Never hardcode user-visible strings — always `t()`.
+- Never assume permissions are granted - request explicitly via `react-native-permissions`.
+- Never hardcode file paths - use `RNFS.DocumentDirectoryPath` and platform constants.
+- Never add new state management libraries - Redux Toolkit is the standard here.
+- Never navigate with raw strings - use typed `ParamList`.
+- Never hardcode user-visible strings - always `t()`.
