@@ -44,6 +44,52 @@ export function getAgeInYears(dateOfBirth: Date | string): number {
   return age;
 }
 
+/**
+ * Whole months elapsed since `dateOfBirth`. NaN for an unparseable date, and
+ * negative for a future date, so callers can reject both with one finite check.
+ */
+export function getAgeInMonths(dateOfBirth: Date | string): number {
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return Number.NaN;
+  const today = new Date();
+
+  let months = (today.getFullYear() - dob.getFullYear()) * 12 + (today.getMonth() - dob.getMonth());
+
+  // The birth day-of-month has not come round yet this month, so the final
+  // month is still in progress.
+  if (today.getDate() < dob.getDate()) months--;
+
+  return months;
+}
+
+/**
+ * Companion age label. Under a year it reads in months, so a newborn shows
+ * "0 Mos" rather than a misleading "0 Yrs"; a year and over it reads in years.
+ * `long` switches the suffix to the spelled-out form used by the Age / DOB rows.
+ * Returns '' when the date of birth is missing, unparseable, or in the future,
+ * leaving the fallback copy to the caller.
+ */
+export function formatCompanionAge(
+  dateOfBirth?: Date | string | null,
+  options?: { long?: boolean }
+): string {
+  if (dateOfBirth == null || dateOfBirth === '') return '';
+
+  const months = getAgeInMonths(dateOfBirth);
+  if (!Number.isFinite(months) || months < 0) return '';
+
+  const long = options?.long ?? false;
+
+  if (months < 12) {
+    const unit = long ? (months === 1 ? 'month' : 'months') : months === 1 ? 'Mo' : 'Mos';
+    return `${months} ${unit}`;
+  }
+
+  const years = Math.floor(months / 12);
+  const unit = long ? (years === 1 ? 'year' : 'years') : years === 1 ? 'Yr' : 'Yrs';
+  return `${years} ${unit}`;
+}
+
 export const buildUtcDateFromDateAndTime = (selectedDate: Date, startTime: string): Date => {
   const [hours, minutes] = startTime.split(':').map(Number);
 

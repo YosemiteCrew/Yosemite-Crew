@@ -10,7 +10,6 @@ import {
   IoReaderOutline,
   IoSwapHorizontalOutline,
 } from 'react-icons/io5';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
@@ -18,8 +17,8 @@ import { AppointmentWithCompanion } from '@/app/features/appointments/types/appo
 import { useAppointmentsForPrimaryOrg } from '@/app/hooks/useAppointments';
 import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
 
-import { getAgeInYears } from '@/app/lib/date';
-import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import { formatCompanionAge } from '@/app/lib/date';
+import SharedCompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import { toTitleCase } from '@/app/lib/validators';
 import { formatDateLabel, formatTimeLabel } from '@/app/lib/forms';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
@@ -27,10 +26,8 @@ import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 
 import {
-  getAvatarPalette,
   getCompanionRowStatusColor,
   getLastVisit,
-  getMonogram,
   hasCoParent,
   isToday,
 } from '@/app/features/companions/pages/Companions/companionsDirectory';
@@ -82,8 +79,8 @@ const buildSpeciesLine = (companion: CompanionParent['companion']): string => {
   const species = SPECIES_LABEL[companion.type?.toLowerCase()] ?? toTitleCase(companion.type);
   const parts: string[] = [species];
   if (companion.gender) parts.push(toTitleCase(companion.gender));
-  const age = getAgeInYears(companion.dateOfBirth);
-  if (Number.isFinite(age) && age >= 0) parts.push(`${age} ${age === 1 ? 'Yr' : 'Yrs'}`);
+  const age = formatCompanionAge(companion.dateOfBirth);
+  if (age) parts.push(age);
   return parts.join(' · ');
 };
 
@@ -110,33 +107,16 @@ const CompanionAvatar = ({
   companion: CompanionParent['companion'];
   size: number;
   textClassName: string;
-}) => {
-  if (companion.photoUrl) {
-    return (
-      <span
-        className="shrink-0 overflow-hidden rounded-full shadow-[0_0_0_1px_var(--hairline-soft)]"
-        style={{ width: size, height: size }}
-      >
-        <Image
-          src={getSafeImageUrl(companion.photoUrl, companion.type?.toLowerCase() as ImageType)}
-          alt=""
-          height={size}
-          width={size}
-          className="size-full object-cover"
-        />
-      </span>
-    );
-  }
-  const palette = getAvatarPalette(companion.id || companion.name);
-  return (
-    <span
-      className={`flex shrink-0 items-center justify-center rounded-full font-newsreader shadow-[0_0_0_1px_var(--hairline-soft)] ${textClassName}`}
-      style={{ width: size, height: size, background: palette.bg, color: palette.ink }}
-    >
-      {getMonogram(companion.name)}
-    </span>
-  );
-};
+}) => (
+  <SharedCompanionAvatar
+    photoUrl={companion.photoUrl}
+    name={companion.name}
+    speciesType={companion.type}
+    seed={companion.id || companion.name}
+    size={size}
+    textClassName={textClassName}
+  />
+);
 
 const CoParentPill = () => (
   <span className="ml-1 inline-flex items-center rounded-full border border-[var(--pink)] bg-[var(--glow-p12)] px-[7px] py-px text-[9px] font-bold text-[var(--pink)]">

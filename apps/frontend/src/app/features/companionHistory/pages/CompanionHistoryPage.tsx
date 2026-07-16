@@ -18,7 +18,7 @@ import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import { buildCompanionDetails } from '@/app/lib/companionWorkspaceDetails';
-import { formatDisplayDate, getAgeInYears } from '@/app/lib/date';
+import { formatDisplayDate, formatCompanionAge } from '@/app/lib/date';
 import AlertPill from '@/app/features/appointments/pages/AppointmentWorkspace/components/AlertPill';
 import AddAlertModal from '@/app/features/appointments/pages/AppointmentWorkspace/components/AddAlertModal';
 import type { CompanionAlert } from '@/app/features/appointments/types/workspace';
@@ -86,12 +86,11 @@ const formatParentName = (parent?: StoredParent): string =>
 
 const formatAgeDob = (value?: Date | string): string => {
   if (!value) return '-';
-  const age = getAgeInYears(value);
+  const ageLabel = formatCompanionAge(value, { long: true });
   const dob = formatDisplayDate(value, '-');
-  if (!Number.isFinite(age) || age < 0) return dob;
-  // A finite, non-negative age means `value` parsed to a valid date, so
+  if (!ageLabel) return dob;
+  // A non-empty age label means `value` parsed to a valid date, so
   // formatDisplayDate never returns the '-' fallback here — always show age / dob.
-  const ageLabel = `${age} ${age === 1 ? 'year' : 'years'}`;
   return `${ageLabel} / ${dob}`;
 };
 

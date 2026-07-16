@@ -3,7 +3,7 @@ import React from 'react';
 import { IoCalendarOutline, IoEye, IoListOutline, IoSyncOutline } from 'react-icons/io5';
 import { getCompanionStatusStyle } from '@/app/ui/tables/tableUtils';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
-import { getAgeInYears } from '@/app/lib/date';
+import { formatCompanionAge } from '@/app/lib/date';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { toTitleCase } from '@/app/lib/validators';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
@@ -81,7 +81,7 @@ const CompanionCard = ({
           {(GENDER_LABEL[companion.companion.gender?.toLowerCase()] ??
             toTitleCase(companion.companion.gender)) +
             ' - ' +
-            getAgeInYears(companion.companion.dateOfBirth)}
+            (formatCompanionAge(companion.companion.dateOfBirth) || '-')}
         </div>
       </div>
       <div className="flex gap-1">

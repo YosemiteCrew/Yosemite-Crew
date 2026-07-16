@@ -9,7 +9,7 @@ const useIsPhoneMock = jest.fn();
 const pushMock = jest.fn();
 // Driven per-test so the species line can exercise its singular / plural /
 // missing-age branches instead of always returning the same constant.
-const getAgeInYearsMock = jest.fn();
+const formatCompanionAgeMock = jest.fn();
 
 jest.mock('next/image', () => ({
   __esModule: true,
@@ -35,7 +35,7 @@ jest.mock('@/app/hooks/useCompanionTerminologyText', () => ({
 }));
 
 jest.mock('@/app/lib/date', () => ({
-  getAgeInYears: (dateOfBirth?: string) => getAgeInYearsMock(dateOfBirth),
+  formatCompanionAge: (dateOfBirth?: string) => formatCompanionAgeMock(dateOfBirth),
 }));
 
 jest.mock('@/app/lib/forms', () => ({
@@ -93,7 +93,7 @@ const openRowMenu = () =>
 describe('CompanionsTable', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    getAgeInYearsMock.mockReturnValue(2);
+    formatCompanionAgeMock.mockReturnValue('2 Yrs');
     useIsPhoneMock.mockReturnValue(false);
     useAppointmentsForPrimaryOrgMock.mockReturnValue([]);
   });
@@ -312,7 +312,7 @@ describe('CompanionsTable', () => {
   });
 
   it('renders a fallback species, no gender, and a singular year in the sub-line', () => {
-    getAgeInYearsMock.mockReturnValue(1);
+    formatCompanionAgeMock.mockReturnValue('1 Yr');
 
     const oddCompanion: any = {
       companion: {
@@ -334,7 +334,7 @@ describe('CompanionsTable', () => {
   });
 
   it('handles missing age, breed, parent name, and companion id', () => {
-    getAgeInYearsMock.mockReturnValue(Number.NaN);
+    formatCompanionAgeMock.mockReturnValue('');
 
     const sparse: any = {
       companion: {

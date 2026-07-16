@@ -304,7 +304,7 @@ jest.mock('@/app/lib/companionHistoryRoute', () => ({
 
 jest.mock('@/app/lib/date', () => ({
   formatDisplayDate: jest.fn(() => '01/01/2020'),
-  getAgeInYears: jest.fn(() => 4),
+  formatCompanionAge: jest.fn(() => '4 Yrs'),
 }));
 
 jest.mock('@/app/ui/tables/tableUtils', () => ({
@@ -2308,7 +2308,7 @@ describe('AddCompanionCentralModal', () => {
   describe('fmtAge and getSexLabel branches', () => {
     it('shows "1 Yr" when age is exactly 1', async () => {
       const dateLib = jest.requireMock('@/app/lib/date') as any;
-      dateLib.getAgeInYears.mockImplementation(() => 1);
+      dateLib.formatCompanionAge.mockImplementation(() => '1 Yr');
 
       const companion = {
         ...mockViewCompanion,
@@ -2325,12 +2325,12 @@ describe('AddCompanionCentralModal', () => {
       expect(screen.getByText('1 Yr')).toBeInTheDocument();
 
       // Restore default
-      dateLib.getAgeInYears.mockImplementation(() => 4);
+      dateLib.formatCompanionAge.mockImplementation(() => '4 Yrs');
     });
 
-    it('shows "-" for age when getAgeInYears returns NaN', async () => {
-      const { getAgeInYears } = jest.requireMock('@/app/lib/date') as any;
-      getAgeInYears.mockImplementationOnce(() => NaN);
+    it('shows "-" for age when formatCompanionAge returns no label', async () => {
+      const { formatCompanionAge } = jest.requireMock('@/app/lib/date') as any;
+      formatCompanionAge.mockImplementationOnce(() => '');
 
       const companion = {
         ...mockViewCompanion,
@@ -2749,5 +2749,32 @@ describe('AddCompanionCentralModal', () => {
         expect(mockLinkCompanion).toHaveBeenCalled();
       });
     });
+  });
+});
+
+// ── Bug 38: no system-assigned default profile picture ─────────────────────────
+
+describe('AddCompanionViewMode avatar', () => {
+  it('shows a monogram, not a stock species photo, when the patient has no photo', async () => {
+    await act(async () => {
+      render(<AddCompanionCentralModal {...defaultProps} viewCompanion={mockViewCompanion} />);
+    });
+
+    // mockViewCompanion.photoUrl is '' — nothing should render an <Image>.
+    expect(screen.queryByTestId('next-image')).not.toBeInTheDocument();
+    expect(screen.getByText('B')).toBeInTheDocument();
+  });
+
+  it('shows the real photo when the patient actually has one', async () => {
+    const withPhoto = {
+      ...mockViewCompanion,
+      companion: { ...mockViewCompanion.companion, photoUrl: 'https://cdn.example.com/buddy.png' },
+    };
+
+    await act(async () => {
+      render(<AddCompanionCentralModal {...defaultProps} viewCompanion={withPhoto} />);
+    });
+
+    expect(screen.getByTestId('next-image')).toBeInTheDocument();
   });
 });
