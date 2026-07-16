@@ -1,7 +1,7 @@
 'use client';
 import React, { Suspense, useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 
@@ -72,6 +72,7 @@ const Companions = () => {
   const canEditTasks = permissions.can(PERMISSIONS.TASKS_EDIT_ANY);
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState('all');
   const [activeStatus, setActiveStatus] = useState('all');
   const [addPopup, setAddPopup] = useState(false);
@@ -123,6 +124,19 @@ const Companions = () => {
       setViewCompanion(true);
     }
   }
+
+  // The deep link is a one-shot instruction, not page state: once it has opened
+  // the modal, drop `companionId` from the URL so this history entry no longer
+  // carries it. Without this the entry stays `/companions?companionId=…`, and
+  // navigating back to it (browser Back from the overview) replays the deep
+  // link and spuriously re-opens the patient modal.
+  useEffect(() => {
+    if (!deepLinkCompanionId || deepLinkCompanionId !== handledDeepLink) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('companionId');
+    const rest = params.toString();
+    router.replace(rest ? `/companions?${rest}` : '/companions', { scroll: false });
+  }, [deepLinkCompanionId, handledDeepLink, router, searchParams]);
 
   const filteredList = useMemo(() => {
     const q = query.trim().toLowerCase();

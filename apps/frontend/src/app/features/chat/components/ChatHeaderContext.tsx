@@ -4,6 +4,7 @@ import Text from '@/app/ui/Text';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import { ChatAvatar } from './ChatAvatar';
 import { allowReschedule, canTransitionAppointmentStatus } from '@/app/lib/appointments';
+import { canEnterAppointmentWorkspace } from '@/app/lib/appointmentWorkspace';
 
 /**
  * Clinical context rendered under the chat header for a pet-parent (appointment)
@@ -29,6 +30,13 @@ const getVisibleAppointmentActions = (
       // Hide as soon as the completion is in flight so the button can't be
       // clicked twice while the status round-trip is still pending.
       return !completing && canTransitionAppointmentStatus(status, 'COMPLETED');
+    }
+    if (action === 'Send form') {
+      // This action deep-links into the clinical workspace, which refuses
+      // requested/cancelled/no-show appointments. Offering it for those statuses
+      // strands the user on the "… cannot be opened in the clinical workspace"
+      // dead end, so gate it on the same gate the route enforces.
+      return canEnterAppointmentWorkspace(status);
     }
     return true;
   });

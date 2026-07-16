@@ -57,10 +57,16 @@ const usePermissionsMock = jest.fn();
 const useSearchStoreMock = jest.fn();
 const companionsTableSpy = jest.fn();
 const searchParamsGetMock = jest.fn();
+const searchParamsToStringMock = jest.fn(() => '');
+const routerReplaceMock = jest.fn();
 const isCompanionRevampEnabledMock = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  useSearchParams: () => ({ get: (key: string) => searchParamsGetMock(key) }),
+  useSearchParams: () => ({
+    get: (key: string) => searchParamsGetMock(key),
+    toString: () => searchParamsToStringMock(),
+  }),
+  useRouter: () => ({ replace: routerReplaceMock }),
 }));
 
 jest.mock('@/app/lib/featureFlags', () => ({
@@ -179,6 +185,7 @@ describe('Companions page', () => {
     });
     useSearchStoreMock.mockImplementation((selector: any) => selector({ query: 'buddy' }));
     searchParamsGetMock.mockReturnValue(null);
+    searchParamsToStringMock.mockReturnValue('');
     isCompanionRevampEnabledMock.mockReturnValue(false);
   });
 
@@ -316,6 +323,38 @@ describe('Companions page', () => {
     searchParamsGetMock.mockReturnValue('does-not-exist');
     render(<ProtectedCompanions />);
     expect(screen.queryByTestId('companion-info')).not.toBeInTheDocument();
+  });
+
+  it('strips companionId from the URL once the deep link has opened the modal', async () => {
+    searchParamsGetMock.mockReturnValue('c1');
+    searchParamsToStringMock.mockReturnValue('companionId=c1');
+    render(<ProtectedCompanions />);
+    await screen.findByTestId('companion-info');
+    // Bug 20b: leaving `companionId` on the history entry makes browser Back
+    // replay the deep link and re-open the patient modal.
+    expect(routerReplaceMock).toHaveBeenCalledWith('/companions', { scroll: false });
+  });
+
+  it('preserves unrelated query params when stripping the consumed deep link', async () => {
+    searchParamsGetMock.mockReturnValue('c1');
+    searchParamsToStringMock.mockReturnValue('companionId=c1&tab=active');
+    render(<ProtectedCompanions />);
+    await screen.findByTestId('companion-info');
+    expect(routerReplaceMock).toHaveBeenCalledWith('/companions?tab=active', { scroll: false });
+  });
+
+  it('does not rewrite the URL when the deep link matches no companion', () => {
+    searchParamsGetMock.mockReturnValue('does-not-exist');
+    searchParamsToStringMock.mockReturnValue('companionId=does-not-exist');
+    render(<ProtectedCompanions />);
+    // The deep link was never consumed, so it must stay in the URL for a later
+    // render (the companions list may still be loading).
+    expect(routerReplaceMock).not.toHaveBeenCalled();
+  });
+
+  it('does not rewrite the URL when there is no deep link', () => {
+    render(<ProtectedCompanions />);
+    expect(routerReplaceMock).not.toHaveBeenCalled();
   });
 
   it('renders the central modals when the companion revamp flag is enabled', () => {
