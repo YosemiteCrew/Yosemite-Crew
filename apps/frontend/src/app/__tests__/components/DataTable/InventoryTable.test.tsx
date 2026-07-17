@@ -3,19 +3,40 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import InventoryTable from '@/app/ui/tables/InventoryTable';
 
+const mockAllowedImageHosts = new Set(['cdn.example.com']);
+
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ alt, src }: any) => React.createElement('img', { alt, src }),
+  default: ({ alt, src }: any) => {
+    // Real next/image throws for any host missing from next.config's allowlist.
+    const { hostname } = new URL(src);
+    if (!mockAllowedImageHosts.has(hostname)) {
+      throw new Error(
+        `Invalid src prop (${src}) on \`next/image\`, hostname "${hostname}" is not configured under images in your next.config.js`
+      );
+    }
+    return React.createElement('img', { alt, src });
+  },
 }));
 
 jest.mock('react-icons/io5', () => ({
   IoEye: () => <span data-testid="icon-eye" />,
 }));
 
+// Mirrors the real pair: bare s3 keys resolve to the org CDN, while a full https
+// URL is passed straight through whatever its host.
+jest.mock('@/app/constants/mediaSources', () => ({
+  MEDIA_SOURCES: {
+    organization: { fromS3Key: (key: string) => `https://cdn.example.com/${key}` },
+  },
+}));
+
 jest.mock('@/app/lib/urls', () => ({
-  getSafeOrgImageUrl: jest.fn((src: string) =>
-    typeof src === 'string' && src.startsWith('inventory/') ? `https://cdn.example.com/${src}` : ''
-  ),
+  getSafeOrgImageUrl: jest.fn((src: string) => {
+    if (typeof src !== 'string' || !src) return '';
+    if (/^https:\/\/.+/i.test(src)) return src;
+    return `https://cdn.example.com/${src}`;
+  }),
 }));
 
 jest.mock('@/app/ui/cards/InventoryCard', () => ({
@@ -191,5 +212,28 @@ describe('InventoryTable', () => {
       'src',
       'https://cdn.example.com/inventory/org-1/vaccine.jpg'
     );
+  });
+
+  it('falls back to the category emoji when the image is on an unconfigured host', () => {
+    const itemWithForeignImage = {
+      ...item,
+      basicInfo: {
+        ...item.basicInfo,
+        imageUrl: 'https://images.example.org/not-allowlisted.png',
+      },
+    };
+
+    expect(() =>
+      render(
+        <InventoryTable
+          filteredList={[itemWithForeignImage]}
+          setActiveInventory={jest.fn()}
+          setViewInventory={jest.fn()}
+        />
+      )
+    ).not.toThrow();
+
+    expect(screen.queryByAltText('')).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('table-row')).getByText('💊')).toBeInTheDocument();
   });
 });

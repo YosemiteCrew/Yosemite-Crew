@@ -61,7 +61,14 @@ const CalculatorsPanel = ({ appointment }: CalculatorsPanelProps) => {
           </Text>
         </div>
       )}
-      <CalculatorBrowser initialValues={initialValues} initialSpecies={species} />
+      {/* CalculatorBrowser's form seeds its inputs from these props once, on mount. The panel
+          outlives a patient change (the side action is global state), so key the subtree on the
+          companion and its prefill to remount it rather than keep another patient's values. */}
+      <CalculatorBrowser
+        key={`${companion.id}:${initialValues?.weightKg ?? ''}:${species}`}
+        initialValues={initialValues}
+        initialSpecies={species}
+      />
     </div>
   );
 };

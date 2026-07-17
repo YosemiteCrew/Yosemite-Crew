@@ -319,6 +319,47 @@ describe('Dropdown Component', () => {
     expect(screen.queryByText('Cherry')).not.toBeInTheDocument();
   });
 
+  it('lets Space type into the search box instead of selecting', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Golden Retriever', 'Great Dane']}
+        search={true}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    const searchInput = screen.getByPlaceholderText('Search Select');
+
+    const spaceEvent = fireEvent.keyDown(searchInput, { key: ' ' });
+
+    // Space must reach the input as text; selecting here would both close the
+    // dropdown and make multi-word queries impossible to type.
+    expect(spaceEvent).toBe(true);
+    expect(mockOnChange).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText('Search Select')).toBeInTheDocument();
+  });
+
+  it('still selects on Space from the trigger button', () => {
+    render(
+      <Dropdown
+        placeholder="Select"
+        value=""
+        onChange={mockOnChange}
+        options={['Apple', 'Banana']}
+        search={true}
+      />
+    );
+
+    const trigger = screen.getByRole('button');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: ' ' });
+
+    expect(mockOnChange).toHaveBeenCalledWith('Apple');
+  });
+
   it('clears search query upon selection', () => {
     render(
       <Dropdown

@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { Task, TaskStatus } from '@/app/features/tasks/types/task';
 import { getStatusStyle } from '@/app/config/statusConfig';
 import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
+import { useTaskStore } from '@/app/stores/taskStore';
 import {
   isOnPreferredTimeZoneCalendarDay,
   formatDateInPreferredTimeZone,
@@ -580,6 +581,14 @@ const TaskBoard = ({
         await changeTaskStatus({
           ...task,
           status: nextStatus,
+        });
+      } catch {
+        // changeTaskStatus applies the new status optimistically before calling the API.
+        // Restoring the pre-drag task keeps the card out of a column the server rejected.
+        useTaskStore.getState().upsertTask(task);
+        notify('error', {
+          title: 'Status change failed',
+          text: 'Unable to update the task status. Please try again.',
         });
       } finally {
         setUpdatingStatusId(null);

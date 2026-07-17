@@ -1327,6 +1327,11 @@ const useChatContainerView = ({
     [onChannelSelect]
   );
 
+  // Read through a ref so an inline callback prop cannot re-trigger the scope
+  // reset below on every parent render.
+  const onChannelSelectRef = useRef(onChannelSelect);
+  onChannelSelectRef.current = onChannelSelect;
+
   useLayoutEffect(() => {
     // Reset selection when switching audience scopes so stale channels do not persist
     const hasInitialized = scopeInitialized.current;
@@ -1335,8 +1340,8 @@ const useChatContainerView = ({
 
     setIsChannelSelected(false);
     setShowEmptyPlaceholder(true);
-    onChannelSelect?.(null);
-  }, [scope, onChannelSelect]);
+    onChannelSelectRef.current?.(null);
+  }, [scope]);
 
   // Load org users for colleague/group creation flows
   useLayoutEffect(() => {

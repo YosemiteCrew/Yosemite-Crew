@@ -31,6 +31,11 @@ jest.mock('@/app/features/tasks/services/taskService', () => ({
   changeTaskStatus: jest.fn().mockResolvedValue(undefined),
 }));
 
+const upsertTaskMock = jest.fn();
+jest.mock('@/app/stores/taskStore', () => ({
+  useTaskStore: { getState: () => ({ upsertTask: upsertTaskMock }) },
+}));
+
 jest.mock('@/app/lib/timezone', () => ({
   isOnPreferredTimeZoneCalendarDay: jest.fn(() => true),
   formatDateInPreferredTimeZone: jest.fn((_date: Date, opts: any) =>
@@ -231,6 +236,37 @@ describe('TaskBoard', () => {
         expect.objectContaining({ _id: 'task-1', status: 'IN_PROGRESS' })
       );
     });
+  });
+
+  it('reverts the optimistic move and notifies when the status update fails', async () => {
+    // changeTaskStatus writes the new status to the store before calling the API, so a
+    // rejection must be caught and rolled back or the card silently keeps the new column.
+    (changeTaskStatus as jest.Mock).mockRejectedValueOnce(new Error('Network down'));
+    renderBoard();
+
+    const dataTransfer = {
+      effectAllowed: '',
+      setData: jest.fn(),
+      getData: jest.fn(),
+      setDragImage: jest.fn(),
+    };
+
+    const card = screen.getByRole('button', { name: 'Open task Task One' }).closest('article');
+    fireEvent.dragStart(card!, { dataTransfer });
+
+    const inProgressHeader = screen.getAllByText('In progress')[0];
+    const column = inProgressHeader.closest('div')?.parentElement?.parentElement;
+    fireEvent.drop(column!, { dataTransfer });
+
+    await waitFor(() => {
+      expect(notifyMock).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ title: 'Status change failed' })
+      );
+    });
+    expect(upsertTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: 'task-1', status: 'PENDING' })
+    );
   });
 
   it('shows warning and blocks drop for invalid status transition', async () => {

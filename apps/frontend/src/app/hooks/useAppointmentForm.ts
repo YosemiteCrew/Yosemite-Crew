@@ -1142,7 +1142,7 @@ export const useAppointmentForm = (options: UseAppointmentFormOptions = {}) => {
       if (!formData.appointmentType?.speciality.id) {
         errors.specialityId = 'Please select a speciality';
       }
-      if (formData.appointmentType?.id === undefined) {
+      if (!formData.appointmentType?.id?.trim()) {
         errors.serviceId = 'Please select a service';
       } else {
         const selectedService = services.find(

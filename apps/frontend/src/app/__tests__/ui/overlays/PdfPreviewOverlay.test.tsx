@@ -106,6 +106,36 @@ describe('PdfPreviewOverlay', () => {
     expect(screen.queryByRole('status', { name: 'Loading PDF' })).not.toBeInTheDocument();
   });
 
+  it('shows the loader again when a different PDF is opened', () => {
+    const { rerender } = render(
+      <PdfPreviewOverlay
+        open
+        pdfUrl="https://integration.vetconnectplus.com/acknowledgment/1"
+        title="Preview"
+        onClose={jest.fn()}
+      />
+    );
+
+    fireEvent.load(screen.getByTitle('Preview'));
+    expect(screen.queryByRole('status', { name: 'Loading PDF' })).not.toBeInTheDocument();
+
+    // Keying the iframe remounts the frame but leaves the overlay's own state
+    // alone, so the second document has to re-arm the loader itself.
+    rerender(
+      <PdfPreviewOverlay
+        open
+        pdfUrl="https://integration.vetconnectplus.com/acknowledgment/2"
+        title="Preview"
+        onClose={jest.fn()}
+      />
+    );
+
+    expect(screen.getByRole('status', { name: 'Loading PDF' })).toBeInTheDocument();
+
+    fireEvent.load(screen.getByTitle('Preview'));
+    expect(screen.queryByRole('status', { name: 'Loading PDF' })).not.toBeInTheDocument();
+  });
+
   it('renders optional download action without making it required for existing viewers', () => {
     const onDownload = jest.fn();
     const onClose = jest.fn();

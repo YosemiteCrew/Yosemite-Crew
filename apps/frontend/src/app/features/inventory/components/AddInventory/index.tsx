@@ -54,7 +54,9 @@ const emptyInventoryItem: InventoryItem = {
     unitofMeasure: '',
     species: [],
     administration: '',
-    itemType: 'Drug',
+    // Left unset so buildInventoryPayload can fall back to basicInfo.itemType and so
+    // business types with no itemType control never ship an unchosen MEDICAL default.
+    itemType: undefined,
     drugSchedule: '',
     storageCondition: '',
     controlledSubstance: 'false',
@@ -141,6 +143,15 @@ const nonDrugClassificationDefaults = {
   reportableToGovernment: 'false',
 };
 
+// FormSection hides drug-only fields across three sections; each hidden value must also be
+// cleared here, or a value entered while the item was still a Drug stays in the payload.
+const clearDrugOnlyFields = (prev: InventoryItem): InventoryItem => ({
+  ...prev,
+  stock: { ...prev.stock, withdrawlPeriod: '' },
+  batch: { ...prev.batch, tracking: undefined },
+  batches: prev.batches?.map((batch) => ({ ...batch, tracking: undefined })),
+});
+
 type AddInventoryProps = {
   showModal: boolean;
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -193,14 +204,18 @@ const useAddInventoryContent = ({
     }
 
     if (section === 'classification') {
-      setFormData((prev) => ({
-        ...prev,
-        classification: {
-          ...prev.classification,
-          ...patch,
-          ...(patch.itemType === 'Non-drug' ? nonDrugClassificationDefaults : {}),
-        },
-      }));
+      setFormData((prev) => {
+        const isNonDrug = patch.itemType === 'Non-drug';
+        const base = isNonDrug ? clearDrugOnlyFields(prev) : prev;
+        return {
+          ...base,
+          classification: {
+            ...base.classification,
+            ...patch,
+            ...(isNonDrug ? nonDrugClassificationDefaults : {}),
+          },
+        };
+      });
       return;
     }
 

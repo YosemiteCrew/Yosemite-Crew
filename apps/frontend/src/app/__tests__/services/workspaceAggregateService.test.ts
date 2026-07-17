@@ -572,6 +572,41 @@ describe('workspaceAggregateService', () => {
     expect(patch.stepStatus?.TREATMENT).toBe('COMPLETED');
   });
 
+  it('preserves the dispensed quantity on a package-expanded medication', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      treatmentItems: [
+        {
+          id: 'ti-med',
+          productId: 'prod-med',
+          servicePackageKind: 'MEDICATION',
+          name: 'Amoxicillin',
+          quantity: 3,
+          priceSnapshot: { unitPrice: 12 },
+          billingStatus: 'UNBILLED',
+        },
+      ],
+    });
+
+    // qty drives the editable Qty box, stock decrement and billing — a numeric `quantity`
+    // must survive as PrescriptionItem's string `qty`, not reload blank.
+    expect(patch.prescription?.[0]).toEqual(expect.objectContaining({ id: 'ti-med', qty: '3' }));
+  });
+
+  it('leaves qty unset on a medication treatment item with no quantity', () => {
+    const patch = normalizeWorkspaceBootstrapForEncounter({
+      treatmentItems: [
+        {
+          id: 'ti-med-noqty',
+          servicePackageKind: 'MEDICATION',
+          name: 'Amoxicillin',
+          billingStatus: 'UNBILLED',
+        },
+      ],
+    });
+
+    expect(patch.prescription?.[0].qty).toBeUndefined();
+  });
+
   it('keeps a billed prescription-linked item in the prescription section even when its kind is not a medication', () => {
     // After billing/dispense the backend can persist the drug as a treatment-item
     // row whose kind is no longer MEDICATION/PRESCRIPTION but which still links to a

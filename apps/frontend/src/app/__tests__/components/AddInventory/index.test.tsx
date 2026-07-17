@@ -74,6 +74,10 @@ jest.mock('@/app/features/inventory/components/AddInventory/FormSection', () => 
         data-testid="in-reorder"
         onChange={(e) => onFieldChange('stock', 'reorderLevel', e.target.value)}
       />
+      <input
+        data-testid="in-withdrawl"
+        onChange={(e) => onFieldChange('stock', 'withdrawlPeriod', e.target.value)}
+      />
 
       {/* Classification Fields */}
       <input
@@ -115,6 +119,10 @@ jest.mock('@/app/features/inventory/components/AddInventory/FormSection', () => 
       <input
         data-testid="in-batch-0"
         onChange={(e) => onFieldChange('batch', 'batch', e.target.value, 0)}
+      />
+      <input
+        data-testid="in-tracking"
+        onChange={(e) => onFieldChange('batch', 'tracking', e.target.value, 0)}
       />
     </div>
   ),
@@ -334,6 +342,63 @@ describe('AddInventory Component', () => {
       prescriptionRequired: 'false',
       reportableToGovernment: 'false',
     });
+  });
+
+  it('clears drug-only stock and batch fields when Non-drug is selected', async () => {
+    // FormSection hides withdrawlPeriod and tracking for a non-drug item. Values entered
+    // while the item was still a Drug must be cleared too, or they ship in the payload.
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'Surgical glove' } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Surgical supply' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    fireEvent.change(screen.getByTestId('in-tracking'), { target: { value: 'Batch tracked' } });
+    fireEvent.change(screen.getByTestId('in-withdrawl'), { target: { value: '14 days' } });
+    fireEvent.change(screen.getByTestId('in-item-type'), { target: { value: 'Non-drug' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    fireEvent.change(screen.getByTestId('in-curr'), { target: { value: '100' } });
+    fireEvent.change(screen.getByTestId('in-reorder'), { target: { value: '10' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+    fireEvent.click(screen.getByTestId('save-btn'));
+    fireEvent.change(screen.getByTestId('in-cost'), { target: { value: '10' } });
+    fireEvent.change(screen.getByTestId('in-sell'), { target: { value: '20' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('save-btn'));
+    });
+
+    const submitted = mockSubmit.mock.calls.at(-1)?.[0];
+    expect(submitted.stock.withdrawlPeriod).toBe('');
+    expect(submitted.batch.tracking).toBeUndefined();
+  });
+
+  it('does not default an unchosen item type to Drug', async () => {
+    // A business type whose form exposes no itemType control must not silently ship a
+    // Drug/MEDICAL classification for a non-medical item.
+    render(<AddInventory {...props} />);
+
+    fireEvent.change(screen.getByTestId('in-name'), { target: { value: 'Grooming towel' } });
+    fireEvent.change(screen.getByTestId('in-cat'), { target: { value: 'Supplies' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    fireEvent.change(screen.getByTestId('in-curr'), { target: { value: '100' } });
+    fireEvent.change(screen.getByTestId('in-reorder'), { target: { value: '10' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+    fireEvent.click(screen.getByTestId('save-btn'));
+    fireEvent.change(screen.getByTestId('in-cost'), { target: { value: '10' } });
+    fireEvent.change(screen.getByTestId('in-sell'), { target: { value: '20' } });
+    fireEvent.click(screen.getByTestId('save-btn'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('save-btn'));
+    });
+
+    const submitted = mockSubmit.mock.calls.at(-1)?.[0];
+    expect(submitted.classification.itemType).toBeUndefined();
   });
 
   it('validates numeric fields (Pricing) correctly', async () => {

@@ -48,6 +48,19 @@ import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminology
 import { resolveDefaultOpenScreenRouteForProfile } from '@/app/lib/defaultOpenScreen';
 import './UserHeader.css';
 
+/**
+ * RouteLoaderOverlay releases the org-switch loader when the pathname or query
+ * changes. Pushing the route we are already on fires neither, so callers have to
+ * release it themselves.
+ */
+const isCurrentRoute = (route: string) => {
+  const next = new URL(route, globalThis.window.location.origin);
+  return (
+    next.pathname === globalThis.window.location.pathname &&
+    next.search === globalThis.window.location.search
+  );
+};
+
 const ROUTE_ICONS = {
   Dashboard: MdDashboard,
   Organization: MdOutlineCorporateFare,
@@ -254,6 +267,10 @@ const useUserHeaderContent = () => {
       const role = membershipsByOrgId[orgId]?.roleDisplay ?? membershipsByOrgId[orgId]?.roleCode;
       const nextRoute = await resolveOrgScopedRedirect({ orgId, fallbackRole: role });
       router.push(nextRoute);
+      if (isCurrentRoute(nextRoute)) {
+        hide('org-switch');
+        stopRouteLoader();
+      }
     } catch {
       hide('org-switch');
       stopRouteLoader();
@@ -275,6 +292,10 @@ const useUserHeaderContent = () => {
     void resolveOrgScopedRedirect({ orgId, fallbackRole: role })
       .then((nextRoute) => {
         router.push(nextRoute);
+        if (isCurrentRoute(nextRoute)) {
+          hide('org-switch');
+          stopRouteLoader();
+        }
       })
       .catch(() => {
         hide('org-switch');

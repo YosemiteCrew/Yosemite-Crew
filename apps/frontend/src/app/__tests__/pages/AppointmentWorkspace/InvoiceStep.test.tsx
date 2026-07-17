@@ -97,6 +97,7 @@ const invoiceServiceMock = {
   sendInvoiceToClient: jest.fn(),
   findOpenAppointmentInvoice: jest.fn(),
   addLineItemsToAppointments: jest.fn(),
+  getFinanceInvoiceById: jest.fn(),
 };
 jest.mock('@/app/features/billing/services/invoiceService', () => ({
   createFinanceInvoice: (...args: unknown[]) => invoiceServiceMock.createFinanceInvoice(...args),
@@ -112,6 +113,7 @@ jest.mock('@/app/features/billing/services/invoiceService', () => ({
     invoiceServiceMock.findOpenAppointmentInvoice(...args),
   addLineItemsToAppointments: (...args: unknown[]) =>
     invoiceServiceMock.addLineItemsToAppointments(...args),
+  getFinanceInvoiceById: (...args: unknown[]) => invoiceServiceMock.getFinanceInvoiceById(...args),
 }));
 
 const clinicalServiceMock = {
@@ -435,10 +437,50 @@ describe('<InvoiceStep /> component', () => {
     });
 
     await waitFor(() => expect(invoiceServiceMock.getPaymentLink).toHaveBeenCalledWith('inv-new'));
-    // handleCollect overwrites the "Payment link generated:" confirmation set inside
-    // runOnlineCollection with a final "<label> recorded" message once it resolves.
-    expect(await screen.findByText(/paid online recorded/i)).toBeInTheDocument();
+    expect(await screen.findByText(/payment link generated/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /checkout.example\/pay/i })).toBeInTheDocument();
+  });
+
+  it('hydrates a server-loaded open invoice over the web route before appending lines', async () => {
+    // findOpenAppointmentInvoice reads useInvoiceStore only, so a server-hydrated invoice is
+    // absent there. addLineItemsToAppointments would then fall back to the mobile-auth /seed
+    // route, which rejects a PMS user; getFinanceInvoiceById puts it in the store first.
+    const serverInvoice = pastInvoice('UNPAID', ['Consultation']);
+    invoiceServiceMock.findOpenAppointmentInvoice.mockReturnValue(undefined);
+    invoiceServiceMock.getFinanceInvoiceById.mockResolvedValue({ id: serverInvoice.id });
+
+    renderInvoiceStep({
+      invoiceLineItems: [invoiceLine('Consultation')],
+      pastInvoices: [serverInvoice],
+    });
+    await screen.findByTestId('total-bill-container');
+
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: /collect cash/i }));
+    });
+
+    await waitFor(() =>
+      expect(invoiceServiceMock.getFinanceInvoiceById).toHaveBeenCalledWith(serverInvoice.id)
+    );
+    expect(invoiceServiceMock.addLineItemsToAppointments).toHaveBeenCalled();
+    // The open invoice is reused, so no duplicate invoice is created.
+    expect(invoiceServiceMock.createFinanceInvoice).not.toHaveBeenCalled();
+  });
+
+  it('does not report an online checkout as paid before the provider settles it', async () => {
+    renderInvoiceStep({
+      invoiceLineItems: [invoiceLine('Consultation')],
+    });
+    await screen.findByTestId('total-bill-container');
+
+    await act(async () => {
+      await userEvent.click(screen.getByRole('button', { name: /pay online/i }));
+    });
+
+    await waitFor(() => expect(invoiceServiceMock.getPaymentLink).toHaveBeenCalledWith('inv-new'));
+    // Opening Stripe checkout is not settlement — only the confirmed payment progress is.
+    expect(screen.queryByText(/paid online recorded/i)).not.toBeInTheDocument();
+    expect(workspaceStoreMock.recordInvoicePayment).not.toHaveBeenCalled();
   });
 
   it('disables cash/online payment actions when not ready for billing', async () => {

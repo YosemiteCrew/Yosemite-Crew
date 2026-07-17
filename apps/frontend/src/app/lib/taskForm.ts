@@ -22,6 +22,14 @@ const getReminderError = (reminder?: Task['reminder']): string | undefined => {
     : 'Reminder minutes must be greater than 0';
 };
 
+/**
+ * The end date is picked as a whole day while the due date carries a time, so
+ * both are reduced to their calendar day before comparison. Comparing the
+ * instants would reject an end date on the same day as the due date.
+ */
+const startOfDay = (value: Date): number =>
+  new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+
 /** A repeating task needs an end date that is on/after the due date. */
 const getEndDateError = (recurrence?: Task['recurrence'], dueAt?: Date): string | undefined => {
   if (!recurrence || recurrence.type === 'ONCE') return undefined;
@@ -29,7 +37,8 @@ const getEndDateError = (recurrence?: Task['recurrence'], dueAt?: Date): string 
   if (!endDate || Number.isNaN(endDate.getTime())) {
     return 'End date is required for a repeating task';
   }
-  if (dueAt && endDate < new Date(dueAt)) {
+  const dueDate = dueAt ? new Date(dueAt) : undefined;
+  if (dueDate && !Number.isNaN(dueDate.getTime()) && startOfDay(endDate) < startOfDay(dueDate)) {
     return 'End date must be on or after the due date';
   }
   return undefined;

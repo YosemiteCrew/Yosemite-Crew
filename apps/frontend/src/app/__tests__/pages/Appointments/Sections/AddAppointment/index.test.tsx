@@ -2,6 +2,19 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AddAppointment from '@/app/features/appointments/pages/Appointments/Sections/AddAppointment';
 import * as appointmentService from '@/app/features/appointments/services/appointmentService';
+// Wrap (not replace) the real hook so the options the component passes can be asserted
+// while the component keeps its actual behaviour.
+const useAppointmentFormSpy = jest.fn();
+jest.mock('@/app/hooks/useAppointmentForm', () => {
+  const actual = jest.requireActual('@/app/hooks/useAppointmentForm');
+  return {
+    ...actual,
+    useAppointmentForm: (...args: unknown[]) => {
+      useAppointmentFormSpy(...args);
+      return actual.useAppointmentForm(...args);
+    },
+  };
+});
 
 jest.mock('@/app/hooks/useCompanion', () => ({
   useCompanionsParentsForPrimaryOrg: jest.fn(() => [
@@ -320,6 +333,34 @@ describe('AddAppointment Component', () => {
       expect(screen.getByText('Time')).toBeInTheDocument();
       expect(screen.queryByTestId('select-Speciality')).not.toBeInTheDocument();
     });
+  });
+
+  it('runs the form hook in calendar-slot mode when opened from a slot prefill', async () => {
+    // The UI hides the date/slot picker and reorders the steps whenever a prefill is present.
+    // Only the hook's slot-scoped resolver populates selectedSlot, so telling the hook the
+    // flow is not slot-based strands step 2 behind a slot error with no picker to satisfy it.
+    render(
+      <AddAppointment
+        {...defaultProps}
+        prefill={{ date: new Date('2026-04-01T00:00:00.000Z'), minuteOfDay: 600, leadId: 'lead-1' }}
+      />
+    );
+
+    await waitFor(() =>
+      expect(useAppointmentFormSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ calendarSlotFlow: true })
+      )
+    );
+  });
+
+  it('keeps the form hook out of calendar-slot mode without a prefill', async () => {
+    render(<AddAppointment {...defaultProps} />);
+
+    await waitFor(() =>
+      expect(useAppointmentFormSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ calendarSlotFlow: false })
+      )
+    );
   });
 
   it('shows a blocking booking loader until the submit flow completes', async () => {

@@ -32,6 +32,7 @@ import {
   addLineItemsToAppointments,
   createFinanceInvoice,
   finalizeFinanceInvoice,
+  getFinanceInvoiceById,
   getPaymentLink,
   recordManualInvoicePayment,
   sendInvoiceToClient,
@@ -1017,7 +1018,12 @@ const useInvoiceStepContent = ({
     // open invoices into the workspace encounter but not into useInvoiceStore (the
     // only place findOpenAppointmentInvoice reads). Without this fallback an existing
     // open invoice is missed and a duplicate is created with the same bill lines.
-    const openInvoiceId = storeInvoiceId ?? findServerOpenInvoiceId();
+    const serverInvoiceId = storeInvoiceId ? undefined : findServerOpenInvoiceId();
+    // addLineItemsToAppointments re-resolves the invoice through useInvoiceStore and seeds a
+    // new one via the mobile-auth-only /seed route when the store has no match. Hydrating the
+    // store over the web invoice route first keeps that reuse on a PMS-authorised endpoint.
+    if (serverInvoiceId) await getFinanceInvoiceById(serverInvoiceId);
+    const openInvoiceId = storeInvoiceId ?? serverInvoiceId;
     let invoice: { id?: string } | undefined = openInvoiceId ? { id: openInvoiceId } : undefined;
     if (invoice?.id) {
       await addLineItemsToAppointments(lineItems, appointmentId, currency);
@@ -1078,8 +1084,11 @@ const useInvoiceStepContent = ({
           reloadBilling,
           recordInvoicePayment,
         });
+        // Only a manual collection is settled here and now. The ONLINE path has merely
+        // opened Stripe checkout, so it keeps runOnlineCollection's link message —
+        // payment progress reports settlement once Stripe confirms it.
+        setConfirmation(`${PAYMENT_LABELS[method]} recorded`);
       }
-      setConfirmation(`${PAYMENT_LABELS[method]} recorded`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to process payment.');
     } finally {

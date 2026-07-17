@@ -66,6 +66,71 @@ describe('VitalsForm', () => {
     expect(saveVitalRecord).not.toHaveBeenCalled();
   });
 
+  it('saves a template that renders only a subset of the vitals fields', async () => {
+    // The template maps Weight + Temperature only; the four fields it omits are never
+    // rendered, so requiring them would block save with errors nothing can display.
+    (listVitalsTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-1',
+        name: 'Quick weight check',
+        schemaSnapshot: {
+          sections: [
+            {
+              fields: [
+                { key: 'weight', label: 'Weight' },
+                { key: 'temperature', label: 'Temperature' },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+
+    render(<VitalsForm {...baseProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'New Vital' }));
+    await screen.findByText('New vitals');
+
+    fireEvent.change(screen.getByLabelText('Search vitals templates'), {
+      target: { value: 'Quick' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Quick weight check' }));
+
+    expect(screen.queryByLabelText('Heart rate')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('BCS')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Weight'), { target: { value: '42' } });
+    fireEvent.change(screen.getByLabelText('Temperature'), { target: { value: '101' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save vitals' }));
+
+    await waitFor(() => expect(saveVitalRecord).toHaveBeenCalled());
+    expect(screen.queryByText('Please fix the highlighted vitals fields.')).not.toBeInTheDocument();
+  });
+
+  it('still validates a bounded field the active template does render', async () => {
+    (listVitalsTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-1',
+        name: 'Quick weight check',
+        schemaSnapshot: { sections: [{ fields: [{ key: 'weight', label: 'Weight' }] }] },
+      },
+    ]);
+
+    render(<VitalsForm {...baseProps} />);
+    fireEvent.click(screen.getByRole('button', { name: 'New Vital' }));
+    await screen.findByText('New vitals');
+
+    fireEvent.change(screen.getByLabelText('Search vitals templates'), {
+      target: { value: 'Quick' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Quick weight check' }));
+
+    fireEvent.change(screen.getByLabelText('Weight'), { target: { value: '5000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save vitals' }));
+
+    expect(await screen.findByText('Weight must be 2000 or less.')).toBeInTheDocument();
+    expect(saveVitalRecord).not.toHaveBeenCalled();
+  });
+
   it('updates a draft field via typing, then saves and resets the form', async () => {
     render(<VitalsForm {...baseProps} />);
     fireEvent.click(screen.getByRole('button', { name: 'New Vital' }));

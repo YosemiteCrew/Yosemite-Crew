@@ -220,9 +220,12 @@ const medicationTreatmentItemToPrescription = (
   const productSnapshot = isRecord(item.productSnapshot) ? item.productSnapshot : {};
   const priceSnapshot = isRecord(item.priceSnapshot) ? item.priceSnapshot : {};
   const priceCents = Math.round((asNumber(priceSnapshot.unitPrice) ?? 0) * 100);
+  // Treatment items carry `quantity` as a number, while PrescriptionItem.qty is a string.
+  const quantity = asNumber(item.quantity) ?? asString(item.quantity);
   return {
     id: asString(item.id) ?? `prescription-${index + 1}`,
     medicineName: asString(item.name) ?? asString(productSnapshot.name) ?? 'Medication',
+    qty: quantity === undefined ? undefined : String(quantity),
     instructions: asString(productSnapshot.instructions),
     // Package-expanded medications are dispensed in-house by default.
     fulfillment: 'IN_HOUSE',

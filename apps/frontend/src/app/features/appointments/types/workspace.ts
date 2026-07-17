@@ -298,13 +298,7 @@ export type EmployeeTaskCategory =
 
 /** Restricted parent-task category set (Record => Observation Tool only). */
 export type ParentTaskCategory =
-  | 'Medication'
-  | 'Care'
-  | 'Diet'
-  | 'Communication'
-  | 'Billing'
-  | 'Record'
-  | 'Custom reminders';
+  'Medication' | 'Care' | 'Diet' | 'Communication' | 'Billing' | 'Record' | 'Custom reminders';
 
 export type TaskRepeat = 'None' | 'Daily' | 'Weekly' | 'Monthly';
 
@@ -358,6 +352,11 @@ export type InvoiceLineItem = {
   /** Inventory item of the source prescription, used to resolve the linked treatment-item delete. */
   sourceInventoryItemId?: string;
   /**
+   * Source treatment row this bill line was seeded from. Two rows can share a
+   * name, so settlement matches on this rather than on the display name.
+   */
+  sourceServiceLineId?: string;
+  /**
    * False for lines that must not be removed from the bill — e.g. the appointment's booked
    * service/consultation. Undefined/true means the line can be removed. Display-only.
    */
@@ -402,12 +401,7 @@ export type PastInvoicePayment = {
 };
 
 export type WorkspaceDocumentCategory =
-  | 'SOAP'
-  | 'Diagnostics'
-  | 'Treatment'
-  | 'Invoice'
-  | 'Discharge'
-  | 'Consent';
+  'SOAP' | 'Diagnostics' | 'Treatment' | 'Invoice' | 'Discharge' | 'Consent';
 
 export type WorkspaceDocument = {
   id: string;
@@ -565,10 +559,4 @@ export type WorkspaceFinalizationGate = {
 };
 
 export type SideAction =
-  | 'RECORD'
-  | 'TASKS'
-  | 'DOCUMENTS'
-  | 'CHAT'
-  | 'ACTIVITY'
-  | 'MSD'
-  | 'CALCULATORS';
+  'RECORD' | 'TASKS' | 'DOCUMENTS' | 'CHAT' | 'ACTIVITY' | 'MSD' | 'CALCULATORS';

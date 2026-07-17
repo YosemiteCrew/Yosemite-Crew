@@ -216,7 +216,10 @@ const useAddAppointmentView = ({
       onPrefillConsumed?.();
     },
     initialPrefill: showModal ? prefill : null,
-    calendarSlotFlow: false,
+    // Must track the flag the UI uses: isCalendarSlotFlow hides the date/slot picker and makes
+    // date/time step 2, but only the hook's slot-scoped resolver fills selectedSlot. Leaving
+    // this false stranded step 2 with an unsatisfiable slot error and no picker to clear it.
+    calendarSlotFlow: isCalendarSlotFlow,
   });
 
   const companionSatisfied = Boolean(formData.companion.id);
