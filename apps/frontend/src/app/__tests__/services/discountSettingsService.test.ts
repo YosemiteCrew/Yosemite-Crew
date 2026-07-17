@@ -85,6 +85,33 @@ describe('getOrganisationDiscountSettings', () => {
     );
   });
 
+  it('throws the envelope error code when no message is present', async () => {
+    mockGetData.mockResolvedValue({
+      data: { data: null, meta: null, error: { code: 'ORG_NOT_FOUND' } },
+    });
+
+    await expect(getOrganisationDiscountSettings('org-1')).rejects.toThrow('ORG_NOT_FOUND');
+  });
+
+  it('throws a generic message when the envelope error carries neither message nor code', async () => {
+    mockGetData.mockResolvedValue({
+      data: { data: null, error: {} },
+    });
+
+    await expect(getOrganisationDiscountSettings('org-1')).rejects.toThrow(
+      'Finance request failed'
+    );
+  });
+
+  it('normalizes a null body to the requested org id with no cap', async () => {
+    mockGetData.mockResolvedValue({ data: null });
+
+    await expect(getOrganisationDiscountSettings('org-1')).resolves.toEqual({
+      organisationId: 'org-1',
+      maxOverallDiscountPercent: null,
+    });
+  });
+
   it('throws when the organisation id is missing', async () => {
     await expect(getOrganisationDiscountSettings('')).rejects.toThrow('Organisation ID missing');
     expect(mockGetData).not.toHaveBeenCalled();

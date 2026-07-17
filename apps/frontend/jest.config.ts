@@ -86,6 +86,7 @@ const config: Config = {
     '<rootDir>/src/app/features/forms/pages/Forms/index.tsx',
     '<rootDir>/src/app/features/onboarding/pages/StripeOnboarding/index.tsx',
     '<rootDir>/src/app/features/finance/pages/Finance/index.tsx',
+    '<rootDir>/src/app/features/finance/pages/Discounts/index.tsx',
     '<rootDir>/src/app/features/organization/pages/Organization/index.tsx',
     '<rootDir>/src/app/features/settings/pages/Settings/index.tsx',
     '<rootDir>/src/app/features/companions/components/AddCompanion/index.tsx',
