@@ -92,7 +92,6 @@ const AppUpdateBottomSheet = ({
         label: t('appUpdate.updateNowButton'),
         onPress: handleOpenStore,
         forceBorder: true,
-        disabled: prompt.kind === 'required' && !prompt.storeUrl,
       }}
       secondaryButton={
         prompt.kind === 'optional'

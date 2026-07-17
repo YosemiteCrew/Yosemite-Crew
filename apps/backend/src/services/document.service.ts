@@ -723,10 +723,7 @@ export const DocumentService = {
     const appointmentLookup =
       await loadAppointmentForDocumentLookup(appointmentId);
 
-    if (
-      !appointmentLookup ||
-      appointmentLookup.organisationId !== params.organisationId
-    ) {
+    if (appointmentLookup?.organisationId !== params.organisationId) {
       throw new DocumentServiceError("Appointment not found.", 404);
     }
 

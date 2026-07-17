@@ -233,7 +233,9 @@ const readDurationUnit = (
     return undefined;
   }
 
-  const match = /\d+(?:\.\d+)?\s*([A-Za-z]+)/.exec(durationText.trim());
+  // Anchored, with disjoint character classes, so the scan cannot backtrack
+  // over a long run of digits that is never followed by a unit.
+  const match = /^[^A-Za-z]*([A-Za-z]+)/.exec(durationText.trim());
   return match?.[1]?.toUpperCase();
 };
 

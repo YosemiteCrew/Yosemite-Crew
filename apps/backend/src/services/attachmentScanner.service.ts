@@ -13,9 +13,14 @@ import logger from "src/utils/logger";
  * server. This catches files already known to VirusTotal; it is not a substitute
  * for a full sandbox detonation of novel samples.
  *
- * Fail-open by design: if scanning is unconfigured or VirusTotal is unreachable,
- * the attachment is allowed (and logged) rather than breaking chat — the upload
- * type/size policy remains the always-on first line of defence.
+ * Fail-open on scanner *outages*: if scanning is unconfigured or VirusTotal is
+ * unreachable, the attachment is allowed (and logged) rather than breaking chat —
+ * the upload type/size policy remains the always-on first line of defence.
+ *
+ * Fail-closed on *unscannable input*: an attachment hosted somewhere other than the
+ * Stream CDN can never be fetched (the SSRF barrier below refuses to leave the CDN),
+ * so it is not a transient outage — it is a file that cannot be scanned at all, and
+ * allowing it would let a custom-CDN attachment skip malware checks entirely.
  */
 
 export type ScanResult = { clean: boolean; threat?: string };
@@ -39,7 +44,8 @@ export const scanAttachmentUrl = async (url: string): Promise<ScanResult> => {
   try {
     target = new URL(url);
   } catch {
-    return { clean: true };
+    logger.warn("Attachment scan: attachment URL is unparseable");
+    return { clean: false, threat: "attachment URL is unparseable" };
   }
   const host = target.hostname.toLowerCase();
   const onStreamCdn =
@@ -48,8 +54,11 @@ export const scanAttachmentUrl = async (url: string): Promise<ScanResult> => {
     host === "stream-io-api.com" ||
     host.endsWith(".stream-io-api.com");
   if (target.protocol !== "https:" || !onStreamCdn) {
-    logger.warn("Attachment scan skipped: URL host is not the Stream CDN");
-    return { clean: true };
+    logger.warn("Attachment scan: URL host is not the Stream CDN");
+    return {
+      clean: false,
+      threat: "attachment is not hosted on the Stream CDN",
+    };
   }
 
   try {

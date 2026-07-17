@@ -248,6 +248,57 @@ describe("ParentService", () => {
     expect(result.response.id).toBe("parent-1");
   });
 
+  it("persists client alerts on a PMS create", async () => {
+    mockedPrisma.parent.findFirst.mockResolvedValueOnce(null);
+    mockedPrisma.parent.create.mockResolvedValueOnce(mockParent);
+    mockedPrisma.parent.findUnique.mockResolvedValue(mockParent);
+
+    const alerts = [{ title: "Aggressive", severity: "high" }];
+
+    await ParentService.create(
+      { firstName: "Jane", email: "jane@example.com", alerts } as any,
+      { source: "pms" },
+    );
+
+    expect(mockedPrisma.parent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ alerts }),
+      }),
+    );
+  });
+
+  it("ignores client alerts supplied on a mobile create", async () => {
+    (
+      AuthUserMobileService.getAuthUserMobileIdByProviderId as jest.Mock
+    ).mockResolvedValueOnce("auth-1");
+    mockedPrisma.authUserMobile.findFirst.mockResolvedValueOnce({
+      id: "auth-1",
+      parentId: null,
+    });
+    mockedPrisma.parent.findFirst.mockResolvedValueOnce(null);
+    mockedPrisma.parent.create.mockResolvedValueOnce(mockParent);
+    mockedPrisma.parent.findUnique.mockResolvedValue(mockParent);
+    (AuthUserMobileService.linkParent as jest.Mock).mockResolvedValueOnce({
+      id: "auth-1",
+      parentId: "parent-1",
+    });
+
+    // Client alerts are staff-authored and surface to staff in the PIMS. The mobile
+    // POST is parent-controlled, so alerts arriving on it must be dropped rather than
+    // persisted, matching the update path.
+    await ParentService.create(
+      {
+        firstName: "Jane",
+        email: "jane@example.com",
+        alerts: [{ title: "Injected", severity: "high" }],
+      } as any,
+      { source: "mobile", authUserId: "provider-1" },
+    );
+
+    const dataArg = mockedPrisma.parent.create.mock.calls.at(-1)?.[0]?.data;
+    expect(dataArg).not.toHaveProperty("alerts");
+  });
+
   it("throws when mobile create is missing auth user", async () => {
     await expect(
       ParentService.create(

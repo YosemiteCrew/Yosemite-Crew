@@ -15,7 +15,8 @@ type StreamWebhookEvent = {
 
 /**
  * Scan every attachment on a new/updated message and hard-delete the whole
- * message if any attachment is flagged as malware. Exported so it can be unit
+ * message if any attachment is flagged as malware or cannot be scanned at all
+ * (e.g. it is hosted off the Stream CDN). Exported so it can be unit
  * tested and run after the webhook response is sent (Stream is never blocked on
  * the scan).
  */
@@ -36,7 +37,7 @@ export const scanMessageAttachments = async (
     const result = await scanAttachmentUrl(url);
     if (!result.clean) {
       logger.warn(
-        `Malware in chat attachment on message ${messageId} (${result.threat}); deleting message`,
+        `Unsafe chat attachment on message ${messageId} (${result.threat}); deleting message`,
       );
       try {
         const client = StreamChat.getInstance(STREAM_KEY, STREAM_SECRET);

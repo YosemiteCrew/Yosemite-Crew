@@ -8,6 +8,8 @@ import {
   MIN_HEIGHT,
   normalizeWindowState,
   clampToVisibleDisplays,
+  clampPositionToWorkArea,
+  MIN_VISIBLE_DRAG_PX,
   createWindowStateStore,
   manageWindow,
 } from '../src/core/window-state';
@@ -280,5 +282,59 @@ describe('clampToVisibleDisplays', () => {
   it('returns the state unchanged when no position is set', () => {
     const state = { width: 1200, height: 800, isMaximized: false };
     expect(clampToVisibleDisplays(state, [primary])).toEqual(state);
+  });
+});
+
+describe('clampPositionToWorkArea', () => {
+  const primary = { workArea: { x: 0, y: 0, width: 1440, height: 900 } };
+  const size = { width: 1000, height: 700 };
+
+  it('leaves an on-screen position untouched', () => {
+    expect(clampPositionToWorkArea({ x: 120, y: 80 }, size, [primary])).toEqual({
+      x: 120,
+      y: 80,
+    });
+  });
+
+  it('keeps the window grabbable when dragged off the left/top edge', () => {
+    expect(clampPositionToWorkArea({ x: -5000, y: -5000 }, size, [primary])).toEqual({
+      x: MIN_VISIBLE_DRAG_PX - size.width,
+      y: 0,
+    });
+  });
+
+  it('keeps the window grabbable when dragged off the right/bottom edge', () => {
+    expect(clampPositionToWorkArea({ x: 99_999, y: 99_999 }, size, [primary])).toEqual({
+      x: 1440 - MIN_VISIBLE_DRAG_PX,
+      y: 900 - MIN_VISIBLE_DRAG_PX,
+    });
+  });
+
+  it('respects a work area that is offset from the origin', () => {
+    const offset = { workArea: { x: 100, y: 25, width: 1340, height: 875 } };
+    expect(clampPositionToWorkArea({ x: -5000, y: -5000 }, size, [offset])).toEqual({
+      x: 100 + MIN_VISIBLE_DRAG_PX - size.width,
+      y: 25,
+    });
+  });
+
+  it('allows dragging across the seam onto a second display', () => {
+    const secondary = { workArea: { x: 1440, y: 0, width: 1920, height: 1080 } };
+    expect(clampPositionToWorkArea({ x: 2000, y: 300 }, size, [primary, secondary])).toEqual({
+      x: 2000,
+      y: 300,
+    });
+    // Still bounded by the far edge of the outermost display.
+    expect(clampPositionToWorkArea({ x: 99_999, y: 99_999 }, size, [primary, secondary])).toEqual({
+      x: 3360 - MIN_VISIBLE_DRAG_PX,
+      y: 1080 - MIN_VISIBLE_DRAG_PX,
+    });
+  });
+
+  it('passes the position through when no displays are reported', () => {
+    expect(clampPositionToWorkArea({ x: 99_999, y: 99_999 }, size, [])).toEqual({
+      x: 99_999,
+      y: 99_999,
+    });
   });
 });

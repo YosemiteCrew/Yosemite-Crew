@@ -26,7 +26,7 @@ const importFreshWithAdmin = (
   existsSync: jest.Mock,
 ) => {
   jest.isolateModules(() => {
-    jest.doMock("fs", () => ({
+    jest.doMock("node:fs", () => ({
       existsSync,
     }));
     jest.doMock("firebase-admin", () => ({

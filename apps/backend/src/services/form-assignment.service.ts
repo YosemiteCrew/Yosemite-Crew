@@ -245,6 +245,12 @@ const normalizeLifecycleAssignmentStatus = (
   }
 };
 
+// The organisation list endpoint has no pagination parameters and its callers expect the
+// whole result set, so this is a backstop against an unbounded scan rather than a page
+// size: high enough that no real organisation reaches it, finite so one cannot be used to
+// materialise an arbitrarily large result.
+const ORGANISATION_LIST_MAX_ROWS = 500;
+
 const normalizeOrganisationListStatuses = (
   status?: string,
 ): PrismaFormAssignmentStatus[] | undefined => {
@@ -690,8 +696,24 @@ export const FormAssignmentService = {
         organisationId: params.organisationId,
         ...(params.companionId ? { companionId: params.companionId } : {}),
         ...(statuses ? { status: { in: statuses } } : {}),
+        // Appointment.patient is a Json column; matching the parent here keeps the filter
+        // in the database rather than materialising every assignment in the organisation
+        // and discarding most of them after the fact.
+        ...(params.parentId
+          ? {
+              appointment: {
+                is: {
+                  patient: {
+                    path: ["parent", "id"],
+                    equals: params.parentId,
+                  },
+                },
+              },
+            }
+          : {}),
       },
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      take: ORGANISATION_LIST_MAX_ROWS,
       include: {
         template: {
           select: {
@@ -713,20 +735,10 @@ export const FormAssignmentService = {
       },
     });
 
-    const filteredRows = params.parentId
-      ? rows.filter((row) => {
-          const parentId = getNestedString(row.appointment?.patient, [
-            "parent",
-            "id",
-          ]);
-          return parentId === params.parentId;
-        })
-      : rows;
-
-    const formIds = [...new Set(filteredRows.map((row) => row.templateId))];
+    const formIds = [...new Set(rows.map((row) => row.templateId))];
     const appointmentIds = [
       ...new Set(
-        filteredRows
+        rows
           .map((row) => row.appointmentId)
           .filter((id): id is string => Boolean(id)),
       ),
@@ -755,7 +767,7 @@ export const FormAssignmentService = {
 
     const submissionDocuments = buildSubmissionDocumentMap(submissions);
 
-    return filteredRows.map((row) => {
+    return rows.map((row) => {
       const key = buildSubmissionKey({
         formId: row.templateId,
         formVersion: row.templateVersion,

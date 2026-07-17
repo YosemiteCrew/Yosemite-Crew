@@ -115,9 +115,7 @@ export const evaluateAppUpdatePrompt = (
   if (!appUpdate) return null;
 
   let platformPolicy:
-    | typeof appUpdate.ios
-    | typeof appUpdate.android
-    | undefined;
+    typeof appUpdate.ios | typeof appUpdate.android | undefined;
   if (Platform.OS === 'ios') {
     platformPolicy = appUpdate.ios;
   } else if (Platform.OS === 'android') {
@@ -175,8 +173,7 @@ export const evaluateAppUpdatePrompt = (
   }
 
   const storeUrl = resolveStoreUrl(appUpdate, bundleId);
-  const kind: AppUpdatePrompt['kind'] =
-    mustUpdate && storeUrl ? 'required' : 'optional';
+  const kind: AppUpdatePrompt['kind'] = mustUpdate ? 'required' : 'optional';
 
   return {
     kind,

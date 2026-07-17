@@ -1864,6 +1864,17 @@ const loadDocuments = async (params: {
   return rows;
 };
 
+/**
+ * Run a loader only when the caller's permissions allow the resource, yielding
+ * an empty result otherwise. The bootstrap response is assembled from many such
+ * loaders, so gating them at the call site is what keeps a caller from
+ * receiving records their role cannot read.
+ */
+const loadWhenPermitted = async <T>(
+  permitted: boolean,
+  load: () => Promise<T[]>,
+): Promise<T[]> => (permitted ? load() : []);
+
 const buildBootstrapAggregate = async (
   input: WorkspaceBootstrapInput,
   permissions?: string[],
@@ -1908,13 +1919,13 @@ const buildBootstrapAggregate = async (
       appointmentId,
       encounterId,
     }),
-    access.treatmentItems
-      ? loadTreatmentItems({
-          organisationId: input.organisationId,
-          appointmentId,
-          encounterId,
-        })
-      : [],
+    loadWhenPermitted(access.treatmentItems, () =>
+      loadTreatmentItems({
+        organisationId: input.organisationId,
+        appointmentId,
+        encounterId,
+      }),
+    ),
     loadTasks({
       organisationId: input.organisationId,
       appointmentId,
@@ -1926,14 +1937,14 @@ const buildBootstrapAggregate = async (
       encounterId,
       companionId,
     }),
-    access.forms
-      ? loadTemplateInstances({
-          organisationId: input.organisationId,
-          appointmentId,
-          encounterId,
-          caseId,
-        })
-      : [],
+    loadWhenPermitted(access.forms, () =>
+      loadTemplateInstances({
+        organisationId: input.organisationId,
+        appointmentId,
+        encounterId,
+        caseId,
+      }),
+    ),
     loadOrdersAndResults({
       organisationId: input.organisationId,
       appointmentId,
@@ -1959,23 +1970,23 @@ const buildBootstrapAggregate = async (
     ]),
   );
 
-  const documents = access.documents
-    ? await loadDocuments({
-        organisationId: input.organisationId,
-        appointmentId,
-        encounterId,
-        companionId,
-        scheduleIds: schedules.map((schedule) => schedule.id),
-        scheduleContext,
-      })
-    : [];
+  const documents = await loadWhenPermitted(access.documents, () =>
+    loadDocuments({
+      organisationId: input.organisationId,
+      appointmentId,
+      encounterId,
+      companionId,
+      scheduleIds: schedules.map((schedule) => schedule.id),
+      scheduleContext,
+    }),
+  );
 
-  const diagnosticPreloads = access.labs
-    ? await loadDiagnosticPreloads({
-        organisationId: input.organisationId,
-        treatmentItems,
-      })
-    : [];
+  const diagnosticPreloads = await loadWhenPermitted(access.labs, () =>
+    loadDiagnosticPreloads({
+      organisationId: input.organisationId,
+      treatmentItems,
+    }),
+  );
 
   const labSummary = buildLabSummary(
     ordersAndResults.orders,

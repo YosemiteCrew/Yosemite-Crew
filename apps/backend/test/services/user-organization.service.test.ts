@@ -57,6 +57,9 @@ jest.mock("src/config/prisma", () => ({
       updateMany: jest.fn(),
       upsert: jest.fn(),
       create: jest.fn(),
+      // Prisma exposes column references here so a filter can compare one column
+      // against another; the sentinel stands in for the real FieldRef.
+      fields: { freeUsersLimit: "FieldRef(freeUsersLimit)" },
     },
     user: {
       findFirst: jest.fn(),
@@ -128,6 +131,105 @@ describe("UserOrganizationService", () => {
 
       expect(result._id).toBe(mappingId);
       expect(prisma.organizationUsageCounter.update).toHaveBeenCalled();
+    });
+
+    it("reserves a free-plan seat with a single conditional update", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: orgId,
+      });
+      (prisma.organizationBilling.findFirst as jest.Mock).mockResolvedValueOnce(
+        { plan: "free" },
+      );
+      (
+        prisma.organizationUsageCounter.upsert as jest.Mock
+      ).mockResolvedValueOnce({ orgId });
+      (
+        prisma.organizationUsageCounter.updateMany as jest.Mock
+      ).mockResolvedValueOnce({ count: 1 });
+      (
+        prisma.organizationUsageCounter.findUnique as jest.Mock
+      ).mockResolvedValueOnce({
+        id: "usage-1",
+        orgId,
+        usersActiveCount: 1,
+        freeUsersLimit: 10,
+        appointmentsUsed: 0,
+        freeAppointmentsLimit: 120,
+        toolsUsed: 0,
+        freeToolsLimit: 200,
+      });
+      (prisma.userOrganization.create as jest.Mock).mockResolvedValueOnce(
+        prismaMapping,
+      );
+
+      await UserOrganizationService.create(payload);
+
+      // The limit must be enforced by the database in the same statement that
+      // increments, never by a separate read the caller can race.
+      expect(prisma.organizationUsageCounter.updateMany).toHaveBeenCalledWith({
+        where: {
+          orgId,
+          usersActiveCount: { lt: "FieldRef(freeUsersLimit)" },
+        },
+        data: { usersActiveCount: { increment: 1 } },
+      });
+      expect(prisma.organizationUsageCounter.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects the join when the conditional seat reservation matches no row", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: orgId,
+      });
+      (prisma.organizationBilling.findFirst as jest.Mock).mockResolvedValueOnce(
+        { plan: "free" },
+      );
+      (
+        prisma.organizationUsageCounter.upsert as jest.Mock
+      ).mockResolvedValueOnce({ orgId });
+      (
+        prisma.organizationUsageCounter.updateMany as jest.Mock
+      ).mockResolvedValueOnce({ count: 0 });
+
+      await expect(UserOrganizationService.create(payload)).rejects.toEqual(
+        expect.objectContaining({
+          message: "Free plan member limit reached.",
+          statusCode: 403,
+        }),
+      );
+      expect(prisma.userOrganization.create).not.toHaveBeenCalled();
+    });
+
+    it("releases the reserved seat when creating the mapping fails", async () => {
+      (prisma.organization.findFirst as jest.Mock).mockResolvedValueOnce({
+        id: orgId,
+      });
+      (prisma.organizationBilling.findFirst as jest.Mock).mockResolvedValueOnce(
+        { plan: "pro" },
+      );
+      (
+        prisma.organizationUsageCounter.upsert as jest.Mock
+      ).mockResolvedValueOnce({ orgId });
+      (
+        prisma.organizationUsageCounter.update as jest.Mock
+      ).mockResolvedValueOnce({ usersActiveCount: 1 });
+      (prisma.userOrganization.create as jest.Mock).mockRejectedValueOnce(
+        new Error("write failed"),
+      );
+
+      await expect(
+        UserOrganizationService.createUserOrganizationMapping({
+          practitionerReference: `Practitioner/${userId}`,
+          organizationReference: `Organization/${orgId}`,
+          roleCode: "VETERINARIAN",
+          active: true,
+        } as never),
+      ).rejects.toThrow("write failed");
+
+      // Without the rollback the seat stays reserved for a mapping that never existed.
+      expect(prisma.organizationUsageCounter.update).toHaveBeenLastCalledWith({
+        where: { orgId },
+        data: { usersActiveCount: { decrement: 1 } },
+      });
     });
 
     it("rejects unsupported resource types before persisting", async () => {

@@ -223,11 +223,18 @@ function withResourceOrgPermissions(
   };
 }
 
-/** Read an organisation id off a Mongo document without trusting its shape. */
+/**
+ * Read an organisation id off a Mongo document without trusting its shape.
+ * Only the two representations the driver actually returns are accepted; any
+ * other value is rejected rather than coerced, so a structured field cannot
+ * become a nonsense identifier that is then used as an organisation.
+ */
 function orgIdFromLean(doc: unknown): string | null {
   if (typeof doc !== "object" || doc === null) return null;
   const value = (doc as { organisationId?: unknown }).organisationId;
-  return value ? String(value) : null;
+  if (typeof value === "string") return value.trim() || null;
+  if (value instanceof Types.ObjectId) return value.toHexString();
+  return null;
 }
 
 export function withAppointmentOrgPermissions() {
