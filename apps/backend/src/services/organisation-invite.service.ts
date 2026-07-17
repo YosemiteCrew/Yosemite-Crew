@@ -759,8 +759,9 @@ export const OrganisationInviteService = {
     if (!invites.length) return [];
     const results = [];
     for (const invite of invites) {
+      const safeOrganisationId = String(invite.organisationId);
       const organisation = await OrganizationModel.findOne(
-        buildIdentifierLookup(invite.organisationId),
+        buildIdentifierLookup(safeOrganisationId),
       ).setOptions({ sanitizeFilter: true });
 
       results.push({

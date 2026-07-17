@@ -382,7 +382,7 @@ const reserveMemberSlot = async (orgId: string) => {
     // column in the WHERE clause instead.
     const reserved = await prisma.organizationUsageCounter.updateMany({
       where: {
-        orgId,
+        orgId: String(orgId),
         usersActiveCount: {
           lt: prisma.organizationUsageCounter.fields.freeUsersLimit,
         },
