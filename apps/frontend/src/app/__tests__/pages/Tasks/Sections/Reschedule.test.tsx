@@ -129,8 +129,13 @@ describe('Task Reschedule section', () => {
         585
       );
     });
+    // A one-off task reschedules straight away, with no series scope.
     expect(updateTask).toHaveBeenCalledWith(
-      expect.objectContaining({ dueAt: new Date('2026-04-15T09:45:00Z'), timezone: 'Asia/Kolkata' })
+      expect.objectContaining({
+        dueAt: new Date('2026-04-15T09:45:00Z'),
+        timezone: 'Asia/Kolkata',
+      }),
+      undefined
     );
     expect(setShowModal).toHaveBeenCalledWith(false);
   });
@@ -155,5 +160,65 @@ describe('Task Reschedule section', () => {
     fireEvent.click(screen.getByText('Cancel'));
 
     expect(setShowModal).toHaveBeenCalledWith(false);
+  });
+
+  describe('recurring series', () => {
+    const seriesTask: any = {
+      ...activeTask,
+      recurrence: { type: 'DAILY', isMaster: true },
+    };
+
+    it('asks which occurrences a series reschedule applies to instead of moving just one', async () => {
+      render(<RescheduleTask showModal setShowModal={setShowModal} activeTask={seriesTask} />);
+
+      fireEvent.click(screen.getByText('Update'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Edit recurring task')).toBeInTheDocument();
+      });
+      // The edit is held until the user picks a scope.
+      expect(updateTask).not.toHaveBeenCalled();
+      expect(setShowModal).not.toHaveBeenCalledWith(false);
+    });
+
+    it('applies the reschedule to the whole series when the user chooses all tasks', async () => {
+      render(<RescheduleTask showModal setShowModal={setShowModal} activeTask={seriesTask} />);
+
+      fireEvent.click(screen.getByText('pick-date'));
+      fireEvent.click(screen.getByText('pick-time'));
+      fireEvent.click(screen.getByText('Update'));
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('All tasks in the series')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByLabelText('All tasks in the series'));
+      fireEvent.click(screen.getByText('Save changes'));
+
+      await waitFor(() => {
+        expect(updateTask).toHaveBeenCalledWith(
+          expect.objectContaining({
+            dueAt: new Date('2026-04-15T09:45:00Z'),
+            timezone: 'Asia/Kolkata',
+          }),
+          'ALL'
+        );
+      });
+      expect(setShowModal).toHaveBeenCalledWith(false);
+    });
+
+    it('defaults to this task only when the user confirms without changing the scope', async () => {
+      render(<RescheduleTask showModal setShowModal={setShowModal} activeTask={seriesTask} />);
+
+      fireEvent.click(screen.getByText('Update'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Save changes')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText('Save changes'));
+
+      await waitFor(() => {
+        expect(updateTask).toHaveBeenCalledWith(expect.objectContaining({ _id: 'task-1' }), 'THIS');
+      });
+    });
   });
 });

@@ -6,7 +6,7 @@ const SignatureRenderer: React.FC<{
 }> = ({ field }) => (
   <div className="flex flex-col gap-3">
     <div className="font-satoshi text-black-text text-[18px] font-medium">{field.label}</div>
-    <div className="h-[120px] flex items-center justify-center border-2 border-dashed border-grey-light rounded-2xl font-satoshi text-grey-noti text-[18px] font-medium">
+    <div className="h-[120px] flex items-center justify-center border-2 border-dashed border-card-border rounded-2xl font-satoshi text-grey-noti text-[18px] font-medium">
       Please Save and Sign
     </div>
   </div>

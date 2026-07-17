@@ -63,7 +63,26 @@
 .inventory-table-list {
   display: flex;
 }
-@media screen and (max-width: 1280px) {
+/* Companions keeps a real table down to the phone breakpoint: the design's
+   adaptation rule is "tablet prunes to <=6 columns", not "tablet gets cards".
+   It therefore cannot use the shared `.table-list` class, which Appointments,
+   Tasks, Forms, Invoice and InventoryTurnover correctly hide at 1280 in favour
+   of their `xl:hidden` card lists. Below 768 CompanionsTable swaps to phone
+   cards in JS (useIsPhone); the media query below only suppresses the table for
+   the first paint, before useIsPhone flips from its SSR-safe `false`. */
+.companions-table-list {
+  display: flex;
+}
+@media screen and (max-width: 767px) {
+  .companions-table-list {
+    display: none;
+  }
+}
+/* 1279.98px, not 1280px: CSS max-width is inclusive, so `max-width: 1280px`
+   and Tailwind's `xl:` (min-width: 1280px) both match at exactly 1280 - the
+   table hides itself while the cards are already hidden by `xl:hidden`, and
+   the list renders empty. Every `.table-list` consumer shares this boundary. */
+@media screen and (max-width: 1279.98px) {
   .table-list {
     display: none;
   }
@@ -92,7 +111,7 @@
     gap: 24px;
   }
 }
-@media screen and (min-width: 640px) and (max-width: 1280px) {
+@media screen and (min-width: 640px) and (max-width: 1279.98px) {
   .card-list {
     gap: 24px;
   }
@@ -234,25 +253,30 @@
   line-height: 120%;
   letter-spacing: -0.32px;
 }
+/* DS status micro-badge: ALL-CAPS 10px / 700 / 0.08em, pad 4px 10px, fully round.
+   Per-status bg/text/border are supplied inline via getStatusStyle(...). */
 .appointment-status {
-  display: flex;
-  padding: 6px 14px;
+  display: inline-flex;
+  width: fit-content;
+  align-self: flex-start;
+  padding: 4px 10px;
   justify-content: center;
   align-items: center;
-  gap: 10px;
-  align-self: stretch;
-  border-radius: 16px;
+  gap: 6px;
+  border-radius: 999px;
   border-width: 1px;
   border-style: solid;
   background: var(--status-requested-bg);
   border-color: var(--status-requested-border);
   color: var(--status-requested-text);
   text-align: center;
-  font-size: 13px;
+  font-size: 10px;
   font-style: normal;
-  font-weight: 500;
-  line-height: 150%;
-  letter-spacing: -0.16px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
   font-family: var(--font-satoshi);
 }
 .appointment-emergency-label {

@@ -37,27 +37,22 @@ const TimeInputButton = ({
       ref={ref}
       type="button"
       onClick={onClick}
-      className={`peer relative flex min-h-12 w-full items-center rounded-2xl! border bg-transparent px-6 py-2.5 text-left text-body-4 text-text-primary transition-colors focus-visible:outline-none! ${
+      className={`relative flex h-[42px] w-full items-center justify-between rounded-xl! border-[1.5px] bg-[var(--field-bg)] px-3.5 text-left text-[14px] text-text-primary outline-none transition-colors focus:shadow-[0_0_0_3px_var(--glow-b10)] ${
         error ? 'border-input-border-error!' : 'border-input-border-default!'
       } focus:border-input-border-active! ${className ?? ''}`}
       aria-label={value ? `${label}: ${value}` : label}
       aria-haspopup="dialog"
       aria-describedby={error && errorId ? errorId : undefined}
     >
-      <span aria-hidden="true">{value || ''}</span>
-      <span
+      <span className="truncate" aria-hidden="true">
+        {value || ''}
+      </span>
+      <IoTimeOutline
+        size={16}
+        color="var(--color-neutral-600)"
         aria-hidden="true"
-        className={`pointer-events-none absolute left-6 text-body-4 transition-all duration-200 ${
-          value
-            ? '-top-[11px] translate-y-0 bg-(--whitebg) px-1 text-sm! text-input-text-placeholder-active'
-            : 'top-1/2 -translate-y-1/2 text-input-text-placeholder'
-        }`}
-      >
-        {label}
-      </span>
-      <span className="absolute right-6 top-1/2 -translate-y-1/2" aria-hidden="true">
-        <IoTimeOutline size={20} color="var(--color-neutral-900)" />
-      </span>
+        className="ml-2 shrink-0"
+      />
     </button>
   );
 };
@@ -105,6 +100,9 @@ const Timepicker = ({
 
   return (
     <div className="w-full">
+      <span className="mb-1.5 block truncate text-[12.5px] font-semibold text-neutral-800">
+        {label}
+      </span>
       <ReactDatePicker
         selected={selectedTime}
         onChange={(nextValue) => {
@@ -130,7 +128,7 @@ const Timepicker = ({
         <div
           id={errorId}
           role="alert"
-          className="mt-1.5 flex items-center gap-1 px-4 text-caption-2 text-text-error"
+          className="mt-1.5 flex items-center gap-1 text-caption-2 text-text-error"
         >
           <IoIosWarning className="text-text-error" size={14} aria-hidden="true" />
           <span>{error}</span>

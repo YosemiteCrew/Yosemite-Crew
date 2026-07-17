@@ -7,6 +7,25 @@ jest.mock('@/app/hooks/usePermissions', () => ({
   usePermissions: jest.fn(),
 }));
 
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
+}));
+
+jest.mock('next/link', () => ({
+  __esModule: true,
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}));
+
+jest.mock('@/app/stores/orgStore', () => ({
+  useOrgStore: (selector: any) =>
+    selector({
+      primaryOrgId: 'org-x',
+      membershipsByOrgId: { 'org-x': { roleDisplay: 'Vet technician' } },
+    }),
+}));
+
 const mockUsePermissions = usePermissions as unknown as jest.Mock;
 
 describe('PermissionGate', () => {
@@ -64,6 +83,41 @@ describe('PermissionGate', () => {
 
     expect(screen.getByTestId('fallback')).toBeInTheDocument();
     expect(screen.queryByTestId('child')).toBeNull();
+  });
+
+  it('renders the PermissionDeniedState when denied with a deniedResource and no fallback', () => {
+    mockUsePermissions.mockReturnValue({
+      isLoading: false,
+      can: jest.fn(() => false),
+    });
+
+    render(
+      <PermissionGate deniedResource="Finance" deniedDetail="invoices and payouts">
+        <div data-testid="child">Child</div>
+      </PermissionGate>
+    );
+
+    expect(screen.getByText(/You don.t have access to Finance/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Your role \(Vet technician\) can.t view invoices and payouts\./)
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('child')).toBeNull();
+  });
+
+  it('renders nothing when denied with neither fallback nor deniedResource', () => {
+    mockUsePermissions.mockReturnValue({
+      isLoading: false,
+      can: jest.fn(() => false),
+    });
+
+    const { container } = render(
+      <PermissionGate>
+        <div data-testid="child">Child</div>
+      </PermissionGate>
+    );
+
+    expect(screen.queryByTestId('child')).toBeNull();
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('renders children when permissions allow', () => {

@@ -178,7 +178,7 @@ const ChangeRoom = ({ showModal, setShowModal, activeAppointment }: ChangeRoomPr
             />
           </div>
         ) : null}
-        {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
+        {errorMessage ? <p className="text-sm text-text-error">{errorMessage}</p> : null}
         <div className="flex items-center justify-center gap-2 w-full pb-3 flex-wrap">
           <Secondary
             href="#"

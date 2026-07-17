@@ -12,6 +12,19 @@ jest.mock('next/dynamic', () => ({
     options?.loading?.();
     const source = loader.toString();
     const LoadableComponent = (props: Record<string, unknown>) => {
+      if (source.includes('Sections/Personal')) {
+        const MockPersonal = (
+          jest.requireMock('@/app/features/settings/pages/Settings/Sections/Personal') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockPersonal {...props} />;
+      }
+
+      if (source.includes('Sections/AppearancePreference')) {
+        return <div>Appearance Preference</div>;
+      }
+
       if (source.includes('Sections/OrgSection')) {
         const MockOrgSection = (
           jest.requireMock('@/app/features/settings/pages/Settings/Sections/OrgSection') as {
@@ -66,6 +79,11 @@ jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   default: ({ children }: any) => <div data-testid="protected">{children}</div>,
 }));
 
+jest.mock('@/app/features/settings/pages/Settings/Sections/Personal', () => ({
+  __esModule: true,
+  default: () => <div>Personal Card</div>,
+}));
+
 jest.mock('@/app/features/settings/pages/Settings/Sections/OrgSection', () => ({
   __esModule: true,
   default: () => <div>Org Section</div>,
@@ -86,8 +104,10 @@ describe('Settings page', () => {
     render(<Settings />);
 
     expect(screen.getByTestId('protected')).toBeInTheDocument();
+    expect(screen.getByText('Personal Card')).toBeInTheDocument();
     expect(screen.getByText('Org Section')).toBeInTheDocument();
     expect(screen.getByText('Companion Terminology')).toBeInTheDocument();
+    expect(screen.getByText('Appearance Preference')).toBeInTheDocument();
     expect(screen.getByText('Security Section')).toBeInTheDocument();
     expect(screen.getByText('Delete Profile')).toBeInTheDocument();
   });

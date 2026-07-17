@@ -22,12 +22,9 @@ import ChangeRoom from '@/app/features/appointments/pages/Appointments/Sections/
 import { AppointmentStatusFiltersUI } from '@/app/features/appointments/types/appointments';
 import { normalizeAppointmentStatus } from '@/app/lib/appointments';
 import Filters from '@/app/ui/filters/Filters';
-import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import { buildWorkspaceHref } from '@/app/lib/appointmentWorkspace';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import ViewAppointmentOverviewModal from '@/app/features/appointments/pages/Appointments/Sections/ViewAppointmentOverviewModal';
-
-const revampEnabled = isAppointmentRevampEnabled();
 
 const resetActiveTableState = (
   activeTable: string,
@@ -206,7 +203,7 @@ const AppointmentTask = () => {
           />
         )}
 
-        {activeAppointment && revampEnabled && (
+        {activeAppointment && (
           <ViewAppointmentOverviewModal
             showModal={viewPopup}
             setShowModal={setViewPopup}
@@ -226,8 +223,8 @@ const AppointmentTask = () => {
 
         {activeAppointment && (
           <AppoitmentInfo
-            showModal={revampEnabled ? detailPopup : viewPopup}
-            setShowModal={revampEnabled ? setDetailPopup : setViewPopup}
+            showModal={detailPopup}
+            setShowModal={setDetailPopup}
             activeAppointment={activeAppointment}
             initialViewIntent={viewIntent}
           />

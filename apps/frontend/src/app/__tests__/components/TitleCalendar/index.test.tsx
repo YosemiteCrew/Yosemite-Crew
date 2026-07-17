@@ -84,6 +84,22 @@ describe('TitleCalendar', () => {
     expect(setActiveView).toHaveBeenCalledWith('list');
   });
 
+  it('falls back to the default width for a single view option', () => {
+    const setActiveView = jest.fn();
+    render(
+      <TitleCalendar
+        title="One"
+        setAddPopup={jest.fn()}
+        count={1}
+        activeView="calendar"
+        setActiveView={setActiveView}
+        showAdd={false}
+        viewOptions={['calendar']}
+      />
+    );
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
   it('renders only configured view options', () => {
     const setActiveView = jest.fn();
 

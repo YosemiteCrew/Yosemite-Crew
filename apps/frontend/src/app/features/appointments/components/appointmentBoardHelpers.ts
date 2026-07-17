@@ -19,6 +19,16 @@ export const normalizeStatus = (status?: string): BoardStatus | null => {
   return normalizeAppointmentStatus(status);
 };
 
+const MUTED_BOARD_STATUSES: ReadonlySet<BoardStatus> = new Set<BoardStatus>([
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW',
+]);
+
+/** Closed-out columns recede on the board so live work stays dominant. */
+export const isMutedBoardStatus = (status: BoardStatus | null): boolean =>
+  !!status && MUTED_BOARD_STATUSES.has(status);
+
 export const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
   backgroundColor: isActive ? 'var(--color-semantic-error-100)' : 'var(--color-neutral-0)',
   borderColor: isActive ? 'var(--color-semantic-error-500)' : 'var(--color-neutral-500)',

@@ -52,7 +52,7 @@ const AppointmentLeadersStat = () => {
       <DynamicChartCard
         data={leadersWithNames}
         isEmpty={analytics.emptyState.appointmentLeaders}
-        keys={[{ name: 'Completed', color: '#111' }]}
+        keys={[{ name: 'Completed', color: 'var(--cta)' }]}
         hideKeys={false}
         layout="vertical"
         barSize={14}

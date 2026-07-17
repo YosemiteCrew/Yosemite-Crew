@@ -1,15 +1,15 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  LuArrowRight,
-  LuBanknote,
-  LuCheck,
-  LuCreditCard,
-  LuDownload,
-  LuEye,
-  LuEyeOff,
-  LuShare,
-  LuUpload,
-} from 'react-icons/lu';
+  IoArrowForwardOutline,
+  IoCardOutline,
+  IoCashOutline,
+  IoCheckmarkOutline,
+  IoCloudUploadOutline,
+  IoDownloadOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoShareOutline,
+} from 'react-icons/io5';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorkspace/components/CircleIconButton';
 import TotalBillContainer from '@/app/features/appointments/pages/AppointmentWorkspace/components/TotalBillContainer';
@@ -42,7 +42,7 @@ import { useOrganisationDiscountCap } from '@/app/features/finance/hooks/useOrga
 import { deletePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
 import { useNotify } from '@/app/hooks/useNotify';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { buildBillableItems, normalizeLineName } from './invoiceStepUtils';
+import { buildBillableItems, getInvoiceErrorMessage, normalizeLineName } from './invoiceStepUtils';
 import {
   type PaymentProgressState,
   computeIncompleteMedicationNames,
@@ -387,13 +387,13 @@ export const PaymentProgressOverlay = ({
         aria-modal="true"
         aria-labelledby="payment-progress-title"
         aria-describedby="payment-progress-description"
-        className="flex w-full max-w-115 flex-col items-center gap-4 rounded-3xl border border-card-border bg-white p-6 text-center shadow-[0_24px_60px_rgba(0,0,0,0.22)]"
+        className="flex w-full max-w-115 flex-col items-center gap-4 rounded-3xl border border-card-border bg-neutral-0 p-6 text-center shadow-[0_24px_60px_rgba(0,0,0,0.22)]"
       >
         {isChecking ? (
           <YosemiteLoader size={64} testId="invoice-payment-progress-loader" />
         ) : (
           <span className="flex size-14 items-center justify-center rounded-full bg-success-100 text-success-600">
-            <LuCheck size={26} aria-hidden="true" />
+            <IoCheckmarkOutline size={26} aria-hidden="true" />
           </span>
         )}
         <div className="flex flex-col gap-2">
@@ -438,9 +438,9 @@ export const PaymentProgressOverlay = ({
 export const SettledBadge = ({ invoice }: { invoice: PastInvoice }) => {
   const label = invoice.paidFromDeposit ? 'Withdrawn from Deposit' : 'Invoice Paid';
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-3xl bg-[#15803D] px-3 py-1 text-caption-1 font-medium text-neutral-0">
+    <span className="inline-flex items-center gap-1.5 rounded-3xl bg-[#15803D] px-3 py-1 text-caption-1 font-medium text-white">
       {label}
-      <LuCheck aria-hidden="true" />
+      <IoCheckmarkOutline aria-hidden="true" />
     </span>
   );
 };
@@ -592,21 +592,27 @@ export const InvoiceRow = ({
         </div>
         <div className="flex justify-end gap-2">
           <CircleIconButton
-            icon={expanded ? <LuEyeOff aria-hidden="true" /> : <LuEye aria-hidden="true" />}
+            icon={
+              expanded ? (
+                <IoEyeOffOutline aria-hidden="true" />
+              ) : (
+                <IoEyeOutline aria-hidden="true" />
+              )
+            }
             label={expanded ? `Hide invoice ${invoice.id}` : `View invoice ${invoice.id}`}
             variant="dark"
             onClick={() => onToggle(invoice.id)}
           />
           {settled && (
             <CircleIconButton
-              icon={<LuDownload aria-hidden="true" />}
+              icon={<IoDownloadOutline aria-hidden="true" />}
               label={`Download invoice ${invoice.id}`}
               onClick={() => onDownload(invoice)}
             />
           )}
           {settled && !readOnly && (
             <CircleIconButton
-              icon={<LuShare aria-hidden="true" />}
+              icon={<IoShareOutline aria-hidden="true" />}
               label={`Share invoice ${invoice.id}`}
               onClick={() => onShare(invoice)}
             />
@@ -627,9 +633,9 @@ export const InvoiceRow = ({
             )}
           </span>
           {invoice.paymentMethod && (
-            <span className="inline-flex items-center gap-2 rounded-3xl bg-[#15803D] px-4 py-2 text-body-4 font-medium text-neutral-0">
+            <span className="inline-flex items-center gap-2 rounded-3xl bg-[#15803D] px-4 py-2 text-body-4 font-medium text-white">
               {PAYMENT_LABELS[invoice.paymentMethod]}
-              <LuCheck aria-hidden="true" />
+              <IoCheckmarkOutline aria-hidden="true" />
             </span>
           )}
         </div>
@@ -695,6 +701,8 @@ export const PaymentActions = ({
   depositDisabled,
   paymentDisabled,
   paymentDisabledReason,
+  dueCents,
+  currency,
   onCollect,
   onSendToClient,
 }: {
@@ -702,54 +710,72 @@ export const PaymentActions = ({
   depositDisabled: boolean;
   paymentDisabled: boolean;
   paymentDisabledReason?: string;
+  dueCents: number;
+  currency: string;
   onCollect: (method: PaymentMethod) => void;
   onSendToClient: () => void;
 }) => {
-  const paymentButtons = (
-    <span className="inline-flex flex-wrap items-center gap-3">
-      {isInpatient && (
-        <Secondary
-          text="Send to Client"
-          icon={<LuUpload aria-hidden="true" />}
-          iconPosition="right"
-          onClick={onSendToClient}
-          isDisabled={paymentDisabled}
-        />
-      )}
-      <Secondary
-        text="Collect Cash"
-        icon={<LuBanknote aria-hidden="true" />}
-        iconPosition="right"
-        onClick={() => onCollect('CASH')}
-        isDisabled={paymentDisabled}
-      />
-      <Primary
-        text="Pay Online"
-        icon={<LuBanknote aria-hidden="true" />}
-        iconPosition="right"
-        onClick={() => onCollect('ONLINE')}
-        isDisabled={paymentDisabled}
-      />
-    </span>
-  );
-  const paymentControls = paymentDisabledReason ? (
-    <GlassTooltip content={paymentDisabledReason} side="top" maxWidth={320}>
-      <span className="inline-flex">{paymentButtons}</span>
-    </GlassTooltip>
-  ) : (
-    paymentButtons
+  // Online/Cash is a single method choice + one "Collect" action (design's payment-method
+  // card). Deposit and Send-to-Client remain distinct actions with their own gating.
+  const [method, setMethod] = useState<'ONLINE' | 'CASH'>('ONLINE');
+  const collectButton = (
+    <Primary
+      text={`Collect ${formatMoney(dueCents / 100, currency)}`}
+      icon={<IoCashOutline aria-hidden="true" />}
+      iconPosition="right"
+      onClick={() => onCollect(method)}
+      isDisabled={paymentDisabled}
+    />
   );
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <Secondary
-        text="Collect Deposit"
-        icon={<LuCreditCard aria-hidden="true" />}
-        iconPosition="right"
-        onClick={() => onCollect('DEPOSIT')}
-        isDisabled={depositDisabled}
-      />
-      {paymentControls}
-    </div>
+    <section
+      aria-label="Payment method"
+      className="flex flex-col gap-3 rounded-[14px] border border-card-border bg-neutral-0 p-4 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+    >
+      <span className="text-body-3-emphasis text-text-primary">Payment method</span>
+      <div className="flex gap-1 rounded-xl bg-neutral-100 p-1">
+        {(['ONLINE', 'CASH'] as const).map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={method === option}
+            onClick={() => setMethod(option)}
+            className={`flex-1 rounded-lg py-2 text-caption-1 font-semibold transition-colors ${
+              method === option
+                ? 'bg-neutral-0 text-text-primary shadow-[0_1px_3px_var(--sh08)]'
+                : 'text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            {option === 'ONLINE' ? 'Online' : 'Cash'}
+          </button>
+        ))}
+      </div>
+      {paymentDisabledReason ? (
+        <GlassTooltip content={paymentDisabledReason} side="top" maxWidth={320}>
+          <span className="inline-flex w-full [&>*]:w-full">{collectButton}</span>
+        </GlassTooltip>
+      ) : (
+        <span className="inline-flex w-full [&>*]:w-full">{collectButton}</span>
+      )}
+      <div className="flex flex-wrap gap-2 border-t border-card-border pt-3">
+        <Secondary
+          text="Collect Deposit"
+          icon={<IoCardOutline aria-hidden="true" />}
+          iconPosition="right"
+          onClick={() => onCollect('DEPOSIT')}
+          isDisabled={depositDisabled}
+        />
+        {isInpatient && (
+          <Secondary
+            text="Send to Client"
+            icon={<IoCloudUploadOutline aria-hidden="true" />}
+            iconPosition="right"
+            onClick={onSendToClient}
+            isDisabled={paymentDisabled}
+          />
+        )}
+      </div>
+    </section>
   );
 };
 
@@ -1062,6 +1088,7 @@ const useInvoiceStepContent = ({
       return;
     }
     if (!hasItems) return;
+    /* v8 ignore start -- the Collect button is disabled whenever the visit is not ready for billing (paymentDisabled), so this guard is a defensive mirror of that UI gate and is unreachable from the rendered UI */
     if (!isReadyForBilling && (method === 'CASH' || method === 'ONLINE')) {
       notify('warning', {
         title: 'Mark ready for billing first',
@@ -1069,6 +1096,7 @@ const useInvoiceStepContent = ({
       });
       return;
     }
+    /* v8 ignore stop */
     setErrorMessage(null);
     setIsProcessingPayment(true);
     try {
@@ -1093,7 +1121,7 @@ const useInvoiceStepContent = ({
       }
       setConfirmation(`${PAYMENT_LABELS[method]} recorded`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to process payment.');
+      setErrorMessage(getInvoiceErrorMessage(error, 'Unable to process payment.'));
     } finally {
       setIsProcessingPayment(false);
     }
@@ -1155,13 +1183,14 @@ const useInvoiceStepContent = ({
       setIsDepositModalOpen(false);
       await reloadBilling();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to collect deposit.');
+      setErrorMessage(getInvoiceErrorMessage(error, 'Unable to collect deposit.'));
     } finally {
       setIsProcessingPayment(false);
     }
   };
 
   const handleSendToClient = async () => {
+    /* v8 ignore start -- the Send to Client button is disabled whenever the visit is not ready for billing (paymentDisabled), so this guard is a defensive mirror of that UI gate and is unreachable from the rendered UI */
     if (!hasItems || !isReadyForBilling) {
       notify('warning', {
         title: 'Mark ready for billing first',
@@ -1169,6 +1198,7 @@ const useInvoiceStepContent = ({
       });
       return;
     }
+    /* v8 ignore stop */
     setErrorMessage(null);
     setIsProcessingPayment(true);
     try {
@@ -1191,7 +1221,7 @@ const useInvoiceStepContent = ({
       setConfirmation(confirmationMessage);
       await reloadBilling();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Unable to send invoice to client.');
+      setErrorMessage(getInvoiceErrorMessage(error, 'Unable to send invoice to client.'));
     } finally {
       setIsProcessingPayment(false);
     }
@@ -1250,12 +1280,14 @@ const useInvoiceStepContent = ({
   };
 
   const handleFinishInvoice = () => {
+    /* v8 ignore start -- the Summary button is disabled whenever there are incomplete medications, so this guard is a defensive mirror of that UI gate and is unreachable from the rendered UI */
     if (hasIncompleteMedications) {
       setErrorMessage(
         'Fill information in previous step for prescribed medications before finalizing.'
       );
       return;
     }
+    /* v8 ignore stop */
     setStepStatus(appointmentId, 'INVOICE', 'COMPLETED');
     onOpenSummary();
   };
@@ -1322,60 +1354,72 @@ const useInvoiceStepContent = ({
     ]
   );
 
+  const invoiceTotalCents = computeInvoiceTotalCents(encounter);
+  const dueCents = encounter.withdrawDeposit
+    ? Math.max(0, invoiceTotalCents - encounter.depositCents)
+    : invoiceTotalCents;
+
   return (
     <div className="flex flex-col gap-5">
       {/* The bill builder + payment controls only show while the encounter is
           editable. A completed appointment shows finalized invoices only. */}
       {canBuildBill && (
-        <>
-          <TotalBillContainer
-            items={enrichedInvoiceLineItems}
-            billableItems={billableItems}
-            incompleteItemNames={incompleteMedicationNames}
-            currency={currency}
-            depositCents={encounter.depositCents}
-            withdrawDeposit={encounter.withdrawDeposit}
-            overallDiscountPercent={encounter.overallDiscountPercent}
-            maxOverallDiscountPercent={maxOverallDiscountPercent}
-            taxPercent={encounter.taxPercent}
-            onToggleWithdrawDeposit={(value) => setWithdrawDeposit(appointmentId, value)}
-            onChangeOverallDiscount={(percent) => setOverallDiscountPercent(appointmentId, percent)}
-            onAddItem={handleAddItem}
-            onUpdateItem={(id, patch) => updateInvoiceLineItem(appointmentId, id, patch)}
-            onRemoveItem={(id) => void handleRemoveBillLine(id)}
-          />
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="min-w-0 flex-1">
+            <TotalBillContainer
+              items={enrichedInvoiceLineItems}
+              billableItems={billableItems}
+              incompleteItemNames={incompleteMedicationNames}
+              currency={currency}
+              depositCents={encounter.depositCents}
+              withdrawDeposit={encounter.withdrawDeposit}
+              overallDiscountPercent={encounter.overallDiscountPercent}
+              maxOverallDiscountPercent={maxOverallDiscountPercent}
+              taxPercent={encounter.taxPercent}
+              onToggleWithdrawDeposit={(value) => setWithdrawDeposit(appointmentId, value)}
+              onChangeOverallDiscount={(percent) =>
+                setOverallDiscountPercent(appointmentId, percent)
+              }
+              onAddItem={handleAddItem}
+              onUpdateItem={(id, patch) => updateInvoiceLineItem(appointmentId, id, patch)}
+              onRemoveItem={(id) => void handleRemoveBillLine(id)}
+            />
+          </div>
+          <aside className="flex w-full flex-col gap-3 lg:w-[340px] lg:shrink-0">
+            <PaymentActions
+              isInpatient={isInpatient}
+              depositDisabled={isProcessingPayment}
+              paymentDisabled={isProcessingPayment || !hasItems || !isReadyForBilling}
+              paymentDisabledReason={paymentDisabledReason}
+              dueCents={dueCents}
+              currency={currency}
+              onCollect={handleCollect}
+              onSendToClient={handleSendToClient}
+            />
 
-          <PaymentActions
-            isInpatient={isInpatient}
-            depositDisabled={isProcessingPayment}
-            paymentDisabled={isProcessingPayment || !hasItems || !isReadyForBilling}
-            paymentDisabledReason={paymentDisabledReason}
-            onCollect={handleCollect}
-            onSendToClient={handleSendToClient}
-          />
+            {errorMessage && (
+              <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700">
+                {errorMessage}
+              </p>
+            )}
 
-          {errorMessage && (
-            <p role="alert" className="rounded-2xl bg-danger-100 p-3 text-body-4 text-danger-700">
-              {errorMessage}
-            </p>
-          )}
-
-          {confirmation && (
-            <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-text-brand">
-              <span>{confirmation}</span>
-              {confirmationLink && (
-                <a
-                  href={confirmationLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full break-all underline"
-                >
-                  {confirmationLink}
-                </a>
-              )}
-            </output>
-          )}
-        </>
+            {confirmation && (
+              <output className="flex flex-col gap-1 rounded-2xl bg-primary-100 p-3 text-body-4 text-text-brand">
+                <span>{confirmation}</span>
+                {confirmationLink && (
+                  <a
+                    href={confirmationLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full break-all underline"
+                  >
+                    {confirmationLink}
+                  </a>
+                )}
+              </output>
+            )}
+          </aside>
+        </div>
       )}
 
       <DepositModal
@@ -1410,7 +1454,7 @@ const useInvoiceStepContent = ({
           )}
           <Primary
             text="Summary"
-            icon={<LuArrowRight aria-hidden="true" />}
+            icon={<IoArrowForwardOutline aria-hidden="true" />}
             iconPosition="right"
             onClick={handleFinishInvoice}
             isDisabled={hasIncompleteMedications}

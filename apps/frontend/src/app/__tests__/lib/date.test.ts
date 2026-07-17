@@ -2,6 +2,8 @@ import {
   formatDateLocal,
   formatDateUTC,
   getAgeInYears,
+  getAgeInMonths,
+  formatCompanionAge,
   buildUtcDateFromDateAndTime,
   getDurationMinutes,
   generateTimeSlots,
@@ -67,6 +69,93 @@ describe('getAgeInYears', () => {
 
     expect(getAgeInYears('2000-12-31')).toBe(25);
     jest.restoreAllMocks();
+  });
+});
+
+describe('getAgeInMonths / formatCompanionAge', () => {
+  // "Today" is pinned to 2026-03-30 for every case below.
+  const withMockedToday = (run: () => void) => {
+    const realDate = Date;
+    const mockToday = new realDate('2026-03-30');
+    jest.spyOn(global, 'Date').mockImplementation((arg?: any) => {
+      if (arg === undefined) return mockToday as any;
+      return new realDate(arg) as any;
+    });
+    (global.Date as any).now = realDate.now;
+    try {
+      run();
+    } finally {
+      jest.restoreAllMocks();
+    }
+  };
+
+  it('counts whole elapsed months, not started ones', () => {
+    withMockedToday(() => {
+      expect(getAgeInMonths('2026-01-30')).toBe(2);
+      // Birth day-of-month has not come round yet, so Feb 20 -> Mar 30 is 1 month.
+      expect(getAgeInMonths('2026-02-20')).toBe(1);
+    });
+  });
+
+  it('reads a pet under a year old in months rather than "0 Yrs"', () => {
+    withMockedToday(() => {
+      expect(formatCompanionAge('2025-09-30')).toBe('6 Mos');
+      expect(formatCompanionAge('2026-01-30')).toBe('2 Mos');
+    });
+  });
+
+  it('renders a newborn as "0 Mos" rather than "0 Yrs"', () => {
+    withMockedToday(() => {
+      expect(formatCompanionAge('2026-03-30')).toBe('0 Mos');
+    });
+  });
+
+  it('singularises exactly one month', () => {
+    withMockedToday(() => {
+      expect(formatCompanionAge('2026-02-28')).toBe('1 Mo');
+    });
+  });
+
+  it('switches to years at exactly 12 months', () => {
+    withMockedToday(() => {
+      expect(formatCompanionAge('2025-03-30')).toBe('1 Yr');
+      // One day short of the first birthday still reads in months.
+      expect(formatCompanionAge('2025-03-31')).toBe('11 Mos');
+    });
+  });
+
+  it('pluralises years beyond the first', () => {
+    withMockedToday(() => {
+      expect(formatCompanionAge('2024-03-30')).toBe('2 Yrs');
+      expect(formatCompanionAge('2000-01-01')).toBe('26 Yrs');
+    });
+  });
+
+  it('uses the spelled-out suffix in long mode', () => {
+    withMockedToday(() => {
+      expect(formatCompanionAge('2026-02-28', { long: true })).toBe('1 month');
+      expect(formatCompanionAge('2025-09-30', { long: true })).toBe('6 months');
+      expect(formatCompanionAge('2025-03-30', { long: true })).toBe('1 year');
+      expect(formatCompanionAge('2024-03-30', { long: true })).toBe('2 years');
+    });
+  });
+
+  it('returns no label for an unknown, empty, or unparseable date of birth', () => {
+    withMockedToday(() => {
+      expect(formatCompanionAge(undefined)).toBe('');
+      expect(formatCompanionAge(null)).toBe('');
+      expect(formatCompanionAge('')).toBe('');
+      expect(formatCompanionAge('not-a-date')).toBe('');
+      expect(getAgeInMonths('not-a-date')).toBeNaN();
+    });
+  });
+
+  it('returns no label for a future date of birth', () => {
+    withMockedToday(() => {
+      expect(getAgeInMonths('2026-06-30')).toBeLessThan(0);
+      expect(formatCompanionAge('2026-06-30')).toBe('');
+      expect(formatCompanionAge('2027-01-01', { long: true })).toBe('');
+    });
   });
 });
 

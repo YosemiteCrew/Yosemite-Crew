@@ -1,11 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import OrgInvites from '@/app/ui/tables/OrgInvites';
 import { Invite } from '@/app/features/organization/types/team';
-
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn() }),
-}));
 
 jest.mock('@/app/features/organization/services/teamService', () => ({
   acceptInvite: jest.fn(),
@@ -16,28 +13,19 @@ jest.mock('@/app/lib/postAuthRedirect', () => ({
   resolveOrgScopedRedirect: jest.fn(),
 }));
 
-jest.mock('@/app/ui/tables/GenericTable/GenericTable', () => ({
-  __esModule: true,
-  default: ({ data, columns }: any) => (
-    <div data-testid="generic-table">
-      {data.map((item: any, idx: number) => (
-        <div key={item._id ?? idx}>
-          {columns.map((col: any) => (
-            <div key={String(col.key)}>{col.render ? col.render(item) : item[col.key]}</div>
-          ))}
-        </div>
-      ))}
-    </div>
-  ),
-}));
-
 const inviteCardSpy = jest.fn();
 
+// Mock InviteCard: expose accept/reject affordances and record received props
 jest.mock('@/app/ui/cards/InviteCard/InviteCard', () => ({
   __esModule: true,
   default: (props: any) => {
     inviteCardSpy(props);
-    return <div data-testid="invite-card" />;
+    return (
+      <div data-testid={`invite-card-${props.invite._id}`}>
+        <button onClick={() => props.handleAccept(props.invite)}>accept</button>
+        <button onClick={() => props.handleReject(props.invite)}>reject</button>
+      </div>
+    );
   },
 }));
 
@@ -48,12 +36,11 @@ const invite: Invite = {
   organisationType: 'HOSPITAL',
   role: 'SUPERVISOR',
   employmentType: 'FULL_TIME',
-  name: 'Invite 1',
   invitedByUserId: '',
-  inviteeEmail: '',
   departmentId: '',
+  inviteeEmail: '',
   token: '',
-  status: 'ACCEPTED',
+  status: 'PENDING',
   expiresAt: '',
   updatedAt: '',
   createdAt: '',
@@ -85,15 +72,20 @@ describe('OrgInvites', () => {
     ).resolveOrgScopedRedirect;
   });
 
-  it('renders table and cards with invites', () => {
-    render(<OrgInvites {...makeProps({ invites: [invite] })} />);
-
-    expect(screen.getByTestId('generic-table')).toBeInTheDocument();
-    expect(screen.getByTestId('invite-card')).toBeInTheDocument();
-    expect(inviteCardSpy).toHaveBeenCalledWith(expect.objectContaining({ invite }));
+  it('renders nothing when there are no invites', () => {
+    const { container } = render(<OrgInvites {...makeProps()} />);
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it('accepts an invite: removes it from state and navigates to resolved route', async () => {
+  it('renders an InviteCard per invite', () => {
+    render(<OrgInvites {...makeProps({ invites: [invite] })} />);
+    expect(screen.getByTestId('invite-card-invite-1')).toBeInTheDocument();
+    expect(inviteCardSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ invite, disabled: false })
+    );
+  });
+
+  it('accepts an invite: removes it from state and navigates to the resolved route', async () => {
     acceptInviteMock.mockResolvedValue(undefined);
     resolveOrgScopedRedirectMock.mockResolvedValue('/team-onboarding?orgId=org-1');
 
@@ -105,8 +97,7 @@ describe('OrgInvites', () => {
       <OrgInvites {...makeProps({ invites: [invite], setInvites, onAccepting, onNavigate })} />
     );
 
-    const acceptButton = screen.getByRole('button', { name: 'Accept invite' });
-    fireEvent.click(acceptButton);
+    fireEvent.click(screen.getByText('accept'));
 
     expect(acceptInviteMock).toHaveBeenCalledWith(invite);
     expect(onAccepting).toHaveBeenCalledWith(true);
@@ -126,36 +117,25 @@ describe('OrgInvites', () => {
 
     render(<OrgInvites {...makeProps({ invites: [invite], setInvites })} />);
 
-    const declineButton = screen.getByRole('button', { name: 'Decline invite' });
-    fireEvent.click(declineButton);
+    fireEvent.click(screen.getByText('reject'));
 
     expect(rejectInviteMock).toHaveBeenCalledWith(invite);
-    await waitFor(() => {
-      expect(setInvites).toHaveBeenCalled();
-    });
+    await waitFor(() => expect(setInvites).toHaveBeenCalled());
 
     const updater = setInvites.mock.calls[0][0];
     expect(updater([invite])).toEqual([]);
   });
 
-  it('shows empty state when no invites', () => {
-    render(<OrgInvites {...makeProps()} />);
-    expect(screen.getByText('No pending invites')).toBeInTheDocument();
-  });
-
-  it('calls onAccepting(false) and keeps invite in list on accept error', async () => {
+  it('calls onAccepting(false) and keeps the invite on accept error', async () => {
     acceptInviteMock.mockRejectedValue(new Error('network error'));
     const onAccepting = jest.fn();
     const setInvites = jest.fn();
 
     render(<OrgInvites {...makeProps({ invites: [invite], onAccepting, setInvites })} />);
 
-    const acceptButton = screen.getByRole('button', { name: 'Accept invite' });
-    fireEvent.click(acceptButton);
+    fireEvent.click(screen.getByText('accept'));
 
-    await waitFor(() => {
-      expect(onAccepting).toHaveBeenCalledWith(false);
-    });
+    await waitFor(() => expect(onAccepting).toHaveBeenCalledWith(false));
     expect(setInvites).not.toHaveBeenCalled();
   });
 });

@@ -8,7 +8,7 @@ import PageSkeleton from '@/app/ui/layout/PageSkeleton';
 const FORMS_PAGE_SKELETON = <PageSkeleton variant="list" />;
 import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { IoInformationCircleOutline } from 'react-icons/io5';
+import { IoAdd, IoInformationCircleOutline } from 'react-icons/io5';
 import { FormsProps } from '@/app/features/forms/types/forms';
 import FormsFilters, { type FormsFilterState } from '@/app/ui/filters/FormsFilters';
 import FormsTable from '@/app/ui/tables/FormsTable';
@@ -220,10 +220,10 @@ const Forms = () => {
   });
 
   return (
-    <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+    <div className="relative min-w-0 h-full min-h-0 yc-page-content">
       <div className="flex justify-between items-center w-full flex-wrap gap-2">
         <div className="flex flex-col gap-1">
-          <h1 className="text-text-primary text-heading-2 flex items-center gap-2">
+          <h1 className="text-text-primary text-page-title flex items-center gap-2">
             <span>
               {'Templates'}
               <span className="text-body-2 text-text-tertiary">{` (${list.length})`}</span>
@@ -241,6 +241,9 @@ const Forms = () => {
               </button>
             </GlassTooltip>
           </h1>
+          <p className="text-body-4 text-text-secondary">
+            Build and reuse templates, link them to services and packages
+          </p>
         </div>
       </div>
 
@@ -251,7 +254,14 @@ const Forms = () => {
             filters={filters}
             onFiltersChange={setFilters}
             categoryAction={
-              canEditForms ? <Primary href="#" text="Add" onClick={openAddForm} /> : null
+              canEditForms ? (
+                <Primary
+                  href="#"
+                  text="Add template"
+                  onClick={openAddForm}
+                  icon={<IoAdd size={18} aria-hidden="true" />}
+                />
+              ) : null
             }
           />
           <div ref={plannerSectionRef} className={plannerSectionClassName}>
@@ -260,6 +270,8 @@ const Forms = () => {
               setActiveForm={handleSelectForm}
               setViewPopup={setViewPopup}
               loading={loading}
+              showLinkedServices
+              serviceOptions={serviceOptions}
             />
           </div>
         </div>

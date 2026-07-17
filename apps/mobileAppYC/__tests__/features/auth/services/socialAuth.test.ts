@@ -53,7 +53,10 @@ const mockAppleAuthAndroid = {
   configure: jest.fn(),
   signIn: jest.fn().mockResolvedValue({
     id_token: 'apple-android-id-token',
-    user: {name: {firstName: 'Ada', lastName: 'Lovelace'}, email: 'ada@example.com'},
+    user: {
+      name: {firstName: 'Ada', lastName: 'Lovelace'},
+      email: 'ada@example.com',
+    },
   }),
   ResponseType: {ALL: 'ALL'},
   Scope: {ALL: 'ALL'},
@@ -161,7 +164,9 @@ describe('socialAuth', () => {
   beforeEach(() => {
     mockConfigModule();
     jest.clearAllMocks();
-    (global as any).fetch = jest.fn().mockResolvedValue(makeResponse(okExchangeBody));
+    (global as any).fetch = jest
+      .fn()
+      .mockResolvedValue(makeResponse(okExchangeBody));
     mockSuperTokens.getAccessToken.mockResolvedValue('st-access-token');
     mockSyncAuthUser.mockResolvedValue(baseAuthSyncResponse);
     RN.Platform.OS = originalPlatform;

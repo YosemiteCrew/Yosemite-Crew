@@ -17,9 +17,13 @@ import {
   saveDischargeSummaryArtifact,
 } from '@/app/features/appointments/services/workspaceClinicalService';
 import {
+  createEncounterDocumentPacket,
   getAppointmentWorkspaceBootstrap,
+  getEncounterDocumentPacketPdfUrl,
+  listAppointmentWorkspaceDocuments,
   listEncounterWorkspaceDocuments,
   reconcileWorkspaceDocumentPacket,
+  signWorkspaceDocumentPacket,
 } from '@/app/features/appointments/services/workspaceAggregateService';
 
 jest.mock('@/app/features/appointments/services/workspaceTemplateService', () => ({
@@ -49,6 +53,7 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
   getEncounterDocumentPacketPdfUrl: jest.fn().mockResolvedValue('blob:packet-pdf'),
   reconcileWorkspaceDocumentPacket: jest.fn().mockResolvedValue({ packetId: 'packet-1' }),
   listEncounterWorkspaceDocuments: jest.fn(),
+  listAppointmentWorkspaceDocuments: jest.fn(),
   getAppointmentWorkspaceBootstrap: jest.fn().mockResolvedValue({}),
   normalizeWorkspaceBootstrapForEncounter: jest.fn(() => ({})),
 }));
@@ -80,12 +85,14 @@ jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
     pdfUrl,
     downloadLabel,
     onDownload,
+    onClose,
   }: {
     open: boolean;
     title: string;
     pdfUrl: string | null;
     downloadLabel?: string;
     onDownload?: () => void;
+    onClose?: () => void;
   }) =>
     open ? (
       <div data-testid="pdf-preview">
@@ -94,6 +101,11 @@ jest.mock('@/app/ui/overlays/PdfPreviewOverlay', () => ({
         {onDownload && (
           <button type="button" aria-label={downloadLabel} onClick={onDownload}>
             Download
+          </button>
+        )}
+        {onClose && (
+          <button type="button" aria-label={`Close ${title}`} onClick={onClose}>
+            Close
           </button>
         )}
       </div>
@@ -142,6 +154,7 @@ const reset = () => {
     encountersById: {},
     activeStep: 'SUMMARY',
     activeSideAction: null,
+    saveStatusByAppointmentId: {},
   });
   useSigningOverlayStore.setState({
     open: false,
@@ -153,8 +166,18 @@ const reset = () => {
   (resolveDischargeTemplate as jest.Mock).mockResolvedValue(null);
   (extractFollowUpInDays as jest.Mock).mockReturnValue(undefined);
   (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([]);
+  (listAppointmentWorkspaceDocuments as jest.Mock).mockResolvedValue([]);
   (reconcileWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({ packetId: 'packet-1' });
   (getRenderedDocument as jest.Mock).mockResolvedValue({ pdfUrl: 'https://files.test/doc.pdf' });
+  // Reset the aggregate-service mocks that individual tests override so failures
+  // configured in one test never leak into the next.
+  (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({});
+  (createEncounterDocumentPacket as jest.Mock).mockResolvedValue({ packetId: 'packet-1' });
+  (signWorkspaceDocumentPacket as jest.Mock).mockResolvedValue({
+    packetId: 'packet-1',
+    signing: { status: 'IN_PROGRESS', signingUrl: 'https://sign.test/abc' },
+  });
+  (getEncounterDocumentPacketPdfUrl as jest.Mock).mockResolvedValue('blob:packet-pdf');
 };
 
 const seedAndGet = () => {
@@ -820,6 +843,60 @@ describe('SummaryStep', () => {
     expect(screen.queryByText('Missing organisation or encounter for signing.')).toBeNull();
   });
 
+  it('lists the appointment documents when no encounter id can be resolved', async () => {
+    // The backend only creates an encounter at check-in, so a visit that has not
+    // been checked in has no encounter and the bootstrap carries none either.
+    // The appointment's documents must still render instead of a false empty state.
+    const appointmentWithoutEncounter = {
+      id: APPT,
+      organisationId: 'org-1',
+      status: 'IN_PROGRESS',
+    } as any;
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({ encounter: null });
+    (listAppointmentWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ documentId: 'doc-appt', title: 'Appointment SOAP note' }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep
+          appointmentId={APPT}
+          appointment={appointmentWithoutEncounter}
+          encounter={seedAndGet()}
+        />
+      );
+    });
+
+    await waitFor(() =>
+      expect(listAppointmentWorkspaceDocuments).toHaveBeenCalledWith('org-1', APPT)
+    );
+    expect(listEncounterWorkspaceDocuments).not.toHaveBeenCalled();
+    expect(await screen.findByText('Appointment SOAP note')).toBeInTheDocument();
+    expect(screen.queryByText('No documents recorded yet.')).toBeNull();
+  });
+
+  it('surfaces an error when the appointment document fallback fails', async () => {
+    const appointmentWithoutEncounter = {
+      id: APPT,
+      organisationId: 'org-1',
+      status: 'IN_PROGRESS',
+    } as any;
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({ encounter: null });
+    (listAppointmentWorkspaceDocuments as jest.Mock).mockRejectedValue(new Error('boom'));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    await act(async () => {
+      render(
+        <SummaryStep
+          appointmentId={APPT}
+          appointment={appointmentWithoutEncounter}
+          encounter={seedAndGet()}
+        />
+      );
+    });
+
+    expect(await screen.findByText('Unable to load documents.')).toBeInTheDocument();
+    errorSpy.mockRestore();
+  });
+
   it('hydrates the encounter id from the bootstrap when none is supplied', async () => {
     const appointmentWithoutEncounter = {
       id: APPT,
@@ -849,6 +926,34 @@ describe('SummaryStep', () => {
     );
   });
 
+  it('shows the autosave indicator after saving the discharge summary', async () => {
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+    expect(screen.queryByTestId('autosave-indicator')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    // The indicator first renders "Saving…" then flips to "Autosaved" once the
+    // save resolves — wait for the final text rather than the element existing.
+    await waitFor(() =>
+      expect(screen.getByTestId('autosave-indicator')).toHaveTextContent('Autosaved')
+    );
+  });
+
+  it('colours the document signing pills by state', async () => {
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ documentId: 'd1', title: 'Labs', signingStatus: 'ATTACHED' }),
+      makeDocumentRow({ documentId: 'd2', title: 'Consent', signingStatus: 'IN_PROGRESS' }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
+    expect(await screen.findByText('Attached')).toBeInTheDocument();
+    expect(screen.getByText('In progress')).toBeInTheDocument();
+  });
+
   it('keeps discharge date/time out of the summary body once discharged', () => {
     useAppointmentWorkspaceStore.getState().initEncounter(APPT, 'INPATIENT');
     const enc = {
@@ -858,5 +963,241 @@ describe('SummaryStep', () => {
     render(<SummaryStep appointmentId={APPT} encounter={enc} />);
 
     expect(screen.queryByText('Discharge date & time')).not.toBeInTheDocument();
+  });
+
+  it('omits the section heading when a section has a single self-titled field', async () => {
+    (listDischargeSummaryTemplates as jest.Mock).mockResolvedValue([
+      {
+        id: 'tpl-dup',
+        name: 'Duplicate section',
+        schemaSnapshot: {
+          sections: [
+            {
+              id: 'notes',
+              title: 'Notes',
+              fields: [{ key: 'notes', label: 'Notes', type: 'text' }],
+            },
+          ],
+        },
+      },
+    ]);
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    fireEvent.change(screen.getByLabelText(/search discharge templates/i), {
+      target: { value: 'duplicate' },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /duplicate section/i }));
+
+    const summary = useAppointmentWorkspaceStore.getState().getEncounter(APPT)?.dischargeSummary;
+    // The self-titled single field suppresses the section heading (no duplicate label).
+    expect(summary).toBe('<p><strong>Notes:</strong> </p>');
+    expect(summary).not.toContain('<strong>Notes</strong>');
+  });
+
+  it('errors when a rendered document has no available PDF URL', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (getRenderedDocument as jest.Mock).mockResolvedValue({});
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ documentId: 'doc-x', title: 'Pending doc', pdfUrl: null }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: /view pending doc/i }));
+
+    expect(await screen.findByText('Document PDF is not available yet.')).toBeInTheDocument();
+  });
+
+  it('shows a generic message when opening a document rejects with a non-Error', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (getRenderedDocument as jest.Mock).mockRejectedValue('string failure');
+    (listEncounterWorkspaceDocuments as jest.Mock).mockResolvedValue([
+      makeDocumentRow({ documentId: 'doc-y', title: 'Broken doc', pdfUrl: null }),
+    ]);
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: /view broken doc/i }));
+
+    expect(await screen.findByText('Unable to open document.')).toBeInTheDocument();
+  });
+
+  it('surfaces an error when discharge templates fail to load', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (listDischargeSummaryTemplates as jest.Mock).mockRejectedValue(new Error('load boom'));
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    expect(await screen.findByText('Unable to load discharge templates.')).toBeInTheDocument();
+  });
+
+  it('logs when hydrating the encounter id from the bootstrap fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockRejectedValue(new Error('bootstrap boom'));
+    const appointmentWithoutEncounter = { id: APPT, organisationId: 'org-1' } as any;
+    await act(async () => {
+      render(
+        <SummaryStep
+          appointmentId={APPT}
+          appointment={appointmentWithoutEncounter}
+          encounter={seedAndGet()}
+        />
+      );
+    });
+
+    await waitFor(() =>
+      expect(getAppointmentWorkspaceBootstrap).toHaveBeenCalledWith('org-1', APPT)
+    );
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith('Unable to hydrate encounter id:', expect.anything())
+    );
+  });
+
+  it('shows a documents error when the read-model load fails', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (listEncounterWorkspaceDocuments as jest.Mock).mockRejectedValue(new Error('docs boom'));
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
+
+    expect(await screen.findByText('Unable to load documents.')).toBeInTheDocument();
+  });
+
+  it('logs when the post-signing encounter refresh fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^sign$/i })).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+    await waitFor(() =>
+      expect(useSigningOverlayStore.getState().url).toBe('https://sign.test/abc')
+    );
+
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockRejectedValue(new Error('refresh boom'));
+    await act(async () => {
+      useSigningOverlayStore.getState().close();
+    });
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Unable to refresh encounter after signing:',
+        expect.anything()
+      )
+    );
+  });
+
+  it('logs when the discharge template resolution fails', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (resolveDischargeTemplate as jest.Mock).mockRejectedValue(new Error('resolve boom'));
+    await act(async () => {
+      render(
+        <SummaryStep appointmentId={APPT} appointment={appointment} encounter={seedAndGet()} />
+      );
+    });
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        'Unable to resolve discharge template:',
+        expect.anything()
+      )
+    );
+  });
+
+  it('errors on Sign when the encounter id cannot be resolved', async () => {
+    const appointmentWithoutEncounter = {
+      id: APPT,
+      organisationId: 'org-1',
+      status: 'IN_PROGRESS',
+    } as any;
+    (getAppointmentWorkspaceBootstrap as jest.Mock).mockResolvedValue({});
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    await act(async () => {
+      render(
+        <SummaryStep
+          appointmentId={APPT}
+          appointment={appointmentWithoutEncounter}
+          encounter={enc}
+        />
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+
+    expect(
+      await screen.findByText('Missing organisation or encounter for signing.')
+    ).toBeInTheDocument();
+  });
+
+  it('errors when the document packet cannot be created', async () => {
+    (createEncounterDocumentPacket as jest.Mock).mockResolvedValue({});
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^sign$/i }));
+
+    expect(await screen.findByText('Document packet could not be created.')).toBeInTheDocument();
+  });
+
+  it('falls back to the browser print dialog when the packet PDF fails', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const printSpy = jest.spyOn(window, 'print').mockImplementation(() => undefined);
+    (getEncounterDocumentPacketPdfUrl as jest.Mock).mockRejectedValue(new Error('pdf boom'));
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^print all$/i }));
+
+    await waitFor(() => expect(printSpy).toHaveBeenCalled());
+    printSpy.mockRestore();
+  });
+
+  it('revokes the packet preview URL when the overlay is closed', async () => {
+    const revokeSpy = jest.fn();
+    globalThis.URL.revokeObjectURL = revokeSpy;
+    const enc = { ...seedAndGet(), dischargeSavedAt: '2026-04-20T10:00:00Z' };
+    render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^print all$/i }));
+    await screen.findByTestId('pdf-preview');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close Clinical packet' }));
+
+    await waitFor(() => expect(screen.queryByTestId('pdf-preview')).not.toBeInTheDocument());
+    expect(revokeSpy).toHaveBeenCalledWith('blob:packet-pdf');
+  });
+
+  it('marks the autosave indicator offline when persisting the summary fails', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    (saveDischargeSummaryArtifact as jest.Mock).mockRejectedValue(new Error('save boom'));
+    const enc = seedAndGet();
+    await act(async () => {
+      render(<SummaryStep appointmentId={APPT} appointment={appointment} encounter={enc} />);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('autosave-indicator')).toHaveTextContent('Offline')
+    );
   });
 });

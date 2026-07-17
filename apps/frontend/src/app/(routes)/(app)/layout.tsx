@@ -1,6 +1,7 @@
 import { connection } from 'next/server';
 
 import SessionInitializer from '@/app/ui/layout/SessionInitializer';
+import ThemeScript from '@/app/ui/theme/ThemeScript';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -9,5 +10,10 @@ interface AppLayoutProps {
 export default async function AppLayout({ children }: Readonly<AppLayoutProps>) {
   await connection();
 
-  return <SessionInitializer>{children}</SessionInitializer>;
+  return (
+    <>
+      <ThemeScript />
+      <SessionInitializer>{children}</SessionInitializer>
+    </>
+  );
 }

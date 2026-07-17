@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { IoIosArrowBack } from 'react-icons/io';
-import { LuCheck, LuPlus } from 'react-icons/lu';
+import { IoAddOutline, IoCheckmarkOutline, IoPencilOutline } from 'react-icons/io5';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
 import OrgGuard from '@/app/ui/layout/guards/OrgGuard';
 import PageSkeleton from '@/app/ui/layout/PageSkeleton';
@@ -14,11 +14,16 @@ import {
   useLoadCompanionsForPrimaryOrg,
 } from '@/app/hooks/useCompanion';
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
+import {
+  useAppointmentsForPrimaryOrg,
+  useLoadAppointmentsForPrimaryOrg,
+} from '@/app/hooks/useAppointments';
+import { getLastVisitStart } from '@/app/features/companions/pages/Companions/companionsDirectory';
 import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
 import { useCompanionStore } from '@/app/stores/companionStore';
 import { startRouteLoader } from '@/app/lib/routeLoader';
 import { buildCompanionDetails } from '@/app/lib/companionWorkspaceDetails';
-import { formatDisplayDate, getAgeInYears } from '@/app/lib/date';
+import { formatDisplayDate, formatCompanionAge } from '@/app/lib/date';
 import AlertPill from '@/app/features/appointments/pages/AppointmentWorkspace/components/AlertPill';
 import AddAlertModal from '@/app/features/appointments/pages/AppointmentWorkspace/components/AddAlertModal';
 import type { CompanionAlert } from '@/app/features/appointments/types/workspace';
@@ -27,10 +32,15 @@ import {
   storedAlertsToCompanionAlerts,
 } from '@/app/features/appointments/lib/alertMapping';
 import AddAppointmentCentralModal from '@/app/features/appointments/pages/Appointments/Sections/AddAppointmentCentralModal';
+import AddCompanionCentralModal from '@/app/features/companions/components/AddCompanionCentralModal';
+import CompanionInfo from '@/app/features/companions/components/CompanionInfo';
 import { updateCompanion, updateParent } from '@/app/features/companions/services/companionService';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { useNotify } from '@/app/hooks/useNotify';
+import { usePermissions } from '@/app/hooks/usePermissions';
+import { PERMISSIONS } from '@/app/lib/permissions';
+import { isCompanionRevampEnabled } from '@/app/lib/featureFlags';
 import type {
   CompanionParent,
   StoredParent,
@@ -86,11 +96,12 @@ const formatParentName = (parent?: StoredParent): string =>
 
 const formatAgeDob = (value?: Date | string): string => {
   if (!value) return '-';
-  const age = getAgeInYears(value);
+  const ageLabel = formatCompanionAge(value, { long: true });
   const dob = formatDisplayDate(value, '-');
-  if (!Number.isFinite(age) || age < 0) return dob;
-  const ageLabel = `${age} ${age === 1 ? 'year' : 'years'}`;
-  return dob === '-' ? ageLabel : `${ageLabel} / ${dob}`;
+  if (!ageLabel) return dob;
+  // A non-empty age label means `value` parsed to a valid date, so
+  // formatDisplayDate never returns the '-' fallback here — always show age / dob.
+  return `${ageLabel} / ${dob}`;
 };
 
 const ProfileDetail = ({
@@ -112,8 +123,16 @@ const ProfileDetail = ({
   </div>
 );
 
-const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
+const CompanionProfilePanel = ({
+  record,
+  onEdit,
+}: {
+  record: CompanionParent;
+  onEdit?: () => void;
+}) => {
   const replaceCompanionText = useCompanionTerminologyText();
+  useLoadAppointmentsForPrimaryOrg();
+  const appointments = useAppointmentsForPrimaryOrg();
   const details = buildCompanionDetails(
     {
       id: record.companion.id,
@@ -125,6 +144,13 @@ const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
     replaceCompanionText
   );
   const idLabel = replaceCompanionText('Patient ID');
+  // "Last visit" reuses the Companions directory's definition (the most recent
+  // appointment that has already started) so both surfaces agree. A dash means
+  // no past appointment is on record — it is not a claim about the patient.
+  const lastVisitStart = useMemo(
+    () => getLastVisitStart(appointments, record.companion.id),
+    [appointments, record.companion.id]
+  );
   const selectedDetails = [
     details.find((detail) => detail.label === 'Name'),
     details.find((detail) => detail.label === idLabel),
@@ -135,12 +161,13 @@ const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
     details.find((detail) => detail.label === 'Blood Group'),
     details.find((detail) => detail.label === 'Microchip ID'),
     details.find((detail) => detail.label === 'Allergies'),
+    { label: 'Last visit', value: formatDisplayDate(lastVisitStart ?? undefined, '-') },
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
     <section
       aria-label="Companion profile"
-      className="flex min-h-36 flex-col gap-4 rounded-2xl border border-card-border bg-neutral-0 p-4 shadow-[0_1px_10px_0_rgba(169,163,158,0.10)] md:flex-row md:items-start"
+      className="flex min-h-36 flex-col gap-4 rounded-[18px] border border-card-border bg-neutral-0 p-5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
     >
       <Image
         alt={record.companion.name}
@@ -157,6 +184,18 @@ const CompanionProfilePanel = ({ record }: { record: CompanionParent }) => {
           <ProfileDetail key={detail.label} label={detail.label} value={detail.value} />
         ))}
       </div>
+      {onEdit ? (
+        <GlassTooltip content={replaceCompanionText('Edit patient details')} side="bottom">
+          <button
+            type="button"
+            aria-label={replaceCompanionText('Edit patient details')}
+            onClick={onEdit}
+            className="flex size-6 shrink-0 items-center justify-center self-start rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+          >
+            <IoPencilOutline size={13} aria-hidden="true" />
+          </button>
+        </GlassTooltip>
+      ) : null}
     </section>
   );
 };
@@ -185,7 +224,7 @@ const ParentProfilePanel = ({
   return (
     <section
       aria-label="Parent profile"
-      className="flex min-h-36 flex-col gap-3 rounded-2xl border border-card-border bg-neutral-0 p-4 shadow-[0_1px_10px_0_rgba(169,163,158,0.10)] md:flex-row md:items-start"
+      className="flex min-h-36 flex-col gap-3 rounded-[18px] border border-card-border bg-neutral-0 p-5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)] md:flex-row md:items-start"
     >
       <div className="flex w-16 shrink-0 items-start">
         <Image
@@ -203,9 +242,9 @@ const ParentProfilePanel = ({
           ))}
         </div>
         <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
-          <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-3xl bg-[#15803D] px-3 py-1 text-caption-1 font-medium text-neutral-0">
+          <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-3xl border border-[var(--status-completed-border)] bg-[var(--status-completed-bg)] px-3 py-1 text-caption-1 font-medium text-[var(--status-completed-text)]">
             Dues cleared
-            <LuCheck size={13} aria-hidden="true" />
+            <IoCheckmarkOutline size={13} aria-hidden="true" />
           </span>
           <div className="flex flex-col items-start gap-1.5 md:items-end">
             {alerts.map((alert) => (
@@ -224,13 +263,44 @@ const ParentProfilePanel = ({
                 onClick={onAddAlert}
                 className="flex size-6 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
               >
-                <LuPlus size={14} aria-hidden="true" />
+                <IoAddOutline size={14} aria-hidden="true" />
               </button>
             </GlassTooltip>
           </div>
         </div>
       </div>
     </section>
+  );
+};
+
+/** Applies a setState-style updater (value or callback) against the current ref value. */
+const resolveRefUpdate = (value: string | ((prev: string) => string), current: string): string =>
+  typeof value === 'function' ? value(current) : value;
+
+/** Add-alert affordance beside the title. Owns its own gate so the page body stays flat. */
+const AddAlertButton = ({
+  show,
+  tooltip,
+  label,
+  onClick,
+}: {
+  show: boolean;
+  tooltip: string;
+  label: string;
+  onClick: () => void;
+}) => {
+  if (!show) return null;
+  return (
+    <GlassTooltip content={tooltip} side="bottom">
+      <button
+        type="button"
+        aria-label={label}
+        onClick={onClick}
+        className="flex size-6 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+      >
+        <IoAddOutline size={14} aria-hidden="true" />
+      </button>
+    </GlassTooltip>
   );
 };
 
@@ -242,16 +312,17 @@ const CompanionHistoryPageInner = () => {
   const searchParams = useSearchParams();
   const replaceCompanionText = useCompanionTerminologyText();
   const { notify } = useNotify();
+  const permissions = usePermissions();
+  const canEditCompanions = permissions.can(PERMISSIONS.COMPANIONS_EDIT_ANY);
+  const [editCompanionOpen, setEditCompanionOpen] = useState(false);
   const [addAppointmentOpen, setAddAppointmentOpen] = useState(false);
   const appointmentFilterStateRef = useRef('all');
   const appointmentStatusStateRef = useRef('all');
   const setAppointmentFilterState = useCallback((value: string | ((prev: string) => string)) => {
-    appointmentFilterStateRef.current =
-      typeof value === 'function' ? value(appointmentFilterStateRef.current) : value;
+    appointmentFilterStateRef.current = resolveRefUpdate(value, appointmentFilterStateRef.current);
   }, []);
   const setAppointmentStatusState = useCallback((value: string | ((prev: string) => string)) => {
-    appointmentStatusStateRef.current =
-      typeof value === 'function' ? value(appointmentStatusStateRef.current) : value;
+    appointmentStatusStateRef.current = resolveRefUpdate(value, appointmentStatusStateRef.current);
   }, []);
   const [alertTarget, setAlertTarget] = useState<'companion' | 'client' | null>(null);
 
@@ -270,8 +341,8 @@ const CompanionHistoryPageInner = () => {
   const historyTitle = useMemo(
     () =>
       activeCompanion
-        ? `${activeCompanion.companion.name.split(' ')[0]}'s Overview`
-        : replaceCompanionText('Companion Overview'),
+        ? `${activeCompanion.companion.name.split(' ')[0]}'s overview`
+        : replaceCompanionText('Companion overview'),
     [activeCompanion, replaceCompanionText]
   );
   const companionAlerts = useMemo<CompanionAlert[]>(
@@ -290,6 +361,7 @@ const CompanionHistoryPageInner = () => {
 
   const persistCompanionAlerts = useCallback(
     async (nextAlerts: CompanionAlert[]) => {
+      /* v8 ignore next -- activeCompanion is always set here: the add/remove alert controls only render inside the `activeCompanion` block */
       if (!activeCompanion) return;
       await updateCompanion({
         ...activeCompanion.companion,
@@ -301,6 +373,7 @@ const CompanionHistoryPageInner = () => {
 
   const persistClientAlerts = useCallback(
     async (nextAlerts: CompanionAlert[]) => {
+      /* v8 ignore next -- activeCompanion is always set here: the add/remove alert controls only render inside the `activeCompanion` block */
       if (!activeCompanion) return;
       await updateParent({
         ...activeCompanion.parent,
@@ -379,10 +452,7 @@ const CompanionHistoryPageInner = () => {
     <ProtectedRoute skeleton={PAGE_SKELETON}>
       <OrgGuard skeleton={PAGE_SKELETON}>
         <div className="flex w-full flex-col gap-6 px-4 py-5 md:px-8">
-          <div
-            className="-mx-4 -mt-5 flex flex-col gap-6 px-4 pt-5 pb-5 md:-mx-8 md:px-8"
-            style={{ background: 'var(--Neutrals-Neutral-100, #FAF8F6)' }}
-          >
+          <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 flex-wrap items-center gap-3">
                 <button
@@ -393,7 +463,7 @@ const CompanionHistoryPageInner = () => {
                 >
                   <IoIosArrowBack size={22} aria-hidden="true" />
                 </button>
-                <h1 className="text-heading-2 text-text-primary">{historyTitle}</h1>
+                <h1 className="text-page-title text-text-primary">{historyTitle}</h1>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {companionAlerts.map((alert) => (
                     <AlertPill
@@ -404,27 +474,18 @@ const CompanionHistoryPageInner = () => {
                       onRemove={handleRemoveCompanionAlert}
                     />
                   ))}
-                  {activeCompanion ? (
-                    <GlassTooltip
-                      content={replaceCompanionText('Add alerts for patient')}
-                      side="bottom"
-                    >
-                      <button
-                        type="button"
-                        aria-label={replaceCompanionText('Add companion alert')}
-                        onClick={() => setAlertTarget('companion')}
-                        className="flex size-6 items-center justify-center rounded-full border border-neutral-500 text-neutral-700 transition-colors hover:border-text-brand hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
-                      >
-                        <LuPlus size={14} aria-hidden="true" />
-                      </button>
-                    </GlassTooltip>
-                  ) : null}
+                  <AddAlertButton
+                    show={Boolean(activeCompanion)}
+                    tooltip={replaceCompanionText('Add alerts for patient')}
+                    label={replaceCompanionText('Add companion alert')}
+                    onClick={() => setAlertTarget('companion')}
+                  />
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <Primary
-                  icon={<LuPlus size={18} aria-hidden="true" />}
+                  icon={<IoAddOutline size={18} aria-hidden="true" />}
                   text="Add appointment"
                   onClick={() => setAddAppointmentOpen(true)}
                 />
@@ -433,7 +494,10 @@ const CompanionHistoryPageInner = () => {
 
             {activeCompanion ? (
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,1fr)]">
-                <CompanionProfilePanel record={activeCompanion} />
+                <CompanionProfilePanel
+                  record={activeCompanion}
+                  onEdit={canEditCompanions ? () => setEditCompanionOpen(true) : undefined}
+                />
                 <ParentProfilePanel
                   parent={activeCompanion.parent}
                   companionId={activeCompanion.companion.id}
@@ -445,7 +509,7 @@ const CompanionHistoryPageInner = () => {
             ) : null}
 
             {hasCompanionId ? null : (
-              <div className="rounded-2xl border border-card-border bg-white px-4 py-6 text-body-3 text-text-secondary">
+              <div className="rounded-2xl border border-card-border bg-neutral-0 px-4 py-6 text-body-3 text-text-secondary">
                 Companion id is missing. Please open overview from Appointments or Companions.
               </div>
             )}
@@ -462,6 +526,26 @@ const CompanionHistoryPageInner = () => {
             setActiveStatus={setAppointmentStatusState}
             initialCompanionId={companionId || null}
           />
+
+          {/* Reuses the Companions directory's editor so the overview edits the
+              patient and client through the same validated mutations. */}
+          {activeCompanion &&
+            canEditCompanions &&
+            (isCompanionRevampEnabled() ? (
+              <AddCompanionCentralModal
+                showModal={editCompanionOpen}
+                setShowModal={setEditCompanionOpen}
+                viewCompanion={activeCompanion}
+                canEditCompanionStatus={canEditCompanions}
+              />
+            ) : (
+              <CompanionInfo
+                showModal={editCompanionOpen}
+                setShowModal={setEditCompanionOpen}
+                activeCompanion={activeCompanion}
+                canEditCompanionStatus={canEditCompanions}
+              />
+            ))}
 
           <AddAlertModal
             open={alertTarget !== null}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PermissionsEditor from '@/app/features/organization/pages/Organization/Sections/Team/PermissionsEditor';
 import {
@@ -176,5 +176,156 @@ describe('PermissionsEditor component', () => {
     );
 
     expect(screen.getByText('Reset to role defaults')).toBeInTheDocument();
+  });
+});
+
+describe('PermissionsEditor toggle, save and cancel behaviour', () => {
+  const mockOnSave = jest.fn();
+  const adminRole = 'ADMIN' as const;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOnSave.mockResolvedValue(undefined);
+  });
+
+  const view = (label: string) =>
+    screen.getByRole('checkbox', { name: `${label} view permission` });
+  const edit = (label: string) =>
+    screen.getByRole('checkbox', { name: `${label} edit permission` });
+
+  it('turning a view permission off also removes its edit permission', () => {
+    render(
+      <PermissionsEditor
+        role={adminRole}
+        value={[PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.APPOINTMENTS_EDIT_ANY]}
+        onSave={mockOnSave}
+      />
+    );
+
+    expect(view('Appointments')).toBeChecked();
+    expect(edit('Appointments')).toBeChecked();
+
+    fireEvent.click(view('Appointments'));
+
+    expect(view('Appointments')).not.toBeChecked();
+    expect(edit('Appointments')).not.toBeChecked();
+  });
+
+  it('enabling an edit permission also enables its view permission', () => {
+    render(<PermissionsEditor role={adminRole} value={[]} onSave={mockOnSave} />);
+
+    expect(view('Appointments')).not.toBeChecked();
+
+    fireEvent.click(edit('Appointments'));
+
+    expect(edit('Appointments')).toBeChecked();
+    expect(view('Appointments')).toBeChecked();
+  });
+
+  it('enabling edit when view is already on keeps view enabled', () => {
+    render(
+      <PermissionsEditor
+        role={adminRole}
+        value={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}
+        onSave={mockOnSave}
+      />
+    );
+
+    fireEvent.click(edit('Appointments'));
+
+    expect(view('Appointments')).toBeChecked();
+    expect(edit('Appointments')).toBeChecked();
+  });
+
+  it('falls back to the first priority permission when none is a role default', () => {
+    // ADMIN role has subscription:view:any but NOT subscription:edit:any,
+    // so enabling Subscriptions edit exercises the enablePriority[0] fallback.
+    render(<PermissionsEditor role={adminRole} value={[]} onSave={mockOnSave} />);
+
+    fireEvent.click(edit('Subscriptions'));
+
+    expect(edit('Subscriptions')).toBeChecked();
+    expect(view('Subscriptions')).toBeChecked();
+  });
+
+  it('enabling a view permission on its own does not enable edit', () => {
+    render(<PermissionsEditor role={adminRole} value={[]} onSave={mockOnSave} />);
+
+    fireEvent.click(view('Companions'));
+
+    expect(view('Companions')).toBeChecked();
+    expect(edit('Companions')).not.toBeChecked();
+  });
+
+  it('disabling an edit permission leaves the view permission intact', () => {
+    render(
+      <PermissionsEditor
+        role={adminRole}
+        value={[PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.APPOINTMENTS_EDIT_ANY]}
+        onSave={mockOnSave}
+      />
+    );
+
+    fireEvent.click(edit('Appointments'));
+
+    expect(view('Appointments')).toBeChecked();
+    expect(edit('Appointments')).not.toBeChecked();
+  });
+
+  it('computes and saves the extra/revoked payload', async () => {
+    render(
+      <PermissionsEditor
+        role={adminRole}
+        value={[PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.COMPANIONS_VIEW_ANY]}
+        onSave={mockOnSave}
+      />
+    );
+
+    fireEvent.click(edit('Subscriptions'));
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('primary-btn'));
+    });
+
+    expect(mockOnSave).toHaveBeenCalledTimes(1);
+    const payload = mockOnSave.mock.calls[0][0];
+    expect(payload.extraPerissions).toEqual([PERMISSIONS.SUBSCRIPTION_EDIT_ANY]);
+    expect(Array.isArray(payload.revokedPermissions)).toBe(true);
+    expect(payload.revokedPermissions.length).toBeGreaterThan(0);
+  });
+
+  it('cancels changes and restores the original permission set', () => {
+    render(
+      <PermissionsEditor
+        role={adminRole}
+        value={[PERMISSIONS.APPOINTMENTS_VIEW_ANY, PERMISSIONS.COMPANIONS_VIEW_ANY]}
+        onSave={mockOnSave}
+      />
+    );
+
+    fireEvent.click(view('Appointments'));
+    expect(view('Appointments')).not.toBeChecked();
+    expect(screen.getByTestId('secondary-btn')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('secondary-btn'));
+
+    expect(view('Appointments')).toBeChecked();
+    expect(screen.queryByTestId('secondary-btn')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('primary-btn')).not.toBeInTheDocument();
+  });
+
+  it('renders read-only mode without editing controls', () => {
+    render(
+      <PermissionsEditor
+        role={adminRole}
+        value={[PERMISSIONS.APPOINTMENTS_VIEW_ANY]}
+        onSave={mockOnSave}
+        readOnly
+      />
+    );
+
+    expect(screen.queryByText('Reset to role defaults')).not.toBeInTheDocument();
+    expect(view('Appointments')).toBeDisabled();
+    expect(edit('Appointments')).toBeDisabled();
   });
 });

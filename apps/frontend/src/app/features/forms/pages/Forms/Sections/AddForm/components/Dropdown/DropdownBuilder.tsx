@@ -21,7 +21,6 @@ const DropdownBuilder: React.FC<{
           value={field.label || ''}
           inlabel={label}
           readonly={true}
-          className="min-h-12!"
         />
         <FormInput
           intype="text"
@@ -29,7 +28,6 @@ const DropdownBuilder: React.FC<{
           value={defaultValue || ''}
           inlabel={valueLabel}
           readonly={true}
-          className="min-h-12!"
         />
       </div>
     );
@@ -64,7 +62,6 @@ const DropdownBuilder: React.FC<{
         value={field.label || ''}
         inlabel="Label"
         onChange={(e) => onChange({ ...field, label: e.target.value })}
-        className="min-h-12!"
       />
 
       {options.map((opt, i) => (
@@ -75,7 +72,6 @@ const DropdownBuilder: React.FC<{
             value={opt.label}
             inlabel={'Dropdown option ' + i}
             onChange={(e) => updateOption(i, e.target.value)}
-            className="min-h-12!"
           />
           <button type="button" onClick={() => removeOption(i)} className="absolute right-4 top-3">
             ✕
@@ -92,7 +88,6 @@ const DropdownBuilder: React.FC<{
           value={typeof defaultValue === 'string' ? defaultValue : ''}
           inlabel="Default value (prefilled in schedule)"
           onChange={(e) => onChange({ ...field, defaultValue: e.target.value })}
-          className="min-h-12!"
         />
       )}
     </div>

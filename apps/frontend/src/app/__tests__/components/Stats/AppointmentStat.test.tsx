@@ -13,6 +13,7 @@ jest.mock('next/dynamic', () => ({
         data-testid="chart"
         data-points={data.length}
         data-keys={keys.length}
+        data-colors={keys.map((key: { color: string }) => key.color).join(',')}
         data-compact={String(compactMonthAxis)}
       />
     );
@@ -65,6 +66,7 @@ describe('AppointmentStat', () => {
     expect(screen.getByTestId('card-header')).toHaveTextContent('Appointments');
     expect(screen.getByTestId('chart')).toHaveAttribute('data-points', '7');
     expect(screen.getByTestId('chart')).toHaveAttribute('data-keys', '2');
+    expect(screen.getByTestId('chart')).toHaveAttribute('data-colors', 'var(--cta),var(--divider)');
     expect(CardHeader).toHaveBeenCalled();
   });
 

@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import Specialities from '@/app/features/organization/pages/Organization/Sections/Specialities/Specialities';
-import { isAppointmentRevampEnabled } from '@/app/lib/featureFlags';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useRouter } from 'next/navigation';
@@ -40,17 +39,6 @@ jest.mock('@/app/ui/primitives/Accordion/AccordionButton', () => (props: any) =>
   );
 });
 
-jest.mock('@/app/ui/tables/SpecialitiesTable', () => (props: any) => (
-  <div data-testid="specialities-table">
-    <button type="button" onClick={() => props.setActive({ _id: 'spec-2', name: 'Dental' })}>
-      set-active
-    </button>
-    <button type="button" onClick={() => props.setView(true)}>
-      set-view
-    </button>
-  </div>
-));
-
 jest.mock('@/app/ui/tables/SpecialitiesTableRevamp', () => (props: any) => {
   specialitiesTableRevampSpy(props);
   return (
@@ -63,21 +51,12 @@ jest.mock('@/app/ui/tables/SpecialitiesTableRevamp', () => (props: any) => {
 });
 
 jest.mock(
-  '@/app/features/organization/pages/Organization/Sections/Specialities/AddSpeciality',
-  () => (props: any) => <div data-testid="add-speciality" data-show={String(props.showModal)} />
-);
-
-jest.mock(
   '@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityInfo',
   () => (props: any) => {
     specialityInfoSpy(props);
     return <div data-testid="speciality-info" />;
   }
 );
-
-jest.mock('@/app/lib/featureFlags', () => ({
-  isAppointmentRevampEnabled: jest.fn(),
-}));
 
 jest.mock('@/app/stores/orgStore', () => ({
   useOrgStore: jest.fn(),
@@ -99,7 +78,6 @@ describe('Specialities section', () => {
     jest.clearAllMocks();
     useSpecialitiesMock.mockReturnValue([{ _id: 'spec-1', name: 'Surgery', services: [] }]);
     usePermissionsMock.mockReturnValue({ can: jest.fn(() => true) });
-    (isAppointmentRevampEnabled as jest.Mock).mockReturnValue(false);
     (useRouter as jest.Mock).mockReturnValue({ push });
     (useOrgStore as unknown as jest.Mock).mockImplementation((selector) =>
       selector({ primaryOrgId: 'org-1' })
@@ -115,29 +93,11 @@ describe('Specialities section', () => {
     );
   });
 
-  it('renders specialities table and add button', () => {
+  it('renders the accordion action button when the user can edit specialities', () => {
     render(<Specialities />);
 
-    expect(screen.getByTestId('specialities-table')).toBeInTheDocument();
+    expect(screen.getByTestId('specialities-table-revamp')).toBeInTheDocument();
     expect(accordionButtonSpy).toHaveBeenCalledWith(expect.objectContaining({ showButton: true }));
-  });
-
-  it('opens the add-speciality popup when the Add button is clicked', () => {
-    render(<Specialities />);
-    expect(screen.getByTestId('add-speciality')).toHaveAttribute('data-show', 'false');
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
-    // buttonClick is passed as the raw setState setter, so it receives the click event
-    // rather than `true` — assert it flipped away from the initial `false`.
-    expect(screen.getByTestId('add-speciality')).not.toHaveAttribute('data-show', 'false');
-  });
-
-  it('updates the active/view speciality when the table triggers setActive/setView', () => {
-    render(<Specialities />);
-    fireEvent.click(screen.getByText('set-active'));
-    fireEvent.click(screen.getByText('set-view'));
-    expect(specialityInfoSpy).toHaveBeenLastCalledWith(
-      expect.objectContaining({ activeSpeciality: expect.objectContaining({ _id: 'spec-2' }) })
-    );
   });
 
   it('resyncs the active speciality when the list refreshes with an updated match', () => {
@@ -174,11 +134,7 @@ describe('Specialities section', () => {
     expect(screen.queryByTestId('speciality-info')).not.toBeInTheDocument();
   });
 
-  describe('when the appointment revamp is enabled', () => {
-    beforeEach(() => {
-      (isAppointmentRevampEnabled as jest.Mock).mockReturnValue(true);
-    });
-
+  describe('catalog table', () => {
     it('renders the revamp table filtered to the primary org and navigates on Manage click', () => {
       render(<Specialities />);
       expect(screen.getByTestId('specialities-table-revamp')).toBeInTheDocument();

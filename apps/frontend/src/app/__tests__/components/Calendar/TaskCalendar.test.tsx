@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import TaskCalendar from '@/app/features/appointments/components/Calendar/TaskCalendar';
 import { Task } from '@/app/features/tasks/types/task';
 
@@ -10,6 +10,46 @@ jest.mock('@/app/features/appointments/components/Calendar/helpers', () => ({
   isSameDay: jest.fn(),
 }));
 import { isSameDay } from '@/app/features/appointments/components/Calendar/helpers';
+
+// Phone breakpoint — defaults to desktop/tablet so the existing grid specs are
+// unaffected; the phone describe below opts in.
+jest.mock('@/app/ui/layout/PhoneShell/useIsPhone', () => ({
+  useIsPhone: jest.fn(() => false),
+}));
+import { useIsPhone } from '@/app/ui/layout/PhoneShell/useIsPhone';
+
+jest.mock('@/app/features/tasks/services/taskService', () => ({
+  changeTaskStatus: jest.fn(() => Promise.resolve()),
+}));
+import { changeTaskStatus } from '@/app/features/tasks/services/taskService';
+
+const mockNotify = jest.fn();
+jest.mock('@/app/hooks/useNotify', () => ({
+  useNotify: () => ({ notify: mockNotify }),
+}));
+
+jest.mock('@/app/hooks/useCompanion', () => ({
+  useCompanionsForPrimaryOrg: jest.fn(() => []),
+}));
+
+jest.mock('@/app/features/appointments/components/Calendar/PhoneTaskDayList', () => {
+  return function MockPhoneTaskDayList(props: any) {
+    return (
+      <div data-testid="phone-task-day-list">
+        Phone day list - {props.tasks.length} tasks
+        <button data-testid="phone-toggle" onClick={() => props.onToggleTask(props.tasks[0])}>
+          toggle
+        </button>
+        <button data-testid="phone-toggle-done" onClick={() => props.onToggleTask(props.tasks[1])}>
+          toggle done
+        </button>
+        <button data-testid="phone-view" onClick={() => props.onViewTask(props.tasks[0])}>
+          view
+        </button>
+      </div>
+    );
+  };
+});
 
 // Mock Child Components
 jest.mock('@/app/features/appointments/components/Calendar/common/Header', () => {
@@ -238,5 +278,71 @@ describe('TaskCalendar Component', () => {
 
     expect(mockSetChangeStatusPopup).not.toHaveBeenCalled();
     expect(mockSetReschedulePopup).not.toHaveBeenCalled();
+  });
+  // --- 4. Phone breakpoint ---
+
+  describe('phone (< 768px)', () => {
+    beforeEach(() => {
+      (useIsPhone as jest.Mock).mockReturnValue(true);
+    });
+
+    afterEach(() => {
+      (useIsPhone as jest.Mock).mockReturnValue(false);
+    });
+
+    it('renders the day list instead of the task time grid', () => {
+      render(<TaskCalendar {...defaultProps} activeCalendar="day" />);
+      expect(screen.getByTestId('phone-task-day-list')).toBeInTheDocument();
+      expect(screen.queryByTestId('day-calendar')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('header')).not.toBeInTheDocument();
+    });
+
+    it('keeps the grid on tablet/desktop for the same props', () => {
+      (useIsPhone as jest.Mock).mockReturnValue(false);
+      render(<TaskCalendar {...defaultProps} activeCalendar="day" />);
+      expect(screen.queryByTestId('phone-task-day-list')).not.toBeInTheDocument();
+      expect(screen.getByTestId('day-calendar')).toBeInTheDocument();
+    });
+
+    it('passes the filtered list through, not the unfiltered one', () => {
+      render(<TaskCalendar {...defaultProps} activeCalendar="week" />);
+      expect(screen.getByText(/Phone day list - 2 tasks/)).toBeInTheDocument();
+    });
+
+    it('completes a pending task through the real status flow', () => {
+      render(<TaskCalendar {...defaultProps} />);
+      fireEvent.click(screen.getByTestId('phone-toggle'));
+      expect(changeTaskStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: '1', status: 'COMPLETED' })
+      );
+    });
+
+    it('reopens an already completed task', () => {
+      const completed = [{ ...mockTasks[0] }, { ...mockTasks[1], status: 'COMPLETED' }] as Task[];
+      render(<TaskCalendar {...defaultProps} filteredList={completed} />);
+      fireEvent.click(screen.getByTestId('phone-toggle-done'));
+      expect(changeTaskStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ _id: '2', status: 'PENDING' })
+      );
+    });
+
+    it('warns the user when the status update fails', async () => {
+      (changeTaskStatus as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+      render(<TaskCalendar {...defaultProps} />);
+      fireEvent.click(screen.getByTestId('phone-toggle'));
+      await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith('warning', {
+          title: 'Task not updated',
+          text: 'Unable to update this task. Please try again.',
+        })
+      );
+    });
+
+    it('opens a task from the day list', () => {
+      render(<TaskCalendar {...defaultProps} />);
+      fireEvent.click(screen.getByTestId('phone-view'));
+      expect(mockSetActiveTask).toHaveBeenCalledWith(mockTasks[0]);
+      expect(mockSetViewPopup).toHaveBeenCalledWith(true);
+    });
   });
 });

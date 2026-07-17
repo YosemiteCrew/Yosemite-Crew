@@ -39,7 +39,7 @@ const AppointmentBoardToolbar = ({
   onAddAppointment,
   scope,
 }: AppointmentBoardToolbarProps) => (
-  <div className="shrink-0 border-b border-grey-light bg-white px-3 py-2">
+  <div className="shrink-0 border-b border-card-border bg-neutral-0 px-3 py-2">
     <div className="flex w-full items-center gap-4">
       <div className="flex shrink-0 items-center gap-2 text-body-4-emphasis text-text-primary">
         <GlassTooltip content="Select date" side="bottom">
@@ -101,7 +101,7 @@ const AppointmentBoardToolbar = ({
                 className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full"
                 style={{
                   backgroundColor: 'var(--color-semantic-error-700)',
-                  outline: '2px solid white',
+                  outline: '2px solid var(--screen)',
                 }}
               />
             )}
@@ -110,7 +110,7 @@ const AppointmentBoardToolbar = ({
             <>
               <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
               <Primary
-                text="Add Appointment"
+                text="New appointment"
                 onClick={onAddAppointment}
                 icon={<IoAdd size={18} aria-hidden="true" />}
                 className="h-12 w-fit shrink-0 justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"

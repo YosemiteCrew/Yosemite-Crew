@@ -48,7 +48,7 @@ const DashboardSteps = () => {
     const nextSteps: Step[] = [
       {
         key: 'services',
-        title: 'Step 1 - Add services',
+        title: 'Step 1 · Add services',
         description: 'Create services with price & duration that will be visible to parents',
         buttonSrc: '/organization/specialities',
         buttonText: hasServices ? 'View services' : 'Add services',
@@ -57,7 +57,7 @@ const DashboardSteps = () => {
       },
       {
         key: 'team',
-        title: 'Step 2 - Invite team',
+        title: 'Step 2 · Invite team',
         description: 'You can easily invite all your team members with just a few clicks',
         buttonSrc: '/organization',
         buttonText: hasTeam ? 'View team' : 'Invite team',
@@ -66,7 +66,7 @@ const DashboardSteps = () => {
       },
       {
         key: 'stripe',
-        title: 'Step 3 - Connect Stripe',
+        title: 'Step 3 · Connect Stripe',
         description: 'Configure Stripe to ensure a seamless booking experience',
         buttonSrc: `/stripe-onboarding?orgId=${primaryOrg._id}`,
         buttonText: stripeButtonText,
@@ -107,7 +107,7 @@ const DashboardSteps = () => {
           {steps.map((step: Step) => (
             <div
               key={step.title}
-              className={`flex flex-col items-center justify-between gap-3 p-3 rounded-2xl border border-card-border bg-white ${step.isCompleted && 'opacity-50'}`}
+              className={`flex flex-col items-center justify-between gap-3 p-3 rounded-2xl border border-card-border bg-neutral-0 ${step.isCompleted && 'opacity-50'}`}
             >
               <div className="flex flex-col items-center">
                 <div className="text-body-4 text-text-primary">{step.title}</div>

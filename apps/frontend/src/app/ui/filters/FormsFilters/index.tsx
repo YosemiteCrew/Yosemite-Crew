@@ -1,7 +1,7 @@
 import {
-  FormsCategoryOptions,
   FormsStatusFilters,
   getFormCategoryDisplayLabel,
+  getFormCategoryOptionsForOrgType,
 } from '@/app/features/forms/types/forms';
 import type { FormsCategory, FormsStatus } from '@/app/features/forms/types/forms';
 import React, { useMemo } from 'react';
@@ -30,22 +30,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
   const effectiveOrgType = orgTypeOverride || orgType;
 
   const filteredCategoryOptions = useMemo(() => {
-    const base = new Set(['Consent form', 'Discharge', 'Prescription', 'Custom']);
-    const allowed = (() => {
-      if (effectiveOrgType === 'HOSPITAL') {
-        return FormsCategoryOptions.filter((c) => base.has(c));
-      }
-      if (effectiveOrgType === 'BOARDER') {
-        return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Boarder'));
-      }
-      if (effectiveOrgType === 'BREEDER') {
-        return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Breeder'));
-      }
-      if (effectiveOrgType === 'GROOMER') {
-        return FormsCategoryOptions.filter((c) => base.has(c) || c.startsWith('Groomer'));
-      }
-      return FormsCategoryOptions;
-    })();
+    const allowed = getFormCategoryOptionsForOrgType(effectiveOrgType);
 
     return ['All', ...allowed].map((cat) => ({
       label: cat === 'All' ? cat : getFormCategoryDisplayLabel(cat, effectiveOrgType),
@@ -88,7 +73,7 @@ const FormsFilters = ({ filters, onFiltersChange, categoryAction }: FormsFilters
           );
         })}
       </div>
-      <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
+      <div className="flex w-full shrink-0 items-end justify-end gap-2 sm:w-auto">
         {categoryAction}
         <div className="w-full sm:w-55 min-w-45">
           <LabelDropdown

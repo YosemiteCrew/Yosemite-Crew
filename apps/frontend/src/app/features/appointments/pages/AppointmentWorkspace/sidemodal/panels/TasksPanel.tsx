@@ -1,6 +1,12 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
-import { LuArrowLeft, LuEye, LuEyeOff, LuPencil, LuPlus } from 'react-icons/lu';
+import {
+  IoAddOutline,
+  IoArrowBackOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoPencilOutline,
+} from 'react-icons/io5';
 import TabToggle from '@/app/ui/primitives/TabToggle/TabToggle';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -33,6 +39,7 @@ import {
 } from '@/app/features/tasks/constants/taskTaxonomy';
 import RecurrenceScopeModal from '@/app/features/tasks/components/RecurrenceScopeModal';
 import { formatStampDate } from '@/app/lib/appointmentWorkspace';
+import { validateTaskForm } from '@/app/lib/taskForm';
 
 const EMPTY_PARENT_OPTIONS: AssigneeOption[] = [];
 
@@ -90,6 +97,7 @@ const scheduleStatusToTaskStatus = (status: ScheduleTaskStatus): TaskStatus => {
 const dueTimeLabel = (dueAt?: Date | string): string | undefined => {
   if (!dueAt) return undefined;
   const date = new Date(dueAt);
+  /* v8 ignore next -- unreachable from the panel: a dueAt that yields an invalid Date throws earlier in scheduleTaskFromTask's toISOString() before the row can render */
   if (Number.isNaN(date.getTime())) return undefined;
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 };
@@ -109,13 +117,17 @@ const scheduleTaskFromTask = (task: Task): ScheduleTask => ({
   sourceRefId: task.templateId || task.libraryTaskId,
 });
 
-const StatusPill = ({ status }: { status: ScheduleTaskStatus }) => (
-  <span
-    className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${STATUS_CLASSES[status]}`}
-  >
-    {STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}
-  </span>
-);
+const StatusPill = ({ status }: { status: ScheduleTaskStatus }) => {
+  /* v8 ignore next -- status is always one of the four STATUS_OPTIONS, so the ?. miss and ?? fallback are unreachable */
+  const label = STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
+  return (
+    <span
+      className={`inline-flex rounded-2xl border px-3 py-1 text-caption-1 ${STATUS_CLASSES[status]}`}
+    >
+      {label}
+    </span>
+  );
+};
 
 /** One "Task details" row inside the expandable breakdown. */
 const DetailRow = ({ label, value }: { label: string; value: string }) => (
@@ -229,9 +241,9 @@ const TaskRow = ({
         <CircleIconButton
           icon={
             expanded ? (
-              <LuEyeOff size={16} aria-hidden="true" />
+              <IoEyeOffOutline size={16} aria-hidden="true" />
             ) : (
-              <LuEye size={16} aria-hidden="true" />
+              <IoEyeOutline size={16} aria-hidden="true" />
             )
           }
           label={expanded ? `Hide details for ${task.description}` : `View ${task.description}`}
@@ -239,7 +251,7 @@ const TaskRow = ({
           onClick={onToggleView}
         />
         <CircleIconButton
-          icon={<LuPencil size={16} aria-hidden="true" />}
+          icon={<IoPencilOutline size={16} aria-hidden="true" />}
           label={`Edit ${task.description}`}
           onClick={onEdit}
           disabled={actionsDisabled}
@@ -284,6 +296,7 @@ const PanelTaskForm = ({
     dueTimeValue,
     setDueTimeValue,
     formDataErrors,
+    setFormDataErrors,
     error,
     isLoading,
     templateOptions,
@@ -326,6 +339,13 @@ const PanelTaskForm = ({
       await handleCreate();
       return;
     }
+    // Editing does not go through handleCreate, so run the SAME validation here.
+    // Without this an invalid payload (e.g. a repeating task whose end date was
+    // never set) is PATCHed anyway and the user only sees the generic "Unable to
+    // update task" instead of the actionable field-level error.
+    const errors = validateTaskForm({ ...formData, _id: editingTask._id, appointmentId, audience });
+    setFormDataErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     // A task in a recurring series asks which occurrences the edit applies to.
     if (isSeriesTask(editingTask.recurrence)) {
       setScopeModalOpen(true);
@@ -348,7 +368,7 @@ const PanelTaskForm = ({
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
         <CircleIconButton
-          icon={<LuArrowLeft size={16} aria-hidden="true" />}
+          icon={<IoArrowBackOutline size={16} aria-hidden="true" />}
           label="Back to tasks"
           onClick={onBack}
         />
@@ -492,6 +512,7 @@ const TasksPanel = ({
         _id: '',
         appointmentId,
         assignedTo: scheduleTask.assignedToId ?? '',
+        /* v8 ignore next -- parent-tab rows have Edit disabled, so openEdit only ever runs on the employee tab */
         audience: isParent ? 'PARENT_TASK' : 'EMPLOYEE_TASK',
         source: 'CUSTOM',
         category: scheduleTask.category,
@@ -604,7 +625,7 @@ const TasksPanel = ({
       )}
       <div className="flex justify-center">
         {saveError && <p className="text-caption-1 text-red-600">{saveError}</p>}
-        <Primary text="New Task" icon={<LuPlus aria-hidden="true" />} onClick={openNew} />
+        <Primary text="New Task" icon={<IoAddOutline aria-hidden="true" />} onClick={openNew} />
       </div>
     </div>
   );

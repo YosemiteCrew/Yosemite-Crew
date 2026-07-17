@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Appointment } from '@yosemite-crew/types';
-import { LuBedSingle, LuCheckCircle } from 'react-icons/lu';
+import { IoBedOutline, IoCheckmarkCircleOutline } from 'react-icons/io5';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
 import { useAuthStore } from '@/app/stores/authStore';
 import {
@@ -55,6 +55,7 @@ import TreatmentStep from '@/app/features/appointments/pages/AppointmentWorkspac
 import InvoiceStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/InvoiceStep';
 import SummaryStep from '@/app/features/appointments/pages/AppointmentWorkspace/steps/SummaryStep';
 import QuickActionsModal from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/QuickActionsModal';
+import WorkspaceActionRail from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceActionRail';
 import HospitalizationModal from '@/app/features/appointments/pages/AppointmentWorkspace/sidemodal/HospitalizationModal';
 import {
   admitAppointment,
@@ -168,8 +169,16 @@ const getWorkspaceBootstrapEncounterId = (bootstrap: unknown): string | undefine
   return typeof id === 'string' && id.trim() ? id.trim() : undefined;
 };
 
-const getRoomName = (rooms: WorkspaceRoom[], roomId?: string) =>
-  rooms.find((room) => room.id === roomId)?.name ?? roomId ?? '';
+const getRoomName = (rooms: WorkspaceRoom[], roomId?: string): string => {
+  const matchedName = rooms.find((room) => room.id === roomId)?.name;
+  if (matchedName !== undefined) return matchedName;
+  /* v8 ignore start -- both callers (the admit payload's `room` and
+     persistRoomAssignment) only reach this behind a truthy roomId check, so the
+     no-id fallback is unreachable. */
+  if (roomId === undefined) return '';
+  /* v8 ignore stop */
+  return roomId;
+};
 
 const buildAdmissionDateTime = (date: Date | null, time: string): string => {
   const next = date ? new Date(date) : new Date();
@@ -414,9 +423,12 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         specialityLoads.push(loadSpecialityCatalog(organisationId, speciality.id));
       }
     }
+    /* v8 ignore start -- Promise.allSettled over an array never rejects (it only
+       throws for a non-iterable argument), so this catch is unreachable. */
     Promise.allSettled(specialityLoads).catch((error: unknown) => {
       console.error('Failed to load hospitalization services:', error);
     });
+    /* v8 ignore stop */
   }, [appointment.organisationId, catalogSpecialities, loadSpecialityCatalog]);
 
   const hydratedClinicalRef = useRef<string | null>(null);
@@ -722,12 +734,19 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
     if (next) handleStepChange(next);
   }, [activeStep, handleStepChange]);
 
+  // Defence in depth for the WorkspaceMetaBar contract. The bar swaps the Room and
+  // Unit dropdowns for read-only fields whenever roomAssignmentLocked is true (see
+  // the "read-only for completed appointments" / "read-only after ... discharged"
+  // tests), so no locked select can currently reach the handlers below.
+  /* v8 ignore start -- unreachable while WorkspaceMetaBar renders ReadOnlyMetaField
+     instead of a LabelDropdown for a locked room assignment. */
   const notifyRoomAssignmentLocked = useCallback(() => {
     notify('warning', {
       title: 'Room assignment locked',
       text: 'Room and unit cannot be changed after the appointment is discharged or completed.',
     });
   }, [notify]);
+  /* v8 ignore stop */
 
   const refreshWorkspaceEncounterId = useCallback(async () => {
     const organisationId = appointment.organisationId;
@@ -778,6 +797,10 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         });
         return false;
       }
+      /* v8 ignore start -- every non-inpatient admit path is the hospitalization
+         convert flow, which always passes allowModeConversion: true; the header
+         Admit and unit-assign re-admit callers are gated to INPATIENT, so this
+         guard is unreachable through the UI. */
       if (encounterMode !== 'INPATIENT' && !options?.allowModeConversion) {
         notify('error', {
           title: 'Unable to admit',
@@ -785,6 +808,7 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         });
         return false;
       }
+      /* v8 ignore stop */
 
       const admittedAt = options?.admittedAt ?? new Date().toISOString();
       const resolvedRoomId = roomId ?? effectiveEncounter?.roomId ?? appointment.room?.id;
@@ -811,6 +835,10 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       }
 
       setIsAdmitting(true);
+      // The outcome is hoisted out of the try so the `finally` has a single exit
+      // path; returning from inside try/catch leaves an unreachable completion
+      // edge behind. Matches handleDischarge/handleComplete below.
+      let admitted = false;
       try {
         await admitAppointment(appointment.organisationId, appointmentId, {
           admittedAt,
@@ -847,16 +875,16 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           title: terminologyText('Patient admitted'),
           text: 'Admission has been created.',
         });
-        return true;
+        admitted = true;
       } catch (error) {
         notify('error', {
           title: 'Unable to admit',
           text: getErrorMessage(error) || 'Please try again.',
         });
-        return false;
       } finally {
         setIsAdmitting(false);
       }
+      return admitted;
     },
     [
       actor.id,
@@ -955,10 +983,13 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
 
   const handleRoomSelect = useCallback(
     async (option: { value: string }) => {
+      /* v8 ignore start -- see notifyRoomAssignmentLocked: a locked room assignment
+         renders a read-only field, so onSelectRoom cannot fire in that state. */
       if (roomAssignmentLocked) {
         notifyRoomAssignmentLocked();
         return;
       }
+      /* v8 ignore stop */
       const firstUnit = getFirstAssignableRoomUnitId(
         option.value,
         { roomUnitsById, roomUnitIdsByRoomId },
@@ -996,10 +1027,13 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
 
   const handleUnitSelect = useCallback(
     async (option: { value: string }) => {
+      /* v8 ignore start -- see notifyRoomAssignmentLocked: a locked room assignment
+         renders a read-only field, so onSelectUnit cannot fire in that state. */
       if (roomAssignmentLocked) {
         notifyRoomAssignmentLocked();
         return;
       }
+      /* v8 ignore stop */
       const previousUnitId = effectiveEncounter?.unitId;
       setRoomUnit(appointmentId, effectiveEncounter?.roomId, option.value);
       const [, unitPersisted] = await Promise.all([
@@ -1027,8 +1061,13 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
 
   const runEncounterLifecycleOperation = useCallback(
     async (operation: (encounterId: string) => Promise<void>) => {
+      /* v8 ignore start -- the only caller runs this inside the same
+         `lifecycleEncounterIdRef.current ?? appointment.encounterId` truthiness check,
+         and the ref is seeded from appointment.encounterId and only ever reassigned to
+         a non-empty id, so here the ref is always set and the guard never fires. */
       const currentEncounterId = lifecycleEncounterIdRef.current ?? appointment.encounterId;
       if (!currentEncounterId) return;
+      /* v8 ignore stop */
       try {
         await operation(currentEncounterId);
       } catch (error) {
@@ -1052,7 +1091,11 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   );
 
   const handleReadyForDischargeToggle = useCallback(async () => {
+    /* v8 ignore start -- unreachable default: the toggle is only mounted when
+       effectiveEncounter exists, which implies `encounter` does, and
+       ReadyState.value is a required boolean. */
     const nextReady = !(encounter?.readyForDischarge.value ?? false);
+    /* v8 ignore stop */
     // Optimistic: flip the checkbox immediately for instant feedback, then persist in the
     // background. If the write fails, roll the toggle back and surface an alert.
     toggleReadyForDischarge(appointmentId, actor);
@@ -1088,7 +1131,11 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   ]);
 
   const handleReadyForBillingToggle = useCallback(async () => {
+    /* v8 ignore start -- unreachable default: the toggle is only mounted when
+       effectiveEncounter exists, which implies `encounter` does, and
+       ReadyState.value is a required boolean. */
     const nextReady = !(encounter?.readyForBilling.value ?? false);
+    /* v8 ignore stop */
     // Marking ready sets the invoice's visitBillingStage to READY_FOR_BILLING on
     // the finance service; un-marking reverts it to DRAFT via the matching DELETE
     // route. The backend refuses the revert (409) once any payment/credit has been
@@ -1252,7 +1299,11 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
 
   const handleDischarge = useCallback(
     async (dischargedAt: string, overrideReason?: string) => {
+      /* v8 ignore start -- the only caller is the discharge modal's Confirm button,
+         which BaseButton renders as <button disabled> while isSaving (= isFinalizing),
+         so a second click can never re-enter this. */
       if (isFinalizing) return;
+      /* v8 ignore stop */
       setIsFinalizing(true);
       try {
         await dischargeEncounter(
@@ -1291,7 +1342,11 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   );
 
   const handleComplete = useCallback(async () => {
+    /* v8 ignore start -- handleSummaryTerminalAction already returns early on
+       isFinalizing, and the summary CTA is a disabled <button> in that state, so this
+       second re-entry guard can never fire. */
     if (isFinalizing) return;
+    /* v8 ignore stop */
     setIsFinalizing(true);
     try {
       await completeAppointmentStatus();
@@ -1311,9 +1366,17 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
   }, [appointmentId, completeAppointmentStatus, isFinalizing, markDischarged, notify]);
 
   const handleSummaryTerminalAction = useCallback(() => {
+    /* v8 ignore start -- summaryPrimaryCta returns undefined without an
+       effectiveEncounter, so no CTA exists to invoke this without one. */
     if (!effectiveEncounter) return;
+    /* v8 ignore stop */
     const alreadyDischarged = Boolean(effectiveEncounter.dischargedAt);
+    /* v8 ignore start -- the summary CTA is rendered by Primary/BaseButton as a
+       real <button disabled>, and summaryPrimaryCta sets isDisabled to exactly
+       `alreadyDischarged || isFinalizing`, so a click can never reach this
+       re-entry guard while either is true. */
     if (alreadyDischarged || isFinalizing) return;
+    /* v8 ignore stop */
     if (effectiveEncounter.mode === 'INPATIENT') {
       setIsSummaryDischargeModalOpen(true);
       return;
@@ -1343,13 +1406,25 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
       label,
       onClick: handleSummaryTerminalAction,
       isDisabled: alreadyDischarged || isFinalizing,
-      icon: isInpatient ? <LuBedSingle aria-hidden="true" /> : <LuCheckCircle aria-hidden="true" />,
+      icon: isInpatient ? (
+        <IoBedOutline aria-hidden="true" />
+      ) : (
+        <IoCheckmarkCircleOutline aria-hidden="true" />
+      ),
     };
   }, [activeStep, effectiveEncounter, handleSummaryTerminalAction, isFinalizing]);
 
   const workspacePrimaryCta = summaryPrimaryCta ?? treatmentPrimaryCta;
 
   if (!effectiveEncounter || !operationalEncounter) return null;
+
+  // The raw persisted view-only flag (the toggles below gate on this rather than on
+  // effectiveEncounter.viewOnly, which also folds in the lock window).
+  /* v8 ignore start -- unreachable default: effectiveEncounter above only exists when
+     `encounter` does, and viewOnly is a required boolean; TS just can't narrow
+     `encounter` through the memo. */
+  const persistedViewOnly = encounter?.viewOnly ?? false;
+  /* v8 ignore stop */
 
   return (
     <div className="flex flex-col gap-5 pb-12">
@@ -1385,6 +1460,12 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
           canHospitalize={encounterMode !== 'INPATIENT'}
           onAddAlert={() => setIsAddAlertOpen(true)}
           onRemoveAlert={handleRemovePatientAlert}
+          // The data model has no room-entry timestamp, so the "In room" timer counts
+          // up from the best available start: the encounter check-in (admittedAt) when
+          // present, otherwise the booked appointment start. It turns amber past the
+          // booked end and never gates any action.
+          visitStartAt={effectiveEncounter.admittedAt ?? appointment.startTime}
+          bookedEndAt={appointment.endTime}
         />
 
         <CompanionContextCard
@@ -1418,66 +1499,69 @@ const useAppointmentWorkspaceContent = ({ appointment }: AppointmentWorkspacePro
         onToggleReadyForBilling={handleReadyForBillingToggle}
         onToggleReadyForDischarge={handleReadyForDischargeToggle}
         roomAssignmentLocked={roomAssignmentLocked}
-        billingTogglesLocked={(encounter?.viewOnly ?? false) || billingSettled}
-        dischargeTogglesLocked={(encounter?.viewOnly ?? false) || lockedByWindow}
+        billingTogglesLocked={persistedViewOnly || billingSettled}
+        dischargeTogglesLocked={persistedViewOnly || lockedByWindow}
         primaryCta={workspacePrimaryCta}
       />
 
-      <section aria-label="Workspace step content" className="min-h-50">
-        {activeStep === 'SOAP' && (
-          <SoapStep
-            appointmentId={appointmentId}
-            organisationId={appointment.organisationId}
-            encounterId={appointment.encounterId}
-            authorId={actor.id}
-            authorName={actor.name}
-            appointmentReason={appointmentReason}
-            appointmentService={appointment.appointmentType?.name}
-            appointmentSpeciality={appointment.appointmentType?.speciality?.name}
-            encounter={effectiveEncounter}
-            onRecordVitals={() => setActiveSideAction('RECORD')}
-            onSaveAndNext={handleSaveAndNext}
-          />
-        )}
-        {activeStep === 'DIAGNOSTICS' && (
-          <DiagnosticsStep
-            appointment={appointment}
-            readOnly={operationalEncounter.viewOnly}
-            onOpenTreatment={() => handleStepChange('TREATMENT')}
-          />
-        )}
-        {activeStep === 'TREATMENT' && (
-          <TreatmentStep
-            appointmentId={appointmentId}
-            organisationId={appointment.organisationId}
-            encounterId={appointment.encounterId}
-            authorId={actor.id}
-            encounter={operationalEncounter}
-            ensureEncounterId={ensureEncounterId}
-            onOpenInvoice={() => handleStepChange('INVOICE')}
-          />
-        )}
-        {activeStep === 'INVOICE' && (
-          <InvoiceStep
-            appointmentId={appointmentId}
-            organisationId={appointment.organisationId}
-            patientId={companion.id}
-            parentId={companion.parent.id}
-            encounter={operationalEncounter}
-            hideBillBuilder={isCompletedAppointment}
-            bookedItemName={appointment.appointmentType?.name}
-            onOpenSummary={() => handleStepChange('SUMMARY')}
-          />
-        )}
-        {activeStep === 'SUMMARY' && (
-          <SummaryStep
-            appointmentId={appointmentId}
-            appointment={appointment}
-            encounter={effectiveEncounter}
-            resolvedEncounterId={lifecycleEncounterIdRef.current ?? appointment.encounterId}
-          />
-        )}
-      </section>
+      <div className="flex items-stretch gap-4">
+        <section aria-label="Workspace step content" className="min-h-50 min-w-0 flex-1">
+          {activeStep === 'SOAP' && (
+            <SoapStep
+              appointmentId={appointmentId}
+              organisationId={appointment.organisationId}
+              encounterId={appointment.encounterId}
+              authorId={actor.id}
+              authorName={actor.name}
+              appointmentReason={appointmentReason}
+              appointmentService={appointment.appointmentType?.name}
+              appointmentSpeciality={appointment.appointmentType?.speciality?.name}
+              encounter={effectiveEncounter}
+              onRecordVitals={() => setActiveSideAction('RECORD')}
+              onSaveAndNext={handleSaveAndNext}
+            />
+          )}
+          {activeStep === 'DIAGNOSTICS' && (
+            <DiagnosticsStep
+              appointment={appointment}
+              readOnly={operationalEncounter.viewOnly}
+              onOpenTreatment={() => handleStepChange('TREATMENT')}
+            />
+          )}
+          {activeStep === 'TREATMENT' && (
+            <TreatmentStep
+              appointmentId={appointmentId}
+              organisationId={appointment.organisationId}
+              encounterId={appointment.encounterId}
+              authorId={actor.id}
+              encounter={operationalEncounter}
+              ensureEncounterId={ensureEncounterId}
+              onOpenInvoice={() => handleStepChange('INVOICE')}
+            />
+          )}
+          {activeStep === 'INVOICE' && (
+            <InvoiceStep
+              appointmentId={appointmentId}
+              organisationId={appointment.organisationId}
+              patientId={companion.id}
+              parentId={companion.parent.id}
+              encounter={operationalEncounter}
+              hideBillBuilder={isCompletedAppointment}
+              bookedItemName={appointment.appointmentType?.name}
+              onOpenSummary={() => handleStepChange('SUMMARY')}
+            />
+          )}
+          {activeStep === 'SUMMARY' && (
+            <SummaryStep
+              appointmentId={appointmentId}
+              appointment={appointment}
+              encounter={effectiveEncounter}
+              resolvedEncounterId={lifecycleEncounterIdRef.current ?? appointment.encounterId}
+            />
+          )}
+        </section>
+        <WorkspaceActionRail activeAction={activeSideAction} onSelect={setActiveSideAction} />
+      </div>
 
       <DischargeDateTimeModal
         showModal={isSummaryDischargeModalOpen}

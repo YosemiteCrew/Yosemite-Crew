@@ -25,6 +25,31 @@ export type BillableCandidate = Omit<InvoiceLineItem, 'id'> & {
   prescription?: Omit<PrescriptionItem, 'id'>;
 };
 
+/**
+ * Axios sets `error.message` to a generic "Request failed with status code N" string, which is
+ * meaningless to a clinician. The finance backend always answers a rejected invoice call with a
+ * `{ message }` body carrying the real reason (e.g. "Cannot modify a closed invoice" on a 409), so
+ * prefer that; fall back to the caller's copy rather than ever dumping the raw axios/status text.
+ */
+const RAW_AXIOS_MESSAGE = /^request failed with status code \d+$/i;
+
+type ApiErrorBody = { error?: { message?: string }; message?: string };
+
+export const getInvoiceErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === 'object' && error !== null) {
+    const data = (error as { response?: { data?: unknown } }).response?.data;
+    if (typeof data === 'object' && data !== null) {
+      const body = data as ApiErrorBody;
+      const message = body.error?.message ?? body.message;
+      if (typeof message === 'string' && message.trim()) return message.trim();
+    }
+  }
+  if (error instanceof Error && error.message.trim() && !RAW_AXIOS_MESSAGE.test(error.message)) {
+    return error.message;
+  }
+  return fallback;
+};
+
 export const moneyToCents = (amount: number): number => Math.max(0, Math.round(amount * 100));
 
 export const normalizeLineName = (value: string): string => value.trim().toLowerCase();

@@ -2,15 +2,16 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import FormsFilters, { FormsFilterState } from '@/app/ui/filters/FormsFilters';
 import { useOrgStore } from '@/app/stores/orgStore';
+import {
+  FormsCategoryOptions,
+  getFormCategoryOptionsForOrgType,
+} from '@/app/features/forms/types/forms';
 
 // --- Mocks ---
 
-// Mock the constants from the types file
-jest.mock('@/app/features/forms/types/forms', () => ({
-  FormsStatusFilters: ['All', 'Active', 'Archived'],
-  FormsCategoryOptions: ['Consent form', 'Discharge', 'Prescription', 'Custom', 'Boarder Intake'],
-  getFormCategoryDisplayLabel: (category: string) => category,
-}));
+// The real category taxonomy is used on purpose: the filter must offer exactly
+// the categories the form builder can create, so stubbing the list here would
+// hide any drift between the two.
 
 // Mock Search Component
 jest.mock('@/app/ui/inputs/Search', () => ({
@@ -82,7 +83,7 @@ describe('FormsFilters Component', () => {
     const allButtons = screen.getAllByText('All');
     expect(allButtons.length).toBeGreaterThanOrEqual(2);
 
-    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Published')).toBeInTheDocument();
     expect(screen.getByText('Archived')).toBeInTheDocument();
 
     expect(screen.getByTestId('mock-dropdown')).toBeInTheDocument();
@@ -96,13 +97,13 @@ describe('FormsFilters Component', () => {
 
   // --- 2. Filtering Logic (Individual) ---
 
-  it('filters by Status (Active)', () => {
+  it('filters by Status (Published)', () => {
     renderFilters();
 
-    const activeBtn = screen.getByRole('button', { name: 'Active' });
+    const activeBtn = screen.getByRole('button', { name: 'Published' });
     fireEvent.click(activeBtn);
 
-    expect(mockOnFiltersChange).toHaveBeenLastCalledWith({ status: 'Active', category: 'All' });
+    expect(mockOnFiltersChange).toHaveBeenLastCalledWith({ status: 'Published', category: 'All' });
   });
 
   it('filters by Category (Registration)', () => {
@@ -134,7 +135,7 @@ describe('FormsFilters Component', () => {
     // Or we can filter by checking the class name which contains style logic
     // The status filter button is the one rendered first in the DOM structure
 
-    const activeBtn = screen.getByRole('button', { name: 'Active' });
+    const activeBtn = screen.getByRole('button', { name: 'Published' });
 
     // Click 'Active'
     fireEvent.click(activeBtn);
@@ -177,8 +178,41 @@ describe('FormsFilters Component', () => {
     );
 
     expect(screen.getByText('Add category')).toBeInTheDocument();
-    expect(screen.getByTestId('option-Boarder Intake')).toBeInTheDocument();
+    expect(screen.getByTestId('option-Boarder - Boarding Checklist')).toBeInTheDocument();
     expect(screen.queryByTestId('option-Custom')).toBeInTheDocument();
+    // A boarder never sees another org type's categories.
+    expect(screen.queryByTestId('option-Groomer - Grooming Prep')).not.toBeInTheDocument();
+  });
+
+  it('offers every org-agnostic category, not just a hardcoded subset', () => {
+    mockUseOrgStore.mockImplementation((selector) =>
+      selector({
+        primaryOrgId: 'org-1',
+        orgsById: {
+          'org-1': { type: 'HOSPITAL' },
+        },
+      })
+    );
+
+    renderFilters();
+
+    // Regression: the filter used to hardcode a 4-item subset and silently drop
+    // categories the form builder can create.
+    for (const category of getFormCategoryOptionsForOrgType('HOSPITAL')) {
+      expect(screen.getByTestId(`option-${category}`)).toBeInTheDocument();
+    }
+    expect(screen.getByTestId('option-Task Template')).toBeInTheDocument();
+    expect(screen.getByTestId('option-Discharge Form')).toBeInTheDocument();
+    expect(screen.getByTestId('option-SOAP')).toBeInTheDocument();
+    expect(screen.getByTestId('option-Inpatient Schedule')).toBeInTheDocument();
+  });
+
+  it('offers the whole taxonomy when the org type is unknown', () => {
+    renderFilters();
+
+    for (const category of FormsCategoryOptions) {
+      expect(screen.getByTestId(`option-${category}`)).toBeInTheDocument();
+    }
   });
 
   it('resets an invalid active category to All when the allowed options change', () => {
@@ -198,18 +232,20 @@ describe('FormsFilters Component', () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId('option-Boarder Intake'));
+    fireEvent.click(screen.getByTestId('option-Boarder - Boarding Checklist'));
     expect(mockOnFiltersChange).toHaveBeenLastCalledWith({
       status: 'All',
-      category: 'Boarder Intake',
+      category: 'Boarder - Boarding Checklist',
     });
     rerender(
       <FormsFilters
-        filters={{ status: 'All', category: 'Boarder Intake' as any }}
+        filters={{ status: 'All', category: 'Boarder - Boarding Checklist' as any }}
         onFiltersChange={mockOnFiltersChange}
       />
     );
-    expect(screen.getByTestId('dropdown-current-value')).toHaveTextContent('Boarder Intake');
+    expect(screen.getByTestId('dropdown-current-value')).toHaveTextContent(
+      'Boarder - Boarding Checklist'
+    );
 
     mockUseOrgStore.mockImplementation((selector) =>
       selector({
@@ -221,7 +257,7 @@ describe('FormsFilters Component', () => {
     );
     rerender(
       <FormsFilters
-        filters={{ status: 'All', category: 'Boarder Intake' as any }}
+        filters={{ status: 'All', category: 'Boarder - Boarding Checklist' as any }}
         onFiltersChange={mockOnFiltersChange}
       />
     );

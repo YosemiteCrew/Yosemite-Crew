@@ -3,6 +3,59 @@
   flex-direction: column;
   gap: 32px;
 }
+
+/* Warm-bone onboarding form card — the framed surface every create-org /
+   team-onboarding step sits inside, centred beneath the stepper + page title. */
+.onb-step {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.onb-card {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px 30px;
+  border-radius: 22px;
+  border: 1px solid var(--hairline);
+  background: var(--screen);
+  box-shadow:
+    0 2px 6px var(--sh05),
+    0 20px 55px var(--sh10);
+}
+.onb-card-title {
+  color: var(--ink);
+  font-family: var(--font-satoshi);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 130%;
+  letter-spacing: -0.34px;
+}
+.onb-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+}
+@media screen and (max-width: 640px) {
+  .onb-card {
+    padding: 22px 18px;
+  }
+  .onb-footer {
+    flex-direction: column-reverse;
+    gap: 12px;
+  }
+  .onb-footer a,
+  .onb-footer button {
+    width: 100%;
+  }
+}
 .step-title {
   color: var(--black-text);
   font-family: var(--font-satoshi);
@@ -16,67 +69,77 @@
 .step-type {
   flex-direction: column;
   display: flex;
-  gap: 16px;
+  gap: 10px;
 }
 .step-type-title {
-  color: var(--color-neutral-700);
+  color: var(--ink-soft);
   font-family: var(--font-satoshi);
-  font-size: 16px;
+  font-size: 12.5px;
   font-style: normal;
-  font-weight: 500;
-  line-height: 112.5%;
-  letter-spacing: -0.32px;
+  font-weight: 600;
+  line-height: 120%;
+  letter-spacing: -0.02em;
 }
 .step-type-options {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .step-type-option {
-  height: 40px;
-  padding: 0 16px;
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
-  color: var(--black-text);
+  gap: 7px;
+  padding: 9px 15px;
+  color: var(--ink-muted);
   text-align: center;
-  font-family: var(--satoshi-font);
-  font-size: 16px;
+  font-family: var(--font-satoshi);
+  font-size: 13px;
   font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
-  border-radius: 12px;
-  border: 1px solid var(--black-bg);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  border-radius: 9999px;
+  border: 1px solid var(--hairline);
   cursor: pointer;
-  background: var(--whitebg);
+  background: var(--screen);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+.step-type-option:hover {
+  border-color: var(--divider);
+  color: var(--ink-body);
 }
 .activetype {
-  border: 1px solid var(--blue-text);
-  background: var(--light-blue);
-  color: var(--blue-text);
+  border: 1.5px solid var(--blue);
+  background: var(--nav-active-bg);
+  color: var(--nav-active);
+  font-weight: 700;
+}
+.activetype:hover {
+  border-color: var(--blue);
+  color: var(--nav-active);
 }
 .step-type-desc {
-  color: var(--notibg);
-  font-family: var(--satoshi-font);
-  font-size: 14px;
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
+  font-size: 12.5px;
   font-style: normal;
   font-weight: 500;
   line-height: 140%;
-  letter-spacing: -0.28px;
+  letter-spacing: -0.02em;
 }
 .step-type-desc-span {
   color: var(--blue-text);
+  font-weight: 600;
 }
 @media screen and (max-width: 768px) {
-  .step-type-title {
-    font-size: 19px;
-  }
   .step-type-option {
-    height: 36px;
-    font-size: 15px;
-    padding: 0 16px;
+    padding: 8px 13px;
+    font-size: 12.5px;
   }
 }
 
@@ -115,7 +178,7 @@
   width: 100%;
 }
 .step-inline-error {
-  color: var(--red-text, #ea3729);
+  color: var(--color-text-error);
   font-family: var(--font-satoshi);
   font-size: 14px;
   font-style: normal;
@@ -297,7 +360,7 @@
   border: 1px solid var(--color-neutral-100);
   border-radius: 16px;
   background: var(--color-neutral-0);
-  box-shadow: 0 16px 32px rgba(48, 47, 46, 0.08);
+  box-shadow: 0 16px 32px var(--sh08);
 }
 
 .step-three-picker-option {
@@ -316,13 +379,13 @@
 .step-three-remove-button:hover,
 .step-three-recommendation-chip:hover,
 .step-three-service-icon:hover {
-  border-color: #b7c8ff;
-  background: #f8fbff;
+  border-color: var(--color-input-border-active);
+  background: var(--color-neutral-100);
 }
 
 .step-three-service-card:hover {
-  border-color: #b7c8ff;
-  background: #f8fbff;
+  border-color: var(--color-input-border-active);
+  background: var(--color-neutral-100);
 }
 
 .step-three-picker-option--empty {
@@ -373,7 +436,7 @@
   min-height: 26px;
   padding: 0 9px;
   border-radius: 999px;
-  background: #f4f4f4;
+  background: var(--color-neutral-100);
   color: var(--color-neutral-700);
   font-family: var(--font-satoshi);
   font-size: 12px;
@@ -495,7 +558,7 @@
 
 .step-three-service-icon[aria-label^='Delete'],
 .step-three-remove-button {
-  color: #ea3729;
+  color: var(--color-text-error);
 }
 
 .step-three-selected-actions {

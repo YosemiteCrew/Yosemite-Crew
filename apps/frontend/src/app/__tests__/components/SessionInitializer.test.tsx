@@ -64,6 +64,26 @@ describe('SessionInitializer', () => {
     expect(mockGetState).toHaveBeenCalled(); // checkSession triggered via effect
   });
 
+  it('renders private children without a session when the auth guard is disabled (local UI mode)', () => {
+    const original = process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
+    process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = 'true';
+    mockUseAuthStore.mockImplementation((selector: any) => selector({ status: 'checking' }));
+
+    try {
+      render(
+        <SessionInitializer>
+          <div data-testid="child" />
+        </SessionInitializer>
+      );
+
+      expect(screen.getByTestId('child')).toBeInTheDocument();
+      expect(useFullscreenLoader).toHaveBeenCalledWith('session-initializer', false);
+    } finally {
+      if (original === undefined) delete process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD;
+      else process.env.NEXT_PUBLIC_DISABLE_AUTH_GUARD = original;
+    }
+  });
+
   it('shows private children once authenticated', () => {
     mockUseAuthStore.mockImplementation((selector: any) => selector({ status: 'authenticated' }));
 

@@ -1,6 +1,5 @@
 import React, { use, useMemo, useRef, useState } from 'react';
-import { LuPlus, LuTrash2 } from 'react-icons/lu';
-import { AiOutlineInfoCircle } from 'react-icons/ai';
+import { IoAddOutline, IoInformationCircleOutline, IoTrashOutline } from 'react-icons/io5';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
@@ -52,7 +51,7 @@ const InfoTooltipIcon = ({
       aria-label={label}
       className="inline-flex size-4 shrink-0 translate-y-px items-center justify-center text-text-secondary transition-colors hover:text-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
     >
-      <AiOutlineInfoCircle aria-hidden="true" size={14} />
+      <IoInformationCircleOutline aria-hidden="true" size={14} />
     </button>
   </GlassTooltip>
 );
@@ -305,7 +304,7 @@ const BillRow = ({
         <span aria-hidden="true" className="inline-block size-9" />
       ) : (
         <CircleIconButton
-          icon={<LuTrash2 aria-hidden="true" />}
+          icon={<IoTrashOutline aria-hidden="true" />}
           label={`Remove ${item.name}`}
           variant="danger"
           onClick={() => onRemoveItem(item.id)}
@@ -319,9 +318,9 @@ const FOOTER_AMOUNT_ROW = 'grid min-h-8 grid-cols-[minmax(0,1fr)_max-content] it
 const FOOTER_BREAKDOWN_ROW =
   'grid min-h-8 grid-cols-[5.5rem_minmax(0,1fr)_7rem] items-center gap-3';
 const FOOTER_FONT = '"Satoshi Variable", var(--font-satoshi), sans-serif';
-const NEUTRAL_TEXT = 'var(--color-neutral-900, #302F2E)';
-const PRIMARY_TEXT = 'var(--color-primary-600, #006AE0)';
-const DISCOUNT_TEXT = 'var(--color-semantics-success-700, #15803D)';
+const NEUTRAL_TEXT = 'var(--color-neutral-900)';
+const PRIMARY_TEXT = 'var(--color-text-brand)';
+const DISCOUNT_TEXT = 'var(--color-success-700)';
 
 const FOOTER_HELPER_TEXT_STYLE: React.CSSProperties = {
   color: NEUTRAL_TEXT,
@@ -602,7 +601,7 @@ const TotalBillContainer = ({
           match the other steps' search bars (SOAP / Services / Prescription). */}
         <div className="relative flex items-center justify-end gap-3">
           <CircleIconButton
-            icon={<LuPlus aria-hidden="true" />}
+            icon={<IoAddOutline aria-hidden="true" />}
             label="Add invoice item"
             variant="dark"
             onClick={() => {
