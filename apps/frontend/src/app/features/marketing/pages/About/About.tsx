@@ -64,13 +64,125 @@ const communityPillStyle: CSSProperties = {
   transition: 'border-color 200ms',
 };
 
+const HERO_WORD_STYLE: CSSProperties = {
+  display: 'inline-block',
+  opacity: 0,
+};
+
+const HERO_INNER_STYLE: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: 'min(900px, 100%)',
+  margin: '0 auto',
+  textAlign: 'center',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+};
+
+const HERO_BADGE_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '8px 16px',
+  borderRadius: '9999px',
+  border: '1px solid var(--hairline)',
+  background: 'var(--glass-95)',
+  backdropFilter: 'blur(40px)',
+  WebkitBackdropFilter: 'blur(40px)',
+  fontSize: '13px',
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  color: 'var(--ink-muted)',
+  opacity: 0,
+  animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
+};
+
+const HERO_H1_STYLE: CSSProperties = {
+  margin: '26px 0 0',
+  fontFamily: SERIF,
+  fontSize: 'clamp(42px, 6vw, 84px)',
+  fontWeight: 500,
+  lineHeight: 1.03,
+  letterSpacing: '-0.06em',
+  color: 'var(--ink)',
+  textWrap: 'balance',
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'center',
+  columnGap: '0.24em',
+};
+
+const HERO_LEAD_STYLE: CSSProperties = {
+  margin: '26px 0 0',
+  maxWidth: '620px',
+  fontSize: 'clamp(17px, 2vw, 21px)',
+  lineHeight: 1.6,
+  letterSpacing: '-0.025em',
+  color: 'var(--ink-muted)',
+  opacity: 0,
+  animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.5s both',
+  textWrap: 'pretty',
+};
+
+const BELIEF_ICON_STYLE: CSSProperties = {
+  width: '44px',
+  height: '44px',
+  borderRadius: '13px',
+  background: 'var(--pill-raised)',
+  color: 'var(--blue)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const CREW_SLOT_STYLE: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  width: '100%',
+  height: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'linear-gradient(135deg, var(--inset) 0%, var(--hairline) 100%)',
+  color: 'var(--ink-faint2)',
+  fontFamily: SERIF,
+  fontSize: '38px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  filter: 'sepia(0.12) saturate(1.12) brightness(1.02) contrast(1.02)',
+};
+
+const CTA_INNER_STYLE: CSSProperties = {
+  width: 'min(880px, calc(100% - 48px))',
+  margin: '0 auto',
+  padding: 'clamp(88px, 12vw, 150px) 0',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  textAlign: 'center',
+  position: 'relative',
+};
+
+const CTA_GHOST_STYLE: CSSProperties = {
+  textDecoration: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  background: 'transparent',
+  color: '#eae2d5',
+  fontSize: '17px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '16px 32px',
+  borderRadius: '9999px',
+  border: '1px solid #454341',
+  transition: 'border-color 200ms, background 200ms',
+};
+
 /* ---------------------------------------------------------------- HERO */
 
 function Hero() {
-  const word: CSSProperties = {
-    display: 'inline-block',
-    opacity: 0,
-  };
   return (
     <section
       data-hero
@@ -88,37 +200,8 @@ function Hero() {
         box={{ top: '-160px', left: 'calc(50% - 420px)', width: '840px', height: '560px' }}
         animation="ycDrift 34s ease-in-out infinite alternate"
       />
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          width: 'min(900px, 100%)',
-          margin: '0 auto',
-          textAlign: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px',
-            borderRadius: '9999px',
-            border: '1px solid var(--hairline)',
-            background: 'var(--glass-95)',
-            backdropFilter: 'blur(40px)',
-            WebkitBackdropFilter: 'blur(40px)',
-            fontSize: '13px',
-            fontWeight: 500,
-            letterSpacing: '-0.01em',
-            color: 'var(--ink-muted)',
-            opacity: 0,
-            animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
-          }}
-        >
+      <div style={HERO_INNER_STYLE}>
+        <div style={HERO_BADGE_STYLE}>
           <span
             style={{
               width: '7px',
@@ -129,50 +212,35 @@ function Hero() {
           />
           {'About us'}
         </div>
-        <h1
-          style={{
-            margin: '26px 0 0',
-            fontFamily: SERIF,
-            fontSize: 'clamp(42px, 6vw, 84px)',
-            fontWeight: 500,
-            lineHeight: 1.03,
-            letterSpacing: '-0.06em',
-            color: 'var(--ink)',
-            textWrap: 'balance',
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            columnGap: '0.24em',
-          }}
-        >
+        <h1 style={HERO_H1_STYLE}>
           <span
             style={{
-              ...word,
-              animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.1s both',
+              ...HERO_WORD_STYLE,
+              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.1s both',
             }}
           >
             We
           </span>
           <span
             style={{
-              ...word,
-              animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.22s both',
+              ...HERO_WORD_STYLE,
+              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.22s both',
             }}
           >
             build
           </span>
           <span
             style={{
-              ...word,
-              animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.34s both',
+              ...HERO_WORD_STYLE,
+              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.34s both',
             }}
           >
             the
           </span>
           <span
             style={{
-              ...word,
-              animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.46s both',
+              ...HERO_WORD_STYLE,
+              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.46s both',
             }}
           >
             layer
@@ -184,7 +252,7 @@ function Hero() {
               fontWeight: 480,
               color: 'var(--blue-text)',
               opacity: 0,
-              animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.58s both',
+              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.58s both',
             }}
           >
             <InkAnnotate type="circle" delay={1500}>
@@ -192,19 +260,7 @@ function Hero() {
             </InkAnnotate>
           </em>
         </h1>
-        <p
-          style={{
-            margin: '26px 0 0',
-            maxWidth: '620px',
-            fontSize: 'clamp(17px, 2vw, 21px)',
-            lineHeight: 1.6,
-            letterSpacing: '-0.025em',
-            color: 'var(--ink-muted)',
-            opacity: 0,
-            animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.5s both',
-            textWrap: 'pretty',
-          }}
-        >
+        <p style={HERO_LEAD_STYLE}>
           Not another app for the grieving pet parent, with a dog&apos;s face on the loading screen.
           The boring layer underneath, where the vet, the nurse, the lab and the next clinic all see
           the same animal at the same moment, while there&apos;s still time.
@@ -423,20 +479,7 @@ function BeliefCard({ belief }: Readonly<{ belief: Belief }>) {
         gap: '12px',
       }}
     >
-      <span
-        style={{
-          width: '44px',
-          height: '44px',
-          borderRadius: '13px',
-          background: 'var(--pill-raised)',
-          color: 'var(--blue)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {belief.icon}
-      </span>
+      <span style={BELIEF_ICON_STYLE}>{belief.icon}</span>
       <div
         style={{
           fontSize: '19px',
@@ -675,7 +718,7 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
       <a
         href={member.href}
         target="_blank"
-        rel="noopener"
+        rel="noopener noreferrer"
         className="yc-crew-card"
         aria-label={`${member.name}, ${member.role}, on LinkedIn`}
         style={{
@@ -697,26 +740,7 @@ function CrewCard({ member }: Readonly<{ member: CrewMember }>) {
             boxShadow: '0 18px 40px var(--sh08)',
           }}
         >
-          <span
-            data-slot={member.slotId}
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'linear-gradient(135deg, var(--inset) 0%, var(--hairline) 100%)',
-              color: 'var(--ink-faint2)',
-              fontFamily: SERIF,
-              fontSize: '38px',
-              fontWeight: 500,
-              letterSpacing: '-0.02em',
-              filter: 'sepia(0.12) saturate(1.12) brightness(1.02) contrast(1.02)',
-            }}
-          >
+          <span data-slot={member.slotId} aria-hidden="true" style={CREW_SLOT_STYLE}>
             {member.name.charAt(0)}
           </span>
         </div>
@@ -760,7 +784,7 @@ function CommunityPill({
     <a
       href={href}
       target="_blank"
-      rel="noopener"
+      rel="noopener noreferrer"
       className="yc-community-pill"
       style={communityPillStyle}
     >
@@ -997,18 +1021,7 @@ function ClosingCta() {
             height: '500px',
           }}
         />
-        <div
-          style={{
-            width: 'min(880px, calc(100% - 48px))',
-            margin: '0 auto',
-            padding: 'clamp(88px, 12vw, 150px) 0',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center',
-            position: 'relative',
-          }}
-        >
+        <div style={CTA_INNER_STYLE}>
           <Reveal as="div" delay={0}>
             <h2
               style={{
@@ -1054,32 +1067,14 @@ function ClosingCta() {
             <a
               href={GITHUB_REPO_URL}
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               className="yc-cta-solid"
               style={GITHUB_STAR_CTA_STYLE}
             >
               <IoLogoGithub aria-hidden="true" style={{ fontSize: '18px' }} />
               Star on GitHub
             </a>
-            <Link
-              href="/contact-us"
-              className="yc-cta-ghost"
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: 'transparent',
-                color: '#eae2d5',
-                fontSize: '17px',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 32px',
-                borderRadius: '9999px',
-                border: '1px solid #454341',
-                transition: 'border-color 200ms, background 200ms',
-              }}
-            >
+            <Link href="/contact-us" className="yc-cta-ghost" style={CTA_GHOST_STYLE}>
               Talk to us
             </Link>
           </Reveal>

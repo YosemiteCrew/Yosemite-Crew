@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, type CSSProperties } from 'react';
+import React, { useId, useState, type CSSProperties } from 'react';
 import { TicketCategory } from '@yosemite-crew/types';
 import { isEmail } from 'validator';
 import axios from 'axios';
@@ -232,6 +232,96 @@ const groupHeading: CSSProperties = {
   color: 'var(--ink-body)',
 };
 
+const CHANNEL_CARD_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 14,
+  textDecoration: 'none',
+  padding: '15px 18px',
+  background: 'var(--surface-soft)',
+  border: '1px solid var(--hairline)',
+  borderRadius: 18,
+  transition: 'border-color 200ms, background 200ms, transform 200ms',
+};
+
+const CHANNEL_ICON_STYLE: CSSProperties = {
+  flex: 'none',
+  width: 42,
+  height: 42,
+  borderRadius: 12,
+  boxSizing: 'border-box',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const SUBMIT_BUTTON_STYLE: CSSProperties = {
+  marginTop: 2,
+  fontFamily: 'inherit',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 10,
+  background: 'var(--cta)',
+  color: 'var(--cta-text)',
+  fontSize: 16,
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '15px 24px',
+  border: 'none',
+  borderRadius: 9999,
+  boxShadow: '0 12px 26px var(--sh16)',
+};
+
+const HERO_GRID_STYLE: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: 'min(1140px, 100%)',
+  margin: '0 auto',
+  display: 'grid',
+  gridTemplateColumns: '0.82fr 1.18fr',
+  gap: 'clamp(36px, 5vw, 72px)',
+  alignItems: 'start',
+};
+
+const HERO_BADGE_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '8px 16px',
+  borderRadius: 9999,
+  border: '1px solid var(--hairline)',
+  background: 'var(--glass-95)',
+  backdropFilter: 'blur(40px)',
+  fontSize: 13,
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  color: 'var(--ink-muted)',
+  animation: `ycHeroUp 0.9s ${EASE} 0.05s both`,
+};
+
+const FORM_STYLE: CSSProperties = {
+  background: 'var(--screen)',
+  border: '1px solid var(--hairline)',
+  borderRadius: 28,
+  boxShadow: '0 30px 70px var(--sh09)',
+  padding: 'clamp(26px, 3.2vw, 40px)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 22,
+};
+
+const VISUALLY_HIDDEN_INPUT_STYLE: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0,0,0,0)',
+  border: 0,
+};
+
 const requiredMark = (
   <span aria-hidden="true" style={{ color: '#d53225' }}>
     {' '}
@@ -301,36 +391,15 @@ function ChannelCard({
   kicker,
   label,
 }: Readonly<ChannelProps>) {
-  const externalProps = external ? { target: '_blank', rel: 'noopener' } : {};
+  const externalProps = external ? { target: '_blank', rel: 'noopener noreferrer' } : {};
   return (
-    <a
-      href={href}
-      {...externalProps}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        textDecoration: 'none',
-        padding: '15px 18px',
-        background: 'var(--surface-soft)',
-        border: '1px solid var(--hairline)',
-        borderRadius: 18,
-        transition: 'border-color 200ms, background 200ms, transform 200ms',
-      }}
-    >
+    <a href={href} {...externalProps} style={CHANNEL_CARD_STYLE}>
       <span
         style={{
-          flex: 'none',
-          width: 42,
-          height: 42,
-          borderRadius: 12,
+          ...CHANNEL_ICON_STYLE,
           background: iconBg,
           border: `1px solid ${iconBorder}`,
-          boxSizing: 'border-box',
           color: iconColor,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
         }}
       >
         {icon}
@@ -375,13 +444,15 @@ function TextField({
   required,
   error,
 }: Readonly<TextFieldProps>) {
+  const fieldId = useId();
   return (
     <div style={fieldGroup}>
-      <label className="yc-lbl">
+      <label className="yc-lbl" htmlFor={fieldId}>
         {label}
         {required ? requiredMark : null}
       </label>
       <input
+        id={fieldId}
         className="yc-field"
         type={type}
         value={value}
@@ -415,6 +486,7 @@ function TextAreaField({
   minHeight,
   error,
 }: Readonly<TextAreaFieldProps>) {
+  const fieldId = useId();
   const style: CSSProperties = {
     resize: 'vertical',
     minHeight: minHeight ?? 116,
@@ -422,11 +494,12 @@ function TextAreaField({
   };
   return (
     <div style={fieldGroup}>
-      <label className="yc-lbl">
+      <label className="yc-lbl" htmlFor={fieldId}>
         {label}
         {required ? requiredMark : null}
       </label>
       <textarea
+        id={fieldId}
         className="yc-field"
         style={style}
         value={value}
@@ -611,22 +684,8 @@ const ContactusPage = () => {
       disabled={submitDisabled}
       className="yc-btn-primary"
       style={{
-        marginTop: 2,
-        fontFamily: 'inherit',
+        ...SUBMIT_BUTTON_STYLE,
         cursor: submitDisabled ? 'not-allowed' : 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-        background: 'var(--cta)',
-        color: 'var(--cta-text)',
-        fontSize: 16,
-        fontWeight: 500,
-        letterSpacing: '-0.02em',
-        padding: '15px 24px',
-        border: 'none',
-        borderRadius: 9999,
-        boxShadow: '0 12px 26px var(--sh16)',
         opacity: submitDisabled ? 0.5 : 1,
         pointerEvents: submitDisabled ? 'none' : 'auto',
       }}
@@ -695,19 +754,7 @@ const ContactusPage = () => {
         box={{ top: -160, right: 'calc(50% - 560px)', width: 820, height: 560 }}
         animation="ycDrift 34s ease-in-out infinite alternate"
       />
-      <div
-        data-grid-1-m
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          width: 'min(1140px, 100%)',
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: '0.82fr 1.18fr',
-          gap: 'clamp(36px, 5vw, 72px)',
-          alignItems: 'start',
-        }}
-      >
+      <div data-grid-1-m style={HERO_GRID_STYLE}>
         {/* left: copy + details */}
         <div
           style={{
@@ -717,23 +764,7 @@ const ContactusPage = () => {
             paddingTop: 8,
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 16px',
-              borderRadius: 9999,
-              border: '1px solid var(--hairline)',
-              background: 'var(--glass-95)',
-              backdropFilter: 'blur(40px)',
-              fontSize: 13,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              color: 'var(--ink-muted)',
-              animation: `ycHeroUp 0.9s ${EASE} 0.05s both`,
-            }}
-          >
+          <div style={HERO_BADGE_STYLE}>
             <span
               aria-hidden="true"
               style={{ width: 7, height: 7, borderRadius: 9999, background: 'var(--success)' }}
@@ -853,16 +884,7 @@ const ContactusPage = () => {
               e.preventDefault();
               void handleContectSubmit();
             }}
-            style={{
-              background: 'var(--screen)',
-              border: '1px solid var(--hairline)',
-              borderRadius: 28,
-              boxShadow: '0 30px 70px var(--sh09)',
-              padding: 'clamp(26px, 3.2vw, 40px)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 22,
-            }}
+            style={FORM_STYLE}
           >
             {/* type selector */}
             <div>
@@ -898,16 +920,7 @@ const ContactusPage = () => {
                       value={type}
                       checked={selectedQueryType === type}
                       onChange={() => setSelectedQueryType(type)}
-                      style={{
-                        position: 'absolute',
-                        width: 1,
-                        height: 1,
-                        padding: 0,
-                        margin: -1,
-                        overflow: 'hidden',
-                        clip: 'rect(0,0,0,0)',
-                        border: 0,
-                      }}
+                      style={VISUALLY_HIDDEN_INPUT_STYLE}
                     />
                     {type}
                   </label>

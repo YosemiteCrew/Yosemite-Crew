@@ -1,12 +1,78 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { IoArrowBackOutline, IoStar } from 'react-icons/io5';
 import { CERT_BADGES, GITHUB_REPO_URL, MARKETING_LOGO } from './assets';
 import { useGithubStats } from './useGithubStats';
 import { ThemeToggle } from './ThemeToggle';
+
+const BRAND_TITLE_STYLE: CSSProperties = {
+  margin: '20px 0 0',
+  fontFamily: 'var(--font-newsreader)',
+  fontSize: 'clamp(38px, 4vw, 54px)',
+  fontWeight: 400,
+  lineHeight: 1.04,
+  letterSpacing: '-0.03em',
+  color: '#f4efe6',
+  animation: 'ycUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.16s both',
+};
+
+const BRAND_POINT_ICON_STYLE: CSSProperties = {
+  flex: 'none',
+  width: 38,
+  height: 38,
+  borderRadius: 11,
+  background: 'rgba(234,226,213,0.10)',
+  border: '1px solid rgba(234,226,213,0.16)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#8fb6f5',
+};
+
+const GITHUB_STAR_PILL_STYLE: CSSProperties = {
+  marginTop: 32,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 11,
+  textDecoration: 'none',
+  padding: '10px 16px 10px 14px',
+  borderRadius: 9999,
+  border: '1px solid rgba(234,226,213,0.18)',
+  background: 'rgba(234,226,213,0.05)',
+  color: '#eae2d5',
+  fontSize: 14,
+  letterSpacing: '-0.01em',
+  animation: 'ycUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.42s both',
+};
+
+const BRAND_PANEL_STYLE: CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
+  background: 'linear-gradient(158deg, #2a2723 0%, #1b1a16 52%, #131210 100%)',
+  padding: 'clamp(44px, 4.6vw, 76px)',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'space-between',
+  color: '#eae2d5',
+};
+
+const BACK_TO_HOME_PILL_STYLE: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
+  textDecoration: 'none',
+  color: 'var(--ink-muted)',
+  fontSize: 14,
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  padding: '8px 15px 8px 12px',
+  borderRadius: 9999,
+  border: '1px solid var(--hairline)',
+  background: 'var(--glass-92)',
+};
 
 export interface AuthBrandPoint {
   icon: ReactNode;
@@ -43,20 +109,7 @@ export function AuthBrandContent({
       >
         {eyebrow}
       </div>
-      <h2
-        style={{
-          margin: '20px 0 0',
-          fontFamily: 'var(--font-newsreader)',
-          fontSize: 'clamp(38px, 4vw, 54px)',
-          fontWeight: 400,
-          lineHeight: 1.04,
-          letterSpacing: '-0.03em',
-          color: '#f4efe6',
-          animation: 'ycUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.16s both',
-        }}
-      >
-        {title}
-      </h2>
+      <h2 style={BRAND_TITLE_STYLE}>{title}</h2>
       <p
         style={{
           margin: '20px 0 0',
@@ -80,22 +133,7 @@ export function AuthBrandContent({
       >
         {points.map((point) => (
           <div key={point.text} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-            <span
-              style={{
-                flex: 'none',
-                width: 38,
-                height: 38,
-                borderRadius: 11,
-                background: 'rgba(234,226,213,0.10)',
-                border: '1px solid rgba(234,226,213,0.16)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#8fb6f5',
-              }}
-            >
-              {point.icon}
-            </span>
+            <span style={BRAND_POINT_ICON_STYLE}>{point.icon}</span>
             <div
               style={{
                 paddingTop: 8,
@@ -113,22 +151,8 @@ export function AuthBrandContent({
       <a
         href={GITHUB_REPO_URL}
         target="_blank"
-        rel="noopener"
-        style={{
-          marginTop: 32,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 11,
-          textDecoration: 'none',
-          padding: '10px 16px 10px 14px',
-          borderRadius: 9999,
-          border: '1px solid rgba(234,226,213,0.18)',
-          background: 'rgba(234,226,213,0.05)',
-          color: '#eae2d5',
-          fontSize: 14,
-          letterSpacing: '-0.01em',
-          animation: 'ycUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.42s both',
-        }}
+        rel="noopener noreferrer"
+        style={GITHUB_STAR_PILL_STYLE}
       >
         <IoStar style={{ fontSize: 16, color: '#ffd479' }} />
         <span style={{ fontWeight: 600, color: '#fff' }}>
@@ -160,19 +184,7 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
       data-yc-theme
       style={{ display: 'grid', gridTemplateColumns: '1.06fr 1fr', minHeight: '100svh' }}
     >
-      <div
-        data-brandpanel="true"
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          background: 'linear-gradient(158deg, #2a2723 0%, #1b1a16 52%, #131210 100%)',
-          padding: 'clamp(44px, 4.6vw, 76px)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          color: '#eae2d5',
-        }}
-      >
+      <div data-brandpanel="true" style={BRAND_PANEL_STYLE}>
         <div
           aria-hidden="true"
           style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}
@@ -316,24 +328,7 @@ export function AuthShell({ brand, topRight, children }: Readonly<AuthShellProps
             padding: '22px clamp(20px, 4vw, 44px)',
           }}
         >
-          <Link
-            href="/"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 7,
-              textDecoration: 'none',
-              color: 'var(--ink-muted)',
-              fontSize: 14,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              padding: '8px 15px 8px 12px',
-              borderRadius: 9999,
-              border: '1px solid var(--hairline)',
-              background: 'var(--glass-92)',
-            }}
-            className="yc-switch"
-          >
+          <Link href="/" style={BACK_TO_HOME_PILL_STYLE} className="yc-switch">
             <IoArrowBackOutline style={{ fontSize: 16 }} /> Back to home
           </Link>
           <div

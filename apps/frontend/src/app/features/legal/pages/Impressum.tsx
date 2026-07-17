@@ -66,7 +66,7 @@ const Impressum = () => {
       <DocSection id="dispute" title="EU dispute resolution">
         <p>
           The European Commission provides a platform for online dispute resolution (ODR):{' '}
-          <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener">
+          <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener noreferrer">
             https://ec.europa.eu/consumers/odr/
           </a>
           {

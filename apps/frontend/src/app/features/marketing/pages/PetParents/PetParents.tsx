@@ -42,6 +42,167 @@ import {
 const HEADING_FONT = 'var(--font-newsreader)';
 const EASE = 'cubic-bezier(0.16,1,0.3,1)';
 
+/* ---------- Static style objects (hoisted from inline JSX) ---------- */
+
+const COMPANION_CARD_STYLE: CSSProperties = {
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 6,
+  padding: '12px 8px',
+  background: 'var(--screen)',
+  borderRadius: 18,
+};
+
+const COMPANION_AVATAR_STYLE: CSSProperties = {
+  width: 42,
+  height: 42,
+  borderRadius: 9999,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 15,
+  fontWeight: 700,
+};
+
+const HERO_FLOAT_CARD_STYLE: CSSProperties = {
+  backdropFilter: 'blur(40px)',
+  WebkitBackdropFilter: 'blur(40px)',
+  position: 'absolute',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '11px 15px',
+  borderRadius: 16,
+  background: 'var(--glass-93)',
+  border: '1px solid var(--glass-95)',
+  boxShadow: '0 16px 44px var(--sh12)',
+};
+
+const APPOINTMENT_ICON_STYLE: CSSProperties = {
+  flex: 'none',
+  width: 40,
+  height: 40,
+  borderRadius: 14,
+  background: 'var(--blue-soft)',
+  color: 'var(--blue)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const HERO_FLOAT_AVATAR_BLUE_STYLE: CSSProperties = {
+  width: 30,
+  height: 30,
+  borderRadius: 9999,
+  background: 'var(--blue-soft)',
+  color: 'var(--blue)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 11,
+  fontWeight: 700,
+};
+
+const HERO_FLOAT_AVATAR_GREEN_STYLE: CSSProperties = {
+  width: 30,
+  height: 30,
+  borderRadius: 10,
+  background: 'var(--avatar-green-bg)',
+  color: '#006642',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const HERO_GRID_STYLE: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: 'min(1200px, 100%)',
+  margin: '0 auto',
+  display: 'grid',
+  gridTemplateColumns: '1.05fr 0.95fr',
+  gap: 'clamp(32px, 5vw, 72px)',
+  alignItems: 'center',
+};
+
+const HERO_HEADING_STYLE: CSSProperties = {
+  fontFamily: HEADING_FONT,
+  margin: '24px 0 0',
+  fontSize: 'clamp(42px, 5.6vw, 82px)',
+  fontWeight: 500,
+  lineHeight: 1.04,
+  letterSpacing: '-0.06em',
+  color: 'var(--ink)',
+  textWrap: 'balance',
+  display: 'flex',
+  flexWrap: 'wrap',
+  columnGap: '0.24em',
+};
+
+const HERO_PARAGRAPH_STYLE: CSSProperties = {
+  margin: '24px 0 0',
+  maxWidth: 520,
+  fontSize: 'clamp(17px, 2vw, 20px)',
+  lineHeight: 1.6,
+  letterSpacing: '-0.025em',
+  color: 'var(--ink-soft)',
+  textShadow: '0 1px 16px rgba(239,232,220,0.94), 0 1px 3px rgba(239,232,220,0.85)',
+  opacity: 0,
+  animation: `ycHeroUp 1s ${EASE} 0.5s both`,
+  textWrap: 'pretty',
+};
+
+const FEATURE_ICON_STYLE: CSSProperties = {
+  width: 46,
+  height: 46,
+  borderRadius: 14,
+  background: 'var(--pill-raised)',
+  color: 'var(--blue)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const CTA_GLOW_STYLE: CSSProperties = {
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%,-50%)',
+  width: 900,
+  height: 500,
+  background: 'radial-gradient(closest-side, var(--glow-p08), transparent 70%)',
+  pointerEvents: 'none',
+};
+
+const CTA_CONTENT_STYLE: CSSProperties = {
+  width: 'min(880px, calc(100% - 48px))',
+  margin: '0 auto',
+  padding: 'clamp(88px, 12vw, 150px) 0',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  textAlign: 'center',
+  position: 'relative',
+};
+
+const CTA_SECONDARY_LINK_STYLE: CSSProperties = {
+  textDecoration: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  background: 'var(--screen)',
+  color: 'var(--ink-body)',
+  fontSize: 17,
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '16px 32px',
+  borderRadius: 9999,
+  border: '1px solid var(--hairline)',
+  transition: 'border-color 200ms',
+};
+
 /* ---------- Hero ---------- */
 
 interface Companion {
@@ -94,33 +255,8 @@ function CompanionCard({
   nameColor,
 }: Readonly<Companion>) {
   return (
-    <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 6,
-        padding: '12px 8px',
-        background: 'var(--screen)',
-        border,
-        borderRadius: 18,
-      }}
-    >
-      <span
-        style={{
-          width: 42,
-          height: 42,
-          borderRadius: 9999,
-          background: avatarBg,
-          color: avatarColor,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 15,
-          fontWeight: 700,
-        }}
-      >
+    <div style={{ ...COMPANION_CARD_STYLE, border }}>
+      <span style={{ ...COMPANION_AVATAR_STYLE, background: avatarBg, color: avatarColor }}>
         {letter}
       </span>
       <span style={{ fontSize: 12, fontWeight: nameWeight, color: nameColor }}>{name}</span>
@@ -198,25 +334,15 @@ function HeroFloatCard({
     <div
       data-hero-float="true"
       style={{
-        position: 'absolute',
+        ...HERO_FLOAT_CARD_STYLE,
         ...position,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '11px 15px',
-        borderRadius: 16,
-        background: 'var(--glass-93)',
-        backdropFilter: 'blur(40px)',
-        WebkitBackdropFilter: 'blur(40px)',
-        border: '1px solid var(--glass-95)',
-        boxShadow: '0 16px 44px var(--sh12)',
         animation,
       }}
     >
       {avatar}
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-body)' }}>{title}</div>
-        <div style={{ fontSize: 11, color: 'var(--ink-faint)' }}>{subtitle}</div>
+        <div style={{ fontSize: 12, color: 'var(--ink-faint)' }}>{subtitle}</div>
       </div>
     </div>
   );
@@ -309,7 +435,7 @@ function HeroPhone() {
                 </span>
                 <span
                   style={{
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: 700,
                     letterSpacing: '0.04em',
                     color: 'var(--blue)',
@@ -322,19 +448,7 @@ function HeroPhone() {
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span
-                  style={{
-                    flex: 'none',
-                    width: 40,
-                    height: 40,
-                    borderRadius: 14,
-                    background: 'var(--blue-soft)',
-                    color: 'var(--blue)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
+                <span style={APPOINTMENT_ICON_STYLE}>
                   <IoCalendarOutline style={{ fontSize: 18 }} aria-hidden="true" />
                 </span>
                 <div>
@@ -401,24 +515,7 @@ function HeroPhone() {
       <HeroFloatCard
         position={{ top: '12%', left: -40 }}
         animation="ycFloatA 7s ease-in-out infinite"
-        avatar={
-          <span
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 9999,
-              background: 'var(--blue-soft)',
-              color: 'var(--blue)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 11,
-              fontWeight: 700,
-            }}
-          >
-            SW
-          </span>
-        }
+        avatar={<span style={HERO_FLOAT_AVATAR_BLUE_STYLE}>SW</span>}
         title="Dr. Weber"
         subtitle="Bloodwork came back clear"
       />
@@ -426,18 +523,7 @@ function HeroPhone() {
         position={{ bottom: '14%', right: -34 }}
         animation="ycFloatB 8.5s ease-in-out 1s infinite"
         avatar={
-          <span
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 10,
-              background: 'var(--avatar-green-bg)',
-              color: '#006642',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
+          <span style={HERO_FLOAT_AVATAR_GREEN_STYLE}>
             <IoShareOutline style={{ fontSize: 15 }} aria-hidden="true" />
           </span>
         }
@@ -498,39 +584,13 @@ function Hero() {
         animation="ycDrift 40s ease-in-out 3s infinite alternate-reverse"
         depth="0.06"
       />
-      <div
-        data-grid-1-m="true"
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          width: 'min(1200px, 100%)',
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: '1.05fr 0.95fr',
-          gap: 'clamp(32px, 5vw, 72px)',
-          alignItems: 'center',
-        }}
-      >
+      <div data-grid-1-m="true" style={HERO_GRID_STYLE}>
         <div
           data-center-m="true"
           style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}
         >
           <ReleasePill variant="mobile" label="Mobile app" version="v1.2 beta" />
-          <h1
-            style={{
-              fontFamily: HEADING_FONT,
-              margin: '24px 0 0',
-              fontSize: 'clamp(42px, 5.6vw, 82px)',
-              fontWeight: 500,
-              lineHeight: 1.04,
-              letterSpacing: '-0.06em',
-              color: 'var(--ink)',
-              textWrap: 'balance',
-              display: 'flex',
-              flexWrap: 'wrap',
-              columnGap: '0.24em',
-            }}
-          >
+          <h1 style={HERO_HEADING_STYLE}>
             {HERO_WORDS.map((word) =>
               word.em ? (
                 <em
@@ -562,20 +622,7 @@ function Hero() {
               )
             )}
           </h1>
-          <p
-            style={{
-              margin: '24px 0 0',
-              maxWidth: 520,
-              fontSize: 'clamp(17px, 2vw, 20px)',
-              lineHeight: 1.6,
-              letterSpacing: '-0.025em',
-              color: 'var(--ink-soft)',
-              textShadow: '0 1px 16px rgba(239,232,220,0.94), 0 1px 3px rgba(239,232,220,0.85)',
-              opacity: 0,
-              animation: `ycHeroUp 1s ${EASE} 0.5s both`,
-              textWrap: 'pretty',
-            }}
-          >
+          <p style={HERO_PARAGRAPH_STYLE}>
             Cats, dogs and horses, every visit and every dose on one timeline. The years of notes
             that keep a companion alive finally live somewhere you can reach, instead of in your
             head and a folder in a drawer.
@@ -595,13 +642,13 @@ function Hero() {
               ref={appleRef}
               href={APP_STORE_URL}
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               data-appbadge
               style={appBadgeStyle}
             >
               <IoLogoApple style={{ fontSize: 26 }} aria-hidden="true" />
               <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.05 }}>
-                <span style={{ fontSize: 10, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
+                <span style={{ fontSize: 12, letterSpacing: '0.02em', color: 'var(--dl-btn-sub)' }}>
                   Download on the
                 </span>
                 <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.02em' }}>
@@ -613,7 +660,7 @@ function Hero() {
               ref={playRef}
               href={PLAY_STORE_URL}
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               data-appbadge
               style={appBadgeStyle}
             >
@@ -801,18 +848,7 @@ function FeatureCard({ feature }: Readonly<{ feature: Feature }>) {
         gap: 14,
       }}
     >
-      <span
-        style={{
-          width: 46,
-          height: 46,
-          borderRadius: 14,
-          background: 'var(--pill-raised)',
-          color: 'var(--blue)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+      <span style={FEATURE_ICON_STYLE}>
         <Icon style={{ fontSize: 22 }} aria-hidden="true" />
       </span>
       <div style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--ink)' }}>
@@ -890,31 +926,8 @@ function Cta() {
 
   return (
     <section style={{ position: 'relative', background: 'var(--inset)', overflow: 'hidden' }}>
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%,-50%)',
-          width: 900,
-          height: 500,
-          background: 'radial-gradient(closest-side, var(--glow-p08), transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          width: 'min(880px, calc(100% - 48px))',
-          margin: '0 auto',
-          padding: 'clamp(88px, 12vw, 150px) 0',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          position: 'relative',
-        }}
-      >
+      <div aria-hidden="true" style={CTA_GLOW_STYLE} />
+      <div style={CTA_CONTENT_STYLE}>
         <Reveal delay={0}>
           <h2
             style={{
@@ -965,25 +978,7 @@ function Cta() {
             >
               Get the app <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
             </Link>
-            <Link
-              ref={secondaryRef}
-              href="/pet-businesses"
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background: 'var(--screen)',
-                color: 'var(--ink-body)',
-                fontSize: 17,
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 32px',
-                borderRadius: 9999,
-                border: '1px solid var(--hairline)',
-                transition: 'border-color 200ms',
-              }}
-            >
+            <Link ref={secondaryRef} href="/pet-businesses" style={CTA_SECONDARY_LINK_STYLE}>
               I run a clinic
             </Link>
           </div>

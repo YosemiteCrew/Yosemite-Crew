@@ -304,7 +304,7 @@ const TrustCenter = () => {
           <a href="mailto:security@yosemitecrew.com">security@yosemitecrew.com</a> before disclosing
           publicly and we will work with you to fix it and credit you. Because the code is open,
           researchers can inspect it directly. Live status is at{' '}
-          <a href="https://yosemite-crew.openstatus.dev/" target="_blank" rel="noopener">
+          <a href="https://yosemite-crew.openstatus.dev/" target="_blank" rel="noopener noreferrer">
             our status page
           </a>
           {'.'}

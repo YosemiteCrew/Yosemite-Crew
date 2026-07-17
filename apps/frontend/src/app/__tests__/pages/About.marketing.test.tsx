@@ -119,7 +119,7 @@ describe('About (marketing)', () => {
     });
     expect(ankit).toHaveAttribute('href', 'https://www.linkedin.com/in/aupyay/');
     expect(ankit).toHaveAttribute('target', '_blank');
-    expect(ankit).toHaveAttribute('rel', 'noopener');
+    expect(ankit).toHaveAttribute('rel', 'noopener noreferrer');
 
     expect(
       screen.getByRole('link', {

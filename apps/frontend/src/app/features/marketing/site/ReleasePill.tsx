@@ -1,5 +1,6 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import { IoLogoGithub } from 'react-icons/io5';
 import { GITHUB_REPO_URL } from './assets';
 import { useLatestRelease, useMobileRelease, type ReleaseInfo } from './useGithubStats';
@@ -17,6 +18,41 @@ interface ReleasePillProps {
 }
 
 const GREEN_DOT = 'var(--success)';
+
+const LATEST_PILL_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 9,
+  padding: '8px 15px',
+  borderRadius: 9999,
+  border: '1px solid var(--hairline)',
+  background: 'var(--glass-95)',
+  backdropFilter: 'blur(40px)',
+  WebkitBackdropFilter: 'blur(40px)',
+  fontSize: 13,
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  color: 'var(--ink-muted)',
+  textDecoration: 'none',
+};
+
+const PILL_STYLE: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '8px 16px',
+  borderRadius: 9999,
+  border: '1px solid var(--hairline)',
+  background: 'var(--glass-95)',
+  backdropFilter: 'blur(40px)',
+  WebkitBackdropFilter: 'blur(40px)',
+  fontSize: 13,
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  color: 'var(--ink-muted)',
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
+};
 
 function useReleaseFor(variant: ReleaseVariant): ReleaseInfo {
   const latest = useLatestRelease();
@@ -52,27 +88,7 @@ export function ReleasePill({ variant, label, version, href }: Readonly<ReleaseP
 
   if (variant === 'latest') {
     return (
-      <a
-        href={resolvedHref}
-        target="_blank"
-        rel="noopener"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 9,
-          padding: '8px 15px',
-          borderRadius: 9999,
-          border: '1px solid var(--hairline)',
-          background: 'var(--glass-95)',
-          backdropFilter: 'blur(40px)',
-          WebkitBackdropFilter: 'blur(40px)',
-          fontSize: 13,
-          fontWeight: 500,
-          letterSpacing: '-0.01em',
-          color: 'var(--ink-muted)',
-          textDecoration: 'none',
-        }}
-      >
+      <a href={resolvedHref} target="_blank" rel="noopener noreferrer" style={LATEST_PILL_STYLE}>
         {dot}
         <span style={{ color: 'var(--ink-body)', fontWeight: 600 }}>Latest release</span>
         {divider}
@@ -87,28 +103,7 @@ export function ReleasePill({ variant, label, version, href }: Readonly<ReleaseP
 
   const isStatic = variant === 'static';
   return (
-    <a
-      href={resolvedHref}
-      target="_blank"
-      rel="noopener"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '8px 16px',
-        borderRadius: 9999,
-        border: '1px solid var(--hairline)',
-        background: 'var(--glass-95)',
-        backdropFilter: 'blur(40px)',
-        WebkitBackdropFilter: 'blur(40px)',
-        fontSize: 13,
-        fontWeight: 500,
-        letterSpacing: '-0.01em',
-        color: 'var(--ink-muted)',
-        textDecoration: 'none',
-        whiteSpace: 'nowrap',
-      }}
-    >
+    <a href={resolvedHref} target="_blank" rel="noopener noreferrer" style={PILL_STYLE}>
       {dot}
       {label}
       <span

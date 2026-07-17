@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-const push = jest.fn();
-jest.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+const redirect = jest.fn();
+jest.mock('next/navigation', () => ({ redirect: (path: string) => redirect(path) }));
 
 let authState: { user: unknown; role: string };
 jest.mock('@/app/stores/authStore', () => ({ useAuthStore: () => authState }));
@@ -21,7 +21,7 @@ import ForgotPasswordPageWrapper from '@/app/features/auth/pages/ForgotPassword/
 
 describe('ForgotPasswordPage wrapper', () => {
   beforeEach(() => {
-    push.mockReset();
+    redirect.mockReset();
     resolveDefaultOpenScreenRoute.mockReset();
     authState = { user: null, role: 'member' };
   });
@@ -29,7 +29,7 @@ describe('ForgotPasswordPage wrapper', () => {
   it('renders the forgot-password screen when no user is signed in', () => {
     render(<ForgotPasswordPageWrapper />);
     expect(screen.getByText('Forgot password screen')).toBeInTheDocument();
-    expect(push).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it('redirects an authenticated user to their default screen', () => {
@@ -37,6 +37,6 @@ describe('ForgotPasswordPage wrapper', () => {
     resolveDefaultOpenScreenRoute.mockReturnValue('/dashboard');
     render(<ForgotPasswordPageWrapper />);
     expect(resolveDefaultOpenScreenRoute).toHaveBeenCalledWith('admin');
-    expect(push).toHaveBeenCalledWith('/dashboard');
+    expect(redirect).toHaveBeenCalledWith('/dashboard');
   });
 });

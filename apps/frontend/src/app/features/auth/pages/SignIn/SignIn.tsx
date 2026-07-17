@@ -73,6 +73,18 @@ const ACCOUNT_TYPES: ReadonlyArray<{ value: AccountType; label: string }> = [
   { value: 'developer', label: 'Developer' },
 ];
 
+const ACCOUNT_TYPE_OPTION_STYLE: React.CSSProperties = {
+  flex: 1,
+  padding: '9px 12px',
+  border: 'none',
+  borderRadius: 9,
+  cursor: 'pointer',
+  fontSize: 14,
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  transition: 'background 150ms ease, color 150ms ease',
+};
+
 /** Segmented control that lets the user pick which kind of account they are signing in to. */
 const AccountTypeSelector = ({
   value,
@@ -100,18 +112,10 @@ const AccountTypeSelector = ({
           aria-checked={active}
           onClick={() => onChange(option.value)}
           style={{
-            flex: 1,
-            padding: '9px 12px',
-            border: 'none',
-            borderRadius: 9,
-            cursor: 'pointer',
-            fontSize: 14,
-            fontWeight: 500,
-            letterSpacing: '-0.01em',
+            ...ACCOUNT_TYPE_OPTION_STYLE,
             background: active ? 'var(--screen)' : 'transparent',
             color: active ? 'var(--ink)' : 'var(--ink-muted)',
             boxShadow: active ? '0 1px 2px rgba(29, 28, 27, 0.08)' : 'none',
-            transition: 'background 150ms ease, color 150ms ease',
           }}
         >
           {option.label}

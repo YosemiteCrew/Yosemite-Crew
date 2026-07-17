@@ -70,6 +70,217 @@ const FAQS: FaqEntry[] = [
 
 const HERO_WORDS = ['Host', 'it', 'free.', 'Or', 'pay', 'as', 'you'];
 
+const billingBtnStyle = (active: boolean): React.CSSProperties => ({
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  border: 'none',
+  borderRadius: '9999px',
+  padding: '9px 22px',
+  fontSize: '14px',
+  fontWeight: 600,
+  letterSpacing: '-0.01em',
+  transition: 'color 200ms, background 200ms',
+  background: active ? '#1d1c1b' : 'transparent',
+  color: active ? '#f7f3ec' : 'var(--ink-muted)',
+});
+
+const FREE_CTA_STYLE: React.CSSProperties = {
+  textDecoration: 'none',
+  textAlign: 'center',
+  background: 'var(--screen)',
+  color: 'var(--ink-body)',
+  fontSize: '15px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '13px 22px',
+  borderRadius: '9999px',
+  border: '1px solid var(--divider)',
+  transition: 'border-color 200ms, background 200ms',
+};
+
+const BUSINESS_CARD_STYLE: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  background: 'var(--spot)',
+  border: '1px solid var(--spot)',
+  borderRadius: '28px',
+  padding: '32px',
+  boxShadow: '0 30px 70px var(--sh22)',
+  position: 'relative',
+  transform: 'translateY(-8px)',
+};
+
+const BUSINESS_CTA_STYLE: React.CSSProperties = {
+  textDecoration: 'none',
+  textAlign: 'center',
+  background: '#f7f3ec',
+  color: '#1d1c1b',
+  fontSize: '15px',
+  fontWeight: 600,
+  letterSpacing: '-0.02em',
+  padding: '13px 22px',
+  borderRadius: '9999px',
+  transition: 'background 200ms',
+};
+
+const ENTERPRISE_CTA_STYLE: React.CSSProperties = {
+  textDecoration: 'none',
+  textAlign: 'center',
+  background: 'var(--screen)',
+  color: 'var(--ink-body)',
+  fontSize: '15px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '13px 22px',
+  borderRadius: '9999px',
+  border: '1px solid var(--divider)',
+  transition: 'border-color 200ms',
+};
+
+const FAQ_SUMMARY_STYLE: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '16px',
+  cursor: 'pointer',
+  listStyle: 'none',
+  fontSize: '19px',
+  fontWeight: 600,
+  letterSpacing: '-0.025em',
+  color: 'var(--ink)',
+};
+
+const HERO_INNER_STYLE: React.CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: 'min(760px, 100%)',
+  margin: '0 auto',
+  textAlign: 'center',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+};
+
+const HERO_BADGE_STYLE: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '8px 16px',
+  borderRadius: '9999px',
+  border: '1px solid var(--hairline)',
+  background: 'var(--glass-95)',
+  backdropFilter: 'blur(40px)',
+  fontSize: '13px',
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  color: 'var(--ink-muted)',
+  opacity: 0,
+  animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
+};
+
+const HERO_TITLE_STYLE: React.CSSProperties = {
+  margin: '26px 0 0',
+  fontFamily: SERIF,
+  fontSize: 'clamp(42px, 6vw, 82px)',
+  fontWeight: 500,
+  lineHeight: 1.03,
+  letterSpacing: '-0.06em',
+  color: 'var(--ink)',
+  textWrap: 'balance',
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'center',
+  columnGap: '0.24em',
+};
+
+const HERO_SUBTITLE_STYLE: React.CSSProperties = {
+  margin: '24px 0 0',
+  maxWidth: '560px',
+  fontSize: 'clamp(17px, 2vw, 20px)',
+  lineHeight: 1.6,
+  letterSpacing: '-0.025em',
+  color: 'var(--ink-muted)',
+  opacity: 0,
+  animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.5s both',
+  textWrap: 'pretty',
+};
+
+const PLANS_NOTE_STYLE: React.CSSProperties = {
+  display: 'block',
+  margin: '32px auto 0',
+  maxWidth: '620px',
+  textAlign: 'center',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  letterSpacing: '-0.01em',
+  color: 'var(--ink-faint)',
+};
+
+const NOFEE_HEADING_STYLE: React.CSSProperties = {
+  display: 'block',
+  margin: '30px 0 0',
+  fontSize: 'clamp(24px, 3.4vw, 42px)',
+  fontWeight: 500,
+  lineHeight: 1.34,
+  letterSpacing: '-0.035em',
+  color: '#eae2d5',
+  textWrap: 'pretty',
+};
+
+const CTA_CONTAINER_STYLE: React.CSSProperties = {
+  width: 'min(880px, calc(100% - 48px))',
+  margin: '0 auto',
+  padding: 'clamp(88px, 12vw, 150px) 0',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  textAlign: 'center',
+  position: 'relative',
+};
+
+const CTA_SUBTITLE_STYLE: React.CSSProperties = {
+  display: 'block',
+  margin: '22px 0 0',
+  maxWidth: '560px',
+  fontSize: '18px',
+  lineHeight: 1.65,
+  letterSpacing: '-0.02em',
+  color: 'var(--ink-muted)',
+  textWrap: 'pretty',
+};
+
+const CTA_PRIMARY_STYLE: React.CSSProperties = {
+  textDecoration: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  background: 'var(--cta)',
+  color: 'var(--cta-text)',
+  fontSize: '17px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '16px 32px',
+  borderRadius: '9999px',
+  boxShadow: '0 10px 30px var(--sh18)',
+  transition: 'background 200ms',
+};
+
+const CTA_SECONDARY_STYLE: React.CSSProperties = {
+  textDecoration: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  background: 'var(--screen)',
+  color: 'var(--ink-body)',
+  fontSize: '17px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '16px 32px',
+  borderRadius: '9999px',
+  border: '1px solid var(--hairline)',
+  transition: 'border-color 200ms',
+};
+
 function FeatureRow({ item, color }: Readonly<{ item: FeatureItem; color: string }>) {
   return (
     <div
@@ -115,7 +326,7 @@ function PlanBadgeHeader({
       </span>
       <span
         style={{
-          fontSize: '11px',
+          fontSize: '12px',
           fontWeight: 700,
           letterSpacing: '0.04em',
           color: badgeColor,
@@ -151,20 +362,6 @@ function BillingToggle({
   yearly,
   onSelect,
 }: Readonly<{ yearly: boolean; onSelect: (v: boolean) => void }>) {
-  const btnStyle = (active: boolean): React.CSSProperties => ({
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    border: 'none',
-    borderRadius: '9999px',
-    padding: '9px 22px',
-    fontSize: '14px',
-    fontWeight: 600,
-    letterSpacing: '-0.01em',
-    transition: 'color 200ms, background 200ms',
-    background: active ? '#1d1c1b' : 'transparent',
-    color: active ? '#f7f3ec' : 'var(--ink-muted)',
-  });
-
   return (
     <Reveal
       delay={0}
@@ -187,10 +384,10 @@ function BillingToggle({
           borderRadius: '9999px',
         }}
       >
-        <button type="button" onClick={() => onSelect(false)} style={btnStyle(!yearly)}>
+        <button type="button" onClick={() => onSelect(false)} style={billingBtnStyle(!yearly)}>
           Monthly
         </button>
-        <button type="button" onClick={() => onSelect(true)} style={btnStyle(yearly)}>
+        <button type="button" onClick={() => onSelect(true)} style={billingBtnStyle(yearly)}>
           Yearly
         </button>
       </div>
@@ -261,24 +458,7 @@ function FreePlanCard() {
       >
         For a new or small practice finding its feet, on us.
       </p>
-      <Link
-        ref={btnRef}
-        href="/signup"
-        data-btn-invert
-        style={{
-          textDecoration: 'none',
-          textAlign: 'center',
-          background: 'var(--screen)',
-          color: 'var(--ink-body)',
-          fontSize: '15px',
-          fontWeight: 500,
-          letterSpacing: '-0.02em',
-          padding: '13px 22px',
-          borderRadius: '9999px',
-          border: '1px solid var(--divider)',
-          transition: 'border-color 200ms, background 200ms',
-        }}
-      >
+      <Link ref={btnRef} href="/signup" data-btn-invert style={FREE_CTA_STYLE}>
         Get started free
       </Link>
       <PlanFeatureList features={FREE_FEATURES} color="var(--ink-muted)" divider="var(--inset)" />
@@ -289,20 +469,7 @@ function FreePlanCard() {
 function BusinessPlanCard({ price, period }: Readonly<{ price: string; period: string }>) {
   const btnRef = useMagnet<HTMLAnchorElement>();
   return (
-    <Reveal
-      delay={100}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--spot)',
-        border: '1px solid var(--spot)',
-        borderRadius: '28px',
-        padding: '32px',
-        boxShadow: '0 30px 70px var(--sh22)',
-        position: 'relative',
-        transform: 'translateY(-8px)',
-      }}
-    >
+    <Reveal delay={100} style={BUSINESS_CARD_STYLE}>
       <PlanBadgeHeader
         label="Business"
         labelColor="#82afec"
@@ -335,22 +502,7 @@ function BusinessPlanCard({ price, period }: Readonly<{ price: string; period: s
       >
         Flexible growth for a practice that needs to scale on demand.
       </p>
-      <Link
-        ref={btnRef}
-        href="/signup"
-        style={{
-          textDecoration: 'none',
-          textAlign: 'center',
-          background: '#f7f3ec',
-          color: '#1d1c1b',
-          fontSize: '15px',
-          fontWeight: 600,
-          letterSpacing: '-0.02em',
-          padding: '13px 22px',
-          borderRadius: '9999px',
-          transition: 'background 200ms',
-        }}
-      >
+      <Link ref={btnRef} href="/signup" style={BUSINESS_CTA_STYLE}>
         Get started
       </Link>
       <PlanFeatureList features={BUSINESS_FEATURES} color="#d6d1cd" divider="#302f2e" />
@@ -402,24 +554,7 @@ function EnterprisePlanCard() {
       >
         Scalability, control and security for larger multi-site groups.
       </p>
-      <Link
-        ref={btnRef}
-        href="/contact-us"
-        data-btn-invert
-        style={{
-          textDecoration: 'none',
-          textAlign: 'center',
-          background: 'var(--screen)',
-          color: 'var(--ink-body)',
-          fontSize: '15px',
-          fontWeight: 500,
-          letterSpacing: '-0.02em',
-          padding: '13px 22px',
-          borderRadius: '9999px',
-          border: '1px solid var(--divider)',
-          transition: 'border-color 200ms',
-        }}
-      >
+      <Link ref={btnRef} href="/contact-us" data-btn-invert style={ENTERPRISE_CTA_STYLE}>
         Notify me
       </Link>
       <PlanFeatureList
@@ -438,20 +573,7 @@ function FaqRow({ entry }: Readonly<{ entry: FaqEntry }>) {
       open={entry.open}
       style={{ borderTop: '1px solid var(--hairline)', padding: '22px 0' }}
     >
-      <summary
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-          cursor: 'pointer',
-          listStyle: 'none',
-          fontSize: '19px',
-          fontWeight: 600,
-          letterSpacing: '-0.025em',
-          color: 'var(--ink)',
-        }}
-      >
+      <summary style={FAQ_SUMMARY_STYLE}>
         {entry.q}
         <IoAddOutline
           className="yc-faq-icon"
@@ -498,36 +620,8 @@ function HeroSection() {
         box={{ top: '-160px', left: 'calc(50% - 400px)', width: '800px', height: '560px' }}
         animation="ycDrift 32s ease-in-out infinite alternate"
       />
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          width: 'min(760px, 100%)',
-          margin: '0 auto',
-          textAlign: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px',
-            borderRadius: '9999px',
-            border: '1px solid var(--hairline)',
-            background: 'var(--glass-95)',
-            backdropFilter: 'blur(40px)',
-            fontSize: '13px',
-            fontWeight: 500,
-            letterSpacing: '-0.01em',
-            color: 'var(--ink-muted)',
-            opacity: 0,
-            animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
-          }}
-        >
+      <div style={HERO_INNER_STYLE}>
+        <div style={HERO_BADGE_STYLE}>
           <span
             style={{
               width: '7px',
@@ -538,22 +632,7 @@ function HeroSection() {
           />
           {'No contracts. No platform fees.'}
         </div>
-        <h1
-          style={{
-            margin: '26px 0 0',
-            fontFamily: SERIF,
-            fontSize: 'clamp(42px, 6vw, 82px)',
-            fontWeight: 500,
-            lineHeight: 1.03,
-            letterSpacing: '-0.06em',
-            color: 'var(--ink)',
-            textWrap: 'balance',
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            columnGap: '0.24em',
-          }}
-        >
+        <h1 style={HERO_TITLE_STYLE}>
           {HERO_WORDS.map((word, i) => (
             <React.Fragment key={word}>
               <span
@@ -574,7 +653,7 @@ function HeroSection() {
               fontWeight: 480,
               color: 'var(--blue-text)',
               opacity: 0,
-              animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.94s both',
+              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.94s both',
             }}
           >
             <InkAnnotate type="circle" delay={2300}>
@@ -582,19 +661,7 @@ function HeroSection() {
             </InkAnnotate>
           </em>
         </h1>
-        <p
-          style={{
-            margin: '24px 0 0',
-            maxWidth: '560px',
-            fontSize: 'clamp(17px, 2vw, 20px)',
-            lineHeight: 1.6,
-            letterSpacing: '-0.025em',
-            color: 'var(--ink-muted)',
-            opacity: 0,
-            animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.5s both',
-            textWrap: 'pretty',
-          }}
-        >
+        <p style={HERO_SUBTITLE_STYLE}>
           Run it yourself for nothing, or let us host it and pay only for what you use. Either way
           there are no long contracts, no cut of your payments, and under the AGPL-3.0 license you
           own the software.
@@ -632,20 +699,7 @@ function PlansSection() {
           <BusinessPlanCard price={businessPrice} period={businessPeriod} />
           <EnterprisePlanCard />
         </div>
-        <Reveal
-          delay={0}
-          as="span"
-          style={{
-            display: 'block',
-            margin: '32px auto 0',
-            maxWidth: '620px',
-            textAlign: 'center',
-            fontSize: '14px',
-            lineHeight: 1.6,
-            letterSpacing: '-0.01em',
-            color: 'var(--ink-faint)',
-          }}
-        >
+        <Reveal delay={0} as="span" style={PLANS_NOTE_STYLE}>
           Every plan is the full product, and we{' '}
           <em
             style={{
@@ -696,20 +750,7 @@ function NoFeeSection() {
           >
             Why we take no cut
           </Reveal>
-          <Reveal
-            delay={100}
-            as="span"
-            style={{
-              display: 'block',
-              margin: '30px 0 0',
-              fontSize: 'clamp(24px, 3.4vw, 42px)',
-              fontWeight: 500,
-              lineHeight: 1.34,
-              letterSpacing: '-0.035em',
-              color: '#eae2d5',
-              textWrap: 'pretty',
-            }}
-          >
+          <Reveal delay={100} as="span" style={NOFEE_HEADING_STYLE}>
             The day you start taking a slice of money you didn&apos;t create, you become a toll
             collector, and toll collectors stop making the product better and start making the toll
             bigger. We would rather spend our years making the thing better, so we charge for
@@ -813,18 +854,7 @@ function CtaSection() {
           height: '500px',
         }}
       />
-      <div
-        style={{
-          width: 'min(880px, calc(100% - 48px))',
-          margin: '0 auto',
-          padding: 'clamp(88px, 12vw, 150px) 0',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          position: 'relative',
-        }}
-      >
+      <div style={CTA_CONTAINER_STYLE}>
         <Reveal delay={0}>
           <h2
             style={{
@@ -841,66 +871,17 @@ function CtaSection() {
             Start free. Grow when you&apos;re ready.
           </h2>
         </Reveal>
-        <Reveal
-          delay={100}
-          as="span"
-          style={{
-            display: 'block',
-            margin: '22px 0 0',
-            maxWidth: '560px',
-            fontSize: '18px',
-            lineHeight: 1.65,
-            letterSpacing: '-0.02em',
-            color: 'var(--ink-muted)',
-            textWrap: 'pretty',
-          }}
-        >
+        <Reveal delay={100} as="span" style={CTA_SUBTITLE_STYLE}>
           Spin it up yourself tonight, or let us host it in minutes. No card, no contract, and you
           can leave with everything whenever you want.
         </Reveal>
         <Reveal delay={200} style={{ marginTop: '36px' }}>
           <div data-stack-m="true" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <Link
-              ref={primaryRef}
-              href="/signup"
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: 'var(--cta)',
-                color: 'var(--cta-text)',
-                fontSize: '17px',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 32px',
-                borderRadius: '9999px',
-                boxShadow: '0 10px 30px var(--sh18)',
-                transition: 'background 200ms',
-              }}
-            >
+            <Link ref={primaryRef} href="/signup" style={CTA_PRIMARY_STYLE}>
               Get started free{' '}
               <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: '17px' }} />
             </Link>
-            <Link
-              ref={secondaryRef}
-              href="/contact-us"
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: 'var(--screen)',
-                color: 'var(--ink-body)',
-                fontSize: '17px',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 32px',
-                borderRadius: '9999px',
-                border: '1px solid var(--hairline)',
-                transition: 'border-color 200ms',
-              }}
-            >
+            <Link ref={secondaryRef} href="/contact-us" style={CTA_SECONDARY_STYLE}>
               Talk to us
             </Link>
           </div>

@@ -42,7 +42,7 @@ describe('PetParents page', () => {
     const appleLink = screen.getByText('App Store').closest('a');
     expect(appleLink).toHaveAttribute('href', 'https://apps.apple.com/app');
     expect(appleLink).toHaveAttribute('target', '_blank');
-    expect(appleLink).toHaveAttribute('rel', 'noopener');
+    expect(appleLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   test('renders the hero video layer and phone mockup content', () => {

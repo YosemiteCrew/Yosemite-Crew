@@ -36,7 +36,7 @@ describe('ContactusPage', () => {
     render(<ContactusPage />);
     const discord = screen.getByText('Join the Discord').closest('a');
     expect(discord).toHaveAttribute('target', '_blank');
-    expect(discord).toHaveAttribute('rel', 'noopener');
+    expect(discord).toHaveAttribute('rel', 'noopener noreferrer');
     expect(discord).toHaveAttribute('href', 'https://discord.gg/yosemitecrew');
   });
 

@@ -57,7 +57,7 @@ describe('DevelopersPage', () => {
     const cloneRepo = screen.getByRole('link', { name: /Clone the repo/i });
     expect(cloneRepo).toHaveAttribute('href', 'https://github.com/YosemiteCrew/Yosemite-Crew');
     expect(cloneRepo).toHaveAttribute('target', '_blank');
-    expect(cloneRepo).toHaveAttribute('rel', 'noopener');
+    expect(cloneRepo).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   it('renders the machine-user dark editorial statement', () => {
@@ -115,7 +115,7 @@ describe('DevelopersPage', () => {
     const starLink = screen.getByRole('link', { name: /Star on GitHub/i });
     expect(starLink).toHaveAttribute('href', 'https://github.com/YosemiteCrew/Yosemite-Crew');
     expect(starLink).toHaveAttribute('target', '_blank');
-    expect(starLink).toHaveAttribute('rel', 'noopener');
+    expect(starLink).toHaveAttribute('rel', 'noopener noreferrer');
 
     const portalLinks = screen.getAllByRole('link', { name: /Developer portal/i });
     expect(portalLinks.length).toBeGreaterThan(0);

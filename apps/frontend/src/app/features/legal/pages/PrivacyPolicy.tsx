@@ -157,7 +157,7 @@ const PrivacyPolicy = () => {
           <a
             href="https://eur-lex.europa.eu/eli/dec_impl/2021/914/oj"
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
           >
             Standard Contractual Clauses
           </a>

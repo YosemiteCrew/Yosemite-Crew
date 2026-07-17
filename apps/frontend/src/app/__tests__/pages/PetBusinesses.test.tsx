@@ -66,7 +66,7 @@ describe('PetBusinesses page', () => {
       'https://github.com/YosemiteCrew/Yosemite-Crew/releases/latest'
     );
     expect(mac).toHaveAttribute('target', '_blank');
-    expect(mac).toHaveAttribute('rel', 'noopener');
+    expect(mac).toHaveAttribute('rel', 'noopener noreferrer');
 
     const win = screen.getByRole('link', { name: 'Download the Windows desktop app' });
     expect(win).toHaveAttribute(
@@ -74,7 +74,7 @@ describe('PetBusinesses page', () => {
       'https://github.com/YosemiteCrew/Yosemite-Crew/releases/latest'
     );
     expect(win).toHaveAttribute('target', '_blank');
-    expect(win).toHaveAttribute('rel', 'noopener');
+    expect(win).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   test('renders the PIMS window mockup content', () => {

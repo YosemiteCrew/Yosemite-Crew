@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { Icon } from '@iconify/react/dist/iconify.js';
 import {
@@ -64,6 +64,31 @@ const DEV_POINTS = [
     text: 'Ship plugins to the marketplace. Reach every clinic.',
   },
 ] as const;
+
+const TERMS_CHECKBOX_STYLE: CSSProperties = {
+  position: 'relative',
+  flex: 'none',
+  width: 20,
+  height: 20,
+  marginTop: 1,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'background 150ms, border-color 150ms',
+};
+
+const VISUALLY_HIDDEN_CHECKBOX_STYLE: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+};
 
 const passwordErrors = (
   password: string,
@@ -398,18 +423,9 @@ const SignUp = ({
             <span
               aria-hidden="true"
               style={{
-                position: 'relative',
-                flex: 'none',
-                width: 20,
-                height: 20,
-                marginTop: 1,
+                ...TERMS_CHECKBOX_STYLE,
                 border: `1.5px solid ${agree ? 'var(--blue)' : 'var(--divider)'}`,
-                borderRadius: 6,
                 background: agree ? 'var(--blue)' : 'var(--field-bg)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'background 150ms, border-color 150ms',
               }}
             >
               {agree ? <IoCheckmark style={{ fontSize: 14, color: '#fff' }} /> : null}
@@ -422,17 +438,7 @@ const SignUp = ({
                 setAgree(e.target.checked);
                 setInputErrors((prev) => ({ ...prev, agree: undefined }));
               }}
-              style={{
-                position: 'absolute',
-                width: 1,
-                height: 1,
-                padding: 0,
-                margin: -1,
-                overflow: 'hidden',
-                clip: 'rect(0 0 0 0)',
-                whiteSpace: 'nowrap',
-                border: 0,
-              }}
+              style={VISUALLY_HIDDEN_CHECKBOX_STYLE}
             />
             <span
               style={{

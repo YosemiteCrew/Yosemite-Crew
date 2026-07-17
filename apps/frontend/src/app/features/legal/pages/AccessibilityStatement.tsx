@@ -33,7 +33,7 @@ const AccessibilityStatement = () => {
       <DocSection id="standard" title="Technical standard">
         <p>
           We target conformance with{' '}
-          <a href="https://www.w3.org/TR/WCAG22/" target="_blank" rel="noopener">
+          <a href="https://www.w3.org/TR/WCAG22/" target="_blank" rel="noopener noreferrer">
             WCAG 2.2 Level AA
           </a>{' '}
           as our product standard, and this statement follows W3C/WAI guidance. Conformance is

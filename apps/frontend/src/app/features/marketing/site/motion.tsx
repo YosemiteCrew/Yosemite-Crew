@@ -13,6 +13,45 @@ import React, {
 const EASE = 'cubic-bezier(0.16,1,0.3,1)';
 const NUMERIC_CHAR = /[\d,]/;
 
+/** Static base for the ambient hero video; objectPosition is applied inline per instance. */
+const HERO_VIDEO_STYLE: CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100vh',
+  objectFit: 'cover',
+  opacity: 0.3,
+  filter: 'blur(1px) saturate(200%) brightness(0.8)',
+  zIndex: 0,
+  pointerEvents: 'none',
+};
+
+/** Warm scrim gradient layered over the hero video. */
+const HERO_SCRIM_STYLE: CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  height: '100vh',
+  zIndex: 1,
+  pointerEvents: 'none',
+  background:
+    'linear-gradient(180deg, rgba(239,232,220,0.66) 0%, rgba(239,232,220,0.54) 40%, rgba(239,232,220,0.22) 64%, rgba(239,232,220,0) 86%)',
+};
+
+/** Static base for the scroll-progress bar; width is applied inline from scroll state. */
+const SCROLL_PROGRESS_STYLE: CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  height: '2px',
+  background: 'linear-gradient(90deg,var(--blue),var(--cyan))',
+  zIndex: 130,
+  transition: 'width 80ms linear',
+  pointerEvents: 'none',
+};
+
 /** True when the user asked the OS to reduce motion. Recomputed on preference change. */
 export function useReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -237,35 +276,11 @@ export function HeroVideo({ src, poster, position = 'center 42%' }: Readonly<Her
         playsInline
         poster={poster}
         onError={() => setFailed(true)}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100vh',
-          objectFit: 'cover',
-          objectPosition: position,
-          opacity: 0.3,
-          filter: 'blur(1px) saturate(200%) brightness(0.8)',
-          zIndex: 0,
-          pointerEvents: 'none',
-        }}
+        style={{ ...HERO_VIDEO_STYLE, objectPosition: position }}
       >
         <source src={src} type="video/mp4" />
       </video>
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '100vh',
-          zIndex: 1,
-          pointerEvents: 'none',
-          background:
-            'linear-gradient(180deg, rgba(239,232,220,0.66) 0%, rgba(239,232,220,0.54) 40%, rgba(239,232,220,0.22) 64%, rgba(239,232,220,0) 86%)',
-        }}
-      />
+      <div style={HERO_SCRIM_STYLE} />
     </div>
   );
 }
@@ -288,22 +303,7 @@ export function ScrollProgress() {
     };
   }, []);
 
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        height: '2px',
-        width: `${pct}%`,
-        background: 'linear-gradient(90deg,var(--blue),var(--cyan))',
-        zIndex: 130,
-        transition: 'width 80ms linear',
-        pointerEvents: 'none',
-      }}
-    />
-  );
+  return <div aria-hidden="true" style={{ ...SCROLL_PROGRESS_STYLE, width: `${pct}%` }} />;
 }
 
 interface CountUpProps {

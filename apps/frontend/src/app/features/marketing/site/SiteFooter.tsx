@@ -82,6 +82,81 @@ const chip: CSSProperties = {
   color: 'var(--ink-6b)',
   background: 'var(--pill-raised)',
 };
+const FOOTER_APPS_STYLE: CSSProperties = {
+  marginTop: 48,
+  paddingTop: 34,
+  borderTop: '1px solid var(--hairline)',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-end',
+  gap: 40,
+  flexWrap: 'wrap',
+};
+const STAR_LINK_STYLE: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 9,
+  padding: '11px 18px',
+  borderRadius: 9999,
+  background: 'var(--cta)',
+  color: 'var(--cta-text)',
+  textDecoration: 'none',
+  fontSize: 14,
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  whiteSpace: 'nowrap',
+};
+const STAR_COUNT_STYLE: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  paddingLeft: 11,
+  marginLeft: 2,
+  borderLeft: '1px solid rgba(239,232,220,0.22)',
+  color: '#e5dccf',
+  fontVariantNumeric: 'tabular-nums',
+};
+const FOOTER_MID_STYLE: CSSProperties = {
+  marginTop: 34,
+  paddingTop: 30,
+  borderTop: '1px solid var(--hairline)',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 24,
+  flexWrap: 'wrap',
+};
+const STATUS_LINK_STYLE: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: '8px 14px 8px 13px',
+  border: '1px solid #cfe9dd',
+  borderRadius: 9999,
+  background: 'var(--pill-raised)',
+  textDecoration: 'none',
+  width: 'fit-content',
+};
+const BACK_TO_TOP_STYLE: CSSProperties = {
+  cursor: 'pointer',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
+  fontSize: 13,
+  letterSpacing: '-0.01em',
+  color: '#837d78',
+  background: 'transparent',
+  border: 'none',
+  whiteSpace: 'nowrap',
+};
+
+const scrollToTop = () => {
+  try {
+    globalThis.window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch {
+    globalThis.window.scrollTo(0, 0);
+  }
+};
 
 const PRODUCT_LINKS = [
   { label: 'Pet Businesses', href: '/pet-businesses' },
@@ -172,7 +247,7 @@ export function SiteFooter() {
               <a
                 href={GITHUB_REPO_URL}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 aria-label="GitHub"
                 className="yc-pill-blue"
                 style={socialLink}
@@ -182,7 +257,7 @@ export function SiteFooter() {
               <a
                 href={DISCORD_INVITE_URL}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 aria-label="Discord"
                 className="yc-pill-blue"
                 style={socialLink}
@@ -192,7 +267,7 @@ export function SiteFooter() {
               <a
                 href={LINKEDIN_URL}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 aria-label="LinkedIn"
                 className="yc-pill-blue"
                 style={socialLink}
@@ -202,7 +277,7 @@ export function SiteFooter() {
               <a
                 href={INSTAGRAM_URL}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 aria-label="Instagram"
                 className="yc-pill-blue"
                 style={socialLink}
@@ -212,7 +287,7 @@ export function SiteFooter() {
               <a
                 href={X_URL}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 aria-label="X"
                 className="yc-pill-blue"
                 style={socialLink}
@@ -230,7 +305,7 @@ export function SiteFooter() {
               <a
                 href={TIKTOK_URL}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 aria-label="TikTok"
                 className="yc-pill-blue"
                 style={socialLink}
@@ -259,7 +334,7 @@ export function SiteFooter() {
                   key={l.href}
                   href={l.href}
                   target="_blank"
-                  rel="noopener"
+                  rel="noopener noreferrer"
                   className="yc-link"
                   style={colLink}
                 >
@@ -286,26 +361,13 @@ export function SiteFooter() {
           </FooterColumn>
         </div>
 
-        <div
-          data-footer-apps="true"
-          data-stack-m="true"
-          style={{
-            marginTop: 48,
-            paddingTop: 34,
-            borderTop: '1px solid var(--hairline)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            gap: 40,
-            flexWrap: 'wrap',
-          }}
-        >
+        <div data-footer-apps="true" data-stack-m="true" style={FOOTER_APPS_STYLE}>
           <div style={{ display: 'flex', gap: 56, flexWrap: 'wrap' }}>
             <AppColumn heading="Clinic desktop app">
               <a
                 href={RELEASES_LATEST_URL}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 className="yc-appbadge"
                 data-appbadge="true"
                 style={appBadge}
@@ -316,7 +378,7 @@ export function SiteFooter() {
               <a
                 href={RELEASES_LATEST_URL}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 className="yc-appbadge"
                 data-appbadge="true"
                 style={appBadge}
@@ -329,7 +391,7 @@ export function SiteFooter() {
               <a
                 href={APP_STORE_URL}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 className="yc-appbadge"
                 data-appbadge="true"
                 style={appBadge}
@@ -340,7 +402,7 @@ export function SiteFooter() {
               <a
                 href={PLAY_STORE_URL}
                 target="_blank"
-                rel="noopener"
+                rel="noopener noreferrer"
                 className="yc-appbadge"
                 data-appbadge="true"
                 style={appBadge}
@@ -353,72 +415,21 @@ export function SiteFooter() {
           <a
             href={GITHUB_REPO_URL}
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             data-star="true"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 9,
-              padding: '11px 18px',
-              borderRadius: 9999,
-              background: 'var(--cta)',
-              color: 'var(--cta-text)',
-              textDecoration: 'none',
-              fontSize: 14,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              whiteSpace: 'nowrap',
-            }}
+            style={STAR_LINK_STYLE}
           >
             <IoLogoGithub style={{ fontSize: 16 }} />
             Star on GitHub
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                paddingLeft: 11,
-                marginLeft: 2,
-                borderLeft: '1px solid rgba(239,232,220,0.22)',
-                color: '#e5dccf',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
+            <span style={STAR_COUNT_STYLE}>
               <IoStar style={{ fontSize: 11.5, color: '#f5c518' }} />
               {stars ?? '★'}
             </span>
           </a>
         </div>
 
-        <div
-          data-footer-mid="true"
-          data-stack-m="true"
-          style={{
-            marginTop: 34,
-            paddingTop: 30,
-            borderTop: '1px solid var(--hairline)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 24,
-            flexWrap: 'wrap',
-          }}
-        >
-          <Link
-            href="/trust-center"
-            className="yc-pill-green"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '8px 14px 8px 13px',
-              border: '1px solid #cfe9dd',
-              borderRadius: 9999,
-              background: 'var(--pill-raised)',
-              textDecoration: 'none',
-              width: 'fit-content',
-            }}
-          >
+        <div data-footer-mid="true" data-stack-m="true" style={FOOTER_MID_STYLE}>
+          <Link href="/trust-center" className="yc-pill-green" style={STATUS_LINK_STYLE}>
             <span
               style={{
                 width: 9,
@@ -528,31 +539,8 @@ function AppColumn({
 }
 
 function BackToTop() {
-  const toTop = () => {
-    try {
-      globalThis.window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      globalThis.window.scrollTo(0, 0);
-    }
-  };
   return (
-    <button
-      type="button"
-      onClick={toTop}
-      className="yc-link"
-      style={{
-        cursor: 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 7,
-        fontSize: 13,
-        letterSpacing: '-0.01em',
-        color: '#837d78',
-        background: 'transparent',
-        border: 'none',
-        whiteSpace: 'nowrap',
-      }}
-    >
+    <button type="button" onClick={scrollToTop} className="yc-link" style={BACK_TO_TOP_STYLE}>
       Back to top <IoArrowUp style={{ fontSize: 13 }} />
     </button>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -38,6 +38,290 @@ import {
 } from '@/app/features/marketing/site';
 
 const SERIF = 'var(--font-newsreader)';
+
+/* Static inline-style objects hoisted to module scope (no rendered-output change). */
+
+const MARKETING_LINK_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  textDecoration: 'none',
+  color: 'var(--blue-text)',
+  fontSize: 17,
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+};
+
+const HERO_GLASS_CARD_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  padding: '14px 18px',
+  borderRadius: 20,
+  background: 'var(--glass-93)',
+  backdropFilter: 'blur(40px) saturate(200%)',
+  WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+  border: '1px solid var(--hairline-soft)',
+  boxShadow: '0 12px 40px var(--sh08)',
+};
+
+const HERO_GLASS_CARD_WIDE_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: 12,
+  padding: '16px 18px',
+  borderRadius: 20,
+  maxWidth: 260,
+  background: 'var(--glass-93)',
+  backdropFilter: 'blur(40px) saturate(200%)',
+  WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+  border: '1px solid var(--hairline-soft)',
+  boxShadow: '0 12px 40px var(--sh08)',
+};
+
+const HERO_STAT_CARD_STYLE: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 14,
+  padding: '14px 18px',
+  borderRadius: 20,
+  background: 'var(--glass-93)',
+  backdropFilter: 'blur(40px) saturate(200%)',
+  WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+  border: '1px solid var(--hairline-soft)',
+  boxShadow: '0 12px 40px var(--sh08)',
+};
+
+const HERO_MESSAGE_AVATAR_STYLE: CSSProperties = {
+  flex: 'none',
+  width: 32,
+  height: 32,
+  borderRadius: 9999,
+  background: 'var(--blue-soft)',
+  color: 'var(--blue)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 12,
+  fontWeight: 700,
+};
+
+const HERO_EXPORT_ICON_STYLE: CSSProperties = {
+  flex: 'none',
+  width: 32,
+  height: 32,
+  borderRadius: 12,
+  background: 'var(--inset)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'var(--ink-body)',
+};
+
+const HERO_SECTION_STYLE: CSSProperties = {
+  position: 'relative',
+  minHeight: '100svh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  overflow: 'hidden',
+  background: 'linear-gradient(180deg, var(--page) 0%, var(--page) 55%, var(--inset) 100%)',
+  padding: '140px 24px 100px',
+};
+
+const HERO_HEADING_STYLE: CSSProperties = {
+  fontFamily: SERIF,
+  margin: '28px 0 0',
+  fontSize: 'clamp(52px, 8.4vw, 104px)',
+  fontWeight: 500,
+  lineHeight: 1.02,
+  letterSpacing: '-0.06em',
+  color: 'var(--ink)',
+  textWrap: 'balance',
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'center',
+  columnGap: '0.24em',
+};
+
+const HERO_SUBTITLE_STYLE: CSSProperties = {
+  margin: '28px 0 0',
+  maxWidth: 660,
+  fontSize: 'clamp(17px, 2vw, 21px)',
+  fontWeight: 400,
+  lineHeight: 1.6,
+  letterSpacing: '-0.025em',
+  color: 'var(--ink-soft)',
+  textShadow: '0 1px 16px var(--hero-halo1), 0 1px 3px var(--hero-halo2)',
+  opacity: 0,
+  animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.3s both',
+  textWrap: 'pretty',
+};
+
+const CTA_PRIMARY_BUTTON_STYLE: CSSProperties = {
+  textDecoration: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  background: 'var(--cta)',
+  color: 'var(--cta-text)',
+  fontSize: 17,
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '16px 32px',
+  borderRadius: 9999,
+  boxShadow: '0 10px 30px var(--sh18)',
+};
+
+const HERO_GITHUB_BUTTON_STYLE: CSSProperties = {
+  textDecoration: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  background: 'var(--glass-92)',
+  color: 'var(--ink-body)',
+  fontSize: 17,
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '16px 32px',
+  borderRadius: 9999,
+  border: '1px solid var(--hairline)',
+};
+
+const HERO_AVATAR_BADGE_STYLE: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 40,
+  height: 40,
+  borderRadius: 9999,
+  boxShadow: '0 0 0 2px var(--page)',
+  background: 'var(--cta)',
+  color: 'var(--inset)',
+  fontSize: 12.5,
+  fontWeight: 700,
+  letterSpacing: '-0.02em',
+  marginLeft: -12,
+};
+
+const MANIFESTO_STATEMENT_STYLE: CSSProperties = {
+  display: 'block',
+  margin: '32px 0 0',
+  fontSize: 'clamp(26px, 3.6vw, 44px)',
+  fontWeight: 500,
+  lineHeight: 1.35,
+  letterSpacing: '-0.035em',
+  color: '#eae2d5',
+  textWrap: 'pretty',
+};
+
+const SCHEDULE_ROW_AVATAR_STYLE: CSSProperties = {
+  flex: 'none',
+  width: 34,
+  height: 34,
+  borderRadius: 9999,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 12,
+  fontWeight: 700,
+};
+
+const RECORD_ROW_ICON_STYLE: CSSProperties = {
+  flex: 'none',
+  width: 30,
+  height: 30,
+  borderRadius: 10,
+  background: 'var(--inset)',
+  color: 'var(--ink-body)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const COMPANION_TILE_STYLE: CSSProperties = {
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 6,
+  padding: '12px 8px',
+  background: 'var(--screen)',
+  borderRadius: 18,
+};
+
+const COMPANION_TILE_AVATAR_STYLE: CSSProperties = {
+  width: 40,
+  height: 40,
+  borderRadius: 9999,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 14,
+  fontWeight: 700,
+};
+
+const PHONE_ADD_BUTTON_STYLE: CSSProperties = {
+  width: 30,
+  height: 30,
+  borderRadius: 9999,
+  background: 'var(--screen)',
+  border: '1px solid var(--hairline)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'var(--ink-body)',
+};
+
+const PHONE_CALENDAR_ICON_STYLE: CSSProperties = {
+  flex: 'none',
+  width: 38,
+  height: 38,
+  borderRadius: 14,
+  background: 'var(--blue-soft)',
+  color: 'var(--blue)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const DEV_PLUGIN_ICON_STYLE: CSSProperties = {
+  flex: 'none',
+  width: 34,
+  height: 34,
+  borderRadius: 12,
+  background: '#454341',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#eae2d5',
+};
+
+const CTA_SUBTITLE_STYLE: CSSProperties = {
+  display: 'block',
+  margin: '24px 0 0',
+  maxWidth: 600,
+  fontSize: 18,
+  lineHeight: 1.65,
+  letterSpacing: '-0.02em',
+  color: 'var(--ink-muted)',
+  textWrap: 'pretty',
+};
+
+const CTA_SECONDARY_BUTTON_STYLE: CSSProperties = {
+  textDecoration: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  background: 'var(--screen)',
+  color: 'var(--ink-body)',
+  fontSize: 17,
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '16px 32px',
+  borderRadius: 9999,
+  border: '1px solid var(--hairline)',
+};
 
 /* ─────────────────────────── SHARED ─────────────────────────── */
 
@@ -118,21 +402,7 @@ function PillarCopy({ eyebrow, eyebrowAs, heading, body, linkHref, linkText }: P
       >
         {body}
       </p>
-      <Link
-        href={linkHref}
-        className="yc-link"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          textDecoration: 'none',
-          color: 'var(--blue-text)',
-          fontSize: 17,
-          fontWeight: 500,
-          letterSpacing: '-0.02em',
-          marginTop: 8,
-        }}
-      >
+      <Link href={linkHref} className="yc-link" style={{ ...MARKETING_LINK_STYLE, marginTop: 8 }}>
         {linkText} <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
       </Link>
     </Reveal>
@@ -153,20 +423,7 @@ function HeroFloatingCards() {
           zIndex: 2,
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '14px 18px',
-            borderRadius: 20,
-            background: 'var(--glass-93)',
-            backdropFilter: 'blur(40px) saturate(200%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-            border: '1px solid var(--hairline-soft)',
-            boxShadow: '0 12px 40px var(--sh08)',
-          }}
-        >
+        <div style={HERO_GLASS_CARD_STYLE}>
           <span
             style={{
               width: 10,
@@ -203,38 +460,8 @@ function HeroFloatingCards() {
           zIndex: 2,
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 12,
-            padding: '16px 18px',
-            borderRadius: 20,
-            maxWidth: 260,
-            background: 'var(--glass-93)',
-            backdropFilter: 'blur(40px) saturate(200%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-            border: '1px solid var(--hairline-soft)',
-            boxShadow: '0 12px 40px var(--sh08)',
-          }}
-        >
-          <span
-            style={{
-              flex: 'none',
-              width: 32,
-              height: 32,
-              borderRadius: 9999,
-              background: 'var(--blue-soft)',
-              color: 'var(--blue)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 12,
-              fontWeight: 700,
-            }}
-          >
-            SW
-          </span>
+        <div style={HERO_GLASS_CARD_WIDE_STYLE}>
+          <span style={HERO_MESSAGE_AVATAR_STYLE}>SW</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <span
               style={{
@@ -269,33 +496,8 @@ function HeroFloatingCards() {
           zIndex: 2,
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '14px 18px',
-            borderRadius: 20,
-            background: 'var(--glass-93)',
-            backdropFilter: 'blur(40px) saturate(200%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-            border: '1px solid var(--hairline-soft)',
-            boxShadow: '0 12px 40px var(--sh08)',
-          }}
-        >
-          <span
-            style={{
-              flex: 'none',
-              width: 32,
-              height: 32,
-              borderRadius: 12,
-              background: 'var(--inset)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--ink-body)',
-            }}
-          >
+        <div style={HERO_GLASS_CARD_STYLE}>
+          <span style={HERO_EXPORT_ICON_STYLE}>
             <IoDownloadOutline style={{ fontSize: 16 }} aria-hidden="true" />
           </span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -325,20 +527,7 @@ function HeroFloatingCards() {
           zIndex: 2,
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            padding: '14px 18px',
-            borderRadius: 20,
-            background: 'var(--glass-93)',
-            backdropFilter: 'blur(40px) saturate(200%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-            border: '1px solid var(--hairline-soft)',
-            boxShadow: '0 12px 40px var(--sh08)',
-          }}
-        >
+        <div style={HERO_STAT_CARD_STYLE}>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 26 }}>
             <span style={{ width: 4, height: '40%', background: '#99bdec', borderRadius: 2 }} />
             <span style={{ width: 4, height: '65%', background: '#6aa1eb', borderRadius: 2 }} />
@@ -372,21 +561,7 @@ function Hero() {
   const starRef = useMagnet<HTMLAnchorElement>();
 
   return (
-    <section
-      ref={parallaxRef}
-      id="top"
-      data-hero
-      style={{
-        position: 'relative',
-        minHeight: '100svh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        background: 'linear-gradient(180deg, var(--page) 0%, var(--page) 55%, var(--inset) 100%)',
-        padding: '140px 24px 100px',
-      }}
-    >
+    <section ref={parallaxRef} id="top" data-hero style={HERO_SECTION_STYLE}>
       <HeroVideo src={HERO_VIDEOS.home} poster={HERO_POSTERS.home} position="center 50%" />
 
       {/* ambient glows — each on a parallax-depth layer so it drifts toward the cursor */}
@@ -435,27 +610,12 @@ function Hero() {
           <ReleasePill variant="latest" version="v2.0 beta" />
         </span>
 
-        <h1
-          style={{
-            fontFamily: SERIF,
-            margin: '28px 0 0',
-            fontSize: 'clamp(52px, 8.4vw, 104px)',
-            fontWeight: 500,
-            lineHeight: 1.02,
-            letterSpacing: '-0.06em',
-            color: 'var(--ink)',
-            textWrap: 'balance',
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            columnGap: '0.24em',
-          }}
-        >
+        <h1 style={HERO_HEADING_STYLE}>
           <span
             style={{
               display: 'inline-block',
               opacity: 0,
-              animation: 'ycWord 1.15s cubic-bezier(0.16,1,0.3,1) 0.1s both',
+              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.1s both',
             }}
           >
             See
@@ -464,7 +624,7 @@ function Hero() {
             style={{
               display: 'inline-block',
               opacity: 0,
-              animation: 'ycWord 1.15s cubic-bezier(0.16,1,0.3,1) 0.24s both',
+              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.24s both',
             }}
           >
             the
@@ -476,7 +636,7 @@ function Hero() {
               fontWeight: 480,
               color: 'var(--blue-text)',
               opacity: 0,
-              animation: 'ycWord 1.15s cubic-bezier(0.16,1,0.3,1) 0.38s both',
+              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.38s both',
             }}
           >
             <InkAnnotate type="circle" delay={1300}>
@@ -487,28 +647,14 @@ function Hero() {
             style={{
               display: 'inline-block',
               opacity: 0,
-              animation: 'ycWord 1.15s cubic-bezier(0.16,1,0.3,1) 0.52s both',
+              animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.52s both',
             }}
           >
             animal.
           </span>
         </h1>
 
-        <p
-          style={{
-            margin: '28px 0 0',
-            maxWidth: 660,
-            fontSize: 'clamp(17px, 2vw, 21px)',
-            fontWeight: 400,
-            lineHeight: 1.6,
-            letterSpacing: '-0.025em',
-            color: 'var(--ink-soft)',
-            textShadow: '0 1px 16px var(--hero-halo1), 0 1px 3px var(--hero-halo2)',
-            opacity: 0,
-            animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.3s both',
-            textWrap: 'pretty',
-          }}
-        >
+        <p style={HERO_SUBTITLE_STYLE}>
           Most animals are cared for in slices, a vet here, a lab there, a note nobody opens.
           Yosemite Crew is the open-source operating system for animal health that puts the whole
           story on one screen: for the clinic, the pet parent, and whoever cares for them next.
@@ -525,46 +671,16 @@ function Hero() {
             animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.45s both',
           }}
         >
-          <Link
-            href="/signup"
-            ref={primaryRef}
-            style={{
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              background: 'var(--cta)',
-              color: 'var(--cta-text)',
-              fontSize: 17,
-              fontWeight: 500,
-              letterSpacing: '-0.02em',
-              padding: '16px 32px',
-              borderRadius: 9999,
-              boxShadow: '0 10px 30px var(--sh18)',
-            }}
-          >
+          <Link href="/signup" ref={primaryRef} style={CTA_PRIMARY_BUTTON_STYLE}>
             Get started free <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
           </Link>
           <a
             href={GITHUB_REPO_URL}
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             ref={starRef}
             data-star
-            style={{
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              background: 'var(--glass-92)',
-              color: 'var(--ink-body)',
-              fontSize: 17,
-              fontWeight: 500,
-              letterSpacing: '-0.02em',
-              padding: '16px 32px',
-              borderRadius: 9999,
-              border: '1px solid var(--hairline)',
-            }}
+            style={HERO_GITHUB_BUTTON_STYLE}
           >
             <IoLogoGithub style={{ fontSize: 18 }} aria-hidden="true" /> Star on GitHub
           </a>
@@ -605,25 +721,7 @@ function Hero() {
                 />
               </span>
             ))}
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 40,
-                height: 40,
-                borderRadius: 9999,
-                boxShadow: '0 0 0 2px var(--page)',
-                background: 'var(--cta)',
-                color: 'var(--inset)',
-                fontSize: 12.5,
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                marginLeft: -12,
-              }}
-            >
-              +9k
-            </span>
+            <span style={HERO_AVATAR_BADGE_STYLE}>+9k</span>
           </div>
           <div style={{ textAlign: 'left' }}>
             <div
@@ -803,20 +901,7 @@ function Manifesto() {
           >
             Why we build
           </Reveal>
-          <Reveal
-            delay={100}
-            as="span"
-            style={{
-              display: 'block',
-              margin: '32px 0 0',
-              fontSize: 'clamp(26px, 3.6vw, 44px)',
-              fontWeight: 500,
-              lineHeight: 1.35,
-              letterSpacing: '-0.035em',
-              color: '#eae2d5',
-              textWrap: 'pretty',
-            }}
-          >
+          <Reveal delay={100} as="span" style={MANIFESTO_STATEMENT_STYLE}>
             Most software is built for the demo, with strong wifi, nothing on fire, everything
             gliding. A clinic lives on the worst afternoon: the outage, the crash, the connection
             that drops at exactly the wrong second.{' '}
@@ -888,21 +973,7 @@ function ScheduleRow({
       <span style={{ fontSize: 13, color: 'var(--ink-faint)', width: 40, flex: 'none' }}>
         {time}
       </span>
-      <span
-        style={{
-          flex: 'none',
-          width: 34,
-          height: 34,
-          borderRadius: 9999,
-          background: avatarBg,
-          color: avatarColor,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 12,
-          fontWeight: 700,
-        }}
-      >
+      <span style={{ ...SCHEDULE_ROW_AVATAR_STYLE, background: avatarBg, color: avatarColor }}>
         {initial}
       </span>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: 1 }}>
@@ -931,7 +1002,7 @@ function ScheduleRow({
       <span
         style={{
           flex: 'none',
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: 700,
           letterSpacing: '0.04em',
           padding: '5px 9px',
@@ -1113,23 +1184,9 @@ type RecordRowProps = Readonly<{
 function RecordRow({ icon, text, meta }: RecordRowProps) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span
-        style={{
-          flex: 'none',
-          width: 30,
-          height: 30,
-          borderRadius: 10,
-          background: 'var(--inset)',
-          color: 'var(--ink-body)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {icon}
-      </span>
+      <span style={RECORD_ROW_ICON_STYLE}>{icon}</span>
       <span style={{ fontSize: 12.5, color: 'var(--ink-muted)', flex: 1 }}>{text}</span>
-      <span style={{ fontSize: 11, color: 'var(--ink-faint2)' }}>{meta}</span>
+      <span style={{ fontSize: 12, color: 'var(--ink-faint2)' }}>{meta}</span>
     </div>
   );
 }
@@ -1146,31 +1203,11 @@ function CompanionTile({ initial, name, avatarBg, avatarColor, active }: Compani
   return (
     <div
       style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 6,
-        padding: '12px 8px',
-        background: 'var(--screen)',
+        ...COMPANION_TILE_STYLE,
         border: active ? '1.5px solid var(--blue)' : '1px solid var(--hairline)',
-        borderRadius: 18,
       }}
     >
-      <span
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 9999,
-          background: avatarBg,
-          color: avatarColor,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 14,
-          fontWeight: 700,
-        }}
-      >
+      <span style={{ ...COMPANION_TILE_AVATAR_STYLE, background: avatarBg, color: avatarColor }}>
         {initial}
       </span>
       <span
@@ -1229,19 +1266,7 @@ function PhoneMockup() {
             >
               Your companions
             </span>
-            <span
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 9999,
-                background: 'var(--screen)',
-                border: '1px solid var(--hairline)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--ink-body)',
-              }}
-            >
+            <span style={PHONE_ADD_BUTTON_STYLE}>
               <IoAddOutline style={{ fontSize: 16 }} aria-hidden="true" />
             </span>
           </div>
@@ -1298,7 +1323,7 @@ function PhoneMockup() {
               </span>
               <span
                 style={{
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: 700,
                   letterSpacing: '0.04em',
                   padding: '4px 8px',
@@ -1311,19 +1336,7 @@ function PhoneMockup() {
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span
-                style={{
-                  flex: 'none',
-                  width: 38,
-                  height: 38,
-                  borderRadius: 14,
-                  background: 'var(--blue-soft)',
-                  color: 'var(--blue)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
+              <span style={PHONE_CALENDAR_ICON_STYLE}>
                 <IoCalendarOutline style={{ fontSize: 18 }} aria-hidden="true" />
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -1503,7 +1516,7 @@ function DevelopersPillar() {
                 GET /fhir/Patient/bella
               </span>
               <span
-                style={{ fontSize: 11, fontWeight: 700, color: '#33a57d', letterSpacing: '0.06em' }}
+                style={{ fontSize: 12, fontWeight: 700, color: '#33a57d', letterSpacing: '0.06em' }}
               >
                 200 OK
               </span>
@@ -1574,19 +1587,7 @@ function DevelopersPillar() {
                 borderRadius: 16,
               }}
             >
-              <span
-                style={{
-                  flex: 'none',
-                  width: 34,
-                  height: 34,
-                  borderRadius: 12,
-                  background: '#454341',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#eae2d5',
-                }}
-              >
+              <span style={DEV_PLUGIN_ICON_STYLE}>
                 <IoExtensionPuzzleOutline style={{ fontSize: 17 }} aria-hidden="true" />
               </span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
@@ -1791,18 +1792,9 @@ function Principles() {
           <a
             href={GITHUB_REPO_URL}
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             className="yc-link"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              textDecoration: 'none',
-              color: 'var(--blue-text)',
-              fontSize: 17,
-              fontWeight: 500,
-              letterSpacing: '-0.02em',
-            }}
+            style={MARKETING_LINK_STYLE}
           >
             Read it on GitHub <IoArrowForwardOutline style={{ fontSize: 16 }} aria-hidden="true" />
           </a>
@@ -1902,19 +1894,9 @@ function BuildingInPublic() {
           <a
             href="https://www.yosemitecrew.com/insights"
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             className="yc-link"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              textDecoration: 'none',
-              color: 'var(--blue-text)',
-              fontSize: 17,
-              fontWeight: 500,
-              letterSpacing: '-0.02em',
-              paddingBottom: 6,
-            }}
+            style={{ ...MARKETING_LINK_STYLE, paddingBottom: 6 }}
           >
             See all insights <IoArrowForwardOutline style={{ fontSize: 16 }} aria-hidden="true" />
           </a>
@@ -1997,20 +1979,7 @@ function FinalCta() {
             Start tonight. Leave whenever.
           </h2>
         </Reveal>
-        <Reveal
-          delay={100}
-          as="span"
-          style={{
-            display: 'block',
-            margin: '24px 0 0',
-            maxWidth: 600,
-            fontSize: 18,
-            lineHeight: 1.65,
-            letterSpacing: '-0.02em',
-            color: 'var(--ink-muted)',
-            textWrap: 'pretty',
-          }}
-        >
+        <Reveal delay={100} as="span" style={CTA_SUBTITLE_STYLE}>
           Self-host free forever, or let us run it pay-as-you-go. No contracts, no hidden fees, and
           under AGPL-3.0 you own the software.
         </Reveal>
@@ -2019,44 +1988,10 @@ function FinalCta() {
             data-stack-m="true"
             style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 40 }}
           >
-            <Link
-              href="/signup"
-              ref={primaryRef}
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background: 'var(--cta)',
-                color: 'var(--cta-text)',
-                fontSize: 17,
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 32px',
-                borderRadius: 9999,
-                boxShadow: '0 10px 30px var(--sh18)',
-              }}
-            >
+            <Link href="/signup" ref={primaryRef} style={CTA_PRIMARY_BUTTON_STYLE}>
               Get started free <IoArrowForwardOutline style={{ fontSize: 17 }} aria-hidden="true" />
             </Link>
-            <Link
-              href="/contact-us"
-              ref={talkRef}
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                background: 'var(--screen)',
-                color: 'var(--ink-body)',
-                fontSize: 17,
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 32px',
-                borderRadius: 9999,
-                border: '1px solid var(--hairline)',
-              }}
-            >
+            <Link href="/contact-us" ref={talkRef} style={CTA_SECONDARY_BUTTON_STYLE}>
               Talk to us
             </Link>
           </div>

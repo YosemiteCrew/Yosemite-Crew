@@ -83,7 +83,7 @@ describe('TrustCenter', () => {
     const statusLink = screen.getByRole('link', { name: 'our status page' });
     expect(statusLink).toHaveAttribute('href', 'https://yosemite-crew.openstatus.dev/');
     expect(statusLink).toHaveAttribute('target', '_blank');
-    expect(statusLink).toHaveAttribute('rel', 'noopener');
+    expect(statusLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   it('has no axe accessibility violations', async () => {

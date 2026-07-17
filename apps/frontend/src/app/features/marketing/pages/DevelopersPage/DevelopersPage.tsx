@@ -33,6 +33,245 @@ import {
 const NEWSREADER = 'var(--font-newsreader)';
 const MONO = "ui-monospace, 'SF Mono', Menlo, monospace";
 
+const FHIR_RESOURCES = [
+  'Patient',
+  'Encounter',
+  'Observation',
+  'MedicationRequest',
+  'DiagnosticReport',
+  'Immunization',
+];
+
+const HERO_GRID_STYLE: React.CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: 'min(1200px, 100%)',
+  margin: '0 auto',
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 'clamp(36px, 5vw, 72px)',
+  alignItems: 'center',
+};
+
+const HERO_BADGE_STYLE: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '8px 16px',
+  borderRadius: '9999px',
+  border: '1px solid var(--hairline)',
+  background: 'var(--glass-95)',
+  backdropFilter: 'blur(40px)',
+  fontSize: '13px',
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  color: 'var(--ink-muted)',
+  opacity: 0,
+  animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
+};
+
+const HERO_HEADLINE_STYLE: React.CSSProperties = {
+  margin: '24px 0 0',
+  fontFamily: NEWSREADER,
+  fontSize: 'clamp(40px, 5vw, 76px)',
+  fontWeight: 500,
+  lineHeight: 1.04,
+  letterSpacing: '-0.06em',
+  color: 'var(--ink)',
+  textWrap: 'balance',
+  display: 'flex',
+  flexWrap: 'wrap',
+  columnGap: '0.24em',
+};
+
+const HERO_SUBHEAD_STYLE: React.CSSProperties = {
+  margin: '24px 0 0',
+  maxWidth: '520px',
+  fontSize: 'clamp(17px, 2vw, 20px)',
+  lineHeight: 1.6,
+  letterSpacing: '-0.025em',
+  color: 'var(--ink-muted)',
+  opacity: 0,
+  animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.5s both',
+  textWrap: 'pretty',
+};
+
+const HERO_PRIMARY_CTA_STYLE: React.CSSProperties = {
+  textDecoration: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  background: 'var(--cta)',
+  color: 'var(--cta-text)',
+  fontSize: '17px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '16px 30px',
+  borderRadius: '9999px',
+  boxShadow: '0 10px 30px var(--sh18)',
+};
+
+const HERO_GHOST_CTA_STYLE: React.CSSProperties = {
+  textDecoration: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  background: 'var(--glass-95)',
+  color: 'var(--ink-body)',
+  fontSize: '17px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '16px 30px',
+  borderRadius: '9999px',
+  border: '1px solid var(--hairline)',
+};
+
+const HERO_FLOATING_BADGE_STYLE: React.CSSProperties = {
+  position: 'absolute',
+  bottom: '-22px',
+  left: '-30px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  padding: '11px 15px',
+  borderRadius: '16px',
+  background: 'var(--glass-95)',
+  backdropFilter: 'blur(40px)',
+  border: '1px solid var(--glass-95)',
+  boxShadow: '0 16px 44px var(--sh12)',
+  animation: 'ycFloatB 8s ease-in-out infinite',
+};
+
+const HERO_FLOATING_BADGE_ICON_STYLE: React.CSSProperties = {
+  width: '30px',
+  height: '30px',
+  borderRadius: '10px',
+  background: 'var(--blue-soft)',
+  color: 'var(--blue)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const PLUGIN_ROW_STYLE: React.CSSProperties = {
+  background: 'var(--screen)',
+  border: '1px solid var(--hairline)',
+  borderRadius: '18px',
+  padding: '16px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '14px',
+  boxShadow: '0 8px 24px var(--sh06)',
+};
+
+const MARKETPLACE_PLACEHOLDER_ICON_STYLE: React.CSSProperties = {
+  flex: 'none',
+  width: '44px',
+  height: '44px',
+  borderRadius: '13px',
+  background: 'var(--inset)',
+  color: 'var(--ink-faint)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const MARKETPLACE_PORTAL_LINK_STYLE: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  textDecoration: 'none',
+  color: 'var(--blue-text)',
+  fontSize: '17px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  marginTop: '4px',
+};
+
+const ECONOMICS_HEADLINE_STYLE: React.CSSProperties = {
+  margin: '20px 0 0',
+  maxWidth: '20ch',
+  fontFamily: NEWSREADER,
+  fontSize: 'clamp(30px, 4vw, 56px)',
+  fontWeight: 500,
+  lineHeight: 1.06,
+  letterSpacing: '-0.05em',
+  color: '#eae2d5',
+  textWrap: 'balance',
+};
+
+const ECON_BAR_LABEL_MUTED_STYLE: React.CSSProperties = {
+  position: 'absolute',
+  right: '14px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  fontSize: '12px',
+  fontWeight: 700,
+  letterSpacing: '0.01em',
+  color: '#a9a39e',
+};
+
+const ECON_BAR_LABEL_LIGHT_STYLE: React.CSSProperties = {
+  position: 'absolute',
+  right: '14px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  fontSize: '12px',
+  fontWeight: 700,
+  letterSpacing: '0.01em',
+  color: '#ffffff',
+};
+
+const PROOF_CARD_ICON_STYLE: React.CSSProperties = {
+  width: '40px',
+  height: '40px',
+  borderRadius: '12px',
+  background: 'var(--inset)',
+  color: 'var(--ink-body)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: '14px',
+};
+
+const CLOSING_GLOW_STYLE: React.CSSProperties = {
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%,-50%)',
+  width: '900px',
+  height: '500px',
+  background: 'radial-gradient(closest-side, var(--glow-b14), transparent 70%)',
+  pointerEvents: 'none',
+};
+
+const CLOSING_INNER_STYLE: React.CSSProperties = {
+  width: 'min(880px, calc(100% - 48px))',
+  margin: '0 auto',
+  padding: 'clamp(88px, 12vw, 150px) 0',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  textAlign: 'center',
+  position: 'relative',
+};
+
+const CLOSING_PORTAL_LINK_STYLE: React.CSSProperties = {
+  textDecoration: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  background: 'transparent',
+  color: '#eae2d5',
+  fontSize: '17px',
+  fontWeight: 500,
+  letterSpacing: '-0.02em',
+  padding: '16px 32px',
+  borderRadius: '9999px',
+  border: '1px solid #454341',
+  transition: 'border-color 200ms, background 200ms',
+};
+
 /** Hero: headline with cyan em-word, terminal + FHIR response mock. */
 function Hero() {
   const primaryRef = useMagnet<HTMLAnchorElement>();
@@ -65,38 +304,9 @@ function Hero() {
         box={{ bottom: '-220px', right: '-140px', width: '720px', height: '540px' }}
         animation="ycDrift 38s ease-in-out 3s infinite alternate-reverse"
       />
-      <div
-        data-grid-1-m="true"
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          width: 'min(1200px, 100%)',
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 'clamp(36px, 5vw, 72px)',
-          alignItems: 'center',
-        }}
-      >
+      <div data-grid-1-m="true" style={HERO_GRID_STYLE}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '9999px',
-              border: '1px solid var(--hairline)',
-              background: 'var(--glass-95)',
-              backdropFilter: 'blur(40px)',
-              fontSize: '13px',
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              color: 'var(--ink-muted)',
-              opacity: 0,
-              animation: 'ycHeroUp 0.9s cubic-bezier(0.16,1,0.3,1) 0.05s both',
-            }}
-          >
+          <div style={HERO_BADGE_STYLE}>
             <span
               style={{
                 width: '7px',
@@ -116,26 +326,12 @@ function Hero() {
             />
             <span style={{ color: 'var(--ink)', fontWeight: 600 }}>Coming soon</span>
           </div>
-          <h1
-            style={{
-              margin: '24px 0 0',
-              fontFamily: NEWSREADER,
-              fontSize: 'clamp(40px, 5vw, 76px)',
-              fontWeight: 500,
-              lineHeight: 1.04,
-              letterSpacing: '-0.06em',
-              color: 'var(--ink)',
-              textWrap: 'balance',
-              display: 'flex',
-              flexWrap: 'wrap',
-              columnGap: '0.24em',
-            }}
-          >
+          <h1 style={HERO_HEADLINE_STYLE}>
             <span
               style={{
                 display: 'inline-block',
                 opacity: 0,
-                animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.1s both',
+                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.1s both',
               }}
             >
               From
@@ -144,7 +340,7 @@ function Hero() {
               style={{
                 display: 'inline-block',
                 opacity: 0,
-                animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.22s both',
+                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.22s both',
               }}
             >
               idea
@@ -153,7 +349,7 @@ function Hero() {
               style={{
                 display: 'inline-block',
                 opacity: 0,
-                animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.34s both',
+                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.34s both',
               }}
             >
               to
@@ -162,7 +358,7 @@ function Hero() {
               style={{
                 display: 'inline-block',
                 opacity: 0,
-                animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.46s both',
+                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.46s both',
               }}
             >
               the
@@ -171,7 +367,7 @@ function Hero() {
               style={{
                 display: 'inline-block',
                 opacity: 0,
-                animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.58s both',
+                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.58s both',
               }}
             >
               clinic,
@@ -183,7 +379,7 @@ function Hero() {
                 fontWeight: 480,
                 color: 'var(--cyan-text)',
                 opacity: 0,
-                animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.7s both',
+                animation: 'ycWord 0.95s cubic-bezier(0.16,1,0.3,1) 0.7s both',
               }}
             >
               <InkAnnotate type="underline" delay={1600}>
@@ -191,19 +387,7 @@ function Hero() {
               </InkAnnotate>
             </em>
           </h1>
-          <p
-            style={{
-              margin: '24px 0 0',
-              maxWidth: '520px',
-              fontSize: 'clamp(17px, 2vw, 20px)',
-              lineHeight: 1.6,
-              letterSpacing: '-0.025em',
-              color: 'var(--ink-muted)',
-              opacity: 0,
-              animation: 'ycHeroUp 1s cubic-bezier(0.16,1,0.3,1) 0.5s both',
-              textWrap: 'pretty',
-            }}
-          >
+          <p style={HERO_SUBHEAD_STYLE}>
             A FHIR-native API, a plugin marketplace, and a codebase you can actually read. Build an
             AI scribe, a triage agent or a smarter reminder, and put it in front of working clinics
             without a committee to die in.
@@ -223,20 +407,7 @@ function Hero() {
               ref={primaryRef}
               href="/developers/signup"
               className="yc-btn-primary"
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: 'var(--cta)',
-                color: 'var(--cta-text)',
-                fontSize: '17px',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 30px',
-                borderRadius: '9999px',
-                boxShadow: '0 10px 30px var(--sh18)',
-              }}
+              style={HERO_PRIMARY_CTA_STYLE}
             >
               Read the docs{' '}
               <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: '17px' }} />
@@ -245,21 +416,8 @@ function Hero() {
               ref={ghostRef}
               href={GITHUB_REPO_URL}
               target="_blank"
-              rel="noopener"
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: 'var(--glass-95)',
-                color: 'var(--ink-body)',
-                fontSize: '17px',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 30px',
-                borderRadius: '9999px',
-                border: '1px solid var(--hairline)',
-              }}
+              rel="noopener noreferrer"
+              style={HERO_GHOST_CTA_STYLE}
             >
               <IoLogoGithub aria-hidden="true" style={{ fontSize: '18px' }} /> Clone the repo
             </a>
@@ -274,7 +432,7 @@ function Hero() {
             gap: '16px',
             position: 'relative',
             opacity: 0,
-            animation: 'ycRise 1.1s cubic-bezier(0.16,1,0.3,1) 0.4s both',
+            animation: 'ycRise 0.95s cubic-bezier(0.16,1,0.3,1) 0.4s both',
           }}
         >
           <div
@@ -393,7 +551,7 @@ function Hero() {
               </span>
               <span
                 style={{
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: 700,
                   color: 'var(--success)',
                   letterSpacing: '0.06em',
@@ -427,43 +585,15 @@ function Hero() {
               <span style={{ color: 'var(--ink-faint2)' }}>{'}'}</span>
             </pre>
           </div>
-          <div
-            data-hide-m="true"
-            style={{
-              position: 'absolute',
-              bottom: '-22px',
-              left: '-30px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '11px 15px',
-              borderRadius: '16px',
-              background: 'var(--glass-95)',
-              backdropFilter: 'blur(40px)',
-              border: '1px solid var(--glass-95)',
-              boxShadow: '0 16px 44px var(--sh12)',
-              animation: 'ycFloatB 8s ease-in-out infinite',
-            }}
-          >
-            <span
-              style={{
-                width: '30px',
-                height: '30px',
-                borderRadius: '10px',
-                background: 'var(--blue-soft)',
-                color: 'var(--blue)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
+          <div data-hide-m="true" style={HERO_FLOATING_BADGE_STYLE}>
+            <span style={HERO_FLOATING_BADGE_ICON_STYLE}>
               <IoGitBranchOutline aria-hidden="true" style={{ fontSize: '16px' }} />
             </span>
             <div>
               <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ink-body)' }}>
                 AGPL-3.0
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--ink-faint)' }}>Every line, public</div>
+              <div style={{ fontSize: '12px', color: 'var(--ink-faint)' }}>Every line, public</div>
             </div>
           </div>
         </div>
@@ -746,14 +876,6 @@ function FhirApiFeature() {
 
 /** FHIR-native resource chips. */
 function FhirNative() {
-  const resources = [
-    'Patient',
-    'Encounter',
-    'Observation',
-    'MedicationRequest',
-    'DiagnosticReport',
-    'Immunization',
-  ];
   return (
     <section style={{ background: 'var(--page)' }}>
       <div
@@ -814,7 +936,7 @@ function FhirNative() {
             marginTop: 'clamp(36px, 5vw, 56px)',
           }}
         >
-          {resources.map((name) => (
+          {FHIR_RESOURCES.map((name) => (
             <div
               key={name}
               style={{
@@ -856,18 +978,7 @@ interface PluginRowProps {
 
 function PluginRow({ iconBg, iconColor, icon, title, desc, cta }: Readonly<PluginRowProps>) {
   return (
-    <div
-      style={{
-        background: 'var(--screen)',
-        border: '1px solid var(--hairline)',
-        borderRadius: '18px',
-        padding: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '14px',
-        boxShadow: '0 8px 24px var(--sh06)',
-      }}
-    >
+    <div style={PLUGIN_ROW_STYLE}>
       <span
         style={{
           flex: 'none',
@@ -987,19 +1098,7 @@ function Marketplace() {
                 gap: '14px',
               }}
             >
-              <span
-                style={{
-                  flex: 'none',
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '13px',
-                  background: 'var(--inset)',
-                  color: 'var(--ink-faint)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
+              <span style={MARKETPLACE_PLACEHOLDER_ICON_STYLE}>
                 <IoAddOutline aria-hidden="true" style={{ fontSize: '22px' }} />
               </span>
               <div style={{ flex: 1 }}>
@@ -1073,17 +1172,7 @@ function Marketplace() {
             <Link
               href="/developers/signup"
               className="yc-link"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                textDecoration: 'none',
-                color: 'var(--blue-text)',
-                fontSize: '17px',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                marginTop: '4px',
-              }}
+              style={MARKETPLACE_PORTAL_LINK_STYLE}
             >
               Open the developer portal{' '}
               <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: '16px' }} />
@@ -1185,19 +1274,7 @@ function Economics() {
           </div>
         </Reveal>
         <Reveal delay={60}>
-          <h2
-            style={{
-              margin: '20px 0 0',
-              maxWidth: '20ch',
-              fontFamily: NEWSREADER,
-              fontSize: 'clamp(30px, 4vw, 56px)',
-              fontWeight: 500,
-              lineHeight: 1.06,
-              letterSpacing: '-0.05em',
-              color: '#eae2d5',
-              textWrap: 'balance',
-            }}
-          >
+          <h2 style={ECONOMICS_HEADLINE_STYLE}>
             Bring your own AI. Sell to every clinic.{' '}
             <span
               style={{
@@ -1372,20 +1449,7 @@ function Economics() {
                           'repeating-linear-gradient(135deg, #4a4643 0 10px, #423e3b 10px 20px)',
                       }}
                     />
-                    <span
-                      style={{
-                        position: 'absolute',
-                        right: '14px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        letterSpacing: '0.01em',
-                        color: '#a9a39e',
-                      }}
-                    >
-                      they take 15&ndash;30%
-                    </span>
+                    <span style={ECON_BAR_LABEL_MUTED_STYLE}>they take 15&ndash;30%</span>
                   </div>
                 </div>
                 <div>
@@ -1438,20 +1502,7 @@ function Economics() {
                         }}
                       />
                     </div>
-                    <span
-                      style={{
-                        position: 'absolute',
-                        right: '14px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        letterSpacing: '0.01em',
-                        color: '#ffffff',
-                      }}
-                    >
-                      every euro is yours
-                    </span>
+                    <span style={ECON_BAR_LABEL_LIGHT_STYLE}>every euro is yours</span>
                   </div>
                 </div>
               </div>
@@ -1522,21 +1573,7 @@ function ProofCard({ icon, title, desc, delay }: Readonly<ProofCardProps>) {
         padding: '24px',
       }}
     >
-      <span
-        style={{
-          width: '40px',
-          height: '40px',
-          borderRadius: '12px',
-          background: 'var(--inset)',
-          color: 'var(--ink-body)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: '14px',
-        }}
-      >
-        {icon}
-      </span>
+      <span style={PROOF_CARD_ICON_STYLE}>{icon}</span>
       <div
         style={{
           fontSize: '16px',
@@ -1665,31 +1702,8 @@ function ClosingCta() {
   const portalRef = useMagnet<HTMLAnchorElement>();
   return (
     <Spotlight style={{ background: 'var(--spot)', overflow: 'hidden' }}>
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%,-50%)',
-          width: '900px',
-          height: '500px',
-          background: 'radial-gradient(closest-side, var(--glow-b14), transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
-      <div
-        style={{
-          width: 'min(880px, calc(100% - 48px))',
-          margin: '0 auto',
-          padding: 'clamp(88px, 12vw, 150px) 0',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          textAlign: 'center',
-          position: 'relative',
-        }}
-      >
+      <div aria-hidden="true" style={CLOSING_GLOW_STYLE} />
+      <div style={CLOSING_INNER_STYLE}>
         <Reveal delay={0}>
           <h2
             style={{
@@ -1731,7 +1745,7 @@ function ClosingCta() {
               ref={ghRef}
               href={GITHUB_REPO_URL}
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               style={GITHUB_STAR_CTA_STYLE}
             >
               <IoLogoGithub aria-hidden="true" style={{ fontSize: '18px' }} /> Star on GitHub
@@ -1740,21 +1754,7 @@ function ClosingCta() {
               ref={portalRef}
               href="/developers/signup"
               data-btn-invert
-              style={{
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                background: 'transparent',
-                color: '#eae2d5',
-                fontSize: '17px',
-                fontWeight: 500,
-                letterSpacing: '-0.02em',
-                padding: '16px 32px',
-                borderRadius: '9999px',
-                border: '1px solid #454341',
-                transition: 'border-color 200ms, background 200ms',
-              }}
+              style={CLOSING_PORTAL_LINK_STYLE}
             >
               Developer portal{' '}
               <IoArrowForwardOutline aria-hidden="true" style={{ fontSize: '17px' }} />
