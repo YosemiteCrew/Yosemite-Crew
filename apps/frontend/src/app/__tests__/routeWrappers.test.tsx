@@ -88,16 +88,17 @@ describe('route wrappers', () => {
     );
   });
 
-  it('renders public chrome around public route children', () => {
+  it('renders public route children through the pass-through layout', () => {
+    // The public layout is now a pass-through: each page supplies its own chrome
+    // (marketing pages use MarketingShell, auth pages AuthShell), so the layout
+    // only forwards children plus the shared marketing stylesheet + theme script.
     render(
       <PublicLayout>
         <div data-testid="public-child" />
       </PublicLayout>
     );
 
-    expect(screen.getByTestId('github-widget')).toBeInTheDocument();
-    expect(screen.getByTestId('public-header')).toBeInTheDocument();
-    expect(screen.getByRole('main')).toContainElement(screen.getByTestId('public-child'));
+    expect(screen.getByTestId('public-child')).toBeInTheDocument();
   });
 
   it('renders route loading states with accessible labels', () => {
