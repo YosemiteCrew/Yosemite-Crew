@@ -38,6 +38,7 @@ import {
   findOpenAppointmentInvoice,
 } from '@/app/features/billing/services/invoiceService';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
+import { useOrganisationDiscountCap } from '@/app/features/finance/hooks/useOrganisationDiscountCap';
 import { deletePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
 import { useNotify } from '@/app/hooks/useNotify';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
@@ -925,6 +926,11 @@ const useInvoiceStepContent = ({
   );
   const hasIncompleteMedications = incompleteMedicationNames.size > 0;
   const { inventoryItems } = useInvoiceCatalogAndInventory(organisationId);
+  // The organisation's overall-discount cap. Null while loading, on failure, and
+  // when none is configured — all three mean "don't constrain the input", which is
+  // exactly today's behaviour. The finance API rejects an over-cap discount with a
+  // 409 regardless, and that message surfaces through `errorMessage` below.
+  const { maxOverallDiscountPercent } = useOrganisationDiscountCap(organisationId);
   const billableItems = useMemo(
     () =>
       buildBillableItems(
@@ -1023,6 +1029,19 @@ const useInvoiceStepContent = ({
         organisationId,
         paymentCollectionMethod: 'PAYMENT_LINK',
         items: lineItems,
+        // Send the overall discount so it reaches the ledger. Without it the invoice
+        // totals the full (line-discounted) amount while runManualCollection collects
+        // computeInvoiceTotalCents (which DOES subtract the overall discount), leaving
+        // the difference as a receivable that can never be settled. Omitted entirely at
+        // 0 so an undiscounted invoice keeps a null discount type/value as it does today.
+        ...(encounter.overallDiscountPercent > 0
+          ? {
+              invoiceDiscount: {
+                type: 'PERCENTAGE' as const,
+                value: encounter.overallDiscountPercent,
+              },
+            }
+          : {}),
       });
     }
     if (invoice?.id && finalize) {
@@ -1317,6 +1336,7 @@ const useInvoiceStepContent = ({
             depositCents={encounter.depositCents}
             withdrawDeposit={encounter.withdrawDeposit}
             overallDiscountPercent={encounter.overallDiscountPercent}
+            maxOverallDiscountPercent={maxOverallDiscountPercent}
             taxPercent={encounter.taxPercent}
             onToggleWithdrawDeposit={(value) => setWithdrawDeposit(appointmentId, value)}
             onChangeOverallDiscount={(percent) => setOverallDiscountPercent(appointmentId, percent)}

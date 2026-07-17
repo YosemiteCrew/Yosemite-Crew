@@ -34,6 +34,7 @@ jest.mock(
     __esModule: true,
     default: ({
       items,
+      maxOverallDiscountPercent,
       onAddItem,
       onRemoveItem,
       onToggleWithdrawDeposit,
@@ -41,6 +42,7 @@ jest.mock(
       onUpdateItem,
     }: {
       items: InvoiceLineItem[];
+      maxOverallDiscountPercent?: number | null;
       onAddItem: (item: Omit<InvoiceLineItem, 'id'>) => void;
       onRemoveItem: (id: string) => void;
       onToggleWithdrawDeposit?: (value: boolean) => void;
@@ -49,6 +51,9 @@ jest.mock(
     }) => (
       <div data-testid="total-bill-container">
         <span>Bill lines: {items.length}</span>
+        <span data-testid="bill-discount-cap">
+          {maxOverallDiscountPercent == null ? 'no-cap' : String(maxOverallDiscountPercent)}
+        </span>
         <button type="button" onClick={() => onToggleWithdrawDeposit?.(true)}>
           Toggle withdraw deposit
         </button>
@@ -116,6 +121,16 @@ jest.mock('@/app/features/billing/services/invoiceService', () => ({
 
 jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
   deletePrescriptionArtifact: jest.fn(),
+}));
+
+// Mock the transport, not the hook, so useOrganisationDiscountCap's real logic runs.
+const discountSettingsMock = {
+  getOrganisationDiscountSettings: jest.fn(),
+};
+jest.mock('@/app/features/finance/services/discountSettingsService', () => ({
+  getOrganisationDiscountSettings: (...args: unknown[]) =>
+    discountSettingsMock.getOrganisationDiscountSettings(...args),
+  getDiscountSettingsErrorMessage: (_error: unknown, fallback: string) => fallback,
 }));
 
 jest.mock('@/app/features/inventory/services/inventoryService', () => ({
@@ -333,6 +348,10 @@ describe('<InvoiceStep /> component', () => {
     invoiceServiceMock.recordManualInvoicePayment.mockResolvedValue(undefined);
     invoiceServiceMock.sendInvoiceToClient.mockResolvedValue({ emailSent: true });
     invoiceServiceMock.addLineItemsToAppointments.mockResolvedValue(undefined);
+    discountSettingsMock.getOrganisationDiscountSettings.mockResolvedValue({
+      organisationId: 'org-1',
+      maxOverallDiscountPercent: null,
+    });
 
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -890,6 +909,121 @@ describe('<InvoiceStep /> component', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
       expect(screen.queryByText('Payment in progress')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Check again' })).not.toBeInTheDocument();
+    });
+  });
+
+  // The overall discount changes the cash collected (runManualCollection sends
+  // computeInvoiceTotalCents, which subtracts it). If it does not also reach the
+  // invoice, the invoice over-states what is owed and the difference becomes a
+  // receivable that can never be settled.
+  describe('overall discount reaches the created invoice', () => {
+    it('sends the clinician discount as a PERCENTAGE invoiceDiscount', async () => {
+      renderInvoiceStep({
+        invoiceLineItems: [invoiceLine('Consultation')],
+        overallDiscountPercent: 20,
+      });
+      await screen.findByTestId('total-bill-container');
+
+      await act(async () => {
+        await userEvent.click(screen.getByRole('button', { name: /collect cash/i }));
+      });
+
+      await waitFor(() => expect(invoiceServiceMock.createFinanceInvoice).toHaveBeenCalled());
+      expect(invoiceServiceMock.createFinanceInvoice).toHaveBeenCalledWith(
+        expect.objectContaining({
+          invoiceDiscount: { type: 'PERCENTAGE', value: 20 },
+        })
+      );
+    });
+
+    it('bills the discounted amount, and the invoice carries the same discount', async () => {
+      // One 1000c line at 20% off: 800c collected. The invoice must carry the 20%
+      // so the backend totals 800c too — otherwise 200c sits outstanding forever.
+      renderInvoiceStep({
+        invoiceLineItems: [invoiceLine('Consultation')],
+        overallDiscountPercent: 20,
+      });
+      await screen.findByTestId('total-bill-container');
+
+      await act(async () => {
+        await userEvent.click(screen.getByRole('button', { name: /collect cash/i }));
+      });
+
+      await waitFor(() => expect(invoiceServiceMock.recordManualInvoicePayment).toHaveBeenCalled());
+      // Collected: 1000c gross - 20% = 800c => 8.00 major units.
+      expect(invoiceServiceMock.recordManualInvoicePayment).toHaveBeenCalledWith(
+        'inv-new',
+        expect.objectContaining({ amount: 8 })
+      );
+      const createArgs = invoiceServiceMock.createFinanceInvoice.mock.calls[0][0];
+      expect(createArgs.invoiceDiscount).toEqual({ type: 'PERCENTAGE', value: 20 });
+    });
+
+    it('omits invoiceDiscount entirely when no overall discount is applied', async () => {
+      renderInvoiceStep({
+        invoiceLineItems: [invoiceLine('Consultation')],
+        overallDiscountPercent: 0,
+      });
+      await screen.findByTestId('total-bill-container');
+
+      await act(async () => {
+        await userEvent.click(screen.getByRole('button', { name: /collect cash/i }));
+      });
+
+      await waitFor(() => expect(invoiceServiceMock.createFinanceInvoice).toHaveBeenCalled());
+      const createArgs = invoiceServiceMock.createFinanceInvoice.mock.calls[0][0];
+      expect(createArgs).not.toHaveProperty('invoiceDiscount');
+    });
+
+    it('surfaces the API 409 when the discount exceeds the cap server-side', async () => {
+      invoiceServiceMock.createFinanceInvoice.mockRejectedValue(
+        new Error("Overall invoice discount of 40% exceeds the organisation's maximum of 20%.")
+      );
+      renderInvoiceStep({
+        invoiceLineItems: [invoiceLine('Consultation')],
+        overallDiscountPercent: 40,
+      });
+      await screen.findByTestId('total-bill-container');
+
+      await act(async () => {
+        await userEvent.click(screen.getByRole('button', { name: /collect cash/i }));
+      });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        /exceeds the organisation's maximum of 20%/i
+      );
+    });
+  });
+
+  describe('organisation discount cap', () => {
+    it('passes the configured cap down to the bill container', async () => {
+      discountSettingsMock.getOrganisationDiscountSettings.mockResolvedValue({
+        organisationId: 'org-1',
+        maxOverallDiscountPercent: 25,
+      });
+      renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+
+      await waitFor(() => expect(screen.getByTestId('bill-discount-cap')).toHaveTextContent('25'));
+      expect(discountSettingsMock.getOrganisationDiscountSettings).toHaveBeenCalledWith('org-1');
+    });
+
+    it('reports no cap when the organisation has none configured', async () => {
+      renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+      await screen.findByTestId('total-bill-container');
+      await waitFor(() =>
+        expect(screen.getByTestId('bill-discount-cap')).toHaveTextContent('no-cap')
+      );
+    });
+
+    it('leaves the discount unconstrained when the cap lookup fails', async () => {
+      discountSettingsMock.getOrganisationDiscountSettings.mockRejectedValue(
+        new Error('network down')
+      );
+      renderInvoiceStep({ invoiceLineItems: [invoiceLine('Consultation')] });
+      await screen.findByTestId('total-bill-container');
+      await waitFor(() =>
+        expect(screen.getByTestId('bill-discount-cap')).toHaveTextContent('no-cap')
+      );
     });
   });
 });
