@@ -105,6 +105,27 @@ describe('useOrganisationDiscountCap', () => {
     expect(discountSettingsMock.getOrganisationDiscountSettings).toHaveBeenLastCalledWith('org-2');
   });
 
+  it('drops the previous org cap when a new org lookup fails, rather than keeping it stale', async () => {
+    discountSettingsMock.getOrganisationDiscountSettings.mockResolvedValue({
+      organisationId: 'org-1',
+      maxOverallDiscountPercent: 10,
+    });
+    const { result, rerender } = renderHook(({ orgId }) => useOrganisationDiscountCap(orgId), {
+      initialProps: { orgId: 'org-1' as string | undefined },
+    });
+    await waitFor(() => expect(result.current.maxOverallDiscountPercent).toBe(10));
+
+    // Switch to an org whose lookup fails: the cap must go null (unconstrained),
+    // not remain at org-1's 10% - otherwise the new org is wrongly capped.
+    discountSettingsMock.getOrganisationDiscountSettings.mockRejectedValue(
+      new Error('lookup failed')
+    );
+    rerender({ orgId: 'org-2' });
+
+    await waitFor(() => expect(result.current.error).toBe('lookup failed'));
+    expect(result.current.maxOverallDiscountPercent).toBeNull();
+  });
+
   it('applies a locally saved cap via setCap without refetching', async () => {
     const { result } = renderHook(() => useOrganisationDiscountCap('org-1'));
     await waitFor(() => expect(result.current.maxOverallDiscountPercent).toBe(20));

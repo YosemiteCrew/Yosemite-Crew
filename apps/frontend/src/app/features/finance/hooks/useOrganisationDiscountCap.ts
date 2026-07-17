@@ -37,6 +37,10 @@ export const useOrganisationDiscountCap = (organisationId?: string): Organisatio
     let active = true;
     setLoading(true);
     setError(null);
+    // Start every (re)load unconstrained so a previous organisation's cap is not
+    // retained across an org switch, and a failed lookup leaves no stale cap -
+    // matching this hook's documented "null while loading and on failure".
+    setMaxOverallDiscountPercent(null);
     getOrganisationDiscountSettings(organisationId)
       .then((settings) => {
         if (!active) return;
