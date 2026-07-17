@@ -295,6 +295,7 @@ export const ClinicalArtifactFhirController = {
           organisationId: req.params.organisationId,
         }),
         req.params.organisationId,
+        resolvePrescriptionActor(req),
       );
       return res
         .status(200)
@@ -580,6 +581,7 @@ export const ClinicalArtifactFhirController = {
       await ClinicalArtifactService.deletePrescription(
         req.params.prescriptionId,
         req.params.organisationId,
+        resolvePrescriptionActor(req),
       );
       return res.status(204).send();
     } catch (error) {
@@ -592,6 +594,7 @@ export const ClinicalArtifactFhirController = {
       const record = await ClinicalArtifactService.cancelPrescription(
         req.params.prescriptionId,
         req.params.organisationId,
+        resolvePrescriptionActor(req),
       );
       return res
         .status(200)

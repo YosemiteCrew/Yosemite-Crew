@@ -15,11 +15,13 @@ import {
   InventoryAlertService,
   InventoryServiceError,
 } from "../../src/services/inventory.service";
-import { generatePresignedUrl } from "../../src/middlewares/upload";
+import {
+  IMAGE_ONLY_MIME_TYPES,
+  generatePresignedUrl,
+} from "../../src/middlewares/upload";
 
 jest.mock("../../src/middlewares/upload", () => ({
-  isAllowedMimeType: jest.requireActual("../../src/middlewares/upload")
-    .isAllowedMimeType,
+  ...jest.requireActual("../../src/middlewares/upload"),
   generatePresignedUrl: jest.fn(),
 }));
 
@@ -179,6 +181,7 @@ describe("Inventory Controllers", () => {
           "image/png",
           "inventory",
           "org1",
+          IMAGE_ONLY_MIME_TYPES,
         );
         expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith({

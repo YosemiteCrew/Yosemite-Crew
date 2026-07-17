@@ -3,6 +3,7 @@ import { z } from "zod";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { OrgRequest } from "src/middlewares/rbac";
 import {
+  IMAGE_ONLY_MIME_TYPES,
   generatePresignedUrl,
   isAllowedMimeType,
 } from "src/middlewares/upload";
@@ -105,10 +106,12 @@ export const InventoryController = {
 
       const { organisationId } = req.params;
       const { mimeType } = parsedBody.data;
+      // Inventory items only ever display a picture.
       const { url, key } = await generatePresignedUrl(
         mimeType,
         "inventory",
         organisationId,
+        IMAGE_ONLY_MIME_TYPES,
       );
 
       res.status(200).json({ uploadUrl: url, s3Key: key });

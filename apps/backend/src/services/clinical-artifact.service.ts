@@ -764,6 +764,28 @@ export interface PrescriptionActor {
   canEditAny: boolean;
 }
 
+/**
+ * Every prescription mutation is reachable by roles holding only own-scope
+ * edit, so the author on the loaded artifact is what separates them from
+ * org-wide editors. Callers that have already loaded the record use this
+ * directly rather than fetching it twice.
+ */
+const assertActorMayMutateArtifact = (
+  artifact: { authorId: string | null },
+  actor: PrescriptionActor,
+) => {
+  if (actor.canEditAny) {
+    return;
+  }
+
+  if (!actor.actorId || artifact.authorId !== actor.actorId) {
+    throw new ClinicalArtifactServiceError(
+      "Prescription was authored by another user",
+      403,
+    );
+  }
+};
+
 const assertActorMayMutatePrescription = async (
   prescriptionId: string,
   organisationId: string | undefined,
@@ -781,12 +803,7 @@ const assertActorMayMutatePrescription = async (
     organisationId,
   );
 
-  if (!actor.actorId || record.artifact.authorId !== actor.actorId) {
-    throw new ClinicalArtifactServiceError(
-      "Prescription was authored by another user",
-      403,
-    );
-  }
+  assertActorMayMutateArtifact(record.artifact, actor);
 };
 
 const assertArtifactKind = (
@@ -1475,7 +1492,8 @@ export const ClinicalArtifactService = {
   async updatePrescription(
     prescriptionId: string,
     input: PrescriptionUpdateInput,
-    organisationId?: string,
+    organisationId: string | undefined,
+    actor: PrescriptionActor,
   ): Promise<PrescriptionRecord> {
     const record = await loadPrescriptionOrThrow(prescriptionId);
     assertArtifactKind(
@@ -1484,6 +1502,7 @@ export const ClinicalArtifactService = {
       "prescription",
       organisationId,
     );
+    assertActorMayMutateArtifact(record.artifact, actor);
 
     if (
       isFinalClinicalArtifactStatus(record.artifact.status) &&
@@ -1581,7 +1600,8 @@ export const ClinicalArtifactService = {
 
   async deletePrescription(
     prescriptionId: string,
-    organisationId?: string,
+    organisationId: string | undefined,
+    actor: PrescriptionActor,
   ): Promise<void> {
     const record = await loadPrescriptionOrThrow(prescriptionId);
     assertArtifactKind(
@@ -1590,6 +1610,7 @@ export const ClinicalArtifactService = {
       "prescription",
       organisationId,
     );
+    assertActorMayMutateArtifact(record.artifact, actor);
 
     if (record.artifact.status !== "DRAFT") {
       throw new ClinicalArtifactServiceError(
@@ -1641,7 +1662,8 @@ export const ClinicalArtifactService = {
 
   async cancelPrescription(
     prescriptionId: string,
-    organisationId?: string,
+    organisationId: string | undefined,
+    actor: PrescriptionActor,
   ): Promise<PrescriptionRecord> {
     const record = await loadPrescriptionOrThrow(prescriptionId, {
       includeVoid: true,
@@ -1652,6 +1674,7 @@ export const ClinicalArtifactService = {
       "prescription",
       organisationId,
     );
+    assertActorMayMutateArtifact(record.artifact, actor);
 
     if (record.artifact.status === "VOID") {
       return toPrescriptionRecord(record);
@@ -2250,15 +2273,11 @@ export const ClinicalArtifactService = {
     organisationId: string | undefined,
     actor: PrescriptionActor,
   ): Promise<PrescriptionRecord> {
-    await assertActorMayMutatePrescription(
-      prescriptionId,
-      organisationId,
-      actor,
-    );
     return ClinicalArtifactService.updatePrescription(
       prescriptionId,
       { status: "COMPLETED" },
       organisationId,
+      actor,
     );
   },
 
@@ -2267,15 +2286,11 @@ export const ClinicalArtifactService = {
     organisationId: string | undefined,
     actor: PrescriptionActor,
   ): Promise<PrescriptionRecord> {
-    await assertActorMayMutatePrescription(
-      prescriptionId,
-      organisationId,
-      actor,
-    );
     return ClinicalArtifactService.updatePrescription(
       prescriptionId,
       { status: "IN_PROGRESS" },
       organisationId,
+      actor,
     );
   },
 

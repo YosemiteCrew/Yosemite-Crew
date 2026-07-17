@@ -251,6 +251,7 @@ describe("ClinicalArtifactFhirController", () => {
     expect(mockedService.cancelPrescription).toHaveBeenCalledWith(
       "rx-1",
       "org-1",
+      { actorId: "", canEditAny: false },
     );
     expect(statusMock).toHaveBeenCalledWith(201);
     expect(statusMock).toHaveBeenCalledWith(204);

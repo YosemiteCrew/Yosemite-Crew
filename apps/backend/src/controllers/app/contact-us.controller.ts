@@ -8,6 +8,7 @@ import {
   type CreateWebContactRequestInput,
 } from "src/services/contact-us.service";
 import {
+  ATTACHMENT_MIME_TYPES,
   generatePresignedUrl,
   getURLForKey,
   isAllowedMimeType,
@@ -177,10 +178,13 @@ export const ContactController = {
           .json({ message: "A supported mimeType is required." });
       }
 
+      // This route is unauthenticated, so it accepts only what a contact form
+      // needs rather than the full document set.
       const { url, key } = await generatePresignedUrl(
         parsedBody.data.mimeType,
         "custom",
         "contact-us",
+        ATTACHMENT_MIME_TYPES,
       );
 
       return res.status(200).json({

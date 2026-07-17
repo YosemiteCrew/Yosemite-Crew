@@ -5,6 +5,7 @@ import {
 } from "../../src/services/contact-us.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
 import {
+  ATTACHMENT_MIME_TYPES,
   generatePresignedUrl,
   getURLForKey,
 } from "../../src/middlewares/upload";
@@ -30,10 +31,9 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
 }));
 
 jest.mock("../../src/middlewares/upload", () => ({
-  // The real allowlist, so the controller's rejection of a disallowed type is exercised
-  // rather than restated by the mock.
-  isAllowedMimeType: jest.requireActual("../../src/middlewares/upload")
-    .isAllowedMimeType,
+  // The real allowlists, so the controller's rejection of a disallowed type is
+  // exercised rather than restated by the mock.
+  ...jest.requireActual("../../src/middlewares/upload"),
   generatePresignedUrl: jest.fn(),
   getURLForKey: jest.fn(),
 }));
@@ -365,6 +365,7 @@ describe("ContactController", () => {
         "image/png",
         "custom",
         "contact-us",
+        ATTACHMENT_MIME_TYPES,
       );
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({

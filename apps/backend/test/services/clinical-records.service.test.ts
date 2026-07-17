@@ -205,6 +205,7 @@ describe("ClinicalArtifactService clinical records", () => {
       "rx-1",
       { medications: [{ name: "Amoxicillin", dose: "500mg" }] },
       organisationId,
+      { actorId: "actor-1", canEditAny: true },
     );
 
     expect(updated.artifact.status).toBe("IN_PROGRESS");
@@ -249,6 +250,7 @@ describe("ClinicalArtifactService clinical records", () => {
         "rx-1",
         { summary: "Nope" },
         organisationId,
+        { actorId: "actor-1", canEditAny: true },
       ),
     ).rejects.toBeInstanceOf(ClinicalArtifactServiceError);
   });
