@@ -215,7 +215,7 @@ A pnpm + Turborepo workspace. Apps ship; packages are the shared spine underneat
 
 - Git hooks are installed automatically during `pnpm install` (Husky + commitlint + lint-staged + secret scanning).
 
-- Configure environment variables. Each app ships an example file to copy and fill in:
+- Configure environment variables for the API and web app. Each ships an example file to copy and fill in:
 
   ```shell
   cp apps/backend/.env.example apps/backend/.env
@@ -232,7 +232,7 @@ A pnpm + Turborepo workspace. Apps ship; packages are the shared spine underneat
   pnpm run dev                                     -- To run website & api
   ```
 
-- Run the Yosemite Crew mobile app.
+- Run the Yosemite Crew mobile app. The mobile app does not load `.env` files. It needs its own configuration (a `variables.local.ts`, Amplify outputs, and native Firebase and credential files copied from [`apps/mobileAppYC/config-templates/`](./apps/mobileAppYC/config-templates)). Follow the setup in [`apps/mobileAppYC/README.md`](./apps/mobileAppYC/README.md) before running.
 
   ```shell
   // In apps/mobileAppYC directory
@@ -268,16 +268,16 @@ A pnpm + Turborepo workspace. Apps ship; packages are the shared spine underneat
 
 Open source is a promise about how the code is kept, not only about who can read it. Every change entering `dev` passes the same gates.
 
-| Gate                | What it enforces                                                              |
-| ------------------- | ----------------------------------------------------------------------------- |
-| **Static analysis** | SonarCloud quality gate per app (see the table above), plus CodeQL scanning.  |
-| **Types & lint**    | Repo-wide `type-check` and `lint`, enforced again on pre-push.                |
-| **Tests**           | Unit and component suites per workspace, with coverage held on touched files. |
-| **Accessibility**   | A dedicated accessibility suite and Playwright a11y run on the web app.       |
-| **End-to-end**      | Playwright for web, Detox for mobile.                                         |
-| **Visual review**   | Storybook and Chromatic for the component library.                            |
-| **Supply chain**    | Dependency review, secret scanning, and staged-secret checks on every commit. |
-| **Governance**      | Conventional commits and PR title validation.                                 |
+| Gate                | What it enforces                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Static analysis** | SonarCloud quality gate per app (see the table above), plus CodeQL scanning.                                 |
+| **Types & lint**    | Repo-wide `type-check` and `lint`, enforced again on pre-push.                                               |
+| **Tests**           | Unit and component suites per workspace, with coverage held on touched files.                                |
+| **Accessibility**   | A dedicated accessibility suite and Playwright a11y run on the web app.                                      |
+| **End-to-end**      | Playwright on the web app, enforced in CI. A Detox harness is available for the mobile app and runs locally. |
+| **Visual review**   | Storybook and Chromatic for the component library.                                                           |
+| **Supply chain**    | Dependency review, secret scanning, and staged-secret checks on every commit.                                |
+| **Governance**      | Conventional commits and PR title validation.                                                                |
 
 - Contributor workflow: [CONTRIBUTING.md](./CONTRIBUTING.md)
 - Security reporting: [SECURITY.md](./SECURITY.md)
