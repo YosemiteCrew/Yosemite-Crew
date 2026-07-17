@@ -180,6 +180,7 @@ describe('Header', () => {
         '2': undefined,
         '5': undefined,
         '9': undefined,
+        '10': undefined,
       },
       colors: {
         ...mockTheme.colors,
@@ -225,6 +226,13 @@ describe('Header', () => {
       expect.objectContaining({
         paddingTop: 20,
       }),
+    );
+
+    const spacerStyle = androidViews
+      .map(view => StyleSheet.flatten(view.props.style))
+      .find(style => style?.width === style?.height && style?.width === 40);
+    expect(spacerStyle).toEqual(
+      expect.objectContaining({width: 40, height: 40}),
     );
   });
 });

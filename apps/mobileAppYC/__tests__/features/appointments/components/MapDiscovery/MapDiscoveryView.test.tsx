@@ -9,7 +9,7 @@ import MapDiscoveryView, {
 // --- Mocks ---
 
 jest.mock('@/hooks', () => ({
-  useTheme: () => ({theme: mockTheme, isDark: false}),
+  useTheme: jest.fn(() => ({theme: mockTheme, isDark: false})),
 }));
 
 jest.mock('react-i18next', () => ({
@@ -426,9 +426,57 @@ describe('MapDiscoveryView', () => {
     });
   });
 
+  it('falls back to a default shadow color when the theme has no neutralShadow token', () => {
+    const {useTheme} = require('@/hooks');
+    (useTheme as jest.Mock).mockReturnValueOnce({
+      theme: {
+        ...mockTheme,
+        colors: {...mockTheme.colors, neutralShadow: undefined},
+      },
+      isDark: false,
+    });
+
+    const {UNSAFE_root} = renderView();
+    const {View, StyleSheet} = require('react-native');
+    const shadowView = UNSAFE_root.findAllByType(View)
+      .map((node: any) => StyleSheet.flatten(node.props.style))
+      .find((style: any) => style?.boxShadow !== undefined);
+
+    expect(shadowView?.boxShadow).toBe('0px 12px 18px #000000');
+  });
+
+  it('passes null when the native location event has no coordinate', () => {
+    const onMapUserLocationChange = jest.fn();
+    const {getByTestId} = renderView({
+      onMapUserLocationChange,
+      hasLocationPermission: true,
+    });
+
+    getByTestId('map-view').props.onUserLocationChange({
+      nativeEvent: {coordinate: null},
+    });
+
+    expect(onMapUserLocationChange).toHaveBeenCalledWith(null);
+  });
+
   it('renders without error when onSearchBarLayout prop is provided', () => {
     const onSearchBarLayout = jest.fn();
     expect(() => renderView({onSearchBarLayout})).not.toThrow();
+  });
+
+  it('reports the search bar height when the top bar reports its layout', () => {
+    const onSearchBarLayout = jest.fn();
+    const {UNSAFE_root} = renderView({onSearchBarLayout});
+
+    const topBarView = UNSAFE_root.find(
+      (node: any) => typeof node.props.onLayout === 'function',
+    );
+
+    topBarView.props.onLayout({
+      nativeEvent: {layout: {height: 88, width: 320, x: 0, y: 0}},
+    });
+
+    expect(onSearchBarLayout).toHaveBeenCalledWith(88);
   });
 
   it('renders fallback photo from fallbacks map on selected clinic', () => {

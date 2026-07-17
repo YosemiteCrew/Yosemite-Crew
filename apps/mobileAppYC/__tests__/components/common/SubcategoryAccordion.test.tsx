@@ -97,6 +97,13 @@ describe('SubcategoryAccordion', () => {
     expect(UNSAFE_getAllByType(Image)).toHaveLength(1);
   });
 
+  it('applies the no-subtitle layout when subtitle is empty', () => {
+    const {queryByText} = render(
+      <SubcategoryAccordion {...defaultProps} subtitle="" />,
+    );
+    expect(queryByText('Test Subtitle')).toBeNull();
+  });
+
   it('applies custom container styles', () => {
     const customStyle = {marginTop: 20};
     const {getByText} = render(
