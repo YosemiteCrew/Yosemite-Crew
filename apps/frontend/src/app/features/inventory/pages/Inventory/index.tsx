@@ -301,6 +301,7 @@ export const InventoryFilterBar = ({
   lowStockCount = 0,
 }: InventoryFilterBarProps) => {
   const selectedCategories = filters.categories ?? [];
+  const selectedCategorySet = new Set(selectedCategories);
   const lowStockActive = filters.status === LOW_STOCK_STATUS;
   const [sortOpen, setSortOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -358,7 +359,7 @@ export const InventoryFilterBar = ({
             key={category}
             type="button"
             onClick={() => toggleCategoryFilter?.(category)}
-            className={chipClass(selectedCategories.includes(category))}
+            className={chipClass(selectedCategorySet.has(category))}
           >
             {category}
           </button>
