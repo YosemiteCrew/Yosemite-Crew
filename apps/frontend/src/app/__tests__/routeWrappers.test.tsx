@@ -35,6 +35,13 @@ jest.mock('@/app/ui/layout/SessionInitializer', () => ({
   ),
 }));
 
+// ThemeScript is an async server component that reads the per-request nonce via
+// next/headers; stub it so the app layout tree can render synchronously in RTL.
+jest.mock('@/app/ui/theme/ThemeScript', () => ({
+  __esModule: true,
+  default: () => <script data-testid="theme-script" />,
+}));
+
 jest.mock('@/app/ui/layout/Header/Header', () => ({
   __esModule: true,
   default: () => <header data-testid="public-header" />,

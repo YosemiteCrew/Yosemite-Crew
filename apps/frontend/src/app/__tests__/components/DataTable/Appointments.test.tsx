@@ -64,26 +64,81 @@ jest.mock('@/app/ui/cards/AppointmentCard', () => ({
   default: ({ appointment }: any) => <div data-testid="appointment-card">{appointment.id}</div>,
 }));
 
-jest.mock('react-icons/fa', () => ({
-  FaCheckCircle: () => <span>accept-icon</span>,
-}));
+jest.mock(
+  'react-icons/io',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/io', () => ({
-  IoIosCloseCircle: () => <span>cancel-icon</span>,
-  IoIosCalendar: () => <span>reschedule-icon</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/io5', () => ({
-  IoEyeOutline: () => <span>view-icon</span>,
-  IoDocumentTextOutline: () => <span>soap-icon</span>,
-  IoCardOutline: () => <span>finance-icon</span>,
-}));
+jest.mock(
+  'react-icons/fa',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
-jest.mock('react-icons/md', () => ({
-  MdMeetingRoom: () => <span>room-icon</span>,
-  MdOutlineAutorenew: () => <span>change-status-icon</span>,
-  MdScience: () => <span>labs-icon</span>,
-}));
+jest.mock(
+  'react-icons/md',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 describe('Appointments table', () => {
   beforeEach(() => {
@@ -116,8 +171,8 @@ describe('Appointments table', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('accept-icon').closest('button')!);
-    fireEvent.click(screen.getByText('cancel-icon').closest('button')!);
+    fireEvent.click(screen.getByTestId('FaCheckCircle').closest('button')!);
+    fireEvent.click(screen.getByTestId('IoIosCloseCircle').closest('button')!);
 
     // Accept now opens the change-status modal so a lead/support can be assigned.
     expect(acceptAppointmentMock).not.toHaveBeenCalled();
@@ -157,8 +212,8 @@ describe('Appointments table', () => {
     );
 
     fireEvent.click(screen.getByTitle('Open appointment overview'));
-    fireEvent.click(screen.getByText('view-icon').closest('button')!);
-    fireEvent.click(screen.getByText('reschedule-icon').closest('button')!);
+    fireEvent.click(screen.getByTestId('IoEyeOutline').closest('button')!);
+    fireEvent.click(screen.getByTestId('IoIosCalendar').closest('button')!);
 
     expect(pushMock).toHaveBeenCalledWith(
       '/companions/history?companionId=c2&source=appointments&appointmentId=a2&backTo=%2Fappointments'
@@ -184,9 +239,9 @@ describe('Appointments table', () => {
 
     render(<Appointments filteredList={[appointment]} canEditAppointments />);
 
-    fireEvent.click(screen.getByText('soap-icon').closest('button')!);
-    fireEvent.click(screen.getByText('finance-icon').closest('button')!);
-    fireEvent.click(screen.getByText('labs-icon').closest('button')!);
+    fireEvent.click(screen.getByTestId('IoDocumentTextOutline').closest('button')!);
+    fireEvent.click(screen.getByTestId('IoCardOutline').closest('button')!);
+    fireEvent.click(screen.getByTestId('MdScience').closest('button')!);
 
     expect(pushMock).toHaveBeenCalledWith('/appointments/a4/workspace?step=SOAP');
     expect(pushMock).toHaveBeenCalledWith('/appointments/a4/workspace?step=INVOICE');

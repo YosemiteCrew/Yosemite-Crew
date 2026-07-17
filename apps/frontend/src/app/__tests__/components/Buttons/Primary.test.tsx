@@ -56,7 +56,7 @@ describe('Primary button', () => {
     render(<Primary text="Continue" />);
 
     expect(screen.getByRole('button', { name: 'Continue' })).toHaveStyle({
-      backgroundColor: 'var(--color-text-primary)',
+      backgroundColor: 'var(--cta)',
     });
   });
 

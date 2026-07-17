@@ -1,0 +1,42 @@
+'use client';
+import React from 'react';
+import clsx from 'clsx';
+import { SPECIES_TABS, type SpeciesCounts } from './companionsDirectory';
+
+type SpeciesTabsProps = {
+  counts: SpeciesCounts;
+  activeFilter: string;
+  onSelect: (key: string) => void;
+};
+
+// Underline species tabs with live Newsreader-italic counts. Selecting a tab
+// drives the shared `activeFilter` state (Exotics === the 'other' species key).
+const SpeciesTabs = ({ counts, activeFilter, onSelect }: SpeciesTabsProps) => (
+  <div role="tablist" aria-label="Filter by species" className="flex items-end gap-[22px]">
+    {SPECIES_TABS.map((tab) => {
+      const isActive = (activeFilter || 'all') === tab.key;
+      return (
+        <button
+          key={tab.key}
+          type="button"
+          role="tab"
+          aria-selected={isActive}
+          onClick={() => onSelect(tab.key)}
+          className={clsx(
+            'inline-flex items-baseline gap-1.5 border-b-2 px-0.5 pb-[9px] text-[13px] transition-colors',
+            isActive
+              ? 'border-[var(--ink)] font-bold text-[var(--ink)]'
+              : 'border-transparent font-semibold text-[var(--ink-muted)] hover:text-[var(--ink)]'
+          )}
+        >
+          {tab.label}
+          <span className="font-newsreader text-[13px] italic text-[var(--ink-faint)]">
+            {counts[tab.countKey]}
+          </span>
+        </button>
+      );
+    })}
+  </div>
+);
+
+export default SpeciesTabs;

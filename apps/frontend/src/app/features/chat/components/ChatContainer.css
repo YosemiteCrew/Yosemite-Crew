@@ -1,5 +1,35 @@
 /* Stream Chat - Clean Default UI */
 
+/* Selected conversation row: soft warm-bone card with a pink left-stripe. */
+.chat-conversation-row--active {
+  background: var(--surface-soft);
+  box-shadow: inset 3px 0 0 var(--pink);
+  border-radius: 14px;
+}
+
+/* Gentle pulse for the online presence dot (conversation-row avatar + header). */
+@keyframes ycPulseDot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0.35);
+  }
+  60% {
+    box-shadow: 0 0 0 6px rgba(0, 143, 93, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 143, 93, 0);
+  }
+}
+
+.chat-presence-dot {
+  animation: ycPulseDot 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-presence-dot {
+    animation: none;
+  }
+}
+
 .str-chat {
   display: flex;
   height: 100%;

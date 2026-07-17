@@ -73,10 +73,17 @@ export const getInvalidTaskStatusTransitionMessage = (
   return `${TASK_STATUS_LABELS[from]} tasks cannot be moved to ${toLabel}.`;
 };
 
+/**
+ * Instructions shown on a task. The add/edit form writes `description`;
+ * workflow-materialized tasks carry their instructions in `additionalNotes`
+ * instead (see the backend task-workflow-materializer), so read through to it
+ * rather than stranding that text behind a field the UI no longer surfaces.
+ */
+export const getTaskInstructions = (task: Task) => task.description || task.additionalNotes || '';
+
 export const getTaskQuickDetails = (task: Task) => {
   return [
     { label: 'Category', value: task.category || '-' },
-    { label: 'Description', value: task.description || '-' },
-    { label: 'Additional notes', value: task.additionalNotes || '-' },
+    { label: 'Instructions (optional)', value: getTaskInstructions(task) || '-' },
   ];
 };

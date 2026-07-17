@@ -29,8 +29,8 @@ const TabToggle = ({ tabs, activeKey, onChange, panelId }: TabToggleProps) => {
             onClick={() => onChange(tab.key)}
             className={`flex flex-1 items-center justify-center gap-1.5 px-6 py-3 leading-[120%] transition-colors duration-150 border-b-2 -mb-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand ${
               isActive
-                ? 'border-[#006AE0] text-[#006AE0] text-[16px] font-bold'
-                : 'border-transparent text-[#5C5956] text-[16px] font-medium hover:text-text-primary'
+                ? 'border-[var(--blue)] text-[var(--blue-text)] text-[16px] font-bold'
+                : 'border-transparent text-neutral-700 text-[16px] font-medium hover:text-text-primary'
             }`}
           >
             {tab.icon}

@@ -33,8 +33,12 @@ const RequestActionButtons = ({ appointment, onAccept, onClose }: RequestActionB
         aria-label="Decline request"
         className="flex size-10 shrink-0 items-center justify-center rounded-full! border border-danger-200 bg-danger-100 hover:bg-danger-200"
         onClick={async () => {
-          await rejectAppointment(appointment);
-          onClose();
+          try {
+            await rejectAppointment(appointment);
+            onClose();
+          } catch (error) {
+            console.error('Failed to decline appointment request:', error);
+          }
         }}
       >
         <IoIosCloseCircle size={20} color="var(--color-danger-600)" aria-hidden="true" />

@@ -10,8 +10,8 @@
 
 import { type FC } from 'react';
 import type { Channel as StreamChannel } from 'stream-chat';
-import { MdDeleteForever } from 'react-icons/md';
 import { IoIosAddCircleOutline } from 'react-icons/io';
+import { IoTrash } from 'react-icons/io5';
 import Primary from '@/app/ui/primitives/Buttons/Primary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
 import { Badge } from '@/app/ui';
@@ -167,7 +167,7 @@ export const GroupModal: FC<GroupModalProps> = ({
       <div className="flex flex-col h-full gap-6">
         <div className="flex items-center justify-between">
           <div className="text-body-1 text-text-primary">
-            {mode === 'create' ? 'Create group' : 'Group info'}
+            {mode === 'create' ? 'Create group' : `Group chat · ${placeholder.trim() || 'group'}`}
           </div>
           <Close onClick={handleClose} />
         </div>
@@ -228,7 +228,7 @@ export const GroupModal: FC<GroupModalProps> = ({
                             }`}
                             title="Remove member"
                           >
-                            <MdDeleteForever size={20} color="var(--color-danger-600)" />
+                            <IoTrash size={20} color="var(--color-danger-600)" />
                           </button>
                         )}
                       </div>

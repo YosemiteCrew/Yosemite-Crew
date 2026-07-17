@@ -1,7 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { FiX, FiPrinter } from 'react-icons/fi';
-import { FaCheckCircle } from 'react-icons/fa';
+import { IoCheckmarkCircle, IoClose, IoPrintOutline } from 'react-icons/io5';
 import Modal from '@/app/ui/overlays/Modal';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { DispensaryRecord, DispensaryItem } from '@/app/features/inventory/pages/Inventory/types';
@@ -288,7 +287,7 @@ const DispensaryDetailModal = ({
               {isDispensed ? 'Dispensed request' : 'Dispense request'}
             </h2>
             {isDispensed && (
-              <FaCheckCircle size={20} className="text-[var(--color-success-600)] shrink-0" />
+              <IoCheckmarkCircle size={20} className="text-[var(--color-success-600)] shrink-0" />
             )}
           </div>
           <button
@@ -298,7 +297,7 @@ const DispensaryDetailModal = ({
             disabled={actioning}
             className="inline-flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-card-hover transition-colors disabled:opacity-40"
           >
-            <FiX size={18} />
+            <IoClose size={18} />
           </button>
         </div>
 
@@ -345,9 +344,9 @@ const DispensaryDetailModal = ({
                 onClick={handlePrintLabel}
                 disabled={printing}
                 aria-label="Label"
-                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-text-primary bg-white px-5 text-body-4-emphasis text-text-primary hover:bg-card-hover transition-colors disabled:opacity-50"
+                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-text-primary bg-neutral-0 px-5 text-body-4-emphasis text-text-primary hover:bg-card-hover transition-colors disabled:opacity-50"
               >
-                <FiPrinter size={16} />
+                <IoPrintOutline size={16} />
                 <span>{printing ? 'Loading…' : 'Label'}</span>
               </button>
             </div>

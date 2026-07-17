@@ -1,7 +1,7 @@
 import Modal from '@/app/ui/overlays/Modal';
 import React, { useEffect, useMemo } from 'react';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
-import { EMPTY_APPOINTMENT } from '@/app/features/appointments/pages/Appointments/Sections/AddAppointment';
+import { EMPTY_APPOINTMENT } from '@/app/features/appointments/constants/emptyAppointment';
 import Accordion from '@/app/ui/primitives/Accordion/Accordion';
 import EditableAccordion from '@/app/ui/primitives/Accordion/EditableAccordion';
 import { Primary } from '@/app/ui/primitives/Buttons';

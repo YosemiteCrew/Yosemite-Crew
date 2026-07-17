@@ -98,7 +98,7 @@ jest.mock('@/app/features/billing/services/invoiceService', () => ({
   loadInvoicesForOrgPrimaryOrg: jest.fn(() => Promise.resolve()),
 }));
 
-jest.mock('@/app/features/appointments/pages/Appointments/Sections/AddAppointment', () => ({
+jest.mock('@/app/features/appointments/constants/emptyAppointment', () => ({
   EMPTY_APPOINTMENT: {
     id: undefined,
     companion: { id: '', name: '', species: '', breed: '', parent: { id: '', name: '' } },

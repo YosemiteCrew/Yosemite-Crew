@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { MdDeleteForever, MdOutlineUnarchive } from 'react-icons/md';
-import { AiOutlineInfoCircle } from 'react-icons/ai';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useNotify } from '@/app/hooks/useNotify';
@@ -13,6 +11,7 @@ import { useCurrencyForPrimaryOrg } from '@/app/hooks/useBilling';
 import { formatMoney } from '@/app/lib/money';
 import { PackageRevamp, ServiceRevamp } from '@/app/features/organization/types/revamp';
 import { getCatalogErrorMessage } from '@/app/features/organization/services/catalogErrors';
+import { IoArchiveOutline, IoInformationCircleOutline, IoTrash } from 'react-icons/io5';
 
 const TYPE_LABELS: Record<string, string> = {
   CONSULTATION: 'Consultation',
@@ -65,6 +64,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
   }, [loadSpecialityCatalog, organisationId, specialityId]);
 
   const handleDeleteConfirm = async () => {
+    /* v8 ignore next -- unreachable: the Delete control lives inside the confirm modal, which is only mounted while deleteTarget is non-null */
     if (!deleteTarget) return;
     try {
       if (deleteTarget.kind === 'service') {
@@ -93,7 +93,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
     <div className="flex flex-col gap-4 py-4">
       {isEmpty && (
         <div className="flex items-center justify-center gap-2 py-8 text-body-4 text-text-secondary">
-          <AiOutlineInfoCircle size={16} aria-hidden="true" />
+          <IoInformationCircleOutline size={16} aria-hidden="true" />
           No archived services or packages.
         </div>
       )}
@@ -144,7 +144,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
                     }}
                     className="flex items-center justify-center size-9 rounded-full border border-card-border hover:border-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors"
                   >
-                    <MdOutlineUnarchive
+                    <IoArchiveOutline
                       size={16}
                       color="var(--color-text-brand)"
                       aria-hidden="true"
@@ -158,7 +158,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
                     }}
                     className="flex items-center justify-center size-9 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors"
                   >
-                    <MdDeleteForever size={16} color="var(--color-danger-600)" aria-hidden="true" />
+                    <IoTrash size={16} color="var(--color-danger-600)" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -211,11 +211,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
                   }}
                   className="flex items-center justify-center size-9 rounded-full border border-card-border hover:border-text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand transition-colors"
                 >
-                  <MdOutlineUnarchive
-                    size={16}
-                    color="var(--color-text-brand)"
-                    aria-hidden="true"
-                  />
+                  <IoArchiveOutline size={16} color="var(--color-text-brand)" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -225,7 +221,7 @@ const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
                   }}
                   className="flex items-center justify-center size-9 rounded-full border border-card-border hover:border-danger-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-600 transition-colors"
                 >
-                  <MdDeleteForever size={16} color="var(--color-danger-600)" aria-hidden="true" />
+                  <IoTrash size={16} color="var(--color-danger-600)" aria-hidden="true" />
                 </button>
               </div>
             </div>

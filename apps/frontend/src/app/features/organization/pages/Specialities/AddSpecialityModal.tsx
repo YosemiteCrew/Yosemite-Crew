@@ -60,7 +60,7 @@ const AddSpecialityModal = ({
 
   return (
     <CenterModal showModal={showModal} setShowModal={setShowModal} onClose={handleClose}>
-      <ModalHeader title="Add Speciality" onClose={handleClose} />
+      <ModalHeader title="Add speciality" onClose={handleClose} />
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <FormInput
           intype="text"
@@ -76,7 +76,7 @@ const AddSpecialityModal = ({
           <Secondary href="#" text="Cancel" onClick={handleClose} />
           <Primary
             href="#"
-            text="Add Speciality"
+            text="Add speciality"
             onClick={() => {
               Promise.resolve(submitSpeciality()).catch(() => undefined);
             }}

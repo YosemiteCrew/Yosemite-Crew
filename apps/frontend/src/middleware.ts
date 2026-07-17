@@ -4,6 +4,11 @@ import { buildContentSecurityPolicy, securityHeaders } from '@/securityHeaders';
 const CSP_HEADER = 'Content-Security-Policy';
 const NONCE_HEADER = 'x-nonce';
 
+// Every route under (routes)/(app) belongs here — its layout awaits connection(),
+// so the whole group renders per-request and always has a nonce.
+// Routes under (routes)/(public) must NOT be added: they are statically
+// prerendered, so their inline scripts carry no per-request nonce and a strict
+// CSP would block them. Make such a route dynamic first, or leave it off.
 const STRICT_CSP_PATH_PREFIXES = [
   '/appointments',
   '/book-onboarding',
@@ -24,6 +29,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/inventory',
   '/organization',
   '/organizations',
+  '/public-booking-setup',
   '/settings',
   '/stripe-onboarding',
   '/tasks',

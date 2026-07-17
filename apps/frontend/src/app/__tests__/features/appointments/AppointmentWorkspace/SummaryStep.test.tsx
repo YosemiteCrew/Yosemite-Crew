@@ -12,6 +12,7 @@ jest.mock('@/app/features/appointments/services/workspaceAggregateService', () =
   signWorkspaceDocumentPacket: jest.fn(),
   getEncounterDocumentPacketPdfUrl: jest.fn(),
   listEncounterWorkspaceDocuments: jest.fn().mockResolvedValue([]),
+  listAppointmentWorkspaceDocuments: jest.fn().mockResolvedValue([]),
   getAppointmentWorkspaceBootstrap: jest.fn().mockResolvedValue({}),
   normalizeWorkspaceBootstrapForEncounter: jest.fn(() => ({})),
 }));

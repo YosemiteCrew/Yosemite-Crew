@@ -1,0 +1,62 @@
+/* PIMS week grid sizing.
+   "Time grids do not shrink, so each size gets its own shape. The tablet keeps
+   a real week." — the tablet band therefore renders the same seven-day grid as
+   desktop, but sized to fit the viewport instead of scrolling sideways.
+
+   Every value below is driven by custom properties so the desktop shape (the
+   signed-off 1440 frame) stays byte-identical to what it was before: 64px
+   gutters, 140px/96px minimum day columns, max-content tracks. Only the
+   768–1279 band overrides them. */
+
+.yc-week-grid {
+  /* Time gutter and the mirrored nav-arrow column. */
+  --yc-week-gutter: 64px;
+  /* Minimum width of a single day column before the track starts scrolling. */
+  --yc-week-day-min: 140px;
+}
+
+.yc-week-grid[data-zoom-mode='out'] {
+  --yc-week-day-min: 96px;
+}
+
+/* Horizontal tracks size to their content (so the week scrolls inside the
+   calendar's own container rather than the page) at every width except tablet. */
+.yc-week-grid__track {
+  min-width: max-content;
+}
+
+/* Three-column shell: time gutter | day columns | next-week arrow. */
+.yc-week-grid__shell {
+  display: grid;
+  grid-template-columns: var(--yc-week-gutter) minmax(0, 1fr) var(--yc-week-gutter);
+}
+
+/* ------------------------------------------------------- tablet: 768–1279 */
+
+@media (min-width: 768px) and (max-width: 1279.98px) {
+  .yc-week-grid {
+    /* 44px gutter, per the tablet week-grid frame. */
+    --yc-week-gutter: 44px;
+    /* No minimum: seven equal 1fr columns that divide the available width. */
+    --yc-week-day-min: 0px;
+  }
+
+  /* Let the tracks collapse to the container so all seven days fit without a
+     sideways scroll. */
+  .yc-week-grid__track {
+    min-width: 0;
+  }
+
+  /* The hour gutter drops from 64px to 44px, so the labels take the frame's
+     9.5px tabular type. Both selectors need to out-specify the unlayered
+     `.text-caption-2` override in globals.css. */
+  .yc-week-grid .yc-week-grid__hour-label {
+    padding-left: 2px !important;
+    font-size: 9.5px !important;
+    line-height: 1;
+  }
+
+  .yc-week-grid .yc-week-grid__hour-label span {
+    font-size: 9.5px;
+  }
+}

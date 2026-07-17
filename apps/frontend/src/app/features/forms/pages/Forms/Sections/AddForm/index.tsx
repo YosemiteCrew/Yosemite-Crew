@@ -1,5 +1,5 @@
 import Modal from '@/app/ui/overlays/Modal';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import Image from 'next/image';
 import Details, {
   AddFormStepHandle,
@@ -15,41 +15,12 @@ import {
   saveTemplateFormDraft,
 } from '@/app/features/forms/services/templateFormsService';
 import Close from '@/app/ui/primitives/Icons/Close';
-import Labels from '@/app/ui/widgets/Labels/Labels';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { useOrgStore } from '@/app/stores/orgStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import { shouldUseTemplateApi } from '@/app/lib/forms';
-
-const LabelOptions = [
-  {
-    name: 'Form details',
-    key: 'form-details',
-  },
-  {
-    name: 'Build form',
-    key: 'build-form',
-  },
-  {
-    name: 'Review',
-    key: 'review',
-  },
-  {
-    name: (
-      <div className="flex items-center gap-2">
-        <Image
-          src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
-          alt=""
-          width={30}
-          height={30}
-          className="object-contain"
-        />
-        <span>MSD Veterinary Manual</span>
-      </div>
-    ),
-    key: 'merck-manuals',
-  },
-];
+import { IoCreateOutline, IoEyeOutline } from 'react-icons/io5';
 
 type AddFormProps = {
   showModal: boolean;
@@ -59,6 +30,38 @@ type AddFormProps = {
   serviceOptions: { label: string; value: string; badge?: string }[];
   draft?: FormsProps | null;
   onDraftChange?: (draft: FormsProps | null) => void;
+};
+
+/** Single-screen builder views. The palette/canvas/settings builder is the default. */
+type BuilderView = 'build' | 'preview' | 'merck';
+
+// Builder chrome: which pane is showing and whether the details panel is open.
+// These always reset together, so they are one snapshot with one RESET action.
+type BuilderUiState = { view: BuilderView; showDetails: boolean };
+
+type BuilderUiAction =
+  | { type: 'RESET' }
+  | { type: 'TOGGLE_VIEW'; view: Exclude<BuilderView, 'build'> }
+  | { type: 'SET_DETAILS'; showDetails: boolean }
+  | { type: 'TOGGLE_DETAILS' };
+
+const INITIAL_BUILDER_UI: BuilderUiState = { view: 'build', showDetails: false };
+
+const builderUiReducer = (state: BuilderUiState, action: BuilderUiAction): BuilderUiState => {
+  switch (action.type) {
+    case 'RESET':
+      return state.view === 'build' && !state.showDetails ? state : INITIAL_BUILDER_UI;
+    // Each of these panes toggles against the builder, so re-selecting the active
+    // pane returns to 'build'.
+    case 'TOGGLE_VIEW':
+      return { ...state, view: state.view === action.view ? 'build' : action.view };
+    case 'SET_DETAILS':
+      return state.showDetails === action.showDetails
+        ? state
+        : { ...state, showDetails: action.showDetails };
+    case 'TOGGLE_DETAILS':
+      return { ...state, showDetails: !state.showDetails };
+  }
 };
 
 const defaultForm = (): FormsProps => {
@@ -80,9 +83,6 @@ const defaultForm = (): FormsProps => {
   };
 };
 
-const resolveActiveLabel = (label: string, merckEnabled: boolean) =>
-  !merckEnabled && label === 'merck-manuals' ? 'form-details' : label;
-
 const AddForm = ({
   showModal,
   setShowModal,
@@ -92,11 +92,14 @@ const AddForm = ({
   draft,
   onDraftChange,
 }: AddFormProps) => {
-  const [activeLabel, setActiveLabel] = useState('form-details');
   const [formData, setFormData] = useState<FormsProps>(draft ?? initialForm ?? defaultForm());
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // `view` and `showDetails` are both builder chrome and are always reset together
+  // when the modal opens or closes, so they move as one snapshot rather than as
+  // separate setState calls fired from the same effect.
+  const [builderUi, dispatchBuilderUi] = useReducer(builderUiReducer, INITIAL_BUILDER_UI);
+  const { view, showDetails } = builderUi;
   // Keep the last non-null handle so validation still applies while the step
-  // is unmounted (e.g. checking Details validity from the Merck tab).
+  // is unmounted (e.g. validating Details/schema from the preview tab).
   const detailStepRef = useRef<AddFormStepHandle | null>(null);
   const buildStepRef = useRef<AddFormStepHandle | null>(null);
   const setDetailStepHandle = (handle: AddFormStepHandle | null) => {
@@ -111,36 +114,15 @@ const AddForm = ({
 
   const isEditing = useMemo(() => Boolean(initialForm?._id), [initialForm]);
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
-  const labelOptions = useMemo(
-    () =>
-      merckEnabled ? LabelOptions : LabelOptions.filter((label) => label.key !== 'merck-manuals'),
-    [merckEnabled]
-  );
-  const visibleActiveLabel = resolveActiveLabel(activeLabel, merckEnabled);
-
-  const selectActiveLabel = useCallback(
-    (label: string) => {
-      setActiveLabel(resolveActiveLabel(label, merckEnabled));
-    },
-    [merckEnabled]
-  );
-  const updateFormData = useCallback<React.Dispatch<React.SetStateAction<FormsProps>>>(
-    (nextFormData) => {
-      setFormData((previousFormData) => {
-        const resolvedFormData =
-          typeof nextFormData === 'function' ? nextFormData(previousFormData) : nextFormData;
-        if (!initialForm) {
-          onDraftChange?.(resolvedFormData);
-        }
-        return resolvedFormData;
-      });
-    },
-    [initialForm, onDraftChange]
-  );
+  const fieldCount = formData.schema?.length ?? 0;
+  const serviceCount = formData.services?.length ?? 0;
+  const detailsSummary = `${formData.category || 'Uncategorised'} · ${fieldCount} field${
+    fieldCount === 1 ? '' : 's'
+  } · linked to ${serviceCount} service${serviceCount === 1 ? '' : 's'}`;
 
   useLayoutEffect(() => {
     if (showModal && !wasOpenRef.current) {
-      selectActiveLabel('form-details');
+      dispatchBuilderUi({ type: 'RESET' });
       const next = {
         ...(initialForm ?? draft ?? defaultForm()),
         businessType:
@@ -157,35 +139,14 @@ const AddForm = ({
     if (!showModal) {
       wasOpenRef.current = false;
     }
-  }, [showModal, initialForm, draft, selectActiveLabel, onDraftChange]);
+  }, [showModal, initialForm, draft, onDraftChange]);
 
   const closeModal = () => {
     setFormData(defaultForm());
+    dispatchBuilderUi({ type: 'RESET' });
     onDraftChange?.(null);
-    selectActiveLabel('form-details');
     setShowModal(false);
     onClose?.();
-  };
-
-  const goToNextStep = () => {
-    if (visibleActiveLabel === 'form-details') {
-      if (!(detailStepRef.current?.validate() ?? true)) return;
-      selectActiveLabel('build-form');
-    } else if (visibleActiveLabel === 'build-form') {
-      if (!(buildStepRef.current?.validate() ?? true)) return;
-      selectActiveLabel('review');
-    }
-  };
-
-  const handleLabelClick = (target: string) => {
-    if (target === visibleActiveLabel) return;
-    if (target === 'build-form' || target === 'review') {
-      if (!(detailStepRef.current?.validate() ?? true)) return;
-    }
-    if (target === 'review') {
-      if (!(buildStepRef.current?.validate() ?? true)) return;
-    }
-    selectActiveLabel(target);
   };
 
   const handleSaveDraft = async () => {
@@ -203,7 +164,6 @@ const AddForm = ({
       setFormData(saved);
       onDraftChange?.(null);
       setFormData(defaultForm());
-      selectActiveLabel('form-details');
       closeModal();
     } catch (err) {
       console.error('Failed to save draft', err);
@@ -213,6 +173,15 @@ const AddForm = ({
   };
 
   const handlePublish = async () => {
+    // Single-screen: validate the details and the field schema before publishing.
+    // Invalid details reveal the details panel so the inline errors are visible.
+    if (!(detailStepRef.current?.validate() ?? true)) {
+      dispatchBuilderUi({ type: 'SET_DETAILS', showDetails: true });
+      return;
+    }
+    if (!(buildStepRef.current?.validate() ?? true)) {
+      return;
+    }
     setIsSaving(true);
     try {
       const publishData = {
@@ -232,7 +201,6 @@ const AddForm = ({
       }
       onDraftChange?.(null);
       setFormData(defaultForm());
-      selectActiveLabel('form-details');
       closeModal();
     } catch (err) {
       console.error('Failed to publish form', err);
@@ -241,64 +209,153 @@ const AddForm = ({
     }
   };
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-  }, [visibleActiveLabel]);
+  // Coerce a stale 'merck' view back to 'build' while rendering when the MSD
+  // integration is disabled — deriving this avoids the extra render a useEffect
+  // sync would cost.
+  const effectiveView = view === 'merck' && !merckEnabled ? 'build' : view;
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal} onClose={onClose}>
-      <div className="flex flex-col h-full gap-6">
-        <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
-          <div className="flex justify-center items-center gap-2">
+      <div className="flex h-full flex-col gap-4">
+        {/* Header: title + details summary + preview / MSD / close actions */}
+        <div className="flex items-start justify-between gap-3 border-b border-[var(--hairline)] pb-3">
+          <div className="flex flex-col gap-0.5">
             <div className="text-body-1 text-text-primary">
-              {isEditing ? 'Edit form' : 'Add form'}
+              {isEditing ? 'Edit template' : 'Add template'}
+              {formData.name ? ` · ${formData.name}` : ''}
             </div>
+            <div className="text-caption-2 text-text-secondary">{detailsSummary}</div>
           </div>
-          <Close onClick={closeModal} />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              aria-pressed={view === 'preview'}
+              onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'preview' })}
+              className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
+                view === 'preview'
+                  ? 'border-[var(--blue)] text-[var(--blue-text)]'
+                  : 'border-[var(--divider)] text-text-secondary'
+              }`}
+            >
+              <IoEyeOutline size={15} aria-hidden="true" />
+              {view === 'preview' ? 'Back to builder' : 'Preview as parent'}
+            </button>
+            {merckEnabled && (
+              <button
+                type="button"
+                aria-pressed={view === 'merck'}
+                onClick={() => dispatchBuilderUi({ type: 'TOGGLE_VIEW', view: 'merck' })}
+                className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-caption-2 font-semibold transition-colors ${
+                  view === 'merck'
+                    ? 'border-[var(--blue)] text-[var(--blue-text)]'
+                    : 'border-[var(--divider)] text-text-secondary'
+                }`}
+              >
+                <Image
+                  src={MEDIA_SOURCES.futureAssets.msdLogoUrl}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="object-contain"
+                />
+                MSD Veterinary Manual
+              </button>
+            )}
+            <Close onClick={closeModal} />
+          </div>
         </div>
 
-        <Labels
-          labels={labelOptions}
-          activeLabel={visibleActiveLabel}
-          setActiveLabel={handleLabelClick}
-        />
+        {/* Body */}
+        <div className="flex min-h-0 flex-1 flex-col">
+          {effectiveView === 'merck' && (
+            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
+              <AppointmentMerckSearch activeAppointment={null} />
+            </div>
+          )}
 
-        <div ref={scrollRef} className="flex flex-1 min-h-0 scrollbar-hidden overflow-y-auto">
-          {visibleActiveLabel === 'form-details' && (
-            <Details
-              formData={formData}
-              setFormData={updateFormData}
-              onNext={goToNextStep}
-              serviceOptions={serviceOptions}
-              ref={setDetailStepHandle}
-            />
+          {effectiveView === 'preview' && (
+            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
+              <Review
+                formData={formData}
+                onPublish={handlePublish}
+                onSaveDraft={handleSaveDraft}
+                serviceOptions={serviceOptions}
+                loading={isSaving}
+                isEditing={isEditing}
+              />
+            </div>
           )}
-          {visibleActiveLabel === 'build-form' && (
-            <Build
-              formData={formData}
-              setFormData={updateFormData}
-              onNext={goToNextStep}
-              serviceOptions={serviceOptions}
-              ref={setBuildStepHandle}
-            />
-          )}
-          {visibleActiveLabel === 'review' && (
-            <Review
-              formData={formData}
-              onPublish={handlePublish}
-              onSaveDraft={handleSaveDraft}
-              serviceOptions={serviceOptions}
-              loading={isSaving}
-              isEditing={isEditing}
-            />
-          )}
-          {merckEnabled && visibleActiveLabel === 'merck-manuals' && (
-            <AppointmentMerckSearch activeAppointment={null} />
+
+          {effectiveView === 'build' && (
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
+              {/* Template details fold — always mounted so validation runs; toggled open on demand. */}
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--hairline)] bg-[var(--screen-2)] px-4 py-2.5">
+                <span className="text-caption-2 text-text-secondary">
+                  Template details ·{' '}
+                  <span className="text-text-primary">{formData.name || 'Untitled template'}</span>
+                </span>
+                <button
+                  type="button"
+                  aria-expanded={showDetails}
+                  onClick={() => dispatchBuilderUi({ type: 'TOGGLE_DETAILS' })}
+                  className="flex items-center gap-1.5 rounded-full border border-[var(--divider)] px-3 py-1 text-caption-2 font-semibold text-text-secondary"
+                >
+                  <IoCreateOutline size={14} aria-hidden="true" />
+                  {showDetails ? 'Hide details' : 'Edit details'}
+                </button>
+              </div>
+
+              <div
+                className={
+                  showDetails
+                    ? 'max-h-[40%] overflow-y-auto scrollbar-hidden rounded-2xl border border-[var(--hairline)] p-3'
+                    : 'hidden'
+                }
+              >
+                <Details
+                  formData={formData}
+                  setFormData={setFormData}
+                  onNext={
+                    /* v8 ignore next -- dead no-op leftover from the old wizard: Details renders with hideNext, so onNext is never invoked */ () =>
+                      dispatchBuilderUi({ type: 'SET_DETAILS', showDetails: false })
+                  }
+                  serviceOptions={serviceOptions}
+                  ref={setDetailStepHandle}
+                  hideNext
+                />
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-[var(--hairline)]">
+                <Build
+                  formData={formData}
+                  setFormData={setFormData}
+                  serviceOptions={serviceOptions}
+                  ref={setBuildStepHandle}
+                />
+              </div>
+            </div>
           )}
         </div>
+
+        {/* Footer: Save / Cancel (preview view uses Review's own action buttons). */}
+        {effectiveView !== 'preview' && (
+          <div className="grid grid-cols-2 gap-3 border-t border-[var(--hairline)] pt-3">
+            <Primary
+              href="#"
+              text={isEditing ? 'Update & publish' : 'Save template'}
+              className="w-full max-h-12! text-lg! tracking-[-0.36px]!"
+              onClick={handlePublish}
+              isDisabled={isSaving}
+            />
+            <Secondary
+              href="#"
+              text={isEditing ? 'Update draft' : 'Save as draft'}
+              className="w-full max-h-12! text-lg! tracking-[-0.36px]!"
+              onClick={handleSaveDraft}
+              isDisabled={isSaving}
+            />
+          </div>
+        )}
       </div>
     </Modal>
   );

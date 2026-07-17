@@ -28,6 +28,7 @@ jest.mock("../../src/utils/logger", () => ({
 
 const mockCreateV0 = jest.fn();
 const mockDistribute = jest.fn();
+const mockGet = jest.fn();
 
 jest.mock("@documenso/sdk-typescript", () => {
   return {
@@ -35,6 +36,7 @@ jest.mock("@documenso/sdk-typescript", () => {
       documents: {
         createV0: mockCreateV0,
         distribute: mockDistribute,
+        get: mockGet,
       },
     })),
   };
@@ -374,6 +376,53 @@ describe("DocumensoService", () => {
         expect(logger.error).toHaveBeenCalledWith(
           "API error:",
           "Limit reached",
+        );
+      });
+    });
+
+    describe("getDocumentStatus", () => {
+      it("returns the document status reported by Documenso", async () => {
+        mockGet.mockResolvedValueOnce({ id: 1, status: "COMPLETED" });
+
+        const status = await DocumensoService.getDocumentStatus({
+          documentId: 1,
+          apiKey: "custom",
+        });
+
+        expect(status).toBe("COMPLETED");
+        expect(mockGet).toHaveBeenCalledWith({ documentId: 1 });
+      });
+
+      it("returns a non-completed status verbatim rather than coercing it", async () => {
+        mockGet.mockResolvedValueOnce({ id: 1, status: "PENDING" });
+
+        await expect(
+          DocumensoService.getDocumentStatus({ documentId: 1 }),
+        ).resolves.toBe("PENDING");
+      });
+
+      it("rethrows a DocumensoError so callers cannot mistake an outage for a signature", async () => {
+        mockGet.mockRejectedValueOnce(
+          new (DocumensoError as any)("Not found", 404, "No document"),
+        );
+
+        await expect(
+          DocumensoService.getDocumentStatus({ documentId: 404 }),
+        ).rejects.toThrow("Not found");
+        expect(logger.error).toHaveBeenCalledWith("API error:", "Not found");
+        expect(logger.error).toHaveBeenCalledWith("Status code:", 404);
+        expect(logger.error).toHaveBeenCalledWith("Body:", "No document");
+      });
+
+      it("rethrows an unexpected error", async () => {
+        mockGet.mockRejectedValueOnce(new Error("Network disconnect"));
+
+        await expect(
+          DocumensoService.getDocumentStatus({ documentId: 1 }),
+        ).rejects.toThrow("Network disconnect");
+        expect(logger.error).toHaveBeenCalledWith(
+          "An unexpected error occurred:",
+          expect.any(Error),
         );
       });
     });

@@ -45,7 +45,7 @@ const SpecialitiesRevamp = () => {
   if (!primaryOrgId) {
     return (
       <div className="flex flex-col w-full gap-3 px-4 md:px-8 py-6 max-w-350 mx-auto">
-        <h1 className="text-heading-2 text-text-primary">Specialities</h1>
+        <h1 className="text-page-title text-text-primary">Specialities</h1>
         <p className="text-body-4 text-text-secondary">
           Select an organisation before managing specialities.
         </p>
@@ -61,17 +61,17 @@ const SpecialitiesRevamp = () => {
           <Link
             href="/organization"
             aria-label="Back to Organisation"
-            className="flex items-center justify-center size-9 rounded-full border border-card-border hover:border-text-brand transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
+            className="flex items-center justify-center size-9 rounded-full border border-[var(--hairline)] hover:border-text-brand transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text-brand"
           >
             <IoChevronBack size={18} color="var(--color-neutral-900)" aria-hidden="true" />
           </Link>
-          <h1 className="text-heading-2 text-text-primary">Specialities</h1>
+          <h1 className="text-page-title text-text-primary">Specialities</h1>
         </div>
 
         <Primary
           href="#"
           icon={<span>+</span>}
-          text="Add Speciality"
+          text="Add speciality"
           onClick={(e) => {
             e.preventDefault();
             setAddModalOpen(true);
@@ -91,13 +91,13 @@ const SpecialitiesRevamp = () => {
           />
         ))}
         {filteredSpecialities.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-2xl border border-card-border text-text-secondary">
+          <div className="flex flex-col items-center justify-center gap-3 py-16 rounded-[18px] border border-[var(--hairline)] text-text-secondary">
             <p className="text-body-3">{getSpecialitiesEmptyMessage(status, searchQuery)}</p>
             {!searchQuery && status !== 'loading' && (
               <Primary
                 href="#"
                 icon={<span>+</span>}
-                text="Add Speciality"
+                text="Add speciality"
                 onClick={(e) => {
                   e.preventDefault();
                   setAddModalOpen(true);

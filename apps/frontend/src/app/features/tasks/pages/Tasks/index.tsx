@@ -18,6 +18,7 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 
 const TASKS_PAGE_SKELETON = <PageSkeleton variant="planner" />;
 
@@ -154,6 +155,10 @@ const Tasks = () => {
     setAddTaskPrefill(null);
     setAddPopup(true);
   }, []);
+  // The phone FAB is rendered by PhoneShell, outside this page's tree, so it
+  // reaches the same create flow the desktop "New task" button uses via the
+  // primary-action event rather than through props.
+  usePhonePrimaryAction('task', openAddTask);
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView,
     listWrapperClassName:
@@ -216,10 +221,10 @@ const Tasks = () => {
 
   return (
     <div className="flex flex-col relative">
-      <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+      <div className="yc-page-content">
         <TitleCalendar
           title="Tasks"
-          description="Track to-dos with calendar views, assign pet parents and due dates, and open each task to review details and update status."
+          description="Track to-dos, assign the team or pet parents, follow through"
           setAddPopup={(next) => {
             setAddTaskPrefill(null);
             setAddPopup(next);
@@ -244,7 +249,7 @@ const Tasks = () => {
                 setActiveStatus={setActiveStatus}
                 showAddButton={canEditTasks}
                 onAddButtonClick={openAddTask}
-                addButtonText="Add"
+                addButtonText="New task"
                 compactFilterPills
               />
             )}

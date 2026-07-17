@@ -197,3 +197,14 @@ export const richTextIsEmpty = (value: string | undefined): boolean => {
   const stripped = replaceNbsp(stripHtmlTags(value)).trim();
   return stripped.length === 0;
 };
+
+const pad2 = (value: number): string => String(value).padStart(2, '0');
+
+/** Format a positive elapsed millisecond span as HH:MM:SS. */
+export const formatElapsed = (elapsedMs: number): string => {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
+};

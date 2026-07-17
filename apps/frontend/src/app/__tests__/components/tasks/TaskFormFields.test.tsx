@@ -104,7 +104,7 @@ describe('TaskFormFields', () => {
     expect(screen.getByText('Reminder (optional)')).toBeInTheDocument();
     expect(screen.getByText('Repeat')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Task title'), { target: { value: 'Updated task' } });
+    fireEvent.change(screen.getByLabelText('Task'), { target: { value: 'Updated task' } });
     fireEvent.change(screen.getByLabelText('description'), { target: { value: 'Updated desc' } });
     fireEvent.click(screen.getByRole('button', { name: 'set-due' }));
     fireEvent.click(screen.getByRole('button', { name: 'set-time' }));

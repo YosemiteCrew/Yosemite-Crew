@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react';
 import { useChannelStateContext, useChannelActionContext } from 'stream-chat-react';
 import type { MessageResponse } from 'stream-chat';
-import { LuSearch, LuX } from 'react-icons/lu';
+import { IoClose, IoSearchOutline } from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 
@@ -68,7 +68,7 @@ export function MessageSearch() {
             : 'text-neutral-500 hover:bg-chat-panel hover:text-neutral-900'
         )}
       >
-        <LuSearch className="size-4" />
+        <IoSearchOutline className="h-4 w-4" />
       </button>
       {open && (
         <>
@@ -80,7 +80,7 @@ export function MessageSearch() {
           />
           <div className="absolute right-0 top-11 z-20 w-80 rounded-2xl border border-chat-divider bg-neutral-0 p-2 shadow-lg">
             <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-input-border-default bg-(--whitebg) px-4 py-2.5 transition-colors focus-within:border-input-border-active">
-              <LuSearch className="size-4 shrink-0 text-input-text-placeholder" />
+              <IoSearchOutline className="h-4 w-4 shrink-0 text-input-text-placeholder" />
               <input
                 autoFocus
                 value={query}
@@ -91,7 +91,7 @@ export function MessageSearch() {
               />
               {hasQuery && (
                 <button type="button" aria-label="Clear search" onClick={() => setQuery('')}>
-                  <LuX className="size-4 text-input-text-placeholder" />
+                  <IoClose className="h-4 w-4 text-input-text-placeholder" />
                 </button>
               )}
             </div>

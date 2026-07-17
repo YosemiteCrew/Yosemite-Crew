@@ -45,6 +45,14 @@ jest.mock('react-icons/io5', () => ({
   IoEye: () => <span data-testid="eye-icon">Eye</span>,
 }));
 
+let mockTeamsById: Record<string, { practionerId?: string; name?: string }> = {};
+jest.mock('@/app/stores/teamStore', () => ({
+  useTeamStore: () => ({ teamsById: mockTeamsById }),
+}));
+jest.mock('@/app/stores/orgStore', () => ({
+  useOrgStore: (selector: any) => selector({ primaryOrgId: undefined, orgsById: {} }),
+}));
+
 // --- Test Data ---
 
 // Fixed: Added 'schema: []' to match FormsProps type requirement
@@ -91,6 +99,7 @@ describe('FormsTable Component', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockTeamsById = {};
   });
 
   // --- 1. Helper Function Tests ---
@@ -166,6 +175,20 @@ describe('FormsTable Component', () => {
     expect(screen.getAllByText('Published').length).toBeGreaterThan(0);
   });
 
+  it('resolves the updated-by id to a team member name and skips incomplete members', () => {
+    // t1 → id + name present (map entry created); t2 → name missing; t3 → id missing.
+    // Exercises both arms of the `team.practionerId && team.name` guard.
+    mockTeamsById = {
+      t1: { practionerId: 'u1', name: 'Dr. Weber' },
+      t2: { practionerId: 'u2' },
+      t3: { name: 'No Id' },
+    };
+    const forms = [{ ...mockForms[0], updatedBy: 'u1' }];
+    render(<FormsTable {...defaultProps} filteredList={forms as any} />);
+
+    expect(screen.getAllByText('Dr. Weber').length).toBeGreaterThan(0);
+  });
+
   it('calls setActiveForm and setViewPopup when view action is clicked', () => {
     render(<FormsTable {...defaultProps} />);
 
@@ -226,5 +249,72 @@ describe('FormsTable Component', () => {
 
     const rows = screen.getAllByTestId('row-0');
     expect(rows.length).toBeGreaterThan(0);
+  });
+
+  // --- 5. Linked-services column (opt-in) ---
+
+  describe('linked services column', () => {
+    const serviceOptions = [
+      { label: 'Dental scale & polish', value: 'svc-1' },
+      { label: 'Mass removal', value: 'svc-2' },
+    ];
+
+    it('does not render the column by default (other callers unchanged)', () => {
+      render(<FormsTable {...defaultProps} />);
+      expect(screen.queryByText('Linked services')).not.toBeInTheDocument();
+    });
+
+    it('renders the column and resolves ids to service names when opted in', () => {
+      const forms = [{ ...mockForms[0], services: ['svc-1', 'svc-2'] }];
+      render(
+        <FormsTable
+          {...defaultProps}
+          filteredList={forms as any}
+          showLinkedServices
+          serviceOptions={serviceOptions}
+        />
+      );
+
+      expect(screen.getByText('Linked services')).toBeInTheDocument();
+      expect(screen.getByText('Dental scale & polish')).toBeInTheDocument();
+      expect(screen.getByText('Mass removal')).toBeInTheDocument();
+    });
+
+    it('falls back to the raw id when a linked service is not in the options', () => {
+      const forms = [{ ...mockForms[0], services: ['svc-unknown'] }];
+      render(
+        <FormsTable
+          {...defaultProps}
+          filteredList={forms as any}
+          showLinkedServices
+          serviceOptions={serviceOptions}
+        />
+      );
+
+      expect(screen.getByText('svc-unknown')).toBeInTheDocument();
+    });
+
+    it('renders a dash when a template has no linked services', () => {
+      const forms = [{ ...mockForms[0], services: [] }];
+      render(
+        <FormsTable
+          {...defaultProps}
+          filteredList={forms as any}
+          showLinkedServices
+          serviceOptions={serviceOptions}
+        />
+      );
+
+      expect(screen.getByText('Linked services')).toBeInTheDocument();
+      expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+    });
+
+    it('tolerates a missing serviceOptions map and undefined services', () => {
+      const forms = [{ ...mockForms[0], services: undefined }];
+      render(<FormsTable {...defaultProps} filteredList={forms as any} showLinkedServices />);
+
+      expect(screen.getByText('Linked services')).toBeInTheDocument();
+      expect(screen.getAllByText('-').length).toBeGreaterThan(0);
+    });
   });
 });

@@ -1,6 +1,5 @@
 import React from 'react';
-import { IoArrowForward } from 'react-icons/io5';
-import { LuBedSingle, LuFootprints } from 'react-icons/lu';
+import { IoArrowForward, IoBedOutline, IoFootstepsOutline } from 'react-icons/io5';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import ReadyToggle from '@/app/features/appointments/pages/AppointmentWorkspace/components/ReadyToggle';
@@ -53,7 +52,7 @@ const ConsultationTypeField = ({ mode }: { mode: EncounterMode }) => {
           aria-hidden="true"
           className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-text-brand"
         >
-          {isInpatient ? <LuBedSingle size={16} /> : <LuFootprints size={16} />}
+          {isInpatient ? <IoBedOutline size={16} /> : <IoFootstepsOutline size={16} />}
         </span>
       </div>
       <span className="pointer-events-none absolute -top-2 left-5 z-10 bg-(--whitebg) px-1 text-caption-2 text-text-secondary">
@@ -124,10 +123,10 @@ const WorkspaceMetaBar = ({
   const staffFields = (
     <>
       <div className="w-52">
-        <StaffField label="Assigned Lead" name={encounter.leadName} photoUrl={leadPhotoUrl} />
+        <StaffField label="Assigned lead" name={encounter.leadName} photoUrl={leadPhotoUrl} />
       </div>
       <div className="w-52">
-        <StaffField label="Support Staff" name={encounter.nurseName} photoUrl={supportPhotoUrl} />
+        <StaffField label="Support staff" name={encounter.nurseName} photoUrl={supportPhotoUrl} />
       </div>
       <div className="w-52">
         <ConsultationTypeField mode={encounter.mode} />
@@ -174,13 +173,13 @@ const WorkspaceMetaBar = ({
   const readyToggles = (
     <>
       <ReadyToggle
-        label="Ready for Billing"
+        label="Ready for billing"
         state={encounter.readyForBilling}
         disabled={billingTogglesLocked}
         onToggle={onToggleReadyForBilling}
       />
       <ReadyToggle
-        label="Ready for Discharge"
+        label="Ready for discharge"
         state={encounter.readyForDischarge}
         disabled={dischargeTogglesLocked}
         onToggle={onToggleReadyForDischarge}

@@ -69,7 +69,7 @@ describe('Header Component', () => {
     const emergenciesPill = screen.getByRole('button', { name: 'Emergencies' });
     const monthLabel = screen.getByText('January 2023');
     const statusButton = screen.getByRole('button', { name: /Scheduled/i });
-    const addAppointmentButton = screen.getByRole('button', { name: 'Add Appointment' });
+    const addAppointmentButton = screen.getByRole('button', { name: 'New appointment' });
     const datepicker = screen.getByTestId('datepicker');
     const viewSelector = screen.getByRole('button', { name: /week/i });
     const zoomInButton = screen.getByTitle('Zoom in timeline');
@@ -145,7 +145,7 @@ describe('Header Component', () => {
   it('keeps the calendar header sticky at the top of the planner', () => {
     const { container } = render(<Header {...defaultProps} />);
 
-    expect(container.firstChild).toHaveClass('sticky', 'top-0', 'bg-white');
+    expect(container.firstChild).toHaveClass('sticky', 'top-0', 'bg-neutral-0');
   });
 
   it('uses readable dropdown text when a status pill uses light text tokens', () => {
@@ -171,5 +171,184 @@ describe('Header Component', () => {
     expect(screen.getAllByText('Pending')[1]).toHaveStyle({
       color: 'var(--color-badge-slate-bg)',
     });
+  });
+
+  // --- 2. Filter pills ---
+
+  it('styles active/inactive filter pills and toggles the active filter', () => {
+    const setActiveFilter = jest.fn();
+    const filterOptions = [
+      { key: 'all', name: 'All' },
+      { key: 'emergencies', name: 'Emergencies' },
+    ];
+
+    const { rerender } = render(
+      <Header
+        {...defaultProps}
+        activeFilter="all"
+        setActiveFilter={setActiveFilter}
+        hasEmergency
+        filterOptions={filterOptions}
+      />
+    );
+
+    // Active non-emergency pill uses the brand/blue treatment and the brand border.
+    const allPillActive = screen.getByRole('button', { name: 'All' });
+    expect(allPillActive).toHaveClass('bg-blue-light');
+    expect(allPillActive).toHaveStyle({ borderColor: 'var(--color-text-brand)' });
+
+    // Clicking an inactive pill selects it; clicking the active pill resets to 'all'.
+    fireEvent.click(screen.getByRole('button', { name: 'Emergencies' }));
+    expect(setActiveFilter).toHaveBeenCalledWith('emergencies');
+    fireEvent.click(allPillActive);
+    expect(setActiveFilter).toHaveBeenCalledWith('all');
+
+    rerender(
+      <Header
+        {...defaultProps}
+        activeFilter="emergencies"
+        setActiveFilter={setActiveFilter}
+        hasEmergency
+        filterOptions={filterOptions}
+      />
+    );
+
+    // Inactive non-emergency pill falls back to the muted tertiary treatment and card border.
+    const allPillInactive = screen.getByRole('button', { name: 'All' });
+    expect(allPillInactive).toHaveClass('text-text-tertiary');
+    expect(allPillInactive).toHaveStyle({ borderColor: 'var(--color-card-border)' });
+
+    // Active emergency pill uses the danger text treatment.
+    expect(screen.getByRole('button', { name: 'Emergencies' })).toHaveClass('text-danger-500!');
+  });
+
+  it('ignores filter toggles when no setter is provided', () => {
+    render(<Header {...defaultProps} filterOptions={[{ key: 'all', name: 'All' }]} />);
+
+    // No setActiveFilter: clicking must be a no-op rather than throwing.
+    expect(() => fireEvent.click(screen.getByRole('button', { name: 'All' }))).not.toThrow();
+  });
+
+  // --- 3. Status filter dropdown ---
+
+  const statusOptions = [
+    { key: 'all', name: 'Status' },
+    { key: 'scheduled', name: 'Scheduled', bg: '#eef', text: '#123', border: '#abc' },
+  ];
+
+  it('shows the neutral status trigger style when the selected option has no background', () => {
+    render(<Header {...defaultProps} activeStatus="all" statusOptions={statusOptions} />);
+
+    const trigger = screen.getByRole('button', { name: /Status/i });
+    expect(trigger).toHaveStyle({ borderColor: 'var(--color-card-border)' });
+  });
+
+  // Trigger + open panel both render the label text; when open there are two matches.
+  const statusOptionButton = (label: string) =>
+    screen.getAllByText(label).at(-1)!.closest('button') as HTMLElement;
+
+  it('selects a status option and closes the dropdown', () => {
+    const setActiveStatus = jest.fn();
+    render(
+      <Header
+        {...defaultProps}
+        activeStatus="scheduled"
+        setActiveStatus={setActiveStatus}
+        statusOptions={statusOptions}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Scheduled/i }));
+    expect(screen.getAllByText('Scheduled')).toHaveLength(2); // trigger + option
+    fireEvent.click(statusOptionButton('Scheduled'));
+
+    expect(setActiveStatus).toHaveBeenCalledWith('scheduled');
+    expect(screen.getAllByText('Scheduled')).toHaveLength(1); // closed → trigger only
+  });
+
+  it('does not throw when selecting a status option without a setter', () => {
+    render(<Header {...defaultProps} activeStatus="all" statusOptions={statusOptions} />);
+
+    // Selected 'all' → trigger reads 'Status'; the panel adds the 'Scheduled' option.
+    fireEvent.click(screen.getByRole('button', { name: /Status/i }));
+    expect(() => fireEvent.click(statusOptionButton('Scheduled'))).not.toThrow();
+  });
+
+  it('closes the status dropdown on outside click but keeps it open for inside interactions', () => {
+    render(
+      <Header
+        {...defaultProps}
+        activeStatus="scheduled"
+        setActiveStatus={jest.fn()}
+        statusOptions={statusOptions}
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: /Scheduled/i });
+    fireEvent.click(trigger);
+    const isOpen = () => screen.getAllByText('Scheduled').length === 2;
+    expect(isOpen()).toBe(true);
+
+    // Mousedown on the trigger / inside the panel keeps the dropdown open.
+    fireEvent.mouseDown(trigger);
+    expect(isOpen()).toBe(true);
+    fireEvent.mouseDown(statusOptionButton('Scheduled'));
+    expect(isOpen()).toBe(true);
+
+    // Mousedown elsewhere closes it.
+    fireEvent.mouseDown(document.body);
+    expect(isOpen()).toBe(false);
+  });
+
+  it('closes the status dropdown on scroll', () => {
+    render(
+      <Header
+        {...defaultProps}
+        activeStatus="scheduled"
+        setActiveStatus={jest.fn()}
+        statusOptions={statusOptions}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Scheduled/i }));
+    expect(screen.getAllByText('Scheduled')).toHaveLength(2);
+
+    fireEvent.scroll(window);
+    expect(screen.getAllByText('Scheduled')).toHaveLength(1);
+  });
+
+  // --- 4. Calendar view dropdown ---
+
+  it('selects a different calendar view and ignores re-selecting the active view', () => {
+    const setActiveCalendar = jest.fn();
+    render(
+      <Header {...defaultProps} activeCalendar="week" setActiveCalendar={setActiveCalendar} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /week/i }));
+    // Selecting a different view transitions to it.
+    fireEvent.click(screen.getByText('Day').closest('button') as HTMLElement);
+    expect(setActiveCalendar).toHaveBeenCalledWith('day');
+
+    setActiveCalendar.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /week/i }));
+    // Re-selecting the already active view is a no-op.
+    fireEvent.click(screen.getAllByText('Week').at(-1)!.closest('button') as HTMLElement);
+    expect(setActiveCalendar).not.toHaveBeenCalled();
+  });
+
+  // --- 5. Zoom toggle ---
+
+  it('renders the zoom toggle in zoomed-out mode and switches modes', () => {
+    const setZoomMode = jest.fn();
+    render(<Header {...defaultProps} zoomMode="out" setZoomMode={setZoomMode} />);
+
+    const zoomOutButton = screen.getByTitle('Zoom out timeline');
+    expect(zoomOutButton).toHaveClass('bg-white');
+
+    fireEvent.click(screen.getByTitle('Zoom in timeline'));
+    expect(setZoomMode).toHaveBeenCalledWith('in');
+    fireEvent.click(zoomOutButton);
+    expect(setZoomMode).toHaveBeenCalledWith('out');
   });
 });

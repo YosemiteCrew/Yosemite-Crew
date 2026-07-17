@@ -17,6 +17,8 @@ import { useAuthStore } from '@/app/stores/authStore';
 import { useNotify } from '@/app/hooks/useNotify';
 import { filterAppointmentsForWeek } from '@/app/features/appointments/components/Calendar/availabilityIntervals';
 import { useAppointmentCalendarDrag } from '@/app/features/appointments/components/Calendar/useAppointmentCalendarDrag';
+import useIsPhone from '@/app/ui/layout/PhoneShell/useIsPhone';
+import PhoneCalendar from '@/app/features/appointments/components/Calendar/responsive/PhoneCalendar';
 type AppointmentCalendarProps = {
   filteredList: Appointment[];
   allAppointments: Appointment[];
@@ -77,6 +79,7 @@ const AppointmentCalendar = ({
   statusOptions,
 }: AppointmentCalendarProps) => {
   const { notify } = useNotify();
+  const isPhone = useIsPhone();
   const [zoomMode, setZoomMode] = useState<CalendarZoomMode>('in');
   const teams = useTeamForPrimaryOrg();
   const authUserId = useAuthStore(
@@ -211,8 +214,32 @@ const AppointmentCalendar = ({
     skipAutoScroll,
   };
 
+  // Phones get purpose-built views instead of a shrunken time grid; the desktop
+  // header and grids are not rendered at all below 768px.
+  if (isPhone) {
+    return (
+      <div className="h-full min-h-0 w-full overflow-hidden rounded-2xl border border-card-border">
+        <PhoneCalendar
+          appointments={filteredList}
+          dayEvents={dayEvents}
+          currentDate={currentDate}
+          setCurrentDate={setCurrentDate}
+          weekStart={weekStart}
+          setWeekStart={setWeekStart}
+          activeCalendar={activeCalendar}
+          setActiveCalendar={setActiveCalendar}
+          onSelectAppointment={handleViewAppointment}
+          onOpenWorkspace={onOpenWorkspace}
+          onCreateFromCalendarSlot={onCreateFromCalendarSlot}
+          canEditAppointments={canEditAppointments}
+          currentUserPractitionerId={getCurrentUserPractitionerId() ?? ''}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="h-full min-h-0 border border-grey-light rounded-2xl overflow-hidden w-full flex flex-col">
+    <div className="h-full min-h-0 border border-card-border rounded-2xl overflow-hidden w-full flex flex-col">
       <Header
         currentDate={currentDate}
         setCurrentDate={setCurrentDate}

@@ -13,7 +13,9 @@ import { useSearchStore } from '@/app/stores/searchStore';
 import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
-import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
+import { useCurrencyForPrimaryOrg, useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
+import { computeFinanceMetrics } from '@/app/lib/financeMetrics';
+import { formatMoney } from '@/app/lib/money';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
@@ -37,6 +39,7 @@ const InvoiceInfo = dynamic(
 const Finance = () => {
   const invoices = useInvoicesForPrimaryOrg();
   const subscription = useSubscriptionForPrimaryOrg();
+  const currency = useCurrencyForPrimaryOrg();
   const query = useSearchStore((s) => s.query);
   const searchParams = useSearchParams();
   const handledDeepLinkRef = useRef<string | null>(null);
@@ -80,6 +83,8 @@ const Finance = () => {
       return matchesStatus && matchesQuery;
     });
   }, [invoices, activeStatus, query]);
+  const financeMetrics = useMemo(() => computeFinanceMetrics(invoices), [invoices]);
+
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView: 'list',
     listWrapperClassName:
@@ -88,7 +93,7 @@ const Finance = () => {
   });
 
   return (
-    <div className="relative min-w-0 flex h-full min-h-0 flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+    <div className="relative min-w-0 h-full min-h-0 yc-page-content">
       <PermissionGate allOf={[PERMISSIONS.ORG_EDIT, PERMISSIONS.SUBSCRIPTION_EDIT_ANY]}>
         {subscription && !subscription.canAcceptPayments && (
           <section
@@ -117,23 +122,31 @@ const Finance = () => {
       <PermissionGate allOf={[PERMISSIONS.BILLING_VIEW_ANY]} fallback={<Fallback />}>
         <div className={wrapperClassName}>
           <div className="flex items-center justify-between w-full flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <h1 className="text-text-primary text-heading-2">
-                {'Finance'}
-                <span className="text-body-2 text-text-tertiary">{` (${invoices.length})`}</span>
-              </h1>
-              <GlassTooltip
-                content="Review invoices, monitor payment status, and open each record to see billed services, balances, and payment history."
-                side="bottom"
-              >
-                <button
-                  type="button"
-                  aria-label="Finance info"
-                  className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                <h1 className="text-text-primary text-page-title">
+                  {'Finance'}
+                  <span className="text-body-2 text-text-tertiary">{` (${invoices.length})`}</span>
+                </h1>
+                <GlassTooltip
+                  content="Review invoices, monitor payment status, and open each record to see billed services, balances, and payment history."
+                  side="bottom"
                 >
-                  <IoInformationCircleOutline size={20} />
-                </button>
-              </GlassTooltip>
+                  <button
+                    type="button"
+                    aria-label="Finance info"
+                    className="inline-flex size-5 shrink-0 items-center justify-center leading-none translate-y-px text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    <IoInformationCircleOutline size={20} />
+                  </button>
+                </GlassTooltip>
+              </div>
+              <p className="text-body-4 text-text-tertiary">
+                {`${formatMoney(financeMetrics.collectedThisWeek, currency)} collected this week · ${formatMoney(
+                  financeMetrics.outstanding,
+                  currency
+                )} outstanding`}
+              </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               <Filters
@@ -142,7 +155,7 @@ const Finance = () => {
                 setActiveStatus={setActiveStatus}
                 className="w-auto"
               />
-              <StripeSettingsButton />
+              <StripeSettingsButton className="h-12!" />
             </div>
           </div>
           <div ref={plannerSectionRef} className={plannerSectionClassName}>

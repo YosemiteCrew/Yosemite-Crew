@@ -139,7 +139,7 @@ const RoomSelectorSection = ({
 }: RoomSelectorSectionProps) => (
   <div className="relative">
     <span
-      className="pointer-events-none absolute left-4 top-0 z-10 flex -translate-y-1/2 items-center gap-1 bg-white px-1 font-satoshi text-sm leading-none"
+      className="pointer-events-none absolute left-4 top-0 z-10 flex -translate-y-1/2 items-center gap-1 bg-neutral-0 px-1 font-satoshi text-sm leading-none"
       style={{ color: 'var(--color-input-text-placeholder)' }}
     >
       {label}

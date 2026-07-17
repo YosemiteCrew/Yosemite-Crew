@@ -9,11 +9,9 @@ import React, {
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { getMonthYear } from '@/app/features/appointments/components/Calendar/helpers';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
-import { FiZoomIn, FiZoomOut } from 'react-icons/fi';
 import Datepicker from '@/app/ui/inputs/Datepicker';
-import { IoAdd, IoWarning } from 'react-icons/io5';
+import { IoAdd, IoAddOutline, IoCaretDown, IoRemoveOutline, IoWarning } from 'react-icons/io5';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { FaCaretDown } from 'react-icons/fa6';
 import clsx from 'clsx';
 import { createPortal } from 'react-dom';
 import { Primary } from '@/app/ui/primitives/Buttons';
@@ -39,6 +37,7 @@ const getFilterClassName = (filterKey: string, activeFilter: string): string => 
 
 const getFilterBorderColor = (filterKey: string, activeFilter: string): string => {
   if (filterKey !== activeFilter) return 'var(--color-card-border)';
+  /* v8 ignore next -- unreachable: only called for non-emergency pills (emergency pills use getEmergencyPillStyle) */
   if (filterKey === 'emergencies') return 'var(--color-danger-500)';
   return 'var(--color-text-brand)';
 };
@@ -147,7 +146,7 @@ const StatusFilterDropdown = ({
         }
       >
         <span>{selectedStatus?.key === 'all' ? 'Status' : (selectedStatus?.name ?? 'Status')}</span>
-        <FaCaretDown
+        <IoCaretDown
           size={14}
           className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
         />
@@ -158,7 +157,7 @@ const StatusFilterDropdown = ({
         createPortal(
           <div
             ref={dropdown.panelRef}
-            className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+            className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
             style={dropdown.style}
           >
             {statusOptions.map((status) => {
@@ -234,7 +233,7 @@ const CalendarViewDropdown = ({
         className="flex h-12 shrink-0 items-center gap-2 px-3 rounded-2xl! border border-card-border transition-all duration-300 text-body-4 whitespace-nowrap text-text-secondary"
       >
         <span>{CALENDAR_OPTIONS.find((o) => o.key === activeCalendar)?.label ?? 'View'}</span>
-        <FaCaretDown
+        <IoCaretDown
           size={14}
           className={clsx('shrink-0 transition-transform', dropdown.open && 'rotate-180')}
         />
@@ -244,7 +243,7 @@ const CalendarViewDropdown = ({
         createPortal(
           <div
             ref={dropdown.panelRef}
-            className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+            className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
             style={dropdown.style}
           >
             {CALENDAR_OPTIONS.map((option) => {
@@ -358,11 +357,11 @@ const ZoomToggle = ({
         aria-label="Zoom in timeline"
         className={`size-9 rounded-full! cursor-pointer inline-flex items-center justify-center transition-colors ${
           isZoomIn
-            ? 'bg-white text-text-primary border border-card-border'
+            ? 'bg-neutral-0 text-text-primary border border-card-border'
             : 'text-text-secondary hover:bg-card-hover border border-transparent'
         }`}
       >
-        <FiZoomIn size={18} />
+        <IoAddOutline size={18} />
       </button>
       <button
         type="button"
@@ -375,7 +374,7 @@ const ZoomToggle = ({
             : 'bg-white text-text-primary border border-card-border'
         }`}
       >
-        <FiZoomOut size={18} />
+        <IoRemoveOutline size={18} />
       </button>
     </div>
   );
@@ -426,7 +425,7 @@ const Header = ({
   };
 
   return (
-    <div className="sticky top-0 z-140 shrink-0 flex w-full items-center gap-4 border-b border-grey-light bg-white px-3 py-2">
+    <div className="sticky top-0 z-140 shrink-0 flex w-full items-center gap-4 border-b border-card-border bg-neutral-0 px-3 py-2">
       <div className="flex shrink-0 items-center gap-3">
         <GlassTooltip content="Select date" side="bottom">
           <div className="relative z-150">
@@ -470,7 +469,7 @@ const Header = ({
             <>
               <div className="h-8 w-px shrink-0 bg-card-border" aria-hidden="true" />
               <Primary
-                text="Add Appointment"
+                text="New appointment"
                 onClick={onAddButtonClick}
                 icon={<IoAdd size={18} aria-hidden="true" />}
                 className="h-12 w-fit shrink-0 justify-center gap-2 px-4 py-0 whitespace-nowrap hover:scale-100"

@@ -116,7 +116,7 @@ const TaskFormFields = ({
         intype="text"
         inname="task"
         value={formData.name}
-        inlabel="Task title"
+        inlabel="Task"
         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
         error={formDataErrors.name}
       />
@@ -137,7 +137,7 @@ const TaskFormFields = ({
       />
       <Timepicker
         value={dueTimeValue}
-        label="Due time"
+        label="Time"
         name="dueTime"
         onChange={setDueTimeValue}
         error={formDataErrors.dueAt}
