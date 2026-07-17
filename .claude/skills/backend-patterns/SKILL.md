@@ -61,13 +61,9 @@ const data = CreateAppointmentSchema.parse(req.body);
 ## Authentication
 
 SuperTokens is the auth provider behind the provider-neutral boundary in
-`packages/auth` (#1672). Product code uses `requireWebAuth`/`requireMobileAuth`
-from `src/middlewares/auth.ts` and never imports a provider SDK
-(eslint-enforced).
-
-Authentication is SuperTokens throughout (`@yosemite-crew/auth`, initialized by
-`initSuperTokens` in `app.ts`). `src/middlewares/auth.ts` exposes three
-session guards - pick by product surface:
+`packages/auth` (#1672), initialized by `initSuperTokens` in `app.ts`. Product
+code uses the session guards in `src/middlewares/auth.ts` and never imports a
+provider SDK (eslint-enforced). Pick the guard by product surface:
 
 - `requireWebAuth` - staff / PIMS web routes.
 - `requireMobileAuth` - pet-parent mobile routes.
