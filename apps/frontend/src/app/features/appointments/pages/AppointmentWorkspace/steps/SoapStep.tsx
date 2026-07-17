@@ -13,7 +13,10 @@ import {
   findSoapPreset,
 } from '@/app/features/appointments/lib/soapTemplatePresets';
 import { useAppointmentWorkspaceStore } from '@/app/stores/appointmentWorkspaceStore';
-import type { AppointmentEncounter, SoapNoteEntry } from '@/app/features/appointments/types/workspace';
+import type {
+  AppointmentEncounter,
+  SoapNoteEntry,
+} from '@/app/features/appointments/types/workspace';
 import { isRichTextEmpty } from '@/app/lib/richText';
 import {
   formatStampDate,
@@ -33,6 +36,120 @@ import { EMPTY_SOAP, isPersistedSoapId, hasNativeSoapContent, isCustomSoap } fro
 import { SoapSignActions, SoapContextField, ChiefComplaintField } from './SoapPresentational';
 import SoapTemplateSearch from './SoapTemplateSearch';
 import NativeSoapFields from './NativeSoapFields';
+
+/**
+ * Auto-load the SOAP template linked to the encounter's service/package when the active draft
+ * is still empty, so the clinician lands on the preloaded content. Runs once per encounter and
+ * never overwrites typed content; the search box below still lets them override the default.
+ */
+const useAutoResolvedSoapTemplate = ({
+  organisationId,
+  readOnly,
+  note,
+  appointmentId,
+  encounterId,
+  encounterMode,
+  encounterServices,
+  applySoapTemplate,
+}: {
+  organisationId?: string;
+  readOnly: boolean;
+  note: SoapNoteEntry;
+  appointmentId: string;
+  encounterId?: string;
+  encounterMode: AppointmentEncounter['mode'];
+  encounterServices: AppointmentEncounter['services'];
+  applySoapTemplate: ReturnType<typeof useAppointmentWorkspaceStore.getState>['applySoapTemplate'];
+}) => {
+  const autoResolvedSoapRef = useRef(false);
+  useEffect(() => {
+    if (!organisationId || readOnly || autoResolvedSoapRef.current) return;
+    if (note.templateId || hasNativeSoapContent(note) || isCustomSoap(note)) return;
+    autoResolvedSoapRef.current = true;
+    let cancelled = false;
+    const serviceLine = encounterServices?.find((item) => item.kind === 'SERVICE');
+    const packageLine = encounterServices?.find((item) => item.kind === 'PACKAGE');
+    resolveSoapTemplate({
+      organisationId,
+      appointmentId,
+      encounterId,
+      serviceId: serviceLine?.refId,
+      packageId: packageLine?.refId,
+      mode: encounterMode,
+    })
+      .then((resolved) => {
+        if (cancelled || !resolved) return;
+        applySoapTemplate(appointmentId, resolved);
+      })
+      .catch((error) => console.error('Unable to resolve SOAP template:', error));
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    appointmentId,
+    applySoapTemplate,
+    encounterId,
+    encounterMode,
+    encounterServices,
+    note,
+    organisationId,
+    readOnly,
+  ]);
+};
+
+/** Chief complaint alongside the read-only speciality/service context for this appointment. */
+const SoapContextHeader = ({
+  appointmentReason,
+  appointmentSpeciality,
+  appointmentService,
+}: {
+  appointmentReason: string;
+  appointmentSpeciality?: string;
+  appointmentService?: string;
+}) => (
+  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+    <div className="w-full lg:max-w-125 lg:flex-1">
+      <ChiefComplaintField value={appointmentReason} />
+    </div>
+    <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center lg:w-auto lg:shrink-0 lg:justify-end lg:gap-3">
+      <div className="w-full sm:w-52">
+        <SoapContextField label="Speciality" value={appointmentSpeciality} />
+      </div>
+      <div className="w-full sm:w-52">
+        <SoapContextField label="Service" value={appointmentService} />
+      </div>
+    </div>
+  </div>
+);
+
+/**
+ * A custom template overrides the native structure: render its typed fields via the
+ * shared FormRenderer and capture answers keyed by field id.
+ */
+const CustomSoapFields = ({
+  note,
+  onAnswerChange,
+  onRecordVitals,
+}: {
+  note: SoapNoteEntry;
+  onAnswerChange: (fieldId: string, value: unknown) => void;
+  onRecordVitals: () => void;
+}) => (
+  <SectionContainer titleClassName="text-yc-20-b-primary" title="Clinical note" compactTop>
+    <FormRenderer
+      fields={note.customSchema ?? []}
+      values={note.customAnswers ?? {}}
+      onChange={onAnswerChange}
+    />
+    <div className="mt-3 flex justify-end">
+      <Secondary
+        text="Record Vitals"
+        onClick={onRecordVitals}
+        icon={<LuClipboardList aria-hidden="true" />}
+      />
+    </div>
+  </SectionContainer>
+);
 
 type SoapStepProps = {
   appointmentId: string;
@@ -93,45 +210,16 @@ const SoapStep = ({
     persistedDraftIdRef.current = isPersistedSoapId(note.id) ? note.id : undefined;
   }, [note.id]);
 
-  // Auto-load the SOAP template linked to the encounter's service/package when the active draft
-  // is still empty, so the clinician lands on the preloaded content. Runs once per encounter and
-  // never overwrites typed content; the search box below still lets them override the default.
-  const autoResolvedSoapRef = useRef(false);
-  const encounterMode = encounter.mode;
-  const encounterServices = encounter.services;
-  useEffect(() => {
-    if (!organisationId || readOnly || autoResolvedSoapRef.current) return;
-    if (note.templateId || hasNativeSoapContent(note) || isCustomSoap(note)) return;
-    autoResolvedSoapRef.current = true;
-    let cancelled = false;
-    const serviceLine = encounterServices?.find((item) => item.kind === 'SERVICE');
-    const packageLine = encounterServices?.find((item) => item.kind === 'PACKAGE');
-    resolveSoapTemplate({
-      organisationId,
-      appointmentId,
-      encounterId,
-      serviceId: serviceLine?.refId,
-      packageId: packageLine?.refId,
-      mode: encounterMode,
-    })
-      .then((resolved) => {
-        if (cancelled || !resolved) return;
-        applySoapTemplate(appointmentId, resolved);
-      })
-      .catch((error) => console.error('Unable to resolve SOAP template:', error));
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    appointmentId,
-    applySoapTemplate,
-    encounterId,
-    encounterMode,
-    encounterServices,
-    note,
+  useAutoResolvedSoapTemplate({
     organisationId,
     readOnly,
-  ]);
+    note,
+    appointmentId,
+    encounterId,
+    encounterMode: encounter.mode,
+    encounterServices: encounter.services,
+    applySoapTemplate,
+  });
 
   const templateSearchRef = useRef<HTMLDivElement>(null);
   const templateMatches = useMemo(() => {
@@ -285,19 +373,11 @@ const SoapStep = ({
 
   return (
     <div className="flex flex-col gap-7">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-        <div className="w-full lg:max-w-125 lg:flex-1">
-          <ChiefComplaintField value={appointmentReason} />
-        </div>
-        <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center lg:w-auto lg:shrink-0 lg:justify-end lg:gap-3">
-          <div className="w-full sm:w-52">
-            <SoapContextField label="Speciality" value={appointmentSpeciality} />
-          </div>
-          <div className="w-full sm:w-52">
-            <SoapContextField label="Service" value={appointmentService} />
-          </div>
-        </div>
-      </div>
+      <SoapContextHeader
+        appointmentReason={appointmentReason}
+        appointmentSpeciality={appointmentSpeciality}
+        appointmentService={appointmentService}
+      />
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-7">
@@ -322,26 +402,11 @@ const SoapStep = ({
               />
 
               {customMode ? (
-                // A custom template overrides the native structure: render its typed fields via the
-                // shared FormRenderer and capture answers keyed by field id.
-                <SectionContainer
-                  titleClassName="text-yc-20-b-primary"
-                  title="Clinical note"
-                  compactTop
-                >
-                  <FormRenderer
-                    fields={note.customSchema ?? []}
-                    values={note.customAnswers ?? {}}
-                    onChange={handleCustomAnswerChange}
-                  />
-                  <div className="mt-3 flex justify-end">
-                    <Secondary
-                      text="Record Vitals"
-                      onClick={onRecordVitals}
-                      icon={<LuClipboardList aria-hidden="true" />}
-                    />
-                  </div>
-                </SectionContainer>
+                <CustomSoapFields
+                  note={note}
+                  onAnswerChange={handleCustomAnswerChange}
+                  onRecordVitals={onRecordVitals}
+                />
               ) : (
                 <NativeSoapFields
                   subjective={note.subjective}

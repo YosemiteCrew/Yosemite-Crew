@@ -171,6 +171,112 @@ const UnavailableHourOverlays = ({
   );
 };
 
+/** Week nav arrows either side of the seven day-of-week headers; today's date is pilled. */
+const WeekDayHeaderRow = ({
+  days,
+  now,
+  dayColumnsStyle,
+  onPrevWeek,
+  onNextWeek,
+}: {
+  days: Date[];
+  now: Date;
+  dayColumnsStyle: React.CSSProperties;
+  onPrevWeek: () => void;
+  onNextWeek: () => void;
+}) => (
+  <div className="yc-week-grid__shell yc-week-grid__track border-b border-card-border py-2 bg-neutral-0">
+    <div className="sticky left-0 z-40 bg-neutral-0 flex items-center justify-center">
+      <Back onClick={onPrevWeek} />
+    </div>
+    <div className="grid bg-neutral-0" style={dayColumnsStyle}>
+      {days.map((day) => {
+        const weekday = formatDateInPreferredTimeZone(day, {
+          weekday: 'short',
+        });
+        const dateNumber = day.getDate();
+        const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
+        const dateNumberClass = isToday
+          ? 'bg-text-brand text-white border-transparent'
+          : 'bg-card-bg text-text-secondary border-transparent';
+        return (
+          <div key={day.toISOString()} className="flex items-center justify-center gap-2">
+            <div
+              className={`text-body-4 ${
+                isToday ? 'text-(--color-primary-700)' : 'text-text-primary'
+              }`}
+            >
+              {weekday}
+            </div>
+            <div
+              className={`text-body-4-emphasis size-10 flex items-center justify-center rounded-full border ${dateNumberClass}`}
+            >
+              {dateNumber}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+    <div className="sticky right-0 z-40 bg-neutral-0 flex items-center justify-center">
+      <Next onClick={onNextWeek} />
+    </div>
+  </div>
+);
+
+/** The pinned all-day strip above the hour grid — only rendered when some day has one. */
+const AllDayBand = ({
+  days,
+  allDayByDay,
+  dayColumnsStyle,
+  handleViewAppointment,
+}: {
+  days: Date[];
+  allDayByDay: Appointment[][];
+  dayColumnsStyle: React.CSSProperties;
+  handleViewAppointment: (appointment: Appointment) => void;
+}) => (
+  <div className="border-b border-card-border bg-slate-50">
+    <div className="yc-week-grid__shell yc-week-grid__track py-2">
+      <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-grey-text flex items-start pr-2">
+        All-day
+      </div>
+      <div className="grid yc-week-grid__track" style={dayColumnsStyle}>
+        {days.map((day, idx) => {
+          const dayAllEvents = allDayByDay[idx];
+          return (
+            <div key={day.toISOString()} className="flex flex-col gap-1 pr-2">
+              {dayAllEvents.map((ev) => (
+                <button
+                  key={`${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}`}
+                  type="button"
+                  onClick={() => handleViewAppointment(ev)}
+                  aria-label={getAllDayAppointmentAriaLabel(ev)}
+                  className="w-full rounded-md! px-2 py-1 text-[11px] font-satoshi text-left truncate"
+                  style={{
+                    ...({
+                      ...getStatusStyle(ev.status),
+                      padding: undefined,
+                    } as React.CSSProperties),
+                  }}
+                >
+                  <div className="font-medium truncate">
+                    {formatCompanionNameWithOwnerLastName(
+                      (ev.companion ?? ev.patient).name,
+                      (ev.companion ?? ev.patient).parent
+                    )}{' '}
+                    • {ev.concern || ''}
+                  </div>
+                </button>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      <div className="sticky right-0 z-40 bg-slate-50" />
+    </div>
+  </div>
+);
+
 const NowIndicatorOverlay = ({
   days,
   dayColumnsStyle,
@@ -411,84 +517,21 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
       >
         <div className="yc-week-grid__track h-full flex flex-col">
           <div className="z-30 bg-neutral-0 shrink-0">
-            <div className="yc-week-grid__shell yc-week-grid__track border-b border-card-border py-2 bg-neutral-0">
-              <div className="sticky left-0 z-40 bg-neutral-0 flex items-center justify-center">
-                <Back onClick={handlePrevWeek} />
-              </div>
-              <div className="grid bg-neutral-0" style={dayColumnsStyle}>
-                {days.map((day) => {
-                  const weekday = formatDateInPreferredTimeZone(day, {
-                    weekday: 'short',
-                  });
-                  const dateNumber = day.getDate();
-                  const isToday = isOnPreferredTimeZoneCalendarDay(now, day);
-                  const dateNumberClass = isToday
-                    ? 'bg-text-brand text-white border-transparent'
-                    : 'bg-card-bg text-text-secondary border-transparent';
-                  return (
-                    <div key={day.toISOString()} className="flex items-center justify-center gap-2">
-                      <div
-                        className={`text-body-4 ${
-                          isToday ? 'text-(--color-primary-700)' : 'text-text-primary'
-                        }`}
-                      >
-                        {weekday}
-                      </div>
-                      <div
-                        className={`text-body-4-emphasis size-10 flex items-center justify-center rounded-full border ${dateNumberClass}`}
-                      >
-                        {dateNumber}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="sticky right-0 z-40 bg-neutral-0 flex items-center justify-center">
-                <Next onClick={handleNextWeek} />
-              </div>
-            </div>
+            <WeekDayHeaderRow
+              days={days}
+              now={now}
+              dayColumnsStyle={dayColumnsStyle}
+              onPrevWeek={handlePrevWeek}
+              onNextWeek={handleNextWeek}
+            />
 
             {hasAnyAllDay && (
-              <div className="border-b border-card-border bg-slate-50">
-                <div className="yc-week-grid__shell yc-week-grid__track py-2">
-                  <div className="sticky left-0 z-40 bg-slate-50 text-xs font-satoshi text-grey-text flex items-start pr-2">
-                    All-day
-                  </div>
-                  <div className="grid yc-week-grid__track" style={dayColumnsStyle}>
-                    {days.map((day, idx) => {
-                      const dayAllEvents = allDayByDay[idx];
-                      return (
-                        <div key={day.toISOString()} className="flex flex-col gap-1 pr-2">
-                          {dayAllEvents.map((ev) => (
-                            <button
-                              key={`${(ev.companion ?? ev.patient).name}-${ev.startTime.toISOString()}`}
-                              type="button"
-                              onClick={() => handleViewAppointment(ev)}
-                              aria-label={getAllDayAppointmentAriaLabel(ev)}
-                              className="w-full rounded-md! px-2 py-1 text-[11px] font-satoshi text-left truncate"
-                              style={{
-                                ...({
-                                  ...getStatusStyle(ev.status),
-                                  padding: undefined,
-                                } as React.CSSProperties),
-                              }}
-                            >
-                              <div className="font-medium truncate">
-                                {formatCompanionNameWithOwnerLastName(
-                                  (ev.companion ?? ev.patient).name,
-                                  (ev.companion ?? ev.patient).parent
-                                )}{' '}
-                                • {ev.concern || ''}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="sticky right-0 z-40 bg-slate-50" />
-                </div>
-              </div>
+              <AllDayBand
+                days={days}
+                allDayByDay={allDayByDay}
+                dayColumnsStyle={dayColumnsStyle}
+                handleViewAppointment={handleViewAppointment}
+              />
             )}
           </div>
 

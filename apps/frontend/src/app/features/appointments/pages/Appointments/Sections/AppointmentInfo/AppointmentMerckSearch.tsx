@@ -208,6 +208,113 @@ const CompactFilterPill = ({
   </button>
 );
 
+/** Language filters, revealed by the options button next to Search. */
+const MerckRefinePanel = ({
+  language,
+  onLanguageChange,
+  onClose,
+}: {
+  language: MerckLanguage;
+  onLanguageChange: (next: MerckLanguage) => void;
+  onClose: () => void;
+}) => (
+  <div className="rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col gap-2">
+    <div className="flex items-center justify-between">
+      <div className="text-body-4 text-text-secondary">Refine Results</div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="size-7 rounded-xl! border border-card-border flex items-center justify-center text-text-secondary hover:bg-card-hover transition-colors cursor-pointer"
+        aria-label="Close refine results"
+        title="Close refine results"
+      >
+        <IoCloseOutline size={14} />
+      </button>
+    </div>
+    <div className="flex w-fit flex-col gap-1">
+      <div className="text-caption-1 text-text-secondary">Language</div>
+      <div className="inline-flex w-fit gap-1.5 flex-wrap">
+        <CompactFilterPill
+          active={language === 'en'}
+          label="EN"
+          onClick={() => onLanguageChange('en')}
+        />
+        <CompactFilterPill
+          active={language === 'es'}
+          label="ES"
+          onClick={() => onLanguageChange('es')}
+        />
+      </div>
+    </div>
+  </div>
+);
+
+/** Full-screen in-app reader for a single manual page; the iframe stays sandboxed. */
+const MerckReaderOverlay = ({
+  url,
+  title,
+  loading,
+  onClose,
+  onLoad,
+}: {
+  url: string;
+  title: string;
+  loading: boolean;
+  onClose: () => void;
+  onLoad: () => void;
+}) => (
+  <div
+    data-signing-overlay="true"
+    className="fixed inset-0 z-5000 flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
+  >
+    <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl border border-hairline bg-[var(--screen)] shadow-2xl">
+      <div className="flex items-center justify-between gap-2 border-b border-hairline px-5 py-3">
+        <div className="flex min-w-0 items-center gap-2.5 pr-2">
+          <span className="flex size-8 flex-none items-center justify-center rounded-[9px] bg-blue-soft text-blue-text">
+            <IoBookOutline size={15} aria-hidden="true" />
+          </span>
+          <span className="truncate text-[13.5px] font-bold text-[var(--ink)]">{title}</span>
+        </div>
+        <button
+          type="button"
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onClose();
+          }}
+          className="flex size-[34px] items-center justify-center rounded-full! border border-hairline text-[var(--ink-faint)] transition-colors hover:bg-[var(--card-hover)]"
+          aria-label="Close Merck reader"
+        >
+          <Close iconOnly />
+        </button>
+      </div>
+      <div className="relative flex-1">
+        {loading ? (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)]">
+            <YosemiteLoader
+              label="Loading Manual"
+              size={120}
+              testId="appointment-merck-reader-loader"
+            />
+            <span className="max-w-[320px] text-center text-[12px] text-[var(--ink-faint)]">
+              Fetching “{title}” from MSD…
+            </span>
+          </div>
+        ) : null}
+        <iframe
+          src={url}
+          title={title}
+          className="flex-1 size-full border-0"
+          loading="lazy"
+          referrerPolicy="strict-origin"
+          sandbox="allow-scripts allow-popups allow-forms"
+          onLoad={onLoad}
+        />
+      </div>
+    </div>
+  </div>
+);
+
 const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchProps) => {
   const primaryOrgId = useOrgStore((s) => s.primaryOrgId);
   const { isEnabled } = useResolvedMerckIntegrationForPrimaryOrg();
@@ -392,35 +499,11 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
         </div>
 
         {advancedOpen ? (
-          <div className="rounded-2xl border border-card-border bg-neutral-0 p-3 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div className="text-body-4 text-text-secondary">Refine Results</div>
-              <button
-                type="button"
-                onClick={() => setAdvancedOpen(false)}
-                className="size-7 rounded-xl! border border-card-border flex items-center justify-center text-text-secondary hover:bg-card-hover transition-colors cursor-pointer"
-                aria-label="Close refine results"
-                title="Close refine results"
-              >
-                <IoCloseOutline size={14} />
-              </button>
-            </div>
-            <div className="flex w-fit flex-col gap-1">
-              <div className="text-caption-1 text-text-secondary">Language</div>
-              <div className="inline-flex w-fit gap-1.5 flex-wrap">
-                <CompactFilterPill
-                  active={language === 'en'}
-                  label="EN"
-                  onClick={() => setLanguage('en')}
-                />
-                <CompactFilterPill
-                  active={language === 'es'}
-                  label="ES"
-                  onClick={() => setLanguage('es')}
-                />
-              </div>
-            </div>
-          </div>
+          <MerckRefinePanel
+            language={language}
+            onLanguageChange={setLanguage}
+            onClose={() => setAdvancedOpen(false)}
+          />
         ) : null}
 
         <div className="min-h-0 flex flex-1 flex-col gap-3">
@@ -456,58 +539,13 @@ const AppointmentMerckSearch = ({ activeAppointment }: AppointmentMerckSearchPro
 
       {readerOpen && readerUrl && typeof document !== 'undefined'
         ? createPortal(
-            <div
-              data-signing-overlay="true"
-              className="fixed inset-0 z-5000 flex items-center justify-center bg-[var(--sh55)] p-4 backdrop-blur-sm"
-            >
-              <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl border border-hairline bg-[var(--screen)] shadow-2xl">
-                <div className="flex items-center justify-between gap-2 border-b border-hairline px-5 py-3">
-                  <div className="flex min-w-0 items-center gap-2.5 pr-2">
-                    <span className="flex size-8 flex-none items-center justify-center rounded-[9px] bg-blue-soft text-blue-text">
-                      <IoBookOutline size={15} aria-hidden="true" />
-                    </span>
-                    <span className="truncate text-[13.5px] font-bold text-[var(--ink)]">
-                      {readerTitle}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setReaderOpen(false);
-                    }}
-                    className="flex size-[34px] items-center justify-center rounded-full! border border-hairline text-[var(--ink-faint)] transition-colors hover:bg-[var(--card-hover)]"
-                    aria-label="Close Merck reader"
-                  >
-                    <Close iconOnly />
-                  </button>
-                </div>
-                <div className="relative flex-1">
-                  {readerLoading ? (
-                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--screen)]">
-                      <YosemiteLoader
-                        label="Loading Manual"
-                        size={120}
-                        testId="appointment-merck-reader-loader"
-                      />
-                      <span className="max-w-[320px] text-center text-[12px] text-[var(--ink-faint)]">
-                        Fetching “{readerTitle}” from MSD…
-                      </span>
-                    </div>
-                  ) : null}
-                  <iframe
-                    src={readerUrl}
-                    title={readerTitle}
-                    className="flex-1 size-full border-0"
-                    loading="lazy"
-                    referrerPolicy="strict-origin"
-                    sandbox="allow-scripts allow-popups allow-forms"
-                    onLoad={() => setReaderLoading(false)}
-                  />
-                </div>
-              </div>
-            </div>,
+            <MerckReaderOverlay
+              url={readerUrl}
+              title={readerTitle}
+              loading={readerLoading}
+              onClose={() => setReaderOpen(false)}
+              onLoad={() => setReaderLoading(false)}
+            />,
             document.body
           )
         : null}
