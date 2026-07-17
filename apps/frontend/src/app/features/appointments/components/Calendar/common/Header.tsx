@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { useWheelToHorizontalScroll } from '@/app/hooks/useWheelToHorizontalScroll';
 import { getMonthYear } from '@/app/features/appointments/components/Calendar/helpers';
+import { getEmergencyPillStyle } from '@/app/features/appointments/components/appointmentBoardHelpers';
 import { CalendarZoomMode } from '@/app/features/appointments/components/Calendar/calendarLayout';
 import Datepicker from '@/app/ui/inputs/Datepicker';
 import { IoAdd, IoAddOutline, IoChevronDown, IoRemoveOutline } from 'react-icons/io5';
@@ -42,16 +43,6 @@ const getFilterBorderColor = (filterKey: string, activeFilter: string): string =
   if (filterKey === 'emergencies') return 'var(--color-danger-500)';
   return 'var(--color-text-brand)';
 };
-
-// Slim danger-outlined emergency pill per the design toolbar recipe (rounded-full,
-// --danger-border hairline, --danger-text ink; filled with --danger-bg when active).
-const getEmergencyPillStyle = (isActive: boolean): React.CSSProperties => ({
-  backgroundColor: isActive ? 'var(--danger-bg)' : 'transparent',
-  borderColor: 'var(--danger-border)',
-  borderWidth: '1px',
-  borderStyle: 'solid',
-  color: 'var(--danger-text)',
-});
 
 const CALENDAR_VIEW_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'day', label: 'Day' },

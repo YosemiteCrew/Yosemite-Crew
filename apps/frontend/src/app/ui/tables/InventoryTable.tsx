@@ -2,7 +2,7 @@
 import React from 'react';
 import Image from 'next/image';
 import clsx from 'clsx';
-import { IoAddCircleOutline, IoEye, IoTrashOutline } from 'react-icons/io5';
+import { IoAddCircleOutline, IoEye } from 'react-icons/io5';
 import InventoryCard from '@/app/ui/cards/InventoryCard';
 import PaginatedGridTable, { GridHeaderCell } from '@/app/ui/tables/PaginatedGridTable';
 import { InventoryItem } from '@/app/features/inventory/pages/Inventory/types';
@@ -179,13 +179,11 @@ const InventoryRow = ({
       </div>
       <div className="flex items-center justify-center gap-1.5">
         {onRestock && (
-          <GlassTooltip content={expired ? 'Remove expired stock' : 'Restock'} side="top">
+          <GlassTooltip content="Restock" side="top">
             <button
               type="button"
               onClick={() => onRestock(item)}
-              aria-label={
-                expired ? `Dispose ${item.basicInfo.name}` : `Restock ${item.basicInfo.name}`
-              }
+              aria-label={`Restock ${item.basicInfo.name}`}
               className={clsx(
                 'flex size-[30px] items-center justify-center rounded-full! transition-colors',
                 low
@@ -193,7 +191,7 @@ const InventoryRow = ({
                   : 'border border-card-border text-text-secondary hover:bg-card-hover'
               )}
             >
-              {expired ? <IoTrashOutline size={15} /> : <IoAddCircleOutline size={16} />}
+              <IoAddCircleOutline size={16} />
             </button>
           </GlassTooltip>
         )}

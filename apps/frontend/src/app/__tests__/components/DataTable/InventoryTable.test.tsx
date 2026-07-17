@@ -296,8 +296,8 @@ describe('InventoryTable', () => {
     expect(restockBtn.className).toContain('bg-[var(--nav-active-bg)]');
   });
 
-  it('abbreviates box units as "bx" when the unit of measure is a box', () => {
-    const boxed = makeItem({ basicInfo: { unitOfMeasure: 'Box of 100' } });
+  it('abbreviates box units as "bx" when the product name reads as a box', () => {
+    const boxed = makeItem({ basicInfo: { name: 'Vaccine box' } });
 
     render(
       <InventoryTable
@@ -311,7 +311,7 @@ describe('InventoryTable', () => {
     expect(screen.getByText('4 bx')).toBeInTheDocument();
   });
 
-  it('renders a dispose (trash) action for expired rows instead of restock', () => {
+  it('keeps an accurate restock action for expired rows (no disposal workflow)', () => {
     const onRestock = jest.fn();
     const expiredItem = makeItem({ basicInfo: { status: 'Expired' } });
 
@@ -324,9 +324,11 @@ describe('InventoryTable', () => {
       />
     );
 
-    expect(screen.queryByRole('button', { name: 'Restock Vaccine' })).not.toBeInTheDocument();
-    const disposeBtn = screen.getByRole('button', { name: 'Dispose Vaccine' });
-    fireEvent.click(disposeBtn);
+    // The action never disposes stock, so it must not claim to; expired rows keep
+    // the restock label (their danger tint carries the "expired" signal instead).
+    expect(screen.queryByRole('button', { name: 'Dispose Vaccine' })).not.toBeInTheDocument();
+    const restockBtn = screen.getByRole('button', { name: 'Restock Vaccine' });
+    fireEvent.click(restockBtn);
     expect(onRestock).toHaveBeenCalledWith(expiredItem);
   });
 

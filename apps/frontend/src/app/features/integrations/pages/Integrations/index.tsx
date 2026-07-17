@@ -22,6 +22,7 @@ import {
 import { useIntegrationStore } from '@/app/stores/integrationStore';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { formatDateTimeLocal } from '@/app/lib/date';
+import { logger } from '@/app/lib/logger';
 import {
   disableIntegration,
   enableIntegration,
@@ -552,7 +553,10 @@ const useIntegrationsPage = () => {
       setCredentialMeta(metaResult.status === 'fulfilled' ? metaResult.value : null);
       setRecentOrders(ordersResult.status === 'fulfilled' ? ordersResult.value : []);
     };
-    run().catch(() => undefined);
+    run().catch((error) => {
+      /* v8 ignore next -- defensive: run() resolves its own API failures via allSettled, so this only fires on an unexpected programmer error */
+      logger.error('Failed to load IDEXX credential panel', error);
+    });
     return () => {
       cancelled = true;
     };
@@ -1419,6 +1423,10 @@ const IntegrationsPage = () => {
   );
   const idexxCardButtonLabel = getIdexxCardButtonLabel(s.saving, s.idexxEnabled);
   const merckCardButtonLabel = getIdexxCardButtonLabel(s.merckSaving, s.merckEnabled);
+  // Only mount the right-hand credentials panel when the IDEXX card itself is
+  // visible under the active filter, so filtering to "Available" (which hides a
+  // connected IDEXX card) does not leave the panel orphaned in the grid.
+  const showIdexxPanel = s.showIdexxCard && s.idexxEnabled;
 
   return (
     <div className="yc-page-content">
@@ -1465,7 +1473,7 @@ const IntegrationsPage = () => {
       <div
         className={clsx(
           'grid items-start gap-4',
-          s.idexxEnabled ? 'grid-cols-1 lg:grid-cols-[1.5fr_1fr]' : 'grid-cols-1'
+          showIdexxPanel ? 'grid-cols-1 lg:grid-cols-[1.5fr_1fr]' : 'grid-cols-1'
         )}
       >
         <div className="flex min-w-0 flex-col gap-4">
@@ -1497,7 +1505,7 @@ const IntegrationsPage = () => {
           ) : null}
         </div>
 
-        {s.idexxEnabled ? <IdexxCredentialsPanel s={s} /> : null}
+        {showIdexxPanel ? <IdexxCredentialsPanel s={s} /> : null}
       </div>
 
       <IdexxSettingsModal
