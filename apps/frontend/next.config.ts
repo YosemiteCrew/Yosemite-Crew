@@ -34,6 +34,15 @@ const nextConfig: NextConfig = {
       },
       { protocol: 'https', hostname: 'cdn.yc.dev' },
       { protocol: 'https', hostname: 'laika.aitemsolutions.com' },
+      // Sub-processor logos on the Trust Center. next/image throws for a host it
+      // does not know, which takes the page down rather than dropping an image.
+      // These should be served from our own CDN so the page makes no
+      // third-party request; the path is pinned until those assets exist.
+      {
+        protocol: 'https',
+        hostname: 'upload.wikimedia.org',
+        pathname: '/wikipedia/commons/**',
+      },
     ],
   },
   outputFileTracingExcludes: {
