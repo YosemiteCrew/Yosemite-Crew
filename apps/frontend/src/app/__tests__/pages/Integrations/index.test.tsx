@@ -540,6 +540,21 @@ describe('IntegrationsPage — inline credentials panel', () => {
     await flush();
   });
 
+  it('re-fetches credential metadata after the credentials are updated', async () => {
+    renderPage();
+    await waitForPage();
+    await screen.findByRole('complementary', { name: 'IDEXX credentials' });
+    const before = getCredentialMetaMock.mock.calls.length;
+
+    await openSettings();
+    fireEvent.change(screen.getByTestId('idexx-username'), { target: { value: 'new-user' } });
+    fireEvent.change(screen.getByTestId('idexx-password'), { target: { value: 'new-pass' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Update credentials' }));
+
+    await waitFor(() => expect(getCredentialMetaMock.mock.calls.length).toBeGreaterThan(before));
+    await flush();
+  });
+
   it('never renders the real password — only the mask, and getCredentialMeta carries no password', async () => {
     getCredentialMetaMock.mockResolvedValue({
       username: 'alpenblick-lab',

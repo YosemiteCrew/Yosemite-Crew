@@ -354,6 +354,7 @@ type IdexxActionsState = {
   setSaving: (v: boolean) => void;
   setValidateState: (v: ValidateState) => void;
   setShowSettings: (v: boolean) => void;
+  onCredentialsChanged?: () => void;
 };
 
 const useIdexxActions = (s: IdexxActionsState) => {
@@ -390,6 +391,9 @@ const useIdexxActions = (s: IdexxActionsState) => {
         'IDEXX'
       );
       await loadIntegrationsForPrimaryOrg({ force: true, silent: true });
+      // Credentials (incl. username) just changed: re-pull the panel's metadata so it
+      // does not keep showing the previous username until a reload/reconnect.
+      s.onCredentialsChanged?.();
     } catch (e) {
       s.setError(
         getApiErrorMessage(e, 'Unable to store IDEXX credentials. Please verify and retry.')
@@ -494,6 +498,7 @@ const useIntegrationsPage = () => {
   const [credentialMeta, setCredentialMeta] = useState<CredentialMeta | null>(null);
   const [recentOrders, setRecentOrders] = useState<LabOrder[]>([]);
   const [recentOrdersForbidden, setRecentOrdersForbidden] = useState(false);
+  const [credentialMetaRefresh, setCredentialMetaRefresh] = useState(0);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -568,7 +573,7 @@ const useIntegrationsPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [primaryOrgId, idexxConnected]);
+  }, [primaryOrgId, idexxConnected, credentialMetaRefresh]);
 
   const { handleManualRefresh, handleStoreCredentials, handleValidate, handleEnableDisable } =
     useIdexxActions({
@@ -584,6 +589,7 @@ const useIntegrationsPage = () => {
       setSaving,
       setValidateState,
       setShowSettings,
+      onCredentialsChanged: () => setCredentialMetaRefresh((n) => n + 1),
     });
 
   const linkedCount = useMemo(() => {

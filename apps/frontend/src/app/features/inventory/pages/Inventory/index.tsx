@@ -26,8 +26,7 @@ import {
 } from '@/app/features/inventory/pages/Inventory/types';
 import {
   defaultFilters,
-  formatStockHealthLabel,
-  getDerivedStockHealth,
+  effectiveStockHealthKey,
 } from '@/app/features/inventory/pages/Inventory/utils';
 import { InventorySectionKey } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
 import { BusinessType } from '@/app/features/organization/types/org';
@@ -136,7 +135,9 @@ export const filterAndSortInventory = (
   const selectedSupplierSet = new Set(selectedSuppliers);
   const nextFiltered = inventory.filter((item) => {
     const statusKey = (item.status || item.basicInfo.status || '').toUpperCase();
-    const stockHealthKey = (item.stockHealth || '').toUpperCase().replaceAll(' ', '_');
+    // Use the same effective (explicit-or-derived) key as the header counts and the
+    // table labels, so the low-stock/expired status filter keeps derived rows visible.
+    const stockHealthKey = effectiveStockHealthKey(item);
     const categoryMatch =
       (filters.category === 'all' && selectedCategories.length === 0) ||
       selectedCategorySet.has(item.basicInfo.category ?? '') ||
@@ -741,18 +742,6 @@ export const getInventorySubtitle = (
   return null;
 };
 
-const stockHealthKeyOf = (item: InventoryItem) =>
-  (item.stockHealth || '').toUpperCase().replaceAll(' ', '_');
-
-// Mirror displayStatusLabel: use the explicit stockHealth when present, otherwise
-// derive from batch expiry / reorder levels — so header counts match the labels the
-// table actually renders (items without stockHealth were previously counted as 0).
-const effectiveStockHealthKey = (item: InventoryItem): string => {
-  if (formatStockHealthLabel(item.stockHealth)) return stockHealthKeyOf(item);
-  if (item.stock || item.batch) return getDerivedStockHealth(item).key;
-  return stockHealthKeyOf(item);
-};
-
 export const toggleSetItem = (prev: Set<string>, key: string): Set<string> => {
   const next = new Set(prev);
   if (next.has(key)) {
@@ -1181,13 +1170,26 @@ const useInventoryContent = () => {
     [dispensaryRecords, dispensaryStatusFilter, dispensarySearch]
   );
 
+  // Totals reflect the same visibility (Active/Hidden) the catalog is scoped to, so a
+  // count never claims low-stock/expired rows the current view does not actually show.
+  const visibilityScopedInventory = useMemo(() => {
+    const visibility = (filters.visibility ?? 'ALL').toUpperCase();
+    if (visibility === 'ALL') return inventory;
+    return inventory.filter(
+      (item) => (item.status || item.basicInfo.status || '').toUpperCase() === visibility
+    );
+  }, [inventory, filters.visibility]);
   const lowStockCount = useMemo(
-    () => inventory.filter((item) => effectiveStockHealthKey(item) === 'LOW_STOCK').length,
-    [inventory]
+    () =>
+      visibilityScopedInventory.filter((item) => effectiveStockHealthKey(item) === 'LOW_STOCK')
+        .length,
+    [visibilityScopedInventory]
   );
   const expiredCount = useMemo(
-    () => inventory.filter((item) => effectiveStockHealthKey(item) === 'EXPIRED').length,
-    [inventory]
+    () =>
+      visibilityScopedInventory.filter((item) => effectiveStockHealthKey(item) === 'EXPIRED')
+        .length,
+    [visibilityScopedInventory]
   );
 
   const getTitleCount = () => {

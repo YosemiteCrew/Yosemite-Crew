@@ -594,6 +594,26 @@ describe('Inventory Page', () => {
       expect(getSupplierName(inventory[1])).toBe('Other Supplier');
     });
 
+    it('matches derived low-stock rows (no explicit stockHealth) against the low-stock filter', () => {
+      const derivedLow = [
+        {
+          id: 'derived-low',
+          status: 'ACTIVE',
+          stock: { current: 2, reorderLevel: 5 },
+          basicInfo: { name: 'Gauze', category: 'Consumable' },
+        },
+      ] as any[];
+
+      expect(
+        filterAndSortInventory(
+          derivedLow,
+          { ...defaultFilters, visibility: 'ALL', status: 'LOW_STOCK' },
+          '',
+          'name'
+        ).map((item) => item.id)
+      ).toEqual(['derived-low']);
+    });
+
     it('covers inventory helper fallback branches for sparse records and filters', () => {
       const sparseInventory = [
         {
@@ -914,6 +934,42 @@ describe('Inventory Page', () => {
     render(<ProtectedInventory />);
 
     expect(screen.getByText(/1 expired batch/)).toBeInTheDocument();
+  });
+
+  it('scopes the header totals to the active visibility (hidden items are not counted)', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      inventory: [
+        {
+          id: 'active-exp',
+          status: 'ACTIVE',
+          basicInfo: { name: 'Active Expired', category: 'Medicine' },
+          batch: { expiryDate: '2020-01-01' },
+          stock: { current: 5 },
+        },
+        {
+          id: 'hidden-low',
+          status: 'HIDDEN',
+          basicInfo: { name: 'Hidden Low', category: 'Medicine' },
+          stock: { current: 1, reorderLevel: 5 },
+        },
+      ],
+      turnover: mockTurnover,
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+
+    // Default catalog visibility is Active: the active expired item counts, the hidden
+    // low-stock item does not (it is not in the visible view).
+    expect(screen.getByText(/1 expired batch/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Low stock (0)' })).toBeInTheDocument();
   });
 
   it('exercises inventory filter bar search, filter, and sort callbacks directly', () => {
