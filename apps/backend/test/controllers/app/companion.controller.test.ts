@@ -470,6 +470,48 @@ describe("CompanionController", () => {
       expect(statusMock).toHaveBeenCalledWith(200);
     });
 
+    it("ignores an x-org-id header that no org middleware verified", async () => {
+      req.params = { id: "c1" };
+      req.body = validFhirPayload;
+      req.headers = { "x-org-id": "victim-org", "x-user-id": "spoofed-user" };
+      mockedCompanionService.update.mockResolvedValue({
+        response: { id: "c1" },
+      } as any);
+
+      await CompanionController.updateCompanion(
+        req as Request,
+        res as Response,
+      );
+
+      expect(mockedCompanionService.update).toHaveBeenCalledWith(
+        "c1",
+        expect.anything(),
+        { organisationId: undefined, authUserId: undefined },
+      );
+    });
+
+    it("uses the organisation withOrgPermissions resolved", async () => {
+      req.params = { id: "c1" };
+      req.body = validFhirPayload;
+      req.headers = { "x-org-id": "victim-org" };
+      (req as any).organisationId = "verified-org";
+      (req as any).userId = "session-user";
+      mockedCompanionService.update.mockResolvedValue({
+        response: { id: "c1" },
+      } as any);
+
+      await CompanionController.updateCompanion(
+        req as Request,
+        res as Response,
+      );
+
+      expect(mockedCompanionService.update).toHaveBeenCalledWith(
+        "c1",
+        expect.anything(),
+        { organisationId: "verified-org", authUserId: "session-user" },
+      );
+    });
+
     it("should handle service error", async () => {
       req.params = { id: "c1" };
       req.body = validFhirPayload;
@@ -650,8 +692,27 @@ describe("CompanionController", () => {
         req as Request,
         res as Response,
       );
-      expect(mockedCompanionService.listByParent).toHaveBeenCalledWith("p1");
+      expect(mockedCompanionService.listByParent).toHaveBeenCalledWith("p1", {
+        authUserId: undefined,
+      });
       expect(statusMock).toHaveBeenCalledWith(200);
+    });
+
+    it("passes the session user id, never the x-user-id header", async () => {
+      req.params = { parentId: "p1" };
+      (req as any).userId = "session-user";
+      req.headers = { "x-user-id": "spoofed-user" };
+      mockedCompanionService.listByParent.mockResolvedValue({
+        responses: [],
+      } as any);
+
+      await CompanionController.getCompanionsByParentId(
+        req as Request,
+        res as Response,
+      );
+      expect(mockedCompanionService.listByParent).toHaveBeenCalledWith("p1", {
+        authUserId: "session-user",
+      });
     });
 
     it("should handle service error", async () => {

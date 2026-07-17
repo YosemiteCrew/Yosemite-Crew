@@ -10,15 +10,14 @@ import OrganizationModel from "src/models/organization";
 import { prisma } from "src/config/prisma";
 import { isReadFromPostgres } from "src/config/read-switch";
 import {
-  resolveOrganisationIdFromRequest,
   resolveUserIdFromRequest,
+  resolveVerifiedOrganisationId,
+  resolveVerifiedUserId,
 } from "src/utils/request";
 import { getProfileUploadUrl } from "./profile-upload.handler";
 
 type CompanionRequestBody =
-  | CompanionRequestDTO
-  | { payload?: unknown }
-  | undefined;
+  CompanionRequestDTO | { payload?: unknown } | undefined;
 
 // Validate FHIR
 const isCompanionPayload = (
@@ -201,8 +200,8 @@ export const CompanionController = {
 
       const payload = extractFHIRPayload(req);
       const result = await CompanionService.update(id, payload, {
-        organisationId: resolveOrganisationIdFromRequest(req),
-        authUserId: resolveUserIdFromRequest(req),
+        organisationId: resolveVerifiedOrganisationId(req),
+        authUserId: resolveVerifiedUserId(req),
       });
 
       if (!result) {
@@ -223,7 +222,7 @@ export const CompanionController = {
   deleteCompanion: async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const authUserId = resolveUserIdFromRequest(req);
+      const authUserId = resolveVerifiedUserId(req);
       if (!requireParam(res, id, "Companion ID is required.")) {
         return;
       }
@@ -275,7 +274,9 @@ export const CompanionController = {
         return;
       }
 
-      const result = await CompanionService.listByParent(parentId);
+      const result = await CompanionService.listByParent(parentId, {
+        authUserId: resolveVerifiedUserId(req),
+      });
 
       return res.status(200).json(result.responses);
     } catch (error) {

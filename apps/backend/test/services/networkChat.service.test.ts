@@ -354,6 +354,58 @@ describe("NetworkChatService.createNetworkDirectChat", () => {
     expect(mockedChatSessionModel.create).not.toHaveBeenCalled();
   });
 
+  // Matching on members alone also matches the same-org ORG_DIRECT sessions written by
+  // chat.service, which would hand a within-clinic session to a cross-clinic request.
+  it("scopes the dedupe lookup to the requested org pair", async () => {
+    bothOrgsEnabled();
+    mockedChatSessionModel.findOne.mockResolvedValue({ id: "existing" });
+
+    await NetworkChatService.createNetworkDirectChat({
+      requesterUserId: "userA",
+      requesterOrgId: "org1",
+      otherUserId: "userB",
+      otherOrgId: "org2",
+    });
+
+    const filter = mockedChatSessionModel.findOne.mock.calls[0][0];
+    expect(filter).toMatchObject({
+      type: "ORG_DIRECT",
+      $or: [
+        {
+          organisationId: { $eq: "org1" },
+          counterpartOrganisationId: { $eq: "org2" },
+        },
+        {
+          organisationId: { $eq: "org2" },
+          counterpartOrganisationId: { $eq: "org1" },
+        },
+      ],
+    });
+  });
+
+  it("matches the session when the other clinic opened the conversation", async () => {
+    bothOrgsEnabled();
+    const existing = { id: "existing", organisationId: "org2" };
+    mockedChatSessionModel.findOne.mockImplementation((filter: any) => {
+      const matchesReversed = filter.$or?.some(
+        (clause: any) =>
+          clause.organisationId?.$eq === "org2" &&
+          clause.counterpartOrganisationId?.$eq === "org1",
+      );
+      return Promise.resolve(matchesReversed ? existing : null);
+    });
+
+    const result = await NetworkChatService.createNetworkDirectChat({
+      requesterUserId: "userA",
+      requesterOrgId: "org1",
+      otherUserId: "userB",
+      otherOrgId: "org2",
+    });
+
+    expect(result).toBe(existing);
+    expect(mockedChatSessionModel.create).not.toHaveBeenCalled();
+  });
+
   it("creates a Stream channel and a cross-org session when both flags are true", async () => {
     bothOrgsEnabled();
     mockedChatSessionModel.findOne.mockResolvedValue(null);

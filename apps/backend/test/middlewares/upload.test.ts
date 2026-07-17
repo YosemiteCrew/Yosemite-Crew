@@ -219,6 +219,28 @@ describe("Upload Middleware", () => {
         generatePresignedUrl("image/jpeg", "user", "user-1"),
       ).rejects.toThrow("Failed to generate presigned URL: Sign Error");
     });
+
+    it.each([
+      "text/html",
+      "application/javascript",
+      "image/svg+xml",
+      "application/octet-stream",
+    ])("refuses to mint an upload URL for %s", async (mimeType) => {
+      await expect(
+        generatePresignedUrl(mimeType, "custom", "contact-us"),
+      ).rejects.toThrow("Unsupported file type.");
+      expect(mockGetSignedUrlPromise).not.toHaveBeenCalled();
+    });
+
+    it.each(["image/jpeg", "image/png", "application/pdf"])(
+      "mints an upload URL for the allowed type %s",
+      async (mimeType) => {
+        mockGetSignedUrlPromise.mockResolvedValueOnce("https://presigned");
+        await expect(
+          generatePresignedUrl(mimeType, "temp"),
+        ).resolves.toMatchObject({ url: "https://presigned" });
+      },
+    );
   });
 
   describe("moveFile", () => {

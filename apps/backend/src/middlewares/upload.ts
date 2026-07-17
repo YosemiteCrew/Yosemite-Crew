@@ -186,6 +186,10 @@ async function generatePresignedUrl(
     | "user-org",
   idOrFolder?: string,
 ) {
+  if (!isAllowedMimeType(mimeType)) {
+    throw new Error("Unsupported file type.");
+  }
+
   const bucket = getBucketName();
   const key = buildS3Key(type, idOrFolder, mimeType);
   const params = {
@@ -375,6 +379,7 @@ async function setupLifecyclePolicy(daysToKeep = 2) {
 // Exports
 
 export {
+  isAllowedMimeType,
   handleFileUpload,
   handleMultipleFileUpload,
   uploadToS3,

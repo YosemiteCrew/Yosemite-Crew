@@ -18,6 +18,8 @@ import {
 import { generatePresignedUrl } from "../../src/middlewares/upload";
 
 jest.mock("../../src/middlewares/upload", () => ({
+  isAllowedMimeType: jest.requireActual("../../src/middlewares/upload")
+    .isAllowedMimeType,
   generatePresignedUrl: jest.fn(),
 }));
 
@@ -198,6 +200,21 @@ describe("Inventory Controllers", () => {
           message: "MIME type is required in the request body.",
         });
       });
+
+      it.each(["text/html", "application/javascript", "image/svg+xml"])(
+        "rejects the disallowed mimeType %s",
+        async (mimeType) => {
+          req = mockRequest({
+            params: { organisationId: "org1" },
+            body: { mimeType },
+          });
+
+          await InventoryController.getItemImageUploadUrl(req as any, res);
+
+          expect(res.status).toHaveBeenCalledWith(400);
+          expect(generatePresignedUrl).not.toHaveBeenCalled();
+        },
+      );
     });
 
     describe("createItem", () => {

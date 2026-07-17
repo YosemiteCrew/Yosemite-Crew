@@ -286,9 +286,23 @@ export const NetworkChatService = {
       a.localeCompare(b),
     );
 
+    // Scope the lookup to this org pair: matching on members alone also matches the
+    // same-org ORG_DIRECT sessions created by chat.service, which would hand a
+    // within-clinic session back to a cross-clinic request. Either side may have opened
+    // the conversation, so both orderings of the pair count as the same session.
     const existing = await ChatSessionModel.findOne({
       type: "ORG_DIRECT",
       members: { $all: members, $size: 2 },
+      $or: [
+        {
+          organisationId: { $eq: requesterOrgId },
+          counterpartOrganisationId: { $eq: otherOrgId },
+        },
+        {
+          organisationId: { $eq: otherOrgId },
+          counterpartOrganisationId: { $eq: requesterOrgId },
+        },
+      ],
     });
 
     if (existing) return existing;

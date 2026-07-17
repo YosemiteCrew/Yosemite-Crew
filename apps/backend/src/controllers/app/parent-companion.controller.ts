@@ -23,10 +23,27 @@ const resolveParentId = (parent: { id?: string }): string => {
 export const ParentCompanionController = {
   getLinksForParent: async (req: Request, res: Response) => {
     try {
+      const authUserId = resolveAuthenticatedUserId(req);
+      const requestingParent = authUserId
+        ? await ParentService.findByLinkedUserId(authUserId)
+        : null;
       const { parentId } = req.params;
+
+      if (!requestingParent) {
+        return res
+          .status(401)
+          .json({ message: "Not authenticated as parent." });
+      }
 
       if (!parentId || typeof parentId !== "string" || !parentId.trim()) {
         return res.status(400).json({ message: "Invalid parent ID." });
+      }
+
+      // The response carries the caller's companion links, so it is only released to the
+      // parent it belongs to. Another parent's id is reported as missing rather than
+      // forbidden, so the endpoint cannot confirm that an id exists.
+      if (resolveParentId(requestingParent) !== parentId.trim()) {
+        return res.status(404).json({ message: "Parent not found." });
       }
 
       const links = await ParentCompanionService.getLinksForParent(parentId);

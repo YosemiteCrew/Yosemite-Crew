@@ -1,12 +1,17 @@
 // contact.controller.ts
 import { Request, Response } from "express";
+import { z } from "zod";
 import {
   ContactService,
   ContactServiceError,
   type CreateContactRequestInput,
   type CreateWebContactRequestInput,
 } from "src/services/contact-us.service";
-import { generatePresignedUrl, getURLForKey } from "src/middlewares/upload";
+import {
+  generatePresignedUrl,
+  getURLForKey,
+  isAllowedMimeType,
+} from "src/middlewares/upload";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { type ContactType, type ContactStatus } from "src/models/contect-us";
@@ -42,6 +47,10 @@ const toContactType = (value: unknown): ContactType | undefined =>
   typeof value === "string" && CONTACT_TYPES.has(value as ContactType)
     ? (value as ContactType)
     : undefined;
+
+const attachmentUploadBodySchema = z.object({
+  mimeType: z.string().refine(isAllowedMimeType),
+});
 
 type CreateContactRequestBody = CreateContactRequestInput;
 type CreateWebContactRequestBody = CreateWebContactRequestInput;
@@ -161,20 +170,15 @@ export const ContactController = {
 
   async getAttachmentUploadUrl(this: void, req: Request, res: Response) {
     try {
-      const rawBody: unknown = req.body;
-      const mimeType =
-        typeof rawBody === "object" && rawBody !== null && "mimeType" in rawBody
-          ? (rawBody as { mimeType?: unknown }).mimeType
-          : undefined;
-
-      if (typeof mimeType !== "string" || !mimeType) {
+      const parsedBody = attachmentUploadBodySchema.safeParse(req.body);
+      if (!parsedBody.success) {
         return res
           .status(400)
-          .json({ message: "mimeType is required in the request body." });
+          .json({ message: "A supported mimeType is required." });
       }
 
       const { url, key } = await generatePresignedUrl(
-        mimeType,
+        parsedBody.data.mimeType,
         "custom",
         "contact-us",
       );

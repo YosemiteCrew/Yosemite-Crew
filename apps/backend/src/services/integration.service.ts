@@ -100,7 +100,7 @@ const syncIntegrationAccountToPostgres = async (
         lastValidatedAt: doc.lastValidatedAt ?? null,
         credentials:
           (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-        config: (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        config: (doc.config as Prisma.InputJsonValue) ?? Prisma.JsonNull,
       },
       update: {
         status: doc.status,
@@ -112,7 +112,7 @@ const syncIntegrationAccountToPostgres = async (
         lastValidatedAt: doc.lastValidatedAt ?? null,
         credentials:
           (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
-        config: (doc.credentials as Prisma.InputJsonValue) ?? Prisma.JsonNull,
+        config: (doc.config as Prisma.InputJsonValue) ?? Prisma.JsonNull,
       },
     });
   } catch (err) {
