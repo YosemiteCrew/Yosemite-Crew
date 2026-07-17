@@ -5,6 +5,9 @@ const mockPrisma = {
     update: jest.fn(),
     updateMany: jest.fn(),
   },
+  authIdentity: {
+    findFirst: jest.fn(),
+  },
   userOrganization: {
     findMany: jest.fn(),
     delete: jest.fn(),
@@ -143,8 +146,41 @@ describe("UserService", () => {
     });
   });
 
+  it("resolves a supertokens alias to the canonical legacy user id", async () => {
+    mockPrisma.user.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        userId: "legacy-user-123",
+        email: "person@example.com",
+        firstName: "Old",
+        lastName: "Name",
+        isActive: true,
+      });
+    mockPrisma.authIdentity.findFirst.mockResolvedValueOnce({
+      appUserId: "legacy-user-123",
+    });
+
+    const result = await UserService.getById("st-user-123");
+
+    expect(mockPrisma.authIdentity.findFirst).toHaveBeenCalledWith({
+      where: {
+        provider: "supertokens",
+        providerUserId: "st-user-123",
+      },
+      select: { appUserId: true },
+    });
+    expect(result).toEqual({
+      id: "legacy-user-123",
+      email: "person@example.com",
+      firstName: "Old",
+      lastName: "Name",
+      isActive: true,
+    });
+  });
+
   it("returns null when the user does not exist", async () => {
     mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.authIdentity.findFirst.mockResolvedValue(null);
 
     await expect(UserService.getById("user-404")).resolves.toBeNull();
   });
@@ -262,6 +298,7 @@ describe("UserService", () => {
 
   it("throws when the user does not exist", async () => {
     mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.authIdentity.findFirst.mockResolvedValue(null);
 
     await expect(
       UserService.updateName({
@@ -309,6 +346,7 @@ describe("UserService", () => {
 
   it("returns false when the user is missing during delete", async () => {
     mockPrisma.user.findFirst.mockResolvedValue(null);
+    mockPrisma.authIdentity.findFirst.mockResolvedValue(null);
 
     await expect(UserService.deleteById("missing")).resolves.toBe(false);
   });

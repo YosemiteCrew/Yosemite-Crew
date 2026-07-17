@@ -15,6 +15,10 @@ jest.mock("../../../src/utils/logger");
 
 const mockUpdateUserName = jest.fn();
 const mockSetUserRole = jest.fn();
+let mockResolveCanonicalUserIdImpl = jest.fn(async (value: string) => value);
+function mockResolveCanonicalUserId(value: string) {
+  return mockResolveCanonicalUserIdImpl(value);
+}
 let mockAuthService: {
   updateUserName: typeof mockUpdateUserName;
   setUserRole: typeof mockSetUserRole;
@@ -34,6 +38,7 @@ jest.mock("../../../src/services/user.service", () => {
       deleteById: jest.fn(),
       updateName: jest.fn(),
     },
+    resolveCanonicalUserId: mockResolveCanonicalUserId,
   };
 });
 
@@ -64,6 +69,7 @@ describe("UserController", () => {
     jest.clearAllMocks();
     mockRes = createMockRes();
     mockAuthService = null;
+    mockResolveCanonicalUserIdImpl = jest.fn(async (value: string) => value);
   });
 
   describe("create", () => {
@@ -263,6 +269,21 @@ describe("UserController", () => {
       await UserController.getById(req, mockRes as Response);
 
       expect(UserService.getById).toHaveBeenCalledWith("123");
+      expect(mockRes.status).toHaveBeenCalledWith(200);
+      expect(mockRes.json).toHaveBeenCalledWith(mockUser);
+    });
+
+    it("should accept a supertokens alias when both ids resolve to the same user", async () => {
+      mockResolveCanonicalUserIdImpl.mockImplementation(
+        async (value: string) => (value === "st-user-1" ? "123" : value),
+      );
+      const mockUser = { id: "123", name: "Alias Test" };
+      (UserService.getById as jest.Mock).mockResolvedValue(mockUser);
+
+      const req = createMockReq({ params: { id: "st-user-1" }, userId: "123" });
+      await UserController.getById(req, mockRes as Response);
+
+      expect(UserService.getById).toHaveBeenCalledWith("st-user-1");
       expect(mockRes.status).toHaveBeenCalledWith(200);
       expect(mockRes.json).toHaveBeenCalledWith(mockUser);
     });

@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import { getAuthService } from "@yosemite-crew/auth";
 import logger from "../../utils/logger";
-import { UserService, UserServiceError } from "../../services/user.service";
+import {
+  UserService,
+  UserServiceError,
+  resolveCanonicalUserId,
+} from "../../services/user.service";
 import { AuthenticatedRequest } from "src/middlewares/auth";
 import { resolveUserIdFromRequest } from "src/utils/request";
 
@@ -109,7 +113,22 @@ export const UserController = {
           .json({ message: "Missing user identity from token." });
       }
 
-      if (requesterId !== id) {
+      const [resolvedRequesterId, resolvedTargetId] = await Promise.all([
+        resolveCanonicalUserId(requesterId),
+        resolveCanonicalUserId(id),
+      ]);
+
+      if (!resolvedRequesterId) {
+        return res
+          .status(401)
+          .json({ message: "Missing user identity from token." });
+      }
+
+      if (!resolvedTargetId) {
+        return res.status(404).json({ message: "User not found." });
+      }
+
+      if (resolvedRequesterId !== resolvedTargetId) {
         return res.status(403).json({
           message: "You can only view your own user.",
         });
@@ -150,7 +169,22 @@ export const UserController = {
         return;
       }
 
-      if (requesterId !== id) {
+      const [resolvedRequesterId, resolvedTargetId] = await Promise.all([
+        resolveCanonicalUserId(requesterId),
+        resolveCanonicalUserId(id),
+      ]);
+
+      if (!resolvedRequesterId) {
+        res.status(401).json({ message: "Missing user identity from token." });
+        return;
+      }
+
+      if (!resolvedTargetId) {
+        res.status(404).json({ message: "User not found." });
+        return;
+      }
+
+      if (resolvedRequesterId !== resolvedTargetId) {
         res.status(403).json({ message: "You can only delete your own user." });
         return;
       }
