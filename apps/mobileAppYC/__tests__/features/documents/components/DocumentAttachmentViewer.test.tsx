@@ -333,6 +333,54 @@ describe('DocumentAttachmentViewer', () => {
     expect(RNFS.downloadFile).not.toHaveBeenCalled();
   });
 
+  // Downloads land in the shared Download/ directory. Below API 29 that write is
+  // only permitted with the legacy write grant, and READ alone never confers it.
+  it('requests the legacy write permission before downloading on android 9 and below', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'android',
+    });
+    Object.defineProperty(Platform, 'Version', {
+      configurable: true,
+      value: 28,
+    });
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Download attachment')[0]);
+    });
+
+    expect(PermissionsAndroid.request).toHaveBeenCalledWith(
+      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+    );
+    expect(RNFS.downloadFile).toHaveBeenCalled();
+  });
+
+  it('skips the permission request entirely on android 13 and above', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      value: 'android',
+    });
+    Object.defineProperty(Platform, 'Version', {
+      configurable: true,
+      value: 33,
+    });
+
+    const {getAllByLabelText} = render(
+      <DocumentAttachmentViewer attachments={[mockFilePdf]} />,
+    );
+
+    await act(async () => {
+      fireEvent.press(getAllByLabelText('Download attachment')[0]);
+    });
+
+    expect(PermissionsAndroid.request).not.toHaveBeenCalled();
+    expect(RNFS.downloadFile).toHaveBeenCalled();
+  });
+
   it('falls back to document directory and inferred extension when downloading unknown file types', async () => {
     (RNFS as any).DownloadDirectoryPath = undefined;
 

@@ -177,6 +177,69 @@ export const getMissingCompanionForeignKeyReason = (
   return null;
 };
 
+export const stripReferencePrefix = (reference: string): string =>
+  reference.split("/").pop() ?? reference;
+
+export const buildRoomStaffKey = (
+  organisationId: string,
+  staffUserId: string,
+): string => `${organisationId}::${staffUserId}`;
+
+/**
+ * Room speciality links are org-scoped: the speciality must belong to the room's
+ * own organisation, mirroring organisation-room.service.ts.
+ */
+export const getRoomSpecialityRejectionReason = (
+  specialityId: unknown,
+  organisationId: string | null,
+  specialityOrganisationById: Map<string, string>,
+): string | null => {
+  if (typeof specialityId !== "string" || specialityId.trim().length === 0) {
+    return "missing specialityId";
+  }
+
+  if (!organisationId) {
+    return "missing organisationId";
+  }
+
+  const owner = specialityOrganisationById.get(specialityId);
+  if (owner === undefined) {
+    return `unknown specialityId ${specialityId}`;
+  }
+
+  if (owner !== organisationId) {
+    return `speciality ${specialityId} belongs to organisation ${owner}`;
+  }
+
+  return null;
+};
+
+/**
+ * Room staff links require an active membership of the room's organisation,
+ * mirroring organisation-room.service.ts.
+ */
+export const getRoomStaffRejectionReason = (
+  staffUserId: unknown,
+  organisationId: string | null,
+  activeOrganisationStaff: Set<string>,
+): string | null => {
+  if (typeof staffUserId !== "string" || staffUserId.trim().length === 0) {
+    return "missing staffUserId";
+  }
+
+  if (!organisationId) {
+    return "missing organisationId";
+  }
+
+  if (
+    !activeOrganisationStaff.has(buildRoomStaffKey(organisationId, staffUserId))
+  ) {
+    return `staff ${staffUserId} has no active membership of organisation ${organisationId}`;
+  }
+
+  return null;
+};
+
 export const deriveOrganisationRoomCode = (args: {
   data: Record<string, unknown>;
 }): string | null => {

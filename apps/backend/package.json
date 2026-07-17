@@ -26,6 +26,7 @@
     "@aws-sdk/client-pinpoint": "^3.806.0",
     "@aws-sdk/client-s3": "^3.842.0",
     "@aws-sdk/client-ses": "^3.839.0",
+    "@documenso/sdk-typescript": "^0.5.1",
     "@prisma/client": "^5.22.0",
     "@yosemite-crew/auth": "workspace:^",
     "@yosemite-crew/database": "workspace:^",
@@ -69,7 +70,6 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@documenso/sdk-typescript": "^0.5.1",
     "@eslint/js": "^9.21.0",
     "@types/aws-sdk": "^2.7.4",
     "@types/bcrypt": "^5.0.2",

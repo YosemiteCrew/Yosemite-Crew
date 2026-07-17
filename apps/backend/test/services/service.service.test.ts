@@ -1046,5 +1046,57 @@ describe("ServiceService", () => {
       expect(res).toHaveLength(1);
       expect(res[0].specialities[0].services).toHaveLength(1);
     });
+
+    it("groups mongo services whose organisationId is an ObjectId", async () => {
+      const orgObjectId = new Types.ObjectId();
+      const specObjectId = new Types.ObjectId();
+
+      (ServiceModel.find as jest.Mock).mockReturnValueOnce(
+        createQueryChain([{ organisationId: orgObjectId }]),
+      );
+      (OrganizationModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([
+          {
+            _id: orgObjectId,
+            name: "Org",
+            type: "CLINIC",
+            address: { latitude: 40, longitude: -74 },
+          },
+        ]),
+      );
+      // Speciality.organisationId is a String in the schema, Service.organisationId
+      // is an ObjectId - the mocks mirror what `.lean()` really returns.
+      (SpecialityModel.find as jest.Mock).mockReturnValue(
+        createQueryChain([
+          {
+            _id: specObjectId,
+            name: "General",
+            organisationId: orgObjectId.toHexString(),
+          },
+        ]),
+      );
+      (ServiceModel.find as jest.Mock).mockReturnValueOnce(
+        createQueryChain([
+          {
+            _id: new Types.ObjectId(),
+            name: "Checkup",
+            cost: 50,
+            specialityId: specObjectId,
+            organisationId: orgObjectId,
+          },
+        ]),
+      );
+
+      const res = await ServiceService.listOrganisationsProvidingServiceNearby(
+        "Checkup",
+        40,
+        -74,
+      );
+
+      expect(res).toHaveLength(1);
+      expect(res[0].specialities).toHaveLength(1);
+      expect(res[0].specialities[0].services).toHaveLength(1);
+      expect(res[0].specialities[0].services[0].name).toBe("Checkup");
+    });
   });
 });

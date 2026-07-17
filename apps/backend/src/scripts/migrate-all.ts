@@ -4,17 +4,21 @@ import path from "node:path";
 import mongoose from "mongoose";
 import { PrismaClient } from "@prisma/client";
 import {
+  buildRoomStaffKey,
   chooseMongooseSourceModelName,
   deriveOrganisationRoomCode,
   getMissingCoParentInvitePatientIdReason,
   getMissingExternalExpensePatientIdReason,
   getMissingCompanionForeignKeyReason,
   getMissingMongooseModelReason,
+  getRoomSpecialityRejectionReason,
+  getRoomStaffRejectionReason,
   normalizePatientGender,
   normalizePatientSource,
   normalizePatientStatus,
   normalizePatientType,
   resolveLegacyPatientId,
+  stripReferencePrefix,
 } from "./migrate-all.helpers";
 import { normalizeRoomType } from "../services/room-management.helpers";
 
@@ -335,8 +339,8 @@ const migrateModel = async (
 
   let existingFormIds: Set<string> | null = null;
   let existingPatientIds: Set<string> | null = null;
-  let existingSpecialityIds: Set<string> | null = null;
-  let existingUserIds: Set<string> | null = null;
+  let specialityOrganisationById: Map<string, string> | null = null;
+  let activeOrganisationStaff: Set<string> | null = null;
   if (
     prismaName === "FormField" ||
     prismaName === "FormVersion" ||
@@ -357,15 +361,28 @@ const migrateModel = async (
   }
   if (prismaName === "OrganisationRoom") {
     const specialities = await prisma.speciality.findMany({
-      select: { id: true },
+      select: { id: true, organisationId: true },
     });
-    const users = await prisma.user.findMany({
-      select: { userId: true },
+    const memberships = await prisma.userOrganization.findMany({
+      where: { active: true },
+      select: { practitionerReference: true, organizationReference: true },
     });
-    existingSpecialityIds = new Set(
-      specialities.map((speciality) => speciality.id),
+    specialityOrganisationById = new Map(
+      specialities.map((speciality) => [
+        speciality.id,
+        speciality.organisationId,
+      ]),
     );
-    existingUserIds = new Set(users.map((user) => user.userId));
+    // References are stored either bare or prefixed ("Organization/<id>",
+    // "Practitioner/<id>", "User/<id>"), so both sides are reduced to the raw id.
+    activeOrganisationStaff = new Set(
+      memberships.map((membership) =>
+        buildRoomStaffKey(
+          stripReferencePrefix(membership.organizationReference),
+          stripReferencePrefix(membership.practitionerReference),
+        ),
+      ),
+    );
   }
 
   const cursor = model.find().sort({ _id: 1 }).cursor();
@@ -534,47 +551,41 @@ const migrateModel = async (
 
       for (const speciality of assignedSpecialiteis) {
         const specialityId = toIdString(speciality);
-        if (
-          typeof specialityId !== "string" ||
-          !(existingSpecialityIds?.has(specialityId) ?? false)
-        ) {
-          skipped += 1;
-          skippedMissingRoomSpecialityFk += 1;
-          continue;
-        }
-        if (!safeOrganisationId) {
+        const specialityRejection = getRoomSpecialityRejectionReason(
+          specialityId,
+          safeOrganisationId,
+          specialityOrganisationById ?? new Map(),
+        );
+        if (specialityRejection) {
           skipped += 1;
           skippedMissingRoomSpecialityFk += 1;
           continue;
         }
 
         roomSpecialityBatch.push({
-          organisationId: safeOrganisationId,
+          organisationId: safeOrganisationId as string,
           roomId,
-          specialityId,
+          specialityId: specialityId as string,
         });
       }
 
       for (const staff of assignedStaffs) {
         const staffUserId = toIdString(staff);
-        if (
-          typeof staffUserId !== "string" ||
-          !(existingUserIds?.has(staffUserId) ?? false)
-        ) {
-          skipped += 1;
-          skippedMissingRoomStaffFk += 1;
-          continue;
-        }
-        if (!safeOrganisationId) {
+        const staffRejection = getRoomStaffRejectionReason(
+          staffUserId,
+          safeOrganisationId,
+          activeOrganisationStaff ?? new Set(),
+        );
+        if (staffRejection) {
           skipped += 1;
           skippedMissingRoomStaffFk += 1;
           continue;
         }
 
         roomStaffBatch.push({
-          organisationId: safeOrganisationId,
+          organisationId: safeOrganisationId as string,
           roomId,
-          staffUserId,
+          staffUserId: staffUserId as string,
         });
       }
     }
@@ -607,8 +618,7 @@ const migrateModel = async (
 
     if (prismaName === "UserProfile" && data.id) {
       const personal = obj.personalDetails as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const addr = extractAddress(personal?.address);
       if (addr) {
         const addrData = toIdString(addr);
@@ -730,12 +740,12 @@ const migrateModel = async (
     }
     if (skippedMissingRoomSpecialityFk > 0) {
       console.log(
-        `\nSkipped ${skippedMissingRoomSpecialityFk} ${mongooseName} room-speciality links due to missing Speciality rows.`,
+        `\nSkipped ${skippedMissingRoomSpecialityFk} ${mongooseName} room-speciality links due to missing or cross-organisation Speciality rows.`,
       );
     }
     if (skippedMissingRoomStaffFk > 0) {
       console.log(
-        `\nSkipped ${skippedMissingRoomStaffFk} ${mongooseName} room-staff links due to missing User rows.`,
+        `\nSkipped ${skippedMissingRoomStaffFk} ${mongooseName} room-staff links due to missing or inactive organisation memberships.`,
       );
     }
     if (skippedMissingCoParentInvitePatientId > 0) {

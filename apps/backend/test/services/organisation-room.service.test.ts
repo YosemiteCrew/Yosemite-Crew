@@ -418,11 +418,80 @@ describe("OrganisationRoomService", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.id).toBe("room_1");
-    expect(result[0]?.occupiedUnits).toBe(0);
-    expect(result[0]?.vacantUnits).toBe(2);
-    expect(result[0]?.occupancyDisplay).toBe("Vacant (2)");
+    // room_1 has 2 units and unit_1 is occupied, so only 1 bed is actually free.
+    expect(result[0]?.totalUnits).toBe(2);
+    expect(result[0]?.occupiedUnits).toBe(1);
+    expect(result[0]?.vacantUnits).toBe(1);
+    expect(result[0]?.occupancyDisplay).toBe("Vacant (1)");
     expect(result[0]?.units).toEqual([
       expect.objectContaining({ id: "unit_2", isOccupied: false }),
+    ]);
+  });
+
+  it("keeps unit group counts accurate for partly occupied rooms when vacantOnly is requested", async () => {
+    mockedPrisma.organisationRoom.findMany.mockResolvedValue([baseRoom]);
+    mockedPrisma.roomUnit.findMany.mockResolvedValue([
+      {
+        id: "unit_1",
+        roomId: "room_1",
+        unitGroupId: "group_1",
+        code: "BED-01",
+        displayName: "Bed 1",
+        size: "M",
+        speciesConstraints: [],
+        isActive: true,
+      },
+      {
+        id: "unit_2",
+        roomId: "room_1",
+        unitGroupId: "group_1",
+        code: "BED-02",
+        displayName: "Bed 2",
+        size: "M",
+        speciesConstraints: [],
+        isActive: true,
+      },
+      {
+        id: "unit_3",
+        roomId: "room_1",
+        unitGroupId: "group_1",
+        code: "BED-03",
+        displayName: "Bed 3",
+        size: "M",
+        speciesConstraints: [],
+        isActive: true,
+      },
+    ]);
+    mockedPrisma.roomUnitGroup.findMany.mockResolvedValue([
+      {
+        id: "group_1",
+        roomId: "room_1",
+        name: "Dog ward",
+        size: "Medium",
+        unitCount: 3,
+        speciesConstraints: [],
+        capabilities: [],
+        isActive: true,
+      },
+    ]);
+    mockedPrisma.admission.findMany.mockResolvedValue([
+      { unitId: "unit_1" },
+      { unitId: "unit_2" },
+    ]);
+
+    const result = await OrganisationRoomService.getSummaryByOrganizationId(
+      "org_1",
+      { vacantOnly: true },
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.occupiedUnits).toBe(2);
+    expect(result[0]?.vacantUnits).toBe(1);
+    expect(result[0]?.occupancyDisplay).toBe("Vacant (1)");
+    expect(result[0]?.unitGroups[0]?.occupiedCount).toBe(2);
+    expect(result[0]?.unitGroups[0]?.vacantCount).toBe(1);
+    expect(result[0]?.units).toEqual([
+      expect.objectContaining({ id: "unit_3", isOccupied: false }),
     ]);
   });
 

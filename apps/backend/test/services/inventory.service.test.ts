@@ -675,6 +675,53 @@ describe("Inventory service", () => {
     expect(turnover).toHaveLength(1);
   });
 
+  it("consumeStock leaves an existing reservation untouched", async () => {
+    // Reservations are held on the item by allocateStock and are never mirrored
+    // onto the batch rows, so consumption must not recompute them from batches.
+    (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
+      id: "item-1",
+      organisationId: "org-1",
+      onHand: 5,
+      allocated: 5,
+    });
+    (prisma.inventoryBatch.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          id: "batch-1",
+          itemId: "item-1",
+          organisationId: "org-1",
+          quantity: 5,
+          allocated: 0,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "batch-1",
+          itemId: "item-1",
+          organisationId: "org-1",
+          quantity: 3,
+          allocated: 0,
+        },
+      ]);
+    (prisma.inventoryItem.update as jest.Mock).mockResolvedValue({
+      id: "item-1",
+      organisationId: "org-1",
+      onHand: 3,
+      allocated: 5,
+    });
+
+    const consumed = await InventoryService.consumeStock(
+      { itemId: "item-1", quantity: 2, reason: "MANUAL_ADJUSTMENT" },
+      "org-1",
+    );
+
+    expect(prisma.inventoryItem.update).toHaveBeenCalledWith({
+      where: { id: "item-1" },
+      data: { onHand: 3 },
+    });
+    expect(consumed.allocated).toBe(5);
+  });
+
   it("adjusts, allocates, and releases inventory", async () => {
     (prisma.inventoryItem.findFirst as jest.Mock).mockResolvedValue({
       id: "item-1",

@@ -233,8 +233,7 @@ const toPrismaOrganisationInviteData = (doc: OrganisationInviteDocument) => ({
   inviteeName: doc.inviteeName ?? undefined,
   role: doc.role,
   employmentType: (doc.employmentType ?? undefined) as
-    | OrganisationInviteEmploymentType
-    | undefined,
+    OrganisationInviteEmploymentType | undefined,
   token: doc.token,
   status: doc.status as OrganisationInviteStatus,
   expiresAt: doc.expiresAt,
@@ -760,9 +759,9 @@ export const OrganisationInviteService = {
     if (!invites.length) return [];
     const results = [];
     for (const invite of invites) {
-      const organisation = await OrganizationModel.findOne({
-        _id: new Types.ObjectId(invite.organisationId),
-      });
+      const organisation = await OrganizationModel.findOne(
+        buildIdentifierLookup(invite.organisationId),
+      ).setOptions({ sanitizeFilter: true });
 
       results.push({
         invite: buildInviteResponse(invite),

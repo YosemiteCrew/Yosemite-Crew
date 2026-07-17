@@ -945,7 +945,7 @@ export const ServiceService = {
       name: string;
       cost?: number;
       specialityId?: Types.ObjectId | string | null;
-      organisationId: string;
+      organisationId: Types.ObjectId;
     }>;
 
     // 6. Group specialities + services for each org
@@ -954,8 +954,10 @@ export const ServiceService = {
         (s) => s.organisationId === org._id.toString(),
       );
 
+      // Service.organisationId is an ObjectId in the schema (Speciality.organisationId
+      // is a String), so it has to be stringified before comparing.
       const orgServices = allServicesForOrgs.filter(
-        (s) => s.organisationId === org._id.toString(),
+        (s) => s.organisationId.toString() === org._id.toString(),
       );
 
       const specialitiesWithServices = orgSpecialities.map((spec) => {

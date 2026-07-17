@@ -36,6 +36,14 @@ import {
   ConfirmActionBottomSheet,
   type ConfirmActionBottomSheetRef,
 } from '@/shared/components/common/ConfirmActionBottomSheet/ConfirmActionBottomSheet';
+import {
+  TaskDeleteBottomSheet,
+  type TaskDeleteBottomSheetRef,
+} from '@/features/tasks/components/TaskDeleteBottomSheet/TaskDeleteBottomSheet';
+import {
+  TaskSaveOptionsBottomSheet,
+  type TaskSaveOptionsBottomSheetRef,
+} from '@/features/tasks/components/TaskSaveOptionsBottomSheet/TaskSaveOptionsBottomSheet';
 
 type Navigation = NativeStackNavigationProp<TaskStackParamList, 'EditTask'>;
 type Route = RouteProp<TaskStackParamList, 'EditTask'>;
@@ -71,9 +79,7 @@ export const EditTaskScreen: React.FC = () => {
     companions,
   } = hookData;
   const taskFormMode = useMemo(():
-    | 'medication'
-    | 'observationalTool'
-    | 'simple' => {
+    'medication' | 'observationalTool' | 'simple' => {
     if (isMedicationForm) {
       return 'medication';
     }
@@ -84,6 +90,9 @@ export const EditTaskScreen: React.FC = () => {
   }, [isMedicationForm, isObservationalToolForm]);
 
   const confirmDeleteSheetRef = useRef<ConfirmActionBottomSheetRef>(null);
+  const taskSaveSheetRef = useRef<TaskSaveOptionsBottomSheetRef>(null);
+  const taskDeleteSheetRef = useRef<TaskDeleteBottomSheetRef>(null);
+  const isRecurring = Boolean(task && task.frequency !== 'once');
 
   // Smart back handler that navigates back without resetting the stack
   const handleSmartBack = React.useCallback(() => {
@@ -170,9 +179,21 @@ export const EditTaskScreen: React.FC = () => {
     handleSmartBack();
   };
 
+  const confirmSave = async () => {
+    try {
+      await performSave();
+    } catch (error) {
+      showErrorAlert('Unable to update task', error);
+    }
+  };
+
   const handleSave = () => {
     if (!validateForm(formData)) return;
     if (!task) return;
+    if (isRecurring) {
+      taskSaveSheetRef.current?.open();
+      return;
+    }
     performSave().catch(error =>
       showErrorAlert('Unable to update task', error),
     );
@@ -180,6 +201,10 @@ export const EditTaskScreen: React.FC = () => {
 
   const handleDeletePress = () => {
     if (!task) return;
+    if (isRecurring) {
+      taskDeleteSheetRef.current?.open();
+      return;
+    }
     confirmDeleteSheetRef.current?.open();
   };
 
@@ -292,24 +317,47 @@ export const EditTaskScreen: React.FC = () => {
         onDiscard={() => navigation.goBack()}
       />
 
-      <ConfirmActionBottomSheet
-        ref={confirmDeleteSheetRef}
-        title="Delete task"
-        message={
-          task ? `Are you sure you want to delete "${task.title}"?` : undefined
-        }
-        primaryButton={{
-          label: 'Delete',
-          onPress: () =>
-            handleDeleteTask().catch(error =>
-              showErrorAlert('Unable to delete task', error),
-            ),
-        }}
-        secondaryButton={{
-          label: 'Cancel',
-          onPress: () => confirmDeleteSheetRef.current?.close(),
-        }}
-      />
+      {isRecurring ? (
+        <>
+          <TaskSaveOptionsBottomSheet
+            ref={taskSaveSheetRef}
+            onSaveAll={confirmSave}
+            onSaveForDay={confirmSave}
+          />
+
+          <TaskDeleteBottomSheet
+            ref={taskDeleteSheetRef}
+            taskTitle={task.title}
+            onDeleteAll={() =>
+              handleDeleteTask().catch(error =>
+                showErrorAlert('Unable to delete task', error),
+              )
+            }
+            onDeleteForDay={() =>
+              handleDeleteTask().catch(error =>
+                showErrorAlert('Unable to delete task for this day', error),
+              )
+            }
+          />
+        </>
+      ) : (
+        <ConfirmActionBottomSheet
+          ref={confirmDeleteSheetRef}
+          title="Delete task"
+          message={`Are you sure you want to delete "${task.title}"?`}
+          primaryButton={{
+            label: 'Delete',
+            onPress: () =>
+              handleDeleteTask().catch(error =>
+                showErrorAlert('Unable to delete task', error),
+              ),
+          }}
+          secondaryButton={{
+            label: 'Cancel',
+            onPress: () => confirmDeleteSheetRef.current?.close(),
+          }}
+        />
+      )}
     </>
   );
 };

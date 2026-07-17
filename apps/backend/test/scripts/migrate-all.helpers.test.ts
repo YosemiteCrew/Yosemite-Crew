@@ -1,15 +1,19 @@
 import {
+  buildRoomStaffKey,
   chooseMongooseSourceModelName,
   deriveOrganisationRoomCode,
   getMissingCoParentInvitePatientIdReason,
   getMissingExternalExpensePatientIdReason,
   getMissingCompanionForeignKeyReason,
   getMissingMongooseModelReason,
+  getRoomSpecialityRejectionReason,
+  getRoomStaffRejectionReason,
   normalizePatientGender,
   normalizePatientSource,
   normalizePatientStatus,
   normalizePatientType,
   resolveLegacyPatientId,
+  stripReferencePrefix,
 } from "../../src/scripts/migrate-all.helpers";
 
 describe("getMissingCompanionForeignKeyReason", () => {
@@ -172,5 +176,99 @@ describe("getMissingCompanionForeignKeyReason", () => {
     ).toBe("patient-ref-1");
 
     expect(resolveLegacyPatientId({})).toBeNull();
+  });
+});
+
+describe("stripReferencePrefix", () => {
+  it("reduces prefixed FHIR references to the raw id", () => {
+    expect(stripReferencePrefix("Organization/org-1")).toBe("org-1");
+    expect(stripReferencePrefix("Practitioner/user-1")).toBe("user-1");
+    expect(stripReferencePrefix("User/user-1")).toBe("user-1");
+    expect(stripReferencePrefix("org-1")).toBe("org-1");
+  });
+});
+
+describe("getRoomSpecialityRejectionReason", () => {
+  const specialityOrganisationById = new Map([
+    ["spec-1", "org-1"],
+    ["spec-2", "org-2"],
+  ]);
+
+  it("accepts a speciality owned by the room's organisation", () => {
+    expect(
+      getRoomSpecialityRejectionReason(
+        "spec-1",
+        "org-1",
+        specialityOrganisationById,
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects a speciality owned by another organisation", () => {
+    expect(
+      getRoomSpecialityRejectionReason(
+        "spec-2",
+        "org-1",
+        specialityOrganisationById,
+      ),
+    ).toBe("speciality spec-2 belongs to organisation org-2");
+  });
+
+  it("rejects unknown and malformed speciality references", () => {
+    expect(
+      getRoomSpecialityRejectionReason(
+        "spec-missing",
+        "org-1",
+        specialityOrganisationById,
+      ),
+    ).toBe("unknown specialityId spec-missing");
+    expect(
+      getRoomSpecialityRejectionReason("", "org-1", specialityOrganisationById),
+    ).toBe("missing specialityId");
+    expect(
+      getRoomSpecialityRejectionReason(
+        { id: "spec-1" },
+        "org-1",
+        specialityOrganisationById,
+      ),
+    ).toBe("missing specialityId");
+    expect(
+      getRoomSpecialityRejectionReason(
+        "spec-1",
+        null,
+        specialityOrganisationById,
+      ),
+    ).toBe("missing organisationId");
+  });
+});
+
+describe("getRoomStaffRejectionReason", () => {
+  const activeOrganisationStaff = new Set([
+    buildRoomStaffKey("org-1", "user-1"),
+  ]);
+
+  it("accepts staff with an active membership of the organisation", () => {
+    expect(
+      getRoomStaffRejectionReason("user-1", "org-1", activeOrganisationStaff),
+    ).toBeNull();
+  });
+
+  it("rejects staff without an active membership of that organisation", () => {
+    // user-1 is active in org-1 only, so the same id must not leak into org-2.
+    expect(
+      getRoomStaffRejectionReason("user-1", "org-2", activeOrganisationStaff),
+    ).toBe("staff user-1 has no active membership of organisation org-2");
+    expect(
+      getRoomStaffRejectionReason("user-2", "org-1", activeOrganisationStaff),
+    ).toBe("staff user-2 has no active membership of organisation org-1");
+  });
+
+  it("rejects malformed staff references", () => {
+    expect(
+      getRoomStaffRejectionReason("", "org-1", activeOrganisationStaff),
+    ).toBe("missing staffUserId");
+    expect(
+      getRoomStaffRejectionReason("user-1", null, activeOrganisationStaff),
+    ).toBe("missing organisationId");
   });
 });

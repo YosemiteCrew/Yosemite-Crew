@@ -702,7 +702,10 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
    */
   const requireFreshAccessToken = useCallback(async (): Promise<string> => {
     const fresh = await getFreshStoredTokens();
-    if (!fresh?.accessToken) {
+    // Social sign-up reaches this screen before the session is persisted, so the
+    // tokens handed over by the provider are the only ones that exist yet.
+    const accessToken = fresh?.accessToken ?? tokens?.accessToken;
+    if (!accessToken) {
       // Session is gone — give the user a clean re-auth path
       await AsyncStorage.removeItem(PENDING_PROFILE_STORAGE_KEY);
       DeviceEventEmitter.emit(PENDING_PROFILE_UPDATED_EVENT);
@@ -710,8 +713,8 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
       navigation.reset({index: 0, routes: [{name: 'SignIn'}]});
       throw new Error('Authentication expired. Please sign in again.');
     }
-    return fresh.accessToken;
-  }, [logout, navigation]);
+    return accessToken;
+  }, [logout, navigation, tokens]);
 
   const submitParentProfile = useCallback(
     async (payload: ParentProfileUpsertPayload) => {
