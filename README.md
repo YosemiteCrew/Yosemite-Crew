@@ -130,7 +130,8 @@ flowchart LR
     subgraph data ["Data & Services"]
         PG[("Supabase Postgres<br/><sub>Prisma · schema per tenant</sub>")]
         REDIS[("Redis<br/><sub>queue backing store</sub>")]
-        AWS["AWS<br/><sub>Cognito · S3 · SES · Pinpoint</sub>"]
+        AUTH["SuperTokens<br/><sub>session boundary</sub>"]
+        AWS["AWS<br/><sub>S3 · SES · Pinpoint</sub>"]
         LABS["Lab & Partner<br/><sub>IDEXX · Merck</sub>"]
     end
 
@@ -142,6 +143,7 @@ flowchart LR
     API <--> RT
     API --> JOBS
     API --> PG
+    API --> AUTH
     API --> AWS
     JOBS --> REDIS
     JOBS --> PG
