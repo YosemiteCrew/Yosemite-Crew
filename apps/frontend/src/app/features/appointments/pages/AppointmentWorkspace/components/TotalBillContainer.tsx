@@ -70,6 +70,8 @@ type TotalBillContainerProps = {
   overallDiscountPercent: number;
   /** Backend tax rate for this bill; drives the exclusive-of-tax footer copy. */
   taxPercent?: number;
+  /** The organisation's overall-discount cap. Null/undefined = no cap configured. */
+  maxOverallDiscountPercent?: number | null;
   onToggleWithdrawDeposit: (value: boolean) => void;
   onChangeOverallDiscount: (percent: number) => void;
   onAddItem: (item: Omit<InvoiceLineItem, 'id'>) => void;
@@ -404,10 +406,61 @@ const FooterBreakdownRow = ({
   </div>
 );
 
+const OVERALL_DISCOUNT_ERROR_ID = 'overall-discount-cap-error';
+
+export const overallDiscountCapMessage = (maxPercent: number): string =>
+  `Overall discount can't go above your organisation's ${maxPercent}% cap. Ask an admin to change the cap in Finance > Discounts.`;
+
+/**
+ * Controlled state for the overall-discount field.
+ *
+ * An entry above the organisation's cap is REJECTED, not clamped: a silently
+ * reduced discount is indistinguishable from the number the clinician meant to
+ * type, and the invoice would then be collected as if the smaller figure was
+ * intended. The typed value stays on screen next to the reason it was refused,
+ * and the bill keeps the last accepted discount. The finance API enforces the
+ * same cap server-side; this is the message, not the control.
+ */
+const useOverallDiscountInput = ({
+  overallDiscountPercent,
+  maxOverallDiscountPercent,
+  onChangeOverallDiscount,
+}: {
+  overallDiscountPercent: number;
+  maxOverallDiscountPercent?: number | null;
+  onChangeOverallDiscount: (percent: number) => void;
+}) => {
+  const [draft, setDraft] = useState(String(overallDiscountPercent));
+  const [capError, setCapError] = useState<string | null>(null);
+
+  // Re-sync the field when the accepted discount changes elsewhere (hydration,
+  // another edit path) so the input never drifts from the bill it describes.
+  const [prevPercent, setPrevPercent] = useState(overallDiscountPercent);
+  if (prevPercent !== overallDiscountPercent) {
+    setPrevPercent(overallDiscountPercent);
+    setDraft(String(overallDiscountPercent));
+    setCapError(null);
+  }
+
+  const handleChange = (raw: string) => {
+    setDraft(raw);
+    const percent = Math.max(0, Number.parseFloat(raw) || 0);
+    if (maxOverallDiscountPercent != null && percent > maxOverallDiscountPercent) {
+      setCapError(overallDiscountCapMessage(maxOverallDiscountPercent));
+      return;
+    }
+    setCapError(null);
+    onChangeOverallDiscount(percent);
+  };
+
+  return { draft, capError, handleChange };
+};
+
 const TotalsFooter = ({
   totals,
   depositCents,
   overallDiscountPercent,
+  maxOverallDiscountPercent,
   withdrawDeposit,
   taxPercent,
   onToggleWithdrawDeposit,
@@ -416,6 +469,7 @@ const TotalsFooter = ({
   totals: ReturnType<typeof buildTotals>;
   depositCents: number;
   overallDiscountPercent: number;
+  maxOverallDiscountPercent?: number | null;
   withdrawDeposit: boolean;
   taxPercent: number;
   onToggleWithdrawDeposit: (value: boolean) => void;
@@ -423,6 +477,11 @@ const TotalsFooter = ({
 }) => {
   const currency = useCurrency();
   const money = (cents: number) => formatCents(cents, currency);
+  const { draft, capError, handleChange } = useOverallDiscountInput({
+    overallDiscountPercent,
+    maxOverallDiscountPercent,
+    onChangeOverallDiscount,
+  });
   return (
     <div className="-mx-5 -mb-5 grid gap-5 rounded-b-2xl border-t border-neutral-300 bg-pill-success-bg px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(13rem,0.8fr)_minmax(0,1fr)] lg:items-stretch">
       <div className="flex h-full flex-col justify-center gap-2">
@@ -464,14 +523,17 @@ const TotalsFooter = ({
               <input
                 type="number"
                 min={0}
-                max={100}
-                value={overallDiscountPercent}
+                max={maxOverallDiscountPercent ?? 100}
+                value={draft}
                 aria-label="Overall discount percent"
-                onChange={(e) =>
-                  onChangeOverallDiscount(Math.max(0, Number.parseFloat(e.target.value) || 0))
-                }
+                aria-invalid={capError ? true : undefined}
+                aria-describedby={capError ? OVERALL_DISCOUNT_ERROR_ID : undefined}
+                onChange={(e) => handleChange(e.target.value)}
                 className="h-full w-full rounded-xl border bg-transparent pr-6 pl-2 text-right focus-visible:outline-none"
-                style={{ ...FOOTER_DISCOUNT_VALUE_STYLE, borderColor: DISCOUNT_TEXT }}
+                style={{
+                  ...FOOTER_DISCOUNT_VALUE_STYLE,
+                  borderColor: capError ? 'var(--color-danger-600)' : DISCOUNT_TEXT,
+                }}
               />
               <span
                 className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2"
@@ -482,6 +544,15 @@ const TotalsFooter = ({
             </span>
           }
         />
+        {capError && (
+          <p
+            id={OVERALL_DISCOUNT_ERROR_ID}
+            role="alert"
+            className="text-right text-caption-2 text-danger-700"
+          >
+            {capError}
+          </p>
+        )}
         <FooterBreakdownRow label="Estimated Total:" value={money(totals.estimatedTotalCents)} />
         <p className="text-right" style={FOOTER_HELPER_TEXT_STYLE}>
           {taxPercent > 0 ? `Exclusive of ${taxPercent}% tax` : 'No tax applied'}
@@ -500,6 +571,7 @@ const TotalBillContainer = ({
   withdrawDeposit,
   overallDiscountPercent,
   taxPercent = 0,
+  maxOverallDiscountPercent,
   onToggleWithdrawDeposit,
   onChangeOverallDiscount,
   onAddItem,
@@ -600,6 +672,7 @@ const TotalBillContainer = ({
             totals={totals}
             depositCents={depositCents}
             overallDiscountPercent={overallDiscountPercent}
+            maxOverallDiscountPercent={maxOverallDiscountPercent}
             withdrawDeposit={withdrawDeposit}
             taxPercent={taxPercent}
             onToggleWithdrawDeposit={onToggleWithdrawDeposit}

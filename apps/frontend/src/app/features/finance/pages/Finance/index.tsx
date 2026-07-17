@@ -14,7 +14,7 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import { PERMISSIONS } from '@/app/lib/permissions';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { useSubscriptionForPrimaryOrg } from '@/app/hooks/useBilling';
-import { Primary } from '@/app/ui/primitives/Buttons';
+import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { IoInformationCircleOutline } from 'react-icons/io5';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
@@ -142,6 +142,7 @@ const Finance = () => {
                 setActiveStatus={setActiveStatus}
                 className="w-auto"
               />
+              <Secondary href="/finance/discounts" text="Discounts" ariaLabel="Manage discounts" />
               <StripeSettingsButton />
             </div>
           </div>

@@ -46,7 +46,8 @@ const renderBill = (
   props?: Partial<React.ComponentProps<typeof TotalBillContainer>>
 ) => {
   const onUpdateItem = jest.fn();
-  render(
+  const onChangeOverallDiscount = jest.fn();
+  const view = render(
     <TotalBillContainer
       items={[item]}
       billableItems={[]}
@@ -55,15 +56,17 @@ const renderBill = (
       withdrawDeposit={false}
       overallDiscountPercent={0}
       onToggleWithdrawDeposit={noop}
-      onChangeOverallDiscount={noop}
+      onChangeOverallDiscount={onChangeOverallDiscount}
       onAddItem={noop}
       onUpdateItem={onUpdateItem}
       onRemoveItem={noop}
       {...props}
     />
   );
-  return { onUpdateItem };
+  return { onUpdateItem, onChangeOverallDiscount, view };
 };
+
+const overallDiscountInput = () => screen.getByLabelText('Overall discount percent');
 
 describe('TotalBillContainer', () => {
   beforeEach(() => {
@@ -115,5 +118,116 @@ describe('TotalBillContainer', () => {
         'Fill prescription information in the Treatment step before finalizing this invoice.'
       )
     ).toBeInTheDocument();
+  });
+
+  describe('overall discount cap', () => {
+    it('accepts any discount when no cap is configured (unchanged behaviour)', () => {
+      const { onChangeOverallDiscount } = renderBill();
+
+      fireEvent.change(overallDiscountInput(), { target: { value: '95' } });
+
+      expect(onChangeOverallDiscount).toHaveBeenCalledWith(95);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('accepts a discount exactly at the cap', () => {
+      const { onChangeOverallDiscount } = renderBill(baseItem, {
+        maxOverallDiscountPercent: 20,
+      });
+
+      fireEvent.change(overallDiscountInput(), { target: { value: '20' } });
+
+      expect(onChangeOverallDiscount).toHaveBeenCalledWith(20);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('accepts a discount below the cap', () => {
+      const { onChangeOverallDiscount } = renderBill(baseItem, {
+        maxOverallDiscountPercent: 20,
+      });
+
+      fireEvent.change(overallDiscountInput(), { target: { value: '5' } });
+
+      expect(onChangeOverallDiscount).toHaveBeenCalledWith(5);
+    });
+
+    it('rejects a discount above the cap, names the cap, and does NOT clamp', () => {
+      const { onChangeOverallDiscount } = renderBill(baseItem, {
+        maxOverallDiscountPercent: 20,
+      });
+
+      fireEvent.change(overallDiscountInput(), { target: { value: '50' } });
+
+      // Rejected: the bill never hears about it...
+      expect(onChangeOverallDiscount).not.toHaveBeenCalled();
+      // ...and it is NOT silently clamped down to the cap either.
+      expect(onChangeOverallDiscount).not.toHaveBeenCalledWith(20);
+
+      const alert = screen.getByRole('alert');
+      expect(alert).toHaveTextContent(
+        "Overall discount can't go above your organisation's 20% cap"
+      );
+      // The typed value stays on screen next to the reason it was refused.
+      expect(overallDiscountInput()).toHaveValue(50);
+      expect(overallDiscountInput()).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('clears the rejection once a permitted discount is entered', () => {
+      const { onChangeOverallDiscount } = renderBill(baseItem, {
+        maxOverallDiscountPercent: 20,
+      });
+
+      fireEvent.change(overallDiscountInput(), { target: { value: '50' } });
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+
+      fireEvent.change(overallDiscountInput(), { target: { value: '10' } });
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(onChangeOverallDiscount).toHaveBeenCalledWith(10);
+    });
+
+    it('rejects a cap breach when the cap is 0 (all discounting disallowed)', () => {
+      const { onChangeOverallDiscount } = renderBill(baseItem, {
+        maxOverallDiscountPercent: 0,
+      });
+
+      fireEvent.change(overallDiscountInput(), { target: { value: '1' } });
+
+      expect(onChangeOverallDiscount).not.toHaveBeenCalled();
+      expect(screen.getByRole('alert')).toHaveTextContent("organisation's 0% cap");
+    });
+
+    it('re-syncs the field when the accepted discount changes elsewhere', () => {
+      const { view } = renderBill(baseItem, {
+        maxOverallDiscountPercent: 20,
+        overallDiscountPercent: 5,
+      });
+      expect(overallDiscountInput()).toHaveValue(5);
+
+      // A rejected entry leaves the field showing what was typed...
+      fireEvent.change(overallDiscountInput(), { target: { value: '80' } });
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+
+      // ...until the accepted discount changes from outside, which resets both.
+      view.rerender(
+        <TotalBillContainer
+          items={[baseItem]}
+          billableItems={[]}
+          currency="USD"
+          depositCents={0}
+          withdrawDeposit={false}
+          overallDiscountPercent={15}
+          maxOverallDiscountPercent={20}
+          onToggleWithdrawDeposit={noop}
+          onChangeOverallDiscount={noop}
+          onAddItem={noop}
+          onUpdateItem={noop}
+          onRemoveItem={noop}
+        />
+      );
+
+      expect(overallDiscountInput()).toHaveValue(15);
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
   });
 });

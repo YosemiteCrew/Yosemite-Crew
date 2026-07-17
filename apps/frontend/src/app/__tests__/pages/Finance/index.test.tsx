@@ -98,6 +98,11 @@ jest.mock('@/app/ui/primitives/Buttons', () => ({
       {text}
     </a>
   ),
+  Secondary: ({ href, text, ariaLabel }: any) => (
+    <a href={href} aria-label={ariaLabel}>
+      {text}
+    </a>
+  ),
 }));
 
 jest.mock('@/app/ui/filters/Filters', () => () => <div data-testid="filters" />);
@@ -145,6 +150,15 @@ describe('Finance page', () => {
       expect.objectContaining({
         filteredList: [expect.objectContaining({ id: 'inv-1' })],
       })
+    );
+  });
+
+  it('links to the Discounts page — Finance has no tab structure, so this is the entry point', () => {
+    render(<ProtectedFinance />);
+
+    expect(screen.getByRole('link', { name: 'Manage discounts' })).toHaveAttribute(
+      'href',
+      '/finance/discounts'
     );
   });
 
