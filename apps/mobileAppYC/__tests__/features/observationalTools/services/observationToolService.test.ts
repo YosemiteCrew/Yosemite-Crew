@@ -24,6 +24,9 @@ jest.mock('../../../../src/features/observationalTools/data', () => ({
     'another-static': {
       name: 'Another Static',
     },
+    'fresh-static-key': {
+      name: 'Fresh Static Name',
+    },
   },
 }));
 
@@ -104,6 +107,14 @@ describe('observationToolService', () => {
       it('returns original toolId if not resolved', () => {
         expect(resolveObservationToolIdSync('unknown-key')).toBe('unknown-key');
       });
+
+      it('returns the original toolId when its static name resolves but is not yet cached', () => {
+        // 'another-static' resolves to 'Another Static' via static defs, but
+        // nothing has cached that name at this point in the suite.
+        expect(resolveObservationToolIdSync('another-static')).toBe(
+          'another-static',
+        );
+      });
     });
 
     describe('getCachedObservationToolName', () => {
@@ -129,6 +140,10 @@ describe('observationToolService', () => {
 
       it('returns null if not found', () => {
         expect(getCachedObservationToolName('non-existent')).toBeNull();
+      });
+
+      it('returns null when the toolId normalizes to an empty string', () => {
+        expect(getCachedObservationToolName('!!!')).toBeNull();
       });
     });
 
@@ -231,6 +246,42 @@ describe('observationToolService', () => {
         const result = await observationToolApi.list();
         expect(result).toEqual([]);
       });
+
+      it('falls back through toolId/key/name when an item has no _id or id', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{toolId: 'fallback-tool-id', name: 'Fallback Tool'}],
+        });
+        const result = await observationToolApi.list();
+        expect(result[0].id).toBe('fallback-tool-id');
+      });
+
+      it('falls back to key when an item has no _id/id/toolId', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{key: 'fallback-key', name: 'Fallback Key Tool'}],
+        });
+        const result = await observationToolApi.list();
+        expect(result[0].id).toBe('fallback-key');
+      });
+
+      it('falls back to name when an item has no _id/id/toolId/key', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: [{name: 'Fallback Name Tool'}],
+        });
+        const result = await observationToolApi.list();
+        expect(result[0].id).toBe('Fallback Name Tool');
+      });
+
+      it('treats a missing expiresAt as undefined when checking token expiry', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValueOnce({
+          accessToken: mockAccessToken,
+          userId: mockUserId,
+        });
+        (apiClient.get as jest.Mock).mockResolvedValue({data: []});
+
+        const result = await observationToolApi.list();
+        expect(result).toEqual([]);
+        expect(isTokenExpired).toHaveBeenCalledWith(undefined);
+      });
     });
 
     describe('get', () => {
@@ -254,9 +305,9 @@ describe('observationToolService', () => {
         // We use 'another-static' because 'static-tool-key' was already cached in a previous test.
         // 'another-static' -> 'Another Static'
 
-        (apiClient.get as jest.Mock).mockImplementation(url => {
+        (apiClient.get as jest.Mock).mockImplementation((url: string) => {
           // If the code calls list to resolve the name
-          if (url.includes('/tools?')) {
+          if (url === '/v1/observation-tools/mobile/tools') {
             return Promise.resolve({
               data: [{id: 'real-id-999', name: 'Another Static'}],
             });
@@ -269,6 +320,148 @@ describe('observationToolService', () => {
           }
           return Promise.resolve({data: {}});
         });
+
+        const result = await observationToolApi.get('another-static');
+
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/real-id-999',
+          expect.anything(),
+        );
+        expect(result.id).toBe('real-id-999');
+      });
+
+      it('resolves a mongo-formatted toolId directly without listing tools', async () => {
+        const mongoId = '507f191e810c19729de860ea';
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {_id: mongoId, name: 'Direct Mongo Tool'},
+        });
+
+        const result = await observationToolApi.get(mongoId);
+
+        expect(apiClient.get).toHaveBeenCalledTimes(1);
+        expect(apiClient.get).toHaveBeenCalledWith(
+          `/v1/observation-tools/mobile/tools/${mongoId}`,
+          expect.anything(),
+        );
+        expect(result.id).toBe(mongoId);
+      });
+
+      it('resolves a toolId already cached by ID without listing tools again', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValueOnce({
+          data: [{id: 'async-cache-id', name: 'Async Cache Tool'}],
+        });
+        await observationToolApi.list();
+
+        (apiClient.get as jest.Mock).mockClear();
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {id: 'async-cache-id', name: 'Async Cache Tool'},
+        });
+
+        const result = await observationToolApi.get('async-cache-id');
+
+        expect(apiClient.get).toHaveBeenCalledTimes(1);
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/async-cache-id',
+          expect.anything(),
+        );
+        expect(result.id).toBe('async-cache-id');
+      });
+
+      it('resolves a toolId already cached by name without listing tools again', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValueOnce({
+          data: [{id: 'async-name-id', name: 'Async Name Tool'}],
+        });
+        await observationToolApi.list();
+
+        (apiClient.get as jest.Mock).mockClear();
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {id: 'async-name-id', name: 'Async Name Tool'},
+        });
+
+        const result = await observationToolApi.get('Async Name Tool');
+
+        expect(apiClient.get).toHaveBeenCalledTimes(1);
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/async-name-id',
+          expect.anything(),
+        );
+        expect(result.id).toBe('async-name-id');
+      });
+
+      it('falls back to the API list() to resolve a static tool by its resolved name, then serves from cache on the next call', async () => {
+        (apiClient.get as jest.Mock).mockImplementation((url: string) => {
+          if (url === '/v1/observation-tools/mobile/tools') {
+            return Promise.resolve({
+              data: [{id: 'fresh-static-id', name: 'Fresh Static Name'}],
+            });
+          }
+          return Promise.resolve({
+            data: {id: 'fresh-static-id', name: 'Fresh Static Name'},
+          });
+        });
+
+        const first = await observationToolApi.get('fresh-static-key');
+        expect(first.id).toBe('fresh-static-id');
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools',
+          expect.anything(),
+        );
+
+        (apiClient.get as jest.Mock).mockClear();
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {id: 'fresh-static-id', name: 'Fresh Static Name'},
+        });
+
+        const second = await observationToolApi.get('fresh-static-key');
+        expect(second.id).toBe('fresh-static-id');
+        // Second call resolves straight from the static-name cache, no listing.
+        expect(apiClient.get).toHaveBeenCalledTimes(1);
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/fresh-static-id',
+          expect.anything(),
+        );
+      });
+
+      it('falls back to the raw toolId when resolving via the API list() call throws', async () => {
+        (apiClient.get as jest.Mock).mockImplementation((url: string) => {
+          if (url === '/v1/observation-tools/mobile/tools') {
+            return Promise.reject(new Error('list failed'));
+          }
+          return Promise.resolve({
+            data: {id: 'raw-unresolved-id', name: 'Whatever'},
+          });
+        });
+
+        const result = await observationToolApi.get('raw-unresolved-id');
+
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/raw-unresolved-id',
+          expect.anything(),
+        );
+        expect(result.id).toBe('raw-unresolved-id');
+      });
+
+      it('falls back to the resolvedId when the fetched tool has no _id or id', async () => {
+        const mongoId = '507f191e810c19729de860eb';
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {name: 'No Id Tool'},
+        });
+
+        const result = await observationToolApi.get(mongoId);
+        expect(result.id).toBe(mongoId);
+      });
+
+      it('resolves an empty toolId to itself without any lookup', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {name: 'Empty Id Tool'},
+        });
+
+        const result = await observationToolApi.get('');
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/v1/observation-tools/mobile/tools/',
+          expect.anything(),
+        );
+        expect(result.id).toBe('');
       });
     });
 
@@ -305,6 +498,24 @@ describe('observationToolService', () => {
         expect(result.id).toBe('sub-1');
         expect(result.score).toBe(10);
       });
+
+      it('falls back to id/resolvedId/companionId/empty filledBy when the response payload is minimal', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+          expiresAt: Date.now() + 10000,
+        });
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {}});
+
+        const result = await observationToolApi.submit({
+          toolId: 'minimal-tool-id',
+          companionId: 'comp-1',
+          answers: {},
+        });
+
+        expect(result.toolId).toBe('minimal-tool-id');
+        expect(result.companionId).toBe('comp-1');
+        expect(result.filledBy).toBe('');
+      });
     });
 
     describe('linkSubmissionToAppointment', () => {
@@ -325,6 +536,23 @@ describe('observationToolService', () => {
         );
         expect(result.evaluationAppointmentId).toBe('appt-1');
       });
+
+      it('falls back to submissionId/appointmentId/empty filledBy when the response payload is minimal', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+          expiresAt: Date.now() + 10000,
+        });
+        (apiClient.post as jest.Mock).mockResolvedValue({data: {}});
+
+        const result = await observationToolApi.linkSubmissionToAppointment({
+          submissionId: 'sub-minimal',
+          appointmentId: 'appt-minimal',
+        });
+
+        expect(result.id).toBe('sub-minimal');
+        expect(result.evaluationAppointmentId).toBe('appt-minimal');
+        expect(result.filledBy).toBe('');
+      });
     });
 
     describe('getSubmission', () => {
@@ -339,6 +567,20 @@ describe('observationToolService', () => {
           expect.anything(),
         );
         expect(result.id).toBe('sub-details-1');
+      });
+
+      it('falls back to submissionId/empty filledBy when the response payload is minimal', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+          expiresAt: Date.now() + 10000,
+        });
+        (apiClient.get as jest.Mock).mockResolvedValue({data: {}});
+
+        const result = await observationToolApi.getSubmission(
+          'sub-details-minimal',
+        );
+        expect(result.id).toBe('sub-details-minimal');
+        expect(result.filledBy).toBe('');
       });
     });
 
@@ -357,6 +599,26 @@ describe('observationToolService', () => {
         expect(result).toHaveLength(2);
         expect(result[0].evaluationAppointmentId).toBe('appt-123'); // forced by mapper
       });
+
+      it('defaults to an empty array when the response payload is not an array', async () => {
+        (apiClient.get as jest.Mock).mockResolvedValue({data: {}});
+
+        const result =
+          await observationToolApi.listAppointmentSubmissions('appt-none');
+        expect(result).toEqual([]);
+      });
+
+      it('falls back to empty filledBy for each submission when the response is minimal', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+          expiresAt: Date.now() + 10000,
+        });
+        (apiClient.get as jest.Mock).mockResolvedValue({data: [{}]});
+
+        const result =
+          await observationToolApi.listAppointmentSubmissions('appt-minimal');
+        expect(result[0].filledBy).toBe('');
+      });
     });
 
     describe('previewTaskSubmission', () => {
@@ -373,6 +635,34 @@ describe('observationToolService', () => {
         );
         expect(result.id).toBe('sub-preview');
         expect(result.taskId).toBe('task-preview');
+      });
+
+      it('falls back to empty id/filledBy and the answers field when the response payload is minimal', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+          expiresAt: Date.now() + 10000,
+        });
+        (apiClient.get as jest.Mock).mockResolvedValue({
+          data: {answers: {q: 2}},
+        });
+
+        const result =
+          await observationToolApi.previewTaskSubmission('task-minimal');
+        expect(result.id).toBe('');
+        expect(result.filledBy).toBe('');
+        expect(result.answers).toEqual({q: 2});
+      });
+
+      it('defaults answers to an empty object when the payload has neither answersPreview nor answers', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+          expiresAt: Date.now() + 10000,
+        });
+        (apiClient.get as jest.Mock).mockResolvedValue({data: {}});
+
+        const result =
+          await observationToolApi.previewTaskSubmission('task-no-answers');
+        expect(result.answers).toEqual({});
       });
     });
   });
