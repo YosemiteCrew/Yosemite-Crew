@@ -13,10 +13,12 @@ import {
   InvoiceItem,
 } from "@yosemite-crew/types";
 import {
+  calculateInvoiceDiscountPercentOfBase,
   calculateInvoicePricing,
   roundMoney,
   type InvoiceDiscountInput as PricingInvoiceDiscountInput,
 } from "./finance/pricing";
+import { FinanceDiscountSettingsService } from "./finance/discount-settings";
 import {
   DEFAULT_TAX_BEHAVIOR,
   getInvoiceTaxProviderAdapter,
@@ -143,9 +145,7 @@ type CreateInvoiceInput = {
   notes?: string;
   invoiceDiscount?: PricingInvoiceDiscountInput;
   paymentCollectionMethod:
-    | "PAYMENT_INTENT"
-    | "PAYMENT_LINK"
-    | "PAYMENT_AT_CLINIC";
+    "PAYMENT_INTENT" | "PAYMENT_LINK" | "PAYMENT_AT_CLINIC";
 };
 
 type IssueCreditNoteInput = {
@@ -837,8 +837,7 @@ const buildBootstrapInvoiceItems = async (params: {
     typeof (appointment.appointmentType as Record<string, unknown>).name ===
       "string"
       ? ((appointment.appointmentType as Record<string, unknown>).name as
-          | string
-          | undefined)
+          string | undefined)
       : undefined;
 
   return [
@@ -929,6 +928,47 @@ const cancelUnpaidInvoice = async (invoice: PrismaInvoice, reason: string) =>
 
 const generateCreditNoteNumber = (invoiceId: string) =>
   `CN-${invoiceId.slice(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+
+/**
+ * Enforce the organisation's overall invoice discount cap.
+ *
+ * The cap is measured against the discount actually resolved by pricing, not
+ * the raw request value, so a FIXED_AMOUNT discount cannot be used to exceed a
+ * percentage cap. An organisation with no cap configured is unconstrained.
+ */
+const assertOverallDiscountWithinOrgCap = async (
+  organisationId: string,
+  totals: {
+    subtotal: number;
+    discountTotal: number;
+    invoiceDiscountTotal: number;
+  },
+) => {
+  if (totals.invoiceDiscountTotal <= 0) {
+    return;
+  }
+
+  const maxOverallDiscountPercent =
+    await FinanceDiscountSettingsService.getMaxOverallDiscountPercent(
+      organisationId,
+    );
+  if (maxOverallDiscountPercent == null) {
+    return;
+  }
+
+  const baseAmount = roundMoney(totals.subtotal - totals.discountTotal);
+  const appliedPercent = calculateInvoiceDiscountPercentOfBase(
+    totals.invoiceDiscountTotal,
+    baseAmount,
+  );
+
+  if (appliedPercent > maxOverallDiscountPercent) {
+    throw new InvoiceServiceError(
+      `Overall invoice discount of ${appliedPercent}% exceeds the organisation's maximum of ${maxOverallDiscountPercent}%.`,
+      409,
+    );
+  }
+};
 
 const normalizeCreateInput = async (
   input: CreateInvoiceInput,
@@ -1168,7 +1208,7 @@ export const InvoiceService = {
     const currency = await resolveOrganisationCurrency(
       appointment.organisationId,
     );
-    const { data, taxSnapshot } = await normalizeCreateInput(
+    const { data, totals, taxSnapshot } = await normalizeCreateInput(
       input,
       patientId,
       parentId,
@@ -1177,6 +1217,9 @@ export const InvoiceService = {
       undefined,
       { skipTaxCalculation: true },
     );
+
+    await assertOverallDiscountWithinOrgCap(appointment.organisationId, totals);
+
     const createdInvoice = await prisma.invoice
       .create({
         data: {
@@ -1314,11 +1357,7 @@ export const InvoiceService = {
     organisationId: string,
     input: {
       settlementChannel?:
-        | "CASH"
-        | "BANK_TRANSFER"
-        | "CARD_PRESENT"
-        | "DEPOSIT"
-        | "OTHER";
+        "CASH" | "BANK_TRANSFER" | "CARD_PRESENT" | "DEPOSIT" | "OTHER";
       reference?: string;
       receivedAt?: Date;
     } = {},

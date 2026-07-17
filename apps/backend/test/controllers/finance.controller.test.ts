@@ -5,6 +5,10 @@ import { FinanceEventService } from "../../src/services/finance/events";
 import { StripeController } from "../../src/controllers/web/stripe.controller";
 import { InvoiceService } from "../../src/services/invoice.service";
 import { AuthUserMobileService } from "../../src/services/authUserMobile.service";
+import {
+  FinanceDiscountSettingsError,
+  FinanceDiscountSettingsService,
+} from "../../src/services/finance/discount-settings";
 import { Request, Response } from "express";
 
 jest.mock("../../src/services/finance/payment", () => ({
@@ -67,6 +71,24 @@ jest.mock("../../src/services/authUserMobile.service", () => ({
   },
 }));
 
+jest.mock("../../src/services/finance/discount-settings", () => ({
+  __esModule: true,
+  FinanceDiscountSettingsError: class FinanceDiscountSettingsError extends Error {
+    constructor(
+      message: string,
+      public readonly statusCode: number,
+    ) {
+      super(message);
+      this.name = "FinanceDiscountSettingsError";
+    }
+  },
+  FinanceDiscountSettingsService: {
+    getForOrganisation: jest.fn(),
+    updateForOrganisation: jest.fn(),
+    getMaxOverallDiscountPercent: jest.fn(),
+  },
+}));
+
 jest.mock("src/utils/logger", () => ({
   __esModule: true,
   default: {
@@ -77,6 +99,139 @@ jest.mock("src/utils/logger", () => ({
 describe("FinanceController", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+  });
+
+  describe("discount settings", () => {
+    const buildRes = () =>
+      ({
+        status: jest.fn().mockReturnThis(),
+        json: jest.fn(),
+      }) as unknown as Response;
+
+    it("returns the organisation's configured cap", async () => {
+      (
+        FinanceDiscountSettingsService.getForOrganisation as jest.Mock
+      ).mockResolvedValueOnce({
+        organisationId: "org_1",
+        maxOverallDiscountPercent: 20,
+      });
+
+      const req = { params: { organisationId: "org_1" } } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.getDiscountSettings(req, res);
+
+      expect(
+        FinanceDiscountSettingsService.getForOrganisation,
+      ).toHaveBeenCalledWith("org_1");
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        data: { organisationId: "org_1", maxOverallDiscountPercent: 20 },
+        meta: null,
+        error: null,
+      });
+    });
+
+    it("surfaces a 404 when the organisation does not exist", async () => {
+      (
+        FinanceDiscountSettingsService.getForOrganisation as jest.Mock
+      ).mockRejectedValueOnce(
+        new FinanceDiscountSettingsError("Organisation not found.", 404),
+      );
+
+      const req = { params: { organisationId: "org_x" } } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.getDiscountSettings(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Organisation not found.",
+      });
+    });
+
+    it.each([0, 50, 100])("accepts an in-range cap of %s", async (percent) => {
+      (
+        FinanceDiscountSettingsService.updateForOrganisation as jest.Mock
+      ).mockResolvedValueOnce({
+        organisationId: "org_1",
+        maxOverallDiscountPercent: percent,
+      });
+
+      const req = {
+        params: { organisationId: "org_1" },
+        body: { maxOverallDiscountPercent: percent },
+      } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.updateDiscountSettings(req, res);
+
+      expect(
+        FinanceDiscountSettingsService.updateForOrganisation,
+      ).toHaveBeenCalledWith("org_1", { maxOverallDiscountPercent: percent });
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("accepts null to clear the cap", async () => {
+      (
+        FinanceDiscountSettingsService.updateForOrganisation as jest.Mock
+      ).mockResolvedValueOnce({
+        organisationId: "org_1",
+        maxOverallDiscountPercent: null,
+      });
+
+      const req = {
+        params: { organisationId: "org_1" },
+        body: { maxOverallDiscountPercent: null },
+      } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.updateDiscountSettings(req, res);
+
+      expect(
+        FinanceDiscountSettingsService.updateForOrganisation,
+      ).toHaveBeenCalledWith("org_1", { maxOverallDiscountPercent: null });
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it.each([
+      ["above the range", 101],
+      ["below the range", -1],
+      ["a non-numeric string", "50"],
+      ["a boolean", true],
+      ["NaN", Number.NaN],
+    ])("rejects %s", async (_label, value) => {
+      const req = {
+        params: { organisationId: "org_1" },
+        body: { maxOverallDiscountPercent: value },
+      } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.updateDiscountSettings(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Invalid request body",
+      });
+      expect(
+        FinanceDiscountSettingsService.updateForOrganisation,
+      ).not.toHaveBeenCalled();
+    });
+
+    it("rejects a missing organisation id", async () => {
+      const req = {
+        params: {},
+        body: { maxOverallDiscountPercent: 10 },
+      } as unknown as Request;
+      const res = buildRes();
+
+      await FinanceController.updateDiscountSettings(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        message: "Organisation Id is required",
+      });
+    });
   });
 
   it("creates a provider-aware payment session for Stripe", async () => {

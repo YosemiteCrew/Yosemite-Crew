@@ -119,6 +119,146 @@ describe("InvoiceService", () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
   });
 
+  describe("overall invoice discount cap", () => {
+    // 1 x 200 line, no line discount -> the invoice discount base is 200.
+    const capItems = [{ description: "Consult", quantity: 1, unitPrice: 200 }];
+
+    const mockAppointment = () => {
+      (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
+        id: appointmentId,
+        organisationId,
+        patient: { id: patientId, parent: { id: parentId } },
+        companion: { id: patientId, parent: { id: parentId } },
+      });
+      (prisma.invoice.create as jest.Mock).mockResolvedValue({
+        id: "inv_capped",
+        appointmentId,
+        organisationId,
+        patientId,
+        parentId,
+        currency: "usd",
+        status: "AWAITING_PAYMENT",
+        paymentCollectionMethod: "PAYMENT_LINK",
+        items: [],
+        subtotal: 200,
+        discountTotal: 0,
+        invoiceDiscountTotal: 0,
+        taxTotal: 0,
+        taxPercent: 0,
+        totalAmount: 200,
+        metadata: {},
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    };
+
+    const setCap = (maxOverallDiscountPercent: number | null) => {
+      (prisma.organization.findUnique as jest.Mock).mockResolvedValue({
+        id: organisationId,
+        maxOverallDiscountPercent,
+      });
+    };
+
+    const createWithDiscount = (invoiceDiscount: {
+      type: "PERCENTAGE" | "FIXED_AMOUNT";
+      value: number;
+    }) =>
+      InvoiceService.createDraftForAppointment({
+        appointmentId,
+        parentId,
+        organisationId,
+        patientId,
+        items: capItems,
+        invoiceDiscount,
+        paymentCollectionMethod: "PAYMENT_LINK",
+      });
+
+    beforeEach(() => {
+      mockAppointment();
+    });
+
+    it("rejects a percentage discount above the organisation cap", async () => {
+      setCap(20);
+
+      await expect(
+        createWithDiscount({ type: "PERCENTAGE", value: 50 }),
+      ).rejects.toThrow(
+        "Overall invoice discount of 50% exceeds the organisation's maximum of 20%.",
+      );
+      await expect(
+        createWithDiscount({ type: "PERCENTAGE", value: 50 }),
+      ).rejects.toBeInstanceOf(InvoiceServiceError);
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a fixed-amount discount whose effective percent exceeds the cap", async () => {
+      // 100 off a 200 base is 50 percent, over a 20 percent cap. Without this
+      // the FIXED_AMOUNT type would be a trivial bypass of a percentage cap.
+      setCap(20);
+
+      await expect(
+        createWithDiscount({ type: "FIXED_AMOUNT", value: 100 }),
+      ).rejects.toThrow(
+        "Overall invoice discount of 50% exceeds the organisation's maximum of 20%.",
+      );
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("accepts a discount exactly at the cap", async () => {
+      setCap(20);
+
+      await expect(
+        createWithDiscount({ type: "PERCENTAGE", value: 20 }),
+      ).resolves.toBeDefined();
+      expect(prisma.invoice.create).toHaveBeenCalled();
+    });
+
+    it("accepts a discount below the cap", async () => {
+      setCap(20);
+
+      await expect(
+        createWithDiscount({ type: "PERCENTAGE", value: 5 }),
+      ).resolves.toBeDefined();
+      expect(prisma.invoice.create).toHaveBeenCalled();
+    });
+
+    it("allows any discount when no cap is configured", async () => {
+      setCap(null);
+
+      await expect(
+        createWithDiscount({ type: "PERCENTAGE", value: 100 }),
+      ).resolves.toBeDefined();
+      expect(prisma.invoice.create).toHaveBeenCalled();
+    });
+
+    it("does not consult the cap when no invoice discount is applied", async () => {
+      setCap(0);
+
+      await expect(
+        InvoiceService.createDraftForAppointment({
+          appointmentId,
+          parentId,
+          organisationId,
+          patientId,
+          items: capItems,
+          paymentCollectionMethod: "PAYMENT_LINK",
+        }),
+      ).resolves.toBeDefined();
+      expect(prisma.invoice.create).toHaveBeenCalled();
+    });
+
+    it("rejects any discount when the cap is zero", async () => {
+      setCap(0);
+
+      await expect(
+        createWithDiscount({ type: "PERCENTAGE", value: 1 }),
+      ).rejects.toThrow(
+        "Overall invoice discount of 1% exceeds the organisation's maximum of 0%.",
+      );
+      expect(prisma.invoice.create).not.toHaveBeenCalled();
+    });
+  });
+
   it("creates a draft invoice and persists invoice-level discounts", async () => {
     (prisma.appointment.findUnique as jest.Mock).mockResolvedValue({
       id: appointmentId,

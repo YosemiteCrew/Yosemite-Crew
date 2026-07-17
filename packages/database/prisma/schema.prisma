@@ -752,6 +752,7 @@ model Organization {
   appointmentLockWindowOutpatientMinutes Int?
   appointmentLockWindowInpatientMinutes   Int?
   crossOrgMessagingEnabled    Boolean          @default(false)
+  maxOverallDiscountPercent   Float?
   createdAt                   DateTime         @default(now())
   updatedAt                   DateTime         @updatedAt
 
