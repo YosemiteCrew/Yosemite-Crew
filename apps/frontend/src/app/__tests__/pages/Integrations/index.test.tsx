@@ -527,6 +527,19 @@ describe('IntegrationsPage — inline credentials panel', () => {
     await flush();
   });
 
+  it('shows a permission notice (not a false "no orders") when lab-order access is denied', async () => {
+    listIdexxOrdersMock.mockRejectedValue({ response: { status: 403 } });
+    renderPage();
+    await waitForPage();
+
+    const panel = await screen.findByRole('complementary', { name: 'IDEXX credentials' });
+    expect(
+      await within(panel).findByText('You do not have permission to view lab orders')
+    ).toBeInTheDocument();
+    expect(within(panel).queryByText('No recent orders yet')).not.toBeInTheDocument();
+    await flush();
+  });
+
   it('never renders the real password — only the mask, and getCredentialMeta carries no password', async () => {
     getCredentialMetaMock.mockResolvedValue({
       username: 'alpenblick-lab',

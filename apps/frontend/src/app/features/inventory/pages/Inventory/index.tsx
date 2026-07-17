@@ -24,7 +24,11 @@ import {
   SubCategoryOptions,
   SubCategoryByCategory,
 } from '@/app/features/inventory/pages/Inventory/types';
-import { defaultFilters } from '@/app/features/inventory/pages/Inventory/utils';
+import {
+  defaultFilters,
+  formatStockHealthLabel,
+  getDerivedStockHealth,
+} from '@/app/features/inventory/pages/Inventory/utils';
 import { InventorySectionKey } from '@/app/features/inventory/components/AddInventory/InventoryConfig';
 import { BusinessType } from '@/app/features/organization/types/org';
 import { useOrgStore } from '@/app/stores/orgStore';
@@ -740,6 +744,15 @@ export const getInventorySubtitle = (
 const stockHealthKeyOf = (item: InventoryItem) =>
   (item.stockHealth || '').toUpperCase().replaceAll(' ', '_');
 
+// Mirror displayStatusLabel: use the explicit stockHealth when present, otherwise
+// derive from batch expiry / reorder levels — so header counts match the labels the
+// table actually renders (items without stockHealth were previously counted as 0).
+const effectiveStockHealthKey = (item: InventoryItem): string => {
+  if (formatStockHealthLabel(item.stockHealth)) return stockHealthKeyOf(item);
+  if (item.stock || item.batch) return getDerivedStockHealth(item).key;
+  return stockHealthKeyOf(item);
+};
+
 export const toggleSetItem = (prev: Set<string>, key: string): Set<string> => {
   const next = new Set(prev);
   if (next.has(key)) {
@@ -1169,11 +1182,11 @@ const useInventoryContent = () => {
   );
 
   const lowStockCount = useMemo(
-    () => inventory.filter((item) => stockHealthKeyOf(item) === 'LOW_STOCK').length,
+    () => inventory.filter((item) => effectiveStockHealthKey(item) === 'LOW_STOCK').length,
     [inventory]
   );
   const expiredCount = useMemo(
-    () => inventory.filter((item) => stockHealthKeyOf(item) === 'EXPIRED').length,
+    () => inventory.filter((item) => effectiveStockHealthKey(item) === 'EXPIRED').length,
     [inventory]
   );
 

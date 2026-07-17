@@ -887,6 +887,35 @@ describe('Inventory Page', () => {
     expect(screen.queryByTestId('inventory-table')).not.toBeInTheDocument();
   });
 
+  it('counts derived stock-health states (no explicit stockHealth) in the header subtitle', () => {
+    (useInventoryModule as jest.Mock).mockReturnValue({
+      // No stockHealth field: the count must derive EXPIRED from the past batch
+      // expiry, exactly like the table's displayStatusLabel does for each row.
+      inventory: [
+        {
+          id: 'exp',
+          status: 'ACTIVE',
+          basicInfo: { name: 'Derived Expired', category: 'Medicine' },
+          batch: { expiryDate: '2020-01-01' },
+          stock: { current: 5 },
+        },
+      ],
+      turnover: mockTurnover,
+      status: 'success',
+      error: null,
+      createItem: mockCreateItem,
+      updateItem: mockUpdateItem,
+      hideItem: mockHideItem,
+      unhideItem: mockUnhideItem,
+      addBatch: mockAddBatch,
+      updateBatch: mockUpdateBatch,
+    });
+
+    render(<ProtectedInventory />);
+
+    expect(screen.getByText(/1 expired batch/)).toBeInTheDocument();
+  });
+
   it('exercises inventory filter bar search, filter, and sort callbacks directly', () => {
     const setFilterOpen = jest.fn();
     const setSortMode = jest.fn();

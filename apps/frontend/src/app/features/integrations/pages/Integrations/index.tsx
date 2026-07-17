@@ -493,6 +493,7 @@ const useIntegrationsPage = () => {
   const [devices, setDevices] = useState<IvlsDevice[]>([]);
   const [credentialMeta, setCredentialMeta] = useState<CredentialMeta | null>(null);
   const [recentOrders, setRecentOrders] = useState<LabOrder[]>([]);
+  const [recentOrdersForbidden, setRecentOrdersForbidden] = useState(false);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -543,6 +544,7 @@ const useIntegrationsPage = () => {
       if (!primaryOrgId || !idexxConnected) {
         setCredentialMeta(null);
         setRecentOrders([]);
+        setRecentOrdersForbidden(false);
         return;
       }
       const [metaResult, ordersResult] = await Promise.allSettled([
@@ -552,6 +554,12 @@ const useIntegrationsPage = () => {
       if (cancelled) return;
       setCredentialMeta(metaResult.status === 'fulfilled' ? metaResult.value : null);
       setRecentOrders(ordersResult.status === 'fulfilled' ? ordersResult.value : []);
+      // A 403 means the signed-in user can open Integrations (integrations:view:any)
+      // but lacks labs:view:any: surface "no access" rather than a false "no orders".
+      setRecentOrdersForbidden(
+        ordersResult.status === 'rejected' &&
+          (ordersResult.reason as { response?: { status?: number } })?.response?.status === 403
+      );
     };
     run().catch((error) => {
       /* v8 ignore next -- defensive: run() resolves its own API failures via allSettled, so this only fires on an unexpected programmer error */
@@ -637,6 +645,7 @@ const useIntegrationsPage = () => {
     devices,
     credentialMeta,
     recentOrders,
+    recentOrdersForbidden,
     saving,
     refreshing,
     showSettings,
@@ -1331,7 +1340,20 @@ const CredentialsPanelHeaderStatus = ({ validateState }: { validateState: Valida
   );
 };
 
-const RecentOrdersList = ({ orders }: { orders: LabOrder[] }) => {
+const RecentOrdersList = ({
+  orders,
+  forbidden,
+}: {
+  orders: LabOrder[];
+  forbidden?: boolean;
+}) => {
+  if (forbidden) {
+    return (
+      <span className="text-[12.5px] text-[var(--ink-muted)]">
+        You do not have permission to view lab orders
+      </span>
+    );
+  }
   const rows = buildRecentOrderRows(orders);
   if (rows.length === 0) {
     return <span className="text-[12.5px] text-[var(--ink-muted)]">No recent orders yet</span>;
@@ -1408,7 +1430,7 @@ const IdexxCredentialsPanel = ({ s }: { s: IntegrationsPageState }) => (
       <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
         Recent orders
       </span>
-      <RecentOrdersList orders={s.recentOrders} />
+      <RecentOrdersList orders={s.recentOrders} forbidden={s.recentOrdersForbidden} />
     </div>
   </aside>
 );

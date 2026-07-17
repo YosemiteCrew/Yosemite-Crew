@@ -693,8 +693,10 @@ export const IntegrationService = {
           where: { organisationId: safeOrganisationId, provider: normalized },
         })
       : await IntegrationAccountModel.findOne({
-          organisationId: safeOrganisationId,
-          provider: normalized,
+          // Explicit $eq so a filter value can never be interpreted as a Mongo
+          // operator, on top of the validated inputs and sanitizeFilter below.
+          organisationId: { $eq: safeOrganisationId },
+          provider: { $eq: normalized },
         })
           .setOptions({ sanitizeFilter: true })
           .lean();
