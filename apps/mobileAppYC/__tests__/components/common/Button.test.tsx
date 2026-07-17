@@ -224,6 +224,20 @@ describe('Button', () => {
     expect(styles).toEqual(expect.arrayContaining([customStyle]));
   });
 
+  it('applies the small typography variant to the title text', () => {
+    const {getByText} = render(
+      <Button title="Small" onPress={mockOnPress} size="small" />,
+    );
+    const text = getByText('Small');
+    expect(text.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fontSize: mockTheme.typography.buttonSmall.fontSize,
+        }),
+      ]),
+    );
+  });
+
   it('applies custom textStyle to Text', () => {
     const customTextStyle = {fontSize: 99};
     const {getByText} = render(

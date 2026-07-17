@@ -44,6 +44,7 @@ jest.mock('@gorhom/bottom-sheet', () => {
           {props.handleComponent?.({})}
           {props.backdropComponent?.({})}
           {props.footerComponent?.({})}
+          {props.backgroundComponent?.({style: {}})}
           {props.children}
         </RNView>
       );

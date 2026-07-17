@@ -527,6 +527,14 @@ describe('ChatChannelScreen', () => {
   it('ignores typing events from the current user', async () => {
     const {getByText, queryByText} = render(<ChatChannelScreen />);
     await waitFor(() => expect(getByText('About Rex')).toBeTruthy());
+    // The typing listener registers only once the channel is ready; wait for it
+    // before emitting so the event is not dropped.
+    await waitFor(() =>
+      expect(mockChannel.on).toHaveBeenCalledWith(
+        'typing.start',
+        expect.any(Function),
+      ),
+    );
 
     act(() => {
       mockChannel.__emit('typing.start', {user: {id: 'user-123'}});
@@ -540,6 +548,14 @@ describe('ChatChannelScreen', () => {
   it('ignores typing events that have no user id', async () => {
     const {getByText, queryByText} = render(<ChatChannelScreen />);
     await waitFor(() => expect(getByText('About Rex')).toBeTruthy());
+    // The typing listener registers only once the channel is ready; wait for it
+    // before emitting so the event is not dropped.
+    await waitFor(() =>
+      expect(mockChannel.on).toHaveBeenCalledWith(
+        'typing.start',
+        expect.any(Function),
+      ),
+    );
 
     act(() => {
       mockChannel.__emit('typing.start', {user: {}});

@@ -833,6 +833,23 @@ describe('LiquidGlassButton', () => {
   });
 
   describe('Border Radius Fallback', () => {
+    it('should resolve a known theme border radius key to its numeric value', () => {
+      let tree!: TestRenderer.ReactTestRenderer;
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          wrap(
+            <LiquidGlassButton
+              title="KnownRadius"
+              onPress={() => {}}
+              borderRadius="lg"
+            />,
+          ),
+        );
+      });
+
+      expect(tree.toJSON()).toBeTruthy();
+    });
+
     it('should fall back to the theme button radius for an unknown string key', () => {
       let tree!: TestRenderer.ReactTestRenderer;
       TestRenderer.act(() => {

@@ -536,6 +536,29 @@ describe('merckService', () => {
     expect(result.entries[0].title).toBe('Manual topic');
   });
 
+  it('readTextNode: falls back to "Manual topic" when title is an object with no #text field', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        feed: {
+          id: 'feed-1',
+          updated: '2026-01-01T00:00:00Z',
+          entry: [
+            {
+              id: 'e1',
+              title: {},
+              summary: '',
+              updated: '2026-01-01T00:00:00Z',
+              link: {'@href': 'https://www.msdvetmanual.com/topic'},
+            },
+          ],
+        },
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    expect(result.entries[0].title).toBe('Manual topic');
+  });
+
   it('isAllowedMerckUrl: allows subdomain of allowed host', () => {
     expect(isAllowedMerckUrl('https://www.merckvetmanual.com/dogs')).toBe(true);
   });
@@ -565,6 +588,54 @@ describe('merckService', () => {
     );
 
     expect(result.entries[0].primaryUrl).toContain('/string-link');
+  });
+
+  it('readHrefNode: falls back to an empty primaryUrl when the link object has no @href field', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        feed: {
+          id: 'feed-1',
+          updated: '2026-01-01T00:00:00Z',
+          entry: [
+            {
+              id: 'e1',
+              title: {'#text': 'Topic'},
+              summary: '',
+              updated: '2026-01-01T00:00:00Z',
+              link: {},
+            },
+          ],
+        },
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    // An entry whose primaryUrl resolves empty has no allowed URL, so it's
+    // dropped entirely by the consumer-safe filtering.
+    expect(result.entries).toHaveLength(0);
+  });
+
+  it('readHrefNode: falls back to an empty primaryUrl when the link is neither a string nor an object', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        feed: {
+          id: 'feed-1',
+          updated: '2026-01-01T00:00:00Z',
+          entry: [
+            {
+              id: 'e1',
+              title: {'#text': 'Topic'},
+              summary: '',
+              updated: '2026-01-01T00:00:00Z',
+              link: null,
+            },
+          ],
+        },
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    expect(result.entries).toHaveLength(0);
   });
 
   it('sanitizeEntry: coerces a non-string title to an empty string before falling back', () => {

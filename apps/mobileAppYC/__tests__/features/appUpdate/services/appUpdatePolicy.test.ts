@@ -24,6 +24,13 @@ describe('appUpdatePolicy', () => {
     expect(compareVersions('2.0', '1.9.9')).toBe(1);
   });
 
+  it('treats a shorter version string as having trailing zero parts', () => {
+    // Same common prefix, differing only in length: forces the loop to
+    // compare an index past the shorter array's length on both sides.
+    expect(compareVersions('1.0.0', '1.0')).toBe(0);
+    expect(compareVersions('1.0', '1.0.1')).toBe(-1);
+  });
+
   it('returns required prompt when below minimum supported version', () => {
     const prompt = evaluateAppUpdatePrompt(
       {
@@ -293,6 +300,27 @@ describe('appUpdatePolicy', () => {
     expect(prompt?.storeUrl).toBeNull();
   });
 
+  it('treats an unrecognized enabled string and an invalid build number string as false/null', () => {
+    const prompt = evaluateAppUpdatePrompt(
+      {
+        env: 'production',
+        enablePayments: true,
+        appUpdate: {
+          enabled: 'nope' as any,
+          minimumSupportedBuildNumber: 'not-a-number' as any,
+          latestVersion: '1.6.0',
+          androidStoreUrl:
+            'https://play.google.com/store/apps/details?id=com.yc',
+        },
+      },
+      '1.5.0',
+      300,
+      'com.yc',
+    );
+
+    expect(prompt).toBeNull();
+  });
+
   it('returns null when disabled and there is no forced or supported update condition', () => {
     const prompt = evaluateAppUpdatePrompt(
       {
@@ -371,6 +399,23 @@ describe('appUpdatePolicy', () => {
       currentVersion: '9.9.9',
       currentBuildNumber: 0,
       bundleId: 'unknown.bundle.id',
+    });
+  });
+
+  it('falls back to default version and build number when those methods are missing', () => {
+    jest.resetModules();
+    jest.doMock('react-native-device-info', () => ({
+      getBundleId: () => 'com.yc.partial',
+    }));
+
+    const {
+      getCurrentAppIdentity: getIdentity,
+    } = require('@/features/appUpdate/services/appUpdatePolicy');
+
+    expect(getIdentity()).toEqual({
+      currentVersion: '0.0.0',
+      currentBuildNumber: 0,
+      bundleId: 'com.yc.partial',
     });
   });
 

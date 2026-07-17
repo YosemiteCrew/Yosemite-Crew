@@ -493,6 +493,7 @@ describe('ViewAppointmentScreen', () => {
       expect(toImageSource('https://example.com/string.png')).toEqual({
         uri: 'https://example.com/string.png',
       });
+      expect(toImageSource('null')).toBeUndefined();
     });
 
     it('builds cancellation notes for cash, cancelled, and active appointments', () => {
@@ -522,6 +523,9 @@ describe('ViewAppointmentScreen', () => {
       });
 
       expect(resolveEmployeeAvatar({}, {}, '   ')).toBeUndefined();
+
+      // No displayName argument at all (undefined, not just blank).
+      expect(resolveEmployeeAvatar({}, {})).toBeUndefined();
     });
 
     it('builds employee display for fallback, existing, and hidden states', () => {
@@ -567,6 +571,31 @@ describe('ViewAppointmentScreen', () => {
           apt: {},
           department: null,
           statusFlags: {isUpcoming: false},
+        }),
+      ).toBeNull();
+
+      // employeeTitle and department both falsy -> specialization falls back
+      // to the final '' in the ?? chain.
+      const noSpecializationInfo = buildEmployeeDisplay({
+        employee: null,
+        apt: {employeeName: 'Dr. NoSpec'},
+        department: null,
+        statusFlags: {isUpcoming: true},
+      });
+      expect(noSpecializationInfo).toMatchObject({
+        name: 'Dr. NoSpec',
+        specialization: '',
+      });
+
+      // No employee and no employeeName/employeeTitle on the appointment ->
+      // both employeeWithAvatar and employeeFallback resolve to null, so the
+      // final `?? null` fallback is what's returned.
+      expect(
+        buildEmployeeDisplay({
+          employee: null,
+          apt: {},
+          department: null,
+          statusFlags: {isUpcoming: true},
         }),
       ).toBeNull();
     });
@@ -741,6 +770,28 @@ describe('ViewAppointmentScreen', () => {
           value: 'Taylor',
         },
       ]);
+
+      // No form schema at all, and the submission itself has no `answers`
+      // field (as opposed to an empty object) — exercises the `?? {}`
+      // fallback for the raw-answers path.
+      expect(
+        getAppointmentFormAnswerRows({
+          form: {},
+          submission: {},
+        } as any),
+      ).toEqual([]);
+
+      // An empty-string answer key exercises capitalize()'s empty-text guard.
+      expect(
+        getAppointmentFormAnswerRows({
+          form: {},
+          submission: {
+            answers: {
+              '': 'Untitled value',
+            },
+          },
+        } as any),
+      ).toEqual([{id: '', label: '', value: 'Untitled value'}]);
     });
   });
 

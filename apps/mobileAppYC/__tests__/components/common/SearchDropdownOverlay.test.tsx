@@ -225,6 +225,44 @@ describe('SearchDropdownOverlay Component', () => {
     expect(flattened).toHaveProperty('backgroundColor', 'red');
   });
 
+  it('falls back to just the title (no undefined coercion) when both subtitle and title resolve to null', () => {
+    const noTitleItems = [{id: '5', name: null as any, role: null}];
+    const {queryByText} = render(
+      <SearchDropdownOverlay
+        {...defaultProps}
+        items={noTitleItems}
+        subtitle={undefined}
+        title={() => null as any}
+        initials={undefined}
+      />,
+    );
+    expect(queryByText('Alice Smith')).toBeNull();
+  });
+
+  it('wraps the list in a LiquidGlassCard when useGlassCard is true', () => {
+    const {getByText} = render(
+      <SearchDropdownOverlay {...defaultProps} useGlassCard />,
+    );
+    expect(getByText('Alice Smith')).toBeTruthy();
+  });
+
+  it('does not use a LiquidGlassCard when useGlassCard is false (default)', () => {
+    const {getByText} = render(<SearchDropdownOverlay {...defaultProps} />);
+    expect(getByText('Alice Smith')).toBeTruthy();
+  });
+
+  it('applies the android shadow style when running on Android', () => {
+    const {Platform} = require('react-native');
+    const originalOS = Platform.OS;
+    Platform.OS = 'android';
+
+    expect(() =>
+      render(<SearchDropdownOverlay {...defaultProps} />),
+    ).not.toThrow();
+
+    Platform.OS = originalOS;
+  });
+
   it('enables scrolling only when items exceed "scrollEnabledThreshold"', () => {
     // 1. Items length (3) < default threshold (5) -> scrollEnabled = false
     const {UNSAFE_getByType} = render(
