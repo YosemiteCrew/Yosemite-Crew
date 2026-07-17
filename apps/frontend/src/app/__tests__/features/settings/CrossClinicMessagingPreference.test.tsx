@@ -70,8 +70,25 @@ describe('CrossClinicMessagingPreference', () => {
   });
 
   it('is disabled when there is no primary org', () => {
-    setOrg(undefined);
+    setOrg({ crossOrgMessagingEnabled: false });
     render(<CrossClinicMessagingPreference />);
     expect(screen.getByRole('switch')).toBeDisabled();
+  });
+
+  // The org-list load path omits crossOrgMessagingEnabled, so an absent field means
+  // "not loaded". Rendering it as off would tell a clinic that has this ON that it is
+  // undiscoverable, and the first click would re-send `true` rather than turning it off.
+  it('does not render a switch when the stored setting is unknown', () => {
+    setOrg({ _id: 'o1', name: 'Clinic' });
+    render(<CrossClinicMessagingPreference />);
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getByText('Current setting unavailable')).toBeInTheDocument();
+  });
+
+  it('does not render a switch when there is no primary org at all', () => {
+    setOrg(undefined);
+    render(<CrossClinicMessagingPreference />);
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getByText('Current setting unavailable')).toBeInTheDocument();
   });
 });

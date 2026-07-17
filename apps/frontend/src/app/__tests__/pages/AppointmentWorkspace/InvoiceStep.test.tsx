@@ -114,8 +114,15 @@ jest.mock('@/app/features/billing/services/invoiceService', () => ({
     invoiceServiceMock.addLineItemsToAppointments(...args),
 }));
 
-jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+const clinicalServiceMock = {
   deletePrescriptionArtifact: jest.fn(),
+  savePrescriptionArtifact: jest.fn(),
+};
+jest.mock('@/app/features/appointments/services/workspaceClinicalService', () => ({
+  deletePrescriptionArtifact: (...args: unknown[]) =>
+    clinicalServiceMock.deletePrescriptionArtifact(...args),
+  savePrescriptionArtifact: (...args: unknown[]) =>
+    clinicalServiceMock.savePrescriptionArtifact(...args),
 }));
 
 jest.mock('@/app/features/inventory/services/inventoryService', () => ({
@@ -124,6 +131,7 @@ jest.mock('@/app/features/inventory/services/inventoryService', () => ({
 
 jest.mock('@/app/features/inventory/pages/Inventory/utils', () => ({
   mapApiItemToInventoryItem: (item: unknown) => item,
+  getAvailableStock: () => undefined,
 }));
 
 const workspaceStoreMock = {
@@ -552,6 +560,89 @@ describe('<InvoiceStep /> component', () => {
 
     // Re-render with the same encounter must not re-seed the same line.
     expect(workspaceStoreMock.addInvoiceLineItem).toHaveBeenCalledTimes(1);
+  });
+
+  // The bill/prescription interlink backfills a prescription row when a dispensable drug is
+  // billed without one. Treatment has already run its save pass by the time the bill is built,
+  // so the row must be persisted here or it is lost on refresh.
+  describe('prescription backfill from the bill', () => {
+    const seedDispensableDrug = () => {
+      inventoryStoreState.itemIdsByOrgId = { 'org-1': ['inv-1'] };
+      inventoryStoreState.itemsById = {
+        'inv-1': {
+          id: 'inv-1',
+          basicInfo: { name: 'Manual add', itemType: 'Drug' },
+          pricing: { selling: 5 },
+          stock: {},
+        },
+      };
+    };
+
+    const clickAddManualItem = async () => {
+      await screen.findByTestId('total-bill-container');
+      await act(async () => {
+        await userEvent.click(screen.getByRole('button', { name: 'Add manual item' }));
+      });
+    };
+
+    it('persists the backfilled prescription and seeds the store with the backend id', async () => {
+      seedDispensableDrug();
+      clinicalServiceMock.savePrescriptionArtifact.mockResolvedValue({ id: 'rx-server-1' });
+
+      renderInvoiceStep({}, { encounterId: 'enc-1', authorId: 'vet-1' });
+      await clickAddManualItem();
+
+      await waitFor(() =>
+        expect(clinicalServiceMock.savePrescriptionArtifact).toHaveBeenCalledWith(
+          expect.objectContaining({
+            organisationId: 'org-1',
+            appointmentId: 'appt-1',
+            encounterId: 'enc-1',
+            authorId: 'vet-1',
+          }),
+          expect.objectContaining({ medicineName: 'Manual add' })
+        )
+      );
+      await waitFor(() =>
+        expect(workspaceStoreMock.addPrescription).toHaveBeenCalledWith(
+          'appt-1',
+          expect.objectContaining({ medicineName: 'Manual add' }),
+          'rx-server-1'
+        )
+      );
+    });
+
+    it('keeps the prescription row and notifies when persisting it fails', async () => {
+      seedDispensableDrug();
+      clinicalServiceMock.savePrescriptionArtifact.mockRejectedValue(new Error('boom'));
+
+      renderInvoiceStep();
+      await clickAddManualItem();
+
+      await waitFor(() => expect(mockNotify).toHaveBeenCalledWith('error', expect.anything()));
+      expect(workspaceStoreMock.addPrescription).toHaveBeenCalledWith(
+        'appt-1',
+        expect.objectContaining({ medicineName: 'Manual add' })
+      );
+    });
+
+    it('does not backfill a prescription for a non-dispensable item', async () => {
+      inventoryStoreState.itemIdsByOrgId = { 'org-1': ['inv-1'] };
+      inventoryStoreState.itemsById = {
+        'inv-1': {
+          id: 'inv-1',
+          basicInfo: { name: 'Manual add', itemType: 'Consumable' },
+          pricing: { selling: 5 },
+          stock: {},
+        },
+      };
+
+      renderInvoiceStep();
+      await clickAddManualItem();
+
+      expect(clinicalServiceMock.savePrescriptionArtifact).not.toHaveBeenCalled();
+      expect(workspaceStoreMock.addPrescription).not.toHaveBeenCalled();
+    });
   });
 
   it('shows the incomplete-medications warning and blocks Summary', async () => {

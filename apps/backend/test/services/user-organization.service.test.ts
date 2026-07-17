@@ -407,6 +407,7 @@ describe("UserOrganizationService", () => {
         id: orgId,
         fhirId: null,
         name: "Org",
+        crossOrgMessagingEnabled: true,
         imageUrl: null,
         phoneNo: "",
         type: "HOSPITAL",
@@ -463,6 +464,9 @@ describe("UserOrganizationService", () => {
 
       expect(byUser[0].orgBilling).toMatchObject({ _id: "bill-1" });
       expect(byUser[0].organization?.name).toBe("Org");
+      // The cross-clinic messaging setting drives a privacy-facing toggle, so
+      // it has to survive the mapper rather than read as unset on load.
+      expect(byUser[0].organization?.crossOrgMessagingEnabled).toBe(true);
       expect(byOrg[0].name).toBe("Jane Doe");
       expect(byOrg[0].weeklyHours).toBe(40);
     });
@@ -475,6 +479,7 @@ describe("UserOrganizationService", () => {
         id: orgId,
         fhirId: null,
         name: "Org",
+        crossOrgMessagingEnabled: true,
         imageUrl: null,
         phoneNo: "",
         type: "HOSPITAL",

@@ -28,6 +28,34 @@ import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
 const AddForm = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/AddForm'));
 const FormInfo = dynamic(() => import('@/app/features/forms/pages/Forms/Sections/FormInfo'));
 
+type CatalogSelectableEntry = {
+  id?: string;
+  name?: unknown;
+  status?: string;
+  organisationId?: string;
+  specialityId?: unknown;
+  isInpatientPreferred?: boolean;
+};
+
+/**
+ * Catalog stores accumulate entries across organisations, so an entry is only
+ * selectable here when it belongs to the organisation currently in context.
+ */
+const toActiveCatalogItems = (
+  entries: readonly CatalogSelectableEntry[],
+  badge: 'Service' | 'Package',
+  organisationId: string | null | undefined
+) =>
+  entries
+    .filter((entry) => entry.status === 'ACTIVE' && entry.organisationId === organisationId)
+    .map((entry) => ({
+      id: entry.id,
+      name: String(entry.name ?? '').trim(),
+      specialityId: entry.specialityId,
+      badge,
+      isInpatient: entry.isInpatientPreferred === true,
+    }));
+
 const Forms = () => {
   const permissions = usePermissions();
   const canEditForms = permissions.can(PERMISSIONS.FORMS_EDIT_ANY);
@@ -101,29 +129,10 @@ const Forms = () => {
       orgSpecialities.map((speciality) => [String(speciality.id ?? ''), speciality.name])
     );
 
-    const catalogItems = [];
-    for (const service of services) {
-      if (service.status === 'ACTIVE' && service.organisationId === primaryOrgId) {
-        catalogItems.push({
-          id: service.id,
-          name: String(service.name ?? '').trim(),
-          specialityId: service.specialityId,
-          badge: 'Service' as const,
-          isInpatient: service.isInpatientPreferred === true,
-        });
-      }
-    }
-    for (const pkg of packages) {
-      if (pkg.status === 'ACTIVE' && pkg.organisationId === primaryOrgId) {
-        catalogItems.push({
-          id: pkg.id,
-          name: String(pkg.name ?? '').trim(),
-          specialityId: pkg.specialityId,
-          badge: 'Package' as const,
-          isInpatient: pkg.isInpatientPreferred === true,
-        });
-      }
-    }
+    const catalogItems = [
+      ...toActiveCatalogItems(services, 'Service', primaryOrgId),
+      ...toActiveCatalogItems(packages, 'Package', primaryOrgId),
+    ];
 
     const nameFrequency = new Map<string, number>();
     for (const item of catalogItems) {

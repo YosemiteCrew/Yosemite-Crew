@@ -532,10 +532,12 @@ const mapOrganizationFromPrisma = (org: {
   ratingCount: number | null;
   appointmentCheckInBufferMinutes: number | null;
   appointmentCheckInRadiusMeters: number | null;
+  crossOrgMessagingEnabled: boolean | null;
   createdAt: Date;
   updatedAt: Date;
 }) => ({
   _id: org.id,
+  crossOrgMessagingEnabled: org.crossOrgMessagingEnabled ?? false,
   fhirId: org.fhirId ?? undefined,
   name: org.name,
   taxId: org.taxId ?? undefined,

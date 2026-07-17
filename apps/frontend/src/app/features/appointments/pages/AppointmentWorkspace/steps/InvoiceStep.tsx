@@ -38,7 +38,10 @@ import {
   findOpenAppointmentInvoice,
 } from '@/app/features/billing/services/invoiceService';
 import { useRevampCatalogStore } from '@/app/stores/revampCatalogStore';
-import { deletePrescriptionArtifact } from '@/app/features/appointments/services/workspaceClinicalService';
+import {
+  deletePrescriptionArtifact,
+  savePrescriptionArtifact,
+} from '@/app/features/appointments/services/workspaceClinicalService';
 import { useNotify } from '@/app/hooks/useNotify';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import { buildBillableItems, normalizeLineName } from './invoiceStepUtils';
@@ -57,6 +60,8 @@ import {
 type InvoiceStepProps = {
   appointmentId: string;
   organisationId?: string;
+  encounterId?: string;
+  authorId?: string;
   patientId?: string;
   parentId?: string;
   encounter: AppointmentEncounter;
@@ -862,6 +867,8 @@ export const DepositModal = ({
 const useInvoiceStepContent = ({
   appointmentId,
   organisationId,
+  encounterId,
+  authorId,
   patientId,
   parentId,
   encounter,
@@ -1241,7 +1248,7 @@ const useInvoiceStepContent = ({
     onOpenSummary();
   };
 
-  const handleAddItem = (item: Omit<InvoiceLineItem, 'id'>) => {
+  const handleAddItem = async (item: Omit<InvoiceLineItem, 'id'>) => {
     addInvoiceLineItem(appointmentId, item);
 
     // Interlink: when a billed item is a dispensable drug and no prescription row
@@ -1258,8 +1265,25 @@ const useInvoiceStepContent = ({
     const alreadyPrescribed = encounter.prescription.some(
       (rx) => rx.medicineName.trim().toLowerCase() === targetName
     );
-    if (!alreadyPrescribed) {
+    // Only org-scoped inventory candidates carry a prescription payload, so organisationId
+    // is always set by the time one is found.
+    if (alreadyPrescribed || !organisationId) return;
+    // Treatment already ran its save pass by the time the bill is built, so a row
+    // backfilled here has no later persist step to ride along with — save it now and
+    // seed the store with the backend id so finalize and delete target the real artifact.
+    try {
+      const saved = await savePrescriptionArtifact(
+        { organisationId, appointmentId, encounterId, authorId },
+        prescription
+      );
+      addPrescription(appointmentId, prescription, (saved as { id?: string } | undefined)?.id);
+    } catch (error) {
+      console.error('Failed to save prescription from invoice:', error);
       addPrescription(appointmentId, prescription);
+      notify('error', {
+        title: 'Couldn’t save the linked prescription',
+        text: 'The change wasn’t saved. Please try again.',
+      });
     }
   };
 
@@ -1320,7 +1344,7 @@ const useInvoiceStepContent = ({
             taxPercent={encounter.taxPercent}
             onToggleWithdrawDeposit={(value) => setWithdrawDeposit(appointmentId, value)}
             onChangeOverallDiscount={(percent) => setOverallDiscountPercent(appointmentId, percent)}
-            onAddItem={handleAddItem}
+            onAddItem={(item) => void handleAddItem(item)}
             onUpdateItem={(id, patch) => updateInvoiceLineItem(appointmentId, id, patch)}
             onRemoveItem={(id) => void handleRemoveBillLine(id)}
           />
