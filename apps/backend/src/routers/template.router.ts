@@ -17,7 +17,10 @@ router.get(
   "/pms/templates/library",
   requireWebAuth,
   withOrgPermissions(),
-  requirePermission(["forms:view:any"]),
+  // The shared library lists both form and task templates, and callers filter
+  // it by kind. The kind-specific FHIR listings gate on their own resource, so
+  // either view permission is enough to read this catalogue.
+  requirePermission(["forms:view:any", "tasks:view:any"]),
   (req, res) => TemplateController.listLibrary(req, res),
 );
 

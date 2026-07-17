@@ -89,7 +89,11 @@ export const saveTemplateFormDraft = async (form: FormsProps, organisationId: st
   const { upsertForm, setError } = useFormsStore.getState();
   try {
     const body = buildTemplatePayload(form, organisationId);
-    const templateId = form.templateId ?? form._id;
+    // A library template is shared across organisations and is not writable
+    // from an organisation route, so editing one saves a copy owned by this
+    // organisation rather than updating the shared record.
+    const templateId =
+      form.templateSource === 'YC_LIBRARY' ? undefined : (form.templateId ?? form._id);
     const res = templateId
       ? await patchData<TemplateLike, TemplateUpdateBody>(
           `/v1/templates/pms/templates/organisation/${organisationId}/${templateId}`,

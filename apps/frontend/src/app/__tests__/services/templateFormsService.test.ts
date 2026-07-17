@@ -137,6 +137,33 @@ describe('templateFormsService', () => {
     expect(result).toEqual(expect.objectContaining({ isTemplateBacked: true }));
   });
 
+  it('saves an edited library template as a new organisation copy', async () => {
+    (postData as jest.Mock).mockResolvedValue({ data: { id: 'tpl-copy', name: 'SOAP' } });
+
+    await saveTemplateFormDraft(
+      {
+        _id: 'lib-1',
+        templateId: 'lib-1',
+        templateSource: 'YC_LIBRARY',
+        name: 'SOAP',
+        category: 'SOAP',
+        usage: 'Internal',
+        updatedBy: '',
+        lastUpdated: '',
+        schema: [],
+      } as unknown as FormsProps,
+      'org-1'
+    );
+
+    // The library id must not be PATCHed: that record is shared and is not
+    // writable from an organisation route.
+    expect(patchData).not.toHaveBeenCalledWith(expect.stringContaining('lib-1'), expect.anything());
+    expect(postData).toHaveBeenCalledWith(
+      '/v1/templates/pms/templates',
+      expect.objectContaining({ organisationId: 'org-1' })
+    );
+  });
+
   it('syncs catalog links after saving when services are selected', async () => {
     (postData as jest.Mock).mockResolvedValue({ data: { id: 'tpl-new', name: 'SOAP' } });
     (patchData as jest.Mock).mockResolvedValue({
