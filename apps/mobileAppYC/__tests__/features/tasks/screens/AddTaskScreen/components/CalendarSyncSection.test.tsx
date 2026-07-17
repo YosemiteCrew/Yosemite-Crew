@@ -1,4 +1,5 @@
 import React from 'react';
+import {Platform} from 'react-native';
 import {render, fireEvent, screen} from '@testing-library/react-native';
 import {CalendarSyncSection} from '../../../../../../src/features/tasks/screens/AddTaskScreen/components/CalendarSyncSection';
 import {mockTheme} from '../../../../../setup/mockTheme';
@@ -184,5 +185,49 @@ describe('CalendarSyncSection', () => {
     expect(screen.getByTestId('input-value').props.children).toBe('No Value');
     // Label should be undefined (mock renders 'No Label') when calendarProviderName is not set
     expect(screen.getByTestId('input-label').props.children).toBe('No Label');
+  });
+
+  describe('default placeholder by platform', () => {
+    const originalPlatformOS = Platform.OS;
+
+    afterEach(() => {
+      Platform.OS = originalPlatformOS;
+    });
+
+    it('uses iCloud Calendar placeholder on iOS', () => {
+      Platform.OS = 'ios';
+      const props = {
+        ...defaultProps,
+        formData: {
+          syncWithCalendar: true,
+          calendarProvider: null,
+          calendarProviderName: null,
+        },
+      };
+
+      render(<CalendarSyncSection {...props} />);
+
+      expect(screen.getByTestId('input-placeholder').props.children).toBe(
+        'iCloud Calendar',
+      );
+    });
+
+    it('uses Google Calendar placeholder on Android', () => {
+      Platform.OS = 'android';
+      const props = {
+        ...defaultProps,
+        formData: {
+          syncWithCalendar: true,
+          calendarProvider: null,
+          calendarProviderName: null,
+        },
+      };
+
+      render(<CalendarSyncSection {...props} />);
+
+      expect(screen.getByTestId('input-placeholder').props.children).toBe(
+        'Google Calendar',
+      );
+    });
   });
 });
