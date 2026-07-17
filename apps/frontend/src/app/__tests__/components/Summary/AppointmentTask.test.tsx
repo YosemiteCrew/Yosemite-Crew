@@ -106,7 +106,7 @@ describe('AppointmentTask summary', () => {
   it('filters appointments when a specific status is selected', () => {
     render(<AppointmentTask />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+    fireEvent.click(screen.getByRole('button', { name: 'All statuses' }));
     fireEvent.click(screen.getByRole('button', { name: 'Requested' }));
 
     const latestProps = appointmentsSpy.mock.calls.at(-1)[0];

@@ -294,9 +294,9 @@ export const buildAppointmentColumns = ({
                 type="button"
                 onClick={() => onViewAppointment(item)}
                 aria-label={`View appointment for ${companionName}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
               >
-                <IoEyeOutline size={20} color="var(--color-neutral-900)" />
+                <IoEyeOutline size={20} color="var(--ink-soft)" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Overview" side="bottom" className="table-action-tooltip">
@@ -304,10 +304,10 @@ export const buildAppointmentColumns = ({
                 type="button"
                 onClick={() => onViewAppointmentHistory(item)}
                 aria-label={`View overview for ${companionName}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                 title="Appointment overview"
               >
-                <RiHistoryLine size={18} color="var(--color-neutral-900)" />
+                <RiHistoryLine size={18} color="var(--ink-soft)" />
               </button>
             </GlassTooltip>
             {canEditAppointments && canShowStatusChangeAction(item.status) && (
@@ -316,9 +316,9 @@ export const buildAppointmentColumns = ({
                   type="button"
                   onClick={() => onChangeStatusAppointment(item)}
                   aria-label={`Change status for ${companionName}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                 >
-                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+                  <MdOutlineAutorenew size={18} color="var(--ink-soft)" />
                 </button>
               </GlassTooltip>
             )}
@@ -328,9 +328,9 @@ export const buildAppointmentColumns = ({
                   type="button"
                   onClick={() => onRescheduleAppointment(item)}
                   aria-label={`Reschedule appointment for ${companionName}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                 >
-                  <IoIosCalendar size={18} color="var(--color-neutral-900)" />
+                  <IoIosCalendar size={18} color="var(--ink-soft)" />
                 </button>
               </GlassTooltip>
             )}
@@ -340,9 +340,9 @@ export const buildAppointmentColumns = ({
                   type="button"
                   onClick={() => onChangeRoomAppointment(item)}
                   aria-label={`Assign room for ${companionName}`}
-                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                  className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                 >
-                  <MdMeetingRoom size={18} color="var(--color-neutral-900)" />
+                  <MdMeetingRoom size={18} color="var(--ink-soft)" />
                 </button>
               </GlassTooltip>
             )}
@@ -355,10 +355,10 @@ export const buildAppointmentColumns = ({
                 type="button"
                 onClick={() => onWorkspaceAppointment(item, getSoapViewIntent(item))}
                 aria-label={`${clinicalNotesLabel} for ${companionName}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
                 title={clinicalNotesLabel}
               >
-                <IoDocumentTextOutline size={18} color="var(--color-neutral-900)" />
+                <IoDocumentTextOutline size={18} color="var(--ink-soft)" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Finance summary" side="bottom" className="table-action-tooltip">
@@ -371,9 +371,9 @@ export const buildAppointmentColumns = ({
                   })
                 }
                 aria-label={`Finance summary for ${companionName}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
               >
-                <IoCardOutline size={18} color="var(--color-neutral-900)" />
+                <IoCardOutline size={18} color="var(--ink-soft)" />
               </button>
             </GlassTooltip>
             <GlassTooltip content="Lab tests" side="bottom" className="table-action-tooltip">
@@ -386,9 +386,9 @@ export const buildAppointmentColumns = ({
                   })
                 }
                 aria-label={`Lab tests for ${companionName}`}
-                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
+                className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-[var(--divider)] flex items-center justify-center cursor-pointer"
               >
-                <MdScience size={18} color="var(--color-neutral-900)" />
+                <MdScience size={18} color="var(--ink-soft)" />
               </button>
             </GlassTooltip>
           </div>

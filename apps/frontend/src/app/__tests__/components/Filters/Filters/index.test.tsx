@@ -175,11 +175,11 @@ describe('Filters', () => {
     expect(screen.getByRole('button', { name: 'Busy' })).toBeInTheDocument();
   });
 
-  it('shows the neutral "Status" trigger when the active status has no colour tokens', () => {
+  it('shows the neutral "All statuses" trigger when the active status is all', () => {
     render(
       <Filters
         statusOptions={[
-          { key: 'all', name: 'All' },
+          { key: 'all', name: 'All', bg: '#eee' },
           { key: 'open', name: 'Open' },
         ]}
         activeStatus="all"
@@ -187,7 +187,11 @@ describe('Filters', () => {
       />
     );
 
-    expect(screen.getByRole('button', { name: 'Status' })).toBeInTheDocument();
+    // Even when the "all" option carries a colour token, the trigger stays
+    // neutral (no tint) and reads "All statuses".
+    const trigger = screen.getByRole('button', { name: 'All statuses' });
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).not.toHaveStyle({ backgroundColor: '#eee' });
   });
 
   it('closes the status dropdown when clicking outside of it', () => {

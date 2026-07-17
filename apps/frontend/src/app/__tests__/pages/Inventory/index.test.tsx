@@ -943,7 +943,7 @@ describe('Inventory Page', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+    fireEvent.click(screen.getByRole('button', { name: 'All statuses' }));
     fireEvent.click(screen.getByRole('button', { name: 'Pending' }));
 
     expect(setDispensaryStatusFilter).toHaveBeenCalledWith('PENDING');
@@ -2010,7 +2010,7 @@ describe('Inventory Page', () => {
       target: { value: '' },
     });
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Status' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'All statuses' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Dispensed' }));
 
     await waitFor(() => {
@@ -2031,7 +2031,7 @@ describe('Inventory Page', () => {
 
     await openDispensaryView('dr-2');
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Status' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'All statuses' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Dispensed' }));
 
     await waitFor(() => {

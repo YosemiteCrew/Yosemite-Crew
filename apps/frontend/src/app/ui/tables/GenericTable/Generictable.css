@@ -1,6 +1,6 @@
 .TableShell {
-  background: var(--whitebg) !important;
-  border: 1px solid var(--lightgrey) !important;
+  background: var(--screen) !important;
+  border: 1px solid var(--hairline) !important;
   border-radius: 16px !important;
   overflow: hidden;
   min-height: 0;
@@ -22,7 +22,7 @@
 .TableDiv tbody tr td {
   padding: 6px 11px;
   vertical-align: middle;
-  border-bottom: 1px solid var(--lightgrey);
+  border-bottom: 1px solid var(--hairline);
 }
 .TableDiv tbody tr td {
   position: relative;
@@ -33,20 +33,21 @@
   max-width: 100%;
 }
 .TableDiv thead tr th {
-  padding-top: 16px;
-  padding-bottom: 10px;
+  padding-top: 11px;
+  padding-bottom: 11px;
   text-align: left;
-  color: var(--color-neutral-700);
-  font-size: 16px;
-  font-weight: 400;
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  font-weight: 700;
   font-family: var(--font-satoshi);
-  letter-spacing: -0.32px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   line-height: 120%;
-  background: var(--whitebg);
+  background: var(--screen-2);
   position: sticky;
   top: 0;
   z-index: 10;
-  box-shadow: 0 1px 0 var(--lightgrey);
+  box-shadow: 0 1px 0 var(--hairline);
 }
 
 .TableDiv tbody tr:last-child td {
