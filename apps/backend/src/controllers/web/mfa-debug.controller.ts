@@ -13,7 +13,7 @@ export class MfaDebugController {
     try {
       assertLocalDev();
 
-      const userId = getSessionUserId(req);
+      const userId = await getSessionUserId(req);
 
       const result = await createTotpDeviceForUser(userId, "Local dev device");
 

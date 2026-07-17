@@ -12,6 +12,7 @@ import type {
   RequestContext,
 } from '../../types.js';
 import { AuthRequiredError } from '../../errors.js';
+import { resolveAppUserId } from '../../express/getSessionUserId.js';
 
 // SuperTokens adapter. This is the ONLY place outside SuperTokens setup that may
 // import the SuperTokens SDK. It converts a SuperTokens session into the
@@ -81,12 +82,16 @@ export class SuperTokensAuthProvider implements AuthProvider {
     }
 
     const payload = session.getAccessTokenPayload() as Record<string, unknown>;
-
-    // With UserId Mapping in place, getUserId() returns the mapped external id
-    // (the pre-existing stable app user id) for migrated users, and the native
-    // SuperTokens id for new users - either way it IS the appUserId, so all
-    // existing foreign keys and request scoping remain valid.
-    const appUserId = session.getUserId();
+    const appUserId = await resolveAppUserId({
+      appUserId: session.getUserId(),
+      providerUserId: session.getRecipeUserId().getAsString(),
+      provider: 'supertokens',
+      authProfile: readProfile(payload),
+      email:
+        typeof payload[EMAIL_CLAIM] === 'string' ? (payload[EMAIL_CLAIM] as string) : undefined,
+      loginMethod: (payload[LOGIN_METHOD_CLAIM] as LoginMethod) ?? 'unknown',
+      claims: payload,
+    });
 
     return {
       appUserId,

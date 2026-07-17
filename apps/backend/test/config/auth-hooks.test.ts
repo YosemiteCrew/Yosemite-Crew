@@ -1,14 +1,29 @@
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 
-const mockUpsert = jest.fn();
+const mockFindFirst: jest.Mock = jest.fn();
+const mockFindMany: jest.Mock = jest.fn();
+const mockUpsert: jest.Mock = jest.fn();
+const mockCreateUserIdMapping: jest.Mock = jest.fn();
+
 jest.mock("src/config/prisma", () => ({
   prisma: {
-    authIdentity: { upsert: (...args: unknown[]) => mockUpsert(...args) },
+    authIdentity: {
+      findFirst: (...args: unknown[]) => mockFindFirst(...args),
+      findMany: (...args: unknown[]) => mockFindMany(...args),
+      upsert: (...args: unknown[]) => mockUpsert(...args),
+    },
   },
 }));
 jest.mock("src/utils/logger", () => ({
   __esModule: true,
   default: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
+}));
+jest.mock("supertokens-node", () => ({
+  __esModule: true,
+  default: {
+    createUserIdMapping: (...args: unknown[]) =>
+      mockCreateUserIdMapping(...args),
+  },
 }));
 
 import { authHooks } from "src/config/auth-hooks";
@@ -123,5 +138,69 @@ describe("authHooks.onUserCreated", () => {
         loginMethod: "otp-email",
       }),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("authHooks.resolveAppUserId", () => {
+  beforeEach(() => {
+    mockFindFirst.mockReset();
+    mockFindMany.mockReset();
+    mockUpsert.mockReset();
+    mockCreateUserIdMapping.mockReset();
+  });
+
+  it("relinks a migrated account to the legacy staff app id", async () => {
+    mockFindMany.mockResolvedValueOnce([
+      { appUserId: "legacy-staff-id" },
+    ] as never);
+    mockCreateUserIdMapping.mockResolvedValueOnce({ status: "OK" } as never);
+
+    await expect(
+      authHooks.resolveAppUserId!({
+        appUserId: "st-user-1",
+        providerUserId: "recipe-user-1",
+        provider: "supertokens",
+        authProfile: "pims_web",
+        email: "vet@clinic.test",
+        loginMethod: "emailpassword",
+        claims: {},
+      }),
+    ).resolves.toBe("legacy-staff-id");
+
+    expect(mockUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          provider_providerUserId: {
+            provider: "supertokens",
+            providerUserId: "recipe-user-1",
+          },
+        },
+        update: {
+          appUserId: "legacy-staff-id",
+          email: "vet@clinic.test",
+          authProfile: "pims_web",
+        },
+      }),
+    );
+    expect(mockCreateUserIdMapping).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the current supertokens id for a brand-new account", async () => {
+    mockFindMany.mockResolvedValueOnce([] as never);
+    mockFindFirst.mockResolvedValueOnce({ appUserId: "st-user-2" } as never);
+
+    await expect(
+      authHooks.resolveAppUserId!({
+        appUserId: "st-user-2",
+        providerUserId: "recipe-user-2",
+        provider: "supertokens",
+        authProfile: "pet_parent_mobile",
+        email: "new@example.test",
+        loginMethod: "otp-email",
+        claims: {},
+      }),
+    ).resolves.toBe("st-user-2");
+
+    expect(mockCreateUserIdMapping).not.toHaveBeenCalled();
   });
 });

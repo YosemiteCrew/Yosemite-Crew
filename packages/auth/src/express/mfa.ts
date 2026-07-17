@@ -2,6 +2,7 @@ import type { SessionRequest } from 'supertokens-node/framework/express';
 import { verifySession } from 'supertokens-node/recipe/session/framework/express';
 import MultiFactorAuth from 'supertokens-node/recipe/multifactorauth';
 import TOTP from 'supertokens-node/recipe/totp';
+import { getSessionUserId } from './getSessionUserId.js';
 
 export const TOTP_FACTOR_ID = MultiFactorAuth.FactorIds.TOTP;
 
@@ -32,11 +33,7 @@ export async function removeTotpRequirementForUser(userId: string): Promise<void
 }
 
 export async function getMfaStatusForRequest(req: SessionRequest) {
-  const userId = req.session?.getUserId();
-
-  if (!userId) {
-    throw new Error('[auth] Session user id is missing');
-  }
+  const userId = await getSessionUserId(req);
 
   const [requiredFactors, setupFactors] = await Promise.all([
     getRequiredMfaFactorsForUser(userId),
