@@ -1,0 +1,154 @@
+name: Bug report
+description: Report something that is broken or not behaving as expected.
+title: '[Bug]: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug.
+
+        **Do not report security vulnerabilities here.** Issues are public. Report them privately per
+        [our security policy](https://github.com/YosemiteCrew/Yosemite-Crew/security/policy) instead.
+
+        The more of the below you can fill in, the faster this gets fixed. If you are not sure about a
+        field, say so rather than guessing.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: This is not a security vulnerability (those go through the security policy above).
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Where does this happen? Select every area you know is involved.
+      multiple: true
+      options:
+        - Web app (apps/frontend)
+        - Backend API (apps/backend)
+        - Mobile app (apps/mobileAppYC)
+        - Desktop app (apps/desktop)
+        - Developer docs site (apps/dev-docs)
+        - Shared packages (packages/*)
+        - Build, CI, or tooling
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What is wrong
+      description: A clear and concise description of the bug and who it affects.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Number the exact steps. Include the account role, route, or screen if it matters.
+      placeholder: |
+        1. Sign in as a clinic admin
+        2. Go to '...'
+        3. Click on '...'
+        4. See the error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened, including any error message shown to the user.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it reproduce
+      options:
+        - Always
+        - Often, more than half the time
+        - Sometimes, intermittent
+        - I only saw it once
+    validations:
+      required: true
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Did this work before
+      description: If it used to work, note the last known good version or commit under Environment.
+      options:
+        - Not sure
+        - 'No, it never worked'
+        - 'Yes, this is a regression'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Impact
+      description: Your best assessment. Maintainers may adjust this during triage.
+      options:
+        - Critical - data loss, data exposure, or clinical records affected
+        - High - a core workflow is blocked with no workaround
+        - Medium - broken, but there is a workaround
+        - Low - cosmetic or minor
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Fill in what applies to the area you selected. `node -v` and `pnpm -v` cover the first two.
+      value: |
+        - Branch or commit SHA:
+        - Node version:
+        - pnpm version:
+        - OS:
+        - Web browser and version:
+        - Mobile device and OS version:
+        - Desktop app version:
+        - Running against: local dev / self-hosted / hosted
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, console output, or stack trace
+      description: Paste the relevant output. Redact tokens, credentials, patient data, and personal information first. This is rendered as a code block, so no backticks needed.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Screenshots and additional context
+      description: Screenshots, recordings, related issues or PRs, or anything else that helps.
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to open a PR to fix this.
