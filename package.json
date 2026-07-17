@@ -75,6 +75,7 @@
       "@aws-cdk/toolkit-lib>yaml": "1.10.2",
       "@xmldom/xmldom": "0.8.13",
       "path-to-regexp@0.1.12": "0.1.13",
+      "path-to-regexp@8.3.0": "8.4.2",
       "@babel/plugin-transform-modules-systemjs": "7.29.4",
       "fast-xml-builder": "1.2.1",
       "postcss": "8.5.14",
