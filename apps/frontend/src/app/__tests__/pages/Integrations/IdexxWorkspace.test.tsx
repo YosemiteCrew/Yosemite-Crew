@@ -285,14 +285,63 @@ describe('IDEXX Hub page', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('shows subtitle acknowledgement count and Acknowledge action for complete results', async () => {
+  it('shows the subtitle awaiting-review count and Review action for complete results', async () => {
     listIdexxResultsMock.mockResolvedValue([makeResult()]);
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
     await waitFor(() => {
-      expect(screen.getByText(/1 results need acknowledgement/)).toBeInTheDocument();
-      expect(screen.getAllByRole('button', { name: 'Acknowledge' }).length).toBeGreaterThan(0);
+      expect(screen.getByText(/1 results awaiting review/)).toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Review' }).length).toBeGreaterThan(0);
     });
+  });
+
+  // The UI must not claim an acknowledgement state that does not exist anywhere:
+  // not on LabResult, not in the schema, not in the API, not in the permissions.
+  it('never claims results are acknowledged, only that they await review', async () => {
+    listIdexxResultsMock.mockResolvedValue([makeResult()]);
+    render(<ProtectedIdexxWorkspace />);
+    await findHeading();
+    await screen.findByText(/1 results awaiting review/);
+    expect(screen.queryByText(/acknowledge/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Acknowledge/ })).not.toBeInTheDocument();
+  });
+
+  // Acknowledging a clinical lab result must be attributable and audited. Until a
+  // real server-side ack exists, nothing may be written client-side: a per-browser
+  // ack would hide an abnormal result from a covering colleague. Guard that here.
+  it('persists no acknowledgement state when a result is reviewed', async () => {
+    const localSetItem = jest.spyOn(Storage.prototype, 'setItem');
+    listIdexxResultsMock.mockResolvedValue([makeResult()]);
+    render(<ProtectedIdexxWorkspace />);
+    await findHeading();
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Review' }))[0]);
+    await screen.findByText('Order detail');
+    fireEvent.click(screen.getByRole('button', { name: 'close' }));
+
+    expect(localSetItem).not.toHaveBeenCalled();
+    expect(window.localStorage.length).toBe(0);
+    expect(document.cookie).toBe('');
+    // Only the read-only IDEXX services are ever called - no ack write exists.
+    expect(
+      Object.keys(jest.requireMock('@/app/features/integrations/services/idexxService'))
+    ).toEqual(expect.not.arrayContaining([expect.stringMatching(/ack/i)]));
+    // The queue still reports the result: reviewing it does not remove it.
+    expect(screen.getByText(/1 results awaiting review/)).toBeInTheDocument();
+    localSetItem.mockRestore();
+  });
+
+  // The count is derived from completion alone, so it over-reports rather than
+  // hiding a result - the safe direction to fail in until a real ack lands.
+  it('counts every completed result as awaiting review, regardless of age', async () => {
+    listIdexxResultsMock.mockResolvedValue([
+      makeResult({ resultId: 'old', status: 'FINAL', updatedAt: '2019-01-01' }),
+      makeResult({ resultId: 'new', status: 'COMPLETE', updatedAt: '2026-07-17' }),
+      makeResult({ resultId: 'conf', status: 'CONFIRMED' }),
+      makeResult({ resultId: 'pending', status: 'PENDING' }),
+    ]);
+    render(<ProtectedIdexxWorkspace />);
+    await findHeading();
+    await waitFor(() => expect(screen.getByText(/3 results awaiting review/)).toBeInTheDocument());
   });
 
   it('shows Details action for non-complete results', async () => {
@@ -348,7 +397,7 @@ describe('IDEXX Hub page', () => {
     );
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Acknowledge' }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Review' }))[0]);
     await waitFor(() => {
       expect(screen.getByText('Order detail')).toBeInTheDocument();
       expect(screen.getByText('Result ID: result-1')).toBeInTheDocument();
@@ -361,7 +410,7 @@ describe('IDEXX Hub page', () => {
     listIdexxResultsMock.mockResolvedValue([makeResult()]);
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Acknowledge' }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Review' }))[0]);
     await screen.findByText('Order detail');
     fireEvent.click(screen.getByRole('button', { name: 'close' }));
     await waitFor(() => {
@@ -381,7 +430,7 @@ describe('IDEXX Hub page', () => {
     );
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Acknowledge' }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Review' }))[0]);
     await screen.findByText('Run summaries');
     expect(screen.getByText('Chemistry Panel (CP)')).toBeInTheDocument();
   });
@@ -391,7 +440,7 @@ describe('IDEXX Hub page', () => {
     getIdexxResultByIdMock.mockImplementation(() => new Promise(() => {}));
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Acknowledge' }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Review' }))[0]);
     await screen.findByText('Loading result details…');
   });
 
@@ -400,7 +449,7 @@ describe('IDEXX Hub page', () => {
     getIdexxResultByIdMock.mockRejectedValue(new Error('boom'));
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Acknowledge' }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Review' }))[0]);
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Unable to load result details.');
     });
@@ -410,7 +459,7 @@ describe('IDEXX Hub page', () => {
     listIdexxResultsMock.mockResolvedValue([makeResult()]);
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Acknowledge' }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Review' }))[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Open results PDF' }));
     await screen.findByTestId('pdf-preview');
     // Re-open so the previous blob URL is revoked before a new one is created.
@@ -427,7 +476,7 @@ describe('IDEXX Hub page', () => {
     getIdexxResultPdfBlobMock.mockImplementation(() => new Promise(() => {}));
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Acknowledge' }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Review' }))[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Open results PDF' }));
     await screen.findByRole('button', { name: 'Loading PDF...' });
   });
@@ -437,7 +486,7 @@ describe('IDEXX Hub page', () => {
     getIdexxResultPdfBlobMock.mockRejectedValue(new Error('pdf boom'));
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Acknowledge' }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Review' }))[0]);
     fireEvent.click(await screen.findByRole('button', { name: 'Open results PDF' }));
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('Unable to load IDEXX PDF preview.');
@@ -510,7 +559,7 @@ describe('IDEXX Hub page', () => {
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
     await waitFor(() => {
-      expect(screen.getByText('Results ready · needs ack')).toBeInTheDocument();
+      expect(screen.getByText('Results ready · awaiting review')).toBeInTheDocument();
       expect(screen.getByText('1 running')).toBeInTheDocument();
       expect(screen.getByText('Awaiting collection')).toBeInTheDocument();
       expect(screen.getByText('Catalyst One (CAT1-4402)')).toBeInTheDocument();
@@ -567,7 +616,7 @@ describe('IDEXX Hub page', () => {
     });
   });
 
-  it('filters results by needs-acknowledgement toggle', async () => {
+  it('filters results by the awaiting-review toggle', async () => {
     listIdexxResultsMock.mockResolvedValue([
       makeResult({ resultId: 'done', status: 'FINAL', patientName: 'DonePet' }),
       makeResult({ resultId: 'wait', status: 'PENDING', patientName: 'WaitPet' }),
@@ -575,7 +624,7 @@ describe('IDEXX Hub page', () => {
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
     await screen.findByText('WaitPet');
-    fireEvent.click(screen.getByRole('button', { name: 'Needs acknowledgement' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Awaiting review' }));
     await waitFor(() => {
       expect(screen.getByText('DonePet')).toBeInTheDocument();
       expect(screen.queryByText('WaitPet')).not.toBeInTheDocument();
@@ -757,7 +806,7 @@ describe('IDEXX Hub page', () => {
     );
     render(<ProtectedIdexxWorkspace />);
     await findHeading();
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Acknowledge' }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Review' }))[0]);
     await screen.findByText('Order detail');
     await waitFor(() => {
       const detailLinks = screen
@@ -765,8 +814,9 @@ describe('IDEXX Hub page', () => {
         .filter((link) => String(link.getAttribute('href')).includes('appointmentId=appt-9'));
       expect(detailLinks.length).toBeGreaterThan(0);
     });
-    // Acknowledge results is enabled because a deep-link exists
-    expect(screen.getByRole('button', { name: 'Acknowledge results' })).toBeEnabled();
+    // The deep-link action is enabled because a matching appointment exists. It
+    // only navigates to the appointment's labs tab; it records no acknowledgement.
+    expect(screen.getByRole('button', { name: 'Open in appointment labs' })).toBeEnabled();
   });
 
   it('treats a missing integration record as not connected', async () => {
@@ -828,7 +878,7 @@ describe('buildResultsColumns', () => {
     expect(screen.getByText('ALP-1')).toBeInTheDocument();
     expect(screen.getByText('IDX-1')).toBeInTheDocument();
     expect(screen.getByText('CAT1-4402')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Acknowledge' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Review' })).toBeInTheDocument();
     expect(screen.getByRole('link')).toHaveAttribute('href', '/appointments?appointmentId=appt-1');
   });
 
@@ -930,7 +980,7 @@ describe('OrderDetailPanel', () => {
     render(<OrderDetailPanel {...baseProps} activeResultDetail={null} />);
     expect(screen.getByText('Order detail')).toBeInTheDocument();
     expect(screen.getByText('No result selected.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Acknowledge results' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Open in appointment labs' })).toBeDisabled();
   });
 
   it('renders patient fallbacks for a sparse active result', () => {

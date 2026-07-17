@@ -99,7 +99,15 @@ const isResultComplete = (status?: string | null): boolean => {
   return key.includes('complete') || key.includes('final') || key.includes('confirm');
 };
 
-const resultNeedsAck = (result: LabResult): boolean => isResultComplete(result.status);
+// There is no acknowledgement state yet — LabResult carries none, the lab-result
+// API is read-only, and `labs:view:any` is the only labs permission. So "awaiting
+// review" is derived purely from completion: every completed result stays in the
+// queue. That over-reports rather than hiding a result, which is the safe side to
+// fail on until a real, attributable acknowledgement is added (#1867). Do NOT
+// fake it client-side: a localStorage or useState ack is per-browser and
+// unaudited, so a result one vet "acknowledged" silently leaves their queue
+// while a colleague still sees it.
+const resultAwaitingReview = (result: LabResult): boolean => isResultComplete(result.status);
 
 const getResultOwnerName = (result: LabResult): string =>
   [result.clientFirstName, result.clientLastName]
@@ -144,12 +152,12 @@ const getCensusCardStatus = (
   const complete = patientResults.filter((result) => isResultComplete(result.status)).length;
   const running = patientResults.length - complete;
   // In-progress runs keep the patient "blue" even when some panels are already
-  // back; the card flips "green · needs ack" only once every run has landed.
+  // back; the card flips green only once every run has landed.
   if (running > 0) {
     const suffix = complete > 0 ? ` · ${complete} complete` : '';
     return { label: `${running} running${suffix}`, tone: 'blue', pulse: false };
   }
-  if (complete > 0) return { label: 'Results ready · needs ack', tone: 'green', pulse: true };
+  if (complete > 0) return { label: 'Results ready · awaiting review', tone: 'green', pulse: true };
   return { label: 'Awaiting collection', tone: 'amber', pulse: false };
 };
 
@@ -283,7 +291,7 @@ const ResultActionCell = ({
   appointmentLabsHref,
   openResultDetails,
 }: ResultActionCellProps) => {
-  const needsAck = resultNeedsAck(result);
+  const awaitingReview = resultAwaitingReview(result);
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
       {appointmentLabsHref ? (
@@ -296,10 +304,10 @@ const ResultActionCell = ({
           <IoOpenOutline className="text-text-primary" size={16} />
         </Link>
       ) : null}
-      {needsAck ? (
+      {awaitingReview ? (
         <Primary
           href="#"
-          text="Acknowledge"
+          text="Review"
           onClick={() => openResultDetails(result).catch(() => undefined)}
           className="px-4"
         />
@@ -661,10 +669,10 @@ const OrderDetailPanel = ({
       <div className="flex shrink-0 flex-col gap-2 border-t border-card-border pt-3">
         <Primary
           href={appointmentLabsHref || '#'}
-          text="Acknowledge results"
+          text="Open in appointment labs"
           icon={<IoCheckmarkCircleOutline aria-hidden="true" />}
           isDisabled={!appointmentLabsHref}
-          ariaLabel="Acknowledge results"
+          ariaLabel="Open in appointment labs"
         />
         <Secondary
           href="#"
@@ -1054,9 +1062,9 @@ const NotConnectedState = () => (
 
 type ModalityPillsProps = {
   modalityFilter: ModalityFilter;
-  needsAckOnly: boolean;
+  awaitingReviewOnly: boolean;
   onSelectModality: (value: ModalityFilter) => void;
-  onToggleNeedsAck: () => void;
+  onToggleAwaitingReview: () => void;
 };
 
 const MODALITY_PILL_ACTIVE_STYLE: React.CSSProperties = {
@@ -1073,9 +1081,9 @@ const MODALITY_PILL_IDLE_STYLE: React.CSSProperties = {
 
 const ModalityPills = ({
   modalityFilter,
-  needsAckOnly,
+  awaitingReviewOnly,
   onSelectModality,
-  onToggleNeedsAck,
+  onToggleAwaitingReview,
 }: ModalityPillsProps) => {
   return (
     // Phone: a single horizontally scrollable row. Tablet / desktop: wraps.
@@ -1102,12 +1110,12 @@ const ModalityPills = ({
       />
       <button
         type="button"
-        aria-pressed={needsAckOnly}
-        onClick={onToggleNeedsAck}
+        aria-pressed={awaitingReviewOnly}
+        onClick={onToggleAwaitingReview}
         className="inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-caption-1 whitespace-nowrap transition-colors"
-        style={needsAckOnly ? MODALITY_PILL_ACTIVE_STYLE : MODALITY_PILL_IDLE_STYLE}
+        style={awaitingReviewOnly ? MODALITY_PILL_ACTIVE_STYLE : MODALITY_PILL_IDLE_STYLE}
       >
-        Needs acknowledgement
+        Awaiting review
       </button>
       <span
         className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-caption-1 whitespace-nowrap md:ml-auto"
@@ -1340,7 +1348,7 @@ const useIdexxWorkspacePage = () => {
   const [appointmentIdByOrderId, setAppointmentIdByOrderId] = useState<Record<string, string>>({});
   const headerSearchQuery = useSearchStore((s) => s.query);
   const [modalityFilter, setModalityFilter] = useState<ModalityFilter>('ALL');
-  const [needsAckOnly, setNeedsAckOnly] = useState(false);
+  const [awaitingReviewOnly, setAwaitingReviewOnly] = useState(false);
   const [pageSize, setPageSize] = useState(5);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -1406,10 +1414,10 @@ const useIdexxWorkspacePage = () => {
         const resultModality = normalizeModality(result.modality);
         if (resultModality !== modalityFilter) return false;
       }
-      if (needsAckOnly && !resultNeedsAck(result)) return false;
+      if (awaitingReviewOnly && !resultAwaitingReview(result)) return false;
       return !q || matchesResultQuery(result, q);
     });
-  }, [results, headerSearchQuery, modalityFilter, needsAckOnly]);
+  }, [results, headerSearchQuery, modalityFilter, awaitingReviewOnly]);
 
   const totalPages = Math.max(1, Math.ceil(filteredResults.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -1466,7 +1474,7 @@ const useIdexxWorkspacePage = () => {
     () => ({
       totalResults: results.length,
       censusCount: censusEntries.length,
-      needsAckCount: results.filter(resultNeedsAck).length,
+      awaitingReviewCount: results.filter(resultAwaitingReview).length,
     }),
     [results, censusEntries.length]
   );
@@ -1479,8 +1487,8 @@ const useIdexxWorkspacePage = () => {
     setAutoRefresh,
     modalityFilter,
     setModalityFilter,
-    needsAckOnly,
-    setNeedsAckOnly,
+    awaitingReviewOnly,
+    setAwaitingReviewOnly,
     pageSize,
     setPageSize,
     page: currentPage,
@@ -1563,11 +1571,11 @@ const IdexxWorkspacePage = () => {
     ? s.actions.getAppointmentLabsHref(s.activeResultDetail)
     : '';
   const subtitleSuffix =
-    s.summary.needsAckCount > 0 ? (
+    s.summary.awaitingReviewCount > 0 ? (
       <>
         {' · '}
         <span className="font-medium text-text-primary">
-          {s.summary.needsAckCount} results need acknowledgement
+          {s.summary.awaitingReviewCount} results awaiting review
         </span>
       </>
     ) : null;
@@ -1635,13 +1643,13 @@ const IdexxWorkspacePage = () => {
 
       <ModalityPills
         modalityFilter={s.modalityFilter}
-        needsAckOnly={s.needsAckOnly}
+        awaitingReviewOnly={s.awaitingReviewOnly}
         onSelectModality={(value) => {
           s.setModalityFilter(value);
           s.setPage(1);
         }}
-        onToggleNeedsAck={() => {
-          s.setNeedsAckOnly((prev) => !prev);
+        onToggleAwaitingReview={() => {
+          s.setAwaitingReviewOnly((prev) => !prev);
           s.setPage(1);
         }}
       />
