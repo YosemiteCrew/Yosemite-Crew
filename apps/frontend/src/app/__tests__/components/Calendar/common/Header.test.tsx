@@ -74,23 +74,24 @@ describe('Header Component', () => {
     const viewSelector = screen.getByRole('button', { name: /week/i });
     const zoomInButton = screen.getByTitle('Zoom in timeline');
 
+    // Design order: date -> view segmented pill -> status -> emergencies -> new appointment -> zoom.
     expect(datepicker.compareDocumentPosition(monthLabel)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(monthLabel.compareDocumentPosition(statusButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(monthLabel.compareDocumentPosition(viewSelector)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(viewSelector.compareDocumentPosition(statusButton)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING
+    );
     expect(statusButton.compareDocumentPosition(emergenciesPill)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
     expect(emergenciesPill.compareDocumentPosition(addAppointmentButton)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
-    expect(addAppointmentButton.compareDocumentPosition(viewSelector)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING
-    );
-    expect(viewSelector.compareDocumentPosition(zoomInButton)).toBe(
+    expect(addAppointmentButton.compareDocumentPosition(zoomInButton)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING
     );
   });
 
-  it('renders the emergency pill with semantic styles and a stateful filled warning icon', () => {
+  it('renders the emergency pill as a slim danger-outlined pill with a leading dot', () => {
     const { rerender } = render(
       <Header
         {...defaultProps}
@@ -101,21 +102,18 @@ describe('Header Component', () => {
       />
     );
 
-    const inactiveIcon = screen.getByRole('button', { name: 'Emergencies' }).querySelector('svg');
+    // Design recipe: rounded-full pill, no icon glyph, danger tokens, transparent when inactive.
     const inactivePill = screen.getByRole('button', { name: 'Emergencies' });
+    expect(inactivePill).toHaveClass('rounded-full!');
+    expect(inactivePill).not.toHaveClass('h-12');
+    expect(inactivePill.querySelector('svg')).toBeNull();
+    expect(inactivePill.getAttribute('style')).toContain('background-color: transparent');
+    expect(inactivePill.getAttribute('style')).toContain('border-color: var(--danger-border)');
+    expect(inactivePill.getAttribute('style')).toContain('color: var(--danger-text)');
+    // Top-right presence dot uses --danger with a --screen outline.
     const inactiveDot = getEmergencyDot(inactivePill);
-    expect(inactivePill).toHaveClass('h-12');
-    expect(inactivePill).toHaveStyle({
-      backgroundColor: 'var(--color-neutral-0)',
-      borderColor: 'var(--color-neutral-500)',
-      color: 'var(--color-neutral-700)',
-    });
-    expect(inactivePill).toHaveClass('text-body-4');
-    expect(inactiveIcon).toHaveAttribute('color', 'var(--color-neutral-700)');
-    expect(inactiveDot.getAttribute('style')).toContain(
-      'background-color: var(--color-semantic-error-700)'
-    );
-    expect(inactiveDot.getAttribute('style')).toContain('outline: 2px solid white');
+    expect(inactiveDot.getAttribute('style')).toContain('background-color: var(--danger)');
+    expect(inactiveDot.getAttribute('style')).toContain('outline: 2px solid var(--screen)');
 
     rerender(
       <Header
@@ -127,19 +125,10 @@ describe('Header Component', () => {
       />
     );
 
+    // Active emergency filter fills with the danger-bg tint and keeps the danger text class.
     const activePill = screen.getByRole('button', { name: 'Emergencies' });
-    const activeIcon = activePill.querySelector('svg');
-    const activeDot = getEmergencyDot(activePill);
-    expect(activePill).toHaveStyle({
-      backgroundColor: 'var(--color-semantic-error-100)',
-      borderColor: 'var(--color-semantic-error-500)',
-      color: 'var(--color-semantic-error-700)',
-    });
-    expect(activeIcon).toHaveAttribute('color', 'var(--color-semantic-error-700)');
-    expect(activeDot.getAttribute('style')).toContain(
-      'background-color: var(--color-semantic-error-700)'
-    );
-    expect(activeDot.getAttribute('style')).toContain('outline: 2px solid white');
+    expect(activePill.getAttribute('style')).toContain('background-color: var(--danger-bg)');
+    expect(activePill).toHaveClass('text-danger-500!');
   });
 
   it('keeps the calendar header sticky at the top of the planner', () => {
@@ -239,8 +228,8 @@ describe('Header Component', () => {
   it('shows the neutral status trigger style when the selected option has no background', () => {
     render(<Header {...defaultProps} activeStatus="all" statusOptions={statusOptions} />);
 
-    const trigger = screen.getByRole('button', { name: /Status/i });
-    expect(trigger).toHaveStyle({ borderColor: 'var(--color-card-border)' });
+    const trigger = screen.getByRole('button', { name: /All statuses/i });
+    expect(trigger).toHaveStyle({ borderColor: 'var(--hairline)' });
   });
 
   // Trigger + open panel both render the label text; when open there are two matches.
@@ -344,7 +333,7 @@ describe('Header Component', () => {
     render(<Header {...defaultProps} zoomMode="out" setZoomMode={setZoomMode} />);
 
     const zoomOutButton = screen.getByTitle('Zoom out timeline');
-    expect(zoomOutButton).toHaveClass('bg-white');
+    expect(zoomOutButton).toHaveClass('bg-neutral-0');
 
     fireEvent.click(screen.getByTitle('Zoom in timeline'));
     expect(setZoomMode).toHaveBeenCalledWith('in');
