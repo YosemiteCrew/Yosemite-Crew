@@ -1,7 +1,7 @@
 import type { Router } from "express";
 
-const authorizeCognito = jest.fn((_req, _res, next) => next());
-const authorizeCognitoMobile = jest.fn((_req, _res, next) => next());
+const requireWebAuth = jest.fn((_req, _res, next) => next());
+const requireMobileAuth = jest.fn((_req, _res, next) => next());
 const withOrgPermissions = jest.fn(() => jest.fn((_req, _res, next) => next()));
 const requirePermission = jest.fn(() => jest.fn((_req, _res, next) => next()));
 
@@ -25,8 +25,8 @@ const WorkspaceController = {
 };
 
 jest.mock("src/middlewares/auth", () => ({
-  authorizeCognito,
-  authorizeCognitoMobile,
+  requireWebAuth,
+  requireMobileAuth,
 }));
 
 jest.mock("src/middlewares/rbac", () => ({
@@ -128,52 +128,52 @@ describe("workspace.router", () => {
     );
 
     expect(appointmentRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(
       appointmentDocumentsRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognito);
+    ).toContain(requireWebAuth);
     expect(encounterRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(
       encounterDocumentsRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognito);
+    ).toContain(requireWebAuth);
     expect(finalizationGateRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(
       companionDocumentsRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognito);
+    ).toContain(requireWebAuth);
     expect(companionMedicalRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(treatmentItemsRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(
       treatmentItemsCreateRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognito);
+    ).toContain(requireWebAuth);
     expect(
       treatmentItemsUpdateRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognito);
+    ).toContain(requireWebAuth);
     expect(
       treatmentItemsDeleteRoute?.stack.map((layer) => layer.handle),
-    ).toContain(authorizeCognito);
+    ).toContain(requireWebAuth);
     expect(packetCreateRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(packetPdfRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(packetGetRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(packetSignRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognito,
+      requireWebAuth,
     );
     expect(mobilePacketPdfRoute?.stack.map((layer) => layer.handle)).toContain(
-      authorizeCognitoMobile,
+      requireMobileAuth,
     );
     expect(withOrgPermissions).toHaveBeenCalledTimes(16);
     expect(requirePermission).toHaveBeenCalled();

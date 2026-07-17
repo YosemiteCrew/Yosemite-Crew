@@ -57,6 +57,17 @@ describe('taskService', () => {
         (isTokenExpired as jest.Mock).mockReturnValue(true);
         await expect(taskApi.list()).rejects.toThrow('Your session expired');
       });
+
+      it('checks token expiry with undefined expiry when expiry is missing', async () => {
+        (getFreshStoredTokens as jest.Mock).mockResolvedValue({
+          accessToken: mockAccessToken,
+        });
+        (apiClient.get as jest.Mock).mockResolvedValue({data: []});
+
+        await taskApi.list();
+
+        expect(isTokenExpired).toHaveBeenCalledWith(undefined);
+      });
     });
 
     describe('resolveDateParts (implicitly tested via mapApiTaskToTask)', () => {
@@ -113,16 +124,33 @@ describe('taskService', () => {
         expect(task.attachments[1].id).toBe('just-name.png');
       });
 
+      it('guesses additional attachment MIME types and unknown extensions', () => {
+        const task = mapApiTaskToTask({
+          attachments: [
+            {name: 'scan.webp'},
+            {name: 'notes.doc'},
+            {name: 'archive.bin'},
+          ],
+        });
+
+        expect(task.attachments[0].type).toBe('image/webp');
+        expect(task.attachments[1].type).toBe('application/msword');
+        expect(task.attachments[2].type).toBeUndefined();
+      });
+
       it('uses provided viewUrl/downloadUrl or falls back to uri/cdn', () => {
         const apiData = {
           attachments: [
             {key: 'abc', viewUrl: 'http://view', downloadUrl: 'http://dl'},
             {uri: 'http://uri'}, // no key
+            {},
           ],
         };
         const task = mapApiTaskToTask(apiData);
         expect(task.attachments[0].viewUrl).toBe('http://view');
         expect(task.attachments[1].uri).toBe('http://uri');
+        expect(task.attachments[2].downloadUrl).toBeNull();
+        expect(task.attachments[2].viewUrl).toBeNull();
       });
     });
   });
@@ -222,11 +250,76 @@ describe('taskService', () => {
         expect(result.details.dosages?.[1].time).toMatch(/^\d{2}:\d{2}$/);
       });
 
+      it('uses fallback dose ids, labels, and times when dose fields are missing', () => {
+        const apiTask = {
+          category: 'MEDICATION',
+          dueAt: '2025-01-01T10:00:00Z',
+          medication: {
+            dosage: 'fallback dosage',
+            doses: [{time: null}, {}],
+          },
+        };
+
+        const result = mapApiTaskToTask(apiTask);
+
+        expect(result.details.dosages?.[0]).toEqual(
+          expect.objectContaining({
+            id: 'dose-1',
+            label: 'fallback dosage',
+          }),
+        );
+        expect(result.details.dosages?.[1]).toEqual(
+          expect.objectContaining({
+            id: 'dose-2',
+            label: 'fallback dosage',
+          }),
+        );
+      });
+
+      it('uses default dose labels and no dosages when medication dates cannot produce a time', () => {
+        const result = mapApiTaskToTask({
+          category: 'MEDICATION',
+          dueAt: 'not-a-date',
+          medication: {},
+        });
+
+        expect(result.details.dosages).toEqual([]);
+      });
+
+      it('uses the default label for fallback medication dosage', () => {
+        const result = mapApiTaskToTask({
+          category: 'MEDICATION',
+          dueAt: '2025-01-01T10:00:00Z',
+          medication: {},
+        });
+
+        expect(result.details.dosages?.[0].label).toBe('Dose');
+      });
+
+      it('returns undefined for malformed dose times', () => {
+        const result = mapApiTaskToTask({
+          category: 'MEDICATION',
+          medication: {
+            doses: [
+              {time: '2025-01-01Tbad'},
+              {time: '9:'},
+              {time: 'not-a-time'},
+            ],
+          },
+        });
+
+        expect(result.details.dosages?.map((dose: any) => dose.time)).toEqual([
+          undefined,
+          undefined,
+          undefined,
+        ]);
+      });
+
       it('handles End Date mapping in medication details', () => {
         // Valid end date
         const apiTaskValid = {
           category: 'MEDICATION',
-          recurrence: {endDate: '2025-12-31T00:00:00Z'},
+          recurrence: {endDate: '2025-12-31T00:00:00'},
         };
         const resValid = mapApiTaskToTask(apiTaskValid);
         expect(resValid.details.endDate).toContain('2025-12-31');
@@ -238,6 +331,13 @@ describe('taskService', () => {
         };
         const resInvalid = mapApiTaskToTask(apiTaskInvalid);
         expect(resInvalid.details.endDate).toBeUndefined();
+
+        const apiTaskWithTime = {
+          category: 'MEDICATION',
+          recurrence: {endDate: '2025-12-31T12:30:00'},
+        };
+        const resWithTime = mapApiTaskToTask(apiTaskWithTime);
+        expect(resWithTime.details.endDate).toContain('2025-12-31');
       });
     });
 
@@ -253,6 +353,21 @@ describe('taskService', () => {
         expect(result.details.taskType).toBe('take-observational-tool');
         expect(result.details.toolType).toBe('tool-xyz');
         expect(result.details.chronicConditionType).toBe('Diabetes');
+      });
+
+      it('falls back to raw/default observation tool ids', () => {
+        (resolveObservationToolIdSync as jest.Mock).mockReturnValueOnce(null);
+        const rawResult = mapApiTaskToTask({
+          category: 'OBSERVATION_TOOL',
+          observationToolId: 'raw-tool',
+        });
+        expect(rawResult.details.toolType).toBe('raw-tool');
+
+        (resolveObservationToolIdSync as jest.Mock).mockReturnValueOnce(null);
+        const defaultResult = mapApiTaskToTask({
+          category: 'OBSERVATION_TOOL',
+        });
+        expect(defaultResult.details.toolType).toBe('observational-tool');
       });
     });
   });
@@ -310,6 +425,16 @@ describe('taskService', () => {
         companionId: 'c1',
       });
       expect(payload.reminder?.offsetMinutes).toBe(30);
+
+      const invalidOptionPayload = buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          reminderEnabled: true,
+          reminderOptions: 'invalid-option' as any,
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+      expect(invalidOptionPayload.reminder?.offsetMinutes).toBe(30);
     });
 
     it('maps Medication Payload (Health Type)', () => {
@@ -366,6 +491,161 @@ describe('taskService', () => {
       checkFreq('weekly', 'WEEKLY');
       checkFreq('monthly', 'WEEKLY'); // Falls back to WEEKLY per code logic
       checkFreq('once', 'ONCE');
+      checkFreq(undefined, 'ONCE');
+      checkFreq('every-day', 'DAILY');
+      checkFreq('something-else', 'ONCE');
+    });
+
+    it('falls back across task date, title, description, category, and time fields', () => {
+      const payload = buildTaskDraftFromForm({
+        formData: {
+          description: 'Description title',
+          startDate: new Date('2025-06-06T00:00:00'),
+          reminderEnabled: false,
+          category: 'hygiene',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(payload.category).toBe('HYGIENE');
+      expect(payload.name).toBe('Description title');
+      expect(payload.dueAt).toBe(new Date('2025-06-06T00:00:00').toISOString());
+    });
+
+    it('maps dietary category and recurrence end date', () => {
+      const payload = buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          category: 'dietary',
+          endDate: new Date('2025-07-07T00:00:00'),
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(payload.category).toBe('DIET');
+      expect(payload.recurrence?.endDate).toContain('2025-07-07');
+    });
+
+    it('uses fallback task name and timezone when Intl timezone resolution fails', () => {
+      const originalDateTimeFormat = Intl.DateTimeFormat;
+      const dateTimeFormatMock = jest.fn(() => {
+        throw new Error('Intl unavailable');
+      });
+      Object.defineProperty(Intl, 'DateTimeFormat', {
+        configurable: true,
+        value: dateTimeFormatMock,
+      });
+
+      const payload = buildTaskDraftFromForm({
+        formData: {
+          date: new Date('2025-08-08T00:00:00'),
+          reminderEnabled: false,
+          category: 'custom',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(payload.name).toBe('Task');
+      expect(payload.timezone).toBeNull();
+
+      Object.defineProperty(Intl, 'DateTimeFormat', {
+        configurable: true,
+        value: originalDateTimeFormat,
+      });
+    });
+
+    it('uses null timezone when Intl resolves without a timezone', () => {
+      const originalDateTimeFormat = Intl.DateTimeFormat;
+      Object.defineProperty(Intl, 'DateTimeFormat', {
+        configurable: true,
+        value: jest.fn(() => ({
+          resolvedOptions: () => ({}),
+        })),
+      });
+
+      const payload = buildTaskDraftFromForm({
+        formData: baseForm,
+        companionId: 'c1',
+      });
+
+      expect(payload.timezone).toBeNull();
+
+      Object.defineProperty(Intl, 'DateTimeFormat', {
+        configurable: true,
+        value: originalDateTimeFormat,
+      });
+    });
+
+    it('falls back to the current date when no task date is provided', () => {
+      const payload = buildTaskDraftFromForm({
+        formData: {
+          title: 'No Date',
+          reminderEnabled: false,
+          category: 'custom',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(payload.dueAt).toBeTruthy();
+    });
+
+    it('maps medication dose fallback labels and missing type', () => {
+      const payload = buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          healthTaskType: 'give-medication',
+          medicineName: 'Drops',
+          medicationFrequency: undefined,
+          dosages: [{id: 'dose-1', label: '', time: undefined}],
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(payload.medication?.type).toBeUndefined();
+      expect((payload.medication as any).doses[0]).toEqual({
+        dosage: 'Dose 1',
+        time: undefined,
+      });
+      expect(payload.medication?.frequency).toBe('ONCE');
+    });
+
+    it('omits medication doses when no dosage schedule is provided', () => {
+      const payload = buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          healthTaskType: 'give-medication',
+          medicineName: 'Drops',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect((payload.medication as any).doses).toBeUndefined();
+    });
+
+    it('uses form observationalTool when explicit observationToolId is not provided', () => {
+      buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          healthTaskType: 'take-observational-tool',
+          observationalTool: 'form-tool-id',
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(resolveObservationToolIdSync).toHaveBeenCalledWith('form-tool-id');
+    });
+
+    it('passes null when no observation tool id is available', () => {
+      buildTaskDraftFromForm({
+        formData: {
+          ...baseForm,
+          healthTaskType: 'take-observational-tool',
+          observationalTool: undefined,
+        } as unknown as TaskFormData,
+        companionId: 'c1',
+      });
+
+      expect(resolveObservationToolIdSync).toHaveBeenCalledWith(null);
     });
 
     it('handles attachments in form data', () => {

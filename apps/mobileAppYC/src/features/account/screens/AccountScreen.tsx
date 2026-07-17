@@ -6,13 +6,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   BackHandler,
   Alert,
   Platform,
   ToastAndroid,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useDispatch, useSelector} from 'react-redux'; // Import useSelector
@@ -43,10 +43,7 @@ import {
   isTokenExpired,
 } from '@/features/auth/sessionManager';
 import {deleteParentProfile} from '@/features/account/services/profileService';
-import {
-  deleteAmplifyAccount,
-  deleteFirebaseAccount,
-} from '@/features/auth/services/accountDeletion';
+import {deleteSupertokensAccount} from '@/features/auth/services/accountDeletion';
 import {normalizeImageUri} from '@/shared/utils/imageUri';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 
@@ -72,15 +69,45 @@ type MenuItem = {
 
 const EMPTY_ACCESS_MAP: Record<string, ParentCompanionAccess> = {};
 
+const getInitial = (name: string, fallback: string) => {
+  const trimmed = name?.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+  return trimmed.charAt(0).toUpperCase();
+};
+
+const deriveDeletionErrorMessage = (error: unknown): string => {
+  let baseMessage: string;
+  if (error instanceof Error) {
+    baseMessage = error.message;
+  } else if (typeof error === 'string') {
+    baseMessage = error;
+  } else {
+    baseMessage = 'Failed to delete your account. Please try again.';
+  }
+
+  const normalized = baseMessage.toLowerCase();
+  if (
+    normalized.includes('recent login') ||
+    normalized.includes('requires-recent-login') ||
+    normalized.includes('reauthenticate')
+  ) {
+    return 'For security reasons, please sign out, sign back in, and then try deleting your account again.';
+  }
+
+  return baseMessage || 'Failed to delete your account. Please try again.';
+};
+
 export const AccountScreen: React.FC<Props> = ({navigation}) => {
   const {theme} = useTheme();
-  const {logout, provider} = useAuth();
+  const {logout} = useAuth();
   const dispatch = useDispatch<AppDispatch>();
   const authUser = useSelector(selectAuthUser);
   const {weightUnit} = usePreferences();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const deleteSheetRef = React.useRef<DeleteAccountBottomSheetRef>(null);
-  const [isDeleteSheetOpen, setIsDeleteSheetOpen] = useState(false);
+  const isDeleteSheetOpenRef = React.useRef(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [failedProfileImages, setFailedProfileImages] = useState<
     Record<string, boolean>
@@ -90,9 +117,6 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
   );
   const handleProfileImageError = React.useCallback((id: string) => {
     setFailedProfileImages(prev => {
-      if (prev[id]) {
-        return prev;
-      }
       return {...prev, [id]: true};
     });
   }, []);
@@ -190,15 +214,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     weightUnit,
   ]); // Re-run when companions or weightUnit change
 
-  const getInitial = (name: string, fallback: string) => {
-    const trimmed = name?.trim();
-    if (!trimmed) {
-      return fallback;
-    }
-    return trimmed.charAt(0).toUpperCase();
-  };
-
-  const renderProfileAvatar = (profile: CompanionProfile, index: number) => {
+  const buildProfileAvatar = (profile: CompanionProfile, index: number) => {
     const isUserProfile = index === 0;
     const hasRemoteImage = Boolean(profile.remoteUri && profile.avatar);
     const shouldShowImage =
@@ -249,9 +265,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
-        if (isDeleteSheetOpen) {
+        if (isDeleteSheetOpenRef.current) {
           deleteSheetRef.current?.close();
-          setIsDeleteSheetOpen(false);
+          isDeleteSheetOpenRef.current = false;
           return true;
         }
         return false;
@@ -259,34 +275,12 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     );
 
     return () => backHandler.remove();
-  }, [isDeleteSheetOpen]);
-
-  const handleDeletePress = React.useCallback(() => {
-    setIsDeleteSheetOpen(true);
-    deleteSheetRef.current?.open();
   }, []);
 
-  const deriveDeletionErrorMessage = (error: unknown): string => {
-    let baseMessage: string;
-    if (error instanceof Error) {
-      baseMessage = error.message;
-    } else if (typeof error === 'string') {
-      baseMessage = error;
-    } else {
-      baseMessage = 'Failed to delete your account. Please try again.';
-    }
-
-    const normalized = baseMessage.toLowerCase();
-    if (
-      normalized.includes('recent login') ||
-      normalized.includes('requires-recent-login') ||
-      normalized.includes('reauthenticate')
-    ) {
-      return 'For security reasons, please sign out, sign back in, and then try deleting your account again.';
-    }
-
-    return baseMessage || 'Failed to delete your account. Please try again.';
-  };
+  const handleDeletePress = React.useCallback(() => {
+    isDeleteSheetOpenRef.current = true;
+    deleteSheetRef.current?.open();
+  }, []);
 
   const handleDeleteAccount = React.useCallback(async () => {
     if (!authUser?.parentId) {
@@ -304,13 +298,9 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
 
       await deleteParentProfile(authUser.parentId, accessToken);
 
-      if (provider === 'amplify') {
-        await deleteAmplifyAccount();
-      } else if (provider === 'firebase') {
-        await deleteFirebaseAccount();
-      }
+      await deleteSupertokensAccount();
 
-      setIsDeleteSheetOpen(false);
+      isDeleteSheetOpenRef.current = false;
       await logout();
     } catch (error) {
       const message = deriveDeletionErrorMessage(error);
@@ -319,7 +309,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
     } finally {
       setIsDeletingAccount(false);
     }
-  }, [authUser?.parentId, logout, provider]);
+  }, [authUser?.parentId, logout]);
 
   const handleLogoutPress = React.useCallback(() => {
     logout().catch(error => {
@@ -420,7 +410,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                           styles.companionRowDivider,
                       ]}>
                       <View style={styles.companionInfo}>
-                        {renderProfileAvatar(profile, index)}
+                        {buildProfileAvatar(profile, index)}
                         <View>
                           <Text
                             style={styles.companionName}
@@ -439,7 +429,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                         </View>
                       </View>
                       {/* Edit Button with conditional navigation */}
-                      <TouchableOpacity
+                      <PressableOpacity
                         activeOpacity={0.7}
                         style={styles.editButton}
                         onPress={() => {
@@ -484,7 +474,7 @@ export const AccountScreen: React.FC<Props> = ({navigation}) => {
                           source={Images.blackEdit}
                           style={styles.editIcon}
                         />
-                      </TouchableOpacity>
+                      </PressableOpacity>
                     </View>
                   ))}
                 </LiquidGlassCard>

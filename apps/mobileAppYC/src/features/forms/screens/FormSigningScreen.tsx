@@ -120,7 +120,7 @@ export const FormSigningScreen: React.FC = () => {
       .catch(() => {});
   }, [signingUrl]);
 
-  const renderContent = () => {
+  const buildContent = () => {
     if (!signingUrl) {
       return (
         <View style={styles.centered}>
@@ -194,7 +194,7 @@ export const FormSigningScreen: React.FC = () => {
       contentPadding={theme.spacing['3']}>
       {contentPaddingStyle => (
         <View style={[styles.container, contentPaddingStyle]}>
-          <View style={styles.surface}>{renderContent()}</View>
+          <View style={styles.surface}>{buildContent()}</View>
         </View>
       )}
     </LiquidGlassHeaderScreen>

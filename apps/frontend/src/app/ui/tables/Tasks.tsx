@@ -1,7 +1,6 @@
 import React from 'react';
 import GenericTable from '@/app/ui/tables/GenericTable/GenericTable';
-import { IoEyeOutline } from 'react-icons/io5';
-import { MdOutlineAutorenew } from 'react-icons/md';
+import { IoEyeOutline, IoSyncOutline } from 'react-icons/io5';
 import { IoIosCalendar } from 'react-icons/io';
 import TaskCard from '@/app/ui/cards/TaskCard';
 import { getFormattedDate } from '@/app/features/appointments/components/Calendar/weekHelpers';
@@ -18,6 +17,7 @@ import { getTaskStatusStyle } from '@/app/ui/tables/tableUtils';
 import './DataTable.css';
 import { toTitleCase } from '@/app/lib/validators';
 import { useMemberMap } from '@/app/hooks/useMemberMap';
+import PaginatedCardList from '@/app/ui/tables/PaginatedCardList';
 
 type Column<T> = {
   label: string;
@@ -136,6 +136,7 @@ const Tasks = ({
               <button
                 type="button"
                 onClick={() => handleViewTask(item)}
+                aria-label={`View task ${item.name}`}
                 className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                 title="View task"
               >
@@ -147,10 +148,11 @@ const Tasks = ({
                 <button
                   type="button"
                   onClick={() => handleChangeStatusTask(item)}
+                  aria-label={`Change status for ${item.name}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Change status"
                 >
-                  <MdOutlineAutorenew size={18} color="var(--color-neutral-900)" />
+                  <IoSyncOutline size={18} color="var(--color-neutral-900)" />
                 </button>
               </GlassTooltip>
             )}
@@ -159,6 +161,7 @@ const Tasks = ({
                 <button
                   type="button"
                   onClick={() => handleRescheduleTask(item)}
+                  aria-label={`Reschedule ${item.name}`}
                   className="hover:shadow-[0_0_8px_0_rgba(0,0,0,0.16)] size-10 rounded-full! border border-black-text! flex items-center justify-center cursor-pointer"
                   title="Reschedule"
                 >
@@ -184,29 +187,24 @@ const Tasks = ({
           tableClassName="tasks-table-fixed"
         />
       </div>
-      <div className="xl:hidden h-full min-h-0 overflow-y-auto pr-1 pb-2 flex gap-4 sm:gap-6 flex-wrap content-start">
-        {(() => {
-          if (filteredList.length === 0) {
-            return (
-              <div className="w-full py-6 flex items-center justify-center text-body-4 text-text-primary">
-                No data available
-              </div>
-            );
-          }
-          return filteredList.map((item: Task, i) => (
-            <TaskCard
-              key={item.name + i}
-              item={item}
-              assignedByLabel={getMemberNameById(item.assignedBy)}
-              assignedToLabel={getMemberNameById(item.assignedTo)}
-              handleViewTask={handleViewTask}
-              handleChangeStatusTask={handleChangeStatusTask}
-              handleRescheduleTask={handleRescheduleTask}
-              canEditTasks={canEditTasks}
-            />
-          ));
-        })()}
-      </div>
+      <PaginatedCardList
+        items={filteredList}
+        pageSize={small ? 5 : 10}
+        className="xl:hidden"
+        listClassName="pb-2"
+        renderCard={(item: Task, i) => (
+          <TaskCard
+            key={item.name + i}
+            item={item}
+            assignedByLabel={getMemberNameById(item.assignedBy)}
+            assignedToLabel={getMemberNameById(item.assignedTo)}
+            handleViewTask={handleViewTask}
+            handleChangeStatusTask={handleChangeStatusTask}
+            handleRescheduleTask={handleRescheduleTask}
+            canEditTasks={canEditTasks}
+          />
+        )}
+      />
     </div>
   );
 };

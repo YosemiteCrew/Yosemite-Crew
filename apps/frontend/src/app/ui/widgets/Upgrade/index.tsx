@@ -42,9 +42,7 @@ const Upgrade = () => {
       </div>
       <CenterModal showModal={selectPopup} setShowModal={setSelectPopup} onClose={handleCancel}>
         <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
+          <div className="size-8" aria-hidden="true" />
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">Select billing cycle</div>
           </div>
@@ -72,7 +70,7 @@ const Upgrade = () => {
             <div className="text-caption-1 text-text-secondary">Price in EUR</div>
           </div>
         </div>
-        <div className="p-3 flex flex-col items-center justify-center gap-3 w-full rounded-2xl! border border-grey-light!">
+        <div className="p-3 flex flex-col items-center justify-center gap-3 w-full rounded-2xl! border border-card-border!">
           <div className={`text-body-4 text-text-primary`}>Business plan</div>
           <div className="flex gap-2 items-end">
             <p className={`text-display-1 text-text-primary`}>

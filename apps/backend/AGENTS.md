@@ -1,4 +1,4 @@
-# Backend — Agent Rules
+# Backend - Agent Rules
 
 Inherits all root `AGENTS.md` rules. This file adds backend-specific rules.
 
@@ -17,7 +17,7 @@ Router → Controller → Service → Model
 - Routers: only route registration.
 - Controllers: input validation + response shaping. No business logic.
 - Services: all business logic. Never import `req`/`res` here.
-- Models: Mongoose schemas. Prisma for migrations.
+- Models: Prisma (Postgres) is the source of truth for all persistence (schema in `../../packages/database/prisma/schema.prisma`). Files under `src/models/` are legacy and being retired — never add new ones.
 
 ---
 
@@ -39,7 +39,7 @@ const result = Schema.safeParse(req.body); // handle errors gracefully
 Use **Winston** only. No `console.log` in production code.
 
 ```ts
-import logger from "@/lib/logger";
+import logger from "../utils/logger"; // relative to your file, e.g. src/utils/logger.ts
 logger.info("message", { context });
 logger.error("message", { error });
 ```
@@ -55,29 +55,38 @@ await emailQueue.add("send-reminder", { appointmentId });
 // Worker in src/workers/ processes it asynchronously
 ```
 
-Make workers idempotent — jobs may be retried.
+Make workers idempotent - jobs may be retried.
 
 ---
 
 ## Healthcare Data
 
-- Use FHIR types from `@yosemite-crew/fhir` — never invent custom health data shapes.
+- Use FHIR (Fast Healthcare Interoperability Resources) types from `@yosemite-crew/fhir` - never invent custom health data shapes.
 - IDEXX and Merck integrations: extend `src/integrations/`, never inline in controllers.
 
 ---
 
 ## Auth
 
-AWS Cognito + `jsonwebtoken` + `jwks-rsa`. Never roll custom auth flows.
+SuperTokens sits behind the provider-neutral boundary in `packages/auth`
+(#1672); product code uses `requireWebAuth`/`requireMobileAuth` and never
+imports a provider SDK. For web/PIMS, SuperTokens session auth is initialized
+in `src/app.ts` via `@yosemite-crew/auth` and handles the staff session.
+Mobile authenticates with **AWS Cognito or Firebase**: `authorizeCognitoMobile`
+(`src/middlewares/auth.ts`) inspects the token issuer and verifies Cognito
+tokens with `jsonwebtoken` + `jwks-rsa`, or Firebase tokens (issuer
+`securetoken.google.com`, used by social login) via Firebase Admin. Never drop
+the Firebase path - it would reject existing social-login users. Add web auth
+changes on the SuperTokens side. Never roll custom auth flows.
 
 ---
 
 ## What NOT to Do
 
-- No raw MongoDB queries outside the model/service layer.
+- No raw database queries outside the model/service layer.
 - No business logic in controllers or routers.
-- No `console.log` — use Winston.
+- No `console.log` - use Winston.
 - No synchronous processing of work that should be queued.
-- Never re-initialize Firebase Admin SDK in a handler — it's a singleton.
+- Never re-initialize Firebase Admin SDK in a handler - it's a singleton.
 - Always verify Stripe webhook signatures before processing.
-- No more usage of Mongodb or Mongoose anymore for new code
+- All new persistence goes through Prisma (`packages/database`)

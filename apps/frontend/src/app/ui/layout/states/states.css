@@ -1,0 +1,87 @@
+/* ==========================================================================
+   Global state screens — 404, permission-denied, filtered-empty.
+   Each is a --screen card (hairline, radius-20, sh05 + sh08), centered.
+   Warm-bone tokens; light + dark resolve via the shared token layer.
+   ========================================================================== */
+
+.yc-state-wrap {
+  display: flex;
+  min-height: 70vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.yc-state-card {
+  display: flex;
+  width: 100%;
+  max-width: 460px;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 0 auto;
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  background: var(--screen);
+  box-shadow:
+    0 1px 2px var(--sh05),
+    0 12px 30px var(--sh08);
+  padding: 34px 28px 30px;
+  text-align: center;
+}
+
+.yc-state-404 {
+  color: var(--ink);
+  font-size: 56px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.yc-state-icon {
+  display: inline-flex;
+  width: 60px;
+  height: 60px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.yc-state-icon--warn {
+  border: 1px solid var(--warn-border);
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.yc-state-icon--blue {
+  background: var(--blue-soft);
+  color: var(--blue-text);
+}
+
+.yc-state-title {
+  color: var(--ink);
+  font-family: var(--font-satoshi);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.yc-state-text {
+  max-width: 40ch;
+  margin: 0;
+  color: var(--ink-muted);
+  font-family: var(--font-satoshi);
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.yc-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+}

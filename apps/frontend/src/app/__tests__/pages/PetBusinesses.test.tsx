@@ -23,6 +23,7 @@ jest.mock('@/app/features/marketing/site', () => ({
   useMagnet: () => ({ current: null }),
   useParallax: () => ({ current: null }),
   HeroGlow: () => null,
+  InkAnnotate: ({ children }: any) => children,
   ctaBandContainerStyle: () => ({}),
   HERO_VIDEOS: { petBusinesses: 'petBusinesses.mp4' },
   HERO_POSTERS: { petBusinesses: 'petBusinesses.jpg' },

@@ -71,13 +71,23 @@ const SearchDropdown = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open]);
 
-  useEffect(() => {
+  const [activeIndexDeps, setActiveIndexDeps] = useState({
+    filtered,
+    open,
+    queryLength: query.length,
+  });
+  if (
+    filtered !== activeIndexDeps.filtered ||
+    open !== activeIndexDeps.open ||
+    query.length !== activeIndexDeps.queryLength
+  ) {
+    setActiveIndexDeps({ filtered, open, queryLength: query.length });
     if (!open || filtered.length === 0 || query.length < minChars) {
       setActiveIndex(-1);
-      return;
+    } else if (activeIndex < 0 || activeIndex >= filtered.length) {
+      setActiveIndex(0);
     }
-    setActiveIndex((current) => (current >= 0 && current < filtered.length ? current : 0));
-  }, [filtered, minChars, open, query.length]);
+  }
 
   const activeOptionId =
     activeIndex >= 0 && activeIndex < filtered.length
@@ -180,7 +190,7 @@ const SearchDropdown = ({
         <div
           id={listboxId}
           aria-label={accessibleLabel}
-          className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b border-t bg-white flex flex-col items-center w-full px-3 py-2.5"
+          className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
           onScroll={handleScroll}
         >
           {filtered.map((option) => (

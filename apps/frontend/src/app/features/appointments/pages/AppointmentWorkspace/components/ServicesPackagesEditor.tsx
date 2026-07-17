@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { LuCopy, LuEye, LuEyeOff, LuTrash2 } from 'react-icons/lu';
+import { IoCopyOutline, IoEyeOffOutline, IoEyeOutline, IoTrashOutline } from 'react-icons/io5';
 import SearchResultsDropdown from '@/app/features/appointments/pages/AppointmentWorkspace/components/SearchResultsDropdown';
 import WorkspaceSearchResultRow from '@/app/features/appointments/pages/AppointmentWorkspace/components/WorkspaceSearchResultRow';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
@@ -212,7 +212,7 @@ const ServicesPackagesEditor = ({
                       <span className="flex items-center gap-2 text-text-secondary">
                         <span className="truncate">{item.instructions ?? '-'}</span>
                         <CircleIconButton
-                          icon={<LuCopy aria-hidden="true" />}
+                          icon={<IoCopyOutline aria-hidden="true" />}
                           label={`Copy instructions for ${item.name}`}
                           onClick={() => copyValue(item.instructions)}
                         />
@@ -223,9 +223,9 @@ const ServicesPackagesEditor = ({
                           <CircleIconButton
                             icon={
                               expanded ? (
-                                <LuEyeOff aria-hidden="true" />
+                                <IoEyeOffOutline aria-hidden="true" />
                               ) : (
-                                <LuEye aria-hidden="true" />
+                                <IoEyeOutline aria-hidden="true" />
                               )
                             }
                             label={
@@ -239,7 +239,7 @@ const ServicesPackagesEditor = ({
                         )}
                         {!isBilled && (
                           <CircleIconButton
-                            icon={<LuTrash2 aria-hidden="true" />}
+                            icon={<IoTrashOutline aria-hidden="true" />}
                             label={`Remove ${item.name}`}
                             variant="danger"
                             disabled={deleteLocked}

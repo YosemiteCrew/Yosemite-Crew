@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   TextInputProps,
   Image,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   useColorScheme,
   Platform,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {LiquidGlassCard} from '@/shared/components/common/LiquidGlassCard/LiquidGlassCard';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
@@ -48,7 +48,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const renderReadonly = () => (
-    <TouchableOpacity
+    <PressableOpacity
       activeOpacity={0.85}
       style={styles.touchable}
       onPress={onPress}>
@@ -56,7 +56,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         <Text style={styles.placeholder} numberOfLines={1} ellipsizeMode="tail">
           {placeholder}
         </Text>
-        <TouchableOpacity
+        <PressableOpacity
           activeOpacity={0.85}
           onPress={onIconPress ?? onPress}
           hitSlop={{
@@ -66,10 +66,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             right: theme.spacing['2'],
           }}>
           <Image source={Images.searchIcon} style={styles.icon} />
-        </TouchableOpacity>
+        </PressableOpacity>
       </View>
       {rightElement}
-    </TouchableOpacity>
+    </PressableOpacity>
   );
 
   const renderInput = () => (
@@ -87,7 +87,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         multiline={false}
         numberOfLines={1}
       />
-      <TouchableOpacity
+      <PressableOpacity
         activeOpacity={0.85}
         onPress={() => {
           if (onIconPress) {
@@ -103,7 +103,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           right: theme.spacing['2'],
         }}>
         <Image source={Images.searchIcon} style={styles.icon} />
-      </TouchableOpacity>
+      </PressableOpacity>
       {rightElement}
     </View>
   );

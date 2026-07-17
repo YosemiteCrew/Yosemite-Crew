@@ -469,9 +469,7 @@ const normalizeRecurrenceScope = (value?: string): RecurrenceScope => {
 
 const getSeriesMasterId = (task: TaskRow): string | undefined => {
   const recurrence = task.recurrence as
-    | { isMaster?: boolean; masterTaskId?: string }
-    | null
-    | undefined;
+    { isMaster?: boolean; masterTaskId?: string } | null | undefined;
 
   if (recurrence?.masterTaskId) return recurrence.masterTaskId;
   if (recurrence?.isMaster) return task.id;
@@ -1327,8 +1325,7 @@ export const TaskService = {
       (template.defaultRole === "PARENT" ? "PARENT_TASK" : "EMPLOYEE_TASK");
 
     const templateMedication = (template.defaultMedication ?? undefined) as
-      | MedicationInput
-      | undefined;
+      MedicationInput | undefined;
 
     assertCompanionRequirement({
       audience,
@@ -1518,22 +1515,45 @@ export const TaskService = {
     taskId: string,
     updates: TaskUpdateInput,
     actorId: string,
-    scope: RecurrenceScope = "THIS",
+    scopeOrOrganisationId: string = "THIS",
+    organisationId?: string,
   ): Promise<TaskLike> {
-    const task = await prisma.task.findFirst({ where: { id: taskId } });
+    const inferredScope = normalizeRecurrenceScope(scopeOrOrganisationId);
+    const scope: RecurrenceScope =
+      scopeOrOrganisationId === inferredScope ? inferredScope : "THIS";
+    const orgScope = asNonEmptyString(
+      organisationId ??
+        (scope === "THIS" && scopeOrOrganisationId !== "THIS"
+          ? scopeOrOrganisationId
+          : undefined),
+    );
+    const task = await prisma.task.findFirst({
+      where: orgScope
+        ? { id: taskId, organisationId: orgScope }
+        : { id: taskId },
+    });
     if (!task) throw new TaskServiceError("Task not found", 404);
 
     const isCreator = task.createdBy === actorId;
     const isAssignee = task.assignedTo === actorId;
     assertCanUpdateTask(isCreator, isAssignee);
 
-    if (updates.assignedTo !== undefined) {
-      if (!isCreator) {
-        throw new TaskServiceError("Only task creator can reassign task", 403);
-      }
+    // Clients PATCH the whole entity, so `assignedTo` is present even when it
+    // is unchanged. Only a real change of assignee counts as a reassignment.
+    const isReassigningUser =
+      updates.assignedTo !== undefined &&
+      updates.assignedTo !== task.assignedTo;
+    if (isReassigningUser && !isCreator) {
+      throw new TaskServiceError("Only task creator can reassign task", 403);
     }
 
-    if (updates.assignedGroupId !== undefined && !isCreator) {
+    // `assignedGroupId` is nullable, so it has three input states: absent
+    // (no-op), `null` (an explicit clear, which IS a reassignment), or an id.
+    // Only an absent field or an unchanged value is exempt.
+    const isReassigningGroup =
+      updates.assignedGroupId !== undefined &&
+      updates.assignedGroupId !== task.assignedGroupId;
+    if (isReassigningGroup && !isCreator) {
       throw new TaskServiceError("Only task creator can reassign task", 403);
     }
 
@@ -1553,10 +1573,7 @@ export const TaskService = {
           assignedTo: updates.assignedTo,
           assignedGroupId: updates.assignedGroupId,
           assignedBy:
-            updates.assignedTo !== undefined ||
-            updates.assignedGroupId !== undefined
-              ? actorId
-              : undefined,
+            isReassigningUser || isReassigningGroup ? actorId : undefined,
           medication: updates.medication,
           observationToolId: updates.observationToolId,
           reminder: updates.reminder,
@@ -1569,10 +1586,7 @@ export const TaskService = {
 
       const mapped = toTaskLike(updated);
 
-      if (
-        updates.assignedTo !== undefined ||
-        updates.assignedGroupId !== undefined
-      ) {
+      if (isReassigningUser || isReassigningGroup) {
         await recordTaskAudit({
           organisationId: mapped.organisationId,
           patientId: mapped.patientId,
@@ -1696,10 +1710,7 @@ export const TaskService = {
 
     const mapped = toTaskLike(updated);
 
-    if (
-      updates.assignedTo !== undefined ||
-      updates.assignedGroupId !== undefined
-    ) {
+    if (isReassigningUser || isReassigningGroup) {
       await recordTaskAudit({
         organisationId: mapped.organisationId,
         patientId: mapped.patientId,
@@ -1796,8 +1807,14 @@ export const TaskService = {
     newStatus: TaskStatus,
     actorId: string,
     completion?: CompleteTaskInput,
+    organisationId?: string,
   ): Promise<{ task: TaskLike; completion?: TaskCompletionLike }> {
-    const task = await prisma.task.findFirst({ where: { id: taskId } });
+    const orgScope = asNonEmptyString(organisationId);
+    const task = await prisma.task.findFirst({
+      where: orgScope
+        ? { id: taskId, organisationId: orgScope }
+        : { id: taskId },
+    });
     if (!task) throw new TaskServiceError("Task not found", 404);
 
     if (task.assignedTo !== actorId && task.createdBy !== actorId) {
@@ -1853,9 +1870,15 @@ export const TaskService = {
     return mapped;
   },
 
-  async getById(taskId: string): Promise<TaskLike | null> {
+  async getById(
+    taskId: string,
+    organisationId?: string,
+  ): Promise<TaskLike | null> {
+    const orgScope = asNonEmptyString(organisationId);
     const task = await prisma.task.findFirst({
-      where: { id: taskId },
+      where: orgScope
+        ? { id: taskId, organisationId: orgScope }
+        : { id: taskId },
     });
     return task ? toTaskLike(task) : null;
   },
@@ -1903,6 +1926,7 @@ export const TaskService = {
   async listForEmployee(params: {
     organisationId: string;
     userId?: string;
+    ownerId?: string;
     patientId?: string;
     companionId?: string;
     clientId?: string;
@@ -1950,8 +1974,21 @@ export const TaskService = {
       includeCompleted: params.includeCompleted,
     });
 
+    // Own-scope: restrict to tasks the actor created OR is assigned to. This
+    // mirrors the per-task detail ownership check (createdBy === actor) so a
+    // tasks:view:own caller still sees tasks they created for someone else.
+    const ownerId = asNonEmptyString(params.ownerId);
+    const scopedWhere: Prisma.TaskWhereInput = ownerId
+      ? {
+          AND: [
+            where,
+            { OR: [{ createdBy: ownerId }, { assignedTo: ownerId }] },
+          ],
+        }
+      : where;
+
     const tasks = await prisma.task.findMany({
-      where,
+      where: scopedWhere,
       orderBy: { dueAt: "asc" },
     });
     return tasks.map(toTaskLike);

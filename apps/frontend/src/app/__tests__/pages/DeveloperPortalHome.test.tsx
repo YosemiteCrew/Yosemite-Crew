@@ -30,12 +30,15 @@ jest.mock('@/app/ui/layout/guards/DevRouteGuard/DevRouteGuard', () => ({
   default: ({ children }: any) => <div data-testid="dev-guard">{children}</div>,
 }));
 
+jest.mock('@iconify/react', () => ({
+  __esModule: true,
+  Icon: ({ icon }: any) => <span data-testid={`icon-${icon}`} />,
+}));
+
 import DeveloperPortalHome from '@/app/features/developers/pages/DeveloperPortalHome/DeveloperPortalHome';
 
-const createSession = (payload: any) => ({
-  getIdToken: () => ({
-    decodePayload: () => payload,
-  }),
+const createState = (attributes: Record<string, string>) => ({
+  attributes,
 });
 
 describe('DeveloperPortalHome page', () => {
@@ -45,7 +48,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('renders developer home content when authenticated', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({
+      ...createState({
         given_name: 'Ada',
         family_name: 'Lovelace',
       }),
@@ -54,7 +57,6 @@ describe('DeveloperPortalHome page', () => {
     render(<DeveloperPortalHome />);
 
     expect(screen.getByTestId('dev-guard')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Developer Home/i })).toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: /Welcome back, Ada Lovelace/i })
     ).toBeInTheDocument();
@@ -67,7 +69,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('shows fallback name when no user name is available', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({}),
+      ...createState({}),
     });
 
     render(<DeveloperPortalHome />);
@@ -77,7 +79,7 @@ describe('DeveloperPortalHome page', () => {
 
   test('uses email as fallback when name is not provided', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({
+      ...createState({
         email: 'test@example.com',
       }),
     });
@@ -91,19 +93,97 @@ describe('DeveloperPortalHome page', () => {
 
   test('has no axe violations', async () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     const { container } = render(<DeveloperPortalHome />);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
 
-  test('Developer Home uses h1 and Welcome back uses h2', () => {
+  test('the Welcome back greeting is the page h1 and no Developer Home heading remains', () => {
     useAuthStoreMock.mockReturnValue({
-      session: createSession({ given_name: 'Ada', family_name: 'Lovelace' }),
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
     });
     render(<DeveloperPortalHome />);
-    expect(screen.getByRole('heading', { level: 1, name: /Developer Home/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: /Welcome back/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: /Welcome back, Ada Lovelace/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Developer Home/i })).not.toBeInTheDocument();
+  });
+
+  test('quick status card shows the Next step and Portal access rows', () => {
+    useAuthStoreMock.mockReturnValue({
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
+    });
+    render(<DeveloperPortalHome />);
+    expect(screen.getByText('Quick status')).toBeInTheDocument();
+    expect(screen.getByText('Portal access')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Browse documentation →')).toBeInTheDocument();
+  });
+
+  test('renders the FHIR-native hero card with a Create an API key action', () => {
+    useAuthStoreMock.mockReturnValue({
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
+    });
+    render(<DeveloperPortalHome />);
+    expect(screen.getByText('FHIR-NATIVE API')).toBeInTheDocument();
+    expect(
+      screen.getByText(/One API for appointments, patients, and records/i)
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('secondary-Create an API key')).toHaveAttribute(
+      'href',
+      '/developers/api-keys'
+    );
+  });
+
+  test('quick status card shows the Requests 24h metric row', () => {
+    useAuthStoreMock.mockReturnValue({
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
+    });
+    render(<DeveloperPortalHome />);
+    expect(screen.getByText('Requests · 24h')).toBeInTheDocument();
+    expect(screen.getByText('4,218')).toBeInTheDocument();
+  });
+
+  test('renders all four quick links including Quickstart and GitHub', () => {
+    useAuthStoreMock.mockReturnValue({
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
+    });
+    render(<DeveloperPortalHome />);
+    expect(screen.getByText(/Quickstart · first request in 5 minutes/i)).toBeInTheDocument();
+    expect(screen.getByText('Partner with Yosemite Crew')).toBeInTheDocument();
+    expect(screen.getByText('Security & compliance')).toBeInTheDocument();
+    const github = screen.getByText('github.com/YosemiteCrew').closest('a');
+    expect(github).toHaveAttribute('href', 'https://github.com/YosemiteCrew');
+    expect(github).toHaveAttribute('target', '_blank');
+  });
+
+  test('renders the Your plugin card in review', () => {
+    useAuthStoreMock.mockReturnValue({
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
+    });
+    render(<DeveloperPortalHome />);
+    expect(screen.getByRole('heading', { name: 'Your plugin' })).toBeInTheDocument();
+    expect(screen.getByText('Anesthesia monitor sync')).toBeInTheDocument();
+    expect(screen.getByText('v0.4.1 · submitted 04 Jul')).toBeInTheDocument();
+    expect(screen.getByText('Review status').closest('a')).toHaveAttribute(
+      'href',
+      '/developers/plugins'
+    );
+  });
+
+  test('recent activity card lists request log rows with status codes', () => {
+    useAuthStoreMock.mockReturnValue({
+      ...createState({ given_name: 'Ada', family_name: 'Lovelace' }),
+    });
+    render(<DeveloperPortalHome />);
+    expect(screen.getByText(/POST \/fhir\/Appointment/)).toBeInTheDocument();
+    expect(screen.getByText('201')).toBeInTheDocument();
+    expect(screen.getByText('422')).toBeInTheDocument();
+    expect(screen.getByText(/Full request log in API keys/).closest('a')).toHaveAttribute(
+      'href',
+      '/developers/api-keys'
+    );
   });
 });

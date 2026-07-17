@@ -32,6 +32,7 @@ import {
 import {
   HeroVideo,
   HeroGlow,
+  InkAnnotate,
   Reveal,
   Spotlight,
   ReleasePill,
@@ -168,7 +169,7 @@ function Hero() {
   const winRef = useMagnet<HTMLAnchorElement>();
   const parallaxRef = useParallax<HTMLElement>();
 
-  const heroWord = (text: string, delay: string, extra?: CSSProperties): ReactNode => (
+  const heroWord = (text: ReactNode, delay: string, extra?: CSSProperties): ReactNode => (
     <span
       style={{
         display: 'inline-block',
@@ -251,11 +252,17 @@ function Hero() {
           {heroWord('The', '0.1s')}
           {heroWord('practice,', '0.22s')}
           {heroWord('on', '0.34s')}
-          {heroWord('one', '0.46s', {
-            fontStyle: 'italic',
-            fontWeight: 480,
-            color: 'var(--blue-text)',
-          })}
+          {heroWord(
+            <InkAnnotate type="circle" delay={1300}>
+              one
+            </InkAnnotate>,
+            '0.46s',
+            {
+              fontStyle: 'italic',
+              fontWeight: 480,
+              color: 'var(--blue-text)',
+            }
+          )}
           {heroWord('screen.', '0.58s')}
         </h1>
 

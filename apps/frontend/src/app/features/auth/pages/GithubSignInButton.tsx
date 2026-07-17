@@ -16,8 +16,9 @@ interface GithubSignInButtonProps {
 }
 
 /**
- * "Continue with GitHub" for developers. Renders nothing until the Cognito Hosted
- * UI + GitHub identity provider are configured, so it never shows a dead button.
+ * "Continue with GitHub" for developers. Renders nothing until the SuperTokens
+ * GitHub provider is enabled (NEXT_PUBLIC_AUTH_GITHUB_ENABLED), so it never shows
+ * a dead button.
  */
 export function GithubSignInButton({
   redirectTo = '/developers/home',

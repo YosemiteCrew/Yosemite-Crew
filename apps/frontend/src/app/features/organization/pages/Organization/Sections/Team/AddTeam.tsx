@@ -91,9 +91,7 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
     <Modal showModal={showModal} setShowModal={setShowModal}>
       <div className="flex flex-col h-full gap-6">
         <div className="flex justify-between items-center">
-          <div className="opacity-0">
-            <Close onClick={() => {}} />
-          </div>
+          <div className="size-8" aria-hidden="true" />
           <div className="flex justify-center items-center gap-2">
             <div className="text-body-1 text-text-primary">Add team</div>
           </div>
@@ -113,7 +111,6 @@ const AddTeam = ({ showModal, setShowModal }: AddTeamProps) => {
                   setFormDataErrors((prev) => ({ ...prev, email: undefined }));
                 }}
                 error={formDataErrors.email}
-                className="min-h-12!"
               />
               <MultiSelectDropdown
                 placeholder="Speciality"

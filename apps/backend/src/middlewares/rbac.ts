@@ -21,7 +21,13 @@ export interface OrgRequest extends AuthenticatedRequest {
 }
 
 /**
- * Extract orgId from params, headers, or body.
+ * Extract orgId from params, headers, query, or body.
+ *
+ * Only non-empty string identifiers are accepted. Arrays and objects are
+ * rejected so that an untrusted structured value (e.g. a body such as
+ * `{"organisationId": {"not": ""}}`) can never reach an ORM filter as a
+ * Prisma/Mongo `StringFilter` and authorize the request against an
+ * unintended organisation.
  */
 function extractOrgId(req: Request): string | null {
   return (
@@ -32,26 +38,35 @@ function extractOrgId(req: Request): string | null {
   );
 }
 
-function extractOrgIdFromParams(params: Request["params"]) {
-  return params.orgId ?? params.organisationId ?? params.organizationId ?? null;
+function normalizeOrgId(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function extractOrgIdFromHeader(headerValue: unknown) {
-  return typeof headerValue === "string" && headerValue.trim()
-    ? headerValue.trim()
-    : null;
+function extractOrgIdFromParams(params: Request["params"]): string | null {
+  return (
+    normalizeOrgId(params.orgId) ??
+    normalizeOrgId(params.organisationId) ??
+    normalizeOrgId(params.organizationId)
+  );
 }
 
-function extractOrgIdFromQuery(query: unknown): unknown {
+function extractOrgIdFromHeader(headerValue: unknown): string | null {
+  return normalizeOrgId(headerValue);
+}
+
+function extractOrgIdFromQuery(query: unknown): string | null {
   if (typeof query !== "object" || query === null || Array.isArray(query)) {
-    return undefined;
+    return null;
   }
 
   const queryRecord = query as Record<string, unknown>;
-  return queryRecord.organisationId ?? queryRecord.organizationId;
+  return (
+    normalizeOrgId(queryRecord.organisationId) ??
+    normalizeOrgId(queryRecord.organizationId)
+  );
 }
 
-function extractOrgIdFromBody(body: unknown): unknown {
+function extractOrgIdFromBody(body: unknown): string | null {
   if (Array.isArray(body)) {
     const orgIds = new Set<string>();
 
@@ -60,24 +75,22 @@ function extractOrgIdFromBody(body: unknown): unknown {
         continue;
       }
 
-      const oid = (entry as Record<string, unknown>).organisationId;
-      if (typeof oid === "string" && oid.trim()) {
-        orgIds.add(oid.trim());
+      const oid = normalizeOrgId(
+        (entry as Record<string, unknown>).organisationId,
+      );
+      if (oid) {
+        orgIds.add(oid);
       }
     }
 
-    if (orgIds.size === 1) {
-      return Array.from(orgIds)[0] ?? null;
-    }
-
-    return undefined;
+    return orgIds.size === 1 ? (Array.from(orgIds)[0] ?? null) : null;
   }
 
   if (typeof body !== "object" || body === null) {
-    return undefined;
+    return null;
   }
 
-  return (body as Record<string, unknown>).organisationId;
+  return normalizeOrgId((body as Record<string, unknown>).organisationId);
 }
 
 export function withOrgPermissions() {

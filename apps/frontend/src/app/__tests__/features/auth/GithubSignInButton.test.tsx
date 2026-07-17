@@ -24,6 +24,7 @@ describe('GithubSignInButton', () => {
     isEnabled.mockReturnValue(false);
     const { container } = render(<GithubSignInButton />);
     expect(container).toBeEmptyDOMElement();
+    expect(startGithubSignIn).not.toHaveBeenCalled();
   });
 
   it('renders the button and optional note when enabled', () => {
@@ -33,24 +34,32 @@ describe('GithubSignInButton', () => {
     expect(screen.getByText('Developer accounts only.')).toBeInTheDocument();
   });
 
-  it('redirects to the authorize URL on click', async () => {
+  it('starts the handshake and redirects to the authorisation URL on click', async () => {
     isEnabled.mockReturnValue(true);
-    startGithubSignIn.mockResolvedValue('https://cognito.example/oauth2/authorize?x=1');
+    startGithubSignIn.mockResolvedValue('https://api.example/auth/authorize?state=1');
     render(<GithubSignInButton redirectTo="/developers/home" />);
-    fireEvent.click(screen.getByRole('button', { name: /continue with github/i }));
+
+    const button = screen.getByRole('button', { name: /continue with github/i });
+    fireEvent.click(button);
+
+    // While the promise is pending the button is disabled and relabelled.
+    expect(await screen.findByRole('button', { name: /redirecting to github/i })).toBeDisabled();
+
     await waitFor(() =>
-      expect(redirectToUrl).toHaveBeenCalledWith('https://cognito.example/oauth2/authorize?x=1')
+      expect(redirectToUrl).toHaveBeenCalledWith('https://api.example/auth/authorize?state=1')
     );
     expect(startGithubSignIn).toHaveBeenCalledWith('/developers/home');
   });
 
-  it('re-enables the button when no authorize URL is produced', async () => {
+  it('re-enables the button when no authorisation URL is produced', async () => {
     isEnabled.mockReturnValue(true);
     startGithubSignIn.mockResolvedValue(null);
     render(<GithubSignInButton />);
+
     const button = screen.getByRole('button', { name: /continue with github/i });
     fireEvent.click(button);
-    await waitFor(() => expect(startGithubSignIn).toHaveBeenCalled());
+
+    await waitFor(() => expect(startGithubSignIn).toHaveBeenCalledWith('/developers/home'));
     expect(button).not.toBeDisabled();
     expect(redirectToUrl).not.toHaveBeenCalled();
   });

@@ -1,5 +1,6 @@
 'use client';
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { SetStateAction } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/app/ui/layout/guards/ProtectedRoute';
@@ -17,6 +18,7 @@ import { PermissionGate } from '@/app/ui/layout/guards/PermissionGate';
 import Fallback from '@/app/ui/overlays/Fallback';
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import MobileSearchBar from '@/app/ui/layout/MobileSearchBar/MobileSearchBar';
+import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 
 const TASKS_PAGE_SKELETON = <PageSkeleton variant="planner" />;
 
@@ -67,11 +69,31 @@ const Tasks = () => {
   const [weekStart, setWeekStart] = useState(() => startOfDay(currentDate));
   const { plannerSectionRef } = usePlannerAutoLock({ activeView });
 
-  useEffect(() => {
-    if (activeCalendar === 'week') {
-      setWeekStart(startOfDay(currentDate));
-    }
-  }, [currentDate, activeCalendar]);
+  const handleActiveCalendarChange = useCallback(
+    (next: SetStateAction<string>) => {
+      setActiveCalendar((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next;
+        if (resolved === 'week') {
+          setWeekStart(startOfDay(currentDate));
+        }
+        return resolved;
+      });
+    },
+    [currentDate]
+  );
+
+  const handleCurrentDateChange = useCallback(
+    (next: SetStateAction<Date>) => {
+      setCurrentDate((prev) => {
+        const resolved = typeof next === 'function' ? next(prev) : next;
+        if (activeCalendar === 'week') {
+          setWeekStart(startOfDay(resolved));
+        }
+        return resolved;
+      });
+    },
+    [activeCalendar]
+  );
 
   useEffect(() => {
     setActiveTask((prev) => {
@@ -133,6 +155,10 @@ const Tasks = () => {
     setAddTaskPrefill(null);
     setAddPopup(true);
   }, []);
+  // The phone FAB is rendered by PhoneShell, outside this page's tree, so it
+  // reaches the same create flow the desktop "New task" button uses via the
+  // primary-action event rather than through props.
+  usePhonePrimaryAction('task', openAddTask);
   const { wrapperClassName, plannerSectionClassName } = getPlannerLayoutClassNames({
     activeView,
     listWrapperClassName:
@@ -153,9 +179,9 @@ const Tasks = () => {
         setChangeStatusPreferredStatus={setChangeStatusPreferredStatus}
         setReschedulePopup={setReschedulePopup}
         activeCalendar={activeCalendar}
-        setActiveCalendar={setActiveCalendar}
+        setActiveCalendar={handleActiveCalendarChange}
         currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
+        setCurrentDate={handleCurrentDateChange}
         weekStart={weekStart}
         setWeekStart={setWeekStart}
         canEditTasks={canEditTasks}
@@ -167,7 +193,7 @@ const Tasks = () => {
       <TaskBoard
         tasks={filteredList}
         currentDate={currentDate}
-        setCurrentDate={setCurrentDate}
+        setCurrentDate={handleCurrentDateChange}
         canEditTasks={canEditTasks}
         setActiveTask={setActiveTask}
         setViewPopup={setViewPopup}
@@ -195,10 +221,10 @@ const Tasks = () => {
 
   return (
     <div className="flex flex-col relative">
-      <div className="flex flex-col gap-4 pl-3! pr-3! pt-3! pb-3! md:pl-5! md:pr-5! md:pt-5! md:pb-3! lg:pl-5! lg:pr-5! lg:pt-5! lg:pb-3!">
+      <div className="yc-page-content">
         <TitleCalendar
           title="Tasks"
-          description="Track to-dos with calendar views, assign pet parents and due dates, and open each task to review details and update status."
+          description="Track to-dos, assign the team or pet parents, follow through"
           setAddPopup={(next) => {
             setAddTaskPrefill(null);
             setAddPopup(next);
@@ -223,7 +249,7 @@ const Tasks = () => {
                 setActiveStatus={setActiveStatus}
                 showAddButton={canEditTasks}
                 onAddButtonClick={openAddTask}
-                addButtonText="Add"
+                addButtonText="New task"
                 compactFilterPills
               />
             )}
@@ -234,9 +260,11 @@ const Tasks = () => {
 
           <AddTask
             showModal={addPopup}
-            setShowModal={setAddPopup}
+            setShowModal={(value) => {
+              setAddPopup(value);
+              if (value === false) setAddTaskPrefill(null);
+            }}
             prefill={addTaskPrefill}
-            onPrefillConsumed={() => setAddTaskPrefill(null)}
           />
           {activeTask && viewPopup && (
             <TaskInfo

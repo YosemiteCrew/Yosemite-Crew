@@ -320,7 +320,7 @@ h1 {
   padding: 12px;
   border-radius: var(--radius-sm);
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 @media (prefers-reduced-motion: reduce) {
   .preview-panel,

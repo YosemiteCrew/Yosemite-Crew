@@ -3,7 +3,7 @@
 import React, {
   useState,
   useCallback,
-  useEffect,
+  useEffect as useReactEffect,
   useRef,
   useReducer,
 } from 'react';
@@ -12,20 +12,18 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Image,
   KeyboardAvoidingView,
   Platform,
   DeviceEventEmitter,
   BackHandler,
 } from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useForm, Controller} from 'react-hook-form';
 import {Input, Header} from '@/shared/components/common';
 import {LiquidGlassHeaderScreen} from '@/shared/components/common/LiquidGlassHeader/LiquidGlassHeaderScreen';
-import {
-  SimpleDatePicker,
-  formatDateForDisplay,
-} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {SimpleDatePicker} from '@/shared/components/common/SimpleDatePicker/SimpleDatePicker';
+import {formatDateForDisplay} from '@/shared/components/common/SimpleDatePicker/dateTimeFormat';
 import {ProfileImagePicker} from '@/shared/components/common/ProfileImagePicker/ProfileImagePicker';
 import {
   CountryMobileBottomSheet,
@@ -276,7 +274,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     mode: 'onChange',
   });
 
-  useEffect(() => {
+  useReactEffect(() => {
     register('address', {
       validate: value => {
         if (!value) {
@@ -331,7 +329,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   }, [register]);
 
   // Handle Android back button for bottom sheets
-  useEffect(() => {
+  useReactEffect(() => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
       () => {
@@ -365,7 +363,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     return () => backHandler.remove();
   }, [showDatePicker, openBottomSheet]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     let isMounted = true;
 
     const fetchLocation = async () => {
@@ -389,7 +387,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
     };
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!successBottomSheetRef.current) {
       return;
     }
@@ -689,7 +687,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
   ]);
 
   // Ensure hardware back behaves same as header back
-  useEffect(() => {
+  useReactEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       handleGoBack();
       return true;
@@ -1021,7 +1019,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                 }
                 containerStyle={styles.inputContainer}
               />
-              <TouchableOpacity
+              <PressableOpacity
                 onPress={handleOpenAgeVerificationInfo}
                 style={styles.dobInfoButton}
                 accessibilityRole="button"
@@ -1029,7 +1027,7 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                 <Text style={styles.dobInfoButtonText}>
                   {t('auth.age_verification_info_cta')}
                 </Text>
-              </TouchableOpacity>
+              </PressableOpacity>
             </>
           )}
         />
@@ -1104,13 +1102,13 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
               />
               <View style={styles.termsTextContainer}>
                 <Text style={styles.checkboxText}>I agree to the </Text>
-                <TouchableOpacity onPress={handleOpenTerms}>
+                <PressableOpacity onPress={handleOpenTerms}>
                   <Text style={styles.linkText}>terms and conditions</Text>
-                </TouchableOpacity>
+                </PressableOpacity>
                 <Text style={styles.checkboxText}> and </Text>
-                <TouchableOpacity onPress={handleOpenPrivacy}>
+                <PressableOpacity onPress={handleOpenPrivacy}>
                   <Text style={styles.linkText}>privacy policy.</Text>
-                </TouchableOpacity>
+                </PressableOpacity>
               </View>
             </View>
             {/* NEW: Error message below the row */}
@@ -1195,15 +1193,17 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
                 ref={successBottomSheetRef}
                 snapPoints={['50%', '75%']}
                 initialIndex={1}
-                enablePanDownToClose
-                enableBackdrop
+                behavior={{
+                  panDownToClose: true,
+                  backdrop: true,
+                  handlePanningGesture: true,
+                  contentPanningGesture: false,
+                  overDrag: true,
+                }}
                 backdropOpacity={0.5}
                 backdropAppearsOnIndex={0}
                 backdropDisappearsOnIndex={-1}
                 backdropPressBehavior="close"
-                enableHandlePanningGesture
-                enableContentPanningGesture={false}
-                enableOverDrag
                 backgroundStyle={styles.bottomSheetBackground}
                 handleIndicatorStyle={styles.bottomSheetHandle}
                 onChange={index => {
@@ -1244,15 +1244,17 @@ export const CreateAccountScreen: React.FC<CreateAccountScreenProps> = ({
               ref={ageVerificationInfoBottomSheetRef}
               snapPoints={['85%', '95%']}
               initialIndex={-1}
-              enablePanDownToClose
-              enableBackdrop
+              behavior={{
+                panDownToClose: true,
+                backdrop: true,
+                handlePanningGesture: true,
+                contentPanningGesture: true,
+                overDrag: true,
+              }}
               backdropOpacity={0.5}
               backdropAppearsOnIndex={0}
               backdropDisappearsOnIndex={-1}
               backdropPressBehavior="close"
-              enableHandlePanningGesture
-              enableContentPanningGesture
-              enableOverDrag
               contentType="view"
               backgroundStyle={styles.bottomSheetBackground}
               handleIndicatorStyle={styles.bottomSheetHandle}

@@ -1,7 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getJsonStorageItem, setJsonStorageItem } from '@/app/lib/browserStorage';
+import {
+  getJsonStorageItem,
+  getStorageItem,
+  setJsonStorageItem,
+  setStorageItem,
+} from '@/app/lib/browserStorage';
 import { GITHUB_API_REPO } from './assets';
 
 export interface GithubStats {
@@ -16,7 +21,17 @@ export interface GithubStats {
 }
 
 const STATS_CACHE_KEY = 'yc_marketing_stats_v1';
+const STATS_TS_KEY = 'yc_marketing_stats_ts_v1';
+const STATS_TTL_MS = 5 * 60 * 1000;
 const SELF_HOSTERS_FALLBACK = 67100;
+
+const EMPTY_STATS: GithubStats = {
+  stars: null,
+  starsFull: null,
+  selfHosters: null,
+  contributors: null,
+  discord: null,
+};
 const REPO_STATS_SUMMARY =
   'https://raw.githubusercontent.com/YosemiteCrew/Yosemite-Crew/github-repo-stats/YosemiteCrew/Yosemite-Crew/latest-report/summary.json';
 const DISCORD_INVITE_API = 'https://discord.com/api/v9/invites/yosemitecrew?with_counts=true';
@@ -52,71 +67,99 @@ const readSelfHostersTotal = (summary: unknown): number | null => {
   return null;
 };
 
+const fetchStars = async (): Promise<Partial<GithubStats>> => {
+  const repo = (await fetchJson(GITHUB_API_REPO)) as { stargazers_count?: number } | null;
+  if (typeof repo?.stargazers_count !== 'number') return {};
+  return {
+    stars: formatCompact(repo.stargazers_count),
+    starsFull: repo.stargazers_count.toLocaleString('en-US'),
+  };
+};
+
+const fetchSelfHosters = async (): Promise<Partial<GithubStats>> => {
+  const summary = await fetchJson(REPO_STATS_SUMMARY);
+  const total = readSelfHostersTotal(summary) ?? SELF_HOSTERS_FALLBACK;
+  return { selfHosters: total.toLocaleString('en-US') };
+};
+
+const fetchContributors = async (): Promise<Partial<GithubStats>> => {
+  try {
+    const res = await fetch(CONTRIBUTORS_API);
+    if (!res.ok) return {};
+    const link = res.headers.get('Link') ?? '';
+    const match = /[?&]page=(\d+)>; rel="last"/.exec(link);
+    if (!match) return {};
+    return { contributors: Number.parseInt(match[1], 10).toLocaleString('en-US') };
+  } catch {
+    return {};
+  }
+};
+
+const fetchDiscord = async (): Promise<Partial<GithubStats>> => {
+  const invite = (await fetchJson(DISCORD_INVITE_API)) as {
+    approximate_member_count?: number;
+  } | null;
+  if (typeof invite?.approximate_member_count !== 'number') return {};
+  return { discord: invite.approximate_member_count.toLocaleString('en-US') };
+};
+
 /**
- * Live community metrics from GitHub + Discord, matching the marketing prototype's
- * fetchMetrics. Reads a session cache first, then refreshes each source independently.
+ * Shared in-flight fetch. The stats hook is mounted by several components at once
+ * (nav, footer, auth shell, stats sections), so without this every mount would
+ * fire its own copy of all four requests and burn the unauthenticated GitHub quota.
+ * Every instance that mounts while a fetch is running awaits this same promise.
+ */
+let inFlight: Promise<GithubStats> | null = null;
+
+const runGithubStatsFetch = async (): Promise<GithubStats> => {
+  const parts = await Promise.all([
+    fetchStars(),
+    fetchSelfHosters(),
+    fetchContributors(),
+    fetchDiscord(),
+  ]);
+  const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
+  const base: GithubStats = { ...EMPTY_STATS, ...cached };
+  const merged = parts.reduce<GithubStats>((acc, part) => ({ ...acc, ...part }), base);
+  setJsonStorageItem('session', STATS_CACHE_KEY, merged);
+  setStorageItem('session', STATS_TS_KEY, String(Date.now()));
+  return merged;
+};
+
+const loadGithubStats = (): Promise<GithubStats> => {
+  inFlight ??= runGithubStatsFetch().finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+};
+
+/** True when the session cache was refreshed within the TTL, so no network is needed. */
+const isStatsCacheFresh = (): boolean => {
+  const raw = getStorageItem('session', STATS_TS_KEY);
+  if (!raw) return false;
+  const savedAt = Number.parseInt(raw, 10);
+  return Number.isFinite(savedAt) && Date.now() - savedAt < STATS_TTL_MS;
+};
+
+/**
+ * Live community metrics from GitHub + Discord. Seeds from the session cache, then
+ * refreshes through a single shared loader that is deduplicated across concurrent
+ * hook instances and skipped entirely while the cached snapshot is still fresh.
  */
 export function useGithubStats(): GithubStats {
   const [stats, setStats] = useState<GithubStats>(() => {
     const cached = getJsonStorageItem<Partial<GithubStats>>('session', STATS_CACHE_KEY);
-    return {
-      stars: null,
-      starsFull: null,
-      selfHosters: null,
-      contributors: null,
-      discord: null,
-      ...cached,
-    };
+    return { ...EMPTY_STATS, ...cached };
   });
 
   useEffect(() => {
     let active = true;
-    const merge = (partial: Partial<GithubStats>) => {
-      if (!active) return;
-      setStats((prev) => {
-        const next = { ...prev, ...partial };
-        setJsonStorageItem('session', STATS_CACHE_KEY, next);
-        return next;
-      });
-    };
-
-    void (async () => {
-      const repo = (await fetchJson(GITHUB_API_REPO)) as { stargazers_count?: number } | null;
-      if (typeof repo?.stargazers_count === 'number') {
-        merge({
-          stars: formatCompact(repo.stargazers_count),
-          starsFull: repo.stargazers_count.toLocaleString('en-US'),
-        });
-      }
-    })();
-
-    void (async () => {
-      const summary = await fetchJson(REPO_STATS_SUMMARY);
-      const total = readSelfHostersTotal(summary) ?? SELF_HOSTERS_FALLBACK;
-      merge({ selfHosters: total.toLocaleString('en-US') });
-    })();
-
-    void (async () => {
-      try {
-        const res = await fetch(CONTRIBUTORS_API);
-        if (!res.ok) return;
-        const link = res.headers.get('Link') ?? '';
-        const match = /[?&]page=(\d+)>; rel="last"/.exec(link);
-        if (match) merge({ contributors: Number.parseInt(match[1], 10).toLocaleString('en-US') });
-      } catch {
-        /* offline: leave contributors unresolved */
-      }
-    })();
-
-    void (async () => {
-      const invite = (await fetchJson(DISCORD_INVITE_API)) as {
-        approximate_member_count?: number;
-      } | null;
-      if (typeof invite?.approximate_member_count === 'number') {
-        merge({ discord: invite.approximate_member_count.toLocaleString('en-US') });
-      }
-    })();
-
+    if (!isStatsCacheFresh()) {
+      void (async () => {
+        const merged = await loadGithubStats();
+        if (active) setStats(merged);
+      })();
+    }
     return () => {
       active = false;
     };

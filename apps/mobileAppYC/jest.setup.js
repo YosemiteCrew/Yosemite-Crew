@@ -118,21 +118,67 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 
 // Mock Reanimated with a lightweight stub (avoid importing official mock due to ESM deps)
+jest.mock('react-native-worklets', () => ({
+  __esModule: true,
+  scheduleOnRN: (fn, ...args) => fn?.(...args),
+}));
+
 jest.mock('react-native-reanimated', () => {
   const React = require('react');
-  const {View} = require('react-native');
+  const {Image, ScrollView, Text, View} = require('react-native');
+  const transitionBuilder = {
+    duration: jest.fn(() => transitionBuilder),
+    easing: jest.fn(() => transitionBuilder),
+    springify: jest.fn(() => transitionBuilder),
+  };
+  const interpolateValue = (value, inputRange, outputRange) => {
+    if (!Array.isArray(inputRange) || !Array.isArray(outputRange)) {
+      return value;
+    }
+    const startInput = inputRange[0] ?? 0;
+    const endInput = inputRange[inputRange.length - 1] ?? startInput;
+    const startOutput = outputRange[0];
+    const endOutput = outputRange[outputRange.length - 1] ?? startOutput;
+    if (typeof startOutput !== 'number' || typeof endOutput !== 'number') {
+      return value <= startInput ? startOutput : endOutput;
+    }
+    if (endInput === startInput) {
+      return endOutput;
+    }
+    const progress = Math.max(
+      0,
+      Math.min(1, (value - startInput) / (endInput - startInput)),
+    );
+    return startOutput + (endOutput - startOutput) * progress;
+  };
+  const animatedDefault = {
+    addWhitelistedUIProps: () => {},
+    createAnimatedComponent: c => c,
+    Image,
+    ScrollView,
+    Text,
+    View,
+  };
   return {
     __esModule: true,
-    default: {
-      addWhitelistedUIProps: () => {},
-      createAnimatedComponent: c => c,
-    },
+    default: animatedDefault,
     createAnimatedComponent: c => c,
+    Image,
+    ScrollView,
+    Text,
     View,
     useSharedValue: v => ({value: v}),
-    useAnimatedStyle: () => ({}),
-    withTiming: v => v,
+    useAnimatedStyle: updater =>
+      typeof updater === 'function' ? updater() : {},
+    withTiming: (v, _config, callback) => {
+      callback?.(true);
+      return v;
+    },
     withSpring: v => v,
+    withDelay: (_delayMs, animation) => animation,
+    withRepeat: animation => animation,
+    withSequence: (...animations) => animations[animations.length - 1],
+    cancelAnimation: () => {},
     Easing: {
       linear: x => x,
       in: f => f,
@@ -142,10 +188,89 @@ jest.mock('react-native-reanimated', () => {
       bezier: () => () => {},
     },
     Extrapolate: {CLAMP: 'clamp'},
-    interpolate: v => v,
+    Extrapolation: {CLAMP: 'clamp'},
+    interpolate: interpolateValue,
+    interpolateColor: interpolateValue,
     runOnJS: fn => fn,
+    FadeIn: transitionBuilder,
+    FadeOut: transitionBuilder,
+    LinearTransition: transitionBuilder,
     // No-op components/hooks used by some libs
     useAnimatedScrollHandler: () => ({}),
+  };
+});
+
+// Mock gesture-handler native bindings and modern Gesture builder API.
+jest.mock('react-native-gesture-handler', () => {
+  const React = require('react');
+  const {
+    FlatList,
+    ScrollView,
+    Switch,
+    TextInput,
+    View,
+  } = require('react-native');
+
+  const createGesture = () => {
+    const gesture = {};
+    [
+      'activeOffsetX',
+      'activeOffsetY',
+      'enabled',
+      'onBegin',
+      'onChange',
+      'onEnd',
+      'onFinalize',
+      'onStart',
+      'onTouchesDown',
+      'onTouchesMove',
+      'onTouchesUp',
+      'onUpdate',
+      'runOnJS',
+      'simultaneousWithExternalGesture',
+    ].forEach(method => {
+      gesture[method] = jest.fn(() => gesture);
+    });
+    return gesture;
+  };
+
+  return {
+    __esModule: true,
+    Gesture: {
+      Native: jest.fn(createGesture),
+      Pan: jest.fn(createGesture),
+      Tap: jest.fn(createGesture),
+    },
+    GestureDetector: ({children}) =>
+      React.createElement(React.Fragment, null, children),
+    GestureHandlerRootView: ({children, ...props}) =>
+      React.createElement(View, props, children),
+    Swipeable: View,
+    DrawerLayout: View,
+    State: {},
+    ScrollView,
+    Slider: View,
+    Switch,
+    TextInput,
+    ToolbarAndroid: View,
+    ViewPagerAndroid: View,
+    DrawerLayoutAndroid: View,
+    WebView: View,
+    NativeViewGestureHandler: View,
+    TapGestureHandler: View,
+    FlingGestureHandler: View,
+    ForceTouchGestureHandler: View,
+    LongPressGestureHandler: View,
+    PanGestureHandler: View,
+    PinchGestureHandler: View,
+    RotationGestureHandler: View,
+    RawButton: View,
+    BaseButton: View,
+    RectButton: View,
+    BorderlessButton: View,
+    FlatList,
+    gestureHandlerRootHOC: jest.fn(component => component),
+    Directions: {},
   };
 });
 
@@ -443,26 +568,18 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-// Mock aws-amplify to avoid pulling in ESM sub-deps
-jest.mock('aws-amplify', () => ({
-  Amplify: {configure: jest.fn()},
-}));
-
-// Mock Amplify Auth submodule to avoid ESM deps and network
-jest.mock('aws-amplify/auth', () => ({
-  confirmSignIn: jest.fn().mockResolvedValue({isSignedIn: true, nextStep: {}}),
-  fetchAuthSession: jest.fn().mockResolvedValue({tokens: {}}),
-  fetchUserAttributes: jest.fn().mockResolvedValue({}),
-  getCurrentUser: jest
-    .fn()
-    .mockResolvedValue({userId: 'test', username: 'test@example.com'}),
-  signIn: jest.fn().mockResolvedValue({nextStep: {}}),
-  signOut: jest.fn().mockResolvedValue(undefined),
-  AuthError: class AuthError extends Error {
-    constructor(message) {
-      super(message);
-      this.name = 'AuthError';
-    }
+// Mock the SuperTokens React Native SDK to avoid network/native deps
+jest.mock('supertokens-react-native', () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(),
+    signOut: jest.fn().mockResolvedValue(undefined),
+    doesSessionExist: jest.fn().mockResolvedValue(false),
+    getAccessToken: jest.fn().mockResolvedValue(undefined),
+    getUserId: jest.fn().mockResolvedValue('test'),
+    getAccessTokenPayloadSecurely: jest.fn().mockResolvedValue({}),
+    attemptRefreshingSession: jest.fn().mockResolvedValue(false),
+    addAxiosInterceptors: jest.fn(),
   },
 }));
 
@@ -470,27 +587,6 @@ jest.mock('aws-amplify/auth', () => ({
 jest.mock('@/features/auth/services/socialAuth', () => ({
   configureSocialProviders: jest.fn(),
 }));
-
-// Mock React Native Firebase Auth to avoid pulling firebase ESM
-jest.mock('@react-native-firebase/auth', () => {
-  const reload = jest.fn(async () => undefined);
-  const getIdToken = jest.fn(async user => user?.getIdToken?.());
-  const getIdTokenResult = jest.fn(async user => user?.getIdTokenResult?.());
-  const getAuth = jest.fn(() => ({}));
-  const signOut = jest.fn(async auth => {
-    // Delegate to instance signOut when provided to match real API shape
-    return auth?.signOut ? auth.signOut() : undefined;
-  });
-
-  return {
-    __esModule: true,
-    getAuth,
-    signOut,
-    getIdToken,
-    getIdTokenResult,
-    reload,
-  };
-});
 
 // Mock Keychain to avoid native module dependency
 jest.mock('react-native-keychain', () => ({

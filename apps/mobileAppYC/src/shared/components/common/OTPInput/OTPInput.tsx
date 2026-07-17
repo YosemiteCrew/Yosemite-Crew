@@ -1,7 +1,8 @@
 // src/components/common/OTPInput/OTPInput.tsx
-import React, {useState, useRef, useEffect} from 'react';
+import React, {useState, useEffect} from 'react';
 import {View, TextInput, StyleSheet, Text, Platform} from 'react-native';
 import {useTheme} from '@/hooks';
+import {useLazyRef} from '@/shared/hooks/useLazyRef';
 import {generateId} from '@/shared/utils/helpers';
 
 interface OTPInputProps {
@@ -23,8 +24,12 @@ export const OTPInput: React.FC<OTPInputProps> = ({
     Array.from({length}, () => ''),
   );
   const [activeIndex, setActiveIndex] = useState(0);
-  const inputRefs = useRef<(TextInput | null)[]>(new Array(length).fill(null));
-  const inputKeys = useRef<string[]>(Array.from({length}, () => generateId()));
+  const inputRefs = useLazyRef<(TextInput | null)[]>(() =>
+    new Array(length).fill(null),
+  );
+  const inputKeys = useLazyRef<string[]>(() =>
+    Array.from({length}, () => generateId()),
+  );
 
   const [prevLength, setPrevLength] = useState(length);
   if (length !== prevLength) {
@@ -47,7 +52,7 @@ export const OTPInput: React.FC<OTPInputProps> = ({
       }, 100);
       return () => clearTimeout(id);
     }
-  }, [autoFocus]);
+  }, [autoFocus, inputRefs]);
 
   const handleChange = (value: string, index: number) => {
     // Only allow numeric input
@@ -160,8 +165,9 @@ const createStyles = (theme: any) =>
     },
     inputContainer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      width: 240,
+      justifyContent: 'center',
+      width: '100%',
+      gap: theme.spacing['2'] * 2,
       paddingHorizontal: theme.spacing['2.5'],
     },
     input: {
@@ -173,7 +179,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.h4,
       fontWeight: 'bold',
       lineHeight: theme.typography.h4.fontSize + 3,
-      marginHorizontal: theme.spacing['2'],
       ...(Platform.OS === 'android'
         ? {textAlignVertical: 'center', includeFontPadding: false}
         : {includeFontPadding: false}),

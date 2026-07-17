@@ -23,6 +23,7 @@ import {
   Spotlight,
   Tilt,
   HeroGlow,
+  InkAnnotate,
   useMagnet,
   useParallax,
   GITHUB_REPO_URL,
@@ -185,7 +186,9 @@ function Hero() {
                 animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.7s both',
               }}
             >
-              in&nbsp;an&nbsp;afternoon.
+              <InkAnnotate type="underline" delay={1600}>
+                in&nbsp;an&nbsp;afternoon.
+              </InkAnnotate>
             </em>
           </h1>
           <p

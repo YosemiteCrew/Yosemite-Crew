@@ -1,175 +1,92 @@
 /**
- * "Continue with GitHub" for developers, via Cognito Hosted UI federation.
+ * "Continue with GitHub" for developers, via SuperTokens ThirdParty (GitHub).
  *
- * The browser never sees a client secret. We redirect to the Cognito Hosted UI
- * `/oauth2/authorize` endpoint with `identity_provider=<GitHub IdP>` and PKCE;
- * Cognito performs the GitHub OAuth handshake and redirects back to
- * `/auth/callback` with an authorization code, which we exchange for tokens at
- * `/oauth2/token` (public client + PKCE, no secret). See the setup guide at
- * docs/auth/github-signin.md for the one-time GitHub + Cognito configuration.
- *
- * The flow is inert until NEXT_PUBLIC_COGNITO_DOMAIN + NEXT_PUBLIC_COGNITO_CLIENTID
- * are set, so the button never appears half-wired.
+ * The browser never sees a client secret. SuperTokens builds the GitHub
+ * authorisation URL (handling PKCE + CSRF state internally) and the backend
+ * GitHub provider (packages/auth) performs the token exchange. The button stays
+ * inert until NEXT_PUBLIC_AUTH_GITHUB_ENABLED is set, so it never appears
+ * half-wired; the backend provider is separately gated on AUTH_GITHUB_CLIENT_ID.
  */
+import ThirdParty from 'supertokens-web-js/recipe/thirdparty';
+import { initAuthClient } from '@/app/lib/authClient';
+import { clearSessionScopedStores } from '@/app/lib/resetSessionStores';
 
-const STORAGE_KEY = 'yc_github_oauth_v1';
-const DEFAULT_IDP = 'GitHub';
-const SCOPES = 'openid email profile';
+const GITHUB_THIRD_PARTY_ID = 'github';
+const REDIRECT_STORAGE_KEY = 'yc_github_redirect_v1';
+const DEFAULT_REDIRECT = '/developers/home';
 
-const clientId = (process.env.NEXT_PUBLIC_COGNITO_CLIENTID ?? '').trim();
-const idpName = (process.env.NEXT_PUBLIC_COGNITO_GITHUB_IDP ?? '').trim() || DEFAULT_IDP;
+/** True only when GitHub sign in is enabled for the frontend. */
+export const isGithubSignInEnabled = (): boolean =>
+  (process.env.NEXT_PUBLIC_AUTH_GITHUB_ENABLED ?? '').trim() === 'true';
 
-/** Cognito Hosted UI origin (accepts a bare host or a full URL); '' when unset. */
-const domainOrigin = ((): string => {
-  const raw = (process.env.NEXT_PUBLIC_COGNITO_DOMAIN ?? '').trim();
-  if (!raw) return '';
-  try {
-    return new URL(raw.startsWith('http') ? raw : `https://${raw}`).origin;
-  } catch {
-    return '';
-  }
-})();
-
-/** True only when the Hosted UI domain and client id are configured. */
-export const isGithubSignInEnabled = (): boolean => Boolean(domainOrigin && clientId);
-
-/** The OAuth redirect target registered in the Cognito app client's callback URLs. */
+/** The callback URL SuperTokens returns to after the GitHub handshake. */
 export const getRedirectUri = (): string => `${globalThis.location.origin}/auth/callback`;
 
-/** Navigate the browser to the Cognito authorize URL (kept here so callers can mock it). */
+/** Navigate the browser to the authorisation URL (kept here so callers can mock it). */
 /* v8 ignore next 3 -- jsdom makes location.assign read-only; exercised via the button caller test */
 export const redirectToUrl = (url: string): void => {
   globalThis.location.assign(url);
 };
 
-const bytesToBase64Url = (bytes: Uint8Array): string => {
-  let binary = '';
-  bytes.forEach((byte) => {
-    binary += String.fromCodePoint(byte);
-  });
-  return globalThis.btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
-};
-
-const randomToken = (byteLength: number): string => {
-  const bytes = new Uint8Array(byteLength);
-  globalThis.crypto.getRandomValues(bytes);
-  return bytesToBase64Url(bytes);
-};
-
-const sha256Base64Url = async (input: string): Promise<string> => {
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
-  return bytesToBase64Url(new Uint8Array(digest));
-};
-
-interface StoredHandshake {
-  verifier: string;
-  state: string;
-  redirectTo: string;
-}
-
-const readHandshake = (): StoredHandshake | null => {
+const persistRedirect = (redirectTo: string): void => {
   try {
-    const raw = globalThis.sessionStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as StoredHandshake) : null;
+    globalThis.sessionStorage.setItem(REDIRECT_STORAGE_KEY, redirectTo);
   } catch {
-    return null;
+    /* private mode: the callback falls back to the default developer landing */
+  }
+};
+
+/** Read (and clear) where to land after the callback; defaults to the developer home. */
+export const consumeGithubRedirect = (): string => {
+  try {
+    const stored = globalThis.sessionStorage.getItem(REDIRECT_STORAGE_KEY);
+    globalThis.sessionStorage.removeItem(REDIRECT_STORAGE_KEY);
+    return stored || DEFAULT_REDIRECT;
+  } catch {
+    return DEFAULT_REDIRECT;
   }
 };
 
 /**
- * Builds the Cognito Hosted UI authorize URL for GitHub, persisting the PKCE
- * verifier + CSRF state for the callback. Returns null when the flow is unconfigured.
+ * Builds the GitHub authorisation URL via SuperTokens, remembering where to land
+ * after the callback. Returns null when the flow is unconfigured or the auth
+ * client cannot initialise.
  */
 export async function startGithubSignIn(redirectTo: string): Promise<string | null> {
   if (!isGithubSignInEnabled()) return null;
-
-  const verifier = randomToken(48);
-  const state = randomToken(16);
-  const codeChallenge = await sha256Base64Url(verifier);
-
-  try {
-    globalThis.sessionStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ verifier, state, redirectTo } satisfies StoredHandshake)
-    );
-  } catch {
-    /* private mode: state validation below will fail closed */
-  }
-
-  const params = new URLSearchParams({
-    identity_provider: idpName,
-    client_id: clientId,
-    response_type: 'code',
-    scope: SCOPES,
-    redirect_uri: getRedirectUri(),
-    state,
-    code_challenge: codeChallenge,
-    code_challenge_method: 'S256',
+  if (!initAuthClient()) return null;
+  persistRedirect(redirectTo);
+  return ThirdParty.getAuthorisationURLWithQueryParamsAndSetState({
+    thirdPartyId: GITHUB_THIRD_PARTY_ID,
+    frontendRedirectURI: getRedirectUri(),
   });
-  return `${domainOrigin}/oauth2/authorize?${params.toString()}`;
-}
-
-export interface FederatedTokens {
-  idToken: string;
-  accessToken: string;
-  refreshToken: string;
 }
 
 export interface GithubCallbackResult {
-  tokens: FederatedTokens;
   redirectTo: string;
 }
 
 /**
- * Validates the CSRF state and exchanges the authorization code for tokens using
- * the stored PKCE verifier. Throws on any mismatch or a failed exchange.
+ * Completes the GitHub handshake on the callback route. SuperTokens reads the
+ * authorization code + state from the URL and exchanges them via the backend.
+ * Throws on any non-OK status so the callback page can surface a message.
  */
-export async function completeGithubSignIn(params: {
-  code: string;
-  state: string;
-}): Promise<GithubCallbackResult> {
-  const stored = readHandshake();
-  if (!stored?.state || stored.state !== params.state) {
-    throw new Error('This sign-in link is invalid or has expired. Please try again.');
-  }
-  try {
-    globalThis.sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    /* ignore */
-  }
-
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    client_id: clientId,
-    code: params.code,
-    redirect_uri: getRedirectUri(),
-    code_verifier: stored.verifier,
-  });
-
-  const response = await fetch(`${domainOrigin}/oauth2/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-  });
-  if (!response.ok) {
+export async function completeGithubSignIn(): Promise<GithubCallbackResult> {
+  if (!initAuthClient()) {
     throw new Error('We could not complete GitHub sign in. Please try again.');
   }
-
-  const json = (await response.json()) as {
-    id_token?: string;
-    access_token?: string;
-    refresh_token?: string;
-  };
-  if (!json.id_token || !json.access_token || !json.refresh_token) {
-    throw new Error('GitHub sign in returned an incomplete response.');
+  const response = await ThirdParty.signInAndUp();
+  if (response.status === 'NO_EMAIL_GIVEN_BY_PROVIDER') {
+    throw new Error(
+      'GitHub did not share an email for your account. Add a public email on GitHub, or use another sign-in method.'
+    );
   }
-
-  return {
-    tokens: {
-      idToken: json.id_token,
-      accessToken: json.access_token,
-      refreshToken: json.refresh_token,
-    },
-    redirectTo: stored.redirectTo || '/developers/home',
-  };
+  if (response.status === 'SIGN_IN_UP_NOT_ALLOWED') {
+    throw new Error(response.reason);
+  }
+  // Drop any prior account's session-scoped caches so switching accounts via
+  // GitHub does not leak the previous user's orgs/appointments/documents into
+  // the new session - the email/password path clears these too.
+  clearSessionScopedStores();
+  return { redirectTo: consumeGithubRedirect() };
 }

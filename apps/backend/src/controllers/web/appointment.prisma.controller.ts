@@ -280,7 +280,7 @@ export const AppointmentController = {
         {
           admittedAt: body.admittedAt ? new Date(body.admittedAt) : undefined,
           // The admitting user is whoever is signed in and clicked
-          // "Convert to Inpatient" (the verified Cognito token), never the body.
+          // "Convert to Inpatient" (the verified session), never the body.
           admittedBy: (req as { userId?: string }).userId,
           expectedStayDays: body.expectedStayDays,
           lead: body.lead,
@@ -424,20 +424,25 @@ export const AppointmentController = {
     }
   },
 
-  getById: async (req: Request<{ appointmentId: string }>, res: Response) => {
+  getById: async (
+    req: Request<{ appointmentId: string; organisationId?: string }>,
+    res: Response,
+  ) => {
     try {
-      const typedReq = req as OrgRequest;
+      const orgReq = req as OrgRequest;
+      const organisationId =
+        orgReq.organisationId ?? req.params.organisationId ?? undefined;
       const actorId = resolveUserIdFromRequest(req);
       const canViewAny =
-        typedReq.userPermissions?.includes("appointments:view:any") ?? false;
+        orgReq.userPermissions?.includes("appointments:view:any") ?? false;
 
-      if (!canViewAny && !actorId) {
+      if (organisationId && !canViewAny && !actorId) {
         return res.status(403).json({ message: "User not authenticated" });
       }
 
       const data = await AppointmentPrismaService.getById(
         req.params.appointmentId,
-        typedReq.organisationId ?? req.params.organisationId,
+        organisationId,
         canViewAny ? undefined : actorId,
       );
       return res.status(200).json({ data });

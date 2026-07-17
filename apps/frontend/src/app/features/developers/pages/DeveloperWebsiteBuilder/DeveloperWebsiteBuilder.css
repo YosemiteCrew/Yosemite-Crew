@@ -1,0 +1,117 @@
+.DevWebsiteBuilder {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-family: var(--font-satoshi);
+}
+
+.dev-wb-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dev-wb-heading p {
+  margin: 0;
+}
+
+.dev-wb-preview {
+  margin: 0;
+  align-self: flex-start;
+  display: inline-flex;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: var(--color-inset);
+  color: var(--color-text-tertiary);
+  font-weight: 600;
+}
+
+.dev-wb-promo {
+  background: var(--color-ink);
+  border-radius: 18px;
+  padding: 22px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-items: flex-start;
+  box-shadow: 0 12px 34px rgba(29, 28, 27, 0.2);
+}
+
+.dev-wb-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: rgba(92, 225, 230, 0.14);
+  color: var(--color-cyan);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dev-wb-promo-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  color: #f4efe6;
+  text-wrap: balance;
+}
+
+.dev-wb-promo-accent {
+  font-style: italic;
+  color: var(--color-cyan);
+}
+
+.dev-wb-promo-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(244, 239, 230, 0.72);
+}
+
+.dev-wb-section-title {
+  margin: 4px 0 0;
+}
+
+.dev-wb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.dev-wb-card {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-card-border);
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+}
+
+.dev-wb-card-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--nav-active-bg);
+  color: var(--color-cyan-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dev-wb-card-title {
+  margin: 0;
+}
+
+.dev-wb-card-desc {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.dev-wb-card-action {
+  margin-top: auto;
+  color: var(--color-cyan-text);
+}

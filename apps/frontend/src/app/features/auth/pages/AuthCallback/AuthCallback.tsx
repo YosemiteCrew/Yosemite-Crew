@@ -1,10 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { IoAlertCircleOutline } from 'react-icons/io5';
-import { useAuthStore } from '@/app/stores/authStore';
 import { completeGithubSignIn } from '@/app/features/auth/lib/githubOAuth';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 
@@ -58,47 +57,27 @@ const messageStyle: CSSProperties = {
 const backLinkStyle: CSSProperties = { padding: '13px 22px', borderRadius: 9999, fontSize: 15 };
 
 /**
- * Handles the Cognito Hosted UI redirect: validates state, exchanges the code for
- * tokens, establishes the Cognito session, and forwards the developer onward.
+ * Completes the SuperTokens GitHub sign in on the OAuth redirect: SuperTokens
+ * exchanges the code + state (read from the URL) via the backend GitHub provider,
+ * establishes the session, and forwards the developer onward.
  */
 export default function AuthCallback() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const establishFederatedSession = useAuthStore((state) => state.establishFederatedSession);
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
-
-  const completeSignIn = useCallback(
-    async (code: string, state: string) => {
-      try {
-        const { tokens, redirectTo } = await completeGithubSignIn({ code, state });
-        await establishFederatedSession(tokens);
-        router.replace(redirectTo);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : GENERIC_ERROR);
-      }
-    },
-    [establishFederatedSession, router]
-  );
 
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    const providerError = searchParams.get('error_description') ?? searchParams.get('error');
-    const code = searchParams.get('code');
-    const state = searchParams.get('state');
-
-    if (providerError) {
-      setError('GitHub sign in was cancelled or did not complete.');
-      return;
-    }
-    if (!code || !state) {
-      setError('This sign-in link is missing information. Please try again.');
-      return;
-    }
-    void completeSignIn(code, state);
-  }, [searchParams, completeSignIn]);
+    completeGithubSignIn()
+      .then(({ redirectTo }) => {
+        router.replace(redirectTo);
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : GENERIC_ERROR);
+      });
+  }, [router]);
 
   if (error) {
     return (

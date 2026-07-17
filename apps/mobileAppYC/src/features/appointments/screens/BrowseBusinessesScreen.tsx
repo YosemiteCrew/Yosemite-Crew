@@ -12,6 +12,7 @@ import type {Region} from 'react-native-maps';
 
 import type {AppDispatch, RootState} from '@/app/store';
 import {useTheme} from '@/hooks';
+import {useLazyRef} from '@/shared/hooks/useLazyRef';
 import {usePreferences} from '@/features/preferences/PreferencesContext';
 import {
   fetchBusinesses,
@@ -102,7 +103,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
     [companions, targetCompanionId],
   );
   const [fallbacks, setFallbacks] = useState<Fallbacks>({});
-  const requestedDetailsRef = useRef<Set<string>>(new Set());
+  const requestedDetailsRef = useLazyRef(() => new Set<string>());
   const requestBusinessDetails = useCallback(
     async (biz: VetBusiness) => {
       const placeId = biz.googlePlacesId;
@@ -132,7 +133,7 @@ export const BrowseBusinessesScreen: React.FC = () => {
         }
       } catch {}
     },
-    [dispatch],
+    [dispatch, requestedDetailsRef],
   );
   const ensureCompanion = useCallback(() => {
     if (targetCompanionId && selectedCompanion) return true;

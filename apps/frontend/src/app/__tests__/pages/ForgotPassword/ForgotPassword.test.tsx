@@ -1,363 +1,206 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import ForgotPassword from '@/app/features/auth/pages/ForgotPassword/ForgotPassword';
-import { useAuthStore } from '@/app/stores/authStore';
-import { useRouter } from 'next/navigation';
-import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
+import { axe, toHaveNoViolations } from 'jest-axe';
 
-// --- Mocks ---
-
-// 1. Mock Next.js Router
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(),
-}));
-
-// 2. Mock Toast Hook
+const showErrorTostMock = jest.fn();
 jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
-  useErrorTost: jest.fn(),
+  useErrorTost: () => ({
+    showErrorTost: showErrorTostMock,
+    ErrorTostPopup: <div data-testid="toast" />,
+  }),
 }));
 
-// 3. Mock Auth Store
+const authStoreMock: {
+  forgotPassword: jest.Mock;
+} = {
+  forgotPassword: jest.fn(),
+};
 jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: jest.fn(),
+  useAuthStore: () => authStoreMock,
 }));
 
-// 4. Mock the shared marketing foundation (AuthShell / AuthBrandContent) so its
-// GitHub-stats hook and next/image assets don't hit the network in jsdom.
-jest.mock('@/app/features/marketing/site', () => ({
-  __esModule: true,
-  AuthBrandContent: () => <div data-testid="auth-brand" />,
-  AuthShell: ({ brand, topRight, children }: any) => (
-    <div data-testid="auth-shell">
-      <div>{brand}</div>
-      <div>{topRight}</div>
-      <main>{children}</main>
-    </div>
+jest.mock('@/app/ui/primitives/Buttons', () => ({
+  Primary: ({
+    text,
+    onClick,
+  }: {
+    text: string;
+    onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+  }) => (
+    <button
+      type="button"
+      onClick={(e) => onClick?.(e as unknown as React.MouseEvent<HTMLAnchorElement>)}
+    >
+      {text}
+    </button>
+  ),
+  Secondary: ({
+    text,
+    href,
+    onClick,
+  }: {
+    text: string;
+    href?: string;
+    onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+  }) => (
+    <a href={href ?? '#'} onClick={(e) => onClick?.(e)}>
+      {text}
+    </a>
   ),
 }));
 
-const getEmailInput = () => screen.getByRole('textbox', { name: /email address/i });
-const getSendCodeBtn = () => screen.getByRole('button', { name: /send code/i });
-const getVerifyCodeBtn = () => screen.getByRole('button', { name: /verify code/i });
-const getResetPasswordBtn = () => screen.getByRole('button', { name: /reset password/i });
-const getBackButtons = () => screen.getAllByRole('button', { name: /^back$/i });
+import ForgotPassword from '@/app/features/auth/pages/ForgotPassword/ForgotPassword';
 
-describe('ForgotPassword Page', () => {
-  const mockPush = jest.fn();
-  const mockShowErrorTost = jest.fn();
-  const mockForgotPassword = jest.fn();
-  const mockResetPassword = jest.fn();
+expect.extend(toHaveNoViolations);
 
+describe('ForgotPassword page (reset link flow)', () => {
   beforeAll(() => {
-    window.scrollTo = jest.fn();
-    // Fix for JSDOM missing implementation
-    HTMLFormElement.prototype.requestSubmit = jest.fn();
+    (globalThis as typeof globalThis & { scrollTo: jest.Mock }).scrollTo = jest.fn();
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (useRouter as jest.Mock).mockReturnValue({ push: mockPush });
-    (useErrorTost as jest.Mock).mockReturnValue({
-      showErrorTost: mockShowErrorTost,
-      ErrorTostPopup: <div data-testid="toast-popup" />,
-    });
-
-    (useAuthStore as unknown as jest.Mock).mockReturnValue({
-      forgotPassword: mockForgotPassword,
-      resetPassword: mockResetPassword,
-    });
+    authStoreMock.forgotPassword.mockReset();
+    showErrorTostMock.mockReset();
   });
 
-  // --- Section 1: Email View & Interactions ---
+  const requestLink = async (email = 'user@example.com') => {
+    fireEvent.change(screen.getByLabelText('Email Address'), {
+      target: { value: email },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    await waitFor(() => expect(authStoreMock.forgotPassword).toHaveBeenCalled());
+  };
 
-  it('renders the initial email form correctly', () => {
+  test('renders the initial email form', () => {
     render(<ForgotPassword />);
+
     expect(screen.getByRole('heading', { name: 'Forgot password?' })).toBeInTheDocument();
-    expect(getEmailInput()).toBeInTheDocument();
-    expect(getSendCodeBtn()).toBeInTheDocument();
+    expect(screen.getByLabelText('Email Address')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send code' })).toBeInTheDocument();
+    expect(screen.getByText(/send you a code to reset it/i)).toBeInTheDocument();
   });
 
-  it('validates empty email submission', () => {
+  test('requires email before sending the link and exposes inline email error', () => {
     render(<ForgotPassword />);
-    fireEvent.click(getSendCodeBtn());
 
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+
+    expect(screen.getByText('Email is required')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email Address')).toHaveAttribute('aria-invalid', 'true');
+    expect(showErrorTostMock).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Email is required' })
     );
-    expect(window.scrollTo).toHaveBeenCalled();
+    expect(authStoreMock.forgotPassword).not.toHaveBeenCalled();
   });
 
-  it('validates invalid email submission', () => {
+  test('validates the email format before sending the link', () => {
     render(<ForgotPassword />);
-    fireEvent.change(getEmailInput(), {
+
+    fireEvent.change(screen.getByLabelText('Email Address'), {
       target: { value: 'not-an-email' },
     });
-    fireEvent.click(getSendCodeBtn());
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
 
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
+    expect(showErrorTostMock).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Enter a valid email' })
     );
-    expect(mockForgotPassword).not.toHaveBeenCalled();
+    expect(authStoreMock.forgotPassword).not.toHaveBeenCalled();
   });
 
-  it('handles forgotPassword API success', async () => {
-    mockForgotPassword.mockResolvedValue(true);
+  test('clears the inline email error when the user edits the field', () => {
     render(<ForgotPassword />);
 
-    fireEvent.change(getEmailInput(), {
-      target: { value: 'test@example.com' },
+    fireEvent.click(screen.getByRole('button', { name: 'Send code' }));
+    expect(screen.getByText('Email is required')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Email Address'), {
+      target: { value: 'user@example.com' },
     });
 
-    await act(async () => {
-      fireEvent.click(getSendCodeBtn());
-    });
+    expect(screen.queryByText('Email is required')).not.toBeInTheDocument();
+  });
 
-    expect(mockForgotPassword).toHaveBeenCalledWith('test@example.com');
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
+  test('moves to the check-your-email step after requesting the link', async () => {
+    authStoreMock.forgotPassword.mockResolvedValue({ status: 'OK' });
+    render(<ForgotPassword />);
+
+    await requestLink();
+
+    expect(authStoreMock.forgotPassword).toHaveBeenCalledWith('user@example.com');
+    await screen.findByRole('heading', { name: 'Verify code' });
+    expect(screen.getByText(/Enter the 6-digit code from your email/i)).toBeInTheDocument();
+    expect(showErrorTostMock).toHaveBeenCalledWith(
       expect.objectContaining({ errortext: 'Success' })
     );
   });
 
-  it('handles forgotPassword API failure (Axios Error)', async () => {
-    const errorResponse = {
-      response: { data: { message: 'User not found' } },
-    };
-    mockForgotPassword.mockRejectedValue(errorResponse);
-
+  test('resends the link from the check-your-email step', async () => {
+    authStoreMock.forgotPassword.mockResolvedValue({ status: 'OK' });
     render(<ForgotPassword />);
-    fireEvent.change(getEmailInput(), {
-      target: { value: 'test@example.com' },
-    });
 
-    await act(async () => {
-      fireEvent.click(getSendCodeBtn());
-    });
+    await requestLink();
+    await screen.findByRole('heading', { name: 'Verify code' });
 
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'OTP failed: User not found' })
+    authStoreMock.forgotPassword.mockClear();
+    fireEvent.click(screen.getByRole('link', { name: 'Request New Code' }));
+
+    await waitFor(() =>
+      expect(authStoreMock.forgotPassword).toHaveBeenCalledWith('user@example.com')
     );
   });
 
-  it('handles forgotPassword API failure (Network Error fallback)', async () => {
-    mockForgotPassword.mockRejectedValue(new Error('Network Error'));
-
+  test('offers a way back to sign in from both steps', async () => {
+    authStoreMock.forgotPassword.mockResolvedValue({ status: 'OK' });
     render(<ForgotPassword />);
-    fireEvent.change(getEmailInput(), {
-      target: { value: 'test@example.com' },
-    });
 
-    await act(async () => {
-      fireEvent.click(getSendCodeBtn());
-    });
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/signin');
 
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
+    await requestLink();
+    await screen.findByRole('heading', { name: 'Verify code' });
+
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '#');
+  });
+
+  test('surfaces request failures with the provider message', async () => {
+    authStoreMock.forgotPassword.mockRejectedValue({
+      response: { data: { message: 'Not allowed' } },
+    });
+    render(<ForgotPassword />);
+
+    await requestLink();
+
+    expect(showErrorTostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'OTP failed: Not allowed' })
+    );
+    expect(screen.getByRole('heading', { name: 'Forgot password?' })).toBeInTheDocument();
+  });
+
+  test('falls back to a connectivity message for non-Error failures', async () => {
+    authStoreMock.forgotPassword.mockRejectedValue('boom');
+    render(<ForgotPassword />);
+
+    await requestLink();
+
+    expect(showErrorTostMock).toHaveBeenCalledWith(
       expect.objectContaining({
         message: 'OTP failed: Unable to connect to the server.',
       })
     );
   });
 
-  // --- Section 2: OTP View & Interactions ---
-
-  const navigateToOtpScreen = async () => {
-    mockForgotPassword.mockResolvedValue(true);
+  test('stays on the email step when the store resolves nothing', async () => {
+    authStoreMock.forgotPassword.mockResolvedValue(null);
     render(<ForgotPassword />);
-    fireEvent.change(getEmailInput(), {
-      target: { value: 'test@example.com' },
-    });
-    await act(async () => {
-      fireEvent.click(getSendCodeBtn());
-    });
-  };
 
-  it('handles OTP input changes and auto-focus logic', async () => {
-    await navigateToOtpScreen();
+    await requestLink();
 
-    const input0 = document.getElementById('otp-input-0') as HTMLInputElement;
-    const input1 = document.getElementById('otp-input-1') as HTMLInputElement;
-
-    const focusSpy = jest.spyOn(input1, 'focus');
-
-    fireEvent.change(input0, { target: { value: '1' } });
-
-    expect(input0.value).toBe('1');
-    expect(focusSpy).toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Forgot password?' })).toBeInTheDocument();
   });
 
-  it('prevents entering more than 1 character in OTP field', async () => {
-    await navigateToOtpScreen();
-    const input0 = document.getElementById('otp-input-0') as HTMLInputElement;
-
-    fireEvent.change(input0, { target: { value: '12' } });
-
-    expect(input0.value).toBe('');
-  });
-
-  it('handles Backspace navigation in OTP fields', async () => {
-    await navigateToOtpScreen();
-    const input0 = document.getElementById('otp-input-0') as HTMLInputElement;
-    const input1 = document.getElementById('otp-input-1') as HTMLInputElement;
-
-    const focusSpy = jest.spyOn(input0, 'focus');
-
-    fireEvent.keyDown(input1, { key: 'Backspace' });
-
-    expect(focusSpy).toHaveBeenCalled();
-  });
-
-  it("handles 'Request New Code' link", async () => {
-    await navigateToOtpScreen();
-
-    mockForgotPassword.mockClear();
-
-    const resendLink = screen.getByText('Request New Code');
-    await act(async () => {
-      fireEvent.click(resendLink);
-    });
-
-    expect(mockForgotPassword).toHaveBeenCalledWith('test@example.com');
-  });
-
-  it('validates incomplete OTP', async () => {
-    await navigateToOtpScreen();
-
-    await act(async () => {
-      fireEvent.click(getVerifyCodeBtn());
-    });
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Please enter the full OTP' })
-    );
-  });
-
-  it('transitions to New Password view on valid OTP', async () => {
-    await navigateToOtpScreen();
-
-    [0, 1, 2, 3, 4, 5].forEach((i) => {
-      fireEvent.change(document.getElementById(`otp-input-${i}`)!, {
-        target: { value: '1' },
-      });
-    });
-
-    await act(async () => {
-      fireEvent.click(getVerifyCodeBtn());
-    });
-
-    expect(screen.getByRole('heading', { name: 'Set new password' })).toBeInTheDocument();
-    expect(getResetPasswordBtn()).toBeInTheDocument();
-  });
-
-  it('OTP Back button returns to Email view', async () => {
-    await navigateToOtpScreen();
-
-    // On the verify step there is a single "Back" button.
-    fireEvent.click(getBackButtons()[0]);
-
-    expect(getSendCodeBtn()).toBeInTheDocument();
-  });
-
-  // --- Section 3: Password View & Reset Logic ---
-
-  const navigateToPasswordScreen = async () => {
-    await navigateToOtpScreen();
-    [0, 1, 2, 3, 4, 5].forEach((i) => {
-      fireEvent.change(document.getElementById(`otp-input-${i}`)!, {
-        target: { value: '1' },
-      });
-    });
-    await act(async () => {
-      fireEvent.click(getVerifyCodeBtn());
-    });
-  };
-
-  it('validates empty passwords', async () => {
-    await navigateToPasswordScreen();
-
-    await act(async () => {
-      fireEvent.click(getResetPasswordBtn());
-    });
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Both Passwords are required' })
-    );
-  });
-
-  it('Password View Back button returns to Email view', async () => {
-    await navigateToPasswordScreen();
-
-    fireEvent.click(getBackButtons()[0]);
-
-    expect(getSendCodeBtn()).toBeInTheDocument();
-  });
-
-  const fillNewPassword = (value = 'Secret!23', confirm = 'Secret!23') => {
-    fireEvent.change(screen.getByLabelText('Enter New Password'), { target: { value } });
-    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: confirm } });
-  };
-
-  it('resets the password on success and shows the confirmation', async () => {
-    mockResetPassword.mockResolvedValue(true);
-    await navigateToPasswordScreen();
-    fillNewPassword();
-
-    await act(async () => {
-      fireEvent.click(getResetPasswordBtn());
-    });
-
-    expect(mockResetPassword).toHaveBeenCalledWith('test@example.com', '111111', 'Secret!23');
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Password Changed successfully' })
-    );
-  });
-
-  it('shows an error when the two passwords do not match', async () => {
-    await navigateToPasswordScreen();
-    fillNewPassword('Secret!23', 'Different!9');
-
-    await act(async () => {
-      fireEvent.click(getResetPasswordBtn());
-    });
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Passwords do not match' })
-    );
-    expect(mockResetPassword).not.toHaveBeenCalled();
-  });
-
-  it('returns to the verify step on a code mismatch', async () => {
-    mockResetPassword.mockRejectedValue({ code: 'CodeMismatchException' });
-    await navigateToPasswordScreen();
-    fillNewPassword();
-
-    await act(async () => {
-      fireEvent.click(getResetPasswordBtn());
-    });
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Code Mismatch' })
-    );
-  });
-
-  it('surfaces a generic failure when the reset request errors', async () => {
-    mockResetPassword.mockRejectedValue(new Error('boom'));
-    await navigateToPasswordScreen();
-    fillNewPassword();
-
-    await act(async () => {
-      fireEvent.click(getResetPasswordBtn());
-    });
-
-    expect(mockShowErrorTost).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Something went wrong' })
-    );
-  });
-
-  it('toggles new-password visibility on the reset step', async () => {
-    await navigateToPasswordScreen();
-    const passwordInput = screen.getByLabelText('Enter New Password');
-    expect(passwordInput).toHaveAttribute('type', 'password');
-    fireEvent.click(screen.getAllByRole('button', { name: /show password/i })[0]);
-    expect(passwordInput).toHaveAttribute('type', 'text');
+  test('has no axe accessibility violations', async () => {
+    const { container } = render(<ForgotPassword />);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

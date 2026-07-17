@@ -27,6 +27,7 @@ jest.mock('@/app/features/marketing/site', () => {
     useMagnet: () => React2.useRef(null),
     useParallax: () => React2.useRef(null),
     HeroGlow: () => null,
+    InkAnnotate: ({ children }: any) => children,
     Reveal: ({ children, style, className }: WrapProps) =>
       React2.createElement('div', { style, className }, children),
     Tilt: ({ children, style, className }: WrapProps) =>

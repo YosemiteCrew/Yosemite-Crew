@@ -186,10 +186,7 @@ const loadAppointmentForFormsRecord = async (
 };
 
 type NormalizableObjectId =
-  | Types.ObjectId
-  | string
-  | { toHexString(): string }
-  | { toString(): string };
+  Types.ObjectId | string | { toHexString(): string } | { toString(): string };
 
 const normalizeObjectId = (
   id: NormalizableObjectId | null | undefined,
@@ -792,11 +789,7 @@ const assertSoapAppointmentAccess = (params: {
 };
 
 type SoapNoteType =
-  | "Subjective"
-  | "Objective"
-  | "Assessment"
-  | "Plan"
-  | "Discharge";
+  "Subjective" | "Objective" | "Assessment" | "Plan" | "Discharge";
 
 type SoapNoteEntry = {
   submissionId: string;
@@ -1674,6 +1667,7 @@ export const FormService = {
   async submitFHIR(
     response: FormSubmissionRequestDTO,
     schema?: FormField[],
+    submittedByOverride?: string,
   ): Promise<FormSubmission> {
     const initialSubmission: FormSubmission = fromFormSubmissionRequestDTO(
       response,
@@ -1688,6 +1682,13 @@ export const FormService = {
     const submission: FormSubmission = resolvedSchema
       ? fromFormSubmissionRequestDTO(response, resolvedSchema)
       : initialSubmission;
+
+    // For server-initiated (PMS) submissions the submitter is the authenticated
+    // user from the verified token, which takes precedence over any client FHIR
+    // submitted-by extension so the signing guard can match initiator===submitter.
+    if (submittedByOverride) {
+      submission.submittedBy = submittedByOverride;
+    }
 
     // Never trust signing metadata from client-submitted FHIR extensions.
     // Signed state and document IDs must be written by server-side signing flows.
@@ -2446,6 +2447,7 @@ export const FormService = {
     species?: string;
     isPMS?: boolean;
     viewerParentId?: string;
+    requesterOrgId?: string;
   }) {
     const appointmentLookup = await loadAppointmentForFormsRecord(
       params.appointmentId,
@@ -2455,6 +2457,17 @@ export const FormService = {
     }
     const appointment = appointmentLookup.appointment;
     const appointmentId = normalizeAppointmentId(params.appointmentId);
+
+    if (
+      params.requesterOrgId &&
+      appointment.organisationId !== params.requesterOrgId
+    ) {
+      throw new FormServiceError(
+        "Forbidden: appointment does not belong to this organisation",
+        403,
+      );
+    }
+
     if (params.viewerParentId) {
       const appointmentParentId = resolveAppointmentParentId(appointment);
       if (

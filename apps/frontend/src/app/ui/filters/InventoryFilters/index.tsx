@@ -1,7 +1,7 @@
 'use client';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FaCaretDown } from 'react-icons/fa6';
+import { IoCaretDown } from 'react-icons/io5';
 import clsx from 'clsx';
 import { InventoryFiltersState } from '@/app/features/inventory/pages/Inventory/types';
 import LabelDropdown from '@/app/ui/inputs/Dropdown/LabelDropdown';
@@ -98,14 +98,9 @@ const InventoryFilters = ({
   categoryAction,
 }: InventoryFiltersProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const isMounted = typeof document !== 'undefined';
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const filtersRef = useRef(filters);
-  filtersRef.current = filters;
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
 
   const categoryOptions = useMemo(
     () =>
@@ -116,32 +111,12 @@ const InventoryFilters = ({
     [categories]
   );
 
-  useEffect(() => {
-    const f = filtersRef.current;
-    if (f.category !== 'all' && !categories.includes(f.category)) {
-      onChangeRef.current({ ...f, category: 'all' });
-    }
-  }, [categories]);
-
   const updateFilters = (patch: Partial<InventoryFiltersState>) => {
     onChange({ ...filters, ...patch });
   };
-
-  const positionPanel = useCallback(() => {
-    if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    setDropdownStyle({
-      position: 'fixed',
-      top: rect.bottom + 6,
-      right: window.innerWidth - rect.right,
-      minWidth: Math.max(rect.width, 180),
-      zIndex: 9999,
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (dropdownOpen) positionPanel();
-  }, [dropdownOpen, positionPanel]);
+  if (filters.category !== 'all' && !categories.includes(filters.category)) {
+    onChange({ ...filters, category: 'all' });
+  }
 
   useEffect(() => {
     if (!dropdownOpen) return;
@@ -168,13 +143,26 @@ const InventoryFilters = ({
   const visibility = filters.visibility ?? 'ALL';
 
   const sliderTranslate = getSliderTranslate(visibility);
+  const dropdownStyle =
+    dropdownOpen && triggerRef.current
+      ? (() => {
+          const rect = triggerRef.current.getBoundingClientRect();
+          return {
+            position: 'fixed',
+            top: rect.bottom + 6,
+            right: globalThis.window.innerWidth - rect.right,
+            minWidth: Math.max(rect.width, 180),
+            zIndex: 9999,
+          } satisfies React.CSSProperties;
+        })()
+      : undefined;
 
   return (
     <div className="w-full flex items-start justify-between flex-wrap gap-x-6 gap-y-3">
       <div className="flex flex-1 min-w-70 items-center gap-3 flex-wrap">
         {/* Visibility toggle: All / Active / Hidden */}
         <div
-          className="relative inline-flex items-center h-12 rounded-[999px]! border border-card-border bg-white overflow-hidden"
+          className="relative inline-flex items-center h-12 rounded-[999px]! border border-card-border bg-neutral-0 overflow-hidden"
           style={{ width: 240 }}
         >
           <div
@@ -183,7 +171,7 @@ const InventoryFilters = ({
               'absolute top-0 bottom-0 left-0 rounded-[999px]! transition-all duration-300 ease-in-out',
               sliderTranslate
             )}
-            style={{ width: 'calc(100% / 3)', backgroundColor: '#454341' }}
+            style={{ width: 'calc(100% / 3)', backgroundColor: 'var(--color-neutral-900)' }}
           />
           {(['ALL', 'ACTIVE', 'HIDDEN'] as const).map((key) => {
             const label = getVisibilityLabel(key);
@@ -197,7 +185,7 @@ const InventoryFilters = ({
                 className="relative z-10 h-full transition-colors duration-200 cursor-pointer"
                 style={{
                   width: 'calc(100% / 3)',
-                  color: isCurrent ? '#FFF' : '#8F8984',
+                  color: isCurrent ? 'var(--color-neutral-0)' : 'var(--color-neutral-600)',
                   fontWeight: 500,
                   lineHeight: '120%',
                   letterSpacing: '-0.28px',
@@ -222,7 +210,7 @@ const InventoryFilters = ({
           <span>
             {selectedStockHealth.key === 'ALL' ? 'Stock health' : selectedStockHealth.name}
           </span>
-          <FaCaretDown
+          <IoCaretDown
             size={14}
             className={clsx('shrink-0 transition-transform', dropdownOpen && 'rotate-180')}
           />
@@ -233,7 +221,7 @@ const InventoryFilters = ({
           createPortal(
             <div
               ref={panelRef}
-              className="rounded-2xl border border-card-border bg-white shadow-[0_8px_24px_rgba(0,0,0,0.10)] overflow-hidden"
+              className="yc-glass-overlay rounded-2xl overflow-hidden"
               style={dropdownStyle}
             >
               {StockHealthOptions.map((option) => {

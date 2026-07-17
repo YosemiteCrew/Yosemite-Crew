@@ -40,7 +40,7 @@ Use this when drafting architecture decisions, technical narratives, or product-
 
 **Mobile:** Feature-first module layout with Redux Toolkit + Redux Persist. Semantic token mapping aligns with web vocabulary.
 
-**Backend:** Express app with rate limiting, CORS, upload handling, sanitization, centralized route registration. Service layer domain-partitioned. Active Mongo + Prisma dual-write/read-switch pattern.
+**Backend:** Express app with rate limiting, CORS, upload handling, sanitization, centralized route registration. Service layer domain-partitioned. Persistence is being consolidated onto Prisma/Postgres as the single source of truth.
 
 ## Engineering Narrative Themes
 

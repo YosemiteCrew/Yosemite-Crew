@@ -1,9 +1,32 @@
 import React from 'react';
 import {mockTheme} from '../setup/mockTheme';
-import {render, fireEvent, waitFor} from '@testing-library/react-native';
+import {
+  render,
+  fireEvent,
+  waitFor,
+  screen,
+} from '@testing-library/react-native';
+import {Pressable} from 'react-native';
 import VoiceMessagePlayer from '../../../../src/features/chat/components/VoiceMessagePlayer';
 import Sound from 'react-native-nitro-sound';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
+
+// react-native's Pressable is wrapped in React.memo, so component-tree
+// queries must match against the memoized inner component.
+const PressableType = (Pressable as any).type;
+
+// The play/pause button toggles `disabled` while `isLoading` is true. Once
+// that has happened once, react-native's internal Pressability responder
+// (onStartShouldSetResponder) starts returning false, which makes
+// `@testing-library/react-native`'s `fireEvent.press` silently no-op when
+// the press target is the nested icon Text rather than the Pressable
+// itself. Pressing the Pressable node directly (found via component type,
+// since it's always the first Pressable rendered) avoids that responder
+// check entirely and works reliably across repeated presses.
+const pressPlayPauseButton = () => {
+  const [button] = screen.UNSAFE_getAllByType(PressableType);
+  fireEvent.press(button);
+};
 
 // --- Mocks ---
 
@@ -81,12 +104,12 @@ describe('VoiceMessagePlayer', () => {
   // --- 2. Playback Control (Play/Pause/Resume) ---
 
   it('starts playing from beginning when play button is pressed (first time)', async () => {
-    const {getByText} = render(
+    render(
       <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
     );
 
     // Trigger Play
-    fireEvent.press(getByText('play-arrow'));
+    pressPlayPauseButton();
 
     await waitFor(() => {
       expect(ReactNativeHapticFeedback.trigger).toHaveBeenCalledWith(
@@ -99,26 +122,26 @@ describe('VoiceMessagePlayer', () => {
   });
 
   it('pauses playing when button is pressed while playing', async () => {
-    const {getByText} = render(
+    render(
       <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
     );
 
     // 1. Start Play
-    fireEvent.press(getByText('play-arrow'));
+    pressPlayPauseButton();
     await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
 
     // 2. Pause (Icon changes to 'pause' when playing)
-    fireEvent.press(getByText('pause'));
+    pressPlayPauseButton();
     await waitFor(() => expect(Sound.pausePlayer).toHaveBeenCalled());
   });
 
   it('resumes playing when button is pressed while paused (and position > 0)', async () => {
-    const {getByText} = render(
+    render(
       <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
     );
 
     // 1. Start Play
-    fireEvent.press(getByText('play-arrow'));
+    pressPlayPauseButton();
     await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
 
     // 2. Simulate progress update so currentPosition > 0
@@ -127,11 +150,11 @@ describe('VoiceMessagePlayer', () => {
     }
 
     // 3. Pause
-    fireEvent.press(getByText('pause'));
+    pressPlayPauseButton();
     await waitFor(() => expect(Sound.pausePlayer).toHaveBeenCalled());
 
     // 4. Resume (Icon returns to 'play-arrow')
-    fireEvent.press(getByText('play-arrow'));
+    pressPlayPauseButton();
     await waitFor(() => expect(Sound.resumePlayer).toHaveBeenCalled());
   });
 
@@ -143,7 +166,7 @@ describe('VoiceMessagePlayer', () => {
     );
 
     // Start playing to reveal Stop button
-    fireEvent.press(getByText('play-arrow'));
+    pressPlayPauseButton();
     await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
 
     // Stop button uses the 'stop' icon
@@ -163,7 +186,7 @@ describe('VoiceMessagePlayer', () => {
       <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
     );
 
-    fireEvent.press(getByText('play-arrow'));
+    pressPlayPauseButton();
     await waitFor(() =>
       expect(Sound.addPlaybackEndListener).toHaveBeenCalled(),
     );
@@ -181,12 +204,12 @@ describe('VoiceMessagePlayer', () => {
   });
 
   it('cleans up resources on unmount if playing', async () => {
-    const {getByText, unmount} = render(
+    const {unmount} = render(
       <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} duration={TEST_DURATION} />,
     );
 
     // Start playing
-    fireEvent.press(getByText('play-arrow'));
+    pressPlayPauseButton();
     await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
 
     // Unmount while playing
@@ -204,11 +227,9 @@ describe('VoiceMessagePlayer', () => {
       .mockImplementation(() => {});
     (Sound.startPlayer as jest.Mock).mockRejectedValue(new Error('Play Error'));
 
-    const {getByText} = render(
-      <VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} />,
-    );
+    render(<VoiceMessagePlayer audioUrl={TEST_AUDIO_URL} />);
 
-    fireEvent.press(getByText('play-arrow'));
+    pressPlayPauseButton();
 
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -237,7 +258,7 @@ describe('VoiceMessagePlayer', () => {
     );
 
     // Start
-    fireEvent.press(getByText('play-arrow'));
+    pressPlayPauseButton();
     await waitFor(() => expect(Sound.startPlayer).toHaveBeenCalled());
 
     // Stop

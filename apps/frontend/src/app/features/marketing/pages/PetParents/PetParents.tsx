@@ -27,6 +27,7 @@ import Link from 'next/link';
 import {
   HeroVideo,
   HeroGlow,
+  InkAnnotate,
   Reveal,
   Spotlight,
   ReleasePill,
@@ -543,7 +544,9 @@ function Hero() {
                     animation: `ycWord 1.1s ${EASE} ${word.delay} both`,
                   }}
                 >
-                  {word.text}
+                  <InkAnnotate type="circle" delay={1750}>
+                    {word.text}
+                  </InkAnnotate>
                 </em>
               ) : (
                 <span

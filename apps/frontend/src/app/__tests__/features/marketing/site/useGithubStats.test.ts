@@ -49,6 +49,64 @@ describe('useGithubStats hooks', () => {
     await waitFor(() => expect(result.current.discord).toBe('3,210'));
   });
 
+  it('skips the network entirely when the session cache is still fresh', () => {
+    const fetchMock = jest.fn(() => Promise.resolve(makeRes(null)));
+    globalThis.fetch = fetchMock as unknown as FetchLike;
+    sessionStorage.setItem(
+      'yc_marketing_stats_v1',
+      JSON.stringify({
+        stars: '9k',
+        starsFull: '9,000',
+        selfHosters: '70,000',
+        contributors: '60',
+        discord: '4,000',
+      })
+    );
+    sessionStorage.setItem('yc_marketing_stats_ts_v1', String(Date.now()));
+
+    const { result } = renderHook(() => useGithubStats());
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.current.stars).toBe('9k');
+    expect(result.current.contributors).toBe('60');
+  });
+
+  it('fires exactly one round of requests when several instances mount at once', async () => {
+    const fetchMock = jest.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('summary.json'))
+        return Promise.resolve(makeRes({ clones: { total: 67134 } }));
+      if (url.includes('contributors'))
+        return Promise.resolve(makeRes([], '<u&page=58>; rel="last"'));
+      if (url.includes('/invites/'))
+        return Promise.resolve(makeRes({ approximate_member_count: 3210 }));
+      if (url.endsWith('/Yosemite-Crew'))
+        return Promise.resolve(makeRes({ stargazers_count: 2431 }));
+      return Promise.resolve(makeRes(null));
+    });
+    globalThis.fetch = fetchMock as unknown as FetchLike;
+
+    const { result } = renderHook(() => {
+      useGithubStats();
+      useGithubStats();
+      return useGithubStats();
+    });
+
+    await waitFor(() => expect(result.current.stars).toBe('2.4k'));
+
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    const countIncluding = (needle: string) => urls.filter((u) => u.includes(needle)).length;
+    expect(urls.filter((u) => u.endsWith('/Yosemite-Crew')).length).toBe(1);
+    expect(countIncluding('summary.json')).toBe(1);
+    expect(countIncluding('contributors')).toBe(1);
+    expect(countIncluding('/invites/')).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+
+    expect(result.current.selfHosters).toBe('67,134');
+    expect(result.current.contributors).toBe('58');
+    expect(result.current.discord).toBe('3,210');
+  });
+
   it('reads self-hosters from the chart dataset shape', async () => {
     globalThis.fetch = jest.fn((input: RequestInfo | URL) => {
       const url = String(input);

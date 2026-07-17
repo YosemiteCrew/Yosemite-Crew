@@ -1,12 +1,12 @@
 import React, {
-  forwardRef,
   useRef,
   useMemo,
   useImperativeHandle,
   useCallback,
   useState,
 } from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, FlatList} from 'react-native';
+import {View, Text, StyleSheet, FlatList} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import CustomBottomSheet from '@/shared/components/common/BottomSheet/BottomSheet';
 import type {BottomSheetRef} from '@/shared/components/common/BottomSheet/BottomSheet';
 import {BottomSheetHeader} from '@/shared/components/common/BottomSheetHeader/BottomSheetHeader';
@@ -27,10 +27,11 @@ import {
 } from './helpers';
 import {taskTypeOptions} from './taskOptions';
 
-export const TaskTypeBottomSheet = forwardRef<
-  TaskTypeBottomSheetRef,
-  TaskTypeBottomSheetProps
->(({onSelect, onSheetChange}, ref) => {
+export const TaskTypeBottomSheet = ({
+  onSelect,
+  onSheetChange,
+  ref,
+}: TaskTypeBottomSheetProps & {ref?: React.Ref<TaskTypeBottomSheetRef>}) => {
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomSheetRef = useRef<BottomSheetRef>(null);
@@ -76,12 +77,12 @@ export const TaskTypeBottomSheet = forwardRef<
   // Render a single pill button
   const renderPillButton = useCallback(
     (child: {option: TaskTypeOption; ancestors: TaskTypeOption[]}) => (
-      <TouchableOpacity
+      <PressableOpacity
         key={child.option.id}
         style={styles.pillButton}
         onPress={() => handleTaskSelect(child.option, child.ancestors)}>
         <Text style={styles.pillButtonText}>{child.option.label}</Text>
-      </TouchableOpacity>
+      </PressableOpacity>
     ),
     [handleTaskSelect, styles.pillButton, styles.pillButtonText],
   );
@@ -149,13 +150,13 @@ export const TaskTypeBottomSheet = forwardRef<
       if (section.type === 'single') {
         return (
           <View key={section.category.id} style={styles.customPillWrapper}>
-            <TouchableOpacity
+            <PressableOpacity
               style={styles.pillButton}
               onPress={() => handleTaskSelect(section.category, [])}>
               <Text style={styles.pillButtonText}>
                 {section.category.label}
               </Text>
-            </TouchableOpacity>
+            </PressableOpacity>
           </View>
         );
       }
@@ -205,12 +206,14 @@ export const TaskTypeBottomSheet = forwardRef<
       ref={bottomSheetRef}
       snapPoints={['75%', '85%']}
       initialIndex={-1}
-      enablePanDownToClose
-      enableDynamicSizing={false}
-      enableContentPanningGesture={false}
-      enableHandlePanningGesture
-      enableOverDrag={false}
-      enableBackdrop={isSheetVisible}
+      behavior={{
+        panDownToClose: true,
+        dynamicSizing: false,
+        contentPanningGesture: false,
+        handlePanningGesture: true,
+        overDrag: false,
+        backdrop: isSheetVisible,
+      }}
       backdropOpacity={0.5}
       backdropDisappearsOnIndex={-1}
       contentType="view"
@@ -237,7 +240,7 @@ export const TaskTypeBottomSheet = forwardRef<
       </View>
     </CustomBottomSheet>
   );
-});
+};
 
 TaskTypeBottomSheet.displayName = 'TaskTypeBottomSheet';
 

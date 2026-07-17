@@ -1,8 +1,13 @@
 import {renderHook, act} from '@testing-library/react-native';
-import {useTheme} from '../../src/shared/hooks/useTheme';
-import {setTheme, toggleTheme} from '../../src/features/theme';
+import {Appearance} from 'react-native';
+import {createThemeHook, useTheme} from '../../src/shared/hooks/useTheme';
+import {
+  setTheme,
+  toggleTheme,
+  updateSystemTheme,
+} from '../../src/features/theme';
 import * as hooks from '../../src/app/hooks';
-import {lightTheme} from '../../src/theme';
+import {darkTheme, lightTheme} from '../../src/theme';
 
 // --- Mocks ---
 
@@ -115,5 +120,46 @@ describe('useTheme Hook', () => {
     });
 
     expect(mockDispatch).not.toHaveBeenCalledWith(toggleTheme());
+  });
+
+  it('syncs system theme and exposes dark-mode controls when enabled', () => {
+    const remove = jest.fn();
+    let appearanceListener:
+      ((event: {colorScheme: 'light' | 'dark' | null}) => void) | undefined;
+
+    (Appearance.getColorScheme as jest.Mock).mockReturnValue('dark');
+    (Appearance.addChangeListener as jest.Mock).mockImplementation(listener => {
+      appearanceListener = listener;
+      return {remove};
+    });
+    (hooks.useAppSelector as jest.Mock).mockReturnValue({
+      theme: 'system',
+      isDark: true,
+    });
+
+    const useEnabledTheme = createThemeHook(true);
+    const {result, unmount} = renderHook(() => useEnabledTheme());
+
+    expect(result.current.theme).toBe(darkTheme);
+    expect(result.current.isDark).toBe(true);
+    expect(result.current.themeMode).toBe('system');
+    expect(result.current.darkModeLocked).toBe(false);
+    expect(mockDispatch).toHaveBeenCalledWith(updateSystemTheme('dark'));
+
+    act(() => {
+      appearanceListener?.({colorScheme: null});
+    });
+    expect(mockDispatch).toHaveBeenCalledWith(updateSystemTheme('light'));
+
+    act(() => {
+      result.current.setTheme('dark');
+      result.current.toggleTheme();
+    });
+
+    expect(mockDispatch).toHaveBeenCalledWith(setTheme('dark'));
+    expect(mockDispatch).toHaveBeenCalledWith(toggleTheme());
+
+    unmount();
+    expect(remove).toHaveBeenCalledTimes(1);
   });
 });

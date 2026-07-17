@@ -1,6 +1,6 @@
 import type { StoredCompanion } from '@/app/features/companions/pages/Companions/types';
 import type { CompanionDetail } from '@/app/features/appointments/pages/AppointmentWorkspace/CompanionContextCard';
-import { formatDisplayDate, getAgeInYears } from '@/app/lib/date';
+import { formatDisplayDate, formatCompanionAge } from '@/app/lib/date';
 
 const SPECIES_LABEL: Record<string, string> = {
   dog: 'Canine',
@@ -24,10 +24,9 @@ const clean = (value?: string | number | null): string => {
 
 const formatAgeDob = (dateOfBirth?: Date | string): string => {
   if (!dateOfBirth) return DASH;
-  const age = getAgeInYears(dateOfBirth);
+  const ageLabel = formatCompanionAge(dateOfBirth, { long: true });
   const dob = formatDisplayDate(dateOfBirth, DASH);
-  if (!Number.isFinite(age) || age < 0) return dob;
-  const ageLabel = `${age} ${age === 1 ? 'year' : 'years'}`;
+  if (!ageLabel) return dob;
   return dob === DASH ? ageLabel : `${ageLabel} / ${dob}`;
 };
 

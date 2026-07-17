@@ -6,10 +6,10 @@
 
 <h1 align="center" >Open-Source Operating System for Animal Health</h1>
 
-<div align="center"> 
-  
-[![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](https://github.com/YosemiteCrew/Yosemite-Crew/tree/main?tab=License-1-ov-file) [![Figma](https://img.shields.io/badge/Figma-383838?logo=figma)](https://www.figma.com/design/NAAV4XGcJ6FlGXGK68AUbp/Yosemite-Crew?node-id=0-1&t=qCMi0h3RReIRMkrK-1) [![Discord](https://img.shields.io/discord/1325181058777616395?color=7289da&label=Discord&logo=discord&logoColor=ffffff)](https://discord.gg/SwM6mX85KD) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YosemiteCrew/Yosemite-Crew) 
-  
+<div align="center">
+
+[![Website](https://img.shields.io/badge/Yosemite%20Crew-D04122)](https://yosemitecrew.com/) [![Contributing](https://img.shields.io/badge/Contribute-FF9800)](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) [![Github License](https://img.shields.io/badge/License-4CAF50)](https://github.com/YosemiteCrew/Yosemite-Crew/tree/main?tab=License-1-ov-file) [![Figma](https://img.shields.io/badge/Figma-383838?logo=figma)](https://www.figma.com/design/NAAV4XGcJ6FlGXGK68AUbp/Yosemite-Crew?node-id=0-1&t=qCMi0h3RReIRMkrK-1) [![Discord](https://img.shields.io/discord/1325181058777616395?color=7289da&label=Discord&logo=discord&logoColor=ffffff)](https://discord.gg/SwM6mX85KD) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/YosemiteCrew/Yosemite-Crew)
+
 </div>
 
 <br>
@@ -122,7 +122,7 @@ Request current dev or staging access from the maintainers through a secure chan
 - [TypeScript](https://www.typescriptlang.org/) for type safety
 - [Turborepo](https://turbo.build) and [PNPM Workspaces](https://pnpm.io/workspaces) for a powerful monorepo structure and efficient build system
 - [Express](https://expressjs.com/) as a backend framework, with [Supabase](https://supabase.com/) for data storage, [Redis](https://redis.io/) for lightning-fast caching
-- [React](https://reactjs.org/) for the frontend, with [Redux](https://redux.js.org/) for state management
+- [React](https://reactjs.org/) for the frontend, with [Zustand](https://zustand.docs.pmnd.rs/) for state management
 - [React Native](https://reactnative.dev/) for mobile app development
 - [AWS](https://aws.amazon.com) to ensure reliable and scalable cloud infrastructure
 
@@ -132,7 +132,7 @@ Request current dev or staging access from the maintainers through a secure chan
 
 - Star our repo and show your support!
 - [Tik-tok](https://www.tiktok.com/@yosemitecrew) and [Instagram](https://www.instagram.com/yosemite_crew) for memes
-- Follow us on [Twitter](https://github.com/YosemiteCrew/Yosemite-Crew) or [LinkedIn](https://www.linkedin.com/company/yosemitecrew/) to get all the latest news
+- Follow us on [LinkedIn](https://www.linkedin.com/company/yosemitecrew/) to get all the latest news
 - Join our [Discord](https://discord.com/invite/SwM6mX85KD) to chat with fellow contributors and users
 - [Contribute](https://github.com/YosemiteCrew/Yosemite-Crew/blob/main/CONTRIBUTING.md) — we love contributions! Whether it’s code, docs, or ideas, your help is always welcome!
 

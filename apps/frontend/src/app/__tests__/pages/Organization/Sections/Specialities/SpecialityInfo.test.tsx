@@ -3,6 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import SpecialityInfo from '@/app/features/organization/pages/Organization/Sections/Specialities/SpecialityInfo';
+import { useTeamForPrimaryOrg } from '@/app/hooks/useTeam';
+import { useRouter } from 'next/navigation';
+import { useNotify } from '@/app/hooks/useNotify';
 
 const deleteSpecialityMock = jest.fn();
 const updateSpecialityMock = jest.fn();
@@ -10,7 +13,15 @@ const updateServiceMock = jest.fn();
 const deleteServiceMock = jest.fn();
 
 jest.mock('@/app/hooks/useTeam', () => ({
-  useTeamForPrimaryOrg: () => [{ _id: 'team-1', name: 'Alex' }],
+  useTeamForPrimaryOrg: jest.fn(),
+}));
+
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(),
+}));
+
+jest.mock('@/app/hooks/useNotify', () => ({
+  useNotify: jest.fn(),
 }));
 
 jest.mock('@/app/features/organization/services/specialityService', () => ({
@@ -23,9 +34,24 @@ jest.mock('@/app/features/organization/services/serviceService', () => ({
   deleteService: (...args: any[]) => deleteServiceMock(...args),
 }));
 
-jest.mock('react-icons/md', () => ({
-  MdDeleteForever: () => <span>delete</span>,
-}));
+jest.mock(
+  'react-icons/io5',
+  () =>
+    new Proxy(
+      { __esModule: true },
+      {
+        get: (_t, name) => {
+          if (name === '__esModule') return true;
+          const Icon =
+            (_t as any)[String(name)] ||
+            ((_t as any)[String(name)] = (props: any) => (
+              <span data-testid={String(name)} onClick={props.onClick} />
+            ));
+          return Icon;
+        },
+      }
+    )
+);
 
 jest.mock('@/app/ui/overlays/Modal', () => ({
   __esModule: true,
@@ -39,7 +65,11 @@ jest.mock('@/app/ui/overlays/Modal/CenterModal', () => ({
 
 jest.mock('@/app/ui/primitives/Icons/Close', () => ({
   __esModule: true,
-  default: () => <div />,
+  default: ({ onClick }: any) => (
+    <button type="button" onClick={onClick}>
+      close
+    </button>
+  ),
 }));
 
 jest.mock('@/app/ui/primitives/Buttons/Delete', () => ({
@@ -134,9 +164,15 @@ describe('SpecialityInfo modal', () => {
     ],
   };
 
+  const notify = jest.fn();
+  const push = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
     accordionCalls.length = 0;
+    (useTeamForPrimaryOrg as jest.Mock).mockReturnValue([{ _id: 'team-1', name: 'Alex' }]);
+    (useRouter as jest.Mock).mockReturnValue({ push });
+    (useNotify as jest.Mock).mockReturnValue({ notify });
   });
 
   it('deletes speciality and updates core details', async () => {
@@ -149,7 +185,7 @@ describe('SpecialityInfo modal', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('delete'));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete speciality' }));
     fireEvent.click(screen.getByText('Delete'));
     await accordionCalls[0].onSave({
       name: 'Updated',

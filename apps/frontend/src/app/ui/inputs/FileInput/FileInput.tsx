@@ -1,5 +1,5 @@
 import React from 'react';
-import { RiUploadCloud2Fill } from 'react-icons/ri';
+import { IoCloudUpload } from 'react-icons/io5';
 
 import './FileInput.css';
 
@@ -13,7 +13,7 @@ const FileInput = () => {
         aria-label="Upload documents (optional)"
       />
       <label htmlFor="file-professioal-upload" className="file-input-label">
-        <RiUploadCloud2Fill color="var(--color-black-pure)" size={40} />
+        <IoCloudUpload color="var(--color-black-pure)" size={40} />
         <div className="upload-title">Upload documents (optional)</div>
         <div className="upload-desc">
           Only DOC, PDF, PNG, and JPEG formats, with maximum size of 5 MB.

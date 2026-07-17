@@ -29,7 +29,7 @@
 .yosemite-loader--fullscreen {
   position: fixed;
   inset: 0;
-  background: var(--color-bg, #ffffff);
+  background: var(--color-bg, var(--color-surface-card));
   z-index: 9999;
   width: 100%;
   height: 100%;
@@ -41,7 +41,7 @@
 .yosemite-loader--fullscreen-translucent {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.64);
+  background: var(--glass-93);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 9999;

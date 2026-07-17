@@ -201,12 +201,10 @@ export const updateAppointment = async (payload: Appointment) => {
   const { primaryOrgId } = useOrgStore.getState();
   const organisationIdForRequest = primaryOrgId ?? payload.organisationId;
   if (!organisationIdForRequest) {
-    console.warn('No primary organization selected. Cannot update appointment.');
-    return;
+    throw new Error('No organisation selected. Cannot update appointment.');
   }
   if (!payload.id) {
-    console.warn('updateAppointment: missing appointment.id', payload);
-    return;
+    throw new Error('Cannot update appointment: appointment ID missing.');
   }
   try {
     const fhirAppointment = toAppointmentResponseDTO(
@@ -372,11 +370,10 @@ const performAppointmentAction = async (
 ) => {
   const organisationIdForRequest = getOrgIdForAppointment(appointment);
   if (!appointment.id) {
-    return;
+    throw new Error(`Cannot ${action} appointment: appointment ID missing.`);
   }
   if (!organisationIdForRequest) {
-    console.warn(`No organization selected. Cannot ${action} appointment.`);
-    return;
+    throw new Error(`No organisation selected. Cannot ${action} appointment.`);
   }
   try {
     let appointmentPayload = appointment;

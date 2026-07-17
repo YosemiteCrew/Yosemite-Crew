@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 import { EncounterController } from "src/controllers/web/case-encounter.controller";
 
@@ -7,7 +7,7 @@ const router = Router();
 
 router.post(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.create,
@@ -15,7 +15,7 @@ router.post(
 
 router.patch(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.update,
@@ -23,7 +23,7 @@ router.patch(
 
 router.post(
   String.raw`/:id/\$discharge`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.discharge,
@@ -31,7 +31,7 @@ router.post(
 
 router.post(
   String.raw`/:id/\$assign-unit`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.assignUnit,
@@ -39,7 +39,7 @@ router.post(
 
 router.get(
   String.raw`/:id/\$unit-assignments`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   EncounterController.listUnitAssignments,
@@ -47,7 +47,7 @@ router.get(
 
 router.get(
   String.raw`/:id/\$admission-unit-assignments`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   EncounterController.listAdmissionUnitAssignments,
@@ -55,7 +55,7 @@ router.get(
 
 router.post(
   String.raw`/:id/\$start`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.start,
@@ -63,7 +63,7 @@ router.post(
 
 router.post(
   String.raw`/:id/\$ready-for-discharge`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.readyForDischarge,
@@ -71,7 +71,7 @@ router.post(
 
 router.post(
   String.raw`/:id/\$undo-ready-for-discharge`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:edit:any"),
   EncounterController.undoReadyForDischarge,
@@ -79,7 +79,7 @@ router.post(
 
 router.get(
   String.raw`/\$active-inpatients`,
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   EncounterController.listActiveInpatients,
@@ -87,7 +87,7 @@ router.get(
 
 router.get(
   "/:id",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   EncounterController.getById,
@@ -95,7 +95,7 @@ router.get(
 
 router.get(
   "/",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission("appointments:view:any"),
   EncounterController.list,

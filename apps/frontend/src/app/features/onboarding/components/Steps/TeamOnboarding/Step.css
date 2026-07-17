@@ -20,52 +20,56 @@
   align-items: center;
 }
 .team-type-title {
-  color: var(--color-neutral-700);
+  color: var(--ink-soft);
   font-family: var(--font-satoshi);
-  font-size: 16px;
+  font-size: 12.5px;
   font-style: normal;
-  font-weight: 500;
-  line-height: 112.5%;
-  letter-spacing: -0.32px;
+  font-weight: 600;
+  line-height: 120%;
+  letter-spacing: -0.02em;
 }
 .team-type-options {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 .team-type-option {
-  height: 40px;
-  padding: 0 16px;
-  display: flex;
+  padding: 9px 16px;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
-  color: var(--black-text);
+  color: var(--ink-muted);
   text-align: center;
-  font-family: var(--satoshi-font);
-  font-size: 16px;
+  font-family: var(--font-satoshi);
+  font-size: 13px;
   font-style: normal;
-  font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.32px;
-  border-radius: 12px;
-  border: 1px solid var(--black-bg);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  border-radius: 9999px;
+  border: 1px solid var(--hairline);
   cursor: pointer;
-  background: var(--whitebg);
+  background: var(--screen);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+.team-type-option:hover {
+  border-color: var(--divider);
+  color: var(--ink-body);
 }
 .activeGendertype {
-  border: 1px solid var(--blue-text);
-  background: var(--light-blue);
-  color: var(--blue-text);
+  border: 1.5px solid var(--blue);
+  background: var(--nav-active-bg);
+  color: var(--nav-active);
+  font-weight: 700;
 }
 @media screen and (max-width: 768px) {
-  .team-type-title {
-    font-size: 19px;
-  }
   .team-type-option {
-    height: 36px;
-    font-size: 15px;
-    padding: 0 16px;
+    padding: 8px 14px;
+    font-size: 12.5px;
   }
 }
 @media screen and (max-width: 550px) {

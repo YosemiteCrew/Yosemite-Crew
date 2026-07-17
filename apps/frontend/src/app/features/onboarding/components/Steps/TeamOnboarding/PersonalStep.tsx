@@ -1,13 +1,7 @@
-import {
-  useEffect,
-  useImperativeHandle,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-  type Ref,
-} from 'react';
+import { useImperativeHandle, useState, type Dispatch, type SetStateAction, type Ref } from 'react';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import classNames from 'classnames';
+import { IoArrowForward } from 'react-icons/io5';
 
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
 import GoogleSearchDropDown from '@/app/ui/inputs/GoogleSearchDropDown/GoogleSearchDropDown';
@@ -110,9 +104,24 @@ function PersonalStep({
   ref,
 }: PersonalStepProps) {
   const [formDataErrors, setFormDataErrors] = useState<PersonalStepErrors>({});
-  const [currentDate, setCurrentDate] = useState<Date | null>(
-    formData.personalDetails?.dateOfBirth ? new Date(formData.personalDetails.dateOfBirth) : null
-  );
+  const currentDate = formData.personalDetails?.dateOfBirth
+    ? new Date(formData.personalDetails.dateOfBirth)
+    : null;
+  const setCurrentDate: React.Dispatch<React.SetStateAction<Date | null>> = (value) => {
+    setFormData((prev) => {
+      const prevDate = prev.personalDetails?.dateOfBirth
+        ? new Date(prev.personalDetails.dateOfBirth)
+        : null;
+      const next = typeof value === 'function' ? value(prevDate) : value;
+      return {
+        ...prev,
+        personalDetails: {
+          ...prev.personalDetails,
+          dateOfBirth: next ? formatDateLocal(next) : '',
+        },
+      };
+    });
+  };
   const initialPhoneData = findPhoneData(
     formData.personalDetails?.phoneNumber || '',
     formData.personalDetails?.address?.country
@@ -129,16 +138,6 @@ function PersonalStep({
       return Object.keys(errors).length === 0;
     },
   }));
-
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      personalDetails: {
-        ...prev.personalDetails,
-        dateOfBirth: currentDate ? formatDateLocal(currentDate) : '',
-      },
-    }));
-  }, [currentDate, setFormData]);
 
   const handleNext = async () => {
     if (isSaving) return;
@@ -190,9 +189,11 @@ function PersonalStep({
   };
 
   return (
-    <div className="team-container">
-      <div className="flex flex-col gap-6">
-        <div className="team-title">Personal details</div>
+    <div className="flex w-full flex-col">
+      <div className="mx-auto flex w-full max-w-[820px] flex-col gap-6 rounded-[22px] border border-[var(--hairline)] bg-[var(--screen)] px-[30px] py-[28px] shadow-[0_2px_6px_var(--sh05),0_20px_55px_var(--sh10)]">
+        <div className="text-[17px] font-bold leading-tight tracking-[-0.34px] text-[var(--ink)]">
+          Personal details
+        </div>
 
         {/* Profile picture + Gender in one row */}
         <div className="flex flex-wrap items-start justify-between gap-6">
@@ -363,16 +364,18 @@ function PersonalStep({
             />
           </div>
         </div>
-      </div>
 
-      <div className="team-buttons">
-        <Secondary href="/organizations" text="Back" />
-        <Primary
-          href="#"
-          text={isSaving ? 'Saving...' : 'Next'}
-          onClick={handleNext}
-          isDisabled={isSaving}
-        />
+        <div className="mt-1 flex items-center justify-between gap-3 border-t border-[var(--hairline)] pt-[18px]">
+          <Secondary href="/organizations" text="Back" />
+          <Primary
+            href="#"
+            text={isSaving ? 'Saving...' : 'Next'}
+            icon={<IoArrowForward aria-hidden="true" />}
+            iconPosition="right"
+            onClick={handleNext}
+            isDisabled={isSaving}
+          />
+        </div>
       </div>
     </div>
   );

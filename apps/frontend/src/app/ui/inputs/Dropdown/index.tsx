@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { FaCaretDown } from 'react-icons/fa6';
+import { IoCaretDown } from 'react-icons/io5';
 import { IoIosWarning } from 'react-icons/io';
 
 type Option = {
@@ -11,6 +11,19 @@ type Option = {
 const wrapActiveIndex = (current: number, optionCount: number, delta: 1 | -1): number => {
   if (delta === 1) return current + 1 >= optionCount ? 0 : current + 1;
   return current <= 0 ? optionCount - 1 : current - 1;
+};
+
+/** Compute the active option index when the open/options/selection context changes. */
+const resolveActiveIndex = (
+  open: boolean,
+  options: Option[],
+  activeIndex: number,
+  selectedKey?: string
+): number => {
+  if (!open || options.length === 0) return -1;
+  if (activeIndex >= 0 && activeIndex < options.length) return activeIndex;
+  const selectedIndex = options.findIndex((option) => option.key === selectedKey);
+  return Math.max(selectedIndex, 0);
 };
 
 type DropdownProps = {
@@ -32,11 +45,21 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
       ? `${listboxId}-option-${options[activeIndex].key}`
       : undefined;
 
-  useEffect(() => {
-    if (!defaultOption) return;
-    const found = options.find((option) => option.key === defaultOption);
-    if (found) setSelected(found);
-  }, [defaultOption, options]);
+  const [prevDefaultDeps, setPrevDefaultDeps] = useState<{
+    defaultOption?: string;
+    options: Option[];
+  } | null>(null);
+  if (
+    prevDefaultDeps === null ||
+    defaultOption !== prevDefaultDeps.defaultOption ||
+    options !== prevDefaultDeps.options
+  ) {
+    setPrevDefaultDeps({ defaultOption, options });
+    if (defaultOption) {
+      const found = options.find((option) => option.key === defaultOption);
+      if (found) setSelected(found);
+    }
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -50,17 +73,19 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
     };
   }, []);
 
-  useEffect(() => {
-    if (!open || options.length === 0) {
-      setActiveIndex(-1);
-      return;
-    }
-    setActiveIndex((current) => {
-      if (current >= 0 && current < options.length) return current;
-      const selectedIndex = options.findIndex((option) => option.key === selected?.key);
-      return Math.max(selectedIndex, 0);
-    });
-  }, [open, options, selected?.key]);
+  const [activeIndexDeps, setActiveIndexDeps] = useState({
+    options,
+    open,
+    selectedKey: selected?.key,
+  });
+  if (
+    options !== activeIndexDeps.options ||
+    open !== activeIndexDeps.open ||
+    selected?.key !== activeIndexDeps.selectedKey
+  ) {
+    setActiveIndexDeps({ options, open, selectedKey: selected?.key });
+    setActiveIndex(resolveActiveIndex(open, options, activeIndex, selected?.key));
+  }
 
   useEffect(() => {
     if (!open || !activeOptionId) return;
@@ -143,12 +168,12 @@ const Dropdown = ({ placeholder, options, defaultOption, onSelect, error }: Drop
         ) : (
           <div className="text-black-text text-body-4 truncate max-w-[200px]">{placeholder}</div>
         )}
-        <FaCaretDown size={20} className={`text-black-text transition-transform cursor-pointer`} />
+        <IoCaretDown size={20} className={`text-black-text transition-transform cursor-pointer`} />
       </button>
       {open && (
         <div
           id={listboxId}
-          className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b border-t bg-white flex flex-col items-center w-full px-3 py-2.5"
+          className="border-input-text-placeholder-active max-h-50 overflow-y-auto scrollbar-hidden z-99 absolute top-full left-0 rounded-b-2xl border-l border-r border-b border-t bg-neutral-0 flex flex-col items-center w-full px-3 py-2.5"
         >
           {options.map((option, i) => (
             <button

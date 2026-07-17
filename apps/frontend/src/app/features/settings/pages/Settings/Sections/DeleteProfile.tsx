@@ -84,8 +84,14 @@ const DeleteProfile = () => {
 
   return (
     <>
-      <div className="flex justify-center">
-        <Delete href="#" onClick={handleOpenDelete} text="Delete profile" />
+      <div className="flex items-center gap-3 rounded-[18px] border border-[var(--color-danger-200)] px-5 py-4">
+        <div className="flex-1">
+          <div className="text-[13px] font-bold text-[var(--color-danger-600)]">Delete profile</div>
+          <div className="text-[11.5px] text-[var(--ink-faint)]">
+            Leaves all organizations and erases your account
+          </div>
+        </div>
+        <Delete href="#" onClick={handleOpenDelete} text="Delete…" />
       </div>
       <DeleteConfirmationModal
         showModal={deletePopup}

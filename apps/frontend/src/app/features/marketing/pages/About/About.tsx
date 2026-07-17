@@ -19,6 +19,7 @@ import {
   Spotlight,
   CountUp,
   HeroGlow,
+  InkAnnotate,
   useGithubStats,
   ABOUT_ORIGIN_PHOTO,
   GITHUB_REPO_URL,
@@ -186,7 +187,9 @@ function Hero() {
               animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.58s both',
             }}
           >
-            underneath.
+            <InkAnnotate type="circle" delay={1500}>
+              underneath.
+            </InkAnnotate>
           </em>
         </h1>
         <p

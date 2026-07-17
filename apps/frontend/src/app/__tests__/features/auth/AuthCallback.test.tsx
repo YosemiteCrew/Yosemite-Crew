@@ -7,20 +7,12 @@ expect.extend(toHaveNoViolations);
 
 const completeGithubSignIn = jest.fn();
 jest.mock('@/app/features/auth/lib/githubOAuth', () => ({
-  completeGithubSignIn: (args: unknown) => completeGithubSignIn(args),
-}));
-
-const establishFederatedSession = jest.fn();
-jest.mock('@/app/stores/authStore', () => ({
-  useAuthStore: (selector: (state: { establishFederatedSession: unknown }) => unknown) =>
-    selector({ establishFederatedSession }),
+  completeGithubSignIn: () => completeGithubSignIn(),
 }));
 
 const replace = jest.fn();
-let params: Record<string, string>;
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace }),
-  useSearchParams: () => ({ get: (key: string) => params[key] ?? null }),
 }));
 
 jest.mock('@/app/ui/overlays/Loader', () => ({
@@ -28,6 +20,7 @@ jest.mock('@/app/ui/overlays/Loader', () => ({
     <div data-testid={testId}>{label}</div>
   ),
 }));
+
 jest.mock('next/link', () => ({
   __esModule: true,
   default: ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -40,69 +33,62 @@ import AuthCallback from '@/app/features/auth/pages/AuthCallback/AuthCallback';
 describe('AuthCallback', () => {
   beforeEach(() => {
     completeGithubSignIn.mockReset();
-    establishFederatedSession.mockReset();
     replace.mockReset();
-    params = {};
   });
 
-  it('exchanges the code, establishes the session, and redirects', async () => {
-    params = { code: 'code123', state: 'state123' };
-    completeGithubSignIn.mockResolvedValue({
-      tokens: { idToken: 'i', accessToken: 'a', refreshToken: 'r' },
-      redirectTo: '/developers/home',
-    });
-    establishFederatedSession.mockResolvedValue({});
+  it('shows the loader, completes the handshake, and redirects to the resolved target', async () => {
+    completeGithubSignIn.mockResolvedValue({ redirectTo: '/developers/home' });
 
     render(<AuthCallback />);
     expect(screen.getByTestId('github-callback-loader')).toBeInTheDocument();
 
-    await waitFor(() =>
-      expect(establishFederatedSession).toHaveBeenCalledWith({
-        idToken: 'i',
-        accessToken: 'a',
-        refreshToken: 'r',
-      })
-    );
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/developers/home'));
+    expect(completeGithubSignIn).toHaveBeenCalledTimes(1);
   });
 
-  it('shows an error when the provider returns an error param', () => {
-    params = { error: 'access_denied' };
+  it('runs the handshake only once even when the component re-renders', async () => {
+    completeGithubSignIn.mockResolvedValue({ redirectTo: '/developers/home' });
+
+    const { rerender } = render(<AuthCallback />);
+    rerender(<AuthCallback />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/developers/home'));
+    expect(completeGithubSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it('surfaces the error message and a back-to-sign-in link when the handshake fails', async () => {
+    completeGithubSignIn.mockRejectedValue(new Error('GitHub did not share an email.'));
+
     render(<AuthCallback />);
-    expect(screen.getByText(/cancelled or did not complete/i)).toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(screen.getByText('GitHub did not share an email.')).toBeInTheDocument()
+    );
+    expect(screen.getByRole('heading', { name: /sign in interrupted/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /back to sign in/i })).toHaveAttribute(
       'href',
       '/signin'
     );
-    expect(completeGithubSignIn).not.toHaveBeenCalled();
-  });
-
-  it('shows an error when code or state is missing', () => {
-    params = { code: 'code123' };
-    render(<AuthCallback />);
-    expect(screen.getByText(/missing information/i)).toBeInTheDocument();
-  });
-
-  it('surfaces the error message when the exchange fails', async () => {
-    params = { code: 'code123', state: 'state123' };
-    completeGithubSignIn.mockRejectedValue(new Error('token exchange failed'));
-    render(<AuthCallback />);
-    await waitFor(() => expect(screen.getByText('token exchange failed')).toBeInTheDocument());
     expect(replace).not.toHaveBeenCalled();
   });
 
   it('falls back to a generic message for a non-Error rejection', async () => {
-    params = { code: 'code123', state: 'state123' };
-    completeGithubSignIn.mockRejectedValue('oops');
+    completeGithubSignIn.mockRejectedValue('boom');
+
     render(<AuthCallback />);
+
     await waitFor(() =>
       expect(screen.getByText(/could not complete github sign in/i)).toBeInTheDocument()
     );
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it('has no accessibility violations on the error screen', async () => {
-    params = { error: 'access_denied' };
+    completeGithubSignIn.mockRejectedValue(new Error('Sign in failed.'));
+
     const { container } = render(<AuthCallback />);
+    await screen.findByText('Sign in failed.');
+
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });

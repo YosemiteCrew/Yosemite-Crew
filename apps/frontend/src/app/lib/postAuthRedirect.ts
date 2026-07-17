@@ -20,6 +20,11 @@ const normalizeRole = (role?: string | null) =>
 const isDeveloperRole = (role?: string | null) => normalizeRole(role) === 'developer';
 const isOwnerRole = (role?: string | null) => normalizeRole(role) === 'owner';
 
+// Only same-origin, absolute-path destinations are safe post-auth targets;
+// anything else (external URLs, protocol-relative //host) is dropped.
+export const sanitizeNextPath = (value: string | null): string | undefined =>
+  value?.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\') ? value : undefined;
+
 type ResolvePostAuthRedirectOptions = {
   fallbackRole?: string | null;
   redirectPath?: string;

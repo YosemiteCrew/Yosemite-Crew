@@ -1,9 +1,10 @@
 import {renderHook, act} from '@testing-library/react-native';
 import {Alert} from 'react-native';
 import {usePaymentHandler} from '../../../../src/features/payments/hooks/usePaymentHandler';
-import {useStripe} from '@stripe/stripe-react-native';
+import {useStripe, initStripe} from '@stripe/stripe-react-native';
 import {useDispatch} from 'react-redux';
 import {recordPayment} from '../../../../src/features/appointments/appointmentsSlice';
+import {getResolvedStripePublishableKey} from '../../../../src/config/stripeKeyRegistry';
 
 // --- Mocks ---
 
@@ -35,6 +36,11 @@ jest.mock('@/features/appointments/appointmentsSlice', () => ({
 // 3. Stripe
 jest.mock('@stripe/stripe-react-native', () => ({
   useStripe: jest.fn(),
+  initStripe: jest.fn(),
+}));
+
+jest.mock('@/config/stripeKeyRegistry', () => ({
+  getResolvedStripePublishableKey: jest.fn(),
 }));
 
 // 4. React Native Alert
@@ -83,6 +89,9 @@ describe('usePaymentHandler', () => {
     (recordPayment.rejected.match as unknown as jest.Mock).mockReturnValue(
       false,
     );
+
+    (initStripe as jest.Mock).mockResolvedValue(undefined);
+    (getResolvedStripePublishableKey as jest.Mock).mockReturnValue('');
   });
 
   // --- 1. Basic Validations ---
@@ -302,6 +311,72 @@ describe('usePaymentHandler', () => {
         merchantDisplayName: 'Yosemite Crew',
       }),
     );
+  });
+
+  // --- 6. Connected Account Initialization ---
+
+  it('initializes Stripe with the resolved publishable key when a connectedAccountId is provided', async () => {
+    (getResolvedStripePublishableKey as jest.Mock).mockReturnValue(
+      'pk_resolved',
+    );
+    mockStripeConfig = {
+      merchantDisplayName: 'Yosemite Crew',
+      urlScheme: 'yosemite',
+      merchantIdentifier: 'merchant.yosemite',
+      publishableKey: 'pk_config',
+    };
+
+    const {result} = renderHook(() =>
+      usePaymentHandler({...defaultProps, connectedAccountId: 'acct_123'}),
+    );
+
+    await act(async () => {
+      await result.current.handlePayNow();
+    });
+
+    expect(initStripe).toHaveBeenCalledWith({
+      publishableKey: 'pk_resolved',
+      stripeAccountId: 'acct_123',
+      merchantIdentifier: 'merchant.yosemite',
+      urlScheme: 'yosemite',
+    });
+  });
+
+  it('falls back to STRIPE_CONFIG.publishableKey when the registry has no key', async () => {
+    (getResolvedStripePublishableKey as jest.Mock).mockReturnValue('');
+    mockStripeConfig = {
+      merchantDisplayName: 'Yosemite Crew',
+      urlScheme: 'yosemite',
+      publishableKey: 'pk_config_fallback',
+    };
+
+    const {result} = renderHook(() =>
+      usePaymentHandler({...defaultProps, connectedAccountId: 'acct_123'}),
+    );
+
+    await act(async () => {
+      await result.current.handlePayNow();
+    });
+
+    expect(initStripe).toHaveBeenCalledWith(
+      expect.objectContaining({publishableKey: 'pk_config_fallback'}),
+    );
+  });
+
+  it('does not initialize Stripe when no publishable key is available at all', async () => {
+    (getResolvedStripePublishableKey as jest.Mock).mockReturnValue('');
+    mockStripeConfig = {merchantDisplayName: 'Yosemite Crew'};
+
+    const {result} = renderHook(() =>
+      usePaymentHandler({...defaultProps, connectedAccountId: 'acct_123'}),
+    );
+
+    await act(async () => {
+      await result.current.handlePayNow();
+    });
+
+    expect(initStripe).not.toHaveBeenCalled();
+    expect(mockInitPaymentSheet).toHaveBeenCalled();
   });
 
   it('handles dash ("—") guardian email by setting it undefined', async () => {

@@ -1,11 +1,10 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import Image from 'next/image';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
-import { MdArrowRightAlt } from 'react-icons/md';
 import { Primary, Secondary } from '@/app/ui/primitives/Buttons';
 import { postData } from '@/app/services/axios';
 import axios from 'axios';
-import { IoCamera } from 'react-icons/io5';
+import { IoArrowForwardOutline, IoCamera } from 'react-icons/io5';
 import { MEDIA_SOURCES } from '@/app/constants/mediaSources';
 import { getSafeImageUrl } from '@/app/lib/urls';
 
@@ -38,7 +37,7 @@ const uploadToS3 = async (uploadUrl: string, f: File) => {
 const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorProps) => {
   const [updatePopup, setUpdatePopup] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const selectedFileRef = useRef<File | null>(null);
 
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -56,7 +55,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
   const resetSelection = () => {
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
-    setFile(null);
+    selectedFileRef.current = null;
     setUploadError(null);
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -86,7 +85,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
     const localUrl = URL.createObjectURL(f);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(localUrl);
-    setFile(f);
+    selectedFileRef.current = f;
   };
 
   const handleUpdate = async () => {
@@ -95,15 +94,16 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
       return;
     }
     if (disabled || isUploading) return;
-    if (!file) {
+    const selectedFile = selectedFileRef.current;
+    if (!selectedFile) {
       setUploadError('Please choose an image to upload.');
       return;
     }
     setIsUploading(true);
     setUploadError(null);
     try {
-      const signed = await getSignedUrl(file);
-      await uploadToS3(signed.uploadUrl, file);
+      const signed = await getSignedUrl(selectedFile);
+      await uploadToS3(signed.uploadUrl, selectedFile);
       await onSave(signed.s3Key);
       setUpdatePopup(false);
       resetSelection();
@@ -157,7 +157,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
               }}
               className="rounded-full size-25 object-cover"
             />
-            <MdArrowRightAlt size={24} color="var(--color-neutral-900)" />
+            <IoArrowForwardOutline size={24} color="var(--color-neutral-900)" />
             <div className="flex flex-col items-center gap-3">
               <div className="relative">
                 <input
@@ -171,7 +171,7 @@ const LogoUpdator = ({ imageUrl, apiUrl, title, onSave, disabled }: LogoUpdatorP
                 />
                 <label
                   htmlFor={inputId}
-                  className={`size-25 relative rounded-full bg-white hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${safePreviewSrc ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
+                  className={`size-25 relative rounded-full bg-neutral-0 hover:bg-card-hover! transition-all duration-200 border-text-primary! cursor-pointer flex items-center justify-center ${safePreviewSrc ? 'border-0' : 'border'} ${isUploading ? 'pointer-events-none' : ''}`}
                   aria-label="Upload logo"
                 >
                   {safePreviewSrc ? (

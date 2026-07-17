@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Image from 'next/image';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { CompanionParent } from '@/app/features/companions/pages/Companions/types';
 import Labels from '@/app/ui/widgets/Labels/Labels';
 import Modal from '@/app/ui/overlays/Modal';
 import { Companion, Parent, Core, History } from '@/app/features/companions/components/Sections';
-import { getSafeImageUrl, ImageType } from '@/app/lib/urls';
+import CompanionAvatar from '@/app/ui/avatars/CompanionAvatar';
 import Close from '@/app/ui/primitives/Icons/Close';
 import { formatCompanionNameWithOwnerLastName } from '@/app/lib/companionName';
 import { buildCompanionOverviewHref } from '@/app/lib/companionHistoryRoute';
@@ -68,16 +67,20 @@ const CompanionInfo = ({
       ? COMPONENT_MAP[activeLabel]?.[activeSubLabel]
       : COMPONENT_MAP[activeLabel]?.[activeLabel];
 
-  useEffect(() => {
-    const current = labels.find((l) => l.key === activeLabel);
-    if (current?.labels && current.labels.length > 0) {
-      setActiveSubLabel(current.labels[0].key as SubLabelKey);
-      return;
-    }
-    if (current?.key) {
-      setActiveSubLabel(current.key as SubLabelKey);
-    }
-  }, [activeLabel, labels]);
+  const selectActiveLabel = useCallback(
+    (labelKey: LabelKey) => {
+      const current = labels.find((l) => l.key === labelKey);
+      setActiveLabel(labelKey);
+      if (current?.labels && current.labels.length > 0) {
+        setActiveSubLabel(current.labels[0].key as SubLabelKey);
+        return;
+      }
+      if (current?.key) {
+        setActiveSubLabel(current.key as SubLabelKey);
+      }
+    },
+    [labels]
+  );
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
@@ -85,8 +88,8 @@ const CompanionInfo = ({
 
   useEffect(() => {
     if (!showModal) return;
-    setActiveLabel(initialLabel);
-  }, [showModal, initialLabel, activeCompanion?.companion.id]);
+    selectActiveLabel(initialLabel);
+  }, [showModal, initialLabel, activeCompanion?.companion.id, selectActiveLabel]);
 
   return (
     <Modal showModal={showModal} setShowModal={setShowModal}>
@@ -94,15 +97,14 @@ const CompanionInfo = ({
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <div className="flex justify-center items-center gap-2">
-              <Image
+              <CompanionAvatar
                 alt={terminologyText('pet image')}
-                src={getSafeImageUrl(
-                  activeCompanion?.companion.photoUrl,
-                  activeCompanion?.companion.type.toLowerCase() as ImageType
-                )}
-                className="rounded-full size-10 object-cover"
-                height={40}
-                width={40}
+                photoUrl={activeCompanion?.companion.photoUrl}
+                name={activeCompanion?.companion.name}
+                speciesType={activeCompanion?.companion.type}
+                seed={activeCompanion?.companion.id}
+                size={40}
+                textClassName="text-body-2"
               />
               <button
                 type="button"
@@ -136,7 +138,7 @@ const CompanionInfo = ({
           <Labels
             labels={labels}
             activeLabel={activeLabel}
-            setActiveLabel={setActiveLabel}
+            setActiveLabel={selectActiveLabel}
             activeSubLabel={activeSubLabel}
             setActiveSubLabel={setActiveSubLabel}
           />

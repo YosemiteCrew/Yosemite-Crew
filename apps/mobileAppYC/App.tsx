@@ -7,7 +7,7 @@
  */
 import React, {
   useCallback,
-  useEffect,
+  useEffect as useReactEffect,
   useReducer,
   useRef,
   useState,
@@ -27,13 +27,12 @@ import {AppNavigator} from './src/navigation/AppNavigator';
 import {useTheme} from './src/shared/hooks/useTheme';
 import CustomSplashScreen from './src/shared/components/common/customSplashScreen/customSplash';
 import './src/localization';
-import devOutputs from './devamplify_outputs.json';
-import prodOutputs from './prodamplify_outputs.json';
+import '@react-native-masked-view/masked-view';
 import {StripeProvider} from '@stripe/stripe-react-native';
-import {Amplify} from 'aws-amplify';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {AuthProvider, useAuth} from '@/features/auth/context/AuthContext';
 import {configureSocialProviders} from '@/features/auth/services/socialAuth';
+import {initSuperTokens} from '@/features/auth/services/superTokensClient';
 import {ErrorBoundary} from '@/shared/components/common/ErrorBoundary';
 import {PreferencesProvider} from '@/features/preferences/PreferencesContext';
 import {GlobalLoaderProvider} from '@/context/GlobalLoaderContext';
@@ -62,6 +61,7 @@ import {
   STRIPE_CONFIG,
   UI_FEATURE_FLAGS,
   DEVELOPMENT_API_BASE_URL,
+  PRODUCTION_API_BASE_URL,
 } from '@/config/variables';
 import {setResolvedStripePublishableKey} from '@/config/stripeKeyRegistry';
 import {updateApiClientBaseConfig} from '@/shared/services/apiClient';
@@ -81,7 +81,12 @@ import {
   trackPostHogScreen,
 } from '@/shared/services/posthogAnalytics';
 
-Amplify.configure(MOBILE_CONFIG_BEHAVIOR.useDevApi ? devOutputs : prodOutputs);
+initSuperTokens(
+  MOBILE_CONFIG_BEHAVIOR.overrides?.apiBaseUrl ??
+    (MOBILE_CONFIG_BEHAVIOR.useDevApi
+      ? DEVELOPMENT_API_BASE_URL
+      : PRODUCTION_API_BASE_URL),
+);
 
 LogBox.ignoreLogs([
   'This method is deprecated (as well as all React Native Firebase namespaced API)',
@@ -104,8 +109,6 @@ const coerceBooleanFlag = (
   }
   return false;
 };
-
-const PRODUCTION_API_BASE_URL = 'https://api.yosemitecrew.com';
 
 const applyMockAppUpdateFlow = (
   config: MobileConfig,
@@ -221,7 +224,7 @@ function App(): React.JSX.Element {
   const pendingIntentRef = useRef<NotificationNavigationIntent | null>(null);
   const currentRouteNameRef = useRef<string | null>(null);
 
-  useEffect(() => {
+  useReactEffect(() => {
     const sub = DeviceEventEmitter.addListener(
       DEV_API_MODE_CHANGED_EVENT,
       ({isDevApi}: {isDevApi: boolean}) => {
@@ -245,11 +248,11 @@ function App(): React.JSX.Element {
     return () => sub.remove();
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     configureSocialProviders();
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!POSTHOG_CONFIG.enabled) {
       return;
     }
@@ -257,7 +260,7 @@ function App(): React.JSX.Element {
     initializePostHog();
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     let mounted = true;
 
     const loadMobileConfig = async () => {
@@ -343,7 +346,7 @@ function App(): React.JSX.Element {
             resolvedBaseUrl = DEVELOPMENT_API_BASE_URL;
           } else if (storedDemoMode === 'true') {
             resolvedBaseUrl = DEVELOPMENT_API_BASE_URL;
-            Amplify.configure(devOutputs);
+            initSuperTokens(DEVELOPMENT_API_BASE_URL);
             setDevApiActive(true);
           } else {
             resolvedBaseUrl = PRODUCTION_API_BASE_URL;
@@ -454,7 +457,7 @@ function App(): React.JSX.Element {
       STRIPE_CONFIG.publishableKey)
     : (mobileConfig?.stripePublishableKey ?? STRIPE_CONFIG.publishableKey);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!resolvedPublishableKey && !isConfigLoading) {
       console.warn(
         '[Stripe] Missing publishableKey from mobile config API and local config.',
@@ -597,7 +600,7 @@ const AppUpdateGate: React.FC<AppUpdateGateProps> = ({
 }) => {
   const updateSheetRef = useRef<AppUpdateBottomSheetRef>(null);
 
-  useEffect(() => {
+  useReactEffect(() => {
     console.log('[AppUpdate] Gate state', {
       kind: prompt?.kind ?? null,
       hasStoreUrl: Boolean(prompt?.storeUrl),
@@ -712,7 +715,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     lastRegisteredRef.current = null;
   }, []);
 
-  useEffect(() => {
+  useReactEffect(() => {
     if (!isLoggedIn) return;
     const preloadTools = async () => {
       try {
@@ -724,7 +727,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     preloadTools();
   }, [isLoggedIn]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     let mounted = true;
 
     const setup = async () => {
@@ -756,7 +759,7 @@ const NotificationBootstrap: React.FC<NotificationBootstrapProps> = ({
     };
   }, [dispatch, onNavigate, syncRegisterToken]);
 
-  useEffect(() => {
+  useReactEffect(() => {
     authStatusRef.current = {isLoggedIn, userId: currentUserId};
     if (isLoggedIn && latestTokenRef.current) {
       syncRegisterToken(latestTokenRef.current);

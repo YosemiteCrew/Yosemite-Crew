@@ -18,7 +18,7 @@ import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
 import { useSignUpDraft } from '@/app/hooks/useSignUpDraft';
 import { setStorageItem } from '@/app/lib/browserStorage';
-import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
+import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
 import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
 import { GithubSignInButton } from '@/app/features/auth/pages/GithubSignInButton';
 import {
@@ -175,7 +175,7 @@ const SignUp = ({
   }>({});
 
   const handleSignupSuccess = () => {
-    defaultSidebarToCollapsed();
+    resetSidebarPreference();
     clearSignUpDraft();
     globalThis.window?.scrollTo({ top: 0, behavior: 'smooth' });
     setStorageItem('session', 'devAuth', effectiveDeveloper ? 'true' : 'false');

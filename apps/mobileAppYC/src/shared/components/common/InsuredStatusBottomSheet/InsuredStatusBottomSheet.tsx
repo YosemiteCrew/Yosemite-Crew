@@ -1,5 +1,8 @@
-import React, {forwardRef, useImperativeHandle, useRef} from 'react';
-import {GenericSelectBottomSheet, type SelectItem} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import React, {useImperativeHandle, useRef} from 'react';
+import {
+  GenericSelectBottomSheet,
+  type SelectItem,
+} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
 import type {InsuredStatus} from '@/features/companion/types';
 
 export interface InsuredStatusBottomSheetRef {
@@ -7,19 +10,23 @@ export interface InsuredStatusBottomSheetRef {
   close: () => void;
 }
 
-export const InsuredStatusBottomSheet = forwardRef<InsuredStatusBottomSheetRef, {
+const INSURED_ITEMS: SelectItem[] = [
+  {id: 'insured', label: 'Insured'},
+  {id: 'not-insured', label: 'Not insured'},
+];
+
+export const InsuredStatusBottomSheet = ({
+  selected,
+  onSave,
+  ref,
+}: {
   selected: InsuredStatus | null;
   onSave: (v: InsuredStatus) => void;
-}>(({selected, onSave}, ref) => {
+} & {ref?: React.Ref<InsuredStatusBottomSheetRef>}) => {
   const bottomSheetRef = useRef<any>(null);
 
-  const insuredItems: SelectItem[] = [
-    {id: 'insured', label: 'Insured'},
-    {id: 'not-insured', label: 'Not insured'},
-  ];
-
   const selectedItem = selected
-    ? insuredItems.find(item => item.id === selected) || null
+    ? INSURED_ITEMS.find(item => item.id === selected) || null
     : null;
 
   useImperativeHandle(ref, () => ({
@@ -41,7 +48,7 @@ export const InsuredStatusBottomSheet = forwardRef<InsuredStatusBottomSheetRef, 
     <GenericSelectBottomSheet
       ref={bottomSheetRef}
       title="Insurance Status"
-      items={insuredItems}
+      items={INSURED_ITEMS}
       selectedItem={selectedItem}
       onSave={handleSave}
       hasSearch={false}
@@ -51,7 +58,7 @@ export const InsuredStatusBottomSheet = forwardRef<InsuredStatusBottomSheetRef, 
       maxListHeight={300}
     />
   );
-});
+};
 
 InsuredStatusBottomSheet.displayName = 'InsuredStatusBottomSheet';
 

@@ -1,23 +1,63 @@
+/* Warm "liquid glass" primary button — a --cta pill with a specular glass dome,
+   a pointer-following warm light (refraction), inset highlights and a warm float.
+   Mirrors the mobile rebuild's warm liquid-glass treatment, in CSS. */
 .yc-primary-button {
   --yc-button-x: 50%;
   --yc-button-y: 50%;
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-text-primary) 86%, white);
-  background: var(--color-text-primary);
-  box-shadow: none !important;
+  border: 1px solid color-mix(in srgb, var(--cta) 45%, rgba(255, 250, 240, 0.28));
+  border-radius: 9999px;
+  background: var(--cta);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  backdrop-filter: blur(10px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 240, 0.2),
+    inset 0 -10px 20px rgba(0, 0, 0, 0.16),
+    0 6px 18px var(--sh08),
+    0 1px 2px var(--sh05) !important;
   font-family: 'Satoshi Variable', 'Satoshi', sans-serif !important;
-  font-size: 1rem !important;
-  font-weight: 500 !important;
-  line-height: 1.5rem !important;
-  color: #fff !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  line-height: 1.25rem;
+  color: var(--cta-text) !important;
   transition:
     background-color 200ms ease-out,
     border-color 200ms ease-out,
-    box-shadow 200ms ease-out;
+    box-shadow 220ms ease-out,
+    transform 160ms ease-out;
 }
 
+.yc-primary-button:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 240, 0.26),
+    inset 0 -10px 20px rgba(0, 0, 0, 0.14),
+    0 10px 26px var(--sh10),
+    0 1px 2px var(--sh05) !important;
+}
+
+.yc-primary-button:active {
+  transform: translateY(0.5px);
+}
+
+/* warm specular dome — the top glass highlight */
+.yc-primary-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 248, 236, 0.22) 0%,
+    rgba(255, 248, 236, 0.06) 32%,
+    rgba(255, 248, 236, 0) 58%
+  );
+}
+
+/* interactive warm light — follows the pointer (liquid refraction) */
 .yc-primary-button::before {
   content: '';
   position: absolute;
@@ -26,10 +66,10 @@
   pointer-events: none;
   opacity: 0;
   background: radial-gradient(
-    circle 84px at var(--yc-button-x) var(--yc-button-y),
-    rgba(136, 206, 255, 0.34) 0%,
-    rgba(92, 184, 255, 0.2) 36%,
-    rgba(0, 150, 255, 0) 78%
+    circle 90px at var(--yc-button-x) var(--yc-button-y),
+    rgba(255, 233, 197, 0.36) 0%,
+    rgba(255, 206, 138, 0.22) 38%,
+    rgba(255, 190, 110, 0) 80%
   );
   transform: translateZ(0);
   will-change: opacity;
@@ -43,19 +83,26 @@
 
 .yc-primary-button:active::before {
   background: radial-gradient(
-    circle 72px at var(--yc-button-x) var(--yc-button-y),
-    rgba(0, 118, 214, 0.38) 0%,
-    rgba(0, 96, 184, 0.22) 36%,
-    rgba(0, 77, 153, 0) 78%
+    circle 78px at var(--yc-button-x) var(--yc-button-y),
+    rgba(255, 214, 158, 0.42) 0%,
+    rgba(240, 176, 104, 0.26) 38%,
+    rgba(214, 150, 80, 0) 80%
   );
 }
 
 .yc-primary-button:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-text-primary) 35%, white);
+  outline: 2px solid color-mix(in srgb, var(--cta) 40%, var(--cta-text));
   outline-offset: 2px;
 }
 
 .yc-primary-button > * {
   position: relative;
   z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yc-primary-button,
+  .yc-primary-button::before {
+    transition: none;
+  }
 }

@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import SignIn from '@/app/features/auth/pages/SignIn/SignIn';
 import { useAuthStore } from '@/app/stores/authStore';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 
@@ -13,6 +13,7 @@ import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
 // Mock Next.js Navigation
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
+  useSearchParams: jest.fn(),
 }));
 
 // Mock Auth Store
@@ -27,6 +28,11 @@ jest.mock('@/app/ui/overlays/Toast/Toast', () => ({
 
 jest.mock('@/app/lib/postAuthRedirect', () => ({
   resolvePostAuthRedirect: jest.fn(),
+  sanitizeNextPath: jest.fn((value: string | null) => {
+    if (!value) return undefined;
+    if (!value.startsWith('/')) return undefined;
+    return value;
+  }),
 }));
 
 // Mock the shared marketing foundation (AuthShell / AuthBrandContent) so its
@@ -48,6 +54,12 @@ jest.mock('@/app/ui/overlays/OtpModal/OtpModal', () => ({
   __esModule: true,
   default: ({ showVerifyModal }: any) =>
     showVerifyModal ? <div data-testid="otp-modal">OTP Modal Open</div> : null,
+}));
+
+// Render the GitHub button as an identifiable stub so its conditional presence
+// (developer account type only) is assertable without the env gate.
+jest.mock('@/app/features/auth/pages/GithubSignInButton', () => ({
+  GithubSignInButton: ({ note }: any) => <div data-testid="github-signin">{note}</div>,
 }));
 
 jest.mock('@/app/ui/overlays/Loader', () => ({
@@ -91,6 +103,8 @@ describe('SignIn Page', () => {
       replace: mockRouterReplace,
     });
 
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams());
+
     (useErrorTost as jest.Mock).mockReturnValue({
       showErrorTost: mockShowErrorTost,
       ErrorTostPopup: <div data-testid="toast-popup" />,
@@ -118,6 +132,57 @@ describe('SignIn Page', () => {
 
     expect(screen.getByText('Sign in to your developer account')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/dev-signup');
+  });
+
+  // --- Account-type selector (pet business vs developer) ---
+
+  it('defaults to the pet business account type and hides the GitHub option', () => {
+    render(<SignIn />);
+
+    expect(screen.getByRole('radio', { name: 'Pet business' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+    expect(screen.getByRole('radio', { name: 'Developer' })).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+    expect(screen.queryByTestId('github-signin')).not.toBeInTheDocument();
+  });
+
+  it('reveals the GitHub option and developer heading when the developer type is selected', () => {
+    render(<SignIn />);
+    expect(screen.queryByTestId('github-signin')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Developer' }));
+
+    expect(screen.getByRole('radio', { name: 'Developer' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+    expect(screen.getByTestId('github-signin')).toBeInTheDocument();
+    expect(screen.getByText('Sign in to your developer account')).toBeInTheDocument();
+
+    // Switching back to pet business hides the GitHub option again.
+    fireEvent.click(screen.getByRole('radio', { name: 'Pet business' }));
+    expect(screen.queryByTestId('github-signin')).not.toBeInTheDocument();
+  });
+
+  it('signs in as a developer when that account type is selected', async () => {
+    mockSignIn.mockResolvedValue({});
+    render(<SignIn />);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Developer' }));
+    fireEvent.change(getEmailInput(), { target: { value: 'dev@example.com' } });
+    fireEvent.change(getPasswordInput(), { target: { value: 'pass123' } });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({ isDeveloper: true })
+    );
   });
 
   it('toggles password visibility with the show-password button', () => {
@@ -390,6 +455,89 @@ describe('SignIn Page', () => {
 
     expect(mockShowErrorTost).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Error resending code.' })
+    );
+  });
+
+  it('prefills the email field from the email query param', () => {
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams({ email: 'new-user@example.com' })
+    );
+
+    render(<SignIn />);
+
+    expect(getEmailInput()).toHaveValue('new-user@example.com');
+  });
+
+  it('renders with an empty email when useSearchParams returns null', () => {
+    (useSearchParams as jest.Mock).mockReturnValue(null);
+
+    render(<SignIn />);
+
+    expect(getEmailInput()).toHaveValue('');
+  });
+
+  it('honors a safe next query param as the post-auth redirect', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams({ next: '/create-org' }));
+    mockSignIn.mockResolvedValue({});
+
+    render(<SignIn />);
+    fireEvent.change(getEmailInput(), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(getPasswordInput(), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectPath: '/create-org' })
+    );
+  });
+
+  it('ignores unsafe or external next values', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams({ next: 'https://evil.example.com/phish' })
+    );
+    mockSignIn.mockResolvedValue({});
+
+    render(<SignIn />);
+    fireEvent.change(getEmailInput(), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(getPasswordInput(), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectPath: undefined })
+    );
+  });
+
+  it('ignores next when allowNext is false', async () => {
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams({ next: '/create-org' }));
+    mockSignIn.mockResolvedValue({});
+
+    render(<SignIn allowNext={false} redirectPath="/developers/home" isDeveloper />);
+    fireEvent.change(getEmailInput(), {
+      target: { value: 'test@example.com' },
+    });
+    fireEvent.change(getPasswordInput(), {
+      target: { value: 'pass123' },
+    });
+
+    await act(async () => {
+      fireEvent.click(getSubmitBtn());
+    });
+
+    expect(resolvePostAuthRedirect).toHaveBeenCalledWith(
+      expect.objectContaining({ redirectPath: '/developers/home' })
     );
   });
 

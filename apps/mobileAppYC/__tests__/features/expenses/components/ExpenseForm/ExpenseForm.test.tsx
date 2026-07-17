@@ -54,7 +54,9 @@ jest.mock('@/hooks', () => {
             return;
           }
           mockConfirmDeleteFile(fileToDelete);
-          config?.setFiles?.((config?.files ?? []).filter((f: any) => f.id !== fileToDelete));
+          config?.setFiles?.(
+            (config?.files ?? []).filter((f: any) => f.id !== fileToDelete),
+          );
           fileToDelete = null;
           config?.closeSheet?.();
         },
@@ -84,19 +86,22 @@ jest.mock('@/features/expenses/utils/expenseLabels', () => ({
   resolveVisitTypeLabel: (val: string | null) => (val ? `Label:${val}` : ''),
 }));
 
-jest.mock('@/shared/components/common/CompanionSelector/CompanionSelector', () => ({
-  CompanionSelector: jest.fn(props => {
-    const {View: MockView} = require('react-native');
-    const handleSelect = (id: string | null) => props.onSelect(id);
-    return (
-      <MockView
-        {...props}
-        testID="mock-CompanionSelector"
-        onSelect={handleSelect}
-      />
-    );
+jest.mock(
+  '@/shared/components/common/CompanionSelector/CompanionSelector',
+  () => ({
+    CompanionSelector: jest.fn(props => {
+      const {View: MockView} = require('react-native');
+      const handleSelect = (id: string | null) => props.onSelect(id);
+      return (
+        <MockView
+          {...props}
+          testID="mock-CompanionSelector"
+          onSelect={handleSelect}
+        />
+      );
+    }),
   }),
-}));
+);
 jest.mock('@/shared/components/common/Input/Input', () => ({
   Input: jest.fn(props => {
     const {View: MockView} = require('react-native');
@@ -121,11 +126,16 @@ jest.mock(
     return <MockView {...props} testID="mock-LiquidGlassButton" />;
   },
 );
-jest.mock('@/shared/components/common/SimpleDatePicker/SimpleDatePicker', () => ({
-  SimpleDatePicker: jest.fn(props => {
-    const {View: MockView} = require('react-native');
-    return <MockView {...props} testID="mock-SimpleDatePicker" />;
+jest.mock(
+  '@/shared/components/common/SimpleDatePicker/SimpleDatePicker',
+  () => ({
+    SimpleDatePicker: jest.fn(props => {
+      const {View: MockView} = require('react-native');
+      return <MockView {...props} testID="mock-SimpleDatePicker" />;
+    }),
   }),
+);
+jest.mock('@/shared/components/common/SimpleDatePicker/dateTimeFormat', () => ({
   formatDateForDisplay: (date: Date) => date.toISOString().split('T')[0],
 }));
 jest.mock('@/features/documents/components/DocumentAttachmentsSection', () => ({
@@ -141,16 +151,21 @@ const mockOpenVisitTypeSheet = jest.fn();
 const mockOpenUploadSheet = jest.fn();
 const mockOpenDeleteSheet = jest.fn();
 
-jest.mock('@/shared/components/common/CategoryBottomSheet/CategoryBottomSheet', () => {
-  const MockReact = require('react');
-  const {View: MockView} = require('react-native');
-  return {
-    CategoryBottomSheet: MockReact.forwardRef((props: any, ref: any) => {
-      MockReact.useImperativeHandle(ref, () => ({open: mockOpenCategorySheet}));
-      return <MockView {...props} testID="mock-CategoryBottomSheet" />;
-    }),
-  };
-});
+jest.mock(
+  '@/shared/components/common/CategoryBottomSheet/CategoryBottomSheet',
+  () => {
+    const MockReact = require('react');
+    const {View: MockView} = require('react-native');
+    return {
+      CategoryBottomSheet: MockReact.forwardRef((props: any, ref: any) => {
+        MockReact.useImperativeHandle(ref, () => ({
+          open: mockOpenCategorySheet,
+        }));
+        return <MockView {...props} testID="mock-CategoryBottomSheet" />;
+      }),
+    };
+  },
+);
 jest.mock(
   '@/shared/components/common/SubcategoryBottomSheet/SubcategoryBottomSheet',
   () => {
@@ -595,6 +610,8 @@ describe('ExpenseForm', () => {
       expect.anything(),
     );
     const mockedSheets = jest.requireMock('@/shared/hooks/useFormBottomSheets');
-    expect(mockedSheets.useFormBottomSheets().closeSheet).not.toHaveBeenCalled();
+    expect(
+      mockedSheets.useFormBottomSheets().closeSheet,
+    ).not.toHaveBeenCalled();
   });
 });

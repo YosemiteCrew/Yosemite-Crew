@@ -4,6 +4,11 @@ import { buildContentSecurityPolicy, securityHeaders } from '@/securityHeaders';
 const CSP_HEADER = 'Content-Security-Policy';
 const NONCE_HEADER = 'x-nonce';
 
+// Every route under (routes)/(app) belongs here — its layout awaits connection(),
+// so the whole group renders per-request and always has a nonce.
+// Routes under (routes)/(public) must NOT be added: they are statically
+// prerendered, so their inline scripts carry no per-request nonce and a strict
+// CSP would block them. Make such a route dynamic first, or leave it off.
 const STRICT_CSP_PATH_PREFIXES = [
   '/appointments',
   '/book-onboarding',
@@ -24,6 +29,7 @@ const STRICT_CSP_PATH_PREFIXES = [
   '/inventory',
   '/organization',
   '/organizations',
+  '/public-booking-setup',
   '/settings',
   '/stripe-onboarding',
   '/tasks',
@@ -69,8 +75,9 @@ export function middleware(request: NextRequest) {
 
   // Security headers on every document response.
   // Auth is handled client-side by ProtectedRoute + SessionInitializer —
-  // amazon-cognito-identity-js stores tokens in localStorage which is not
-  // accessible at the edge, so route protection cannot be done here.
+  // sessions are httpOnly cookies scoped to the API domain (SuperTokens),
+  // which this middleware (running on the web origin) cannot read, so route
+  // protection cannot be done here.
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,

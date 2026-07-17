@@ -1,73 +1,70 @@
 # "Continue with GitHub" for developers
 
-Developers can sign in / sign up with GitHub. The web app implements the frontend
-of a **Cognito Hosted UI federation** flow with **PKCE** — the browser never holds
-a client secret. The "Continue with GitHub" button stays hidden until the two env
-vars below are set, so nothing ships half-wired.
+Developers can sign in / sign up with GitHub. This is a **SuperTokens ThirdParty
+(GitHub)** flow: the browser never holds a client secret, the backend GitHub
+provider performs the token exchange, and the "Continue with GitHub" button stays
+hidden until it is enabled, so nothing ships half-wired.
 
 ## How it works
 
-1. The developer clicks **Continue with GitHub** on `/signin` (or `/signup` with the
-   developer role). The app redirects to the Cognito Hosted UI
-   `/oauth2/authorize` endpoint with `identity_provider=<GitHub IdP>` and a PKCE
-   `code_challenge`.
-2. Cognito runs the GitHub OAuth handshake and redirects back to `/auth/callback`
-   with an authorization `code` and the `state` we sent.
-3. `/auth/callback` validates `state` (CSRF), exchanges the `code` for tokens at
-   `/oauth2/token` using the stored PKCE `code_verifier` (public client, no secret),
-   builds a `CognitoUserSession`, and forwards the developer to `/developers/home`.
+1. The developer clicks **Continue with GitHub** on `/signin` (or `/signup`). The
+   app calls SuperTokens `getAuthorisationURLWithQueryParamsAndSetState({ thirdPartyId: 'github', frontendRedirectURI: '<origin>/auth/callback' })`,
+   which builds the GitHub authorisation URL (PKCE + CSRF state handled by the SDK)
+   and navigates the browser to GitHub.
+2. GitHub runs the OAuth handshake and redirects back to `/auth/callback` with a
+   `code` and `state`.
+3. `/auth/callback` calls SuperTokens `signInAndUp()`, which posts the `code`/`state`
+   to the backend; the backend GitHub provider exchanges them (using the client
+   secret it holds), creates or signs in the user, and establishes the session.
+4. The callback forwards the developer to the stored return path (default
+   `/developers/home`).
 
 Relevant code: `src/app/features/auth/lib/githubOAuth.ts`,
 `src/app/features/auth/pages/GithubSignInButton.tsx`,
-`src/app/features/auth/pages/AuthCallback/AuthCallback.tsx`,
-`authStore.establishFederatedSession`.
+`src/app/features/auth/pages/AuthCallback/AuthCallback.tsx`, and the backend
+provider in `packages/auth/src/config/supertokens.config.ts` (`buildThirdPartyProviders`).
 
-## Frontend env vars
+## Env vars
 
-| Variable                         | Example                                             | Notes                                                                   |
-| -------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------- |
-| `NEXT_PUBLIC_COGNITO_CLIENTID`   | `xxxxxxxxxxxx`                                      | Existing app-client id.                                                 |
-| `NEXT_PUBLIC_COGNITO_DOMAIN`     | `yosemite-crew.auth.eu-central-1.amazoncognito.com` | Cognito Hosted UI domain (host or full URL). Enables the button.        |
-| `NEXT_PUBLIC_COGNITO_GITHUB_IDP` | `GitHub`                                            | Name of the GitHub identity provider in the pool. Defaults to `GitHub`. |
+| Variable                          | Where    | Example    | Notes                                                                |
+| --------------------------------- | -------- | ---------- | -------------------------------------------------------------------- |
+| `NEXT_PUBLIC_AUTH_GITHUB_ENABLED` | frontend | `true`     | Enables the button. Must be `true`, else the button renders nothing. |
+| `AUTH_GITHUB_CLIENT_ID`           | backend  | `Iv1.xxxx` | GitHub OAuth App client id. Registers the backend GitHub provider.   |
+| `AUTH_GITHUB_CLIENT_SECRET`       | backend  | `xxxxxxxx` | GitHub OAuth App client secret. Never exposed to the browser.        |
+
+Both sides are gated independently: the backend provider only registers when
+`AUTH_GITHUB_CLIENT_ID` is set, and the button only appears when
+`NEXT_PUBLIC_AUTH_GITHUB_ENABLED=true`. Set all three together.
 
 ## One-time infra setup
 
-GitHub's OAuth is **not OIDC-compliant** (no discovery / `id_token`), so Cognito
-cannot federate GitHub directly. Use a small OIDC bridge, then register that bridge
-as a **generic OIDC** identity provider in Cognito.
+SuperTokens ships a built-in GitHub provider, so no OIDC bridge is needed.
 
-1. **GitHub OAuth App** (Settings → Developer settings → OAuth Apps):
-   - Authorization callback URL: `https://<cognito-domain>/oauth2/idpresponse`.
-   - Note the Client ID and generate a Client Secret.
-2. **OIDC bridge for GitHub** — deploy an OIDC shim (e.g. the open-source
-   `github-cognito-openid-wrapper`) so GitHub exposes `/authorize`, `/token`,
-   `/userinfo`, and `/.well-known/jwks.json`. Give it the GitHub client id/secret.
-3. **Cognito User Pool → Sign-in experience → Federated identity provider sign-in**:
-   add an **OpenID Connect** provider named `GitHub`:
-   - Client ID / secret: the GitHub OAuth app's.
-   - Issuer URL: the bridge's base URL.
-   - Attribute mapping: map `email` → email, `name` → name.
-4. **Set the developer role.** Federated users should get `custom:role=developer`
-   so `DevRouteGuard`/redirects treat them as developers. Do this with a
-   **Pre Token Generation** Lambda (override `custom:role` to `developer` when the
-   identity comes from the GitHub provider), or a default value on the mapped attribute.
-5. **Cognito User Pool → App integration → your app client**:
-   - Enable the `GitHub` identity provider.
-   - Allowed callback URLs: add `https://<your-app-domain>/auth/callback`
+1. **GitHub OAuth App** (Settings -> Developer settings -> OAuth Apps -> New):
+   - Homepage URL: your app origin.
+   - Authorization callback URL: `https://<your-app-domain>/auth/callback`
      (and `http://localhost:3000/auth/callback` for local dev).
-   - Allowed sign-out URLs: your app origin.
-   - OAuth grant types: **Authorization code grant**.
-   - OpenID Connect scopes: `openid`, `email`, `profile`.
-6. **Hosted UI domain** — create a domain under App integration → Domain, and use it
-   as `NEXT_PUBLIC_COGNITO_DOMAIN`.
+   - Note the Client ID and generate a Client Secret.
+2. **Backend env**: set `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` for
+   the API service. This registers the `github` third-party provider (see
+   `buildThirdPartyProviders`).
+3. **Frontend env**: set `NEXT_PUBLIC_AUTH_GITHUB_ENABLED=true`.
+4. **Role treatment**: GitHub users get the same role handling as the other
+   third-party providers (Google/Apple/Facebook). Roles are stored in SuperTokens
+   UserMetadata (`packages/auth/src/providers/supertokens/supertokens-provider.ts`);
+   if developers signing in via GitHub should be tagged `developer`, apply it through
+   the same third-party sign-up path as the other providers rather than anything
+   GitHub-specific.
 
 ## CSP
 
-`connect-src` already allows `https://*.amazoncognito.com` for the `/oauth2/token`
-exchange (see `src/securityHeaders.ts`). The `/authorize` step is a top-level
-navigation, so no further CSP change is needed.
+No change is needed. The `/authorize` step is a top-level navigation to GitHub, and
+the `signInAndUp` token exchange is a same-origin call to the app's auth API (already
+allowed by `connect-src 'self'` + the API domain in `src/securityHeaders.ts`).
 
 ## Local testing
 
-Set the three env vars in `.env.local`, register `http://localhost:3000/auth/callback`
-as an allowed callback URL, then run the app and click **Continue with GitHub**.
+Set `NEXT_PUBLIC_AUTH_GITHUB_ENABLED=true` in `.env.local`, set
+`AUTH_GITHUB_CLIENT_ID` / `AUTH_GITHUB_CLIENT_SECRET` for the local API, register
+`http://localhost:3000/auth/callback` as the GitHub OAuth App callback URL, then run
+the app and click **Continue with GitHub**.

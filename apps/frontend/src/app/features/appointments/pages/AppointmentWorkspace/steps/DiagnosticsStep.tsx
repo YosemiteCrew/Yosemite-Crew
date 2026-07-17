@@ -1,23 +1,22 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import type { Appointment } from '@yosemite-crew/types';
 import {
-  LuCalendarDays,
-  LuCheck,
-  LuClock,
-  LuDownload,
-  LuExternalLink,
-  LuEye,
-  LuEyeOff,
-  LuFlaskConical,
-  LuPrinter,
-  LuRefreshCw,
-  LuShare,
-  LuTestTube,
-  LuTrash2,
-} from 'react-icons/lu';
-import { HiUser } from 'react-icons/hi2';
+  IoCalendarOutline,
+  IoCheckmarkOutline,
+  IoDownloadOutline,
+  IoEyeOffOutline,
+  IoEyeOutline,
+  IoFlaskOutline,
+  IoOpenOutline,
+  IoPerson,
+  IoPrintOutline,
+  IoRefreshOutline,
+  IoShareOutline,
+  IoTimeOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
 import SectionContainer from '@/app/ui/primitives/SectionContainer/SectionContainer';
 import SearchDropdown from '@/app/ui/inputs/SearchDropdown';
 import FormInput from '@/app/ui/inputs/FormInput/FormInput';
@@ -31,15 +30,17 @@ import CircleIconButton from '@/app/features/appointments/pages/AppointmentWorks
 import { useCompanionTerminologyText } from '@/app/hooks/useCompanionTerminologyText';
 import {
   useLabTests,
+  LabResultCategoryTable,
+  type UseLabTestsReturn,
+} from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
+import {
   resolveOrderUiUrl,
   resolveOrderPdfUrl,
   formatTestPrice,
   getTestTurnaround,
   getTestSpecimen,
   toTitleCase,
-  LabResultCategoryTable,
-  type UseLabTestsReturn,
-} from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/LabTests';
+} from '@/app/features/appointments/pages/Appointments/Sections/AppointmentInfo/labTestsUtils';
 import type { IdexxTest } from '@/app/features/integrations/services/types';
 import type { DiagnosticOrder } from '@/app/features/appointments/types/workspace';
 import { getSafeIdexxIframeUrl } from '@/app/lib/urls';
@@ -95,6 +96,7 @@ const ProviderContent = ({ provider }: { provider: ProviderOption }) => {
 const getIntegrationPillClass = (disabled: boolean, active: boolean): string => {
   if (disabled) return 'cursor-not-allowed border-neutral-300 text-text-secondary opacity-60';
   if (active) return 'border-text-brand bg-primary-100 text-text-brand';
+  /* v8 ignore next 2 -- IDEXX is the only selectable provider and is always active, so an available-but-inactive pill (neither disabled nor active) never renders */
   return 'border-neutral-300 text-text-primary hover:bg-neutral-100';
 };
 
@@ -128,7 +130,7 @@ const IntegrationPills = ({
           {disabled ? (
             <span className="text-caption-2 text-text-secondary">Coming soon</span>
           ) : (
-            active && <LuExternalLink size={14} aria-hidden="true" />
+            active && <IoOpenOutline size={14} aria-hidden="true" />
           )}
         </button>
       );
@@ -246,7 +248,7 @@ const TestQueueCard = ({
       <h4 className="text-body-3-emphasis text-text-primary">{test.display}</h4>
       {!readOnly && (
         <CircleIconButton
-          icon={<LuTrash2 size={16} aria-hidden="true" />}
+          icon={<IoTrashOutline size={16} aria-hidden="true" />}
           label={`Remove ${test.display}`}
           variant="danger"
           onClick={onRemove}
@@ -261,7 +263,7 @@ const TestQueueCard = ({
     </div>
     <div className="mt-auto flex flex-col gap-2 text-caption-1 text-text-primary">
       <p className="flex gap-2">
-        <LuClock className="mt-0.5 shrink-0 text-text-brand" aria-hidden="true" />
+        <IoTimeOutline className="mt-0.5 shrink-0 text-text-brand" aria-hidden="true" />
         <span>
           <strong>Turnaround time:</strong>
           <br />
@@ -269,7 +271,7 @@ const TestQueueCard = ({
         </span>
       </p>
       <p className="flex gap-2">
-        <LuTestTube className="mt-0.5 shrink-0 text-text-brand" aria-hidden="true" />
+        <IoFlaskOutline className="mt-0.5 shrink-0 text-text-brand" aria-hidden="true" />
         <span>
           <strong>Specimen:</strong>
           <br />
@@ -310,7 +312,7 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
         onReachEnd={s.loadMoreTests}
         hasMore={s.testsHasMore}
         isLoadingMore={s.testsLoadingMore}
-        optionClassName="w-full text-start rounded-2xl! border border-card-border bg-white px-3 py-2 mb-2 last:mb-0 hover:bg-white transition-colors"
+        optionClassName="w-full text-start rounded-2xl! border border-card-border bg-neutral-0 px-3 py-2 mb-2 last:mb-0 hover:bg-neutral-0 transition-colors"
         renderOption={(option) => {
           const test = option.meta as IdexxTest | undefined;
           if (!test) return option.label;
@@ -354,14 +356,14 @@ const ReferenceOrderBuilder = ({ s }: { s: UseLabTestsReturn }) => (
         placeholder="Veterinarian"
         options={s.practitionerOptions}
         defaultOption={s.veterinarian}
-        icon={<HiUser aria-hidden="true" />}
+        icon={<IoPerson aria-hidden="true" />}
         onSelect={(option) => s.setVeterinarian(option.value)}
       />
       <LabelDropdown
         placeholder="Technician"
         options={s.practitionerOptions}
         defaultOption={s.technician}
-        icon={<HiUser aria-hidden="true" />}
+        icon={<IoPerson aria-hidden="true" />}
         onSelect={(option) => s.setTechnician(option.value)}
       />
     </div>
@@ -430,13 +432,13 @@ const OrderBuilderSection = ({ s, readOnly }: { s: UseLabTestsReturn; readOnly: 
         <div className="flex flex-wrap justify-end gap-3">
           <Secondary
             text={s.companionInCensus ? 'Added to Census' : 'Add to Census'}
-            icon={<LuCheck aria-hidden="true" />}
+            icon={<IoCheckmarkOutline aria-hidden="true" />}
             onClick={s.handleAddToCensus}
             isDisabled={s.updatingCensus || !s.selectedIvls || s.companionInCensus}
           />
           <Primary
             text={s.updatingCensus ? 'Refreshing…' : 'Refresh Census'}
-            icon={<LuRefreshCw aria-hidden="true" />}
+            icon={<IoRefreshOutline aria-hidden="true" />}
             onClick={() => void s.refreshCensus()}
             isDisabled={s.updatingCensus}
           />
@@ -521,7 +523,7 @@ const TestQueueSection = ({
       <div className="flex justify-end">
         <Primary
           text={s.creatingOrder ? 'Creating Lab Order…' : 'Create Lab Order'}
-          icon={<LuFlaskConical aria-hidden="true" />}
+          icon={<IoFlaskOutline aria-hidden="true" />}
           onClick={onCreateOrder}
           isDisabled={
             s.creatingOrder || s.loading || s.selectedTests.length === 0 || !s.companionId
@@ -579,7 +581,7 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
                 <div className="flex items-center justify-end gap-2">
                   <Secondary
                     text={orderActionLabel}
-                    icon={isComplete ? undefined : <LuExternalLink aria-hidden="true" />}
+                    icon={isComplete ? undefined : <IoOpenOutline aria-hidden="true" />}
                     ariaLabel={`${isComplete ? 'Open result PDF' : orderActionLabel} for order ${order.idexxOrderId}`}
                     onClick={() => {
                       s.setActiveOrderForActions(order);
@@ -593,7 +595,7 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
                   />
                   <Secondary
                     text="Acknowledgement"
-                    icon={<LuEye aria-hidden="true" />}
+                    icon={<IoEyeOutline aria-hidden="true" />}
                     ariaLabel={`View acknowledgement for order ${order.idexxOrderId}`}
                     onClick={() => s.openOrderAcknowledgement(order)}
                     isDisabled={!resolveOrderPdfUrl(order)}
@@ -608,7 +610,7 @@ const OrderStatusSection = ({ s }: { s: UseLabTestsReturn }) => (
     <div className="flex justify-end">
       <Primary
         text={s.ordersLoading ? 'Refreshing…' : 'Refresh Orders'}
-        icon={<LuRefreshCw aria-hidden="true" />}
+        icon={<IoRefreshOutline aria-hidden="true" />}
         onClick={() => void s.refreshAppointmentOrders()}
         isDisabled={s.ordersLoading}
       />
@@ -660,9 +662,9 @@ const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
                       <CircleIconButton
                         icon={
                           expanded ? (
-                            <LuEyeOff size={16} aria-hidden="true" />
+                            <IoEyeOffOutline size={16} aria-hidden="true" />
                           ) : (
-                            <LuEye size={16} aria-hidden="true" />
+                            <IoEyeOutline size={16} aria-hidden="true" />
                           )
                         }
                         label={
@@ -674,13 +676,13 @@ const ResultsSection = ({ s }: { s: UseLabTestsReturn }) => {
                         onClick={() => toggle(result.resultId)}
                       />
                       <CircleIconButton
-                        icon={<LuDownload size={16} aria-hidden="true" />}
+                        icon={<IoDownloadOutline size={16} aria-hidden="true" />}
                         label={`Download results PDF for result ${result.resultId}`}
                         onClick={() => void s.openResultPdfPreview(result.resultId)}
                         disabled={s.pdfPreviewLoadingId === result.resultId}
                       />
                       <CircleIconButton
-                        icon={<LuShare size={16} aria-hidden="true" />}
+                        icon={<IoShareOutline size={16} aria-hidden="true" />}
                         label={`Share results PDF for result ${result.resultId}`}
                         onClick={() => void s.openResultPdfPreview(result.resultId)}
                         disabled={s.pdfPreviewLoadingId === result.resultId}
@@ -709,9 +711,23 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
   const url = s.iframeOrderUiUrl || resolveOrderUiUrl(s.latestOrder);
   const safeUrl = getSafeIdexxIframeUrl(url);
   const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
+  const [prevIframeDeps, setPrevIframeDeps] = useState({
+    safeUrl,
+    iframeOpenSource: s.iframeOpenSource,
+    showOrderIframe: s.showOrderIframe,
+  });
+  if (
+    safeUrl !== prevIframeDeps.safeUrl ||
+    s.iframeOpenSource !== prevIframeDeps.iframeOpenSource ||
+    s.showOrderIframe !== prevIframeDeps.showOrderIframe
+  ) {
+    setPrevIframeDeps({
+      safeUrl,
+      iframeOpenSource: s.iframeOpenSource,
+      showOrderIframe: s.showOrderIframe,
+    });
     if (s.showOrderIframe) setLoaded(false);
-  }, [safeUrl, s.iframeOpenSource, s.showOrderIframe]);
+  }
   if (!s.showOrderIframe || !safeUrl || typeof document === 'undefined') return null;
   const title = s.iframeOpenSource === 'followup' ? 'IDEXX follow-up ordering' : 'IDEXX ordering';
   return createPortal(
@@ -719,8 +735,8 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
       className="fixed inset-0 z-5000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       data-signing-overlay="true"
     >
-      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-black/10 px-4 py-2">
+      <div className="relative flex size-full max-h-[95vh] max-w-7xl flex-col overflow-hidden rounded-2xl bg-neutral-0 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-card-border px-4 py-2">
           <span className="flex flex-col">
             <span className="text-body-2 text-text-primary">{title}</span>
             {s.iframeOpenSource === 'followup' ? (
@@ -741,7 +757,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
         </div>
         <div className="relative flex-1">
           {loaded ? null : (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-0">
               <YosemiteLoader label="Loading IDEXX" size={120} testId="idexx-order-loader" />
             </div>
           )}
@@ -753,6 +769,7 @@ const OrderIframeOverlay = ({ s }: { s: UseLabTestsReturn }) => {
             loading="lazy"
             allowFullScreen
             referrerPolicy="strict-origin-when-cross-origin"
+            sandbox="allow-scripts allow-forms allow-popups allow-downloads"
             onLoad={() => setLoaded(true)}
           />
         </div>
@@ -774,6 +791,81 @@ const IdexxNotEnabled = () => (
     <Secondary href="/integrations" text="Enable IDEXX in Integrations" />
   </SectionContainer>
 );
+
+type IdexxSectionProps = {
+  s: UseLabTestsReturn;
+  readOnly: boolean;
+  preloadedTests: DiagnosticOrder[];
+  onCreateOrder: () => Promise<void>;
+  printingAll: boolean;
+  onPrintAllResults: () => Promise<void>;
+  onOpenTreatment: () => void;
+  combinedPdfUrl: string | null;
+  onCloseCombinedPdf: () => void;
+};
+
+const IdexxSection = ({
+  s,
+  readOnly,
+  preloadedTests,
+  onCreateOrder,
+  printingAll,
+  onPrintAllResults,
+  onOpenTreatment,
+  combinedPdfUrl,
+  onCloseCombinedPdf,
+}: IdexxSectionProps) => {
+  if (s.loading) {
+    return <p className="text-body-4 text-text-secondary">Loading IDEXX integration…</p>;
+  }
+  if (!s.integrationEnabled) return <IdexxNotEnabled />;
+  return (
+    <>
+      {s.error ? <p className="text-body-4 text-text-error">{s.error}</p> : null}
+      {!readOnly && <OrderBuilderSection s={s} readOnly={readOnly} />}
+      <PreloadedDiagnosticsSection items={preloadedTests} />
+      <TestQueueSection s={s} readOnly={readOnly} onCreateOrder={() => void onCreateOrder()} />
+      <OrderStatusSection s={s} />
+      <ResultsSection s={s} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Secondary
+          text={printingAll ? 'Preparing…' : 'Print all Results'}
+          icon={<IoPrintOutline aria-hidden="true" />}
+          onClick={() => void onPrintAllResults()}
+          isDisabled={printingAll}
+        />
+        <div className="flex flex-wrap items-center gap-3">
+          <Secondary
+            href="/appointments/idexx-workspace"
+            text="Open Labs"
+            ariaLabel="Open labs workspace"
+            icon={<IoOpenOutline aria-hidden="true" />}
+          />
+          <Primary
+            text="Treatment Plan"
+            icon={<IoCalendarOutline aria-hidden="true" />}
+            onClick={onOpenTreatment}
+          />
+        </div>
+      </div>
+      <OrderIframeOverlay s={s} />
+      <PdfPreviewOverlay
+        open={s.showPdfPreview}
+        pdfUrl={s.pdfPreviewUrl}
+        title={s.pdfPreviewTitle}
+        closeLabel="Close IDEXX PDF preview"
+        onClose={s.closePdfPreview}
+      />
+      <PdfPreviewOverlay
+        open={Boolean(combinedPdfUrl)}
+        pdfUrl={combinedPdfUrl}
+        title="All lab results"
+        closeLabel="Close combined results PDF"
+        onClose={onCloseCombinedPdf}
+      />
+    </>
+  );
+};
 
 /**
  * Diagnostics step — the new workspace UI (pills, Order Builder, Test Queue,
@@ -823,7 +915,7 @@ const DiagnosticsStep = ({
   const handlePrintAllResults = useCallback(async () => {
     if (printingAll) return;
     const organisationId = appointment.organisationId;
-    const resultIds = s.results.map((result) => result.resultId).filter(Boolean);
+    const resultIds = s.results.flatMap((result) => (result.resultId ? [result.resultId] : []));
     if (!organisationId || resultIds.length === 0) {
       globalThis.window.print();
       return;
@@ -847,67 +939,20 @@ const DiagnosticsStep = ({
     });
   }, []);
 
-  const renderIdexx = () => {
-    if (s.loading) {
-      return <p className="text-body-4 text-text-secondary">Loading IDEXX integration…</p>;
-    }
-    if (!s.integrationEnabled) return <IdexxNotEnabled />;
-    return (
-      <>
-        {s.error ? <p className="text-body-4 text-text-error">{s.error}</p> : null}
-        {!readOnly && <OrderBuilderSection s={s} readOnly={readOnly} />}
-        <PreloadedDiagnosticsSection items={preloadedTests} />
-        <TestQueueSection
-          s={s}
-          readOnly={readOnly}
-          onCreateOrder={() => void handleCreateOrder()}
-        />
-        <OrderStatusSection s={s} />
-        <ResultsSection s={s} />
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Secondary
-            text={printingAll ? 'Preparing…' : 'Print all Results'}
-            icon={<LuPrinter aria-hidden="true" />}
-            onClick={() => void handlePrintAllResults()}
-            isDisabled={printingAll}
-          />
-          <div className="flex flex-wrap items-center gap-3">
-            <Secondary
-              href="/appointments/idexx-workspace"
-              text="Open Labs"
-              ariaLabel="Open labs workspace"
-              icon={<LuExternalLink aria-hidden="true" />}
-            />
-            <Primary
-              text="Treatment Plan"
-              icon={<LuCalendarDays aria-hidden="true" />}
-              onClick={onOpenTreatment}
-            />
-          </div>
-        </div>
-        <OrderIframeOverlay s={s} />
-        <PdfPreviewOverlay
-          open={s.showPdfPreview}
-          pdfUrl={s.pdfPreviewUrl}
-          title={s.pdfPreviewTitle}
-          closeLabel="Close IDEXX PDF preview"
-          onClose={s.closePdfPreview}
-        />
-        <PdfPreviewOverlay
-          open={Boolean(combinedPdfUrl)}
-          pdfUrl={combinedPdfUrl}
-          title="All lab results"
-          closeLabel="Close combined results PDF"
-          onClose={closeCombinedPdf}
-        />
-      </>
-    );
-  };
-
   return (
     <div className="flex flex-col gap-5">
       <IntegrationPills selected={selectedProvider} onSelect={setSelectedProvider} />
-      {renderIdexx()}
+      <IdexxSection
+        s={s}
+        readOnly={readOnly}
+        preloadedTests={preloadedTests}
+        onCreateOrder={handleCreateOrder}
+        printingAll={printingAll}
+        onPrintAllResults={handlePrintAllResults}
+        onOpenTreatment={onOpenTreatment}
+        combinedPdfUrl={combinedPdfUrl}
+        onCloseCombinedPdf={closeCombinedPdf}
+      />
     </div>
   );
 };

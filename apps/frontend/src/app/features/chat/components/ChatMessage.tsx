@@ -15,16 +15,16 @@
 import { useState, type MouseEvent, type ReactNode, type SyntheticEvent } from 'react';
 import { useMessageContext, useChannelActionContext, Attachment } from 'stream-chat-react';
 import {
-  LuSmile,
-  LuCornerUpLeft,
-  LuMoreVertical,
-  LuCheck,
-  LuCheckCheck,
-  LuClock,
-  LuPencilLine,
-  LuTrash2,
-  LuX,
-} from 'react-icons/lu';
+  IoCheckmarkDone,
+  IoCheckmarkOutline,
+  IoClose,
+  IoCreateOutline,
+  IoEllipsisVertical,
+  IoHappyOutline,
+  IoReturnUpBackOutline,
+  IoTimeOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { ChatAvatar } from './ChatAvatar';
@@ -33,6 +33,7 @@ import { SharedEntityCard, type SharedEntityData } from './SharedEntityCard';
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '🎉', '🙏', '✅'];
 
 type ReactionChip = Readonly<{ emoji: string; count: number; mine: boolean }>;
+type MentionTextPart = Readonly<{ key: string; value: string }>;
 
 type ReactionSource = {
   reaction_groups?: Record<string, { count?: number }> | null;
@@ -52,24 +53,45 @@ function getReactionChips(message: ReactionSource): ReactionChip[] {
     groups && Object.keys(groups).length > 0
       ? Object.entries(groups).map(([emoji, g]) => [emoji, g.count ?? 0])
       : Object.entries(counts);
-  return entries
-    .filter(([, count]) => count > 0)
-    .map(([emoji, count]) => ({ emoji, count, mine: ownTypes.has(emoji) }));
+  const chips: ReactionChip[] = [];
+  for (const [emoji, count] of entries) {
+    if (count > 0) {
+      chips.push({ emoji, count, mine: ownTypes.has(emoji) });
+    }
+  }
+  return chips;
 }
 
-const renderText = (body: string, mine: boolean) =>
-  body.split(/(@\w[\w-]*)/g).map((part, i) =>
-    part.startsWith('@') ? (
-      <span
-        key={`${part}-${i}`}
-        className={clsx('font-semibold', mine ? 'text-neutral-0 underline' : 'text-primary-700')}
-      >
-        {part}
-      </span>
-    ) : (
-      part
-    )
+function splitMentionAwareText(body: string): MentionTextPart[] {
+  let offset = 0;
+  return body.split(/(@\w[\w-]*)/g).map((value) => {
+    const key = `${offset}-${value}`;
+    offset += value.length;
+    return { key, value };
+  });
+}
+
+function MentionAwareText({ body, mine }: Readonly<{ body: string; mine: boolean }>) {
+  return (
+    <>
+      {splitMentionAwareText(body).map((part) =>
+        part.value.startsWith('@') ? (
+          <span
+            key={part.key}
+            className={clsx(
+              'font-semibold',
+              mine ? 'text-[var(--cta-text)] underline' : 'text-primary-700'
+            )}
+          >
+            {part.value}
+          </span>
+        ) : (
+          part.value
+        )
+      )}
+    </>
   );
+}
 
 function MsgIconButton({
   label,
@@ -81,7 +103,7 @@ function MsgIconButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-chat-panel hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-input-border-active"
+      className="inline-flex size-7 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-chat-panel hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-input-border-active"
     >
       {children}
     </button>
@@ -90,9 +112,10 @@ function MsgIconButton({
 
 /** Read-receipt indicator for an outgoing message. */
 function MessageStatusIcon({ sending, seen }: Readonly<{ sending: boolean; seen: boolean }>) {
-  if (sending) return <LuClock aria-label="Sending" className="h-3.5 w-3.5 text-neutral-400" />;
-  if (seen) return <LuCheckCheck aria-label="Seen" className="h-3.5 w-3.5 text-primary-500" />;
-  return <LuCheck aria-label="Sent" className="h-3.5 w-3.5 text-neutral-400" />;
+  if (sending)
+    return <IoTimeOutline aria-label="Sending" className="h-3.5 w-3.5 text-neutral-400" />;
+  if (seen) return <IoCheckmarkDone aria-label="Seen" className="h-3.5 w-3.5 text-[var(--blue)]" />;
+  return <IoCheckmarkOutline aria-label="Sent" className="h-3.5 w-3.5 text-neutral-400" />;
 }
 
 /** Hover actions: react and reply, plus edit/delete for the user's own messages. */
@@ -125,10 +148,10 @@ function MessageActions({
           setPickerOpen(true);
         }}
       >
-        <LuSmile className="h-4 w-4" />
+        <IoHappyOutline className="h-4 w-4" />
       </MsgIconButton>
       <MsgIconButton label="Reply" onClick={(e) => onReply(e as unknown as SyntheticEvent)}>
-        <LuCornerUpLeft className="h-4 w-4" />
+        <IoReturnUpBackOutline className="h-4 w-4" />
       </MsgIconButton>
       {mine && (
         <MsgIconButton
@@ -138,7 +161,7 @@ function MessageActions({
             setMenuOpen(true);
           }}
         >
-          <LuMoreVertical className="h-4 w-4" />
+          <IoEllipsisVertical className="h-4 w-4" />
         </MsgIconButton>
       )}
       {pickerOpen && (
@@ -163,7 +186,7 @@ function MessageActions({
                   onReact(emoji, ev);
                   setPickerOpen(false);
                 }}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-lg hover:bg-chat-surface-soft"
+                className="flex size-8 items-center justify-center rounded-lg text-lg hover:bg-chat-surface-soft"
               >
                 {emoji}
               </button>
@@ -193,7 +216,7 @@ function MessageActions({
               }}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
             >
-              <LuPencilLine className="h-4 w-4 text-neutral-500" />
+              <IoCreateOutline className="h-4 w-4 text-neutral-500" />
               <Text as="span" variant="body-4" className="text-neutral-900">
                 Edit
               </Text>
@@ -206,7 +229,7 @@ function MessageActions({
               }}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
             >
-              <LuTrash2 className="h-4 w-4 text-danger-600" />
+              <IoTrashOutline className="h-4 w-4 text-danger-600" />
               <Text as="span" variant="body-4" className="text-danger-600">
                 Delete
               </Text>
@@ -242,15 +265,14 @@ function MessageEditor({
           }
           if (e.key === 'Escape') onCancel();
         }}
-        autoFocus
         aria-label="Edit message"
         className="w-48 bg-transparent font-satoshi text-sm text-neutral-900 outline-none"
       />
       <MsgIconButton label="Save edit" onClick={save}>
-        <LuCheck className="h-4 w-4 text-primary-600" />
+        <IoCheckmarkOutline className="h-4 w-4 text-primary-600" />
       </MsgIconButton>
       <MsgIconButton label="Cancel edit" onClick={onCancel}>
-        <LuX className="h-4 w-4" />
+        <IoClose className="h-4 w-4" />
       </MsgIconButton>
     </div>
   );
@@ -274,12 +296,16 @@ function MessageBubble({
           className={clsx(
             'px-4 py-2.5',
             mine
-              ? 'rounded-2xl rounded-br-md bg-primary-500 text-neutral-0'
-              : 'rounded-2xl rounded-bl-md bg-neutral-100 text-neutral-900'
+              ? 'rounded-2xl rounded-br-md bg-[var(--cta)] text-[var(--cta-text)]'
+              : 'rounded-2xl rounded-bl-md border border-[var(--hairline)] bg-neutral-100 text-neutral-900'
           )}
         >
-          <Text as="p" variant="body-4" className={mine ? 'text-neutral-0' : 'text-neutral-900'}>
-            {renderText(text, mine)}
+          <Text
+            as="p"
+            variant="body-4"
+            className={mine ? 'text-[var(--cta-text)]' : 'text-neutral-900'}
+          >
+            <MentionAwareText body={text} mine={mine} />
           </Text>
         </div>
       )}
@@ -316,6 +342,21 @@ function MessageReactions({
   );
 }
 
+/** Meta line label: outgoing messages append the staff sender name to the time. */
+const formatMessageTimeLabel = (mine: boolean, time: string, senderName?: string): string =>
+  mine && senderName ? `${time} · ${senderName}` : time;
+
+/** Left avatar gutter for incoming messages; a spacer keeps grouped rows aligned. */
+function MessageGutter({
+  mine,
+  firstOfGroup,
+  name,
+}: Readonly<{ mine: boolean; firstOfGroup?: boolean; name: string }>) {
+  if (mine) return null;
+  if (firstOfGroup === false) return <span className="w-9 shrink-0" aria-hidden="true" />;
+  return <ChatAvatar name={name} size="sm" />;
+}
+
 export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean }>) {
   const { message, isMyMessage, handleReaction, handleOpenThread, readBy } = useMessageContext();
   const { editMessage, deleteMessage } = useChannelActionContext();
@@ -338,11 +379,16 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
 
   const reactions = getReactionChips(message as ReactionSource);
   const time = message.created_at
-    ? new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    ? new Date(message.created_at).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: 'UTC',
+      })
     : '';
   const seen = mine && (readBy?.length ?? 0) > 0;
   const sending = message.status === 'sending';
   const counterpartName = message.user?.name || message.user?.id || 'User';
+  const senderName = message.user?.name;
   const sharedEntity = (message as unknown as { sharedEntity?: SharedEntityData }).sharedEntity;
 
   const actions = (
@@ -386,12 +432,7 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
         mine ? 'justify-end' : 'justify-start'
       )}
     >
-      {!mine &&
-        (firstOfGroup === false ? (
-          <span className="w-9 shrink-0" aria-hidden="true" />
-        ) : (
-          <ChatAvatar name={counterpartName} size="sm" />
-        ))}
+      <MessageGutter mine={mine} firstOfGroup={firstOfGroup} name={counterpartName} />
       <div
         className={clsx(
           'flex max-w-[80%] flex-col gap-1 sm:max-w-md',
@@ -406,7 +447,7 @@ export function ChatMessage({ firstOfGroup }: Readonly<{ firstOfGroup?: boolean 
         <span className="flex items-center gap-2 px-1">
           <MessageReactions reactions={reactions} onToggle={handleReaction} />
           <Text as="span" variant="caption-2" className="text-neutral-500">
-            {time}
+            {formatMessageTimeLabel(mine, time, senderName)}
           </Text>
           {mine && <MessageStatusIcon sending={sending} seen={seen} />}
         </span>

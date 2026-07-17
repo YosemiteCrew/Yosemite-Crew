@@ -13,7 +13,7 @@ import Modal from '@/app/ui/overlays/Modal';
 import CenterModal from '@/app/ui/overlays/Modal/CenterModal';
 import ModalHeader from '@/app/ui/overlays/Modal/ModalHeader';
 import { Team } from '@/app/features/organization/types/team';
-import React, { useEffect, useLayoutEffect, useMemo, useState, startTransition } from 'react';
+import React, { useEffect, useMemo, useState, startTransition } from 'react';
 import PermissionsEditor from '@/app/features/organization/pages/Organization/Sections/Team/PermissionsEditor';
 import { computeEffectivePermissions } from '@/app/features/organization/pages/Organization/Sections/Team/permissionsEditorUtils';
 import { Permission, RoleCode } from '@/app/lib/permissions';
@@ -23,11 +23,14 @@ import {
   updateMember,
 } from '@/app/features/organization/services/teamService';
 import Close from '@/app/ui/primitives/Icons/Close';
-import { EmploymentTypes, RoleOptions } from '@/app/features/organization/pages/Organization/types';
+import { RoleOptions } from '@/app/features/organization/pages/Organization/types';
 import { useSpecialitiesForPrimaryOrg } from '@/app/hooks/useSpecialities';
 import { usePrimaryOrgWithMembership } from '@/app/hooks/useOrgSelectors';
-import { GenderOptions } from '@/app/features/companions/types/companion';
-import { MdDeleteForever } from 'react-icons/md';
+import {
+  UserEmploymentTypeOptions,
+  UserGenderOptions,
+  UserProfile,
+} from '@/app/features/users/types/profile';
 import { Primary } from '@/app/ui/primitives/Buttons';
 import Secondary from '@/app/ui/primitives/Buttons/Secondary';
 import Delete from '@/app/ui/primitives/Buttons/Delete';
@@ -35,7 +38,7 @@ import { useSubscriptionCounterUpdate } from '@/app/hooks/useStripeOnboarding';
 import { upsertTeamAvailability } from '@/app/features/organization/services/availabilityService';
 import { useNotify } from '@/app/hooks/useNotify';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
-import { UserProfile } from '@/app/features/users/types/profile';
+import { IoTrash } from 'react-icons/io5';
 
 type TeamInfoProps = {
   showModal: boolean;
@@ -69,7 +72,10 @@ const getFields = ({
       label: 'Employment type',
       key: 'employmentType',
       type: 'select',
-      options: EmploymentTypes,
+      // personalDetails is a user profile, so it takes the profile enums. The
+      // invite-facing EmploymentTypes ('CONTRACTOR') and the pet GenderOptions
+      // ('OTHERS') look interchangeable but the API rejects both.
+      options: UserEmploymentTypeOptions,
       editable: canEditEmploymentType,
     },
     {
@@ -83,7 +89,7 @@ const getFields = ({
 
 const PersonalFields = [
   { label: 'Name', key: 'name', type: 'text' },
-  { label: 'Gender', key: 'gender', type: 'select', options: GenderOptions },
+  { label: 'Gender', key: 'gender', type: 'select', options: UserGenderOptions },
   { label: 'Date of birth', key: 'dateOfBirth', type: 'date' },
   { label: 'Country', key: 'country', type: 'country' },
   { label: 'Phone number', key: 'phoneNumber', type: 'text' },
@@ -116,13 +122,20 @@ const normalizeId = (value?: string) =>
     .pop()
     ?.toLowerCase() ?? '';
 
-const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfoProps) => {
+const useTeamInfoContent = ({
+  showModal,
+  setShowModal,
+  activeTeam,
+  canEditTeam,
+}: TeamInfoProps) => {
   const specialities = useSpecialitiesForPrimaryOrg();
   const { membership } = usePrimaryOrgWithMembership();
   const { notify } = useNotify();
   const { refetch: refetchData } = useSubscriptionCounterUpdate();
-  const [perms, setPerms] = React.useState<Permission[]>([]);
-  const [role, setRole] = useState<RoleCode | null>(null);
+  const [permissionOverride, setPermissionOverride] = React.useState<{
+    teamId: string;
+    permissions: Permission[];
+  } | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [availability, setAvailability] = useState<AvailabilityState>(() =>
     daysOfWeek.reduce<AvailabilityState>((acc, day) => {
@@ -159,23 +172,12 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
   const canEditAvailability = isSelfMember;
   const canEditOrgDetails = canEditRole || canEditEmploymentType || canEditDepartment;
   const canDeleteMember = canEditTeam && activeTeam.role !== 'OWNER';
-
-  useEffect(() => {
-    if (activeTeam) {
-      setPerms(activeTeam.effectivePermissions);
-      setRole(activeTeam.role as RoleCode);
-    }
-  }, [activeTeam]);
-
-  useEffect(() => {
-    if (profile) {
-      const apiAvailability = Array.isArray(profile?.baseAvailability)
-        ? profile.baseAvailability
-        : [];
-      const converted = convertFromGetApi(apiAvailability);
-      setAvailability(converted);
-    }
-  }, [profile]);
+  const role = activeTeam.role as RoleCode;
+  const activeTeamId = activeTeam._id ?? '';
+  const perms =
+    permissionOverride?.teamId === activeTeamId
+      ? permissionOverride.permissions
+      : activeTeam.effectivePermissions;
 
   const SpecialitiesOptions = useMemo(
     () => specialities.map((s) => ({ label: s.name, value: s._id || s.name })),
@@ -201,7 +203,15 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     (async () => {
       try {
         const data = await getProfileForUserForPrimaryOrg(userId);
-        if (!cancelled) setProfile(data);
+        if (!cancelled) {
+          setProfile(data);
+          if (data) {
+            const { baseAvailability } = data as { baseAvailability?: unknown };
+            setAvailability(
+              convertFromGetApi(Array.isArray(baseAvailability) ? baseAvailability : [])
+            );
+          }
+        }
       } catch {
         setProfile(null);
       }
@@ -211,11 +221,12 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     };
   }, [showModal, activeTeam]);
 
-  useLayoutEffect(() => {
-    if (!showModal) {
+  const handleModalVisibility: React.Dispatch<React.SetStateAction<boolean>> = (value) => {
+    setShowModal(value);
+    if (value === false) {
       setShowDeleteModal(false);
     }
-  }, [showModal]);
+  };
 
   const orgInfoData = useMemo(
     () => ({
@@ -434,22 +445,20 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     revokedPermissions: Permission[];
   }) => {
     try {
-      if (!role) {
-        throw new Error('ROle undeifned');
-      }
       const member: Team = {
         ...activeTeam,
         extraPerissions,
         revokedPermissions,
       };
       await updateMember(member);
-      setPerms(
-        computeEffectivePermissions({
+      setPermissionOverride({
+        teamId: activeTeamId,
+        permissions: computeEffectivePermissions({
           role,
           extraPerissions,
           revokedPermissions,
-        })
-      );
+        }),
+      });
       notify('success', {
         title: 'Team member updated',
         text: 'Team member has been updated successfully.',
@@ -493,12 +502,10 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
 
   return (
     <>
-      <Modal showModal={showModal} setShowModal={setShowModal}>
+      <Modal showModal={showModal} setShowModal={handleModalVisibility}>
         <div className="flex flex-col h-full gap-6">
           <div className="flex justify-between items-center">
-            <div className="opacity-0">
-              <Close onClick={() => {}} />
-            </div>
+            <div className="size-8" aria-hidden="true" />
             <div className="flex justify-center items-center gap-2">
               <div className="text-body-1 text-text-primary">View team</div>
             </div>
@@ -509,7 +516,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
               <div className="flex items-center justify-between w-full">
                 <div className="text-body-2 text-text-primary">{activeTeam.name || '-'}</div>
                 {canDeleteMember && (
-                  <MdDeleteForever
+                  <IoTrash
                     className="cursor-pointer"
                     onClick={() => setShowDeleteModal(true)}
                     size={26}
@@ -608,5 +615,7 @@ const TeamInfo = ({ showModal, setShowModal, activeTeam, canEditTeam }: TeamInfo
     </>
   );
 };
+
+const TeamInfo = (props: TeamInfoProps) => useTeamInfoContent(props);
 
 export default TeamInfo;

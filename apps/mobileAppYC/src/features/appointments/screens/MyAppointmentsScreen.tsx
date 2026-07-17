@@ -48,12 +48,22 @@ import {getAppointmentStatusBadgePalette} from '@/features/appointments/utils/ap
 
 type Nav = NativeStackNavigationProp<AppointmentStackParamList>;
 type BusinessFilter =
-  | 'all'
-  | 'hospital'
-  | 'groomer'
-  | 'breeder'
-  | 'pet_center'
-  | 'boarder';
+  'all' | 'hospital' | 'groomer' | 'breeder' | 'pet_center' | 'boarder';
+
+const FILTER_OPTIONS: FilterOption<BusinessFilter>[] = [
+  {id: 'all', label: 'All'},
+  {id: 'hospital', label: 'Hospital'},
+  {id: 'groomer', label: 'Groomer'},
+  {id: 'breeder', label: 'Breeder'},
+  {id: 'boarder', label: 'Boarder'},
+];
+
+const keyExtractor = (item: Appointment) => item.id;
+
+const handleEndReached = () => {
+  // Placeholder for future pagination when backend is available
+  // console.log('Reached end of past appointments');
+};
 
 export const MyAppointmentsScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -156,14 +166,6 @@ export const MyAppointmentsScreen: React.FC = () => {
     () => [...filteredUpcoming, ...filteredPast],
     [filteredPast, filteredUpcoming],
   );
-
-  const FILTER_OPTIONS: FilterOption<BusinessFilter>[] = [
-    {id: 'all', label: 'All'},
-    {id: 'hospital', label: 'Hospital'},
-    {id: 'groomer', label: 'Groomer'},
-    {id: 'breeder', label: 'Breeder'},
-    {id: 'boarder', label: 'Boarder'},
-  ];
 
   // Show permission toast when appointments access is denied
   React.useEffect(() => {
@@ -547,13 +549,6 @@ export const MyAppointmentsScreen: React.FC = () => {
         theme={theme}
       />
     );
-  };
-
-  const keyExtractor = (item: (typeof filteredUpcoming)[number]) => item.id;
-
-  const handleEndReached = () => {
-    // Placeholder for future pagination when backend is available
-    // console.log('Reached end of past appointments');
   };
 
   return (

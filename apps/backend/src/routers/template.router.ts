@@ -1,25 +1,25 @@
 import { Router } from "express";
 import { TemplateController } from "src/controllers/web/template.controller";
-import { authorizeCognito } from "src/middlewares/auth";
+import { requireWebAuth } from "src/middlewares/auth";
 import { requirePermission, withOrgPermissions } from "src/middlewares/rbac";
 
 const router = Router();
 
 router.get(
   "/pms/resolve",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
   (req, res) => TemplateController.resolve(req, res),
 );
 
-router.get("/pms/templates/library", authorizeCognito, (req, res) =>
+router.get("/pms/templates/library", requireWebAuth, (req, res) =>
   TemplateController.listLibrary(req, res),
 );
 
 router.get(
   "/pms/templates/organisation/:organisationId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
   (req, res) => TemplateController.listOrganisationTemplates(req, res),
@@ -27,7 +27,7 @@ router.get(
 
 router.get(
   "/pms/templates/organisation/:organisationId/users/me",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
   (req, res) => TemplateController.listUserTemplates(req, res),
@@ -35,7 +35,7 @@ router.get(
 
 router.post(
   "/pms/templates",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateController.create(req, res),
@@ -43,7 +43,7 @@ router.post(
 
 router.get(
   "/pms/templates/organisation/:organisationId/:templateId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:view:any"]),
   (req, res) => TemplateController.getById(req, res),
@@ -51,7 +51,7 @@ router.get(
 
 router.patch(
   "/pms/templates/organisation/:organisationId/:templateId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateController.update(req, res),
@@ -59,7 +59,7 @@ router.patch(
 
 router.patch(
   "/pms/templates/organisation/:organisationId/:templateId/catalog-links",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateController.updateCatalogLinks(req, res),
@@ -67,7 +67,7 @@ router.patch(
 
 router.post(
   "/pms/templates/organisation/:organisationId/:templateId/publish",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateController.publish(req, res),
@@ -75,7 +75,7 @@ router.post(
 
 router.delete(
   "/pms/templates/organisation/:organisationId/:templateId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateController.archive(req, res),
@@ -83,7 +83,7 @@ router.delete(
 
 router.post(
   "/pms/templates/organisation/:organisationId/:templateId/instances",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateController.createInstance(req, res),
@@ -91,7 +91,7 @@ router.post(
 
 router.patch(
   "/pms/template-instances/organisation/:organisationId/:instanceId",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateController.updateInstance(req, res),
@@ -99,7 +99,7 @@ router.patch(
 
 router.post(
   "/pms/template-instances/organisation/:organisationId/:instanceId/submit",
-  authorizeCognito,
+  requireWebAuth,
   withOrgPermissions(),
   requirePermission(["forms:edit:any"]),
   (req, res) => TemplateController.submitInstance(req, res),

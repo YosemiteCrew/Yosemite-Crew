@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { Suspense, useState } from 'react';
 import { Icon } from '@iconify/react/dist/iconify.js';
 import {
   IoCloudOfflineOutline,
@@ -11,12 +11,12 @@ import {
 import { useErrorTost } from '@/app/ui/overlays/Toast/Toast';
 import { useAuthStore } from '@/app/stores/authStore';
 import OtpModal from '@/app/ui/overlays/OtpModal/OtpModal';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getEmailValidationError, normalizeEmail } from '@/app/lib/validators';
 import { YosemiteLoader } from '@/app/ui/overlays/Loader';
-import { resolvePostAuthRedirect } from '@/app/lib/postAuthRedirect';
+import { resolvePostAuthRedirect, sanitizeNextPath } from '@/app/lib/postAuthRedirect';
 import { setStorageItem } from '@/app/lib/browserStorage';
-import { defaultSidebarToCollapsed } from '@/app/lib/sidebarPreference';
+import { resetSidebarPreference } from '@/app/lib/sidebarPreference';
 import { AuthShell, AuthBrandContent } from '@/app/features/marketing/site';
 import { GithubSignInButton } from '@/app/features/auth/pages/GithubSignInButton';
 import {
@@ -66,15 +66,78 @@ const DEV_POINTS = [
   },
 ] as const;
 
-const SignIn = ({
+type AccountType = 'business' | 'developer';
+
+const ACCOUNT_TYPES: ReadonlyArray<{ value: AccountType; label: string }> = [
+  { value: 'business', label: 'Pet business' },
+  { value: 'developer', label: 'Developer' },
+];
+
+/** Segmented control that lets the user pick which kind of account they are signing in to. */
+const AccountTypeSelector = ({
+  value,
+  onChange,
+}: Readonly<{ value: AccountType; onChange: (next: AccountType) => void }>) => (
+  <div
+    role="radiogroup"
+    aria-label="Account type"
+    style={{
+      display: 'flex',
+      gap: 4,
+      padding: 4,
+      marginBottom: 18,
+      background: 'var(--inset)',
+      borderRadius: 12,
+    }}
+  >
+    {ACCOUNT_TYPES.map((option) => {
+      const active = value === option.value;
+      return (
+        <button
+          key={option.value}
+          type="button"
+          role="radio"
+          aria-checked={active}
+          onClick={() => onChange(option.value)}
+          style={{
+            flex: 1,
+            padding: '9px 12px',
+            border: 'none',
+            borderRadius: 9,
+            cursor: 'pointer',
+            fontSize: 14,
+            fontWeight: 500,
+            letterSpacing: '-0.01em',
+            background: active ? 'var(--screen)' : 'transparent',
+            color: active ? 'var(--ink)' : 'var(--ink-muted)',
+            boxShadow: active ? '0 1px 2px rgba(29, 28, 27, 0.08)' : 'none',
+            transition: 'background 150ms ease, color 150ms ease',
+          }}
+        >
+          {option.label}
+        </button>
+      );
+    })}
+  </div>
+);
+
+const SignInForm = ({
   redirectPath,
   signupHref = '/signup',
-  isDeveloper = false,
+  allowNext = true,
+  isDeveloper: isDeveloperDefault = false,
 }: Readonly<SignInProps>) => {
+  const [accountType, setAccountType] = useState<AccountType>(
+    isDeveloperDefault ? 'developer' : 'business'
+  );
+  const isDeveloper = accountType === 'developer';
   const { signIn, resendCode, role } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showErrorTost, ErrorTostPopup } = useErrorTost();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => searchParams?.get('email') ?? '');
+  const nextPath = allowNext ? sanitizeNextPath(searchParams?.get('next') ?? null) : undefined;
+  const effectiveRedirectPath = redirectPath ?? nextPath;
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [inputErrors, setInputErrors] = useState<{
@@ -125,14 +188,14 @@ const SignIn = ({
     try {
       setIsSubmitting(true);
       await signIn(normalizedEmail, password);
-      defaultSidebarToCollapsed();
+      resetSidebarPreference();
       // Set devAuth flag BEFORE redirect so DevRouteGuard can read it
       setStorageItem('session', 'devAuth', isDeveloper ? 'true' : 'false');
       const signedInRole =
         typeof useAuthStore.getState === 'function' ? useAuthStore.getState().role : role;
       const nextRoute = await resolvePostAuthRedirect({
         fallbackRole: signedInRole,
-        redirectPath,
+        redirectPath: effectiveRedirectPath,
         isDeveloper,
       });
       router.replace(nextRoute);
@@ -217,6 +280,7 @@ const SignIn = ({
           )}
         </AuthHeading>
         <AuthSubtitle>Sign in to your clinic or developer workspace.</AuthSubtitle>
+        <AccountTypeSelector value={accountType} onChange={setAccountType} />
         <AuthForm onSubmit={handleSignIn}>
           <AuthTextField
             id="signin-email"
@@ -264,7 +328,9 @@ const SignIn = ({
           />
           <AuthSubmitButton idle="Sign in" busy="Signing in..." isSubmitting={isSubmitting} />
         </AuthForm>
-        <GithubSignInButton note="GitHub is available for developer accounts." />
+        {isDeveloper ? (
+          <GithubSignInButton note="GitHub is available for developer accounts." />
+        ) : null}
         <AuthAltNote>
           Pet parent? Sign in from the{' '}
           <Link
@@ -282,11 +348,19 @@ const SignIn = ({
         showErrorTost={showErrorTost}
         showVerifyModal={showVerifyModal}
         setShowVerifyModal={setShowVerifyModal}
-        redirectPath={redirectPath}
+        redirectPath={effectiveRedirectPath}
         isDeveloper={isDeveloper}
       />
     </>
   );
 };
+
+// useSearchParams needs a Suspense boundary; owning it here keeps every
+// consumer of SignIn safe regardless of how the route wraps it.
+const SignIn = (props: Readonly<SignInProps>) => (
+  <Suspense fallback={null}>
+    <SignInForm {...props} />
+  </Suspense>
+);
 
 export default SignIn;

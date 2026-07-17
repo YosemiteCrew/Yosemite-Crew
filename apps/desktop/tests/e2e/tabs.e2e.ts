@@ -84,13 +84,15 @@ const evaluateYcDesktop = <T>(page: Page, method: string, ...args: unknown[]): P
   );
 
 const waitForTabCount = async (page: Page, count: number, timeout = 5000): Promise<void> => {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    if (state && state.ok && Array.isArray(state.tabs) && state.tabs.length === count) return;
-    await page.waitForTimeout(200);
-  }
-  throw new Error(`Timed out waiting for ${count} tabs`);
+  await expect
+    .poll(
+      async () => {
+        const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
+        return state?.ok && Array.isArray(state.tabs) ? state.tabs.length : -1;
+      },
+      { timeout, message: `Timed out waiting for ${count} tabs` }
+    )
+    .toBe(count);
 };
 
 test.describe('tab E2E', () => {
@@ -119,7 +121,7 @@ test.describe('tab E2E', () => {
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(state.ok).toBe(true);
     expect(Array.isArray(state.tabs)).toBe(true);
-    expect(state.tabs!.length).toBe(1);
+    expect(state.tabs!).toHaveLength(1);
     expect(state.tabs![0].url).toContain(pimsServer.origin);
   });
 
@@ -133,7 +135,7 @@ test.describe('tab E2E', () => {
     expect(typeof result.id).toBe('string');
 
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state.tabs!.length).toBe(2);
+    expect(state.tabs!).toHaveLength(2);
     expect(state.activeId).toBe(result.id);
   });
 
@@ -150,7 +152,7 @@ test.describe('tab E2E', () => {
 
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
     expect(state.activeId).toBe(t1.id);
-    expect(state.tabs!.length).toBe(3);
+    expect(state.tabs!).toHaveLength(3);
   });
 
   test('closes a tab via IPC', async () => {
@@ -165,7 +167,7 @@ test.describe('tab E2E', () => {
     expect(closeResult.ok).toBe(true);
 
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state.tabs!.length).toBe(1);
+    expect(state.tabs!).toHaveLength(1);
     expect(state.tabs![0].id).toBe(t2.id);
   });
 
@@ -214,7 +216,7 @@ test.describe('tab E2E', () => {
     expect(typeof dup.id).toBe('string');
 
     const state2 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state2.tabs!.length).toBe(3);
+    expect(state2.tabs!).toHaveLength(3);
   });
 
   test('reopens a closed tab', async () => {
@@ -231,24 +233,24 @@ test.describe('tab E2E', () => {
     expect(reopened.ok).toBe(true);
 
     const state2 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state2.tabs!.length).toBe(2);
+    expect(state2.tabs!).toHaveLength(2);
   });
 
   test('Cmd+T opens a new tab', async () => {
     await waitForTabCount(page, 1);
     await page.keyboard.press('Meta+T');
-    await page.waitForTimeout(500);
+    await waitForTabCount(page, 2);
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state.tabs!.length).toBe(2);
+    expect(state.tabs!).toHaveLength(2);
   });
 
   test('Cmd+W closes the active tab', async () => {
     await evaluateYcDesktop(page, 'newTab');
     await waitForTabCount(page, 2);
     await page.keyboard.press('Meta+W');
-    await page.waitForTimeout(500);
+    await waitForTabCount(page, 1);
     const state = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state.tabs!.length).toBe(1);
+    expect(state.tabs!).toHaveLength(1);
   });
 
   test('Cmd+Shift+T reopens closed tab', async () => {
@@ -257,9 +259,9 @@ test.describe('tab E2E', () => {
     await evaluateYcDesktop(page, 'closeTab', tabId);
     await waitForTabCount(page, 0);
     await page.keyboard.press('Meta+Shift+T');
-    await page.waitForTimeout(500);
+    await waitForTabCount(page, 1);
     const state1 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state1.tabs!.length).toBe(1);
+    expect(state1.tabs!).toHaveLength(1);
   });
 
   test('closing all tabs returns empty list', async () => {
@@ -268,7 +270,7 @@ test.describe('tab E2E', () => {
     await evaluateYcDesktop(page, 'closeTab', tabId);
     await waitForTabCount(page, 0);
     const state1 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state1.tabs!.length).toBe(0);
+    expect(state1.tabs!).toHaveLength(0);
     expect(state1.activeId).toBeNull();
   });
 
@@ -309,7 +311,7 @@ test.describe('tab E2E', () => {
     // "Back" menu item at index positions 0,1 = Navigate menu, submenu index 1 = Back
     // We test via IPC since keyboard simulation for menu items is unreliable
     const state0 = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(state0.tabs!.length).toBe(2);
+    expect(state0.tabs!).toHaveLength(2);
   });
 
   test('tab search opens and closes', async () => {
@@ -330,7 +332,7 @@ test.describe('tab E2E', () => {
     await waitForTabCount(page, 3);
 
     const stateBefore = await evaluateYcDesktop<TabResult>(page, 'getTabs');
-    expect(stateBefore.tabs!.length).toBe(3);
+    expect(stateBefore.tabs!).toHaveLength(3);
 
     const profileDir = userDataDir as string;
     await app!.close();

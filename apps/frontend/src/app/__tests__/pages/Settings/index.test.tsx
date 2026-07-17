@@ -5,9 +5,26 @@ import Settings from '@/app/features/settings/pages/Settings';
 
 jest.mock('next/dynamic', () => ({
   __esModule: true,
-  default: (loader: () => Promise<unknown>) => {
+  default: (loader: () => Promise<unknown>, options?: { loading?: () => unknown }) => {
+    // Exercise the loader and loading callbacks so the dynamic wiring in the
+    // page is covered; rendering still goes through the mocks below.
+    loader().catch(() => undefined);
+    options?.loading?.();
     const source = loader.toString();
     const LoadableComponent = (props: Record<string, unknown>) => {
+      if (source.includes('Sections/Personal')) {
+        const MockPersonal = (
+          jest.requireMock('@/app/features/settings/pages/Settings/Sections/Personal') as {
+            default: React.FC<Record<string, unknown>>;
+          }
+        ).default;
+        return <MockPersonal {...props} />;
+      }
+
+      if (source.includes('Sections/AppearancePreference')) {
+        return <div>Appearance Preference</div>;
+      }
+
       if (source.includes('Sections/OrgSection')) {
         const MockOrgSection = (
           jest.requireMock('@/app/features/settings/pages/Settings/Sections/OrgSection') as {
@@ -36,6 +53,10 @@ jest.mock('next/dynamic', () => ({
         return <MockCompanionTerminologyPreference {...props} />;
       }
 
+      if (source.includes('Sections/SecuritySection')) {
+        return <div>Security Section</div>;
+      }
+
       if (source.includes('Sections/DeleteProfile')) {
         const MockDeleteProfile = (
           jest.requireMock('@/app/features/settings/pages/Settings/Sections/DeleteProfile') as {
@@ -58,6 +79,11 @@ jest.mock('@/app/ui/layout/guards/ProtectedRoute', () => ({
   default: ({ children }: any) => <div data-testid="protected">{children}</div>,
 }));
 
+jest.mock('@/app/features/settings/pages/Settings/Sections/Personal', () => ({
+  __esModule: true,
+  default: () => <div>Personal Card</div>,
+}));
+
 jest.mock('@/app/features/settings/pages/Settings/Sections/OrgSection', () => ({
   __esModule: true,
   default: () => <div>Org Section</div>,
@@ -78,8 +104,11 @@ describe('Settings page', () => {
     render(<Settings />);
 
     expect(screen.getByTestId('protected')).toBeInTheDocument();
+    expect(screen.getByText('Personal Card')).toBeInTheDocument();
     expect(screen.getByText('Org Section')).toBeInTheDocument();
     expect(screen.getByText('Companion Terminology')).toBeInTheDocument();
+    expect(screen.getByText('Appearance Preference')).toBeInTheDocument();
+    expect(screen.getByText('Security Section')).toBeInTheDocument();
     expect(screen.getByText('Delete Profile')).toBeInTheDocument();
   });
 });

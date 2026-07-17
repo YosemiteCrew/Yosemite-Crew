@@ -1,12 +1,6 @@
 import React, {useEffect, useMemo, useRef, useCallback, useState} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  Image,
-} from 'react-native';
+import {View, Text, FlatList, StyleSheet, Image} from 'react-native';
+import {PressableOpacity} from '@/shared/components/common/PressableOpacity/PressableOpacity';
 import {useTheme} from '@/hooks';
 import {Images} from '@/assets/images';
 import {
@@ -24,6 +18,13 @@ export interface CalendarMonthStripProps {
   markerColor?: string;
 }
 
+const iso = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+};
+
 export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
   selectedDate,
   onChange,
@@ -33,7 +34,9 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
   const {theme} = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const dateListRef = useRef<FlatList>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
+  const [currentMonth, setCurrentMonth] = useState(
+    () => new Date(selectedDate),
+  );
   const markerSet = useMemo(() => {
     if (!datesWithMarkers) return new Set<string>();
     return Array.isArray(datesWithMarkers)
@@ -95,13 +98,6 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
     return {length: itemLength, offset: index * (itemLength + gap), index};
   }, []);
 
-  const iso = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${dd}`;
-  };
-
   const renderDateItem = ({
     item,
   }: {
@@ -109,7 +105,7 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
   }) => {
     const showMarker = markerSet.has(iso(item.date));
     return (
-      <TouchableOpacity
+      <PressableOpacity
         activeOpacity={0.7}
         style={[
           styles.dateItem,
@@ -137,26 +133,26 @@ export const CalendarMonthStrip: React.FC<CalendarMonthStripProps> = ({
             ]}
           />
         )}
-      </TouchableOpacity>
+      </PressableOpacity>
     );
   };
 
   return (
     <View style={styles.calendarContainer}>
       <View style={styles.calendarHeader}>
-        <TouchableOpacity
+        <PressableOpacity
           onPress={() => setCurrentMonth(getPreviousMonth(currentMonth))}
           style={styles.navButton}
           activeOpacity={0.7}>
           <Image source={Images.leftArrowIcon} style={styles.arrowIcon} />
-        </TouchableOpacity>
+        </PressableOpacity>
         <Text style={styles.monthTitle}>{formatMonthYear(currentMonth)}</Text>
-        <TouchableOpacity
+        <PressableOpacity
           onPress={() => setCurrentMonth(getNextMonth(currentMonth))}
           style={styles.navButton}
           activeOpacity={0.7}>
           <Image source={Images.rightArrowIcon} style={styles.arrowIcon} />
-        </TouchableOpacity>
+        </PressableOpacity>
       </View>
 
       <FlatList

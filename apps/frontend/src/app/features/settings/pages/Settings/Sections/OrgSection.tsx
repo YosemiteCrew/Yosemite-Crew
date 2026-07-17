@@ -17,11 +17,15 @@ import {
 } from '@/app/features/organization/services/availabilityService';
 import { usePrimaryAvailability } from '@/app/hooks/useAvailabiities';
 import { usePrimaryOrgProfile } from '@/app/hooks/useProfiles';
-import { Gender, UserProfile } from '@/app/features/users/types/profile';
+import {
+  Gender,
+  UserProfile,
+  UserEmploymentTypeOptions,
+  UserGenderOptions,
+} from '@/app/features/users/types/profile';
 import { upsertUserProfile } from '@/app/features/organization/services/profileService';
 import { updateUser } from '@/app/features/users/services/userService';
-import { GenderOptions } from '@/app/features/companions/types/companion';
-import { EmploymentTypes, RoleOptions } from '@/app/features/organization/pages/Organization/types';
+import { RoleOptions } from '@/app/features/organization/pages/Organization/types';
 import { useNotify } from '@/app/hooks/useNotify';
 import { resolveTimezoneFromCountry, setPreferredTimeZone } from '@/app/lib/timezone';
 import { useAuthStore } from '@/app/stores/authStore';
@@ -123,7 +127,7 @@ const UserOrgProfileFields = [
     required: false,
     editable: false,
     type: 'select',
-    options: EmploymentTypes,
+    options: UserEmploymentTypeOptions,
   },
   { label: '', key: '_sep1', required: false, editable: false, type: 'separator' },
   {
@@ -132,7 +136,7 @@ const UserOrgProfileFields = [
     required: false,
     editable: true,
     type: 'select',
-    options: GenderOptions,
+    options: UserGenderOptions,
   },
   {
     label: 'Date of birth',
@@ -207,11 +211,19 @@ const OrgSection = () => {
     [profile]
   );
 
-  useEffect(() => {
-    if (availabilities && !membership?.practitionerReference) {
-      setAvailability(availabilities);
-    }
-  }, [availabilities, membership?.practitionerReference]);
+  // Render-phase adjustment: seed the editable availability from the store
+  // snapshot whenever a new snapshot arrives (org-level fallback only).
+  const [syncedAvailabilities, setSyncedAvailabilities] = useState<typeof availabilities | null>(
+    null
+  );
+  if (
+    availabilities &&
+    !membership?.practitionerReference &&
+    availabilities !== syncedAvailabilities
+  ) {
+    setSyncedAvailabilities(availabilities);
+    setAvailability(availabilities);
+  }
 
   useEffect(() => {
     const practitionerId = membership?.practitionerReference;
@@ -373,18 +385,25 @@ const OrgSection = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <ProfileCard
-        title="User profile"
-        fields={UserOrgProfileFields}
-        org={userOrgProfileData}
-        showProfileUser
-        onSave={updateUserOrgProfileFields}
-      />
-      <div className="border border-card-border rounded-2xl">
-        <div className="px-6! py-3! border-b border-b-card-border flex items-center justify-between">
-          <div className="text-body-3 text-text-primary">Availability</div>
+      <div id="settings-user-profile" className="scroll-mt-24">
+        <ProfileCard
+          title="User profile"
+          fields={UserOrgProfileFields}
+          org={userOrgProfileData}
+          showProfileUser
+          onSave={updateUserOrgProfileFields}
+        />
+      </div>
+      <div
+        id="settings-availability"
+        className="scroll-mt-24 bg-[var(--screen)] border border-[var(--hairline)] rounded-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+      >
+        <div className="px-5! pt-4! pb-3! border-b border-[var(--hairline)] flex items-center justify-between">
+          <div className="text-[16px] font-bold tracking-[-0.01em] text-[var(--ink)]">
+            Availability
+          </div>
         </div>
-        <div className="flex flex-col px-6! py-6! gap-6">
+        <div className="flex flex-col px-5! py-5! gap-6">
           <Availability
             availability={availability}
             setAvailability={setAvailability}

@@ -8,7 +8,7 @@ import {
   IoAddOutline,
   IoArrowForwardOutline,
 } from 'react-icons/io5';
-import { Reveal, Spotlight, HeroGlow, useMagnet } from '@/app/features/marketing/site';
+import { Reveal, Spotlight, HeroGlow, useMagnet, InkAnnotate } from '@/app/features/marketing/site';
 
 const CURRENCY = '€';
 const BUSINESS_MONTHLY = '12';
@@ -577,7 +577,9 @@ function HeroSection() {
               animation: 'ycWord 1.1s cubic-bezier(0.16,1,0.3,1) 0.94s both',
             }}
           >
-            grow.
+            <InkAnnotate type="circle" delay={2300}>
+              grow.
+            </InkAnnotate>
           </em>
         </h1>
         <p

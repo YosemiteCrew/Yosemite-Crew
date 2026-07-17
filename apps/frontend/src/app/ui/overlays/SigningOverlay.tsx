@@ -20,7 +20,7 @@ const SigningContent = ({
         title="Document signing"
         className="flex-1 w-full border-0"
         allowFullScreen
-        sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"
+        sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-scripts allow-same-origin"
         referrerPolicy="strict-origin-when-cross-origin"
         style={{ pointerEvents: 'auto' }}
       />
@@ -52,7 +52,7 @@ const SigningOverlay = () => {
       data-signing-overlay="true"
       style={{ pointerEvents: 'auto' }}
     >
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
+      <div className="relative bg-neutral-0 rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b border-black/10">
           <div className="text-body-2 text-text-primary">Sign document</div>
           <button

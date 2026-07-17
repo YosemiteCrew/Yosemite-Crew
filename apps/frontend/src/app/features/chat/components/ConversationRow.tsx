@@ -2,15 +2,14 @@
 
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import {
-  LuGlobe,
-  LuSmartphone,
-  LuBellOff,
-  LuBell,
-  LuMoreVertical,
-  LuAlarmClock,
-  LuArchive,
-  LuArchiveRestore,
-} from 'react-icons/lu';
+  IoArchiveOutline,
+  IoEllipsisVertical,
+  IoGlobeOutline,
+  IoMoonOutline,
+  IoNotificationsOffOutline,
+  IoNotificationsOutline,
+  IoPhonePortraitOutline,
+} from 'react-icons/io5';
 import clsx from 'clsx';
 import Text from '@/app/ui/Text';
 import { Badge } from '@/app/ui';
@@ -45,16 +44,32 @@ export type ConversationRowProps = Readonly<{
 
 const HOUR_MS = 60 * 60 * 1000;
 
+/** Unread count pill — blue for across-the-network rows, pink brand otherwise. */
+function UnreadBadge({ count, network }: Readonly<{ count: number; network?: boolean }>) {
+  if (network) {
+    return (
+      <span className="inline-flex min-w-[17px] items-center justify-center rounded-full bg-[var(--blue)] px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-white">
+        {count}
+      </span>
+    );
+  }
+  return <Badge tone="brand">{count}</Badge>;
+}
+
 function MenuItem({
   icon,
   label,
+  active,
   onClick,
-}: Readonly<{ icon: ReactNode; label: string; onClick: () => void }>) {
+}: Readonly<{ icon: ReactNode; label: string; active?: boolean; onClick: () => void }>) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft"
+      className={clsx(
+        'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-chat-surface-soft',
+        active && 'bg-chat-surface-soft'
+      )}
     >
       {icon}
       <Text as="span" variant="body-4" className="text-neutral-900">
@@ -89,8 +104,9 @@ export function ConversationRow({
   return (
     <div
       className={clsx(
-        'group relative flex items-center rounded-2xl pr-1',
-        active ? 'bg-chat-panel' : 'hover:bg-chat-surface-soft'
+        'group relative flex items-center pr-1',
+        active ? 'chat-conversation-row--active' : 'rounded-2xl hover:bg-chat-surface-soft',
+        muted && !active && 'opacity-[0.62]'
       )}
     >
       <button
@@ -109,16 +125,22 @@ export function ConversationRow({
             >
               {name}
             </Text>
+            {muted && (
+              <IoNotificationsOffOutline
+                aria-label="Muted"
+                className="h-3 w-3 shrink-0 text-neutral-500"
+              />
+            )}
             {viaApp && (
-              <LuSmartphone
+              <IoPhonePortraitOutline
                 aria-label="Messages via pet parent app"
-                className="h-3.5 w-3.5 shrink-0 text-neutral-400"
+                className="size-3.5 shrink-0 text-neutral-400"
               />
             )}
             {network && (
-              <LuGlobe
+              <IoGlobeOutline
                 aria-label="Across the network"
-                className="h-3.5 w-3.5 shrink-0 text-neutral-500"
+                className="size-3.5 shrink-0 text-neutral-500"
               />
             )}
             {time && (
@@ -138,10 +160,7 @@ export function ConversationRow({
             >
               {preview}
             </Text>
-            {muted && (
-              <LuBellOff aria-label="Muted" className="h-3.5 w-3.5 shrink-0 text-neutral-500" />
-            )}
-            {unread ? <Badge tone="brand">{unread}</Badge> : null}
+            {unread ? <UnreadBadge count={unread} network={network} /> : null}
           </span>
         </span>
       </button>
@@ -153,13 +172,13 @@ export function ConversationRow({
             aria-label="Conversation actions"
             onClick={() => setMenuOpen((o) => !o)}
             className={clsx(
-              'inline-flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-0 hover:text-neutral-900',
+              'inline-flex size-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-0 hover:text-neutral-900',
               menuOpen
                 ? 'opacity-100'
                 : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100'
             )}
           >
-            <LuMoreVertical className="h-4 w-4" />
+            <IoEllipsisVertical className="h-4 w-4" />
           </button>
           {menuOpen && (
             <>
@@ -169,51 +188,10 @@ export function ConversationRow({
                 className="fixed inset-0 z-10 cursor-default"
                 onClick={close}
               />
-              <div className="absolute right-0 top-9 z-20 w-44 rounded-2xl border border-chat-divider bg-neutral-0 p-1.5 shadow-lg">
-                {muted
-                  ? onUnmute && (
-                      <MenuItem
-                        icon={<LuBell className="h-4 w-4 text-neutral-500" />}
-                        label="Unmute"
-                        onClick={() => {
-                          onUnmute();
-                          close();
-                        }}
-                      />
-                    )
-                  : onMute && (
-                      <MenuItem
-                        icon={<LuBellOff className="h-4 w-4 text-neutral-500" />}
-                        label="Mute"
-                        onClick={() => {
-                          onMute();
-                          close();
-                        }}
-                      />
-                    )}
-                {onSnooze && (
-                  <MenuItem
-                    icon={<LuAlarmClock className="h-4 w-4 text-neutral-500" />}
-                    label="Snooze 1 hour"
-                    onClick={() => {
-                      onSnooze(HOUR_MS);
-                      close();
-                    }}
-                  />
-                )}
-                {onSnooze && (
-                  <MenuItem
-                    icon={<LuAlarmClock className="h-4 w-4 text-neutral-500" />}
-                    label="Snooze 1 day"
-                    onClick={() => {
-                      onSnooze(24 * HOUR_MS);
-                      close();
-                    }}
-                  />
-                )}
+              <div className="absolute right-0 top-9 z-20 w-[190px] rounded-2xl border border-chat-divider bg-neutral-0 p-1.5 shadow-lg">
                 {onArchive && (
                   <MenuItem
-                    icon={<LuArchive className="h-4 w-4 text-neutral-500" />}
+                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-neutral-500" />}
                     label="Archive"
                     onClick={() => {
                       onArchive();
@@ -223,13 +201,59 @@ export function ConversationRow({
                 )}
                 {onUnarchive && (
                   <MenuItem
-                    icon={<LuArchiveRestore className="h-4 w-4 text-neutral-500" />}
+                    icon={<IoArchiveOutline className="h-3.5 w-3.5 text-neutral-500" />}
                     label="Unarchive"
                     onClick={() => {
                       onUnarchive();
                       close();
                     }}
                   />
+                )}
+                {muted
+                  ? onUnmute && (
+                      <MenuItem
+                        active
+                        icon={<IoNotificationsOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                        label="Unmute"
+                        onClick={() => {
+                          onUnmute();
+                          close();
+                        }}
+                      />
+                    )
+                  : onMute && (
+                      <MenuItem
+                        active
+                        icon={
+                          <IoNotificationsOffOutline className="h-3.5 w-3.5 text-neutral-500" />
+                        }
+                        label="Mute"
+                        onClick={() => {
+                          onMute();
+                          close();
+                        }}
+                      />
+                    )}
+                {onSnooze && (
+                  <>
+                    <hr className="my-1 h-px border-0 bg-chat-divider" />
+                    <MenuItem
+                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                      label="Snooze · 1 hour"
+                      onClick={() => {
+                        onSnooze(HOUR_MS);
+                        close();
+                      }}
+                    />
+                    <MenuItem
+                      icon={<IoMoonOutline className="h-3.5 w-3.5 text-neutral-500" />}
+                      label="Snooze · 1 day"
+                      onClick={() => {
+                        onSnooze(24 * HOUR_MS);
+                        close();
+                      }}
+                    />
+                  </>
                 )}
               </div>
             </>

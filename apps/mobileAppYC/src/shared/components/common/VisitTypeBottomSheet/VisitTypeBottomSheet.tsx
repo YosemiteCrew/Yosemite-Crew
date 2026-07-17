@@ -1,6 +1,9 @@
-import React, {forwardRef, useState, useImperativeHandle, useRef} from 'react';
+import React, {useState, useImperativeHandle, useRef} from 'react';
 import {GenericSelectBottomSheet} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
-import type {GenericSelectBottomSheetRef, SelectItem} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
+import type {
+  GenericSelectBottomSheetRef,
+  SelectItem,
+} from '../GenericSelectBottomSheet/GenericSelectBottomSheet';
 
 export interface VisitTypeBottomSheetRef {
   open: () => void;
@@ -21,10 +24,11 @@ const VISIT_TYPES: SelectItem[] = [
   {id: 'other', label: 'Other'},
 ];
 
-export const VisitTypeBottomSheet = forwardRef<
-  VisitTypeBottomSheetRef,
-  VisitTypeBottomSheetProps
->(({selectedVisitType, onSave}, ref) => {
+export const VisitTypeBottomSheet = ({
+  selectedVisitType,
+  onSave,
+  ref,
+}: VisitTypeBottomSheetProps & {ref?: React.Ref<VisitTypeBottomSheetRef>}) => {
   const bottomSheetRef = useRef<GenericSelectBottomSheetRef>(null);
   const [tempVisitType, setTempVisitType] = useState<SelectItem | null>(
     selectedVisitType
@@ -65,6 +69,6 @@ export const VisitTypeBottomSheet = forwardRef<
       maxListHeight={300}
     />
   );
-});
+};
 
 VisitTypeBottomSheet.displayName = 'VisitTypeBottomSheet';

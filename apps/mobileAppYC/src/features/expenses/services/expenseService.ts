@@ -254,12 +254,16 @@ const mapSummaryFromApi = (
 });
 
 const serializeAttachmentsForApi = (attachments: ExpenseAttachment[]) =>
-  attachments
-    .filter(file => file.key)
-    .map(file => ({
-      key: file.key as string,
-      mimetype: file.type ?? 'application/octet-stream',
-    }));
+  attachments.flatMap(file =>
+    file.key
+      ? [
+          {
+            key: file.key as string,
+            mimetype: file.type ?? 'application/octet-stream',
+          },
+        ]
+      : [],
+  );
 
 const ensureUploadedAttachments = async ({
   attachments,
@@ -274,27 +278,28 @@ const ensureUploadedAttachments = async ({
     return [];
   }
 
-  const uploaded: ExpenseAttachment[] = [];
-  for (const file of attachments) {
-    if (file.key) {
-      uploaded.push({...file, status: 'ready'});
-      continue;
-    }
-    if (!file.uri) {
-      throw new Error(`File path missing for upload: ${file.name || file.id}`);
-    }
-    const uploadedFile = await documentApi.uploadAttachment({
-      file,
-      companionId,
-      accessToken,
-    });
-    uploaded.push({
-      ...file,
-      ...uploadedFile,
-      status: 'ready',
-    });
-  }
-  return uploaded;
+  return Promise.all(
+    attachments.map(async file => {
+      if (file.key) {
+        return {...file, status: 'ready'} as ExpenseAttachment;
+      }
+      if (!file.uri) {
+        throw new Error(
+          `File path missing for upload: ${file.name || file.id}`,
+        );
+      }
+      const uploadedFile = await documentApi.uploadAttachment({
+        file,
+        companionId,
+        accessToken,
+      });
+      return {
+        ...file,
+        ...uploadedFile,
+        status: 'ready',
+      } as ExpenseAttachment;
+    }),
+  );
 };
 
 const toApiPayload = (input: ExpenseInputPayload) => {

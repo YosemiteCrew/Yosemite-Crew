@@ -1,17 +1,32 @@
 import { Request, Response } from "express";
 import { AuthUserMobileService } from "src/services/authUserMobile.service";
 import { FormSigningService } from "src/services/formSigning.service";
-import { resolveUserIdFromRequest } from "src/utils/request";
+import type { AuthenticatedRequest } from "src/middlewares/auth";
+import type { OrgRequest } from "src/middlewares/rbac";
 
 export const FormSigningController = {
   startSigning: async (req: Request, res: Response) => {
     try {
       const submissionId = req.params.submissionId;
-      const userId = resolveUserIdFromRequest(req);
+      // The acting user MUST come from the verified Cognito token, never from a
+      // client-supplied header. authorizeCognito sets req.userId from token sub.
+      const userId = (req as AuthenticatedRequest).userId;
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User ID missing" });
+      }
+
+      // withOrgPermissions() binds the authorised organisation from the request.
+      const organisationId = (req as OrgRequest).organisationId;
+      if (!organisationId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
 
       const result = await FormSigningService.startSigning({
         submissionId,
         initiatedBy: userId,
+        organisationId,
       });
 
       res.status(200).json(result);
@@ -25,9 +40,16 @@ export const FormSigningController = {
   startSigningMobile: async (req: Request, res: Response) => {
     try {
       const submissionId = req.params.submissionId;
-      const userId = resolveUserIdFromRequest(req);
+      // The acting user MUST come from the verified Cognito token (token sub),
+      // never from a client-supplied header.
+      const userId = (req as AuthenticatedRequest).userId;
+      if (!userId) {
+        return res
+          .status(401)
+          .json({ message: "Unauthorized: User ID missing" });
+      }
 
-      const authUser = await AuthUserMobileService.getByProviderUserId(userId!);
+      const authUser = await AuthUserMobileService.getByProviderUserId(userId);
 
       if (!authUser) {
         throw new Error("Unauthorized");
