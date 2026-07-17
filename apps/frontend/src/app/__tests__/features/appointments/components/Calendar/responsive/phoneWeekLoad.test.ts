@@ -1,5 +1,7 @@
 import type { Appointment } from '@yosemite-crew/types';
 
+import { setPreferredTimeZone } from '@/app/lib/timezone';
+
 import {
   buildPhoneWeekOverview,
   DEFAULT_DAY_CAPACITY,
@@ -22,9 +24,22 @@ type AppointmentOverrides = {
   leadId?: string;
 };
 
+/**
+ * Fixtures sit at local midday, not local midnight. Appointments are bucketed by
+ * their calendar day in the *preferred* timezone, so a midnight instant would
+ * slide into the previous day on any host east of that zone and break these
+ * assertions for reasons that have nothing to do with what they test.
+ */
+const atLocalTime = (date: Date, hours: number, minutes = 0): Date => {
+  const next = new Date(date);
+  next.setHours(hours, minutes, 0, 0);
+  return next;
+};
+
 const makeAppointment = (date: Date, overrides: AppointmentOverrides = {}): Appointment => {
   idCounter += 1;
   const { status = 'UPCOMING', isEmergency = false, leadId = 'vet-1' } = overrides;
+  const midday = atLocalTime(date, 12);
   return {
     id: `appt-${idCounter}`,
     patient: {
@@ -35,9 +50,9 @@ const makeAppointment = (date: Date, overrides: AppointmentOverrides = {}): Appo
     },
     lead: { id: leadId, name: 'Dr. Keller' },
     organisationId: 'org-1',
-    appointmentDate: date,
-    startTime: date,
-    endTime: date,
+    appointmentDate: midday,
+    startTime: midday,
+    endTime: midday,
     timeSlot: '09:00',
     durationMinutes: 30,
     status,
@@ -542,5 +557,62 @@ describe('buildPhoneWeekOverview — load bar segments', () => {
     Object.values(SEGMENT_COLORS).forEach((color) => {
       expect(color).toMatch(/^var\(--/);
     });
+  });
+});
+
+describe('buildPhoneWeekOverview — clinic timezone bucketing', () => {
+  /** Minutes `timeZone` sits ahead of UTC at `instant`. */
+  const zoneOffsetMinutes = (timeZone: string, instant: Date): number => {
+    const utc = new Date(instant.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const zoned = new Date(instant.toLocaleString('en-US', { timeZone }));
+    return Math.round((zoned.getTime() - utc.getTime()) / 60_000);
+  };
+
+  const CANDIDATE_ZONES = [
+    'Pacific/Pago_Pago',
+    'America/Los_Angeles',
+    'America/Sao_Paulo',
+    'Europe/London',
+  ];
+
+  /**
+   * A zone at least six hours west of whatever zone the test host runs in, so
+   * the divergence this test relies on exists on a UTC CI box and on a
+   * developer's laptop alike.
+   */
+  const pickZoneWestOfHost = (reference: Date): string => {
+    const hostOffset = -reference.getTimezoneOffset();
+    const zone = CANDIDATE_ZONES.find(
+      (candidate) => zoneOffsetMinutes(candidate, reference) <= hostOffset - 360
+    );
+    if (!zone) throw new Error('No candidate timezone is far enough west of the test host.');
+    return zone;
+  };
+
+  const withInstant = (appointment: Appointment, instant: Date): Appointment => ({
+    ...appointment,
+    appointmentDate: instant,
+    startTime: instant,
+  });
+
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('buckets by the clinic calendar day, not the browser local day', () => {
+    const zone = pickZoneWestOfHost(MONDAY);
+    expect(setPreferredTimeZone(zone)).toBe(true);
+
+    // 00:30 on the local Monday is still the Sunday evening at the clinic, so it
+    // belongs to no row in this week...
+    const stillSundayAtTheClinic = withInstant(makeAppointment(MONDAY), atLocalTime(MONDAY, 0, 30));
+    // ...while 23:30 on the local Monday is comfortably inside the clinic's Monday.
+    const mondayAtTheClinic = withInstant(makeAppointment(MONDAY), atLocalTime(MONDAY, 23, 30));
+
+    const overview = build([stillSundayAtTheClinic, mondayAtTheClinic]);
+
+    expect(overview.days[0].appointmentCount).toBe(1);
+    expect(overview.days[0].segments[0].count).toBe(1);
+    expect(overview.totalAppointments).toBe(1);
   });
 });

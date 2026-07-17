@@ -1,5 +1,7 @@
 import type { Appointment } from '@yosemite-crew/types';
 
+import { getDateKeyInPreferredTimeZone } from '@/app/lib/timezone';
+
 /**
  * Pure derivation for the phone "week as a load list" view.
  *
@@ -8,7 +10,10 @@ import type { Appointment } from '@yosemite-crew/types';
  * sentence, its attention flag and the proportional segments of its load bar)
  * is derived here so the React component stays a dumb renderer.
  *
- * No React, no stores, no browser APIs — plain data in, plain data out.
+ * No React and no stores — plain data in, plain data out. Appointments are
+ * bucketed by their date key in the *preferred* timezone (the clinic's calendar
+ * day), which is the same instant -> calendar-day conversion the month and week
+ * models use; that read is the module's only host dependency.
  */
 
 /** Fallback booking capacity used to scale a day's load bar. */
@@ -352,7 +357,7 @@ export const buildPhoneWeekOverview = ({
       date,
       meta: dayMeta[dateKey] ?? {},
       appointments: appointments.filter(
-        (appointment) => toDateKey(new Date(appointment.appointmentDate)) === dateKey
+        (appointment) => getDateKeyInPreferredTimeZone(appointment.startTime) === dateKey
       ),
     };
   });
