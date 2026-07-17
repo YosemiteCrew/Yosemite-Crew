@@ -254,4 +254,95 @@ describe("IntegrationService", () => {
       await IntegrationService.validateCredentials("org_1", "MERCK_MANUALS"),
     ).toEqual({ ok: true });
   });
+
+  describe("getCredentialMeta", () => {
+    const SECRET_PASSWORD = "sup3r-s3cret-idexx-pw";
+
+    it("returns username and practiceId from postgres credentials without password", async () => {
+      (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue({
+        credentials: {
+          username: "vetuser",
+          password: SECRET_PASSWORD,
+          labAccountId: "PRACTICE-123",
+        },
+      });
+
+      const result = await IntegrationService.getCredentialMeta(
+        "org-1",
+        "IDEXX",
+      );
+
+      expect(result).toEqual({
+        username: "vetuser",
+        practiceId: "PRACTICE-123",
+      });
+      expect(Object.keys(result)).toEqual(["username", "practiceId"]);
+      expect(result).not.toHaveProperty("password");
+      expect(JSON.stringify(result)).not.toContain(SECRET_PASSWORD);
+    });
+
+    it("reads credentials from the mongo path without password", async () => {
+      readSwitch.mockReturnValue(false);
+      mockedModel.findOne.mockReturnValue(
+        makeLeanQuery({
+          credentials: {
+            username: "mongouser",
+            password: SECRET_PASSWORD,
+            labAccountId: "PRACTICE-456",
+          },
+        }),
+      );
+
+      const result = await IntegrationService.getCredentialMeta(
+        "org_1",
+        "IDEXX",
+      );
+
+      expect(result).toEqual({
+        username: "mongouser",
+        practiceId: "PRACTICE-456",
+      });
+      expect(JSON.stringify(result)).not.toContain(SECRET_PASSWORD);
+    });
+
+    it("returns nulls when the account has no credentials", async () => {
+      (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue({
+        credentials: null,
+      });
+
+      expect(
+        await IntegrationService.getCredentialMeta("org-1", "IDEXX"),
+      ).toEqual({ username: null, practiceId: null });
+    });
+
+    it("returns nulls when no account exists", async () => {
+      (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue(
+        null,
+      );
+
+      expect(
+        await IntegrationService.getCredentialMeta("org-1", "IDEXX"),
+      ).toEqual({ username: null, practiceId: null });
+    });
+
+    it("returns null practiceId when labAccountId is absent", async () => {
+      (prisma.integrationAccount.findFirst as jest.Mock).mockResolvedValue({
+        credentials: { username: "vetuser", password: SECRET_PASSWORD },
+      });
+
+      const result = await IntegrationService.getCredentialMeta(
+        "org-1",
+        "IDEXX",
+      );
+
+      expect(result).toEqual({ username: "vetuser", practiceId: null });
+      expect(JSON.stringify(result)).not.toContain(SECRET_PASSWORD);
+    });
+
+    it("rejects unsupported providers", async () => {
+      await expect(
+        IntegrationService.getCredentialMeta("org-1", "bad"),
+      ).rejects.toThrow(IntegrationServiceError);
+    });
+  });
 });

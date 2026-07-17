@@ -681,6 +681,41 @@ export const IntegrationService = {
     return result;
   },
 
+  async getCredentialMeta(
+    organisationId: string,
+    provider: string,
+  ): Promise<{ username: string | null; practiceId: string | null }> {
+    const safeOrganisationId = requireOrganisationId(organisationId);
+    const normalized = ensureProvider(provider);
+
+    const account = isReadFromPostgres()
+      ? await prisma.integrationAccount.findFirst({
+          where: { organisationId: safeOrganisationId, provider: normalized },
+        })
+      : await IntegrationAccountModel.findOne({
+          organisationId: safeOrganisationId,
+          provider: normalized,
+        })
+          .setOptions({ sanitizeFilter: true })
+          .lean();
+
+    const credentials = account?.credentials as
+      { username?: unknown; labAccountId?: unknown } | null | undefined;
+
+    if (!credentials) {
+      return { username: null, practiceId: null };
+    }
+
+    const username =
+      typeof credentials.username === "string" ? credentials.username : null;
+    const practiceId =
+      typeof credentials.labAccountId === "string"
+        ? credentials.labAccountId
+        : null;
+
+    return { username, practiceId };
+  },
+
   async requireAccount(
     organisationId: string,
     provider: string,
