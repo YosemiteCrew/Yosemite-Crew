@@ -34,7 +34,13 @@ import { IvlsDevice } from '@/app/features/integrations/services/types';
 import { getMerckGateway } from '@/app/features/integrations/services/merckService';
 import { useResolvedMerckIntegrationForPrimaryOrg } from '@/app/hooks/useMerckIntegration';
 import Close from '@/app/ui/primitives/Icons/Close';
-import { IoInformationCircleOutline, IoRefreshOutline, IoTrashOutline } from 'react-icons/io5';
+import {
+  IoExtensionPuzzleOutline,
+  IoInformationCircleOutline,
+  IoRefreshOutline,
+  IoTrashOutline,
+} from 'react-icons/io5';
+import clsx from 'clsx';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 
 type StatusTokens = { bg: string; text: string; border: string };
@@ -83,27 +89,9 @@ const IDEXX_REGIONAL_AVAILABILITY_DISCLAIMER =
   'IDEXX integration availability is currently limited to the USA, Canada, and the UK.';
 
 const integrationFilters = [
-  {
-    key: 'all',
-    label: 'All',
-    bg: 'var(--color-badge-blue-bg)',
-    text: 'var(--color-badge-blue-text)',
-    border: 'var(--color-primary-500)',
-  },
-  {
-    key: 'connected',
-    label: 'Connected',
-    bg: 'var(--color-pill-success-bg)',
-    text: 'var(--color-pill-success-text)',
-    border: 'var(--color-pill-success-border)',
-  },
-  {
-    key: 'available',
-    label: 'Available',
-    bg: 'var(--color-pill-info-bg)',
-    text: 'var(--color-pill-info-text)',
-    border: 'var(--color-pill-info-border)',
-  },
+  { key: 'all', label: 'All' },
+  { key: 'connected', label: 'Connected' },
+  { key: 'available', label: 'Available' },
 ] as const;
 
 type ValidateState = 'idle' | 'valid' | 'invalid';
@@ -218,9 +206,9 @@ const DeviceCard = ({ device }: { device: IvlsDevice }) => {
   );
 };
 
-const StatusPill = ({ status }: { status?: string }) => {
+const StatusPill = ({ status, label }: { status?: string; label?: string }) => {
   const key = (status ?? 'disabled').toLowerCase();
-  const normalizedLabel = `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+  const normalizedLabel = label ?? `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
   const tokens = statusTokens[key];
   const isLive = key === 'enabled';
   return (
@@ -804,18 +792,12 @@ const IntegrationFilterTabs = ({
           type="button"
           onClick={() => setActiveFilter(tab.key)}
           aria-pressed={isActive}
-          className={`min-w-20 text-body-4 px-3 py-1.5 rounded-full! border! transition-all duration-300 hover:bg-card-hover text-text-tertiary${isActive ? '' : ' border-card-border! hover:border-card-hover!'}`}
-          style={
+          className={clsx(
+            'rounded-full! border px-[13px] py-1.5 text-[12px] transition-colors',
             isActive
-              ? {
-                  backgroundColor: tab.bg,
-                  color: tab.text,
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: tab.border,
-                }
-              : undefined
-          }
+              ? 'bg-[var(--inset)] border-[var(--divider)] text-[var(--ink)] font-bold'
+              : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:border-[var(--divider)]'
+          )}
         >
           {tab.label}
         </button>
@@ -870,7 +852,10 @@ const IdexxIntegrationCard = ({
         <div className="flex flex-col gap-3 pb-3">
           <div className={INTEGRATION_CARD_HEADER_CLASS}>
             <div className={INTEGRATION_CARD_TITLE_CLASS}>IDEXX VetConnect PLUS</div>
-            <StatusPill status={s.idexxIntegration?.status} />
+            <StatusPill
+              status={s.idexxIntegration?.status}
+              label={s.idexxEnabled ? 'Connected' : undefined}
+            />
           </div>
           <div className="text-body-4 text-text-secondary line-clamp-4">
             Order in-house and reference lab work from the appointment workspace; results file to
@@ -885,7 +870,7 @@ const IdexxIntegrationCard = ({
             className="w-full px-4"
           />
           {s.idexxEnabled ? (
-            <Primary
+            <Secondary
               href="/appointments/idexx-workspace"
               text="Open workspace"
               className="w-full px-4"
@@ -1261,6 +1246,15 @@ const IntegrationsPage = () => {
         idexxCardButtonLabel={idexxCardButtonLabel}
         merckCardButtonLabel={merckCardButtonLabel}
       />
+
+      <div className="flex items-center gap-2.5 rounded-[14px] bg-[var(--inset)] px-4 py-3 text-[12.5px] text-[var(--ink-muted)]">
+        <IoExtensionPuzzleOutline
+          size={15}
+          aria-hidden="true"
+          className="shrink-0 text-[var(--blue-text)]"
+        />
+        More integrations ship as plugins. Browse the developer portal&apos;s plugin catalog.
+      </div>
 
       {showNoConnected ? (
         <output className="text-body-4 text-text-secondary">No connected integrations yet.</output>

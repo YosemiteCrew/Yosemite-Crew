@@ -2,6 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import CompanionHistoryTimeline, {
+  PillDropdown,
   RequestedAppointmentActions,
   StatusPillSelect,
 } from '@/app/features/companionHistory/components/CompanionHistoryTimeline';
@@ -2430,5 +2431,61 @@ describe('CompanionHistoryTimeline', () => {
       expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 'entry-appointment' }));
       expect(onStatusChange).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('PillDropdown', () => {
+  const OPTIONS = [
+    { label: 'All statuses', value: 'all' },
+    { label: 'Completed', value: 'completed' },
+  ];
+
+  it('toggles the menu and shows the selected option label in the trigger', () => {
+    render(<PillDropdown label="Status" options={OPTIONS} value="all" onSelect={jest.fn()} />);
+
+    const trigger = screen.getByRole('button', { name: 'Status: All statuses' });
+    // Menu is closed until the trigger is clicked.
+    expect(screen.queryByRole('button', { name: 'Completed' })).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    expect(screen.getByRole('button', { name: 'Completed' })).toBeInTheDocument();
+
+    // Clicking the trigger again closes the menu (toggle-off branch).
+    fireEvent.click(trigger);
+    expect(screen.queryByRole('button', { name: 'Completed' })).not.toBeInTheDocument();
+  });
+
+  it('selects an option, notifies the caller, and closes the menu', () => {
+    const onSelect = jest.fn();
+    render(<PillDropdown label="Status" options={OPTIONS} value="all" onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Status: All statuses' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Completed' }));
+
+    expect(onSelect).toHaveBeenCalledWith('completed');
+    expect(screen.queryByRole('button', { name: 'Completed' })).not.toBeInTheDocument();
+  });
+
+  it('falls back to the bare label when the value has no matching option', () => {
+    render(<PillDropdown label="Status" options={OPTIONS} value="unknown" onSelect={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'Status: Status' })).toBeInTheDocument();
+  });
+
+  it('closes on an outside pointer-down but ignores pointer-downs inside the control', () => {
+    render(
+      <div>
+        <button type="button">outside</button>
+        <PillDropdown label="Status" options={OPTIONS} value="all" onSelect={jest.fn()} />
+      </div>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Status: All statuses' }));
+    // A pointer-down inside the control leaves the menu open.
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Completed' }));
+    expect(screen.getByRole('button', { name: 'Completed' })).toBeInTheDocument();
+
+    // A pointer-down outside the control closes the menu.
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'outside' }));
+    expect(screen.queryByRole('button', { name: 'Completed' })).not.toBeInTheDocument();
   });
 });

@@ -82,6 +82,7 @@ describe('InventoryTable', () => {
     },
     stock: {
       current: 2,
+      available: 4,
       stockLocation: 'Shelf A',
     },
     pricing: {
@@ -115,7 +116,9 @@ describe('InventoryTable', () => {
     expect(screen.getAllByText('Vaccine').length).toBeGreaterThan(0);
     // The rest of the columns only render in the desktop card-table.
     expect(screen.getByText('Medicine')).toBeInTheDocument();
-    expect(screen.getByText('2 units')).toBeInTheDocument();
+    // On hand + available render with the abbreviated unit ("u").
+    expect(screen.getByText('2 u')).toBeInTheDocument();
+    expect(screen.getByText('4 u')).toBeInTheDocument();
     expect(screen.getByText('$ 5')).toBeInTheDocument();
     expect(screen.getByText('$ 10')).toBeInTheDocument();
     expect(screen.getByText('50%')).toBeInTheDocument();
@@ -291,6 +294,40 @@ describe('InventoryTable', () => {
     // The restock button gains the active-nav highlight for low-stock rows.
     const restockBtn = screen.getByRole('button', { name: 'Restock Vaccine' });
     expect(restockBtn.className).toContain('bg-[var(--nav-active-bg)]');
+  });
+
+  it('abbreviates box units as "bx" when the unit of measure is a box', () => {
+    const boxed = makeItem({ basicInfo: { unitOfMeasure: 'Box of 100' } });
+
+    render(
+      <InventoryTable
+        filteredList={[boxed]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('2 bx')).toBeInTheDocument();
+    expect(screen.getByText('4 bx')).toBeInTheDocument();
+  });
+
+  it('renders a dispose (trash) action for expired rows instead of restock', () => {
+    const onRestock = jest.fn();
+    const expiredItem = makeItem({ basicInfo: { status: 'Expired' } });
+
+    render(
+      <InventoryTable
+        filteredList={[expiredItem]}
+        setActiveInventory={jest.fn()}
+        setViewInventory={jest.fn()}
+        onRestock={onRestock}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Restock Vaccine' })).not.toBeInTheDocument();
+    const disposeBtn = screen.getByRole('button', { name: 'Dispose Vaccine' });
+    fireEvent.click(disposeBtn);
+    expect(onRestock).toHaveBeenCalledWith(expiredItem);
   });
 
   it('renders the margin placeholder when the margin is undefined', () => {

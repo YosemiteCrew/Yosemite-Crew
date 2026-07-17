@@ -104,7 +104,7 @@ const CompanionTerminologyPreference = () => {
       </div>
       <div className="flex items-center justify-between gap-4 px-5! py-5!">
         <div className="text-[12.5px] text-[var(--ink-faint)]">
-          How companions are named across the app.
+          How patients are named across the app.
         </div>
         <div data-terminology-lock="true">
           <SegmentedPill

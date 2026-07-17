@@ -40,16 +40,13 @@ import Fallback from '@/app/ui/overlays/Fallback';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
 import {
   IoAddOutline,
-  IoCaretDown,
+  IoAlertCircleOutline,
   IoChevronDownOutline,
-  IoDocumentTextOutline,
-  IoFilterOutline,
-  IoGridOutline,
   IoInformationCircleOutline,
-  IoMedkitOutline,
   IoOptionsOutline,
   IoSearchOutline,
 } from 'react-icons/io5';
+import clsx from 'clsx';
 import {
   listDispenseRequests,
   DispenseRequestApi,
@@ -58,10 +55,10 @@ import { dispensePrescription } from '@/app/features/appointments/services/presc
 import { getPlannerLayoutClassNames, usePlannerAutoLock } from '@/app/hooks/usePlannerLayout';
 import { usePhonePrimaryAction } from '@/app/ui/layout/PhoneShell/usePhonePrimaryAction';
 import DispensaryDetailModal from '@/app/features/inventory/components/DispensaryDetailModal';
-import Filters from '@/app/ui/filters/Filters';
 import type { InventoryTurnoverFilterState } from '@/app/ui/filters/InventoryTurnoverFilters';
 import { StatusOption, status } from '@/app/features/companions/pages/Companions/types';
 import { Primary } from '@/app/ui/primitives/Buttons';
+import SegmentedPill from '@/app/ui/primitives/SegmentedPill/SegmentedPill';
 
 const INVENTORY_PAGE_SKELETON = <PageSkeleton variant="list" />;
 
@@ -277,7 +274,20 @@ type InventoryFilterBarProps = {
   setFilterOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setFilters: React.Dispatch<React.SetStateAction<InventoryFiltersState>>;
   setSortMode: React.Dispatch<React.SetStateAction<SortMode>>;
+  categoryOptions?: string[];
+  toggleCategoryFilter?: (category: string) => void;
+  lowStockCount?: number;
 };
+
+const LOW_STOCK_STATUS = 'LOW_STOCK';
+
+const chipClass = (active: boolean) =>
+  clsx(
+    'inline-flex items-center rounded-full! border px-3 py-1.5 text-[12px] transition-colors',
+    active
+      ? 'border-[var(--divider)] bg-[var(--inset)] text-[var(--ink)] font-bold'
+      : 'border-[var(--hairline)] text-[var(--ink-muted)] font-semibold hover:bg-card-hover'
+  );
 
 export const InventoryFilterBar = ({
   filters,
@@ -286,7 +296,12 @@ export const InventoryFilterBar = ({
   setFilterOpen,
   setFilters,
   setSortMode,
+  categoryOptions = [],
+  toggleCategoryFilter,
+  lowStockCount = 0,
 }: InventoryFilterBarProps) => {
+  const selectedCategories = filters.categories ?? [];
+  const lowStockActive = filters.status === LOW_STOCK_STATUS;
   const [sortOpen, setSortOpen] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -329,93 +344,131 @@ export const InventoryFilterBar = ({
   }, [sortOpen]);
 
   return (
-    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-      <div className="flex items-center gap-2">
-        {(['ACTIVE', 'HIDDEN'] as const).map((vis) => {
-          const label = getVisibilityLabel(vis);
-          const active = filters.visibility === vis;
-          return (
-            <button
-              key={vis}
-              type="button"
-              onClick={() => setFilters((prev) => ({ ...prev, visibility: vis }))}
-              className={`inline-flex h-9 items-center rounded-full px-4 text-body-4 border transition-colors ${active ? 'border-[var(--divider)] bg-[var(--inset)] text-[var(--ink)] font-semibold' : 'border-[var(--hairline)] text-[var(--ink-muted)] hover:bg-card-hover'}`}
-            >
-              {label}
-            </button>
-          );
-        })}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setFilters((prev) => ({ ...prev, categories: [], category: 'all' }))}
+          className={chipClass(selectedCategories.length === 0)}
+        >
+          All
+        </button>
+        {categoryOptions.map((category) => (
+          <button
+            key={category}
+            type="button"
+            onClick={() => toggleCategoryFilter?.(category)}
+            className={chipClass(selectedCategories.includes(category))}
+          >
+            {category}
+          </button>
+        ))}
+        <span className="mx-1 h-[18px] w-px bg-[var(--hairline)]" aria-hidden="true" />
+        <button
+          type="button"
+          aria-pressed={lowStockActive}
+          onClick={() =>
+            setFilters((prev) => ({
+              ...prev,
+              status: prev.status === LOW_STOCK_STATUS ? 'ALL' : LOW_STOCK_STATUS,
+            }))
+          }
+          className={clsx(
+            'inline-flex items-center gap-1.5 rounded-full! border border-[var(--status-cancelled-border)] bg-[var(--status-cancelled-bg)] px-3 py-1.5 text-[12px] font-bold text-[var(--status-cancelled-text)] transition-shadow',
+            lowStockActive && 'shadow-[0_1px_3px_var(--sh08)]'
+          )}
+        >
+          <IoAlertCircleOutline size={13} aria-hidden="true" />
+          Low stock ({lowStockCount})
+        </button>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setFilterOpen(true)}
-          className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-neutral-0 px-4 text-body-4 text-text-primary"
-        >
-          <IoOptionsOutline size={18} aria-hidden="true" />
-          <span>Filter</span>
-          {selectedFilterChips.length > 0 ? (
-            <span className="rounded-full bg-badge-blue-bg px-2 text-caption-1 text-badge-blue-text">
-              {selectedFilterChips.length}
-            </span>
-          ) : (
-            <IoChevronDownOutline size={16} aria-hidden="true" className="text-text-secondary" />
-          )}
-        </button>
-        <button
-          ref={triggerRef}
-          type="button"
-          onClick={() => setSortOpen((v) => !v)}
-          className="inline-flex h-11 items-center gap-2 rounded-2xl border border-card-border bg-neutral-0 px-4 text-body-4 text-text-primary"
-        >
-          <IoFilterOutline size={18} aria-hidden="true" />
-          <span>Sort by</span>
-          <IoCaretDown
-            size={13}
-            aria-hidden="true"
-            className={`text-text-secondary transition-transform ${sortOpen ? 'rotate-180' : ''}`}
-          />
-        </button>
-        {sortOpen &&
-          createPortal(
-            <div
-              ref={panelRef}
-              className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_var(--color-shadow-soft)] overflow-hidden"
-              style={dropdownStyle}
-            >
-              {SORT_OPTIONS.map((option) => {
-                const isActive = option.key === sortMode;
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => {
-                      setSortMode(option.key);
-                      setSortOpen(false);
-                    }}
-                    className={`w-full flex items-center px-3 py-2.5 text-body-4 text-left transition-colors ${isActive ? 'font-medium text-text-primary' : 'text-text-secondary hover:bg-card-hover'}`}
-                  >
-                    {option.label}
-                    {isActive && <span className="ml-auto font-semibold">✓</span>}
-                  </button>
-                );
-              })}
-            </div>,
-            document.body
-          )}
-        <div className="relative w-full sm:w-auto sm:min-w-72">
-          <IoSearchOutline
-            size={18}
-            aria-hidden="true"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
-          />
-          <input
-            aria-label="Search inventory"
-            value={filters.search}
-            onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
-            placeholder="Search inventory"
-            className="h-11 w-full rounded-2xl border border-card-border bg-neutral-0 pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
-          />
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-center gap-2">
+          {(['ACTIVE', 'HIDDEN'] as const).map((vis) => {
+            const label = getVisibilityLabel(vis);
+            const active = filters.visibility === vis;
+            return (
+              <button
+                key={vis}
+                type="button"
+                onClick={() => setFilters((prev) => ({ ...prev, visibility: vis }))}
+                className={chipClass(active)}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setFilterOpen(true)}
+            className="inline-flex h-[38px] items-center gap-2 rounded-full! border border-[var(--hairline)] bg-transparent px-4 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
+          >
+            <IoOptionsOutline size={16} aria-hidden="true" />
+            <span>Filter</span>
+            {selectedFilterChips.length > 0 ? (
+              <span className="rounded-full bg-badge-blue-bg px-2 text-caption-1 text-badge-blue-text">
+                {selectedFilterChips.length}
+              </span>
+            ) : (
+              <IoChevronDownOutline size={14} aria-hidden="true" />
+            )}
+          </button>
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={() => setSortOpen((v) => !v)}
+            className="inline-flex h-[38px] items-center gap-1.5 rounded-full! border border-[var(--hairline)] bg-transparent px-4 text-[12px] font-semibold text-[var(--ink-muted)] transition-colors hover:bg-card-hover"
+          >
+            <span>Sort: {SORT_OPTIONS.find((option) => option.key === sortMode)?.label}</span>
+            <IoChevronDownOutline
+              size={13}
+              aria-hidden="true"
+              className={clsx('transition-transform', sortOpen && 'rotate-180')}
+            />
+          </button>
+          {sortOpen &&
+            createPortal(
+              <div
+                ref={panelRef}
+                className="rounded-2xl border border-card-border bg-neutral-0 shadow-[0_8px_24px_var(--color-shadow-soft)] overflow-hidden"
+                style={dropdownStyle}
+              >
+                {SORT_OPTIONS.map((option) => {
+                  const isActive = option.key === sortMode;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => {
+                        setSortMode(option.key);
+                        setSortOpen(false);
+                      }}
+                      className={`w-full flex items-center px-3 py-2.5 text-body-4 text-left transition-colors ${isActive ? 'font-medium text-text-primary' : 'text-text-secondary hover:bg-card-hover'}`}
+                    >
+                      {option.label}
+                      {isActive && <span className="ml-auto font-semibold">✓</span>}
+                    </button>
+                  );
+                })}
+              </div>,
+              document.body
+            )}
+          <div className="relative w-full sm:w-auto sm:min-w-72">
+            <IoSearchOutline
+              size={18}
+              aria-hidden="true"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--ink-muted)]"
+            />
+            <input
+              aria-label="Search inventory"
+              value={filters.search}
+              onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
+              placeholder="Search inventory"
+              className="h-[38px] w-full rounded-full! border border-[var(--hairline)] bg-transparent pl-11 pr-4 text-[13px] text-text-primary outline-none focus:border-input-border-active"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -471,26 +524,34 @@ export const DispensaryFilterBar = ({
   setDispensarySearch,
 }: DispensaryFilterBarProps) => (
   <div className="flex flex-wrap items-center justify-between gap-3">
-    <div className="flex items-center gap-2 shrink-0">
-      <Filters
-        statusOptions={DISPENSARY_STATUS_FILTERS}
-        activeStatus={dispensaryStatusFilter}
-        setActiveStatus={(v) => setDispensaryStatusFilter(v as DispensaryStatus | 'ALL')}
-        className="!w-auto shrink-0"
-      />
+    <div className="flex flex-wrap items-center gap-2 shrink-0">
+      {DISPENSARY_STATUS_FILTERS.map((option) => {
+        const active = dispensaryStatusFilter === option.key;
+        return (
+          <button
+            key={option.key}
+            type="button"
+            aria-pressed={active}
+            onClick={() => setDispensaryStatusFilter(option.key as DispensaryStatus | 'ALL')}
+            className={chipClass(active)}
+          >
+            {option.name}
+          </button>
+        );
+      })}
     </div>
     <div className="relative w-full sm:w-auto sm:min-w-72">
       <IoSearchOutline
         size={18}
         aria-hidden="true"
-        className="absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary"
+        className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--ink-muted)]"
       />
       <input
         aria-label="Search dispensary"
         value={dispensarySearch}
         onChange={(event) => setDispensarySearch(event.target.value)}
         placeholder="Search dispensary"
-        className="h-11 w-full rounded-2xl border border-card-border bg-neutral-0 pl-11 pr-4 text-body-4 text-text-primary outline-none focus:border-input-border-active"
+        className="h-[38px] w-full rounded-full! border border-[var(--hairline)] bg-transparent pl-11 pr-4 text-[13px] text-text-primary outline-none focus:border-input-border-active"
       />
     </div>
   </div>
@@ -508,6 +569,9 @@ type ActiveFilterBarProps = {
   dispensaryStatusFilter: DispensaryStatus | 'ALL';
   setDispensaryStatusFilter: React.Dispatch<React.SetStateAction<DispensaryStatus | 'ALL'>>;
   setDispensarySearch: React.Dispatch<React.SetStateAction<string>>;
+  categoryOptions?: string[];
+  toggleCategoryFilter?: (category: string) => void;
+  lowStockCount?: number;
 };
 
 export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
@@ -520,6 +584,9 @@ export const ActiveFilterBar = (props: ActiveFilterBarProps) => {
         setFilterOpen={props.setFilterOpen}
         setFilters={props.setFilters}
         setSortMode={props.setSortMode}
+        categoryOptions={props.categoryOptions}
+        toggleCategoryFilter={props.toggleCategoryFilter}
+        lowStockCount={props.lowStockCount}
       />
     );
   }
@@ -649,6 +716,28 @@ export const getInventoryPageTitle = (view: InventoryView): string => {
   if (view === 'analytics') return 'Turnover';
   return 'Inventory';
 };
+
+const pluralize = (count: number, singular: string, plural: string) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
+export const getInventorySubtitle = (
+  view: InventoryView,
+  lowStockCount: number,
+  expiredCount: number
+): string | null => {
+  if (view === 'turnover') return 'Prescriptions waiting to be pulled from stock';
+  if (view === 'inventory') {
+    return `${pluralize(lowStockCount, 'item', 'items')} below reorder point · ${pluralize(
+      expiredCount,
+      'expired batch',
+      'expired batches'
+    )}`;
+  }
+  return null;
+};
+
+const stockHealthKeyOf = (item: InventoryItem) =>
+  (item.stockHealth || '').toUpperCase().replaceAll(' ', '_');
 
 export const toggleSetItem = (prev: Set<string>, key: string): Set<string> => {
   const next = new Set(prev);
@@ -1078,6 +1167,29 @@ const useInventoryContent = () => {
     [dispensaryRecords, dispensaryStatusFilter, dispensarySearch]
   );
 
+  const lowStockCount = useMemo(
+    () => inventory.filter((item) => stockHealthKeyOf(item) === 'LOW_STOCK').length,
+    [inventory]
+  );
+  const expiredCount = useMemo(
+    () => inventory.filter((item) => stockHealthKeyOf(item) === 'EXPIRED').length,
+    [inventory]
+  );
+
+  const getTitleCount = () => {
+    if (activeView === 'turnover') return filteredDispensaryRecords.length;
+    if (activeView === 'analytics') return filteredTurnoverList.length;
+    return filteredInventory.length;
+  };
+  const titleCount = getTitleCount();
+  const subtitle = getInventorySubtitle(activeView, lowStockCount, expiredCount);
+
+  const viewOptions = [
+    { value: 'inventory' as const, label: 'Catalog' },
+    ...(canViewPrescription ? [{ value: 'turnover' as const, label: 'Dispensary' }] : []),
+    { value: 'analytics' as const, label: 'Turnover' },
+  ];
+
   const handleDispense = useCallback(
     async (record: DispensaryRecord) => {
       if (!primaryOrgId) return;
@@ -1097,6 +1209,7 @@ const useInventoryContent = () => {
         <div className="flex flex-col gap-1">
           <h1 className="text-text-primary text-page-title flex items-center gap-2">
             <span>{pageTitle}</span>
+            <span className="text-[17px] text-[var(--ink-faint)]">({titleCount})</span>
             {activeView === 'inventory' && (
               <GlassTooltip
                 content="Organize stock, track batches and expiry, and monitor turnover so you know what to reorder and which items need attention."
@@ -1112,8 +1225,15 @@ const useInventoryContent = () => {
               </GlassTooltip>
             )}
           </h1>
+          {subtitle && <p className="text-[13.5px] text-[var(--ink-muted)]">{subtitle}</p>}
         </div>
         <div className="ml-auto flex items-center justify-end gap-3 flex-wrap">
+          <SegmentedPill
+            ariaLabel="Inventory view"
+            options={viewOptions}
+            value={activeView}
+            onChange={setActiveView}
+          />
           {canEditInventory && activeView !== 'turnover' && (
             <Primary
               href="#"
@@ -1121,67 +1241,8 @@ const useInventoryContent = () => {
               onClick={() => setAddPopup(true)}
               isDisabled={savingItem || !primaryOrgId}
               icon={<IoAddOutline size={18} aria-hidden="true" />}
-              className="h-11!"
+              className="h-10!"
             />
-          )}
-          {activeView === 'analytics' ? (
-            <button
-              type="button"
-              onClick={() => setActiveView('inventory')}
-              className="inline-flex h-11 items-center justify-center rounded-2xl border border-text-primary bg-neutral-0 px-5 text-body-4-emphasis text-text-primary hover:bg-card-hover transition-colors"
-            >
-              Catalog
-            </button>
-          ) : (
-            <GlassTooltip content="Turnover analytics" side="bottom">
-              <button
-                type="button"
-                aria-label="Turnover analytics"
-                onClick={() => setActiveView('analytics')}
-                className="inline-flex size-11 items-center justify-center rounded-full border border-card-border bg-neutral-0 text-text-primary hover:bg-card-hover transition-colors"
-              >
-                <IoDocumentTextOutline size={20} aria-hidden="true" />
-              </button>
-            </GlassTooltip>
-          )}
-          {canViewPrescription && activeView !== 'analytics' && (
-            <fieldset
-              aria-label="Inventory view"
-              className="relative flex h-10 w-[260px] items-stretch overflow-hidden rounded-[999px]! border border-card-border bg-[var(--band)] m-0 p-0"
-            >
-              <legend className="sr-only">Inventory view</legend>
-              <div
-                aria-hidden
-                className="pointer-events-none absolute top-0 bottom-0 w-1/2 rounded-[999px]! transition-all duration-300 ease-in-out bg-neutral-0 shadow-[0_1px_3px_var(--sh08)]"
-                style={{ transform: `translateX(${activeView === 'inventory' ? '0%' : '100%'})` }}
-              />
-              <button
-                type="button"
-                onClick={() => setActiveView('inventory')}
-                aria-pressed={activeView === 'inventory'}
-                className={`relative z-10 flex w-1/2 items-center justify-center gap-1.5 text-body-4 transition-colors ${
-                  activeView === 'inventory'
-                    ? 'text-text-primary duration-150 delay-150'
-                    : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
-                }`}
-              >
-                <IoGridOutline size={15} aria-hidden="true" className="shrink-0" />
-                <span>Catalog</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveView('turnover')}
-                aria-pressed={activeView === 'turnover'}
-                className={`relative z-10 flex w-1/2 items-center justify-center gap-1.5 text-body-4 transition-colors ${
-                  activeView === 'turnover'
-                    ? 'text-text-primary duration-150 delay-150'
-                    : 'text-text-secondary hover:text-text-primary duration-100 delay-0'
-                }`}
-              >
-                <IoMedkitOutline size={15} aria-hidden="true" className="shrink-0" />
-                <span>Dispensary</span>
-              </button>
-            </fieldset>
           )}
         </div>
       </div>
@@ -1203,6 +1264,9 @@ const useInventoryContent = () => {
               dispensaryStatusFilter={dispensaryStatusFilter}
               setDispensaryStatusFilter={setDispensaryStatusFilter}
               setDispensarySearch={setDispensarySearch}
+              categoryOptions={categoryOptions}
+              toggleCategoryFilter={toggleCategoryFilter}
+              lowStockCount={lowStockCount}
             />
           </div>
 

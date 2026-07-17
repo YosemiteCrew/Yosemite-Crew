@@ -257,7 +257,7 @@ const Forms = () => {
               canEditForms ? (
                 <Primary
                   href="#"
-                  text="Add template"
+                  text="Add"
                   onClick={openAddForm}
                   icon={<IoAdd size={18} aria-hidden="true" />}
                 />

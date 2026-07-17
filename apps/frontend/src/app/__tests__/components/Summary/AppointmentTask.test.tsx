@@ -112,4 +112,17 @@ describe('AppointmentTask summary', () => {
     const latestProps = appointmentsSpy.mock.calls.at(-1)[0];
     expect(latestProps.filteredList).toEqual([appointments[0]]);
   });
+
+  it('renders a footer link that adapts to the active table', () => {
+    render(<AppointmentTask />);
+
+    expect(screen.getByRole('link', { name: /Open appointments/ })).toHaveAttribute(
+      'href',
+      '/appointments'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tasks' }));
+
+    expect(screen.getByRole('link', { name: /Open tasks/ })).toHaveAttribute('href', '/tasks');
+  });
 });

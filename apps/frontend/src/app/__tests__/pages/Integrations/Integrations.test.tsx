@@ -410,9 +410,19 @@ describe('Integrations settings', () => {
   it('renders the live status pill (dot branch) for an enabled integration', async () => {
     render(<ProtectedIntegrations />);
     await screen.findByRole('heading', { name: 'Integrations' });
-    // Enabled IDEXX + enabled MSD both render the "Enabled" status pill, exercising the
-    // isLive === true branch that adds the success indicator dot.
-    expect(screen.getAllByText('Enabled').length).toBeGreaterThanOrEqual(1);
+    // Enabled IDEXX reads as CONNECTED (design copy) and exercises the isLive === true
+    // branch that adds the success indicator dot. The status pill is a <span>; the
+    // "Connected" filter tab is a <button>, so scope the assertion to the pill span.
+    const connectedNodes = screen.getAllByText('Connected');
+    expect(connectedNodes.some((el) => el.tagName === 'SPAN')).toBe(true);
+  });
+
+  it('shows the developer-portal plugin hint row', async () => {
+    render(<ProtectedIntegrations />);
+    await screen.findByRole('heading', { name: 'Integrations' });
+    expect(
+      screen.getByText(/More integrations ship as plugins\. Browse the developer portal/i)
+    ).toBeInTheDocument();
   });
 
   it('renders the status pill without the live dot when the integration is disabled', async () => {

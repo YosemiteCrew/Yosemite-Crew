@@ -11,8 +11,7 @@ import { useOrganisationRoomStore } from '@/app/stores/roomStore';
 import { getAppointmentRoomDisplay } from '@/app/lib/appointmentRoomDisplay';
 import { AppointmentModePill } from '@/app/features/appointments/components/AppointmentCardContent';
 import GlassTooltip from '@/app/ui/primitives/GlassTooltip/GlassTooltip';
-import { FaCheckCircle } from 'react-icons/fa';
-import { IoIosCalendar, IoIosCloseCircle } from 'react-icons/io';
+import { IoIosCalendar } from 'react-icons/io';
 import {
   IoCardOutline,
   IoDocumentTextOutline,
@@ -67,7 +66,7 @@ type AppointmentBoardCardProps = {
 type BoardCardCompanion = NonNullable<Appointment['companion']>;
 
 const iconButtonClass =
-  'size-7 rounded-full! border border-black-text! bg-neutral-0 flex items-center justify-center';
+  'size-7 rounded-full! border border-[var(--hairline)] bg-neutral-0 flex items-center justify-center';
 
 /** "Beagle · Lena Hartmann" — falls back to species when the breed is unknown. */
 const buildCompanionSubtitle = (companion: BoardCardCompanion) =>
@@ -213,37 +212,35 @@ const BoardCardRequestActions = ({
   appointment: Appointment;
   onAccept: () => void;
 }) => (
-  <div className="relative z-10 flex items-center justify-end gap-1">
-    <GlassTooltip content="Accept request" side="bottom">
-      <button
-        type="button"
-        aria-label="Accept request"
-        className="size-7 rounded-full! bg-success-100 border border-success-200 flex items-center justify-center"
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onAccept();
-        }}
-      >
-        <FaCheckCircle size={14} color="var(--color-success-400)" />
-      </button>
-    </GlassTooltip>
-    <GlassTooltip content="Decline request" side="bottom">
-      <button
-        type="button"
-        aria-label="Decline request"
-        className="size-7 rounded-full! bg-danger-100 border border-danger-200 flex items-center justify-center"
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          void rejectAppointment(appointment).catch((error) => {
-            console.error('Failed to decline appointment request:', error);
-          });
-        }}
-      >
-        <IoIosCloseCircle size={16} color="var(--color-danger-600)" />
-      </button>
-    </GlassTooltip>
+  <div className="relative z-10 flex items-center justify-end gap-1.5">
+    <button
+      type="button"
+      aria-label="Accept request"
+      className="rounded-full! px-2.5 py-1 text-[10.5px] font-bold leading-none"
+      style={{ backgroundColor: 'var(--cta)', color: 'var(--cta-text)' }}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onAccept();
+      }}
+    >
+      Accept
+    </button>
+    <button
+      type="button"
+      aria-label="Decline request"
+      className="rounded-full! border px-2.5 py-1 text-[10.5px] font-bold leading-none"
+      style={{ borderColor: 'var(--divider)', color: 'var(--ink-muted)' }}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void rejectAppointment(appointment).catch((error) => {
+          console.error('Failed to decline appointment request:', error);
+        });
+      }}
+    >
+      Decline
+    </button>
   </div>
 );
 
@@ -283,7 +280,7 @@ const BoardCardActionBar = ({
           label="View appointment"
           onPress={() => openAppointment(appointment)}
         >
-          <IoEyeOutline size={14} color="var(--color-neutral-900)" />
+          <IoEyeOutline size={14} color="var(--ink-soft)" />
         </BoardCardIconButton>
       )}
       <BoardCardIconButton
@@ -292,7 +289,7 @@ const BoardCardActionBar = ({
         title="Appointment overview"
         onPress={() => openAppointmentHistory(appointment)}
       >
-        <RiHistoryLine size={13} color="var(--color-neutral-900)" />
+        <RiHistoryLine size={13} color="var(--ink-soft)" />
       </BoardCardIconButton>
       {canEditAppointments && canShowStatusChangeAction(appointment.status) && (
         <BoardCardIconButton
@@ -300,7 +297,7 @@ const BoardCardActionBar = ({
           label="Change status"
           onPress={() => openChangeStatus(appointment)}
         >
-          <MdOutlineAutorenew size={13} color="var(--color-neutral-900)" />
+          <MdOutlineAutorenew size={13} color="var(--ink-soft)" />
         </BoardCardIconButton>
       )}
       {canEditAppointments && allowCalendarDrag(appointment.status) && (
@@ -309,7 +306,7 @@ const BoardCardActionBar = ({
           label="Reschedule"
           onPress={() => openReschedule(appointment)}
         >
-          <IoIosCalendar size={13} color="var(--color-neutral-900)" />
+          <IoIosCalendar size={13} color="var(--ink-soft)" />
         </BoardCardIconButton>
       )}
       {canEditAppointments && canAssignAppointmentRoom(appointment.status) && (
@@ -318,7 +315,7 @@ const BoardCardActionBar = ({
           label="Assign room"
           onPress={() => openChangeRoom(appointment)}
         >
-          <MdMeetingRoom size={13} color="var(--color-neutral-900)" />
+          <MdMeetingRoom size={13} color="var(--ink-soft)" />
         </BoardCardIconButton>
       )}
       <BoardCardIconButton
@@ -327,7 +324,7 @@ const BoardCardActionBar = ({
         title={clinicalNotesLabel}
         onPress={() => openAppointmentWorkspace(appointment, getClinicalNotesIntent(orgType))}
       >
-        <IoDocumentTextOutline size={13} color="var(--color-neutral-900)" />
+        <IoDocumentTextOutline size={13} color="var(--ink-soft)" />
       </BoardCardIconButton>
       <BoardCardIconButton
         tooltip="Finance summary"
@@ -336,7 +333,7 @@ const BoardCardActionBar = ({
           openAppointmentWorkspace(appointment, { label: 'finance', subLabel: 'summary' })
         }
       >
-        <IoCardOutline size={13} color="var(--color-neutral-900)" />
+        <IoCardOutline size={13} color="var(--ink-soft)" />
       </BoardCardIconButton>
       <BoardCardIconButton
         tooltip="Lab tests"
@@ -345,7 +342,7 @@ const BoardCardActionBar = ({
           openAppointmentWorkspace(appointment, { label: 'labs', subLabel: 'idexx-labs' })
         }
       >
-        <MdScience size={13} color="var(--color-neutral-900)" />
+        <MdScience size={13} color="var(--ink-soft)" />
       </BoardCardIconButton>
     </div>
   );
