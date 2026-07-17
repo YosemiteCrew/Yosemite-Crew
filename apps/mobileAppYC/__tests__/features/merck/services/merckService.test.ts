@@ -543,4 +543,260 @@ describe('merckService', () => {
   it('isAllowedMerckUrl: rejects invalid URLs', () => {
     expect(isAllowedMerckUrl('not-a-url')).toBe(false);
   });
+
+  it('readHrefNode: accepts a plain string link value', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        feed: {
+          id: 'feed-1',
+          updated: '2026-01-01T00:00:00Z',
+          entry: [
+            {
+              id: 'e1',
+              title: {'#text': 'Topic'},
+              summary: '',
+              updated: '2026-01-01T00:00:00Z',
+              link: 'https://www.msdvetmanual.com/string-link',
+            },
+          ],
+        },
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    expect(result.entries[0].primaryUrl).toContain('/string-link');
+  });
+
+  it('sanitizeEntry: coerces a non-string title to an empty string before falling back', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        meta: {
+          requestId: 'r1',
+          source: 'test',
+          updatedAt: null,
+          audience: 'PAT',
+          language: 'en',
+          totalResults: 1,
+        },
+        entries: [
+          {
+            id: 'entry-1',
+            title: 12345 as any,
+            summaryText: '',
+            updatedAt: null,
+            audience: 'PAT',
+            primaryUrl: 'https://www.msdvetmanual.com/topic',
+            subLinks: [],
+          },
+        ],
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    expect(result.entries[0].title).toBe('Manual topic');
+  });
+
+  it('sanitizeEntry: falls back to "Manual topic" when the normalized title sanitizes to empty', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        meta: {
+          requestId: 'r1',
+          source: 'test',
+          updatedAt: null,
+          audience: 'PAT',
+          language: 'en',
+          totalResults: 1,
+        },
+        entries: [
+          {
+            id: 'entry-1',
+            title: '   ',
+            summaryText: '',
+            updatedAt: null,
+            audience: 'PAT',
+            primaryUrl: 'https://www.msdvetmanual.com/topic',
+            subLinks: [],
+          },
+        ],
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    expect(result.entries[0].title).toBe('Manual topic');
+  });
+
+  it('canonicalUrlKey: trims trailing slashes from the pathname', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        feed: {
+          id: 'feed-1',
+          updated: '2026-01-01T00:00:00Z',
+          entry: [
+            {
+              id: 'e1',
+              title: {'#text': 'Topic'},
+              summary:
+                '<a href="https://www.msdvetmanual.com/topic/">Duplicate of primary</a>',
+              updated: '2026-01-01T00:00:00Z',
+              link: {'@href': 'https://www.msdvetmanual.com/topic/'},
+            },
+          ],
+        },
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    // The trailing-slash anchor should be recognized as a duplicate of the
+    // primary URL (also trailing-slash) and therefore deduplicated away.
+    expect(result.entries[0].subLinks).toHaveLength(1);
+    expect(result.entries[0].subLinks[0].label).toBe('Full Summary');
+  });
+
+  it('canonicalUrlKey: falls back to the raw trimmed value when the URL cannot be parsed', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        feed: {
+          id: 'feed-1',
+          updated: '2026-01-01T00:00:00Z',
+          entry: [
+            {
+              id: 'e1',
+              title: {'#text': 'Topic'},
+              summary: '',
+              updated: '2026-01-01T00:00:00Z',
+              link: 'not-a-real-url',
+            },
+          ],
+        },
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    // The malformed primaryUrl fails asAllowedUrl, so the whole entry is
+    // filtered out downstream, but canonicalUrlKey's catch branch still runs.
+    expect(result.entries).toHaveLength(0);
+  });
+
+  it('applyMediaMode: returns the original URL unchanged when it cannot be parsed', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        meta: {
+          requestId: 'r1',
+          source: 'test',
+          updatedAt: null,
+          audience: 'PAT',
+          language: 'en',
+          totalResults: 1,
+        },
+        entries: [
+          {
+            id: 'entry-1',
+            title: 'Topic',
+            summaryText: '',
+            updatedAt: null,
+            audience: 'PAT',
+            primaryUrl: 'https://www.msdvetmanual.com/topic',
+            subLinks: [{label: 'Bad', url: 'not-a-real-url'}],
+          },
+        ],
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    // asAllowedUrl rejects the unparsable sublink, filtering it out, but
+    // applyMediaMode's catch branch still runs on the way there.
+    expect(result.entries[0].subLinks).toEqual([]);
+  });
+
+  it('infers audience when a feed category is missing the @scheme field', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        feed: {
+          id: 'feed-cat',
+          updated: '2026-01-01T00:00:00Z',
+          category: [{'@term': 'PAT'}],
+          entry: [],
+        },
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    expect(result.meta.audience).toBe('PAT');
+  });
+
+  it('drops an atom entry with no id field at all', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        feed: {
+          id: 'feed-1',
+          updated: '2026-01-01T00:00:00Z',
+          entry: [
+            {
+              title: {'#text': 'No ID Field'},
+              link: {'@href': 'https://www.msdvetmanual.com/topic'},
+            },
+            {
+              id: 'valid-id',
+              title: {'#text': 'Good'},
+              link: {'@href': 'https://www.msdvetmanual.com/good'},
+            },
+          ],
+        },
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].id).toBe('valid-id');
+  });
+
+  it('defaults language and media when normalizing normalized-payload params without them', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        meta: {
+          requestId: 'r1',
+          source: 'test',
+          updatedAt: null,
+          audience: 'PAT',
+          language: 'en',
+          totalResults: 0,
+        },
+        entries: [],
+      },
+      {} as any,
+    );
+
+    expect(result.meta.language).toBe('en');
+  });
+
+  it('skips falsy entries when flattening a normalized-payload entries array', () => {
+    const result = normalizeMerckSearchPayload(
+      {
+        meta: {
+          requestId: 'r1',
+          source: 'test',
+          updatedAt: null,
+          audience: 'PAT',
+          language: 'en',
+          totalResults: 1,
+        },
+        entries: [
+          null,
+          {
+            id: 'entry-1',
+            title: 'Topic',
+            summaryText: '',
+            updatedAt: null,
+            audience: 'PAT',
+            primaryUrl: 'https://www.msdvetmanual.com/topic',
+            subLinks: [],
+          },
+        ] as any,
+      },
+      {language: 'en', media: 'hybrid'},
+    );
+
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].id).toBe('entry-1');
+  });
 });

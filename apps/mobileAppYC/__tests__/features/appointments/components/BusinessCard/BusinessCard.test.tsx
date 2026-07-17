@@ -157,4 +157,36 @@ describe('BusinessCard', () => {
     }
     expect(screen.getByText('Happy Paws Vet')).toBeTruthy();
   });
+
+  it('resets the load-failed state when the photo prop changes', () => {
+    const {UNSAFE_root, rerender} = render(
+      <BusinessCard
+        {...baseProps}
+        photo={{uri: 'https://example.com/photo-a.jpg'}}
+        fallbackPhoto={{uri: 'https://example.com/fallback.jpg'}}
+      />,
+    );
+
+    const findImage = () =>
+      UNSAFE_root.findAll(
+        (node: any) =>
+          node.type?.displayName === 'Image' || node.type === 'Image',
+      )[0];
+
+    act(() => {
+      findImage().props.onError();
+    });
+
+    rerender(
+      <BusinessCard
+        {...baseProps}
+        photo={{uri: 'https://example.com/photo-b.jpg'}}
+        fallbackPhoto={{uri: 'https://example.com/fallback.jpg'}}
+      />,
+    );
+
+    expect(findImage().props.source).toEqual({
+      uri: 'https://example.com/photo-b.jpg',
+    });
+  });
 });
