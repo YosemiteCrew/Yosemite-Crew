@@ -50,6 +50,17 @@ describe('CustomSplashScreen', () => {
       expect(screen.getAllByTestId('compliance-pill')).toHaveLength(5);
     });
 
+    it('should render each compliance pill with a bundled local logo source', () => {
+      const onAnimationEnd = jest.fn();
+      render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);
+
+      const pills = screen.getAllByTestId('compliance-pill');
+      expect(pills).toHaveLength(5);
+      pills.forEach(pill => {
+        expect(pill.props.source).toBeDefined();
+      });
+    });
+
     it('should render the brand lockup and tagline', () => {
       const onAnimationEnd = jest.fn();
       render(<CustomSplashScreen onAnimationEnd={onAnimationEnd} />);

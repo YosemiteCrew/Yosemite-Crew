@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react';
-import {View, Text, StyleSheet, StatusBar} from 'react-native';
+import {View, Text, Image, StyleSheet, StatusBar} from 'react-native';
 import {scheduleOnRN} from 'react-native-worklets';
 import Animated, {
   cancelAnimation,
@@ -21,6 +21,17 @@ type Props = {
 
 const MAIN_LOGO = require('../../../../assets/splash/logo.png');
 const SPLASH_VIDEO = require('../../../../assets/video/loop-dog.mp4');
+
+// Compliance badge logos - bundled locally (like the rest of the splash
+// screen assets) since this screen renders before the app has a network
+// connection.
+const COMPLIANCE_LOGOS = [
+  {name: 'aicpa', source: require('../../../../assets/splash/aicpa.png')},
+  {name: 'hl7', source: require('../../../../assets/splash/hl7.png')},
+  {name: 'gdpr', source: require('../../../../assets/splash/gdpr.png')},
+  {name: 'iso', source: require('../../../../assets/splash/iso.png')},
+  {name: 'fda', source: require('../../../../assets/splash/fda.png')},
+];
 
 // Warm-bone + over-video values (splash renders before the theme resolves).
 const C = {
@@ -47,14 +58,6 @@ const SCRIM_COLORS = [
   '#F7F3EC',
 ];
 const SCRIM_LOCATIONS = [0, 0.14, 0.28, 0.44, 0.6, 0.74, 0.98];
-
-const COMPLIANCE = [
-  'AICPA SOC 2',
-  'HL7 FHIR',
-  'GDPR',
-  'ISO 27001',
-  'FDA 21 CFR Part 11',
-];
 
 const NEWSREADER = 'Newsreader-Regular';
 const NEWSREADER_ITALIC = 'Newsreader-Italic';
@@ -154,10 +157,14 @@ const CustomSplashScreen = ({onAnimationEnd}: Props) => {
           </View>
           <Text style={styles.compliantLabel}>Compliant &amp; secure</Text>
           <View style={styles.pillRow}>
-            {COMPLIANCE.map(label => (
-              <View key={label} testID="compliance-pill" style={styles.pill}>
-                <Text style={styles.pillText}>{label}</Text>
-              </View>
+            {COMPLIANCE_LOGOS.map(logo => (
+              <Image
+                key={logo.name}
+                testID="compliance-pill"
+                source={logo.source}
+                style={styles.pillLogo}
+                resizeMode="contain"
+              />
             ))}
           </View>
         </View>
@@ -260,20 +267,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 7,
+    alignItems: 'center',
+    gap: 16,
   },
-  pill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 9999,
-    backgroundColor: C.screen,
-    borderWidth: 1,
-    borderColor: C.hairline,
-  },
-  pillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: C.inkMuted,
+  pillLogo: {
+    width: 64,
+    height: 22,
   },
 });
 
