@@ -11,7 +11,7 @@ jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => {
     // We render a standard img tag to allow firing 'load' events
-    // eslint-disable-next-line @next/next/no-img-element
+
     return <img {...props} alt={props.alt || 'mock-img'} />;
   },
 }));

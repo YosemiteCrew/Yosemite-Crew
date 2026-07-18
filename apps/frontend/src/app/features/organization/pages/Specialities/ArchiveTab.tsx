@@ -28,9 +28,7 @@ type ArchiveTabProps = {
 };
 
 type DeleteTarget =
-  | { kind: 'service'; item: ServiceRevamp }
-  | { kind: 'package'; item: PackageRevamp }
-  | null;
+  { kind: 'service'; item: ServiceRevamp } | { kind: 'package'; item: PackageRevamp } | null;
 
 const ArchiveTab = ({ specialityId, organisationId }: ArchiveTabProps) => {
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);

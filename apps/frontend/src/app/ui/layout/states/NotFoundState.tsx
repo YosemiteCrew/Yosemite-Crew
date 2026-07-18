@@ -31,11 +31,7 @@ const NotFoundState = ({
         </p>
         <div className="yc-state-actions">
           <Primary href={homeHref} text={homeLabel} />
-          <Secondary
-            text="Search ⌘K"
-            icon={<IoSearchOutline aria-hidden />}
-            onClick={openSearch}
-          />
+          <Secondary text="Search ⌘K" icon={<IoSearchOutline aria-hidden />} onClick={openSearch} />
         </div>
       </div>
     </div>

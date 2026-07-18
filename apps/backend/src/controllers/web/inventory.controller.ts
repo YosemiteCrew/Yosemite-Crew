@@ -277,9 +277,7 @@ export const InventoryController = {
         search,
         status: parsedStatus,
         stockStatus: parsedStockStatus as
-          | InventoryStockStatus
-          | InventoryStockStatus[]
-          | undefined,
+          InventoryStockStatus | InventoryStockStatus[] | undefined,
         lowStockOnly: lowStockOnly === "true",
         expiredOnly: expiredOnly === "true",
         expiringWithinDays: expiringWithinDays
@@ -630,7 +628,7 @@ export const InventoryVendorController = {
       }>
     >,
     res: Response,
-    ): Promise<void> => {
+  ): Promise<void> => {
     try {
       const { vendorId } = req.params;
       const { organisationId } = req as OrgRequest;
@@ -662,7 +660,7 @@ export const InventoryVendorController = {
   getVendor: async (
     req: Request<{ vendorId: string }>,
     res: Response,
-    ): Promise<void> => {
+  ): Promise<void> => {
     try {
       const { vendorId } = req.params;
       const { organisationId } = req as OrgRequest;

@@ -10,7 +10,7 @@ import type { MyDayRound } from '@/app/features/appointments/components/Calendar
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  // eslint-disable-next-line @next/next/no-img-element
+
   default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} />,
 }));
 

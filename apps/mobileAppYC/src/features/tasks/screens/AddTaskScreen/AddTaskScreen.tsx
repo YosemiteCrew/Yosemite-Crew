@@ -197,9 +197,7 @@ export const AddTaskScreen: React.FC = () => {
     openTaskSheet,
   } = hookData;
   const taskFormMode = useMemo(():
-    | 'medication'
-    | 'observationalTool'
-    | 'simple' => {
+    'medication' | 'observationalTool' | 'simple' => {
     if (isMedicationForm) {
       return 'medication';
     }

@@ -258,8 +258,9 @@ const DeveloperDocs = () => {
                       <span className="DocsEndpointScope">Scope: appointments:write</span>
                     </div>
                     <p className="DocsArticleText">
-                      <strong>Required fields</strong> — <code className="DocsInlineCode">patient</code>{' '}
-                      (FHIR reference), <code className="DocsInlineCode">serviceType</code>, and{' '}
+                      <strong>Required fields</strong> —{' '}
+                      <code className="DocsInlineCode">patient</code> (FHIR reference),{' '}
+                      <code className="DocsInlineCode">serviceType</code>, and{' '}
                       <code className="DocsInlineCode">start</code>. Omit{' '}
                       <code className="DocsInlineCode">practitioner</code> to let the clinic assign
                       one.
@@ -271,9 +272,9 @@ const DeveloperDocs = () => {
                         aria-hidden="true"
                       />
                       <span className="DocsNoteText">
-                        Appointments are FHIR R4{' '}
-                        <code className="DocsInlineCode">Appointment</code> resources. Anything you
-                        write here reads back identically from the FHIR endpoint.
+                        Appointments are FHIR R4 <code className="DocsInlineCode">Appointment</code>{' '}
+                        resources. Anything you write here reads back identically from the FHIR
+                        endpoint.
                       </span>
                     </div>
                   </>

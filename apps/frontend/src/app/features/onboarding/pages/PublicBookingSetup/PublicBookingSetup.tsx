@@ -134,9 +134,7 @@ const BookingServicesStep = ({
               >
                 <span
                   className={`flex items-center justify-center size-[18px] rounded-md ${
-                    isOn
-                      ? 'bg-primary-600 text-white'
-                      : 'border-[1.5px] border-[var(--divider)]'
+                    isOn ? 'bg-primary-600 text-white' : 'border-[1.5px] border-[var(--divider)]'
                   }`}
                 >
                   {isOn ? <IoCheckmark size={12} /> : null}
@@ -197,8 +195,8 @@ const BookingServicesStep = ({
 
       <div className="flex items-center justify-between gap-3 px-3.5 py-3 rounded-[14px] border border-[var(--divider)] bg-[var(--inset)]">
         <span className="text-[12.5px] text-[var(--ink-body)]">
-          <strong className="text-[var(--ink)]">Requests need confirmation.</strong> New
-          bookings arrive as requests, not fixed slots.
+          <strong className="text-[var(--ink)]">Requests need confirmation.</strong> New bookings
+          arrive as requests, not fixed slots.
         </span>
         <button
           type="button"

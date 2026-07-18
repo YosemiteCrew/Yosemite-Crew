@@ -1,21 +1,17 @@
-import React from 'react';
 import type { Metadata } from 'next';
-import { getEnv } from '@/app/lib/env';
-import HomePage from '@/app/features/marketing/pages/HomePage/HomePage';
+import { MarketingShell } from '@/app/features/marketing/site';
+import { PetBusinesses } from '@/app/features/marketing/pages/PetBusinesses/PetBusinesses';
 
 export const metadata: Metadata = {
-  title: 'Pet Businesses — Yosemite Crew',
+  title: 'Pet Businesses · Yosemite Crew',
   description:
-    'Everything you need to run your pet business — appointments, records, billing, and more.',
+    'Appointments, records, SOAP notes, invoicing and inventory, the whole clinic in one system instead of six tabs and a notebook of workarounds. Built to keep working on the worst afternoon, not just the demo.',
 };
 
-function page() {
+export default function Page() {
   return (
-    <HomePage
-      macDownloadHref={getEnv('NEXT_PUBLIC_MAC_APP_DOWNLOAD_URL')}
-      windowsDownloadHref={getEnv('NEXT_PUBLIC_WINDOWS_APP_DOWNLOAD_URL')}
-    />
+    <MarketingShell active="pet-businesses">
+      <PetBusinesses />
+    </MarketingShell>
   );
 }
-
-export default page;

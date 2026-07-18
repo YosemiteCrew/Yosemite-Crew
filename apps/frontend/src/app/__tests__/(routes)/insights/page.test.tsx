@@ -3,6 +3,13 @@ import { render, screen } from '@testing-library/react';
 
 import Page, { metadata } from '@/app/(routes)/(public)/insights/page';
 
+jest.mock('@/app/features/marketing/site', () => ({
+  __esModule: true,
+  MarketingShell: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="marketing-shell">{children}</div>
+  ),
+}));
+
 jest.mock('@/app/features/overview/pages/OverviewPage', () => ({
   __esModule: true,
   default: () => <div data-testid="insights-page">Insights</div>,

@@ -45,8 +45,7 @@ jest.mock('@/app/ui/overlays/Modal/GuidePlayerModal', () => ({
     ) : null,
 }));
 
-const cardButton = (title: string) =>
-  screen.getByRole('button', { name: `Play guide: ${title}` });
+const cardButton = (title: string) => screen.getByRole('button', { name: `Play guide: ${title}` });
 
 describe('Guides page', () => {
   it('renders the warm-bone header and all seed guides', () => {

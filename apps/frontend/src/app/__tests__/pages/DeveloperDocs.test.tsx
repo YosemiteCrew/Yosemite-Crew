@@ -87,9 +87,7 @@ describe('DeveloperDocs reader', () => {
     render(<DeveloperDocs />);
 
     fireEvent.click(screen.getByRole('button', { name: /Copy page/i }));
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument());
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Create an appointment'));
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Copy' })[0]);

@@ -1,5 +1,6 @@
 import React from 'react';
 import OverviewPage from '@/app/features/overview/pages/OverviewPage';
+import { MarketingShell } from '@/app/features/marketing/site';
 
 export const metadata = {
   title: 'Insights | Yosemite Crew',
@@ -7,5 +8,9 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <OverviewPage />;
+  return (
+    <MarketingShell hideFooter>
+      <OverviewPage />
+    </MarketingShell>
+  );
 }

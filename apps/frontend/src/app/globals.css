@@ -46,6 +46,50 @@
   font-style: italic;
 }
 
+/* Newsreader (OFL) — marketing display serif, variable weight + optical size */
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-Variable.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: normal;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-Variable-latin-ext.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: normal;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-VariableItalic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: italic;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('/fonts/newsreader/Newsreader-VariableItalic-latin-ext.woff2') format('woff2');
+  font-weight: 200 800;
+  font-display: swap;
+  font-style: italic;
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
 html {
   scroll-behavior: auto;
 }
@@ -510,7 +554,15 @@ textarea:focus-visible {
   --img-bg-trust-after: url('https://d2il6osz49gpup.cloudfront.net/Images/TrustAfter.png');
   --img-bg-about: url('https://d2il6osz49gpup.cloudfront.net/Images/aboutbg.png');
 
-  /* Warm-bone token additions (merged in to keep a single :root selector). */
+  /* ==========================================================================
+     Marketing site theming — light (warm-bone) + dark (espresso) tokens.
+     Light values are byte-identical to the marketing pages' original inline hexes,
+     so light mode is unchanged. Dark mode is driven by html[data-theme="dark"],
+     set pre-paint from localStorage 'yc-theme' or prefers-color-scheme. Rules that
+     would otherwise touch the PIMS app (color-scheme, flip transitions, focus
+     rings, selection) are scoped to the [data-yc-theme] marketing surface.
+     Reference: design_handoff_dark_mode/site-theme.css.
+     ========================================================================== */
   /* surfaces */
   --page: #efe8dc;
   --band: #e8e0d2;
@@ -535,6 +587,11 @@ textarea:focus-visible {
   --cta: #302f2e;
   --cta-hover: #1d1c1b;
   --cta-text: #ffffff;
+  /* app-store / desktop download buttons */
+  --dl-btn: #1d1c1b;
+  --dl-btn-text: #ffffff;
+  --dl-btn-sub: #a9a39e;
+  --dl-btn-hover: #302f2e;
   /* accents */
   --blue: #257bed;
   --blue-text: #257bed;
@@ -543,15 +600,34 @@ textarea:focus-visible {
   --cyan: #5ce1e6;
   --cyan-text: #38ccd8;
   --success: #008f5d;
-  /* mockup avatar chips (initials) */
+  /* always-dark spotlight blocks (manifesto / code / phone bezel) */
+  --spot: #1d1c1b;
+  /* light-surface code card syntax + mockup avatar chips */
+  --code-str: #006642;
   --avatar-violet-bg: #f5f3ff;
   --avatar-violet-ink: #5b21b6;
   --avatar-green-bg: #e6f4ef;
   --avatar-green-ink: #006642;
   --avatar-amber-bg: #fef3e9;
   --avatar-amber-ink: #af5e19;
+  /* glassy nav bits */
+  --nav-hover: rgba(255, 255, 255, 0.5);
+  --glass-btn: linear-gradient(180deg, rgba(255, 253, 250, 0.9), rgba(250, 246, 239, 0.8));
+  --glass-btn-border: rgba(255, 255, 255, 0.65);
+  --glass-pill-shadow:
+    0 2px 4px rgba(29, 28, 27, 0.05), 0 12px 28px rgba(29, 28, 27, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -12px 22px rgba(233, 224, 209, 0.12);
+  --glass-95: rgba(239, 232, 220, 0.94);
+  --glass-93: rgba(239, 232, 220, 0.93);
+  --glass-92: rgba(239, 232, 220, 0.92);
   --hairline-soft: rgba(29, 28, 27, 0.09);
-  --glass-inset-hi: rgba(255, 255, 255, 0.8);
+  --hero-halo1: rgba(239, 232, 220, 0.95);
+  --hero-halo2: rgba(239, 232, 220, 0.85);
+  /* scrolled-nav glass (shared by every page's nav) */
+  --nav-glass: rgba(239, 232, 220, 0.82);
+  --nav-border: rgba(29, 28, 27, 0.08);
+  --nav-shadow: 0 1px 0 rgba(29, 28, 27, 0.03), 0 10px 34px rgba(29, 28, 27, 0.06);
+  --glass-inset-hi: rgba(255, 255, 255, 0.9);
   /* elevation scale — warm-dark in light, deeper black in dark */
   --sh03: rgba(29, 28, 27, 0.03);
   --sh05: rgba(29, 28, 27, 0.05);
@@ -567,19 +643,28 @@ textarea:focus-visible {
   --sh22: rgba(29, 28, 27, 0.22);
   --sh28: rgba(29, 28, 27, 0.28);
   --sh55: rgba(29, 28, 27, 0.55);
-  /* ambient radial glows */
+  /* ambient radial glows — original alphas in light; boosted in dark */
+  --glow-b07: rgba(37, 123, 237, 0.07);
+  --glow-b08: rgba(37, 123, 237, 0.08);
+  --glow-b09: rgba(37, 123, 237, 0.09);
   --glow-b10: rgba(37, 123, 237, 0.1);
   --glow-b12: rgba(37, 123, 237, 0.12);
+  --glow-b13: rgba(37, 123, 237, 0.13);
   --glow-b14: rgba(37, 123, 237, 0.14);
+  --glow-b20: rgba(37, 123, 237, 0.2);
   --glow-b26: rgba(37, 123, 237, 0.26);
+  --glow-c09: rgba(92, 225, 230, 0.09);
   --glow-c10: rgba(92, 225, 230, 0.1);
   --glow-c14: rgba(92, 225, 230, 0.14);
+  --glow-p07: rgba(244, 121, 190, 0.07);
+  --glow-p08: rgba(244, 121, 190, 0.08);
   --glow-p10: rgba(244, 121, 190, 0.1);
   --glow-p12: rgba(244, 121, 190, 0.12);
-  /* soft surfaces */
+  --glow-k10: rgba(255, 144, 212, 0.1);
+  /* soft card on the page (contact detail cards) */
   --surface-soft: rgba(239, 232, 220, 0.7);
+  /* raised pill on a footer/inset surface */
   --pill-raised: #f7f3ec;
-  --glass-93: rgba(239, 232, 220, 0.93);
   /* form inputs */
   --field-bg: #fafafa;
   /* Semantic tinted surfaces for chrome + global-state components (notifications
@@ -594,6 +679,204 @@ textarea:focus-visible {
   --warn-border: #f9ad6c;
   --pink-soft: #ffe8f6;
   --pink-text: #c43d94;
+}
+
+html[data-theme='dark'] {
+  --page: #201c18;
+  --band: #2a2216;
+  --inset: #302820;
+  --screen: #2f271e;
+  --screen-2: #221d17;
+  --hairline: #40362b;
+  --divider: #3a3128;
+  --hairline-hover: #4a4033;
+  --nav-active: #8fb6f5;
+  --nav-active-bg: rgba(143, 182, 245, 0.13);
+  --ink: #f4efe6;
+  --ink-body: #e6ddd0;
+  --ink-muted: #a89e90;
+  --ink-soft: #cabfb0;
+  --ink-faint: #9d9285;
+  --ink-faint2: #8b8173;
+  --ink-6b: #a1968a;
+  --cta: #f2ece1;
+  --cta-hover: #fbf8f1;
+  --cta-text: #201c18;
+  --dl-btn: #f7f3ec;
+  --dl-btn-text: #201c18;
+  --dl-btn-sub: #6b6155;
+  --dl-btn-hover: #ffffff;
+  --blue: #257bed;
+  --blue-text: #8fb6f5;
+  --blue-soft: rgba(143, 182, 245, 0.16);
+  --pink: #ff90d4;
+  --cyan: #5ce1e6;
+  --cyan-text: #5ce1e6;
+  --success: #2bbd86;
+  --spot: #17140f;
+  --code-str: #8acbb4;
+  --avatar-violet-bg: rgba(167, 139, 250, 0.2);
+  --avatar-violet-ink: #cbb2f4;
+  --avatar-green-bg: rgba(74, 205, 155, 0.17);
+  --avatar-green-ink: #74d0a2;
+  --avatar-amber-bg: rgba(233, 170, 120, 0.17);
+  --avatar-amber-ink: #ecb488;
+  --nav-hover: rgba(255, 255, 255, 0.06);
+  --glass-btn: linear-gradient(180deg, rgba(54, 46, 37, 0.82), rgba(34, 29, 23, 0.72));
+  --glass-btn-border: rgba(255, 255, 255, 0.1);
+  --glass-pill-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.28), 0 12px 28px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -12px 22px rgba(0, 0, 0, 0.14);
+  --glass-95: rgba(30, 26, 21, 0.9);
+  --glass-93: rgba(34, 29, 23, 0.92);
+  --glass-92: rgba(34, 29, 23, 0.86);
+  --hairline-soft: rgba(255, 255, 255, 0.09);
+  --hero-halo1: rgba(18, 15, 11, 0.92);
+  --hero-halo2: rgba(18, 15, 11, 0.82);
+  --nav-glass: rgba(28, 24, 20, 0.82);
+  --nav-border: rgba(255, 255, 255, 0.08);
+  --nav-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 34px rgba(0, 0, 0, 0.4);
+  --glass-inset-hi: rgba(255, 255, 255, 0.06);
+  --sh03: rgba(0, 0, 0, 0.14);
+  --sh05: rgba(0, 0, 0, 0.2);
+  --sh06: rgba(0, 0, 0, 0.24);
+  --sh08: rgba(0, 0, 0, 0.3);
+  --sh09: rgba(0, 0, 0, 0.32);
+  --sh10: rgba(0, 0, 0, 0.34);
+  --sh12: rgba(0, 0, 0, 0.36);
+  --sh14: rgba(0, 0, 0, 0.4);
+  --sh16: rgba(0, 0, 0, 0.44);
+  --sh18: rgba(0, 0, 0, 0.48);
+  --sh20: rgba(0, 0, 0, 0.52);
+  --sh22: rgba(0, 0, 0, 0.55);
+  --sh28: rgba(0, 0, 0, 0.62);
+  --sh55: rgba(0, 0, 0, 0.8);
+  --glow-b07: rgba(37, 123, 237, 0.13);
+  --glow-b08: rgba(37, 123, 237, 0.14);
+  --glow-b09: rgba(37, 123, 237, 0.16);
+  --glow-b10: rgba(37, 123, 237, 0.18);
+  --glow-b12: rgba(37, 123, 237, 0.22);
+  --glow-b13: rgba(37, 123, 237, 0.23);
+  --glow-b14: rgba(37, 123, 237, 0.25);
+  --glow-b20: rgba(37, 123, 237, 0.34);
+  --glow-b26: rgba(37, 123, 237, 0.42);
+  --glow-c09: rgba(92, 225, 230, 0.16);
+  --glow-c10: rgba(92, 225, 230, 0.18);
+  --glow-c14: rgba(92, 225, 230, 0.25);
+  --glow-p07: rgba(244, 121, 190, 0.13);
+  --glow-p08: rgba(244, 121, 190, 0.14);
+  --glow-p10: rgba(244, 121, 190, 0.18);
+  --glow-p12: rgba(244, 121, 190, 0.22);
+  --glow-k10: rgba(255, 144, 212, 0.18);
+  --surface-soft: #2a2216;
+  --pill-raised: #383026;
+  --field-bg: #241f18;
+  /* PIMS design-system Badge — DS ships light-only; tint-on-dark equivalents */
+  --status-requested-bg: rgba(255, 255, 255, 0.07);
+  --status-requested-text: #b9b0a4;
+  --status-requested-border: rgba(255, 255, 255, 0.28);
+  --status-upcoming-bg: rgba(37, 123, 237, 0.18);
+  --status-upcoming-text: #9cc4f8;
+  --status-upcoming-border: rgba(103, 160, 239, 0.6);
+  --status-checked-in-bg: rgba(99, 102, 241, 0.18);
+  --status-checked-in-text: #bcbef9;
+  --status-checked-in-border: rgba(129, 132, 245, 0.6);
+  --status-in-progress-bg: rgba(139, 92, 246, 0.18);
+  --status-in-progress-text: #cdb8fa;
+  --status-in-progress-border: rgba(154, 113, 247, 0.6);
+  --color-status-success-text: #74d0a2;
+  --color-status-success-bg: rgba(74, 205, 155, 0.16);
+}
+
+/* Native control theming + flip transition, scoped to the marketing surface. */
+[data-yc-theme] {
+  color-scheme: light;
+}
+html[data-theme='dark'] [data-yc-theme] {
+  color-scheme: dark;
+}
+html[data-theme-ready] [data-yc-theme] * {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    color 300ms ease,
+    box-shadow 300ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme-ready] [data-yc-theme] * {
+    transition: none !important;
+  }
+}
+
+/* Dark-only element overrides for literals that can't be a plain token swap.
+   Scoped by data-attrs that only exist in the marketing tree. */
+html[data-theme='dark'] [data-hero-scrim] {
+  background:
+    radial-gradient(
+      64% 62% at 50% 50%,
+      rgba(32, 28, 24, 0.9) 0%,
+      rgba(32, 28, 24, 0.6) 42%,
+      rgba(32, 28, 24, 0.12) 72%,
+      rgba(32, 28, 24, 0) 86%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(32, 28, 24, 0.62) 0%,
+      rgba(32, 28, 24, 0.34) 44%,
+      rgba(32, 28, 24, 0.1) 72%,
+      rgba(32, 28, 24, 0) 90%
+    ) !important;
+}
+html[data-theme='dark'] [data-hero-video] {
+  opacity: 0.16 !important;
+  filter: blur(1px) saturate(150%) brightness(0.5) !important;
+}
+html[data-theme='dark'] [data-yc-footer] a[data-appbadge] {
+  background: #f7f3ec !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #201c18 !important;
+}
+html[data-theme='dark'] [data-yc-footer] a[data-appbadge]:hover {
+  background: #ffffff !important;
+  border-color: rgba(37, 123, 237, 0.55) !important;
+  color: #201c18 !important;
+}
+html[data-theme='dark'] [data-yc-footer] a[data-star] {
+  background: #f7f3ec !important;
+  color: #201c18 !important;
+  box-shadow: none !important;
+}
+html[data-theme='dark'] [data-yc-footer] a[data-star]:hover {
+  background: #ffffff !important;
+}
+html[data-theme='dark'] [data-yc-footer] a[data-star] > span:last-child {
+  color: #6b6155 !important;
+  border-left-color: rgba(0, 0, 0, 0.14) !important;
+}
+html[data-theme='dark'] a[data-btn-invert] {
+  background: #f7f3ec !important;
+  color: #201c18 !important;
+  border-color: transparent !important;
+}
+html[data-theme='dark'] a[data-btn-invert]:hover {
+  background: #ffffff !important;
+}
+html[data-theme='dark'] [data-live-tag] {
+  color: var(--ink-muted) !important;
+}
+
+/* a11y — brand selection + keyboard focus ring, scoped to the marketing surface. */
+[data-yc-theme] ::selection {
+  background: rgba(37, 123, 237, 0.22);
+}
+html[data-theme='dark'] [data-yc-theme] ::selection {
+  background: rgba(143, 182, 245, 0.3);
+}
+[data-yc-theme] a:focus-visible,
+[data-yc-theme] button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 html,
