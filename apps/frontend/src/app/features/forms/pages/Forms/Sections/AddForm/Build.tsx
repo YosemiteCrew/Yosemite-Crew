@@ -1563,7 +1563,7 @@ type BuilderPaletteProps = {
 };
 
 const BuilderPalette: React.FC<BuilderPaletteProps> = ({ structureLocked, options, onAdd }) => (
-  <div className="flex w-[250px] flex-none flex-col gap-2 overflow-y-auto border-r border-[var(--hairline)] bg-[var(--screen-2)] p-4 scrollbar-hidden">
+  <div className="flex w-full flex-none flex-col gap-2 overflow-y-auto border-b border-[var(--hairline)] bg-[var(--screen-2)] p-4 scrollbar-hidden @4xl:w-[250px] @4xl:border-b-0 @4xl:border-r">
     <span className="px-1 pb-1 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
       Add a field
     </span>
@@ -1617,7 +1617,7 @@ const BuilderCanvas: React.FC<BuilderCanvasProps> = ({
   onDrop,
   onDragEnd,
 }) => (
-  <div className="flex min-w-0 flex-[1.3] flex-col gap-2.5 overflow-y-auto bg-[var(--inset)] p-5">
+  <div className="flex min-h-[280px] min-w-0 flex-[1.3] flex-col gap-2.5 overflow-y-auto bg-[var(--inset)] p-5 @4xl:min-h-0">
     {schema.length === 0 && (
       <p className="text-[12.5px] text-[var(--ink-faint)]">
         No fields yet. Add a field from the palette to start building.
@@ -1682,7 +1682,7 @@ const BuilderSettingsPanel: React.FC<BuilderSettingsPanelProps> = ({
   serviceOptions,
   onServicesChange,
 }) => (
-  <div className="flex w-[320px] max-w-[320px] flex-none flex-col gap-3.5 overflow-y-auto border-l border-[var(--hairline)] p-5 scrollbar-hidden">
+  <div className="flex w-full max-w-full flex-none flex-col gap-3.5 overflow-y-auto border-t border-[var(--hairline)] p-5 scrollbar-hidden @4xl:w-[320px] @4xl:max-w-[320px] @4xl:border-t-0 @4xl:border-l">
     <span className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[var(--ink-faint)]">
       Field settings
     </span>
@@ -1978,7 +1978,10 @@ const Build = ({ formData, setFormData, serviceOptions, ref }: BuildProps) => {
 
   return (
     <StructureLockContext.Provider value={structureLocked}>
-      <div ref={builderRef} className="flex h-full min-h-0 w-full flex-1 overflow-hidden">
+      <div
+        ref={builderRef}
+        className="@container flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto scrollbar-hidden @4xl:flex-row @4xl:overflow-hidden"
+      >
         {/* LEFT · field palette */}
         <BuilderPalette
           structureLocked={structureLocked}

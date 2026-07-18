@@ -146,6 +146,29 @@ describe('LabelDropdown', () => {
     expect(screen.queryByText('Canine')).not.toBeInTheDocument();
   });
 
+  it('updates the display on click even when the controlled default is never fed back', () => {
+    // Regression: a controlled consumer passes defaultOption but does not echo the
+    // chosen value back into it. Before the fix the display stayed pinned to the
+    // initial defaultOption; a user click must always move the label.
+    const onSelect = jest.fn();
+    render(
+      <LabelDropdown
+        placeholder="Species"
+        options={options}
+        defaultOption="dog"
+        onSelect={onSelect}
+      />
+    );
+
+    expect(screen.getByText('Canine')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Species/i }));
+    fireEvent.click(screen.getByText('Feline'));
+
+    expect(onSelect).toHaveBeenCalledWith({ label: 'Feline', value: 'cat' });
+    expect(screen.getByText('Feline')).toBeInTheDocument();
+    expect(screen.queryByText('Canine')).not.toBeInTheDocument();
+  });
+
   it('keeps portaled options inside terminology locks', () => {
     render(
       <div data-terminology-lock="true">
